@@ -94,6 +94,7 @@ export async function bootstrapWorkspaceForUser(user: BootstrapUser) {
         id: workspaceId,
         name: workspaceName,
         slug: workspaceSlug,
+        contactEmail: user.email,
         createdAt: now,
         updatedAt: now,
       });

@@ -1,4 +1,14 @@
-import { boolean, index, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  boolean,
+  check,
+  index,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
 import { user } from "@/lib/db/schema/auth";
 
@@ -6,6 +16,11 @@ export const workspaceMemberRoleEnum = pgEnum("workspace_member_role", [
   "owner",
   "member",
 ]);
+
+export const workspaceAiTonePreferenceEnum = pgEnum(
+  "workspace_ai_tone_preference",
+  ["balanced", "warm", "direct", "formal"],
+);
 
 export const profiles = pgTable("profiles", {
   userId: text("user_id")
@@ -28,10 +43,23 @@ export const workspaces = pgTable(
     id: text("id").primaryKey(),
     name: text("name").notNull(),
     slug: text("slug").notNull(),
+    shortDescription: text("short_description"),
+    contactEmail: text("contact_email"),
+    logoStoragePath: text("logo_storage_path"),
+    logoContentType: text("logo_content_type"),
     publicInquiryEnabled: boolean("public_inquiry_enabled")
       .notNull()
       .default(true),
     inquiryHeadline: text("inquiry_headline"),
+    defaultEmailSignature: text("default_email_signature"),
+    defaultQuoteNotes: text("default_quote_notes"),
+    aiTonePreference: workspaceAiTonePreferenceEnum("ai_tone_preference")
+      .notNull()
+      .default("balanced"),
+    notifyOnNewInquiry: boolean("notify_on_new_inquiry")
+      .notNull()
+      .default(true),
+    notifyOnQuoteSent: boolean("notify_on_quote_sent").notNull().default(true),
     defaultCurrency: text("default_currency").notNull().default("USD"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -43,6 +71,7 @@ export const workspaces = pgTable(
   (table) => [
     uniqueIndex("workspaces_slug_unique").on(table.slug),
     index("workspaces_created_at_idx").on(table.createdAt),
+    check("workspaces_slug_format", sql`${table.slug} ~ '^[a-z0-9-]+$'`),
   ],
 );
 

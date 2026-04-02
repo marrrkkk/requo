@@ -43,6 +43,13 @@
       "when": 1775165193982,
       "tag": "0005_wealthy_norman_osborn",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775166623305,
+      "tag": "0006_lazy_purple_man",
+      "breakpoints": true
     }
   ]
 }
