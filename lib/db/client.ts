@@ -18,6 +18,7 @@ const connection =
   });
 
 export const db = globalForDb.db ?? drizzle(connection, { schema });
+export const dbConnection = connection;
 
 if (env.NODE_ENV !== "production") {
   globalForDb.connection = connection;

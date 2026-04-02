@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import { defineConfig } from "drizzle-kit";
 
 const url = process.env.DATABASE_DIRECT_URL ?? process.env.DATABASE_URL;
