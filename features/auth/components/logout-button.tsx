@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
@@ -7,7 +8,16 @@ import { useTransition } from "react";
 import { authClient } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 
-export function LogoutButton() {
+type LogoutButtonProps = Pick<
+  ComponentProps<typeof Button>,
+  "className" | "size" | "variant"
+>;
+
+export function LogoutButton({
+  className,
+  size = "default",
+  variant = "outline",
+}: LogoutButtonProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -26,10 +36,12 @@ export function LogoutButton() {
 
   return (
     <Button
+      className={className}
       disabled={isPending}
       onClick={handleLogout}
+      size={size}
       type="button"
-      variant="outline"
+      variant={variant}
     >
       <LogOut data-icon="inline-start" />
       {isPending ? "Signing out..." : "Sign out"}
