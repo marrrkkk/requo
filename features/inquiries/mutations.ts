@@ -1,13 +1,21 @@
 import "server-only";
 
-import { activityLogs, inquiries, inquiryAttachments } from "@/lib/db/schema";
 import { db } from "@/lib/db/client";
+import {
+  activityLogs,
+  inquiries,
+  inquiryAttachments,
+  inquiryNotes,
+} from "@/lib/db/schema";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   publicInquiryAttachmentBucket,
   type PublicInquirySubmissionInput,
 } from "@/features/inquiries/schemas";
+import type { InquiryStatus } from "@/features/inquiries/types";
+import { getInquiryStatusLabel } from "@/features/inquiries/utils";
 import type { PublicInquiryWorkspace } from "@/features/inquiries/types";
+import { and, eq } from "drizzle-orm";
 
 type CreatePublicInquirySubmissionInput = {
   workspace: PublicInquiryWorkspace;
@@ -155,4 +163,133 @@ export async function createPublicInquirySubmission({
     inquiryId,
     attachmentName: preparedAttachment?.fileName ?? null,
   };
+}
+
+type AddInquiryNoteForWorkspaceInput = {
+  workspaceId: string;
+  inquiryId: string;
+  authorUserId: string;
+  body: string;
+};
+
+export async function addInquiryNoteForWorkspace({
+  workspaceId,
+  inquiryId,
+  authorUserId,
+  body,
+}: AddInquiryNoteForWorkspaceInput) {
+  const noteId = createId("note");
+  const activityId = createId("act");
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [inquiry] = await tx
+      .select({ id: inquiries.id })
+      .from(inquiries)
+      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.workspaceId, workspaceId)))
+      .limit(1);
+
+    if (!inquiry) {
+      return null;
+    }
+
+    await tx.insert(inquiryNotes).values({
+      id: noteId,
+      workspaceId,
+      inquiryId,
+      authorUserId,
+      body,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await tx.insert(activityLogs).values({
+      id: activityId,
+      workspaceId,
+      inquiryId,
+      actorUserId: authorUserId,
+      type: "inquiry.note_added",
+      summary: "Internal note added.",
+      metadata: {
+        noteId,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      noteId,
+    };
+  });
+}
+
+type ChangeInquiryStatusForWorkspaceInput = {
+  workspaceId: string;
+  inquiryId: string;
+  actorUserId: string;
+  nextStatus: InquiryStatus;
+};
+
+export async function changeInquiryStatusForWorkspace({
+  workspaceId,
+  inquiryId,
+  actorUserId,
+  nextStatus,
+}: ChangeInquiryStatusForWorkspaceInput) {
+  const activityId = createId("act");
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [existingInquiry] = await tx
+      .select({
+        id: inquiries.id,
+        status: inquiries.status,
+      })
+      .from(inquiries)
+      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.workspaceId, workspaceId)))
+      .limit(1);
+
+    if (!existingInquiry) {
+      return null;
+    }
+
+    if (existingInquiry.status === nextStatus) {
+      return {
+        changed: false,
+        previousStatus: existingInquiry.status,
+        nextStatus,
+      };
+    }
+
+    await tx
+      .update(inquiries)
+      .set({
+        status: nextStatus,
+        updatedAt: now,
+      })
+      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.workspaceId, workspaceId)));
+
+    await tx.insert(activityLogs).values({
+      id: activityId,
+      workspaceId,
+      inquiryId,
+      actorUserId,
+      type: "inquiry.status_changed",
+      summary: `Inquiry moved from ${getInquiryStatusLabel(
+        existingInquiry.status,
+      )} to ${getInquiryStatusLabel(nextStatus)}.`,
+      metadata: {
+        previousStatus: existingInquiry.status,
+        nextStatus,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      changed: true,
+      previousStatus: existingInquiry.status,
+      nextStatus,
+    };
+  });
 }

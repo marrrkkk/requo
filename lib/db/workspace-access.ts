@@ -2,6 +2,7 @@ import "server-only";
 
 import { eq, sql } from "drizzle-orm";
 
+import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
 import { workspaceMembers, workspaces } from "@/lib/db/schema";
 
@@ -62,4 +63,27 @@ export async function requireWorkspaceContextForUser(userId: string) {
   }
 
   return context;
+}
+
+export async function requireCurrentWorkspaceContext() {
+  const user = await requireUser();
+  const workspaceContext = await requireWorkspaceContextForUser(user.id);
+
+  return {
+    user,
+    workspaceContext,
+  };
+}
+
+export async function requireOwnerWorkspaceContext() {
+  const { user, workspaceContext } = await requireCurrentWorkspaceContext();
+
+  if (workspaceContext.role !== "owner") {
+    throw new Error("The current user does not have owner access.");
+  }
+
+  return {
+    user,
+    workspaceContext,
+  };
 }

@@ -1,11 +1,30 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
+import { requireOwnerWorkspaceContext } from "@/lib/db/workspace-access";
 import { env } from "@/lib/env";
 import { sendPublicInquiryNotificationEmail } from "@/lib/resend/client";
-import { createPublicInquirySubmission } from "@/features/inquiries/mutations";
-import { getPublicInquiryWorkspaceBySlug, getWorkspaceOwnerNotificationEmails } from "@/features/inquiries/queries";
-import { publicInquirySchema } from "@/features/inquiries/schemas";
-import type { PublicInquiryFormState } from "@/features/inquiries/types";
+import {
+  addInquiryNoteForWorkspace,
+  changeInquiryStatusForWorkspace,
+  createPublicInquirySubmission,
+} from "@/features/inquiries/mutations";
+import {
+  getPublicInquiryWorkspaceBySlug,
+  getWorkspaceOwnerNotificationEmails,
+} from "@/features/inquiries/queries";
+import {
+  inquiryNoteSchema,
+  inquiryStatusChangeSchema,
+  publicInquirySchema,
+} from "@/features/inquiries/schemas";
+import type {
+  InquiryNoteActionState,
+  InquiryStatusActionState,
+  PublicInquiryFormState,
+} from "@/features/inquiries/types";
+import { getInquiryStatusLabel } from "@/features/inquiries/utils";
 
 function getTextValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -96,6 +115,106 @@ export async function submitPublicInquiryAction(
 
     return {
       error: "We couldn't submit your inquiry right now. Please try again.",
+    };
+  }
+}
+
+export async function addInquiryNoteAction(
+  inquiryId: string,
+  _prevState: InquiryNoteActionState,
+  formData: FormData,
+): Promise<InquiryNoteActionState> {
+  const { user, workspaceContext } = await requireOwnerWorkspaceContext();
+
+  const validationResult = inquiryNoteSchema.safeParse({
+    body: formData.get("body"),
+  });
+
+  if (!validationResult.success) {
+    return {
+      error: "Check the note and try again.",
+      fieldErrors: validationResult.error.flatten().fieldErrors,
+    };
+  }
+
+  try {
+    const result = await addInquiryNoteForWorkspace({
+      workspaceId: workspaceContext.workspace.id,
+      inquiryId,
+      authorUserId: user.id,
+      body: validationResult.data.body,
+    });
+
+    if (!result) {
+      return {
+        error: "That inquiry could not be found.",
+      };
+    }
+
+    revalidatePath("/dashboard/inquiries");
+    revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+
+    return {
+      success: "Internal note added.",
+    };
+  } catch (error) {
+    console.error("Failed to add inquiry note.", error);
+
+    return {
+      error: "We couldn't save that note right now.",
+    };
+  }
+}
+
+export async function changeInquiryStatusAction(
+  inquiryId: string,
+  _prevState: InquiryStatusActionState,
+  formData: FormData,
+): Promise<InquiryStatusActionState> {
+  const { user, workspaceContext } = await requireOwnerWorkspaceContext();
+
+  const validationResult = inquiryStatusChangeSchema.safeParse({
+    status: formData.get("status"),
+  });
+
+  if (!validationResult.success) {
+    return {
+      error: "Choose a valid status.",
+      fieldErrors: validationResult.error.flatten().fieldErrors,
+    };
+  }
+
+  try {
+    const result = await changeInquiryStatusForWorkspace({
+      workspaceId: workspaceContext.workspace.id,
+      inquiryId,
+      actorUserId: user.id,
+      nextStatus: validationResult.data.status,
+    });
+
+    if (!result) {
+      return {
+        error: "That inquiry could not be found.",
+      };
+    }
+
+    revalidatePath("/dashboard/inquiries");
+    revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+
+    if (!result.changed) {
+      return {
+        success: `Inquiry is already ${getInquiryStatusLabel(result.nextStatus)}.`,
+      };
+    }
+
+    return {
+      success: `Inquiry moved to ${getInquiryStatusLabel(result.nextStatus)}.`,
+    };
+  } catch (error) {
+    console.error("Failed to change inquiry status.", error);
+
+    return {
+      error: "We couldn't update the inquiry status right now.",
     };
   }
 }
