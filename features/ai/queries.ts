@@ -27,7 +27,12 @@ export async function getInquiryAssistantContextForWorkspace({
         id: workspaces.id,
         name: workspaces.name,
         slug: workspaces.slug,
+        shortDescription: workspaces.shortDescription,
+        contactEmail: workspaces.contactEmail,
         defaultCurrency: workspaces.defaultCurrency,
+        defaultEmailSignature: workspaces.defaultEmailSignature,
+        defaultQuoteNotes: workspaces.defaultQuoteNotes,
+        aiTonePreference: workspaces.aiTonePreference,
         inquiryHeadline: workspaces.inquiryHeadline,
         publicInquiryEnabled: workspaces.publicInquiryEnabled,
       })

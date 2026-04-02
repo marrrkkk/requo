@@ -18,7 +18,12 @@ export type InquiryAssistantContext = {
     id: string;
     name: string;
     slug: string;
+    shortDescription: string | null;
+    contactEmail: string | null;
     defaultCurrency: string;
+    defaultEmailSignature: string | null;
+    defaultQuoteNotes: string | null;
+    aiTonePreference: "balanced" | "warm" | "direct" | "formal";
     inquiryHeadline: string | null;
     publicInquiryEnabled: boolean;
   };
