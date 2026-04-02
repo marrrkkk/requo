@@ -36,6 +36,13 @@
       "when": 1775164179536,
       "tag": "0004_dashing_shatterstar",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775165193982,
+      "tag": "0005_wealthy_norman_osborn",
+      "breakpoints": true
     }
   ]
 }

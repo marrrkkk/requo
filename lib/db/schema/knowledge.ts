@@ -33,6 +33,10 @@ export const knowledgeFiles = pgTable(
   },
   (table) => [
     index("knowledge_files_workspace_id_idx").on(table.workspaceId),
+    index("knowledge_files_workspace_created_at_idx").on(
+      table.workspaceId,
+      table.createdAt,
+    ),
     uniqueIndex("knowledge_files_workspace_storage_path_unique").on(
       table.workspaceId,
       table.storagePath,
