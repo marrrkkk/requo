@@ -1,0 +1,39 @@
+"use client";
+
+import { useActionState } from "react";
+import { Trash2 } from "lucide-react";
+
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import type { KnowledgeFaqDeleteActionState } from "@/features/knowledge/types";
+
+type KnowledgeFaqDeleteButtonProps = {
+  action: (
+    state: KnowledgeFaqDeleteActionState,
+    formData: FormData,
+  ) => Promise<KnowledgeFaqDeleteActionState>;
+};
+
+const initialState: KnowledgeFaqDeleteActionState = {};
+
+export function KnowledgeFaqDeleteButton({
+  action,
+}: KnowledgeFaqDeleteButtonProps) {
+  const [state, formAction, isPending] = useActionState(action, initialState);
+
+  return (
+    <form action={formAction} className="flex flex-col gap-3">
+      {state.error ? (
+        <Alert variant="destructive">
+          <AlertTitle>We could not delete the FAQ.</AlertTitle>
+          <AlertDescription>{state.error}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <Button disabled={isPending} type="submit" variant="outline">
+        <Trash2 data-icon="inline-start" />
+        {isPending ? "Deleting..." : "Delete"}
+      </Button>
+    </form>
+  );
+}
