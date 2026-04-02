@@ -1,10 +1,10 @@
 import "server-only";
 
-import { eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 
 import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
-import { workspaceMembers, workspaces } from "@/lib/db/schema";
+import { user, workspaceMembers, workspaces } from "@/lib/db/schema";
 
 export type WorkspaceContext = {
   membershipId: string;
@@ -86,4 +86,38 @@ export async function requireOwnerWorkspaceContext() {
     user,
     workspaceContext,
   };
+}
+
+export async function getWorkspaceOwnerEmails(workspaceId: string) {
+  const rows = await db
+    .select({
+      email: user.email,
+    })
+    .from(workspaceMembers)
+    .innerJoin(user, eq(workspaceMembers.userId, user.id))
+    .where(
+      and(
+        eq(workspaceMembers.workspaceId, workspaceId),
+        eq(workspaceMembers.role, "owner"),
+      ),
+    )
+    .orderBy(asc(user.email));
+
+  const dedupedEmails = new Map<string, string>();
+
+  for (const row of rows) {
+    const email = row.email.trim();
+
+    if (!email) {
+      continue;
+    }
+
+    const key = email.toLowerCase();
+
+    if (!dedupedEmails.has(key)) {
+      dedupedEmails.set(key, email);
+    }
+  }
+
+  return Array.from(dedupedEmails.values());
 }
