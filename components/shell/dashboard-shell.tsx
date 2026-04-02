@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 
 import { LogoutButton } from "@/features/auth/components/logout-button";
 import type { AuthUser } from "@/lib/auth/session";
+import type { WorkspaceContext } from "@/lib/db/workspace-access";
 import { BrandMark } from "@/components/shared/brand-mark";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,9 +27,14 @@ const navigation = [
 type DashboardShellProps = {
   children: ReactNode;
   user: AuthUser;
+  workspace: WorkspaceContext["workspace"];
 };
 
-export function DashboardShell({ children, user }: DashboardShellProps) {
+export function DashboardShell({
+  children,
+  user,
+  workspace,
+}: DashboardShellProps) {
   return (
     <div className="page-wrap py-6 lg:py-8">
       <div className="grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
@@ -36,8 +42,8 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
           <CardHeader className="gap-6">
             <BrandMark />
             <div className="space-y-3">
-              <span className="eyebrow">Dashboard scaffold</span>
-              <CardTitle className="text-2xl">QuoteFlow workspace</CardTitle>
+              <span className="eyebrow">{workspace.slug}</span>
+              <CardTitle className="text-2xl">{workspace.name}</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
@@ -57,6 +63,9 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
             <div className="flex flex-col gap-1 text-sm">
               <p className="font-medium text-foreground">{user.name}</p>
               <p className="truncate text-muted-foreground">{user.email}</p>
+              <p className="text-muted-foreground">
+                Currency: {workspace.defaultCurrency}
+              </p>
             </div>
             <LogoutButton />
           </CardFooter>

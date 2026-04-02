@@ -1,4 +1,14 @@
-import { index, integer, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  check,
+  index,
+  integer,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
 import { inquiries } from "@/lib/db/schema/inquiries";
 import { workspaces } from "@/lib/db/schema/workspaces";
@@ -43,6 +53,16 @@ export const quotes = pgTable(
   (table) => [
     index("quotes_workspace_id_idx").on(table.workspaceId),
     index("quotes_workspace_status_idx").on(table.workspaceId, table.status),
+    index("quotes_workspace_created_at_idx").on(table.workspaceId, table.createdAt),
+    index("quotes_inquiry_id_idx").on(table.inquiryId),
+    uniqueIndex("quotes_workspace_quote_number_unique").on(
+      table.workspaceId,
+      table.quoteNumber,
+    ),
+    check(
+      "quotes_totals_nonnegative",
+      sql`${table.subtotalInCents} >= 0 and ${table.taxInCents} >= 0 and ${table.totalInCents} >= 0`,
+    ),
   ],
 );
 
@@ -68,5 +88,16 @@ export const quoteItems = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [index("quote_items_quote_id_idx").on(table.quoteId)],
+  (table) => [
+    index("quote_items_workspace_id_idx").on(table.workspaceId),
+    index("quote_items_quote_id_idx").on(table.quoteId),
+    uniqueIndex("quote_items_quote_position_unique").on(
+      table.quoteId,
+      table.position,
+    ),
+    check(
+      "quote_items_values_valid",
+      sql`${table.quantity} > 0 and ${table.unitPriceInCents} >= 0 and ${table.lineTotalInCents} >= 0 and ${table.position} >= 0`,
+    ),
+  ],
 );

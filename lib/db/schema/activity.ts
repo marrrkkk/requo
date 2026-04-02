@@ -36,6 +36,13 @@ export const activityLogs = pgTable(
   },
   (table) => [
     index("activity_logs_workspace_id_idx").on(table.workspaceId),
-    index("activity_logs_type_idx").on(table.type),
+    index("activity_logs_workspace_created_at_idx").on(
+      table.workspaceId,
+      table.createdAt,
+    ),
+    index("activity_logs_workspace_type_idx").on(table.workspaceId, table.type),
+    index("activity_logs_inquiry_id_idx").on(table.inquiryId),
+    index("activity_logs_quote_id_idx").on(table.quoteId),
+    index("activity_logs_actor_user_id_idx").on(table.actorUserId),
   ],
 );

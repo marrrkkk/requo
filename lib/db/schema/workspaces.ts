@@ -40,7 +40,10 @@ export const workspaces = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [uniqueIndex("workspaces_slug_unique").on(table.slug)],
+  (table) => [
+    uniqueIndex("workspaces_slug_unique").on(table.slug),
+    index("workspaces_created_at_idx").on(table.createdAt),
+  ],
 );
 
 export const workspaceMembers = pgTable(
@@ -67,5 +70,6 @@ export const workspaceMembers = pgTable(
       table.userId,
     ),
     index("workspace_members_user_id_idx").on(table.userId),
+    index("workspace_members_workspace_role_idx").on(table.workspaceId, table.role),
   ],
 );

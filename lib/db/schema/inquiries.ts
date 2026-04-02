@@ -1,4 +1,14 @@
-import { boolean, index, integer, pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  boolean,
+  check,
+  index,
+  integer,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 import { user } from "@/lib/db/schema/auth";
 import { workspaces } from "@/lib/db/schema/workspaces";
@@ -42,6 +52,10 @@ export const inquiries = pgTable(
   (table) => [
     index("inquiries_workspace_id_idx").on(table.workspaceId),
     index("inquiries_workspace_status_idx").on(table.workspaceId, table.status),
+    index("inquiries_workspace_submitted_at_idx").on(
+      table.workspaceId,
+      table.submittedAt,
+    ),
   ],
 );
 
@@ -66,7 +80,18 @@ export const inquiryAttachments = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [index("inquiry_attachments_inquiry_id_idx").on(table.inquiryId)],
+  (table) => [
+    index("inquiry_attachments_workspace_id_idx").on(table.workspaceId),
+    index("inquiry_attachments_inquiry_id_idx").on(table.inquiryId),
+    index("inquiry_attachments_workspace_inquiry_idx").on(
+      table.workspaceId,
+      table.inquiryId,
+    ),
+    check(
+      "inquiry_attachments_file_size_nonnegative",
+      sql`${table.fileSize} >= 0`,
+    ),
+  ],
 );
 
 export const inquiryNotes = pgTable(
@@ -90,5 +115,13 @@ export const inquiryNotes = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [index("inquiry_notes_inquiry_id_idx").on(table.inquiryId)],
+  (table) => [
+    index("inquiry_notes_workspace_id_idx").on(table.workspaceId),
+    index("inquiry_notes_inquiry_id_idx").on(table.inquiryId),
+    index("inquiry_notes_workspace_inquiry_idx").on(
+      table.workspaceId,
+      table.inquiryId,
+    ),
+    index("inquiry_notes_author_user_id_idx").on(table.authorUserId),
+  ],
 );
