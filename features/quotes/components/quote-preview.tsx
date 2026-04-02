@@ -1,0 +1,188 @@
+import { cn } from "@/lib/utils";
+import { formatQuoteDate, formatQuoteMoney } from "@/features/quotes/utils";
+
+type QuotePreviewItem = {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPriceInCents: number;
+  lineTotalInCents: number;
+};
+
+type QuotePreviewProps = {
+  workspaceName: string;
+  quoteNumber: string;
+  title: string;
+  customerName: string;
+  customerEmail: string;
+  currency: string;
+  validUntil: string;
+  notes?: string | null;
+  items: QuotePreviewItem[];
+  subtotalInCents: number;
+  discountInCents: number;
+  totalInCents: number;
+  className?: string;
+};
+
+export function QuotePreview({
+  workspaceName,
+  quoteNumber,
+  title,
+  customerName,
+  customerEmail,
+  currency,
+  validUntil,
+  notes,
+  items,
+  subtotalInCents,
+  discountInCents,
+  totalInCents,
+  className,
+}: QuotePreviewProps) {
+  return (
+    <article
+      className={cn(
+        "rounded-[1.7rem] border bg-background/90 p-5 shadow-sm",
+        className,
+      )}
+    >
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4 border-b pb-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex flex-col gap-1">
+              <span className="eyebrow">Quote preview</span>
+              <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance">
+                {title}
+              </h2>
+              <p className="text-sm text-muted-foreground">{workspaceName}</p>
+            </div>
+            <div className="rounded-3xl border bg-muted/35 px-4 py-3 text-sm">
+              <p className="font-medium text-foreground">{quoteNumber}</p>
+              <p className="mt-1 text-muted-foreground">
+                Valid until {formatQuoteDate(validUntil)}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-3xl border bg-background/80 p-4">
+              <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                Prepared for
+              </p>
+              <p className="mt-2 font-medium text-foreground">{customerName}</p>
+              <p className="text-sm text-muted-foreground">{customerEmail}</p>
+            </div>
+
+            <div className="rounded-3xl border bg-background/80 p-4">
+              <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                Summary
+              </p>
+              <p className="mt-2 font-medium text-foreground">
+                {items.length} {items.length === 1 ? "line item" : "line items"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Total {formatQuoteMoney(totalInCents, currency)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-3xl border">
+          <table className="w-full border-collapse text-sm">
+            <thead className="bg-muted/35 text-left">
+              <tr>
+                <th className="px-4 py-3 font-medium">Item</th>
+                <th className="px-4 py-3 text-center font-medium">Qty</th>
+                <th className="px-4 py-3 text-right font-medium">Unit price</th>
+                <th className="px-4 py-3 text-right font-medium">Line total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.length ? (
+                items.map((item) => (
+                  <tr className="border-t" key={item.id}>
+                    <td className="px-4 py-3 align-top text-foreground">
+                      {item.description || "Untitled item"}
+                    </td>
+                    <td className="px-4 py-3 text-center text-muted-foreground">
+                      {item.quantity}
+                    </td>
+                    <td className="px-4 py-3 text-right text-muted-foreground">
+                      {formatQuoteMoney(item.unitPriceInCents, currency)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium text-foreground">
+                      {formatQuoteMoney(item.lineTotalInCents, currency)}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    className="px-4 py-6 text-center text-muted-foreground"
+                    colSpan={4}
+                  >
+                    Add line items to preview the quote breakdown.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="ml-auto flex w-full max-w-sm flex-col gap-3 rounded-3xl border bg-muted/20 p-4">
+          <SummaryRow
+            label="Subtotal"
+            value={formatQuoteMoney(subtotalInCents, currency)}
+          />
+          <SummaryRow
+            label="Discount"
+            value={`-${formatQuoteMoney(discountInCents, currency)}`}
+          />
+          <div className="border-t pt-3">
+            <SummaryRow
+              label="Total"
+              value={formatQuoteMoney(totalInCents, currency)}
+              strong
+            />
+          </div>
+        </div>
+
+        {notes ? (
+          <div className="rounded-3xl border bg-background/80 p-4">
+            <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
+              Notes
+            </p>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground">
+              {notes}
+            </p>
+          </div>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function SummaryRow({
+  label,
+  value,
+  strong = false,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span
+        className={cn(
+          "text-sm text-foreground",
+          strong && "font-semibold text-base",
+        )}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
