@@ -15,15 +15,16 @@ export const quoteStatusLabels: Record<QuoteStatus, string> = {
   expired: "Expired",
 };
 
-export const quoteStatusVariants: Record<
-  QuoteStatus,
-  "default" | "secondary" | "destructive" | "outline" | "ghost" | "link"
-> = {
-  draft: "outline",
-  sent: "secondary",
-  accepted: "default",
-  rejected: "destructive",
-  expired: "outline",
+export const quoteStatusClassNames: Record<QuoteStatus, string> = {
+  draft:
+    "border-indigo-200/80 bg-indigo-50 text-indigo-700 dark:border-indigo-500/25 dark:bg-indigo-500/12 dark:text-indigo-200",
+  sent: "border-cyan-200/80 bg-cyan-50 text-cyan-700 dark:border-cyan-500/25 dark:bg-cyan-500/12 dark:text-cyan-200",
+  accepted:
+    "border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/12 dark:text-emerald-200",
+  rejected:
+    "border-red-200/80 bg-red-50 text-red-700 dark:border-red-500/25 dark:bg-red-500/12 dark:text-red-200",
+  expired:
+    "border-orange-200/80 bg-orange-50 text-orange-700 dark:border-orange-500/25 dark:bg-orange-500/12 dark:text-orange-200",
 };
 
 export const quoteStatusIcons = {

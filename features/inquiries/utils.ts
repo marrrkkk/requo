@@ -18,16 +18,16 @@ export const inquiryStatusLabels: Record<InquiryStatus, string> = {
   archived: "Archived",
 };
 
-export const inquiryStatusVariants: Record<
-  InquiryStatus,
-  "default" | "secondary" | "destructive" | "outline" | "ghost"
-> = {
-  new: "secondary",
-  quoted: "outline",
-  waiting: "ghost",
-  won: "default",
-  lost: "destructive",
-  archived: "outline",
+export const inquiryStatusClassNames: Record<InquiryStatus, string> = {
+  new: "border-sky-200/80 bg-sky-50 text-sky-700 dark:border-sky-500/25 dark:bg-sky-500/12 dark:text-sky-200",
+  quoted:
+    "border-violet-200/80 bg-violet-50 text-violet-700 dark:border-violet-500/25 dark:bg-violet-500/12 dark:text-violet-200",
+  waiting:
+    "border-amber-200/80 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/12 dark:text-amber-200",
+  won: "border-lime-200/80 bg-lime-50 text-lime-700 dark:border-lime-500/25 dark:bg-lime-500/12 dark:text-lime-200",
+  lost: "border-rose-200/80 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/12 dark:text-rose-200",
+  archived:
+    "border-slate-200/80 bg-slate-100 text-slate-700 dark:border-slate-500/25 dark:bg-slate-500/12 dark:text-slate-200",
 };
 
 export const inquiryStatusIcons = {

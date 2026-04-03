@@ -3,8 +3,8 @@ import { cn } from "@/lib/utils";
 import type { QuoteStatus } from "@/features/quotes/types";
 import {
   getQuoteStatusLabel,
+  quoteStatusClassNames,
   quoteStatusIcons,
-  quoteStatusVariants,
 } from "@/features/quotes/utils";
 
 type QuoteStatusBadgeProps = {
@@ -20,8 +20,12 @@ export function QuoteStatusBadge({
 
   return (
     <Badge
-      className={cn("shrink-0 rounded-full", className)}
-      variant={quoteStatusVariants[status]}
+      className={cn(
+        "shrink-0 rounded-full",
+        quoteStatusClassNames[status],
+        className,
+      )}
+      variant="secondary"
     >
       <Icon data-icon="inline-start" />
       {getQuoteStatusLabel(status)}
