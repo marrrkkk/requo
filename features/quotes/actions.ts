@@ -4,11 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import {
+  getValidationActionState,
+} from "@/lib/action-state";
+import {
   getWorkspaceMessagingSettings,
   getWorkspaceOwnerEmails,
-  requireOwnerWorkspaceContext,
+  getOwnerWorkspaceActionContext,
 } from "@/lib/db/workspace-access";
-import { env } from "@/lib/env";
+import { env, isResendConfigured } from "@/lib/env";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
 import {
   sendQuoteEmail,
@@ -80,7 +83,15 @@ export async function createQuoteAction(
 ): Promise<QuoteEditorActionState> {
   void prevState;
 
-  const { user, workspaceContext } = await requireOwnerWorkspaceContext();
+  const ownerAccess = await getOwnerWorkspaceActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, workspaceContext } = ownerAccess;
   const validationResult = quoteEditorSchema.safeParse({
     title: formData.get("title"),
     customerName: formData.get("customerName"),
@@ -92,12 +103,11 @@ export async function createQuoteAction(
   });
 
   if (!validationResult.success) {
-    return {
-      error: "Check the highlighted fields and try again.",
-      fieldErrors: mapQuoteEditorFieldErrors(
-        validationResult.error.flatten().fieldErrors,
-      ),
-    };
+    return getValidationActionState(
+      validationResult.error,
+      "Check the highlighted fields and try again.",
+      mapQuoteEditorFieldErrors,
+    );
   }
 
   try {
@@ -134,7 +144,15 @@ export async function updateQuoteAction(
 ): Promise<QuoteEditorActionState> {
   void prevState;
 
-  const { user, workspaceContext } = await requireOwnerWorkspaceContext();
+  const ownerAccess = await getOwnerWorkspaceActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, workspaceContext } = ownerAccess;
   const validationResult = quoteEditorSchema.safeParse({
     title: formData.get("title"),
     customerName: formData.get("customerName"),
@@ -146,12 +164,11 @@ export async function updateQuoteAction(
   });
 
   if (!validationResult.success) {
-    return {
-      error: "Check the highlighted fields and try again.",
-      fieldErrors: mapQuoteEditorFieldErrors(
-        validationResult.error.flatten().fieldErrors,
-      ),
-    };
+    return getValidationActionState(
+      validationResult.error,
+      "Check the highlighted fields and try again.",
+      mapQuoteEditorFieldErrors,
+    );
   }
 
   try {
@@ -195,16 +212,21 @@ export async function changeQuoteStatusAction(
 ): Promise<QuoteStatusActionState> {
   void prevState;
 
-  const { user, workspaceContext } = await requireOwnerWorkspaceContext();
+  const ownerAccess = await getOwnerWorkspaceActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, workspaceContext } = ownerAccess;
   const validationResult = quoteStatusChangeSchema.safeParse({
     status: formData.get("status"),
   });
 
   if (!validationResult.success) {
-    return {
-      error: "Choose a valid status.",
-      fieldErrors: validationResult.error.flatten().fieldErrors,
-    };
+    return getValidationActionState(validationResult.error, "Choose a valid status.");
   }
 
   try {
@@ -249,7 +271,15 @@ export async function sendQuoteAction(
   void prevState;
   void formData;
 
-  const { user, workspaceContext } = await requireOwnerWorkspaceContext();
+  const ownerAccess = await getOwnerWorkspaceActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, workspaceContext } = ownerAccess;
 
   try {
     const quote = await getQuoteDetailForWorkspace({
@@ -284,6 +314,12 @@ export async function sendQuoteAction(
       getPublicQuoteUrl(quote.publicToken),
       env.BETTER_AUTH_URL,
     ).toString();
+
+    if (!isResendConfigured) {
+      return {
+        error: "Quote email delivery is unavailable right now. Configure email and try again.",
+      };
+    }
 
     await sendQuoteEmail({
       quoteId: quote.id,
@@ -357,10 +393,7 @@ export async function sendQuoteAction(
     console.error("Failed to send quote email.", error);
 
     return {
-      error:
-        error instanceof Error
-          ? error.message
-          : "We couldn't send that quote right now.",
+      error: "We couldn't send that quote right now.",
     };
   }
 }
@@ -378,9 +411,7 @@ export async function respondToPublicQuoteAction(
   });
 
   if (!validationResult.success) {
-    return {
-      error: "Check your response and try again.",
-    };
+    return getValidationActionState(validationResult.error, "Check your response and try again.");
   }
 
   const allowed = await assertPublicActionRateLimit({

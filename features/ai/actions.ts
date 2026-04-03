@@ -1,17 +1,27 @@
 "use server";
 
 import type { AiAssistantActionState } from "@/features/ai/types";
+import { getValidationActionState } from "@/lib/action-state";
 import { getInquiryAssistantContextForWorkspace } from "@/features/ai/queries";
 import { aiAssistantRequestSchema } from "@/features/ai/schemas";
 import { generateInquiryAssistantResult } from "@/features/ai/service";
-import { requireOwnerWorkspaceContext } from "@/lib/db/workspace-access";
+import { getOwnerWorkspaceActionContext } from "@/lib/db/workspace-access";
 
 export async function generateInquiryAssistantAction(
   inquiryId: string,
   prevState: AiAssistantActionState,
   formData: FormData,
 ): Promise<AiAssistantActionState> {
-  const { workspaceContext } = await requireOwnerWorkspaceContext();
+  const ownerAccess = await getOwnerWorkspaceActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      ...prevState,
+      error: ownerAccess.error,
+    };
+  }
+
+  const { workspaceContext } = ownerAccess;
 
   const validationResult = aiAssistantRequestSchema.safeParse({
     intent: formData.get("intent"),
@@ -22,8 +32,7 @@ export async function generateInquiryAssistantAction(
   if (!validationResult.success) {
     return {
       ...prevState,
-      error: "Check the AI request and try again.",
-      fieldErrors: validationResult.error.flatten().fieldErrors,
+      ...getValidationActionState(validationResult.error, "Check the AI request and try again."),
     };
   }
 
@@ -53,8 +62,7 @@ export async function generateInquiryAssistantAction(
 
     return {
       ...prevState,
-      error:
-        "The assistant could not generate an answer right now. Check the OpenRouter configuration or try again.",
+      error: "The assistant could not generate an answer right now. Try again in a moment.",
     };
   }
 }

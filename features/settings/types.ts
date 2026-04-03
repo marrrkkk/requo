@@ -36,6 +36,7 @@ export type WorkspaceSettingsFieldName =
   | "defaultEmailSignature"
   | "defaultQuoteNotes"
   | "aiTonePreference"
+  | "defaultCurrency"
   | "logo";
 
 export type WorkspaceSettingsFieldErrors = Partial<

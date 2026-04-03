@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getFieldError } from "@/lib/action-state";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -38,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type {
   WorkspaceAiTonePreference,
@@ -47,6 +49,7 @@ import type {
 import {
   formatWorkspaceAiToneLabel,
   getWorkspacePublicInquiryUrl,
+  workspaceCurrencyOptions,
   workspaceLogoAccept,
 } from "@/features/settings/utils";
 
@@ -68,8 +71,6 @@ const aiToneOptions: WorkspaceAiTonePreference[] = [
   "direct",
   "formal",
 ];
-
-const currencyOptions = ["USD", "CAD", "EUR", "GBP", "AUD"] as const;
 
 export function WorkspaceSettingsForm({
   action,
@@ -93,6 +94,8 @@ export function WorkspaceSettingsForm({
   );
   const [defaultCurrency, setDefaultCurrency] = useState(settings.defaultCurrency);
   const hasStoredLogo = Boolean(settings.logoStoragePath && !removeLogo);
+  const aiToneError = getFieldError(state.fieldErrors, "aiTonePreference");
+  const defaultCurrencyError = getFieldError(state.fieldErrors, "defaultCurrency");
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
@@ -130,7 +133,7 @@ export function WorkspaceSettingsForm({
       <input name="aiTonePreference" type="hidden" value={aiTonePreference} />
       <input name="defaultCurrency" type="hidden" value={defaultCurrency} />
 
-      <Card className="bg-background/70">
+      <Card>
         <CardHeader className="gap-2">
           <CardTitle>Business profile</CardTitle>
           <CardDescription>Name, link, contact, and branding.</CardDescription>
@@ -311,7 +314,7 @@ export function WorkspaceSettingsForm({
         </CardContent>
       </Card>
 
-      <Card className="bg-background/70">
+      <Card>
         <CardHeader className="gap-2">
           <CardTitle>Inquiry page and messaging defaults</CardTitle>
           <CardDescription>Public form and writing defaults.</CardDescription>
@@ -352,7 +355,7 @@ export function WorkspaceSettingsForm({
           </Field>
 
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <Field>
+            <Field data-invalid={Boolean(aiToneError) || undefined}>
               <FieldLabel htmlFor="settings-ai-tone">AI tone preference</FieldLabel>
               <FieldContent>
                 <Select
@@ -374,10 +377,13 @@ export function WorkspaceSettingsForm({
                     </SelectGroup>
                   </SelectContent>
                 </Select>
+                <FieldError
+                  errors={aiToneError ? [{ message: aiToneError }] : undefined}
+                />
               </FieldContent>
             </Field>
 
-            <Field>
+            <Field data-invalid={Boolean(defaultCurrencyError) || undefined}>
               <FieldLabel htmlFor="settings-default-currency">
                 Default currency
               </FieldLabel>
@@ -391,7 +397,7 @@ export function WorkspaceSettingsForm({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      {currencyOptions.map((currency) => (
+                      {workspaceCurrencyOptions.map((currency) => (
                         <SelectItem key={currency} value={currency}>
                           {currency}
                         </SelectItem>
@@ -399,6 +405,13 @@ export function WorkspaceSettingsForm({
                     </SelectGroup>
                   </SelectContent>
                 </Select>
+                <FieldError
+                  errors={
+                    defaultCurrencyError
+                      ? [{ message: defaultCurrencyError }]
+                      : undefined
+                  }
+                />
               </FieldContent>
             </Field>
           </div>
@@ -457,7 +470,7 @@ export function WorkspaceSettingsForm({
         </CardContent>
       </Card>
 
-      <Card className="bg-background/70">
+      <Card>
         <CardHeader className="gap-2">
           <CardTitle>Notification preferences</CardTitle>
           <CardDescription>Lightweight email preferences.</CardDescription>
@@ -507,16 +520,15 @@ function ToggleCard({
   onCheckedChange: (nextValue: boolean) => void;
 }) {
   return (
-    <label className="flex items-start gap-3 rounded-[1.45rem] border bg-background/80 p-4">
-      <input
+    <label className="flex items-start gap-3 rounded-xl border border-border/80 bg-background px-4 py-4">
+      <Switch
         checked={checked}
-        className="mt-1 size-4 shrink-0 accent-current"
+        className="mt-1"
         disabled={disabled}
-        onChange={(event) => onCheckedChange(event.currentTarget.checked)}
-        type="checkbox"
+        onCheckedChange={onCheckedChange}
       />
       <div className="flex min-w-0 flex-1 gap-3">
-        <div className="flex size-10 items-center justify-center rounded-full border bg-secondary">
+        <div className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
           <Icon className="size-4" />
         </div>
         <div className="flex flex-col gap-1">

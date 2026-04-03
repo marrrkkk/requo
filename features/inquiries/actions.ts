@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 
+import { getValidationActionState } from "@/lib/action-state";
 import {
   getWorkspaceMessagingSettings,
-  requireOwnerWorkspaceContext,
+  getOwnerWorkspaceActionContext,
 } from "@/lib/db/workspace-access";
 import { env } from "@/lib/env";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
@@ -69,10 +70,7 @@ export async function submitPublicInquiryAction(
   });
 
   if (!validationResult.success) {
-    return {
-      error: "Check the highlighted fields and try again.",
-      fieldErrors: validationResult.error.flatten().fieldErrors,
-    };
+    return getValidationActionState(validationResult.error, "Check the highlighted fields and try again.");
   }
 
   const allowed = await assertPublicActionRateLimit({
@@ -144,17 +142,22 @@ export async function addInquiryNoteAction(
   _prevState: InquiryNoteActionState,
   formData: FormData,
 ): Promise<InquiryNoteActionState> {
-  const { user, workspaceContext } = await requireOwnerWorkspaceContext();
+  const ownerAccess = await getOwnerWorkspaceActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, workspaceContext } = ownerAccess;
 
   const validationResult = inquiryNoteSchema.safeParse({
     body: formData.get("body"),
   });
 
   if (!validationResult.success) {
-    return {
-      error: "Check the note and try again.",
-      fieldErrors: validationResult.error.flatten().fieldErrors,
-    };
+    return getValidationActionState(validationResult.error, "Check the note and try again.");
   }
 
   try {
@@ -191,17 +194,22 @@ export async function changeInquiryStatusAction(
   _prevState: InquiryStatusActionState,
   formData: FormData,
 ): Promise<InquiryStatusActionState> {
-  const { user, workspaceContext } = await requireOwnerWorkspaceContext();
+  const ownerAccess = await getOwnerWorkspaceActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, workspaceContext } = ownerAccess;
 
   const validationResult = inquiryStatusChangeSchema.safeParse({
     status: formData.get("status"),
   });
 
   if (!validationResult.success) {
-    return {
-      error: "Choose a valid status.",
-      fieldErrors: validationResult.error.flatten().fieldErrors,
-    };
+    return getValidationActionState(validationResult.error, "Choose a valid status.");
   }
 
   try {

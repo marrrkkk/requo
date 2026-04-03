@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireOwnerWorkspaceContext } from "@/lib/db/workspace-access";
+import {
+  getUserSafeErrorMessage,
+  getValidationActionState,
+} from "@/lib/action-state";
+import { getOwnerWorkspaceActionContext } from "@/lib/db/workspace-access";
 import {
   createKnowledgeFaqForWorkspace,
   deleteKnowledgeFaqForWorkspace,
@@ -38,17 +42,22 @@ export async function uploadKnowledgeFileAction(
 ): Promise<KnowledgeFileActionState> {
   void prevState;
 
-  const { user, workspaceContext } = await requireOwnerWorkspaceContext();
+  const ownerAccess = await getOwnerWorkspaceActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, workspaceContext } = ownerAccess;
   const validationResult = knowledgeFileUploadSchema.safeParse({
     title: formData.get("title"),
     file: formData.get("file"),
   });
 
   if (!validationResult.success) {
-    return {
-      error: "Check the highlighted fields and try again.",
-      fieldErrors: validationResult.error.flatten().fieldErrors,
-    };
+    return getValidationActionState(validationResult.error, "Check the highlighted fields and try again.");
   }
 
   try {
@@ -67,10 +76,10 @@ export async function uploadKnowledgeFileAction(
     console.error("Failed to upload knowledge file.", error);
 
     return {
-      error:
-        error instanceof Error
-          ? error.message
-          : "We couldn't upload that knowledge file right now.",
+      error: getUserSafeErrorMessage(
+        error,
+        "We couldn't upload that knowledge file right now.",
+      ),
     };
   }
 }
@@ -91,7 +100,15 @@ export async function deleteKnowledgeFileAction(
     };
   }
 
-  const { user, workspaceContext } = await requireOwnerWorkspaceContext();
+  const ownerAccess = await getOwnerWorkspaceActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, workspaceContext } = ownerAccess;
 
   try {
     const result = await deleteKnowledgeFileForWorkspace({
@@ -124,17 +141,22 @@ export async function createKnowledgeFaqAction(
 ): Promise<KnowledgeFaqActionState> {
   void prevState;
 
-  const { user, workspaceContext } = await requireOwnerWorkspaceContext();
+  const ownerAccess = await getOwnerWorkspaceActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, workspaceContext } = ownerAccess;
   const validationResult = knowledgeFaqSchema.safeParse({
     question: formData.get("question"),
     answer: formData.get("answer"),
   });
 
   if (!validationResult.success) {
-    return {
-      error: "Check the FAQ entry and try again.",
-      fieldErrors: validationResult.error.flatten().fieldErrors,
-    };
+    return getValidationActionState(validationResult.error, "Check the FAQ entry and try again.");
   }
 
   try {
@@ -173,17 +195,22 @@ export async function updateKnowledgeFaqAction(
     };
   }
 
-  const { user, workspaceContext } = await requireOwnerWorkspaceContext();
+  const ownerAccess = await getOwnerWorkspaceActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, workspaceContext } = ownerAccess;
   const validationResult = knowledgeFaqSchema.safeParse({
     question: formData.get("question"),
     answer: formData.get("answer"),
   });
 
   if (!validationResult.success) {
-    return {
-      error: "Check the FAQ entry and try again.",
-      fieldErrors: validationResult.error.flatten().fieldErrors,
-    };
+    return getValidationActionState(validationResult.error, "Check the FAQ entry and try again.");
   }
 
   try {
@@ -230,7 +257,15 @@ export async function deleteKnowledgeFaqAction(
     };
   }
 
-  const { user, workspaceContext } = await requireOwnerWorkspaceContext();
+  const ownerAccess = await getOwnerWorkspaceActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, workspaceContext } = ownerAccess;
 
   try {
     const result = await deleteKnowledgeFaqForWorkspace({

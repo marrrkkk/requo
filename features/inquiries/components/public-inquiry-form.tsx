@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { ArrowRight, CircleAlert, CircleCheckBig } from "lucide-react";
 
+import { getFieldError } from "@/lib/action-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +23,6 @@ import {
   publicInquiryAttachmentLabel,
 } from "@/features/inquiries/schemas";
 import type {
-  PublicInquiryFieldErrors,
   PublicInquiryFormState,
   PublicInquiryWorkspace,
 } from "@/features/inquiries/types";
@@ -36,13 +36,6 @@ type PublicInquiryFormProps = {
 };
 
 const initialState: PublicInquiryFormState = {};
-
-function getFieldError(
-  fieldErrors: PublicInquiryFieldErrors | undefined,
-  field: keyof PublicInquiryFieldErrors,
-) {
-  return fieldErrors?.[field]?.[0];
-}
 
 export function PublicInquiryForm({
   workspace,
@@ -74,7 +67,7 @@ export function PublicInquiryForm({
           </AlertDescription>
         </Alert>
 
-        <div className="rounded-[1.45rem] border bg-background/80 p-5">
+        <div className="rounded-xl border border-border/80 bg-background p-5">
           <div className="flex flex-col gap-3">
             <p className="text-sm leading-7 text-muted-foreground">
               Thanks. The business owner now has your inquiry in QuoteFlow.
@@ -156,7 +149,7 @@ export function PublicInquiryForm({
           </Field>
         </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-5 sm:grid-cols-2">
           <Field data-invalid={Boolean(customerPhoneError) || undefined}>
             <FieldLabel htmlFor="customerPhone">Phone number</FieldLabel>
             <FieldContent>

@@ -2,16 +2,25 @@
 
 import { revalidatePath } from "next/cache";
 
+import { getValidationActionState } from "@/lib/action-state";
 import { workspaceSettingsSchema } from "@/features/settings/schemas";
 import type { WorkspaceSettingsActionState } from "@/features/settings/types";
 import { updateWorkspaceSettings } from "@/features/settings/mutations";
-import { requireOwnerWorkspaceContext } from "@/lib/db/workspace-access";
+import { getOwnerWorkspaceActionContext } from "@/lib/db/workspace-access";
 
 export async function updateWorkspaceSettingsAction(
   _prevState: WorkspaceSettingsActionState,
   formData: FormData,
 ): Promise<WorkspaceSettingsActionState> {
-  const { user, workspaceContext } = await requireOwnerWorkspaceContext();
+  const ownerAccess = await getOwnerWorkspaceActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, workspaceContext } = ownerAccess;
 
   const validationResult = workspaceSettingsSchema.safeParse({
     name: formData.get("name"),
@@ -31,10 +40,7 @@ export async function updateWorkspaceSettingsAction(
   });
 
   if (!validationResult.success) {
-    return {
-      error: "Check the highlighted settings and try again.",
-      fieldErrors: validationResult.error.flatten().fieldErrors,
-    };
+    return getValidationActionState(validationResult.error, "Check the highlighted settings and try again.");
   }
 
   try {

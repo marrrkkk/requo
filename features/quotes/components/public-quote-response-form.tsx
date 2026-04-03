@@ -3,11 +3,13 @@
 import { useActionState } from "react";
 import { CheckCircle2, CircleSlash } from "lucide-react";
 
+import { getFieldError } from "@/lib/action-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldContent,
+  FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
@@ -27,6 +29,7 @@ export function PublicQuoteResponseForm({
   action,
 }: PublicQuoteResponseFormProps) {
   const [state, formAction, isPending] = useActionState(action, initialState);
+  const messageError = getFieldError(state.fieldErrors, "message");
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -44,7 +47,7 @@ export function PublicQuoteResponseForm({
         </Alert>
       ) : null}
 
-      <div className="rounded-3xl border bg-background/80 p-4">
+      <div className="rounded-xl border border-border/80 bg-background p-4">
         <p className="text-sm font-medium text-foreground">
           Respond to this quote
         </p>
@@ -60,15 +63,19 @@ export function PublicQuoteResponseForm({
             Message for the business
           </FieldLabel>
           <FieldContent>
-            <Textarea
-              id="public-quote-message"
-              name="message"
-              rows={4}
-              placeholder="Optional note about your decision or any next steps."
-              disabled={isPending}
-            />
-          </FieldContent>
-        </Field>
+          <Textarea
+            id="public-quote-message"
+            name="message"
+            rows={4}
+            placeholder="Optional note about your decision or any next steps."
+            aria-invalid={Boolean(messageError) || undefined}
+            disabled={isPending}
+          />
+          <FieldError
+            errors={messageError ? [{ message: messageError }] : undefined}
+          />
+        </FieldContent>
+      </Field>
       </FieldGroup>
 
       <div className="grid gap-3 sm:grid-cols-2">

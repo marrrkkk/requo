@@ -1,6 +1,7 @@
 import type { z } from "zod";
 
 import type { AuthFormState } from "@/features/auth/types";
+import { getFieldError, getValidationActionState } from "@/lib/action-state";
 
 export function getAuthErrorMessage(
   error: {
@@ -16,15 +17,13 @@ export function getValidationState(
   error: z.ZodError,
   message = "Check the highlighted fields and try again.",
 ): AuthFormState {
-  return {
-    error: message,
-    fieldErrors: error.flatten().fieldErrors,
-  };
+  return getValidationActionState<
+    NonNullable<AuthFormState["fieldErrors"]>,
+    AuthFormState
+  >(
+    error,
+    message,
+  );
 }
 
-export function getFieldError(
-  fieldErrors: AuthFormState["fieldErrors"],
-  field: string,
-) {
-  return fieldErrors?.[field]?.[0];
-}
+export { getFieldError };

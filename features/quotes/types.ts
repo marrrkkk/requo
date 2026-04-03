@@ -167,7 +167,12 @@ export type QuoteSendActionState = {
   success?: string;
 };
 
+export type PublicQuoteResponseFieldErrors = Partial<
+  Record<"response" | "message", string[] | undefined>
+>;
+
 export type PublicQuoteResponseActionState = {
   error?: string;
   success?: string;
+  fieldErrors?: PublicQuoteResponseFieldErrors;
 };
