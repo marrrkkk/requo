@@ -1,5 +1,5 @@
 export const demoOwnerEmail =
-  process.env.DEMO_OWNER_EMAIL ?? "demo@quoteflow.local";
+  process.env.DEMO_OWNER_EMAIL ?? "demo@relay.local";
 export const demoOwnerPassword =
   process.env.DEMO_OWNER_PASSWORD ?? "ChangeMe123456!";
 export const demoWorkspaceSlug =

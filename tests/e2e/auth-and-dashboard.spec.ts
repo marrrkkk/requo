@@ -24,7 +24,7 @@ test("owner can sign in, reach the dashboard overview, and sign out", async ({
   await signIn(page);
 
   await page
-    .getByRole("button", { name: "Morgan Lee demo@quoteflow.local" })
+    .getByRole("button", { name: "Morgan Lee demo@relay.local" })
     .click();
   await page.getByRole("menuitem", { name: "Sign out" }).click();
 

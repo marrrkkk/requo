@@ -33,7 +33,7 @@ type DemoWorkspace = {
 
 const demoConfig = {
   ownerName: getSeedValue("DEMO_OWNER_NAME", "Morgan Lee"),
-  ownerEmail: getSeedValue("DEMO_OWNER_EMAIL", "demo@quoteflow.local").toLowerCase(),
+  ownerEmail: getSeedValue("DEMO_OWNER_EMAIL", "demo@relay.local").toLowerCase(),
   ownerPassword: getSeedValue("DEMO_OWNER_PASSWORD", "ChangeMe123456!"),
   workspaceName: getSeedValue("DEMO_WORKSPACE_NAME", "BrightSide Print Studio"),
   workspaceSlug: getSeedValue(
@@ -944,7 +944,7 @@ async function seedWorkspaceData(demoUser: DemoUser, workspace: DemoWorkspace) {
       quoteId: null,
       actorUserId: demoUser.id,
       type: "workspace.demo_seeded",
-      summary: "Sample QuoteFlow MVP data refreshed for local setup.",
+      summary: "Sample Relay MVP data refreshed for local setup.",
       metadata: { source: "demo-seed" },
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -981,7 +981,7 @@ async function main() {
   ).toString();
 
   console.log("");
-  console.log("QuoteFlow demo data seeded.");
+  console.log("Relay demo data seeded.");
   console.log(`Workspace: ${workspace.name}`);
   console.log(`Workspace slug: ${workspace.slug}`);
   console.log(`Demo owner email: ${demoUser.email}`);
@@ -996,7 +996,7 @@ async function main() {
 
 main()
   .catch((error) => {
-    console.error("Failed to seed QuoteFlow demo data.");
+    console.error("Failed to seed Relay demo data.");
     console.error(error);
     process.exitCode = 1;
   })
