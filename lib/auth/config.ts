@@ -12,17 +12,19 @@ function toOrigin(value: string) {
   return new URL(value).origin;
 }
 
+function getTrustedVercelOrigin(value: string) {
+  return toOrigin(value.startsWith("http") ? value : `https://${value}`);
+}
+
 function buildTrustedOrigins() {
   const origins = new Set<string>([toOrigin(env.BETTER_AUTH_URL)]);
-  const publicAuthUrl = process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
-  const vercelUrl = process.env.VERCEL_URL;
 
-  if (publicAuthUrl) {
-    origins.add(toOrigin(publicAuthUrl));
+  if (env.NEXT_PUBLIC_BETTER_AUTH_URL) {
+    origins.add(toOrigin(env.NEXT_PUBLIC_BETTER_AUTH_URL));
   }
 
-  if (vercelUrl) {
-    origins.add(toOrigin(vercelUrl.startsWith("http") ? vercelUrl : `https://${vercelUrl}`));
+  if (env.VERCEL_URL) {
+    origins.add(getTrustedVercelOrigin(env.VERCEL_URL));
   }
 
   if (env.NODE_ENV !== "production") {

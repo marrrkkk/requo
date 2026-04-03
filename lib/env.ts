@@ -15,6 +15,8 @@ const envSchema = z.object({
   DATABASE_DIRECT_URL: emptyToUndefined(z.string().min(1)),
   BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: z.url(),
+  NEXT_PUBLIC_BETTER_AUTH_URL: emptyToUndefined(z.url()),
+  VERCEL_URL: emptyToUndefined(z.string().min(1)),
   NEXT_PUBLIC_SUPABASE_URL: z.url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
@@ -25,6 +27,13 @@ const envSchema = z.object({
   OPENROUTER_DEFAULT_MODEL: emptyToUndefined(z.string().min(1)).default(
     "openai/gpt-5-mini",
   ),
+  DEMO_OWNER_NAME: emptyToUndefined(z.string().trim().min(1)),
+  DEMO_OWNER_EMAIL: emptyToUndefined(z.email()),
+  DEMO_OWNER_PASSWORD: emptyToUndefined(z.string().min(8)),
+  DEMO_WORKSPACE_NAME: emptyToUndefined(z.string().trim().min(1)),
+  DEMO_WORKSPACE_SLUG: emptyToUndefined(z.string().trim().min(1)),
+  DEMO_QUOTE_PUBLIC_TOKEN: emptyToUndefined(z.string().trim().min(1)),
+  DEMO_EXPIRED_QUOTE_PUBLIC_TOKEN: emptyToUndefined(z.string().trim().min(1)),
 });
 
 export const env = envSchema.parse(process.env);

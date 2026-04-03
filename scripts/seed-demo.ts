@@ -61,10 +61,10 @@ const demoQuoteIds = [
 
 const demoQuotePublicTokens = [
   "demoquote1001drafttoken",
-  "demoquote1002senttoken",
+  getSeedValue("DEMO_QUOTE_PUBLIC_TOKEN", "demoquote1002senttoken"),
   "demoquote1003acceptedtoken",
   "demoquote1004rejectedtoken",
-  "demoquote1005expiredtoken",
+  getSeedValue("DEMO_EXPIRED_QUOTE_PUBLIC_TOKEN", "demoquote1005expiredtoken"),
 ] as const;
 
 const demoQuoteItemIds = [
