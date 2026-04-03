@@ -54,6 +54,13 @@ Prioritize:
 - responsive UI
 - clear forms and actions
 
+## Design rules
+- Use the existing design system and design tokens.
+- Do not replace the visual language.
+- Keep the UI modern, minimalist, calm, polished, and practical.
+- Avoid clutter, heavy decoration, random gradients, and flashy animation.
+- Prefer clean layout, strong spacing, crisp cards, soft borders, clear hierarchy, and responsive behavior.
+
 ## Authentication
 Use **Better Auth**, not Supabase Auth.
 
@@ -105,3 +112,48 @@ Codex should:
 3. implement only the requested slice,
 4. avoid unrelated refactors,
 5. mention any assumptions clearly.
+
+# AGENTS.md
+
+## Project
+This repository contains a modern SaaS-style web app built with Next.js, Tailwind, and ShadCN UI.
+
+## UI goal
+The UI should feel modern, minimalist, polished, calm, and production-ready.
+
+## Existing system
+- The repo already has a design system
+- The repo already has design tokens
+- Reuse the existing visual language
+- Do not replace the design system
+- Do not invent a new style direction from scratch
+
+## Working rules
+1. Inspect relevant existing files before editing.
+2. For multi-step UI tasks, propose a short plan first.
+3. Keep diffs scoped to the requested UI slice.
+4. Reuse existing tokens, utilities, and shared components.
+5. Avoid unrelated refactors.
+6. Keep code production-minded and componentized.
+7. Summarize touched files after implementation.
+
+## UI rules
+- Keep the UI modern, minimalist, calm, polished, and practical
+- Prefer clean layout, strong spacing, soft borders, subtle depth, and clear hierarchy
+- Avoid clutter, noisy decoration, random gradients, and flashy animation
+- Use cards intentionally, not everywhere
+- Keep forms, tables, and detail pages clean and easy to scan
+- Preserve responsive behavior and improve it where needed
+
+## Do not do
+- do not change backend logic unless absolutely necessary for UI wiring
+- do not redesign the product into a different visual language
+- do not add unrelated features
+- do not over-animate
+
+## Done means
+A task is done when:
+1. the requested UI slice is implemented,
+2. layout and styling are consistent with the design system,
+3. the code remains reusable and maintainable,
+4. changed files are summarized clearly.
