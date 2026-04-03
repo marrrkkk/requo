@@ -218,7 +218,7 @@ export default async function InquiryDetailPage({
                       key={activity.id}
                       meta={
                         <>
-                          <span>{activity.actorName ?? "QuoteFlow"}</span>
+                          <span>{activity.actorName ?? "Relay"}</span>
                           <span aria-hidden="true">|</span>
                           <span>{formatInquiryDateTime(activity.createdAt)}</span>
                         </>

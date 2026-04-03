@@ -67,14 +67,14 @@ export function PublicInquiryForm({
           <CircleCheckBig />
           <AlertTitle>Inquiry received.</AlertTitle>
           <AlertDescription>
-            {state.success} {workspace.name} can now review it in QuoteFlow.
+            {state.success} {workspace.name} can now review it in Relay.
           </AlertDescription>
         </Alert>
 
         <FormNote className="p-5">
           <div className="flex flex-col gap-3">
             <p className="text-sm leading-7 text-muted-foreground">
-              Thanks. The business owner now has your inquiry in QuoteFlow.
+              Thanks. The business owner now has your inquiry in Relay.
             </p>
             {state.inquiryId ? (
               <p className="font-mono text-[0.72rem] uppercase tracking-[0.18em] text-muted-foreground">
@@ -92,7 +92,7 @@ export function PublicInquiryForm({
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/">Back to QuoteFlow</Link>
+            <Link href="/">Back to Relay</Link>
           </Button>
         </div>
       </div>

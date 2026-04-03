@@ -45,7 +45,7 @@ async function getAvailableWorkspaceSlug(baseSlug: string) {
 
 export async function bootstrapWorkspaceForUser(user: BootstrapUser) {
   const workspaceBaseName =
-    user.name.trim() || user.email.split("@")[0] || "QuoteFlow";
+    user.name.trim() || user.email.split("@")[0] || "Relay";
   const workspaceName = `${workspaceBaseName}'s Workspace`;
   const now = new Date();
 

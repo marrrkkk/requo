@@ -33,7 +33,7 @@ const intakeSignals = [
   {
     title: "Direct to owner",
     description:
-      "Your inquiry goes into the business owner's QuoteFlow inbox without exposing private workspace data.",
+      "Your inquiry goes into the business owner's Relay inbox without exposing private workspace data.",
     icon: ShieldCheck,
   },
 ];
@@ -53,7 +53,7 @@ export default async function PublicInquiryPage({
   const submitPublicInquiry = submitPublicInquiryAction.bind(null, workspace.slug);
   const pageHeadline =
     workspace.inquiryHeadline?.trim() ||
-    `Tell ${workspace.name} what you need and they can review it in QuoteFlow.`;
+    `Tell ${workspace.name} what you need and they can review it in Relay.`;
 
   return (
     <PublicPageShell
@@ -61,7 +61,7 @@ export default async function PublicInquiryPage({
         <Button asChild variant="ghost">
           <Link href="/">
             <ArrowLeft data-icon="inline-start" />
-            Back to QuoteFlow
+            Back to Relay
           </Link>
         </Button>
       }

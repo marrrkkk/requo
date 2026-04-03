@@ -139,12 +139,12 @@ const heroInboxItems = [
 
 const heroQuoteItems = [
   {
-    title: "QF-1042",
+    title: "RL-1042",
     subtitle: "Spring promo signage",
     status: "sent",
   },
   {
-    title: "QF-1041",
+    title: "RL-1041",
     subtitle: "Vehicle wrap refresh",
     status: "draft",
   },
@@ -182,7 +182,7 @@ export function MarketingHero() {
         <div className="flex flex-col gap-10">
           <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-6 pt-2 text-center sm:pt-4">
             <Badge className="w-fit" variant="outline">
-              QuoteFlow for small service businesses
+              Relay for small service businesses
             </Badge>
 
             <div className="flex flex-col items-center gap-4">
@@ -471,7 +471,7 @@ export function MarketingHero() {
                       <div className="soft-panel px-4 py-4">
                         <p className="meta-label">Quote</p>
                         <p className="mt-2 text-sm font-semibold text-foreground">
-                          QF-1042 · Spring promo signage
+                          RL-1042 - Spring promo signage
                         </p>
                         <p className="mt-1 text-xs leading-6 text-muted-foreground">
                           Line items, totals, and status stay on one detail page.
@@ -564,7 +564,7 @@ export function MarketingHero() {
         <div className="flex flex-col gap-6 px-5 py-6 sm:px-6 sm:py-7 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-col gap-3">
             <Badge className="w-fit" variant="outline">
-              QuoteFlow
+              Relay
             </Badge>
             <h2 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
               Keep inquiries, quotes, and follow-up in one place.

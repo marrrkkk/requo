@@ -9,7 +9,7 @@ export default function PublicNotFound() {
       actions={
         <>
           <Button asChild variant="outline">
-            <Link href="/">Back to QuoteFlow</Link>
+            <Link href="/">Back to Relay</Link>
           </Button>
         </>
       }

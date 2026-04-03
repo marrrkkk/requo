@@ -16,11 +16,15 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "QuoteFlow",
-    template: "%s | QuoteFlow",
+    default: "Relay",
+    template: "%s | Relay",
   },
   description:
-    "QuoteFlow helps small service businesses turn scattered customer inquiries into organized quotes and bookings.",
+    "Relay helps small service businesses turn scattered customer inquiries into organized quotes and bookings.",
+  icons: {
+    icon: "/logo.svg",
+    shortcut: "/logo.svg",
+  },
 };
 
 export default function RootLayout({
