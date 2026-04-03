@@ -135,10 +135,10 @@ export function InquiryAiPanel({ action }: InquiryAiPanelProps) {
   const activeIntent = state.result?.intent;
 
   return (
-    <Card className="overflow-visible bg-background/70">
+    <Card className="overflow-visible">
       <CardHeader className="gap-4">
         <div className="flex items-start gap-4">
-          <div className="flex size-11 items-center justify-center rounded-full border bg-secondary text-primary">
+          <div className="flex size-11 items-center justify-center rounded-xl bg-accent text-accent-foreground">
             <Sparkles />
           </div>
           <div className="flex flex-col gap-2">
@@ -182,9 +182,9 @@ export function InquiryAiPanel({ action }: InquiryAiPanelProps) {
               return (
                 <Button
                   className={cn(
-                    "h-auto min-h-22 items-start justify-start rounded-[1.3rem] px-4 py-3 text-left",
+                    "h-auto min-h-22 items-start justify-start rounded-xl px-4 py-3 text-left",
                     !isActive &&
-                      "bg-background/82 hover:border-primary/20 hover:bg-background",
+                      "bg-background hover:border-primary/20 hover:bg-background",
                   )}
                   disabled={isPending}
                   key={preset.intent}
@@ -268,7 +268,7 @@ export function InquiryAiPanel({ action }: InquiryAiPanelProps) {
             </Field>
           </FieldGroup>
 
-          <div className="flex flex-col gap-3 rounded-[1.45rem] border border-dashed bg-background/75 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 rounded-xl border border-dashed border-border/80 bg-background px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm leading-6 text-muted-foreground">
               Need something more specific? Run a custom request.
             </p>
@@ -285,7 +285,7 @@ export function InquiryAiPanel({ action }: InquiryAiPanelProps) {
         </form>
 
         {state.result ? (
-          <div className="rounded-[1.55rem] border bg-background/85 shadow-sm">
+          <div className="rounded-2xl border border-border/80 bg-background shadow-sm">
             <div className="flex flex-col gap-4 px-5 py-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex flex-col gap-1">
@@ -294,12 +294,12 @@ export function InquiryAiPanel({ action }: InquiryAiPanelProps) {
                     {state.result.title}
                   </h3>
                 </div>
-                <span className="rounded-full border bg-muted/35 px-3 py-1 text-xs text-muted-foreground">
+                <span className="rounded-md border border-border/80 bg-secondary px-3 py-1 text-xs text-muted-foreground">
                   {state.result.model}
                 </span>
               </div>
 
-              <div className="rounded-[1.35rem] border bg-background/90 px-4 py-4">
+              <div className="rounded-xl border border-border/80 bg-background px-4 py-4">
                 <p className="whitespace-pre-wrap text-sm leading-7 text-foreground">
                   {state.result.output}
                 </p>
@@ -337,7 +337,7 @@ export function InquiryAiPanel({ action }: InquiryAiPanelProps) {
             </div>
           </div>
         ) : (
-          <Empty className="border bg-background/70">
+          <Empty className="border bg-background">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <Sparkles />
@@ -350,7 +350,7 @@ export function InquiryAiPanel({ action }: InquiryAiPanelProps) {
           </Empty>
         )}
 
-        <div className="rounded-[1.55rem] border border-dashed bg-background/72 px-5 py-5">
+        <div className="rounded-2xl border border-dashed border-border/80 bg-background px-5 py-5">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-1">
               <p className="meta-label">Reply staging</p>

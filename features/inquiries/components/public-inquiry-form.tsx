@@ -67,7 +67,7 @@ export function PublicInquiryForm({
           </AlertDescription>
         </Alert>
 
-        <div className="rounded-xl border border-border/80 bg-background p-5">
+        <div className="soft-panel p-5">
           <div className="flex flex-col gap-3">
             <p className="text-sm leading-7 text-muted-foreground">
               Thanks. The business owner now has your inquiry in QuoteFlow.
@@ -291,7 +291,7 @@ export function PublicInquiryForm({
 
       <Separator />
 
-      <div className="flex flex-col gap-4">
+      <div className="toolbar-panel flex flex-col gap-4">
         <Button disabled={isPending} type="submit" size="lg">
           {isPending ? "Sending your inquiry..." : "Send inquiry"}
         </Button>

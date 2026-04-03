@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ArrowRight,
+  ArrowLeft,
   ClipboardList,
   FolderUp,
   ShieldCheck,
@@ -59,20 +59,20 @@ export default async function PublicInquiryPage({
           <BrandMark />
           <Button asChild variant="ghost">
             <Link href="/">
+              <ArrowLeft data-icon="inline-start" />
               Back to QuoteFlow
-              <ArrowRight data-icon="inline-end" />
             </Link>
           </Button>
         </header>
 
-        <section className="section-panel px-5 py-8 sm:px-8 sm:py-10 lg:px-10">
+        <section className="hero-panel px-5 py-8 sm:px-8 sm:py-10 lg:px-10">
           <div className="grid gap-8 lg:grid-cols-[0.88fr_1.12fr] lg:items-start">
             <div className="flex flex-col gap-6">
               <div className="flex flex-col gap-4">
                 <span className="eyebrow">Public inquiry page</span>
                 <div className="flex flex-col gap-4">
                   <p className="meta-label">{workspace.name}</p>
-                  <h1 className="max-w-2xl font-heading text-4xl font-medium leading-none tracking-tight text-balance sm:text-5xl">
+                  <h1 className="max-w-2xl font-heading text-4xl font-semibold leading-tight tracking-tight text-balance sm:text-5xl">
                     Tell {workspace.name} what you need.
                   </h1>
                   <p className="max-w-xl text-base leading-8 text-muted-foreground sm:text-lg">
@@ -86,9 +86,9 @@ export default async function PublicInquiryPage({
                   const Icon = signal.icon;
 
                   return (
-                    <Card key={signal.title} size="sm" className="bg-background/70">
+                    <Card key={signal.title} size="sm" className="bg-background">
                       <CardHeader className="gap-3">
-                        <div className="flex size-10 items-center justify-center rounded-full border bg-secondary">
+                        <div className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
                           <Icon className="size-4" />
                         </div>
                         <div className="flex flex-col gap-1">
@@ -103,7 +103,7 @@ export default async function PublicInquiryPage({
                 })}
               </div>
 
-              <Card className="bg-background/70">
+              <Card className="bg-background">
                 <CardHeader className="gap-2">
                   <CardTitle>What helps most</CardTitle>
                   <p className="text-sm leading-6 text-muted-foreground">
@@ -113,7 +113,7 @@ export default async function PublicInquiryPage({
               </Card>
             </div>
 
-            <Card>
+            <Card className="shadow-sm">
               <CardHeader className="gap-2">
                 <CardTitle className="text-2xl">Send inquiry</CardTitle>
                 <p className="text-sm leading-6 text-muted-foreground">

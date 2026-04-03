@@ -1,25 +1,9 @@
 "use client";
 
-import { Search, X } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldContent,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { DataListToolbar } from "@/components/shared/data-list-toolbar";
 import type {
   QuoteListFilters,
   QuoteStatusFilterValue,
@@ -70,91 +54,30 @@ export function QuoteListFilters({
   }
 
   return (
-    <div className="rounded-[1.6rem] border bg-background/75 p-4 shadow-sm">
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            Search by number, title, or customer.
-          </p>
-          <p className="text-sm font-medium text-foreground">
-            {resultCount} {resultCount === 1 ? "quote" : "quotes"}
-          </p>
-        </div>
-
-        <form
-          className="flex flex-col gap-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            navigate(query, status);
-          }}
-        >
-          <FieldGroup className="lg:flex-row lg:items-end">
-            <Field className="lg:flex-1">
-              <FieldLabel className="sr-only" htmlFor="quote-search">
-                Search quotes
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  id="quote-search"
-                  value={query}
-                  onChange={(event) => setQuery(event.currentTarget.value)}
-                  placeholder="Search quote number, title, or customer"
-                  disabled={isPending}
-                />
-              </FieldContent>
-            </Field>
-
-            <Field className="lg:w-[13rem]">
-              <FieldLabel className="sr-only" htmlFor="quote-status-filter">
-                Filter by status
-              </FieldLabel>
-              <FieldContent>
-                <Select
-                  value={status}
-                  onValueChange={(value) =>
-                    setStatus(value as QuoteStatusFilterValue)
-                  }
-                >
-                  <SelectTrigger id="quote-status-filter" className="w-full">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {statusOptions.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option === "all"
-                            ? "All statuses"
-                            : getQuoteStatusLabel(option)}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </FieldContent>
-            </Field>
-
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button disabled={isPending} type="submit">
-                <Search data-icon="inline-start" />
-                {isPending ? "Applying..." : "Apply"}
-              </Button>
-              <Button
-                disabled={isPending || (!query.trim() && status === "all")}
-                onClick={() => {
-                  setQuery("");
-                  setStatus("all");
-                  navigate("", "all");
-                }}
-                type="button"
-                variant="outline"
-              >
-                <X data-icon="inline-start" />
-                Clear
-              </Button>
-            </div>
-          </FieldGroup>
-        </form>
-      </div>
-    </div>
+    <DataListToolbar
+      description="Search by quote number, title, or customer."
+      resultLabel={`${resultCount} ${resultCount === 1 ? "quote" : "quotes"}`}
+      searchId="quote-search"
+      searchLabel="Search quotes"
+      searchPlaceholder="Search quote number, title, or customer"
+      searchValue={query}
+      onSearchChange={setQuery}
+      filterId="quote-status-filter"
+      filterLabel="Filter by status"
+      filterValue={status}
+      onFilterChange={(value) => setStatus(value as QuoteStatusFilterValue)}
+      filterOptions={statusOptions.map((option) => ({
+        value: option,
+        label: option === "all" ? "All statuses" : getQuoteStatusLabel(option),
+      }))}
+      isPending={isPending}
+      onSubmit={() => navigate(query, status)}
+      onClear={() => {
+        setQuery("");
+        setStatus("all");
+        navigate("", "all");
+      }}
+      canClear={Boolean(query.trim() || status !== "all")}
+    />
   );
 }

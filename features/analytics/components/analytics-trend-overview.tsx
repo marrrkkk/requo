@@ -18,7 +18,7 @@ export function AnalyticsTrendOverview({
   const maxInquiries = Math.max(...points.map((point) => point.inquiries), 1);
 
   return (
-    <Card className="bg-background/70">
+    <Card>
       <CardHeader className="gap-2">
         <CardTitle>Recent trend overview</CardTitle>
         <CardDescription>Last six weeks.</CardDescription>
@@ -26,10 +26,7 @@ export function AnalyticsTrendOverview({
       <CardContent className="flex flex-col gap-5">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {points.map((point) => (
-            <div
-              className="rounded-[1.45rem] border bg-background/80 p-4"
-              key={point.weekStart}
-            >
+            <div className="rounded-xl border border-border/80 bg-background p-4" key={point.weekStart}>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex flex-col gap-1">
                   <p className="text-sm font-medium text-foreground">
@@ -37,13 +34,13 @@ export function AnalyticsTrendOverview({
                   </p>
                   <p className="meta-label">Week</p>
                 </div>
-                <div className="flex size-9 items-center justify-center rounded-full border bg-secondary">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-accent text-accent-foreground">
                   <TrendingUp className="size-4" />
                 </div>
               </div>
 
               <div className="mt-4 flex items-end gap-3">
-                <div className="flex h-24 flex-1 items-end rounded-[1.2rem] border bg-muted/20 px-2 py-2">
+                <div className="flex h-24 flex-1 items-end rounded-xl border border-border/80 bg-muted/20 px-2 py-2">
                   <div
                     className="w-full rounded-full bg-primary/80"
                     style={{
@@ -74,7 +71,7 @@ export function AnalyticsTrendOverview({
 
 function TrendMeta({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-2xl border bg-muted/20 px-3 py-2">
+    <div className="rounded-lg border border-border/80 bg-muted/20 px-3 py-2">
       <p className="meta-label">{label}</p>
       <p className="mt-1 text-sm font-medium text-foreground">{value}</p>
     </div>

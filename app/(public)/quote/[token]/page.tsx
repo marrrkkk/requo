@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Mail, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Mail, ShieldCheck } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { BrandMark } from "@/components/shared/brand-mark";
@@ -53,25 +53,25 @@ export default async function PublicQuotePage({
           <BrandMark />
           <Button asChild variant="ghost">
             <Link href="/">
+              <ArrowLeft data-icon="inline-start" />
               Back to QuoteFlow
-              <ArrowRight data-icon="inline-end" />
             </Link>
           </Button>
         </header>
 
-        <section className="section-panel px-5 py-8 sm:px-8 sm:py-10 lg:px-10">
+        <section className="hero-panel px-5 py-8 sm:px-8 sm:py-10 lg:px-10">
           <div className="grid gap-8 xl:grid-cols-[0.84fr_1.16fr] xl:items-start">
             <div className="flex flex-col gap-5">
               <div className="flex flex-col gap-4">
                 <span className="eyebrow">Customer quote</span>
                 <div className="flex flex-wrap items-center gap-3">
                   <QuoteStatusBadge status={quote.status} />
-                  <span className="rounded-full border bg-background/80 px-3 py-1 text-xs text-muted-foreground">
+                  <span className="rounded-md border border-border/80 bg-background px-3 py-1 text-xs text-muted-foreground">
                     {quote.quoteNumber}
                   </span>
                 </div>
                 <div className="flex flex-col gap-3">
-                  <h1 className="max-w-2xl font-heading text-4xl font-medium leading-none tracking-tight text-balance sm:text-5xl">
+                  <h1 className="max-w-2xl font-heading text-4xl font-semibold leading-tight tracking-tight text-balance sm:text-5xl">
                     {quote.title}
                   </h1>
                   <p className="max-w-xl text-base leading-8 text-muted-foreground sm:text-lg">
@@ -81,7 +81,7 @@ export default async function PublicQuotePage({
                 </div>
               </div>
 
-              <Card className="bg-background/70">
+              <Card className="bg-background">
                 <CardHeader className="gap-3">
                   <CardTitle>Quote summary</CardTitle>
                   <CardDescription className="leading-7">
@@ -102,7 +102,7 @@ export default async function PublicQuotePage({
                 </CardContent>
               </Card>
 
-              <Card className="bg-background/70">
+              <Card className="bg-background">
                 <CardHeader className="gap-3">
                   <CardTitle>
                     {isActionable
@@ -127,7 +127,7 @@ export default async function PublicQuotePage({
                   {isActionable ? (
                     <PublicQuoteResponseForm action={respondAction} />
                   ) : (
-                    <div className="rounded-3xl border bg-background/80 p-4 text-sm leading-7 text-muted-foreground">
+                    <div className="soft-panel p-4 text-sm leading-7 text-muted-foreground">
                       {quote.customerRespondedAt ? (
                         <>
                           Response recorded on{" "}
@@ -144,7 +144,7 @@ export default async function PublicQuotePage({
                   )}
 
                   {quote.customerResponseMessage ? (
-                    <div className="rounded-3xl border bg-background/80 p-4">
+                    <div className="soft-panel p-4">
                       <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
                         Message on file
                       </p>
@@ -156,10 +156,10 @@ export default async function PublicQuotePage({
                 </CardContent>
               </Card>
 
-              <Card className="bg-background/70">
+              <Card className="bg-background">
                 <CardHeader className="gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="flex size-10 items-center justify-center rounded-full border bg-secondary">
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
                       <ShieldCheck className="size-4" />
                     </div>
                     <div className="flex flex-col gap-1">
@@ -197,7 +197,7 @@ export default async function PublicQuotePage({
               subtotalInCents={quote.subtotalInCents}
               discountInCents={quote.discountInCents}
               totalInCents={quote.totalInCents}
-              className="xl:sticky xl:top-6 xl:self-start"
+              className="xl:sticky xl:top-[5.5rem] xl:self-start"
             />
           </div>
         </section>
@@ -208,7 +208,7 @@ export default async function PublicQuotePage({
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[1.25rem] border bg-background/80 p-4">
+    <div className="info-tile shadow-none">
       <div className="flex flex-col gap-1">
         <p className="meta-label">
           {label}

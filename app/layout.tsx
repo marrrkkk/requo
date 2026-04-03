@@ -1,23 +1,17 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Manrope, Newsreader } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 
 import "./globals.css";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
-const manrope = Manrope({
-  variable: "--font-manrope",
+const geistSans = Geist({
+  variable: "--font-geist-sans",
   subsets: ["latin"],
 });
 
-const newsreader = Newsreader({
-  variable: "--font-newsreader",
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
   subsets: ["latin"],
-  style: ["normal", "italic"],
-});
-
-const plexMono = IBM_Plex_Mono({
-  variable: "--font-plex-mono",
-  subsets: ["latin"],
-  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
@@ -37,10 +31,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${manrope.variable} ${newsreader.variable} ${plexMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
-        {children}
+        <TooltipProvider>{children}</TooltipProvider>
       </body>
     </html>
   );

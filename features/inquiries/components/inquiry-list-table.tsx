@@ -22,7 +22,7 @@ type InquiryListTableProps = {
 
 export function InquiryListTable({ inquiries }: InquiryListTableProps) {
   return (
-    <div className="hidden rounded-[1.7rem] border bg-background/75 p-4 shadow-sm lg:block">
+    <div className="section-panel hidden p-4 lg:block">
       <Table>
         <TableCaption>Newest inquiries appear first.</TableCaption>
         <TableHeader>
@@ -40,7 +40,7 @@ export function InquiryListTable({ inquiries }: InquiryListTableProps) {
               <TableCell className="max-w-[18rem]">
                 <div className="flex flex-col gap-1">
                   <Link
-                    className="font-medium text-foreground underline-offset-4 hover:underline"
+                    className="font-semibold text-foreground underline-offset-4 hover:text-primary hover:underline"
                     href={`/dashboard/inquiries/${inquiry.id}`}
                     prefetch={false}
                   >

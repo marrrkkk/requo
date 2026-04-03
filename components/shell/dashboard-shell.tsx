@@ -1,26 +1,60 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
-import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import type { CSSProperties, ReactNode } from "react";
+import { useTransition } from "react";
+import {
+  ArrowUpRight,
+  ChevronsUpDown,
+  LogOut,
+  Settings2,
+} from "lucide-react";
 import { usePathname } from "next/navigation";
 
-import { LogoutButton } from "@/features/auth/components/logout-button";
+import { authClient } from "@/lib/auth/client";
 import { BrandMark } from "@/components/shared/brand-mark";
 import {
   dashboardNavigation,
   getActiveDashboardNavigationItem,
   isDashboardNavigationItemActive,
 } from "@/components/shell/dashboard-navigation";
-import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetHeader,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarSeparator,
+  SidebarTrigger,
+  useSidebar,
+} from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
 type DashboardShellProps = {
@@ -41,181 +75,319 @@ type DashboardShellProps = {
   };
 };
 
+const primaryNavigation = dashboardNavigation.filter(
+  (item) => item.href !== "/dashboard/settings",
+);
+const secondaryNavigation = dashboardNavigation.filter(
+  (item) => item.href === "/dashboard/settings",
+);
+
 export function DashboardShell({
   children,
   user,
   workspaceContext,
 }: DashboardShellProps) {
   const pathname = usePathname();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
   const activeItem = getActiveDashboardNavigationItem(pathname);
   const workspace = workspaceContext.workspace;
   const membershipLabel = workspaceContext.role === "owner" ? "Owner" : "Member";
 
   return (
-    <div className="page-wrap py-4 sm:py-5 lg:py-6">
-      <div className="grid min-h-[calc(100vh-2rem)] gap-4 lg:grid-cols-[16rem_minmax(0,1fr)] xl:grid-cols-[17rem_minmax(0,1fr)]">
-        <aside className="section-panel hidden self-start lg:sticky lg:top-6 lg:flex lg:min-h-[calc(100vh-3rem)] lg:flex-col lg:p-4">
-          <BrandMark />
-
-          <div className="mt-6 rounded-[1.4rem] border bg-background/75 px-4 py-4">
-            <p className="meta-label">{membershipLabel}</p>
-            <p className="mt-3 font-heading text-[1.5rem] leading-none text-foreground">
-              {workspace.name}
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">/{workspace.slug}</p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <span className="rounded-full border bg-card px-2.5 py-1 text-xs text-muted-foreground">
-                {workspace.defaultCurrency}
-              </span>
-              <span className="rounded-full border bg-card px-2.5 py-1 text-xs text-muted-foreground">
-                {workspace.publicInquiryEnabled ? "Public form on" : "Public form off"}
-              </span>
-            </div>
+    <SidebarProvider
+      defaultOpen
+      style={
+        {
+          "--sidebar-width": "17.5rem",
+          "--sidebar-width-icon": "4.25rem",
+        } as CSSProperties
+      }
+    >
+      <Sidebar collapsible="icon">
+        <SidebarHeader className="gap-0 px-0 py-0">
+          <div className="flex h-16 items-center px-3">
+            <BrandMark
+              collapseLabel
+              className="min-w-0 px-2 py-1.5"
+              subtitle={null}
+            />
           </div>
-
-          <nav aria-label="Dashboard navigation" className="mt-6 flex flex-1 flex-col gap-1.5">
-            {dashboardNavigation.map((item) => (
-              <DashboardNavigationButton
-                key={item.href}
-                isActive={isDashboardNavigationItemActive(pathname, item.href)}
-                item={item}
-              />
-            ))}
-          </nav>
-
-          <div className="mt-6 rounded-[1.4rem] border bg-background/75 px-4 py-4">
-            <p className="text-sm font-medium text-foreground">{user.name}</p>
-            <p className="mt-1 truncate text-sm text-muted-foreground">{user.email}</p>
-            <LogoutButton className="mt-4 w-full" />
-          </div>
-        </aside>
-
-        <div className="flex min-w-0 flex-col gap-4">
-          <header className="section-panel flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
-            <div className="flex min-w-0 items-center gap-3">
-              <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button
-                    className="lg:hidden"
-                    size="icon-sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    <Menu data-icon="inline-start" />
-                    <span className="sr-only">Open dashboard navigation</span>
-                  </Button>
-                </SheetTrigger>
-                <SheetContent
-                  className="w-[88vw] max-w-sm border-r p-0"
-                  showCloseButton={false}
-                  side="left"
-                >
-                  <SheetHeader className="border-b bg-background/95 px-5 py-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <BrandMark />
-                      <SheetClose asChild>
-                        <Button size="icon-sm" type="button" variant="ghost">
-                          <X data-icon="inline-start" />
-                          <span className="sr-only">Close navigation</span>
-                        </Button>
-                      </SheetClose>
-                    </div>
-                    <div className="mt-5 rounded-[1.35rem] border bg-card px-4 py-4 text-left">
-                      <p className="meta-label">{membershipLabel}</p>
-                      <p className="mt-3 font-heading text-[1.35rem] leading-none text-foreground">
-                        {workspace.name}
-                      </p>
-                      <p className="mt-2 text-sm text-muted-foreground">/{workspace.slug}</p>
-                    </div>
-                  </SheetHeader>
-                  <div className="flex h-full flex-col">
-                    <div className="flex flex-col gap-2 p-4">
-                      <nav aria-label="Mobile dashboard navigation">
-                        <div className="flex flex-col gap-1.5">
-                          {dashboardNavigation.map((item) => (
-                            <DashboardNavigationButton
-                              key={item.href}
-                              isActive={isDashboardNavigationItemActive(
-                                pathname,
-                                item.href,
-                              )}
-                              item={item}
-                              onNavigate={() => setIsMobileMenuOpen(false)}
-                            />
-                          ))}
-                        </div>
-                      </nav>
-                    </div>
-                    <div className="mt-auto border-t p-4">
-                      <div className="mb-4 flex flex-col gap-1 text-sm">
-                        <p className="font-medium text-foreground">{user.name}</p>
-                        <p className="truncate text-muted-foreground">
-                          {user.email}
-                        </p>
-                      </div>
-                      <LogoutButton className="w-full" />
-                    </div>
-                  </div>
-                </SheetContent>
-              </Sheet>
-
-              <div className="min-w-0">
-                <p className="meta-label">{activeItem.label}</p>
-                <p className="mt-1 truncate text-sm text-muted-foreground">
+          <SidebarSeparator />
+          <div className="px-4 py-4 group-data-[collapsible=icon]:hidden">
+            <div className="flex items-start gap-3">
+              <Avatar
+                className="rounded-xl border-sidebar-border bg-background"
+                size="lg"
+              >
+                <AvatarFallback className="rounded-xl bg-muted text-sidebar-foreground">
+                  {getInitials(workspace.name)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="meta-label text-sidebar-foreground/60">
+                  {membershipLabel}
+                </p>
+                <p className="mt-2 truncate text-sm font-semibold text-sidebar-foreground">
                   {workspace.name}
+                </p>
+                <p className="mt-1 truncate text-sm text-muted-foreground">
+                  /{workspace.slug}
                 </p>
               </div>
             </div>
-
-            <div className="hidden items-center gap-2 sm:flex">
-              <span className="rounded-full border bg-background px-3 py-1 text-xs text-muted-foreground">
-                /{workspace.slug}
-              </span>
-              <span className="rounded-full border bg-background px-3 py-1 text-xs text-muted-foreground">
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Badge
+                className="border-sidebar-border bg-background text-sidebar-foreground"
+                variant="outline"
+              >
                 {workspace.defaultCurrency}
-              </span>
+              </Badge>
+              <Badge
+                className="bg-sidebar-accent text-sidebar-accent-foreground"
+                variant="secondary"
+              >
+                {workspace.publicInquiryEnabled ? "Public form live" : "Public form off"}
+              </Badge>
             </div>
-          </header>
+          </div>
+        </SidebarHeader>
 
-          <main className="section-panel flex min-w-0 flex-1 flex-col px-4 py-5 sm:px-6 sm:py-6 lg:px-7 lg:py-7">
-            {children}
+        <SidebarContent className="gap-2">
+          <SidebarGroup className="pt-3">
+            <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+            <SidebarMenu>
+              {primaryNavigation.map((item) => (
+                <DashboardNavigationItem
+                  isActive={isDashboardNavigationItemActive(pathname, item.href)}
+                  item={item}
+                  key={item.href}
+                />
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
+
+          <SidebarGroup className="pt-1">
+            <SidebarGroupLabel>Configuration</SidebarGroupLabel>
+            <SidebarMenu>
+              {secondaryNavigation.map((item) => (
+                <DashboardNavigationItem
+                  isActive={isDashboardNavigationItemActive(pathname, item.href)}
+                  item={item}
+                  key={item.href}
+                />
+              ))}
+            </SidebarMenu>
+          </SidebarGroup>
+        </SidebarContent>
+
+        <SidebarSeparator />
+
+        <SidebarFooter className="p-2">
+          <DashboardUserMenu user={user} workspaceSlug={workspace.slug} />
+        </SidebarFooter>
+
+        <SidebarRail />
+      </Sidebar>
+
+      <SidebarInset className="min-h-svh">
+        <header className="sticky top-0 z-30 border-b border-border/70 bg-background/90 backdrop-blur supports-backdrop-filter:bg-background/80">
+          <div className="dashboard-content px-4 py-3 sm:px-6 lg:px-8">
+            <div className="flex min-h-10 items-center gap-3">
+              <SidebarTrigger />
+              <Separator
+                className="hidden data-[orientation=vertical]:h-4 sm:block"
+                orientation="vertical"
+              />
+              <div className="min-w-0 flex-1">
+                <Breadcrumb>
+                  <BreadcrumbList>
+                    <BreadcrumbItem className="hidden sm:block">
+                      <BreadcrumbLink asChild>
+                        <Link href="/dashboard">Dashboard</Link>
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator className="hidden sm:block" />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>{activeItem.label}</BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </BreadcrumbList>
+                </Breadcrumb>
+                <p className="mt-1 hidden truncate text-xs text-muted-foreground md:block">
+                  {activeItem.description}
+                </p>
+              </div>
+              <div className="hidden items-center gap-2 md:flex">
+                <Badge variant="secondary">/{workspace.slug}</Badge>
+                <Badge variant="outline">{workspace.defaultCurrency}</Badge>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="flex flex-1 flex-col">
+          <main className="flex flex-1 flex-col px-4 py-6 sm:px-6 lg:px-8">
+            <div className="dashboard-content">{children}</div>
           </main>
         </div>
-      </div>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 
-type DashboardNavigationButtonProps = {
+type DashboardNavigationItemProps = {
   isActive: boolean;
   item: (typeof dashboardNavigation)[number];
-  onNavigate?: () => void;
 };
 
-function DashboardNavigationButton({
+function DashboardNavigationItem({
   isActive,
   item,
-  onNavigate,
-}: DashboardNavigationButtonProps) {
+}: DashboardNavigationItemProps) {
   const Icon = item.icon;
+  const { isMobile, setOpenMobile } = useSidebar();
 
   return (
-    <Button
-      asChild
-      className={cn(
-        "h-auto w-full justify-start rounded-[1.15rem] px-3.5 py-3 text-left",
-        isActive &&
-          "shadow-[0_14px_28px_-24px_rgba(74,53,34,0.45)]",
-      )}
-      size="lg"
-      variant={isActive ? "secondary" : "ghost"}
-    >
-      <Link href={item.href} onClick={onNavigate}>
-        <Icon data-icon="inline-start" />
-        <span className="truncate font-medium">{item.label}</span>
-      </Link>
-    </Button>
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        className="data-[active=true]:bg-sidebar-primary/10 data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-none"
+        isActive={isActive}
+        tooltip={item.label}
+      >
+        <Link
+          href={item.href}
+          onClick={() => {
+            if (isMobile) {
+              setOpenMobile(false);
+            }
+          }}
+          prefetch={false}
+        >
+          <Icon className={cn("text-muted-foreground", isActive && "text-primary")} />
+          <span>{item.label}</span>
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
+}
+
+function DashboardUserMenu({
+  user,
+  workspaceSlug,
+}: {
+  user: DashboardShellProps["user"];
+  workspaceSlug: string;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  function closeMobileSidebar() {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }
+
+  function handleLogout() {
+    startTransition(async () => {
+      const result = await authClient.signOut();
+
+      if (result.error) {
+        return;
+      }
+
+      window.location.assign("/login");
+    });
+  }
+
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton
+              className="data-[state=open]:bg-sidebar-accent"
+              size="lg"
+            >
+              <Avatar className="rounded-lg">
+                <AvatarFallback className="rounded-lg">
+                  {getInitials(user.name)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
+                <span className="truncate text-sm font-medium text-sidebar-foreground">
+                  {user.name}
+                </span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {user.email}
+                </span>
+              </div>
+              <ChevronsUpDown className="ml-auto text-muted-foreground group-data-[collapsible=icon]:hidden" />
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-56 w-56 rounded-xl">
+            <DropdownMenuLabel className="px-2 py-2.5">
+              <div className="flex items-center gap-3">
+                <Avatar className="rounded-lg">
+                  <AvatarFallback className="rounded-lg">
+                    {getInitials(user.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {user.name}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem asChild>
+                <Link
+                  href="/dashboard/settings"
+                  onClick={closeMobileSidebar}
+                  prefetch={false}
+                >
+                  <Settings2 data-icon="inline-start" />
+                  Settings
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link
+                  href={`/inquire/${workspaceSlug}`}
+                  onClick={closeMobileSidebar}
+                  prefetch={false}
+                  target="_blank"
+                >
+                  <ArrowUpRight data-icon="inline-start" />
+                  Public inquiry page
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={isPending}
+              onSelect={(event) => {
+                event.preventDefault();
+                handleLogout();
+              }}
+            >
+              <LogOut data-icon="inline-start" />
+              {isPending ? "Signing out..." : "Sign out"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
+}
+
+function getInitials(value: string) {
+  return value
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((segment) => segment[0]?.toUpperCase())
+    .join("");
 }

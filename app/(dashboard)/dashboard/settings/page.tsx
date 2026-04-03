@@ -1,8 +1,8 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { Bot, Globe2, Mail, ShieldCheck } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 
+import { InfoTile } from "@/components/shared/info-tile";
 import { PageHeader } from "@/components/shared/page-header";
 import { updateWorkspaceSettingsAction } from "@/features/settings/actions";
 import { WorkspaceSettingsForm } from "@/features/settings/components/workspace-settings-form";
@@ -41,7 +41,7 @@ export default async function SettingsPage() {
     : null;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="dashboard-page">
       <PageHeader
         eyebrow="Settings"
         title="Workspace settings"
@@ -56,39 +56,41 @@ export default async function SettingsPage() {
           settings={settings}
         />
 
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-6 xl:sticky xl:top-[5.5rem] xl:self-start">
           <Card>
             <CardHeader className="gap-2">
               <CardTitle>Workspace snapshot</CardTitle>
               <CardDescription>Current live details.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-              <SnapshotItem
+              <InfoTile
                 icon={Globe2}
                 label="Public inquiry page"
                 value={publicInquiryUrl}
-              >
-                <Link
-                  className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-                  href={publicInquiryUrl}
-                  prefetch={false}
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  Open public page
-                </Link>
-              </SnapshotItem>
-              <SnapshotItem
+                description={
+                  <Link
+                    className="font-medium text-primary underline-offset-4 hover:underline"
+                    href={publicInquiryUrl}
+                    prefetch={false}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    Open public page
+                  </Link>
+                }
+                valueClassName="break-all"
+              />
+              <InfoTile
                 icon={Mail}
                 label="Contact email"
                 value={settings.contactEmail ?? user.email}
               />
-              <SnapshotItem
+              <InfoTile
                 icon={Bot}
                 label="AI tone"
                 value={formatWorkspaceAiToneLabel(settings.aiTonePreference)}
               />
-              <SnapshotItem
+              <InfoTile
                 icon={ShieldCheck}
                 label="Notifications"
                 value={
@@ -106,44 +108,17 @@ export default async function SettingsPage() {
               <CardDescription>Where the current values show up.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4 text-sm leading-7 text-muted-foreground">
-              <div className="rounded-3xl border bg-background/80 px-4 py-3">
+              <div className="soft-panel px-4 py-3">
                 Public slug and intake settings shape the customer form.
               </div>
-              <div className="rounded-3xl border bg-background/80 px-4 py-3">
+              <div className="soft-panel px-4 py-3">
                 AI tone, signature, and quote notes feed internal drafting.
               </div>
-              <div className="rounded-3xl border bg-background/80 px-4 py-3">
+              <div className="soft-panel px-4 py-3">
                 Notification preferences stay lightweight for the MVP.
               </div>
             </CardContent>
           </Card>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SnapshotItem({
-  children,
-  icon: Icon,
-  label,
-  value,
-}: {
-  children?: ReactNode;
-  icon: typeof Globe2;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-xl border border-border/80 bg-background p-4">
-      <div className="flex items-start gap-3">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-          <Icon className="size-4" />
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <p className="meta-label">{label}</p>
-          <p className="break-all text-sm font-medium text-foreground">{value}</p>
-          {children}
         </div>
       </div>
     </div>

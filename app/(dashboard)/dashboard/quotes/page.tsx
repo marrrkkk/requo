@@ -38,7 +38,7 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
   const hasFilters = Boolean(filters.q || filters.status !== "all");
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="dashboard-page">
       <PageHeader
         eyebrow="Quotes"
         title="Quote workspace"

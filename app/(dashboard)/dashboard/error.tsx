@@ -40,11 +40,11 @@ export default function DashboardError({
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <div className="rounded-2xl border bg-background/80 px-4 py-3 text-sm leading-6 text-muted-foreground">
+          <div className="rounded-xl border border-border/80 bg-background px-4 py-3 text-sm leading-6 text-muted-foreground">
             Try this route again. If it keeps failing, go back to the overview and retry from a fresh navigation state.
           </div>
           {process.env.NODE_ENV === "development" ? (
-            <div className="rounded-2xl border bg-muted/35 px-4 py-3 font-mono text-xs leading-6 text-muted-foreground">
+            <div className="rounded-xl border border-border/80 bg-muted/35 px-4 py-3 font-mono text-xs leading-6 text-muted-foreground">
               {error.message}
             </div>
           ) : null}

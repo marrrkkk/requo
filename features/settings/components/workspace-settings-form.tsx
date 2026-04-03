@@ -269,7 +269,7 @@ export function WorkspaceSettingsForm({
                   }
                 />
                 {settings.logoStoragePath ? (
-                  <label className="mt-3 flex items-start gap-3 rounded-2xl border bg-muted/15 px-4 py-3">
+                  <label className="soft-panel mt-3 flex items-start gap-3 px-4 py-3">
                     <input
                       checked={removeLogo}
                       className="mt-1 size-4 accent-current"
@@ -290,9 +290,9 @@ export function WorkspaceSettingsForm({
               </FieldContent>
             </Field>
 
-            <div className="rounded-[1.45rem] border bg-background/80 p-4">
+            <div className="soft-panel p-4">
               <p className="meta-label">Current logo</p>
-              <div className="mt-4 flex min-h-32 items-center justify-center rounded-[1.25rem] border bg-muted/20 p-4">
+              <div className="soft-panel mt-4 flex min-h-32 items-center justify-center bg-muted/20 p-4 shadow-none">
                 {hasStoredLogo && logoPreviewUrl ? (
                   <Image
                     alt={`${settings.name} logo`}
@@ -495,7 +495,7 @@ export function WorkspaceSettingsForm({
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
+      <div className="toolbar-panel flex justify-end">
         <Button disabled={isPending} size="lg" type="submit">
           {isPending ? "Saving settings..." : "Save settings"}
         </Button>
@@ -520,7 +520,7 @@ function ToggleCard({
   onCheckedChange: (nextValue: boolean) => void;
 }) {
   return (
-    <label className="flex items-start gap-3 rounded-xl border border-border/80 bg-background px-4 py-4">
+    <label className="soft-panel flex items-start gap-3 px-4 py-4 transition-colors hover:bg-accent/30">
       <Switch
         checked={checked}
         className="mt-1"

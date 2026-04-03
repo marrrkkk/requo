@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
+import { InfoTile } from "@/components/shared/info-tile";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -101,10 +102,13 @@ export function QuoteEditor({
   }
 
   return (
-    <form action={formAction} className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
+    <form
+      action={formAction}
+      className="grid items-start gap-6 xl:grid-cols-[1.08fr_0.92fr]"
+    >
       <input name="items" type="hidden" value={JSON.stringify(items)} />
 
-      <div className="flex flex-col gap-6">
+      <div className="flex min-w-0 flex-col gap-6">
         {state.error ? (
           <Alert variant="destructive">
             <AlertTitle>We could not save the quote.</AlertTitle>
@@ -119,18 +123,18 @@ export function QuoteEditor({
           </Alert>
         ) : null}
 
-        <div className="rounded-[1.7rem] border bg-background/70 p-5 shadow-sm">
+        <div className="section-panel p-5">
           <div className="flex flex-col gap-5">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex flex-col gap-1">
-                <p className="font-heading text-2xl font-medium tracking-tight text-foreground">
+                <p className="font-heading text-2xl font-semibold tracking-tight text-foreground">
                   Quote details
                 </p>
                 <p className="text-sm leading-6 text-muted-foreground">
                   Customer, validity date, and notes.
                 </p>
               </div>
-              <div className="rounded-[1.25rem] border bg-background/80 px-4 py-3 text-sm">
+              <div className="soft-panel px-4 py-3 text-sm">
                 <p className="font-medium text-foreground">
                   {quoteNumber ?? "Assigned after save"}
                 </p>
@@ -139,15 +143,11 @@ export function QuoteEditor({
             </div>
 
             {linkedInquiry ? (
-              <div className="rounded-[1.35rem] border bg-background/80 p-4">
-                <p className="meta-label">Linked inquiry</p>
-                <p className="mt-2 font-medium text-foreground">
-                  {linkedInquiry.serviceCategory}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {linkedInquiry.customerName} | {linkedInquiry.customerEmail}
-                </p>
-              </div>
+              <InfoTile
+                label="Linked inquiry"
+                value={linkedInquiry.serviceCategory}
+                description={`${linkedInquiry.customerName} | ${linkedInquiry.customerEmail}`}
+              />
             ) : null}
 
             <FieldGroup>
@@ -308,11 +308,11 @@ export function QuoteEditor({
           </div>
         </div>
 
-        <div className="rounded-[1.7rem] border bg-background/70 p-5 shadow-sm">
+        <div className="section-panel p-5">
           <div className="flex flex-col gap-5">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="font-heading text-2xl font-medium tracking-tight text-foreground">
+                <p className="font-heading text-2xl font-semibold tracking-tight text-foreground">
                   Line items
                 </p>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -351,7 +351,7 @@ export function QuoteEditor({
 
                 return (
                   <div
-                    className="rounded-[1.35rem] border bg-background/80 p-4"
+                    className="soft-panel p-4"
                     key={item.id}
                   >
                     <div className="flex flex-col gap-4">
@@ -437,7 +437,7 @@ export function QuoteEditor({
                             </FieldContent>
                           </Field>
 
-                          <div className="rounded-[1.25rem] border bg-muted/20 px-4 py-3">
+                          <div className="info-tile bg-muted/20 px-4 py-3 shadow-none">
                             <p className="meta-label">Line total</p>
                             <p className="mt-2 text-sm font-medium text-foreground">
                               {formatQuoteMoney(
@@ -456,11 +456,11 @@ export function QuoteEditor({
           </div>
         </div>
 
-        <div className="rounded-[1.7rem] border bg-background/70 p-5 shadow-sm">
+        <div className="toolbar-panel">
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-4">
               <span className="text-sm font-medium text-foreground">Totals</span>
-              <span className="rounded-full border bg-background px-3 py-1 text-xs text-muted-foreground">
+              <span className="soft-panel px-3 py-1 text-xs text-muted-foreground shadow-none">
                 Auto-calculated
               </span>
             </div>
@@ -480,7 +480,7 @@ export function QuoteEditor({
                 strong
               />
             </div>
-            <Button disabled={isPending} type="submit">
+            <Button disabled={isPending} size="lg" type="submit">
               {isPending ? submitPendingLabel : submitLabel}
             </Button>
           </div>
@@ -500,7 +500,7 @@ export function QuoteEditor({
         subtotalInCents={totals.subtotalInCents}
         discountInCents={totals.discountInCents}
         totalInCents={totals.totalInCents}
-        className="xl:sticky xl:top-6 xl:self-start"
+        className="xl:sticky xl:top-[5.5rem] xl:self-start"
       />
     </form>
   );

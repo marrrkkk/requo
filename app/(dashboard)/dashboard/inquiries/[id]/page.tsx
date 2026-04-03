@@ -2,6 +2,7 @@ import Link from "next/link";
 import { FileText, Mail, Phone, ReceiptText } from "lucide-react";
 import { notFound } from "next/navigation";
 
+import { InfoTile } from "@/components/shared/info-tile";
 import { PageHeader } from "@/components/shared/page-header";
 import { generateInquiryAssistantAction } from "@/features/ai/actions";
 import { InquiryAiPanel } from "@/features/ai/components/inquiry-ai-panel";
@@ -68,7 +69,7 @@ export default async function InquiryDetailPage({
   const aiAction = generateInquiryAssistantAction.bind(null, inquiry.id);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="dashboard-page">
       <PageHeader
         eyebrow="Inquiry detail"
         title={inquiry.customerName}
@@ -78,7 +79,7 @@ export default async function InquiryDetailPage({
         actions={
           <>
             <InquiryStatusBadge status={inquiry.status} />
-            <span className="rounded-full border bg-background px-3 py-1 text-xs text-muted-foreground">
+            <span className="rounded-md border border-border/80 bg-background px-3 py-1 text-xs text-muted-foreground">
               Ref {inquiry.id}
             </span>
             <Button asChild>
@@ -96,23 +97,23 @@ export default async function InquiryDetailPage({
 
       <div className="grid gap-6 xl:grid-cols-[1.45fr_0.95fr]">
         <div className="flex flex-col gap-6">
-          <Card className="bg-background/70">
+          <Card>
             <CardHeader className="gap-2">
               <CardTitle>Inquiry details</CardTitle>
               <CardDescription>Submitted through the public form.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-6">
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <DetailStat label="Category" value={inquiry.serviceCategory} />
-                <DetailStat
+                <InfoTile label="Category" value={inquiry.serviceCategory} />
+                <InfoTile
                   label="Budget"
                   value={formatInquiryBudget(inquiry.budgetText)}
                 />
-                <DetailStat
+                <InfoTile
                   label="Deadline"
                   value={inquiry.requestedDeadline ?? "Not provided"}
                 />
-                <DetailStat
+                <InfoTile
                   label="Source"
                   value={
                     inquiry.source ? inquiry.source.replace(/[-_]/g, " ") : "Unknown"
@@ -124,7 +125,7 @@ export default async function InquiryDetailPage({
 
               <div className="flex flex-col gap-3">
                 <h2 className="text-sm font-medium text-foreground">Message</h2>
-                <div className="rounded-[1.35rem] border bg-muted/25 px-4 py-4">
+                <div className="soft-panel bg-muted/25 px-5 py-5">
                   <p className="whitespace-pre-wrap text-sm leading-7 text-foreground">
                     {inquiry.details}
                   </p>
@@ -133,7 +134,7 @@ export default async function InquiryDetailPage({
             </CardContent>
           </Card>
 
-          <Card className="bg-background/70">
+          <Card>
             <CardHeader className="gap-2">
               <CardTitle>Attachments</CardTitle>
               <CardDescription>Files included with the inquiry.</CardDescription>
@@ -144,7 +145,7 @@ export default async function InquiryDetailPage({
                   {inquiry.attachments.map((attachment) => (
                     <div
                       key={attachment.id}
-                      className="flex flex-col gap-3 rounded-[1.35rem] border bg-background/80 p-4 sm:flex-row sm:items-center sm:justify-between"
+                      className="soft-panel flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="min-w-0 flex flex-col gap-1">
                         <p className="truncate font-medium text-foreground">
@@ -178,7 +179,7 @@ export default async function InquiryDetailPage({
             </CardContent>
           </Card>
 
-          <Card className="bg-background/70">
+          <Card>
             <CardHeader className="gap-2">
               <CardTitle>Internal notes</CardTitle>
               <CardDescription>Private workspace notes.</CardDescription>
@@ -191,7 +192,7 @@ export default async function InquiryDetailPage({
                   {inquiry.notes.map((note) => (
                     <div
                       key={note.id}
-                      className="rounded-[1.35rem] border bg-background/80 p-4"
+                      className="soft-panel p-4"
                     >
                       <div className="flex flex-col gap-2">
                         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -219,7 +220,7 @@ export default async function InquiryDetailPage({
             </CardContent>
           </Card>
 
-          <Card className="bg-background/70">
+          <Card>
             <CardHeader className="gap-2">
               <CardTitle>Activity log</CardTitle>
               <CardDescription>Submission and owner actions.</CardDescription>
@@ -230,7 +231,7 @@ export default async function InquiryDetailPage({
                   {inquiry.activities.map((activity) => (
                     <div
                       key={activity.id}
-                      className="rounded-[1.35rem] border bg-background/80 p-4"
+                      className="soft-panel p-4"
                     >
                       <div className="flex flex-col gap-1">
                         <p className="text-sm font-medium text-foreground">
@@ -257,45 +258,41 @@ export default async function InquiryDetailPage({
         </div>
 
         <div className="flex flex-col gap-6">
-          <Card className="bg-background/70">
+          <Card>
             <CardHeader className="gap-2">
               <CardTitle>Customer contact</CardTitle>
               <CardDescription>Email or call from here.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-              <div className="rounded-[1.35rem] border bg-background/80 p-4">
-                <div className="flex items-start gap-3">
-                  <Mail className="mt-0.5" />
-                  <div className="min-w-0 flex flex-1 flex-col gap-1">
-                    <p className="meta-label">Email</p>
-                    <a
-                      className="truncate text-sm font-medium text-foreground underline-offset-4 hover:underline"
-                      href={`mailto:${inquiry.customerEmail}`}
-                    >
-                      {inquiry.customerEmail}
-                    </a>
-                  </div>
-                </div>
-              </div>
+              <InfoTile
+                icon={Mail}
+                label="Email"
+                value={
+                  <a
+                    className="truncate underline-offset-4 hover:underline"
+                    href={`mailto:${inquiry.customerEmail}`}
+                  >
+                    {inquiry.customerEmail}
+                  </a>
+                }
+              />
 
-              <div className="rounded-[1.35rem] border bg-background/80 p-4">
-                <div className="flex items-start gap-3">
-                  <Phone className="mt-0.5" />
-                  <div className="min-w-0 flex flex-1 flex-col gap-1">
-                    <p className="meta-label">Phone</p>
-                    {inquiry.customerPhone ? (
-                      <a
-                        className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
-                        href={`tel:${inquiry.customerPhone}`}
-                      >
-                        {inquiry.customerPhone}
-                      </a>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Not provided</p>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <InfoTile
+                icon={Phone}
+                label="Phone"
+                value={
+                  inquiry.customerPhone ? (
+                    <a
+                      className="underline-offset-4 hover:underline"
+                      href={`tel:${inquiry.customerPhone}`}
+                    >
+                      {inquiry.customerPhone}
+                    </a>
+                  ) : (
+                    "Not provided"
+                  )
+                }
+              />
             </CardContent>
             <CardFooter className="flex flex-col items-stretch gap-3 sm:flex-row sm:justify-end">
               <Button asChild variant="outline">
@@ -305,37 +302,37 @@ export default async function InquiryDetailPage({
             </CardFooter>
           </Card>
 
-          <Card className="bg-background/70">
+          <Card>
             <CardHeader className="gap-2">
               <CardTitle>Related quote</CardTitle>
               <CardDescription>Open the linked quote or create one.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               {inquiry.relatedQuote ? (
-                <div className="rounded-[1.35rem] border bg-background/80 p-4">
+                <div className="soft-panel p-4">
                   <div className="flex flex-col gap-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full border bg-muted/35 px-3 py-1 text-xs font-medium capitalize text-foreground">
+                      <span className="rounded-md border border-border/80 bg-secondary px-3 py-1 text-xs font-medium capitalize text-foreground">
                         {inquiry.relatedQuote.status}
                       </span>
-                      <span className="rounded-full border bg-muted/35 px-3 py-1 text-xs text-muted-foreground">
+                      <span className="rounded-md border border-border/80 bg-secondary px-3 py-1 text-xs text-muted-foreground">
                         {inquiry.relatedQuote.quoteNumber ?? inquiry.relatedQuote.id}
                       </span>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <DetailStat
+                      <InfoTile
                         label="Quote status"
                         value={inquiry.relatedQuote.status}
                       />
-                      <DetailStat
+                      <InfoTile
                         label="Total"
                         value={`$${(inquiry.relatedQuote.totalInCents / 100).toFixed(2)}`}
                       />
-                      <DetailStat
+                      <InfoTile
                         label="Created"
                         value={formatInquiryDate(inquiry.relatedQuote.createdAt)}
                       />
-                      <DetailStat
+                      <InfoTile
                         label="Linked quotes"
                         value={`${inquiry.relatedQuote.quoteCount}`}
                       />
@@ -373,7 +370,7 @@ export default async function InquiryDetailPage({
             </CardFooter>
           </Card>
 
-          <Card className="bg-background/70">
+          <Card>
             <CardHeader className="gap-2">
               <CardTitle>Status</CardTitle>
               <CardDescription>Move the inquiry forward.</CardDescription>
@@ -389,22 +386,6 @@ export default async function InquiryDetailPage({
 
           <InquiryAiPanel action={aiAction} />
         </div>
-      </div>
-    </div>
-  );
-}
-
-type DetailStatProps = {
-  label: string;
-  value: string;
-};
-
-function DetailStat({ label, value }: DetailStatProps) {
-  return (
-    <div className="rounded-[1.25rem] border bg-background/80 p-4">
-      <div className="flex flex-col gap-1">
-        <p className="meta-label">{label}</p>
-        <p className="text-sm font-medium text-foreground">{value}</p>
       </div>
     </div>
   );

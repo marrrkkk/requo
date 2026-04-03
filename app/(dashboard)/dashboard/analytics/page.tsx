@@ -23,7 +23,7 @@ export default async function AnalyticsPage() {
     : 0;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="dashboard-page">
       <PageHeader
         eyebrow="Analytics"
         title="Simple performance view"

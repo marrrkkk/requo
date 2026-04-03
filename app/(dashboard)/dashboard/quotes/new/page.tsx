@@ -62,7 +62,7 @@ export default async function NewQuotePage({
   const action = createQuoteAction.bind(null, inquiryPrefill?.id ?? null);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="dashboard-page">
       <PageHeader
         eyebrow="New quote"
         title={

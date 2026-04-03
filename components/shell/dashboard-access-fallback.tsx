@@ -38,10 +38,10 @@ export function DashboardAccessFallback({
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <div className="rounded-2xl border bg-background/80 px-4 py-3 text-sm leading-6 text-muted-foreground">
+          <div className="rounded-xl border border-border/80 bg-background px-4 py-3 text-sm leading-6 text-muted-foreground">
             If this happened just after signup, waiting a moment and trying again usually fixes it.
           </div>
-          <div className="rounded-2xl border bg-background/80 px-4 py-3 text-sm leading-6 text-muted-foreground">
+          <div className="rounded-xl border border-border/80 bg-background px-4 py-3 text-sm leading-6 text-muted-foreground">
             If it keeps failing, sign out and back in to restart the session cleanly.
           </div>
         </CardContent>

@@ -2,7 +2,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function DashboardPageSkeleton() {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="dashboard-page gap-8">
       <div className="flex flex-col gap-3">
         <Skeleton className="h-4 w-24 rounded-md" />
         <Skeleton className="h-10 w-full max-w-sm rounded-xl" />
@@ -18,7 +18,7 @@ export function DashboardPageSkeleton() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <div className="rounded-2xl border border-border/80 bg-card p-5">
+        <div className="section-panel p-5">
           <div className="flex flex-col gap-4">
             <Skeleton className="h-6 w-44 rounded-md" />
             <Skeleton className="h-24 w-full rounded-2xl" />
@@ -28,7 +28,7 @@ export function DashboardPageSkeleton() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border/80 bg-card p-5">
+        <div className="section-panel p-5">
           <div className="flex flex-col gap-4">
             <Skeleton className="h-6 w-32 rounded-md" />
             <Skeleton className="h-20 w-full rounded-xl" />

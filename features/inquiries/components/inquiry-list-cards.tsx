@@ -25,7 +25,7 @@ export function InquiryListCards({ inquiries }: InquiryListCardsProps) {
   return (
     <div className="grid gap-4 lg:hidden">
       {inquiries.map((inquiry) => (
-        <Card key={inquiry.id} className="bg-background/75">
+        <Card key={inquiry.id}>
           <CardHeader className="gap-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex flex-col gap-1">
@@ -40,25 +40,25 @@ export function InquiryListCards({ inquiries }: InquiryListCardsProps) {
             </div>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-3">
-            <div className="flex flex-col gap-1">
+            <div className="info-tile px-3 py-3 shadow-none">
               <span className="meta-label">
                 Category
               </span>
-              <p className="text-sm text-foreground">{inquiry.serviceCategory}</p>
+              <p className="mt-2 text-sm text-foreground">{inquiry.serviceCategory}</p>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="info-tile px-3 py-3 shadow-none">
               <span className="meta-label">
                 Budget
               </span>
-              <p className="text-sm text-foreground">
+              <p className="mt-2 text-sm text-foreground">
                 {formatInquiryBudget(inquiry.budgetText)}
               </p>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="info-tile px-3 py-3 shadow-none">
               <span className="meta-label">
                 Created
               </span>
-              <p className="text-sm text-foreground">
+              <p className="mt-2 text-sm text-foreground">
                 {formatInquiryDate(inquiry.submittedAt)}
               </p>
             </div>

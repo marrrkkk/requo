@@ -41,7 +41,7 @@ export default async function InquiriesPage({
   const hasFilters = Boolean(filters.q || filters.status !== "all");
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="dashboard-page">
       <PageHeader
         eyebrow="Inquiry inbox"
         title="Customer requests"

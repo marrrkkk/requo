@@ -1,5 +1,6 @@
 import { BookCopy, FileStack, Sparkles, TextQuote } from "lucide-react";
 
+import { InfoTile } from "@/components/shared/info-tile";
 import { PageHeader } from "@/components/shared/page-header";
 import {
   createKnowledgeFaqAction,
@@ -46,7 +47,7 @@ export default async function KnowledgePage() {
   const contextSourceCount = readyFileCount + knowledgeData.faqs.length;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="dashboard-page">
       <PageHeader
         eyebrow="Knowledge"
         title="Business context"
@@ -54,26 +55,32 @@ export default async function KnowledgePage() {
       />
 
       <div className="grid gap-4 md:grid-cols-3">
-        <StatCard
+        <InfoTile
           description="Files"
           icon={FileStack}
-          title={`${knowledgeData.files.length}`}
+          label="Knowledge files"
+          value={`${knowledgeData.files.length}`}
+          valueClassName="text-2xl font-semibold tracking-tight"
         />
-        <StatCard
-          description="FAQs"
+        <InfoTile
           icon={TextQuote}
-          title={`${knowledgeData.faqs.length}`}
+          label="FAQs"
+          value={`${knowledgeData.faqs.length}`}
+          description="Reusable internal answers."
+          valueClassName="text-2xl font-semibold tracking-tight"
         />
-        <StatCard
-          description="Ready sources"
+        <InfoTile
           icon={Sparkles}
-          title={`${contextSourceCount}`}
+          label="Ready sources"
+          value={`${contextSourceCount}`}
+          description="Files with extracted text plus FAQs."
+          valueClassName="text-2xl font-semibold tracking-tight"
         />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="flex flex-col gap-6">
-          <Card className="bg-background/70">
+          <Card>
             <CardHeader className="gap-2">
               <CardTitle>Upload a knowledge file</CardTitle>
               <CardDescription>Add a text-based reference file.</CardDescription>
@@ -83,7 +90,7 @@ export default async function KnowledgePage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-background/70">
+          <Card>
             <CardHeader className="gap-2">
               <CardTitle>Uploaded files</CardTitle>
               <CardDescription>Newest files first.</CardDescription>
@@ -94,7 +101,7 @@ export default async function KnowledgePage() {
                   {knowledgeData.files.map((file) => (
                     <div
                       key={file.id}
-                      className="rounded-3xl border bg-background/80 p-4"
+                      className="soft-panel p-4"
                     >
                       <div className="flex flex-col gap-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -108,17 +115,17 @@ export default async function KnowledgePage() {
                           </div>
 
                           <div className="flex flex-col items-start gap-2 sm:items-end">
-                            <span className="rounded-full border bg-muted/35 px-3 py-1 text-xs text-muted-foreground">
+                            <span className="rounded-md border border-border/80 bg-secondary px-3 py-1 text-xs text-muted-foreground">
                               {formatKnowledgeFileSize(file.fileSize)}
                             </span>
-                            <span className="rounded-full border bg-muted/35 px-3 py-1 text-xs text-muted-foreground">
+                            <span className="rounded-md border border-border/80 bg-secondary px-3 py-1 text-xs text-muted-foreground">
                               {formatKnowledgeDate(file.createdAt)}
                             </span>
                           </div>
                         </div>
 
                         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
-                          <div className="rounded-3xl border bg-muted/20 p-4">
+                          <div className="soft-panel bg-muted/20 p-4 shadow-none">
                             <p className="meta-label">Text preview</p>
                             <p className="mt-3 text-sm leading-7 text-foreground">
                               {getKnowledgeTextPreview(file.extractedText) ??
@@ -126,7 +133,7 @@ export default async function KnowledgePage() {
                             </p>
                           </div>
 
-                          <div className="flex flex-col gap-3 rounded-3xl border bg-muted/20 p-4">
+                          <div className="soft-panel flex flex-col gap-3 bg-muted/20 p-4 shadow-none">
                             <div className="flex flex-col gap-1">
                               <p className="meta-label">Content type</p>
                               <p className="text-sm text-foreground">
@@ -164,7 +171,7 @@ export default async function KnowledgePage() {
         </div>
 
         <div className="flex flex-col gap-6">
-          <Card className="bg-background/70">
+          <Card>
             <CardHeader className="gap-2">
               <CardTitle>Add an FAQ</CardTitle>
               <CardDescription>Save a short reusable answer.</CardDescription>
@@ -179,7 +186,7 @@ export default async function KnowledgePage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-background/70">
+          <Card>
             <CardHeader className="gap-2">
               <CardTitle>Workspace FAQs</CardTitle>
               <CardDescription>Edit or remove existing answers.</CardDescription>
@@ -216,31 +223,5 @@ export default async function KnowledgePage() {
         </div>
       </div>
     </div>
-  );
-}
-
-function StatCard({
-  title,
-  description,
-  icon: Icon,
-}: {
-  title: string;
-  description: string;
-  icon: typeof BookCopy;
-}) {
-  return (
-    <Card className="bg-background/70">
-      <CardContent className="flex items-center gap-4 p-5">
-        <div className="flex size-11 items-center justify-center rounded-full border bg-secondary">
-          <Icon className="size-4" />
-        </div>
-        <div className="flex flex-col gap-1">
-          <p className="text-2xl font-semibold tracking-tight text-foreground">
-            {title}
-          </p>
-          <p className="text-sm text-muted-foreground">{description}</p>
-        </div>
-      </CardContent>
-    </Card>
   );
 }

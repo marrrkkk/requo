@@ -26,7 +26,7 @@ export function QuoteListCards({ quotes, currency }: QuoteListCardsProps) {
   return (
     <div className="grid gap-4 lg:hidden">
       {quotes.map((quote) => (
-        <Card key={quote.id} className="bg-background/75">
+        <Card key={quote.id}>
           <CardHeader className="gap-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex flex-col gap-1">
@@ -41,25 +41,25 @@ export function QuoteListCards({ quotes, currency }: QuoteListCardsProps) {
             </div>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-3">
-            <div className="flex flex-col gap-1">
+            <div className="info-tile px-3 py-3 shadow-none">
               <span className="meta-label">
                 Customer
               </span>
-              <p className="text-sm text-foreground">{quote.customerName}</p>
+              <p className="mt-2 text-sm text-foreground">{quote.customerName}</p>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="info-tile px-3 py-3 shadow-none">
               <span className="meta-label">
                 Valid until
               </span>
-              <p className="text-sm text-foreground">
+              <p className="mt-2 text-sm text-foreground">
                 {formatQuoteDate(quote.validUntil)}
               </p>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="info-tile px-3 py-3 shadow-none">
               <span className="meta-label">
                 Total
               </span>
-              <p className="text-sm text-foreground">
+              <p className="mt-2 text-sm text-foreground">
                 {formatQuoteMoney(quote.totalInCents, currency)}
               </p>
             </div>

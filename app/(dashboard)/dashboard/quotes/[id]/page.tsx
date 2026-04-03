@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ExternalLink, Mail } from "lucide-react";
 import { notFound } from "next/navigation";
 
+import { InfoTile } from "@/components/shared/info-tile";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -80,7 +81,7 @@ export default async function QuoteDetailPage({
     : null;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="dashboard-page">
       <PageHeader
         eyebrow="Quote detail"
         title={quote.quoteNumber}
@@ -88,11 +89,11 @@ export default async function QuoteDetailPage({
         actions={
           <>
             <QuoteStatusBadge status={quote.status} />
-            <span className="rounded-full border bg-background px-3 py-1 text-xs text-muted-foreground">
+            <span className="rounded-md border border-border/80 bg-background px-3 py-1 text-xs text-muted-foreground">
               Valid until {formatQuoteDate(quote.validUntil)}
             </span>
             {quote.inquiryId ? (
-              <span className="rounded-full border bg-background px-3 py-1 text-xs text-muted-foreground">
+              <span className="rounded-md border border-border/80 bg-background px-3 py-1 text-xs text-muted-foreground">
                 Linked inquiry
               </span>
             ) : null}
@@ -134,27 +135,27 @@ export default async function QuoteDetailPage({
             totalInCents={quote.totalInCents}
           />
 
-          <Card className="bg-background/70">
+          <Card>
             <CardHeader className="gap-2">
               <CardTitle>Quote details</CardTitle>
               <CardDescription>Read-only until moved back to draft.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
-              <DetailStat label="Customer" value={quote.customerName} />
-              <DetailStat label="Email" value={quote.customerEmail} />
-              <DetailStat
+              <InfoTile label="Customer" value={quote.customerName} />
+              <InfoTile label="Email" value={quote.customerEmail} />
+              <InfoTile
                 label="Subtotal"
                 value={formatQuoteMoney(quote.subtotalInCents, quote.currency)}
               />
-              <DetailStat
+              <InfoTile
                 label="Total"
                 value={formatQuoteMoney(quote.totalInCents, quote.currency)}
               />
-              <DetailStat
+              <InfoTile
                 label="Sent"
                 value={quote.sentAt ? formatQuoteDateTime(quote.sentAt) : "Not sent"}
               />
-              <DetailStat
+              <InfoTile
                 label="Accepted"
                 value={
                   quote.acceptedAt
@@ -169,7 +170,7 @@ export default async function QuoteDetailPage({
 
       <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
         <div className="flex flex-col gap-6">
-          <Card className="bg-background/70">
+          <Card>
             <CardHeader className="gap-2">
               <CardTitle>Activity log</CardTitle>
               <CardDescription>Quote events and owner actions.</CardDescription>
@@ -180,7 +181,7 @@ export default async function QuoteDetailPage({
                   {quote.activities.map((activity) => (
                     <div
                       key={activity.id}
-                      className="rounded-[1.35rem] border bg-background/80 p-4"
+                      className="soft-panel p-4"
                     >
                       <div className="flex flex-col gap-1">
                         <p className="text-sm font-medium text-foreground">
@@ -205,37 +206,37 @@ export default async function QuoteDetailPage({
             </CardContent>
           </Card>
 
-          <Card className="bg-background/70">
+          <Card>
             <CardHeader className="gap-2">
               <CardTitle>Linked inquiry</CardTitle>
               <CardDescription>Original inquiry context.</CardDescription>
             </CardHeader>
             <CardContent>
               {quote.linkedInquiry ? (
-                <div className="rounded-[1.35rem] border bg-background/80 p-4">
+                <div className="soft-panel p-4">
                   <div className="flex flex-col gap-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full border bg-muted/35 px-3 py-1 text-xs text-muted-foreground">
+                      <span className="rounded-md border border-border/80 bg-secondary px-3 py-1 text-xs text-muted-foreground">
                         Inquiry status {quote.linkedInquiry.status}
                       </span>
-                      <span className="rounded-full border bg-muted/35 px-3 py-1 text-xs text-muted-foreground">
+                      <span className="rounded-md border border-border/80 bg-secondary px-3 py-1 text-xs text-muted-foreground">
                         Inquiry {quote.linkedInquiry.id}
                       </span>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <DetailStat
+                      <InfoTile
                         label="Customer"
                         value={quote.linkedInquiry.customerName}
                       />
-                      <DetailStat
+                      <InfoTile
                         label="Email"
                         value={quote.linkedInquiry.customerEmail}
                       />
-                      <DetailStat
+                      <InfoTile
                         label="Category"
                         value={quote.linkedInquiry.serviceCategory}
                       />
-                      <DetailStat
+                      <InfoTile
                         label="Inquiry status"
                         value={quote.linkedInquiry.status}
                       />
@@ -268,20 +269,20 @@ export default async function QuoteDetailPage({
 
         <div className="flex flex-col gap-6">
           {quote.status !== "draft" ? (
-            <Card className="bg-background/70">
+            <Card>
               <CardHeader className="gap-2">
                 <CardTitle>Customer view</CardTitle>
                 <CardDescription>Share and track the public quote.</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
-                <div className="rounded-[1.35rem] border bg-background/80 p-4">
+                <div className="soft-panel p-4">
                   <p className="meta-label">Public quote URL</p>
                   <p className="mt-2 break-all text-sm text-muted-foreground">
                     {customerQuoteUrl}
                   </p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <DetailStat
+                  <InfoTile
                     label="Last viewed"
                     value={
                       quote.publicViewedAt
@@ -289,7 +290,7 @@ export default async function QuoteDetailPage({
                         : "Not viewed yet"
                     }
                   />
-                  <DetailStat
+                  <InfoTile
                     label="Customer response"
                     value={
                       quote.customerRespondedAt
@@ -299,7 +300,7 @@ export default async function QuoteDetailPage({
                   />
                 </div>
                 {quote.customerResponseMessage ? (
-                  <div className="rounded-[1.35rem] border bg-background/80 p-4">
+                  <div className="soft-panel p-4">
                     <p className="meta-label">Customer message</p>
                     <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground">
                       {quote.customerResponseMessage}
@@ -320,7 +321,7 @@ export default async function QuoteDetailPage({
           ) : null}
 
           {quote.status === "draft" ? (
-            <Card className="bg-background/70">
+            <Card>
               <CardHeader className="gap-2">
                 <CardTitle>Send quote</CardTitle>
                 <CardDescription>Email the finished draft.</CardDescription>
@@ -339,7 +340,7 @@ export default async function QuoteDetailPage({
                 <CardDescription>Read-only after send.</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-3">
-                <div className="rounded-[1.35rem] border bg-background/80 p-4">
+                <div className="soft-panel p-4">
                   <p className="text-sm font-medium text-foreground">Current status</p>
                   <p className="mt-2 text-sm text-muted-foreground">
                     {quote.status === "sent"
@@ -348,7 +349,7 @@ export default async function QuoteDetailPage({
                   </p>
                 </div>
                 {quote.sentAt ? (
-                  <div className="rounded-[1.35rem] border bg-background/80 p-4 text-sm text-muted-foreground">
+                  <div className="soft-panel p-4 text-sm text-muted-foreground">
                     Sent on {formatQuoteDateTime(quote.sentAt)}.
                   </div>
                 ) : null}
@@ -356,7 +357,7 @@ export default async function QuoteDetailPage({
             </Card>
           )}
 
-          <Card className="bg-background/70">
+          <Card>
             <CardHeader className="gap-2">
               <CardTitle>Status</CardTitle>
               <CardDescription>Move the quote through its lifecycle.</CardDescription>
@@ -370,36 +371,25 @@ export default async function QuoteDetailPage({
             </CardContent>
           </Card>
 
-          <Card className="bg-background/70">
+          <Card>
             <CardHeader className="gap-2">
               <CardTitle>Quote summary</CardTitle>
               <CardDescription>Key commercial details.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
-              <DetailStat label="Quote number" value={quote.quoteNumber} />
-              <DetailStat label="Title" value={quote.title} />
-              <DetailStat
+              <InfoTile label="Quote number" value={quote.quoteNumber} />
+              <InfoTile label="Title" value={quote.title} />
+              <InfoTile
                 label="Valid until"
                 value={formatQuoteDate(quote.validUntil)}
               />
-              <DetailStat
+              <InfoTile
                 label="Total"
                 value={formatQuoteMoney(quote.totalInCents, quote.currency)}
               />
             </CardContent>
           </Card>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function DetailStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[1.25rem] border bg-background/80 p-4">
-      <div className="flex flex-col gap-1">
-        <p className="meta-label">{label}</p>
-        <p className="text-sm font-medium text-foreground">{value}</p>
       </div>
     </div>
   );
