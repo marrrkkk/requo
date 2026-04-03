@@ -1,5 +1,12 @@
 import { BookCopy, FileStack, Sparkles, TextQuote } from "lucide-react";
 
+import {
+  DashboardDetailLayout,
+  DashboardEmptyState,
+  DashboardPage,
+  DashboardSection,
+  DashboardStatsGrid,
+} from "@/components/shared/dashboard-layout";
 import { InfoTile } from "@/components/shared/info-tile";
 import { PageHeader } from "@/components/shared/page-header";
 import {
@@ -19,20 +26,6 @@ import {
   formatKnowledgeFileSize,
   getKnowledgeTextPreview,
 } from "@/features/knowledge/utils";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { Separator } from "@/components/ui/separator";
 import { requireCurrentWorkspaceContext } from "@/lib/db/workspace-access";
 
@@ -47,14 +40,14 @@ export default async function KnowledgePage() {
   const contextSourceCount = readyFileCount + knowledgeData.faqs.length;
 
   return (
-    <div className="dashboard-page">
+    <DashboardPage>
       <PageHeader
         eyebrow="Knowledge"
         title="Business context"
         description="Store files and short FAQs for reuse."
       />
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <DashboardStatsGrid className="md:grid-cols-3 xl:grid-cols-3">
         <InfoTile
           description="Files"
           icon={FileStack}
@@ -76,26 +69,21 @@ export default async function KnowledgePage() {
           description="Files with extracted text plus FAQs."
           valueClassName="text-2xl font-semibold tracking-tight"
         />
-      </div>
+      </DashboardStatsGrid>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <div className="flex flex-col gap-6">
-          <Card>
-            <CardHeader className="gap-2">
-              <CardTitle>Upload a knowledge file</CardTitle>
-              <CardDescription>Add a text-based reference file.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <KnowledgeFileUploadForm action={uploadKnowledgeFileAction} />
-            </CardContent>
-          </Card>
+      <DashboardDetailLayout className="xl:grid-cols-[1.1fr_0.9fr]">
+        <div className="dashboard-side-stack">
+          <DashboardSection
+            description="Add a text-based reference file."
+            title="Upload a knowledge file"
+          >
+            <KnowledgeFileUploadForm action={uploadKnowledgeFileAction} />
+          </DashboardSection>
 
-          <Card>
-            <CardHeader className="gap-2">
-              <CardTitle>Uploaded files</CardTitle>
-              <CardDescription>Newest files first.</CardDescription>
-            </CardHeader>
-            <CardContent>
+          <DashboardSection
+            description="Newest files first."
+            title="Uploaded files"
+          >
               {knowledgeData.files.length ? (
                 <div className="flex flex-col gap-4">
                   {knowledgeData.files.map((file) => (
@@ -153,45 +141,33 @@ export default async function KnowledgePage() {
                   ))}
                 </div>
               ) : (
-                <Empty className="border">
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <BookCopy />
-                    </EmptyMedia>
-                    <EmptyTitle>No knowledge files yet</EmptyTitle>
-                    <EmptyDescription>
-                      Upload your first internal text file to start building
-                      reusable business context for future AI-assisted drafts.
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
+                <DashboardEmptyState
+                  description="Upload your first internal text file to start building reusable business context for future AI-assisted drafts."
+                  icon={BookCopy}
+                  title="No knowledge files yet"
+                  variant="section"
+                />
               )}
-            </CardContent>
-          </Card>
+          </DashboardSection>
         </div>
 
-        <div className="flex flex-col gap-6">
-          <Card>
-            <CardHeader className="gap-2">
-              <CardTitle>Add an FAQ</CardTitle>
-              <CardDescription>Save a short reusable answer.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <KnowledgeFaqForm
-                action={createKnowledgeFaqAction}
-                submitLabel="Add FAQ"
-                submitPendingLabel="Adding FAQ..."
-                idPrefix="knowledge-faq-create"
-              />
-            </CardContent>
-          </Card>
+        <div className="dashboard-side-stack">
+          <DashboardSection
+            description="Save a short reusable answer."
+            title="Add an FAQ"
+          >
+            <KnowledgeFaqForm
+              action={createKnowledgeFaqAction}
+              submitLabel="Add FAQ"
+              submitPendingLabel="Adding FAQ..."
+              idPrefix="knowledge-faq-create"
+            />
+          </DashboardSection>
 
-          <Card>
-            <CardHeader className="gap-2">
-              <CardTitle>Workspace FAQs</CardTitle>
-              <CardDescription>Edit or remove existing answers.</CardDescription>
-            </CardHeader>
-            <CardContent>
+          <DashboardSection
+            description="Edit or remove existing answers."
+            title="Workspace FAQs"
+          >
               {knowledgeData.faqs.length ? (
                 <div className="flex flex-col gap-4">
                   {knowledgeData.faqs.map((faq) => (
@@ -204,24 +180,16 @@ export default async function KnowledgePage() {
                   ))}
                 </div>
               ) : (
-                <Empty className="border">
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <TextQuote />
-                    </EmptyMedia>
-                    <EmptyTitle>No FAQs yet</EmptyTitle>
-                    <EmptyDescription>
-                      Add internal question-and-answer entries for policies,
-                      pricing boundaries, or workflow defaults that AI replies
-                      should respect later.
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
+                <DashboardEmptyState
+                  description="Add internal question-and-answer entries for policies, pricing boundaries, or workflow defaults that AI replies should respect later."
+                  icon={TextQuote}
+                  title="No FAQs yet"
+                  variant="section"
+                />
               )}
-            </CardContent>
-          </Card>
+          </DashboardSection>
         </div>
-      </div>
-    </div>
+      </DashboardDetailLayout>
+    </DashboardPage>
   );
 }

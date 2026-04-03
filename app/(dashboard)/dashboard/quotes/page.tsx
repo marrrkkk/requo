@@ -1,16 +1,12 @@
 import Link from "next/link";
 import { ArrowRight, ReceiptText } from "lucide-react";
 
+import {
+  DashboardEmptyState,
+  DashboardPage,
+} from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { QuoteListCards } from "@/features/quotes/components/quote-list-cards";
 import { QuoteListFilters } from "@/features/quotes/components/quote-list-filters";
 import { QuoteListTable } from "@/features/quotes/components/quote-list-table";
@@ -38,7 +34,7 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
   const hasFilters = Boolean(filters.q || filters.status !== "all");
 
   return (
-    <div className="dashboard-page">
+    <DashboardPage>
       <PageHeader
         eyebrow="Quotes"
         title="Quote workspace"
@@ -67,24 +63,9 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
           />
         </>
       ) : (
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <ReceiptText />
-            </EmptyMedia>
-            <EmptyTitle>
-              {hasFilters
-                ? "No quotes match these filters."
-                : "Your quote workspace is still empty."}
-            </EmptyTitle>
-            <EmptyDescription>
-              {hasFilters
-                ? "Try a different search or status."
-                : "Create a quote from scratch or start from an inquiry."}
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            {hasFilters ? (
+        <DashboardEmptyState
+          action={
+            hasFilters ? (
               <Button asChild variant="outline">
                 <Link href="/dashboard/quotes">Clear filters</Link>
               </Button>
@@ -94,10 +75,21 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
                   Create first quote
                 </Link>
               </Button>
-            )}
-          </EmptyContent>
-        </Empty>
+            )
+          }
+          description={
+            hasFilters
+              ? "Try a different search or status."
+              : "Create a quote from scratch or start from an inquiry."
+          }
+          icon={ReceiptText}
+          title={
+            hasFilters
+              ? "No quotes match these filters."
+              : "Your quote workspace is still empty."
+          }
+        />
       )}
-    </div>
+    </DashboardPage>
   );
 }

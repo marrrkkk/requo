@@ -2,6 +2,12 @@ import Link from "next/link";
 import { Bot, Globe2, Mail, ShieldCheck } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 
+import {
+  DashboardDetailLayout,
+  DashboardPage,
+  DashboardSection,
+  DashboardSidebarStack,
+} from "@/components/shared/dashboard-layout";
 import { InfoTile } from "@/components/shared/info-tile";
 import { PageHeader } from "@/components/shared/page-header";
 import { updateWorkspaceSettingsAction } from "@/features/settings/actions";
@@ -11,13 +17,6 @@ import {
   formatWorkspaceAiToneLabel,
   getWorkspacePublicInquiryUrl,
 } from "@/features/settings/utils";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { requireCurrentWorkspaceContext } from "@/lib/db/workspace-access";
 
 export default async function SettingsPage() {
@@ -41,14 +40,14 @@ export default async function SettingsPage() {
     : null;
 
   return (
-    <div className="dashboard-page">
+    <DashboardPage>
       <PageHeader
         eyebrow="Settings"
         title="Workspace settings"
         description="Update identity, intake defaults, and preferences."
       />
 
-      <div className="grid gap-6 xl:grid-cols-[1.12fr_0.88fr]">
+      <DashboardDetailLayout className="xl:grid-cols-[1.12fr_0.88fr]">
         <WorkspaceSettingsForm
           action={updateWorkspaceSettingsAction}
           fallbackContactEmail={user.email}
@@ -56,13 +55,12 @@ export default async function SettingsPage() {
           settings={settings}
         />
 
-        <div className="flex flex-col gap-6 xl:sticky xl:top-[5.5rem] xl:self-start">
-          <Card>
-            <CardHeader className="gap-2">
-              <CardTitle>Workspace snapshot</CardTitle>
-              <CardDescription>Current live details.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
+        <DashboardSidebarStack className="xl:sticky xl:top-[5.5rem] xl:self-start">
+          <DashboardSection
+            contentClassName="flex flex-col gap-4"
+            description="Current live details."
+            title="Workspace snapshot"
+          >
               <InfoTile
                 icon={Globe2}
                 label="Public inquiry page"
@@ -99,15 +97,13 @@ export default async function SettingsPage() {
                     : "All notification scaffolding is off"
                 }
               />
-            </CardContent>
-          </Card>
+          </DashboardSection>
 
-          <Card>
-            <CardHeader className="gap-2">
-              <CardTitle>What these settings affect</CardTitle>
-              <CardDescription>Where the current values show up.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4 text-sm leading-7 text-muted-foreground">
+          <DashboardSection
+            contentClassName="flex flex-col gap-4 text-sm leading-7 text-muted-foreground"
+            description="Where the current values show up."
+            title="What these settings affect"
+          >
               <div className="soft-panel px-4 py-3">
                 Public slug and intake settings shape the customer form.
               </div>
@@ -117,10 +113,9 @@ export default async function SettingsPage() {
               <div className="soft-panel px-4 py-3">
                 Notification preferences stay lightweight for the MVP.
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
+          </DashboardSection>
+        </DashboardSidebarStack>
+      </DashboardDetailLayout>
+    </DashboardPage>
   );
 }

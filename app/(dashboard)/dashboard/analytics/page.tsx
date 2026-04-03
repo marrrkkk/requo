@@ -5,6 +5,12 @@ import {
   Workflow,
 } from "lucide-react";
 
+import {
+  DashboardDetailLayout,
+  DashboardPage,
+  DashboardSidebarStack,
+  DashboardStatsGrid,
+} from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { AnalyticsMetricCard } from "@/features/analytics/components/analytics-metric-card";
 import { AnalyticsQuoteSummary } from "@/features/analytics/components/analytics-quote-summary";
@@ -23,14 +29,14 @@ export default async function AnalyticsPage() {
     : 0;
 
   return (
-    <div className="dashboard-page">
+    <DashboardPage>
       <PageHeader
         eyebrow="Analytics"
         title="Simple performance view"
         description="Track inquiry volume, quote movement, and recent trend."
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <DashboardStatsGrid>
         <AnalyticsMetricCard
           description="All inquiries"
           icon={BarChart3}
@@ -55,16 +61,16 @@ export default async function AnalyticsPage() {
           title="Quote acceptance"
           value={formatAnalyticsPercent(analytics.quoteSummary.acceptanceRate)}
         />
-      </div>
+      </DashboardStatsGrid>
 
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+      <DashboardDetailLayout>
         <AnalyticsTrendOverview points={analytics.recentTrend} />
 
-        <div className="flex flex-col gap-6">
+        <DashboardSidebarStack>
           <AnalyticsStatusBreakdown rows={analytics.inquiryStatusCounts} />
           <AnalyticsQuoteSummary data={analytics.quoteSummary} />
-        </div>
-      </div>
-    </div>
+        </DashboardSidebarStack>
+      </DashboardDetailLayout>
+    </DashboardPage>
   );
 }

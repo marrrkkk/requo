@@ -10,15 +10,14 @@ import {
   Sparkles,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+  DashboardDetailLayout,
+  DashboardEmptyState,
+  DashboardPage,
+  DashboardSidebarStack,
+  DashboardStatsGrid,
+} from "@/components/shared/dashboard-layout";
+import { Button } from "@/components/ui/button";
 import { getWorkspaceAnalyticsData } from "@/features/analytics/queries";
 import { formatAnalyticsPercent } from "@/features/analytics/utils";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
@@ -51,7 +50,7 @@ export default async function DashboardOverviewPage() {
   );
 
   return (
-    <div className="dashboard-page gap-8">
+    <DashboardPage className="gap-8">
       <OverviewHeroCard
         workspaceName={workspaceContext.workspace.name}
         publicInquiryEnabled={workspaceContext.workspace.publicInquiryEnabled}
@@ -79,7 +78,7 @@ export default async function DashboardOverviewPage() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <DashboardStatsGrid>
         <OverviewKpiCard
           description={`${analytics.totalInquiries} total inquiries in the workspace.`}
           icon={Inbox}
@@ -104,10 +103,10 @@ export default async function DashboardOverviewPage() {
           title="Inquiry coverage"
           value={formatAnalyticsPercent(analytics.quoteSummary.inquiryCoverageRate)}
         />
-      </div>
+      </DashboardStatsGrid>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_22rem] 2xl:grid-cols-[minmax(0,1.45fr)_24rem]">
-        <div className="flex flex-col gap-6">
+      <DashboardDetailLayout className="xl:grid-cols-[minmax(0,1.35fr)_22rem] 2xl:grid-cols-[minmax(0,1.45fr)_24rem]">
+        <DashboardSidebarStack>
           <OverviewListCard
             action={
               <Button asChild size="sm" variant="ghost">
@@ -131,25 +130,20 @@ export default async function DashboardOverviewPage() {
                 ))}
               </div>
             ) : (
-              <Empty className="rounded-none border-0 bg-transparent px-6 py-10">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <Inbox />
-                  </EmptyMedia>
-                  <EmptyTitle>No inquiries yet</EmptyTitle>
-                  <EmptyDescription>
-                    Share the public inquiry page to start collecting customer
-                    requests into the dashboard.
-                  </EmptyDescription>
-                </EmptyHeader>
-                <EmptyContent>
+              <DashboardEmptyState
+                action={
                   <Button asChild variant="outline">
                     <Link href={publicInquiryUrl} prefetch={false} target="_blank">
                       Open public form
                     </Link>
                   </Button>
-                </EmptyContent>
-              </Empty>
+                }
+                className="px-6 py-10"
+                description="Share the public inquiry page to start collecting customer requests into the dashboard."
+                icon={Inbox}
+                title="No inquiries yet"
+                variant="flat"
+              />
             )}
           </OverviewListCard>
 
@@ -176,30 +170,25 @@ export default async function DashboardOverviewPage() {
                 ))}
               </div>
             ) : (
-              <Empty className="rounded-none border-0 bg-transparent px-6 py-10">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <FileText />
-                  </EmptyMedia>
-                  <EmptyTitle>No open quote work</EmptyTitle>
-                  <EmptyDescription>
-                    Draft or send a quote when an inquiry is ready to move into
-                    pricing.
-                  </EmptyDescription>
-                </EmptyHeader>
-                <EmptyContent>
+              <DashboardEmptyState
+                action={
                   <Button asChild>
                     <Link href="/dashboard/quotes/new" prefetch={false}>
                       Create quote
                     </Link>
                   </Button>
-                </EmptyContent>
-              </Empty>
+                }
+                className="px-6 py-10"
+                description="Draft or send a quote when an inquiry is ready to move into pricing."
+                icon={FileText}
+                title="No open quote work"
+                variant="flat"
+              />
             )}
           </OverviewListCard>
-        </div>
+        </DashboardSidebarStack>
 
-        <div className="flex flex-col gap-6">
+        <DashboardSidebarStack>
           <OverviewActionsCard
             items={[
               {
@@ -235,9 +224,9 @@ export default async function DashboardOverviewPage() {
             quoteAttentionCount={quoteAttentionCount}
             recentTrend={analytics.recentTrend}
           />
-        </div>
-      </div>
-    </div>
+        </DashboardSidebarStack>
+      </DashboardDetailLayout>
+    </DashboardPage>
   );
 }
 

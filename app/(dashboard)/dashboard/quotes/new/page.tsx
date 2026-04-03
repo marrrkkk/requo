@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { createQuoteAction } from "@/features/quotes/actions";
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";
@@ -62,7 +63,7 @@ export default async function NewQuotePage({
   const action = createQuoteAction.bind(null, inquiryPrefill?.id ?? null);
 
   return (
-    <div className="dashboard-page">
+    <DashboardPage>
       <PageHeader
         eyebrow="New quote"
         title={
@@ -86,6 +87,6 @@ export default async function NewQuotePage({
         submitLabel="Create draft quote"
         submitPendingLabel="Creating draft..."
       />
-    </div>
+    </DashboardPage>
   );
 }

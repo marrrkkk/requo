@@ -1,16 +1,12 @@
 import Link from "next/link";
 import { ArrowRight, Inbox } from "lucide-react";
 
+import {
+  DashboardEmptyState,
+  DashboardPage,
+} from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { InquiryListCards } from "@/features/inquiries/components/inquiry-list-cards";
 import { InquiryListFilters as InquiryListToolbar } from "@/features/inquiries/components/inquiry-list-filters";
 import { InquiryListTable } from "@/features/inquiries/components/inquiry-list-table";
@@ -41,7 +37,7 @@ export default async function InquiriesPage({
   const hasFilters = Boolean(filters.q || filters.status !== "all");
 
   return (
-    <div className="dashboard-page">
+    <DashboardPage>
       <PageHeader
         eyebrow="Inquiry inbox"
         title="Customer requests"
@@ -68,24 +64,9 @@ export default async function InquiriesPage({
           <InquiryListCards inquiries={inquiryList} />
         </>
       ) : (
-        <Empty>
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Inbox />
-            </EmptyMedia>
-            <EmptyTitle>
-              {hasFilters
-                ? "No inquiries match these filters."
-                : "Your inquiry inbox is still empty."}
-            </EmptyTitle>
-            <EmptyDescription>
-              {hasFilters
-                ? "Try a different search or status."
-                : "New submissions will appear here."}
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            {hasFilters ? (
+        <DashboardEmptyState
+          action={
+            hasFilters ? (
               <Button asChild variant="outline">
                 <Link href="/dashboard/inquiries">Clear filters</Link>
               </Button>
@@ -98,10 +79,21 @@ export default async function InquiriesPage({
                   Preview public inquiry page
                 </Link>
               </Button>
-            )}
-          </EmptyContent>
-        </Empty>
+            )
+          }
+          description={
+            hasFilters
+              ? "Try a different search or status."
+              : "New submissions will appear here."
+          }
+          icon={Inbox}
+          title={
+            hasFilters
+              ? "No inquiries match these filters."
+              : "Your inquiry inbox is still empty."
+          }
+        />
       )}
-    </div>
+    </DashboardPage>
   );
 }
