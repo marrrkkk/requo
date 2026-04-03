@@ -4,13 +4,16 @@ import { notFound } from "next/navigation";
 
 import {
   DashboardDetailLayout,
+  DashboardDetailFeed,
+  DashboardDetailFeedItem,
+  DashboardDetailHeader,
   DashboardEmptyState,
+  DashboardMetaPill,
   DashboardPage,
   DashboardSection,
   DashboardSidebarStack,
 } from "@/components/shared/dashboard-layout";
 import { InfoTile } from "@/components/shared/info-tile";
-import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import {
   changeQuoteStatusAction,
@@ -32,8 +35,8 @@ import {
   getPublicQuoteUrl,
   getQuoteEditorInitialValuesFromDetail,
 } from "@/features/quotes/utils";
-import { env } from "@/lib/env";
 import { requireCurrentWorkspaceContext } from "@/lib/db/workspace-access";
+import { env } from "@/lib/env";
 
 type QuoteDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -62,7 +65,10 @@ export default async function QuoteDetailPage({
   const statusAction = changeQuoteStatusAction.bind(null, quote.id);
   const sendAction = sendQuoteAction.bind(null, quote.id);
   const customerQuotePath = getPublicQuoteUrl(quote.publicToken);
-  const customerQuoteUrl = new URL(customerQuotePath, env.BETTER_AUTH_URL).toString();
+  const customerQuoteUrl = new URL(
+    customerQuotePath,
+    env.BETTER_AUTH_URL,
+  ).toString();
   const linkedInquiry = quote.linkedInquiry
     ? {
         id: quote.linkedInquiry.id,
@@ -73,295 +79,320 @@ export default async function QuoteDetailPage({
       }
     : null;
 
+  const linkedInquirySection = (
+    <DashboardSection
+      description="Original inquiry context."
+      footer={
+        quote.linkedInquiry ? (
+          <Button asChild variant="outline">
+            <Link
+              href={`/dashboard/inquiries/${quote.linkedInquiry.id}`}
+              prefetch={false}
+            >
+              Open inquiry
+            </Link>
+          </Button>
+        ) : null
+      }
+      title="Linked inquiry"
+    >
+      {quote.linkedInquiry ? (
+        <div className="flex flex-col gap-4">
+          <DashboardDetailFeed>
+            <DashboardDetailFeedItem
+              action={
+                <DashboardMetaPill className="capitalize">
+                  {quote.linkedInquiry.status}
+                </DashboardMetaPill>
+              }
+              meta={
+                <>
+                  <span>{quote.linkedInquiry.customerEmail}</span>
+                  <span aria-hidden="true">|</span>
+                  <span>{quote.linkedInquiry.serviceCategory}</span>
+                </>
+              }
+              title={quote.linkedInquiry.customerName}
+            />
+          </DashboardDetailFeed>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <InfoTile label="Category" value={quote.linkedInquiry.serviceCategory} />
+            <InfoTile label="Inquiry status" value={quote.linkedInquiry.status} />
+          </div>
+        </div>
+      ) : (
+        <DashboardEmptyState
+          description="This quote was created manually."
+          title="No linked inquiry"
+          variant="section"
+        />
+      )}
+    </DashboardSection>
+  );
+
+  const activitySection = (
+    <DashboardSection
+      description="Quote events and owner actions."
+      title="Activity log"
+    >
+      {quote.activities.length ? (
+        <DashboardDetailFeed>
+          {quote.activities.map((activity) => (
+            <DashboardDetailFeedItem
+              key={activity.id}
+              meta={
+                <>
+                  <span>{activity.actorName ?? "QuoteFlow"}</span>
+                  <span aria-hidden="true">|</span>
+                  <span>{formatQuoteDateTime(activity.createdAt)}</span>
+                </>
+              }
+              title={activity.summary}
+            />
+          ))}
+        </DashboardDetailFeed>
+      ) : (
+        <DashboardEmptyState
+          description="Quote events will appear here."
+          title="No quote activity yet"
+          variant="section"
+        />
+      )}
+    </DashboardSection>
+  );
+
   return (
     <DashboardPage>
-      <PageHeader
+      <DashboardDetailHeader
         eyebrow="Quote detail"
-        title={quote.quoteNumber}
-        description={`${quote.title} for ${quote.customerName}.`}
-        actions={
+        title={quote.title}
+        description={`Prepared for ${quote.customerName}.`}
+        meta={
           <>
             <QuoteStatusBadge status={quote.status} />
-            <span className="rounded-md border border-border/80 bg-background px-3 py-1 text-xs text-muted-foreground">
+            <DashboardMetaPill className="text-foreground">
+              {quote.quoteNumber}
+            </DashboardMetaPill>
+            <DashboardMetaPill>
               Valid until {formatQuoteDate(quote.validUntil)}
-            </span>
-            {quote.inquiryId ? (
-              <span className="rounded-md border border-border/80 bg-background px-3 py-1 text-xs text-muted-foreground">
-                Linked inquiry
-              </span>
-            ) : null}
-            <Button asChild variant="outline">
-              <a href={`mailto:${quote.customerEmail}`}>
-                <Mail data-icon="inline-start" />
-                Email customer
-              </a>
-            </Button>
+            </DashboardMetaPill>
+            <DashboardMetaPill>
+              {quote.inquiryId ? "Linked inquiry" : "Manual quote"}
+            </DashboardMetaPill>
           </>
+        }
+        actions={
+          <Button asChild variant="outline">
+            <a href={`mailto:${quote.customerEmail}`}>
+              <Mail data-icon="inline-start" />
+              Email customer
+            </a>
+          </Button>
         }
       />
 
       {quote.status === "draft" ? (
-        <QuoteEditor
-          action={updateAction}
-          workspaceName={workspaceContext.workspace.name}
-          currency={quote.currency}
-          initialValues={getQuoteEditorInitialValuesFromDetail(quote)}
-          linkedInquiry={linkedInquiry}
-          quoteNumber={quote.quoteNumber}
-          submitLabel="Save draft quote"
-          submitPendingLabel="Saving draft..."
-        />
-      ) : (
-        <DashboardDetailLayout className="xl:grid-cols-[1.05fr_0.95fr]">
-          <QuotePreview
+        <>
+          <QuoteEditor
+            action={updateAction}
             workspaceName={workspaceContext.workspace.name}
-            quoteNumber={quote.quoteNumber}
-            title={quote.title}
-            customerName={quote.customerName}
-            customerEmail={quote.customerEmail}
             currency={quote.currency}
-            validUntil={quote.validUntil}
-            notes={quote.notes}
-            items={quote.items}
-            subtotalInCents={quote.subtotalInCents}
-            discountInCents={quote.discountInCents}
-            totalInCents={quote.totalInCents}
+            initialValues={getQuoteEditorInitialValuesFromDetail(quote)}
+            linkedInquiry={linkedInquiry}
+            quoteNumber={quote.quoteNumber}
+            submitLabel="Save draft quote"
+            submitPendingLabel="Saving draft..."
           />
 
-          <DashboardSection
-            contentClassName="grid gap-4 sm:grid-cols-2"
-            description="Read-only until moved back to draft."
-            title="Quote details"
-          >
-              <InfoTile label="Customer" value={quote.customerName} />
-              <InfoTile label="Email" value={quote.customerEmail} />
+          <DashboardDetailLayout className="xl:grid-cols-[1.25fr_0.75fr]">
+            <DashboardSidebarStack>
+              {linkedInquirySection}
+              {activitySection}
+            </DashboardSidebarStack>
+
+            <DashboardSidebarStack>
+              <DashboardSection
+                description="Email the finished draft once the totals are final."
+                title="Send quote"
+              >
+                <QuoteSendForm
+                  action={sendAction}
+                  customerEmail={quote.customerEmail}
+                />
+              </DashboardSection>
+
+              <DashboardSection
+                description="Move the quote through its lifecycle."
+                title="Status"
+              >
+                <QuoteStatusForm
+                  key={quote.status}
+                  action={statusAction}
+                  currentStatus={quote.status}
+                />
+              </DashboardSection>
+
+              <DashboardSection
+                contentClassName="grid gap-3 sm:grid-cols-2"
+                description="Key commercial details before sending."
+                title="Draft summary"
+              >
+                <InfoTile label="Quote number" value={quote.quoteNumber} />
+                <InfoTile
+                  label="Valid until"
+                  value={formatQuoteDate(quote.validUntil)}
+                />
+                <InfoTile label="Customer" value={quote.customerName} />
+                <InfoTile
+                  label="Current total"
+                  value={formatQuoteMoney(quote.totalInCents, quote.currency)}
+                />
+              </DashboardSection>
+            </DashboardSidebarStack>
+          </DashboardDetailLayout>
+        </>
+      ) : (
+        <DashboardDetailLayout className="xl:grid-cols-[minmax(0,1.05fr)_0.95fr]">
+          <DashboardSidebarStack>
+            <QuotePreview
+              workspaceName={workspaceContext.workspace.name}
+              quoteNumber={quote.quoteNumber}
+              title={quote.title}
+              customerName={quote.customerName}
+              customerEmail={quote.customerEmail}
+              currency={quote.currency}
+              validUntil={quote.validUntil}
+              notes={quote.notes}
+              items={quote.items}
+              subtotalInCents={quote.subtotalInCents}
+              discountInCents={quote.discountInCents}
+              totalInCents={quote.totalInCents}
+            />
+
+            {linkedInquirySection}
+            {activitySection}
+          </DashboardSidebarStack>
+
+          <DashboardSidebarStack>
+            <DashboardSection
+              contentClassName="grid gap-3 sm:grid-cols-2"
+              description="Key totals and lifecycle dates."
+              title="Commercial summary"
+            >
               <InfoTile
                 label="Subtotal"
                 value={formatQuoteMoney(quote.subtotalInCents, quote.currency)}
+              />
+              <InfoTile
+                label="Discount"
+                value={formatQuoteMoney(quote.discountInCents, quote.currency)}
               />
               <InfoTile
                 label="Total"
                 value={formatQuoteMoney(quote.totalInCents, quote.currency)}
               />
               <InfoTile
+                label="Valid until"
+                value={formatQuoteDate(quote.validUntil)}
+              />
+              <InfoTile
                 label="Sent"
-                value={quote.sentAt ? formatQuoteDateTime(quote.sentAt) : "Not sent"}
+                value={
+                  quote.sentAt ? formatQuoteDateTime(quote.sentAt) : "Not sent"
+                }
               />
               <InfoTile
                 label="Accepted"
                 value={
                   quote.acceptedAt
                     ? formatQuoteDateTime(quote.acceptedAt)
-                  : "Not accepted"
+                    : "Not accepted"
                 }
               />
-          </DashboardSection>
-        </DashboardDetailLayout>
-      )}
+            </DashboardSection>
 
-      <DashboardDetailLayout className="xl:grid-cols-[1.25fr_0.75fr]">
-        <div className="dashboard-side-stack">
-          <DashboardSection
-            description="Quote events and owner actions."
-            title="Activity log"
-          >
-              {quote.activities.length ? (
-                <div className="flex flex-col gap-3">
-                  {quote.activities.map((activity) => (
-                    <div
-                      key={activity.id}
-                      className="soft-panel p-4"
-                    >
-                      <div className="flex flex-col gap-1">
-                        <p className="text-sm font-medium text-foreground">
-                          {activity.summary}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {activity.actorName ?? "QuoteFlow"} |{" "}
-                          {formatQuoteDateTime(activity.createdAt)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <DashboardEmptyState
-                  description="Quote events will appear here."
-                  title="No quote activity yet"
-                  variant="section"
-                />
-              )}
-          </DashboardSection>
-
-          <DashboardSection
-            description="Original inquiry context."
-            footer={
-              quote.linkedInquiry ? (
-                <Button asChild variant="outline">
-                  <Link
-                    href={`/dashboard/inquiries/${quote.linkedInquiry.id}`}
-                    prefetch={false}
-                  >
-                    Open inquiry
-                  </Link>
-                </Button>
-              ) : null
-            }
-            title="Linked inquiry"
-          >
-              {quote.linkedInquiry ? (
-                <div className="soft-panel p-4">
-                  <div className="flex flex-col gap-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-md border border-border/80 bg-secondary px-3 py-1 text-xs text-muted-foreground">
-                        Inquiry status {quote.linkedInquiry.status}
-                      </span>
-                      <span className="rounded-md border border-border/80 bg-secondary px-3 py-1 text-xs text-muted-foreground">
-                        Inquiry {quote.linkedInquiry.id}
-                      </span>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <InfoTile
-                        label="Customer"
-                        value={quote.linkedInquiry.customerName}
-                      />
-                      <InfoTile
-                        label="Email"
-                        value={quote.linkedInquiry.customerEmail}
-                      />
-                      <InfoTile
-                        label="Category"
-                        value={quote.linkedInquiry.serviceCategory}
-                      />
-                      <InfoTile
-                        label="Inquiry status"
-                        value={quote.linkedInquiry.status}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <DashboardEmptyState
-                  description="This quote was created manually."
-                  title="No linked inquiry"
-                  variant="section"
-                />
-              )}
-          </DashboardSection>
-        </div>
-
-        <DashboardSidebarStack>
-          {quote.status !== "draft" ? (
             <DashboardSection
               contentClassName="flex flex-col gap-4"
               description="Share and track the public quote."
               title="Customer view"
             >
-                <div className="soft-panel p-4">
-                  <p className="meta-label">Public quote URL</p>
-                  <p className="mt-2 break-all text-sm text-muted-foreground">
-                    {customerQuoteUrl}
-                  </p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <InfoTile
-                    label="Last viewed"
-                    value={
-                      quote.publicViewedAt
-                        ? formatQuoteDateTime(quote.publicViewedAt)
-                        : "Not viewed yet"
-                    }
-                  />
-                  <InfoTile
-                    label="Customer response"
-                    value={
-                      quote.customerRespondedAt
-                        ? formatQuoteDateTime(quote.customerRespondedAt)
-                        : "No response yet"
-                    }
-                  />
-                </div>
-                {quote.customerResponseMessage ? (
-                  <div className="soft-panel p-4">
-                    <p className="meta-label">Customer message</p>
-                    <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground">
-                      {quote.customerResponseMessage}
-                    </p>
-                  </div>
-                ) : null}
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <CopyQuoteLinkButton url={customerQuoteUrl} />
-                  <Button asChild variant="outline">
-                    <Link href={customerQuotePath} prefetch={false} target="_blank">
-                      Open customer view
-                      <ExternalLink data-icon="inline-end" />
-                    </Link>
-                  </Button>
-                </div>
-            </DashboardSection>
-          ) : null}
-
-          {quote.status === "draft" ? (
-            <DashboardSection
-              description="Email the finished draft."
-              title="Send quote"
-            >
-                <QuoteSendForm
-                  action={sendAction}
-                  customerEmail={quote.customerEmail}
-                />
-            </DashboardSection>
-          ) : (
-            <DashboardSection
-              contentClassName="flex flex-col gap-3"
-              description="Read-only after send."
-              title="Delivery state"
-            >
-                <div className="soft-panel p-4">
-                  <p className="text-sm font-medium text-foreground">Current status</p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {quote.status === "sent"
-                      ? "This quote has already been delivered."
-                      : `This quote is ${quote.status}.`}
-                  </p>
-                </div>
+              <div className="soft-panel px-4 py-4 shadow-none">
+                <p className="text-sm font-medium text-foreground">
+                  {quote.status === "sent"
+                    ? "Waiting for a customer response"
+                    : `Quote ${quote.status}`}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {quote.status === "sent"
+                    ? "The customer can review the quote and respond from the secure public page."
+                    : "The public quote remains available for review, but it is no longer accepting a new online response."}
+                </p>
                 {quote.sentAt ? (
-                  <div className="soft-panel p-4 text-sm text-muted-foreground">
+                  <p className="mt-3 text-xs text-muted-foreground">
                     Sent on {formatQuoteDateTime(quote.sentAt)}.
-                  </div>
+                  </p>
                 ) : null}
-            </DashboardSection>
-          )}
+              </div>
 
-          <DashboardSection
-            description="Move the quote through its lifecycle."
-            title="Status"
-          >
+              <div className="soft-panel px-4 py-4 shadow-none">
+                <p className="meta-label">Public quote URL</p>
+                <p className="mt-2 break-all text-sm text-muted-foreground">
+                  {customerQuoteUrl}
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <InfoTile
+                  label="Last viewed"
+                  value={
+                    quote.publicViewedAt
+                      ? formatQuoteDateTime(quote.publicViewedAt)
+                      : "Not viewed yet"
+                  }
+                />
+                <InfoTile
+                  label="Customer response"
+                  value={
+                    quote.customerRespondedAt
+                      ? formatQuoteDateTime(quote.customerRespondedAt)
+                      : "No response yet"
+                  }
+                />
+              </div>
+
+              {quote.customerResponseMessage ? (
+                <div className="soft-panel px-4 py-4 shadow-none">
+                  <p className="meta-label">Customer message</p>
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground">
+                    {quote.customerResponseMessage}
+                  </p>
+                </div>
+              ) : null}
+
+              <div className="dashboard-actions">
+                <CopyQuoteLinkButton url={customerQuoteUrl} />
+                <Button asChild variant="outline">
+                  <Link href={customerQuotePath} prefetch={false} target="_blank">
+                    Open customer view
+                    <ExternalLink data-icon="inline-end" />
+                  </Link>
+                </Button>
+              </div>
+            </DashboardSection>
+
+            <DashboardSection
+              description="Move the quote through its lifecycle."
+              title="Status"
+            >
               <QuoteStatusForm
                 key={quote.status}
                 action={statusAction}
                 currentStatus={quote.status}
               />
-          </DashboardSection>
-
-          <DashboardSection
-            contentClassName="grid gap-4"
-            description="Key commercial details."
-            title="Quote summary"
-          >
-              <InfoTile label="Quote number" value={quote.quoteNumber} />
-              <InfoTile label="Title" value={quote.title} />
-              <InfoTile
-                label="Valid until"
-                value={formatQuoteDate(quote.validUntil)}
-              />
-              <InfoTile
-                label="Total"
-                value={formatQuoteMoney(quote.totalInCents, quote.currency)}
-              />
-          </DashboardSection>
-        </DashboardSidebarStack>
-      </DashboardDetailLayout>
+            </DashboardSection>
+          </DashboardSidebarStack>
+        </DashboardDetailLayout>
+      )}
     </DashboardPage>
   );
 }

@@ -4,13 +4,10 @@ import { useActionState, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
 import {
+  DashboardMetaPill,
   DashboardSection,
-  DashboardToolbar,
+  DashboardSidebarStack,
 } from "@/components/shared/dashboard-layout";
-import {
-  FormActions,
-  FormNote,
-} from "@/components/shared/form-layout";
 import { InfoTile } from "@/components/shared/info-tile";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -112,11 +109,11 @@ export function QuoteEditor({
   return (
     <form
       action={formAction}
-      className="grid items-start gap-6 xl:grid-cols-[1.08fr_0.92fr]"
+      className="dashboard-detail-layout items-start xl:grid-cols-[minmax(0,1.08fr)_0.92fr]"
     >
       <input name="items" type="hidden" value={JSON.stringify(items)} />
 
-      <div className="flex min-w-0 flex-col gap-6">
+      <DashboardSidebarStack className="min-w-0">
         {state.error ? (
           <Alert variant="destructive">
             <AlertTitle>We could not save the quote.</AlertTitle>
@@ -133,12 +130,12 @@ export function QuoteEditor({
 
         <DashboardSection
           action={
-            <FormNote className="min-w-[11rem] px-4 py-3 text-sm">
-              <p className="font-medium text-foreground">
-                {quoteNumber ?? "Assigned after save"}
-              </p>
-              <p className="mt-1 text-muted-foreground">{currency}</p>
-            </FormNote>
+            <>
+              <DashboardMetaPill className="text-foreground">
+                {quoteNumber ?? "Assigned on save"}
+              </DashboardMetaPill>
+              <DashboardMetaPill>{currency}</DashboardMetaPill>
+            </>
           }
           contentClassName="flex flex-col gap-5"
           description="Customer, validity date, and notes."
@@ -450,11 +447,26 @@ export function QuoteEditor({
           </div>
         </DashboardSection>
 
-        <DashboardToolbar>
+        <DashboardSection
+          contentClassName="flex flex-col gap-4"
+          description="Auto-calculated while you edit line items and discount."
+          footer={
+            <>
+              <p className="text-sm leading-6 text-muted-foreground sm:mr-auto">
+                The preview updates live as you edit line items and notes.
+              </p>
+              <Button disabled={isPending} size="lg" type="submit">
+                {isPending ? submitPendingLabel : submitLabel}
+              </Button>
+            </>
+          }
+          footerClassName="w-full sm:justify-between"
+          title="Commercial summary"
+        >
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-4">
               <span className="text-sm font-medium text-foreground">Totals</span>
-              <span className="soft-panel px-3 py-1 text-xs text-muted-foreground shadow-none">
+              <span className="dashboard-meta-pill">
                 Auto-calculated
               </span>
             </div>
@@ -474,17 +486,9 @@ export function QuoteEditor({
                 strong
               />
             </div>
-            <FormActions align="between" className="pt-2">
-              <p className="text-sm leading-6 text-muted-foreground">
-                The preview updates live as you edit line items and notes.
-              </p>
-              <Button disabled={isPending} size="lg" type="submit">
-                {isPending ? submitPendingLabel : submitLabel}
-              </Button>
-            </FormActions>
           </div>
-        </DashboardToolbar>
-      </div>
+        </DashboardSection>
+      </DashboardSidebarStack>
 
       <QuotePreview
         workspaceName={workspaceName}

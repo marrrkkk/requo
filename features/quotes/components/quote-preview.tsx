@@ -43,7 +43,7 @@ export function QuotePreview({
   return (
     <article
       className={cn(
-        "rounded-2xl border border-border/80 bg-card p-5 shadow-sm",
+        "section-panel overflow-hidden p-5 sm:p-6",
         className,
       )}
     >
@@ -57,7 +57,7 @@ export function QuotePreview({
               </h2>
               <p className="text-sm text-muted-foreground">{workspaceName}</p>
             </div>
-            <div className="rounded-xl border border-border/80 bg-background px-4 py-3 text-sm">
+            <div className="soft-panel px-4 py-3 text-sm shadow-none">
               <p className="font-medium text-foreground">{quoteNumber}</p>
               <p className="mt-1 text-muted-foreground">
                 Valid until {formatQuoteDate(validUntil)}
@@ -66,13 +66,13 @@ export function QuotePreview({
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-xl border border-border/80 bg-background p-4">
+            <div className="info-tile h-full shadow-none">
               <p className="meta-label">Prepared for</p>
               <p className="mt-2 font-medium text-foreground">{customerName}</p>
               <p className="text-sm text-muted-foreground">{customerEmail}</p>
             </div>
 
-            <div className="rounded-xl border border-border/80 bg-background p-4">
+            <div className="info-tile h-full shadow-none">
               <p className="meta-label">Summary</p>
               <p className="mt-2 font-medium text-foreground">
                 {items.length} {items.length === 1 ? "line item" : "line items"}
@@ -84,7 +84,7 @@ export function QuotePreview({
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-border/80">
+        <div className="overflow-hidden rounded-[1.2rem] border border-border/75 bg-background/92">
           <table className="w-full border-collapse text-sm">
             <thead className="bg-muted/35 text-left">
               <tr>
@@ -134,7 +134,7 @@ export function QuotePreview({
           </table>
         </div>
 
-        <div className="ml-auto flex w-full max-w-sm flex-col gap-3 rounded-xl border border-border/80 bg-background p-4">
+        <div className="soft-panel ml-auto flex w-full max-w-sm flex-col gap-3 px-4 py-4 shadow-none">
           <SummaryRow
             label="Subtotal"
             value={formatQuoteMoney(subtotalInCents, currency)}
@@ -153,7 +153,7 @@ export function QuotePreview({
         </div>
 
         {notes ? (
-          <div className="rounded-xl border border-border/80 bg-background p-4">
+          <div className="soft-panel px-4 py-4 shadow-none">
             <p className="meta-label">Notes</p>
             <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground">
               {notes}
