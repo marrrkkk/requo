@@ -2,7 +2,6 @@
 
 import type { ComponentProps } from "react";
 import { LogOut } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 
 import { authClient } from "@/lib/auth/client";
@@ -18,7 +17,6 @@ export function LogoutButton({
   size = "default",
   variant = "outline",
 }: LogoutButtonProps) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   function handleLogout() {
@@ -29,8 +27,7 @@ export function LogoutButton({
         return;
       }
 
-      router.replace("/login");
-      router.refresh();
+      window.location.assign("/login");
     });
   }
 
