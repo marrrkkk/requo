@@ -244,6 +244,38 @@
     @apply rounded-[1.15rem] border border-border/75 bg-background/90 px-4 py-3 text-sm leading-6 text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.45)];
   }
 
+  .form-stack {
+    @apply flex flex-col gap-6;
+  }
+
+  .form-section {
+    @apply flex flex-col gap-4;
+  }
+
+  .form-section-header {
+    @apply flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between;
+  }
+
+  .form-section-body {
+    @apply flex flex-col gap-5;
+  }
+
+  .form-section-title {
+    @apply text-sm font-semibold tracking-tight text-foreground;
+  }
+
+  .form-section-description {
+    @apply max-w-2xl text-sm leading-6 text-muted-foreground;
+  }
+
+  .form-actions {
+    @apply flex flex-col gap-3 pt-1 sm:flex-row sm:items-center;
+  }
+
+  .form-note {
+    @apply soft-panel px-4 py-4 shadow-none;
+  }
+
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
