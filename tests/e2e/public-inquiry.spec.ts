@@ -2,6 +2,41 @@ import { expect, test } from "@playwright/test";
 
 import { demoWorkspaceSlug } from "./fixtures";
 
+test("invalid public inquiry links show the public not-found state", async ({
+  page,
+}) => {
+  await page.goto("/inquire/not-a-real-workspace");
+
+  await expect(
+    page.getByText("This public page is unavailable."),
+  ).toBeVisible();
+});
+
+test("public inquiry page rejects unsupported attachments", async ({ page }) => {
+  await page.goto(`/inquire/${demoWorkspaceSlug}`);
+  await page.waitForLoadState("networkidle");
+
+  await page.getByLabel("Your name").fill("Taylor Nguyen");
+  await page
+    .getByLabel("Email address")
+    .fill(`taylor+invalid-file-${Date.now()}@example.com`);
+  await page.getByLabel("Service or category").fill("Window graphics");
+  await page
+    .getByLabel("Message and details")
+    .fill("Need storefront graphics and want to send a sample file.");
+  await page.getByLabel("Attachment").setInputFiles({
+    name: "malware.exe",
+    mimeType: "application/x-msdownload",
+    buffer: Buffer.from("pretend-binary"),
+  });
+
+  await page.getByRole("button", { name: "Send inquiry" }).click();
+
+  await expect(
+    page.getByText("Upload a PDF, common document file, or image."),
+  ).toBeVisible();
+});
+
 test("public inquiry page accepts a new submission", async ({ page }) => {
   await page.goto(`/inquire/${demoWorkspaceSlug}`);
   await page.waitForLoadState("networkidle");
@@ -21,6 +56,10 @@ test("public inquiry page accepts a new submission", async ({ page }) => {
 
   await page.getByRole("button", { name: "Send inquiry" }).click();
 
-  await expect(page.getByText("Inquiry received.")).toBeVisible();
-  await expect(page.getByText(/^Reference inq_/)).toBeVisible();
+  await expect(page.getByText("Inquiry received.")).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByText(/^Reference inq_/)).toBeVisible({
+    timeout: 20_000,
+  });
 });

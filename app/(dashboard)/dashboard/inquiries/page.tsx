@@ -68,41 +68,39 @@ export default async function InquiriesPage({
           <InquiryListCards inquiries={inquiryList} />
         </>
       ) : (
-        <div className="rounded-[1.7rem] border bg-background/75 p-4 shadow-sm">
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Inbox />
-              </EmptyMedia>
-              <EmptyTitle>
-                {hasFilters
-                  ? "No inquiries match these filters."
-                  : "Your inquiry inbox is still empty."}
-              </EmptyTitle>
-              <EmptyDescription>
-                {hasFilters
-                  ? "Try a different search or status."
-                  : "New submissions will appear here."}
-              </EmptyDescription>
-            </EmptyHeader>
-            <EmptyContent>
-              {hasFilters ? (
-                <Button asChild variant="outline">
-                  <Link href="/dashboard/inquiries">Clear filters</Link>
-                </Button>
-              ) : (
-                <Button asChild>
-                  <Link
-                    href={`/inquire/${workspaceContext.workspace.slug}`}
-                    prefetch={false}
-                  >
-                    Preview public inquiry page
-                  </Link>
-                </Button>
-              )}
-            </EmptyContent>
-          </Empty>
-        </div>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Inbox />
+            </EmptyMedia>
+            <EmptyTitle>
+              {hasFilters
+                ? "No inquiries match these filters."
+                : "Your inquiry inbox is still empty."}
+            </EmptyTitle>
+            <EmptyDescription>
+              {hasFilters
+                ? "Try a different search or status."
+                : "New submissions will appear here."}
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            {hasFilters ? (
+              <Button asChild variant="outline">
+                <Link href="/dashboard/inquiries">Clear filters</Link>
+              </Button>
+            ) : (
+              <Button asChild>
+                <Link
+                  href={`/inquire/${workspaceContext.workspace.slug}`}
+                  prefetch={false}
+                >
+                  Preview public inquiry page
+                </Link>
+              </Button>
+            )}
+          </EmptyContent>
+        </Empty>
       )}
     </div>
   );

@@ -67,38 +67,36 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
           />
         </>
       ) : (
-        <div className="rounded-[1.7rem] border bg-background/75 p-4 shadow-sm">
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <ReceiptText />
-              </EmptyMedia>
-              <EmptyTitle>
-                {hasFilters
-                  ? "No quotes match these filters."
-                  : "Your quote workspace is still empty."}
-              </EmptyTitle>
-              <EmptyDescription>
-                {hasFilters
-                  ? "Try a different search or status."
-                  : "Create a quote from scratch or start from an inquiry."}
-              </EmptyDescription>
-            </EmptyHeader>
-            <EmptyContent>
-              {hasFilters ? (
-                <Button asChild variant="outline">
-                  <Link href="/dashboard/quotes">Clear filters</Link>
-                </Button>
-              ) : (
-                <Button asChild>
-                  <Link href="/dashboard/quotes/new" prefetch={false}>
-                    Create first quote
-                  </Link>
-                </Button>
-              )}
-            </EmptyContent>
-          </Empty>
-        </div>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ReceiptText />
+            </EmptyMedia>
+            <EmptyTitle>
+              {hasFilters
+                ? "No quotes match these filters."
+                : "Your quote workspace is still empty."}
+            </EmptyTitle>
+            <EmptyDescription>
+              {hasFilters
+                ? "Try a different search or status."
+                : "Create a quote from scratch or start from an inquiry."}
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            {hasFilters ? (
+              <Button asChild variant="outline">
+                <Link href="/dashboard/quotes">Clear filters</Link>
+              </Button>
+            ) : (
+              <Button asChild>
+                <Link href="/dashboard/quotes/new" prefetch={false}>
+                  Create first quote
+                </Link>
+              </Button>
+            )}
+          </EmptyContent>
+        </Empty>
       )}
     </div>
   );
