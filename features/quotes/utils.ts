@@ -1,3 +1,5 @@
+import { CircleCheck, CircleX, Clock3, FileText, Send } from "lucide-react";
+
 import type {
   DashboardQuoteDetail,
   QuoteEditorLineItemValue,
@@ -21,8 +23,16 @@ export const quoteStatusVariants: Record<
   sent: "secondary",
   accepted: "default",
   rejected: "destructive",
-  expired: "ghost",
+  expired: "outline",
 };
+
+export const quoteStatusIcons = {
+  draft: FileText,
+  sent: Send,
+  accepted: CircleCheck,
+  rejected: CircleX,
+  expired: Clock3,
+} as const;
 
 export function getQuoteStatusLabel(status: QuoteStatus) {
   return quoteStatusLabels[status];

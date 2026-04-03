@@ -25,8 +25,8 @@ type QuoteListTableProps = {
 export function QuoteListTable({ quotes, currency }: QuoteListTableProps) {
   return (
     <DashboardTableContainer>
-      <Table>
-        <TableCaption>Newest quotes appear first.</TableCaption>
+      <Table className="min-w-[72rem]">
+        <TableCaption className="sr-only">Newest quotes appear first.</TableCaption>
         <TableHeader>
           <TableRow>
             <TableHead>Quote</TableHead>
@@ -42,25 +42,25 @@ export function QuoteListTable({ quotes, currency }: QuoteListTableProps) {
           {quotes.map((quote) => (
             <TableRow key={quote.id}>
               <TableCell className="max-w-[18rem]">
-                <div className="flex flex-col gap-1">
+                <div className="table-meta-stack max-w-full">
                   <Link
-                    className="font-semibold text-foreground underline-offset-4 hover:text-primary hover:underline"
+                    className="table-link"
                     href={`/dashboard/quotes/${quote.id}`}
                     prefetch={false}
                   >
                     {quote.quoteNumber}
                   </Link>
-                  <span className="truncate text-sm text-muted-foreground">
+                  <span className="table-supporting-text">
                     {quote.title}
                   </span>
                 </div>
               </TableCell>
               <TableCell className="max-w-[16rem]">
-                <div className="flex flex-col gap-1">
-                  <span className="font-medium text-foreground">
+                <div className="table-meta-stack max-w-full">
+                  <span className="table-emphasis">
                     {quote.customerName}
                   </span>
-                  <span className="truncate text-sm text-muted-foreground">
+                  <span className="table-supporting-text">
                     {quote.customerEmail}
                   </span>
                 </div>
@@ -68,24 +68,28 @@ export function QuoteListTable({ quotes, currency }: QuoteListTableProps) {
               <TableCell>
                 {quote.inquiryId ? (
                   <Link
-                    className="text-sm text-foreground underline-offset-4 hover:text-primary hover:underline"
+                    className="text-sm font-medium text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline group-hover/row:text-primary"
                     href={`/dashboard/inquiries/${quote.inquiryId}`}
                     prefetch={false}
                   >
-                    Linked
+                    Open inquiry
                   </Link>
                 ) : (
-                  <span className="text-sm text-muted-foreground">Manual</span>
+                  <span className="text-sm text-muted-foreground">Manual quote</span>
                 )}
               </TableCell>
-              <TableCell>{formatQuoteDate(quote.validUntil)}</TableCell>
-              <TableCell>
+              <TableCell className="text-sm text-muted-foreground">
+                {formatQuoteDate(quote.validUntil)}
+              </TableCell>
+              <TableCell className="text-sm font-semibold text-foreground">
                 {formatQuoteMoney(quote.totalInCents, currency)}
               </TableCell>
-              <TableCell>
+              <TableCell className="w-[9rem]">
                 <QuoteStatusBadge status={quote.status} />
               </TableCell>
-              <TableCell>{formatQuoteDate(quote.createdAt)}</TableCell>
+              <TableCell className="text-sm text-muted-foreground">
+                {formatQuoteDate(quote.createdAt)}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

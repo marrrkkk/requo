@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import type { QuoteStatus } from "@/features/quotes/types";
 import {
   getQuoteStatusLabel,
+  quoteStatusIcons,
   quoteStatusVariants,
 } from "@/features/quotes/utils";
 
@@ -10,5 +11,12 @@ type QuoteStatusBadgeProps = {
 };
 
 export function QuoteStatusBadge({ status }: QuoteStatusBadgeProps) {
-  return <Badge variant={quoteStatusVariants[status]}>{getQuoteStatusLabel(status)}</Badge>;
+  const Icon = quoteStatusIcons[status];
+
+  return (
+    <Badge className="shrink-0 rounded-full" variant={quoteStatusVariants[status]}>
+      <Icon data-icon="inline-start" />
+      {getQuoteStatusLabel(status)}
+    </Badge>
+  );
 }

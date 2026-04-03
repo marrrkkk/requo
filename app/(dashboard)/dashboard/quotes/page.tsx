@@ -88,6 +88,7 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
               ? "No quotes match these filters."
               : "Your quote workspace is still empty."
           }
+          variant="list"
         />
       )}
     </DashboardPage>
