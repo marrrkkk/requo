@@ -67,6 +67,52 @@ export function DashboardDetailLayout({
   return <div className={cn("dashboard-detail-layout", className)}>{children}</div>;
 }
 
+type DashboardDetailHeaderProps = {
+  eyebrow?: ReactNode;
+  title: ReactNode;
+  description?: ReactNode;
+  meta?: ReactNode;
+  actions?: ReactNode;
+  className?: string;
+};
+
+export function DashboardDetailHeader({
+  eyebrow,
+  title,
+  description,
+  meta,
+  actions,
+  className,
+}: DashboardDetailHeaderProps) {
+  return (
+    <div className={cn("dashboard-detail-header", className)}>
+      <div className="dashboard-detail-header-copy">
+        <div className="flex flex-col gap-3">
+          {eyebrow ? <span className="meta-label">{eyebrow}</span> : null}
+          <div className="flex flex-col gap-3">
+            <h1 className="font-heading text-3xl font-semibold leading-tight tracking-tight text-balance sm:text-[2.15rem]">
+              {title}
+            </h1>
+            {description ? (
+              <p className="max-w-2xl text-sm leading-7 text-muted-foreground sm:text-[0.95rem]">
+                {description}
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        {meta ? <div className="dashboard-detail-header-meta">{meta}</div> : null}
+      </div>
+
+      {actions ? (
+        <DashboardActionsRow className="dashboard-detail-header-actions">
+          {actions}
+        </DashboardActionsRow>
+      ) : null}
+    </div>
+  );
+}
+
 type DashboardSidebarStackProps = {
   children: ReactNode;
   className?: string;
@@ -89,6 +135,18 @@ export function DashboardActionsRow({
   className,
 }: DashboardActionsRowProps) {
   return <div className={cn("dashboard-actions", className)}>{children}</div>;
+}
+
+type DashboardMetaPillProps = {
+  children: ReactNode;
+  className?: string;
+};
+
+export function DashboardMetaPill({
+  children,
+  className,
+}: DashboardMetaPillProps) {
+  return <span className={cn("dashboard-meta-pill", className)}>{children}</span>;
 }
 
 type DashboardSectionProps = {
@@ -178,6 +236,74 @@ export function DashboardTableContainer({
       <div className={cn("dashboard-table-shell-inner", innerClassName)}>
         {children}
       </div>
+    </div>
+  );
+}
+
+type DashboardDetailFeedProps = {
+  children: ReactNode;
+  className?: string;
+};
+
+export function DashboardDetailFeed({
+  children,
+  className,
+}: DashboardDetailFeedProps) {
+  return <div className={cn("dashboard-detail-feed", className)}>{children}</div>;
+}
+
+type DashboardDetailFeedItemProps = {
+  title?: ReactNode;
+  meta?: ReactNode;
+  action?: ReactNode;
+  children?: ReactNode;
+  className?: string;
+  titleClassName?: string;
+  metaClassName?: string;
+  bodyClassName?: string;
+};
+
+export function DashboardDetailFeedItem({
+  title,
+  meta,
+  action,
+  children,
+  className,
+  titleClassName,
+  metaClassName,
+  bodyClassName,
+}: DashboardDetailFeedItemProps) {
+  const hasHeading = Boolean(title || meta || action);
+
+  return (
+    <div className={cn("dashboard-detail-feed-item", className)}>
+      {hasHeading ? (
+        <div className="dashboard-detail-feed-heading">
+          <div className="min-w-0 flex-1">
+            {title ? (
+              <div className={cn("text-sm font-medium text-foreground", titleClassName)}>
+                {title}
+              </div>
+            ) : null}
+            {meta ? (
+              <div className={cn("dashboard-detail-feed-meta", metaClassName)}>
+                {meta}
+              </div>
+            ) : null}
+          </div>
+          {action ? (
+            <DashboardActionsRow className="shrink-0 sm:justify-end">
+              {action}
+            </DashboardActionsRow>
+          ) : null}
+        </div>
+      ) : null}
+
+      {children ? (
+        <div className={cn("dashboard-detail-feed-body", bodyClassName)}>
+          {children}
+        </div>
+      ) : null}
     </div>
   );
 }

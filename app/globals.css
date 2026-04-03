@@ -168,6 +168,50 @@
     @apply grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_0.8fr];
   }
 
+  .dashboard-detail-header {
+    @apply section-panel flex flex-col gap-5 px-5 py-5 sm:px-6 sm:py-6 xl:grid xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start xl:gap-6;
+  }
+
+  .dashboard-detail-header-copy {
+    @apply flex min-w-0 flex-col gap-4;
+  }
+
+  .dashboard-detail-header-meta {
+    @apply flex flex-wrap items-center gap-2.5;
+  }
+
+  .dashboard-detail-header-actions {
+    @apply justify-start xl:max-w-xl xl:justify-end;
+  }
+
+  .dashboard-detail-support-grid {
+    @apply grid gap-6 2xl:grid-cols-2;
+  }
+
+  .dashboard-detail-feed {
+    @apply flex flex-col gap-3;
+  }
+
+  .dashboard-detail-feed-item {
+    @apply soft-panel flex flex-col gap-3 px-4 py-4;
+  }
+
+  .dashboard-detail-feed-heading {
+    @apply flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between;
+  }
+
+  .dashboard-detail-feed-meta {
+    @apply flex flex-wrap items-center gap-2 text-xs leading-5 text-muted-foreground;
+  }
+
+  .dashboard-detail-feed-body {
+    @apply text-sm leading-7 text-foreground;
+  }
+
+  .dashboard-meta-pill {
+    @apply inline-flex min-h-9 items-center rounded-full border border-border/75 bg-background/90 px-3.5 py-1.5 text-xs font-medium text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.38)];
+  }
+
   .dashboard-side-stack {
     @apply flex flex-col gap-6;
   }
