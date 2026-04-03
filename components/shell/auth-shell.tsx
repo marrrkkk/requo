@@ -56,7 +56,7 @@ export function AuthShell({
             </div>
           </div>
 
-          <div className="grid gap-3 rounded-[1.35rem] border border-border/80 bg-background/72 p-5 sm:grid-cols-2">
+          <div className="soft-panel grid gap-4 p-5 sm:grid-cols-2">
             {[
               "Workspace setup happens automatically after first signup",
               "Email/password auth with protected routes and reset flow",
@@ -74,7 +74,7 @@ export function AuthShell({
         </div>
 
         <div className="auth-form-shell">
-          <Card className="auth-form-card">
+          <Card className="auth-form-card gap-0">
             <CardHeader className="gap-5 border-b border-border/70">
               <BrandMark className="xl:hidden" subtitle={null} />
               <div className="flex flex-col gap-3">

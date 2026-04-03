@@ -229,11 +229,11 @@
   }
 
   .auth-form-card {
-    @apply w-full max-w-[34rem] border-border/80 bg-card/95 shadow-sm backdrop-blur-sm;
+    @apply w-full max-w-[34rem] border-border/75 bg-card/96 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_18px_34px_-28px_rgba(23,43,36,0.22)] backdrop-blur-sm;
   }
 
   .auth-note {
-    @apply rounded-2xl border border-border/80 bg-background/70 p-4;
+    @apply rounded-[1.3rem] border border-border/75 bg-background/88 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)];
   }
 
   .state-page {
@@ -241,7 +241,7 @@
   }
 
   .state-card-note {
-    @apply rounded-xl border border-border/80 bg-background px-4 py-3 text-sm leading-6 text-muted-foreground;
+    @apply rounded-[1.15rem] border border-border/75 bg-background/90 px-4 py-3 text-sm leading-6 text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.45)];
   }
 
   .no-scrollbar {
@@ -262,7 +262,7 @@
   }
 
   .hero-panel {
-    @apply relative overflow-hidden rounded-[1.75rem] border border-border/80 bg-card shadow-sm;
+    @apply relative overflow-hidden rounded-[1.75rem] border border-border/75 bg-card/96 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_22px_36px_-28px_rgba(23,43,36,0.18)];
   }
 
   .eyebrow {
@@ -270,19 +270,19 @@
   }
 
   .section-panel {
-    @apply rounded-[1.5rem] border border-border/80 bg-card shadow-sm;
+    @apply rounded-[1.5rem] border border-border/75 bg-card/96 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_30px_-26px_rgba(23,43,36,0.2)];
   }
 
   .toolbar-panel {
-    @apply rounded-2xl border border-border/80 bg-card/85 p-4 shadow-sm backdrop-blur-sm;
+    @apply rounded-[1.35rem] border border-border/75 bg-card/90 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_24px_-24px_rgba(23,43,36,0.16)] backdrop-blur-sm;
   }
 
   .soft-panel {
-    @apply rounded-xl border border-border/80 bg-background/80;
+    @apply rounded-[1.2rem] border border-border/75 bg-background/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)];
   }
 
   .info-tile {
-    @apply rounded-xl border border-border/80 bg-background/80 px-4 py-4 shadow-sm;
+    @apply rounded-[1.2rem] border border-border/75 bg-background/92 px-4 py-4 shadow-[0_1px_1px_rgba(15,23,42,0.03),inset_0_1px_0_rgba(255,255,255,0.42)];
   }
 
   .hairline {

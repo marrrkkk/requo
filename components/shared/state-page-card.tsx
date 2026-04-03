@@ -32,8 +32,8 @@ export function StatePageCard({
 }: StatePageCardProps) {
   return (
     <div className="state-page">
-      <Card className={cn("mx-auto w-full max-w-2xl", className)}>
-        <CardHeader className="gap-5">
+      <Card className={cn("mx-auto w-full max-w-2xl gap-0", className)}>
+        <CardHeader className="gap-5 pb-5">
           {media ?? <BrandMark subtitle={null} />}
           <div className="flex flex-col gap-2">
             <span className="eyebrow">{eyebrow}</span>
@@ -47,7 +47,7 @@ export function StatePageCard({
         </CardHeader>
 
         {children ? (
-          <CardContent className="flex flex-col gap-3">{children}</CardContent>
+          <CardContent className="flex flex-col gap-3 pt-0">{children}</CardContent>
         ) : null}
 
         {actions ? (

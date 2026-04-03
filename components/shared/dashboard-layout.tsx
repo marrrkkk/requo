@@ -117,14 +117,14 @@ export function DashboardSection({
   const hasHeader = Boolean(title || description || action);
 
   return (
-    <Card className={cn("border-border/80 bg-card", className)}>
+    <Card className={cn("gap-0 border-border/75 bg-card/96", className)}>
       {hasHeader ? (
-        <CardHeader className={cn("gap-3", headerClassName)}>
+        <CardHeader className={cn("gap-3 pb-5", headerClassName)}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               {title ? <CardTitle>{title}</CardTitle> : null}
               {description ? (
-                <CardDescription className={cn(title ? "mt-1" : null)}>
+                <CardDescription className={cn(title ? "mt-1.5" : null)}>
                   {description}
                 </CardDescription>
               ) : null}
@@ -139,7 +139,11 @@ export function DashboardSection({
       ) : null}
 
       <CardContent
-        className={cn("dashboard-section-body", !hasHeader && "pt-6", contentClassName)}
+        className={cn(
+          "dashboard-section-body",
+          hasHeader ? "pt-0" : "pt-6",
+          contentClassName,
+        )}
       >
         {children}
       </CardContent>
