@@ -68,7 +68,7 @@ export function ResetPasswordForm() {
     return (
       <div className="flex flex-col gap-6">
         <AuthFormFeedback error="This reset link is missing its token. Request a new password reset email." />
-        <Button asChild size="lg">
+        <Button asChild className="w-full" size="lg">
           <Link href="/forgot-password">Request a new reset link</Link>
         </Button>
       </div>
@@ -125,7 +125,7 @@ export function ResetPasswordForm() {
         </Field>
       </FieldGroup>
 
-      <Button disabled={isPending} type="submit" size="lg">
+      <Button className="w-full" disabled={isPending} type="submit" size="lg">
         {isPending ? "Updating password..." : "Reset password"}
       </Button>
 
@@ -134,7 +134,7 @@ export function ResetPasswordForm() {
       <p className="text-sm text-muted-foreground">
         Need a fresh link?{" "}
         <Link
-          className="text-foreground underline underline-offset-4"
+          className="font-medium text-foreground underline underline-offset-4"
           href="/forgot-password"
         >
           Request another reset email

@@ -87,7 +87,7 @@ export function ForgotPasswordForm() {
         </Field>
       </FieldGroup>
 
-      <Button disabled={isPending} type="submit" size="lg">
+      <Button className="w-full" disabled={isPending} type="submit" size="lg">
         {isPending ? "Sending reset link..." : "Send reset link"}
       </Button>
 
@@ -95,7 +95,7 @@ export function ForgotPasswordForm() {
 
       <p className="text-sm text-muted-foreground">
         Remembered your password?{" "}
-        <Link className="text-foreground underline underline-offset-4" href="/login">
+        <Link className="font-medium text-foreground underline underline-offset-4" href="/login">
           Back to login
         </Link>
       </p>

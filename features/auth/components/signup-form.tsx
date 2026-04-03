@@ -118,7 +118,7 @@ export function SignupForm() {
         </Field>
       </FieldGroup>
 
-      <Button disabled={isPending} type="submit" size="lg">
+      <Button className="w-full" disabled={isPending} type="submit" size="lg">
         {isPending ? "Creating your account..." : "Create account"}
       </Button>
 
@@ -126,7 +126,7 @@ export function SignupForm() {
 
       <p className="text-sm text-muted-foreground">
         Already have an account?{" "}
-        <Link className="text-foreground underline underline-offset-4" href="/login">
+        <Link className="font-medium text-foreground underline underline-offset-4" href="/login">
           Sign in
         </Link>
       </p>

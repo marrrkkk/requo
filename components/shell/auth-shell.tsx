@@ -18,48 +18,50 @@ export function AuthShell({
   children,
 }: AuthShellProps) {
   return (
-    <div className="page-wrap flex min-h-screen items-center py-6 sm:py-10">
-      <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[1.08fr_0.92fr] lg:items-stretch">
-        <div className="hero-panel hidden p-8 lg:flex lg:flex-col lg:justify-between">
-          <BrandMark />
+    <div className="auth-page">
+      <div className="auth-shell-grid">
+        <div className="auth-story-panel">
+          <div className="flex items-center justify-between gap-4">
+            <BrandMark />
+            <span className="eyebrow">Owner workspace</span>
+          </div>
 
-          <div className="flex max-w-xl flex-col gap-6">
-            <span className="eyebrow">QuoteFlow workspace</span>
-            <div className="flex flex-col gap-4">
+          <div className="flex max-w-3xl flex-col gap-8">
+            <div className="flex max-w-2xl flex-col gap-4">
               <h1 className="font-heading text-5xl font-semibold leading-[0.95] tracking-tight text-balance">
-                Inquiry, quotes, and reply drafting in one clean workspace.
+                Inquiry, quotes, and customer replies in one calm workspace.
               </h1>
-              <p className="max-w-lg text-base leading-8 text-muted-foreground">
-                Built for small service businesses that need a faster way to intake
-                requests, turn them into quotes, and keep customer communication tidy.
+              <p className="max-w-xl text-base leading-8 text-muted-foreground">
+                Built for small service businesses that need a practical system for
+                intake, quote drafting, and polished follow-up without admin sprawl.
               </p>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
               <AuthSignal
-                description="Capture scope, timing, and files in one place."
+                description="Capture scope, timing, and files in a structured intake flow."
                 icon={Inbox}
-                label="Inbox"
+                label="Organized intake"
               />
               <AuthSignal
-                description="Draft and send polished quotes without extra admin."
+                description="Draft and send customer-ready quotes from the same workspace."
                 icon={FileText}
-                label="Quotes"
+                label="Quote workflow"
               />
               <AuthSignal
-                description="Generate practical responses from your own business context."
+                description="Generate practical replies using your stored business context."
                 icon={Sparkles}
-                label="AI assist"
+                label="AI support"
               />
             </div>
           </div>
 
-          <div className="grid gap-3 rounded-2xl border border-border/80 bg-background/70 p-4 sm:grid-cols-2">
+          <div className="grid gap-3 rounded-[1.35rem] border border-border/80 bg-background/72 p-5 sm:grid-cols-2">
             {[
-              "Owner-first dashboard layout",
-              "Workspace setup after first signup",
-              "Protected auth and password recovery",
-              "Customer-safe public inquiry and quote pages",
+              "Workspace setup happens automatically after first signup",
+              "Email/password auth with protected routes and reset flow",
+              "Public inquiry and quote pages stay customer-safe",
+              "Clean owner-first dashboard for day-to-day work",
             ].map((item) => (
               <div className="flex items-start gap-3" key={item}>
                 <div className="mt-0.5 rounded-md bg-accent p-1 text-accent-foreground">
@@ -71,10 +73,10 @@ export function AuthShell({
           </div>
         </div>
 
-        <div className="flex items-center justify-center">
-          <Card className="w-full max-w-xl">
-            <CardHeader className="gap-4">
-              <BrandMark className="lg:hidden" />
+        <div className="auth-form-shell">
+          <Card className="auth-form-card">
+            <CardHeader className="gap-5 border-b border-border/70">
+              <BrandMark className="xl:hidden" subtitle={null} />
               <div className="flex flex-col gap-3">
                 <span className="eyebrow">{badge}</span>
                 <CardTitle className="text-3xl sm:text-4xl">{title}</CardTitle>
@@ -83,7 +85,7 @@ export function AuthShell({
                 </CardDescription>
               </div>
             </CardHeader>
-            <CardContent>{children}</CardContent>
+            <CardContent className="pt-6">{children}</CardContent>
           </Card>
         </div>
       </div>
@@ -101,7 +103,7 @@ function AuthSignal({
   label: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border/80 bg-background/70 p-4">
+    <div className="auth-note">
       <div className="flex size-9 items-center justify-center rounded-lg bg-accent text-accent-foreground">
         <Icon className="size-4" />
       </div>

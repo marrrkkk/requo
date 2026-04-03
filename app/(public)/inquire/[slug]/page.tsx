@@ -7,7 +7,10 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
-import { BrandMark } from "@/components/shared/brand-mark";
+import {
+  PublicHeroSurface,
+  PublicPageShell,
+} from "@/components/shared/public-page-shell";
 import { PublicInquiryForm } from "@/features/inquiries/components/public-inquiry-form";
 import { submitPublicInquiryAction } from "@/features/inquiries/actions";
 import { getPublicInquiryWorkspaceBySlug } from "@/features/inquiries/queries";
@@ -53,83 +56,84 @@ export default async function PublicInquiryPage({
     `Tell ${workspace.name} what you need and they can review it in QuoteFlow.`;
 
   return (
-    <div className="page-wrap py-6 sm:py-8 lg:py-10">
-      <div className="flex flex-col gap-6">
-        <header className="section-panel flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <BrandMark />
-          <Button asChild variant="ghost">
-            <Link href="/">
-              <ArrowLeft data-icon="inline-start" />
-              Back to QuoteFlow
-            </Link>
-          </Button>
-        </header>
-
-        <section className="hero-panel px-5 py-8 sm:px-8 sm:py-10 lg:px-10">
-          <div className="grid gap-8 lg:grid-cols-[0.88fr_1.12fr] lg:items-start">
-            <div className="flex flex-col gap-6">
+    <PublicPageShell
+      headerAction={
+        <Button asChild variant="ghost">
+          <Link href="/">
+            <ArrowLeft data-icon="inline-start" />
+            Back to QuoteFlow
+          </Link>
+        </Button>
+      }
+    >
+      <PublicHeroSurface className="lg:py-12">
+        <div className="grid gap-10 xl:grid-cols-[minmax(0,0.92fr)_minmax(22rem,0.8fr)] xl:items-start">
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-4">
+              <span className="eyebrow">Public inquiry page</span>
               <div className="flex flex-col gap-4">
-                <span className="eyebrow">Public inquiry page</span>
-                <div className="flex flex-col gap-4">
-                  <p className="meta-label">{workspace.name}</p>
-                  <h1 className="max-w-2xl font-heading text-4xl font-semibold leading-tight tracking-tight text-balance sm:text-5xl">
-                    Tell {workspace.name} what you need.
-                  </h1>
-                  <p className="max-w-xl text-base leading-8 text-muted-foreground sm:text-lg">
-                    {pageHeadline}
-                  </p>
-                </div>
+                <p className="meta-label">{workspace.name}</p>
+                <h1 className="max-w-2xl font-heading text-4xl font-semibold leading-tight tracking-tight text-balance sm:text-5xl">
+                  Tell {workspace.name} what you need.
+                </h1>
+                <p className="max-w-xl text-base leading-8 text-muted-foreground sm:text-lg">
+                  {pageHeadline}
+                </p>
               </div>
-
-              <div className="grid gap-3">
-                {intakeSignals.map((signal) => {
-                  const Icon = signal.icon;
-
-                  return (
-                    <Card key={signal.title} size="sm" className="bg-background">
-                      <CardHeader className="gap-3">
-                        <div className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-                          <Icon className="size-4" />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <CardTitle>{signal.title}</CardTitle>
-                          <p className="text-sm leading-6 text-muted-foreground">
-                            {signal.description}
-                          </p>
-                        </div>
-                      </CardHeader>
-                    </Card>
-                  );
-                })}
-              </div>
-
-              <Card className="bg-background">
-                <CardHeader className="gap-2">
-                  <CardTitle>What helps most</CardTitle>
-                  <p className="text-sm leading-6 text-muted-foreground">
-                    Service, timing, measurements, quantity, and any reference files.
-                  </p>
-                </CardHeader>
-              </Card>
             </div>
 
-            <Card className="shadow-sm">
+            <div className="grid gap-3">
+              {intakeSignals.map((signal) => {
+                const Icon = signal.icon;
+
+                return (
+                  <Card
+                    key={signal.title}
+                    size="sm"
+                    className="bg-background/92 shadow-none"
+                  >
+                    <CardHeader className="gap-3">
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+                        <Icon className="size-4" />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <CardTitle>{signal.title}</CardTitle>
+                        <p className="text-sm leading-6 text-muted-foreground">
+                          {signal.description}
+                        </p>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                );
+              })}
+            </div>
+
+            <Card className="bg-background/92 shadow-none">
               <CardHeader className="gap-2">
-                <CardTitle className="text-2xl">Send inquiry</CardTitle>
+                <CardTitle>What helps most</CardTitle>
                 <p className="text-sm leading-6 text-muted-foreground">
-                  Your request goes straight to {workspace.name}.
+                  Service, timing, measurements, quantity, and any reference files.
                 </p>
               </CardHeader>
-              <CardContent>
-                <PublicInquiryForm
-                  workspace={workspace}
-                  action={submitPublicInquiry}
-                />
-              </CardContent>
             </Card>
           </div>
-        </section>
-      </div>
-    </div>
+
+          <Card className="border-border/80 bg-card/95 shadow-sm xl:sticky xl:top-6">
+            <CardHeader className="gap-2">
+              <CardTitle className="text-2xl">Send inquiry</CardTitle>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Your request goes straight to {workspace.name}.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <PublicInquiryForm
+                workspace={workspace}
+                action={submitPublicInquiry}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      </PublicHeroSurface>
+    </PublicPageShell>
   );
 }

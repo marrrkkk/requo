@@ -108,19 +108,22 @@ export function LoginForm() {
       </FieldGroup>
 
       <div className="flex flex-col gap-3">
-        <Button disabled={isPending} type="submit" size="lg">
+        <Button className="w-full" disabled={isPending} type="submit" size="lg">
           {isPending ? "Signing in..." : "Sign in"}
         </Button>
-        <Button asChild variant="ghost" size="lg">
-          <Link href="/forgot-password">Forgot your password?</Link>
-        </Button>
+        <Link
+          className="self-end text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          href="/forgot-password"
+        >
+          Forgot your password?
+        </Link>
       </div>
 
       <Separator />
 
       <p className="text-sm text-muted-foreground">
         New here?{" "}
-        <Link className="text-foreground underline underline-offset-4" href="/signup">
+        <Link className="font-medium text-foreground underline underline-offset-4" href="/signup">
           Create an account
         </Link>
       </p>

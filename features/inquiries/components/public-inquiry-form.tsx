@@ -291,8 +291,8 @@ export function PublicInquiryForm({
 
       <Separator />
 
-      <div className="toolbar-panel flex flex-col gap-4">
-        <Button disabled={isPending} type="submit" size="lg">
+      <div className="toolbar-panel flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Button className="w-full sm:w-auto" disabled={isPending} type="submit" size="lg">
           {isPending ? "Sending your inquiry..." : "Send inquiry"}
         </Button>
         <p className="text-sm leading-6 text-muted-foreground">
