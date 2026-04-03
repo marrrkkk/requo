@@ -27,6 +27,7 @@ import {
   getKnowledgeTextPreview,
 } from "@/features/knowledge/utils";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { requireCurrentWorkspaceContext } from "@/lib/db/workspace-access";
 
 export default async function KnowledgePage() {
@@ -142,7 +143,12 @@ export default async function KnowledgePage() {
                 </div>
               ) : (
                 <DashboardEmptyState
-                  description="Upload your first internal text file to start building reusable business context for future AI-assisted drafts."
+                  action={
+                    <Button asChild variant="outline">
+                      <a href="#knowledge-file-upload">Upload a file</a>
+                    </Button>
+                  }
+                  description="Upload a reference file to start building reusable business context for future drafts."
                   icon={BookCopy}
                   title="No knowledge files yet"
                   variant="section"
@@ -181,7 +187,12 @@ export default async function KnowledgePage() {
                 </div>
               ) : (
                 <DashboardEmptyState
-                  description="Add internal question-and-answer entries for policies, pricing boundaries, or workflow defaults that AI replies should respect later."
+                  action={
+                    <Button asChild variant="outline">
+                      <a href="#knowledge-faq-create-question">Add an FAQ</a>
+                    </Button>
+                  }
+                  description="Add a short internal answer for pricing rules, policies, or workflow defaults the workspace can reuse later."
                   icon={TextQuote}
                   title="No FAQs yet"
                   variant="section"

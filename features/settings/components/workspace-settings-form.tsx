@@ -26,6 +26,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
   Field,
   FieldContent,
   FieldDescription,
@@ -316,10 +323,17 @@ export function WorkspaceSettingsForm({
                       width={96}
                     />
                   ) : (
-                    <div className="flex flex-col items-center gap-2 text-center text-sm text-muted-foreground">
-                      <ImageIcon className="size-5" />
-                      <span>No logo uploaded</span>
-                    </div>
+                    <Empty className="border-0 bg-transparent px-4 py-6 shadow-none">
+                      <EmptyHeader>
+                        <EmptyMedia variant="icon">
+                          <ImageIcon />
+                        </EmptyMedia>
+                        <EmptyTitle>No logo uploaded</EmptyTitle>
+                        <EmptyDescription>
+                          Choose a file above to brand public pages and customer-facing quote views.
+                        </EmptyDescription>
+                      </EmptyHeader>
+                    </Empty>
                   )}
                 </div>
               </div>

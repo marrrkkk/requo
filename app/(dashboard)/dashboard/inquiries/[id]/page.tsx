@@ -171,7 +171,7 @@ export default async function InquiryDetailPage({
               </DashboardDetailFeed>
             ) : (
               <DashboardEmptyState
-                description="This inquiry has no uploaded files."
+                description="Ask the customer to send reference files if more context is needed for pricing or scope."
                 icon={FileText}
                 title="No attachments"
                 variant="section"
@@ -200,7 +200,7 @@ export default async function InquiryDetailPage({
                 </DashboardDetailFeed>
               ) : (
                 <DashboardEmptyState
-                  description="Add a note for follow-up context."
+                  description="Use the note form above to capture follow-up context, decisions, or customer details."
                   title="No internal notes yet"
                   variant="section"
                 />
@@ -229,7 +229,7 @@ export default async function InquiryDetailPage({
                 </DashboardDetailFeed>
               ) : (
                 <DashboardEmptyState
-                  description="Actions will appear here as work progresses."
+                  description="Change the status or generate a quote to start the timeline for this inquiry."
                   title="No activity yet"
                   variant="section"
                 />

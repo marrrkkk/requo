@@ -122,7 +122,7 @@ export default async function QuoteDetailPage({
         </div>
       ) : (
         <DashboardEmptyState
-          description="This quote was created manually."
+          description="This quote was created manually. Continue editing here or share the customer view when it is ready."
           title="No linked inquiry"
           variant="section"
         />
@@ -153,7 +153,7 @@ export default async function QuoteDetailPage({
         </DashboardDetailFeed>
       ) : (
         <DashboardEmptyState
-          description="Quote events will appear here."
+          description="Send the quote or change its status to start the timeline for this quote."
           title="No quote activity yet"
           variant="section"
         />
