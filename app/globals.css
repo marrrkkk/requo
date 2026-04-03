@@ -149,11 +149,11 @@
   }
 
   .dashboard-content {
-    @apply mx-auto flex w-full max-w-[92rem] flex-1 flex-col;
+    @apply mx-auto flex min-w-0 w-full max-w-[92rem] flex-1 flex-col;
   }
 
   .dashboard-page {
-    @apply flex flex-col gap-6 xl:gap-7;
+    @apply flex min-w-0 flex-col gap-5 sm:gap-6 xl:gap-7;
   }
 
   .dashboard-actions {
@@ -165,11 +165,11 @@
   }
 
   .dashboard-detail-layout {
-    @apply grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_0.8fr];
+    @apply grid min-w-0 gap-5 lg:gap-6 xl:grid-cols-[minmax(0,1.2fr)_0.8fr];
   }
 
   .dashboard-detail-header {
-    @apply section-panel flex flex-col gap-5 px-5 py-5 sm:px-6 sm:py-6 xl:grid xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start xl:gap-6;
+    @apply flex flex-col gap-5 rounded-[1.5rem] border border-border/75 bg-card/96 px-4 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_30px_-26px_rgba(23,43,36,0.2)] sm:px-6 sm:py-6 xl:grid xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start xl:gap-6;
   }
 
   .dashboard-detail-header-copy {
@@ -181,7 +181,7 @@
   }
 
   .dashboard-detail-header-actions {
-    @apply justify-start xl:max-w-xl xl:justify-end;
+    @apply w-full justify-start [&>*]:w-full sm:[&>*]:w-auto xl:w-auto xl:max-w-xl xl:justify-end;
   }
 
   .dashboard-detail-support-grid {
@@ -193,7 +193,7 @@
   }
 
   .dashboard-detail-feed-item {
-    @apply soft-panel flex flex-col gap-3 px-4 py-4;
+    @apply flex flex-col gap-3 rounded-[1.2rem] border border-border/75 bg-background/90 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)];
   }
 
   .dashboard-detail-feed-heading {
@@ -209,19 +209,19 @@
   }
 
   .dashboard-meta-pill {
-    @apply inline-flex min-h-9 items-center rounded-full border border-border/75 bg-background/90 px-3.5 py-1.5 text-xs font-medium text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.38)];
+    @apply inline-flex min-h-9 max-w-full items-center rounded-full border border-border/75 bg-background/90 px-3.5 py-1.5 text-left text-xs font-medium text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.38)];
   }
 
   .dashboard-side-stack {
-    @apply flex flex-col gap-6;
+    @apply flex min-w-0 flex-col gap-5 lg:gap-6;
   }
 
   .dashboard-section-body {
-    @apply flex flex-col gap-4;
+    @apply flex min-w-0 flex-col gap-4;
   }
 
   .dashboard-table-shell {
-    @apply section-panel hidden overflow-hidden lg:block;
+    @apply hidden overflow-hidden rounded-[1.5rem] border border-border/75 bg-card/96 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_30px_-26px_rgba(23,43,36,0.2)] xl:block;
   }
 
   .dashboard-table-shell-inner {
@@ -237,15 +237,15 @@
   }
 
   .data-list-toolbar-grid {
-    @apply grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_14rem_auto] lg:items-end;
+    @apply grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_14rem_auto] xl:items-end;
   }
 
   .data-list-toolbar-actions {
-    @apply flex flex-col gap-3 sm:flex-row lg:justify-end;
+    @apply flex flex-col gap-3 sm:flex-row xl:justify-end;
   }
 
   .data-list-mobile-grid {
-    @apply grid gap-4 lg:hidden;
+    @apply grid gap-4 xl:hidden;
   }
 
   .data-list-card {
@@ -265,7 +265,7 @@
   }
 
   .data-list-empty-state {
-    @apply section-panel border-dashed bg-card/90 px-6 py-12 sm:px-8;
+    @apply rounded-[1.5rem] border border-dashed border-border/75 bg-card/90 px-6 py-12 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_30px_-26px_rgba(23,43,36,0.2)] sm:px-8;
   }
 
   .table-meta-stack {
@@ -289,11 +289,11 @@
   }
 
   .dashboard-topbar-inner {
-    @apply dashboard-content px-4 py-3 sm:px-6 lg:px-8;
+    @apply mx-auto w-full max-w-[92rem] px-4 py-3 sm:px-6 xl:px-8;
   }
 
   .dashboard-main {
-    @apply flex flex-1 flex-col px-4 py-6 sm:px-6 lg:px-8;
+    @apply flex flex-1 flex-col px-4 py-5 sm:px-6 sm:py-6 xl:px-8;
   }
 
   .public-page {
@@ -305,23 +305,23 @@
   }
 
   .public-page-header {
-    @apply section-panel flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6;
+    @apply flex flex-col gap-4 rounded-[1.5rem] border border-border/75 bg-card/96 px-4 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_30px_-26px_rgba(23,43,36,0.2)] md:flex-row md:items-center md:justify-between md:px-6;
   }
 
   .public-hero-surface {
-    @apply hero-panel px-5 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12;
+    @apply relative overflow-hidden rounded-[1.75rem] border border-border/75 bg-card/96 px-4 py-6 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_22px_36px_-28px_rgba(23,43,36,0.18)] sm:px-6 sm:py-8 lg:px-8 lg:py-10 xl:px-10 xl:py-12;
   }
 
   .auth-page {
-    @apply page-wrap flex min-h-screen items-center py-6 sm:py-8 lg:py-10;
+    @apply mx-auto flex min-h-screen w-full max-w-[96rem] items-start px-4 py-6 sm:px-6 sm:py-8 lg:items-center lg:px-8 lg:py-10;
   }
 
   .auth-shell-grid {
-    @apply mx-auto grid w-full max-w-[88rem] gap-6 xl:grid-cols-[minmax(0,1fr)_30rem] xl:gap-8;
+    @apply mx-auto grid w-full max-w-[88rem] gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_30rem] xl:gap-8;
   }
 
   .auth-story-panel {
-    @apply hero-panel hidden p-8 xl:flex xl:flex-col xl:justify-between xl:p-10;
+    @apply relative hidden overflow-hidden rounded-[1.75rem] border border-border/75 bg-card/96 p-8 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_22px_36px_-28px_rgba(23,43,36,0.18)] xl:flex xl:flex-col xl:justify-between xl:p-10;
   }
 
   .auth-form-shell {
@@ -337,7 +337,7 @@
   }
 
   .state-page {
-    @apply page-wrap flex min-h-screen items-center py-10;
+    @apply mx-auto flex min-h-screen w-full max-w-[96rem] items-center px-4 py-10 sm:px-6 lg:px-8;
   }
 
   .state-card-note {
@@ -353,7 +353,7 @@
   }
 
   .form-section-header {
-    @apply flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between;
+    @apply flex flex-col gap-2 md:flex-row md:items-start md:justify-between;
   }
 
   .form-section-body {
@@ -369,11 +369,11 @@
   }
 
   .form-actions {
-    @apply flex flex-col gap-3 pt-1 sm:flex-row sm:items-center;
+    @apply flex flex-col gap-3 pt-1 md:flex-row md:items-center;
   }
 
   .form-note {
-    @apply soft-panel px-4 py-4 shadow-none;
+    @apply rounded-[1.2rem] border border-border/75 bg-background/90 px-4 py-4;
   }
 
   .no-scrollbar {

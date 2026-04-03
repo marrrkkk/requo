@@ -22,7 +22,9 @@ export function PublicPageShell({
         <header className="public-page-header">
           <BrandMark subtitle={brandSubtitle} />
           {headerAction ? (
-            <div className="flex flex-wrap gap-3 sm:justify-end">{headerAction}</div>
+            <div className="flex w-full flex-col gap-3 [&>*]:w-full sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end sm:[&>*]:w-auto">
+              {headerAction}
+            </div>
           ) : null}
         </header>
 

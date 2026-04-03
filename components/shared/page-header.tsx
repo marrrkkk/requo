@@ -20,7 +20,7 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        "flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between",
+        "flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between",
         className,
       )}
     >
@@ -39,7 +39,7 @@ export function PageHeader({
       </div>
 
       {actions ? (
-        <div className="dashboard-actions lg:max-w-xl lg:justify-end">
+        <div className="dashboard-actions w-full [&>*]:w-full sm:[&>*]:w-auto xl:w-auto xl:max-w-xl xl:justify-end">
           {actions}
         </div>
       ) : null}

@@ -82,7 +82,7 @@ export function DataListToolbar({
           }}
         >
           <FieldGroup className="data-list-toolbar-grid gap-4">
-            <Field className="lg:min-w-0">
+            <Field className="xl:min-w-0">
               <FieldLabel className="meta-label px-0.5" htmlFor={searchId}>
                 {searchLabel}
               </FieldLabel>
@@ -97,7 +97,7 @@ export function DataListToolbar({
               </FieldContent>
             </Field>
 
-            <Field className="sm:max-w-[14rem] lg:max-w-none">
+            <Field className="sm:max-w-[14rem] xl:max-w-none">
               <FieldLabel className="meta-label px-0.5" htmlFor={filterId}>
                 {filterLabel}
               </FieldLabel>

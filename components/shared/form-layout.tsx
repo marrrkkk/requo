@@ -48,9 +48,9 @@ type FormActionsProps = {
 };
 
 const formActionAlignClassNames = {
-  start: "sm:justify-start",
-  end: "sm:justify-end",
-  between: "sm:justify-between",
+  start: "md:justify-start",
+  end: "md:justify-end",
+  between: "md:justify-between",
 } as const;
 
 export function FormActions({

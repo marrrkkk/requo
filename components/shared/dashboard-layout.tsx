@@ -209,7 +209,7 @@ export function DashboardSection({
       {footer ? (
         <CardFooter
           className={cn(
-            "dashboard-actions justify-start sm:justify-end",
+            "dashboard-actions w-full justify-start [&>*]:w-full sm:[&>*]:w-auto sm:justify-end",
             footerClassName,
           )}
         >

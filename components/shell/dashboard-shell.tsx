@@ -191,10 +191,10 @@ export function DashboardShell({
       <SidebarInset className="min-h-svh min-w-0">
         <header className="dashboard-topbar">
           <div className="dashboard-topbar-inner">
-            <div className="flex min-h-11 items-center gap-3">
+            <div className="flex min-h-11 min-w-0 flex-wrap items-center gap-3 md:flex-nowrap">
               <SidebarTrigger className="shrink-0" />
               <Separator
-                className="hidden data-[orientation=vertical]:h-4 sm:block"
+                className="hidden data-[orientation=vertical]:h-4 md:block"
                 orientation="vertical"
               />
               <div className="min-w-0 flex-1">
@@ -215,7 +215,7 @@ export function DashboardShell({
                   {activeItem.description}
                 </p>
               </div>
-              <div className="hidden items-center gap-2 md:flex">
+              <div className="hidden items-center gap-2 xl:flex">
                 <Badge variant="secondary">/{workspace.slug}</Badge>
                 <Badge variant="outline">{workspace.defaultCurrency}</Badge>
               </div>
