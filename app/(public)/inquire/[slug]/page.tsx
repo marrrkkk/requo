@@ -108,8 +108,8 @@ export default async function PublicInquiryPage({
               })}
             </div>
 
-            <Card className="bg-background/92 shadow-none">
-              <CardHeader className="gap-2">
+            <Card className="gap-0 bg-background/92 shadow-none">
+              <CardHeader className="gap-2 pb-5">
                 <CardTitle>What helps most</CardTitle>
                 <p className="text-sm leading-6 text-muted-foreground">
                   Service, timing, measurements, quantity, and any reference files.
@@ -118,14 +118,14 @@ export default async function PublicInquiryPage({
             </Card>
           </div>
 
-          <Card className="border-border/80 bg-card/95 shadow-sm xl:sticky xl:top-6">
-            <CardHeader className="gap-2">
+          <Card className="gap-0 border-border/75 bg-card/96 xl:sticky xl:top-6">
+            <CardHeader className="gap-2 pb-5">
               <CardTitle className="text-2xl">Send inquiry</CardTitle>
               <p className="text-sm leading-6 text-muted-foreground">
                 Your request goes straight to {workspace.name}.
               </p>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-0">
               <PublicInquiryForm
                 workspace={workspace}
                 action={submitPublicInquiry}

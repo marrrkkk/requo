@@ -82,14 +82,14 @@ export default async function PublicQuotePage({
               </div>
             </div>
 
-            <Card className="bg-background/92 shadow-none">
-              <CardHeader className="gap-3">
+            <Card className="gap-0 bg-background/92 shadow-none">
+              <CardHeader className="gap-3 pb-5">
                 <CardTitle>Quote summary</CardTitle>
                 <CardDescription className="leading-7">
                   Review the scope, total, and validity date.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2">
+              <CardContent className="grid gap-4 pt-0 sm:grid-cols-2">
                 <Stat label="Prepared by" value={quote.workspaceName} />
                 <Stat label="Prepared for" value={quote.customerName} />
                 <Stat
@@ -103,8 +103,8 @@ export default async function PublicQuotePage({
               </CardContent>
             </Card>
 
-            <Card className="bg-background/92 shadow-none">
-              <CardHeader className="gap-3">
+            <Card className="gap-0 bg-background/92 shadow-none">
+              <CardHeader className="gap-3 pb-5">
                 <CardTitle>
                   {isActionable
                     ? "Ready to respond?"
@@ -124,7 +124,7 @@ export default async function PublicQuotePage({
                         : "This quote is no longer accepting online responses."}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="flex flex-col gap-4">
+              <CardContent className="flex flex-col gap-4 pt-0">
                 {isActionable ? (
                   <PublicQuoteResponseForm action={respondAction} />
                 ) : (
@@ -157,8 +157,8 @@ export default async function PublicQuotePage({
               </CardContent>
             </Card>
 
-            <Card className="bg-background/92 shadow-none">
-              <CardHeader className="gap-3">
+            <Card className="gap-0 bg-background/92 shadow-none">
+              <CardHeader className="gap-3 pb-5">
                 <div className="flex items-center gap-3">
                   <div className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
                     <ShieldCheck className="size-4" />
@@ -173,7 +173,7 @@ export default async function PublicQuotePage({
                 </div>
               </CardHeader>
               {quote.workspaceContactEmail ? (
-                <CardContent>
+                <CardContent className="pt-0">
                   <Button asChild variant="outline">
                     <a href={`mailto:${quote.workspaceContactEmail}`}>
                       <Mail data-icon="inline-start" />

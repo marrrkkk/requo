@@ -94,10 +94,7 @@ export function MarketingHero() {
                 ["Public forms", "Safe intake without exposing private data"],
                 ["Better replies", "Use business context to draft faster"],
               ].map(([title, description]) => (
-                <div
-                  className="rounded-2xl border border-border/80 bg-background/70 p-4"
-                  key={title}
-                >
+                <div className="info-tile p-4 shadow-none" key={title}>
                   <p className="text-sm font-semibold text-foreground">{title}</p>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
                     {description}
@@ -107,8 +104,8 @@ export function MarketingHero() {
             </div>
           </div>
 
-          <div className="rounded-[1.75rem] border border-border/80 bg-background/80 p-4 shadow-sm xl:self-stretch">
-            <div className="rounded-[1.35rem] border border-border/80 bg-card">
+          <div className="soft-panel p-4 shadow-none xl:self-stretch">
+            <div className="section-panel rounded-[1.35rem] shadow-none">
               <div className="flex items-center justify-between border-b border-border/80 px-4 py-3">
                 <div>
                   <p className="text-sm font-semibold text-foreground">
@@ -146,7 +143,7 @@ export function MarketingHero() {
                   />
                 </div>
 
-                <div className="rounded-2xl border border-dashed border-border/80 bg-muted/25 p-4">
+                <div className="soft-panel border-dashed bg-muted/20 p-4 shadow-none">
                   <div className="flex items-start gap-3">
                     <div className="rounded-lg bg-accent p-2 text-accent-foreground">
                       <MessageSquareText className="size-4" />
@@ -205,10 +202,7 @@ export function MarketingHero() {
 
           <div className="grid gap-3">
             {workflow.map((step, index) => (
-              <div
-                className="flex items-start gap-4 rounded-2xl border border-border/80 bg-background/70 px-4 py-4"
-                key={step}
-              >
+              <div className="soft-panel flex items-start gap-4 px-4 py-4 shadow-none" key={step}>
                 <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground">
                   {index + 1}
                 </div>
@@ -254,7 +248,7 @@ export function MarketingHero() {
 
 function PreviewMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-border/80 bg-background/80 p-4">
+    <div className="info-tile p-4 shadow-none">
       <p className="meta-label">{label}</p>
       <p className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
         {value}
@@ -273,7 +267,7 @@ function PreviewRow({
   title: string;
 }) {
   return (
-    <div className="flex items-start justify-between gap-3 rounded-xl border border-border/80 bg-background/80 px-4 py-4">
+    <div className="soft-panel flex items-start justify-between gap-3 px-4 py-4 shadow-none">
       <div className="min-w-0">
         <p className="truncate text-sm font-semibold text-foreground">{title}</p>
         <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
