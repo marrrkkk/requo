@@ -1,5 +1,5 @@
 import { PublicRouteSkeleton } from "@/components/shared/public-route-skeleton";
 
 export default function PublicInquiryLoading() {
-  return <PublicRouteSkeleton />;
+  return <PublicRouteSkeleton variant="inquiry" />;
 }
