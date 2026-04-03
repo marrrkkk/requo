@@ -104,7 +104,7 @@ export function MarketingHero() {
             </div>
           </div>
 
-          <div className="soft-panel p-4 shadow-none xl:self-stretch">
+          <div className="soft-panel p-5 shadow-none xl:self-stretch">
             <div className="section-panel rounded-[1.35rem] shadow-none">
               <div className="flex items-center justify-between border-b border-border/80 px-4 py-3">
                 <div>
@@ -145,7 +145,7 @@ export function MarketingHero() {
 
                 <div className="soft-panel border-dashed bg-muted/20 p-4 shadow-none">
                   <div className="flex items-start gap-3">
-                    <div className="rounded-lg bg-accent p-2 text-accent-foreground">
+                    <div className="rounded-lg border border-border/70 bg-accent/85 p-2 text-accent-foreground">
                       <MessageSquareText className="size-4" />
                     </div>
                     <div>
@@ -171,9 +171,9 @@ export function MarketingHero() {
           const Icon = benefit.icon;
 
           return (
-            <Card key={benefit.title}>
+            <Card className="border-border/75 bg-card/97" key={benefit.title}>
               <CardHeader className="gap-4">
-                <div className="flex size-11 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+                <div className="flex size-11 items-center justify-center rounded-xl border border-border/70 bg-accent/85 text-accent-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
                   <Icon className="size-4" />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -203,7 +203,7 @@ export function MarketingHero() {
           <div className="grid gap-3">
             {workflow.map((step, index) => (
               <div className="soft-panel flex items-start gap-4 px-4 py-4 shadow-none" key={step}>
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-[0_8px_16px_-14px_rgba(0,128,96,0.55)]">
                   {index + 1}
                 </div>
                 <p className="text-sm leading-7 text-foreground">{step}</p>
@@ -272,9 +272,9 @@ function PreviewRow({
         <p className="truncate text-sm font-semibold text-foreground">{title}</p>
         <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
       </div>
-      <span className="rounded-md border border-border/80 bg-secondary px-2 py-1 text-xs text-secondary-foreground">
-        {badge}
-      </span>
-    </div>
+                  <span className="dashboard-meta-pill min-h-0 px-2.5 py-1 text-[0.7rem] text-secondary-foreground">
+                    {badge}
+                  </span>
+                </div>
   );
 }

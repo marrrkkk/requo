@@ -68,7 +68,11 @@ export function ForgotPasswordForm() {
 
   return (
     <form className="form-stack" onSubmit={handleSubmit}>
-      <AuthFormFeedback error={state.error} success={state.success} />
+      <AuthFormFeedback
+        error={state.error}
+        success={state.success}
+        successTitle="Check your inbox"
+      />
 
       <FieldGroup>
         <Field data-invalid={Boolean(emailError) || undefined}>

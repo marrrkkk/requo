@@ -82,7 +82,7 @@ export default async function PublicQuotePage({
               </div>
             </div>
 
-            <Card className="gap-0 bg-background/92 shadow-none">
+            <Card className="gap-0 bg-background/94 shadow-none">
               <CardHeader className="gap-3 pb-5">
                 <CardTitle>Quote summary</CardTitle>
                 <CardDescription className="leading-7">
@@ -103,7 +103,7 @@ export default async function PublicQuotePage({
               </CardContent>
             </Card>
 
-            <Card className="gap-0 bg-background/92 shadow-none">
+            <Card className="gap-0 bg-background/94 shadow-none">
               <CardHeader className="gap-3 pb-5">
                 <CardTitle>
                   {isActionable
@@ -157,7 +157,7 @@ export default async function PublicQuotePage({
               </CardContent>
             </Card>
 
-            <Card className="gap-0 bg-background/92 shadow-none">
+            <Card className="gap-0 bg-background/94 shadow-none">
               <CardHeader className="gap-3 pb-5">
                 <div className="flex items-center gap-3">
                   <div className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
@@ -213,7 +213,7 @@ function Stat({ label, value }: { label: string; value: string }) {
         <p className="meta-label">
           {label}
         </p>
-        <p className="text-sm font-medium text-foreground">{value}</p>
+        <p className="text-sm font-semibold text-foreground">{value}</p>
       </div>
     </div>
   );

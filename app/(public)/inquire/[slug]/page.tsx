@@ -115,6 +115,18 @@ export default async function PublicInquiryPage({
                   Service, timing, measurements, quantity, and any reference files.
                 </p>
               </CardHeader>
+              <CardContent className="grid gap-3 pt-0 sm:grid-cols-2">
+                {[
+                  "Service type and quantity",
+                  "Measurements or dimensions",
+                  "Target deadline or install date",
+                  "Reference artwork or photos",
+                ].map((item) => (
+                  <div className="soft-panel px-4 py-3 shadow-none" key={item}>
+                    <p className="text-sm font-medium text-foreground">{item}</p>
+                  </div>
+                ))}
+              </CardContent>
             </Card>
           </div>
 

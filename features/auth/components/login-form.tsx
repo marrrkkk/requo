@@ -70,7 +70,11 @@ export function LoginForm() {
 
   return (
     <form className="form-stack" onSubmit={handleSubmit}>
-      <AuthFormFeedback error={state.error} success={state.success ?? resetMessage} />
+      <AuthFormFeedback
+        error={state.error}
+        success={state.success ?? resetMessage}
+        successTitle={resetMessage ? "Password updated" : undefined}
+      />
 
       <FieldGroup>
         <Field data-invalid={Boolean(emailError) || undefined}>

@@ -75,7 +75,7 @@ export function AuthShell({
 
         <div className="auth-form-shell">
           <Card className="auth-form-card gap-0">
-            <CardHeader className="gap-5 border-b border-border/70">
+            <CardHeader className="gap-5 border-b border-border/70 bg-background/34">
               <BrandMark className="xl:hidden" subtitle={null} />
               <div className="flex flex-col gap-3">
                 <span className="eyebrow">{badge}</span>
@@ -104,7 +104,7 @@ function AuthSignal({
 }) {
   return (
     <div className="auth-note">
-      <div className="flex size-9 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+      <div className="flex size-9 items-center justify-center rounded-lg border border-border/70 bg-accent/85 text-accent-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
         <Icon className="size-4" />
       </div>
       <p className="mt-4 text-sm font-semibold text-foreground">{label}</p>

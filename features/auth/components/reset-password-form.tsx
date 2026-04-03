@@ -68,7 +68,10 @@ export function ResetPasswordForm() {
   if (!token) {
     return (
       <div className="flex flex-col gap-6">
-        <AuthFormFeedback error="This reset link is missing its token. Request a new password reset email." />
+        <AuthFormFeedback
+          error="This reset link is missing its token. Request a new password reset email."
+          errorTitle="Reset link unavailable"
+        />
         <Button asChild className="w-full" size="lg">
           <Link href="/forgot-password">Request a new reset link</Link>
         </Button>
@@ -81,7 +84,11 @@ export function ResetPasswordForm() {
 
   return (
     <form className="form-stack" onSubmit={handleSubmit}>
-      <AuthFormFeedback error={state.error} success={state.success} />
+      <AuthFormFeedback
+        error={state.error}
+        success={state.success}
+        errorTitle="We could not reset the password."
+      />
 
       <FieldGroup>
         <Field data-invalid={Boolean(passwordError) || undefined}>
