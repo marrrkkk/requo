@@ -67,6 +67,8 @@ export async function updateWorkspaceSettingsAction(
 
     revalidatePath("/dashboard", "layout");
     revalidatePath("/dashboard/settings");
+    revalidatePath("/dashboard/settings/general");
+    revalidatePath("/dashboard/settings/pricing-library");
     revalidatePath(`/inquire/${result.previousSlug}`);
     revalidatePath(`/inquire/${result.nextSlug}`);
 

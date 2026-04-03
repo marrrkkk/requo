@@ -38,7 +38,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
   SidebarContent,
@@ -180,9 +179,9 @@ export function DashboardShell({
           <div className="dashboard-topbar-inner">
             <div className="flex min-h-11 min-w-0 flex-wrap items-center gap-3 md:flex-nowrap">
               <SidebarTrigger className="shrink-0" />
-              <Separator
-                className="hidden data-[orientation=vertical]:h-4 md:block"
-                orientation="vertical"
+              <span
+                aria-hidden="true"
+                className="hidden h-4 w-px shrink-0 self-center bg-border md:block"
               />
               <div className="min-w-0 flex-1">
                 <Breadcrumb>
@@ -198,9 +197,6 @@ export function DashboardShell({
                     </BreadcrumbItem>
                   </BreadcrumbList>
                 </Breadcrumb>
-                <p className="mt-1 hidden truncate text-xs text-muted-foreground md:block">
-                  {activeItem.description}
-                </p>
               </div>
               <div className="hidden items-center gap-2 xl:flex">
                 <Badge variant="secondary">/{workspace.slug}</Badge>

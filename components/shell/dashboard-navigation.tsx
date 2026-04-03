@@ -35,7 +35,7 @@ export const dashboardNavigation: DashboardNavigationItem[] = [
   {
     href: "/dashboard/settings",
     label: "Workspace",
-    description: "Manage identity, intake defaults, and reusable knowledge.",
+    description: "Open general settings, pricing library, and reusable knowledge.",
     icon: Settings2,
   },
 ];
@@ -52,7 +52,7 @@ function resolveDashboardActivePathname(pathname: string) {
     pathname === "/dashboard/knowledge" ||
     pathname.startsWith("/dashboard/knowledge/")
   ) {
-    return "/dashboard/settings";
+    return "/dashboard/settings/knowledge";
   }
 
   return pathname;

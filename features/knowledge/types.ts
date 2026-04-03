@@ -24,6 +24,12 @@ export type DashboardKnowledgeData = {
   faqs: DashboardKnowledgeFaq[];
 };
 
+export type DashboardKnowledgeSummary = {
+  fileCount: number;
+  faqCount: number;
+  readyFileCount: number;
+};
+
 export type KnowledgeContextFile = {
   id: string;
   title: string;

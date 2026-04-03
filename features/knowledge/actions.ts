@@ -34,7 +34,7 @@ const initialKnowledgeFaqDeleteState: KnowledgeFaqDeleteActionState = {};
 
 function revalidateKnowledgePages() {
   revalidatePath("/dashboard/settings");
-  revalidatePath("/dashboard/knowledge");
+  revalidatePath("/dashboard/settings/knowledge");
 }
 
 export async function uploadKnowledgeFileAction(

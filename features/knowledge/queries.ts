@@ -1,11 +1,12 @@
 import "server-only";
 
-import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNotNull, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { knowledgeFaqs, knowledgeFiles } from "@/lib/db/schema";
 import type {
   DashboardKnowledgeData,
+  DashboardKnowledgeSummary,
   WorkspaceKnowledgeContext,
 } from "@/features/knowledge/types";
 import {
@@ -47,6 +48,32 @@ export async function getKnowledgeDashboardData(
   return {
     files,
     faqs,
+  };
+}
+
+export async function getKnowledgeSummaryForWorkspace(
+  workspaceId: string,
+): Promise<DashboardKnowledgeSummary> {
+  const [[fileSummary], [faqSummary]] = await Promise.all([
+    db
+      .select({
+        fileCount: count(knowledgeFiles.id),
+        readyFileCount: sql<number>`count(case when ${knowledgeFiles.extractedText} is not null and length(trim(${knowledgeFiles.extractedText})) > 0 then 1 end)`,
+      })
+      .from(knowledgeFiles)
+      .where(eq(knowledgeFiles.workspaceId, workspaceId)),
+    db
+      .select({
+        faqCount: count(knowledgeFaqs.id),
+      })
+      .from(knowledgeFaqs)
+      .where(eq(knowledgeFaqs.workspaceId, workspaceId)),
+  ]);
+
+  return {
+    fileCount: fileSummary?.fileCount ?? 0,
+    faqCount: faqSummary?.faqCount ?? 0,
+    readyFileCount: fileSummary?.readyFileCount ?? 0,
   };
 }
 
