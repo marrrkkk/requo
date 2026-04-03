@@ -19,9 +19,10 @@ const trendLabelFormatter = new Intl.DateTimeFormat("en-US", {
 function startOfUtcWeek(date: Date) {
   const weekStart = new Date(date);
   const day = weekStart.getUTCDay();
+  const offset = (day + 6) % 7;
 
   weekStart.setUTCHours(0, 0, 0, 0);
-  weekStart.setUTCDate(weekStart.getUTCDate() - day);
+  weekStart.setUTCDate(weekStart.getUTCDate() - offset);
 
   return weekStart;
 }
@@ -57,9 +58,12 @@ export async function getWorkspaceAnalyticsData(
 ): Promise<WorkspaceAnalyticsData> {
   const now = new Date();
   const trendStart = addUtcWeeks(startOfUtcWeek(now), -5);
+  const trendStartIso = trendStart.toISOString();
   const thisWeekStart = new Date(now);
   thisWeekStart.setUTCDate(thisWeekStart.getUTCDate() - 6);
   thisWeekStart.setUTCHours(0, 0, 0, 0);
+  const quoteActivityTimestamp = sql`coalesce(${quotes.acceptedAt}, ${quotes.sentAt}, ${quotes.createdAt})`;
+  const quoteActivityWeek = sql`date_trunc('week', ${quoteActivityTimestamp})`;
 
   const [statusRows, thisWeekRows, quoteSummaryRows, inquiryTrendRows, quoteTrendRows] =
     await Promise.all([
@@ -111,22 +115,18 @@ export async function getWorkspaceAnalyticsData(
         .orderBy(sql`date_trunc('week', ${inquiries.submittedAt})`),
       db
         .select({
-          weekStart: sql<string>`to_char(date_trunc('week', coalesce(${quotes.acceptedAt}, ${quotes.sentAt}, ${quotes.createdAt})), 'YYYY-MM-DD')`,
+          weekStart: sql<string>`to_char(${quoteActivityWeek}, 'YYYY-MM-DD')`,
           acceptedQuotes: sql<number>`count(*) filter (where ${quotes.status} = 'accepted')`,
         })
         .from(quotes)
         .where(
           and(
             eq(quotes.workspaceId, workspaceId),
-            gte(sql`coalesce(${quotes.acceptedAt}, ${quotes.sentAt}, ${quotes.createdAt})`, trendStart),
+            sql`${quoteActivityTimestamp} >= ${trendStartIso}::timestamptz`,
           ),
         )
-        .groupBy(
-          sql`date_trunc('week', coalesce(${quotes.acceptedAt}, ${quotes.sentAt}, ${quotes.createdAt}))`,
-        )
-        .orderBy(
-          sql`date_trunc('week', coalesce(${quotes.acceptedAt}, ${quotes.sentAt}, ${quotes.createdAt}))`,
-        ),
+        .groupBy(quoteActivityWeek)
+        .orderBy(quoteActivityWeek),
     ]);
 
   const inquiryStatusCountsMap = toCountMap(
