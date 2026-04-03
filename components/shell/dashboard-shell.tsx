@@ -151,7 +151,7 @@ export function DashboardShell({
           </div>
         </SidebarHeader>
 
-        <SidebarContent className="gap-2">
+        <SidebarContent className="gap-3 pb-2">
           <SidebarGroup className="pt-3">
             <SidebarGroupLabel>Workspace</SidebarGroupLabel>
             <SidebarMenu>
@@ -165,7 +165,7 @@ export function DashboardShell({
             </SidebarMenu>
           </SidebarGroup>
 
-          <SidebarGroup className="pt-1">
+          <SidebarGroup className="pt-0">
             <SidebarGroupLabel>Configuration</SidebarGroupLabel>
             <SidebarMenu>
               {secondaryNavigation.map((item) => (
@@ -181,18 +181,18 @@ export function DashboardShell({
 
         <SidebarSeparator />
 
-        <SidebarFooter className="p-2">
+        <SidebarFooter className="p-2 pt-1">
           <DashboardUserMenu user={user} workspaceSlug={workspace.slug} />
         </SidebarFooter>
 
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset className="min-h-svh">
-        <header className="sticky top-0 z-30 border-b border-border/70 bg-background/90 backdrop-blur supports-backdrop-filter:bg-background/80">
-          <div className="dashboard-content px-4 py-3 sm:px-6 lg:px-8">
-            <div className="flex min-h-10 items-center gap-3">
-              <SidebarTrigger />
+      <SidebarInset className="min-h-svh min-w-0">
+        <header className="dashboard-topbar">
+          <div className="dashboard-topbar-inner">
+            <div className="flex min-h-11 items-center gap-3">
+              <SidebarTrigger className="shrink-0" />
               <Separator
                 className="hidden data-[orientation=vertical]:h-4 sm:block"
                 orientation="vertical"
@@ -224,7 +224,7 @@ export function DashboardShell({
         </header>
 
         <div className="flex flex-1 flex-col">
-          <main className="flex flex-1 flex-col px-4 py-6 sm:px-6 lg:px-8">
+          <main className="dashboard-main">
             <div className="dashboard-content">{children}</div>
           </main>
         </div>
