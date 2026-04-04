@@ -3,18 +3,33 @@ import { SearchX } from "lucide-react";
 
 import { StatePageCard } from "@/components/shared/state-page-card";
 import { Button } from "@/components/ui/button";
+import {
+  getWorkspaceDashboardPath,
+  getWorkspaceInquiriesPath,
+  workspaceHubPath,
+} from "@/features/workspaces/routes";
+import { getCurrentWorkspaceRequestContext } from "@/lib/db/workspace-access";
 
-export default function DashboardNotFound() {
+export default async function DashboardNotFound() {
+  const requestContext = await getCurrentWorkspaceRequestContext();
+  const workspaceSlug = requestContext?.workspaceContext.workspace.slug;
+  const inquiriesHref = workspaceSlug
+    ? getWorkspaceInquiriesPath(workspaceSlug)
+    : workspaceHubPath;
+  const overviewHref = workspaceSlug
+    ? getWorkspaceDashboardPath(workspaceSlug)
+    : workspaceHubPath;
+
   return (
     <div className="flex min-h-[28rem] items-center justify-center">
       <StatePageCard
         actions={
           <>
           <Button asChild variant="outline">
-            <Link href="/dashboard/inquiries">Open inquiries</Link>
+            <Link href={inquiriesHref}>Open inquiries</Link>
           </Button>
           <Button asChild>
-            <Link href="/dashboard">Back to overview</Link>
+            <Link href={overviewHref}>Back to overview</Link>
           </Button>
           </>
         }

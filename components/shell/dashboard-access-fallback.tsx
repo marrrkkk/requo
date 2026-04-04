@@ -19,7 +19,7 @@ export function DashboardAccessFallback({
       actions={
         <>
           <Button asChild>
-            <Link href="/dashboard">Try dashboard again</Link>
+            <Link href="/workspace">Open workspaces</Link>
           </Button>
           <LogoutButton variant="ghost" />
         </>
@@ -29,8 +29,7 @@ export function DashboardAccessFallback({
       title="Workspace not ready yet."
     >
       <div className="state-card-note">
-        If this happened just after signup, waiting a moment and trying again
-        usually fixes it.
+        Open the workspace hub to create or select a workspace first.
       </div>
       <div className="state-card-note">
         If it keeps failing, sign out and back in to restart the session

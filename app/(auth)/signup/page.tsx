@@ -9,7 +9,7 @@ export default async function SignupPage() {
     <AuthShell
       badge="Signup"
       title="Create account"
-      description="We will set up your first workspace automatically."
+      description="Create your account, then set up your first workspace."
     >
       <SignupForm />
     </AuthShell>

@@ -6,6 +6,16 @@ import {
   Settings2,
 } from "lucide-react";
 
+import {
+  getWorkspaceAnalyticsPath,
+  getWorkspaceDashboardPath,
+  getWorkspaceDashboardSlugFromPathname,
+  getWorkspaceInquiriesPath,
+  getWorkspaceKnowledgeCompatibilityPath,
+  getWorkspaceQuotesPath,
+  getWorkspaceSettingsPath,
+} from "@/features/workspaces/routes";
+
 export type DashboardNavigationItem = {
   href: string;
   label: string;
@@ -13,46 +23,54 @@ export type DashboardNavigationItem = {
   icon: LucideIcon;
 };
 
-export const dashboardNavigation: DashboardNavigationItem[] = [
-  {
-    href: "/dashboard",
-    label: "Overview",
-    description: "Action queues, momentum, and the next owner actions.",
-    icon: LayoutDashboard,
-  },
-  {
-    href: "/dashboard/inquiries",
-    label: "Requests",
-    description: "Capture, review, and move customer requests forward.",
-    icon: Inbox,
-  },
-  {
-    href: "/dashboard/quotes",
-    label: "Quotes",
-    description: "Draft, send, and track quotes from one place.",
-    icon: FileText,
-  },
-  {
-    href: "/dashboard/settings",
-    label: "Workspace",
-    description: "Open general settings, pricing library, and reusable knowledge.",
-    icon: Settings2,
-  },
-];
+export function getDashboardNavigation(slug: string): DashboardNavigationItem[] {
+  return [
+    {
+      href: getWorkspaceDashboardPath(slug),
+      label: "Overview",
+      description: "Action queues, momentum, and the next owner actions.",
+      icon: LayoutDashboard,
+    },
+    {
+      href: getWorkspaceInquiriesPath(slug),
+      label: "Requests",
+      description: "Capture, review, and move customer requests forward.",
+      icon: Inbox,
+    },
+    {
+      href: getWorkspaceQuotesPath(slug),
+      label: "Quotes",
+      description: "Draft, send, and track quotes from one place.",
+      icon: FileText,
+    },
+    {
+      href: getWorkspaceSettingsPath(slug),
+      label: "Settings",
+      description: "Open general settings, pricing library, and reusable knowledge.",
+      icon: Settings2,
+    },
+  ];
+}
 
 function resolveDashboardActivePathname(pathname: string) {
-  if (
-    pathname === "/dashboard/analytics" ||
-    pathname.startsWith("/dashboard/analytics/")
-  ) {
-    return "/dashboard";
+  const slug = getWorkspaceDashboardSlugFromPathname(pathname);
+
+  if (!slug) {
+    return pathname;
+  }
+
+  const analyticsPath = getWorkspaceAnalyticsPath(slug);
+  const knowledgeCompatibilityPath = getWorkspaceKnowledgeCompatibilityPath(slug);
+
+  if (pathname === analyticsPath || pathname.startsWith(`${analyticsPath}/`)) {
+    return getWorkspaceDashboardPath(slug);
   }
 
   if (
-    pathname === "/dashboard/knowledge" ||
-    pathname.startsWith("/dashboard/knowledge/")
+    pathname === knowledgeCompatibilityPath ||
+    pathname.startsWith(`${knowledgeCompatibilityPath}/`)
   ) {
-    return "/dashboard/settings/knowledge";
+    return getWorkspaceSettingsPath(slug, "knowledge");
   }
 
   return pathname;
@@ -64,7 +82,7 @@ export function isDashboardNavigationItemActive(
 ) {
   const activePathname = resolveDashboardActivePathname(pathname);
 
-  if (href === "/dashboard") {
+  if (href.endsWith("/dashboard")) {
     return activePathname === href;
   }
 
@@ -73,6 +91,13 @@ export function isDashboardNavigationItemActive(
 
 export function getActiveDashboardNavigationItem(pathname: string) {
   const activePathname = resolveDashboardActivePathname(pathname);
+  const slug = getWorkspaceDashboardSlugFromPathname(activePathname);
+
+  if (!slug) {
+    return null;
+  }
+
+  const dashboardNavigation = getDashboardNavigation(slug);
 
   return (
     dashboardNavigation.find((item) =>

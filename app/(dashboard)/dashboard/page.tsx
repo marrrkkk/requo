@@ -27,6 +27,15 @@ import {
   type WorkspaceOverviewQuoteActionItem,
 } from "@/features/workspaces/types";
 import { getWorkspaceOverviewData } from "@/features/workspaces/queries";
+import {
+  getWorkspaceAnalyticsPath,
+  getWorkspaceInquiriesPath,
+  getWorkspaceInquiryPath,
+  getWorkspaceNewQuotePath,
+  getWorkspaceQuotePath,
+  getWorkspaceQuotesPath,
+  getWorkspaceSettingsPath,
+} from "@/features/workspaces/routes";
 import { requireCurrentWorkspaceContext } from "@/lib/db/workspace-access";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +45,7 @@ export default async function DashboardOverviewPage() {
     getWorkspaceAnalyticsData(workspaceContext.workspace.id),
     getWorkspaceOverviewData(workspaceContext.workspace.id),
   ]);
+  const workspaceSlug = workspaceContext.workspace.slug;
   const closedOutcomeCount = analytics.wonCount + analytics.lostCount;
   const winRate = closedOutcomeCount
     ? analytics.wonCount / closedOutcomeCount
@@ -80,13 +90,13 @@ export default async function DashboardOverviewPage() {
 
             <DashboardActionsRow className="w-full [&>*]:w-full sm:[&>*]:w-auto lg:w-auto lg:justify-end">
               <Button asChild>
-                <Link href="/dashboard/inquiries" prefetch={false}>
+                <Link href={getWorkspaceInquiriesPath(workspaceSlug)} prefetch={false}>
                   Open requests
                   <ArrowRight data-icon="inline-end" />
                 </Link>
               </Button>
               <Button asChild variant="secondary">
-                <Link href="/dashboard/quotes/new" prefetch={false}>
+                <Link href={getWorkspaceNewQuotePath(workspaceSlug)} prefetch={false}>
                   Create quote
                 </Link>
               </Button>
@@ -122,7 +132,7 @@ export default async function DashboardOverviewPage() {
         <OverviewQueueCard
           action={
             <Button asChild size="sm" variant="ghost">
-              <Link href="/dashboard/inquiries" prefetch={false}>
+              <Link href={getWorkspaceInquiriesPath(workspaceSlug)} prefetch={false}>
                 All requests
                 <ArrowRight data-icon="inline-end" />
               </Link>
@@ -138,6 +148,7 @@ export default async function DashboardOverviewPage() {
                   inquiry={inquiry}
                   key={inquiry.id}
                   metaLabel="Waiting since"
+                  workspaceSlug={workspaceSlug}
                 />
               ))}
             </div>
@@ -155,7 +166,7 @@ export default async function DashboardOverviewPage() {
         <OverviewQueueCard
           action={
             <Button asChild size="sm" variant="ghost">
-              <Link href="/dashboard/quotes" prefetch={false}>
+              <Link href={getWorkspaceQuotesPath(workspaceSlug)} prefetch={false}>
                 All quotes
                 <ArrowRight data-icon="inline-end" />
               </Link>
@@ -171,6 +182,7 @@ export default async function DashboardOverviewPage() {
                   key={quote.id}
                   meta={`Expires ${formatQuoteDate(quote.validUntil)}`}
                   quote={quote}
+                  workspaceSlug={workspaceSlug}
                 />
               ))}
             </div>
@@ -188,7 +200,7 @@ export default async function DashboardOverviewPage() {
         <OverviewQueueCard
           action={
             <Button asChild size="sm" variant="ghost">
-              <Link href="/dashboard/inquiries" prefetch={false}>
+              <Link href={getWorkspaceInquiriesPath(workspaceSlug)} prefetch={false}>
                 Review requests
                 <ArrowRight data-icon="inline-end" />
               </Link>
@@ -204,6 +216,7 @@ export default async function DashboardOverviewPage() {
                   inquiry={inquiry}
                   key={inquiry.id}
                   metaLabel="Submitted"
+                  workspaceSlug={workspaceSlug}
                 />
               ))}
             </div>
@@ -211,7 +224,7 @@ export default async function DashboardOverviewPage() {
             <DashboardEmptyState
               action={
                 <Button asChild variant="outline">
-                  <Link href="/dashboard/quotes/new" prefetch={false}>
+                  <Link href={getWorkspaceNewQuotePath(workspaceSlug)} prefetch={false}>
                     Create quote
                   </Link>
                 </Button>
@@ -228,7 +241,7 @@ export default async function DashboardOverviewPage() {
         <OverviewQueueCard
           action={
             <Button asChild size="sm" variant="ghost">
-              <Link href="/dashboard/quotes" prefetch={false}>
+              <Link href={getWorkspaceQuotesPath(workspaceSlug)} prefetch={false}>
                 View follow-up
                 <ArrowRight data-icon="inline-end" />
               </Link>
@@ -250,6 +263,7 @@ export default async function DashboardOverviewPage() {
                       : `Expires ${formatQuoteDate(quote.validUntil)}`
                   }
                   quote={quote}
+                  workspaceSlug={workspaceSlug}
                 />
               ))}
             </div>
@@ -269,7 +283,10 @@ export default async function DashboardOverviewPage() {
         <OverviewQueueCard
           action={
             <Button asChild size="sm" variant="ghost">
-              <Link href="/dashboard/quotes?status=accepted" prefetch={false}>
+              <Link
+                href={`${getWorkspaceQuotesPath(workspaceSlug)}?status=accepted`}
+                prefetch={false}
+              >
                 Accepted quotes
                 <ArrowRight data-icon="inline-end" />
               </Link>
@@ -285,6 +302,7 @@ export default async function DashboardOverviewPage() {
                   key={quote.id}
                   meta={`Accepted ${formatQuoteDate(quote.acceptedAt ?? quote.updatedAt)}`}
                   quote={quote}
+                  workspaceSlug={workspaceSlug}
                 />
               ))}
             </div>
@@ -323,7 +341,7 @@ export default async function DashboardOverviewPage() {
 
             <div className="mt-auto flex flex-col gap-2.5">
               <Button asChild variant="outline">
-                <Link href="/dashboard/analytics" prefetch={false}>
+                <Link href={getWorkspaceAnalyticsPath(workspaceSlug)} prefetch={false}>
                   View analytics
                   <BarChart3 data-icon="inline-end" />
                 </Link>
@@ -333,7 +351,7 @@ export default async function DashboardOverviewPage() {
                   href={
                     workspaceContext.workspace.publicInquiryEnabled
                       ? publicInquiryUrl
-                      : "/dashboard/settings"
+                      : getWorkspaceSettingsPath(workspaceSlug)
                   }
                   prefetch={false}
                   rel={
@@ -437,14 +455,16 @@ function OverviewQueueCard({
 function OverviewInquiryRow({
   inquiry,
   metaLabel,
+  workspaceSlug,
 }: {
   inquiry: WorkspaceOverviewInquiryActionItem;
   metaLabel: string;
+  workspaceSlug: string;
 }) {
   return (
     <Link
       className="group block px-5 py-4 transition-colors hover:bg-accent/22 sm:px-6"
-      href={`/dashboard/inquiries/${inquiry.id}`}
+      href={getWorkspaceInquiryPath(workspaceSlug, inquiry.id)}
       prefetch={false}
     >
       <div className="flex items-start justify-between gap-3">
@@ -484,14 +504,16 @@ function OverviewInquiryRow({
 function OverviewQuoteRow({
   quote,
   meta,
+  workspaceSlug,
 }: {
   quote: WorkspaceOverviewQuoteActionItem;
   meta: string;
+  workspaceSlug: string;
 }) {
   return (
     <Link
       className="group block px-5 py-4 transition-colors hover:bg-accent/22 sm:px-6"
-      href={`/dashboard/quotes/${quote.id}`}
+      href={getWorkspaceQuotePath(workspaceSlug, quote.id)}
       prefetch={false}
     >
       <div className="flex items-start justify-between gap-3">

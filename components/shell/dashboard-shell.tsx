@@ -6,17 +6,20 @@ import type { CSSProperties, ReactNode } from "react";
 import { useTransition } from "react";
 import {
   ArrowUpRight,
+  Check,
   ChevronsUpDown,
   LogOut,
+  PanelsTopLeft,
   Settings2,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { authClient } from "@/lib/auth/client";
+import type { WorkspaceContext } from "@/lib/db/workspace-access";
 import { BrandMark } from "@/components/shared/brand-mark";
 import {
-  dashboardNavigation,
   getActiveDashboardNavigationItem,
+  getDashboardNavigation,
   isDashboardNavigationItemActive,
 } from "@/components/shell/dashboard-navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -54,6 +57,11 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  getWorkspaceDashboardPath,
+  getWorkspaceSettingsPath,
+  workspaceHubPath,
+} from "@/features/workspaces/routes";
 import { cn } from "@/lib/utils";
 
 type DashboardShellProps = {
@@ -62,26 +70,19 @@ type DashboardShellProps = {
     email: string;
     name: string;
   };
-  workspaceContext: {
-    role: "owner" | "member";
-    workspace: {
-      id: string;
-      name: string;
-      slug: string;
-      logoStoragePath: string | null;
-      defaultCurrency: string;
-      publicInquiryEnabled: boolean;
-    };
-  };
+  workspaceContext: WorkspaceContext;
+  workspaceMemberships: WorkspaceContext[];
 };
 
 export function DashboardShell({
   children,
   user,
   workspaceContext,
+  workspaceMemberships,
 }: DashboardShellProps) {
   const pathname = usePathname();
   const activeItem = getActiveDashboardNavigationItem(pathname);
+  const dashboardNavigation = getDashboardNavigation(workspaceContext.workspace.slug);
   const workspace = workspaceContext.workspace;
 
   return (
@@ -105,49 +106,10 @@ export function DashboardShell({
           </div>
           <SidebarSeparator />
           <div className="px-3 py-3 group-data-[collapsible=icon]:hidden">
-            <div className="rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)]">
-              <div className="flex items-start gap-3.5">
-                <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-[0.9rem] border border-sidebar-border bg-muted/55">
-                  {workspace.logoStoragePath ? (
-                    <Image
-                      alt={`${workspace.name} logo`}
-                      className="h-auto max-h-10 w-auto object-contain"
-                      height={48}
-                      src="/api/workspace/logo"
-                      unoptimized
-                      width={48}
-                    />
-                  ) : (
-                    <span className="text-sm font-semibold tracking-[0.16em] text-sidebar-foreground">
-                      {getInitials(workspace.name)}
-                    </span>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="meta-label text-sidebar-foreground/60">Workspace</p>
-                  <p className="mt-2 truncate text-sm font-semibold text-sidebar-foreground">
-                    {workspace.name}
-                  </p>
-                  <p className="mt-1 truncate text-sm text-muted-foreground">
-                    /{workspace.slug}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Badge
-                  className="border-sidebar-border bg-background text-sidebar-foreground"
-                  variant="outline"
-                >
-                  {workspace.defaultCurrency}
-                </Badge>
-                <Badge
-                  className="bg-sidebar-accent text-sidebar-accent-foreground"
-                  variant="secondary"
-                >
-                  {workspace.publicInquiryEnabled ? "Public form live" : "Public form off"}
-                </Badge>
-              </div>
-            </div>
+            <WorkspaceSwitcher
+              currentWorkspace={workspaceContext}
+              memberships={workspaceMemberships}
+            />
           </div>
         </SidebarHeader>
 
@@ -188,12 +150,17 @@ export function DashboardShell({
                   <BreadcrumbList>
                     <BreadcrumbItem className="hidden sm:block">
                       <BreadcrumbLink asChild>
-                        <Link href="/dashboard">Dashboard</Link>
+                        <Link
+                          href={getWorkspaceDashboardPath(workspace.slug)}
+                          prefetch={false}
+                        >
+                          Dashboard
+                        </Link>
                       </BreadcrumbLink>
                     </BreadcrumbItem>
                     <BreadcrumbSeparator className="hidden sm:block" />
                     <BreadcrumbItem>
-                      <BreadcrumbPage>{activeItem.label}</BreadcrumbPage>
+                      <BreadcrumbPage>{activeItem?.label ?? "Overview"}</BreadcrumbPage>
                     </BreadcrumbItem>
                   </BreadcrumbList>
                 </Breadcrumb>
@@ -218,7 +185,7 @@ export function DashboardShell({
 
 type DashboardNavigationItemProps = {
   isActive: boolean;
-  item: (typeof dashboardNavigation)[number];
+  item: ReturnType<typeof getDashboardNavigation>[number];
 };
 
 function DashboardNavigationItem({
@@ -328,12 +295,22 @@ function DashboardUserMenu({
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
                 <Link
-                  href="/dashboard/settings"
+                  href={getWorkspaceSettingsPath(workspaceSlug)}
                   onClick={closeMobileSidebar}
                   prefetch={false}
                 >
                   <Settings2 data-icon="inline-start" />
-                  Workspace
+                  Workspace settings
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link
+                  href={workspaceHubPath}
+                  onClick={closeMobileSidebar}
+                  prefetch={false}
+                >
+                  <PanelsTopLeft data-icon="inline-start" />
+                  Manage workspaces
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
@@ -363,6 +340,116 @@ function DashboardUserMenu({
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
+  );
+}
+
+function WorkspaceSwitcher({
+  currentWorkspace,
+  memberships,
+}: {
+  currentWorkspace: DashboardShellProps["workspaceContext"];
+  memberships: DashboardShellProps["workspaceMemberships"];
+}) {
+  const workspace = currentWorkspace.workspace;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className="w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] transition-colors hover:bg-background"
+          type="button"
+        >
+          <div className="flex items-start gap-3.5">
+            <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-[0.9rem] border border-sidebar-border bg-muted/55">
+              {workspace.logoStoragePath ? (
+                <Image
+                  alt={`${workspace.name} logo`}
+                  className="h-auto max-h-10 w-auto object-contain"
+                  height={48}
+                  src="/api/workspace/logo"
+                  unoptimized
+                  width={48}
+                />
+              ) : (
+                <span className="text-sm font-semibold tracking-[0.16em] text-sidebar-foreground">
+                  {getInitials(workspace.name)}
+                </span>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-3">
+                <p className="meta-label text-sidebar-foreground/60">Workspace</p>
+                <ChevronsUpDown className="size-4 text-muted-foreground" />
+              </div>
+              <p className="mt-2 truncate text-sm font-semibold text-sidebar-foreground">
+                {workspace.name}
+              </p>
+              <p className="mt-1 truncate text-sm text-muted-foreground">
+                /{workspace.slug}
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Badge
+              className="border-sidebar-border bg-background text-sidebar-foreground"
+              variant="outline"
+            >
+              {workspace.defaultCurrency}
+            </Badge>
+            <Badge
+              className="bg-sidebar-accent text-sidebar-accent-foreground"
+              variant="secondary"
+            >
+              {workspace.publicInquiryEnabled ? "Public form live" : "Public form off"}
+            </Badge>
+          </div>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-72 rounded-xl">
+        <DropdownMenuLabel className="px-2 py-2.5">
+          Switch workspace
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          {memberships.map((membership) => {
+            const isCurrent =
+              membership.workspace.id === currentWorkspace.workspace.id;
+
+            return (
+              <DropdownMenuItem asChild key={membership.membershipId}>
+                <Link
+                  href={getWorkspaceDashboardPath(membership.workspace.slug)}
+                  prefetch={false}
+                >
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background text-[0.72rem] font-semibold tracking-[0.14em] text-foreground">
+                    {getInitials(membership.workspace.name)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {membership.workspace.name}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      /{membership.workspace.slug}
+                    </p>
+                  </div>
+                  <span className="text-[0.68rem] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                    {membership.role}
+                  </span>
+                  {isCurrent ? <Check className="size-4 text-primary" /> : null}
+                </Link>
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href={workspaceHubPath} prefetch={false}>
+            <PanelsTopLeft data-icon="inline-start" />
+            Manage workspaces
+          </Link>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

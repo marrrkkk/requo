@@ -13,6 +13,7 @@ import {
   quoteLibraryEntryIdSchema,
   quoteLibraryEntrySchema,
 } from "@/features/quotes/quote-library-schemas";
+import { getWorkspaceSettingsPath } from "@/features/workspaces/routes";
 import type {
   QuoteLibraryActionState,
   QuoteLibraryDeleteActionState,
@@ -32,8 +33,9 @@ function mapQuoteLibraryFieldErrors(
   };
 }
 
-function revalidateQuoteLibraryPages() {
-  revalidatePath("/dashboard/settings");
+function revalidateQuoteLibraryPages(workspaceSlug: string) {
+  revalidatePath(getWorkspaceSettingsPath(workspaceSlug));
+  revalidatePath(getWorkspaceSettingsPath(workspaceSlug, "pricing-library"));
 }
 
 export async function createQuoteLibraryEntryAction(
@@ -74,7 +76,7 @@ export async function createQuoteLibraryEntryAction(
       entry: validationResult.data,
     });
 
-    revalidateQuoteLibraryPages();
+    revalidateQuoteLibraryPages(workspaceContext.workspace.slug);
 
     return {
       success:
@@ -145,7 +147,7 @@ export async function updateQuoteLibraryEntryAction(
       };
     }
 
-    revalidateQuoteLibraryPages();
+    revalidateQuoteLibraryPages(workspaceContext.workspace.slug);
 
     return {
       success:
@@ -201,7 +203,7 @@ export async function deleteQuoteLibraryEntryAction(
       };
     }
 
-    revalidateQuoteLibraryPages();
+    revalidateQuoteLibraryPages(workspaceContext.workspace.slug);
 
     return {
       success: true,

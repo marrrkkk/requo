@@ -9,7 +9,7 @@ export default async function LoginPage() {
     <AuthShell
       badge="Login"
       title="Sign in"
-      description="Open your workspace."
+      description="Choose a workspace and continue to the dashboard."
     >
       <LoginForm />
     </AuthShell>

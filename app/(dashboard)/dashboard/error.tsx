@@ -2,9 +2,15 @@
 
 import Link from "next/link";
 import { AlertTriangle, RotateCcw } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 import { StatePageCard } from "@/components/shared/state-page-card";
 import { Button } from "@/components/ui/button";
+import {
+  getWorkspaceDashboardPath,
+  getWorkspaceDashboardSlugFromPathname,
+  workspaceHubPath,
+} from "@/features/workspaces/routes";
 
 type DashboardErrorProps = {
   error: Error & { digest?: string };
@@ -15,6 +21,12 @@ export default function DashboardError({
   error,
   reset,
 }: DashboardErrorProps) {
+  const pathname = usePathname();
+  const workspaceSlug = getWorkspaceDashboardSlugFromPathname(pathname);
+  const overviewHref = workspaceSlug
+    ? getWorkspaceDashboardPath(workspaceSlug)
+    : workspaceHubPath;
+
   return (
     <StatePageCard
       actions={
@@ -24,7 +36,7 @@ export default function DashboardError({
             Try again
           </Button>
           <Button asChild>
-            <Link href="/dashboard">Back to overview</Link>
+            <Link href={overviewHref}>Back to overview</Link>
           </Button>
         </>
       }

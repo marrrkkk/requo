@@ -20,6 +20,7 @@ import {
   knowledgeFileIdSchema,
   knowledgeFileUploadSchema,
 } from "@/features/knowledge/schemas";
+import { getWorkspaceSettingsPath } from "@/features/workspaces/routes";
 import type {
   KnowledgeFaqActionState,
   KnowledgeFaqDeleteActionState,
@@ -32,9 +33,9 @@ const initialKnowledgeFileDeleteState: KnowledgeFileDeleteActionState = {};
 const initialKnowledgeFaqState: KnowledgeFaqActionState = {};
 const initialKnowledgeFaqDeleteState: KnowledgeFaqDeleteActionState = {};
 
-function revalidateKnowledgePages() {
-  revalidatePath("/dashboard/settings");
-  revalidatePath("/dashboard/settings/knowledge");
+function revalidateKnowledgePages(workspaceSlug: string) {
+  revalidatePath(getWorkspaceSettingsPath(workspaceSlug));
+  revalidatePath(getWorkspaceSettingsPath(workspaceSlug, "knowledge"));
 }
 
 export async function uploadKnowledgeFileAction(
@@ -68,7 +69,7 @@ export async function uploadKnowledgeFileAction(
       knowledgeFile: validationResult.data,
     });
 
-    revalidateKnowledgePages();
+    revalidateKnowledgePages(workspaceContext.workspace.slug);
 
     return {
       success: "Knowledge file uploaded.",
@@ -124,7 +125,7 @@ export async function deleteKnowledgeFileAction(
       };
     }
 
-    revalidateKnowledgePages();
+    revalidateKnowledgePages(workspaceContext.workspace.slug);
 
     return {};
   } catch (error) {
@@ -167,7 +168,7 @@ export async function createKnowledgeFaqAction(
       faq: validationResult.data,
     });
 
-    revalidateKnowledgePages();
+    revalidateKnowledgePages(workspaceContext.workspace.slug);
 
     return {
       success: "FAQ added.",
@@ -228,7 +229,7 @@ export async function updateKnowledgeFaqAction(
       };
     }
 
-    revalidateKnowledgePages();
+    revalidateKnowledgePages(workspaceContext.workspace.slug);
 
     return {
       success: "FAQ updated.",
@@ -281,7 +282,7 @@ export async function deleteKnowledgeFaqAction(
       };
     }
 
-    revalidateKnowledgePages();
+    revalidateKnowledgePages(workspaceContext.workspace.slug);
 
     return {};
   } catch (error) {

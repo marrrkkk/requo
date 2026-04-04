@@ -47,3 +47,10 @@ export type WorkspaceOverviewData = {
   recentAcceptedQuotes: WorkspaceOverviewQuoteActionItem[];
   counts: WorkspaceOverviewCounts;
 };
+
+export type CreateWorkspaceActionState = {
+  error?: string;
+  fieldErrors?: {
+    name?: string[] | undefined;
+  };
+};

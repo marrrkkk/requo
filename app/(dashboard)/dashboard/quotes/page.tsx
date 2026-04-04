@@ -12,6 +12,10 @@ import { QuoteListFilters } from "@/features/quotes/components/quote-list-filter
 import { QuoteListTable } from "@/features/quotes/components/quote-list-table";
 import { getQuoteListForWorkspace } from "@/features/quotes/queries";
 import { quoteListFiltersSchema } from "@/features/quotes/schemas";
+import {
+  getWorkspaceNewQuotePath,
+  getWorkspaceQuotesPath,
+} from "@/features/workspaces/routes";
 import { requireCurrentWorkspaceContext } from "@/lib/db/workspace-access";
 
 type QuotesPageProps = {
@@ -31,6 +35,7 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
     workspaceId: workspaceContext.workspace.id,
     filters,
   });
+  const workspaceSlug = workspaceContext.workspace.slug;
   const hasFilters = Boolean(filters.q || filters.status !== "all");
 
   return (
@@ -41,7 +46,7 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
         description="Draft, send, and track quotes."
         actions={
           <Button asChild>
-            <Link href="/dashboard/quotes/new" prefetch={false}>
+            <Link href={getWorkspaceNewQuotePath(workspaceSlug)} prefetch={false}>
               Create quote
               <ArrowRight data-icon="inline-end" />
             </Link>
@@ -56,10 +61,12 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
           <QuoteListTable
             quotes={quoteList}
             currency={workspaceContext.workspace.defaultCurrency}
+            workspaceSlug={workspaceSlug}
           />
           <QuoteListCards
             quotes={quoteList}
             currency={workspaceContext.workspace.defaultCurrency}
+            workspaceSlug={workspaceSlug}
           />
         </>
       ) : (
@@ -67,11 +74,11 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
           action={
             hasFilters ? (
               <Button asChild variant="outline">
-                <Link href="/dashboard/quotes">Clear filters</Link>
+                <Link href={getWorkspaceQuotesPath(workspaceSlug)}>Clear filters</Link>
               </Button>
             ) : (
               <Button asChild>
-                <Link href="/dashboard/quotes/new" prefetch={false}>
+                <Link href={getWorkspaceNewQuotePath(workspaceSlug)} prefetch={false}>
                   Create first quote
                 </Link>
               </Button>

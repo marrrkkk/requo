@@ -2,7 +2,7 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 
-import { bootstrapWorkspaceForUser } from "@/lib/auth/workspace-bootstrap";
+import { ensureProfileForUser } from "@/lib/auth/workspace-bootstrap";
 import { db } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { env } from "@/lib/env";
@@ -81,7 +81,7 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user) => {
-          await bootstrapWorkspaceForUser({
+          await ensureProfileForUser({
             id: user.id,
             name: user.name,
             email: user.email,

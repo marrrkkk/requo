@@ -61,7 +61,7 @@ export function LoginForm() {
         return;
       }
 
-      window.location.assign("/dashboard");
+      window.location.assign("/workspace");
     });
   }
 

@@ -11,6 +11,7 @@ app/
   (marketing)/
   (auth)/
   (dashboard)/dashboard/
+  workspace/
   (public)/
   api/
 
@@ -73,7 +74,8 @@ docs/
 
 - `(marketing)` owns the landing page and top-level marketing presentation.
 - `(auth)` owns signup, login, forgot password, and reset password.
-- `(dashboard)` owns authenticated product surfaces and uses a shared dashboard shell.
+- `workspace/` owns the workspace hub plus workspace-scoped dashboard routes.
+- `(dashboard)` remains in place for legacy compatibility redirects and shared page implementations.
 - `(public)` owns the public inquiry form and public quote response pages.
 - `api/` owns narrow route handlers for Better Auth and authenticated asset downloads.
 
@@ -91,7 +93,7 @@ Feature responsibilities:
 ## Auth, Data, and Security
 
 - Better Auth is the only auth system. Do not introduce Supabase Auth.
-- Workspace bootstrap happens during Better Auth user creation and should remain server-side.
+- Better Auth creates the authenticated user profile server-side, while workspaces are created manually from the protected workspace hub.
 - Authenticated mutations should continue to go through workspace-aware helpers such as `getOwnerWorkspaceActionContext`.
 - Drizzle queries are currently the primary enforcement mechanism for workspace ownership and membership.
 - SQL RLS helpers and policies exist in migrations, but the app does not currently set `app.current_user_id` on the database session. That means runtime DB-session RLS is not fully activated for app queries yet.

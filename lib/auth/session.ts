@@ -16,7 +16,7 @@ export async function getCurrentUser() {
   return (await getSession())?.user ?? null;
 }
 
-export async function redirectIfAuthenticated(redirectTo = "/dashboard") {
+export async function redirectIfAuthenticated(redirectTo = "/workspace") {
   const session = await getSession();
 
   if (session) {

@@ -34,6 +34,10 @@ import {
   formatInquiryDateTime,
 } from "@/features/inquiries/utils";
 import { formatQuoteMoney } from "@/features/quotes/utils";
+import {
+  getWorkspaceNewQuotePath,
+  getWorkspaceQuotePath,
+} from "@/features/workspaces/routes";
 import { Button } from "@/components/ui/button";
 import { requireCurrentWorkspaceContext } from "@/lib/db/workspace-access";
 
@@ -51,6 +55,7 @@ export default async function InquiryDetailPage({
   }
 
   const { workspaceContext } = await requireCurrentWorkspaceContext();
+  const workspaceSlug = workspaceContext.workspace.slug;
   const inquiry = await getInquiryDetailForWorkspace({
     workspaceId: workspaceContext.workspace.id,
     inquiryId: parsedParams.data.id,
@@ -87,10 +92,7 @@ export default async function InquiryDetailPage({
         }
         actions={
           <Button asChild>
-            <Link
-              href={`/dashboard/quotes/new?inquiryId=${inquiry.id}`}
-              prefetch={false}
-            >
+            <Link href={getWorkspaceNewQuotePath(workspaceSlug, inquiry.id)} prefetch={false}>
               <ReceiptText data-icon="inline-start" />
               Generate quote
             </Link>
@@ -291,7 +293,10 @@ export default async function InquiryDetailPage({
                 {inquiry.relatedQuote ? (
                   <Button asChild variant="outline">
                     <Link
-                      href={`/dashboard/quotes/${inquiry.relatedQuote.id}`}
+                      href={getWorkspaceQuotePath(
+                        workspaceSlug,
+                        inquiry.relatedQuote.id,
+                      )}
                       prefetch={false}
                     >
                       View quote
@@ -299,7 +304,10 @@ export default async function InquiryDetailPage({
                   </Button>
                 ) : null}
                 <Button asChild>
-                  <Link href={`/dashboard/quotes/new?inquiryId=${inquiry.id}`} prefetch={false}>
+                  <Link
+                    href={getWorkspaceNewQuotePath(workspaceSlug, inquiry.id)}
+                    prefetch={false}
+                  >
                     Generate quote
                   </Link>
                 </Button>

@@ -16,13 +16,19 @@ import {
   formatQuoteDate,
   formatQuoteMoney,
 } from "@/features/quotes/utils";
+import { getWorkspaceQuotePath } from "@/features/workspaces/routes";
 
 type QuoteListCardsProps = {
   quotes: DashboardQuoteListItem[];
   currency: string;
+  workspaceSlug: string;
 };
 
-export function QuoteListCards({ quotes, currency }: QuoteListCardsProps) {
+export function QuoteListCards({
+  quotes,
+  currency,
+  workspaceSlug,
+}: QuoteListCardsProps) {
   return (
     <div className="data-list-mobile-grid">
       {quotes.map((quote) => (
@@ -33,7 +39,7 @@ export function QuoteListCards({ quotes, currency }: QuoteListCardsProps) {
                 <CardTitle className="text-lg leading-tight">
                   <Link
                     className="block truncate underline-offset-4 transition-colors hover:text-primary hover:underline"
-                    href={`/dashboard/quotes/${quote.id}`}
+                    href={getWorkspaceQuotePath(workspaceSlug, quote.id)}
                     prefetch={false}
                   >
                     {quote.quoteNumber}
@@ -84,7 +90,10 @@ export function QuoteListCards({ quotes, currency }: QuoteListCardsProps) {
                 : "Created manually from the workspace"}
             </span>
             <Button asChild className="w-full sm:w-auto" size="sm" variant="outline">
-              <Link href={`/dashboard/quotes/${quote.id}`} prefetch={false}>
+              <Link
+                href={getWorkspaceQuotePath(workspaceSlug, quote.id)}
+                prefetch={false}
+              >
                 Open quote
                 <ArrowRight data-icon="inline-end" />
               </Link>

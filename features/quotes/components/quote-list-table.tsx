@@ -16,13 +16,22 @@ import {
   formatQuoteDate,
   formatQuoteMoney,
 } from "@/features/quotes/utils";
+import {
+  getWorkspaceInquiryPath,
+  getWorkspaceQuotePath,
+} from "@/features/workspaces/routes";
 
 type QuoteListTableProps = {
   quotes: DashboardQuoteListItem[];
   currency: string;
+  workspaceSlug: string;
 };
 
-export function QuoteListTable({ quotes, currency }: QuoteListTableProps) {
+export function QuoteListTable({
+  quotes,
+  currency,
+  workspaceSlug,
+}: QuoteListTableProps) {
   return (
     <DashboardTableContainer>
       <Table className="min-w-[56rem] 2xl:min-w-[64rem]">
@@ -45,7 +54,7 @@ export function QuoteListTable({ quotes, currency }: QuoteListTableProps) {
                 <div className="table-meta-stack max-w-full">
                   <Link
                     className="table-link"
-                    href={`/dashboard/quotes/${quote.id}`}
+                    href={getWorkspaceQuotePath(workspaceSlug, quote.id)}
                     prefetch={false}
                   >
                     {quote.quoteNumber}
@@ -73,7 +82,7 @@ export function QuoteListTable({ quotes, currency }: QuoteListTableProps) {
                 {quote.inquiryId ? (
                   <Link
                     className="text-sm font-medium text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline group-hover/row:text-primary"
-                    href={`/dashboard/inquiries/${quote.inquiryId}`}
+                    href={getWorkspaceInquiryPath(workspaceSlug, quote.inquiryId)}
                     prefetch={false}
                   >
                     Open inquiry

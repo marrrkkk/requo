@@ -30,6 +30,12 @@ import {
   quoteEditorSchema,
   quoteStatusChangeSchema,
 } from "@/features/quotes/schemas";
+import {
+  getWorkspaceInquiriesPath,
+  getWorkspaceInquiryPath,
+  getWorkspaceQuotePath,
+  getWorkspaceQuotesPath,
+} from "@/features/workspaces/routes";
 import type {
   PublicQuoteResponseActionState,
   QuoteEditorActionState,
@@ -59,16 +65,17 @@ function mapQuoteEditorFieldErrors(fieldErrors: Record<string, string[] | undefi
 }
 
 function revalidateQuotePaths(
+  workspaceSlug: string,
   quoteId: string,
   inquiryId?: string | null,
   publicToken?: string | null,
 ) {
-  revalidatePath("/dashboard/quotes");
-  revalidatePath(`/dashboard/quotes/${quoteId}`);
+  revalidatePath(getWorkspaceQuotesPath(workspaceSlug));
+  revalidatePath(getWorkspaceQuotePath(workspaceSlug, quoteId));
 
   if (inquiryId) {
-    revalidatePath("/dashboard/inquiries");
-    revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+    revalidatePath(getWorkspaceInquiriesPath(workspaceSlug));
+    revalidatePath(getWorkspaceInquiryPath(workspaceSlug, inquiryId));
   }
 
   if (publicToken) {
@@ -125,9 +132,15 @@ export async function createQuoteAction(
       };
     }
 
-    revalidateQuotePaths(createdQuote.id, inquiryId);
+    revalidateQuotePaths(
+      workspaceContext.workspace.slug,
+      createdQuote.id,
+      inquiryId,
+    );
 
-    redirect(`/dashboard/quotes/${createdQuote.id}`);
+    redirect(
+      getWorkspaceQuotePath(workspaceContext.workspace.slug, createdQuote.id),
+    );
   } catch (error) {
     console.error("Failed to create quote.", error);
 
@@ -191,7 +204,7 @@ export async function updateQuoteAction(
       };
     }
 
-    revalidateQuotePaths(quoteId);
+    revalidateQuotePaths(workspaceContext.workspace.slug, quoteId);
 
     return {
       success: "Draft quote saved.",
@@ -243,7 +256,11 @@ export async function changeQuoteStatusAction(
       };
     }
 
-    revalidateQuotePaths(quoteId, result.inquiryId);
+    revalidateQuotePaths(
+      workspaceContext.workspace.slug,
+      quoteId,
+      result.inquiryId,
+    );
 
     if (!result.changed) {
       return {
@@ -371,7 +388,7 @@ export async function sendQuoteAction(
           quoteNumber: quote.quoteNumber,
           title: quote.title,
           dashboardUrl: new URL(
-            `/dashboard/quotes/${quote.id}`,
+            getWorkspaceQuotePath(workspaceContext.workspace.slug, quote.id),
             env.BETTER_AUTH_URL,
           ).toString(),
           publicQuoteUrl,
@@ -384,7 +401,12 @@ export async function sendQuoteAction(
       }
     }
 
-    revalidateQuotePaths(quoteId, result.inquiryId, result.publicToken);
+    revalidateQuotePaths(
+      workspaceContext.workspace.slug,
+      quoteId,
+      result.inquiryId,
+      result.publicToken,
+    );
 
     return {
       success: `Quote ${result.quoteNumber} sent to ${quote.customerEmail}.`,
@@ -441,8 +463,8 @@ export async function respondToPublicQuoteAction(
     }
 
     revalidatePath(getPublicQuoteUrl(token));
-    revalidatePath("/dashboard/quotes");
-    revalidatePath(`/dashboard/quotes/${result.quoteId}`);
+    revalidatePath(getWorkspaceQuotesPath(result.workspaceSlug));
+    revalidatePath(getWorkspaceQuotePath(result.workspaceSlug, result.quoteId));
 
     if (!result.updated) {
       if (result.status === "accepted") {

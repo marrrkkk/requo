@@ -12,7 +12,7 @@ export default function NotFound() {
             <Link href="/">Go home</Link>
           </Button>
           <Button asChild>
-            <Link href="/dashboard">Open dashboard</Link>
+            <Link href="/workspace">Open workspaces</Link>
           </Button>
         </>
       }
@@ -21,7 +21,7 @@ export default function NotFound() {
       title="That page does not exist."
     >
       <div className="state-card-note">
-        Start from the homepage or return to your dashboard to continue working.
+        Start from the homepage or return to your workspaces to continue working.
       </div>
     </StatePageCard>
   );

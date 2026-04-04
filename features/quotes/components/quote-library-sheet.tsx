@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useDeferredValue, useState } from "react";
 import { Search } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 import { DashboardMetaPill } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,11 @@ import type {
   QuoteEditorLineItemValue,
   QuoteLibraryEntryKind,
 } from "@/features/quotes/types";
+import {
+  getWorkspaceDashboardSlugFromPathname,
+  getWorkspaceSettingsPath,
+  workspaceHubPath,
+} from "@/features/workspaces/routes";
 import {
   formatQuoteMoney,
   getQuoteLibraryEntryKindLabel,
@@ -51,10 +57,12 @@ export function QuoteLibrarySheet({
   open,
   onOpenChange,
 }: QuoteLibrarySheetProps) {
+  const pathname = usePathname();
   const [tab, setTab] = useState<QuoteLibraryTabValue>("all");
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
   const normalizedSearch = deferredSearch.trim().toLowerCase();
+  const workspaceSlug = getWorkspaceDashboardSlugFromPathname(pathname);
   const shouldReplacePlaceholder =
     items.length === 1 && isQuoteEditorLineItemBlank(items[0]);
   const baseItemCount = shouldReplacePlaceholder ? 0 : items.length;
@@ -118,7 +126,15 @@ export function QuoteLibrarySheet({
                 </EmptyDescription>
               </EmptyHeader>
               <Button asChild variant="outline">
-                <Link href="/dashboard/settings/pricing-library">Open pricing library</Link>
+                <Link
+                  href={
+                    workspaceSlug
+                      ? getWorkspaceSettingsPath(workspaceSlug, "pricing-library")
+                      : workspaceHubPath
+                  }
+                >
+                  Open pricing library
+                </Link>
               </Button>
             </Empty>
           ) : filteredEntries.length === 0 ? (

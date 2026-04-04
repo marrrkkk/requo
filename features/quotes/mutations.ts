@@ -8,6 +8,7 @@ import {
   inquiries,
   quoteItems,
   quotes,
+  workspaces,
 } from "@/lib/db/schema";
 import type { QuoteEditorInput } from "@/features/quotes/schemas";
 import type { QuoteStatus } from "@/features/quotes/types";
@@ -685,12 +686,14 @@ export async function respondToPublicQuoteByToken({
       .select({
         id: quotes.id,
         workspaceId: quotes.workspaceId,
+        workspaceSlug: workspaces.slug,
         inquiryId: quotes.inquiryId,
         quoteNumber: quotes.quoteNumber,
         status: quotes.status,
         sentAt: quotes.sentAt,
       })
       .from(quotes)
+      .innerJoin(workspaces, eq(quotes.workspaceId, workspaces.id))
       .where(eq(quotes.publicToken, token))
       .limit(1);
 
@@ -702,6 +705,7 @@ export async function respondToPublicQuoteByToken({
       return {
         updated: false,
         quoteId: existingQuote.id,
+        workspaceSlug: existingQuote.workspaceSlug,
         quoteNumber: existingQuote.quoteNumber,
         status: existingQuote.status,
       };
@@ -752,6 +756,7 @@ export async function respondToPublicQuoteByToken({
     return {
       updated: true,
       quoteId: existingQuote.id,
+      workspaceSlug: existingQuote.workspaceSlug,
       quoteNumber: existingQuote.quoteNumber,
       status: nextStatus,
     };

@@ -12,6 +12,7 @@ import { InquiryListFilters as InquiryListToolbar } from "@/features/inquiries/c
 import { InquiryListTable } from "@/features/inquiries/components/inquiry-list-table";
 import { inquiryListFiltersSchema } from "@/features/inquiries/schemas";
 import { getInquiryListForWorkspace } from "@/features/inquiries/queries";
+import { getWorkspaceInquiriesPath } from "@/features/workspaces/routes";
 import { requireCurrentWorkspaceContext } from "@/lib/db/workspace-access";
 
 type InquiriesPageProps = {
@@ -34,6 +35,7 @@ export default async function InquiriesPage({
     workspaceId: workspaceContext.workspace.id,
     filters,
   });
+  const workspaceSlug = workspaceContext.workspace.slug;
   const hasFilters = Boolean(filters.q || filters.status !== "all");
 
   return (
@@ -60,15 +62,15 @@ export default async function InquiriesPage({
 
       {inquiryList.length ? (
         <>
-          <InquiryListTable inquiries={inquiryList} />
-          <InquiryListCards inquiries={inquiryList} />
+          <InquiryListTable inquiries={inquiryList} workspaceSlug={workspaceSlug} />
+          <InquiryListCards inquiries={inquiryList} workspaceSlug={workspaceSlug} />
         </>
       ) : (
         <DashboardEmptyState
           action={
             hasFilters ? (
               <Button asChild variant="outline">
-                <Link href="/dashboard/inquiries">Clear filters</Link>
+                <Link href={getWorkspaceInquiriesPath(workspaceSlug)}>Clear filters</Link>
               </Button>
             ) : (
               <Button asChild>

@@ -55,7 +55,7 @@ export function SignupForm() {
         return;
       }
 
-      window.location.assign("/dashboard");
+      window.location.assign("/workspace");
     });
   }
 

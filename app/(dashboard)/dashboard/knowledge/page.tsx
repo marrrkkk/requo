@@ -1,5 +1,10 @@
 import { redirect } from "next/navigation";
 
-export default function KnowledgePage() {
-  redirect("/dashboard/settings/knowledge");
+import { getWorkspaceSettingsPath } from "@/features/workspaces/routes";
+import { requireCurrentWorkspaceContext } from "@/lib/db/workspace-access";
+
+export default async function KnowledgePage() {
+  const { workspaceContext } = await requireCurrentWorkspaceContext();
+
+  redirect(getWorkspaceSettingsPath(workspaceContext.workspace.slug, "knowledge"));
 }

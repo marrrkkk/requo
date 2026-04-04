@@ -36,6 +36,7 @@ import {
   getPublicQuoteUrl,
   getQuoteEditorInitialValuesFromDetail,
 } from "@/features/quotes/utils";
+import { getWorkspaceInquiryPath } from "@/features/workspaces/routes";
 import { requireCurrentWorkspaceContext } from "@/lib/db/workspace-access";
 import { env } from "@/lib/env";
 
@@ -53,6 +54,7 @@ export default async function QuoteDetailPage({
   }
 
   const { workspaceContext } = await requireCurrentWorkspaceContext();
+  const workspaceSlug = workspaceContext.workspace.slug;
   const [quote, pricingLibrary] = await Promise.all([
     getQuoteDetailForWorkspace({
       workspaceId: workspaceContext.workspace.id,
@@ -90,7 +92,7 @@ export default async function QuoteDetailPage({
         quote.linkedInquiry ? (
           <Button asChild variant="outline">
             <Link
-              href={`/dashboard/inquiries/${quote.linkedInquiry.id}`}
+              href={getWorkspaceInquiryPath(workspaceSlug, quote.linkedInquiry.id)}
               prefetch={false}
             >
               Open inquiry
