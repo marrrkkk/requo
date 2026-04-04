@@ -1,4 +1,5 @@
 export const routeProgressStartEvent = "relay:route-progress-start";
+export const routeProgressCompleteEvent = "relay:route-progress-complete";
 
 export type RouteProgressStartDetail = {
   force?: boolean;
@@ -51,4 +52,12 @@ export function dispatchRouteProgressStart(detail: RouteProgressStartDetail = {}
       detail,
     }),
   );
+}
+
+export function dispatchRouteProgressComplete() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(new Event(routeProgressCompleteEvent));
 }

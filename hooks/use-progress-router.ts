@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useTransition } from "react";
 
 import {
+  dispatchRouteProgressComplete,
   dispatchRouteProgressStart,
   getCurrentRouteProgressKey,
   getRouteProgressKeyFromHref,
@@ -11,6 +12,25 @@ import {
 
 export function useProgressRouter() {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const awaitingCompletionRef = useRef(false);
+
+  useEffect(() => {
+    if (isPending || !awaitingCompletionRef.current) {
+      return;
+    }
+
+    awaitingCompletionRef.current = false;
+    dispatchRouteProgressComplete();
+  }, [isPending]);
+
+  const trackTransition = useCallback(
+    (action: () => void) => {
+      awaitingCompletionRef.current = true;
+      startTransition(action);
+    },
+    [startTransition],
+  );
 
   return useMemo(
     () => ({
@@ -23,7 +43,9 @@ export function useProgressRouter() {
           dispatchRouteProgressStart({ route: nextRoute });
         }
 
-        router.push(...args);
+        trackTransition(() => {
+          router.push(...args);
+        });
       },
       replace: (...args: Parameters<typeof router.replace>) => {
         const [href] = args;
@@ -33,7 +55,9 @@ export function useProgressRouter() {
           dispatchRouteProgressStart({ route: nextRoute });
         }
 
-        router.replace(...args);
+        trackTransition(() => {
+          router.replace(...args);
+        });
       },
       back: () => {
         router.back();
@@ -46,9 +70,11 @@ export function useProgressRouter() {
           force: true,
           route: getCurrentRouteProgressKey(),
         });
-        router.refresh(...args);
+        trackTransition(() => {
+          router.refresh(...args);
+        });
       },
     }),
-    [router],
+    [router, trackTransition],
   );
 }

@@ -12,6 +12,7 @@ import {
 
 import { Progress } from "@/components/ui/progress";
 import {
+  routeProgressCompleteEvent,
   getRouteProgressKey,
   routeProgressStartEvent,
   type RouteProgressStartDetail,
@@ -114,6 +115,7 @@ export function RouteProgressBar() {
 
     activeRouteRef.current = null;
     stopIncrementing();
+    clearTimer(showDelayRef);
     clearTimer(stallRef);
     clearTimer(completeRef);
     clearTimer(resetRef);
@@ -307,7 +309,12 @@ export function RouteProgressBar() {
       );
     }
 
+    function handleRouteProgressComplete() {
+      completeNavigation();
+    }
+
     window.addEventListener(routeProgressStartEvent, handleRouteProgressStart as EventListener);
+    window.addEventListener(routeProgressCompleteEvent, handleRouteProgressComplete);
     window.addEventListener("popstate", handlePopState);
 
     return () => {
@@ -315,9 +322,10 @@ export function RouteProgressBar() {
         routeProgressStartEvent,
         handleRouteProgressStart as EventListener,
       );
+      window.removeEventListener(routeProgressCompleteEvent, handleRouteProgressComplete);
       window.removeEventListener("popstate", handlePopState);
     };
-  }, [maybeBeginNavigation]);
+  }, [completeNavigation, maybeBeginNavigation]);
 
   return (
     <div
