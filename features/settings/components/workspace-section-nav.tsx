@@ -3,18 +3,27 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { workspaceSectionNavigation } from "@/features/settings/navigation";
+import { getWorkspaceSectionNavigation } from "@/features/settings/navigation";
+import { getWorkspaceDashboardSlugFromPathname } from "@/features/workspaces/routes";
 import { cn } from "@/lib/utils";
 
 export function WorkspaceSectionNav() {
   const pathname = usePathname();
+  const slug = getWorkspaceDashboardSlugFromPathname(pathname);
+
+  if (!slug) {
+    return null;
+  }
+
+  const workspaceSectionNavigation = getWorkspaceSectionNavigation(slug);
 
   return (
     <section className="section-panel overflow-hidden">
       <div className="grid gap-3 p-3 md:grid-cols-2 xl:grid-cols-3">
         {workspaceSectionNavigation.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href;
+          const isActive =
+            pathname === item.href || pathname.startsWith(`${item.href}/`);
 
           return (
             <Link

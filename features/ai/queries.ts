@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, desc, eq } from "drizzle-orm";
 
+import { getNormalizedInquiryPageConfig } from "@/features/inquiries/page-config";
 import { buildWorkspaceKnowledgeContext } from "@/features/knowledge/queries";
 import type { InquiryAssistantContext } from "@/features/ai/types";
 import { db } from "@/lib/db/client";
@@ -34,6 +35,7 @@ export async function getInquiryAssistantContextForWorkspace({
         defaultQuoteNotes: workspaces.defaultQuoteNotes,
         aiTonePreference: workspaces.aiTonePreference,
         inquiryHeadline: workspaces.inquiryHeadline,
+        inquiryPageConfig: workspaces.inquiryPageConfig,
         publicInquiryEnabled: workspaces.publicInquiryEnabled,
       })
       .from(workspaces)
@@ -85,8 +87,30 @@ export async function getInquiryAssistantContextForWorkspace({
     return null;
   }
 
+  const inquiryPageConfig = getNormalizedInquiryPageConfig(
+    workspace.inquiryPageConfig,
+    {
+      workspaceName: workspace.name,
+      workspaceShortDescription: workspace.shortDescription,
+      legacyInquiryHeadline: workspace.inquiryHeadline,
+    },
+  );
+
   return {
-    workspace,
+    workspace: {
+      id: workspace.id,
+      name: workspace.name,
+      slug: workspace.slug,
+      shortDescription: workspace.shortDescription,
+      contactEmail: workspace.contactEmail,
+      defaultCurrency: workspace.defaultCurrency,
+      defaultEmailSignature: workspace.defaultEmailSignature,
+      defaultQuoteNotes: workspace.defaultQuoteNotes,
+      aiTonePreference: workspace.aiTonePreference,
+      inquiryPageHeadline: inquiryPageConfig.headline,
+      inquiryPageTemplate: inquiryPageConfig.template,
+      publicInquiryEnabled: workspace.publicInquiryEnabled,
+    },
     inquiry,
     notes,
     knowledge,

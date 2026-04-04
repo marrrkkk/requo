@@ -3,6 +3,7 @@ import {
   boolean,
   check,
   index,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -10,6 +11,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
+import type { InquiryPageConfig } from "@/features/inquiries/page-config";
 import { user } from "@/lib/db/schema/auth";
 
 export const workspaceMemberRoleEnum = pgEnum("workspace_member_role", [
@@ -51,6 +53,7 @@ export const workspaces = pgTable(
       .notNull()
       .default(true),
     inquiryHeadline: text("inquiry_headline"),
+    inquiryPageConfig: jsonb("inquiry_page_config").$type<InquiryPageConfig>(),
     defaultEmailSignature: text("default_email_signature"),
     defaultQuoteNotes: text("default_quote_notes"),
     aiTonePreference: workspaceAiTonePreferenceEnum("ai_tone_preference")

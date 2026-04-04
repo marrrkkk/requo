@@ -2,7 +2,10 @@ import "server-only";
 
 import { and, eq, ne } from "drizzle-orm";
 
-import type { WorkspaceSettingsInput } from "@/features/settings/schemas";
+import type {
+  WorkspaceInquiryPageSettingsInput,
+  WorkspaceSettingsInput,
+} from "@/features/settings/schemas";
 import { resolveSafeContentType } from "@/lib/files";
 import {
   sanitizeWorkspaceLogoFileName,
@@ -17,6 +20,12 @@ type UpdateWorkspaceSettingsInput = {
   workspaceId: string;
   actorUserId: string;
   values: WorkspaceSettingsInput;
+};
+
+type UpdateWorkspaceInquiryPageInput = {
+  workspaceId: string;
+  actorUserId: string;
+  values: WorkspaceInquiryPageSettingsInput;
 };
 
 type UpdateWorkspaceSettingsResult =
@@ -108,8 +117,6 @@ export async function updateWorkspaceSettings({
           logoContentType: values.removeLogo
             ? nextLogoContentType
             : nextLogoContentType ?? currentWorkspace.logoContentType ?? null,
-          publicInquiryEnabled: values.publicInquiryEnabled,
-          inquiryHeadline: values.inquiryHeadline ?? null,
           defaultEmailSignature: values.defaultEmailSignature ?? null,
           defaultQuoteNotes: values.defaultQuoteNotes ?? null,
           aiTonePreference: values.aiTonePreference,
@@ -129,7 +136,6 @@ export async function updateWorkspaceSettings({
         metadata: {
           slug: values.slug,
           hasLogo: Boolean(logoFile || previousLogoStoragePath) && !values.removeLogo,
-          publicInquiryEnabled: values.publicInquiryEnabled,
           aiTonePreference: values.aiTonePreference,
         },
         createdAt: now,
@@ -173,5 +179,70 @@ export async function updateWorkspaceSettings({
     ok: true,
     previousSlug: currentWorkspace.slug,
     nextSlug: values.slug,
+  };
+}
+
+export async function updateWorkspaceInquiryPageSettings({
+  workspaceId,
+  actorUserId,
+  values,
+}: UpdateWorkspaceInquiryPageInput): Promise<UpdateWorkspaceSettingsResult> {
+  const [currentWorkspace] = await db
+    .select({
+      id: workspaces.id,
+      slug: workspaces.slug,
+    })
+    .from(workspaces)
+    .where(eq(workspaces.id, workspaceId))
+    .limit(1);
+
+  if (!currentWorkspace) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(workspaces)
+      .set({
+        publicInquiryEnabled: values.publicInquiryEnabled,
+        inquiryPageConfig: {
+          template: values.template,
+          eyebrow: values.eyebrow,
+          headline: values.headline,
+          description: values.description,
+          brandTagline: values.brandTagline,
+          formTitle: values.formTitle,
+          formDescription: values.formDescription,
+          cards: values.cards,
+        },
+        updatedAt: now,
+      })
+      .where(eq(workspaces.id, workspaceId));
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      workspaceId,
+      actorUserId,
+      type: "workspace.inquiry_page_updated",
+      summary: "Inquiry page settings updated.",
+      metadata: {
+        publicInquiryEnabled: values.publicInquiryEnabled,
+        template: values.template,
+        cardCount: values.cards.length,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+
+  return {
+    ok: true,
+    previousSlug: currentWorkspace.slug,
+    nextSlug: currentWorkspace.slug,
   };
 }

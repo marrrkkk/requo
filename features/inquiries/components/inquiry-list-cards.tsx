@@ -16,12 +16,17 @@ import {
   formatInquiryDate,
 } from "@/features/inquiries/utils";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
+import { getWorkspaceInquiryPath } from "@/features/workspaces/routes";
 
 type InquiryListCardsProps = {
   inquiries: DashboardInquiryListItem[];
+  workspaceSlug: string;
 };
 
-export function InquiryListCards({ inquiries }: InquiryListCardsProps) {
+export function InquiryListCards({
+  inquiries,
+  workspaceSlug,
+}: InquiryListCardsProps) {
   return (
     <div className="data-list-mobile-grid">
       {inquiries.map((inquiry) => (
@@ -32,7 +37,7 @@ export function InquiryListCards({ inquiries }: InquiryListCardsProps) {
                 <CardTitle className="text-lg leading-tight">
                   <Link
                     className="block truncate underline-offset-4 transition-colors hover:text-primary hover:underline"
-                    href={`/dashboard/inquiries/${inquiry.id}`}
+                    href={getWorkspaceInquiryPath(workspaceSlug, inquiry.id)}
                     prefetch={false}
                   >
                     {inquiry.customerName}
@@ -76,7 +81,10 @@ export function InquiryListCards({ inquiries }: InquiryListCardsProps) {
               Customer inquiry ready for triage and follow-up.
             </span>
             <Button asChild className="w-full sm:w-auto" size="sm" variant="outline">
-              <Link href={`/dashboard/inquiries/${inquiry.id}`} prefetch={false}>
+              <Link
+                href={getWorkspaceInquiryPath(workspaceSlug, inquiry.id)}
+                prefetch={false}
+              >
                 Open inquiry
                 <ArrowRight data-icon="inline-end" />
               </Link>

@@ -37,6 +37,7 @@ type PublicInquiryFormProps = {
     state: PublicInquiryFormState,
     formData: FormData,
   ) => Promise<PublicInquiryFormState>;
+  previewMode?: boolean;
 };
 
 const initialState: PublicInquiryFormState = {};
@@ -44,6 +45,7 @@ const initialState: PublicInquiryFormState = {};
 export function PublicInquiryForm({
   workspace,
   action,
+  previewMode = false,
 }: PublicInquiryFormProps) {
   const [state, formAction, isPending] = useActionState(action, initialState);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
@@ -67,14 +69,16 @@ export function PublicInquiryForm({
           <CircleCheckBig />
           <AlertTitle>Inquiry received.</AlertTitle>
           <AlertDescription>
-            {state.success} {workspace.name} can now review it in Relay.
+            {state.success} {workspace.name} can now review it and follow up using
+            the details you shared.
           </AlertDescription>
         </Alert>
 
         <FormNote className="p-5">
           <div className="flex flex-col gap-3">
             <p className="text-sm leading-7 text-muted-foreground">
-              Thanks. The business owner now has your inquiry in Relay.
+              Thanks. The business owner now has your inquiry and can reply using
+              the contact details you shared.
             </p>
             {state.inquiryId ? (
               <p className="font-mono text-[0.72rem] uppercase tracking-[0.18em] text-muted-foreground">
@@ -90,9 +94,6 @@ export function PublicInquiryForm({
               Submit another inquiry
               <ArrowRight data-icon="inline-end" />
             </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/">Back to Relay</Link>
           </Button>
         </div>
       </div>
@@ -311,10 +312,21 @@ export function PublicInquiryForm({
       <div className="toolbar-panel">
         <FormActions align="between" className="pt-0">
           <p className="text-sm leading-6 text-muted-foreground">
-            Sent directly to {workspace.name}.
+            {previewMode
+              ? "Preview mode. Submission is disabled on this page."
+              : `Sent directly to ${workspace.name}.`}
           </p>
-          <Button className="w-full sm:w-auto" disabled={isPending} type="submit" size="lg">
-            {isPending ? "Sending your inquiry..." : "Send inquiry"}
+          <Button
+            className="w-full sm:w-auto"
+            disabled={isPending || previewMode}
+            type={previewMode ? "button" : "submit"}
+            size="lg"
+          >
+            {previewMode
+              ? "Preview only"
+              : isPending
+                ? "Sending your inquiry..."
+                : "Send inquiry"}
           </Button>
         </FormActions>
       </div>

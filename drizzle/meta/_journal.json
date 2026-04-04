@@ -64,6 +64,13 @@
       "when": 1775238241890,
       "tag": "0008_massive_sprite",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1775246690873,
+      "tag": "0009_talented_excalibur",
+      "breakpoints": true
     }
   ]
 }

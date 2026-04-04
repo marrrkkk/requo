@@ -1,3 +1,4 @@
+import type { InquiryPageTemplate } from "@/features/inquiries/page-config";
 import type { WorkspaceKnowledgeContext } from "@/features/knowledge/types";
 import type { InquiryStatus } from "@/features/inquiries/types";
 
@@ -24,7 +25,8 @@ export type InquiryAssistantContext = {
     defaultEmailSignature: string | null;
     defaultQuoteNotes: string | null;
     aiTonePreference: "balanced" | "warm" | "direct" | "formal";
-    inquiryHeadline: string | null;
+    inquiryPageHeadline: string;
+    inquiryPageTemplate: InquiryPageTemplate;
     publicInquiryEnabled: boolean;
   };
   inquiry: {

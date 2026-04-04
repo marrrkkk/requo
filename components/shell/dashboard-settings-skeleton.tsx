@@ -8,7 +8,7 @@ export function DashboardSettingsSkeleton() {
     <DashboardPage>
       <section className="section-panel overflow-hidden">
         <div className="grid gap-3 p-3 md:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
+          {Array.from({ length: 4 }).map((_, index) => (
             <div className="soft-panel px-4 py-4" key={index}>
               <div className="flex items-start gap-3">
                 <Skeleton className="size-11 rounded-xl" />

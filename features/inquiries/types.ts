@@ -1,3 +1,5 @@
+import type { InquiryPageConfig } from "@/features/inquiries/page-config";
+
 export const inquiryStatuses = [
   "new",
   "quoted",
@@ -103,7 +105,9 @@ export type PublicInquiryWorkspace = {
   id: string;
   name: string;
   slug: string;
-  inquiryHeadline: string | null;
+  shortDescription: string | null;
+  logoUrl: string | null;
+  inquiryPageConfig: InquiryPageConfig;
 };
 
 export type PublicInquiryFieldName =

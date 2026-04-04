@@ -974,7 +974,10 @@ async function main() {
 
   await seedWorkspaceData(demoUser, workspace);
 
-  const dashboardUrl = new URL("/dashboard", env.BETTER_AUTH_URL).toString();
+  const dashboardUrl = new URL(
+    `/workspace/${workspace.slug}/dashboard`,
+    env.BETTER_AUTH_URL,
+  ).toString();
   const inquiryUrl = new URL(
     `/inquire/${workspace.slug}`,
     env.BETTER_AUTH_URL,

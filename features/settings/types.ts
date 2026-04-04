@@ -1,3 +1,5 @@
+import type { InquiryPageConfig } from "@/features/inquiries/page-config";
+
 export const workspaceAiTonePreferences = [
   "balanced",
   "warm",
@@ -16,8 +18,6 @@ export type WorkspaceSettingsView = {
   contactEmail: string | null;
   logoStoragePath: string | null;
   logoContentType: string | null;
-  publicInquiryEnabled: boolean;
-  inquiryHeadline: string | null;
   defaultEmailSignature: string | null;
   defaultQuoteNotes: string | null;
   aiTonePreference: WorkspaceAiTonePreference;
@@ -32,7 +32,6 @@ export type WorkspaceSettingsFieldName =
   | "slug"
   | "shortDescription"
   | "contactEmail"
-  | "inquiryHeadline"
   | "defaultEmailSignature"
   | "defaultQuoteNotes"
   | "aiTonePreference"
@@ -47,4 +46,36 @@ export type WorkspaceSettingsActionState = {
   error?: string;
   success?: string;
   fieldErrors?: WorkspaceSettingsFieldErrors;
+};
+
+export type WorkspaceInquiryPageSettingsView = {
+  id: string;
+  name: string;
+  slug: string;
+  shortDescription: string | null;
+  logoStoragePath: string | null;
+  publicInquiryEnabled: boolean;
+  inquiryPageConfig: InquiryPageConfig;
+  updatedAt: Date;
+};
+
+export type WorkspaceInquiryPageFieldName =
+  | "publicInquiryEnabled"
+  | "template"
+  | "eyebrow"
+  | "headline"
+  | "description"
+  | "brandTagline"
+  | "formTitle"
+  | "formDescription"
+  | "cards";
+
+export type WorkspaceInquiryPageFieldErrors = Partial<
+  Record<WorkspaceInquiryPageFieldName, string[] | undefined>
+>;
+
+export type WorkspaceInquiryPageActionState = {
+  error?: string;
+  success?: string;
+  fieldErrors?: WorkspaceInquiryPageFieldErrors;
 };

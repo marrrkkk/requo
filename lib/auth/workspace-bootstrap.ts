@@ -1,5 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 
+import { createInquiryPageConfigDefaults } from "@/features/inquiries/page-config";
 import { db } from "@/lib/db/client";
 import { activityLogs, profiles, workspaceMembers, workspaces } from "@/lib/db/schema";
 
@@ -41,6 +42,27 @@ async function getAvailableWorkspaceSlug(baseSlug: string) {
     candidate = `${baseSlug}-${counter}`;
     counter += 1;
   }
+}
+
+export async function ensureProfileForUser(user: BootstrapUser) {
+  const now = new Date();
+
+  const [existingProfile] = await db
+    .select({ userId: profiles.userId })
+    .from(profiles)
+    .where(eq(profiles.userId, user.id))
+    .limit(1);
+
+  if (existingProfile) {
+    return;
+  }
+
+  await db.insert(profiles).values({
+    userId: user.id,
+    fullName: user.name,
+    createdAt: now,
+    updatedAt: now,
+  });
 }
 
 export async function bootstrapWorkspaceForUser(user: BootstrapUser) {
@@ -93,6 +115,9 @@ export async function bootstrapWorkspaceForUser(user: BootstrapUser) {
         name: workspaceName,
         slug: workspaceSlug,
         contactEmail: user.email,
+        inquiryPageConfig: createInquiryPageConfigDefaults({
+          workspaceName,
+        }),
         createdAt: now,
         updatedAt: now,
       });

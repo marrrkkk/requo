@@ -2,8 +2,11 @@ import type { LucideIcon } from "lucide-react";
 import {
   BookCopy,
   FileText,
+  Globe,
   Settings2,
 } from "lucide-react";
+
+import { getWorkspaceSettingsPath } from "@/features/workspaces/routes";
 
 export type WorkspaceSectionNavigationItem = {
   href: string;
@@ -12,23 +15,33 @@ export type WorkspaceSectionNavigationItem = {
   icon: LucideIcon;
 };
 
-export const workspaceSectionNavigation: WorkspaceSectionNavigationItem[] = [
-  {
-    href: "/dashboard/settings/general",
-    label: "General",
-    description: "Identity, public form defaults, messaging, and notifications.",
-    icon: Settings2,
-  },
-  {
-    href: "/dashboard/settings/pricing-library",
-    label: "Pricing library",
-    description: "Reusable pricing blocks and service packages for quotes.",
-    icon: FileText,
-  },
-  {
-    href: "/dashboard/settings/knowledge",
-    label: "Knowledge",
-    description: "Files and FAQs the workspace can reuse in drafts.",
-    icon: BookCopy,
-  },
-];
+export function getWorkspaceSectionNavigation(
+  slug: string,
+): WorkspaceSectionNavigationItem[] {
+  return [
+    {
+      href: getWorkspaceSettingsPath(slug, "general"),
+      label: "General",
+      description: "Identity, writing defaults, and notification preferences.",
+      icon: Settings2,
+    },
+    {
+      href: getWorkspaceSettingsPath(slug, "inquiry-page"),
+      label: "Inquiry page",
+      description: "Customize the public inquiry page layout, copy, branding, and cards.",
+      icon: Globe,
+    },
+    {
+      href: getWorkspaceSettingsPath(slug, "pricing-library"),
+      label: "Pricing library",
+      description: "Reusable pricing blocks and service packages for quotes.",
+      icon: FileText,
+    },
+    {
+      href: getWorkspaceSettingsPath(slug, "knowledge"),
+      label: "Knowledge",
+      description: "Files and FAQs the workspace can reuse in drafts.",
+      icon: BookCopy,
+    },
+  ];
+}

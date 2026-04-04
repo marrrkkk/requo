@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, asc, count, desc, eq, ilike, or } from "drizzle-orm";
 
+import { getNormalizedInquiryPageConfig } from "@/features/inquiries/page-config";
 import { db } from "@/lib/db/client";
 import {
   activityLogs,
@@ -28,7 +29,11 @@ export async function getPublicInquiryWorkspaceBySlug(
       id: workspaces.id,
       name: workspaces.name,
       slug: workspaces.slug,
+      shortDescription: workspaces.shortDescription,
+      logoStoragePath: workspaces.logoStoragePath,
+      updatedAt: workspaces.updatedAt,
       inquiryHeadline: workspaces.inquiryHeadline,
+      inquiryPageConfig: workspaces.inquiryPageConfig,
       publicInquiryEnabled: workspaces.publicInquiryEnabled,
     })
     .from(workspaces)
@@ -43,8 +48,29 @@ export async function getPublicInquiryWorkspaceBySlug(
     id: workspace.id,
     name: workspace.name,
     slug: workspace.slug,
-    inquiryHeadline: workspace.inquiryHeadline,
+    shortDescription: workspace.shortDescription,
+    logoUrl: workspace.logoStoragePath
+      ? `/api/public/workspaces/${workspace.slug}/logo?v=${workspace.updatedAt.getTime()}`
+      : null,
+    inquiryPageConfig: getNormalizedInquiryPageConfig(workspace.inquiryPageConfig, {
+      workspaceName: workspace.name,
+      workspaceShortDescription: workspace.shortDescription,
+      legacyInquiryHeadline: workspace.inquiryHeadline,
+    }),
   };
+}
+
+export async function getPublicWorkspaceLogoAssetBySlug(slug: string) {
+  const [workspace] = await db
+    .select({
+      logoStoragePath: workspaces.logoStoragePath,
+      logoContentType: workspaces.logoContentType,
+    })
+    .from(workspaces)
+    .where(eq(workspaces.slug, slug))
+    .limit(1);
+
+  return workspace ?? null;
 }
 
 export async function getWorkspaceOwnerNotificationEmails(workspaceId: string) {

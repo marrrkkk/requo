@@ -24,6 +24,10 @@ import {
   inquiryStatusChangeSchema,
   publicInquirySchema,
 } from "@/features/inquiries/schemas";
+import {
+  getWorkspaceInquiriesPath,
+  getWorkspaceInquiryPath,
+} from "@/features/workspaces/routes";
 import type {
   InquiryNoteActionState,
   InquiryStatusActionState,
@@ -104,7 +108,7 @@ export async function submitPublicInquiryAction(
           recipients,
           workspaceName: workspaceSettings.name,
           dashboardUrl: new URL(
-            `/dashboard/inquiries/${createdInquiry.inquiryId}`,
+            getWorkspaceInquiryPath(slug, createdInquiry.inquiryId),
             env.BETTER_AUTH_URL,
           ).toString(),
           customerName: validationResult.data.customerName,
@@ -174,8 +178,10 @@ export async function addInquiryNoteAction(
       };
     }
 
-    revalidatePath("/dashboard/inquiries");
-    revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+    revalidatePath(getWorkspaceInquiriesPath(workspaceContext.workspace.slug));
+    revalidatePath(
+      getWorkspaceInquiryPath(workspaceContext.workspace.slug, inquiryId),
+    );
 
     return {
       success: "Internal note added.",
@@ -226,8 +232,10 @@ export async function changeInquiryStatusAction(
       };
     }
 
-    revalidatePath("/dashboard/inquiries");
-    revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+    revalidatePath(getWorkspaceInquiriesPath(workspaceContext.workspace.slug));
+    revalidatePath(
+      getWorkspaceInquiryPath(workspaceContext.workspace.slug, inquiryId),
+    );
 
     if (!result.changed) {
       return {

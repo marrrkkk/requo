@@ -16,12 +16,17 @@ import {
   formatInquiryDate,
 } from "@/features/inquiries/utils";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
+import { getWorkspaceInquiryPath } from "@/features/workspaces/routes";
 
 type InquiryListTableProps = {
   inquiries: DashboardInquiryListItem[];
+  workspaceSlug: string;
 };
 
-export function InquiryListTable({ inquiries }: InquiryListTableProps) {
+export function InquiryListTable({
+  inquiries,
+  workspaceSlug,
+}: InquiryListTableProps) {
   return (
     <DashboardTableContainer>
       <Table className="min-w-[46rem]">
@@ -42,7 +47,7 @@ export function InquiryListTable({ inquiries }: InquiryListTableProps) {
                 <div className="table-meta-stack max-w-full">
                   <Link
                     className="table-link"
-                    href={`/dashboard/inquiries/${inquiry.id}`}
+                    href={getWorkspaceInquiryPath(workspaceSlug, inquiry.id)}
                     prefetch={false}
                   >
                     {inquiry.customerName}

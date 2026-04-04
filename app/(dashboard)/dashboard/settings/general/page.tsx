@@ -25,7 +25,7 @@ export default async function WorkspaceGeneralSettingsPage() {
       <PageHeader
         eyebrow="Workspace"
         title="General settings"
-        description="Manage business identity, public inquiry defaults, writing defaults, and owner notifications."
+        description="Manage business identity, writing defaults, and owner notification preferences."
       />
 
       <WorkspaceSettingsForm
