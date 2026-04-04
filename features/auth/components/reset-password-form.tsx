@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldContent,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -99,11 +98,13 @@ export function ResetPasswordForm() {
               name="password"
               type="password"
               autoComplete="new-password"
-              placeholder="Enter a new password"
+              maxLength={128}
+              minLength={8}
+              placeholder="At least 8 characters"
+              required
               aria-invalid={Boolean(passwordError) || undefined}
               disabled={isPending}
             />
-            <FieldDescription>Use at least 8 characters.</FieldDescription>
             <FieldError
               errors={passwordError ? [{ message: passwordError }] : undefined}
             />
@@ -118,7 +119,10 @@ export function ResetPasswordForm() {
               name="confirmPassword"
               type="password"
               autoComplete="new-password"
+              maxLength={128}
+              minLength={8}
               placeholder="Re-enter your new password"
+              required
               aria-invalid={Boolean(confirmPasswordError) || undefined}
               disabled={isPending}
             />
@@ -141,15 +145,12 @@ export function ResetPasswordForm() {
 
       <Separator />
 
-      <p className="text-sm text-muted-foreground">
-        Need a fresh link?{" "}
-        <Link
-          className="font-medium text-foreground underline underline-offset-4"
-          href="/forgot-password"
-        >
-          Request another reset email
-        </Link>
-      </p>
+      <Link
+        className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+        href="/forgot-password"
+      >
+        Request another reset email
+      </Link>
     </form>
   );
 }

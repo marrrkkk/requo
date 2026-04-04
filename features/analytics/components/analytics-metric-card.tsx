@@ -10,7 +10,7 @@ export function AnalyticsMetricCard({
 }: {
   title: string;
   value: string;
-  description: string;
+  description?: string;
   icon: LucideIcon;
 }) {
   return (
@@ -22,9 +22,11 @@ export function AnalyticsMetricCard({
             <p className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
               {value}
             </p>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              {description}
-            </p>
+            {description ? (
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {description}
+              </p>
+            ) : null}
           </div>
           <div className="flex size-10 items-center justify-center rounded-xl border border-border/70 bg-accent/85 text-accent-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
             <Icon className="size-4" />

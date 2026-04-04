@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldContent,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -75,7 +74,10 @@ export function SignupForm() {
               id="name"
               name="name"
               autoComplete="name"
+              maxLength={120}
+              minLength={2}
               placeholder="Alicia Cruz"
+              required
               aria-invalid={Boolean(nameError) || undefined}
               disabled={isPending}
             />
@@ -91,7 +93,9 @@ export function SignupForm() {
               name="email"
               type="email"
               autoComplete="email"
+              maxLength={320}
               placeholder="owner@example.com"
+              required
               aria-invalid={Boolean(emailError) || undefined}
               disabled={isPending}
             />
@@ -107,11 +111,13 @@ export function SignupForm() {
               name="password"
               type="password"
               autoComplete="new-password"
-              placeholder="Create a secure password"
+              maxLength={128}
+              minLength={8}
+              placeholder="At least 8 characters"
+              required
               aria-invalid={Boolean(passwordError) || undefined}
               disabled={isPending}
             />
-            <FieldDescription>Use at least 8 characters.</FieldDescription>
             <FieldError
               errors={passwordError ? [{ message: passwordError }] : undefined}
             />
@@ -127,12 +133,12 @@ export function SignupForm() {
 
       <Separator />
 
-      <p className="text-sm text-muted-foreground">
-        Already have an account?{" "}
-        <Link className="font-medium text-foreground underline underline-offset-4" href="/login">
-          Sign in
-        </Link>
-      </p>
+      <Link
+        className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+        href="/login"
+      >
+        Already have an account? Sign in
+      </Link>
     </form>
   );
 }

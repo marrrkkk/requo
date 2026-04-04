@@ -30,21 +30,15 @@ export default async function AnalyticsPage() {
 
   return (
     <DashboardPage>
-      <PageHeader
-        eyebrow="Analytics"
-        title="Simple performance view"
-        description="Track inquiry volume, quote movement, and recent trend."
-      />
+      <PageHeader eyebrow="Analytics" title="Performance" />
 
       <DashboardStatsGrid>
         <AnalyticsMetricCard
-          description="All inquiries"
           icon={BarChart3}
           title="Total inquiries"
           value={`${analytics.totalInquiries}`}
         />
         <AnalyticsMetricCard
-          description="Last 7 days"
           icon={CalendarRange}
           title="Inquiries this week"
           value={`${analytics.inquiriesThisWeek}`}

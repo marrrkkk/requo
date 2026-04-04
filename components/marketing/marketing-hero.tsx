@@ -190,8 +190,7 @@ export function MarketingHero() {
                 Turn customer inquiries into clear, sent quotes.
               </h1>
               <p className="max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg">
-                Collect requests, draft pricing, and follow up from one calm
-                workspace built for service businesses.
+                Collect requests, build quotes, and follow up in one workspace.
               </p>
             </div>
 
@@ -206,11 +205,6 @@ export function MarketingHero() {
                 <Link href="#dashboard">See the dashboard</Link>
               </Button>
             </div>
-
-            <p className="text-sm leading-6 text-muted-foreground">
-              Start with one owner workspace, a public inquiry page, and a quote
-              workflow that stays easy to run.
-            </p>
 
             <div className="flex flex-wrap items-center justify-center gap-2.5">
               {heroHighlights.map((item) => (

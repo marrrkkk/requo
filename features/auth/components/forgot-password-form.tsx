@@ -83,7 +83,9 @@ export function ForgotPasswordForm() {
               name="email"
               type="email"
               autoComplete="email"
+              maxLength={320}
               placeholder="owner@example.com"
+              required
               aria-invalid={Boolean(emailError) || undefined}
               disabled={isPending}
             />
@@ -100,12 +102,12 @@ export function ForgotPasswordForm() {
 
       <Separator />
 
-      <p className="text-sm text-muted-foreground">
-        Remembered your password?{" "}
-        <Link className="font-medium text-foreground underline underline-offset-4" href="/login">
-          Back to login
-        </Link>
-      </p>
+      <Link
+        className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+        href="/login"
+      >
+        Back to login
+      </Link>
     </form>
   );
 }

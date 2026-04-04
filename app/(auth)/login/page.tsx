@@ -6,11 +6,7 @@ export default async function LoginPage() {
   await redirectIfAuthenticated();
 
   return (
-    <AuthShell
-      badge="Login"
-      title="Sign in"
-      description="Choose a workspace and continue to the dashboard."
-    >
+    <AuthShell badge="Login" title="Sign in">
       <LoginForm />
     </AuthShell>
   );

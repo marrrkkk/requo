@@ -13,13 +13,11 @@ export default function PublicNotFound() {
           </Button>
         </>
       }
-      description="The inquiry or quote link may be incorrect, expired, or no longer shared by the business."
       eyebrow="Unavailable link"
       title="This public page is unavailable."
     >
       <div className="state-card-note">
-        If you were expecting access, contact the business owner and ask for a
-        fresh link.
+        Ask the business owner for a new link.
       </div>
     </StatePageCard>
   );

@@ -40,7 +40,6 @@ export default function DashboardError({
           </Button>
         </>
       }
-      description="The dashboard is still available, but this route hit an unexpected error before rendering."
       eyebrow="Dashboard error"
       media={
         <div className="flex size-12 items-center justify-center rounded-full border bg-destructive/10 text-destructive">
@@ -50,8 +49,7 @@ export default function DashboardError({
       title="This view did not load."
     >
       <div className="state-card-note">
-        Try this route again. If it keeps failing, go back to the overview and
-        retry from a fresh navigation state.
+        Try again or go back to the overview.
       </div>
       {process.env.NODE_ENV === "development" ? (
         <div className="rounded-xl border border-border/80 bg-muted/35 px-4 py-3 font-mono text-xs leading-6 text-muted-foreground">

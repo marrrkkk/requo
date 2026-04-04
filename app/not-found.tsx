@@ -16,12 +16,11 @@ export default function NotFound() {
           </Button>
         </>
       }
-      description="The link may be outdated, the record may have been removed, or the URL may be incomplete."
       eyebrow="Page not found"
       title="That page does not exist."
     >
       <div className="state-card-note">
-        Start from the homepage or return to your workspaces to continue working.
+        Go home or open your workspaces.
       </div>
     </StatePageCard>
   );

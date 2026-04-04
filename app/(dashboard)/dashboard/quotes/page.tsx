@@ -43,7 +43,6 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
       <PageHeader
         eyebrow="Quotes"
         title="Quotes"
-        description="Draft, send, and track quotes."
         actions={
           <Button asChild>
             <Link href={getWorkspaceNewQuotePath(workspaceSlug)} prefetch={false}>
@@ -85,9 +84,7 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
             )
           }
           description={
-            hasFilters
-              ? "Try a different search or status."
-              : "Create a quote from scratch or start from an inquiry."
+            hasFilters ? "Try another search or status." : "No quotes yet."
           }
           icon={ReceiptText}
           title={

@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 type AuthShellProps = {
   badge: string;
   title: string;
-  description: string;
+  description?: string;
   children: ReactNode;
 };
 
@@ -32,8 +32,7 @@ export function AuthShell({
                 Inquiry, quotes, and customer replies in one calm workspace.
               </h1>
               <p className="max-w-xl text-base leading-8 text-muted-foreground">
-                Built for small service businesses that need a practical system for
-                intake, quote drafting, and polished follow-up without admin sprawl.
+                Built for service businesses.
               </p>
             </div>
 
@@ -57,11 +56,11 @@ export function AuthShell({
           </div>
 
           <div className="soft-panel grid gap-4 p-5 sm:grid-cols-2">
-            {[
-              "Workspace setup happens automatically after first signup",
-              "Email/password auth with protected routes and reset flow",
-              "Public inquiry and quote pages stay customer-safe",
-              "Clean owner-first dashboard for day-to-day work",
+            {[  
+              "Protected email/password login",
+              "Public inquiry and quote pages",
+              "Owner-first dashboard",
+              "Quotes and replies in one place",
             ].map((item) => (
               <div className="flex items-start gap-3" key={item}>
                 <div className="mt-0.5 rounded-md bg-accent p-1 text-accent-foreground">
@@ -80,9 +79,11 @@ export function AuthShell({
               <div className="flex flex-col gap-3">
                 <span className="eyebrow">{badge}</span>
                 <CardTitle className="text-3xl sm:text-4xl">{title}</CardTitle>
-                <CardDescription className="max-w-md text-sm leading-7">
-                  {description}
-                </CardDescription>
+                {description ? (
+                  <CardDescription className="max-w-md text-sm leading-7">
+                    {description}
+                  </CardDescription>
+                ) : null}
               </div>
             </CardHeader>
             <CardContent className="pt-6">{children}</CardContent>

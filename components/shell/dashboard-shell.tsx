@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { CSSProperties, ReactNode } from "react";
+import { Fragment, type CSSProperties, type ReactNode } from "react";
 import { useTransition } from "react";
 import {
   ArrowUpRight,
@@ -18,7 +18,7 @@ import { authClient } from "@/lib/auth/client";
 import type { WorkspaceContext } from "@/lib/db/workspace-access";
 import { BrandMark } from "@/components/shared/brand-mark";
 import {
-  getActiveDashboardNavigationItem,
+  getDashboardBreadcrumbs,
   getDashboardNavigation,
   isDashboardNavigationItemActive,
 } from "@/components/shell/dashboard-navigation";
@@ -81,7 +81,7 @@ export function DashboardShell({
   workspaceMemberships,
 }: DashboardShellProps) {
   const pathname = usePathname();
-  const activeItem = getActiveDashboardNavigationItem(pathname);
+  const breadcrumbs = getDashboardBreadcrumbs(pathname);
   const dashboardNavigation = getDashboardNavigation(workspaceContext.workspace.slug);
   const workspace = workspaceContext.workspace;
 
@@ -148,20 +148,26 @@ export function DashboardShell({
               <div className="min-w-0 flex-1">
                 <Breadcrumb>
                   <BreadcrumbList>
-                    <BreadcrumbItem className="hidden sm:block">
-                      <BreadcrumbLink asChild>
-                        <Link
-                          href={getWorkspaceDashboardPath(workspace.slug)}
-                          prefetch={false}
-                        >
-                          Dashboard
-                        </Link>
-                      </BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator className="hidden sm:block" />
-                    <BreadcrumbItem>
-                      <BreadcrumbPage>{activeItem?.label ?? "Overview"}</BreadcrumbPage>
-                    </BreadcrumbItem>
+                    {breadcrumbs.map((item, index) => {
+                      const isLast = index === breadcrumbs.length - 1;
+
+                      return (
+                        <Fragment key={`${item.label}-${item.href ?? index}`}>
+                          {index > 0 ? <BreadcrumbSeparator /> : null}
+                          <BreadcrumbItem>
+                            {isLast || !item.href ? (
+                              <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                            ) : (
+                              <BreadcrumbLink asChild>
+                                <Link href={item.href} prefetch={false}>
+                                  {item.label}
+                                </Link>
+                              </BreadcrumbLink>
+                            )}
+                          </BreadcrumbItem>
+                        </Fragment>
+                      );
+                    })}
                   </BreadcrumbList>
                 </Breadcrumb>
               </div>

@@ -72,6 +72,8 @@ export function KnowledgeFileUploadForm({
             <FieldContent>
               <Input
                 id="knowledge-file-title"
+                maxLength={120}
+                minLength={2}
                 name="title"
                 placeholder="Shipping policy, service scope, intake checklist"
                 aria-invalid={Boolean(state.fieldErrors?.title) || undefined}
@@ -98,6 +100,7 @@ export function KnowledgeFileUploadForm({
                 name="file"
                 type="file"
                 accept={knowledgeFileAccept}
+                required
                 aria-invalid={Boolean(state.fieldErrors?.file) || undefined}
                 disabled={isPending}
               />

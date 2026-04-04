@@ -6,11 +6,7 @@ export default async function ForgotPasswordPage() {
   await redirectIfAuthenticated();
 
   return (
-    <AuthShell
-      badge="Recovery"
-      title="Reset password"
-      description="Enter your email and we will send a reset link."
-    >
+    <AuthShell badge="Recovery" title="Reset password">
       <ForgotPasswordForm />
     </AuthShell>
   );

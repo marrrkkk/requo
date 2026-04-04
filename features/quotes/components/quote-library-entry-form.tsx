@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldContent,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -203,9 +202,6 @@ function QuoteLibraryEntryFormFields({
                   </SelectGroup>
                 </SelectContent>
               </Select>
-              <FieldDescription>
-                Blocks save one reusable line item. Packages can include multiple items.
-              </FieldDescription>
               <FieldError
                 errors={
                   state.fieldErrors?.kind?.[0]
@@ -221,10 +217,13 @@ function QuoteLibraryEntryFormFields({
             <FieldContent>
               <Input
                 id={`${idPrefix}-name`}
+                maxLength={120}
+                minLength={2}
                 name="name"
                 value={name}
                 onChange={(event) => setName(event.currentTarget.value)}
                 placeholder="Standard window vinyl install"
+                required
                 aria-invalid={Boolean(state.fieldErrors?.name) || undefined}
                 disabled={isPending}
               />
@@ -246,6 +245,7 @@ function QuoteLibraryEntryFormFields({
           <FieldContent>
             <Textarea
               id={`${idPrefix}-description`}
+              maxLength={600}
               name="description"
               rows={3}
               value={description}
@@ -346,6 +346,7 @@ function QuoteLibraryEntryFormFields({
                       <FieldContent>
                         <Input
                           id={`${idPrefix}-description-${item.id}`}
+                          maxLength={400}
                           value={item.description}
                           onChange={(event) =>
                             updateItem(item.id, {
@@ -353,6 +354,7 @@ function QuoteLibraryEntryFormFields({
                             })
                           }
                           placeholder="Window vinyl production"
+                          required
                           disabled={isPending}
                         />
                       </FieldContent>
@@ -364,13 +366,15 @@ function QuoteLibraryEntryFormFields({
                           Quantity
                         </FieldLabel>
                         <FieldContent>
-                          <Input
-                            id={`${idPrefix}-quantity-${item.id}`}
-                            inputMode="numeric"
-                            type="number"
-                            min="1"
-                            step="1"
-                            value={item.quantity}
+                            <Input
+                              id={`${idPrefix}-quantity-${item.id}`}
+                              inputMode="numeric"
+                              max="999999999"
+                              type="number"
+                              min="1"
+                              required
+                              step="1"
+                              value={item.quantity}
                             onChange={(event) =>
                               updateItem(item.id, {
                                 quantity: event.currentTarget.value,
@@ -386,12 +390,14 @@ function QuoteLibraryEntryFormFields({
                           Unit price
                         </FieldLabel>
                         <FieldContent>
-                          <Input
-                            id={`${idPrefix}-price-${item.id}`}
-                            inputMode="decimal"
-                            type="number"
-                            min="0"
-                            step="0.01"
+                            <Input
+                              id={`${idPrefix}-price-${item.id}`}
+                              inputMode="decimal"
+                              type="number"
+                              max="1000000"
+                              min="0"
+                              required
+                              step="0.01"
                             value={item.unitPrice}
                             onChange={(event) =>
                               updateItem(item.id, {

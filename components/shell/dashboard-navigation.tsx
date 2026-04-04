@@ -23,6 +23,11 @@ export type DashboardNavigationItem = {
   icon: LucideIcon;
 };
 
+export type DashboardBreadcrumbItem = {
+  label: string;
+  href?: string;
+};
+
 export function getDashboardNavigation(slug: string): DashboardNavigationItem[] {
   return [
     {
@@ -46,7 +51,7 @@ export function getDashboardNavigation(slug: string): DashboardNavigationItem[] 
     {
       href: getWorkspaceSettingsPath(slug),
       label: "Settings",
-      description: "Open general settings, pricing library, and reusable knowledge.",
+      description: "Manage workspace, inquiry, quote, pricing, and knowledge settings.",
       icon: Settings2,
     },
   ];
@@ -104,4 +109,128 @@ export function getActiveDashboardNavigationItem(pathname: string) {
       isDashboardNavigationItemActive(activePathname, item.href),
     ) ?? dashboardNavigation[0]
   );
+}
+
+function formatBreadcrumbLabel(value: string) {
+  const normalized = decodeURIComponent(value)
+    .replace(/[-_]+/g, " ")
+    .trim();
+
+  if (!normalized) {
+    return "";
+  }
+
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbItem[] {
+  const slug = getWorkspaceDashboardSlugFromPathname(pathname);
+
+  if (!slug) {
+    return [];
+  }
+
+  const dashboardPath = getWorkspaceDashboardPath(slug);
+  const analyticsPath = getWorkspaceAnalyticsPath(slug);
+  const inquiriesPath = getWorkspaceInquiriesPath(slug);
+  const quotesPath = getWorkspaceQuotesPath(slug);
+  const settingsPath = getWorkspaceSettingsPath(slug);
+
+  if (pathname === dashboardPath) {
+    return [{ label: "Dashboard" }];
+  }
+
+  if (pathname === analyticsPath || pathname.startsWith(`${analyticsPath}/`)) {
+    return [{ label: "Analytics" }];
+  }
+
+  if (pathname === inquiriesPath) {
+    return [{ label: "Requests" }];
+  }
+
+  if (pathname.startsWith(`${inquiriesPath}/`)) {
+    return [
+      {
+        label: "Requests",
+        href: inquiriesPath,
+      },
+      {
+        label: "Request",
+      },
+    ];
+  }
+
+  if (pathname === quotesPath) {
+    return [{ label: "Quotes" }];
+  }
+
+  if (pathname === `${quotesPath}/new`) {
+    return [
+      {
+        label: "Quotes",
+        href: quotesPath,
+      },
+      {
+        label: "New quote",
+      },
+    ];
+  }
+
+  if (pathname.startsWith(`${quotesPath}/`)) {
+    return [
+      {
+        label: "Quotes",
+        href: quotesPath,
+      },
+      {
+        label: "Quote",
+      },
+    ];
+  }
+
+  if (pathname === settingsPath) {
+    return [{ label: "Settings" }];
+  }
+
+  if (pathname.startsWith(`${settingsPath}/`)) {
+    const relativePath = pathname.slice(`${settingsPath}/`.length);
+    const segments = relativePath.split("/").filter(Boolean);
+    const section = segments[0];
+    const sectionLabels: Record<string, string> = {
+      general: "General",
+      inquiry: "Inquiry",
+      quote: "Quote",
+      pricing: "Pricing",
+      knowledge: "Knowledge",
+    };
+    const sectionLabel = sectionLabels[section] ?? formatBreadcrumbLabel(section);
+
+    if (section === "inquiry" && segments[1]) {
+      return [
+        {
+          label: "Settings",
+          href: settingsPath,
+        },
+        {
+          label: sectionLabel,
+          href: getWorkspaceSettingsPath(slug, "inquiry"),
+        },
+        {
+          label: formatBreadcrumbLabel(segments[1]),
+        },
+      ];
+    }
+
+    return [
+      {
+        label: "Settings",
+        href: settingsPath,
+      },
+      {
+        label: sectionLabel,
+      },
+    ];
+  }
+
+  return [{ label: "Dashboard" }];
 }

@@ -85,7 +85,9 @@ export function LoginForm() {
               name="email"
               type="email"
               autoComplete="email"
+              maxLength={320}
               placeholder="owner@example.com"
+              required
               aria-invalid={Boolean(emailError) || undefined}
               disabled={isPending}
             />
@@ -109,7 +111,10 @@ export function LoginForm() {
               name="password"
               type="password"
               autoComplete="current-password"
+              maxLength={128}
+              minLength={8}
               placeholder="Enter your password"
+              required
               aria-invalid={Boolean(passwordError) || undefined}
               disabled={isPending}
             />
@@ -128,12 +133,12 @@ export function LoginForm() {
 
       <Separator />
 
-      <p className="text-sm text-muted-foreground">
-        New here?{" "}
-        <Link className="font-medium text-foreground underline underline-offset-4" href="/signup">
-          Create an account
-        </Link>
-      </p>
+      <Link
+        className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+        href="/signup"
+      >
+        New here? Create an account
+      </Link>
     </form>
   );
 }

@@ -75,10 +75,7 @@ export function KnowledgeFaqForm({
         </Alert>
       ) : null}
 
-      <FormSection
-        description="Keep the answer concise and reusable so it stays helpful in future drafts."
-        title={initialValues ? "FAQ content" : "New FAQ"}
-      >
+      <FormSection title={initialValues ? "FAQ content" : "New FAQ"}>
         <FieldGroup>
           <Field data-invalid={Boolean(state.fieldErrors?.question) || undefined}>
             <FieldLabel htmlFor={`${idPrefix}-question`}>Question</FieldLabel>
@@ -87,8 +84,11 @@ export function KnowledgeFaqForm({
                 id={`${idPrefix}-question`}
                 name="question"
                 defaultValue={initialValues?.question}
+                maxLength={240}
+                minLength={4}
                 placeholder="What turnaround time should we quote?"
                 aria-invalid={Boolean(state.fieldErrors?.question) || undefined}
+                required
                 disabled={isPending}
               />
               <FieldError
@@ -109,8 +109,11 @@ export function KnowledgeFaqForm({
                 name="answer"
                 rows={5}
                 defaultValue={initialValues?.answer}
+                maxLength={4000}
+                minLength={8}
                 placeholder="Share the internal answer the AI assistant should lean on when drafting replies."
                 aria-invalid={Boolean(state.fieldErrors?.answer) || undefined}
+                required
                 disabled={isPending}
               />
               <FieldError

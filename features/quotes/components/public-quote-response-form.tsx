@@ -73,6 +73,7 @@ export function PublicQuoteResponseForm({
             <FieldContent>
               <Textarea
                 id="public-quote-message"
+                maxLength={1200}
                 name="message"
                 rows={4}
                 placeholder="Optional note about your decision or any next steps."

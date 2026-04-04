@@ -42,6 +42,11 @@ type DataListToolbarProps = {
   filterValue: string;
   onFilterChange: (value: string) => void;
   filterOptions: DataListToolbarOption[];
+  secondaryFilterId?: string;
+  secondaryFilterLabel?: string;
+  secondaryFilterValue?: string;
+  onSecondaryFilterChange?: (value: string) => void;
+  secondaryFilterOptions?: DataListToolbarOption[];
   isPending: boolean;
   onSubmit: () => void;
   onClear: () => void;
@@ -61,6 +66,11 @@ export function DataListToolbar({
   filterValue,
   onFilterChange,
   filterOptions,
+  secondaryFilterId,
+  secondaryFilterLabel,
+  secondaryFilterValue,
+  onSecondaryFilterChange,
+  secondaryFilterOptions,
   isPending,
   onSubmit,
   onClear,
@@ -118,6 +128,40 @@ export function DataListToolbar({
                 </Select>
               </FieldContent>
             </Field>
+
+            {secondaryFilterId &&
+            secondaryFilterLabel &&
+            secondaryFilterValue !== undefined &&
+            onSecondaryFilterChange &&
+            secondaryFilterOptions?.length ? (
+              <Field className="sm:max-w-[14rem] xl:max-w-none">
+                <FieldLabel
+                  className="meta-label px-0.5"
+                  htmlFor={secondaryFilterId}
+                >
+                  {secondaryFilterLabel}
+                </FieldLabel>
+                <FieldContent>
+                  <Select
+                    value={secondaryFilterValue}
+                    onValueChange={onSecondaryFilterChange}
+                  >
+                    <SelectTrigger id={secondaryFilterId} className="w-full">
+                      <SelectValue placeholder={secondaryFilterLabel} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {secondaryFilterOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </FieldContent>
+              </Field>
+            ) : null}
 
             <DashboardActionsRow className="data-list-toolbar-actions lg:self-end">
               <Button className="w-full sm:w-auto" disabled={isPending} type="submit">

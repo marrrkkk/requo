@@ -33,7 +33,6 @@ export default async function DashboardNotFound() {
           </Button>
           </>
         }
-        description="It may belong to a different workspace, the link may be stale, or the record may no longer exist."
         eyebrow="Not found"
         media={
           <div className="flex size-12 items-center justify-center rounded-full border border-border/75 bg-accent/65 text-accent-foreground">
@@ -43,7 +42,7 @@ export default async function DashboardNotFound() {
         title="That dashboard record could not be found."
       >
         <div className="state-card-note">
-          Return to the overview or reopen the item from the dashboard lists.
+          Return to the overview or reopen it from a list.
         </div>
       </StatePageCard>
     </div>
