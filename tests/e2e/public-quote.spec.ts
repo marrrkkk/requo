@@ -7,18 +7,16 @@ import {
 
 test.describe.configure({ mode: "serial" });
 
-test("public quote page validates long customer messages", async ({ page }) => {
+test("public quote page caps customer messages at 1,200 characters", async ({
+  page,
+}) => {
   await page.goto(`/quote/${demoQuotePublicToken}`);
   await page.waitForLoadState("networkidle");
 
-  await page
-    .getByLabel("Message for the business")
-    .fill("a".repeat(1_201));
-  await page.getByRole("button", { name: "Accept quote" }).click();
+  const messageField = page.getByLabel("Message for the business");
+  await messageField.fill("a".repeat(1_201));
 
-  await expect(
-    page.getByText("Customer response messages must be 1,200 characters or fewer."),
-  ).toBeVisible();
+  await expect(messageField).toHaveValue("a".repeat(1_200));
 });
 
 test("customer can accept a sent quote from the public quote page", async ({

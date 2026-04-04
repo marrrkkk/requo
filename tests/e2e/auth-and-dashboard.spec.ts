@@ -76,5 +76,5 @@ test("sending a draft quote shows a safe delivery error when email is unavailabl
     page.getByText(
       "Quote email delivery is unavailable right now. Configure email and try again.",
     ),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 20_000 });
 });

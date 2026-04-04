@@ -22,6 +22,11 @@ export const quoteStatusEnum = pgEnum("quote_status", [
   "expired",
 ]);
 
+export const quotePostAcceptanceStatusEnum = pgEnum(
+  "quote_post_acceptance_status",
+  ["none", "booked", "scheduled"],
+);
+
 export const quotes = pgTable(
   "quotes",
   {
@@ -50,6 +55,9 @@ export const quotes = pgTable(
       withTimezone: true,
     }),
     customerResponseMessage: text("customer_response_message"),
+    postAcceptanceStatus: quotePostAcceptanceStatusEnum("post_acceptance_status")
+      .notNull()
+      .default("none"),
     validUntil: date("expires_at", { mode: "string" }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

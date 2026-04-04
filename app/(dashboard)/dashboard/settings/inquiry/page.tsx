@@ -3,16 +3,24 @@ import { notFound } from "next/navigation";
 
 import { DashboardMetaPill } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
+import {
+  createReplySnippetAction,
+  deleteReplySnippetAction,
+  updateReplySnippetAction,
+} from "@/features/inquiries/reply-snippet-actions";
+import { getReplySnippetsForWorkspace } from "@/features/inquiries/reply-snippet-queries";
 import { createWorkspaceInquiryFormAction } from "@/features/settings/actions";
 import { WorkspaceInquiryFormsManager } from "@/features/settings/components/workspace-inquiry-forms-manager";
+import { WorkspaceReplySnippetsManager } from "@/features/settings/components/workspace-reply-snippets-manager";
 import { getWorkspaceInquiryFormsSettingsForWorkspace } from "@/features/settings/queries";
 import { getWorkspaceOwnerPageContext } from "../_lib/page-context";
 
 export default async function WorkspaceInquirySettingsPage() {
   const { workspaceContext } = await getWorkspaceOwnerPageContext();
-  const settings = await getWorkspaceInquiryFormsSettingsForWorkspace(
-    workspaceContext.workspace.id,
-  );
+  const [settings, replySnippets] = await Promise.all([
+    getWorkspaceInquiryFormsSettingsForWorkspace(workspaceContext.workspace.id),
+    getReplySnippetsForWorkspace(workspaceContext.workspace.id),
+  ]);
 
   if (!settings) {
     notFound();
@@ -25,7 +33,7 @@ export default async function WorkspaceInquirySettingsPage() {
       <PageHeader
         eyebrow="Settings"
         title="Inquiry"
-        description="Manage inquiry forms, public URLs, and page content."
+        description="Manage inquiry forms, public URLs, and saved reply snippets."
         actions={
           <>
             <DashboardMetaPill>
@@ -43,6 +51,12 @@ export default async function WorkspaceInquirySettingsPage() {
       <WorkspaceInquiryFormsManager
         createAction={createWorkspaceInquiryFormAction}
         settings={settings}
+      />
+      <WorkspaceReplySnippetsManager
+        snippets={replySnippets}
+        createAction={createReplySnippetAction}
+        updateAction={updateReplySnippetAction}
+        deleteAction={deleteReplySnippetAction}
       />
     </>
   );

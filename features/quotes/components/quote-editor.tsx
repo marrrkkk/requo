@@ -78,6 +78,12 @@ export function QuoteEditor({
   );
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [state, formAction, isPending] = useActionState(action, initialState);
+  const serializedItems = items.map((item) => ({
+    id: item.id,
+    description: item.description,
+    quantity: item.quantity,
+    unitPriceInCents: item.unitPrice,
+  }));
   const previewItems = items.map((item) => {
     const quantity = Number.parseInt(item.quantity.trim(), 10);
     const safeQuantity =
@@ -135,7 +141,7 @@ export function QuoteEditor({
       action={formAction}
       className="dashboard-detail-layout items-start xl:grid-cols-[minmax(0,1.08fr)_0.92fr]"
     >
-      <input name="items" type="hidden" value={JSON.stringify(items)} />
+      <input name="items" type="hidden" value={JSON.stringify(serializedItems)} />
 
       <DashboardSidebarStack className="min-w-0">
         {state.error ? (

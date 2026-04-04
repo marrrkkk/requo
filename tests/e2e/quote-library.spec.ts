@@ -53,8 +53,11 @@ test("owner can save a pricing block and insert it into a new quote", async ({
   await page.getByRole("button", { name: "Insert saved" }).click();
   await expect(page.getByText("Insert saved pricing")).toBeVisible();
 
+  const pricingSheetEntry = page
+    .getByTestId("quote-library-sheet-entry")
+    .filter({ has: page.getByText(entryName, { exact: true }) });
   await page.getByPlaceholder("Search saved pricing").fill(entryName);
-  await page.getByRole("button", { name: "Insert into quote" }).click();
+  await pricingSheetEntry.getByRole("button", { name: "Insert into quote" }).click();
 
   await expect(
     page.locator('input[id^="quote-item-description-"]').first(),

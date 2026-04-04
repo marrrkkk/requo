@@ -43,6 +43,7 @@ import type {
   AiAssistantActionState,
   AiAssistantIntent,
 } from "@/features/ai/types";
+import type { DashboardReplySnippet } from "@/features/inquiries/reply-snippet-types";
 import { cn } from "@/lib/utils";
 
 type InquiryAiPanelProps = {
@@ -50,6 +51,7 @@ type InquiryAiPanelProps = {
     state: AiAssistantActionState,
     formData: FormData,
   ) => Promise<AiAssistantActionState>;
+  replySnippets: DashboardReplySnippet[];
 };
 
 type CopyState = "idle" | "copied" | "error";
@@ -127,12 +129,27 @@ async function copyText(value: string, setState: (state: CopyState) => void) {
   }
 }
 
-export function InquiryAiPanel({ action }: InquiryAiPanelProps) {
+export function InquiryAiPanel({
+  action,
+  replySnippets,
+}: InquiryAiPanelProps) {
   const [state, formAction, isPending] = useActionState(action, initialState);
   const [replyDraft, setReplyDraft] = useState("");
   const [outputCopyState, setOutputCopyState] = useTimedCopyState();
   const [replyCopyState, setReplyCopyState] = useTimedCopyState();
   const activeIntent = state.result?.intent;
+
+  function insertReplySnippet(snippet: DashboardReplySnippet) {
+    setReplyDraft((currentDraft) => {
+      const trimmedDraft = currentDraft.trim();
+
+      if (!trimmedDraft) {
+        return snippet.body;
+      }
+
+      return `${currentDraft.trimEnd()}\n\n${snippet.body}`;
+    });
+  }
 
   return (
     <Card className="gap-0 overflow-visible">
@@ -351,6 +368,50 @@ export function InquiryAiPanel({ action }: InquiryAiPanelProps) {
             </EmptyHeader>
           </Empty>
         )}
+
+        {replySnippets.length ? (
+          <div className="soft-panel border-dashed px-5 py-5 shadow-none">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <p className="meta-label">Saved snippets</p>
+                <h3 className="font-heading text-lg font-semibold text-foreground">
+                  Insert a reusable reply
+                </h3>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Keep common follow-ups close to the draft area.
+                </p>
+              </div>
+
+              <div className="grid gap-3">
+                {replySnippets.map((snippet) => (
+                  <div
+                      className="rounded-xl border border-border/70 bg-background/80 p-4"
+                      data-testid="inquiry-reply-snippet-option"
+                      key={snippet.id}
+                    >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground">
+                          {snippet.title}
+                        </p>
+                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                          {snippet.body}
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => insertReplySnippet(snippet)}
+                        type="button"
+                        variant="outline"
+                      >
+                        Insert snippet
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <div className="soft-panel border-dashed px-5 py-5 shadow-none">
           <div className="flex flex-col gap-4">

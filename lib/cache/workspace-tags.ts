@@ -112,6 +112,17 @@ export function getWorkspacePricingCacheTags(workspaceId: string) {
   ]);
 }
 
+export function getWorkspaceReplySnippetsCacheTags(workspaceId: string) {
+  const scopeTag = getWorkspaceScopeTag(workspaceId);
+
+  return uniqueCacheTags([
+    scopeTag,
+    `${scopeTag}:settings`,
+    `${scopeTag}:inquiries`,
+    `${scopeTag}:reply-snippets`,
+  ]);
+}
+
 export function getWorkspaceKnowledgeCacheTags(workspaceId: string) {
   const scopeTag = getWorkspaceScopeTag(workspaceId);
 

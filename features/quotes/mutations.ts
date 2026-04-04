@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, inArray, lt } from "drizzle-orm";
+import { and, eq, inArray, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import {
@@ -22,15 +22,13 @@ function createId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
 }
 
-function getNextQuoteNumberFromCurrent(currentQuoteNumber: string | null | undefined) {
-  if (!currentQuoteNumber) {
-    return "Q-0001";
-  }
+function getNextQuoteNumberFromSequence(sequence: number | null | undefined) {
+  const safeSequence =
+    typeof sequence === "number" && Number.isFinite(sequence) && sequence > 0
+      ? Math.trunc(sequence)
+      : 0;
 
-  const match = currentQuoteNumber.match(/(\d+)$/);
-  const sequence = match ? Number.parseInt(match[1], 10) : 0;
-
-  return `Q-${String(sequence + 1).padStart(4, "0")}`;
+  return `Q-${String(safeSequence + 1).padStart(4, "0")}`;
 }
 
 function calculateQuoteTotals(input: QuoteEditorInput) {
@@ -292,13 +290,14 @@ export async function createQuoteForWorkspace({
 
         const [latestQuote] = await tx
           .select({
-            quoteNumber: quotes.quoteNumber,
+            latestSequence: sql<number>`coalesce(max((nullif(substring(${quotes.quoteNumber} from '[0-9]+$'), ''))::integer), 0)`,
           })
           .from(quotes)
           .where(eq(quotes.workspaceId, workspaceId))
-          .orderBy(desc(quotes.createdAt))
           .limit(1);
-        const quoteNumber = getNextQuoteNumberFromCurrent(latestQuote?.quoteNumber);
+        const quoteNumber = getNextQuoteNumberFromSequence(
+          latestQuote?.latestSequence,
+        );
         const now = new Date();
 
         await tx.insert(quotes).values({
@@ -390,6 +389,7 @@ export async function updateQuoteForWorkspace({
         status: quotes.status,
         quoteNumber: quotes.quoteNumber,
         currency: quotes.currency,
+        postAcceptanceStatus: quotes.postAcceptanceStatus,
       })
       .from(quotes)
       .where(and(eq(quotes.id, quoteId), eq(quotes.workspaceId, workspaceId)))
@@ -487,6 +487,7 @@ export async function changeQuoteStatusForWorkspace({
         status: quotes.status,
         sentAt: quotes.sentAt,
         acceptedAt: quotes.acceptedAt,
+        postAcceptanceStatus: quotes.postAcceptanceStatus,
       })
       .from(quotes)
       .where(and(eq(quotes.id, quoteId), eq(quotes.workspaceId, workspaceId)))
@@ -525,6 +526,10 @@ export async function changeQuoteStatusForWorkspace({
           nextStatus === "draft" || nextStatus === "sent" ? null : undefined,
         customerResponseMessage:
           nextStatus === "draft" || nextStatus === "sent" ? null : undefined,
+        postAcceptanceStatus:
+          nextStatus === "accepted"
+            ? existingQuote.postAcceptanceStatus
+            : "none",
         updatedAt: now,
       })
       .where(and(eq(quotes.id, quoteId), eq(quotes.workspaceId, workspaceId)));
@@ -590,6 +595,7 @@ export async function markQuoteSentForWorkspace({
         quoteNumber: quotes.quoteNumber,
         publicToken: quotes.publicToken,
         status: quotes.status,
+        postAcceptanceStatus: quotes.postAcceptanceStatus,
       })
       .from(quotes)
       .where(and(eq(quotes.id, quoteId), eq(quotes.workspaceId, workspaceId)))
@@ -618,6 +624,7 @@ export async function markQuoteSentForWorkspace({
         publicViewedAt: null,
         customerRespondedAt: null,
         customerResponseMessage: null,
+        postAcceptanceStatus: "none",
         updatedAt: now,
       })
       .where(and(eq(quotes.id, quoteId), eq(quotes.workspaceId, workspaceId)));
@@ -691,6 +698,7 @@ export async function respondToPublicQuoteByToken({
         quoteNumber: quotes.quoteNumber,
         status: quotes.status,
         sentAt: quotes.sentAt,
+        postAcceptanceStatus: quotes.postAcceptanceStatus,
       })
       .from(quotes)
       .innerJoin(workspaces, eq(quotes.workspaceId, workspaces.id))
@@ -721,6 +729,10 @@ export async function respondToPublicQuoteByToken({
         acceptedAt: nextStatus === "accepted" ? now : null,
         customerRespondedAt: now,
         customerResponseMessage: message?.trim() || null,
+        postAcceptanceStatus:
+          nextStatus === "accepted"
+            ? existingQuote.postAcceptanceStatus
+            : "none",
         updatedAt: now,
       })
       .where(eq(quotes.id, existingQuote.id));
@@ -764,5 +776,93 @@ export async function respondToPublicQuoteByToken({
       quoteNumber: existingQuote.quoteNumber,
       status: nextStatus,
     };
+  });
+}
+
+type UpdateQuotePostAcceptanceStatusForWorkspaceInput = {
+  workspaceId: string;
+  quoteId: string;
+  actorUserId: string;
+  postAcceptanceStatus: "none" | "booked" | "scheduled";
+};
+
+export async function updateQuotePostAcceptanceStatusForWorkspace({
+  workspaceId,
+  quoteId,
+  actorUserId,
+  postAcceptanceStatus,
+}: UpdateQuotePostAcceptanceStatusForWorkspaceInput) {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [existingQuote] = await tx
+      .select({
+        id: quotes.id,
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+        status: quotes.status,
+        postAcceptanceStatus: quotes.postAcceptanceStatus,
+      })
+      .from(quotes)
+      .where(and(eq(quotes.id, quoteId), eq(quotes.workspaceId, workspaceId)))
+      .limit(1);
+
+    if (!existingQuote) {
+      return null;
+    }
+
+    if (existingQuote.status !== "accepted") {
+      return {
+        updated: false,
+        locked: true,
+        inquiryId: existingQuote.inquiryId,
+        quoteNumber: existingQuote.quoteNumber,
+        postAcceptanceStatus: existingQuote.postAcceptanceStatus,
+      } as const;
+    }
+
+    if (existingQuote.postAcceptanceStatus === postAcceptanceStatus) {
+      return {
+        updated: false,
+        locked: false,
+        inquiryId: existingQuote.inquiryId,
+        quoteNumber: existingQuote.quoteNumber,
+        postAcceptanceStatus,
+      } as const;
+    }
+
+    await tx
+      .update(quotes)
+      .set({
+        postAcceptanceStatus,
+        updatedAt: now,
+      })
+      .where(and(eq(quotes.id, quoteId), eq(quotes.workspaceId, workspaceId)));
+
+    await insertQuoteActivity(tx, {
+      workspaceId,
+      inquiryId: existingQuote.inquiryId,
+      quoteId,
+      actorUserId,
+      type: "quote.post_acceptance_updated",
+      summary:
+        postAcceptanceStatus === "none"
+          ? `Post-acceptance status cleared for quote ${existingQuote.quoteNumber}.`
+          : `Quote ${existingQuote.quoteNumber} marked ${postAcceptanceStatus}.`,
+      metadata: {
+        previousPostAcceptanceStatus: existingQuote.postAcceptanceStatus,
+        postAcceptanceStatus,
+        quoteNumber: existingQuote.quoteNumber,
+      },
+      now,
+    });
+
+    return {
+      updated: true,
+      locked: false,
+      inquiryId: existingQuote.inquiryId,
+      quoteNumber: existingQuote.quoteNumber,
+      postAcceptanceStatus,
+    } as const;
   });
 }

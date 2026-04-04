@@ -19,13 +19,11 @@ import { Button } from "@/components/ui/button";
 import { getWorkspaceAnalyticsData } from "@/features/analytics/queries";
 import { formatAnalyticsPercent } from "@/features/analytics/utils";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
+import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
+import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
 import { formatQuoteDate, formatQuoteMoney } from "@/features/quotes/utils";
 import { getWorkspacePublicInquiryUrl } from "@/features/settings/utils";
-import {
-  type WorkspaceOverviewInquiryActionItem,
-  type WorkspaceOverviewQuoteActionItem,
-} from "@/features/workspaces/types";
 import { getWorkspaceOverviewData } from "@/features/workspaces/queries";
 import {
   getWorkspaceAnalyticsPath,
@@ -36,6 +34,10 @@ import {
   getWorkspaceQuotesPath,
   getWorkspaceSettingsPath,
 } from "@/features/workspaces/routes";
+import type {
+  WorkspaceOverviewInquiryActionItem,
+  WorkspaceOverviewQuoteActionItem,
+} from "@/features/workspaces/types";
 import { requireCurrentWorkspaceContext } from "@/lib/db/workspace-access";
 import { cn } from "@/lib/utils";
 
@@ -57,7 +59,7 @@ export default async function DashboardOverviewPage() {
     overview.counts.overdueReplies +
     overview.counts.expiringSoonQuotes +
     overview.counts.inquiriesWithoutQuotes +
-    overview.counts.awaitingResponseQuotes;
+    overview.counts.followUpDueQuotes;
 
   return (
     <DashboardPage className="gap-5 xl:gap-6">
@@ -120,9 +122,9 @@ export default async function DashboardOverviewPage() {
               value={overview.counts.inquiriesWithoutQuotes}
             />
             <OverviewActionStat
-              label="Awaiting response"
-              note="Sent quotes"
-              value={overview.counts.awaitingResponseQuotes}
+              label="Follow up due"
+              note="Sent 3+ days ago"
+              value={overview.counts.followUpDueQuotes}
             />
           </div>
         </div>
@@ -247,19 +249,20 @@ export default async function DashboardOverviewPage() {
               </Link>
             </Button>
           }
-          count={overview.counts.awaitingResponseQuotes}
-          title="Awaiting response"
+          count={overview.counts.followUpDueQuotes}
+          title="Follow up due"
         >
-          {overview.awaitingResponseQuotes.length ? (
+          {overview.followUpDueQuotes.length ? (
             <div className="flex flex-col divide-y divide-border/70">
-              {overview.awaitingResponseQuotes.map((quote) => (
+              {overview.followUpDueQuotes.map((quote) => (
                 <OverviewQuoteRow
                   key={quote.id}
                   meta={
                     quote.sentAt
-                      ? `Sent ${formatQuoteDate(quote.sentAt)} · Expires ${formatQuoteDate(
-                          quote.validUntil,
-                        )}`
+                      ? [
+                          `Sent ${formatQuoteDate(quote.sentAt)}`,
+                          `Expires ${formatQuoteDate(quote.validUntil)}`,
+                        ].join(" | ")
                       : `Expires ${formatQuoteDate(quote.validUntil)}`
                   }
                   quote={quote}
@@ -270,9 +273,9 @@ export default async function DashboardOverviewPage() {
           ) : (
             <DashboardEmptyState
               className="px-5 py-12 sm:px-6"
-              description="There are no sent quotes waiting on a customer response right now."
+              description="There are no sent quotes waiting at least 3 days for a response right now."
               icon={FileText}
-              title="No quote follow-up"
+              title="No follow-up due"
               variant="flat"
             />
           )}
@@ -533,6 +536,18 @@ function OverviewQuoteRow({
               <p className="mt-1 truncate text-sm text-muted-foreground">
                 {quote.customerName}
               </p>
+              {quote.reminders.length || quote.postAcceptanceStatus !== "none" ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {quote.reminders.map((reminder) => (
+                    <QuoteReminderBadge key={reminder} kind={reminder} />
+                  ))}
+                  {quote.postAcceptanceStatus !== "none" ? (
+                    <QuotePostAcceptanceStatusBadge
+                      status={quote.postAcceptanceStatus}
+                    />
+                  ) : null}
+                </div>
+              ) : null}
             </div>
             <QuoteStatusBadge status={quote.status} />
           </div>
@@ -544,7 +559,7 @@ function OverviewQuoteRow({
           <span className="font-medium text-foreground/85">
             {formatQuoteMoney(quote.totalInCents, quote.currency)}
           </span>
-          <span className="text-border">•</span>
+          <span className="text-border">|</span>
           <span className="truncate">{meta}</span>
         </div>
         <ArrowRight className="size-4 shrink-0 transition-transform group-hover:translate-x-0.5" />

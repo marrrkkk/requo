@@ -29,7 +29,7 @@ export function getWorkspaceSectionNavigation(
     {
       href: getWorkspaceSettingsPath(slug, "inquiry"),
       label: "Inquiry",
-      description: "Forms, URLs, page editor",
+      description: "Forms, URLs, reply snippets",
       icon: FormInput,
     },
     {

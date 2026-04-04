@@ -29,6 +29,7 @@ import type {
   QuoteInquiryPrefill,
   QuoteListFilters,
 } from "@/features/quotes/types";
+import { getQuoteReminderKinds } from "@/features/quotes/utils";
 
 type GetQuoteListForWorkspaceInput = {
   workspaceId: string;
@@ -75,7 +76,7 @@ async function getCachedQuoteListForWorkspace({
     );
   }
 
-  return db
+  const rows = await db
     .select({
       id: quotes.id,
       inquiryId: quotes.inquiryId,
@@ -87,6 +88,7 @@ async function getCachedQuoteListForWorkspace({
       totalInCents: quotes.totalInCents,
       validUntil: quotes.validUntil,
       status: quotes.status,
+      postAcceptanceStatus: quotes.postAcceptanceStatus,
       createdAt: quotes.createdAt,
       sentAt: quotes.sentAt,
       customerRespondedAt: quotes.customerRespondedAt,
@@ -94,6 +96,16 @@ async function getCachedQuoteListForWorkspace({
     .from(quotes)
     .where(and(...conditions))
     .orderBy(desc(quotes.createdAt));
+
+  return rows.map((row) => ({
+    ...row,
+    reminders: getQuoteReminderKinds({
+      status: row.status,
+      sentAt: row.sentAt,
+      customerRespondedAt: row.customerRespondedAt,
+      validUntil: row.validUntil,
+    }),
+  }));
 }
 
 type GetQuoteDetailForWorkspaceInput = {
@@ -139,6 +151,7 @@ async function getCachedQuoteDetailForWorkspace({
       totalInCents: quotes.totalInCents,
       validUntil: quotes.validUntil,
       status: quotes.status,
+      postAcceptanceStatus: quotes.postAcceptanceStatus,
       sentAt: quotes.sentAt,
       acceptedAt: quotes.acceptedAt,
       publicViewedAt: quotes.publicViewedAt,
@@ -214,6 +227,7 @@ async function getCachedQuoteDetailForWorkspace({
     totalInCents: quote.totalInCents,
     validUntil: quote.validUntil,
     status: quote.status,
+    postAcceptanceStatus: quote.postAcceptanceStatus,
     sentAt: quote.sentAt,
     acceptedAt: quote.acceptedAt,
     publicViewedAt: quote.publicViewedAt,
@@ -232,6 +246,12 @@ async function getCachedQuoteDetailForWorkspace({
           status: quote.linkedInquiryStatus!,
         }
       : null,
+    reminders: getQuoteReminderKinds({
+      status: quote.status,
+      sentAt: quote.sentAt,
+      customerRespondedAt: quote.customerRespondedAt,
+      validUntil: quote.validUntil,
+    }),
   };
 }
 

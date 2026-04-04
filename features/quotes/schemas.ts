@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import {
+  quotePostAcceptanceStatuses,
   quoteStatusFilterValues,
   quoteStatuses,
 } from "@/features/quotes/types";
@@ -215,6 +216,10 @@ export const quoteEditorSchema = z
 
 export const quoteStatusChangeSchema = z.object({
   status: z.enum(quoteStatuses),
+});
+
+export const quotePostAcceptanceStatusChangeSchema = z.object({
+  postAcceptanceStatus: z.enum(quotePostAcceptanceStatuses),
 });
 
 export const publicQuoteResponseSchema = z.object({

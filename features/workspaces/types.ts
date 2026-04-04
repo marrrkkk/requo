@@ -1,5 +1,9 @@
 import type { InquiryStatus } from "@/features/inquiries/types";
-import type { QuoteStatus } from "@/features/quotes/types";
+import type {
+  QuotePostAcceptanceStatus,
+  QuoteReminderKind,
+  QuoteStatus,
+} from "@/features/quotes/types";
 
 export const workspaceMemberRoles = ["owner", "member"] as const;
 
@@ -24,18 +28,20 @@ export type WorkspaceOverviewQuoteActionItem = {
   currency: string;
   totalInCents: number;
   status: QuoteStatus;
+  postAcceptanceStatus: QuotePostAcceptanceStatus;
   validUntil: string;
   sentAt: Date | null;
   acceptedAt: Date | null;
   customerRespondedAt: Date | null;
   updatedAt: Date;
+  reminders: QuoteReminderKind[];
 };
 
 export type WorkspaceOverviewCounts = {
   overdueReplies: number;
   expiringSoonQuotes: number;
   inquiriesWithoutQuotes: number;
-  awaitingResponseQuotes: number;
+  followUpDueQuotes: number;
   recentAcceptedQuotes: number;
 };
 
@@ -43,7 +49,7 @@ export type WorkspaceOverviewData = {
   overdueReplies: WorkspaceOverviewInquiryActionItem[];
   expiringSoonQuotes: WorkspaceOverviewQuoteActionItem[];
   inquiriesWithoutQuotes: WorkspaceOverviewInquiryActionItem[];
-  awaitingResponseQuotes: WorkspaceOverviewQuoteActionItem[];
+  followUpDueQuotes: WorkspaceOverviewQuoteActionItem[];
   recentAcceptedQuotes: WorkspaceOverviewQuoteActionItem[];
   counts: WorkspaceOverviewCounts;
 };

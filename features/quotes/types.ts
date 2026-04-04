@@ -9,6 +9,15 @@ export const quoteStatuses = [
 export type QuoteStatus = (typeof quoteStatuses)[number];
 export const quoteStatusFilterValues = ["all", ...quoteStatuses] as const;
 export type QuoteStatusFilterValue = (typeof quoteStatusFilterValues)[number];
+export const quotePostAcceptanceStatuses = [
+  "none",
+  "booked",
+  "scheduled",
+] as const;
+export type QuotePostAcceptanceStatus =
+  (typeof quotePostAcceptanceStatuses)[number];
+export const quoteReminderKinds = ["follow_up_due", "expiring_soon"] as const;
+export type QuoteReminderKind = (typeof quoteReminderKinds)[number];
 export const quoteLibraryEntryKinds = ["block", "package"] as const;
 export type QuoteLibraryEntryKind = (typeof quoteLibraryEntryKinds)[number];
 
@@ -28,9 +37,11 @@ export type DashboardQuoteListItem = {
   totalInCents: number;
   validUntil: string;
   status: QuoteStatus;
+  postAcceptanceStatus: QuotePostAcceptanceStatus;
   createdAt: Date;
   sentAt: Date | null;
   customerRespondedAt: Date | null;
+  reminders: QuoteReminderKind[];
 };
 
 export type DashboardQuoteItem = {
@@ -111,6 +122,7 @@ export type DashboardQuoteDetail = {
   totalInCents: number;
   validUntil: string;
   status: QuoteStatus;
+  postAcceptanceStatus: QuotePostAcceptanceStatus;
   sentAt: Date | null;
   acceptedAt: Date | null;
   publicViewedAt: Date | null;
@@ -121,6 +133,7 @@ export type DashboardQuoteDetail = {
   items: DashboardQuoteItem[];
   activities: DashboardQuoteActivity[];
   linkedInquiry: QuoteLinkedInquirySummary | null;
+  reminders: QuoteReminderKind[];
 };
 
 export type PublicQuoteView = {
@@ -212,6 +225,14 @@ export type QuoteStatusActionState = {
   error?: string;
   success?: string;
   fieldErrors?: Partial<Record<"status", string[] | undefined>>;
+};
+
+export type QuotePostAcceptanceActionState = {
+  error?: string;
+  success?: string;
+  fieldErrors?: Partial<
+    Record<"postAcceptanceStatus", string[] | undefined>
+  >;
 };
 
 export type QuoteSendActionState = {

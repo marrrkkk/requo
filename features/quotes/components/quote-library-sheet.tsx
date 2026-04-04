@@ -155,6 +155,7 @@ export function QuoteLibrarySheet({
                 return (
                   <div
                     className="soft-panel flex flex-col gap-4 p-4 shadow-none"
+                    data-testid="quote-library-sheet-entry"
                     key={entry.id}
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

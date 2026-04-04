@@ -18,11 +18,17 @@ import { Button } from "@/components/ui/button";
 import {
   changeQuoteStatusAction,
   sendQuoteAction,
+  updateQuotePostAcceptanceStatusAction,
   updateQuoteAction,
 } from "@/features/quotes/actions";
+import { CustomerHistoryPanel } from "@/features/customers/components/customer-history-panel";
+import { getCustomerHistoryForWorkspace } from "@/features/customers/queries";
 import { CopyQuoteLinkButton } from "@/features/quotes/components/copy-quote-link-button";
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";
+import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
+import { QuotePostAcceptanceForm } from "@/features/quotes/components/quote-post-acceptance-form";
 import { QuotePreview } from "@/features/quotes/components/quote-preview";
+import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
 import { QuoteSendForm } from "@/features/quotes/components/quote-send-form";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
 import { QuoteStatusForm } from "@/features/quotes/components/quote-status-form";
@@ -39,6 +45,7 @@ import {
 import { getWorkspaceInquiryPath } from "@/features/workspaces/routes";
 import { requireCurrentWorkspaceContext } from "@/lib/db/workspace-access";
 import { env } from "@/lib/env";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type QuoteDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -71,12 +78,21 @@ export default async function QuoteDetailPage({
 
   const updateAction = updateQuoteAction.bind(null, quote.id);
   const statusAction = changeQuoteStatusAction.bind(null, quote.id);
+  const postAcceptanceAction = updateQuotePostAcceptanceStatusAction.bind(
+    null,
+    quote.id,
+  );
   const sendAction = sendQuoteAction.bind(null, quote.id);
   const customerQuotePath = getPublicQuoteUrl(quote.publicToken);
   const customerQuoteUrl = new URL(
     customerQuotePath,
     env.BETTER_AUTH_URL,
   ).toString();
+  const customerHistory = await getCustomerHistoryForWorkspace({
+    workspaceId: workspaceContext.workspace.id,
+    customerEmail: quote.customerEmail,
+    excludeQuoteId: quote.id,
+  });
   const linkedInquiry = quote.linkedInquiry
     ? {
         id: quote.linkedInquiry.id,
@@ -184,6 +200,9 @@ export default async function QuoteDetailPage({
             <DashboardMetaPill>
               {quote.inquiryId ? "Linked inquiry" : "Manual quote"}
             </DashboardMetaPill>
+            {quote.postAcceptanceStatus !== "none" ? (
+              <QuotePostAcceptanceStatusBadge status={quote.postAcceptanceStatus} />
+            ) : null}
           </>
         }
         actions={
@@ -214,6 +233,10 @@ export default async function QuoteDetailPage({
             <DashboardSidebarStack>
               {linkedInquirySection}
               {activitySection}
+              <CustomerHistoryPanel
+                history={customerHistory}
+                workspaceSlug={workspaceSlug}
+              />
             </DashboardSidebarStack>
 
             <DashboardSidebarStack>
@@ -260,6 +283,24 @@ export default async function QuoteDetailPage({
       ) : (
         <DashboardDetailLayout className="xl:grid-cols-[minmax(0,1.05fr)_0.95fr]">
           <DashboardSidebarStack>
+            {quote.reminders.includes("follow_up_due") ? (
+              <Alert>
+                <AlertTitle>Follow up due</AlertTitle>
+                <AlertDescription>
+                  This sent quote has been waiting at least 3 days without a customer response.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
+            {quote.reminders.includes("expiring_soon") ? (
+              <Alert>
+                <AlertTitle>Quote expiring soon</AlertTitle>
+                <AlertDescription>
+                  This quote expires on {formatQuoteDate(quote.validUntil)}.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+
             <QuotePreview
               workspaceName={workspaceContext.workspace.name}
               quoteNumber={quote.quoteNumber}
@@ -277,6 +318,10 @@ export default async function QuoteDetailPage({
 
             {linkedInquirySection}
             {activitySection}
+            <CustomerHistoryPanel
+              history={customerHistory}
+              workspaceSlug={workspaceSlug}
+            />
           </DashboardSidebarStack>
 
           <DashboardSidebarStack>
@@ -366,6 +411,14 @@ export default async function QuoteDetailPage({
                 />
               </div>
 
+              {quote.reminders.length ? (
+                <div className="flex flex-wrap gap-2">
+                  {quote.reminders.map((reminder) => (
+                    <QuoteReminderBadge key={reminder} kind={reminder} />
+                  ))}
+                </div>
+              ) : null}
+
               {quote.customerResponseMessage ? (
                 <div className="soft-panel px-4 py-4 shadow-none">
                   <p className="meta-label">Customer message</p>
@@ -396,6 +449,19 @@ export default async function QuoteDetailPage({
                 currentStatus={quote.status}
               />
             </DashboardSection>
+
+            {quote.status === "accepted" ? (
+              <DashboardSection
+                description="Track the handoff after the customer says yes."
+                title="Post-acceptance"
+              >
+                <QuotePostAcceptanceForm
+                  key={quote.postAcceptanceStatus}
+                  action={postAcceptanceAction}
+                  currentStatus={quote.postAcceptanceStatus}
+                />
+              </DashboardSection>
+            ) : null}
           </DashboardSidebarStack>
         </DashboardDetailLayout>
       )}

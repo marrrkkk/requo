@@ -7,6 +7,24 @@ import { renderQuoteSentOwnerNotificationEmail } from "@/emails/templates/quote-
 import { env, isResendConfigured } from "@/lib/env";
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
+const consumerMailboxProviderDomains = new Set([
+  "gmail.com",
+  "googlemail.com",
+  "hotmail.com",
+  "outlook.com",
+  "live.com",
+  "msn.com",
+  "yahoo.com",
+  "ymail.com",
+  "rocketmail.com",
+  "icloud.com",
+  "me.com",
+  "mac.com",
+  "aol.com",
+  "protonmail.com",
+  "proton.me",
+  "pm.me",
+]);
 
 type SendPasswordResetEmailInput = {
   userId: string;
@@ -75,6 +93,44 @@ type SendQuoteSentOwnerNotificationEmailInput = {
   publicQuoteUrl: string;
 };
 
+function getEmailDomain(email: string) {
+  const atIndex = email.lastIndexOf("@");
+
+  return atIndex >= 0 ? email.slice(atIndex + 1).toLowerCase() : "";
+}
+
+export function getResendFromEmailConfigurationError(
+  fromEmail = env.RESEND_FROM_EMAIL,
+) {
+  if (!fromEmail) {
+    return "Set RESEND_FROM_EMAIL to an address on a domain verified in Resend before sending quote emails.";
+  }
+
+  const domain = getEmailDomain(fromEmail);
+
+  if (!domain) {
+    return "Set RESEND_FROM_EMAIL to an address on a domain verified in Resend before sending quote emails.";
+  }
+
+  if (consumerMailboxProviderDomains.has(domain)) {
+    return `RESEND_FROM_EMAIL cannot use ${domain}. Use an address on a domain verified in Resend, and keep your normal inbox in RESEND_REPLY_TO_EMAIL instead.`;
+  }
+
+  return null;
+}
+
+export function getResendSendFailureMessage(error: unknown) {
+  if (!(error instanceof Error)) {
+    return null;
+  }
+
+  if (error.message.includes("domain is not verified")) {
+    return "RESEND_FROM_EMAIL must use an address on a domain verified in Resend. Personal mailbox addresses belong in RESEND_REPLY_TO_EMAIL instead.";
+  }
+
+  return null;
+}
+
 export async function sendPasswordResetEmail({
   userId,
   email,
@@ -85,6 +141,15 @@ export async function sendPasswordResetEmail({
   if (!resend || !isResendConfigured || !env.RESEND_FROM_EMAIL) {
     console.warn(
       "Resend is not configured yet. Password reset email delivery was skipped.",
+    );
+    return;
+  }
+
+  const senderConfigurationError = getResendFromEmailConfigurationError();
+
+  if (senderConfigurationError) {
+    console.warn(
+      `Resend sender is misconfigured. Password reset email delivery was skipped. ${senderConfigurationError}`,
     );
     return;
   }
@@ -137,6 +202,15 @@ export async function sendPublicInquiryNotificationEmail({
   if (!resend || !isResendConfigured || !env.RESEND_FROM_EMAIL) {
     console.warn(
       "Resend is not configured yet. Inquiry notification email delivery was skipped.",
+    );
+    return;
+  }
+
+  const senderConfigurationError = getResendFromEmailConfigurationError();
+
+  if (senderConfigurationError) {
+    console.warn(
+      `Resend sender is misconfigured. Inquiry notification email delivery was skipped. ${senderConfigurationError}`,
     );
     return;
   }
@@ -199,6 +273,12 @@ export async function sendQuoteEmail({
     throw new Error("Quote delivery email is not configured yet.");
   }
 
+  const senderConfigurationError = getResendFromEmailConfigurationError();
+
+  if (senderConfigurationError) {
+    throw new Error(senderConfigurationError);
+  }
+
   const template = renderQuoteEmail({
     workspaceName,
     customerName,
@@ -257,6 +337,15 @@ export async function sendQuoteSentOwnerNotificationEmail({
   if (!resend || !isResendConfigured || !env.RESEND_FROM_EMAIL) {
     console.warn(
       "Resend is not configured yet. Quote owner notification email delivery was skipped.",
+    );
+    return;
+  }
+
+  const senderConfigurationError = getResendFromEmailConfigurationError();
+
+  if (senderConfigurationError) {
+    console.warn(
+      `Resend sender is misconfigured. Quote owner notification email delivery was skipped. ${senderConfigurationError}`,
     );
     return;
   }

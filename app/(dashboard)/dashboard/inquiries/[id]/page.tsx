@@ -17,7 +17,10 @@ import {
 import { InfoTile } from "@/components/shared/info-tile";
 import { generateInquiryAssistantAction } from "@/features/ai/actions";
 import { InquiryAiPanel } from "@/features/ai/components/inquiry-ai-panel";
+import { CustomerHistoryPanel } from "@/features/customers/components/customer-history-panel";
+import { getCustomerHistoryForWorkspace } from "@/features/customers/queries";
 import { getAdditionalInquirySubmittedFields } from "@/features/inquiries/form-config";
+import { getReplySnippetsForWorkspace } from "@/features/inquiries/reply-snippet-queries";
 import {
   addInquiryNoteAction,
   changeInquiryStatusAction,
@@ -74,6 +77,14 @@ export default async function InquiryDetailPage({
   const additionalFields = getAdditionalInquirySubmittedFields(
     inquiry.submittedFieldSnapshot,
   );
+  const [customerHistory, replySnippets] = await Promise.all([
+    getCustomerHistoryForWorkspace({
+      workspaceId: workspaceContext.workspace.id,
+      customerEmail: inquiry.customerEmail,
+      excludeInquiryId: inquiry.id,
+    }),
+    getReplySnippetsForWorkspace(workspaceContext.workspace.id),
+  ]);
 
   return (
     <DashboardPage>
@@ -376,6 +387,11 @@ export default async function InquiryDetailPage({
             )}
           </DashboardSection>
 
+          <CustomerHistoryPanel
+            history={customerHistory}
+            workspaceSlug={workspaceSlug}
+          />
+
           <DashboardSection
             description="Move the inquiry forward."
             title="Status"
@@ -387,7 +403,7 @@ export default async function InquiryDetailPage({
               />
           </DashboardSection>
 
-          <InquiryAiPanel action={aiAction} />
+          <InquiryAiPanel action={aiAction} replySnippets={replySnippets} />
         </DashboardSidebarStack>
       </DashboardDetailLayout>
     </DashboardPage>

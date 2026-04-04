@@ -14,6 +14,7 @@ import {
   profiles,
   quoteItems,
   quotes,
+  replySnippets,
   user,
   workspaceInquiryForms,
   workspaceMembers,
@@ -52,6 +53,7 @@ const demoInquiryIds = [
   "demo_inquiry_won_menu_bundle",
   "demo_inquiry_lost_merch_pack",
   "demo_inquiry_archived_refile",
+  "demo_inquiry_history_foundry_rebrand",
 ] as const;
 
 const demoQuoteIds = [
@@ -60,6 +62,7 @@ const demoQuoteIds = [
   "demo_quote_accepted_1003",
   "demo_quote_rejected_1004",
   "demo_quote_expired_1005",
+  "demo_quote_history_0998",
 ] as const;
 
 const demoQuotePublicTokens = [
@@ -68,6 +71,7 @@ const demoQuotePublicTokens = [
   "demoquote1003acceptedtoken",
   "demoquote1004rejectedtoken",
   getSeedValue("DEMO_EXPIRED_QUOTE_PUBLIC_TOKEN", "demoquote1005expiredtoken"),
+  "demoquote0998historytoken",
 ] as const;
 
 const demoQuoteItemIds = [
@@ -81,6 +85,13 @@ const demoQuoteItemIds = [
   "demo_quote_item_1004_b",
   "demo_quote_item_1005_a",
   "demo_quote_item_1005_b",
+  "demo_quote_item_0998_a",
+  "demo_quote_item_0998_b",
+] as const;
+
+const demoReplySnippetIds = [
+  "demo_reply_snippet_dimensions",
+  "demo_reply_snippet_timeline",
 ] as const;
 
 const demoFaqIds = [
@@ -111,6 +122,9 @@ const demoActivityIds = [
   "demo_activity_quote_created_1004",
   "demo_activity_quote_rejected_1004",
   "demo_activity_quote_created_1005",
+  "demo_activity_inquiry_history_foundry",
+  "demo_activity_quote_created_0998",
+  "demo_activity_quote_post_acceptance_0998",
   "demo_activity_workspace_seeded",
 ] as const;
 
@@ -488,6 +502,28 @@ async function seedWorkspaceData(demoUser: DemoUser, workspace: DemoWorkspace) {
       createdAt: daysAgo(28, 10, 10),
       updatedAt: daysAgo(27, 13, 0),
     },
+    {
+      id: demoInquiryIds[6],
+      workspaceId: workspace.id,
+      workspaceInquiryFormId: workspace.defaultInquiryFormId,
+      status: "won" as const,
+      subject: "Foundry Labs rebrand signage",
+      customerName: "Priya Shah",
+      customerEmail: "priya@foundrylabs.io",
+      customerPhone: "(415) 555-0112",
+      serviceCategory: "Office signage",
+      requestedDeadline: null,
+      budgetText: "$3,000+",
+      companyName: "Foundry Labs",
+      details:
+        "Previous project for a small office rebrand package including lobby graphics and door signs. Completed successfully last quarter.",
+      source: "demo-seed",
+      quoteRequested: true,
+      submittedAt: daysAgo(42, 9, 20),
+      lastRespondedAt: daysAgo(35, 15, 30),
+      createdAt: daysAgo(42, 9, 20),
+      updatedAt: daysAgo(35, 15, 30),
+    },
   ];
 
   const noteRows = [
@@ -594,6 +630,7 @@ async function seedWorkspaceData(demoUser: DemoUser, workspace: DemoWorkspace) {
       publicViewedAt: null,
       customerRespondedAt: null,
       customerResponseMessage: null,
+      postAcceptanceStatus: "none" as const,
       validUntil: toIsoDate(daysFromNow(14)),
       createdAt: daysAgo(2, 15, 15),
       updatedAt: daysAgo(2, 15, 15),
@@ -619,7 +656,8 @@ async function seedWorkspaceData(demoUser: DemoUser, workspace: DemoWorkspace) {
       publicViewedAt: daysAgo(4, 10, 20),
       customerRespondedAt: null,
       customerResponseMessage: null,
-      validUntil: toIsoDate(daysFromNow(9)),
+      postAcceptanceStatus: "none" as const,
+      validUntil: toIsoDate(daysFromNow(5)),
       createdAt: daysAgo(6, 15, 0),
       updatedAt: daysAgo(5, 15, 0),
     },
@@ -645,6 +683,7 @@ async function seedWorkspaceData(demoUser: DemoUser, workspace: DemoWorkspace) {
       customerRespondedAt: daysAgo(8, 16, 35),
       customerResponseMessage:
         "Looks good. Please move ahead with production and send the install timing.",
+      postAcceptanceStatus: "none" as const,
       validUntil: toIsoDate(daysFromNow(5)),
       createdAt: daysAgo(10, 10, 0),
       updatedAt: daysAgo(8, 16, 35),
@@ -671,6 +710,7 @@ async function seedWorkspaceData(demoUser: DemoUser, workspace: DemoWorkspace) {
       customerRespondedAt: daysAgo(15, 14, 45),
       customerResponseMessage:
         "Thanks, but we decided to consolidate this reorder with another supplier.",
+      postAcceptanceStatus: "none" as const,
       validUntil: toIsoDate(daysAgo(2)),
       createdAt: daysAgo(17, 12, 0),
       updatedAt: daysAgo(15, 14, 45),
@@ -696,9 +736,37 @@ async function seedWorkspaceData(demoUser: DemoUser, workspace: DemoWorkspace) {
       publicViewedAt: daysAgo(21, 9, 40),
       customerRespondedAt: null,
       customerResponseMessage: null,
+      postAcceptanceStatus: "none" as const,
       validUntil: toIsoDate(daysAgo(10)),
       createdAt: daysAgo(23, 11, 0),
       updatedAt: daysAgo(22, 11, 0),
+    },
+    {
+      id: demoQuoteIds[5],
+      workspaceId: workspace.id,
+      inquiryId: demoInquiryIds[6],
+      status: "accepted" as const,
+      quoteNumber: "Q-0998",
+      publicToken: demoQuotePublicTokens[5],
+      title: "Foundry Labs rebrand signage package",
+      customerName: "Priya Shah",
+      customerEmail: "priya@foundrylabs.io",
+      currency: "USD",
+      notes:
+        "Prior accepted signage package that moved into scheduling for the office refresh.",
+      subtotalInCents: 348000,
+      discountInCents: 18000,
+      totalInCents: 330000,
+      sentAt: daysAgo(39, 11, 0),
+      acceptedAt: daysAgo(35, 15, 30),
+      publicViewedAt: daysAgo(35, 14, 50),
+      customerRespondedAt: daysAgo(35, 15, 30),
+      customerResponseMessage:
+        "Approved. Please line up installation for the week after next.",
+      postAcceptanceStatus: "scheduled" as const,
+      validUntil: toIsoDate(daysAgo(30)),
+      createdAt: daysAgo(40, 11, 0),
+      updatedAt: daysAgo(34, 10, 10),
     },
   ];
 
@@ -822,6 +890,51 @@ async function seedWorkspaceData(demoUser: DemoUser, workspace: DemoWorkspace) {
       position: 1,
       createdAt: daysAgo(23, 11, 1),
       updatedAt: daysAgo(23, 11, 1),
+    },
+    {
+      id: demoQuoteItemIds[10],
+      workspaceId: workspace.id,
+      quoteId: demoQuoteIds[5],
+      description: "Lobby logo wall graphics",
+      quantity: 1,
+      unitPriceInCents: 214000,
+      lineTotalInCents: 214000,
+      position: 0,
+      createdAt: daysAgo(40, 11, 0),
+      updatedAt: daysAgo(40, 11, 0),
+    },
+    {
+      id: demoQuoteItemIds[11],
+      workspaceId: workspace.id,
+      quoteId: demoQuoteIds[5],
+      description: "Door signs and meeting room wayfinding",
+      quantity: 1,
+      unitPriceInCents: 134000,
+      lineTotalInCents: 134000,
+      position: 1,
+      createdAt: daysAgo(40, 11, 1),
+      updatedAt: daysAgo(40, 11, 1),
+    },
+  ];
+
+  const replySnippetRows = [
+    {
+      id: demoReplySnippetIds[0],
+      workspaceId: workspace.id,
+      title: "Ask for missing dimensions",
+      body:
+        "Thanks for sending this over. To price it accurately, could you confirm the final dimensions, quantity, and whether installation should be included?",
+      createdAt: daysAgo(18, 9, 0),
+      updatedAt: daysAgo(18, 9, 0),
+    },
+    {
+      id: demoReplySnippetIds[1],
+      workspaceId: workspace.id,
+      title: "Confirm timeline and files",
+      body:
+        "Before we lock the quote, please confirm your target install date and send the latest print-ready files or artwork links.",
+      createdAt: daysAgo(16, 9, 0),
+      updatedAt: daysAgo(16, 9, 0),
     },
   ];
 
@@ -985,6 +1098,42 @@ async function seedWorkspaceData(demoUser: DemoUser, workspace: DemoWorkspace) {
     {
       id: demoActivityIds[13],
       workspaceId: workspace.id,
+      inquiryId: demoInquiryIds[6],
+      quoteId: null,
+      actorUserId: demoUser.id,
+      type: "inquiry.status_changed",
+      summary: "Past Foundry Labs rebrand inquiry marked won after the office signage package closed.",
+      metadata: { source: "demo-seed", nextStatus: "won" },
+      createdAt: daysAgo(35, 15, 30),
+      updatedAt: daysAgo(35, 15, 30),
+    },
+    {
+      id: demoActivityIds[14],
+      workspaceId: workspace.id,
+      inquiryId: demoInquiryIds[6],
+      quoteId: demoQuoteIds[5],
+      actorUserId: demoUser.id,
+      type: "quote.created",
+      summary: "Quote Q-0998 created for the Foundry Labs rebrand signage package.",
+      metadata: { source: "demo-seed" },
+      createdAt: daysAgo(40, 11, 0),
+      updatedAt: daysAgo(40, 11, 0),
+    },
+    {
+      id: demoActivityIds[15],
+      workspaceId: workspace.id,
+      inquiryId: demoInquiryIds[6],
+      quoteId: demoQuoteIds[5],
+      actorUserId: demoUser.id,
+      type: "quote.post_acceptance_updated",
+      summary: "Quote Q-0998 marked scheduled.",
+      metadata: { source: "demo-seed", postAcceptanceStatus: "scheduled" },
+      createdAt: daysAgo(34, 10, 10),
+      updatedAt: daysAgo(34, 10, 10),
+    },
+    {
+      id: demoActivityIds[16],
+      workspaceId: workspace.id,
       inquiryId: null,
       quoteId: null,
       actorUserId: demoUser.id,
@@ -1003,12 +1152,14 @@ async function seedWorkspaceData(demoUser: DemoUser, workspace: DemoWorkspace) {
     await tx.delete(quotes).where(inArray(quotes.id, demoQuoteIds));
     await tx.delete(inquiries).where(inArray(inquiries.id, demoInquiryIds));
     await tx.delete(knowledgeFaqs).where(inArray(knowledgeFaqs.id, demoFaqIds));
+    await tx.delete(replySnippets).where(inArray(replySnippets.id, demoReplySnippetIds));
 
     await tx.insert(knowledgeFaqs).values(faqRows);
     await tx.insert(inquiries).values(inquiryRows);
     await tx.insert(inquiryNotes).values(noteRows);
     await tx.insert(quotes).values(quoteRows);
     await tx.insert(quoteItems).values(quoteItemRows);
+    await tx.insert(replySnippets).values(replySnippetRows);
     await tx.insert(activityLogs).values(activityRows);
   });
 }

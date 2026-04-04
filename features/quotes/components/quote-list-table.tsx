@@ -10,6 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
+import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
 import type { DashboardQuoteListItem } from "@/features/quotes/types";
 import {
@@ -62,6 +64,18 @@ export function QuoteListTable({
                   <span className="table-supporting-text">
                     {quote.title}
                   </span>
+                  {quote.reminders.length || quote.postAcceptanceStatus !== "none" ? (
+                    <div className="flex flex-wrap gap-2">
+                      {quote.reminders.map((reminder) => (
+                        <QuoteReminderBadge key={reminder} kind={reminder} />
+                      ))}
+                      {quote.postAcceptanceStatus !== "none" ? (
+                        <QuotePostAcceptanceStatusBadge
+                          status={quote.postAcceptanceStatus}
+                        />
+                      ) : null}
+                    </div>
+                  ) : null}
                   <span className="table-supporting-text 2xl:hidden">
                     {quote.inquiryId ? "Linked inquiry" : "Manual quote"} |{" "}
                     {formatQuoteDate(quote.createdAt)}

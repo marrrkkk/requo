@@ -20,6 +20,8 @@ import {
 import { env, isResendConfigured } from "@/lib/env";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
 import {
+  getResendFromEmailConfigurationError,
+  getResendSendFailureMessage,
   sendQuoteEmail,
   sendQuoteSentOwnerNotificationEmail,
 } from "@/lib/resend/client";
@@ -28,12 +30,14 @@ import {
   createQuoteForWorkspace,
   markQuoteSentForWorkspace,
   respondToPublicQuoteByToken,
+  updateQuotePostAcceptanceStatusForWorkspace,
   updateQuoteForWorkspace,
 } from "@/features/quotes/mutations";
 import { getQuoteDetailForWorkspace } from "@/features/quotes/queries";
 import {
   publicQuoteResponseSchema,
   quoteEditorSchema,
+  quotePostAcceptanceStatusChangeSchema,
   quoteStatusChangeSchema,
 } from "@/features/quotes/schemas";
 import {
@@ -42,16 +46,19 @@ import {
 import type {
   PublicQuoteResponseActionState,
   QuoteEditorActionState,
+  QuotePostAcceptanceActionState,
   QuoteSendActionState,
   QuoteStatusActionState,
 } from "@/features/quotes/types";
 import {
   getPublicQuoteUrl,
+  getQuotePostAcceptanceStatusLabel,
   getQuoteStatusLabel,
 } from "@/features/quotes/utils";
 
 const initialEditorState: QuoteEditorActionState = {};
 const initialStatusState: QuoteStatusActionState = {};
+const initialPostAcceptanceState: QuotePostAcceptanceActionState = {};
 const initialSendState: QuoteSendActionState = {};
 const initialPublicQuoteResponseState: PublicQuoteResponseActionState = {};
 
@@ -365,6 +372,15 @@ export async function sendQuoteAction(
       };
     }
 
+    const resendSenderConfigurationError =
+      getResendFromEmailConfigurationError();
+
+    if (resendSenderConfigurationError) {
+      return {
+        error: resendSenderConfigurationError,
+      };
+    }
+
     await sendQuoteEmail({
       quoteId: quote.id,
       updatedAt: quote.updatedAt,
@@ -443,7 +459,89 @@ export async function sendQuoteAction(
     console.error("Failed to send quote email.", error);
 
     return {
-      error: "We couldn't send that quote right now.",
+      error:
+        getResendSendFailureMessage(error) ??
+        "We couldn't send that quote right now.",
+    };
+  }
+}
+
+export async function updateQuotePostAcceptanceStatusAction(
+  quoteId: string,
+  prevState: QuotePostAcceptanceActionState = initialPostAcceptanceState,
+  formData: FormData,
+): Promise<QuotePostAcceptanceActionState> {
+  void prevState;
+
+  const ownerAccess = await getOwnerWorkspaceActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, workspaceContext } = ownerAccess;
+  const validationResult = quotePostAcceptanceStatusChangeSchema.safeParse({
+    postAcceptanceStatus: formData.get("postAcceptanceStatus"),
+  });
+
+  if (!validationResult.success) {
+    return getValidationActionState(
+      validationResult.error,
+      "Choose a valid post-acceptance status.",
+    );
+  }
+
+  try {
+    const result = await updateQuotePostAcceptanceStatusForWorkspace({
+      workspaceId: workspaceContext.workspace.id,
+      quoteId,
+      actorUserId: user.id,
+      postAcceptanceStatus: validationResult.data.postAcceptanceStatus,
+    });
+
+    if (!result) {
+      return {
+        error: "That quote could not be found.",
+      };
+    }
+
+    if (result.locked) {
+      return {
+        error: "Only accepted quotes can be marked as booked or scheduled.",
+      };
+    }
+
+    updateCacheTags(
+      getQuoteMutationCacheTags(
+        workspaceContext.workspace.id,
+        quoteId,
+        result.inquiryId,
+      ),
+    );
+
+    if (!result.updated) {
+      return {
+        success: `Quote is already marked ${getQuotePostAcceptanceStatusLabel(
+          result.postAcceptanceStatus,
+        ).toLowerCase()}.`,
+      };
+    }
+
+    return {
+      success:
+        result.postAcceptanceStatus === "none"
+          ? "Post-acceptance status cleared."
+          : `Quote marked ${getQuotePostAcceptanceStatusLabel(
+              result.postAcceptanceStatus,
+            ).toLowerCase()}.`,
+    };
+  } catch (error) {
+    console.error("Failed to update quote post-acceptance status.", error);
+
+    return {
+      error: "We couldn't update the post-acceptance status right now.",
     };
   }
 }

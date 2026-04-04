@@ -3,9 +3,11 @@ import { CircleCheck, CircleX, Clock3, FileText, Send } from "lucide-react";
 import type {
   DashboardQuoteLibraryItem,
   DashboardQuoteDetail,
+  QuotePostAcceptanceStatus,
   QuoteEditorLineItemValue,
   QuoteInquiryPrefill,
   QuoteLibraryEntryKind,
+  QuoteReminderKind,
   QuoteStatus,
 } from "@/features/quotes/types";
 
@@ -42,12 +44,57 @@ export const quoteLibraryEntryKindLabels: Record<QuoteLibraryEntryKind, string> 
   package: "Service package",
 };
 
+export const quotePostAcceptanceStatusLabels: Record<
+  QuotePostAcceptanceStatus,
+  string
+> = {
+  none: "None yet",
+  booked: "Booked",
+  scheduled: "Scheduled",
+};
+
+export const quotePostAcceptanceStatusClassNames: Record<
+  QuotePostAcceptanceStatus,
+  string
+> = {
+  none: "border-slate-200/80 bg-slate-100 text-slate-700 dark:border-slate-500/25 dark:bg-slate-500/12 dark:text-slate-200",
+  booked:
+    "border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/12 dark:text-emerald-200",
+  scheduled:
+    "border-amber-200/80 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/12 dark:text-amber-200",
+};
+
+export const quoteReminderLabels: Record<QuoteReminderKind, string> = {
+  follow_up_due: "Follow up due",
+  expiring_soon: "Expiring soon",
+};
+
+export const quoteReminderClassNames: Record<QuoteReminderKind, string> = {
+  follow_up_due:
+    "border-orange-200/80 bg-orange-50 text-orange-700 dark:border-orange-500/25 dark:bg-orange-500/12 dark:text-orange-200",
+  expiring_soon:
+    "border-amber-200/80 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/12 dark:text-amber-200",
+};
+
+export const quoteFollowUpReminderDays = 3;
+export const quoteExpiringSoonReminderDays = 7;
+
 export function getQuoteStatusLabel(status: QuoteStatus) {
   return quoteStatusLabels[status];
 }
 
+export function getQuotePostAcceptanceStatusLabel(
+  status: QuotePostAcceptanceStatus,
+) {
+  return quotePostAcceptanceStatusLabels[status];
+}
+
 export function getQuoteLibraryEntryKindLabel(kind: QuoteLibraryEntryKind) {
   return quoteLibraryEntryKindLabels[kind];
+}
+
+export function getQuoteReminderLabel(kind: QuoteReminderKind) {
+  return quoteReminderLabels[kind];
 }
 
 export function createQuotePublicToken() {
@@ -258,4 +305,40 @@ export function getTodayUtcDateString() {
 
 export function isQuotePastValidityDate(validUntil: string) {
   return validUntil < getTodayUtcDateString();
+}
+
+export function getFutureUtcDateString(daysAhead: number) {
+  return new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+export function getQuoteReminderKinds(input: {
+  status: QuoteStatus;
+  sentAt: Date | null;
+  customerRespondedAt: Date | null;
+  validUntil: string;
+  now?: Date;
+}) {
+  if (input.status !== "sent" || input.customerRespondedAt) {
+    return [] satisfies QuoteReminderKind[];
+  }
+
+  const now = input.now ?? new Date();
+  const reminderKinds: QuoteReminderKind[] = [];
+  const followUpDueAt = new Date(
+    now.getTime() - quoteFollowUpReminderDays * 24 * 60 * 60 * 1000,
+  );
+  const expiringSoonCutoff = getFutureUtcDateString(quoteExpiringSoonReminderDays);
+  const today = now.toISOString().slice(0, 10);
+
+  if (input.sentAt && input.sentAt <= followUpDueAt) {
+    reminderKinds.push("follow_up_due");
+  }
+
+  if (input.validUntil >= today && input.validUntil <= expiringSoonCutoff) {
+    reminderKinds.push("expiring_soon");
+  }
+
+  return reminderKinds;
 }

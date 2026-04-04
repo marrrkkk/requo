@@ -5,5 +5,6 @@ export * from "./knowledge";
 export * from "./public-actions";
 export * from "./quote-library";
 export * from "./quotes";
+export * from "./reply-snippets";
 export * from "./workspace-inquiry-forms";
 export * from "./workspaces";

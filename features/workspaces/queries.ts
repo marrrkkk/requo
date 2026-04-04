@@ -17,6 +17,7 @@ import { cacheLife, cacheTag } from "next/cache";
 
 import type { WorkspaceOverviewData } from "@/features/workspaces/types";
 import { syncExpiredQuotesForWorkspace } from "@/features/quotes/mutations";
+import { getQuoteReminderKinds } from "@/features/quotes/utils";
 import {
   getWorkspaceOverviewCacheTags,
   hotWorkspaceCacheLife,
@@ -50,6 +51,7 @@ async function getCachedWorkspaceOverviewData(
   cacheTag(...getWorkspaceOverviewCacheTags(workspaceId));
 
   const overdueCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
+  const followUpDueCutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
   const recentAcceptedCutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
   const today = new Date().toISOString().slice(0, 10);
   const expiringSoonCutoff = getFutureUtcDateString(7);
@@ -61,8 +63,8 @@ async function getCachedWorkspaceOverviewData(
     expiringSoonQuoteCountRows,
     inquiriesWithoutQuotes,
     inquiryWithoutQuoteCountRows,
-    awaitingResponseQuotes,
-    awaitingResponseQuoteCountRows,
+    followUpDueQuotes,
+    followUpDueQuoteCountRows,
     recentAcceptedQuotes,
     recentAcceptedQuoteCountRows,
   ] = await Promise.all([
@@ -124,6 +126,7 @@ async function getCachedWorkspaceOverviewData(
         currency: quotes.currency,
         totalInCents: quotes.totalInCents,
         status: quotes.status,
+        postAcceptanceStatus: quotes.postAcceptanceStatus,
         validUntil: quotes.validUntil,
         sentAt: quotes.sentAt,
         acceptedAt: quotes.acceptedAt,
@@ -212,6 +215,7 @@ async function getCachedWorkspaceOverviewData(
         currency: quotes.currency,
         totalInCents: quotes.totalInCents,
         status: quotes.status,
+        postAcceptanceStatus: quotes.postAcceptanceStatus,
         validUntil: quotes.validUntil,
         sentAt: quotes.sentAt,
         acceptedAt: quotes.acceptedAt,
@@ -224,9 +228,11 @@ async function getCachedWorkspaceOverviewData(
           eq(quotes.workspaceId, workspaceId),
           eq(quotes.status, "sent"),
           isNull(quotes.customerRespondedAt),
+          isNotNull(quotes.sentAt),
+          lte(quotes.sentAt, followUpDueCutoff),
         ),
       )
-      .orderBy(asc(quotes.validUntil), desc(quotes.sentAt), desc(quotes.createdAt))
+      .orderBy(asc(quotes.validUntil), asc(quotes.sentAt), desc(quotes.createdAt))
       .limit(4),
     db
       .select({
@@ -238,6 +244,8 @@ async function getCachedWorkspaceOverviewData(
           eq(quotes.workspaceId, workspaceId),
           eq(quotes.status, "sent"),
           isNull(quotes.customerRespondedAt),
+          isNotNull(quotes.sentAt),
+          lte(quotes.sentAt, followUpDueCutoff),
         ),
       ),
     db
@@ -251,6 +259,7 @@ async function getCachedWorkspaceOverviewData(
         currency: quotes.currency,
         totalInCents: quotes.totalInCents,
         status: quotes.status,
+        postAcceptanceStatus: quotes.postAcceptanceStatus,
         validUntil: quotes.validUntil,
         sentAt: quotes.sentAt,
         acceptedAt: quotes.acceptedAt,
@@ -283,17 +292,36 @@ async function getCachedWorkspaceOverviewData(
       ),
   ]);
 
+  function withQuoteReminders<
+    T extends {
+      status: (typeof expiringSoonQuotes)[number]["status"];
+      sentAt: Date | null;
+      customerRespondedAt: Date | null;
+      validUntil: string;
+    },
+  >(quote: T) {
+    return {
+      ...quote,
+      reminders: getQuoteReminderKinds({
+        status: quote.status,
+        sentAt: quote.sentAt,
+        customerRespondedAt: quote.customerRespondedAt,
+        validUntil: quote.validUntil,
+      }),
+    };
+  }
+
   return {
     overdueReplies,
-    expiringSoonQuotes,
+    expiringSoonQuotes: expiringSoonQuotes.map(withQuoteReminders),
     inquiriesWithoutQuotes,
-    awaitingResponseQuotes,
-    recentAcceptedQuotes,
+    followUpDueQuotes: followUpDueQuotes.map(withQuoteReminders),
+    recentAcceptedQuotes: recentAcceptedQuotes.map(withQuoteReminders),
     counts: {
       overdueReplies: Number(overdueReplyCountRows[0]?.count ?? 0),
       expiringSoonQuotes: Number(expiringSoonQuoteCountRows[0]?.count ?? 0),
       inquiriesWithoutQuotes: Number(inquiryWithoutQuoteCountRows[0]?.count ?? 0),
-      awaitingResponseQuotes: Number(awaitingResponseQuoteCountRows[0]?.count ?? 0),
+      followUpDueQuotes: Number(followUpDueQuoteCountRows[0]?.count ?? 0),
       recentAcceptedQuotes: Number(recentAcceptedQuoteCountRows[0]?.count ?? 0),
     },
   };
