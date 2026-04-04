@@ -1,16 +1,25 @@
 import { DashboardPage, DashboardTableContainer } from "@/components/shared/dashboard-layout";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export function DashboardListPageSkeleton() {
+type DashboardListPageSkeletonProps = {
+  variant?: "inquiries" | "quotes";
+};
+
+export function DashboardListPageSkeleton({
+  variant = "inquiries",
+}: DashboardListPageSkeletonProps) {
+  const isInquiryList = variant === "inquiries";
+
   return (
     <DashboardPage>
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex max-w-3xl flex-1 flex-col gap-3">
           <Skeleton className="h-3.5 w-24 rounded-md" />
           <Skeleton className="h-10 w-full max-w-sm rounded-xl" />
-          <Skeleton className="h-4 w-full max-w-2xl rounded-md" />
         </div>
-        <Skeleton className="h-10 w-full rounded-xl sm:w-40" />
+        <Skeleton
+          className={`h-10 w-full rounded-xl ${isInquiryList ? "sm:w-40" : "sm:w-36"}`}
+        />
       </div>
 
       <div className="toolbar-panel">
@@ -31,10 +40,12 @@ export function DashboardListPageSkeleton() {
               <Skeleton className="h-10 w-full rounded-xl" />
             </div>
 
-            <div className="data-list-toolbar-actions lg:self-end">
-              <Skeleton className="h-10 w-full rounded-xl sm:w-32" />
-              <Skeleton className="h-10 w-full rounded-xl sm:w-24" />
-            </div>
+            {isInquiryList ? (
+              <div className="data-list-toolbar-actions lg:self-end">
+                <Skeleton className="h-10 w-full rounded-xl sm:w-32" />
+                <Skeleton className="h-10 w-full rounded-xl sm:w-24" />
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

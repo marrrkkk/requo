@@ -20,12 +20,17 @@ export default async function WorkspaceInquiryFormPreviewPage({
 }: {
   params: Promise<{ slug: string; formSlug: string }>;
 }) {
-  const session = await requireSession();
-  const { slug, formSlug } = await params;
-  const workspaceContext = await getWorkspaceContextForMembershipSlug(
-    session.user.id,
-    slug,
-  );
+  const [session, { slug, formSlug }] = await Promise.all([
+    requireSession(),
+    params,
+  ]);
+  const [workspaceContext, workspace] = await Promise.all([
+    getWorkspaceContextForMembershipSlug(session.user.id, slug),
+    getInquiryWorkspacePreviewByFormSlug({
+      workspaceSlug: slug,
+      formSlug,
+    }),
+  ]);
 
   if (!workspaceContext) {
     redirect(workspaceHubPath);
@@ -34,11 +39,6 @@ export default async function WorkspaceInquiryFormPreviewPage({
   if (workspaceContext.role !== "owner") {
     redirect(getWorkspaceDashboardPath(workspaceContext.workspace.slug));
   }
-
-  const workspace = await getInquiryWorkspacePreviewByFormSlug({
-    workspaceSlug: slug,
-    formSlug,
-  });
 
   if (!workspace) {
     notFound();
@@ -68,7 +68,7 @@ export default async function WorkspaceInquiryFormPreviewPage({
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:[&>*]:w-auto [&>*]:w-full">
               <Button asChild variant="outline">
-                <Link href={settingsHref} prefetch={false}>
+                <Link href={settingsHref} prefetch={true}>
                   <ArrowLeft data-icon="inline-start" />
                   Back to editor
                 </Link>

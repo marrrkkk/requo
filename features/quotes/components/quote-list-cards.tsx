@@ -40,7 +40,7 @@ export function QuoteListCards({
                   <Link
                     className="block truncate underline-offset-4 transition-colors hover:text-primary hover:underline"
                     href={getWorkspaceQuotePath(workspaceSlug, quote.id)}
-                    prefetch={false}
+                    prefetch={true}
                   >
                     {quote.quoteNumber}
                   </Link>
@@ -92,7 +92,7 @@ export function QuoteListCards({
             <Button asChild className="w-full sm:w-auto" size="sm" variant="outline">
               <Link
                 href={getWorkspaceQuotePath(workspaceSlug, quote.id)}
-                prefetch={false}
+                prefetch={true}
               >
                 Open quote
                 <ArrowRight data-icon="inline-end" />

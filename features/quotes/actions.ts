@@ -1,11 +1,17 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateTag, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 import {
   getValidationActionState,
 } from "@/lib/action-state";
+import {
+  getWorkspaceInquiryDetailCacheTags,
+  getWorkspaceQuoteDetailCacheTags,
+  getWorkspaceQuoteListCacheTags,
+  uniqueCacheTags,
+} from "@/lib/cache/workspace-tags";
 import {
   getWorkspaceMessagingSettings,
   getWorkspaceOwnerEmails,
@@ -31,10 +37,7 @@ import {
   quoteStatusChangeSchema,
 } from "@/features/quotes/schemas";
 import {
-  getWorkspaceInquiriesPath,
-  getWorkspaceInquiryPath,
   getWorkspaceQuotePath,
-  getWorkspaceQuotesPath,
 } from "@/features/workspaces/routes";
 import type {
   PublicQuoteResponseActionState,
@@ -52,6 +55,32 @@ const initialStatusState: QuoteStatusActionState = {};
 const initialSendState: QuoteSendActionState = {};
 const initialPublicQuoteResponseState: PublicQuoteResponseActionState = {};
 
+function updateCacheTags(tags: string[]) {
+  for (const tag of uniqueCacheTags(tags)) {
+    updateTag(tag);
+  }
+}
+
+function revalidateCacheTags(tags: string[]) {
+  for (const tag of uniqueCacheTags(tags)) {
+    revalidateTag(tag, "max");
+  }
+}
+
+function getQuoteMutationCacheTags(
+  workspaceId: string,
+  quoteId?: string | null,
+  inquiryId?: string | null,
+) {
+  return uniqueCacheTags([
+    ...getWorkspaceQuoteListCacheTags(workspaceId),
+    ...(quoteId ? getWorkspaceQuoteDetailCacheTags(workspaceId, quoteId) : []),
+    ...(inquiryId
+      ? getWorkspaceInquiryDetailCacheTags(workspaceId, inquiryId)
+      : []),
+  ]);
+}
+
 function mapQuoteEditorFieldErrors(fieldErrors: Record<string, string[] | undefined>) {
   return {
     title: fieldErrors.title,
@@ -62,25 +91,6 @@ function mapQuoteEditorFieldErrors(fieldErrors: Record<string, string[] | undefi
     discount: fieldErrors.discountInCents,
     items: fieldErrors.items,
   };
-}
-
-function revalidateQuotePaths(
-  workspaceSlug: string,
-  quoteId: string,
-  inquiryId?: string | null,
-  publicToken?: string | null,
-) {
-  revalidatePath(getWorkspaceQuotesPath(workspaceSlug));
-  revalidatePath(getWorkspaceQuotePath(workspaceSlug, quoteId));
-
-  if (inquiryId) {
-    revalidatePath(getWorkspaceInquiriesPath(workspaceSlug));
-    revalidatePath(getWorkspaceInquiryPath(workspaceSlug, inquiryId));
-  }
-
-  if (publicToken) {
-    revalidatePath(getPublicQuoteUrl(publicToken));
-  }
 }
 
 export async function createQuoteAction(
@@ -134,10 +144,12 @@ export async function createQuoteAction(
       };
     }
 
-    revalidateQuotePaths(
-      workspaceContext.workspace.slug,
-      createdQuote.id,
-      inquiryId,
+    updateCacheTags(
+      getQuoteMutationCacheTags(
+        workspaceContext.workspace.id,
+        createdQuote.id,
+        inquiryId,
+      ),
     );
 
     quotePath = getWorkspaceQuotePath(
@@ -215,7 +227,9 @@ export async function updateQuoteAction(
       };
     }
 
-    revalidateQuotePaths(workspaceContext.workspace.slug, quoteId);
+    updateCacheTags(
+      getQuoteMutationCacheTags(workspaceContext.workspace.id, quoteId),
+    );
 
     return {
       success: "Draft quote saved.",
@@ -267,10 +281,12 @@ export async function changeQuoteStatusAction(
       };
     }
 
-    revalidateQuotePaths(
-      workspaceContext.workspace.slug,
-      quoteId,
-      result.inquiryId,
+    updateCacheTags(
+      getQuoteMutationCacheTags(
+        workspaceContext.workspace.id,
+        quoteId,
+        result.inquiryId,
+      ),
     );
 
     if (!result.changed) {
@@ -412,11 +428,12 @@ export async function sendQuoteAction(
       }
     }
 
-    revalidateQuotePaths(
-      workspaceContext.workspace.slug,
-      quoteId,
-      result.inquiryId,
-      result.publicToken,
+    updateCacheTags(
+      getQuoteMutationCacheTags(
+        workspaceContext.workspace.id,
+        quoteId,
+        result.inquiryId,
+      ),
     );
 
     return {
@@ -473,9 +490,13 @@ export async function respondToPublicQuoteAction(
       };
     }
 
-    revalidatePath(getPublicQuoteUrl(token));
-    revalidatePath(getWorkspaceQuotesPath(result.workspaceSlug));
-    revalidatePath(getWorkspaceQuotePath(result.workspaceSlug, result.quoteId));
+    revalidateCacheTags(
+      getQuoteMutationCacheTags(
+        result.workspaceId,
+        result.quoteId,
+        result.inquiryId,
+      ),
+    );
 
     if (!result.updated) {
       if (result.status === "accepted") {

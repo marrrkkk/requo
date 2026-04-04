@@ -26,8 +26,11 @@ type InquiriesPageProps = {
 export default async function InquiriesPage({
   searchParams,
 }: InquiriesPageProps) {
-  const { workspaceContext } = await requireCurrentWorkspaceContext();
-  const parsedFilters = inquiryListFiltersSchema.safeParse(await searchParams);
+  const [{ workspaceContext }, resolvedSearchParams] = await Promise.all([
+    requireCurrentWorkspaceContext(),
+    searchParams,
+  ]);
+  const parsedFilters = inquiryListFiltersSchema.safeParse(resolvedSearchParams);
   const filters = parsedFilters.success
     ? parsedFilters.data
     : {
@@ -90,7 +93,7 @@ export default async function InquiriesPage({
           action={
             hasFilters ? (
               <Button asChild variant="outline">
-                <Link href={getWorkspaceInquiriesPath(workspaceSlug)}>Clear filters</Link>
+                <Link href={getWorkspaceInquiriesPath(workspaceSlug)} prefetch={true}>Clear filters</Link>
               </Button>
             ) : (
               <Button asChild>

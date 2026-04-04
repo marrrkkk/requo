@@ -1,6 +1,7 @@
 import "server-only";
 
 import { and, asc, count, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
 
 import { db } from "@/lib/db/client";
 import { knowledgeFaqs, knowledgeFiles } from "@/lib/db/schema";
@@ -10,6 +11,10 @@ import type {
   WorkspaceKnowledgeContext,
 } from "@/features/knowledge/types";
 import {
+  getWorkspaceKnowledgeCacheTags,
+  settingsWorkspaceCacheLife,
+} from "@/lib/cache/workspace-tags";
+import {
   buildWorkspaceKnowledgeCombinedText,
   normalizeExtractedKnowledgeText,
 } from "@/features/knowledge/utils";
@@ -17,6 +22,11 @@ import {
 export async function getKnowledgeDashboardData(
   workspaceId: string,
 ): Promise<DashboardKnowledgeData> {
+  "use cache";
+
+  cacheLife(settingsWorkspaceCacheLife);
+  cacheTag(...getWorkspaceKnowledgeCacheTags(workspaceId));
+
   const [files, faqs] = await Promise.all([
     db
       .select({
@@ -54,6 +64,11 @@ export async function getKnowledgeDashboardData(
 export async function getKnowledgeSummaryForWorkspace(
   workspaceId: string,
 ): Promise<DashboardKnowledgeSummary> {
+  "use cache";
+
+  cacheLife(settingsWorkspaceCacheLife);
+  cacheTag(...getWorkspaceKnowledgeCacheTags(workspaceId));
+
   const [[fileSummary], [faqSummary]] = await Promise.all([
     db
       .select({
@@ -80,6 +95,11 @@ export async function getKnowledgeSummaryForWorkspace(
 export async function buildWorkspaceKnowledgeContext(
   workspaceId: string,
 ): Promise<WorkspaceKnowledgeContext> {
+  "use cache";
+
+  cacheLife(settingsWorkspaceCacheLife);
+  cacheTag(...getWorkspaceKnowledgeCacheTags(workspaceId));
+
   const [faqs, fileRows] = await Promise.all([
     db
       .select({

@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, asc, eq, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 import { getSession, requireUser, type AuthUser } from "@/lib/auth/session";
 import { activeWorkspaceSlugCookieName } from "@/features/workspaces/routes";
@@ -48,7 +49,7 @@ export type OwnerWorkspaceActionContext =
       error: string;
     };
 
-export async function getWorkspaceMembershipsForUser(userId: string) {
+export const getWorkspaceMembershipsForUser = cache(async (userId: string) => {
   const publicInquiryEnabledSelection = sql<boolean>`coalesce((
     select ${workspaceInquiryForms.publicInquiryEnabled}
     from ${workspaceInquiryForms}
@@ -90,12 +91,12 @@ export async function getWorkspaceMembershipsForUser(userId: string) {
       publicInquiryEnabled: membership.publicInquiryEnabled,
     },
   })) satisfies WorkspaceContext[];
-}
+});
 
-export async function getWorkspaceContextForMembershipSlug(
+export const getWorkspaceContextForMembershipSlug = cache(async (
   userId: string,
   workspaceSlug: string,
-) {
+) => {
   const publicInquiryEnabledSelection = sql<boolean>`coalesce((
     select ${workspaceInquiryForms.publicInquiryEnabled}
     from ${workspaceInquiryForms}
@@ -142,18 +143,18 @@ export async function getWorkspaceContextForMembershipSlug(
       publicInquiryEnabled: context.publicInquiryEnabled,
     },
   } satisfies WorkspaceContext;
-}
+});
 
-async function getActiveWorkspaceSlug() {
+const getActiveWorkspaceSlug = cache(async () => {
   const cookieStore = await cookies();
 
   return cookieStore.get(activeWorkspaceSlugCookieName)?.value ?? null;
-}
+});
 
-export async function getWorkspaceContextForUser(
+export const getWorkspaceContextForUser = cache(async (
   userId: string,
   workspaceSlug?: string | null,
-) {
+) => {
   const requestedWorkspaceSlug =
     workspaceSlug === undefined ? await getActiveWorkspaceSlug() : workspaceSlug;
 
@@ -171,7 +172,7 @@ export async function getWorkspaceContextForUser(
   const memberships = await getWorkspaceMembershipsForUser(userId);
 
   return memberships[0] ?? null;
-}
+});
 
 export async function requireWorkspaceContextForUser(
   userId: string,
@@ -186,7 +187,7 @@ export async function requireWorkspaceContextForUser(
   return context;
 }
 
-export async function requireCurrentWorkspaceContext() {
+export const requireCurrentWorkspaceContext = cache(async () => {
   const user = await requireUser();
   const workspaceContext = await requireWorkspaceContextForUser(user.id);
 
@@ -194,7 +195,7 @@ export async function requireCurrentWorkspaceContext() {
     user,
     workspaceContext,
   };
-}
+});
 
 export async function requireOwnerWorkspaceContext() {
   const { user, workspaceContext } = await requireCurrentWorkspaceContext();
@@ -253,7 +254,7 @@ export async function getOwnerWorkspaceActionContext(): Promise<OwnerWorkspaceAc
   };
 }
 
-export async function getWorkspaceOwnerEmails(workspaceId: string) {
+export const getWorkspaceOwnerEmails = cache(async (workspaceId: string) => {
   const rows = await db
     .select({
       email: user.email,
@@ -285,9 +286,9 @@ export async function getWorkspaceOwnerEmails(workspaceId: string) {
   }
 
   return Array.from(dedupedEmails.values());
-}
+});
 
-export async function getWorkspaceMessagingSettings(workspaceId: string) {
+export const getWorkspaceMessagingSettings = cache(async (workspaceId: string) => {
   const [workspace] = await db
     .select({
       id: workspaces.id,
@@ -304,4 +305,4 @@ export async function getWorkspaceMessagingSettings(workspaceId: string) {
     .limit(1);
 
   return workspace satisfies WorkspaceMessagingSettings | undefined;
-}
+});

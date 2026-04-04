@@ -1,11 +1,15 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { updateTag } from "next/cache";
 
 import {
   getUserSafeErrorMessage,
   getValidationActionState,
 } from "@/lib/action-state";
+import {
+  getWorkspaceKnowledgeCacheTags,
+  uniqueCacheTags,
+} from "@/lib/cache/workspace-tags";
 import { getOwnerWorkspaceActionContext } from "@/lib/db/workspace-access";
 import {
   createKnowledgeFaqForWorkspace,
@@ -20,7 +24,6 @@ import {
   knowledgeFileIdSchema,
   knowledgeFileUploadSchema,
 } from "@/features/knowledge/schemas";
-import { getWorkspaceSettingsPath } from "@/features/workspaces/routes";
 import type {
   KnowledgeFaqActionState,
   KnowledgeFaqDeleteActionState,
@@ -33,9 +36,10 @@ const initialKnowledgeFileDeleteState: KnowledgeFileDeleteActionState = {};
 const initialKnowledgeFaqState: KnowledgeFaqActionState = {};
 const initialKnowledgeFaqDeleteState: KnowledgeFaqDeleteActionState = {};
 
-function revalidateKnowledgePages(workspaceSlug: string) {
-  revalidatePath(getWorkspaceSettingsPath(workspaceSlug));
-  revalidatePath(getWorkspaceSettingsPath(workspaceSlug, "knowledge"));
+function updateCacheTags(tags: string[]) {
+  for (const tag of uniqueCacheTags(tags)) {
+    updateTag(tag);
+  }
 }
 
 export async function uploadKnowledgeFileAction(
@@ -69,8 +73,7 @@ export async function uploadKnowledgeFileAction(
       knowledgeFile: validationResult.data,
     });
 
-    revalidateKnowledgePages(workspaceContext.workspace.slug);
-
+    updateCacheTags(getWorkspaceKnowledgeCacheTags(workspaceContext.workspace.id));
     return {
       success: "Knowledge file uploaded.",
     };
@@ -125,8 +128,7 @@ export async function deleteKnowledgeFileAction(
       };
     }
 
-    revalidateKnowledgePages(workspaceContext.workspace.slug);
-
+    updateCacheTags(getWorkspaceKnowledgeCacheTags(workspaceContext.workspace.id));
     return {};
   } catch (error) {
     console.error("Failed to delete knowledge file.", error);
@@ -168,8 +170,7 @@ export async function createKnowledgeFaqAction(
       faq: validationResult.data,
     });
 
-    revalidateKnowledgePages(workspaceContext.workspace.slug);
-
+    updateCacheTags(getWorkspaceKnowledgeCacheTags(workspaceContext.workspace.id));
     return {
       success: "FAQ added.",
     };
@@ -229,8 +230,7 @@ export async function updateKnowledgeFaqAction(
       };
     }
 
-    revalidateKnowledgePages(workspaceContext.workspace.slug);
-
+    updateCacheTags(getWorkspaceKnowledgeCacheTags(workspaceContext.workspace.id));
     return {
       success: "FAQ updated.",
     };
@@ -282,8 +282,7 @@ export async function deleteKnowledgeFaqAction(
       };
     }
 
-    revalidateKnowledgePages(workspaceContext.workspace.slug);
-
+    updateCacheTags(getWorkspaceKnowledgeCacheTags(workspaceContext.workspace.id));
     return {};
   } catch (error) {
     console.error("Failed to delete FAQ.", error);

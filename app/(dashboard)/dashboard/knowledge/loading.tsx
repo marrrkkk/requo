@@ -1,5 +1,1 @@
-import { DashboardKnowledgeSkeleton } from "@/components/shell/dashboard-knowledge-skeleton";
-
-export default function KnowledgeLoading() {
-  return <DashboardKnowledgeSkeleton />;
-}
+export { default } from "@/app/workspace/[slug]/dashboard/knowledge/loading";

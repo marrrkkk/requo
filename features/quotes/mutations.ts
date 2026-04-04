@@ -704,6 +704,8 @@ export async function respondToPublicQuoteByToken({
     if (existingQuote.status !== "sent") {
       return {
         updated: false,
+        workspaceId: existingQuote.workspaceId,
+        inquiryId: existingQuote.inquiryId,
         quoteId: existingQuote.id,
         workspaceSlug: existingQuote.workspaceSlug,
         quoteNumber: existingQuote.quoteNumber,
@@ -755,6 +757,8 @@ export async function respondToPublicQuoteByToken({
 
     return {
       updated: true,
+      workspaceId: existingQuote.workspaceId,
+      inquiryId: existingQuote.inquiryId,
       quoteId: existingQuote.id,
       workspaceSlug: existingQuote.workspaceSlug,
       quoteNumber: existingQuote.quoteNumber,

@@ -49,13 +49,15 @@ type InquiryDetailPageProps = {
 export default async function InquiryDetailPage({
   params,
 }: InquiryDetailPageProps) {
-  const parsedParams = inquiryRouteParamsSchema.safeParse(await params);
+  const [resolvedParams, { workspaceContext }] = await Promise.all([
+    params,
+    requireCurrentWorkspaceContext(),
+  ]);
+  const parsedParams = inquiryRouteParamsSchema.safeParse(resolvedParams);
 
   if (!parsedParams.success) {
     notFound();
   }
-
-  const { workspaceContext } = await requireCurrentWorkspaceContext();
   const workspaceSlug = workspaceContext.workspace.slug;
   const inquiry = await getInquiryDetailForWorkspace({
     workspaceId: workspaceContext.workspace.id,
@@ -96,7 +98,7 @@ export default async function InquiryDetailPage({
         }
         actions={
           <Button asChild>
-            <Link href={getWorkspaceNewQuotePath(workspaceSlug, inquiry.id)} prefetch={false}>
+            <Link href={getWorkspaceNewQuotePath(workspaceSlug, inquiry.id)}>
               <ReceiptText data-icon="inline-start" />
               Generate quote
             </Link>
@@ -320,7 +322,6 @@ export default async function InquiryDetailPage({
                         workspaceSlug,
                         inquiry.relatedQuote.id,
                       )}
-                      prefetch={false}
                     >
                       View quote
                     </Link>
@@ -329,7 +330,6 @@ export default async function InquiryDetailPage({
                 <Button asChild>
                   <Link
                     href={getWorkspaceNewQuotePath(workspaceSlug, inquiry.id)}
-                    prefetch={false}
                   >
                     Generate quote
                   </Link>

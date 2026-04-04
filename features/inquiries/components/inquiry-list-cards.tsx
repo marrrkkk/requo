@@ -38,7 +38,7 @@ export function InquiryListCards({
                   <Link
                     className="block truncate underline-offset-4 transition-colors hover:text-primary hover:underline"
                     href={getWorkspaceInquiryPath(workspaceSlug, inquiry.id)}
-                    prefetch={false}
+                    prefetch={true}
                   >
                     {inquiry.customerName}
                   </Link>
@@ -91,7 +91,7 @@ export function InquiryListCards({
             <Button asChild className="w-full sm:w-auto" size="sm" variant="outline">
               <Link
                 href={getWorkspaceInquiryPath(workspaceSlug, inquiry.id)}
-                prefetch={false}
+                prefetch={true}
               >
                 Open inquiry
                 <ArrowRight data-icon="inline-end" />

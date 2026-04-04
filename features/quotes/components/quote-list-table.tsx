@@ -55,7 +55,7 @@ export function QuoteListTable({
                   <Link
                     className="table-link"
                     href={getWorkspaceQuotePath(workspaceSlug, quote.id)}
-                    prefetch={false}
+                    prefetch={true}
                   >
                     {quote.quoteNumber}
                   </Link>
@@ -83,7 +83,7 @@ export function QuoteListTable({
                   <Link
                     className="text-sm font-medium text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline group-hover/row:text-primary"
                     href={getWorkspaceInquiryPath(workspaceSlug, quote.inquiryId)}
-                    prefetch={false}
+                    prefetch={true}
                   >
                     Open inquiry
                   </Link>

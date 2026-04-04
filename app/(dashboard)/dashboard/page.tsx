@@ -90,13 +90,13 @@ export default async function DashboardOverviewPage() {
 
             <DashboardActionsRow className="w-full [&>*]:w-full sm:[&>*]:w-auto lg:w-auto lg:justify-end">
               <Button asChild>
-                <Link href={getWorkspaceInquiriesPath(workspaceSlug)} prefetch={false}>
+                <Link href={getWorkspaceInquiriesPath(workspaceSlug)} prefetch={true}>
                   Open requests
                   <ArrowRight data-icon="inline-end" />
                 </Link>
               </Button>
               <Button asChild variant="secondary">
-                <Link href={getWorkspaceNewQuotePath(workspaceSlug)} prefetch={false}>
+                <Link href={getWorkspaceNewQuotePath(workspaceSlug)} prefetch={true}>
                   Create quote
                 </Link>
               </Button>
@@ -132,7 +132,7 @@ export default async function DashboardOverviewPage() {
         <OverviewQueueCard
           action={
             <Button asChild size="sm" variant="ghost">
-              <Link href={getWorkspaceInquiriesPath(workspaceSlug)} prefetch={false}>
+              <Link href={getWorkspaceInquiriesPath(workspaceSlug)} prefetch={true}>
                 All requests
                 <ArrowRight data-icon="inline-end" />
               </Link>
@@ -166,7 +166,7 @@ export default async function DashboardOverviewPage() {
         <OverviewQueueCard
           action={
             <Button asChild size="sm" variant="ghost">
-              <Link href={getWorkspaceQuotesPath(workspaceSlug)} prefetch={false}>
+              <Link href={getWorkspaceQuotesPath(workspaceSlug)} prefetch={true}>
                 All quotes
                 <ArrowRight data-icon="inline-end" />
               </Link>
@@ -200,7 +200,7 @@ export default async function DashboardOverviewPage() {
         <OverviewQueueCard
           action={
             <Button asChild size="sm" variant="ghost">
-              <Link href={getWorkspaceInquiriesPath(workspaceSlug)} prefetch={false}>
+              <Link href={getWorkspaceInquiriesPath(workspaceSlug)} prefetch={true}>
                 Review requests
                 <ArrowRight data-icon="inline-end" />
               </Link>
@@ -224,7 +224,7 @@ export default async function DashboardOverviewPage() {
             <DashboardEmptyState
               action={
                 <Button asChild variant="outline">
-                  <Link href={getWorkspaceNewQuotePath(workspaceSlug)} prefetch={false}>
+                  <Link href={getWorkspaceNewQuotePath(workspaceSlug)} prefetch={true}>
                     Create quote
                   </Link>
                 </Button>
@@ -241,7 +241,7 @@ export default async function DashboardOverviewPage() {
         <OverviewQueueCard
           action={
             <Button asChild size="sm" variant="ghost">
-              <Link href={getWorkspaceQuotesPath(workspaceSlug)} prefetch={false}>
+              <Link href={getWorkspaceQuotesPath(workspaceSlug)} prefetch={true}>
                 View follow-up
                 <ArrowRight data-icon="inline-end" />
               </Link>
@@ -285,7 +285,7 @@ export default async function DashboardOverviewPage() {
             <Button asChild size="sm" variant="ghost">
               <Link
                 href={`${getWorkspaceQuotesPath(workspaceSlug)}?status=accepted`}
-                prefetch={false}
+                prefetch={true}
               >
                 Accepted quotes
                 <ArrowRight data-icon="inline-end" />
@@ -341,7 +341,7 @@ export default async function DashboardOverviewPage() {
 
             <div className="mt-auto flex flex-col gap-2.5">
               <Button asChild variant="outline">
-                <Link href={getWorkspaceAnalyticsPath(workspaceSlug)} prefetch={false}>
+                <Link href={getWorkspaceAnalyticsPath(workspaceSlug)} prefetch={true}>
                   View analytics
                   <BarChart3 data-icon="inline-end" />
                 </Link>
@@ -353,7 +353,9 @@ export default async function DashboardOverviewPage() {
                       ? publicInquiryUrl
                       : getWorkspaceSettingsPath(workspaceSlug)
                   }
-                  prefetch={false}
+                  prefetch={
+                    workspaceContext.workspace.publicInquiryEnabled ? false : undefined
+                  }
                   rel={
                     workspaceContext.workspace.publicInquiryEnabled
                       ? "noreferrer"
@@ -465,7 +467,7 @@ function OverviewInquiryRow({
     <Link
       className="group block px-5 py-4 transition-colors hover:bg-accent/22 sm:px-6"
       href={getWorkspaceInquiryPath(workspaceSlug, inquiry.id)}
-      prefetch={false}
+      prefetch={true}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -514,7 +516,7 @@ function OverviewQuoteRow({
     <Link
       className="group block px-5 py-4 transition-colors hover:bg-accent/22 sm:px-6"
       href={getWorkspaceQuotePath(workspaceSlug, quote.id)}
-      prefetch={false}
+      prefetch={true}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">

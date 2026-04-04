@@ -49,7 +49,7 @@ export function InquiryListTable({
                   <Link
                     className="table-link"
                     href={getWorkspaceInquiryPath(workspaceSlug, inquiry.id)}
-                    prefetch={false}
+                    prefetch={true}
                   >
                     {inquiry.customerName}
                   </Link>

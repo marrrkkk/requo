@@ -77,7 +77,7 @@ export default async function WorkspaceInquiryFormSettingsPage({
               <LayoutTemplate className="size-3.5" />
               {inquiryPageTemplateMeta[settings.inquiryPageConfig.template].label}
             </DashboardMetaPill>
-            <Link href={previewHref} prefetch={false}>
+            <Link href={previewHref} prefetch={true}>
               <DashboardMetaPill className="inline-flex items-center gap-2">
                 <Eye className="size-3.5" />
                 Preview

@@ -10,8 +10,7 @@ export default async function WorkspaceDashboardInquiryPagePreviewRedirect({
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const session = await requireSession();
-  const { slug } = await params;
+  const [session, { slug }] = await Promise.all([requireSession(), params]);
   const workspaceContext = await getWorkspaceContextForMembershipSlug(
     session.user.id,
     slug,

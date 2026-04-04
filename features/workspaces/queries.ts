@@ -13,9 +13,14 @@ import {
   lt,
   lte,
 } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
 
 import type { WorkspaceOverviewData } from "@/features/workspaces/types";
 import { syncExpiredQuotesForWorkspace } from "@/features/quotes/mutations";
+import {
+  getWorkspaceOverviewCacheTags,
+  hotWorkspaceCacheLife,
+} from "@/lib/cache/workspace-tags";
 import { db } from "@/lib/db/client";
 import { inquiries, quotes } from "@/lib/db/schema";
 
@@ -32,6 +37,17 @@ export async function getWorkspaceOverviewData(
   workspaceId: string,
 ): Promise<WorkspaceOverviewData> {
   await syncExpiredQuotesForWorkspace(workspaceId);
+
+  return getCachedWorkspaceOverviewData(workspaceId);
+}
+
+async function getCachedWorkspaceOverviewData(
+  workspaceId: string,
+): Promise<WorkspaceOverviewData> {
+  "use cache";
+
+  cacheLife(hotWorkspaceCacheLife);
+  cacheTag(...getWorkspaceOverviewCacheTags(workspaceId));
 
   const overdueCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
   const recentAcceptedCutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);

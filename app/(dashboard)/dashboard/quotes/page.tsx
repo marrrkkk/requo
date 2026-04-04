@@ -23,8 +23,11 @@ type QuotesPageProps = {
 };
 
 export default async function QuotesPage({ searchParams }: QuotesPageProps) {
-  const { workspaceContext } = await requireCurrentWorkspaceContext();
-  const parsedFilters = quoteListFiltersSchema.safeParse(await searchParams);
+  const [{ workspaceContext }, resolvedSearchParams] = await Promise.all([
+    requireCurrentWorkspaceContext(),
+    searchParams,
+  ]);
+  const parsedFilters = quoteListFiltersSchema.safeParse(resolvedSearchParams);
   const filters = parsedFilters.success
     ? parsedFilters.data
     : {
@@ -45,7 +48,7 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
         title="Quotes"
         actions={
           <Button asChild>
-            <Link href={getWorkspaceNewQuotePath(workspaceSlug)} prefetch={false}>
+            <Link href={getWorkspaceNewQuotePath(workspaceSlug)} prefetch={true}>
               Create quote
               <ArrowRight data-icon="inline-end" />
             </Link>
@@ -73,11 +76,11 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
           action={
             hasFilters ? (
               <Button asChild variant="outline">
-                <Link href={getWorkspaceQuotesPath(workspaceSlug)}>Clear filters</Link>
+                <Link href={getWorkspaceQuotesPath(workspaceSlug)} prefetch={true}>Clear filters</Link>
               </Button>
             ) : (
               <Button asChild>
-                <Link href={getWorkspaceNewQuotePath(workspaceSlug)} prefetch={false}>
+                <Link href={getWorkspaceNewQuotePath(workspaceSlug)} prefetch={true}>
                   Create first quote
                 </Link>
               </Button>

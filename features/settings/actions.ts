@@ -1,10 +1,16 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getValidationActionState } from "@/lib/action-state";
+import {
+  getWorkspaceInquiryFormCacheTags,
+  getWorkspaceInquiryFormsCacheTags,
+  getWorkspaceSettingsCacheTags,
+  uniqueCacheTags,
+} from "@/lib/cache/workspace-tags";
 import {
   workspaceDeleteSchema,
   workspaceGeneralSettingsSchema,
@@ -45,11 +51,18 @@ import {
   getWorkspaceInquiryFormPreviewPath,
   getWorkspaceInquiryFormsPath,
   getWorkspaceInquiryPageEditorPath,
+  getWorkspacePath,
   getWorkspaceSettingsPath,
   workspaceHubPath,
 } from "@/features/workspaces/routes";
 import { getWorkspacePublicInquiryUrl } from "@/features/settings/utils";
 import { getWorkspaceInquiryFormsSettingsForWorkspace } from "@/features/settings/queries";
+
+function updateCacheTags(tags: string[]) {
+  for (const tag of uniqueCacheTags(tags)) {
+    updateTag(tag);
+  }
+}
 
 function revalidateWorkspaceInquiryFormPaths(
   workspaceSlug: string,
@@ -60,7 +73,14 @@ function revalidateWorkspaceInquiryFormPaths(
   revalidatePath(getWorkspaceInquiryPageEditorPath(workspaceSlug, formSlug));
   revalidatePath(getWorkspaceInquiryFormPreviewPath(workspaceSlug, formSlug));
   revalidatePath(getWorkspacePublicInquiryUrl(workspaceSlug, formSlug));
+}
+
+function revalidateWorkspaceDefaultInquiryPaths(workspaceSlug: string) {
   revalidatePath(getWorkspacePublicInquiryUrl(workspaceSlug));
+  revalidatePath(`${getWorkspaceSettingsPath(workspaceSlug)}/inquiry-form`);
+  revalidatePath(`${getWorkspaceSettingsPath(workspaceSlug)}/inquiry-page`);
+  revalidatePath(`${getWorkspaceSettingsPath(workspaceSlug)}/inquiry-page/preview`);
+  revalidatePath(`${getWorkspacePath(workspaceSlug)}/preview/inquiry-page`);
 }
 
 export async function updateWorkspaceSettingsAction(
@@ -131,6 +151,8 @@ export async function updateWorkspaceSettingsAction(
     revalidatePath(getWorkspaceSettingsPath(result.nextSlug, "knowledge"));
     revalidatePath(`/inquire/${result.previousSlug}`);
     revalidatePath(`/inquire/${result.nextSlug}`);
+    revalidateWorkspaceDefaultInquiryPaths(result.previousSlug);
+    revalidateWorkspaceDefaultInquiryPaths(result.nextSlug);
 
     const inquiryFormsSettings = await getWorkspaceInquiryFormsSettingsForWorkspace(
       workspaceContext.workspace.id,
@@ -146,6 +168,8 @@ export async function updateWorkspaceSettingsAction(
     if (result.previousSlug !== result.nextSlug) {
       nextSettingsPath = getWorkspaceSettingsPath(result.nextSlug, "general");
     }
+
+    updateCacheTags(getWorkspaceSettingsCacheTags(workspaceContext.workspace.id));
   } catch (error) {
     console.error("Failed to update workspace settings.", error);
 
@@ -203,11 +227,7 @@ export async function updateWorkspaceQuoteSettingsAction(
       };
     }
 
-    revalidatePath(getWorkspaceDashboardPath(result.nextSlug), "layout");
-    revalidatePath(getWorkspaceSettingsPath(result.nextSlug));
-    revalidatePath(getWorkspaceSettingsPath(result.nextSlug, "quote"));
-    revalidatePath(getWorkspaceSettingsPath(result.nextSlug, "pricing"));
-    revalidatePath(getWorkspaceDashboardPath(result.nextSlug));
+    updateCacheTags(getWorkspaceSettingsCacheTags(workspaceContext.workspace.id));
 
     return {
       success: "Quote settings saved.",
@@ -340,9 +360,9 @@ export async function updateWorkspaceInquiryPageAction(
       };
     }
 
-    revalidatePath(getWorkspaceDashboardPath(result.previousSlug), "layout");
-    revalidatePath(getWorkspaceDashboardPath(result.nextSlug), "layout");
-    revalidateWorkspaceInquiryFormPaths(result.nextSlug, formSlug);
+    updateCacheTags(
+      getWorkspaceInquiryFormCacheTags(workspaceContext.workspace.id, formSlug),
+    );
 
     return {
       success: "Inquiry page saved.",
@@ -410,11 +430,24 @@ export async function updateWorkspaceInquiryFormAction(
       };
     }
 
-    revalidatePath(getWorkspaceDashboardPath(result.nextSlug), "layout");
-    revalidateWorkspaceInquiryFormPaths(result.nextSlug, result.previousFormSlug);
-    revalidateWorkspaceInquiryFormPaths(result.nextSlug, result.nextFormSlug);
+    updateCacheTags(
+      uniqueCacheTags([
+        ...getWorkspaceInquiryFormsCacheTags(workspaceContext.workspace.id),
+        ...getWorkspaceInquiryFormCacheTags(
+          workspaceContext.workspace.id,
+          result.previousFormSlug,
+        ),
+        ...getWorkspaceInquiryFormCacheTags(
+          workspaceContext.workspace.id,
+          result.nextFormSlug,
+        ),
+      ]),
+    );
 
     if (result.previousFormSlug !== result.nextFormSlug) {
+      revalidateWorkspaceInquiryFormPaths(result.nextSlug, result.previousFormSlug);
+      revalidateWorkspaceInquiryFormPaths(result.nextSlug, result.nextFormSlug);
+      revalidateWorkspaceDefaultInquiryPaths(result.nextSlug);
       nextEditorPath = getWorkspaceInquiryFormEditorPath(
         result.nextSlug,
         result.nextFormSlug,
@@ -477,8 +510,12 @@ export async function applyWorkspaceInquiryFormPresetAction(
       };
     }
 
-    revalidatePath(getWorkspaceDashboardPath(result.nextSlug), "layout");
-    revalidateWorkspaceInquiryFormPaths(result.nextSlug, formSlug);
+    updateCacheTags(
+      uniqueCacheTags([
+        ...getWorkspaceInquiryFormsCacheTags(workspaceContext.workspace.id),
+        ...getWorkspaceInquiryFormCacheTags(workspaceContext.workspace.id, formSlug),
+      ]),
+    );
 
     return {
       success: "Preset defaults applied.",
@@ -532,7 +569,15 @@ export async function createWorkspaceInquiryFormAction(
       };
     }
 
-    revalidatePath(getWorkspaceDashboardPath(result.workspaceSlug), "layout");
+    updateCacheTags(
+      uniqueCacheTags([
+        ...getWorkspaceInquiryFormsCacheTags(workspaceContext.workspace.id),
+        ...getWorkspaceInquiryFormCacheTags(
+          workspaceContext.workspace.id,
+          result.formSlug,
+        ),
+      ]),
+    );
     revalidateWorkspaceInquiryFormPaths(result.workspaceSlug, result.formSlug);
     editorPath = getWorkspaceInquiryFormEditorPath(
       result.workspaceSlug,
@@ -591,7 +636,15 @@ export async function duplicateWorkspaceInquiryFormAction(
       };
     }
 
-    revalidatePath(getWorkspaceDashboardPath(result.workspaceSlug), "layout");
+    updateCacheTags(
+      uniqueCacheTags([
+        ...getWorkspaceInquiryFormsCacheTags(workspaceContext.workspace.id),
+        ...getWorkspaceInquiryFormCacheTags(
+          workspaceContext.workspace.id,
+          result.formSlug,
+        ),
+      ]),
+    );
     revalidateWorkspaceInquiryFormPaths(result.workspaceSlug, result.formSlug);
     editorPath = getWorkspaceInquiryFormEditorPath(
       result.workspaceSlug,
@@ -648,9 +701,17 @@ export async function setDefaultWorkspaceInquiryFormAction(
       };
     }
 
-    revalidatePath(getWorkspaceDashboardPath(result.workspaceSlug), "layout");
-    revalidatePath(getWorkspaceInquiryFormsPath(result.workspaceSlug));
+    updateCacheTags(
+      uniqueCacheTags([
+        ...getWorkspaceInquiryFormsCacheTags(workspaceContext.workspace.id),
+        ...getWorkspaceInquiryFormCacheTags(
+          workspaceContext.workspace.id,
+          result.formSlug,
+        ),
+      ]),
+    );
     revalidateWorkspaceInquiryFormPaths(result.workspaceSlug, result.formSlug);
+    revalidateWorkspaceDefaultInquiryPaths(result.workspaceSlug);
 
     return {
       success: "Default inquiry form updated.",
@@ -710,8 +771,15 @@ export async function archiveWorkspaceInquiryFormAction(
       };
     }
 
-    revalidatePath(getWorkspaceDashboardPath(result.workspaceSlug), "layout");
-    revalidatePath(getWorkspaceInquiryFormsPath(result.workspaceSlug));
+    updateCacheTags(
+      uniqueCacheTags([
+        ...getWorkspaceInquiryFormsCacheTags(workspaceContext.workspace.id),
+        ...getWorkspaceInquiryFormCacheTags(
+          workspaceContext.workspace.id,
+          result.formSlug,
+        ),
+      ]),
+    );
     revalidateWorkspaceInquiryFormPaths(result.workspaceSlug, result.formSlug);
 
     return {
@@ -774,8 +842,15 @@ export async function archiveWorkspaceInquiryFormFromDetailAction(
       };
     }
 
-    revalidatePath(getWorkspaceDashboardPath(result.workspaceSlug), "layout");
-    revalidatePath(getWorkspaceInquiryFormsPath(result.workspaceSlug));
+    updateCacheTags(
+      uniqueCacheTags([
+        ...getWorkspaceInquiryFormsCacheTags(workspaceContext.workspace.id),
+        ...getWorkspaceInquiryFormCacheTags(
+          workspaceContext.workspace.id,
+          result.formSlug,
+        ),
+      ]),
+    );
     revalidateWorkspaceInquiryFormPaths(result.workspaceSlug, result.formSlug);
 
     return {
@@ -844,8 +919,15 @@ export async function deleteWorkspaceInquiryFormAction(
       };
     }
 
-    revalidatePath(getWorkspaceDashboardPath(result.workspaceSlug), "layout");
-    revalidatePath(getWorkspaceInquiryFormsPath(result.workspaceSlug));
+    updateCacheTags(
+      uniqueCacheTags([
+        ...getWorkspaceInquiryFormsCacheTags(workspaceContext.workspace.id),
+        ...getWorkspaceInquiryFormCacheTags(
+          workspaceContext.workspace.id,
+          result.formSlug,
+        ),
+      ]),
+    );
     revalidateWorkspaceInquiryFormPaths(result.workspaceSlug, result.formSlug);
 
     return {

@@ -1,5 +1,1 @@
-import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
-
-export default function InquiryDetailLoading() {
-  return <DashboardDetailPageSkeleton variant="inquiry" />;
-}
+export { default } from "@/app/workspace/[slug]/dashboard/inquiries/[id]/loading";

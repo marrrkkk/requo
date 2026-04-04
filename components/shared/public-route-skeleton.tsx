@@ -4,24 +4,25 @@ import {
 } from "@/components/shared/public-page-shell";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 type PublicRouteSkeletonProps = {
   variant?: "inquiry" | "quote";
+  previewMode?: boolean;
 };
 
 export function PublicRouteSkeleton({
   variant = "inquiry",
+  previewMode = false,
 }: PublicRouteSkeletonProps) {
+  if (variant === "inquiry") {
+    return <InquiryRouteSkeleton previewMode={previewMode} />;
+  }
+
   return (
     <PublicPageShell headerAction={<Skeleton className="h-10 w-36 rounded-lg" />}>
       <PublicHeroSurface className="lg:py-12">
-        <div
-          className={
-            variant === "quote"
-              ? "grid gap-10 xl:grid-cols-[minmax(0,0.84fr)_minmax(24rem,1.16fr)] xl:items-start"
-              : "grid gap-10 xl:grid-cols-[minmax(0,0.92fr)_minmax(22rem,0.8fr)] xl:items-start"
-          }
-        >
+        <div className="grid gap-10 xl:grid-cols-[minmax(0,0.84fr)_minmax(24rem,1.16fr)] xl:items-start">
           <div className="flex flex-col gap-5">
             <div className="flex flex-col gap-3">
               <Skeleton className="h-4 w-28 rounded-md" />
@@ -29,31 +30,75 @@ export function PublicRouteSkeleton({
               <Skeleton className="h-20 w-full max-w-2xl rounded-xl" />
             </div>
 
-            {variant === "quote" ? <QuoteRouteLeadSkeleton /> : <InquiryRouteLeadSkeleton />}
+            <QuoteRouteLeadSkeleton />
           </div>
 
-          {variant === "quote" ? <QuotePreviewSkeleton /> : <InquiryFormSkeleton />}
+          <QuotePreviewSkeleton />
         </div>
       </PublicHeroSurface>
     </PublicPageShell>
   );
 }
 
-function InquiryRouteLeadSkeleton() {
+function InquiryRouteSkeleton({ previewMode }: { previewMode: boolean }) {
   return (
-    <>
-      <div className="grid gap-3">
-        <Skeleton className="h-28 w-full rounded-2xl" />
-        <Skeleton className="h-28 w-full rounded-2xl" />
-      </div>
+    <div className="public-page">
+      <div className="public-page-stack">
+        {previewMode ? (
+          <div className="rounded-none border-b border-primary/20 bg-primary/5 px-4 py-3 sm:px-6">
+            <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3">
+              <Skeleton className="h-5 w-24 rounded-md" />
+              <div className="flex gap-2">
+                <Skeleton className="h-10 w-32 rounded-xl" />
+                <Skeleton className="hidden h-10 w-32 rounded-xl sm:block" />
+              </div>
+            </div>
+          </div>
+        ) : null}
 
-      <Card className="gap-0 bg-background/92 shadow-none">
-        <CardHeader className="gap-3 pb-5">
-          <Skeleton className="h-8 w-32 rounded-lg" />
-          <Skeleton className="h-4 w-full max-w-sm rounded-md" />
-        </CardHeader>
-      </Card>
-    </>
+        <header className="public-page-header">
+          <div className="flex min-w-0 items-center gap-4">
+            <Skeleton className="size-14 rounded-2xl" />
+            <div className="min-w-0 space-y-2">
+              <Skeleton className="h-6 w-40 rounded-md" />
+              <Skeleton className="h-4 w-28 rounded-md" />
+            </div>
+          </div>
+        </header>
+
+        <PublicHeroSurface className="lg:py-12">
+          <div className="grid gap-10 xl:grid-cols-[minmax(0,0.92fr)_minmax(22rem,0.8fr)] xl:items-start">
+            <div className="flex min-w-0 flex-col gap-6">
+              <div className="flex flex-col gap-4">
+                <Skeleton className="h-4 w-24 rounded-md" />
+                <Skeleton className="h-14 w-full max-w-2xl rounded-2xl" />
+                <Skeleton className="h-20 w-full max-w-xl rounded-2xl" />
+              </div>
+
+              <div className="grid gap-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <Card key={index} size="sm" className="bg-background/92 shadow-none">
+                    <CardHeader className="gap-3">
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-accent">
+                        <Skeleton className="size-4 rounded-sm" />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Skeleton className="h-5 w-32 rounded-md" />
+                        <Skeleton className="h-4 w-48 rounded-md" />
+                      </div>
+                    </CardHeader>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            <InquiryFormSkeleton
+              className={cn("xl:sticky xl:top-6", previewMode && "xl:top-24")}
+            />
+          </div>
+        </PublicHeroSurface>
+      </div>
+    </div>
   );
 }
 
@@ -101,14 +146,15 @@ function QuoteRouteLeadSkeleton() {
   );
 }
 
-function InquiryFormSkeleton() {
+function InquiryFormSkeleton({ className }: { className?: string }) {
   return (
-    <Card className="gap-0 border-border/75 bg-card/96">
+    <Card className={cn("gap-0 border-border/75 bg-card/96", className)}>
       <CardHeader className="gap-3 pb-5">
         <Skeleton className="h-8 w-44 rounded-lg" />
         <Skeleton className="h-4 w-full max-w-sm rounded-md" />
       </CardHeader>
       <CardContent className="flex flex-col gap-4 pt-0">
+        <Skeleton className="h-12 w-full rounded-xl" />
         <Skeleton className="h-12 w-full rounded-xl" />
         <Skeleton className="h-12 w-full rounded-xl" />
         <Skeleton className="h-12 w-full rounded-xl" />

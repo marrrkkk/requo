@@ -1,6 +1,7 @@
 import "server-only";
 
 import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
 
 import { getNormalizedInquiryFormConfig } from "@/features/inquiries/form-config";
 import { getNormalizedInquiryPageConfig } from "@/features/inquiries/page-config";
@@ -11,12 +12,23 @@ import type {
   WorkspaceInquiryPageSettingsView,
   WorkspaceSettingsView,
 } from "@/features/settings/types";
+import {
+  getWorkspaceInquiryFormCacheTags,
+  getWorkspaceInquiryFormsCacheTags,
+  getWorkspaceSettingsCacheTags,
+  settingsWorkspaceCacheLife,
+} from "@/lib/cache/workspace-tags";
 import { db } from "@/lib/db/client";
 import { inquiries, workspaceInquiryForms, workspaces } from "@/lib/db/schema";
 
 export async function getWorkspaceSettingsForWorkspace(
   workspaceId: string,
 ): Promise<WorkspaceSettingsView | null> {
+  "use cache";
+
+  cacheLife(settingsWorkspaceCacheLife);
+  cacheTag(...getWorkspaceSettingsCacheTags(workspaceId));
+
   const [workspace] = await db
     .select({
       id: workspaces.id,
@@ -47,6 +59,17 @@ export async function getWorkspaceInquiryPageSettingsForWorkspace(
   workspaceId: string,
   formSlug?: string,
 ): Promise<WorkspaceInquiryPageSettingsView | null> {
+  "use cache";
+
+  cacheLife(settingsWorkspaceCacheLife);
+  cacheTag(
+    ...(
+      formSlug
+        ? getWorkspaceInquiryFormCacheTags(workspaceId, formSlug)
+        : getWorkspaceInquiryFormsCacheTags(workspaceId)
+    ),
+  );
+
   const [row] = await db
     .select({
       id: workspaces.id,
@@ -112,6 +135,17 @@ export async function getWorkspaceInquiryFormSettingsForWorkspace(
   workspaceId: string,
   formSlug?: string,
 ): Promise<WorkspaceInquiryFormSettingsView | null> {
+  "use cache";
+
+  cacheLife(settingsWorkspaceCacheLife);
+  cacheTag(
+    ...(
+      formSlug
+        ? getWorkspaceInquiryFormCacheTags(workspaceId, formSlug)
+        : getWorkspaceInquiryFormsCacheTags(workspaceId)
+    ),
+  );
+
   const [row] = await db
     .select({
       id: workspaces.id,
@@ -173,6 +207,11 @@ export async function getWorkspaceInquiryFormSettingsForWorkspace(
 export async function getWorkspaceInquiryFormsSettingsForWorkspace(
   workspaceId: string,
 ): Promise<WorkspaceInquiryFormsSettingsView | null> {
+  "use cache";
+
+  cacheLife(settingsWorkspaceCacheLife);
+  cacheTag(...getWorkspaceInquiryFormsCacheTags(workspaceId));
+
   const submittedInquiryCountSelection = sql<number>`(
     select count(*)::int
     from ${inquiries}
@@ -251,6 +290,11 @@ export async function getWorkspaceInquiryFormEditorForWorkspace(
   workspaceId: string,
   formSlug: string,
 ): Promise<WorkspaceInquiryFormEditorView | null> {
+  "use cache";
+
+  cacheLife(settingsWorkspaceCacheLife);
+  cacheTag(...getWorkspaceInquiryFormCacheTags(workspaceId, formSlug));
+
   const [row, activeFormRows, inquiryRows] = await Promise.all([
     db
       .select({
@@ -345,6 +389,11 @@ export async function getWorkspaceInquiryFormEditorForWorkspace(
 export async function getDefaultWorkspaceInquiryFormForWorkspace(
   workspaceId: string,
 ) {
+  "use cache";
+
+  cacheLife(settingsWorkspaceCacheLife);
+  cacheTag(...getWorkspaceInquiryFormsCacheTags(workspaceId));
+
   const [form] = await db
     .select({
       id: workspaceInquiryForms.id,
@@ -364,6 +413,11 @@ export async function getDefaultWorkspaceInquiryFormForWorkspace(
 }
 
 export async function getWorkspaceLogoAssetForWorkspace(workspaceId: string) {
+  "use cache";
+
+  cacheLife(settingsWorkspaceCacheLife);
+  cacheTag(...getWorkspaceSettingsCacheTags(workspaceId));
+
   const [workspace] = await db
     .select({
       logoStoragePath: workspaces.logoStoragePath,

@@ -1,8 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { updateTag } from "next/cache";
 
 import { getValidationActionState } from "@/lib/action-state";
+import {
+  getWorkspacePricingCacheTags,
+  uniqueCacheTags,
+} from "@/lib/cache/workspace-tags";
 import { getOwnerWorkspaceActionContext } from "@/lib/db/workspace-access";
 import {
   createQuoteLibraryEntryForWorkspace,
@@ -13,7 +17,6 @@ import {
   quoteLibraryEntryIdSchema,
   quoteLibraryEntrySchema,
 } from "@/features/quotes/quote-library-schemas";
-import { getWorkspaceSettingsPath } from "@/features/workspaces/routes";
 import type {
   QuoteLibraryActionState,
   QuoteLibraryDeleteActionState,
@@ -21,6 +24,12 @@ import type {
 
 const initialQuoteLibraryState: QuoteLibraryActionState = {};
 const initialQuoteLibraryDeleteState: QuoteLibraryDeleteActionState = {};
+
+function updateCacheTags(tags: string[]) {
+  for (const tag of uniqueCacheTags(tags)) {
+    updateTag(tag);
+  }
+}
 
 function mapQuoteLibraryFieldErrors(
   fieldErrors: Record<string, string[] | undefined>,
@@ -31,11 +40,6 @@ function mapQuoteLibraryFieldErrors(
     description: fieldErrors.description,
     items: fieldErrors.items,
   };
-}
-
-function revalidateQuoteLibraryPages(workspaceSlug: string) {
-  revalidatePath(getWorkspaceSettingsPath(workspaceSlug));
-  revalidatePath(getWorkspaceSettingsPath(workspaceSlug, "pricing"));
 }
 
 export async function createQuoteLibraryEntryAction(
@@ -76,8 +80,7 @@ export async function createQuoteLibraryEntryAction(
       entry: validationResult.data,
     });
 
-    revalidateQuoteLibraryPages(workspaceContext.workspace.slug);
-
+    updateCacheTags(getWorkspacePricingCacheTags(workspaceContext.workspace.id));
     return {
       success:
         validationResult.data.kind === "block"
@@ -147,8 +150,7 @@ export async function updateQuoteLibraryEntryAction(
       };
     }
 
-    revalidateQuoteLibraryPages(workspaceContext.workspace.slug);
-
+    updateCacheTags(getWorkspacePricingCacheTags(workspaceContext.workspace.id));
     return {
       success:
         validationResult.data.kind === "block"
@@ -203,8 +205,7 @@ export async function deleteQuoteLibraryEntryAction(
       };
     }
 
-    revalidateQuoteLibraryPages(workspaceContext.workspace.slug);
-
+    updateCacheTags(getWorkspacePricingCacheTags(workspaceContext.workspace.id));
     return {
       success: true,
     };

@@ -29,9 +29,9 @@ export default async function SettingsPage() {
                 className="group flex items-start gap-4 px-5 py-5 transition-colors hover:bg-accent/24 sm:px-6"
                 href={item.href}
                 key={item.href}
-                prefetch={false}
+                prefetch={true}
               >
-                <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-background/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.36)]">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-background/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.36)] dark:border-white/8 dark:bg-card dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_1px_rgba(0,0,0,0.2)]">
                   <Icon className="size-4 text-foreground" />
                 </div>
                 <div className="min-w-0 flex-1">

@@ -1,8 +1,14 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateTag, updateTag } from "next/cache";
 
 import { getValidationActionState } from "@/lib/action-state";
+import {
+  getWorkspaceInquiryDetailCacheTags,
+  getWorkspaceInquiryFormsCacheTags,
+  getWorkspaceInquiryListCacheTags,
+  uniqueCacheTags,
+} from "@/lib/cache/workspace-tags";
 import {
   getWorkspaceMessagingSettings,
   getOwnerWorkspaceActionContext,
@@ -26,10 +32,7 @@ import {
   inquiryStatusChangeSchema,
   validatePublicInquirySubmission,
 } from "@/features/inquiries/schemas";
-import {
-  getWorkspaceInquiriesPath,
-  getWorkspaceInquiryPath,
-} from "@/features/workspaces/routes";
+import { getWorkspaceInquiryPath } from "@/features/workspaces/routes";
 import type {
   InquiryNoteActionState,
   InquiryStatusActionState,
@@ -41,6 +44,18 @@ function getTextValue(formData: FormData, key: string) {
   const value = formData.get(key);
 
   return typeof value === "string" ? value : null;
+}
+
+function updateCacheTags(tags: string[]) {
+  for (const tag of uniqueCacheTags(tags)) {
+    updateTag(tag);
+  }
+}
+
+function revalidateCacheTags(tags: string[]) {
+  for (const tag of uniqueCacheTags(tags)) {
+    revalidateTag(tag, "max");
+  }
 }
 
 export async function submitPublicInquiryAction(
@@ -97,6 +112,11 @@ export async function submitPublicInquiryAction(
       workspace,
       submission: validationResult.data,
     });
+
+    revalidateCacheTags([
+      ...getWorkspaceInquiryListCacheTags(workspace.id),
+      ...getWorkspaceInquiryFormsCacheTags(workspace.id),
+    ]);
 
     const [recipients, workspaceSettings] = await Promise.all([
       getWorkspaceOwnerNotificationEmails(workspace.id),
@@ -188,11 +208,9 @@ export async function addInquiryNoteAction(
       };
     }
 
-    revalidatePath(getWorkspaceInquiriesPath(workspaceContext.workspace.slug));
-    revalidatePath(
-      getWorkspaceInquiryPath(workspaceContext.workspace.slug, inquiryId),
+    updateCacheTags(
+      getWorkspaceInquiryDetailCacheTags(workspaceContext.workspace.id, inquiryId),
     );
-
     return {
       success: "Internal note added.",
     };
@@ -242,11 +260,9 @@ export async function changeInquiryStatusAction(
       };
     }
 
-    revalidatePath(getWorkspaceInquiriesPath(workspaceContext.workspace.slug));
-    revalidatePath(
-      getWorkspaceInquiryPath(workspaceContext.workspace.slug, inquiryId),
+    updateCacheTags(
+      getWorkspaceInquiryDetailCacheTags(workspaceContext.workspace.id, inquiryId),
     );
-
     if (!result.changed) {
       return {
         success: `Inquiry is already ${getInquiryStatusLabel(result.nextStatus)}.`,

@@ -180,7 +180,6 @@ export function WorkspaceInquiryFormsManager({
                   )}
                   href={getWorkspaceInquiryFormEditorPath(settings.slug, form.slug)}
                   key={form.id}
-                  prefetch={false}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">

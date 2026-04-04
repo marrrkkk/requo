@@ -1,1 +1,5 @@
-export { default } from "@/app/(dashboard)/dashboard/quotes/new/loading";
+import { DashboardQuoteEditorSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
+
+export default function WorkspaceDashboardNewQuoteLoading() {
+  return <DashboardQuoteEditorSkeleton />;
+}

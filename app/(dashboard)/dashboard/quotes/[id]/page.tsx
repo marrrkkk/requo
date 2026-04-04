@@ -47,13 +47,15 @@ type QuoteDetailPageProps = {
 export default async function QuoteDetailPage({
   params,
 }: QuoteDetailPageProps) {
-  const parsedParams = quoteRouteParamsSchema.safeParse(await params);
+  const [resolvedParams, { workspaceContext }] = await Promise.all([
+    params,
+    requireCurrentWorkspaceContext(),
+  ]);
+  const parsedParams = quoteRouteParamsSchema.safeParse(resolvedParams);
 
   if (!parsedParams.success) {
     notFound();
   }
-
-  const { workspaceContext } = await requireCurrentWorkspaceContext();
   const workspaceSlug = workspaceContext.workspace.slug;
   const [quote, pricingLibrary] = await Promise.all([
     getQuoteDetailForWorkspace({
@@ -91,10 +93,7 @@ export default async function QuoteDetailPage({
       footer={
         quote.linkedInquiry ? (
           <Button asChild variant="outline">
-            <Link
-              href={getWorkspaceInquiryPath(workspaceSlug, quote.linkedInquiry.id)}
-              prefetch={false}
-            >
+            <Link href={getWorkspaceInquiryPath(workspaceSlug, quote.linkedInquiry.id)}>
               Open inquiry
             </Link>
           </Button>

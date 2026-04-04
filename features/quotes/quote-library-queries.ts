@@ -1,12 +1,17 @@
 import "server-only";
 
 import { asc, count, eq, inArray } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
 
 import { db } from "@/lib/db/client";
 import {
   quoteLibraryEntries,
   quoteLibraryEntryItems,
 } from "@/lib/db/schema";
+import {
+  getWorkspacePricingCacheTags,
+  settingsWorkspaceCacheLife,
+} from "@/lib/cache/workspace-tags";
 import type {
   DashboardQuoteLibraryEntry,
   DashboardQuoteLibrarySummary,
@@ -15,6 +20,11 @@ import type {
 export async function getQuoteLibraryForWorkspace(
   workspaceId: string,
 ): Promise<DashboardQuoteLibraryEntry[]> {
+  "use cache";
+
+  cacheLife(settingsWorkspaceCacheLife);
+  cacheTag(...getWorkspacePricingCacheTags(workspaceId));
+
   const entries = await db
     .select({
       id: quoteLibraryEntries.id,
@@ -96,6 +106,11 @@ export async function getQuoteLibraryForWorkspace(
 export async function getQuoteLibrarySummaryForWorkspace(
   workspaceId: string,
 ): Promise<DashboardQuoteLibrarySummary> {
+  "use cache";
+
+  cacheLife(settingsWorkspaceCacheLife);
+  cacheTag(...getWorkspacePricingCacheTags(workspaceId));
+
   const [entrySummary] = await db
     .select({
       entryCount: count(quoteLibraryEntries.id),

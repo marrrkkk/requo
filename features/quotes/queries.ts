@@ -1,6 +1,7 @@
 import "server-only";
 
 import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
 
 import { db } from "@/lib/db/client";
 import {
@@ -15,6 +16,12 @@ import {
   syncExpiredQuoteForPublicToken,
   syncExpiredQuotesForWorkspace,
 } from "@/features/quotes/mutations";
+import {
+  getWorkspaceInquiryDetailCacheTags,
+  getWorkspaceQuoteDetailCacheTags,
+  getWorkspaceQuoteListCacheTags,
+  hotWorkspaceCacheLife,
+} from "@/lib/cache/workspace-tags";
 import type {
   DashboardQuoteDetail,
   DashboardQuoteListItem,
@@ -33,6 +40,21 @@ export async function getQuoteListForWorkspace({
   filters,
 }: GetQuoteListForWorkspaceInput): Promise<DashboardQuoteListItem[]> {
   await syncExpiredQuotesForWorkspace(workspaceId);
+
+  return getCachedQuoteListForWorkspace({
+    workspaceId,
+    filters,
+  });
+}
+
+async function getCachedQuoteListForWorkspace({
+  workspaceId,
+  filters,
+}: GetQuoteListForWorkspaceInput): Promise<DashboardQuoteListItem[]> {
+  "use cache";
+
+  cacheLife(hotWorkspaceCacheLife);
+  cacheTag(...getWorkspaceQuoteListCacheTags(workspaceId));
 
   const conditions = [eq(quotes.workspaceId, workspaceId)];
 
@@ -84,6 +106,21 @@ export async function getQuoteDetailForWorkspace({
   quoteId,
 }: GetQuoteDetailForWorkspaceInput): Promise<DashboardQuoteDetail | null> {
   await syncExpiredQuotesForWorkspace(workspaceId);
+
+  return getCachedQuoteDetailForWorkspace({
+    workspaceId,
+    quoteId,
+  });
+}
+
+async function getCachedQuoteDetailForWorkspace({
+  workspaceId,
+  quoteId,
+}: GetQuoteDetailForWorkspaceInput): Promise<DashboardQuoteDetail | null> {
+  "use cache";
+
+  cacheLife(hotWorkspaceCacheLife);
+  cacheTag(...getWorkspaceQuoteDetailCacheTags(workspaceId, quoteId));
 
   const [quote] = await db
     .select({
@@ -264,6 +301,11 @@ export async function getInquiryQuotePrefillForWorkspace({
   workspaceId,
   inquiryId,
 }: GetInquiryQuotePrefillForWorkspaceInput): Promise<QuoteInquiryPrefill | null> {
+  "use cache";
+
+  cacheLife(hotWorkspaceCacheLife);
+  cacheTag(...getWorkspaceInquiryDetailCacheTags(workspaceId, inquiryId));
+
   const [inquiry] = await db
     .select({
       id: inquiries.id,

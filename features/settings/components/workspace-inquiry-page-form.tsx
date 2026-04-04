@@ -251,7 +251,7 @@ export function WorkspaceInquiryPageForm({
             title="Workspace brand"
             action={
               <Button asChild variant="outline">
-                <Link href={generalSettingsHref} prefetch={false}>
+                <Link href={generalSettingsHref}>
                   Manage brand assets
                 </Link>
               </Button>

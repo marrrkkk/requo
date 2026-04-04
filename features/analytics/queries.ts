@@ -1,6 +1,7 @@
 import "server-only";
 
 import { and, count, eq, gte, sql } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
 
 import type {
   WorkspaceAnalyticsData,
@@ -8,6 +9,10 @@ import type {
   WorkspaceAnalyticsTrendPoint,
 } from "@/features/analytics/types";
 import { inquiryStatuses } from "@/features/inquiries/types";
+import {
+  getWorkspaceAnalyticsCacheTags,
+  hotWorkspaceCacheLife,
+} from "@/lib/cache/workspace-tags";
 import { db } from "@/lib/db/client";
 import { inquiries, quotes } from "@/lib/db/schema";
 
@@ -56,6 +61,11 @@ function toCountMap(
 export async function getWorkspaceAnalyticsData(
   workspaceId: string,
 ): Promise<WorkspaceAnalyticsData> {
+  "use cache";
+
+  cacheLife(hotWorkspaceCacheLife);
+  cacheTag(...getWorkspaceAnalyticsCacheTags(workspaceId));
+
   const now = new Date();
   const trendStart = addUtcWeeks(startOfUtcWeek(now), -5);
   const trendStartIso = trendStart.toISOString();
