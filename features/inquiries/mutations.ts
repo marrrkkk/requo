@@ -7,10 +7,12 @@ import {
 } from "@/lib/files";
 import {
   activityLogs,
+  businesses,
   inquiries,
   inquiryAttachments,
   inquiryNotes,
 } from "@/lib/db/schema";
+import { insertBusinessNotification } from "@/features/notifications/mutations";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   publicInquiryAttachmentBucket,
@@ -145,6 +147,34 @@ export async function createPublicInquirySubmission({
         createdAt: now,
         updatedAt: now,
       });
+
+      const [notificationSettings] = await tx
+        .select({
+          notifyInAppOnNewInquiry: businesses.notifyInAppOnNewInquiry,
+        })
+        .from(businesses)
+        .where(eq(businesses.id, business.id))
+        .limit(1);
+
+      if (notificationSettings?.notifyInAppOnNewInquiry) {
+        await insertBusinessNotification(tx, {
+          businessId: business.id,
+          inquiryId,
+          type: "public_inquiry_submitted",
+          title: `New inquiry from ${submission.customerName}`,
+          summary: `${submission.serviceCategory} via ${business.form.name}`,
+          metadata: {
+            customerEmail: submission.customerEmail,
+            customerName: submission.customerName,
+            hasAttachment: Boolean(preparedAttachment),
+            inquiryFormId: business.form.id,
+            inquiryFormName: business.form.name,
+            inquiryFormSlug: business.form.slug,
+            serviceCategory: submission.serviceCategory,
+          },
+          now,
+        });
+      }
     });
   } catch (error) {
     if (uploadedStoragePath && storageClient) {

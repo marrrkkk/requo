@@ -17,6 +17,7 @@ import {
   getQuoteStatusLabel,
   getTodayUtcDateString,
 } from "@/features/quotes/utils";
+import { insertBusinessNotification } from "@/features/notifications/mutations";
 
 function createId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
@@ -67,6 +68,23 @@ function isRetryableUniqueConflict(error: unknown) {
         (error.constraint === "quotes_business_quote_number_unique" ||
           error.constraint === "quotes_public_token_unique")))
   );
+}
+
+function truncateNotificationMessage(
+  value: string | null | undefined,
+  maxLength = 120,
+) {
+  const trimmedValue = value?.trim();
+
+  if (!trimmedValue) {
+    return null;
+  }
+
+  if (trimmedValue.length <= maxLength) {
+    return trimmedValue;
+  }
+
+  return `${trimmedValue.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
 async function maybeMoveInquiryToQuoted(
@@ -694,11 +712,18 @@ export async function respondToPublicQuoteByToken({
         id: quotes.id,
         businessId: quotes.businessId,
         businessSlug: businesses.slug,
+        businessName: businesses.name,
         inquiryId: quotes.inquiryId,
         quoteNumber: quotes.quoteNumber,
+        title: quotes.title,
+        customerName: quotes.customerName,
+        customerEmail: quotes.customerEmail,
+        publicToken: quotes.publicToken,
         status: quotes.status,
         sentAt: quotes.sentAt,
         postAcceptanceStatus: quotes.postAcceptanceStatus,
+        notifyOnQuoteResponse: businesses.notifyOnQuoteResponse,
+        notifyInAppOnQuoteResponse: businesses.notifyInAppOnQuoteResponse,
       })
       .from(quotes)
       .innerJoin(businesses, eq(quotes.businessId, businesses.id))
@@ -767,14 +792,48 @@ export async function respondToPublicQuoteByToken({
       now,
     });
 
+    if (existingQuote.notifyInAppOnQuoteResponse) {
+      await insertBusinessNotification(tx, {
+        businessId: existingQuote.businessId,
+        inquiryId: existingQuote.inquiryId,
+        quoteId: existingQuote.id,
+        type:
+          nextStatus === "accepted"
+            ? "quote_customer_accepted"
+            : "quote_customer_rejected",
+        title:
+          nextStatus === "accepted"
+            ? `${existingQuote.customerName} accepted ${existingQuote.quoteNumber}`
+            : `${existingQuote.customerName} declined ${existingQuote.quoteNumber}`,
+        summary: truncateNotificationMessage(message, 140) ?? existingQuote.title,
+        metadata: {
+          customerEmail: existingQuote.customerEmail,
+          customerMessage: message?.trim() || null,
+          customerName: existingQuote.customerName,
+          quoteNumber: existingQuote.quoteNumber,
+          response: nextStatus,
+          title: existingQuote.title,
+        },
+        now,
+      });
+    }
+
     return {
       updated: true,
       businessId: existingQuote.businessId,
       inquiryId: existingQuote.inquiryId,
       quoteId: existingQuote.id,
       businessSlug: existingQuote.businessSlug,
+      businessName: existingQuote.businessName,
+      customerName: existingQuote.customerName,
+      customerEmail: existingQuote.customerEmail,
+      customerResponseMessage: message?.trim() || null,
+      notifyOnQuoteResponse: existingQuote.notifyOnQuoteResponse,
+      publicToken: existingQuote.publicToken,
       quoteNumber: existingQuote.quoteNumber,
       status: nextStatus,
+      title: existingQuote.title,
+      updatedAt: now,
     };
   });
 }

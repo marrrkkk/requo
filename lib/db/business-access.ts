@@ -36,6 +36,9 @@ export type BusinessMessagingSettings = {
   defaultEmailSignature: string | null;
   notifyOnNewInquiry: boolean;
   notifyOnQuoteSent: boolean;
+  notifyOnQuoteResponse: boolean;
+  notifyInAppOnNewInquiry: boolean;
+  notifyInAppOnQuoteResponse: boolean;
 };
 
 export type OwnerBusinessActionContext =
@@ -299,6 +302,9 @@ export const getBusinessMessagingSettings = cache(async (businessId: string) => 
       defaultEmailSignature: businesses.defaultEmailSignature,
       notifyOnNewInquiry: businesses.notifyOnNewInquiry,
       notifyOnQuoteSent: businesses.notifyOnQuoteSent,
+      notifyOnQuoteResponse: businesses.notifyOnQuoteResponse,
+      notifyInAppOnNewInquiry: businesses.notifyInAppOnNewInquiry,
+      notifyInAppOnQuoteResponse: businesses.notifyInAppOnQuoteResponse,
     })
     .from(businesses)
     .where(eq(businesses.id, businessId))

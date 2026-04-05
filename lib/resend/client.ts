@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { renderPasswordResetEmail } from "@/emails/templates/password-reset";
 import { renderPublicInquiryNotificationEmail } from "@/emails/templates/public-inquiry-notification";
 import { renderQuoteEmail } from "@/emails/templates/quote-email";
+import { renderQuoteResponseOwnerNotificationEmail } from "@/emails/templates/quote-response-owner-notification";
 import { renderQuoteSentOwnerNotificationEmail } from "@/emails/templates/quote-sent-owner-notification";
 import { env, isResendConfigured } from "@/lib/env";
 
@@ -91,6 +92,20 @@ type SendQuoteSentOwnerNotificationEmailInput = {
   title: string;
   dashboardUrl: string;
   publicQuoteUrl: string;
+};
+
+type SendQuoteResponseOwnerNotificationEmailInput = {
+  quoteId: string;
+  updatedAt: Date;
+  recipients: string[];
+  businessName: string;
+  customerName: string;
+  customerEmail: string;
+  customerMessage?: string | null;
+  quoteNumber: string;
+  title: string;
+  response: "accepted" | "rejected";
+  dashboardUrl: string;
 };
 
 function getEmailDomain(email: string) {
@@ -371,6 +386,69 @@ export async function sendQuoteSentOwnerNotificationEmail({
     },
     {
       idempotencyKey: `quote-owner-notify/${quoteId}/${updatedAt.getTime()}`,
+    },
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function sendQuoteResponseOwnerNotificationEmail({
+  quoteId,
+  updatedAt,
+  recipients,
+  businessName,
+  customerName,
+  customerEmail,
+  customerMessage,
+  quoteNumber,
+  title,
+  response,
+  dashboardUrl,
+}: SendQuoteResponseOwnerNotificationEmailInput) {
+  if (!recipients.length) {
+    return;
+  }
+
+  if (!resend || !isResendConfigured || !env.RESEND_FROM_EMAIL) {
+    console.warn(
+      "Resend is not configured yet. Quote response owner notification email delivery was skipped.",
+    );
+    return;
+  }
+
+  const senderConfigurationError = getResendFromEmailConfigurationError();
+
+  if (senderConfigurationError) {
+    console.warn(
+      `Resend sender is misconfigured. Quote response owner notification email delivery was skipped. ${senderConfigurationError}`,
+    );
+    return;
+  }
+
+  const template = renderQuoteResponseOwnerNotificationEmail({
+    businessName,
+    customerName,
+    customerEmail,
+    customerMessage,
+    quoteNumber,
+    title,
+    response,
+    dashboardUrl,
+  });
+
+  const { error } = await resend.emails.send(
+    {
+      from: env.RESEND_FROM_EMAIL,
+      to: recipients,
+      replyTo: env.RESEND_REPLY_TO_EMAIL ? [env.RESEND_REPLY_TO_EMAIL] : undefined,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+    },
+    {
+      idempotencyKey: `quote-response-owner-notify/${quoteId}/${updatedAt.getTime()}/${response}`,
     },
   );
 

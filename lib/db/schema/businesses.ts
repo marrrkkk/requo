@@ -83,6 +83,15 @@ export const businesses = pgTable(
       .notNull()
       .default(true),
     notifyOnQuoteSent: boolean("notify_on_quote_sent").notNull().default(true),
+    notifyOnQuoteResponse: boolean("notify_on_quote_response")
+      .notNull()
+      .default(true),
+    notifyInAppOnNewInquiry: boolean("notify_in_app_on_new_inquiry")
+      .notNull()
+      .default(true),
+    notifyInAppOnQuoteResponse: boolean("notify_in_app_on_quote_response")
+      .notNull()
+      .default(true),
     defaultCurrency: text("default_currency").notNull().default("USD"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

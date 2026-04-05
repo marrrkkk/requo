@@ -23,6 +23,7 @@ import {
   getResendFromEmailConfigurationError,
   getResendSendFailureMessage,
   sendQuoteEmail,
+  sendQuoteResponseOwnerNotificationEmail,
   sendQuoteSentOwnerNotificationEmail,
 } from "@/lib/resend/client";
 import {
@@ -618,6 +619,36 @@ export async function respondToPublicQuoteAction(
       return {
         error: "This quote is not accepting responses right now.",
       };
+    }
+
+    if (result.notifyOnQuoteResponse) {
+      const ownerEmails = await getBusinessOwnerEmails(result.businessId);
+
+      if (ownerEmails.length) {
+        try {
+          await sendQuoteResponseOwnerNotificationEmail({
+            quoteId: result.quoteId,
+            updatedAt: result.updatedAt,
+            recipients: ownerEmails,
+            businessName: result.businessName,
+            customerName: result.customerName,
+            customerEmail: result.customerEmail,
+            customerMessage: result.customerResponseMessage,
+            quoteNumber: result.quoteNumber,
+            title: result.title,
+            response: result.status,
+            dashboardUrl: new URL(
+              getBusinessQuotePath(result.businessSlug, result.quoteId),
+              env.BETTER_AUTH_URL,
+            ).toString(),
+          });
+        } catch (error) {
+          console.error(
+            "The quote response was saved but the owner notification email failed to send.",
+            error,
+          );
+        }
+      }
     }
 
     return {

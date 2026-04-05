@@ -20,6 +20,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  SUPABASE_JWT_SECRET: emptyToUndefined(z.string().min(1)),
   RESEND_API_KEY: emptyToUndefined(z.string().min(1)),
   RESEND_FROM_EMAIL: emptyToUndefined(z.email()),
   RESEND_REPLY_TO_EMAIL: emptyToUndefined(z.email()),
@@ -48,3 +49,4 @@ export const isResendConfigured = Boolean(
 );
 
 export const isOpenRouterConfigured = Boolean(env.OPENROUTER_API_KEY);
+export const isSupabaseRealtimeConfigured = Boolean(env.SUPABASE_JWT_SECRET);
