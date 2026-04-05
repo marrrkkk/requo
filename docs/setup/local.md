@@ -20,6 +20,7 @@ Minimum local requirements:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_JWT_SECRET`
 
 Optional but commonly needed:
 
@@ -45,6 +46,7 @@ Optional but commonly needed:
 - The repo validates Supabase envs even when you are not actively using upload flows.
 - Local builds and tests can use placeholder Supabase values when you are not exercising storage-backed functionality.
 - Knowledge uploads, inquiry attachments, and business logos need a real Supabase project and valid service-role credentials.
+- Realtime dashboard notifications need `SUPABASE_JWT_SECRET` from the Supabase project API settings. Without it, the bell still renders server data but will not live-update.
 
 ### Resend
 

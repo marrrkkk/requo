@@ -15,6 +15,7 @@ Relay deploys cleanly as a Next.js app with a Postgres database, Supabase storag
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_JWT_SECRET`
 
 ### Optional but recommended
 
@@ -37,6 +38,7 @@ Relay deploys cleanly as a Next.js app with a Postgres database, Supabase storag
 ## Supabase Checklist
 
 - Provide `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`.
+- Provide `SUPABASE_JWT_SECRET` so Better Auth users can subscribe to Supabase Realtime for dashboard notifications.
 - Run the existing Drizzle migrations before exercising storage-backed features.
 - The app expects the migrations to manage the private bucket configuration for:
   - `inquiry-attachments`

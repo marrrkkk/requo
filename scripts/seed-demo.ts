@@ -318,6 +318,9 @@ async function ensureDemoBusiness(demoUser: DemoUser): Promise<DemoBusiness> {
       aiTonePreference: "warm",
       notifyOnNewInquiry: true,
       notifyOnQuoteSent: true,
+      notifyOnQuoteResponse: true,
+      notifyInAppOnNewInquiry: true,
+      notifyInAppOnQuoteResponse: true,
       defaultCurrency: "USD",
       updatedAt: now,
     })

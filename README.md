@@ -76,6 +76,7 @@ Open `http://localhost:3000`.
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_JWT_SECRET`
 
 ### Feature-gated optional values
 
@@ -122,6 +123,7 @@ The detailed target structure and reuse guidance live in [docs/architecture/rela
 
 - Supabase is used for private storage flows and browser/admin clients are already in place.
 - Upload-backed features need a real Supabase project and valid keys.
+- Realtime dashboard notifications require `SUPABASE_JWT_SECRET` so the app can mint short-lived Supabase JWTs for Better Auth users.
 - App-level business scoping is enforced in queries and server actions today.
 - SQL RLS helpers and policies exist in migrations, but the runtime does not currently inject `app.current_user_id` into the Postgres session, so DB-session RLS is not the primary enforcement path yet.
 
