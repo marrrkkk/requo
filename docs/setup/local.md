@@ -1,4 +1,4 @@
-# Relay Local Setup
+# Requo Local Setup
 
 ## Prerequisites
 
@@ -85,7 +85,7 @@ npm run db:seed-demo
 Default demo values:
 
 - Owner name: `Morgan Lee`
-- Owner email: `demo@relay.local`
+- Owner email: `demo@requo.local`
 - Owner password: `ChangeMe123456!`
 - Business name: `BrightSide Print Studio`
 - Business slug: `brightside-print-studio`

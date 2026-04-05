@@ -7,10 +7,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 # AGENTS.md
 
 ## Project
-This repository contains **Relay**, a SaaS web app for small service businesses.
+This repository contains **Requo**, a SaaS web app for small service businesses.
 
 ### Product summary
-Relay helps small businesses collect customer inquiries, manage them in one dashboard, generate quotations, upload business knowledge files, and use AI to draft practical replies.
+Requo helps small businesses collect customer inquiries, manage them in one dashboard, generate quotations, upload business knowledge files, and use AI to draft practical replies.
 
 ### Core stack 
 - Next.js (App Router, TypeScript)

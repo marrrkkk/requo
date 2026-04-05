@@ -1,8 +1,8 @@
-# Relay Deployment Setup
+# Requo Deployment Setup
 
 ## Summary
 
-Relay deploys cleanly as a Next.js app with a Postgres database, Supabase storage credentials, Better Auth secrets, Resend for transactional email, and OpenRouter for AI drafting.
+Requo deploys cleanly as a Next.js app with a Postgres database, Supabase storage credentials, Better Auth secrets, Resend for transactional email, and OpenRouter for AI drafting.
 
 ## Environment Variables
 

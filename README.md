@@ -1,8 +1,8 @@
-# Relay
+# Requo
 
 Turn messy customer inquiries into organized quotes and bookings.
 
-Relay is an owner-first SaaS app for small service businesses such as print shops, repair shops, tutors, event suppliers, and small agencies. This repository already contains a working product foundation with authentication, a public inquiry page, dashboard flows, quotes, knowledge, AI drafting, analytics, and settings.
+Requo is an owner-first SaaS app for small service businesses such as print shops, repair shops, tutors, event suppliers, and small agencies. This repository already contains a working product foundation with authentication, a public inquiry page, dashboard flows, quotes, knowledge, AI drafting, analytics, and settings.
 
 ## Current Status
 
@@ -14,7 +14,7 @@ Relay is an owner-first SaaS app for small service businesses such as print shop
 
 - [Local setup](docs/setup/local.md)
 - [Deployment setup](docs/setup/deployment.md)
-- [Architecture](docs/architecture/relay-architecture.md)
+- [Architecture](docs/architecture/requo-architecture.md)
 
 ## Quick Start
 
@@ -44,7 +44,7 @@ Copy-Item .env.example .env
 npm run db:migrate
 ```
 
-Drizzle migrations are the source of truth for this repo. They include the Relay schema, Better Auth tables, timestamp triggers, RLS helpers, and storage bucket setup SQL.
+Drizzle migrations are the source of truth for this repo. They include the Requo schema, Better Auth tables, timestamp triggers, RLS helpers, and storage bucket setup SQL.
 
 ### 4. Seed demo data
 
@@ -54,7 +54,7 @@ npm run db:seed-demo
 
 Default demo credentials:
 
-- Email: `demo@relay.local`
+- Email: `demo@requo.local`
 - Password: `ChangeMe123456!`
 
 ### 5. Start the app
@@ -109,7 +109,7 @@ Read [docs/setup/local.md](docs/setup/local.md) for local expectations and [docs
 - `lib/` contains cross-cutting helpers for auth, database access, Supabase, Resend, OpenRouter, env validation, and file utilities.
 - `emails/templates/` holds transactional email rendering.
 
-The detailed target structure and reuse guidance live in [docs/architecture/relay-architecture.md](docs/architecture/relay-architecture.md).
+The detailed target structure and reuse guidance live in [docs/architecture/requo-architecture.md](docs/architecture/requo-architecture.md).
 
 ## Integration Notes
 
