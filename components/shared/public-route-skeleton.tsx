@@ -77,7 +77,7 @@ function InquiryRouteSkeleton({ previewMode }: { previewMode: boolean }) {
 
               <div className="grid gap-3">
                 {Array.from({ length: 3 }).map((_, index) => (
-                  <Card key={index} size="sm" className="bg-background/92 shadow-none">
+                  <Card key={index} size="sm" className="bg-background/92">
                     <CardHeader className="gap-3">
                       <div className="flex size-10 items-center justify-center rounded-xl bg-accent">
                         <Skeleton className="size-4 rounded-sm" />
@@ -105,7 +105,7 @@ function InquiryRouteSkeleton({ previewMode }: { previewMode: boolean }) {
 function QuoteRouteLeadSkeleton() {
   return (
     <>
-      <Card className="gap-0 bg-background/92 shadow-none">
+      <Card className="gap-0 bg-background/92">
         <CardHeader className="gap-3 pb-5">
           <Skeleton className="h-8 w-40 rounded-lg" />
           <Skeleton className="h-4 w-full max-w-xs rounded-md" />
@@ -122,7 +122,7 @@ function QuoteRouteLeadSkeleton() {
         </CardContent>
       </Card>
 
-      <Card className="gap-0 bg-background/92 shadow-none">
+      <Card className="gap-0 bg-background/92">
         <CardHeader className="gap-3 pb-5">
           <Skeleton className="h-8 w-44 rounded-lg" />
           <Skeleton className="h-4 w-full max-w-sm rounded-md" />
@@ -133,7 +133,7 @@ function QuoteRouteLeadSkeleton() {
         </CardContent>
       </Card>
 
-      <Card className="gap-0 bg-background/92 shadow-none">
+      <Card className="gap-0 bg-background/92">
         <CardHeader className="gap-3 pb-5">
           <Skeleton className="h-8 w-40 rounded-lg" />
           <Skeleton className="h-4 w-full max-w-sm rounded-md" />

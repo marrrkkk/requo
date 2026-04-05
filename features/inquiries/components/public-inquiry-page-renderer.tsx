@@ -296,7 +296,7 @@ function InquirySupportCards({
         const Icon = inquiryPageCardIconMeta[card.icon].icon;
 
         return (
-          <Card key={card.id} size="sm" className="bg-background/92 shadow-none">
+          <Card key={card.id} size="sm" className="bg-background/92">
             <CardHeader className="gap-3">
               <div className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
                 <Icon className="size-4" />
