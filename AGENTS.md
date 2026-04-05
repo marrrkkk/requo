@@ -69,11 +69,11 @@ Requirements:
 - session handling
 - protected app routes
 - forgot/reset password flow
-- workspace creation on first signup
+- business creation on first signup
 - secure server-side auth handling
 
 ## Data ownership and security
-- Users must only access their own workspace data.
+- Users must only access their own business data.
 - Public inquiry submission must be tightly scoped.
 - Protect server-only secrets.
 - Validate all inputs with Zod.

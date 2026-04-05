@@ -92,8 +92,8 @@ Open `http://localhost:3000`.
 - `DEMO_OWNER_NAME`
 - `DEMO_OWNER_EMAIL`
 - `DEMO_OWNER_PASSWORD`
-- `DEMO_WORKSPACE_NAME`
-- `DEMO_WORKSPACE_SLUG`
+- `DEMO_BUSINESS_NAME`
+- `DEMO_BUSINESS_SLUG`
 - `DEMO_QUOTE_PUBLIC_TOKEN`
 - `DEMO_EXPIRED_QUOTE_PUBLIC_TOKEN`
 
@@ -102,7 +102,7 @@ Read [docs/setup/local.md](docs/setup/local.md) for local expectations and [docs
 ## Architecture Snapshot
 
 - `app/` holds route groups for marketing, auth, dashboard, public routes, and API handlers.
-- `features/` holds product slices such as auth, inquiries, quotes, knowledge, AI, analytics, settings, and workspace overview.
+- `features/` holds product slices such as auth, inquiries, quotes, knowledge, AI, analytics, settings, and business overview.
 - `components/ui/` contains reusable shadcn-based primitives.
 - `components/shell/` and `components/shared/` hold shared app chrome and brand-level UI.
 - `lib/` contains cross-cutting helpers for auth, database access, Supabase, Resend, OpenRouter, env validation, and file utilities.
@@ -115,14 +115,14 @@ The detailed target structure and reuse guidance live in [docs/architecture/rela
 ### Better Auth
 
 - Email/password auth, signup, login, logout, forgot password, and reset password are already wired.
-- Workspace bootstrap runs automatically after user creation.
+- Business bootstrap runs automatically after user creation.
 - Trusted origins are built from `BETTER_AUTH_URL`, optional `NEXT_PUBLIC_BETTER_AUTH_URL`, and optional `VERCEL_URL`.
 
 ### Supabase
 
 - Supabase is used for private storage flows and browser/admin clients are already in place.
 - Upload-backed features need a real Supabase project and valid keys.
-- App-level workspace scoping is enforced in queries and server actions today.
+- App-level business scoping is enforced in queries and server actions today.
 - SQL RLS helpers and policies exist in migrations, but the runtime does not currently inject `app.current_user_id` into the Postgres session, so DB-session RLS is not the primary enforcement path yet.
 
 ### Resend

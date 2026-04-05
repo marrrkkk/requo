@@ -44,7 +44,7 @@ Optional but commonly needed:
 - Supabase-backed uploads and asset downloads need a real Supabase project.
 - The repo validates Supabase envs even when you are not actively using upload flows.
 - Local builds and tests can use placeholder Supabase values when you are not exercising storage-backed functionality.
-- Knowledge uploads, inquiry attachments, and workspace logos need a real Supabase project and valid service-role credentials.
+- Knowledge uploads, inquiry attachments, and business logos need a real Supabase project and valid service-role credentials.
 
 ### Resend
 
@@ -85,8 +85,8 @@ Default demo values:
 - Owner name: `Morgan Lee`
 - Owner email: `demo@relay.local`
 - Owner password: `ChangeMe123456!`
-- Workspace name: `BrightSide Print Studio`
-- Workspace slug: `brightside-print-studio`
+- Business name: `BrightSide Print Studio`
+- Business slug: `brightside-print-studio`
 - Demo sent quote token: `demoquote1002senttoken`
 - Demo expired quote token: `demoquote1005expiredtoken`
 
@@ -113,5 +113,5 @@ npm run test:e2e
 ## Notes for Local Testing
 
 - The Playwright suite starts its own local server, sets `BETTER_AUTH_URL` to `127.0.0.1`, and disables live Resend and OpenRouter calls.
-- The E2E suite uses the seeded demo workspace and fixed public quote tokens.
+- The E2E suite uses the seeded demo business and fixed public quote tokens.
 - The current automated suite does not cover live storage uploads, live Resend delivery, or live OpenRouter generation.

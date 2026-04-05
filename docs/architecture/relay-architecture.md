@@ -10,8 +10,7 @@ Relay should continue using the existing feature-oriented structure in this repo
 app/
   (marketing)/
   (auth)/
-  (dashboard)/dashboard/
-  workspace/
+  business/
   (public)/
   api/
 
@@ -29,7 +28,7 @@ features/
   ai/
   analytics/
   settings/
-  workspaces/
+  businesses/
 
 lib/
   auth/
@@ -74,8 +73,7 @@ docs/
 
 - `(marketing)` owns the landing page and top-level marketing presentation.
 - `(auth)` owns signup, login, forgot password, and reset password.
-- `workspace/` owns the workspace hub plus workspace-scoped dashboard routes.
-- `(dashboard)` remains in place for legacy compatibility redirects and shared page implementations.
+- `business/` owns the business hub plus business-scoped dashboard routes.
 - `(public)` owns the public inquiry form and public quote response pages.
 - `api/` owns narrow route handlers for Better Auth and authenticated asset downloads.
 
@@ -87,17 +85,17 @@ Feature responsibilities:
 - `features/knowledge`: FAQs and uploaded text knowledge files.
 - `features/ai`: inquiry assistant prompts, context assembly, and model invocation.
 - `features/analytics`: dashboard metrics and trend queries.
-- `features/settings`: workspace identity, logo, notifications, public inquiry settings, and defaults.
-- `features/workspaces`: overview cards and dashboard summary composition.
+- `features/settings`: business identity, logo, notifications, public inquiry settings, and defaults.
+- `features/businesses`: overview cards and dashboard summary composition.
 
 ## Auth, Data, and Security
 
 - Better Auth is the only auth system. Do not introduce Supabase Auth.
-- Better Auth creates the authenticated user profile server-side, while workspaces are created manually from the protected workspace hub.
-- Authenticated mutations should continue to go through workspace-aware helpers such as `getOwnerWorkspaceActionContext`.
-- Drizzle queries are currently the primary enforcement mechanism for workspace ownership and membership.
+- Better Auth creates the authenticated user profile server-side, while businesses are created manually from the protected business hub.
+- Authenticated mutations should continue to go through business-aware helpers such as `getOwnerBusinessActionContext`.
+- Drizzle queries are currently the primary enforcement mechanism for business ownership and membership.
 - SQL RLS helpers and policies exist in migrations, but the app does not currently set `app.current_user_id` on the database session. That means runtime DB-session RLS is not fully activated for app queries yet.
-- Supabase storage access should remain server-side for private assets. Public download routes should keep checking workspace context before reading from storage.
+- Supabase storage access should remain server-side for private assets. Public download routes should keep checking business context before reading from storage.
 
 ## Provider Boundaries
 

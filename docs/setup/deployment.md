@@ -41,7 +41,7 @@ Relay deploys cleanly as a Next.js app with a Postgres database, Supabase storag
 - The app expects the migrations to manage the private bucket configuration for:
   - `inquiry-attachments`
   - `knowledge-files`
-  - `workspace-assets`
+  - `business-assets`
 - Keep private asset access server-side. The current design uses authenticated route handlers to download private files.
 
 ## Resend Checklist
