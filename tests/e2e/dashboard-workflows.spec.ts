@@ -39,6 +39,12 @@ function getSnippetCard(page: Page, title: string): Locator {
     .last();
 }
 
+function getToggleCard(page: Page, label: string): Locator {
+  return page.locator("label").filter({
+    has: page.getByText(label, { exact: true }),
+  });
+}
+
 test("dashboard and detail pages surface follow-up, expiring-soon, and customer history context", async ({
   page,
 }) => {
@@ -195,4 +201,88 @@ test("accepted quotes can move from booked to scheduled", async ({ page }) => {
     timeout: 20_000,
   });
   await expect(postAcceptanceSelect).toContainText("Scheduled");
+});
+
+test("notification settings live under general settings and persist", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+
+  await signIn(page);
+
+  await openBusinessesPage(page, "/settings/general");
+
+  await expect(
+    page.getByRole("heading", { name: "Notification preferences" }),
+  ).toBeVisible();
+  await expect(page.getByText("In-app on new inquiry")).toBeVisible();
+  await expect(page.getByText("In-app on quote response")).toBeVisible();
+  await expect(page.getByText("Email on new inquiry")).toBeVisible();
+  await expect(page.getByText("Email on quote sent")).toBeVisible();
+  await expect(page.getByText("Email on quote response")).toBeVisible();
+
+  await openBusinessesPage(page, "/settings/quote");
+
+  await expect(
+    page.getByRole("heading", { name: "Notifications" }),
+  ).toHaveCount(0);
+  await expect(page.getByText("Email on quote sent")).toHaveCount(0);
+
+  await openBusinessesPage(page, "/settings/general");
+
+  const inAppInquiryCard = getToggleCard(page, "In-app on new inquiry");
+  const emailQuoteResponseCard = getToggleCard(page, "Email on quote response");
+  const inAppInquirySwitch = inAppInquiryCard.locator('[data-slot="switch"]');
+  const emailQuoteResponseSwitch = emailQuoteResponseCard.locator(
+    '[data-slot="switch"]',
+  );
+
+  await expect(inAppInquirySwitch).toHaveAttribute("data-state", "checked");
+  await expect(emailQuoteResponseSwitch).toHaveAttribute("data-state", "checked");
+
+  await inAppInquiryCard.click();
+  await emailQuoteResponseCard.click();
+  await page.getByRole("button", { name: "Save settings" }).click();
+
+  await expect(page.getByText("Business settings saved.")).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(inAppInquirySwitch).toHaveAttribute("data-state", "unchecked");
+  await expect(emailQuoteResponseSwitch).toHaveAttribute(
+    "data-state",
+    "unchecked",
+  );
+
+  await page.reload({ waitUntil: "networkidle" });
+
+  const reloadedInAppInquirySwitch = getToggleCard(
+    page,
+    "In-app on new inquiry",
+  ).locator('[data-slot="switch"]');
+  const reloadedEmailQuoteResponseSwitch = getToggleCard(
+    page,
+    "Email on quote response",
+  ).locator('[data-slot="switch"]');
+
+  await expect(reloadedInAppInquirySwitch).toHaveAttribute(
+    "data-state",
+    "unchecked",
+  );
+  await expect(reloadedEmailQuoteResponseSwitch).toHaveAttribute(
+    "data-state",
+    "unchecked",
+  );
+
+  await getToggleCard(page, "In-app on new inquiry").click();
+  await getToggleCard(page, "Email on quote response").click();
+  await page.getByRole("button", { name: "Save settings" }).click();
+
+  await expect(page.getByText("Business settings saved.")).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(reloadedInAppInquirySwitch).toHaveAttribute("data-state", "checked");
+  await expect(reloadedEmailQuoteResponseSwitch).toHaveAttribute(
+    "data-state",
+    "checked",
+  );
 });

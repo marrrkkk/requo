@@ -117,6 +117,10 @@ export const businessGeneralSettingsSchema = z.object({
   defaultEmailSignature: optionalText(1200),
   aiTonePreference: z.enum(businessAiTonePreferences),
   notifyOnNewInquiry: formBoolean(),
+  notifyOnQuoteSent: formBoolean(),
+  notifyOnQuoteResponse: formBoolean(),
+  notifyInAppOnNewInquiry: formBoolean(),
+  notifyInAppOnQuoteResponse: formBoolean(),
   logo: businessLogoSchema,
   removeLogo: formBoolean().default(false),
 });
@@ -147,7 +151,6 @@ export const businessQuoteSettingsSchema = z.object({
     },
     z.number().int().min(1).max(365),
   ),
-  notifyOnQuoteSent: formBoolean(),
   defaultCurrency: z.enum(businessCurrencyOptions).default("USD"),
 });
 

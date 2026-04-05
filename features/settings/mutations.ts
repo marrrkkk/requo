@@ -307,6 +307,10 @@ export async function updateBusinessSettings({
           defaultEmailSignature: values.defaultEmailSignature ?? null,
           aiTonePreference: values.aiTonePreference,
           notifyOnNewInquiry: values.notifyOnNewInquiry,
+          notifyOnQuoteSent: values.notifyOnQuoteSent,
+          notifyOnQuoteResponse: values.notifyOnQuoteResponse,
+          notifyInAppOnNewInquiry: values.notifyInAppOnNewInquiry,
+          notifyInAppOnQuoteResponse: values.notifyInAppOnQuoteResponse,
           updatedAt: now,
         })
         .where(eq(businesses.id, businessId));
@@ -322,6 +326,10 @@ export async function updateBusinessSettings({
           hasLogo: Boolean(logoFile || previousLogoStoragePath) && !values.removeLogo,
           aiTonePreference: values.aiTonePreference,
           notifyOnNewInquiry: values.notifyOnNewInquiry,
+          notifyOnQuoteSent: values.notifyOnQuoteSent,
+          notifyOnQuoteResponse: values.notifyOnQuoteResponse,
+          notifyInAppOnNewInquiry: values.notifyInAppOnNewInquiry,
+          notifyInAppOnQuoteResponse: values.notifyInAppOnQuoteResponse,
         },
         createdAt: now,
         updatedAt: now,
@@ -396,7 +404,6 @@ export async function updateBusinessQuoteSettings({
       .set({
         defaultQuoteNotes: values.defaultQuoteNotes ?? null,
         defaultQuoteValidityDays: values.defaultQuoteValidityDays,
-        notifyOnQuoteSent: values.notifyOnQuoteSent,
         defaultCurrency: values.defaultCurrency,
         updatedAt: now,
       })
@@ -412,7 +419,6 @@ export async function updateBusinessQuoteSettings({
         defaultCurrency: values.defaultCurrency,
         defaultQuoteValidityDays: values.defaultQuoteValidityDays,
         hasDefaultQuoteNotes: Boolean(values.defaultQuoteNotes?.trim()),
-        notifyOnQuoteSent: values.notifyOnQuoteSent,
       },
       createdAt: now,
       updatedAt: now,

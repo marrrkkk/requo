@@ -16,6 +16,8 @@ import { usePathname } from "next/navigation";
 
 import { authClient } from "@/lib/auth/client";
 import { AppearanceMenuSubmenu } from "@/features/theme/components/appearance-menu";
+import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
+import type { BusinessNotificationBellView } from "@/features/notifications/types";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import type { ThemePreference } from "@/features/theme/types";
 import type { BusinessContext } from "@/lib/db/business-access";
@@ -77,6 +79,7 @@ type DashboardShellProps = {
   };
   businessContext: BusinessContext;
   businessMemberships: BusinessContext[];
+  notificationView: BusinessNotificationBellView;
 };
 
 export function DashboardShell({
@@ -85,6 +88,7 @@ export function DashboardShell({
   user,
   businessContext,
   businessMemberships,
+  notificationView,
 }: DashboardShellProps) {
   const pathname = usePathname();
   const breadcrumbs = getDashboardBreadcrumbs(pathname);
@@ -184,6 +188,15 @@ export function DashboardShell({
               <div className="hidden items-center gap-2 xl:flex">
                 <Badge variant="secondary">/{business.slug}</Badge>
                 <Badge variant="outline">{business.defaultCurrency}</Badge>
+              </div>
+              <div className="flex items-center gap-1">
+                <DashboardNotificationBell
+                  businessId={business.id}
+                  businessSlug={business.slug}
+                  initialView={notificationView}
+                  key={business.id}
+                  userId={user.id}
+                />
               </div>
             </div>
           </div>

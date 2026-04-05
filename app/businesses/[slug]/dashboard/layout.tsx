@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { DashboardShell } from "@/components/shell/dashboard-shell";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
+import { getBusinessNotificationBellView } from "@/features/notifications/queries";
 import { businessesHubPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
 import {
@@ -26,12 +27,19 @@ export default async function BusinessDashboardLayout({
     redirect(businessesHubPath);
   }
 
+  const notificationView = await getBusinessNotificationBellView({
+    businessId: businessContext.business.id,
+    businessSlug: businessContext.business.slug,
+    userId: session.user.id,
+  });
+
   return (
     <DashboardShell
       themePreference={themePreference}
       user={session.user}
       businessContext={businessContext}
       businessMemberships={businessMemberships}
+      notificationView={notificationView}
     >
       {children}
     </DashboardShell>

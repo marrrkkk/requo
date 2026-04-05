@@ -30,6 +30,9 @@ export type BusinessSettingsView = {
   aiTonePreference: BusinessAiTonePreference;
   notifyOnNewInquiry: boolean;
   notifyOnQuoteSent: boolean;
+  notifyOnQuoteResponse: boolean;
+  notifyInAppOnNewInquiry: boolean;
+  notifyInAppOnQuoteResponse: boolean;
   defaultCurrency: string;
   updatedAt: Date;
 };
@@ -56,7 +59,6 @@ export type BusinessSettingsActionState = {
 export type BusinessQuoteSettingsFieldName =
   | "defaultQuoteNotes"
   | "defaultQuoteValidityDays"
-  | "notifyOnQuoteSent"
   | "defaultCurrency";
 
 export type BusinessQuoteSettingsFieldErrors = Partial<

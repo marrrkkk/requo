@@ -45,6 +45,9 @@ export async function getBusinessSettingsForBusiness(
       aiTonePreference: businesses.aiTonePreference,
       notifyOnNewInquiry: businesses.notifyOnNewInquiry,
       notifyOnQuoteSent: businesses.notifyOnQuoteSent,
+      notifyOnQuoteResponse: businesses.notifyOnQuoteResponse,
+      notifyInAppOnNewInquiry: businesses.notifyInAppOnNewInquiry,
+      notifyInAppOnQuoteResponse: businesses.notifyInAppOnQuoteResponse,
       defaultCurrency: businesses.defaultCurrency,
       updatedAt: businesses.updatedAt,
     })

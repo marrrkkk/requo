@@ -105,6 +105,10 @@ export async function updateBusinessSettingsAction(
     defaultEmailSignature: formData.get("defaultEmailSignature"),
     aiTonePreference: formData.get("aiTonePreference"),
     notifyOnNewInquiry: formData.get("notifyOnNewInquiry"),
+    notifyOnQuoteSent: formData.get("notifyOnQuoteSent"),
+    notifyOnQuoteResponse: formData.get("notifyOnQuoteResponse"),
+    notifyInAppOnNewInquiry: formData.get("notifyInAppOnNewInquiry"),
+    notifyInAppOnQuoteResponse: formData.get("notifyInAppOnQuoteResponse"),
     logo: formData.get("logo"),
     removeLogo: formData.get("removeLogo"),
   });
@@ -203,7 +207,6 @@ export async function updateBusinessQuoteSettingsAction(
   const validationResult = businessQuoteSettingsSchema.safeParse({
     defaultQuoteNotes: formData.get("defaultQuoteNotes"),
     defaultQuoteValidityDays: formData.get("defaultQuoteValidityDays"),
-    notifyOnQuoteSent: formData.get("notifyOnQuoteSent"),
     defaultCurrency: formData.get("defaultCurrency"),
   });
 

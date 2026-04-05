@@ -10,10 +10,13 @@ import {
   useState,
 } from "react";
 import {
+  Bell,
   CheckCircle2,
   ImageIcon,
   type LucideIcon,
   Mail,
+  Reply,
+  Send,
 } from "lucide-react";
 
 import {
@@ -131,6 +134,18 @@ export function BusinessSettingsForm({
   const [notifyOnNewInquiry, setNotifyOnNewInquiry] = useState(
     settings.notifyOnNewInquiry,
   );
+  const [notifyOnQuoteSent, setNotifyOnQuoteSent] = useState(
+    settings.notifyOnQuoteSent,
+  );
+  const [notifyOnQuoteResponse, setNotifyOnQuoteResponse] = useState(
+    settings.notifyOnQuoteResponse,
+  );
+  const [notifyInAppOnNewInquiry, setNotifyInAppOnNewInquiry] = useState(
+    settings.notifyInAppOnNewInquiry,
+  );
+  const [notifyInAppOnQuoteResponse, setNotifyInAppOnQuoteResponse] = useState(
+    settings.notifyInAppOnQuoteResponse,
+  );
   const [removeLogo, setRemoveLogo] = useState(false);
   const [aiTonePreference, setAiTonePreference] = useState<BusinessAiTonePreference>(
     settings.aiTonePreference,
@@ -159,6 +174,26 @@ export function BusinessSettingsForm({
           name="notifyOnNewInquiry"
           type="hidden"
           value={String(notifyOnNewInquiry)}
+        />
+        <input
+          name="notifyOnQuoteSent"
+          type="hidden"
+          value={String(notifyOnQuoteSent)}
+        />
+        <input
+          name="notifyOnQuoteResponse"
+          type="hidden"
+          value={String(notifyOnQuoteResponse)}
+        />
+        <input
+          name="notifyInAppOnNewInquiry"
+          type="hidden"
+          value={String(notifyInAppOnNewInquiry)}
+        />
+        <input
+          name="notifyInAppOnQuoteResponse"
+          type="hidden"
+          value={String(notifyInAppOnQuoteResponse)}
         />
         <input name="removeLogo" type="hidden" value={String(removeLogo)} />
         <input name="aiTonePreference" type="hidden" value={aiTonePreference} />
@@ -373,8 +408,31 @@ export function BusinessSettingsForm({
           <CardHeader className="gap-3 pb-5">
             <CardTitle>Notification preferences</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
-            <FormSection title="Owner notifications">
+          <CardContent className="flex flex-col gap-6 pt-0">
+            <FormSection title="Live dashboard alerts">
+              <div className="grid gap-4 lg:grid-cols-2">
+                <ToggleCard
+                  checked={notifyInAppOnNewInquiry}
+                  description="Show a live dashboard notification when a new public inquiry comes in."
+                  disabled={isPending}
+                  icon={Bell}
+                  label="In-app on new inquiry"
+                  onCheckedChange={setNotifyInAppOnNewInquiry}
+                />
+                <ToggleCard
+                  checked={notifyInAppOnQuoteResponse}
+                  description="Show a live dashboard notification when a customer accepts or declines a quote."
+                  disabled={isPending}
+                  icon={Reply}
+                  label="In-app on quote response"
+                  onCheckedChange={setNotifyInAppOnQuoteResponse}
+                />
+              </div>
+            </FormSection>
+
+            <Separator />
+
+            <FormSection title="Owner emails">
               <div className="grid gap-4 lg:grid-cols-2">
                 <ToggleCard
                   checked={notifyOnNewInquiry}
@@ -383,6 +441,22 @@ export function BusinessSettingsForm({
                   icon={Mail}
                   label="Email on new inquiry"
                   onCheckedChange={setNotifyOnNewInquiry}
+                />
+                <ToggleCard
+                  checked={notifyOnQuoteSent}
+                  description="Email the owner after a quote is sent to a customer."
+                  disabled={isPending}
+                  icon={Send}
+                  label="Email on quote sent"
+                  onCheckedChange={setNotifyOnQuoteSent}
+                />
+                <ToggleCard
+                  checked={notifyOnQuoteResponse}
+                  description="Email the owner when a customer accepts or declines a quote."
+                  disabled={isPending}
+                  icon={Reply}
+                  label="Email on quote response"
+                  onCheckedChange={setNotifyOnQuoteResponse}
                 />
               </div>
             </FormSection>

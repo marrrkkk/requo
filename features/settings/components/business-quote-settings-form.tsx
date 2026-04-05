@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { CheckCircle2, Shield } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 
 import {
   FormActions,
@@ -30,7 +30,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type {
   BusinessQuoteSettingsActionState,
@@ -53,9 +52,6 @@ export function BusinessQuoteSettingsForm({
   settings,
 }: BusinessQuoteSettingsFormProps) {
   const [state, formAction, isPending] = useActionState(action, initialState);
-  const [notifyOnQuoteSent, setNotifyOnQuoteSent] = useState(
-    settings.notifyOnQuoteSent,
-  );
   const [defaultCurrency, setDefaultCurrency] = useState(settings.defaultCurrency);
 
   return (
@@ -75,11 +71,6 @@ export function BusinessQuoteSettingsForm({
         </Alert>
       ) : null}
 
-      <input
-        name="notifyOnQuoteSent"
-        type="hidden"
-        value={String(notifyOnQuoteSent)}
-      />
       <input name="defaultCurrency" type="hidden" value={defaultCurrency} />
 
       <Card className="gap-0 border-border/75 bg-card/97">
@@ -179,37 +170,6 @@ export function BusinessQuoteSettingsForm({
                 />
               </FieldContent>
             </Field>
-          </FormSection>
-        </CardContent>
-      </Card>
-
-      <Card className="gap-0 border-border/75 bg-card/97">
-        <CardHeader className="gap-3 pb-5">
-          <CardTitle>Notifications</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <FormSection title="Owner notifications">
-            <label className="soft-panel flex items-start gap-3 px-4 py-4 transition-colors hover:bg-accent/30">
-              <Switch
-                checked={notifyOnQuoteSent}
-                className="mt-1"
-                disabled={isPending}
-                onCheckedChange={setNotifyOnQuoteSent}
-              />
-              <div className="flex min-w-0 flex-1 gap-3">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-                  <Shield className="size-4" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <p className="text-sm font-medium text-foreground">
-                    Email on quote sent
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Notify the owner after a quote is sent to a customer.
-                  </p>
-                </div>
-              </div>
-            </label>
           </FormSection>
         </CardContent>
       </Card>
