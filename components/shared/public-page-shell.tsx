@@ -24,12 +24,12 @@ export function PublicPageShell({
     <div className={cn("public-page", className)}>
       <div className="public-page-stack">
         <header className={cn("public-page-header", headerClassName)}>
-          <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:gap-6">
+          <div className="flex min-w-0 flex-1 items-center gap-4 lg:gap-6">
             <BrandMark subtitle={brandSubtitle} />
-            {headerNav ? <div className="min-w-0">{headerNav}</div> : null}
+            {headerNav ? <div className="min-w-0 flex-1">{headerNav}</div> : null}
           </div>
           {headerAction ? (
-            <div className="flex w-full flex-col gap-3 [&>*]:w-full sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end sm:[&>*]:w-auto">
+            <div className="public-page-header-actions">
               {headerAction}
             </div>
           ) : null}

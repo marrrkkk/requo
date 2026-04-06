@@ -519,14 +519,18 @@
   }
 
   .public-page-header {
-    @apply flex flex-col gap-4 rounded-xl border border-border/85 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6;
+    @apply flex items-center justify-between gap-3 rounded-xl border border-border/85 px-4 py-4 sm:gap-4 md:px-6;
     background: var(--surface-elevated-bg);
     border-color: var(--surface-stroke);
     box-shadow: var(--surface-shadow-lg);
   }
 
+  .public-page-header-actions {
+    @apply flex shrink-0 items-center justify-end gap-2 sm:gap-3;
+  }
+
   .public-page-header-nav {
-    @apply hidden items-center gap-1 lg:flex;
+    @apply hidden min-w-0 items-center gap-1 lg:flex;
   }
 
   .public-page-header-link {
@@ -541,7 +545,18 @@
   }
 
   .marketing-proof-grid {
-    @apply grid gap-3 md:grid-cols-2 xl:grid-cols-4;
+    @apply grid gap-3 sm:grid-cols-2 xl:grid-cols-4;
+  }
+
+  .marketing-proof-card {
+    @apply flex h-full flex-col gap-3 rounded-lg border border-border/80 px-4 py-4 sm:px-5 sm:py-5;
+    background: var(--surface-muted-bg);
+    border-color: color-mix(in srgb, var(--surface-stroke) 88%, transparent);
+    box-shadow: var(--surface-shadow-sm);
+  }
+
+  .marketing-section-grid {
+    @apply grid gap-6 xl:grid-cols-[18rem_minmax(0,1fr)] xl:items-start;
   }
 
   .marketing-showcase-grid {
@@ -552,6 +567,13 @@
     @apply flex items-start gap-4 rounded-lg border border-border/80 px-4 py-4;
     background: var(--surface-muted-bg);
     border-color: color-mix(in srgb, var(--surface-stroke) 90%, transparent);
+    box-shadow: var(--surface-shadow-sm);
+  }
+
+  .marketing-faq-item {
+    @apply rounded-xl border border-border/80 px-5 py-5 sm:px-6 sm:py-6;
+    background: var(--surface-muted-bg);
+    border-color: color-mix(in srgb, var(--surface-stroke) 88%, transparent);
     box-shadow: var(--surface-shadow-sm);
   }
 
