@@ -6,7 +6,11 @@ export default async function ResetPasswordPage() {
   await redirectIfAuthenticated();
 
   return (
-    <AuthShell badge="Reset" title="Choose a new password">
+    <AuthShell
+      badge="New password"
+      title="Choose a new password"
+      layout="centered"
+    >
       <ResetPasswordForm />
     </AuthShell>
   );

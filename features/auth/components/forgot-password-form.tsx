@@ -18,10 +18,9 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 
 const successMessage =
-  "If an account exists for that email, a reset link has been sent.";
+  "If that email exists, we sent a reset link.";
 
 export function ForgotPasswordForm() {
   const [state, setState] = useState<AuthFormState>({});
@@ -100,14 +99,14 @@ export function ForgotPasswordForm() {
         </Button>
       </FormActions>
 
-      <Separator />
-
-      <Link
-        className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
-        href="/login"
-      >
-        Back to login
-      </Link>
+      <p className="pt-1 text-center text-sm text-muted-foreground">
+        <Link
+          className="font-medium text-foreground underline-offset-4 hover:underline"
+          href="/login"
+        >
+          Back to sign in
+        </Link>
+      </p>
     </form>
   );
 }

@@ -6,7 +6,7 @@ export default async function LoginPage() {
   await redirectIfAuthenticated();
 
   return (
-    <AuthShell badge="Login" title="Sign in">
+    <AuthShell badge="Log in" title="Sign in" layout="centered">
       <LoginForm />
     </AuthShell>
   );
