@@ -6,6 +6,7 @@ import { ArrowRight, Menu } from "lucide-react";
 
 import { navItems } from "@/components/marketing/marketing-data";
 import { Button } from "@/components/ui/button";
+import { businessesHubPath } from "@/features/businesses/routes";
 import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
@@ -17,7 +18,13 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-export function MarketingMobileNav() {
+type MarketingMobileNavProps = {
+  isAuthenticated: boolean;
+};
+
+export function MarketingMobileNav({
+  isAuthenticated,
+}: MarketingMobileNavProps) {
   const [open, setOpen] = useState(false);
 
   const closeMenu = () => {
@@ -41,7 +48,9 @@ export function MarketingMobileNav() {
         <SheetHeader className="gap-2 p-5">
           <SheetTitle>Menu</SheetTitle>
           <SheetDescription>
-            Jump to the sections or start your account.
+            {isAuthenticated
+              ? "Jump to the sections or open your dashboard."
+              : "Jump to the sections or start your account."}
           </SheetDescription>
         </SheetHeader>
 
@@ -65,17 +74,28 @@ export function MarketingMobileNav() {
         <Separator />
 
         <SheetFooter className="gap-3 p-5">
-          <Button asChild>
-            <Link href="/signup" onClick={closeMenu}>
-              Start free
-              <ArrowRight data-icon="inline-end" />
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/login" onClick={closeMenu}>
-              Log in
-            </Link>
-          </Button>
+          {isAuthenticated ? (
+            <Button asChild>
+              <Link href={businessesHubPath} onClick={closeMenu}>
+                Dashboard
+                <ArrowRight data-icon="inline-end" />
+              </Link>
+            </Button>
+          ) : (
+            <>
+              <Button asChild>
+                <Link href="/signup" onClick={closeMenu}>
+                  Start free
+                  <ArrowRight data-icon="inline-end" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/login" onClick={closeMenu}>
+                  Log in
+                </Link>
+              </Button>
+            </>
+          )}
         </SheetFooter>
       </SheetContent>
     </Sheet>

@@ -44,7 +44,7 @@ test("marketing homepage stays readable on a narrow viewport", async ({
 
   const mobileMenu = page.getByRole("button", { name: "Open navigation" });
   const primaryCta = page.getByRole("link", { name: "Start free" }).first();
-  const secondaryCta = page.getByRole("link", { name: "See how it works" });
+  const secondaryCta = page.getByRole("link", { name: "Request a demo" });
 
   await expect(mobileMenu).toBeVisible();
   await expect(primaryCta).toBeVisible();

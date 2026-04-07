@@ -19,7 +19,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+import { PasswordInput } from "@/features/auth/components/password-input";
 
 const resetSuccessMessage =
   "Your password has been updated. Sign in with your new password.";
@@ -106,10 +106,9 @@ export function LoginForm() {
             </Link>
           </div>
           <FieldContent>
-            <Input
+            <PasswordInput
               id="password"
               name="password"
-              type="password"
               autoComplete="current-password"
               maxLength={128}
               minLength={8}
@@ -131,14 +130,15 @@ export function LoginForm() {
         </Button>
       </FormActions>
 
-      <Separator />
-
-      <Link
-        className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
-        href="/signup"
-      >
-        New here? Create an account
-      </Link>
+      <p className="pt-1 text-center text-sm text-muted-foreground">
+        New here?{" "}
+        <Link
+          className="font-medium text-foreground underline-offset-4 hover:underline"
+          href="/signup"
+        >
+          Create an account
+        </Link>
+      </p>
     </form>
   );
 }

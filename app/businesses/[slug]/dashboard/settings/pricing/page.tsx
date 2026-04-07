@@ -38,8 +38,8 @@ export default async function BusinessPricingPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Settings"
-        title="Pricing"
+        eyebrow="Quotes"
+        title="Pricing library"
         description="Save reusable pricing blocks and service packages."
         actions={
           <>
@@ -65,8 +65,9 @@ export default async function BusinessPricingPage() {
           <DashboardSection title="Pricing blocks">
             {pricingBlocks.length ? (
               <div className="flex flex-col gap-4">
-                {pricingBlocks.map((entry) => (
+                {pricingBlocks.map((entry, index) => (
                   <QuoteLibraryEntryCard
+                    animationDelayMs={Math.min(index * 45, 180)}
                     key={entry.id}
                     action={updateQuoteLibraryEntryAction.bind(null, entry.id)}
                     currency={settings.defaultCurrency}
@@ -93,8 +94,9 @@ export default async function BusinessPricingPage() {
           <DashboardSection title="Service packages">
             {servicePackages.length ? (
               <div className="flex flex-col gap-4">
-                {servicePackages.map((entry) => (
+                {servicePackages.map((entry, index) => (
                   <QuoteLibraryEntryCard
+                    animationDelayMs={Math.min(index * 45, 180)}
                     key={entry.id}
                     action={updateQuoteLibraryEntryAction.bind(null, entry.id)}
                     currency={settings.defaultCurrency}

@@ -113,6 +113,20 @@
       "when": 1775356800000,
       "tag": "0015_realtime_business_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1775529600000,
+      "tag": "0016_owner_onboarding",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1775533200000,
+      "tag": "0017_profiles_onboarding_completed_at_repair",
+      "breakpoints": true
     }
   ]
 }

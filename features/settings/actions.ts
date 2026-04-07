@@ -47,6 +47,7 @@ import { getOwnerBusinessActionContext } from "@/lib/db/business-access";
 import {
   activeBusinessSlugCookieName,
   getBusinessDashboardPath,
+  getBusinessFormsPath,
   getBusinessInquiryFormEditorPath,
   getBusinessInquiryFormPreviewPath,
   getBusinessInquiryFormsPath,
@@ -147,12 +148,16 @@ export async function updateBusinessSettingsAction(
     revalidatePath(getBusinessSettingsPath(result.nextSlug));
     revalidatePath(getBusinessSettingsPath(result.previousSlug, "general"));
     revalidatePath(getBusinessSettingsPath(result.nextSlug, "general"));
+    revalidatePath(getBusinessSettingsPath(result.previousSlug, "replies"));
+    revalidatePath(getBusinessSettingsPath(result.nextSlug, "replies"));
     revalidatePath(getBusinessSettingsPath(result.previousSlug, "quote"));
     revalidatePath(getBusinessSettingsPath(result.nextSlug, "quote"));
     revalidatePath(getBusinessSettingsPath(result.previousSlug, "pricing"));
     revalidatePath(getBusinessSettingsPath(result.nextSlug, "pricing"));
     revalidatePath(getBusinessSettingsPath(result.previousSlug, "knowledge"));
     revalidatePath(getBusinessSettingsPath(result.nextSlug, "knowledge"));
+    revalidatePath(getBusinessFormsPath(result.previousSlug));
+    revalidatePath(getBusinessFormsPath(result.nextSlug));
     revalidatePath(`/inquire/${result.previousSlug}`);
     revalidatePath(`/inquire/${result.nextSlug}`);
     revalidateBusinessDefaultInquiryPaths(result.previousSlug);

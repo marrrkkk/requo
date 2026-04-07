@@ -1,11 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useId, useState } from "react";
+import { useActionState, useEffect, useId, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
-import {
-  FormActions,
-} from "@/components/shared/form-layout";
+import { FormActions } from "@/components/shared/form-layout";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -55,6 +53,12 @@ type QuoteLibraryEntryFormProps = {
 };
 
 const initialState: QuoteLibraryActionState = {};
+const LINE_ITEM_EXIT_DURATION_MS = 180;
+const SAVE_REFRESH_DELAY_MS = 180;
+
+type EditorLineItem = QuoteEditorLineItemValue & {
+  motionState?: "entering" | "exiting";
+};
 
 export function QuoteLibraryEntryForm({
   action,
@@ -74,20 +78,28 @@ export function QuoteLibraryEntryForm({
     }
 
     onSuccess?.();
-    router.refresh();
-  }, [initialValues, onSuccess, router, state.success]);
+
+    const refreshDelay = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? 0
+      : SAVE_REFRESH_DELAY_MS;
+    const timeoutId = window.setTimeout(() => {
+      router.refresh();
+    }, refreshDelay);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [onSuccess, router, state.success]);
 
   return (
     <form action={formAction} className="form-stack">
       {state.error ? (
-        <Alert variant="destructive">
+        <Alert className="motion-pop-in" variant="destructive">
           <AlertTitle>We could not save the pricing entry.</AlertTitle>
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       ) : null}
 
       {state.success ? (
-        <Alert>
+        <Alert className="motion-pop-in">
           <AlertTitle>Pricing entry saved</AlertTitle>
           <AlertDescription>{state.success}</AlertDescription>
         </Alert>
@@ -130,26 +142,42 @@ function QuoteLibraryEntryFormFields({
   const [description, setDescription] = useState(
     initialValues?.description ?? "",
   );
-  const [items, setItems] = useState<QuoteEditorLineItemValue[]>(() =>
+  const lineItemTimersRef = useRef<Map<string, number>>(new Map());
+  const [items, setItems] = useState<EditorLineItem[]>(() =>
     initialValues?.items.length
-      ? initialValues.items
+      ? initialValues.items.map((item) => ({ ...item }))
       : [
-          createQuoteEditorLineItemValue({
-            id: `draft_item_${stableItemSeed}`,
-          }),
+          {
+            ...createQuoteEditorLineItemValue({
+              id: `draft_item_${stableItemSeed}`,
+            }),
+          },
         ],
   );
-  const totals = calculateQuoteEditorTotals(items, "");
-  const serializedItems = items.map((item) => ({
+  const visibleItems = items.filter((item) => item.motionState !== "exiting");
+  const totals = calculateQuoteEditorTotals(visibleItems, "");
+  const serializedItems = visibleItems.map((item) => ({
     id: item.id,
     description: item.description,
     quantity: item.quantity,
     unitPriceInCents: item.unitPrice,
   }));
 
+  useEffect(() => {
+    const lineItemTimers = lineItemTimersRef.current;
+
+    return () => {
+      for (const timeoutId of lineItemTimers.values()) {
+        window.clearTimeout(timeoutId);
+      }
+
+      lineItemTimers.clear();
+    };
+  }, []);
+
   function updateItem(
     itemId: string,
-    patch: Partial<QuoteEditorLineItemValue>,
+    patch: Partial<EditorLineItem>,
   ) {
     setItems((currentItems) =>
       currentItems.map((item) =>
@@ -159,21 +187,71 @@ function QuoteLibraryEntryFormFields({
   }
 
   function removeItem(itemId: string) {
+    if (visibleItems.length === 1) {
+      return;
+    }
+
+    const currentItem = items.find((item) => item.id === itemId);
+
+    if (!currentItem || currentItem.motionState === "exiting") {
+      return;
+    }
+
+    const existingTimer = lineItemTimersRef.current.get(itemId);
+
+    if (existingTimer) {
+      window.clearTimeout(existingTimer);
+    }
+
     setItems((currentItems) =>
-      currentItems.length === 1
-        ? currentItems
-        : currentItems.filter((item) => item.id !== itemId),
+      currentItems.map((item) =>
+        item.id === itemId ? { ...item, motionState: "exiting" } : item,
+      ),
     );
+
+    const timeoutId = window.setTimeout(() => {
+      setItems((currentItems) =>
+        currentItems.filter((item) => item.id !== itemId),
+      );
+      lineItemTimersRef.current.delete(itemId);
+    }, LINE_ITEM_EXIT_DURATION_MS);
+
+    lineItemTimersRef.current.set(itemId, timeoutId);
+  }
+
+  function addItem() {
+    setItems((currentItems) => [
+      ...currentItems,
+      {
+        ...createQuoteEditorLineItem(),
+        motionState: "entering",
+      },
+    ]);
   }
 
   function handleKindChange(nextKind: "block" | "package") {
     setKind(nextKind);
-    setItems((currentItems) => {
-      if (nextKind === "block") {
-        return [currentItems[0] ?? createQuoteEditorLineItem()];
+
+    if (nextKind === "block") {
+      for (const timeoutId of lineItemTimersRef.current.values()) {
+        window.clearTimeout(timeoutId);
       }
 
-      return currentItems.length ? currentItems : [createQuoteEditorLineItem()];
+      lineItemTimersRef.current.clear();
+    }
+
+    setItems((currentItems) => {
+      const activeItems = currentItems.filter(
+        (item) => item.motionState !== "exiting",
+      );
+
+      if (nextKind === "block") {
+        return [{ ...(activeItems[0] ?? createQuoteEditorLineItem()) }];
+      }
+
+      return activeItems.length
+        ? activeItems
+        : [{ ...createQuoteEditorLineItem() }];
     });
   }
 
@@ -279,13 +357,8 @@ function QuoteLibraryEntryFormFields({
             <Button
               type="button"
               variant="outline"
-              onClick={() =>
-                setItems((currentItems) => [
-                  ...currentItems,
-                  createQuoteEditorLineItem(),
-                ])
-              }
-              disabled={isPending || items.length >= 25}
+              onClick={addItem}
+              disabled={isPending || visibleItems.length >= 25}
             >
               <Plus data-icon="inline-start" />
               Add item
@@ -294,7 +367,7 @@ function QuoteLibraryEntryFormFields({
         </div>
 
         {state.fieldErrors?.items?.[0] ? (
-          <Alert variant="destructive">
+          <Alert className="motion-pop-in" variant="destructive">
             <AlertTitle>Check the line items.</AlertTitle>
             <AlertDescription>{state.fieldErrors.items[0]}</AlertDescription>
           </Alert>
@@ -308,7 +381,11 @@ function QuoteLibraryEntryFormFields({
               Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
 
             return (
-              <div className="soft-panel p-5" key={item.id}>
+              <div
+                className="soft-panel motion-list-item p-5"
+                data-motion-state={item.motionState}
+                key={item.id}
+              >
                 <div className="flex flex-col gap-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -329,8 +406,9 @@ function QuoteLibraryEntryFormFields({
                       onClick={() => removeItem(item.id)}
                       disabled={
                         isPending ||
-                        items.length === 1 ||
-                        kind === "block"
+                        visibleItems.length === 1 ||
+                        kind === "block" ||
+                        item.motionState === "exiting"
                       }
                     >
                       <Trash2 data-icon="inline-start" />
@@ -366,15 +444,15 @@ function QuoteLibraryEntryFormFields({
                           Quantity
                         </FieldLabel>
                         <FieldContent>
-                            <Input
-                              id={`${idPrefix}-quantity-${item.id}`}
-                              inputMode="numeric"
-                              max="999999999"
-                              type="number"
-                              min="1"
-                              required
-                              step="1"
-                              value={item.quantity}
+                          <Input
+                            id={`${idPrefix}-quantity-${item.id}`}
+                            inputMode="numeric"
+                            max="999999999"
+                            type="number"
+                            min="1"
+                            required
+                            step="1"
+                            value={item.quantity}
                             onChange={(event) =>
                               updateItem(item.id, {
                                 quantity: event.currentTarget.value,
@@ -390,14 +468,14 @@ function QuoteLibraryEntryFormFields({
                           Unit price
                         </FieldLabel>
                         <FieldContent>
-                            <Input
-                              id={`${idPrefix}-price-${item.id}`}
-                              inputMode="decimal"
-                              type="number"
-                              max="1000000"
-                              min="0"
-                              required
-                              step="0.01"
+                          <Input
+                            id={`${idPrefix}-price-${item.id}`}
+                            inputMode="decimal"
+                            type="number"
+                            max="1000000"
+                            min="0"
+                            required
+                            step="0.01"
                             value={item.unitPrice}
                             onChange={(event) =>
                               updateItem(item.id, {
@@ -432,7 +510,7 @@ function QuoteLibraryEntryFormFields({
         <div className="flex items-center justify-between gap-4">
           <span className="text-sm font-medium text-foreground">Saved total</span>
           <span className="dashboard-meta-pill">
-            {items.length} {items.length === 1 ? "item" : "items"}
+            {visibleItems.length} {visibleItems.length === 1 ? "item" : "items"}
           </span>
         </div>
         <Separator />

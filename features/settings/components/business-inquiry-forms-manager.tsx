@@ -6,23 +6,28 @@ import {
   ArrowRight,
   CheckCircle2,
   FileArchive,
-  FormInput,
   Plus,
 } from "lucide-react";
 
-import {
-  FormActions,
-  FormSection,
-} from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Field,
   FieldContent,
@@ -49,7 +54,6 @@ import type {
   BusinessInquiryFormsSettingsView,
 } from "@/features/settings/types";
 import { getBusinessInquiryFormEditorPath } from "@/features/businesses/routes";
-import { cn } from "@/lib/utils";
 
 type BusinessInquiryFormsManagerProps = {
   settings: BusinessInquiryFormsSettingsView;
@@ -72,29 +76,49 @@ export function BusinessInquiryFormsManager({
   const [businessType, setBusinessType] = useState<BusinessType>(
     settings.businessType,
   );
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const nameError = createState.fieldErrors?.name?.[0];
   const businessTypeError = createState.fieldErrors?.businessType?.[0];
   const activeForms = settings.forms.filter((form) => !form.archivedAt);
   const archivedForms = settings.forms.filter((form) => form.archivedAt);
 
   return (
-    <div className="form-stack">
-      {createState.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>We could not create the inquiry form.</AlertTitle>
-          <AlertDescription>{createState.error}</AlertDescription>
-        </Alert>
-      ) : null}
+    <div className="space-y-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="meta-label">All forms</p>
+          <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground">
+            {settings.forms.length
+              ? `${settings.forms.length} form${settings.forms.length === 1 ? "" : "s"}`
+              : "No forms yet"}
+          </h2>
+        </div>
 
-      <Card className="gap-0 border-border/75 bg-card/97">
-        <CardHeader className="gap-3 pb-5">
-          <CardTitle>Create inquiry form</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <form action={createFormAction} className="form-stack">
-            <input name="businessType" type="hidden" value={businessType} />
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus data-icon="inline-start" />
+              Create form
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Create form</DialogTitle>
+              <DialogDescription>
+                Add a new inquiry form and its public page for this business.
+              </DialogDescription>
+            </DialogHeader>
 
-            <FormSection title="New form">
+            <form action={createFormAction} className="form-stack">
+              <input name="businessType" type="hidden" value={businessType} />
+
+              {createState.error ? (
+                <Alert variant="destructive">
+                  <AlertTitle>We could not create the inquiry form.</AlertTitle>
+                  <AlertDescription>{createState.error}</AlertDescription>
+                </Alert>
+              ) : null}
+
               <FieldGroup>
                 <Field data-invalid={Boolean(nameError) || undefined}>
                   <FieldLabel htmlFor="business-inquiry-form-create-name">
@@ -153,100 +177,157 @@ export function BusinessInquiryFormsManager({
                   </FieldContent>
                 </Field>
               </FieldGroup>
-            </FormSection>
 
-            <FormActions align="start">
-              <Button disabled={isCreatePending} type="submit">
-                <Plus data-icon="inline-start" />
-                {isCreatePending ? "Creating..." : "Create form"}
-              </Button>
-            </FormActions>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card className="gap-0 border-border/75 bg-card/97">
-        <CardHeader className="gap-3 pb-5">
-          <CardTitle>Forms</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5 pt-0">
-          {activeForms.length ? (
-            <div className="overflow-hidden rounded-2xl border border-border/70 bg-background/70">
-              {activeForms.map((form, index) => (
-                <Link
-                  className={cn(
-                    "flex items-center justify-between gap-4 px-4 py-4 transition-colors hover:bg-accent/35",
-                    index > 0 && "border-t border-border/70",
-                  )}
-                  href={getBusinessInquiryFormEditorPath(settings.slug, form.slug)}
-                  key={form.id}
+              <DialogFooter>
+                <Button
+                  onClick={() => setIsCreateDialogOpen(false)}
+                  type="button"
+                  variant="ghost"
                 >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-foreground">
-                        {form.name}
-                      </p>
-                      {form.isDefault ? <Badge variant="secondary">Default</Badge> : null}
-                      {form.publicInquiryEnabled ? (
-                        <Badge variant="outline">Live</Badge>
-                      ) : (
-                        <Badge variant="outline">Off</Badge>
-                      )}
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                      <span>{businessTypeMeta[form.businessType].label}</span>
-                      <span>{form.submittedInquiryCount} inquiries</span>
-                      <span>{form.inquiryFormConfig.projectFields.length} fields</span>
-                      <span>{form.inquiryPageConfig.cards.length} cards</span>
-                    </div>
-                    <p className="mt-2 truncate text-sm text-muted-foreground">
-                      {settings.slug}/{form.slug}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <FormInput className="size-4 text-muted-foreground" />
-                    <ArrowRight className="size-4 text-muted-foreground" />
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <Alert>
-              <CheckCircle2 data-icon="inline-start" />
-              <AlertTitle>No active forms</AlertTitle>
-              <AlertDescription>Create an inquiry form to publish a page.</AlertDescription>
-            </Alert>
-          )}
+                  Cancel
+                </Button>
+                <Button disabled={isCreatePending} type="submit">
+                  <Plus data-icon="inline-start" />
+                  {isCreatePending ? "Creating..." : "Create form"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
 
-          {archivedForms.length ? (
-            <div className="flex flex-col gap-3">
-              <p className="text-sm font-medium text-foreground">Archived</p>
-              <div className="overflow-hidden rounded-2xl border border-border/70 bg-background/70">
-                {archivedForms.map((form, index) => (
-                  <div
-                    className={cn(
-                      "flex items-center justify-between gap-4 px-4 py-4",
-                      index > 0 && "border-t border-border/70",
-                    )}
-                    key={form.id}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-medium text-foreground">{form.name}</p>
-                        <Badge variant="outline">Archived</Badge>
-                      </div>
-                      <p className="mt-2 truncate text-sm text-muted-foreground">
-                        {settings.slug}/{form.slug}
-                      </p>
+      {activeForms.length ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {activeForms.map((form) => (
+            <Card className="border-border/80 bg-card/98" key={form.id}>
+              <CardHeader className="gap-3">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-background/90 text-sm font-semibold tracking-[0.16em] text-foreground">
+                      {getFormInitials(form.name)}
                     </div>
-                    <FileArchive className="size-4 text-muted-foreground" />
+                    <div className="min-w-0">
+                      <CardTitle className="truncate">{form.name}</CardTitle>
+                      <CardDescription className="mt-1 truncate">
+                        /{settings.slug}/{form.slug}
+                      </CardDescription>
+                    </div>
                   </div>
-                ))}
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {form.isDefault ? (
+                      <Badge variant="secondary">Default</Badge>
+                    ) : null}
+                    <Badge
+                      variant={form.publicInquiryEnabled ? "secondary" : "outline"}
+                    >
+                      {form.publicInquiryEnabled ? "Live" : "Off"}
+                    </Badge>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="outline">
+                    {businessTypeMeta[form.businessType].label}
+                  </Badge>
+                  <Badge variant="outline">
+                    {form.submittedInquiryCount} inquiries
+                  </Badge>
+                  <Badge variant="outline">
+                    {form.inquiryFormConfig.projectFields.length} fields
+                  </Badge>
+                  <Badge variant="outline">
+                    {form.inquiryPageConfig.cards.length} cards
+                  </Badge>
+                </div>
+
+                <Button asChild className="w-full sm:w-auto">
+                  <Link
+                    href={getBusinessInquiryFormEditorPath(settings.slug, form.slug)}
+                    prefetch={true}
+                  >
+                    Open form
+                    <ArrowRight data-icon="inline-end" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card className="border-dashed">
+          <CardHeader>
+            <CardTitle>No active forms</CardTitle>
+            <CardDescription>
+              Create an inquiry form to publish a page for incoming requests.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="soft-panel flex items-start gap-3 px-4 py-4 shadow-none">
+              <CheckCircle2 className="mt-0.5 size-5 text-primary" />
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium text-foreground">
+                  Your first form will appear here as a card.
+                </p>
               </div>
             </div>
-          ) : null}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
+
+      {archivedForms.length ? (
+        <div className="space-y-4">
+          <div>
+            <p className="meta-label">Archived</p>
+            <h3 className="mt-1 text-lg font-semibold tracking-tight text-foreground">
+              {archivedForms.length} archived
+            </h3>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            {archivedForms.map((form) => (
+              <Card className="border-border/70 bg-background/75" key={form.id}>
+                <CardHeader className="gap-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-background text-sm font-semibold tracking-[0.16em] text-muted-foreground">
+                        {getFormInitials(form.name)}
+                      </div>
+                      <div className="min-w-0">
+                        <CardTitle className="truncate text-base">{form.name}</CardTitle>
+                        <CardDescription className="mt-1 truncate">
+                          /{settings.slug}/{form.slug}
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <Badge variant="outline">Archived</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline">
+                      {businessTypeMeta[form.businessType].label}
+                    </Badge>
+                    <Badge variant="outline">
+                      {form.submittedInquiryCount} inquiries
+                    </Badge>
+                  </div>
+                  <FileArchive className="size-4 shrink-0 text-muted-foreground" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
+}
+
+function getFormInitials(value: string) {
+  return value
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((segment) => segment[0]?.toUpperCase())
+    .join("");
 }

@@ -18,8 +18,7 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+import { PasswordInput } from "@/features/auth/components/password-input";
 
 export function ResetPasswordForm() {
   const searchParams = useSearchParams();
@@ -93,10 +92,9 @@ export function ResetPasswordForm() {
         <Field data-invalid={Boolean(passwordError) || undefined}>
           <FieldLabel htmlFor="password">New password</FieldLabel>
           <FieldContent>
-            <Input
+            <PasswordInput
               id="password"
               name="password"
-              type="password"
               autoComplete="new-password"
               maxLength={128}
               minLength={8}
@@ -114,10 +112,9 @@ export function ResetPasswordForm() {
         <Field data-invalid={Boolean(confirmPasswordError) || undefined}>
           <FieldLabel htmlFor="confirmPassword">Confirm password</FieldLabel>
           <FieldContent>
-            <Input
+            <PasswordInput
               id="confirmPassword"
               name="confirmPassword"
-              type="password"
               autoComplete="new-password"
               maxLength={128}
               minLength={8}
@@ -143,14 +140,14 @@ export function ResetPasswordForm() {
         </Button>
       </FormActions>
 
-      <Separator />
-
-      <Link
-        className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
-        href="/forgot-password"
-      >
-        Request another reset email
-      </Link>
+      <p className="pt-1 text-center text-sm text-muted-foreground">
+        <Link
+          className="font-medium text-foreground underline-offset-4 hover:underline"
+          href="/forgot-password"
+        >
+          Request another reset email
+        </Link>
+      </p>
     </form>
   );
 }

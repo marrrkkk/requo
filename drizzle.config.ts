@@ -2,11 +2,11 @@ import "dotenv/config";
 
 import { defineConfig } from "drizzle-kit";
 
-const url = process.env.DATABASE_DIRECT_URL ?? process.env.DATABASE_URL;
+const url = process.env.DATABASE_MIGRATION_URL;
 
 if (!url) {
   throw new Error(
-    "DATABASE_URL or DATABASE_DIRECT_URL must be set before running Drizzle commands.",
+    "DATABASE_MIGRATION_URL must be set before running Drizzle commands.",
   );
 }
 

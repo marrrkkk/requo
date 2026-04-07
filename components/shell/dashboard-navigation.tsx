@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  FormInput,
   FileText,
   Inbox,
   LayoutDashboard,
@@ -10,6 +11,7 @@ import {
   getBusinessAnalyticsPath,
   getBusinessDashboardPath,
   getBusinessDashboardSlugFromPathname,
+  getBusinessFormsPath,
   getBusinessInquiriesPath,
   getBusinessKnowledgeCompatibilityPath,
   getBusinessQuotesPath,
@@ -49,9 +51,15 @@ export function getDashboardNavigation(slug: string): DashboardNavigationItem[] 
       icon: FileText,
     },
     {
+      href: getBusinessFormsPath(slug),
+      label: "Forms",
+      description: "Manage inquiry forms, public pages, and live intake flows.",
+      icon: FormInput,
+    },
+    {
       href: getBusinessSettingsPath(slug),
       label: "Settings",
-      description: "Manage business, inquiry, quote, pricing, and knowledge settings.",
+      description: "Manage business setup, reusable responses, and quote defaults.",
       icon: Settings2,
     },
   ];
@@ -134,6 +142,7 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
   const analyticsPath = getBusinessAnalyticsPath(slug);
   const inquiriesPath = getBusinessInquiriesPath(slug);
   const quotesPath = getBusinessQuotesPath(slug);
+  const formsPath = getBusinessFormsPath(slug);
   const settingsPath = getBusinessSettingsPath(slug);
 
   if (pathname === dashboardPath) {
@@ -188,6 +197,22 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
     ];
   }
 
+  if (pathname === formsPath) {
+    return [{ label: "Forms" }];
+  }
+
+  if (pathname.startsWith(`${formsPath}/`)) {
+    return [
+      {
+        label: "Forms",
+        href: formsPath,
+      },
+      {
+        label: "Form",
+      },
+    ];
+  }
+
   if (pathname === settingsPath) {
     return [{ label: "Settings" }];
   }
@@ -198,22 +223,19 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
     const section = segments[0];
     const sectionLabels: Record<string, string> = {
       general: "General",
-      inquiry: "Inquiry",
-      quote: "Quote",
-      pricing: "Pricing",
-      knowledge: "Knowledge",
+      inquiry: "Forms",
+      replies: "Saved replies",
+      quote: "Quote defaults",
+      pricing: "Pricing library",
+      knowledge: "Knowledge base",
     };
     const sectionLabel = sectionLabels[section] ?? formatBreadcrumbLabel(section);
 
     if (section === "inquiry" && segments[1]) {
       return [
         {
-          label: "Settings",
-          href: settingsPath,
-        },
-        {
-          label: sectionLabel,
-          href: getBusinessSettingsPath(slug, "inquiry"),
+          label: "Forms",
+          href: formsPath,
         },
         {
           label: formatBreadcrumbLabel(segments[1]),

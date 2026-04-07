@@ -8,6 +8,7 @@ import { getAuthErrorMessage, getFieldError, getValidationState } from "@/featur
 import { signupSchema } from "@/features/auth/schemas";
 import type { AuthFormState } from "@/features/auth/types";
 import { AuthFormFeedback } from "@/features/auth/components/auth-form-feedback";
+import { onboardingPath } from "@/features/onboarding/routes";
 import { FormActions } from "@/components/shared/form-layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +19,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+import { PasswordInput } from "@/features/auth/components/password-input";
 
 export function SignupForm() {
   const [state, setState] = useState<AuthFormState>({});
@@ -54,7 +55,7 @@ export function SignupForm() {
         return;
       }
 
-      window.location.assign("/businesses");
+      window.location.assign(onboardingPath);
     });
   }
 
@@ -106,10 +107,9 @@ export function SignupForm() {
         <Field data-invalid={Boolean(passwordError) || undefined}>
           <FieldLabel htmlFor="password">Password</FieldLabel>
           <FieldContent>
-            <Input
+            <PasswordInput
               id="password"
               name="password"
-              type="password"
               autoComplete="new-password"
               maxLength={128}
               minLength={8}
@@ -131,14 +131,15 @@ export function SignupForm() {
         </Button>
       </FormActions>
 
-      <Separator />
-
-      <Link
-        className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
-        href="/login"
-      >
-        Already have an account? Sign in
-      </Link>
+      <p className="pt-1 text-center text-sm text-muted-foreground">
+        Already have an account?{" "}
+        <Link
+          className="font-medium text-foreground underline-offset-4 hover:underline"
+          href="/login"
+        >
+          Sign in
+        </Link>
+      </p>
     </form>
   );
 }

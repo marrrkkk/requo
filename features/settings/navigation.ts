@@ -2,53 +2,73 @@ import type { LucideIcon } from "lucide-react";
 import {
   BookCopy,
   FileText,
-  FormInput,
+  MessageSquareText,
   Settings2,
   Tags,
 } from "lucide-react";
 
 import { getBusinessSettingsPath } from "@/features/businesses/routes";
 
-export type BusinessSectionNavigationItem = {
+export type BusinessSettingsNavigationItem = {
   href: string;
   label: string;
   description: string;
   icon: LucideIcon;
 };
 
-export function getBusinessSectionNavigation(
+export type BusinessSettingsNavigationGroup = {
+  label: string;
+  items: BusinessSettingsNavigationItem[];
+};
+
+export function getBusinessSettingsNavigation(
   slug: string,
-): BusinessSectionNavigationItem[] {
+): BusinessSettingsNavigationGroup[] {
   return [
     {
-      href: getBusinessSettingsPath(slug, "general"),
-      label: "General",
-      description: "Brand, contact, notifications",
-      icon: Settings2,
+      label: "Business",
+      items: [
+        {
+          href: getBusinessSettingsPath(slug, "general"),
+          label: "General",
+          description: "Brand, contact, notifications",
+          icon: Settings2,
+        },
+      ],
     },
     {
-      href: getBusinessSettingsPath(slug, "inquiry"),
-      label: "Inquiry",
-      description: "Forms, URLs, reply snippets",
-      icon: FormInput,
+      label: "Responses",
+      items: [
+        {
+          href: getBusinessSettingsPath(slug, "replies"),
+          label: "Saved replies",
+          description: "Reusable snippets for inquiry responses",
+          icon: MessageSquareText,
+        },
+        {
+          href: getBusinessSettingsPath(slug, "knowledge"),
+          label: "Knowledge base",
+          description: "Files and FAQs for AI context",
+          icon: BookCopy,
+        },
+      ],
     },
     {
-      href: getBusinessSettingsPath(slug, "quote"),
-      label: "Quote",
-      description: "Defaults, template, validity",
-      icon: FileText,
-    },
-    {
-      href: getBusinessSettingsPath(slug, "pricing"),
-      label: "Pricing",
-      description: "Saved blocks and packages",
-      icon: Tags,
-    },
-    {
-      href: getBusinessSettingsPath(slug, "knowledge"),
-      label: "Knowledge",
-      description: "Files and FAQs",
-      icon: BookCopy,
+      label: "Quotes",
+      items: [
+        {
+          href: getBusinessSettingsPath(slug, "quote"),
+          label: "Quote defaults",
+          description: "Currency, validity, and default copy",
+          icon: FileText,
+        },
+        {
+          href: getBusinessSettingsPath(slug, "pricing"),
+          label: "Pricing library",
+          description: "Saved blocks and service packages",
+          icon: Tags,
+        },
+      ],
     },
   ];
 }

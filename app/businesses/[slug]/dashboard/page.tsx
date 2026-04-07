@@ -29,10 +29,10 @@ import {
   getBusinessAnalyticsPath,
   getBusinessInquiriesPath,
   getBusinessInquiryPath,
+  getBusinessInquiryFormsPath,
   getBusinessNewQuotePath,
   getBusinessQuotePath,
   getBusinessQuotesPath,
-  getBusinessSettingsPath,
 } from "@/features/businesses/routes";
 import type {
   BusinessOverviewInquiryActionItem,
@@ -354,7 +354,7 @@ export default async function DashboardOverviewPage() {
                   href={
                     businessContext.business.publicInquiryEnabled
                       ? publicInquiryUrl
-                      : getBusinessSettingsPath(businessSlug)
+                      : getBusinessInquiryFormsPath(businessSlug)
                   }
                   prefetch={
                     businessContext.business.publicInquiryEnabled ? false : undefined
@@ -372,7 +372,7 @@ export default async function DashboardOverviewPage() {
                 >
                   {businessContext.business.publicInquiryEnabled
                     ? "Open public form"
-                    : "Open business"}
+                    : "Open forms"}
                 </Link>
               </Button>
             </div>

@@ -39,8 +39,8 @@ export default async function BusinessKnowledgePage() {
   return (
     <>
       <PageHeader
-        eyebrow="Settings"
-        title="Knowledge"
+        eyebrow="Responses"
+        title="Knowledge base"
         description="Upload files and FAQs used in replies and AI context."
         actions={
           <>

@@ -26,7 +26,7 @@ export default async function BusinessGeneralSettingsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Settings"
+        eyebrow="Business"
         title="General"
         description="Brand, contact, writing defaults, and notifications."
       />

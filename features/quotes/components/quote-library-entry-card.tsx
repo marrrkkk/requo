@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { PencilLine } from "lucide-react";
 
 import { DashboardMetaPill } from "@/components/shared/dashboard-layout";
@@ -26,6 +26,7 @@ import {
   formatQuoteMoney,
   getQuoteLibraryEntryKindLabel,
 } from "@/features/quotes/utils";
+import { cn } from "@/lib/utils";
 
 type QuoteLibraryEntryCardProps = {
   action: (
@@ -38,18 +39,92 @@ type QuoteLibraryEntryCardProps = {
     formData: FormData,
   ) => Promise<QuoteLibraryDeleteActionState>;
   entry: DashboardQuoteLibraryEntry;
+  animationDelayMs?: number;
 };
+
+const EDITOR_TRANSITION_DURATION_MS = 220;
 
 export function QuoteLibraryEntryCard({
   action,
+  animationDelayMs,
   currency,
   deleteAction,
   entry,
 }: QuoteLibraryEntryCardProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [shouldRenderEditor, setShouldRenderEditor] = useState(false);
+  const [isEditorVisible, setIsEditorVisible] = useState(false);
+  const closeTimeoutRef = useRef<number | null>(null);
+  const openFrameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current !== null) {
+        window.clearTimeout(closeTimeoutRef.current);
+      }
+
+      if (openFrameRef.current !== null) {
+        window.cancelAnimationFrame(openFrameRef.current);
+      }
+    };
+  }, []);
+
+  function openEditor() {
+    if (closeTimeoutRef.current !== null) {
+      window.clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+
+    setShouldRenderEditor(true);
+    setIsEditing(true);
+
+    if (openFrameRef.current !== null) {
+      window.cancelAnimationFrame(openFrameRef.current);
+    }
+
+    openFrameRef.current = window.requestAnimationFrame(() => {
+      setIsEditorVisible(true);
+      openFrameRef.current = null;
+    });
+  }
+
+  function closeEditor() {
+    if (openFrameRef.current !== null) {
+      window.cancelAnimationFrame(openFrameRef.current);
+      openFrameRef.current = null;
+    }
+
+    setIsEditing(false);
+    setIsEditorVisible(false);
+
+    if (closeTimeoutRef.current !== null) {
+      window.clearTimeout(closeTimeoutRef.current);
+    }
+
+    closeTimeoutRef.current = window.setTimeout(() => {
+      setShouldRenderEditor(false);
+      closeTimeoutRef.current = null;
+    }, EDITOR_TRANSITION_DURATION_MS);
+  }
+
+  function toggleEditor() {
+    if (isEditing) {
+      closeEditor();
+      return;
+    }
+
+    openEditor();
+  }
+
+  const motionStyle = animationDelayMs
+    ? ({ animationDelay: `${animationDelayMs}ms` } as CSSProperties)
+    : undefined;
 
   return (
-    <Card className="gap-0 border-border/75 bg-card/97">
+    <Card
+      className="motion-card-enter motion-lift gap-0 border-border/75 bg-card/97"
+      style={motionStyle}
+    >
       <CardHeader className="gap-3 pb-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex flex-col gap-2">
@@ -66,12 +141,20 @@ export function QuoteLibraryEntryCard({
           </div>
 
           <Button
+            aria-expanded={isEditing}
+            className="shrink-0"
             type="button"
             size="sm"
             variant="outline"
-            onClick={() => setIsEditing((current) => !current)}
+            onClick={toggleEditor}
           >
-            <PencilLine data-icon="inline-start" />
+            <PencilLine
+              className={cn(
+                "transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)]",
+                isEditing && "rotate-90 text-primary",
+              )}
+              data-icon="inline-start"
+            />
             {isEditing ? "Close editor" : "Edit entry"}
           </Button>
         </div>
@@ -113,27 +196,33 @@ export function QuoteLibraryEntryCard({
           </div>
         </div>
 
-        {isEditing ? (
-          <QuoteLibraryEntryForm
-            action={action}
-            currency={currency}
-            initialValues={{
-              kind: entry.kind,
-              name: entry.name,
-              description: entry.description ?? "",
-              items: entry.items.map((item) => ({
-                id: item.id,
-                description: item.description,
-                quantity: String(item.quantity),
-                unitPrice: centsToMoneyInput(item.unitPriceInCents),
-              })),
-            }}
-            submitLabel="Save entry"
-            submitPendingLabel="Saving entry..."
-            onSuccess={() => setIsEditing(false)}
-            idPrefix={`quote-library-entry-${entry.id}`}
-          />
-        ) : null}
+        <div className="motion-disclosure" data-open={isEditorVisible}>
+          <div className="motion-disclosure-inner">
+            {shouldRenderEditor ? (
+              <div className="motion-card-enter pt-1">
+                <QuoteLibraryEntryForm
+                  action={action}
+                  currency={currency}
+                  initialValues={{
+                    kind: entry.kind,
+                    name: entry.name,
+                    description: entry.description ?? "",
+                    items: entry.items.map((item) => ({
+                      id: item.id,
+                      description: item.description,
+                      quantity: String(item.quantity),
+                      unitPrice: centsToMoneyInput(item.unitPriceInCents),
+                    })),
+                  }}
+                  submitLabel="Save entry"
+                  submitPendingLabel="Saving entry..."
+                  onSuccess={closeEditor}
+                  idPrefix={`quote-library-entry-${entry.id}`}
+                />
+              </div>
+            ) : null}
+          </div>
+        </div>
       </CardContent>
 
       <CardFooter className="justify-end">

@@ -14,7 +14,7 @@ Copy `.env.example` to `.env` and fill in the values you want to use locally.
 Minimum local requirements:
 
 - `DATABASE_URL`
-- `DATABASE_DIRECT_URL`
+- `DATABASE_MIGRATION_URL`
 - `BETTER_AUTH_SECRET`
 - `BETTER_AUTH_URL`
 - `NEXT_PUBLIC_SUPABASE_URL`
@@ -47,6 +47,27 @@ Optional but commonly needed:
 - Local builds and tests can use placeholder Supabase values when you are not exercising storage-backed functionality.
 - Knowledge uploads, inquiry attachments, and business logos need a real Supabase project and valid service-role credentials.
 - Realtime dashboard notifications need `SUPABASE_JWT_SECRET` from the Supabase project API settings. Without it, the bell still renders server data but will not live-update.
+- Use your Supabase pooler host for both database env vars:
+  - `DATABASE_URL` on port `6543`
+  - `DATABASE_MIGRATION_URL` on port `5432`
+- Keep the host, username, password, and database the same between those two values. Only the port should change.
+- If the Supabase dashboard only shows you a `6543` pooler string, copy it and change the port to `5432` for `DATABASE_MIGRATION_URL`.
+- Avoid using the direct `db.<project-ref>.supabase.co:5432` string for migrations unless your machine has working IPv6 access or your project has the IPv4 add-on.
+
+Example:
+
+```env
+DATABASE_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<region>.pooler.supabase.com:6543/postgres
+DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<region>.pooler.supabase.com:5432/postgres
+```
+
+Where to get it in Supabase:
+
+1. Open your project dashboard.
+2. Open the `Connect` dialog.
+3. Copy the pooler connection string.
+4. Use that string as `DATABASE_URL`.
+5. Copy it again and change only the port from `6543` to `5432` for `DATABASE_MIGRATION_URL`.
 
 ### Resend
 

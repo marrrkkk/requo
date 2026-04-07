@@ -6,7 +6,7 @@ export default async function SignupPage() {
   await redirectIfAuthenticated();
 
   return (
-    <AuthShell badge="Signup" title="Create account">
+    <AuthShell badge="Sign up" title="Create account" layout="signup">
       <SignupForm />
     </AuthShell>
   );

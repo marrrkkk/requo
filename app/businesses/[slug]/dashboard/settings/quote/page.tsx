@@ -19,9 +19,9 @@ export default async function BusinessQuoteSettingsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Settings"
-        title="Quote"
-        description="Set quote defaults, template copy, currency, and validity."
+        eyebrow="Quotes"
+        title="Quote defaults"
+        description="Set default quote copy, currency, and validity."
       />
 
       <BusinessQuoteSettingsForm

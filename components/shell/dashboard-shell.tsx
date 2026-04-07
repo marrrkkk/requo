@@ -11,10 +11,12 @@ import {
   LogOut,
   PanelsTopLeft,
   Settings2,
+  User,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { authClient } from "@/lib/auth/client";
+import { accountProfilePath } from "@/features/account/routes";
 import { AppearanceMenuSubmenu } from "@/features/theme/components/appearance-menu";
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
 import type { BusinessNotificationBellView } from "@/features/notifications/types";
@@ -241,7 +243,12 @@ function DashboardNavigationItem({
             }
           }}
         >
-          <Icon className={cn("text-muted-foreground", isActive && "text-primary")} />
+          <Icon
+            className={cn(
+              "text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-hover/menu-button:translate-x-0.5 group-data-[active=true]/menu-button:scale-[1.03]",
+              isActive && "text-primary",
+            )}
+          />
           <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
         </Link>
       </SidebarMenuButton>
@@ -299,7 +306,7 @@ function DashboardUserMenu({
                   {user.email}
                 </span>
               </div>
-              <ChevronsUpDown className="ml-auto text-muted-foreground group-data-[collapsible=icon]:hidden" />
+              <ChevronsUpDown className="ml-auto text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-data-[collapsible=icon]:hidden group-data-[state=open]/menu-button:rotate-180" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-56 w-56 rounded-xl">
@@ -322,6 +329,16 @@ function DashboardUserMenu({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
+              <DropdownMenuItem asChild>
+                <Link
+                  href={accountProfilePath}
+                  prefetch={true}
+                  onClick={closeMobileSidebar}
+                >
+                  <User data-icon="inline-start" />
+                  Your profile
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link
                   href={getBusinessSettingsPath(businessSlug)}
@@ -386,7 +403,7 @@ function BusinessSwitcher({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] transition-colors hover:bg-background dark:border-white/8 dark:bg-card/90 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-accent"
+          className="group/business-switcher motion-lift w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] transition-[background-color,border-color,box-shadow,transform] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-background data-[state=open]:bg-background data-[state=open]:shadow-[var(--control-shadow-hover)] dark:border-white/8 dark:bg-card/90 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-accent dark:data-[state=open]:bg-accent"
           type="button"
         >
           <div className="flex items-start gap-3.5">
@@ -409,7 +426,7 @@ function BusinessSwitcher({
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-3">
                 <p className="meta-label text-sidebar-foreground/60">Business</p>
-                <ChevronsUpDown className="size-4 text-muted-foreground" />
+                <ChevronsUpDown className="size-4 text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-hover/business-switcher:-translate-y-px group-data-[state=open]/business-switcher:rotate-180" />
               </div>
               <p className="mt-2 truncate text-sm font-semibold text-sidebar-foreground">
                 {business.name}
