@@ -37,6 +37,7 @@ export function QuoteListFilters({
   const [status, setStatus] = useState<QuoteStatusFilterValue>(filters.status);
   const [sort, setSort] = useState(filters.sort);
 
+  const hasMountedRef = useRef(false);
   const lastAppliedHrefRef = useRef<string>("");
 
   const navigate = useCallback((
@@ -75,6 +76,11 @@ export function QuoteListFilters({
   }, [pathname, router, searchParams]);
 
   useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+
     const timer = setTimeout(() => {
       navigate(query, status, sort);
     }, 400);

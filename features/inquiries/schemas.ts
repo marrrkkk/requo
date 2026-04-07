@@ -75,6 +75,34 @@ function firstString(value: unknown) {
   return value;
 }
 
+function coercePositiveInteger(fieldLabel: string) {
+  return z.preprocess(
+    (value) => {
+      const normalized = firstString(value);
+
+      if (typeof normalized === "number") {
+        return normalized;
+      }
+
+      if (typeof normalized !== "string") {
+        return normalized;
+      }
+
+      const trimmed = normalized.trim();
+
+      if (!trimmed) {
+        return Number.NaN;
+      }
+
+      return Number(trimmed);
+    },
+    z
+      .number()
+      .int(`${fieldLabel} must be a whole number.`)
+      .min(1, `${fieldLabel} must be at least 1.`),
+  );
+}
+
 function optionalText(maxLength: number) {
   return z.preprocess(
     emptyToUndefined,
@@ -597,6 +625,7 @@ export const inquiryListFiltersSchema = z.object({
       z.enum(["newest", "oldest"]),
     )
     .catch("newest"),
+  page: coercePositiveInteger("Page").catch(1),
 });
 
 export const inquiryNoteSchema = z.object({

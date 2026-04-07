@@ -25,7 +25,10 @@ export type QuoteListFilters = {
   q?: string;
   status: QuoteStatusFilterValue;
   sort: "newest" | "oldest";
+  page: number;
 };
+
+export type QuoteListQueryFilters = Omit<QuoteListFilters, "page">;
 
 export type DashboardQuoteListItem = {
   id: string;

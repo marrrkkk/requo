@@ -30,7 +30,7 @@ import {
 import type {
   DashboardInquiryDetail,
   DashboardInquiryListItem,
-  InquiryListFilters,
+  InquiryListQueryFilters,
   PublicInquiryBusiness,
 } from "@/features/inquiries/types";
 
@@ -274,18 +274,13 @@ export async function getBusinessOwnerNotificationEmails(businessId: string) {
 
 type GetInquiryListForBusinessInput = {
   businessId: string;
-  filters: InquiryListFilters;
+  filters: InquiryListQueryFilters;
 };
 
-export async function getInquiryListForBusiness({
+function getInquiryListConditions({
   businessId,
   filters,
-}: GetInquiryListForBusinessInput): Promise<DashboardInquiryListItem[]> {
-  "use cache";
-
-  cacheLife(hotBusinessCacheLife);
-  cacheTag(...getBusinessInquiryListCacheTags(businessId));
-
+}: GetInquiryListForBusinessInput) {
   const conditions = [eq(inquiries.businessId, businessId)];
 
   if (filters.status !== "all") {
@@ -309,8 +304,61 @@ export async function getInquiryListForBusiness({
     conditions.push(eq(businessInquiryForms.slug, filters.form));
   }
 
+  return conditions;
+}
+
+export async function getInquiryListCountForBusiness({
+  businessId,
+  filters,
+}: GetInquiryListForBusinessInput): Promise<number> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessInquiryListCacheTags(businessId));
+
+  const conditions = getInquiryListConditions({
+    businessId,
+    filters,
+  });
+
+  const rows = await db
+    .select({
+      count: count(),
+    })
+    .from(inquiries)
+    .innerJoin(
+      businessInquiryForms,
+      eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
+    )
+    .where(and(...conditions));
+
+  return Number(rows[0]?.count ?? 0);
+}
+
+type GetInquiryListPageForBusinessInput = GetInquiryListForBusinessInput & {
+  page: number;
+  pageSize: number;
+};
+
+export async function getInquiryListPageForBusiness({
+  businessId,
+  filters,
+  page,
+  pageSize,
+}: GetInquiryListPageForBusinessInput): Promise<DashboardInquiryListItem[]> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessInquiryListCacheTags(businessId));
+
+  const conditions = getInquiryListConditions({
+    businessId,
+    filters,
+  });
+
   const submittedAtSort = filters.sort === "oldest" ? asc : desc;
   const createdAtSort = filters.sort === "oldest" ? asc : desc;
+  const offset = Math.max(0, (page - 1) * pageSize);
 
   return db
     .select({
@@ -333,7 +381,9 @@ export async function getInquiryListForBusiness({
       eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
     )
     .where(and(...conditions))
-    .orderBy(submittedAtSort(inquiries.submittedAt), createdAtSort(inquiries.createdAt));
+    .orderBy(submittedAtSort(inquiries.submittedAt), createdAtSort(inquiries.createdAt))
+    .limit(pageSize)
+    .offset(offset);
 }
 
 type GetInquiryDetailForBusinessInput = {

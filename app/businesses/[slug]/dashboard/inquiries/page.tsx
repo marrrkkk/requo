@@ -1,19 +1,21 @@
 import Link from "next/link";
 import { Inbox } from "lucide-react";
+import { Suspense } from "react";
 
+import { DashboardListResultsSkeleton } from "@/components/shared/dashboard-list-results-skeleton";
 import {
   DashboardEmptyState,
   DashboardPage,
 } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { InquiryListCards } from "@/features/inquiries/components/inquiry-list-cards";
 import { InquiryListFilters as InquiryListToolbar } from "@/features/inquiries/components/inquiry-list-filters";
-import { InquiryListTable } from "@/features/inquiries/components/inquiry-list-table";
+import { InquiryListResults } from "@/features/inquiries/components/inquiry-list-results";
 import { inquiryListFiltersSchema } from "@/features/inquiries/schemas";
 import {
-  getInquiryListForBusiness,
   getBusinessInquiryFormOptionsForBusiness,
+  getInquiryListCountForBusiness,
+  getInquiryListPageForBusiness,
 } from "@/features/inquiries/queries";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { getBusinessInquiriesPath } from "@/features/businesses/routes";
@@ -22,6 +24,8 @@ import { requireCurrentBusinessContext } from "@/lib/db/business-access";
 type InquiriesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+const ITEMS_PER_PAGE = 10;
 
 export default async function InquiriesPage({
   searchParams,
@@ -38,21 +42,48 @@ export default async function InquiriesPage({
         status: "all" as const,
         form: "all",
         sort: "newest" as const,
+        page: 1,
       };
+  const baseFilters = {
+    q: filters.q,
+    status: filters.status,
+    form: filters.form,
+    sort: filters.sort,
+  };
+  const inquiryCountPromise = getInquiryListCountForBusiness({
+    businessId: businessContext.business.id,
+    filters: baseFilters,
+  });
+  const inquiryPageDataPromise = inquiryCountPromise.then(async (totalItems) => {
+    const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+    const currentPage = Math.min(Math.max(1, filters.page), totalPages);
+    const inquiries = totalItems
+      ? await getInquiryListPageForBusiness({
+          businessId: businessContext.business.id,
+          filters: baseFilters,
+          page: currentPage,
+          pageSize: ITEMS_PER_PAGE,
+        })
+      : [];
 
-  const [inquiryList, inquiryFormOptions] = await Promise.all([
-    getInquiryListForBusiness({
-      businessId: businessContext.business.id,
-      filters,
-    }),
+    return {
+      currentPage,
+      inquiries,
+      totalItems,
+      totalPages,
+    };
+  });
+
+  const [totalItems, inquiryFormOptions] = await Promise.all([
+    inquiryCountPromise,
     getBusinessInquiryFormOptionsForBusiness(businessContext.business.id),
   ]);
   const businessSlug = businessContext.business.slug;
   const hasFilters = Boolean(
-    filters.q ||
-      filters.status !== "all" ||
-      filters.form !== "all" ||
-      filters.sort !== "newest",
+    baseFilters.q ||
+      baseFilters.status !== "all" ||
+      baseFilters.form !== "all" ||
+      baseFilters.sort !== "newest",
   );
   const publicInquiryUrl = getBusinessPublicInquiryUrl(businessSlug);
 
@@ -76,14 +107,17 @@ export default async function InquiriesPage({
             label: form.isDefault ? `${form.name} (Default)` : form.name,
           })),
         ]}
-        resultCount={inquiryList.length}
+        resultCount={totalItems}
       />
 
-      {inquiryList.length ? (
-        <>
-          <InquiryListTable inquiries={inquiryList} businessSlug={businessSlug} />
-          <InquiryListCards inquiries={inquiryList} businessSlug={businessSlug} />
-        </>
+      {totalItems ? (
+        <Suspense fallback={<DashboardListResultsSkeleton variant="inquiries" />}>
+          <InquiryListResults
+            businessSlug={businessSlug}
+            pageData={inquiryPageDataPromise}
+            searchParams={resolvedSearchParams}
+          />
+        </Suspense>
       ) : (
         <DashboardEmptyState
           action={

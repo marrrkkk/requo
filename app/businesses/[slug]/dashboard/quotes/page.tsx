@@ -1,16 +1,20 @@
 import Link from "next/link";
 import { ArrowRight, ReceiptText } from "lucide-react";
+import { Suspense } from "react";
 
+import { DashboardListResultsSkeleton } from "@/components/shared/dashboard-list-results-skeleton";
 import {
   DashboardEmptyState,
   DashboardPage,
 } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
-import { QuoteListCards } from "@/features/quotes/components/quote-list-cards";
 import { QuoteListFilters } from "@/features/quotes/components/quote-list-filters";
-import { QuoteListTable } from "@/features/quotes/components/quote-list-table";
-import { getQuoteListForBusiness } from "@/features/quotes/queries";
+import { QuoteListResults } from "@/features/quotes/components/quote-list-results";
+import {
+  getQuoteListCountForBusiness,
+  getQuoteListPageForBusiness,
+} from "@/features/quotes/queries";
 import { quoteListFiltersSchema } from "@/features/quotes/schemas";
 import {
   getBusinessNewQuotePath,
@@ -21,6 +25,8 @@ import { requireCurrentBusinessContext } from "@/lib/db/business-access";
 type QuotesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+const ITEMS_PER_PAGE = 10;
 
 export default async function QuotesPage({ searchParams }: QuotesPageProps) {
   const [{ businessContext }, resolvedSearchParams] = await Promise.all([
@@ -34,14 +40,40 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
         q: undefined,
         status: "all" as const,
         sort: "newest" as const,
+        page: 1,
       };
-  const quoteList = await getQuoteListForBusiness({
+  const baseFilters = {
+    q: filters.q,
+    status: filters.status,
+    sort: filters.sort,
+  };
+  const quoteCountPromise = getQuoteListCountForBusiness({
     businessId: businessContext.business.id,
-    filters,
+    filters: baseFilters,
   });
+  const quotePageDataPromise = quoteCountPromise.then(async (totalItems) => {
+    const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+    const currentPage = Math.min(Math.max(1, filters.page), totalPages);
+    const quotes = totalItems
+      ? await getQuoteListPageForBusiness({
+          businessId: businessContext.business.id,
+          filters: baseFilters,
+          page: currentPage,
+          pageSize: ITEMS_PER_PAGE,
+        })
+      : [];
+
+    return {
+      currentPage,
+      quotes,
+      totalItems,
+      totalPages,
+    };
+  });
+  const totalItems = await quoteCountPromise;
   const businessSlug = businessContext.business.slug;
   const hasFilters = Boolean(
-    filters.q || filters.status !== "all" || filters.sort !== "newest",
+    baseFilters.q || baseFilters.status !== "all" || baseFilters.sort !== "newest",
   );
 
   return (
@@ -59,21 +91,17 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
         }
       />
 
-      <QuoteListFilters filters={filters} resultCount={quoteList.length} />
+      <QuoteListFilters filters={filters} resultCount={totalItems} />
 
-      {quoteList.length ? (
-        <>
-          <QuoteListTable
-            quotes={quoteList}
-            currency={businessContext.business.defaultCurrency}
+      {totalItems ? (
+        <Suspense fallback={<DashboardListResultsSkeleton variant="quotes" />}>
+          <QuoteListResults
             businessSlug={businessSlug}
-          />
-          <QuoteListCards
-            quotes={quoteList}
             currency={businessContext.business.defaultCurrency}
-            businessSlug={businessSlug}
+            pageData={quotePageDataPromise}
+            searchParams={resolvedSearchParams}
           />
-        </>
+        </Suspense>
       ) : (
         <DashboardEmptyState
           action={

@@ -163,6 +163,7 @@ export const quoteListFiltersSchema = z.object({
       z.enum(["newest", "oldest"]),
     )
     .catch("newest"),
+  page: coercePositiveInteger("Page").catch(1),
 });
 
 export const quoteEditorSchema = z

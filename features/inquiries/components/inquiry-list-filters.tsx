@@ -44,6 +44,7 @@ export function InquiryListFilters({
   const [form, setForm] = useState(filters.form);
   const [sort, setSort] = useState(filters.sort);
 
+  const hasMountedRef = useRef(false);
   const lastAppliedHrefRef = useRef<string>("");
 
   const navigate = useCallback((
@@ -87,6 +88,11 @@ export function InquiryListFilters({
   }, [pathname, router, searchParams]);
 
   useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+
     const timer = setTimeout(() => {
       navigate(query, status, form, sort);
     }, 400);
