@@ -131,6 +131,11 @@ The product is built around a simple operating model:
 
 ### Optional providers
 
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `MICROSOFT_CLIENT_ID`
+- `MICROSOFT_CLIENT_SECRET`
+- `MICROSOFT_TENANT_ID`
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL`
 - `RESEND_REPLY_TO_EMAIL`

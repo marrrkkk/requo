@@ -69,6 +69,30 @@ export const auth = betterAuth({
       });
     },
   },
+  socialProviders: {
+    ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+      ? {
+          google: {
+            clientId: env.GOOGLE_CLIENT_ID,
+            clientSecret: env.GOOGLE_CLIENT_SECRET,
+          },
+        }
+      : {}),
+    ...(env.MICROSOFT_CLIENT_ID && env.MICROSOFT_CLIENT_SECRET
+      ? {
+          microsoft: {
+            clientId: env.MICROSOFT_CLIENT_ID,
+            clientSecret: env.MICROSOFT_CLIENT_SECRET,
+            tenantId: env.MICROSOFT_TENANT_ID,
+          },
+        }
+      : {}),
+  },
+  account: {
+    accountLinking: {
+      trustedProviders: ["google", "microsoft"],
+    },
+  },
   session: {
     expiresIn: 60 * 60 * 24 * 7,
     updateAge: 60 * 60 * 24,

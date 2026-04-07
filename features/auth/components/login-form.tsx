@@ -5,12 +5,18 @@ import { FormEvent, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { authClient } from "@/lib/auth/client";
+import {
+  AuthEmailDivider,
+  SocialAuthButtons,
+  type SocialAuthProvider,
+} from "@/features/auth/components/social-auth-buttons";
 import { getAuthErrorMessage, getFieldError, getValidationState } from "@/features/auth/utils";
 import { loginSchema } from "@/features/auth/schemas";
 import type { AuthFormState } from "@/features/auth/types";
 import { AuthFormFeedback } from "@/features/auth/components/auth-form-feedback";
 import { FormActions } from "@/components/shared/form-layout";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Field,
   FieldContent,
@@ -24,7 +30,13 @@ import { PasswordInput } from "@/features/auth/components/password-input";
 const resetSuccessMessage =
   "Your password has been updated. Sign in with your new password.";
 
-export function LoginForm() {
+type LoginFormProps = {
+  socialProviders?: SocialAuthProvider[];
+};
+
+export function LoginForm({
+  socialProviders = [],
+}: LoginFormProps) {
   const searchParams = useSearchParams();
   const [state, setState] = useState<AuthFormState>({});
   const [isPending, startTransition] = useTransition();
@@ -65,6 +77,27 @@ export function LoginForm() {
     });
   }
 
+  function handleSocialSignIn(provider: SocialAuthProvider) {
+    setState({});
+
+    startTransition(async () => {
+      const result = await authClient.signIn.social({
+        provider,
+        callbackURL: "/businesses",
+        newUserCallbackURL: "/onboarding",
+      });
+
+      if (result.error) {
+        setState({
+          error: getAuthErrorMessage(
+            result.error,
+            `We couldn't continue with ${provider} right now.`,
+          ),
+        });
+      }
+    });
+  }
+
   const emailError = getFieldError(state.fieldErrors, "email");
   const passwordError = getFieldError(state.fieldErrors, "password");
 
@@ -75,6 +108,14 @@ export function LoginForm() {
         success={state.success ?? resetMessage}
         successTitle={resetMessage ? "Password updated" : undefined}
       />
+
+      <SocialAuthButtons
+        disabled={isPending}
+        onProviderClick={handleSocialSignIn}
+        providers={socialProviders}
+      />
+
+      <AuthEmailDivider />
 
       <FieldGroup>
         <Field data-invalid={Boolean(emailError) || undefined}>
@@ -126,7 +167,14 @@ export function LoginForm() {
 
       <FormActions className="items-stretch sm:items-stretch">
         <Button className="w-full" disabled={isPending} type="submit" size="lg">
-          {isPending ? "Signing in..." : "Sign in"}
+          {isPending ? (
+            <>
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+              Signing in...
+            </>
+          ) : (
+            "Sign in"
+          )}
         </Button>
       </FormActions>
 
