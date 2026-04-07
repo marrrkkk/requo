@@ -250,13 +250,9 @@ export function PublicInquiryForm({
 
         <div className="toolbar-panel">
           <FormActions align="between" className="pt-0">
-            {previewMode ? (
-              <span />
-            ) : (
-              <p className="text-sm leading-6 text-muted-foreground">
-                Sent to {business.name}.
-              </p>
-            )}
+            <p className="text-sm leading-6 text-muted-foreground">
+              Sent to {business.name}.
+            </p>
             <Button
               className="w-full sm:w-auto"
               disabled={isPending}

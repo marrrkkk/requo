@@ -50,6 +50,12 @@ import {
   businessTypes,
   type BusinessType,
 } from "@/features/inquiries/business-types";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type {
   BusinessInquiryFormsActionState,
   BusinessInquiryFormsSettingsView,
@@ -85,7 +91,8 @@ export function BusinessInquiryFormsManager({
   const archivedForms = settings.forms.filter((form) => form.archivedAt);
 
   return (
-    <div className="flex flex-col gap-8">
+    <TooltipProvider>
+      <div className="flex flex-col gap-8">
       <div className="flex justify-end">
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
@@ -198,24 +205,26 @@ export function BusinessInquiryFormsManager({
           {activeForms.map((form) => (
             <Card className="h-full border-border/80 bg-card/98" key={form.id}>
               <CardHeader className="gap-3">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex min-w-0 items-start gap-3">
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="flex w-0 min-w-0 flex-1 items-start gap-3">
                     <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-background/90 text-sm font-semibold tracking-[0.16em] text-foreground">
                       {getFormInitials(form.name)}
                     </div>
-                    <div className="min-w-0">
-                      <CardTitle className="truncate">{form.name}</CardTitle>
-                      <CardDescription className="mt-1 truncate">
-                        /{settings.slug}/{form.slug}
+                    <div className="w-0 min-w-0 flex-1">
+                      <CardTitle>
+                        <TruncatedWithTooltip text={form.name} />
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        <TruncatedWithTooltip text={`/${settings.slug}/${form.slug}`} />
                       </CardDescription>
                     </div>
                   </div>
                   <Badge
-                    className={
+                    className={`w-fit shrink-0 self-start ${
                       form.publicInquiryEnabled
                         ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
                         : "border-red-200 bg-red-50 text-red-700 hover:bg-red-50"
-                    }
+                    }`}
                     variant="outline"
                   >
                     {form.publicInquiryEnabled ? "Live" : "Unpublished"}
@@ -293,19 +302,23 @@ export function BusinessInquiryFormsManager({
             {archivedForms.map((form) => (
               <Card className="border-border/70 bg-background/75" key={form.id}>
                 <CardHeader className="gap-3">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex min-w-0 items-start gap-3">
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                    <div className="flex w-0 min-w-0 flex-1 items-start gap-3">
                       <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-background text-sm font-semibold tracking-[0.16em] text-muted-foreground">
                         {getFormInitials(form.name)}
                       </div>
-                      <div className="min-w-0">
-                        <CardTitle className="truncate text-base">{form.name}</CardTitle>
-                        <CardDescription className="mt-1 truncate">
-                          /{settings.slug}/{form.slug}
+                      <div className="w-0 min-w-0 flex-1">
+                        <CardTitle className="text-base">
+                          <TruncatedWithTooltip text={form.name} />
+                        </CardTitle>
+                        <CardDescription className="mt-1">
+                          <TruncatedWithTooltip text={`/${settings.slug}/${form.slug}`} />
                         </CardDescription>
                       </div>
                     </div>
-                    <Badge variant="outline">Archived</Badge>
+                    <Badge className="w-fit shrink-0 self-start" variant="outline">
+                      Archived
+                    </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="flex items-center justify-between gap-3">
@@ -321,7 +334,28 @@ export function BusinessInquiryFormsManager({
           </div>
         </div>
       ) : null}
-    </div>
+      </div>
+    </TooltipProvider>
+  );
+}
+
+type TruncatedWithTooltipProps = {
+  text: string;
+};
+
+function TruncatedWithTooltip({ text }: TruncatedWithTooltipProps) {
+  const shouldShowTooltip = text.length > 34;
+  const content = <span className="block truncate">{text}</span>;
+
+  if (!shouldShowTooltip) {
+    return content;
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{content}</TooltipTrigger>
+      <TooltipContent side="top">{text}</TooltipContent>
+    </Tooltip>
   );
 }
 

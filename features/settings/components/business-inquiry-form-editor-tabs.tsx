@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { Eye, FileText, FormInput, Settings2 } from "lucide-react";
+import { ArrowUpRight, Eye, FileText, FormInput, Settings2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import {
@@ -10,7 +9,6 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
 
 import type { BusinessInquiryFormEditorView } from "@/features/settings/types";
 import { BusinessInquiryFormDangerZone } from "@/features/settings/components/business-inquiry-form-danger-zone";
@@ -56,9 +54,21 @@ export function BusinessInquiryFormEditorTabs({
   archiveAction,
   deleteAction,
 }: BusinessInquiryFormEditorTabsProps) {
-  const [tab, setTab] = useState<"fields" | "page" | "preview" | "publishing">(
+  const [tab, setTab] = useState<"fields" | "page" | "publishing">(
     "fields",
   );
+
+  function openInBrowserTab(href: string) {
+    const nextTab = window.open("about:blank", "_blank");
+
+    if (!nextTab) {
+      window.location.href = href;
+      return;
+    }
+
+    nextTab.opener = null;
+    nextTab.location.href = href;
+  }
 
   const tabsList = useMemo(
     () => (
@@ -70,10 +80,6 @@ export function BusinessInquiryFormEditorTabs({
         <TabsTrigger value="page">
           <FileText data-icon="inline-start" />
           Page
-        </TabsTrigger>
-        <TabsTrigger value="preview">
-          <Eye data-icon="inline-start" />
-          Preview
         </TabsTrigger>
         <TabsTrigger value="publishing">
           <Settings2 data-icon="inline-start" />
@@ -88,17 +94,23 @@ export function BusinessInquiryFormEditorTabs({
     <Tabs value={tab} onValueChange={(value) => setTab(value as typeof tab)}>
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
         {tabsList}
-        <Button asChild>
-          <Link
-            href={isPublicLive ? publicInquiryHref : previewHref}
-            prefetch={isPublicLive ? false : true}
-            rel={isPublicLive ? "noreferrer" : undefined}
-            target={isPublicLive ? "_blank" : undefined}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={() => openInBrowserTab(previewHref)}
+            type="button"
+            variant="outline"
           >
-            <Eye className="size-4" />
+            <Eye data-icon="inline-start" />
+            Preview
+          </Button>
+          <Button
+            onClick={() => openInBrowserTab(isPublicLive ? publicInquiryHref : previewHref)}
+            type="button"
+          >
             Open form
-          </Link>
-        </Button>
+            <ArrowUpRight data-icon="inline-end" />
+          </Button>
+        </div>
       </div>
 
       <TabsContent value="fields" className="mt-2 pt-2">
@@ -121,25 +133,6 @@ export function BusinessInquiryFormEditorTabs({
             generalSettingsHref={generalSettingsHref}
           />
         </DashboardSidebarStack>
-      </TabsContent>
-
-      <TabsContent value="preview" className="mt-2 pt-2">
-        <div className="flex flex-col gap-4">
-          <Alert>
-            <AlertTitle>Preview</AlertTitle>
-            <AlertDescription>
-              Preview shows the most recently saved version of the form and page.
-              Keep typing in the editor tabs, then save to refresh what you see here.
-            </AlertDescription>
-          </Alert>
-          <iframe
-            className={cn(
-              "h-[75svh] w-full rounded-xl border border-border/70 bg-background",
-            )}
-            src={previewHref}
-            title="Inquiry form preview"
-          />
-        </div>
       </TabsContent>
 
       <TabsContent value="publishing" className="mt-2 pt-2">
@@ -170,4 +163,3 @@ export function BusinessInquiryFormEditorTabs({
     </Tabs>
   );
 }
-

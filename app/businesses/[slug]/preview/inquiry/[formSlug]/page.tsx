@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, Eye } from "lucide-react";
+import { ArrowLeft, Eye } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { submitPublicInquiryAction } from "@/features/inquiries/actions";
 import { PublicInquiryPageRenderer } from "@/features/inquiries/components/public-inquiry-page-renderer";
 import { getInquiryBusinessPreviewByFormSlug } from "@/features/inquiries/queries";
-import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
 import {
@@ -45,9 +45,6 @@ export default async function BusinessInquiryFormPreviewPage({
   }
 
   const settingsHref = getBusinessInquiryPageEditorPath(slug, formSlug);
-  const publicInquiryHref = business.form.isDefault
-    ? getBusinessPublicInquiryUrl(business.slug)
-    : getBusinessPublicInquiryUrl(business.slug, business.form.slug);
   const submitPublicInquiry = submitPublicInquiryAction.bind(
     null,
     business.slug,
@@ -60,34 +57,21 @@ export default async function BusinessInquiryFormPreviewPage({
       action={submitPublicInquiry}
       previewMode
       beforeHero={
-        <div className="rounded-none border-b border-primary/20 bg-primary/5 px-4 py-3 sm:px-6">
-          <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="inline-flex items-center gap-2 text-sm font-medium text-primary">
-              <Eye className="size-4" />
-              Preview only
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:[&>*]:w-auto [&>*]:w-full">
+        <div className="w-full">
+          <Card className="border-primary/22 bg-primary/12 shadow-none">
+            <CardContent className="flex items-center justify-between gap-3 p-3 sm:p-4">
+              <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-primary">
+                <Eye className="size-4 text-primary" />
+                <span>Preview</span>
+              </div>
               <Button asChild variant="outline">
                 <Link href={settingsHref} prefetch={true}>
                   <ArrowLeft data-icon="inline-start" />
                   Back to editor
                 </Link>
               </Button>
-              {business.form.publicInquiryEnabled ? (
-                <Button asChild variant="ghost">
-                  <Link
-                    href={publicInquiryHref}
-                    prefetch={false}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    <ArrowUpRight data-icon="inline-start" />
-                    Open live page
-                  </Link>
-                </Button>
-              ) : null}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       }
     />
