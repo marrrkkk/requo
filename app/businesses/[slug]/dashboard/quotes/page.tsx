@@ -27,6 +27,35 @@ type QuotesPageProps = {
 };
 
 const ITEMS_PER_PAGE = 10;
+const FULL_PAGE_CACHE_MAX_PAGES = 5;
+const FORWARD_PAGE_CACHE_WINDOW = 2;
+const BACKWARD_PAGE_CACHE_WINDOW = 1;
+
+function getCachedPageWindow(currentPage: number, totalPages: number) {
+  if (totalPages <= FULL_PAGE_CACHE_MAX_PAGES) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const pages = new Set<number>([currentPage]);
+
+  for (let offset = 1; offset <= BACKWARD_PAGE_CACHE_WINDOW; offset += 1) {
+    const page = currentPage - offset;
+
+    if (page >= 1) {
+      pages.add(page);
+    }
+  }
+
+  for (let offset = 1; offset <= FORWARD_PAGE_CACHE_WINDOW; offset += 1) {
+    const page = currentPage + offset;
+
+    if (page <= totalPages) {
+      pages.add(page);
+    }
+  }
+
+  return Array.from(pages).sort((left, right) => left - right);
+}
 
 export default async function QuotesPage({ searchParams }: QuotesPageProps) {
   const [{ businessContext }, resolvedSearchParams] = await Promise.all([
@@ -54,18 +83,26 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
   const quotePageDataPromise = quoteCountPromise.then(async (totalItems) => {
     const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
     const currentPage = Math.min(Math.max(1, filters.page), totalPages);
-    const quotes = totalItems
-      ? await getQuoteListPageForBusiness({
+    const cachedPageNumbers = totalItems
+      ? getCachedPageWindow(currentPage, totalPages)
+      : [];
+    const cachedPageEntries = await Promise.all(
+      cachedPageNumbers.map(async (page) => [
+        page,
+        await getQuoteListPageForBusiness({
           businessId: businessContext.business.id,
           filters: baseFilters,
-          page: currentPage,
+          page,
           pageSize: ITEMS_PER_PAGE,
-        })
-      : [];
+        }),
+      ] as const),
+    );
+    const cachedPages = Object.fromEntries(cachedPageEntries);
 
     return {
+      cachedPages,
       currentPage,
-      quotes,
+      filterKey: JSON.stringify(baseFilters),
       totalItems,
       totalPages,
     };
