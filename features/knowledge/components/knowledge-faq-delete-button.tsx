@@ -5,6 +5,7 @@ import { Trash2 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import type { KnowledgeFaqDeleteActionState } from "@/features/knowledge/types";
 
 type KnowledgeFaqDeleteButtonProps = {
@@ -32,7 +33,14 @@ export function KnowledgeFaqDeleteButton({
 
       <Button disabled={isPending} type="submit" variant="outline">
         <Trash2 data-icon="inline-start" />
-        {isPending ? "Deleting..." : "Delete"}
+        {isPending ? (
+          <>
+            <Spinner data-icon="inline-start" aria-hidden="true" />
+            Deleting...
+          </>
+        ) : (
+          "Delete"
+        )}
       </Button>
     </form>
   );

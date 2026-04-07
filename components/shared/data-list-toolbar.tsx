@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 
 type DataListToolbarOption = {
   label: string;
@@ -166,7 +167,14 @@ export function DataListToolbar({
             <DashboardActionsRow className="data-list-toolbar-actions lg:self-end">
               <Button className="w-full sm:w-auto" disabled={isPending} type="submit">
                 <Search data-icon="inline-start" />
-                {isPending ? "Applying..." : "Apply filters"}
+                {isPending ? (
+                  <>
+                    <Spinner data-icon="inline-start" aria-hidden="true" />
+                    Applying...
+                  </>
+                ) : (
+                  "Apply filters"
+                )}
               </Button>
               <Button
                 className="w-full sm:w-auto"

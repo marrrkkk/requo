@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { FormActions, FormSection } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Field,
   FieldContent,
@@ -113,7 +114,14 @@ export function CreateBusinessForm({
 
       <FormActions align="start">
         <Button disabled={isPending} type="submit">
-          {isPending ? "Creating business..." : "Create business"}
+          {isPending ? (
+            <>
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+              Creating business...
+            </>
+          ) : (
+            "Create business"
+          )}
         </Button>
       </FormActions>
     </form>

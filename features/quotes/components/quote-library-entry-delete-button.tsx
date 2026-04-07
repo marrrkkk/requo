@@ -6,6 +6,7 @@ import { Trash2 } from "lucide-react";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import type { QuoteLibraryDeleteActionState } from "@/features/quotes/types";
 
 type QuoteLibraryEntryDeleteButtonProps = {
@@ -42,7 +43,14 @@ export function QuoteLibraryEntryDeleteButton({
 
       <Button disabled={isPending} type="submit" variant="destructive">
         <Trash2 data-icon="inline-start" />
-        {isPending ? "Deleting..." : "Delete entry"}
+        {isPending ? (
+          <>
+            <Spinner data-icon="inline-start" aria-hidden="true" />
+            Deleting...
+          </>
+        ) : (
+          "Delete entry"
+        )}
       </Button>
     </form>
   );

@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { FormActions } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Field,
   FieldContent,
@@ -113,7 +114,14 @@ export function QuotePostAcceptanceForm({
           disabled={isPending || selectedStatus === currentStatus}
           type="submit"
         >
-          {isPending ? "Saving..." : "Save post-acceptance status"}
+          {isPending ? (
+            <>
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+              Saving...
+            </>
+          ) : (
+            "Save post-acceptance status"
+          )}
         </Button>
       </FormActions>
     </form>

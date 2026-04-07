@@ -8,6 +8,7 @@ import {
 } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Field,
   FieldContent,
@@ -118,7 +119,14 @@ export function InquiryNoteForm({
 
       <FormActions>
         <Button disabled={isPending} type="submit">
-          {isPending ? "Saving note..." : "Add note"}
+          {isPending ? (
+            <>
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+              Saving note...
+            </>
+          ) : (
+            "Add note"
+          )}
         </Button>
       </FormActions>
     </form>

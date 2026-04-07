@@ -15,6 +15,7 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Card,
   CardContent,
@@ -298,7 +299,14 @@ export function InquiryAiPanel({
               value="custom"
               variant="secondary"
             >
-              {isPending ? "Running request..." : "Run custom prompt"}
+              {isPending ? (
+                <>
+                  <Spinner data-icon="inline-start" aria-hidden="true" />
+                  Running request...
+                </>
+              ) : (
+                "Run custom prompt"
+              )}
             </Button>
           </div>
         </form>

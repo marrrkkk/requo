@@ -9,6 +9,7 @@ import {
 } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import type { QuoteSendActionState } from "@/features/quotes/types";
 
 type QuoteSendFormProps = {
@@ -56,7 +57,14 @@ export function QuoteSendForm({
       <FormActions>
         <Button disabled={disabled || isPending} type="submit">
           <SendHorizontal data-icon="inline-start" />
-          {isPending ? "Sending quote..." : "Send quote email"}
+          {isPending ? (
+            <>
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+              Sending quote...
+            </>
+          ) : (
+            "Send quote email"
+          )}
         </Button>
       </FormActions>
     </form>

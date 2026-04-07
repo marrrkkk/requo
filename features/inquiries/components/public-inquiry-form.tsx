@@ -11,6 +11,7 @@ import {
 } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
   DialogContent,
@@ -262,7 +263,14 @@ export function PublicInquiryForm({
               type="submit"
               size="lg"
             >
-              {isPending ? "Sending inquiry..." : "Send inquiry"}
+              {isPending ? (
+                <>
+                  <Spinner data-icon="inline-start" aria-hidden="true" />
+                  Sending inquiry...
+                </>
+              ) : (
+                "Send inquiry"
+              )}
             </Button>
           </FormActions>
         </div>

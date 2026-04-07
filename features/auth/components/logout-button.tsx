@@ -6,6 +6,7 @@ import { useTransition } from "react";
 
 import { authClient } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 type LogoutButtonProps = Pick<
   ComponentProps<typeof Button>,
@@ -40,8 +41,17 @@ export function LogoutButton({
       type="button"
       variant={variant}
     >
-      <LogOut data-icon="inline-start" />
-      {isPending ? "Signing out..." : "Sign out"}
+      {isPending ? (
+        <>
+          <Spinner data-icon="inline-start" aria-hidden="true" />
+          Signing out...
+        </>
+      ) : (
+        <>
+          <LogOut data-icon="inline-start" />
+          Sign out
+        </>
+      )}
     </Button>
   );
 }

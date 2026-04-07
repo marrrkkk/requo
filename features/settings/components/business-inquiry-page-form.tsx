@@ -17,6 +17,7 @@ import {
 } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Card,
   CardContent,
@@ -618,7 +619,14 @@ export function BusinessInquiryPageForm({
             Save before previewing changes.
           </p>
           <Button disabled={isPending} size="lg" type="submit">
-            {isPending ? "Saving inquiry page..." : "Save inquiry page"}
+            {isPending ? (
+              <>
+                <Spinner data-icon="inline-start" aria-hidden="true" />
+                Saving inquiry page...
+              </>
+            ) : (
+              "Save inquiry page"
+            )}
           </Button>
         </FormActions>
       </div>

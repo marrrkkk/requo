@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { FormActions } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Field,
   FieldContent,
@@ -411,7 +412,14 @@ export function OnboardingForm({
           </Button>
         ) : (
           <Button disabled={isPending} size="lg" type="submit">
-            {isPending ? "Creating workspace..." : "Create workspace"}
+            {isPending ? (
+              <>
+                <Spinner data-icon="inline-start" aria-hidden="true" />
+                Creating workspace...
+              </>
+            ) : (
+              "Create workspace"
+            )}
           </Button>
         )}
       </FormActions>

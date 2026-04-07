@@ -10,6 +10,7 @@ import type { AuthFormState } from "@/features/auth/types";
 import { AuthFormFeedback } from "@/features/auth/components/auth-form-feedback";
 import { FormActions } from "@/components/shared/form-layout";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Field,
   FieldContent,
@@ -95,7 +96,14 @@ export function ForgotPasswordForm() {
 
       <FormActions className="items-stretch sm:items-stretch">
         <Button className="w-full" disabled={isPending} type="submit" size="lg">
-          {isPending ? "Sending reset link..." : "Send reset link"}
+          {isPending ? (
+            <>
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+              Sending reset link...
+            </>
+          ) : (
+            "Send reset link"
+          )}
         </Button>
       </FormActions>
 

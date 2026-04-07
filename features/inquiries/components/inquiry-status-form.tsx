@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { FormActions } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Field,
   FieldContent,
@@ -108,7 +109,14 @@ export function InquiryStatusForm({
           disabled={isPending || selectedStatus === currentStatus}
           type="submit"
         >
-          {isPending ? "Updating status..." : "Save status"}
+          {isPending ? (
+            <>
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+              Updating status...
+            </>
+          ) : (
+            "Save status"
+          )}
         </Button>
       </FormActions>
     </form>

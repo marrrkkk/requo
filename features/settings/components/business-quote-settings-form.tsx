@@ -9,6 +9,7 @@ import {
 } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Card,
   CardContent,
@@ -177,7 +178,14 @@ export function BusinessQuoteSettingsForm({
       <div className="toolbar-panel">
         <FormActions align="between" className="pt-0">
           <Button disabled={isPending} size="lg" type="submit">
-            {isPending ? "Saving quote settings..." : "Save quote settings"}
+            {isPending ? (
+              <>
+                <Spinner data-icon="inline-start" aria-hidden="true" />
+                Saving quote settings...
+              </>
+            ) : (
+              "Save quote settings"
+            )}
           </Button>
         </FormActions>
       </div>
