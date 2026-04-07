@@ -7,6 +7,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useState,
   useTransition,
   type MouseEvent,
 } from "react";
@@ -23,7 +24,9 @@ import { Spinner } from "@/components/ui/spinner";
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
 
 type DataListPaginationProps = {
+  cachedPages?: number[];
   currentPage: number;
+  onCachedPageNavigate?: (page: number) => void;
   pathname: string;
   searchParams: SearchParamsRecord;
   totalItems: number;
@@ -77,7 +80,9 @@ function getVisiblePages(currentPage: number, totalPages: number) {
 }
 
 export function DataListPagination({
+  cachedPages = [],
   currentPage,
+  onCachedPageNavigate,
   pathname,
   searchParams,
   totalItems,
@@ -85,6 +90,7 @@ export function DataListPagination({
 }: DataListPaginationProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [pendingPage, setPendingPage] = useState<number | null>(null);
 
   const visiblePages = useMemo(
     () => getVisiblePages(currentPage, totalPages),
@@ -124,15 +130,23 @@ export function DataListPagination({
 
   const navigateToPage = useCallback(
     (page: number) => {
-      if (isPending || page < 1 || page > totalPages || page === currentPage) {
+      if (page < 1 || page > totalPages || page === currentPage) {
         return;
       }
+
+      const isCachedPage = cachedPages.includes(page);
+
+      if (isCachedPage) {
+        onCachedPageNavigate?.(page);
+      }
+
+      setPendingPage(page);
 
       startTransition(() => {
         router.push(getPageHref(page), { scroll: false });
       });
     },
-    [currentPage, getPageHref, isPending, router, totalPages],
+    [cachedPages, currentPage, getPageHref, onCachedPageNavigate, router, totalPages],
   );
 
   const handlePageClick = useCallback(
@@ -160,6 +174,10 @@ export function DataListPagination({
 
   const firstItemIndex = (currentPage - 1) * 10 + 1;
   const lastItemIndex = Math.min(currentPage * 10, totalItems);
+  const activePendingPage = isPending ? pendingPage : null;
+  const showLoadingState =
+    isPending &&
+    (!activePendingPage || !cachedPages.includes(activePendingPage));
 
   return (
     <div className="flex flex-col gap-3 border-t border-border/70 pt-5 sm:flex-row sm:items-center sm:justify-between">
@@ -167,7 +185,7 @@ export function DataListPagination({
         <span>
           Showing {firstItemIndex}-{lastItemIndex} of {totalItems}
         </span>
-        {isPending ? (
+        {showLoadingState ? (
           <span className="inline-flex items-center gap-1.5">
             <Spinner className="size-3.5" />
             Loading page...
@@ -179,15 +197,11 @@ export function DataListPagination({
           <PaginationItem>
             <PaginationLink
               asChild
-              aria-disabled={isPending || currentPage === 1}
-              className={
-                isPending || currentPage === 1
-                  ? "pointer-events-none opacity-50"
-                  : undefined
-              }
+              aria-disabled={currentPage === 1}
+              className={currentPage === 1 ? "pointer-events-none opacity-50" : undefined}
               href={getPageHref(currentPage - 1)}
               size="default"
-              tabIndex={isPending || currentPage === 1 ? -1 : undefined}
+              tabIndex={currentPage === 1 ? -1 : undefined}
             >
               <Link
                 href={getPageHref(currentPage - 1)}
@@ -210,11 +224,8 @@ export function DataListPagination({
               <PaginationItem key={item}>
                 <PaginationLink
                   asChild
-                  aria-disabled={isPending}
-                  className={isPending ? "pointer-events-none opacity-50" : undefined}
                   href={getPageHref(item)}
                   isActive={item === currentPage}
-                  tabIndex={isPending ? -1 : undefined}
                 >
                   <Link
                     href={getPageHref(item)}
@@ -232,15 +243,13 @@ export function DataListPagination({
           <PaginationItem>
             <PaginationLink
               asChild
-              aria-disabled={isPending || currentPage === totalPages}
+              aria-disabled={currentPage === totalPages}
               className={
-                isPending || currentPage === totalPages
-                  ? "pointer-events-none opacity-50"
-                  : undefined
+                currentPage === totalPages ? "pointer-events-none opacity-50" : undefined
               }
               href={getPageHref(currentPage + 1)}
               size="default"
-              tabIndex={isPending || currentPage === totalPages ? -1 : undefined}
+              tabIndex={currentPage === totalPages ? -1 : undefined}
             >
               <Link
                 href={getPageHref(currentPage + 1)}
