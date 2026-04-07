@@ -1,18 +1,15 @@
 "use server";
 
-import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 
 import { getValidationActionState } from "@/lib/action-state";
-import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { requireUser } from "@/lib/auth/session";
 import { auth } from "@/lib/auth/server";
-import { db } from "@/lib/db/client";
-import { profiles } from "@/lib/db/schema";
 import {
   accountProfileSchema,
   normalizeOptionalTextValue,
 } from "@/features/account/schemas";
+import { updateAccountProfile } from "@/features/account/mutations";
 import type { AccountProfileActionState } from "@/features/account/types";
 
 const initialState: AccountProfileActionState = {};
@@ -28,6 +25,8 @@ export async function updateAccountProfileAction(
     fullName: formData.get("fullName"),
     jobTitle: formData.get("jobTitle"),
     phone: formData.get("phone"),
+    avatar: formData.get("avatar"),
+    removeAvatar: formData.get("removeAvatar"),
   });
 
   if (!validationResult.success) {
@@ -37,8 +36,6 @@ export async function updateAccountProfileAction(
     );
   }
 
-  const now = new Date();
-
   try {
     await auth.api.updateUser({
       body: {
@@ -47,21 +44,16 @@ export async function updateAccountProfileAction(
       headers: await headers(),
     });
 
-    await ensureProfileForUser({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-    });
-
-    await db
-      .update(profiles)
-      .set({
-        fullName: validationResult.data.fullName,
-        jobTitle: validationResult.data.jobTitle,
+    await updateAccountProfile({
+      user: {
+        id: user.id,
+        email: user.email,
+      },
+      values: {
+        ...validationResult.data,
         phone: normalizeOptionalTextValue(validationResult.data.phone),
-        updatedAt: now,
-      })
-      .where(eq(profiles.userId, user.id));
+      },
+    });
 
     return {
       success: "Profile saved.",

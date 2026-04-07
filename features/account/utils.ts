@@ -1,0 +1,53 @@
+import { sanitizeStorageFileName } from "@/lib/files";
+
+export const profileAvatarBucket = "profile-assets";
+export const profileAvatarMaxSize = 2 * 1024 * 1024;
+export const profileAvatarAllowedExtensions = [
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+] as const;
+export const profileAvatarAllowedMimeTypes = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+] as const;
+export const profileAvatarExtensionToMimeType: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+};
+export const profileAvatarAccept = [
+  ...profileAvatarAllowedExtensions,
+  ...profileAvatarAllowedMimeTypes,
+].join(",");
+
+export function sanitizeProfileAvatarFileName(fileName: string) {
+  return sanitizeStorageFileName(fileName, "profile-avatar");
+}
+
+export function getProfileAvatarUrl(updatedAt?: Date | null) {
+  if (!updatedAt) {
+    return "/api/account/avatar";
+  }
+
+  return `/api/account/avatar?v=${updatedAt.getTime()}`;
+}
+
+export function resolveUserAvatarSrc({
+  avatarStoragePath,
+  profileUpdatedAt,
+  oauthImage,
+}: {
+  avatarStoragePath?: string | null;
+  profileUpdatedAt?: Date | null;
+  oauthImage?: string | null;
+}) {
+  if (avatarStoragePath) {
+    return getProfileAvatarUrl(profileUpdatedAt);
+  }
+
+  return oauthImage ?? null;
+}

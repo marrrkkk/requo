@@ -15,7 +15,10 @@ export const getAccountProfileForUser = cache(async (
       fullName: profiles.fullName,
       jobTitle: profiles.jobTitle,
       phone: profiles.phone,
+      avatarStoragePath: profiles.avatarStoragePath,
+      avatarContentType: profiles.avatarContentType,
       onboardingCompletedAt: profiles.onboardingCompletedAt,
+      updatedAt: profiles.updatedAt,
     })
     .from(profiles)
     .where(eq(profiles.userId, userId))

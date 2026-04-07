@@ -127,6 +127,13 @@
       "when": 1775533200000,
       "tag": "0017_profiles_onboarding_completed_at_repair",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1775566800000,
+      "tag": "0018_profile_avatar_storage",
+      "breakpoints": true
     }
   ]
 }
