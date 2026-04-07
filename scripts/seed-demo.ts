@@ -364,6 +364,314 @@ async function ensureDemoBusiness(demoUser: DemoUser): Promise<DemoBusiness> {
   };
 }
 
+async function generateBulkInquiries(
+  businessId: string,
+  formId: string,
+  demoUserId: string,
+  count: number,
+): Promise<
+  Array<{
+    id: string;
+    businessId: string;
+    businessInquiryFormId: string;
+    status: string;
+    subject: string;
+    customerName: string;
+    customerEmail: string;
+    customerPhone: string | null;
+    serviceCategory: string;
+    requestedDeadline: string | null;
+    budgetText: string | null;
+    companyName: string | null;
+    details: string;
+    source: string;
+    quoteRequested: boolean;
+    submittedAt: Date;
+    lastRespondedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }>
+> {
+  const serviceCategories = [
+    "Window graphics",
+    "Business cards",
+    "Flyers",
+    "Event signage",
+    "Menus",
+    "Labels & stickers",
+    "Branded merchandise",
+    "Banners & signage",
+    "Postcards",
+    "Brochures",
+    "Packaging",
+    "Promotional items",
+  ];
+
+  const statuses = ["new", "waiting", "quoted", "won", "lost", "archived"];
+  const firstNames = [
+    "James",
+    "Mary",
+    "Robert",
+    "Patricia",
+    "Michael",
+    "Jennifer",
+    "William",
+    "Linda",
+    "David",
+    "Barbara",
+    "Richard",
+    "Elizabeth",
+    "Sarah",
+    "Priya",
+    "Carlos",
+    "Amelia",
+    "Zhang",
+    "Fatima",
+    "Kowalski",
+    "O'Brien",
+  ];
+  const lastNames = [
+    "Smith",
+    "Johnson",
+    "Williams",
+    "Brown",
+    "Jones",
+    "Garcia",
+    "Miller",
+    "Davis",
+    "Rodriguez",
+    "Martinez",
+    "Hernandez",
+    "Lopez",
+    "Gonzalez",
+    "Wilson",
+    "Anderson",
+    "Thomas",
+    "Taylor",
+    "Moore",
+    "Jackson",
+    "Martin",
+  ];
+  const companyNames = [
+    "Studio Co",
+    "Creative Works",
+    "Brand Lab",
+    "Design House",
+    "The Workshop",
+    "Print Pro",
+    "Sign Masters",
+    "Graphics Plus",
+    "Label Art",
+    "Promo Hub",
+    "Merchandise Co",
+    "Banner Works",
+    "Branding Studio",
+    "Marketing Plus",
+    "Media Group",
+    "Visual Arts",
+    "Creative Hub",
+    "Design Studio",
+    "Print Services",
+    "Graphic Arts",
+  ];
+
+  const details = [
+    "We need this as soon as possible. Can you provide a quick turnaround estimate?",
+    "Looking for high-quality production and good pricing. Please provide your best quote.",
+    "This is a recurring project for us, so we're looking to establish a long-term partnership.",
+    "Our current vendor is overbooked. Can you help us meet our deadline?",
+    "We want to refresh our branding materials. What options do you recommend?",
+    "Budget is flexible if the quality matches our brand standards.",
+    "We're flexible on timeline but need the best quality possible.",
+    "First-time order, but we have a good sense of what we need.",
+    "This is urgent. Our event is in two weeks.",
+    "We've heard great things about your work. Looking forward to collaborating.",
+  ];
+
+  const budgets = [
+    "$100-$250",
+    "$250-$500",
+    "$500-$1000",
+    "$1000-$2500",
+    "$2500-$5000",
+    "$5000+",
+    null,
+  ];
+
+  const inquiries = [];
+
+  for (let i = 0; i < count; i++) {
+    const firstName =
+      firstNames[Math.floor(Math.random() * firstNames.length)];
+    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+    const company =
+      companyNames[Math.floor(Math.random() * companyNames.length)];
+    const category =
+      serviceCategories[Math.floor(Math.random() * serviceCategories.length)];
+    const status = statuses[Math.floor(Math.random() * statuses.length)];
+    const budget = budgets[Math.floor(Math.random() * budgets.length)];
+    const detail = details[Math.floor(Math.random() * details.length)];
+    const daysAgoValue = Math.floor(Math.random() * 90);
+    const submittedDate = daysAgo(daysAgoValue, 9 + Math.floor(Math.random() * 8));
+
+    inquiries.push({
+      id: `bulk_inquiry_${count}_${i}`,
+      businessId,
+      businessInquiryFormId: formId,
+      status,
+      subject: `${category} request from ${company}`,
+      customerName: `${firstName} ${lastName}`,
+      customerEmail: `${firstName.toLowerCase()}.${lastName.toLowerCase()}@${company.toLowerCase().replace(/\s+/g, "")}.com`.slice(
+        0,
+        254,
+      ),
+      customerPhone:
+        Math.random() > 0.3 ? `(${Math.floor(Math.random() * 900) + 100}) 555-${String(Math.floor(Math.random() * 10000)).padStart(4, "0")}` : null,
+      serviceCategory: category,
+      requestedDeadline:
+        Math.random() > 0.4
+          ? toIsoDate(daysFromNow(Math.floor(Math.random() * 30) + 3))
+          : null,
+      budgetText: budget,
+      companyName: company,
+      details: detail,
+      source: "demo-seed-bulk",
+      quoteRequested: true,
+      submittedAt: submittedDate,
+      lastRespondedAt:
+        status === "new"
+          ? null
+          : daysAgo(Math.max(0, daysAgoValue - Math.floor(Math.random() * daysAgoValue))),
+      createdAt: submittedDate,
+      updatedAt: submittedDate,
+    });
+  }
+
+  return inquiries;
+}
+
+async function generateBulkQuotes(
+  businessId: string,
+  inquiries: Array<{ id: string; status: string }>,
+) {
+  const quotes = [];
+  let quoteNumber = 2001;
+
+  for (const inquiry of inquiries) {
+    if (
+      (inquiry.status === "quoted" ||
+        inquiry.status === "won" ||
+        inquiry.status === "lost") &&
+      Math.random() > 0.2
+    ) {
+      const statusMap: Record<string, string> = {
+        quoted: "draft",
+        won: "accepted",
+        lost: "rejected",
+      };
+      const quoteStatus =
+        inquiry.status === "quoted"
+          ? "draft"
+          : inquiry.status === "won"
+            ? "accepted"
+            : "rejected";
+
+      const now = new Date();
+      const createdDaysAgo = Math.floor(Math.random() * 60);
+      const createdDate = daysAgo(createdDaysAgo);
+      const sentDaysAgo =
+        quoteStatus === "draft" ? null : createdDaysAgo - Math.floor(Math.random() * 7);
+      const sentDate = sentDaysAgo ? daysAgo(sentDaysAgo) : null;
+
+      const subtotal = Math.floor(Math.random() * 450000) + 5000;
+      const discount = Math.floor(subtotal * (Math.random() * 0.15));
+      const total = subtotal - discount;
+
+      quotes.push({
+        id: `bulk_quote_${inquiry.id}`,
+        businessId,
+        inquiryId: inquiry.id,
+        status: quoteStatus,
+        quoteNumber: `Q-${quoteNumber}`,
+        publicToken: `token_${quoteNumber}_${Date.now()}`,
+        title: `Quote for ${inquiry.id}`,
+        customerName: "Bulk Customer",
+        customerEmail: "customer@example.com",
+        currency: "USD",
+        notes: "Bulk generated quote for demo purposes.",
+        subtotalInCents: subtotal,
+        discountInCents: discount,
+        totalInCents: total,
+        sentAt: sentDate,
+        acceptedAt:
+          quoteStatus === "accepted"
+            ? daysAgo(Math.floor(Math.random() * createdDaysAgo))
+            : null,
+        publicViewedAt: sentDate
+          ? daysAgo(
+              Math.max(0, sentDaysAgo - Math.floor(Math.random() * sentDaysAgo)),
+            )
+          : null,
+        customerRespondedAt:
+          quoteStatus !== "draft"
+            ? daysAgo(Math.max(0, createdDaysAgo - Math.floor(Math.random() * 10)))
+            : null,
+        customerResponseMessage:
+          quoteStatus === "accepted"
+            ? "Approved. Please proceed."
+            : quoteStatus === "rejected"
+              ? "Thanks but we chose another vendor."
+              : null,
+        postAcceptanceStatus: "none" as const,
+        validUntil: toIsoDate(daysFromNow(30)),
+        createdAt: createdDate,
+        updatedAt: sentDate || createdDate,
+      });
+
+      quoteNumber++;
+    }
+  }
+
+  return quotes;
+}
+
+async function generateBulkQuoteItems(
+  businessId: string,
+  quotes: Array<{ id: string }>,
+) {
+  const items = [];
+  const descriptions = [
+    "Production and printing",
+    "Design and setup",
+    "Finishing and binding",
+    "Quality assurance",
+    "Packaging and shipping",
+    "Rush surcharge",
+    "Material upgrade",
+    "Special finishing",
+  ];
+
+  for (const quote of quotes) {
+    const itemCount = Math.floor(Math.random() * 4) + 1;
+    for (let i = 0; i < itemCount; i++) {
+      items.push({
+        id: `bulk_item_${quote.id}_${i}`,
+        businessId,
+        quoteId: quote.id,
+        description: descriptions[Math.floor(Math.random() * descriptions.length)],
+        quantity: Math.floor(Math.random() * 100) + 1,
+        unitPriceInCents: Math.floor(Math.random() * 50000) + 1000,
+        lineTotalInCents: 0,
+        position: i,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
+  }
+
+  return items;
+}
+
 async function seedBusinessData(demoUser: DemoUser, business: DemoBusiness) {
   const noteTimestamps = {
     storefront: daysAgo(1, 14, 20),
@@ -1148,20 +1456,58 @@ async function seedBusinessData(demoUser: DemoUser, business: DemoBusiness) {
     },
   ];
 
+  // Generate bulk inquiry and quote data
+  const bulkInquiries = await generateBulkInquiries(
+    business.id,
+    business.defaultInquiryFormId,
+    demoUser.id,
+    200,
+  );
+  const bulkQuotes = await generateBulkQuotes(
+    business.id,
+    bulkInquiries.map((i) => ({ id: i.id, status: i.status })),
+  );
+  const bulkQuoteItems = await generateBulkQuoteItems(
+    business.id,
+    bulkQuotes,
+  );
+
+  // Calculate lineTotals for bulk items
+  bulkQuoteItems.forEach((item) => {
+    item.lineTotalInCents = item.quantity * item.unitPriceInCents;
+  });
+
+  // Combine bulk data with demo data
+  const allInquiries = [...inquiryRows, ...bulkInquiries];
+  const allQuotes = [...quoteRows, ...bulkQuotes];
+  const allQuoteItems = [...quoteItemRows, ...bulkQuoteItems];
+
+  console.log(`Preparing to seed ${allInquiries.length} inquiries, ${allQuotes.length} quotes, and ${allQuoteItems.length} quote items...`);
+
   await db.transaction(async (tx) => {
+    // Clean up all demo/bulk data
     await tx.delete(activityLogs).where(inArray(activityLogs.id, demoActivityIds));
     await tx.delete(inquiryNotes).where(inArray(inquiryNotes.id, demoNoteIds));
-    await tx.delete(quoteItems).where(inArray(quoteItems.id, demoQuoteItemIds));
-    await tx.delete(quotes).where(inArray(quotes.id, demoQuoteIds));
-    await tx.delete(inquiries).where(inArray(inquiries.id, demoInquiryIds));
+    
+    // Delete all quote items, quotes and inquiries from demo sources
+    await tx
+      .delete(quoteItems)
+      .where(eq(quoteItems.businessId, business.id));
+    await tx
+      .delete(quotes)
+      .where(eq(quotes.businessId, business.id));
+    await tx
+      .delete(inquiries)
+      .where(eq(inquiries.businessId, business.id));
+    
     await tx.delete(knowledgeFaqs).where(inArray(knowledgeFaqs.id, demoFaqIds));
     await tx.delete(replySnippets).where(inArray(replySnippets.id, demoReplySnippetIds));
 
     await tx.insert(knowledgeFaqs).values(faqRows);
-    await tx.insert(inquiries).values(inquiryRows);
+    await tx.insert(inquiries).values(allInquiries);
     await tx.insert(inquiryNotes).values(noteRows);
-    await tx.insert(quotes).values(quoteRows);
-    await tx.insert(quoteItems).values(quoteItemRows);
+    await tx.insert(quotes).values(allQuotes);
+    await tx.insert(quoteItems).values(allQuoteItems);
     await tx.insert(replySnippets).values(replySnippetRows);
     await tx.insert(activityLogs).values(activityRows);
   });
