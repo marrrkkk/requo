@@ -131,6 +131,21 @@ function formatBreadcrumbLabel(value: string) {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
+function formatRecordHint(value: string) {
+  const decodedValue = decodeURIComponent(value).trim();
+
+  if (!decodedValue) {
+    return "";
+  }
+
+  // Keep UUID-like or opaque IDs short so breadcrumbs stay readable.
+  if (/^[a-f0-9-]{12,}$/i.test(decodedValue)) {
+    return decodedValue.slice(0, 8);
+  }
+
+  return formatBreadcrumbLabel(decodedValue);
+}
+
 export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbItem[] {
   const slug = getBusinessDashboardSlugFromPathname(pathname);
 
@@ -158,13 +173,15 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
   }
 
   if (pathname.startsWith(`${inquiriesPath}/`)) {
+    const inquiryId = pathname.slice(`${inquiriesPath}/`.length).split("/")[0];
+
     return [
       {
         label: "Requests",
         href: inquiriesPath,
       },
       {
-        label: "Request",
+        label: inquiryId ? `Request ${formatRecordHint(inquiryId)}` : "Request",
       },
     ];
   }
@@ -186,13 +203,15 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
   }
 
   if (pathname.startsWith(`${quotesPath}/`)) {
+    const quoteId = pathname.slice(`${quotesPath}/`.length).split("/")[0];
+
     return [
       {
         label: "Quotes",
         href: quotesPath,
       },
       {
-        label: "Quote",
+        label: quoteId ? `Quote ${formatRecordHint(quoteId)}` : "Quote",
       },
     ];
   }
@@ -202,13 +221,15 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
   }
 
   if (pathname.startsWith(`${formsPath}/`)) {
+    const formSlug = pathname.slice(`${formsPath}/`.length).split("/")[0];
+
     return [
       {
         label: "Forms",
         href: formsPath,
       },
       {
-        label: "Form",
+        label: formSlug ? formatBreadcrumbLabel(formSlug) : "Form",
       },
     ];
   }
@@ -223,6 +244,7 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
     const section = segments[0];
     const sectionLabels: Record<string, string> = {
       general: "General",
+      profile: "Profile",
       inquiry: "Forms",
       replies: "Saved replies",
       quote: "Quote defaults",

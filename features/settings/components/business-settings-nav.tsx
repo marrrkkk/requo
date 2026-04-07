@@ -11,13 +11,6 @@ export function BusinessSettingsNav({
 }: BusinessSettingsNavProps) {
   return (
     <aside className="section-panel overflow-hidden xl:sticky xl:top-[5.5rem]">
-      <div className="border-b border-border/70 px-4 py-4 sm:px-5">
-        <p className="meta-label">Settings</p>
-        <p className="mt-3 max-w-xs text-sm leading-6 text-muted-foreground">
-          Business setup, reusable responses, and quote configuration.
-        </p>
-      </div>
-
       <div className="flex flex-col gap-4 p-3">
         {groups.map((group) => (
           <section className="flex flex-col gap-1" key={group.label}>

@@ -36,6 +36,7 @@ import {
   deleteBusiness,
   deleteBusinessInquiryForm,
   duplicateBusinessInquiryForm,
+  setBusinessInquiryFormPublicState,
   applyBusinessInquiryFormPreset,
   setDefaultBusinessInquiryForm,
   updateBusinessInquiryFormSettings,
@@ -639,6 +640,12 @@ export async function duplicateBusinessInquiryFormAction(
     });
 
     if (!result.ok) {
+      if (result.reason === "invalid-target") {
+        return {
+          error: "Default forms must stay published.",
+        };
+      }
+
       return {
         error: "That inquiry form could not be found.",
       };
@@ -946,6 +953,69 @@ export async function deleteBusinessInquiryFormAction(
 
     return {
       error: "We couldn't delete the inquiry form right now.",
+    };
+  }
+}
+
+export async function toggleBusinessInquiryFormPublicAction(
+  _prevState: BusinessInquiryFormsActionState,
+  formData: FormData,
+): Promise<BusinessInquiryFormsActionState> {
+  const ownerAccess = await getOwnerBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+  const validationResult = businessInquiryFormTargetSchema.safeParse({
+    targetFormId: formData.get("targetFormId"),
+  });
+
+  if (!validationResult.success) {
+    return getValidationActionState(validationResult.error, "Choose a form and try again.");
+  }
+
+  const publicInquiryEnabled = formData.get("publicInquiryEnabled") === "true";
+
+  try {
+    const result = await setBusinessInquiryFormPublicState({
+      businessId: businessContext.business.id,
+      actorUserId: user.id,
+      targetFormId: validationResult.data.targetFormId,
+      publicInquiryEnabled,
+    });
+
+    if (!result.ok) {
+      return {
+        error: "That inquiry form could not be found.",
+      };
+    }
+
+    updateCacheTags(
+      uniqueCacheTags([
+        ...getBusinessInquiryFormsCacheTags(businessContext.business.id),
+        ...getBusinessInquiryFormCacheTags(
+          businessContext.business.id,
+          result.formSlug,
+        ),
+      ]),
+    );
+    revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+    revalidateBusinessDefaultInquiryPaths(result.businessSlug);
+
+    return {
+      success: publicInquiryEnabled
+        ? "Form published to the public page."
+        : "Form unpublished from the public page.",
+    };
+  } catch (error) {
+    console.error("Failed to toggle public inquiry form state.", error);
+
+    return {
+      error: "We couldn't update the form availability right now.",
     };
   }
 }

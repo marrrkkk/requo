@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 
 import { DashboardShell } from "@/components/shell/dashboard-shell";
+import { getAccountProfileForUser } from "@/features/account/queries";
+import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { getBusinessNotificationBellView } from "@/features/notifications/queries";
 import { businessesHubPath } from "@/features/businesses/routes";
@@ -17,10 +19,11 @@ export default async function BusinessDashboardLayout({
   params,
 }: LayoutProps<"/businesses/[slug]/dashboard">) {
   const [session, { slug }] = await Promise.all([requireSession(), params]);
-  const [themePreference, businessContext, businessMemberships] = await Promise.all([
+  const [themePreference, businessContext, businessMemberships, profile] = await Promise.all([
     getThemePreferenceForUser(session.user.id),
     getBusinessContextForMembershipSlug(session.user.id, slug),
     getBusinessMembershipsForUser(session.user.id),
+    getAccountProfileForUser(session.user.id),
   ]);
 
   if (!businessContext) {
@@ -32,11 +35,21 @@ export default async function BusinessDashboardLayout({
     businessSlug: businessContext.business.slug,
     userId: session.user.id,
   });
+  const avatarSrc = resolveUserAvatarSrc({
+    avatarStoragePath: profile?.avatarStoragePath,
+    profileUpdatedAt: profile?.updatedAt,
+    oauthImage: session.user.image ?? null,
+  });
 
   return (
     <DashboardShell
       themePreference={themePreference}
-      user={session.user}
+      user={{
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+        avatarSrc,
+      }}
       businessContext={businessContext}
       businessMemberships={businessMemberships}
       notificationView={notificationView}

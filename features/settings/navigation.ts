@@ -5,6 +5,7 @@ import {
   MessageSquareText,
   Settings2,
   Tags,
+  User,
 } from "lucide-react";
 
 import { getBusinessSettingsPath } from "@/features/businesses/routes";
@@ -26,46 +27,57 @@ export function getBusinessSettingsNavigation(
 ): BusinessSettingsNavigationGroup[] {
   return [
     {
-      label: "Business",
+      label: "Your Account",
+      items: [
+        {
+          href: getBusinessSettingsPath(slug, "profile"),
+          label: "Owner profile",
+          description: "Name, avatar, and owner contact details",
+          icon: User,
+        },
+      ],
+    },
+    {
+      label: "Workspace Setup",
       items: [
         {
           href: getBusinessSettingsPath(slug, "general"),
-          label: "General",
-          description: "Brand, contact, notifications",
+          label: "Business details",
+          description: "Business name, branding, contact, and defaults",
           icon: Settings2,
         },
       ],
     },
     {
-      label: "Responses",
+      label: "Replies & Knowledge",
       items: [
         {
           href: getBusinessSettingsPath(slug, "replies"),
-          label: "Saved replies",
-          description: "Reusable snippets for inquiry responses",
+          label: "Reply snippets",
+          description: "Reusable response templates for customer replies",
           icon: MessageSquareText,
         },
         {
           href: getBusinessSettingsPath(slug, "knowledge"),
-          label: "Knowledge base",
-          description: "Files and FAQs for AI context",
+          label: "Knowledge files",
+          description: "Upload docs and FAQs used by AI drafting",
           icon: BookCopy,
         },
       ],
     },
     {
-      label: "Quotes",
+      label: "Quotes & Pricing",
       items: [
         {
           href: getBusinessSettingsPath(slug, "quote"),
-          label: "Quote defaults",
-          description: "Currency, validity, and default copy",
+          label: "Quote preferences",
+          description: "Currency, validity window, and default quote copy",
           icon: FileText,
         },
         {
           href: getBusinessSettingsPath(slug, "pricing"),
-          label: "Pricing library",
-          description: "Saved blocks and service packages",
+          label: "Service pricing library",
+          description: "Saved line items, pricing blocks, and packages",
           icon: Tags,
         },
       ],

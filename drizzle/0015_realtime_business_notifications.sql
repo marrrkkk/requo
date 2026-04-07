@@ -120,6 +120,17 @@ AS $$
 $$;
 --> statement-breakpoint
 
+CREATE OR REPLACE FUNCTION public.set_updated_at_timestamp()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$;
+--> statement-breakpoint
+
 DROP TRIGGER IF EXISTS business_notifications_set_updated_at ON public.business_notifications;
 CREATE TRIGGER business_notifications_set_updated_at
 BEFORE UPDATE ON public.business_notifications

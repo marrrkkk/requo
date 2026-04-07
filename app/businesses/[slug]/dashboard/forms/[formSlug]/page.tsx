@@ -14,6 +14,7 @@ import {
   deleteBusinessInquiryFormAction,
   duplicateBusinessInquiryFormAction,
   setDefaultBusinessInquiryFormAction,
+  toggleBusinessInquiryFormPublicAction,
   updateBusinessInquiryFormAction,
   updateBusinessInquiryPageAction,
 } from "@/features/settings/actions";
@@ -125,7 +126,9 @@ export default async function BusinessFormPage({
             duplicateAction={duplicateBusinessInquiryFormAction}
             formId={settings.formId}
             isDefault={settings.isDefault}
+            isPublicInquiryEnabled={settings.publicInquiryEnabled}
             setDefaultAction={setDefaultBusinessInquiryFormAction}
+            togglePublicAction={toggleBusinessInquiryFormPublicAction}
           />
 
           <BusinessInquiryFormDangerZone

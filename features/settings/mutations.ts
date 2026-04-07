@@ -82,6 +82,9 @@ type TargetBusinessInquiryFormInput = {
   actorUserId: string;
   targetFormId: string;
 };
+type SetBusinessInquiryFormPublicStateInput = TargetBusinessInquiryFormInput & {
+  publicInquiryEnabled: boolean;
+};
 
 type UpdateBusinessSettingsResult =
   | { ok: true; previousSlug: string; nextSlug: string }
@@ -517,6 +520,7 @@ export async function updateBusinessInquiryPageSettings({
       .select({
         id: businessInquiryForms.id,
         slug: businessInquiryForms.slug,
+        isDefault: businessInquiryForms.isDefault,
       })
       .from(businessInquiryForms)
       .where(
@@ -1256,6 +1260,96 @@ export async function deleteBusinessInquiryForm({
       metadata: {
         inquiryFormId: targetFormId,
         inquiryFormSlug: targetForm.slug,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+
+  return {
+    ok: true,
+    businessSlug: business.slug,
+    formSlug: targetForm.slug,
+  };
+}
+
+export async function setBusinessInquiryFormPublicState({
+  businessId,
+  actorUserId,
+  targetFormId,
+  publicInquiryEnabled,
+}: SetBusinessInquiryFormPublicStateInput): Promise<BusinessInquiryFormMutationResult> {
+  const [businessRows, targetFormRows] = await Promise.all([
+    db
+      .select({
+        id: businesses.id,
+        slug: businesses.slug,
+      })
+      .from(businesses)
+      .where(eq(businesses.id, businessId))
+      .limit(1),
+    db
+      .select({
+        id: businessInquiryForms.id,
+        slug: businessInquiryForms.slug,
+        isDefault: businessInquiryForms.isDefault,
+      })
+      .from(businessInquiryForms)
+      .where(
+        and(
+          eq(businessInquiryForms.businessId, businessId),
+          eq(businessInquiryForms.id, targetFormId),
+          isNull(businessInquiryForms.archivedAt),
+        ),
+      )
+      .limit(1),
+  ]);
+
+  const business = businessRows[0];
+  const targetForm = targetFormRows[0];
+
+  if (!business || !targetForm) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
+  if (!publicInquiryEnabled && targetForm.isDefault) {
+    return {
+      ok: false,
+      reason: "invalid-target",
+    };
+  }
+
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(businessInquiryForms)
+      .set({
+        publicInquiryEnabled,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(businessInquiryForms.businessId, businessId),
+          eq(businessInquiryForms.id, targetFormId),
+        ),
+      );
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      actorUserId,
+      type: "business.inquiry_form_page_updated",
+      summary: publicInquiryEnabled
+        ? `Inquiry form published: ${targetForm.slug}.`
+        : `Inquiry form unpublished: ${targetForm.slug}.`,
+      metadata: {
+        inquiryFormId: targetFormId,
+        inquiryFormSlug: targetForm.slug,
+        publicInquiryEnabled,
       },
       createdAt: now,
       updatedAt: now,

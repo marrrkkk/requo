@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { ArrowRight, PlusCircle } from "lucide-react";
 
 import { LogoutButton } from "@/features/auth/components/logout-button";
-import { accountProfilePath } from "@/features/account/routes";
+import { getProfileSettingsPath } from "@/features/account/routes";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { AppearanceMenu } from "@/features/theme/components/appearance-menu";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
@@ -42,6 +42,12 @@ export default async function BusinessesPage() {
     redirect(onboardingPath);
   }
 
+  const profileSettingsHref = activeBusinessContext
+    ? getProfileSettingsPath(activeBusinessContext.business.slug)
+    : memberships[0]
+      ? getProfileSettingsPath(memberships[0].business.slug)
+      : null;
+
   return (
     <>
       <ThemePreferenceSync
@@ -64,11 +70,13 @@ export default async function BusinessesPage() {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Button asChild variant="outline">
-                <Link href={accountProfilePath} prefetch={true}>
-                  Profile
-                </Link>
-              </Button>
+              {profileSettingsHref ? (
+                <Button asChild variant="outline">
+                  <Link href={profileSettingsHref} prefetch={true}>
+                    Profile
+                  </Link>
+                </Button>
+              ) : null}
               <AppearanceMenu userId={session.user.id} />
               <LogoutButton variant="outline" />
             </div>

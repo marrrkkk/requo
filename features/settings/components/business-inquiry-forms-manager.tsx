@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import {
-  ArrowRight,
+  ArrowUpRight,
   CheckCircle2,
   FileArchive,
+  PencilLine,
   Plus,
 } from "lucide-react";
 
@@ -54,6 +55,7 @@ import type {
   BusinessInquiryFormsSettingsView,
 } from "@/features/settings/types";
 import { getBusinessInquiryFormEditorPath } from "@/features/businesses/routes";
+import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 
 type BusinessInquiryFormsManagerProps = {
   settings: BusinessInquiryFormsSettingsView;
@@ -83,17 +85,8 @@ export function BusinessInquiryFormsManager({
   const archivedForms = settings.forms.filter((form) => form.archivedAt);
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="meta-label">All forms</p>
-          <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground">
-            {settings.forms.length
-              ? `${settings.forms.length} form${settings.forms.length === 1 ? "" : "s"}`
-              : "No forms yet"}
-          </h2>
-        </div>
-
+    <div className="flex flex-col gap-8">
+      <div className="flex justify-end">
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -101,15 +94,18 @@ export function BusinessInquiryFormsManager({
               Create form
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
+          <DialogContent className="p-7 sm:max-w-xl sm:p-8">
+            <DialogHeader className="px-1 pb-5 sm:px-2">
               <DialogTitle>Create form</DialogTitle>
               <DialogDescription>
                 Add a new inquiry form and its public page for this business.
               </DialogDescription>
             </DialogHeader>
 
-            <form action={createFormAction} className="form-stack">
+            <form
+              action={createFormAction}
+              className="flex flex-col gap-8 px-2 py-3 sm:px-3 sm:py-4"
+            >
               <input name="businessType" type="hidden" value={businessType} />
 
               {createState.error ? (
@@ -119,7 +115,7 @@ export function BusinessInquiryFormsManager({
                 </Alert>
               ) : null}
 
-              <FieldGroup>
+              <FieldGroup className="rounded-xl border border-border/70 bg-muted/20 p-3 sm:p-4">
                 <Field data-invalid={Boolean(nameError) || undefined}>
                   <FieldLabel htmlFor="business-inquiry-form-create-name">
                     Form name
@@ -178,15 +174,16 @@ export function BusinessInquiryFormsManager({
                 </Field>
               </FieldGroup>
 
-              <DialogFooter>
+              <DialogFooter className="grid grid-cols-1 gap-3 border-t border-border/70 pt-4 sm:grid-cols-2">
                 <Button
+                  className="w-full"
                   onClick={() => setIsCreateDialogOpen(false)}
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                 >
                   Cancel
                 </Button>
-                <Button disabled={isCreatePending} type="submit">
+                <Button className="w-full" disabled={isCreatePending} size="lg" type="submit">
                   <Plus data-icon="inline-start" />
                   {isCreatePending ? "Creating..." : "Create form"}
                 </Button>
@@ -197,9 +194,9 @@ export function BusinessInquiryFormsManager({
       </div>
 
       {activeForms.length ? (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
           {activeForms.map((form) => (
-            <Card className="border-border/80 bg-card/98" key={form.id}>
+            <Card className="h-full border-border/80 bg-card/98" key={form.id}>
               <CardHeader className="gap-3">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex min-w-0 items-start gap-3">
@@ -213,43 +210,52 @@ export function BusinessInquiryFormsManager({
                       </CardDescription>
                     </div>
                   </div>
-                  <div className="flex flex-wrap justify-end gap-2">
-                    {form.isDefault ? (
-                      <Badge variant="secondary">Default</Badge>
-                    ) : null}
-                    <Badge
-                      variant={form.publicInquiryEnabled ? "secondary" : "outline"}
-                    >
-                      {form.publicInquiryEnabled ? "Live" : "Off"}
-                    </Badge>
-                  </div>
+                  <Badge
+                    className={
+                      form.publicInquiryEnabled
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
+                        : "border-red-200 bg-red-50 text-red-700 hover:bg-red-50"
+                    }
+                    variant="outline"
+                  >
+                    {form.publicInquiryEnabled ? "Live" : "Unpublished"}
+                  </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline">
-                    {businessTypeMeta[form.businessType].label}
-                  </Badge>
-                  <Badge variant="outline">
-                    {form.submittedInquiryCount} inquiries
-                  </Badge>
-                  <Badge variant="outline">
-                    {form.inquiryFormConfig.projectFields.length} fields
-                  </Badge>
-                  <Badge variant="outline">
-                    {form.inquiryPageConfig.cards.length} cards
-                  </Badge>
+              <CardContent className="flex flex-col gap-4">
+                <div>
+                  <Badge variant="outline">{businessTypeMeta[form.businessType].label}</Badge>
                 </div>
 
-                <Button asChild className="w-full sm:w-auto">
-                  <Link
-                    href={getBusinessInquiryFormEditorPath(settings.slug, form.slug)}
-                    prefetch={true}
-                  >
-                    Open form
-                    <ArrowRight data-icon="inline-end" />
-                  </Link>
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  {form.publicInquiryEnabled ? (
+                    <Button asChild>
+                      <Link
+                        href={getBusinessPublicInquiryUrl(settings.slug, form.slug)}
+                        prefetch={false}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        Open live form
+                        <ArrowUpRight data-icon="inline-end" />
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button disabled type="button">
+                      Form unpublished
+                    </Button>
+                  )}
+
+                  <Button asChild type="button" variant="outline">
+                    <Link
+                      href={getBusinessInquiryFormEditorPath(settings.slug, form.slug)}
+                      prefetch={true}
+                    >
+                      <PencilLine data-icon="inline-start" />
+                      Edit
+                    </Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -276,10 +282,9 @@ export function BusinessInquiryFormsManager({
       )}
 
       {archivedForms.length ? (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <div>
-            <p className="meta-label">Archived</p>
-            <h3 className="mt-1 text-lg font-semibold tracking-tight text-foreground">
+            <h3 className="text-lg font-semibold tracking-tight text-foreground">
               {archivedForms.length} archived
             </h3>
           </div>
@@ -307,9 +312,6 @@ export function BusinessInquiryFormsManager({
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="outline">
                       {businessTypeMeta[form.businessType].label}
-                    </Badge>
-                    <Badge variant="outline">
-                      {form.submittedInquiryCount} inquiries
                     </Badge>
                   </div>
                   <FileArchive className="size-4 shrink-0 text-muted-foreground" />
