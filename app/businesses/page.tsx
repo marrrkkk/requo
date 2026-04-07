@@ -1,13 +1,17 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ArrowRight, PlusCircle } from "lucide-react";
 
 import { LogoutButton } from "@/features/auth/components/logout-button";
+import { accountProfilePath } from "@/features/account/routes";
+import { getAccountProfileForUser } from "@/features/account/queries";
 import { AppearanceMenu } from "@/features/theme/components/appearance-menu";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { CreateBusinessForm } from "@/features/businesses/components/create-business-form";
 import { createBusinessAction } from "@/features/businesses/actions";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
+import { onboardingPath } from "@/features/onboarding/routes";
 import { requireSession } from "@/lib/auth/session";
 import {
   getBusinessContextForUser,
@@ -26,11 +30,17 @@ import {
 
 export default async function BusinessesPage() {
   const session = await requireSession();
-  const [themePreference, memberships, activeBusinessContext] = await Promise.all([
-    getThemePreferenceForUser(session.user.id),
-    getBusinessMembershipsForUser(session.user.id),
-    getBusinessContextForUser(session.user.id),
-  ]);
+  const [themePreference, memberships, activeBusinessContext, profile] =
+    await Promise.all([
+      getThemePreferenceForUser(session.user.id),
+      getBusinessMembershipsForUser(session.user.id),
+      getBusinessContextForUser(session.user.id),
+      getAccountProfileForUser(session.user.id),
+    ]);
+
+  if (memberships.length === 0 && !profile?.onboardingCompletedAt) {
+    redirect(onboardingPath);
+  }
 
   return (
     <>
@@ -54,6 +64,11 @@ export default async function BusinessesPage() {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Button asChild variant="outline">
+                <Link href={accountProfilePath} prefetch={true}>
+                  Profile
+                </Link>
+              </Button>
               <AppearanceMenu userId={session.user.id} />
               <LogoutButton variant="outline" />
             </div>

@@ -40,6 +40,9 @@ export const profiles = pgTable("profiles", {
   fullName: text("full_name").notNull(),
   phone: text("phone"),
   jobTitle: text("job_title"),
+  onboardingCompletedAt: timestamp("onboarding_completed_at", {
+    withTimezone: true,
+  }),
   themePreference: profileThemePreferenceEnum("theme_preference")
     .notNull()
     .default("system"),

@@ -9,13 +9,16 @@ Requo deploys cleanly as a Next.js app with a Postgres database, Supabase storag
 ### Core runtime
 
 - `DATABASE_URL`
-- `DATABASE_DIRECT_URL`
 - `BETTER_AUTH_SECRET`
 - `BETTER_AUTH_URL`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_JWT_SECRET`
+
+### Database tooling
+
+- `DATABASE_MIGRATION_URL`
 
 ### Optional but recommended
 
@@ -39,12 +42,24 @@ Requo deploys cleanly as a Next.js app with a Postgres database, Supabase storag
 
 - Provide `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`.
 - Provide `SUPABASE_JWT_SECRET` so Better Auth users can subscribe to Supabase Realtime for dashboard notifications.
+- Use the Supabase pooler host for both database env vars:
+  - `DATABASE_URL` on port `6543`
+  - `DATABASE_MIGRATION_URL` on port `5432`
+- Keep the host, username, password, and database the same between those two values. Only the port should change.
+- If the Connect dialog only shows the `6543` pooler string, duplicate it and change the port to `5432` for `DATABASE_MIGRATION_URL`.
 - Run the existing Drizzle migrations before exercising storage-backed features.
 - The app expects the migrations to manage the private bucket configuration for:
   - `inquiry-attachments`
   - `knowledge-files`
   - `business-assets`
 - Keep private asset access server-side. The current design uses authenticated route handlers to download private files.
+
+Example:
+
+```env
+DATABASE_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<region>.pooler.supabase.com:6543/postgres
+DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<region>.pooler.supabase.com:5432/postgres
+```
 
 ## Resend Checklist
 
@@ -66,7 +81,7 @@ Requo deploys cleanly as a Next.js app with a Postgres database, Supabase storag
 
 ## Rollout Order
 
-1. Provision the database and set `DATABASE_URL` plus `DATABASE_DIRECT_URL`.
+1. Provision the database and set `DATABASE_URL` plus `DATABASE_MIGRATION_URL`.
 2. Set Better Auth envs and deploy the app at the intended public origin.
 3. Run `npm run db:migrate`.
 4. Configure Supabase storage credentials and verify upload-backed flows.

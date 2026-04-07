@@ -118,13 +118,16 @@ The product is built around a simple operating model:
 ### Core runtime
 
 - `DATABASE_URL`
-- `DATABASE_DIRECT_URL`
 - `BETTER_AUTH_SECRET`
 - `BETTER_AUTH_URL`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_JWT_SECRET`
+
+### Database tooling
+
+- `DATABASE_MIGRATION_URL`
 
 ### Optional providers
 
@@ -150,6 +153,18 @@ For full setup expectations, read:
 
 - [Local setup](./docs/setup/local.md)
 - [Deployment setup](./docs/setup/deployment.md)
+
+For Supabase-backed setups:
+
+- use `DATABASE_URL` with the pooler host on port `6543` for app/runtime traffic
+- use `DATABASE_MIGRATION_URL` with the same pooler host on port `5432` for Drizzle migrations
+
+Example:
+
+```env
+DATABASE_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<region>.pooler.supabase.com:6543/postgres
+DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<region>.pooler.supabase.com:5432/postgres
+```
 
 ## Scripts
 

@@ -24,17 +24,25 @@ type CreateBusinessForUserInput = {
   };
   name: string;
   businessType: BusinessType;
+  shortDescription?: string | null;
+  activitySource?: string;
+  activitySummary?: string;
 };
+
+type DatabaseTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 function createId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
 }
 
-async function getAvailableBusinessSlug(baseSlug: string) {
+async function getAvailableBusinessSlug(
+  tx: DatabaseTransaction,
+  baseSlug: string,
+) {
   let candidate = baseSlug;
 
   while (true) {
-    const [existingBusiness] = await db
+    const [existingBusiness] = await tx
       .select({ id: businesses.id })
       .from(businesses)
       .where(eq(businesses.slug, candidate))
@@ -50,14 +58,25 @@ async function getAvailableBusinessSlug(baseSlug: string) {
   }
 }
 
-export async function createBusinessForUser({
+type CreateBusinessRecordForUserInput = CreateBusinessForUserInput & {
+  tx: DatabaseTransaction;
+  now?: Date;
+};
+
+export async function createBusinessRecordForUser({
+  tx,
   user,
   name,
   businessType,
-}: CreateBusinessForUserInput) {
+  shortDescription,
+  activitySource = "business-hub",
+  activitySummary = "Business created.",
+  now = new Date(),
+}: CreateBusinessRecordForUserInput) {
   const trimmedName = name.trim();
-  const now = new Date();
+  const normalizedShortDescription = shortDescription?.trim() || null;
   const slug = await getAvailableBusinessSlug(
+    tx,
     slugifyPublicName(trimmedName, {
       fallback: "business",
     }),
@@ -68,65 +87,85 @@ export async function createBusinessForUser({
     businessName: trimmedName,
   });
 
-  await ensureProfileForUser(user);
-
-  await db.transaction(async (tx) => {
-    await tx.insert(businesses).values({
-      id: businessId,
-      name: trimmedName,
-      slug,
+  await tx.insert(businesses).values({
+    id: businessId,
+    name: trimmedName,
+    slug,
+    businessType,
+    shortDescription: normalizedShortDescription,
+    contactEmail: user.email,
+    inquiryFormConfig: createInquiryFormConfigDefaults({
       businessType,
-      contactEmail: user.email,
-      inquiryFormConfig: createInquiryFormConfigDefaults({
-        businessType,
-      }),
-      inquiryPageConfig: createInquiryPageConfigDefaults({
-        businessName: trimmedName,
-        businessType,
-      }),
-      createdAt: now,
-      updatedAt: now,
-    });
+    }),
+    inquiryPageConfig: createInquiryPageConfigDefaults({
+      businessName: trimmedName,
+      businessType,
+    }),
+    createdAt: now,
+    updatedAt: now,
+  });
 
-    await tx.insert(businessInquiryForms).values({
-      id: createId("ifm"),
-      businessId,
-      name: defaultInquiryForm.name,
-      slug: defaultInquiryForm.slug,
-      businessType: defaultInquiryForm.businessType,
-      isDefault: true,
-      publicInquiryEnabled: defaultInquiryForm.publicInquiryEnabled,
-      inquiryFormConfig: defaultInquiryForm.inquiryFormConfig,
-      inquiryPageConfig: defaultInquiryForm.inquiryPageConfig,
-      createdAt: now,
-      updatedAt: now,
-    });
+  await tx.insert(businessInquiryForms).values({
+    id: createId("ifm"),
+    businessId,
+    name: defaultInquiryForm.name,
+    slug: defaultInquiryForm.slug,
+    businessType: defaultInquiryForm.businessType,
+    isDefault: true,
+    publicInquiryEnabled: defaultInquiryForm.publicInquiryEnabled,
+    inquiryFormConfig: defaultInquiryForm.inquiryFormConfig,
+    inquiryPageConfig: defaultInquiryForm.inquiryPageConfig,
+    createdAt: now,
+    updatedAt: now,
+  });
 
-    await tx.insert(businessMembers).values({
-      id: createId("bm"),
-      businessId,
-      userId: user.id,
-      role: "owner",
-      createdAt: now,
-      updatedAt: now,
-    });
+  await tx.insert(businessMembers).values({
+    id: createId("bm"),
+    businessId,
+    userId: user.id,
+    role: "owner",
+    createdAt: now,
+    updatedAt: now,
+  });
 
-    await tx.insert(activityLogs).values({
-      id: createId("act"),
-      businessId,
-      actorUserId: user.id,
-      type: "business.created",
-      summary: "Business created.",
-      metadata: {
-        source: "business-hub",
-      },
-      createdAt: now,
-      updatedAt: now,
-    });
+  await tx.insert(activityLogs).values({
+    id: createId("act"),
+    businessId,
+    actorUserId: user.id,
+    type: "business.created",
+    summary: activitySummary,
+    metadata: {
+      source: activitySource,
+    },
+    createdAt: now,
+    updatedAt: now,
   });
 
   return {
     id: businessId,
     slug,
   };
+}
+
+export async function createBusinessForUser({
+  user,
+  name,
+  businessType,
+  shortDescription,
+  activitySource,
+  activitySummary,
+}: CreateBusinessForUserInput) {
+  await ensureProfileForUser(user);
+
+  return db.transaction(async (tx) =>
+    createBusinessRecordForUser({
+      tx,
+      user,
+      name,
+      businessType,
+      shortDescription,
+      activitySource,
+      activitySummary,
+    }),
+  );
 }

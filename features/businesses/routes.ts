@@ -3,7 +3,7 @@ export const activeBusinessSlugCookieName = "requo-active-business";
 
 export type BusinessSettingsSection =
   | "general"
-  | "inquiry"
+  | "replies"
   | "quote"
   | "pricing"
   | "knowledge";
@@ -62,15 +62,23 @@ export function getBusinessSettingsPath(
   return section ? `${basePath}/${section}` : basePath;
 }
 
+export function getBusinessFormsPath(slug: string) {
+  return `${getBusinessDashboardPath(slug)}/forms`;
+}
+
+export function getBusinessFormPath(slug: string, formSlug: string) {
+  return `${getBusinessFormsPath(slug)}/${formSlug}`;
+}
+
 export function getBusinessInquiryFormsPath(slug: string) {
-  return getBusinessSettingsPath(slug, "inquiry");
+  return getBusinessFormsPath(slug);
 }
 
 export function getBusinessInquiryFormEditorPath(
   slug: string,
   formSlug: string,
 ) {
-  return `${getBusinessInquiryFormsPath(slug)}/${formSlug}`;
+  return getBusinessFormPath(slug, formSlug);
 }
 
 export function getBusinessInquiryPageEditorPath(
