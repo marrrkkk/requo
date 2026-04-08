@@ -26,12 +26,13 @@ export default async function BusinessProfileSettingsPage() {
     <>
       <PageHeader
         eyebrow="Account"
-        title="Profile"
-        description="Manage your owner details and the profile photo shown in the dashboard."
+        title="Your profile"
+        description="Owner details and photo."
       />
 
       <ProfileSettingsForm
         action={updateAccountProfileAction}
+        key={`profile-settings-${profile?.updatedAt?.getTime() ?? 0}`}
         profile={{
           fullName: profile?.fullName ?? user.name,
           jobTitle: profile?.jobTitle ?? null,

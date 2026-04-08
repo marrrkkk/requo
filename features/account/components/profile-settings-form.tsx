@@ -1,36 +1,32 @@
 "use client";
 
 import Cropper, { type Area } from "react-easy-crop";
-import { CheckCircle2, ImageIcon } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import {
-  type ChangeEvent,
   useActionState,
   useEffect,
   useRef,
   useState,
+  type ChangeEvent,
 } from "react";
 
 import {
-  FormActions,
+  FloatingFormActions,
+  useFloatingUnsavedChanges,
+} from "@/components/shared/floating-form-actions";
+import {
   FormSection,
 } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import {
   Dialog,
   DialogContent,
@@ -57,6 +53,7 @@ import {
   profileAvatarAllowedMimeTypes,
   profileAvatarMaxSize,
 } from "@/features/account/utils";
+import { useProgressRouter } from "@/hooks/use-progress-router";
 
 type ProfileSettingsFormProps = {
   action: (
@@ -79,14 +76,75 @@ export function ProfileSettingsForm({
   action,
   profile,
 }: ProfileSettingsFormProps) {
+  const router = useProgressRouter();
   const [state, formAction, isPending] = useActionState(action, initialState);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [formRevision, setFormRevision] = useState(0);
   const [removeAvatar, setRemoveAvatar] = useState(false);
+  const [hasPendingAvatar, setHasPendingAvatar] = useState(false);
+  const [avatarResetSignal, setAvatarResetSignal] = useState(0);
+  const [hasTextInputChanges, setHasTextInputChanges] = useState(false);
   const fullNameError = state.fieldErrors?.fullName?.[0];
   const jobTitleError = state.fieldErrors?.jobTitle?.[0];
   const phoneError = state.fieldErrors?.phone?.[0];
+  const hasControlledChanges = removeAvatar || hasPendingAvatar;
+  const hasUnsavedChanges = hasControlledChanges || hasTextInputChanges;
+  const { shouldRenderFloatingActions, floatingActionsState } =
+    useFloatingUnsavedChanges(hasUnsavedChanges);
+
+  useEffect(() => {
+    if (!state.success) {
+      return;
+    }
+
+    router.refresh();
+  }, [router, state.success]);
+
+  useEffect(() => {
+    const form = formRef.current;
+
+    if (!form) {
+      return;
+    }
+
+    const inputNames = ["fullName", "jobTitle", "phone"] as const;
+    const initialValues = {
+      fullName: profile.fullName,
+      jobTitle: profile.jobTitle ?? "",
+      phone: profile.phone ?? "",
+    };
+
+    setHasTextInputChanges(
+      inputNames.some((name) => {
+        const field = form.elements.namedItem(name);
+
+        if (
+          !(field instanceof HTMLInputElement) &&
+          !(field instanceof HTMLTextAreaElement)
+        ) {
+          return false;
+        }
+
+        return field.value !== initialValues[name];
+      }),
+    );
+  }, [formRevision, profile.fullName, profile.jobTitle, profile.phone]);
+
+  function handleCancelChanges() {
+    formRef.current?.reset();
+    setRemoveAvatar(false);
+    setHasPendingAvatar(false);
+    setAvatarResetSignal((current) => current + 1);
+    setFormRevision((current) => current + 1);
+  }
 
   return (
-    <form action={formAction} className="form-stack">
+    <form
+      action={formAction}
+      className="form-stack pb-28"
+      onInputCapture={() => setFormRevision((current) => current + 1)}
+      ref={formRef}
+    >
       {state.error ? (
         <Alert variant="destructive">
           <AlertTitle>We could not save your profile.</AlertTitle>
@@ -105,126 +163,130 @@ export function ProfileSettingsForm({
       <input name="removeAvatar" type="hidden" value={String(removeAvatar)} />
 
       <Card className="gap-0 border-border/75 bg-card/97">
-        <CardHeader className="gap-3 pb-5">
-          <CardTitle>Owner profile</CardTitle>
+        <CardHeader className="gap-2.5 pb-6">
+          <CardTitle>Profile settings</CardTitle>
+          <CardDescription>Update your owner details.</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-6 pt-0">
-          <FormSection
-            description="Upload a profile photo override or fall back to the image from your OAuth provider."
-            title="Profile photo"
-          >
+        <CardContent className="pt-0">
+          <div className="grid gap-6 xl:grid-cols-[19rem_minmax(0,1fr)] xl:gap-7">
             <ProfileAvatarField
               disabled={isPending}
               displayName={profile.fullName}
+              email={profile.email}
               fieldError={state.fieldErrors?.avatar?.[0]}
               hasUploadedAvatar={Boolean(profile.avatarStoragePath)}
               initialAvatarSrc={profile.avatarSrc}
+              jobTitle={profile.jobTitle}
+              onPendingChange={setHasPendingAvatar}
               oauthAvatarSrc={profile.oauthAvatarSrc}
               removeAvatar={removeAvatar}
               onRemoveAvatarChange={setRemoveAvatar}
+              resetSignal={avatarResetSignal}
             />
-          </FormSection>
+            <div className="flex min-w-0 flex-col gap-5">
+              <FormSection
+                className="soft-panel px-5 py-5 shadow-none sm:px-6"
+                description="Shown across the workspace."
+                title="Name & role"
+              >
+                <FieldGroup>
+                  <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                    <Field data-invalid={Boolean(fullNameError) || undefined}>
+                      <FieldLabel htmlFor="account-full-name">Full name</FieldLabel>
+                      <FieldContent>
+                        <Input
+                          defaultValue={profile.fullName}
+                          disabled={isPending}
+                          id="account-full-name"
+                          maxLength={120}
+                          minLength={2}
+                          name="fullName"
+                          placeholder="Alicia Cruz"
+                          required
+                        />
+                        <FieldError
+                          errors={fullNameError ? [{ message: fullNameError }] : undefined}
+                        />
+                      </FieldContent>
+                    </Field>
 
-          <FormSection
-            description="These details are used across your account and owner-facing workspace views."
-            title="Profile details"
-          >
-            <FieldGroup>
-              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <Field data-invalid={Boolean(fullNameError) || undefined}>
-                  <FieldLabel htmlFor="account-full-name">Full name</FieldLabel>
-                  <FieldContent>
-                    <Input
-                      defaultValue={profile.fullName}
-                      disabled={isPending}
-                      id="account-full-name"
-                      maxLength={120}
-                      minLength={2}
-                      name="fullName"
-                      placeholder="Alicia Cruz"
-                      required
-                    />
-                    <FieldError
-                      errors={fullNameError ? [{ message: fullNameError }] : undefined}
-                    />
-                  </FieldContent>
-                </Field>
+                    <Field data-invalid={Boolean(jobTitleError) || undefined}>
+                      <FieldLabel htmlFor="account-job-title">Role or title</FieldLabel>
+                      <FieldContent>
+                        <Input
+                          defaultValue={profile.jobTitle ?? ""}
+                          disabled={isPending}
+                          id="account-job-title"
+                          maxLength={80}
+                          minLength={2}
+                          name="jobTitle"
+                          placeholder="Owner"
+                          required
+                        />
+                        <FieldError
+                          errors={jobTitleError ? [{ message: jobTitleError }] : undefined}
+                        />
+                      </FieldContent>
+                    </Field>
+                  </div>
+                </FieldGroup>
+              </FormSection>
 
-                <Field data-invalid={Boolean(jobTitleError) || undefined}>
-                  <FieldLabel htmlFor="account-job-title">Role or title</FieldLabel>
-                  <FieldContent>
-                    <Input
-                      defaultValue={profile.jobTitle ?? ""}
-                      disabled={isPending}
-                      id="account-job-title"
-                      maxLength={80}
-                      minLength={2}
-                      name="jobTitle"
-                      placeholder="Owner"
-                      required
-                    />
-                    <FieldError
-                      errors={jobTitleError ? [{ message: jobTitleError }] : undefined}
-                    />
-                  </FieldContent>
-                </Field>
-              </div>
+              <FormSection
+                className="soft-panel px-5 py-5 shadow-none sm:px-6"
+                description="Direct owner contact."
+                title="Contact details"
+              >
+                <FieldGroup>
+                  <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                    <Field data-invalid={Boolean(phoneError) || undefined}>
+                      <FieldLabel htmlFor="account-phone">Phone</FieldLabel>
+                      <FieldContent>
+                        <Input
+                          defaultValue={profile.phone ?? ""}
+                          disabled={isPending}
+                          id="account-phone"
+                          maxLength={32}
+                          name="phone"
+                          placeholder="+1 555 012 3456"
+                        />
+                        <FieldDescription>Optional.</FieldDescription>
+                        <FieldError
+                          errors={phoneError ? [{ message: phoneError }] : undefined}
+                        />
+                      </FieldContent>
+                    </Field>
 
-              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <Field data-invalid={Boolean(phoneError) || undefined}>
-                  <FieldLabel htmlFor="account-phone">Phone</FieldLabel>
-                  <FieldContent>
-                    <Input
-                      defaultValue={profile.phone ?? ""}
-                      disabled={isPending}
-                      id="account-phone"
-                      maxLength={32}
-                      name="phone"
-                      placeholder="+1 555 012 3456"
-                    />
-                    <FieldDescription>
-                      Optional. Keep an owner contact number on file.
-                    </FieldDescription>
-                    <FieldError
-                      errors={phoneError ? [{ message: phoneError }] : undefined}
-                    />
-                  </FieldContent>
-                </Field>
-
-                <Field>
-                  <FieldLabel htmlFor="account-email">Email</FieldLabel>
-                  <FieldContent>
-                    <Input
-                      disabled
-                      id="account-email"
-                      readOnly
-                      value={profile.email}
-                    />
-                    <FieldDescription>
-                      Your sign-in email is managed through your account identity.
-                    </FieldDescription>
-                  </FieldContent>
-                </Field>
-              </div>
-            </FieldGroup>
-          </FormSection>
+                    <Field>
+                      <FieldLabel htmlFor="account-email">Sign-in email</FieldLabel>
+                      <FieldContent>
+                        <Input
+                          disabled
+                          id="account-email"
+                          readOnly
+                          value={profile.email}
+                        />
+                        <FieldDescription>Read only.</FieldDescription>
+                      </FieldContent>
+                    </Field>
+                  </div>
+                </FieldGroup>
+              </FormSection>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      <div className="toolbar-panel">
-        <FormActions align="between" className="pt-0">
-          <Button disabled={isPending} size="lg" type="submit">
-            {isPending ? (
-              <>
-                <Spinner data-icon="inline-start" aria-hidden="true" />
-                Saving profile...
-              </>
-            ) : (
-              "Save profile"
-            )}
-          </Button>
-        </FormActions>
-      </div>
+      <FloatingFormActions
+        disableSubmit={!hasUnsavedChanges}
+        isPending={isPending}
+        message="You have unsaved profile changes."
+        onCancel={handleCancelChanges}
+        state={floatingActionsState}
+        submitLabel="Save profile"
+        submitPendingLabel="Saving profile..."
+        visible={shouldRenderFloatingActions}
+      />
     </form>
   );
 }
@@ -232,21 +294,29 @@ export function ProfileSettingsForm({
 function ProfileAvatarField({
   disabled,
   displayName,
+  email,
   fieldError,
   hasUploadedAvatar,
   initialAvatarSrc,
+  jobTitle,
+  onPendingChange,
   oauthAvatarSrc,
   removeAvatar,
   onRemoveAvatarChange,
+  resetSignal,
 }: {
   disabled: boolean;
   displayName: string;
+  email: string;
   fieldError?: string;
   hasUploadedAvatar: boolean;
   initialAvatarSrc: string | null;
+  jobTitle: string | null;
+  onPendingChange: (hasPendingChange: boolean) => void;
   oauthAvatarSrc: string | null;
   removeAvatar: boolean;
   onRemoveAvatarChange: (nextValue: boolean) => void;
+  resetSignal: number;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [draftAsset, setDraftAsset] = useState<LoadedAvatarAsset | null>(null);
@@ -273,11 +343,50 @@ function ProfileAvatarField({
     };
   }, [previewUrl]);
 
+  useEffect(() => {
+    onPendingChange(Boolean(previewUrl));
+  }, [onPendingChange, previewUrl]);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      if (inputRef.current) {
+        inputRef.current.value = "";
+      }
+
+      setCropOpen(false);
+      setDraftAsset((currentAsset) => {
+        if (currentAsset) {
+          URL.revokeObjectURL(currentAsset.url);
+        }
+
+        return null;
+      });
+      setPreviewUrl((currentPreviewUrl) => {
+        if (currentPreviewUrl) {
+          URL.revokeObjectURL(currentPreviewUrl);
+        }
+
+        return null;
+      });
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCroppedAreaPixels(null);
+      setLocalError(null);
+    });
+  }, [resetSignal]);
+
   const effectivePreviewUrl = previewUrl
     ? previewUrl
     : removeAvatar
       ? oauthAvatarSrc
       : initialAvatarSrc;
+  const avatarStatusLabel = previewUrl
+    ? "Pending update"
+    : hasUploadedAvatar && !removeAvatar
+      ? "Uploaded photo"
+      : oauthAvatarSrc
+        ? "Using sign-in photo"
+        : null;
 
   async function handleAvatarSelection(event: ChangeEvent<HTMLInputElement>) {
     const nextFile = event.currentTarget.files?.[0];
@@ -394,107 +503,109 @@ function ProfileAvatarField({
 
   return (
     <>
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
-        <Field data-invalid={Boolean(fieldError || localError) || undefined}>
-          <FieldLabel htmlFor="profile-avatar">Avatar</FieldLabel>
-          <FieldContent>
-            <FieldDescription>
-              Upload a JPG, PNG, or WEBP avatar up to 2 MB. New uploads open a square crop step before saving.
-            </FieldDescription>
-            <Input
-              ref={inputRef}
-              accept={profileAvatarAccept}
-              disabled={disabled}
-              id="profile-avatar"
-              name="avatar"
-              onChange={handleAvatarSelection}
-              type="file"
-            />
-            {previewUrl ? (
-              <div className="soft-panel mt-3 flex items-center justify-between gap-3 px-4 py-3 text-sm">
-                <div>
-                  <p className="font-medium text-foreground">Cropped avatar ready</p>
-                  <p className="text-muted-foreground">
-                    This version will replace the current profile photo when you save.
-                  </p>
-                </div>
-                <Button
-                  disabled={disabled}
-                  onClick={clearPendingAvatar}
-                  type="button"
-                  variant="outline"
-                >
-                  Clear
-                </Button>
-              </div>
-            ) : null}
-            {hasUploadedAvatar && !previewUrl ? (
-              <label className="soft-panel mt-3 flex items-start gap-3 px-4 py-3">
-                <input
-                  checked={removeAvatar}
-                  className="mt-1 size-4 accent-current"
-                  disabled={disabled}
-                  onChange={(event) => onRemoveAvatarChange(event.currentTarget.checked)}
-                  type="checkbox"
-                />
-                <span className="flex flex-col gap-1 text-sm">
-                  <span className="font-medium text-foreground">
-                    Remove uploaded avatar
-                  </span>
-                  <span className="text-muted-foreground">
-                    {oauthAvatarSrc
-                      ? "Saving will fall back to your OAuth profile photo."
-                      : "Saving will fall back to your initials."}
-                  </span>
-                </span>
-              </label>
-            ) : null}
-            <FieldError
-              errors={
-                localError
-                  ? [{ message: localError }]
-                  : fieldError
-                    ? [{ message: fieldError }]
-                    : undefined
-              }
-            />
-          </FieldContent>
-        </Field>
+      <div className="self-start xl:sticky xl:top-6">
+        <div className="soft-panel flex flex-col gap-5 p-5 shadow-none sm:p-6">
+          <div className="space-y-2">
+            <p className="text-[0.72rem] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              Profile photo
+            </p>
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold tracking-tight text-foreground">
+                Owner identity
+              </h2>
+              <p className="text-sm text-muted-foreground">Shown across your workspace.</p>
+            </div>
+          </div>
 
-        <div className="soft-panel p-4">
-          <p className="meta-label">
-            {previewUrl ? "New avatar preview" : "Current avatar"}
-          </p>
-          <div className="soft-panel mt-4 flex min-h-40 items-center justify-center bg-muted/20 p-4 shadow-none">
-            {effectivePreviewUrl ? (
-              <div className="flex flex-col items-center gap-3 text-center">
-                <Avatar className="size-24 border-border/70">
-                  <AvatarImage alt={`${displayName} avatar`} src={effectivePreviewUrl} />
-                  <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
-                </Avatar>
-                <p className="text-sm text-muted-foreground">
-                  {previewUrl
-                    ? "Pending upload preview"
-                    : hasUploadedAvatar && !removeAvatar
-                      ? "Uploaded avatar"
-                      : oauthAvatarSrc
-                        ? "OAuth profile photo"
-                        : "Initials fallback"}
-                </p>
+          <div className="rounded-3xl border border-border/75 bg-background/80 px-5 py-5">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <Avatar className="size-24 border border-border/75 shadow-[0_10px_28px_rgba(15,23,42,0.08)] xl:size-28">
+                <AvatarImage alt={`${displayName} avatar`} src={effectivePreviewUrl ?? undefined} />
+                <AvatarFallback className="text-xl">{getInitials(displayName)}</AvatarFallback>
+              </Avatar>
+
+              <div className="min-w-0 max-w-full space-y-2">
+                <div className="space-y-1">
+                  <p className="text-base font-semibold tracking-tight text-foreground">
+                    {displayName}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {jobTitle?.trim() || "Owner account"}
+                  </p>
+                  <p className="break-words text-sm text-muted-foreground">{email}</p>
+                </div>
+
+                {avatarStatusLabel ? (
+                  <span className="inline-flex items-center rounded-full border border-border/75 bg-background/90 px-3 py-1 text-[0.72rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                    {avatarStatusLabel}
+                  </span>
+                ) : null}
               </div>
-            ) : (
-              <Empty className="border-0 bg-transparent px-4 py-6 shadow-none">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <ImageIcon />
-                  </EmptyMedia>
-                  <EmptyTitle>No avatar uploaded</EmptyTitle>
-                  <EmptyDescription>
-                    Add a photo to make your owner profile easier to recognize.
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            )}
+            </div>
+          </div>
+
+          <div className="border-t border-border/70 pt-5">
+            <Field data-invalid={Boolean(fieldError || localError) || undefined}>
+              <FieldLabel htmlFor="profile-avatar">Upload new photo</FieldLabel>
+              <FieldContent>
+                <FieldDescription>JPG, PNG, or WEBP up to 2 MB.</FieldDescription>
+                <Input
+                  ref={inputRef}
+                  accept={profileAvatarAccept}
+                  disabled={disabled}
+                  id="profile-avatar"
+                  name="avatar"
+                  onChange={handleAvatarSelection}
+                  type="file"
+                />
+                {previewUrl ? (
+                  <div className="soft-panel mt-4 flex flex-col gap-3 px-4 py-3 text-sm shadow-none sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-medium text-foreground">Cropped avatar ready</p>
+                      <p className="text-muted-foreground">Applies after save.</p>
+                    </div>
+                    <Button
+                      disabled={disabled}
+                      onClick={clearPendingAvatar}
+                      type="button"
+                      variant="outline"
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                ) : null}
+                {hasUploadedAvatar && !previewUrl ? (
+                  <label className="soft-panel mt-4 flex items-start gap-3 px-4 py-3 shadow-none">
+                    <input
+                      checked={removeAvatar}
+                      className="mt-1 size-4 accent-current"
+                      disabled={disabled}
+                      onChange={(event) => onRemoveAvatarChange(event.currentTarget.checked)}
+                      type="checkbox"
+                    />
+                    <span className="flex flex-col gap-1 text-sm">
+                      <span className="font-medium text-foreground">
+                        Remove uploaded avatar
+                      </span>
+                      <span className="text-muted-foreground">
+                        {oauthAvatarSrc
+                          ? "Falls back to sign-in photo."
+                          : "Falls back to initials."}
+                      </span>
+                    </span>
+                  </label>
+                ) : null}
+                <FieldError
+                  errors={
+                    localError
+                      ? [{ message: localError }]
+                      : fieldError
+                        ? [{ message: fieldError }]
+                        : undefined
+                  }
+                />
+              </FieldContent>
+            </Field>
           </div>
         </div>
       </div>
@@ -510,9 +621,7 @@ function ProfileAvatarField({
         <DialogContent className="gap-0 p-0 sm:max-w-4xl">
           <DialogHeader className="gap-3 border-b border-border/70 pb-4">
             <DialogTitle>Crop profile photo</DialogTitle>
-            <DialogDescription>
-              Adjust the framing before the avatar is uploaded to your account.
-            </DialogDescription>
+            <DialogDescription>Adjust the crop.</DialogDescription>
           </DialogHeader>
 
           <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto p-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
@@ -534,9 +643,7 @@ function ProfileAvatarField({
                 ) : null}
               </div>
 
-              <p className="text-sm leading-6 text-muted-foreground">
-                Drag the image to reposition it inside the frame, then zoom to tighten the crop.
-              </p>
+              <p className="text-sm text-muted-foreground">Drag and zoom to fit.</p>
             </div>
 
             <div className="flex flex-col gap-5">
@@ -562,9 +669,7 @@ function ProfileAvatarField({
                 <div className="soft-panel flex items-start gap-3 px-4 py-4 text-sm">
                   <div className="space-y-1">
                     <p className="font-medium text-foreground">{draftAsset.file.name}</p>
-                    <p className="text-muted-foreground">
-                      The cropped result replaces the upload field and keeps the current save flow.
-                    </p>
+                    <p className="text-muted-foreground">Replaces the upload.</p>
                   </div>
                 </div>
               ) : null}
