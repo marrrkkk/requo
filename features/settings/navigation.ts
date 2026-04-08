@@ -1,20 +1,18 @@
-import type { LucideIcon } from "lucide-react";
-import {
-  BookCopy,
-  FileText,
-  MessageSquareText,
-  Settings2,
-  Tags,
-  User,
-} from "lucide-react";
-
 import { getBusinessSettingsPath } from "@/features/businesses/routes";
+
+export type BusinessSettingsNavigationIcon =
+  | "profile"
+  | "general"
+  | "notifications"
+  | "replies"
+  | "knowledge"
+  | "quote"
+  | "pricing";
 
 export type BusinessSettingsNavigationItem = {
   href: string;
   label: string;
-  description: string;
-  icon: LucideIcon;
+  icon: BusinessSettingsNavigationIcon;
 };
 
 export type BusinessSettingsNavigationGroup = {
@@ -27,58 +25,57 @@ export function getBusinessSettingsNavigation(
 ): BusinessSettingsNavigationGroup[] {
   return [
     {
-      label: "Your Account",
+      label: "Account",
       items: [
         {
           href: getBusinessSettingsPath(slug, "profile"),
-          label: "Owner profile",
-          description: "Name, avatar, and owner contact details",
-          icon: User,
+          label: "Your profile",
+          icon: "profile",
         },
       ],
     },
     {
-      label: "Workspace Setup",
+      label: "Business",
       items: [
         {
           href: getBusinessSettingsPath(slug, "general"),
-          label: "Business details",
-          description: "Business name, branding, contact, and defaults",
-          icon: Settings2,
+          label: "Business profile",
+          icon: "general",
+        },
+        {
+          href: getBusinessSettingsPath(slug, "notifications"),
+          label: "Notifications",
+          icon: "notifications",
         },
       ],
     },
     {
-      label: "Replies & Knowledge",
+      label: "Responses",
       items: [
         {
           href: getBusinessSettingsPath(slug, "replies"),
-          label: "Reply snippets",
-          description: "Reusable response templates for customer replies",
-          icon: MessageSquareText,
+          label: "Saved replies",
+          icon: "replies",
         },
         {
           href: getBusinessSettingsPath(slug, "knowledge"),
-          label: "Knowledge files",
-          description: "Upload docs and FAQs used by AI drafting",
-          icon: BookCopy,
+          label: "Knowledge base",
+          icon: "knowledge",
         },
       ],
     },
     {
-      label: "Quotes & Pricing",
+      label: "Quotes",
       items: [
         {
           href: getBusinessSettingsPath(slug, "quote"),
-          label: "Quote preferences",
-          description: "Currency, validity window, and default quote copy",
-          icon: FileText,
+          label: "Quote defaults",
+          icon: "quote",
         },
         {
           href: getBusinessSettingsPath(slug, "pricing"),
-          label: "Service pricing library",
-          description: "Saved line items, pricing blocks, and packages",
-          icon: Tags,
+          label: "Pricing library",
+          icon: "pricing",
         },
       ],
     },

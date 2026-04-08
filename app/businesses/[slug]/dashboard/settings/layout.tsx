@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
-import { getBusinessSettingsPath } from "@/features/businesses/routes";
-import { BusinessSettingsTabs } from "@/features/settings/components/business-settings-tabs";
+import { BusinessSettingsNav } from "@/features/settings/components/business-settings-nav";
+import { getBusinessSettingsNavigation } from "@/features/settings/navigation";
 import { getBusinessOwnerPageContext } from "./_lib/page-context";
 
 type BusinessSettingsLayoutProps = {
@@ -14,20 +14,13 @@ export default async function BusinessSettingsLayout({
 }: BusinessSettingsLayoutProps) {
   const { businessContext } = await getBusinessOwnerPageContext();
   const businessSlug = businessContext.business.slug;
-  const tabItems = [
-    { href: getBusinessSettingsPath(businessSlug, "profile"), label: "Owner profile" },
-    { href: getBusinessSettingsPath(businessSlug, "general"), label: "Business details" },
-    { href: getBusinessSettingsPath(businessSlug, "replies"), label: "Reply snippets" },
-    { href: getBusinessSettingsPath(businessSlug, "knowledge"), label: "Knowledge files" },
-    { href: getBusinessSettingsPath(businessSlug, "quote"), label: "Quote preferences" },
-    { href: getBusinessSettingsPath(businessSlug, "pricing"), label: "Service pricing library" },
-  ];
+  const navigationGroups = getBusinessSettingsNavigation(businessSlug);
 
   return (
     <DashboardPage>
-      <div className="flex flex-col gap-6">
-        <BusinessSettingsTabs items={tabItems} />
-        <div className="min-w-0">{children}</div>
+      <div className="grid min-w-0 items-start gap-4 lg:gap-5 xl:grid-cols-[16rem_minmax(0,1fr)] xl:gap-4">
+        <BusinessSettingsNav groups={navigationGroups} />
+        <div className="min-w-0 w-full">{children}</div>
       </div>
     </DashboardPage>
   );
