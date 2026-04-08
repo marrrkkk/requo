@@ -126,9 +126,9 @@ export function BusinessInquiryFormEditorTabs({
   }
 
   return (
-    <div className="grid min-w-0 items-start gap-4 lg:gap-5 xl:grid-cols-[15rem_minmax(0,1fr)] xl:gap-4">
+    <div className="grid min-w-0 items-start gap-3 sm:gap-4 lg:gap-5 xl:grid-cols-[15rem_minmax(0,1fr)] xl:gap-4">
       <div className="min-w-0 xl:sticky xl:top-[5.5rem] xl:self-start">
-        <div className="section-panel p-4 xl:hidden">
+        <div className="px-1 pb-1 xl:hidden">
           <div className="flex flex-col gap-2">
             <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               Form section
@@ -163,8 +163,8 @@ export function BusinessInquiryFormEditorTabs({
           </div>
         </div>
 
-        <aside className="section-panel hidden overflow-hidden xl:block">
-          <nav className="flex flex-col gap-1 p-3">
+        <aside className="hidden xl:block">
+          <nav className="flex flex-col gap-1 pr-3">
             {editorSections.map((section) => {
               const Icon = section.icon;
               const isActive = activeSection === section.id;
@@ -202,14 +202,14 @@ export function BusinessInquiryFormEditorTabs({
       </div>
 
       <div className="min-w-0 w-full">
-        <div className="flex flex-wrap gap-2 xl:justify-end">
-          <Button asChild type="button" variant="outline">
+        <div className="flex flex-col gap-2 sm:flex-row xl:justify-end">
+          <Button asChild className="w-full sm:w-auto" type="button" variant="outline">
             <Link href={previewHref} prefetch={false} rel="noreferrer" target="_blank">
               <Eye data-icon="inline-start" />
               Preview
             </Link>
           </Button>
-          <Button asChild type="button">
+          <Button asChild className="w-full sm:w-auto" type="button">
             <Link
               href={isPublicLive ? publicInquiryHref : previewHref}
               prefetch={false}
@@ -222,7 +222,7 @@ export function BusinessInquiryFormEditorTabs({
           </Button>
         </div>
 
-        <div className="mt-4 min-w-0">
+        <div className="mt-3 min-w-0 sm:mt-4">
           <div aria-hidden={activeSection !== "fields"} className={activeSection === "fields" ? "block" : "hidden"}>
             <DashboardSidebarStack>
               <BusinessInquiryFormForm

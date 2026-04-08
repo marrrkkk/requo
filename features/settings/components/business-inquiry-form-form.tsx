@@ -23,12 +23,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -563,321 +557,322 @@ export function BusinessInquiryFormForm({
         <input name="businessType" type="hidden" value={businessType} />
         <input name="inquiryFormConfig" type="hidden" value={serializedConfig} />
 
-        <Card className="gap-0 border-border/75 bg-card/97">
-          <CardHeader className="gap-2 pb-5">
-            <CardTitle>Form setup</CardTitle>
+        <section className="space-y-5">
+          <div className="space-y-2">
+            <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+              Form setup
+            </h2>
             <p className="text-sm leading-6 text-muted-foreground">
               Name the form and choose the default starting preset.
             </p>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-6 pt-0">
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_20rem] xl:gap-7">
-              <div className="rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
-                <div className="space-y-2">
-                  <p className="meta-label">Form details</p>
-                  <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
-                    Public form identity
-                  </p>
-                  <p className="text-sm leading-6 text-muted-foreground">
-                    Update the internal name and public URL slug.
-                  </p>
-                </div>
+          </div>
 
-                <div className="mt-5 grid gap-5 lg:grid-cols-2">
-                  <Field data-invalid={Boolean(nameError) || undefined}>
-                    <FieldLabel htmlFor="business-inquiry-form-name">
-                      Form name
-                    </FieldLabel>
-                    <FieldContent>
-                      <Input
-                        aria-invalid={Boolean(nameError) || undefined}
-                        defaultValue={settings.formName}
-                        disabled={isSavePending}
-                        id="business-inquiry-form-name"
-                        maxLength={80}
-                        minLength={2}
-                        name="name"
-                        onChange={(event) => {
-                          setNameDraft(event.currentTarget.value);
-                        }}
-                        required
-                      />
-                      <FieldError
-                        errors={nameError ? [{ message: nameError }] : undefined}
-                      />
-                    </FieldContent>
-                  </Field>
-
-                  <Field data-invalid={Boolean(slugError) || undefined}>
-                    <FieldLabel htmlFor="business-inquiry-form-slug">
-                      Form slug
-                    </FieldLabel>
-                    <FieldContent>
-                      <Input
-                        aria-invalid={Boolean(slugError) || undefined}
-                        defaultValue={settings.formSlug}
-                        disabled={isSavePending}
-                        id="business-inquiry-form-slug"
-                        maxLength={publicSlugMaxLength}
-                        minLength={2}
-                        name="slug"
-                        onChange={(event) => {
-                          setSlugDraft(event.currentTarget.value);
-                        }}
-                        pattern={publicSlugPattern}
-                        required
-                        spellCheck={false}
-                      />
-                      <FieldError
-                        errors={slugError ? [{ message: slugError }] : undefined}
-                      />
-                    </FieldContent>
-                  </Field>
-                </div>
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_20rem] xl:gap-7">
+            <div className="rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
+              <div className="space-y-2">
+                <p className="meta-label">Form details</p>
+                <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
+                  Public form identity
+                </p>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Update the internal name and public URL slug.
+                </p>
               </div>
 
-              <div className="rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
-                <div className="space-y-2">
-                  <p className="meta-label">Preset defaults</p>
-                  <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
-                    Apply {businessTypeMeta[businessType].label} defaults
-                  </p>
-                  <p className="text-sm leading-6 text-muted-foreground">
-                    This resets the inquiry form fields and page content.
-                  </p>
-                </div>
+              <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                <Field data-invalid={Boolean(nameError) || undefined}>
+                  <FieldLabel htmlFor="business-inquiry-form-name">
+                    Form name
+                  </FieldLabel>
+                  <FieldContent>
+                    <Input
+                      aria-invalid={Boolean(nameError) || undefined}
+                      defaultValue={settings.formName}
+                      disabled={isSavePending}
+                      id="business-inquiry-form-name"
+                      maxLength={80}
+                      minLength={2}
+                      name="name"
+                      onChange={(event) => {
+                        setNameDraft(event.currentTarget.value);
+                      }}
+                      required
+                    />
+                    <FieldError
+                      errors={nameError ? [{ message: nameError }] : undefined}
+                    />
+                  </FieldContent>
+                </Field>
 
-                <div className="mt-5 space-y-5">
-                  <Field data-invalid={Boolean(businessTypeError) || undefined}>
-                    <FieldLabel htmlFor="business-inquiry-business-type">
-                      Business type
-                    </FieldLabel>
-                    <FieldContent>
-                      <Select
-                        onValueChange={(value) =>
-                          setBusinessType(value as BusinessType)
-                        }
-                        value={businessType}
+                <Field data-invalid={Boolean(slugError) || undefined}>
+                  <FieldLabel htmlFor="business-inquiry-form-slug">
+                    Form slug
+                  </FieldLabel>
+                  <FieldContent>
+                    <Input
+                      aria-invalid={Boolean(slugError) || undefined}
+                      defaultValue={settings.formSlug}
+                      disabled={isSavePending}
+                      id="business-inquiry-form-slug"
+                      maxLength={publicSlugMaxLength}
+                      minLength={2}
+                      name="slug"
+                      onChange={(event) => {
+                        setSlugDraft(event.currentTarget.value);
+                      }}
+                      pattern={publicSlugPattern}
+                      required
+                      spellCheck={false}
+                    />
+                    <FieldError
+                      errors={slugError ? [{ message: slugError }] : undefined}
+                    />
+                  </FieldContent>
+                </Field>
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
+              <div className="space-y-2">
+                <p className="meta-label">Preset defaults</p>
+                <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
+                  Apply {businessTypeMeta[businessType].label} defaults
+                </p>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  This resets the inquiry form fields and page content.
+                </p>
+              </div>
+
+              <div className="mt-5 space-y-5">
+                <Field data-invalid={Boolean(businessTypeError) || undefined}>
+                  <FieldLabel htmlFor="business-inquiry-business-type">
+                    Business type
+                  </FieldLabel>
+                  <FieldContent>
+                    <Select
+                      onValueChange={(value) =>
+                        setBusinessType(value as BusinessType)
+                      }
+                      value={businessType}
+                    >
+                      <SelectTrigger
+                        className="w-full"
+                        id="business-inquiry-business-type"
                       >
-                        <SelectTrigger
-                          className="w-full"
-                          id="business-inquiry-business-type"
-                        >
-                          <SelectValue placeholder="Choose a business type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectGroup>
-                            {Object.entries(businessTypeMeta).map(
-                              ([value, meta]) => (
-                                <SelectItem key={value} value={value}>
-                                  {meta.label}
-                                </SelectItem>
-                              ),
-                            )}
-                          </SelectGroup>
-                        </SelectContent>
-                      </Select>
-                      <FieldError
-                        errors={
-                          businessTypeError
-                            ? [{ message: businessTypeError }]
-                            : undefined
-                        }
-                      />
-                    </FieldContent>
-                  </Field>
+                        <SelectValue placeholder="Choose a business type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {Object.entries(businessTypeMeta).map(
+                            ([value, meta]) => (
+                              <SelectItem key={value} value={value}>
+                                {meta.label}
+                              </SelectItem>
+                            ),
+                          )}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    <FieldError
+                      errors={
+                        businessTypeError
+                          ? [{ message: businessTypeError }]
+                          : undefined
+                      }
+                    />
+                  </FieldContent>
+                </Field>
 
-                  <div className="rounded-2xl border border-border/70 bg-background/88 p-4">
-                    <p className="text-sm font-medium text-foreground">
-                      {businessTypeMeta[businessType].label}
-                    </p>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      {businessTypeMeta[businessType].description}
-                    </p>
+                <div className="rounded-2xl border border-border/70 bg-background/88 p-4">
+                  <p className="text-sm font-medium text-foreground">
+                    {businessTypeMeta[businessType].label}
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    {businessTypeMeta[businessType].description}
+                  </p>
 
-                    <div className="mt-4 grid gap-2 border-t border-border/70 pt-4 text-sm">
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-foreground">Inquiry form fields</span>
-                        <span className="text-muted-foreground">Reset</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-foreground">Inquiry page content</span>
-                        <span className="text-muted-foreground">Reset</span>
-                      </div>
+                  <div className="mt-4 grid gap-2 border-t border-border/70 pt-4 text-sm">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-foreground">Inquiry form fields</span>
+                      <span className="text-muted-foreground">Reset</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="text-foreground">Inquiry page content</span>
+                      <span className="text-muted-foreground">Reset</span>
                     </div>
                   </div>
-
-                  <Button
-                    className="w-full"
-                    disabled={isPresetPending}
-                    onClick={() => setIsPresetDialogOpen(true)}
-                    type="button"
-                  >
-                    <RefreshCcw data-icon="inline-start" />
-                    Apply defaults
-                  </Button>
                 </div>
-              </div>
-            </div>
 
-            {configError ? (
-              <FieldError errors={[{ message: configError }]} />
-            ) : null}
-          </CardContent>
-        </Card>
-
-        <Card className="gap-0 border-border/75 bg-card/97">
-          <CardHeader className="gap-2 pb-5">
-            <div className="flex flex-col gap-2">
-              <CardTitle className="text-xl">{groupLabels.contact}</CardTitle>
-              <p className="text-sm leading-6 text-muted-foreground">
-                Edit the fields shown in Contact.
-              </p>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <InquiryFieldSection
-              countLabel={`${inquiryContactFieldKeys.length} fields`}
-              helperText="Name and email stay shown and required."
-              title="Contact fields"
-            >
-              {inquiryContactFieldKeys.map((contactKey, index) => (
-                <ContactFieldCard
-                  contactKey={contactKey}
-                  field={contactFields[contactKey]}
-                  index={index}
-                  isPending={isFieldInteractionLocked}
-                  key={contactKey}
-                  onChange={updateContactField}
-                />
-              ))}
-            </InquiryFieldSection>
-          </CardContent>
-        </Card>
-
-        <Card className="gap-0 border-border/75 bg-card/97">
-          <CardHeader className="gap-2 pb-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex flex-col gap-2">
-                {isEditingProjectGroupLabel ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Input
-                      autoFocus
-                      className="h-9 w-full sm:w-64"
-                      maxLength={40}
-                      onChange={(event) => setProjectGroupLabelDraft(event.currentTarget.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          saveProjectGroupLabel();
-                        }
-
-                        if (event.key === "Escape") {
-                          event.preventDefault();
-                          cancelProjectGroupLabelEdit();
-                        }
-                      }}
-                      value={projectGroupLabelDraft}
-                    />
-                    <Button onClick={saveProjectGroupLabel} type="button" variant="outline">
-                      Save
-                    </Button>
-                    <Button onClick={cancelProjectGroupLabelEdit} type="button" variant="ghost">
-                      Cancel
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <CardTitle className="text-xl">{groupLabels.project}</CardTitle>
-                    <Button
-                      onClick={startEditingProjectGroupLabel}
-                      type="button"
-                      variant="outline"
-                    >
-                      Edit
-                    </Button>
-                  </div>
-                )}
-                <p className="text-sm leading-6 text-muted-foreground">
-                  Manage the fields shown in {groupLabels.project}.
-                </p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <InquiryFieldSection
-              action={
                 <Button
-                  disabled={isFieldInteractionLocked || hasReachedCustomFieldLimit}
-                  onClick={addCustomField}
+                  className="w-full"
+                  disabled={isPresetPending}
+                  onClick={() => setIsPresetDialogOpen(true)}
                   type="button"
-                  variant="outline"
                 >
-                  <Plus data-icon="inline-start" />
-                  Add field
+                  <RefreshCcw data-icon="inline-start" />
+                  Apply defaults
                 </Button>
-              }
-              countLabel={`${customProjectFieldCount}/${MAX_CUSTOM_PROJECT_FIELDS} custom`}
-              helperText="Service/category and details stay shown and required."
-              title="Field library"
-            >
-              {projectFields.map((field, index) => {
-                const fieldId = getFieldId(field);
+              </div>
+            </div>
+          </div>
 
-                return (
-                  <ProjectFieldCard
-                    field={field}
-                    index={index}
-                    inputRef={(node) => {
-                      if (node) {
-                        projectFieldLabelInputRefs.current.set(fieldId, node);
-                        return;
+          {configError ? (
+            <FieldError errors={[{ message: configError }]} />
+          ) : null}
+        </section>
+
+        <section className="space-y-4">
+          <div className="space-y-2">
+            <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+              {groupLabels.contact}
+            </h2>
+            <p className="text-sm leading-6 text-muted-foreground">
+              Edit the fields shown in Contact.
+            </p>
+          </div>
+
+          <InquiryFieldSection
+            countLabel={`${inquiryContactFieldKeys.length} fields`}
+            helperText="Name and email stay shown and required."
+            title="Contact fields"
+          >
+            {inquiryContactFieldKeys.map((contactKey, index) => (
+              <ContactFieldCard
+                contactKey={contactKey}
+                field={contactFields[contactKey]}
+                index={index}
+                isPending={isFieldInteractionLocked}
+                key={contactKey}
+                onChange={updateContactField}
+              />
+            ))}
+          </InquiryFieldSection>
+        </section>
+
+        <section className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex flex-col gap-2">
+              {isEditingProjectGroupLabel ? (
+                <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                  <Input
+                    autoFocus
+                    className="h-9 w-full sm:w-64"
+                    maxLength={40}
+                    onChange={(event) => setProjectGroupLabelDraft(event.currentTarget.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        saveProjectGroupLabel();
                       }
 
-                      projectFieldLabelInputRefs.current.delete(fieldId);
+                      if (event.key === "Escape") {
+                        event.preventDefault();
+                        cancelProjectGroupLabelEdit();
+                      }
                     }}
-                    isEntering={enteringProjectFieldIds.includes(fieldId)}
-                    isExiting={exitingProjectFieldIds.includes(fieldId)}
-                    isPending={isFieldInteractionLocked}
-                    key={fieldId}
-                    maxOptions={MAX_CUSTOM_FIELD_OPTIONS}
-                    onAddOption={addCustomFieldOption}
-                    onChangeCustomType={changeCustomFieldType}
-                    onMove={moveProjectField}
-                    onRemove={removeProjectField}
-                    onRemoveOption={removeCustomFieldOption}
-                    onUpdate={updateProjectField}
-                    onUpdateOption={updateCustomFieldOption}
-                    totalFields={projectFields.length}
+                    value={projectGroupLabelDraft}
                   />
-                );
-              })}
+                  <Button onClick={saveProjectGroupLabel} type="button" variant="outline">
+                    Save
+                  </Button>
+                  <Button onClick={cancelProjectGroupLabelEdit} type="button" variant="ghost">
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
+                  <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+                    {groupLabels.project}
+                  </h2>
+                  <Button
+                    onClick={startEditingProjectGroupLabel}
+                    type="button"
+                    variant="outline"
+                  >
+                    Edit
+                  </Button>
+                </div>
+              )}
+              <p className="text-sm leading-6 text-muted-foreground">
+                Manage the fields shown in {groupLabels.project}.
+              </p>
+            </div>
+          </div>
 
-              {hasReachedCustomFieldLimit ? (
-                <Alert>
-                  <AlertTitle>Custom field limit reached</AlertTitle>
-                  <AlertDescription>
-                    You can add up to {MAX_CUSTOM_PROJECT_FIELDS} custom fields.
-                  </AlertDescription>
-                </Alert>
-              ) : activeProjectFields.length <= 2 ? (
-                <p className="text-xs leading-5 text-muted-foreground">
-                  Add fields for location, quantity, or preferences.
-                </p>
-              ) : null}
-            </InquiryFieldSection>
-          </CardContent>
-        </Card>
+          <InquiryFieldSection
+            action={
+              <Button
+                className="w-full sm:w-auto"
+                disabled={isFieldInteractionLocked || hasReachedCustomFieldLimit}
+                onClick={addCustomField}
+                type="button"
+                variant="outline"
+              >
+                <Plus data-icon="inline-start" />
+                Add field
+              </Button>
+            }
+            countLabel={`${customProjectFieldCount}/${MAX_CUSTOM_PROJECT_FIELDS} custom`}
+            helperText="Service/category and details stay shown and required."
+            title="Field library"
+          >
+            {projectFields.map((field, index) => {
+              const fieldId = getFieldId(field);
+
+              return (
+                <ProjectFieldCard
+                  field={field}
+                  index={index}
+                  inputRef={(node) => {
+                    if (node) {
+                      projectFieldLabelInputRefs.current.set(fieldId, node);
+                      return;
+                    }
+
+                    projectFieldLabelInputRefs.current.delete(fieldId);
+                  }}
+                  isEntering={enteringProjectFieldIds.includes(fieldId)}
+                  isExiting={exitingProjectFieldIds.includes(fieldId)}
+                  isPending={isFieldInteractionLocked}
+                  key={fieldId}
+                  maxOptions={MAX_CUSTOM_FIELD_OPTIONS}
+                  onAddOption={addCustomFieldOption}
+                  onChangeCustomType={changeCustomFieldType}
+                  onMove={moveProjectField}
+                  onRemove={removeProjectField}
+                  onRemoveOption={removeCustomFieldOption}
+                  onUpdate={updateProjectField}
+                  onUpdateOption={updateCustomFieldOption}
+                  totalFields={projectFields.length}
+                />
+              );
+            })}
+
+            {hasReachedCustomFieldLimit ? (
+              <Alert>
+                <AlertTitle>Custom field limit reached</AlertTitle>
+                <AlertDescription>
+                  You can add up to {MAX_CUSTOM_PROJECT_FIELDS} custom fields.
+                </AlertDescription>
+              </Alert>
+            ) : activeProjectFields.length <= 2 ? (
+              <p className="text-xs leading-5 text-muted-foreground">
+                Add fields for location, quantity, or preferences.
+              </p>
+            ) : null}
+          </InquiryFieldSection>
+        </section>
 
         {shouldRenderFloatingActions ? (
           <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4">
             <div
-              className="soft-panel motion-safe:data-[state=open]:animate-in motion-safe:data-[state=open]:fade-in-0 motion-safe:data-[state=open]:slide-in-from-bottom-2 motion-safe:data-[state=open]:zoom-in-95 motion-safe:data-[state=open]:duration-200 motion-safe:data-[state=open]:ease-(--motion-ease-emphasized) motion-safe:data-[state=closed]:animate-out motion-safe:data-[state=closed]:fade-out-0 motion-safe:data-[state=closed]:slide-out-to-bottom-2 motion-safe:data-[state=closed]:zoom-out-95 motion-safe:data-[state=closed]:duration-150 motion-safe:data-[state=closed]:ease-(--motion-ease-standard) motion-reduce:animate-none flex w-full max-w-2xl items-center justify-between gap-3 border-border/80 bg-background/95 px-4 py-3 shadow-xl backdrop-blur"
+              className="soft-panel motion-safe:data-[state=open]:animate-in motion-safe:data-[state=open]:fade-in-0 motion-safe:data-[state=open]:slide-in-from-bottom-2 motion-safe:data-[state=open]:zoom-in-95 motion-safe:data-[state=open]:duration-200 motion-safe:data-[state=open]:ease-(--motion-ease-emphasized) motion-safe:data-[state=closed]:animate-out motion-safe:data-[state=closed]:fade-out-0 motion-safe:data-[state=closed]:slide-out-to-bottom-2 motion-safe:data-[state=closed]:zoom-out-95 motion-safe:data-[state=closed]:duration-150 motion-safe:data-[state=closed]:ease-(--motion-ease-standard) motion-reduce:animate-none flex w-full max-w-2xl flex-col items-stretch gap-3 border-border/80 bg-background/95 px-4 py-3 shadow-xl backdrop-blur sm:flex-row sm:items-center sm:justify-between"
               data-state={floatingActionsState}
             >
               <p className="text-sm text-muted-foreground">You have unsaved changes.</p>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <Button
+                  className="w-full sm:w-auto"
                   disabled={isSavePending || !hasUnsavedChanges}
                   onClick={handleCancelChanges}
                   type="button"
@@ -885,7 +880,11 @@ export function BusinessInquiryFormForm({
                 >
                   Cancel
                 </Button>
-                <Button disabled={isSavePending || exitingProjectFieldIds.length > 0} type="submit">
+                <Button
+                  className="w-full sm:w-auto"
+                  disabled={isSavePending || exitingProjectFieldIds.length > 0}
+                  type="submit"
+                >
                   {isSavePending ? (
                     <>
                       <Spinner data-icon="inline-start" aria-hidden="true" />
@@ -981,15 +980,15 @@ function InquiryFieldSection({
   title: string;
 }) {
   return (
-    <div className="rounded-[1.75rem] border border-dashed border-border/70 bg-muted/15 p-4 sm:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="rounded-[1.5rem] border border-dashed border-border/70 bg-muted/15 p-3.5 sm:rounded-[1.75rem] sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             {title}
           </p>
           <p className="text-xs text-muted-foreground">{countLabel}</p>
         </div>
-        {action ? <div className="shrink-0">{action}</div> : null}
+        {action ? <div className="w-full shrink-0 sm:w-auto">{action}</div> : null}
       </div>
 
       <div className="mt-4 space-y-3">{children}</div>
@@ -1023,31 +1022,36 @@ function InquiryFieldCardShell({
   return (
     <div
       className={cn(
-        "soft-panel rounded-[1.35rem] border border-border/75 bg-background/95 px-4 py-4 shadow-none motion-reduce:animate-none sm:px-5",
+        "soft-panel rounded-[1.2rem] border border-border/75 bg-background/95 px-3.5 py-3.5 shadow-none motion-reduce:animate-none sm:rounded-[1.35rem] sm:px-5 sm:py-4",
         isEntering &&
           "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200",
         isExiting &&
           "pointer-events-none motion-safe:animate-out motion-safe:fade-out-0 motion-safe:slide-out-to-bottom-2 motion-safe:duration-150",
       )}
     >
-      <div className="flex items-start gap-3">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-          {index + 1}
-        </div>
-        <div className="min-w-0 flex-1 space-y-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 space-y-1">
-              <p className="truncate text-base font-semibold text-foreground">{title}</p>
-              <p className="text-xs text-muted-foreground">{description}</p>
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex flex-1 items-start gap-3">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[0.7rem] font-semibold text-muted-foreground sm:size-8 sm:text-xs">
+              {index + 1}
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-muted-foreground">{meta}</span>
-              {menu}
+            <div className="min-w-0 space-y-1">
+              <p className="truncate text-[0.97rem] font-semibold text-foreground sm:text-base">
+                {title}
+              </p>
+              <p className="text-xs leading-5 text-muted-foreground">{description}</p>
+              <p className="text-xs font-medium text-muted-foreground sm:hidden">{meta}</p>
             </div>
           </div>
-
-          {children}
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="hidden truncate text-xs font-medium text-muted-foreground sm:inline">
+              {meta}
+            </span>
+            {menu}
+          </div>
         </div>
+
+        {children}
       </div>
     </div>
   );
@@ -1096,7 +1100,7 @@ function ContactFieldCard({
       meta={getContactFieldKindLabel(contactKey)}
       title={field.label || getContactFieldKindLabel(contactKey)}
     >
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
         <Field>
           <FieldLabel htmlFor={`contact-${contactKey}-label`}>Label</FieldLabel>
           <FieldContent>
@@ -1219,7 +1223,7 @@ function ProjectFieldCard({
       meta={getFieldTypeLabel(field)}
       title={field.label || (isSystem ? getSystemFieldTitle(field) : "New field")}
     >
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
         <Field>
           <FieldLabel htmlFor={`${fieldId}-label`}>Label</FieldLabel>
           <FieldContent>
@@ -1256,7 +1260,7 @@ function ProjectFieldCard({
 
       {hasSelectableOptions ? (
         <div className="space-y-3 border-t border-border/70 pt-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               aria-controls={`${fieldId}-options-panel`}
               aria-expanded={isOptionsOpen}
@@ -1278,6 +1282,7 @@ function ProjectFieldCard({
               />
             </button>
             <Button
+              className="w-full sm:w-auto"
               disabled={isPending || optionCount >= maxOptions}
               onClick={() => {
                 setOptionsOpenOverride(true);
@@ -1317,6 +1322,7 @@ function ProjectFieldCard({
                     value={option.label}
                   />
                   <Button
+                    className="w-full sm:w-9"
                     disabled={isPending || (field.options?.length ?? 0) === 1}
                     onClick={() => onRemoveOption(fieldId, option.id)}
                     size="icon"

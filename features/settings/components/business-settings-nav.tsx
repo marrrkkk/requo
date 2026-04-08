@@ -64,7 +64,7 @@ export function BusinessSettingsNav({ groups }: BusinessSettingsNavProps) {
 
   return (
     <div className="min-w-0 xl:w-64 xl:justify-self-start xl:sticky xl:top-[5.5rem] xl:self-start">
-      <div className="section-panel p-4 xl:hidden">
+      <div className="px-1 pb-1 xl:hidden">
         <div className="flex flex-col gap-2">
           <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             Settings section
@@ -106,8 +106,8 @@ export function BusinessSettingsNav({ groups }: BusinessSettingsNavProps) {
         </div>
       </div>
 
-      <aside className="section-panel hidden overflow-hidden xl:block">
-        <nav className="flex flex-col gap-4 p-3">
+      <aside className="hidden xl:block">
+        <nav className="flex flex-col gap-4 pr-3">
           {groups.map((group) => (
             <div className="flex flex-col gap-1" key={group.label}>
               <p className="px-3 pb-1 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">

@@ -196,13 +196,17 @@ export function DashboardSettingsInquiryDetailSkeleton() {
         <FormEditorNavigationSkeleton />
 
         <div className="min-w-0 w-full">
-          <div className="flex flex-wrap gap-2 xl:justify-end">
+          <div className="flex flex-col gap-2 sm:flex-row xl:justify-end">
             <Skeleton className="h-10 w-24 rounded-xl" />
             <Skeleton className="h-10 w-28 rounded-xl" />
           </div>
 
           <div className="mt-4 space-y-5">
-            <section className="section-panel p-6">
+            <section className="space-y-5">
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-36 rounded-lg" />
+                <Skeleton className="h-4 w-72 rounded-md" />
+              </div>
               <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_20rem] xl:gap-7">
                 <div className="rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
                   <div className="space-y-2">
@@ -247,7 +251,7 @@ export function DashboardSettingsInquiryDetailSkeleton() {
               </div>
             </section>
 
-            <section className="section-panel p-6">
+            <section className="space-y-5">
               <div className="space-y-2">
                 <Skeleton className="h-6 w-32 rounded-md" />
                 <Skeleton className="h-4 w-44 rounded-md" />
@@ -260,7 +264,7 @@ export function DashboardSettingsInquiryDetailSkeleton() {
               </div>
             </section>
 
-            <section className="section-panel p-6">
+            <section className="space-y-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-2">
                   <Skeleton className="h-6 w-36 rounded-md" />
@@ -453,15 +457,15 @@ function FieldSkeleton({ className }: { className?: string }) {
 function FormEditorNavigationSkeleton() {
   return (
     <div className="min-w-0 xl:sticky xl:top-[5.5rem] xl:self-start">
-      <div className="section-panel p-4 xl:hidden">
+      <div className="px-1 pb-1 xl:hidden">
         <div className="flex flex-col gap-2">
           <Skeleton className="h-3 w-24 rounded-md" />
           <Skeleton className="h-10 w-full rounded-lg" />
         </div>
       </div>
 
-      <aside className="section-panel hidden overflow-hidden xl:block">
-        <div className="flex flex-col gap-1 p-3">
+      <aside className="hidden xl:block">
+        <div className="flex flex-col gap-1 pr-3">
           {["w-20", "w-16", "w-24"].map((width, index) => (
             <div className="flex items-center gap-3 rounded-xl px-3 py-3" key={index}>
               <Skeleton className="size-8 rounded-md" />
@@ -641,15 +645,15 @@ function DashboardSettingsGeneralSkeletonContent() {
 function SettingsNavigationSkeleton() {
   return (
     <div className="min-w-0 xl:w-64 xl:justify-self-start xl:sticky xl:top-[5.5rem] xl:self-start">
-      <div className="section-panel p-4 xl:hidden">
+      <div className="px-1 pb-1 xl:hidden">
         <div className="flex flex-col gap-2">
           <Skeleton className="h-3 w-28 rounded-md" />
           <Skeleton className="h-10 w-full rounded-lg" />
         </div>
       </div>
 
-      <aside className="section-panel hidden overflow-hidden xl:block">
-        <div className="flex flex-col gap-4 p-3">
+      <aside className="hidden xl:block">
+        <div className="flex flex-col gap-4 pr-3">
           {[
             ["w-16", "w-24"],
             ["w-18", "w-28"],
