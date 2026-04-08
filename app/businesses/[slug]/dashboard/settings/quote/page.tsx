@@ -26,6 +26,7 @@ export default async function BusinessQuoteSettingsPage() {
 
       <BusinessQuoteSettingsForm
         action={updateBusinessQuoteSettingsAction}
+        key={`business-quote-settings-${settings.updatedAt.getTime()}`}
         settings={settings}
       />
     </>
