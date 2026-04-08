@@ -56,6 +56,23 @@ export type BusinessSettingsActionState = {
   fieldErrors?: BusinessSettingsFieldErrors;
 };
 
+export type BusinessNotificationSettingsFieldName =
+  | "notifyOnNewInquiry"
+  | "notifyOnQuoteSent"
+  | "notifyOnQuoteResponse"
+  | "notifyInAppOnNewInquiry"
+  | "notifyInAppOnQuoteResponse";
+
+export type BusinessNotificationSettingsFieldErrors = Partial<
+  Record<BusinessNotificationSettingsFieldName, string[] | undefined>
+>;
+
+export type BusinessNotificationSettingsActionState = {
+  error?: string;
+  success?: string;
+  fieldErrors?: BusinessNotificationSettingsFieldErrors;
+};
+
 export type BusinessQuoteSettingsFieldName =
   | "defaultQuoteNotes"
   | "defaultQuoteValidityDays"

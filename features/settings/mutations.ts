@@ -13,6 +13,7 @@ import type {
   BusinessInquiryFormPresetInput,
   BusinessInquiryFormSettingsInput,
   BusinessInquiryPageSettingsInput,
+  BusinessNotificationSettingsInput,
   BusinessQuoteSettingsInput,
 } from "@/features/settings/schemas";
 import { publicInquiryAttachmentBucket } from "@/features/inquiries/schemas";
@@ -45,6 +46,12 @@ type UpdateBusinessQuoteSettingsInput = {
   businessId: string;
   actorUserId: string;
   values: BusinessQuoteSettingsInput;
+};
+
+type UpdateBusinessNotificationSettingsInput = {
+  businessId: string;
+  actorUserId: string;
+  values: BusinessNotificationSettingsInput;
 };
 
 type DeleteBusinessInput = {
@@ -309,11 +316,6 @@ export async function updateBusinessSettings({
             : nextLogoContentType ?? currentBusiness.logoContentType ?? null,
           defaultEmailSignature: values.defaultEmailSignature ?? null,
           aiTonePreference: values.aiTonePreference,
-          notifyOnNewInquiry: values.notifyOnNewInquiry,
-          notifyOnQuoteSent: values.notifyOnQuoteSent,
-          notifyOnQuoteResponse: values.notifyOnQuoteResponse,
-          notifyInAppOnNewInquiry: values.notifyInAppOnNewInquiry,
-          notifyInAppOnQuoteResponse: values.notifyInAppOnQuoteResponse,
           updatedAt: now,
         })
         .where(eq(businesses.id, businessId));
@@ -328,11 +330,6 @@ export async function updateBusinessSettings({
           slug: values.slug,
           hasLogo: Boolean(logoFile || previousLogoStoragePath) && !values.removeLogo,
           aiTonePreference: values.aiTonePreference,
-          notifyOnNewInquiry: values.notifyOnNewInquiry,
-          notifyOnQuoteSent: values.notifyOnQuoteSent,
-          notifyOnQuoteResponse: values.notifyOnQuoteResponse,
-          notifyInAppOnNewInquiry: values.notifyInAppOnNewInquiry,
-          notifyInAppOnQuoteResponse: values.notifyInAppOnQuoteResponse,
         },
         createdAt: now,
         updatedAt: now,
@@ -422,6 +419,67 @@ export async function updateBusinessQuoteSettings({
         defaultCurrency: values.defaultCurrency,
         defaultQuoteValidityDays: values.defaultQuoteValidityDays,
         hasDefaultQuoteNotes: Boolean(values.defaultQuoteNotes?.trim()),
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+
+  return {
+    ok: true,
+    previousSlug: business.slug,
+    nextSlug: business.slug,
+  };
+}
+
+export async function updateBusinessNotificationSettings({
+  businessId,
+  actorUserId,
+  values,
+}: UpdateBusinessNotificationSettingsInput): Promise<UpdateBusinessSettingsResult> {
+  const [business] = await db
+    .select({
+      id: businesses.id,
+      slug: businesses.slug,
+    })
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
+  if (!business) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(businesses)
+      .set({
+        notifyOnNewInquiry: values.notifyOnNewInquiry,
+        notifyOnQuoteSent: values.notifyOnQuoteSent,
+        notifyOnQuoteResponse: values.notifyOnQuoteResponse,
+        notifyInAppOnNewInquiry: values.notifyInAppOnNewInquiry,
+        notifyInAppOnQuoteResponse: values.notifyInAppOnQuoteResponse,
+        updatedAt: now,
+      })
+      .where(eq(businesses.id, businessId));
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      actorUserId,
+      type: "business.notification_settings_updated",
+      summary: "Notification settings updated.",
+      metadata: {
+        notifyOnNewInquiry: values.notifyOnNewInquiry,
+        notifyOnQuoteSent: values.notifyOnQuoteSent,
+        notifyOnQuoteResponse: values.notifyOnQuoteResponse,
+        notifyInAppOnNewInquiry: values.notifyInAppOnNewInquiry,
+        notifyInAppOnQuoteResponse: values.notifyInAppOnQuoteResponse,
       },
       createdAt: now,
       updatedAt: now,

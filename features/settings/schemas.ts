@@ -116,17 +116,24 @@ export const businessGeneralSettingsSchema = z.object({
   contactEmail: optionalEmail(),
   defaultEmailSignature: optionalText(1200),
   aiTonePreference: z.enum(businessAiTonePreferences),
+  logo: businessLogoSchema,
+  removeLogo: formBoolean().default(false),
+});
+
+export const businessNotificationSettingsSchema = z.object({
   notifyOnNewInquiry: formBoolean(),
   notifyOnQuoteSent: formBoolean(),
   notifyOnQuoteResponse: formBoolean(),
   notifyInAppOnNewInquiry: formBoolean(),
   notifyInAppOnQuoteResponse: formBoolean(),
-  logo: businessLogoSchema,
-  removeLogo: formBoolean().default(false),
 });
 
 export type BusinessGeneralSettingsInput = z.infer<
   typeof businessGeneralSettingsSchema
+>;
+
+export type BusinessNotificationSettingsInput = z.infer<
+  typeof businessNotificationSettingsSchema
 >;
 
 export const businessQuoteSettingsSchema = z.object({

@@ -19,6 +19,7 @@ import {
   businessInquiryFormSettingsSchema,
   businessInquiryFormTargetSchema,
   businessInquiryPageSettingsSchema,
+  businessNotificationSettingsSchema,
   businessQuoteSettingsSchema,
 } from "@/features/settings/schemas";
 import type {
@@ -27,6 +28,7 @@ import type {
   BusinessInquiryFormDangerActionState,
   BusinessInquiryFormsActionState,
   BusinessInquiryPageActionState,
+  BusinessNotificationSettingsActionState,
   BusinessQuoteSettingsActionState,
   BusinessSettingsActionState,
 } from "@/features/settings/types";
@@ -41,6 +43,7 @@ import {
   setDefaultBusinessInquiryForm,
   updateBusinessInquiryFormSettings,
   updateBusinessInquiryPageSettings,
+  updateBusinessNotificationSettings,
   updateBusinessQuoteSettings,
   updateBusinessSettings,
 } from "@/features/settings/mutations";
@@ -106,11 +109,6 @@ export async function updateBusinessSettingsAction(
     contactEmail: formData.get("contactEmail"),
     defaultEmailSignature: formData.get("defaultEmailSignature"),
     aiTonePreference: formData.get("aiTonePreference"),
-    notifyOnNewInquiry: formData.get("notifyOnNewInquiry"),
-    notifyOnQuoteSent: formData.get("notifyOnQuoteSent"),
-    notifyOnQuoteResponse: formData.get("notifyOnQuoteResponse"),
-    notifyInAppOnNewInquiry: formData.get("notifyInAppOnNewInquiry"),
-    notifyInAppOnQuoteResponse: formData.get("notifyInAppOnQuoteResponse"),
     logo: formData.get("logo"),
     removeLogo: formData.get("removeLogo"),
   });
@@ -149,6 +147,8 @@ export async function updateBusinessSettingsAction(
     revalidatePath(getBusinessSettingsPath(result.nextSlug));
     revalidatePath(getBusinessSettingsPath(result.previousSlug, "general"));
     revalidatePath(getBusinessSettingsPath(result.nextSlug, "general"));
+    revalidatePath(getBusinessSettingsPath(result.previousSlug, "notifications"));
+    revalidatePath(getBusinessSettingsPath(result.nextSlug, "notifications"));
     revalidatePath(getBusinessSettingsPath(result.previousSlug, "replies"));
     revalidatePath(getBusinessSettingsPath(result.nextSlug, "replies"));
     revalidatePath(getBusinessSettingsPath(result.previousSlug, "quote"));
@@ -194,6 +194,61 @@ export async function updateBusinessSettingsAction(
 
   return {
     success: "Business settings saved.",
+  };
+}
+
+export async function updateBusinessNotificationSettingsAction(
+  _prevState: BusinessNotificationSettingsActionState,
+  formData: FormData,
+): Promise<BusinessNotificationSettingsActionState> {
+  const ownerAccess = await getOwnerBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+  const validationResult = businessNotificationSettingsSchema.safeParse({
+    notifyOnNewInquiry: formData.get("notifyOnNewInquiry"),
+    notifyOnQuoteSent: formData.get("notifyOnQuoteSent"),
+    notifyOnQuoteResponse: formData.get("notifyOnQuoteResponse"),
+    notifyInAppOnNewInquiry: formData.get("notifyInAppOnNewInquiry"),
+    notifyInAppOnQuoteResponse: formData.get("notifyInAppOnQuoteResponse"),
+  });
+
+  if (!validationResult.success) {
+    return getValidationActionState(
+      validationResult.error,
+      "Check the notification settings and try again.",
+    );
+  }
+
+  try {
+    const result = await updateBusinessNotificationSettings({
+      businessId: businessContext.business.id,
+      actorUserId: user.id,
+      values: validationResult.data,
+    });
+
+    if (!result.ok) {
+      return {
+        error: "That business could not be found.",
+      };
+    }
+
+    updateCacheTags(getBusinessSettingsCacheTags(businessContext.business.id));
+  } catch (error) {
+    console.error("Failed to update business notification settings.", error);
+
+    return {
+      error: "We couldn't save the notification settings right now.",
+    };
+  }
+
+  return {
+    success: "Notification settings saved.",
   };
 }
 
