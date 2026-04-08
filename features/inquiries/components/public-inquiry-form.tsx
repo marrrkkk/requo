@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   getInquiryFormFieldInputName,
+  getNormalizedInquiryFormConfig,
   inquiryContactFieldKeys,
   type InquiryContactFieldKey,
   type InquiryFormFieldDefinition,
@@ -99,35 +100,43 @@ export function PublicInquiryForm({
   const [state, formAction, isPending] = useActionState(action, initialState);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+  const inquiryFormConfig = useMemo(
+    () =>
+      getNormalizedInquiryFormConfig(business.inquiryFormConfig, {
+        businessType: business.businessType,
+      }),
+    [business.businessType, business.inquiryFormConfig],
+  );
 
   const contactFields = useMemo(
     () =>
       inquiryContactFieldKeys.filter(
-        (key) => business.inquiryFormConfig.contactFields[key].enabled,
+        (key) => inquiryFormConfig.contactFields[key].enabled,
       ),
-    [business.inquiryFormConfig.contactFields],
+    [inquiryFormConfig.contactFields],
   );
   const attachmentField = useMemo<InquiryFormSystemFieldDefinition | null>(
     () =>
-      business.inquiryFormConfig.projectFields.find(
+      inquiryFormConfig.projectFields.find(
         (field): field is InquiryFormSystemFieldDefinition =>
           field.kind === "system" &&
           field.key === "attachment" &&
           field.enabled,
       ) ?? null,
-    [business.inquiryFormConfig.projectFields],
+    [inquiryFormConfig.projectFields],
   );
   const projectFields = useMemo(
     () =>
-      business.inquiryFormConfig.projectFields.filter(
+      inquiryFormConfig.projectFields.filter(
         (field) =>
           field.kind === "custom" ||
           (field.kind === "system" &&
             field.enabled &&
             field.key !== "attachment"),
       ),
-    [business.inquiryFormConfig.projectFields],
+    [inquiryFormConfig.projectFields],
   );
+  const groupLabels = inquiryFormConfig.groupLabels;
 
   function getFieldMessage(fieldName: string) {
     return state.fieldErrors?.[fieldName]?.[0];
@@ -186,7 +195,7 @@ export function PublicInquiryForm({
           </Alert>
         ) : null}
 
-        <FormSection title="Contact">
+        <FormSection title={groupLabels.contact}>
           <FieldGroup>
             <div className="grid gap-5 sm:grid-cols-2">
               {contactFields.map((contactKey) => (
@@ -194,7 +203,7 @@ export function PublicInquiryForm({
                   key={contactKey}
                   contactKey={contactKey}
                   error={getFieldMessage(contactKey)}
-                  fieldConfig={business.inquiryFormConfig.contactFields[contactKey]}
+                  fieldConfig={inquiryFormConfig.contactFields[contactKey]}
                   isPending={isPending}
                 />
               ))}
@@ -203,7 +212,7 @@ export function PublicInquiryForm({
         </FormSection>
 
         {projectFields.length ? (
-          <FormSection title="Project">
+          <FormSection title={groupLabels.project}>
             <FieldGroup>
               <div className="grid gap-5 sm:grid-cols-2">
                 {projectFields.map((field) => {
