@@ -5,7 +5,7 @@
 <h1 align="center">Requo</h1>
 
 <p align="center">
-  Owner-first quoting software for small service businesses.
+  Owner-first quoting software for service businesses.
 </p>
 
 <p align="center">
@@ -19,7 +19,7 @@
 
 ## Overview
 
-Requo is a modern SaaS web app for small, owner-operated service businesses that need a calmer
+Requo is a modern SaaS web app for owner-operated service businesses that need a calmer
 workflow between first inquiry and finished quote.
 
 The product is built around a simple operating model:
@@ -112,6 +112,8 @@ The product is built around a simple operating model:
 - Owner password: `ChangeMe123456!`
 - Business name: `BrightSide Print Studio`
 - Business slug: `brightside-print-studio`
+
+The demo seed also creates two additional sample businesses, three inquiry forms per business, and several hundred seeded inquiries and quotes for dashboard browsing.
 
 ## Environment Variables
 
@@ -236,5 +238,5 @@ This repository already contains a working product foundation for:
 - AI reply drafting
 - notification and analytics groundwork
 
-Requo is intentionally scoped for small service businesses and owner-first workflows. It does not
+Requo is intentionally scoped for service businesses and owner-first workflows. It does not
 try to cover billing, marketplace behavior, advanced team collaboration, or mobile app concerns.

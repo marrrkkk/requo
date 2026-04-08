@@ -117,6 +117,8 @@ Default demo values:
 - Demo sent quote token: `demoquote1002senttoken`
 - Demo expired quote token: `demoquote1005expiredtoken`
 
+The seed also adds two extra sample businesses, three inquiry forms per business, and several hundred inquiries and quotes while keeping the primary BrightSide demo workspace stable for local testing.
+
 The seed supports overriding these values through the `DEMO_*` env variables in `.env`.
 
 ### 4. Start the app
