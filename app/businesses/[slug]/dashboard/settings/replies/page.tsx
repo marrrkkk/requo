@@ -1,5 +1,3 @@
-import { MessageSquareText } from "lucide-react";
-
 import { DashboardMetaPill } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import {
@@ -22,12 +20,11 @@ export default async function BusinessSavedRepliesPage() {
       <PageHeader
         eyebrow="Responses"
         title="Saved replies"
-        description="Keep reusable reply snippets ready for faster inquiry responses."
+        description="Reusable replies for faster drafting."
         actions={
-          <DashboardMetaPill>
-            <MessageSquareText className="size-3.5" />
-            {replySnippets.length} saved
-          </DashboardMetaPill>
+          replySnippets.length ? (
+            <DashboardMetaPill>{replySnippets.length} saved</DashboardMetaPill>
+          ) : undefined
         }
       />
 

@@ -29,6 +29,7 @@ type ReplySnippetFormProps = {
   submitPendingLabel: string;
   onSuccess?: () => void;
   idPrefix?: string;
+  showSectionHeader?: boolean;
 };
 
 const initialState: ReplySnippetActionState = {};
@@ -40,6 +41,7 @@ export function ReplySnippetForm({
   submitPendingLabel,
   onSuccess,
   idPrefix = "reply-snippet",
+  showSectionHeader = true,
 }: ReplySnippetFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, isPending] = useActionState(action, initialState);
@@ -72,7 +74,7 @@ export function ReplySnippetForm({
         </Alert>
       ) : null}
 
-      <FormSection title={initialValues ? "Snippet content" : "New reply snippet"}>
+      <FormSection title={showSectionHeader ? (initialValues ? "Snippet content" : "New reply snippet") : undefined}>
         <FieldGroup>
           <Field data-invalid={Boolean(state.fieldErrors?.title) || undefined}>
             <FieldLabel htmlFor={`${idPrefix}-title`}>Title</FieldLabel>
