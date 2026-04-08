@@ -3,6 +3,7 @@ export const activeBusinessSlugCookieName = "requo-active-business";
 
 export type BusinessSettingsSection =
   | "general"
+  | "notifications"
   | "profile"
   | "replies"
   | "quote"

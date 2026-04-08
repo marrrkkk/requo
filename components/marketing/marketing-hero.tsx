@@ -87,7 +87,7 @@ export function MarketingHero() {
                   Turn messy inquiries into organized quotes and bookings.
                 </h1>
                 <p className="max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg">
-                  Requo gives small service businesses one calm place to capture
+                  Requo gives service businesses one calm place to capture
                   requests, prepare quotes, and follow up without losing context.
                 </p>
               </div>
