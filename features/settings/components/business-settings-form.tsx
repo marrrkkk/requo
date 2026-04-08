@@ -6,40 +6,29 @@ import Cropper, { type Area } from "react-easy-crop";
 import {
   useActionState,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
-import {
-  Bell,
-  CheckCircle2,
-  ImageIcon,
-  type LucideIcon,
-  Mail,
-  Reply,
-  Send,
-} from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 
 import {
-  FormActions,
+  FloatingFormActions,
+  useFloatingUnsavedChanges,
+} from "@/components/shared/floating-form-actions";
+import {
   FormSection,
 } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getFieldError } from "@/lib/action-state";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import {
   Field,
   FieldContent,
@@ -65,9 +54,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { useProgressRouter } from "@/hooks/use-progress-router";
 import type {
   BusinessAiTonePreference,
   BusinessDeleteActionState,
@@ -131,31 +119,101 @@ export function BusinessSettingsForm({
   logoPreviewUrl,
   settings,
 }: BusinessSettingsFormProps) {
+  const router = useProgressRouter();
   const [state, formAction, isPending] = useActionState(action, initialState);
-  const [notifyOnNewInquiry, setNotifyOnNewInquiry] = useState(
-    settings.notifyOnNewInquiry,
-  );
-  const [notifyOnQuoteSent, setNotifyOnQuoteSent] = useState(
-    settings.notifyOnQuoteSent,
-  );
-  const [notifyOnQuoteResponse, setNotifyOnQuoteResponse] = useState(
-    settings.notifyOnQuoteResponse,
-  );
-  const [notifyInAppOnNewInquiry, setNotifyInAppOnNewInquiry] = useState(
-    settings.notifyInAppOnNewInquiry,
-  );
-  const [notifyInAppOnQuoteResponse, setNotifyInAppOnQuoteResponse] = useState(
-    settings.notifyInAppOnQuoteResponse,
-  );
+  const formRef = useRef<HTMLFormElement>(null);
+  const [formRevision, setFormRevision] = useState(0);
   const [removeLogo, setRemoveLogo] = useState(false);
   const [aiTonePreference, setAiTonePreference] = useState<BusinessAiTonePreference>(
     settings.aiTonePreference,
   );
+  const [hasPendingLogo, setHasPendingLogo] = useState(false);
+  const [logoResetSignal, setLogoResetSignal] = useState(0);
+  const [hasTextInputChanges, setHasTextInputChanges] = useState(false);
   const aiToneError = getFieldError(state.fieldErrors, "aiTonePreference");
+  const publicInquiryUrl = useMemo(
+    () => getBusinessPublicInquiryUrl(settings.slug),
+    [settings.slug],
+  );
+  const primaryContactEmail = settings.contactEmail ?? fallbackContactEmail;
+  const hasControlledChanges =
+    removeLogo ||
+    hasPendingLogo ||
+    aiTonePreference !== settings.aiTonePreference;
+  const hasUnsavedChanges = hasControlledChanges || hasTextInputChanges;
+  const { shouldRenderFloatingActions, floatingActionsState } =
+    useFloatingUnsavedChanges(hasUnsavedChanges);
+
+  useEffect(() => {
+    if (!state.success) {
+      return;
+    }
+
+    router.refresh();
+  }, [router, state.success]);
+
+  useEffect(() => {
+    const form = formRef.current;
+
+    if (!form) {
+      return;
+    }
+
+    const inputNames = [
+      "name",
+      "slug",
+      "contactEmail",
+      "shortDescription",
+      "defaultEmailSignature",
+    ] as const;
+    const initialValues = {
+      name: settings.name,
+      slug: settings.slug,
+      contactEmail: primaryContactEmail,
+      shortDescription: settings.shortDescription ?? "",
+      defaultEmailSignature: settings.defaultEmailSignature ?? "",
+    };
+
+    setHasTextInputChanges(
+      inputNames.some((name) => {
+        const field = form.elements.namedItem(name);
+
+        if (
+          !(field instanceof HTMLInputElement) &&
+          !(field instanceof HTMLTextAreaElement)
+        ) {
+          return false;
+        }
+
+        return field.value !== initialValues[name];
+      }),
+    );
+  }, [
+    formRevision,
+    primaryContactEmail,
+    settings.defaultEmailSignature,
+    settings.name,
+    settings.shortDescription,
+    settings.slug,
+  ]);
+
+  function handleCancelChanges() {
+    formRef.current?.reset();
+    setRemoveLogo(false);
+    setHasPendingLogo(false);
+    setAiTonePreference(settings.aiTonePreference);
+    setLogoResetSignal((current) => current + 1);
+    setFormRevision((current) => current + 1);
+  }
 
   return (
     <>
-      <form action={formAction} className="form-stack">
+      <form
+        action={formAction}
+        className="form-stack pb-28"
+        onInputCapture={() => setFormRevision((current) => current + 1)}
+        ref={formRef}
+      >
         {state.error ? (
           <Alert variant="destructive">
             <AlertTitle>We could not save the settings.</AlertTitle>
@@ -171,182 +229,177 @@ export function BusinessSettingsForm({
           </Alert>
         ) : null}
 
-        <input
-          name="notifyOnNewInquiry"
-          type="hidden"
-          value={String(notifyOnNewInquiry)}
-        />
-        <input
-          name="notifyOnQuoteSent"
-          type="hidden"
-          value={String(notifyOnQuoteSent)}
-        />
-        <input
-          name="notifyOnQuoteResponse"
-          type="hidden"
-          value={String(notifyOnQuoteResponse)}
-        />
-        <input
-          name="notifyInAppOnNewInquiry"
-          type="hidden"
-          value={String(notifyInAppOnNewInquiry)}
-        />
-        <input
-          name="notifyInAppOnQuoteResponse"
-          type="hidden"
-          value={String(notifyInAppOnQuoteResponse)}
-        />
         <input name="removeLogo" type="hidden" value={String(removeLogo)} />
         <input name="aiTonePreference" type="hidden" value={aiTonePreference} />
 
         <Card className="gap-0 border-border/75 bg-card/97">
-          <CardHeader className="gap-3 pb-5">
+          <CardHeader className="gap-2.5 pb-6">
             <CardTitle>Business profile</CardTitle>
+            <CardDescription>Update your business details.</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-6 pt-0">
-            <FormSection title="Business identity">
-              <FieldGroup>
-                <Field data-invalid={Boolean(state.fieldErrors?.name) || undefined}>
-                  <FieldLabel htmlFor="settings-name">Business name</FieldLabel>
-                  <FieldContent>
-                    <Input
-                      defaultValue={settings.name}
-                      disabled={isPending}
-                      id="settings-name"
-                      maxLength={120}
-                      minLength={2}
-                      name="name"
-                      placeholder="Northline Print Studio"
-                      required
-                    />
-                    <FieldError
-                      errors={
-                        state.fieldErrors?.name?.[0]
-                          ? [{ message: state.fieldErrors.name[0] }]
-                          : undefined
-                      }
-                    />
-                  </FieldContent>
-                </Field>
-
-                <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                  <Field data-invalid={Boolean(state.fieldErrors?.slug) || undefined}>
-                    <FieldLabel htmlFor="settings-slug">Public slug</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        defaultValue={settings.slug}
-                        disabled={isPending}
-                        id="settings-slug"
-                        maxLength={businessSlugMaxLength}
-                        minLength={2}
-                        name="slug"
-                        pattern={businessSlugPattern}
-                        placeholder="northline-print"
-                        required
-                        spellCheck={false}
-                      />
-                      <FieldDescription>
-                        Public URL:{" "}
-                        <Link
-                          className="underline underline-offset-4"
-                          href={getBusinessPublicInquiryUrl(settings.slug)}
-                          prefetch={false}
-                          rel="noreferrer"
-                          target="_blank"
-                        >
-                          {getBusinessPublicInquiryUrl(settings.slug)}
-                        </Link>
-                      </FieldDescription>
-                      <FieldError
-                        errors={
-                          state.fieldErrors?.slug?.[0]
-                            ? [{ message: state.fieldErrors.slug[0] }]
-                            : undefined
-                        }
-                      />
-                    </FieldContent>
-                  </Field>
-
-                  <Field
-                    data-invalid={Boolean(state.fieldErrors?.contactEmail) || undefined}
-                  >
-                    <FieldLabel htmlFor="settings-contact-email">
-                      Contact email
-                    </FieldLabel>
-                    <FieldContent>
-                      <Input
-                        defaultValue={settings.contactEmail ?? fallbackContactEmail}
-                        disabled={isPending}
-                        id="settings-contact-email"
-                        maxLength={320}
-                        name="contactEmail"
-                        placeholder="hello@example.com"
-                        type="email"
-                      />
-                      <FieldError
-                        errors={
-                          state.fieldErrors?.contactEmail?.[0]
-                            ? [{ message: state.fieldErrors.contactEmail[0] }]
-                            : undefined
-                        }
-                      />
-                    </FieldContent>
-                  </Field>
-                </div>
-
-                <Field
-                  data-invalid={Boolean(state.fieldErrors?.shortDescription) || undefined}
-                >
-                  <FieldLabel htmlFor="settings-short-description">
-                    Short description
-                  </FieldLabel>
-                  <FieldContent>
-                    <Textarea
-                      defaultValue={settings.shortDescription ?? ""}
-                      disabled={isPending}
-                      id="settings-short-description"
-                      maxLength={280}
-                      name="shortDescription"
-                      placeholder="A short description of the business."
-                      rows={4}
-                    />
-                    <FieldError
-                      errors={
-                        state.fieldErrors?.shortDescription?.[0]
-                          ? [{ message: state.fieldErrors.shortDescription[0] }]
-                          : undefined
-                      }
-                    />
-                  </FieldContent>
-                </Field>
-              </FieldGroup>
-            </FormSection>
-
-            <Separator />
-
-            <FormSection title="Brand asset">
+          <CardContent className="pt-0">
+            <div className="grid gap-6 xl:grid-cols-[19rem_minmax(0,1fr)] xl:gap-7">
               <BusinessLogoField
+                businessName={settings.name}
+                contactEmail={primaryContactEmail}
                 disabled={isPending}
                 fieldError={state.fieldErrors?.logo?.[0]}
                 initialPreviewUrl={logoPreviewUrl}
-                removeLogo={removeLogo}
-                settingsName={settings.name}
-                showRemoveToggle={Boolean(settings.logoStoragePath)}
+                onPendingChange={setHasPendingLogo}
                 onRemoveLogoChange={setRemoveLogo}
+                publicInquiryUrl={publicInquiryUrl}
+                removeLogo={removeLogo}
+                resetSignal={logoResetSignal}
+                showRemoveToggle={Boolean(settings.logoStoragePath)}
               />
-            </FormSection>
+              <div className="flex min-w-0 flex-col gap-5">
+                <FormSection
+                  className="soft-panel px-5 py-5 shadow-none sm:px-6"
+                  description="Shown to customers."
+                  title="Identity & public details"
+                >
+                  <FieldGroup>
+                    <Field data-invalid={Boolean(state.fieldErrors?.name) || undefined}>
+                      <FieldLabel htmlFor="settings-name">Business name</FieldLabel>
+                      <FieldContent>
+                        <Input
+                          defaultValue={settings.name}
+                          disabled={isPending}
+                          id="settings-name"
+                          maxLength={120}
+                          minLength={2}
+                          name="name"
+                          placeholder="Northline Print Studio"
+                          required
+                        />
+                        <FieldError
+                          errors={
+                            state.fieldErrors?.name?.[0]
+                              ? [{ message: state.fieldErrors.name[0] }]
+                              : undefined
+                          }
+                        />
+                      </FieldContent>
+                    </Field>
+
+                    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                      <Field data-invalid={Boolean(state.fieldErrors?.slug) || undefined}>
+                        <FieldLabel htmlFor="settings-slug">Public slug</FieldLabel>
+                        <FieldContent>
+                          <Input
+                            defaultValue={settings.slug}
+                            disabled={isPending}
+                            id="settings-slug"
+                            maxLength={businessSlugMaxLength}
+                            minLength={2}
+                            name="slug"
+                            pattern={businessSlugPattern}
+                            placeholder="northline-print"
+                            required
+                            spellCheck={false}
+                          />
+                          <FieldDescription>
+                            Public URL:{" "}
+                            <Link
+                              className="underline underline-offset-4"
+                              href={publicInquiryUrl}
+                              prefetch={false}
+                              rel="noreferrer"
+                              target="_blank"
+                            >
+                              {publicInquiryUrl}
+                            </Link>
+                          </FieldDescription>
+                          <FieldError
+                            errors={
+                              state.fieldErrors?.slug?.[0]
+                                ? [{ message: state.fieldErrors.slug[0] }]
+                                : undefined
+                            }
+                          />
+                        </FieldContent>
+                      </Field>
+
+                      <Field
+                        data-invalid={Boolean(state.fieldErrors?.contactEmail) || undefined}
+                      >
+                        <FieldLabel htmlFor="settings-contact-email">
+                          Contact email
+                        </FieldLabel>
+                        <FieldContent>
+                          <Input
+                            defaultValue={primaryContactEmail}
+                            disabled={isPending}
+                            id="settings-contact-email"
+                            maxLength={320}
+                            name="contactEmail"
+                            placeholder="hello@example.com"
+                            type="email"
+                          />
+                          <FieldDescription>Shown to customers.</FieldDescription>
+                          <FieldError
+                            errors={
+                              state.fieldErrors?.contactEmail?.[0]
+                                ? [{ message: state.fieldErrors.contactEmail[0] }]
+                                : undefined
+                            }
+                          />
+                        </FieldContent>
+                      </Field>
+                    </div>
+                  </FieldGroup>
+                </FormSection>
+
+                <FormSection
+                  className="soft-panel px-5 py-5 shadow-none sm:px-6"
+                  description="Used in forms and quotes."
+                  title="Short description"
+                >
+                  <Field
+                    data-invalid={Boolean(state.fieldErrors?.shortDescription) || undefined}
+                  >
+                    <FieldLabel htmlFor="settings-short-description">
+                      Business summary
+                    </FieldLabel>
+                    <FieldContent>
+                      <Textarea
+                        defaultValue={settings.shortDescription ?? ""}
+                        disabled={isPending}
+                        id="settings-short-description"
+                        maxLength={280}
+                        name="shortDescription"
+                        placeholder="Reliable repair, install, and recurring maintenance work for homes and small property portfolios."
+                        rows={5}
+                      />
+                      <FieldError
+                        errors={
+                          state.fieldErrors?.shortDescription?.[0]
+                            ? [{ message: state.fieldErrors.shortDescription[0] }]
+                            : undefined
+                        }
+                      />
+                    </FieldContent>
+                  </Field>
+                </FormSection>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
         <Card className="gap-0 border-border/75 bg-card/97">
-          <CardHeader className="gap-3 pb-5">
+          <CardHeader className="gap-2.5 pb-6">
             <CardTitle>Writing defaults</CardTitle>
+            <CardDescription>Default tone and signature.</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-6 pt-0">
-            <FormSection title="Writing defaults">
-              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <CardContent className="pt-0">
+            <div className="flex min-w-0 flex-col gap-5">
+              <FormSection
+                className="soft-panel px-5 py-5 shadow-none sm:px-6"
+                description="Used for AI drafts."
+                title="AI writing tone"
+              >
                 <Field data-invalid={Boolean(aiToneError) || undefined}>
-                  <FieldLabel htmlFor="settings-ai-tone">AI tone preference</FieldLabel>
+                  <FieldLabel htmlFor="settings-ai-tone">Tone preference</FieldLabel>
                   <FieldContent>
                     <Select
                       onValueChange={(value) =>
@@ -372,112 +425,55 @@ export function BusinessSettingsForm({
                     />
                   </FieldContent>
                 </Field>
-              </div>
+              </FormSection>
 
-              <Field
-                data-invalid={
-                  Boolean(state.fieldErrors?.defaultEmailSignature) || undefined
-                }
+              <FormSection
+                className="soft-panel px-5 py-5 shadow-none sm:px-6"
+                description="Used in email drafts."
+                title="Email signature"
               >
-                <FieldLabel htmlFor="settings-email-signature">
-                  Default email signature
-                </FieldLabel>
-                <FieldContent>
-                  <Textarea
-                    defaultValue={settings.defaultEmailSignature ?? ""}
-                    disabled={isPending}
-                    id="settings-email-signature"
-                    maxLength={1200}
-                    name="defaultEmailSignature"
-                    placeholder="Thanks, Northline Print Studio"
-                    rows={4}
-                  />
-                  <FieldError
-                    errors={
-                      state.fieldErrors?.defaultEmailSignature?.[0]
-                        ? [{ message: state.fieldErrors.defaultEmailSignature[0] }]
-                        : undefined
-                    }
-                  />
-                </FieldContent>
-              </Field>
-            </FormSection>
+                <Field
+                  data-invalid={
+                    Boolean(state.fieldErrors?.defaultEmailSignature) || undefined
+                  }
+                >
+                  <FieldLabel htmlFor="settings-email-signature">
+                    Default email signature
+                  </FieldLabel>
+                  <FieldContent>
+                    <Textarea
+                      defaultValue={settings.defaultEmailSignature ?? ""}
+                      disabled={isPending}
+                      id="settings-email-signature"
+                      maxLength={1200}
+                      name="defaultEmailSignature"
+                      placeholder="Thanks,\nNorthline Home Services"
+                      rows={5}
+                    />
+                    <FieldError
+                      errors={
+                        state.fieldErrors?.defaultEmailSignature?.[0]
+                          ? [{ message: state.fieldErrors.defaultEmailSignature[0] }]
+                          : undefined
+                      }
+                    />
+                  </FieldContent>
+                </Field>
+              </FormSection>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="gap-0 border-border/75 bg-card/97">
-          <CardHeader className="gap-3 pb-5">
-            <CardTitle>Notification preferences</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-6 pt-0">
-            <FormSection title="Live dashboard alerts">
-              <div className="grid gap-4 lg:grid-cols-2">
-                <ToggleCard
-                  checked={notifyInAppOnNewInquiry}
-                  description="Show a live dashboard notification when a new public inquiry comes in."
-                  disabled={isPending}
-                  icon={Bell}
-                  label="In-app on new inquiry"
-                  onCheckedChange={setNotifyInAppOnNewInquiry}
-                />
-                <ToggleCard
-                  checked={notifyInAppOnQuoteResponse}
-                  description="Show a live dashboard notification when a customer accepts or declines a quote."
-                  disabled={isPending}
-                  icon={Reply}
-                  label="In-app on quote response"
-                  onCheckedChange={setNotifyInAppOnQuoteResponse}
-                />
-              </div>
-            </FormSection>
-
-            <Separator />
-
-            <FormSection title="Owner emails">
-              <div className="grid gap-4 lg:grid-cols-2">
-                <ToggleCard
-                  checked={notifyOnNewInquiry}
-                  description="Email the owner when a new inquiry arrives."
-                  disabled={isPending}
-                  icon={Mail}
-                  label="Email on new inquiry"
-                  onCheckedChange={setNotifyOnNewInquiry}
-                />
-                <ToggleCard
-                  checked={notifyOnQuoteSent}
-                  description="Email the owner after a quote is sent to a customer."
-                  disabled={isPending}
-                  icon={Send}
-                  label="Email on quote sent"
-                  onCheckedChange={setNotifyOnQuoteSent}
-                />
-                <ToggleCard
-                  checked={notifyOnQuoteResponse}
-                  description="Email the owner when a customer accepts or declines a quote."
-                  disabled={isPending}
-                  icon={Reply}
-                  label="Email on quote response"
-                  onCheckedChange={setNotifyOnQuoteResponse}
-                />
-              </div>
-            </FormSection>
-          </CardContent>
-        </Card>
-
-        <div className="toolbar-panel">
-          <FormActions align="between" className="pt-0">
-            <Button disabled={isPending} size="lg" type="submit">
-              {isPending ? (
-                <>
-                  <Spinner data-icon="inline-start" aria-hidden="true" />
-                  Saving settings...
-                </>
-              ) : (
-                "Save settings"
-              )}
-            </Button>
-          </FormActions>
-        </div>
+        <FloatingFormActions
+          disableSubmit={!hasUnsavedChanges}
+          isPending={isPending}
+          message="You have unsaved business settings."
+          onCancel={handleCancelChanges}
+          state={floatingActionsState}
+          submitLabel="Save settings"
+          submitPendingLabel="Saving settings..."
+          visible={shouldRenderFloatingActions}
+        />
       </form>
 
       <BusinessDeleteZone action={deleteAction} businessName={settings.name} />
@@ -486,19 +482,27 @@ export function BusinessSettingsForm({
 }
 
 function BusinessLogoField({
+  businessName,
+  contactEmail,
   disabled,
   fieldError,
   initialPreviewUrl,
+  onPendingChange,
+  publicInquiryUrl,
   removeLogo,
-  settingsName,
+  resetSignal,
   showRemoveToggle,
   onRemoveLogoChange,
 }: {
+  businessName: string;
+  contactEmail: string;
   disabled: boolean;
   fieldError?: string;
   initialPreviewUrl: string | null;
+  onPendingChange: (hasPendingChange: boolean) => void;
+  publicInquiryUrl: string;
   removeLogo: boolean;
-  settingsName: string;
+  resetSignal: number;
   showRemoveToggle: boolean;
   onRemoveLogoChange: (nextValue: boolean) => void;
 }) {
@@ -528,7 +532,47 @@ function BusinessLogoField({
     };
   }, [previewUrl]);
 
+  useEffect(() => {
+    onPendingChange(Boolean(previewUrl));
+  }, [onPendingChange, previewUrl]);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      if (inputRef.current) {
+        inputRef.current.value = "";
+      }
+
+      setCropOpen(false);
+      setDraftAsset((currentAsset) => {
+        if (currentAsset) {
+          URL.revokeObjectURL(currentAsset.url);
+        }
+
+        return null;
+      });
+      setPreviewUrl((currentPreviewUrlValue) => {
+        if (currentPreviewUrlValue) {
+          URL.revokeObjectURL(currentPreviewUrlValue);
+        }
+
+        return null;
+      });
+      setCropAspect("original");
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCroppedAreaPixels(null);
+      setLocalError(null);
+    });
+  }, [resetSignal]);
+
   const currentPreviewUrl = !removeLogo ? previewUrl ?? initialPreviewUrl : null;
+  const logoStatusLabel = previewUrl
+    ? "Pending update"
+    : removeLogo
+      ? "Removing logo"
+      : currentPreviewUrl
+        ? "Logo uploaded"
+        : null;
 
   async function handleLogoSelection(event: React.ChangeEvent<HTMLInputElement>) {
     const nextFile = event.currentTarget.files?.[0];
@@ -646,96 +690,125 @@ function BusinessLogoField({
 
   return (
     <>
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
-        <Field data-invalid={Boolean(fieldError || localError) || undefined}>
-          <FieldLabel htmlFor="settings-logo">Logo</FieldLabel>
-          <FieldContent>
-            <FieldDescription>
-              Optional JPG, PNG, or WEBP up to 2 MB. New uploads open a crop step before saving.
-            </FieldDescription>
-            <Input
-              ref={inputRef}
-              accept={businessLogoAccept}
-              disabled={disabled}
-              id="settings-logo"
-              name="logo"
-              onChange={handleLogoSelection}
-              type="file"
-            />
-            {previewUrl ? (
-              <div className="soft-panel mt-3 flex items-center justify-between gap-3 px-4 py-3 text-sm">
-                <div>
-                  <p className="font-medium text-foreground">Cropped logo ready</p>
-                  <p className="text-muted-foreground">
-                    This cropped version will be uploaded when you save settings.
-                  </p>
-                </div>
-                <Button
-                  disabled={disabled}
-                  onClick={clearPendingLogo}
-                  type="button"
-                  variant="outline"
-                >
-                  Clear
-                </Button>
-              </div>
-            ) : null}
-            {showRemoveToggle && !previewUrl ? (
-              <label className="soft-panel mt-3 flex items-start gap-3 px-4 py-3">
-                <input
-                  checked={removeLogo}
-                  className="mt-1 size-4 accent-current"
-                  disabled={disabled}
-                  onChange={(event) => onRemoveLogoChange(event.currentTarget.checked)}
-                  type="checkbox"
-                />
-                <span className="flex flex-col gap-1 text-sm">
-                  <span className="font-medium text-foreground">
-                    Remove current logo
-                  </span>
-                  <span className="text-muted-foreground">
-                    Leave unchecked if you want to keep the current brand asset.
-                  </span>
-                </span>
-              </label>
-            ) : null}
-            <FieldError
-              errors={
-                localError
-                  ? [{ message: localError }]
-                  : fieldError
-                    ? [{ message: fieldError }]
-                    : undefined
-              }
-            />
-          </FieldContent>
-        </Field>
+      <div className="self-start xl:sticky xl:top-6">
+        <div className="soft-panel flex flex-col gap-5 p-5 shadow-none sm:p-6">
+          <div className="space-y-2">
+            <p className="text-[0.72rem] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              Brand asset
+            </p>
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold tracking-tight text-foreground">
+                Business identity
+              </h2>
+              <p className="text-sm text-muted-foreground">Shown on public pages and quotes.</p>
+            </div>
+          </div>
 
-        <div className="soft-panel p-4">
-          <p className="meta-label">{previewUrl ? "New logo preview" : "Current logo"}</p>
-          <div className="soft-panel mt-4 flex min-h-32 items-center justify-center bg-muted/20 p-4 shadow-none">
-            {currentPreviewUrl ? (
-              <Image
-                alt={`${settingsName} logo`}
-                className="max-h-24 w-auto object-contain"
-                height={96}
-                src={currentPreviewUrl}
-                unoptimized
-                width={96}
-              />
-            ) : (
-              <Empty className="border-0 bg-transparent px-4 py-6 shadow-none">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <ImageIcon />
-                  </EmptyMedia>
-                  <EmptyTitle>No logo uploaded</EmptyTitle>
-                  <EmptyDescription>
-                    Choose a file above to brand public pages and customer-facing quote views.
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            )}
+          <div className="rounded-3xl border border-border/75 bg-background/80 px-5 py-5">
+            <div className="flex flex-col items-center gap-4 text-center">
+              <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.6rem] border border-border/75 bg-background/92 shadow-[0_10px_28px_rgba(15,23,42,0.08)] xl:size-28">
+                {currentPreviewUrl ? (
+                  <Image
+                    alt={`${businessName} logo`}
+                    className="max-h-[68%] w-auto object-contain"
+                    height={112}
+                    src={currentPreviewUrl}
+                    unoptimized
+                    width={112}
+                  />
+                ) : (
+                  <span className="text-lg font-semibold uppercase tracking-[0.18em] text-foreground">
+                    {getInitials(businessName)}
+                  </span>
+                )}
+              </div>
+
+              <div className="min-w-0 max-w-full space-y-2">
+                <div className="space-y-1">
+                  <p className="text-base font-semibold tracking-tight text-foreground">
+                    {businessName}
+                  </p>
+                  <p className="break-words text-sm text-muted-foreground">
+                    {contactEmail}
+                  </p>
+                  <Link
+                    className="break-all text-sm text-muted-foreground underline underline-offset-4"
+                    href={publicInquiryUrl}
+                    prefetch={false}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    {publicInquiryUrl}
+                  </Link>
+                </div>
+
+                {logoStatusLabel ? (
+                  <span className="inline-flex items-center rounded-full border border-border/75 bg-background/90 px-3 py-1 text-[0.72rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                    {logoStatusLabel}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-border/70 pt-5">
+            <Field data-invalid={Boolean(fieldError || localError) || undefined}>
+              <FieldLabel htmlFor="settings-logo">Upload new logo</FieldLabel>
+              <FieldContent>
+                <FieldDescription>JPG, PNG, or WEBP up to 2 MB.</FieldDescription>
+                <Input
+                  ref={inputRef}
+                  accept={businessLogoAccept}
+                  disabled={disabled}
+                  id="settings-logo"
+                  name="logo"
+                  onChange={handleLogoSelection}
+                  type="file"
+                />
+                {previewUrl ? (
+                  <div className="soft-panel mt-4 flex flex-col gap-3 px-4 py-3 text-sm shadow-none sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-medium text-foreground">Cropped logo ready</p>
+                      <p className="text-muted-foreground">Uploads after save.</p>
+                    </div>
+                    <Button
+                      disabled={disabled}
+                      onClick={clearPendingLogo}
+                      type="button"
+                      variant="outline"
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                ) : null}
+                {showRemoveToggle && !previewUrl ? (
+                  <label className="soft-panel mt-4 flex items-start gap-3 px-4 py-3 shadow-none">
+                    <input
+                      checked={removeLogo}
+                      className="mt-1 size-4 accent-current"
+                      disabled={disabled}
+                      onChange={(event) => onRemoveLogoChange(event.currentTarget.checked)}
+                      type="checkbox"
+                    />
+                    <span className="flex flex-col gap-1 text-sm">
+                      <span className="font-medium text-foreground">
+                        Remove current logo
+                      </span>
+                      <span className="text-muted-foreground">Falls back to initials.</span>
+                    </span>
+                  </label>
+                ) : null}
+                <FieldError
+                  errors={
+                    localError
+                      ? [{ message: localError }]
+                      : fieldError
+                        ? [{ message: fieldError }]
+                        : undefined
+                  }
+                />
+              </FieldContent>
+            </Field>
           </div>
         </div>
       </div>
@@ -751,9 +824,7 @@ function BusinessLogoField({
         <DialogContent className="gap-0 p-0 sm:max-w-5xl">
           <DialogHeader className="gap-3 border-b border-border/70 pb-4">
             <DialogTitle>Crop brand asset</DialogTitle>
-            <DialogDescription>
-              Adjust the framing before the logo is uploaded to your business.
-            </DialogDescription>
+            <DialogDescription>Adjust the crop.</DialogDescription>
           </DialogHeader>
 
           <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto p-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
@@ -777,9 +848,7 @@ function BusinessLogoField({
                 ) : null}
               </div>
 
-              <p className="text-sm leading-6 text-muted-foreground">
-                Drag the image to reposition it inside the crop frame, then zoom to trim empty space.
-              </p>
+              <p className="text-sm text-muted-foreground">Drag and zoom to fit.</p>
             </div>
 
             <div className="flex flex-col gap-5">
@@ -821,9 +890,7 @@ function BusinessLogoField({
                 <div className="soft-panel flex items-start gap-3 px-4 py-4 text-sm">
                   <div className="space-y-1">
                     <p className="font-medium text-foreground">{draftAsset.file.name}</p>
-                    <p className="text-muted-foreground">
-                      The cropped result replaces the upload field and keeps the existing save flow.
-                    </p>
+                    <p className="text-muted-foreground">Replaces the upload.</p>
                   </div>
                 </div>
               ) : null}
@@ -843,49 +910,6 @@ function BusinessLogoField({
         </DialogContent>
       </Dialog>
     </>
-  );
-}
-
-function ToggleCard({
-  checked,
-  description,
-  disabled,
-  icon: Icon,
-  label,
-  onCheckedChange,
-}: {
-  checked: boolean;
-  description: string;
-  disabled: boolean;
-  icon: LucideIcon;
-  label: string;
-  onCheckedChange: (nextValue: boolean) => void;
-}) {
-  return (
-    <label
-      className={[
-        "soft-panel flex items-start gap-3 px-4 py-4 transition-colors hover:bg-accent/30",
-        checked ? "border-primary/20 bg-accent/52" : null,
-      ]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      <Switch
-        checked={checked}
-        className="mt-1"
-        disabled={disabled}
-        onCheckedChange={onCheckedChange}
-      />
-      <div className="flex min-w-0 flex-1 gap-3">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-          <Icon className="size-4" />
-        </div>
-        <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium text-foreground">{label}</p>
-          <p className="text-sm leading-6 text-muted-foreground">{description}</p>
-        </div>
-      </div>
-    </label>
   );
 }
 
@@ -1039,4 +1063,13 @@ function getLogoExtensionForMimeType(mimeType: string) {
     default:
       return ".png";
   }
+}
+
+function getInitials(value: string) {
+  return value
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((segment) => segment[0]?.toUpperCase())
+    .join("");
 }
