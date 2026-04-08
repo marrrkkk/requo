@@ -392,7 +392,7 @@ function QuoteLibraryEntryFormFields({
                       <p className="text-sm font-medium text-foreground">
                         Item {index + 1}
                       </p>
-                      <span className="dashboard-meta-pill min-h-0 px-2.5 py-1 text-[0.7rem]">
+                      <span className="text-sm text-muted-foreground">
                         {formatQuoteMoney(
                           safeQuantity * unitPriceInCents,
                           currency,
@@ -509,7 +509,7 @@ function QuoteLibraryEntryFormFields({
       <div className="soft-panel flex flex-col gap-3 px-4 py-4 shadow-none">
         <div className="flex items-center justify-between gap-4">
           <span className="text-sm font-medium text-foreground">Saved total</span>
-          <span className="dashboard-meta-pill">
+          <span className="text-sm text-muted-foreground">
             {visibleItems.length} {visibleItems.length === 1 ? "item" : "items"}
           </span>
         </div>

@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { PencilLine } from "lucide-react";
 
-import { DashboardMetaPill } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -128,15 +127,11 @@ export function QuoteLibraryEntryCard({
       <CardHeader className="gap-3 pb-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <CardTitle className="text-xl">{entry.name}</CardTitle>
-              <DashboardMetaPill>{getQuoteLibraryEntryKindLabel(entry.kind)}</DashboardMetaPill>
-              <DashboardMetaPill>
-                {entry.itemCount} {entry.itemCount === 1 ? "item" : "items"}
-              </DashboardMetaPill>
-            </div>
+            <CardTitle className="text-xl">{entry.name}</CardTitle>
             <CardDescription>
-              Updated {formatQuoteDateTime(entry.updatedAt)}
+              {getQuoteLibraryEntryKindLabel(entry.kind)} · {entry.itemCount}{" "}
+              {entry.itemCount === 1 ? "item" : "items"} · Updated{" "}
+              {formatQuoteDateTime(entry.updatedAt)}
             </CardDescription>
           </div>
 
