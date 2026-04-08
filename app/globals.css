@@ -455,6 +455,8 @@
     @apply bg-background font-sans;
     /* Reserve scrollbar space to prevent layout shift during navigation */
     scrollbar-gutter: stable;
+    /* Ensure scrollbar behavior is consistent */
+    overflow-y: scroll;
   }
 
   body {
