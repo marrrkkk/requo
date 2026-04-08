@@ -453,6 +453,11 @@ export async function updateBusinessInquiryFormAction(
       ]),
     );
 
+    // Always revalidate public + dashboard paths so changes
+    // like group label edits reflect on the live form.
+    revalidateBusinessInquiryFormPaths(result.nextSlug, result.nextFormSlug);
+    revalidateBusinessDefaultInquiryPaths(result.nextSlug);
+
     if (result.previousFormSlug !== result.nextFormSlug) {
       revalidateBusinessInquiryFormPaths(result.nextSlug, result.previousFormSlug);
       revalidateBusinessInquiryFormPaths(result.nextSlug, result.nextFormSlug);
