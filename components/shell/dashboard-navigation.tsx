@@ -95,6 +95,15 @@ export function isDashboardNavigationItemActive(
 ) {
   const activePathname = resolveDashboardActivePathname(pathname);
 
+  if (href.endsWith("/dashboard/settings/general")) {
+    const settingsRootPath = href.slice(0, -"/general".length);
+
+    return (
+      activePathname === settingsRootPath ||
+      activePathname.startsWith(`${settingsRootPath}/`)
+    );
+  }
+
   if (href.endsWith("/dashboard")) {
     return activePathname === href;
   }
