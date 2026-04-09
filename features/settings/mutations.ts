@@ -408,6 +408,7 @@ export async function updateBusinessQuoteSettings({
     await tx
       .update(businesses)
       .set({
+        countryCode: values.countryCode ?? null,
         defaultQuoteNotes: values.defaultQuoteNotes ?? null,
         defaultQuoteValidityDays: values.defaultQuoteValidityDays,
         defaultCurrency: values.defaultCurrency,
@@ -422,6 +423,7 @@ export async function updateBusinessQuoteSettings({
       type: "business.quote_settings_updated",
       summary: "Quote settings updated.",
       metadata: {
+        countryCode: values.countryCode ?? null,
         defaultCurrency: values.defaultCurrency,
         defaultQuoteValidityDays: values.defaultQuoteValidityDays,
         hasDefaultQuoteNotes: Boolean(values.defaultQuoteNotes?.trim()),

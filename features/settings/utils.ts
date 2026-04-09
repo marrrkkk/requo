@@ -12,13 +12,6 @@ export const businessLogoMaxSize = 2 * 1024 * 1024;
 export const businessSlugMaxLength = publicSlugMaxLength;
 export const businessSlugPattern = publicSlugPattern;
 export const businessSlugRegex = publicSlugRegex;
-export const businessCurrencyOptions = [
-  "USD",
-  "CAD",
-  "EUR",
-  "GBP",
-  "AUD",
-] as const;
 export const businessLogoAllowedExtensions = [
   ".jpg",
   ".jpeg",

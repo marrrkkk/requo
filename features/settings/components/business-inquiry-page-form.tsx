@@ -16,6 +16,7 @@ import {
 } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Card,
@@ -31,14 +32,6 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -603,38 +596,46 @@ export function BusinessInquiryPageForm({
                         <Field>
                           <FieldLabel>Icon</FieldLabel>
                           <FieldContent>
-                            <Select
+                            <Combobox
                               disabled={isPending}
+                              id={`inquiry-card-icon-${card.id}`}
                               onValueChange={(value) =>
                                 updateCard(card.id, "icon", value)
                               }
-                              value={card.icon}
-                            >
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Choose an icon" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectGroup>
-                                  {(
-                                    Object.keys(
-                                      inquiryPageCardIconMeta,
-                                    ) as InquiryPageCardIcon[]
-                                  ).map((iconKey) => {
-                                    const iconMeta = inquiryPageCardIconMeta[iconKey];
-                                    const Icon = iconMeta.icon;
+                              options={(
+                                Object.keys(
+                                  inquiryPageCardIconMeta,
+                                ) as InquiryPageCardIcon[]
+                              ).map((iconKey) => ({
+                                icon: inquiryPageCardIconMeta[iconKey].icon,
+                                label: inquiryPageCardIconMeta[iconKey].label,
+                                searchText: inquiryPageCardIconMeta[iconKey].label,
+                                value: iconKey,
+                              }))}
+                              placeholder="Choose an icon"
+                              renderOption={(option) => {
+                                const Icon = option.icon;
 
-                                    return (
-                                      <SelectItem key={iconKey} value={iconKey}>
-                                        <span className="inline-flex items-center gap-2">
-                                          <Icon className="size-4" />
-                                          {iconMeta.label}
-                                        </span>
-                                      </SelectItem>
-                                    );
-                                  })}
-                                </SelectGroup>
-                              </SelectContent>
-                            </Select>
+                                return (
+                                  <span className="inline-flex items-center gap-2">
+                                    <Icon className="size-4" />
+                                    {option.label}
+                                  </span>
+                                );
+                              }}
+                              renderValue={(option) => {
+                                const Icon = option.icon;
+
+                                return (
+                                  <span className="inline-flex min-w-0 items-center gap-2 text-left">
+                                    <Icon className="size-4 shrink-0" />
+                                    <span className="truncate">{option.label}</span>
+                                  </span>
+                                );
+                              }}
+                              searchPlaceholder="Search icon"
+                              value={card.icon}
+                            />
                           </FieldContent>
                         </Field>
 

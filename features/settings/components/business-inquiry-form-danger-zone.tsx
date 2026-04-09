@@ -6,6 +6,7 @@ import { Archive, Trash2 } from "lucide-react";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Card,
   CardContent,
@@ -118,8 +119,17 @@ export function BusinessInquiryFormDangerZone({
                   type="submit"
                   variant="outline"
                 >
-                  <Archive data-icon="inline-start" />
-                  {isArchivePending ? "Archiving..." : "Archive form"}
+                  {isArchivePending ? (
+                    <>
+                      <Spinner data-icon="inline-start" aria-hidden="true" />
+                      Archiving...
+                    </>
+                  ) : (
+                    <>
+                      <Archive data-icon="inline-start" />
+                      Archive form
+                    </>
+                  )}
                 </Button>
               </form>
             </>
@@ -139,8 +149,17 @@ export function BusinessInquiryFormDangerZone({
                   type="submit"
                   variant="destructive"
                 >
-                  <Trash2 data-icon="inline-start" />
-                  {isDeletePending ? "Deleting..." : "Delete form"}
+                  {isDeletePending ? (
+                    <>
+                      <Spinner data-icon="inline-start" aria-hidden="true" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 data-icon="inline-start" />
+                      Delete form
+                    </>
+                  )}
                 </Button>
               </form>
             </>

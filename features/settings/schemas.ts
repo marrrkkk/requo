@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+import {
+  isSupportedBusinessCountryCode,
+  isSupportedBusinessCurrencyCode,
+  normalizeBusinessCountryCode,
+  normalizeBusinessCurrencyCode,
+} from "@/features/businesses/locale";
 import { businessTypes } from "@/features/inquiries/business-types";
 import { inquiryFormConfigSchema } from "@/features/inquiries/form-config";
 import { inquiryPageCardSchema, inquiryPageTemplates } from "@/features/inquiries/page-config";
@@ -11,7 +17,6 @@ import {
 } from "@/lib/slugs";
 import { businessAiTonePreferences } from "@/features/settings/types";
 import {
-  businessCurrencyOptions,
   businessLogoAllowedExtensions,
   normalizeBusinessSlug,
   businessLogoAllowedMimeTypes,
@@ -35,6 +40,33 @@ function optionalText(maxLength: number) {
     emptyToUndefined,
     z.string().trim().max(maxLength).optional(),
   );
+}
+
+function optionalCountryCode() {
+  return z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .trim()
+      .transform(normalizeBusinessCountryCode)
+      .refine(
+        isSupportedBusinessCountryCode,
+        "Choose a valid country.",
+      )
+      .optional(),
+  );
+}
+
+function supportedCurrencyCode(defaultValue = "USD") {
+  return z
+    .string()
+    .trim()
+    .transform(normalizeBusinessCurrencyCode)
+    .refine(
+      isSupportedBusinessCurrencyCode,
+      "Choose a supported currency.",
+    )
+    .default(defaultValue);
 }
 
 function optionalEmail(maxLength = 320) {
@@ -137,6 +169,7 @@ export type BusinessNotificationSettingsInput = z.infer<
 >;
 
 export const businessQuoteSettingsSchema = z.object({
+  countryCode: optionalCountryCode(),
   defaultQuoteNotes: optionalText(1600),
   defaultQuoteValidityDays: z.preprocess(
     (value) => {
@@ -158,7 +191,7 @@ export const businessQuoteSettingsSchema = z.object({
     },
     z.number().int().min(1).max(365),
   ),
-  defaultCurrency: z.enum(businessCurrencyOptions).default("USD"),
+  defaultCurrency: supportedCurrencyCode(),
 });
 
 export type BusinessQuoteSettingsInput = z.infer<

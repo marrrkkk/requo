@@ -6,6 +6,7 @@ import { Copy, Eye, EyeOff, Star } from "lucide-react";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Card,
   CardContent,
@@ -91,8 +92,17 @@ export function BusinessInquiryFormManageCard({
         <form action={duplicateFormAction}>
           <input name="targetFormId" type="hidden" value={formId} />
           <Button className="w-full" disabled={isDuplicatePending} type="submit" variant="outline">
-            <Copy data-icon="inline-start" />
-            {isDuplicatePending ? "Duplicating..." : "Duplicate form"}
+            {isDuplicatePending ? (
+              <>
+                <Spinner data-icon="inline-start" aria-hidden="true" />
+                Duplicating...
+              </>
+            ) : (
+              <>
+                <Copy data-icon="inline-start" />
+                Duplicate form
+              </>
+            )}
           </Button>
         </form>
 
@@ -100,8 +110,17 @@ export function BusinessInquiryFormManageCard({
           <form action={defaultFormAction}>
             <input name="targetFormId" type="hidden" value={formId} />
             <Button className="w-full" disabled={isDefaultPending} type="submit">
-              <Star data-icon="inline-start" />
-              {isDefaultPending ? "Saving..." : "Set as default"}
+              {isDefaultPending ? (
+                <>
+                  <Spinner data-icon="inline-start" aria-hidden="true" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Star data-icon="inline-start" />
+                  Set as default
+                </>
+              )}
             </Button>
           </form>
         ) : null}
@@ -122,16 +141,21 @@ export function BusinessInquiryFormManageCard({
               value={String(!isPublicInquiryEnabled)}
             />
             <Button className="w-full" disabled={isPublicPending} type="submit" variant="outline">
-              {isPublicInquiryEnabled ? (
-                <EyeOff data-icon="inline-start" />
+              {isPublicPending ? (
+                <>
+                  <Spinner data-icon="inline-start" aria-hidden="true" />
+                  Saving...
+                </>
               ) : (
-                <Eye data-icon="inline-start" />
+                <>
+                  {isPublicInquiryEnabled ? (
+                    <EyeOff data-icon="inline-start" />
+                  ) : (
+                    <Eye data-icon="inline-start" />
+                  )}
+                  {isPublicInquiryEnabled ? "Unpublish form" : "Publish form"}
+                </>
               )}
-              {isPublicPending
-                ? "Saving..."
-                : isPublicInquiryEnabled
-                  ? "Unpublish form"
-                  : "Publish form"}
             </Button>
           </form>
         )}

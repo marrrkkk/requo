@@ -13,6 +13,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Card,
   CardContent,
@@ -37,17 +38,10 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import {
   businessTypeMeta,
-  businessTypes,
+  businessTypeOptions,
   type BusinessType,
 } from "@/features/inquiries/business-types";
 import {
@@ -148,28 +142,26 @@ export function BusinessInquiryFormsManager({
                     Business type
                   </FieldLabel>
                   <FieldContent>
-                    <Select
+                    <Combobox
+                      aria-invalid={Boolean(businessTypeError) || undefined}
+                      disabled={isCreatePending}
+                      id="business-inquiry-form-create-type"
                       onValueChange={(value) =>
                         setBusinessType(value as BusinessType)
                       }
+                      options={businessTypeOptions}
+                      placeholder="Choose a business type"
+                      renderOption={(option) => (
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{option.label}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {option.description}
+                          </p>
+                        </div>
+                      )}
+                      searchPlaceholder="Search business type"
                       value={businessType}
-                    >
-                      <SelectTrigger
-                        className="w-full"
-                        id="business-inquiry-form-create-type"
-                      >
-                        <SelectValue placeholder="Choose a business type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          {businessTypes.map((option) => (
-                            <SelectItem key={option} value={option}>
-                              {businessTypeMeta[option].label}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
+                    />
                     <FieldError
                       errors={
                         businessTypeError
@@ -191,8 +183,17 @@ export function BusinessInquiryFormsManager({
                   Cancel
                 </Button>
                 <Button className="w-full" disabled={isCreatePending} size="lg" type="submit">
-                  <Plus data-icon="inline-start" />
-                  {isCreatePending ? "Creating..." : "Create form"}
+                  {isCreatePending ? (
+                    <>
+                      <Spinner data-icon="inline-start" aria-hidden="true" />
+                      Creating...
+                    </>
+                  ) : (
+                    <>
+                      <Plus data-icon="inline-start" />
+                      Create form
+                    </>
+                  )}
                 </Button>
               </DialogFooter>
             </form>
@@ -201,7 +202,7 @@ export function BusinessInquiryFormsManager({
       </div>
 
       {activeForms.length ? (
-        <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-2">
           {activeForms.map((form) => (
             <Card className="h-full border-border/80 bg-card/98" key={form.id}>
               <CardHeader className="gap-3">

@@ -149,6 +149,8 @@ export async function updateBusinessSettingsAction(
     revalidatePath(getBusinessSettingsPath(result.nextSlug, "general"));
     revalidatePath(getBusinessSettingsPath(result.previousSlug, "notifications"));
     revalidatePath(getBusinessSettingsPath(result.nextSlug, "notifications"));
+    revalidatePath(getBusinessSettingsPath(result.previousSlug, "security"));
+    revalidatePath(getBusinessSettingsPath(result.nextSlug, "security"));
     revalidatePath(getBusinessSettingsPath(result.previousSlug, "replies"));
     revalidatePath(getBusinessSettingsPath(result.nextSlug, "replies"));
     revalidatePath(getBusinessSettingsPath(result.previousSlug, "quote"));
@@ -266,6 +268,7 @@ export async function updateBusinessQuoteSettingsAction(
 
   const { user, businessContext } = ownerAccess;
   const validationResult = businessQuoteSettingsSchema.safeParse({
+    countryCode: formData.get("countryCode"),
     defaultQuoteNotes: formData.get("defaultQuoteNotes"),
     defaultQuoteValidityDays: formData.get("defaultQuoteValidityDays"),
     defaultCurrency: formData.get("defaultCurrency"),

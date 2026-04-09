@@ -22,6 +22,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getFieldError } from "@/lib/action-state";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Card,
   CardContent,
@@ -46,14 +47,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import type {
@@ -95,6 +88,10 @@ const aiToneOptions: BusinessAiTonePreference[] = [
   "direct",
   "formal",
 ];
+const aiToneComboboxOptions = aiToneOptions.map((value) => ({
+  label: formatBusinessAiToneLabel(value),
+  value,
+}));
 
 const cropAspectOptions = [
   { id: "original", label: "Original" },
@@ -401,25 +398,18 @@ export function BusinessSettingsForm({
                 <Field data-invalid={Boolean(aiToneError) || undefined}>
                   <FieldLabel htmlFor="settings-ai-tone">Tone preference</FieldLabel>
                   <FieldContent>
-                    <Select
+                    <Combobox
+                      aria-invalid={Boolean(aiToneError) || undefined}
+                      disabled={isPending}
+                      id="settings-ai-tone"
                       onValueChange={(value) =>
                         setAiTonePreference(value as BusinessAiTonePreference)
                       }
+                      options={aiToneComboboxOptions}
+                      placeholder="Choose a tone"
+                      searchPlaceholder="Search tone"
                       value={aiTonePreference}
-                    >
-                      <SelectTrigger className="w-full" id="settings-ai-tone">
-                        <SelectValue placeholder="Choose a tone" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          {aiToneOptions.map((option) => (
-                            <SelectItem key={option} value={option}>
-                              {formatBusinessAiToneLabel(option)}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
+                    />
                     <FieldError
                       errors={aiToneError ? [{ message: aiToneError }] : undefined}
                     />

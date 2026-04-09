@@ -3,6 +3,7 @@
 import {
   useActionState,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -13,6 +14,7 @@ import {
   CheckCircle2,
   ChevronDown,
   MoreHorizontal,
+  PencilLine,
   Plus,
   RefreshCcw,
   Trash2,
@@ -21,6 +23,7 @@ import {
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
@@ -51,14 +54,6 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   inquiryCustomFieldTypeMeta,
   inquiryContactFieldKeys,
   type InquiryContactFieldConfig,
@@ -72,7 +67,7 @@ import {
   getNormalizedInquiryFormConfig,
 } from "@/features/inquiries/form-config";
 import {
-  businessTypes,
+  businessTypeOptions,
   businessTypeMeta,
   type BusinessType,
 } from "@/features/inquiries/business-types";
@@ -136,6 +131,9 @@ export function BusinessInquiryFormForm({
   });
   const formRef = useRef<HTMLFormElement>(null);
   const projectFieldLabelInputRefs = useRef(new Map<string, HTMLInputElement | null>());
+  const projectFieldCardRefs = useRef(new Map<string, HTMLDivElement | null>());
+  const projectFieldRectsRef = useRef(new Map<string, DOMRect>());
+  const projectFieldAnimationsRef = useRef(new Map<string, Animation>());
   const projectFieldTimeoutsRef = useRef<number[]>([]);
   const [nameDraft, setNameDraft] = useState(settings.formName);
   const [slugDraft, setSlugDraft] = useState(settings.formSlug);
@@ -209,6 +207,11 @@ export function BusinessInquiryFormForm({
   useEffect(() => {
     queueMicrotask(() => {
       clearProjectFieldTimers(projectFieldTimeoutsRef);
+      projectFieldRectsRef.current = new Map();
+      for (const animation of projectFieldAnimationsRef.current.values()) {
+        animation.cancel();
+      }
+      projectFieldAnimationsRef.current.clear();
       setBusinessType(settings.businessType);
       setContactFields(normalizedSettingsConfig.contactFields);
       setProjectFields(normalizedSettingsConfig.projectFields);
@@ -230,6 +233,65 @@ export function BusinessInquiryFormForm({
     settings.formName,
     settings.formSlug,
   ]);
+
+  useLayoutEffect(() => {
+    const nextRects = new Map<string, DOMRect>();
+
+    for (const field of projectFields) {
+      const fieldId = getFieldId(field);
+      const node = projectFieldCardRefs.current.get(fieldId);
+
+      if (!node) {
+        continue;
+      }
+
+      const nextRect = node.getBoundingClientRect();
+      nextRects.set(fieldId, nextRect);
+
+      if (prefersReducedMotion) {
+        continue;
+      }
+
+      const previousRect = projectFieldRectsRef.current.get(fieldId);
+
+      if (!previousRect) {
+        continue;
+      }
+
+      const deltaX = previousRect.left - nextRect.left;
+      const deltaY = previousRect.top - nextRect.top;
+
+      if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) {
+        continue;
+      }
+
+      const currentAnimation = projectFieldAnimationsRef.current.get(fieldId);
+      currentAnimation?.cancel();
+
+      const animation = node.animate(
+        [
+          { transform: `translate(${deltaX}px, ${deltaY}px)` },
+          { transform: "translate(0px, 0px)" },
+        ],
+        {
+          duration: 220,
+          easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+        },
+      );
+
+      projectFieldAnimationsRef.current.set(fieldId, animation);
+
+      void animation.finished
+        .catch(() => undefined)
+        .then(() => {
+          if (projectFieldAnimationsRef.current.get(fieldId) === animation) {
+            projectFieldAnimationsRef.current.delete(fieldId);
+          }
+        });
+    }
+
+    projectFieldRectsRef.current = nextRects;
+  }, [prefersReducedMotion, projectFields]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -497,6 +559,7 @@ export function BusinessInquiryFormForm({
     const trimmed = projectGroupLabelDraft.trim();
 
     if (!trimmed) {
+      cancelProjectGroupLabelEdit();
       return;
     }
 
@@ -558,150 +621,124 @@ export function BusinessInquiryFormForm({
         <input name="businessType" type="hidden" value={businessType} />
         <input name="inquiryFormConfig" type="hidden" value={serializedConfig} />
 
-        <section className="space-y-5">
-          <div className="space-y-2">
-            <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-              Form setup
-            </h2>
-            <p className="text-sm leading-6 text-muted-foreground">
-              Name the form and choose the default starting preset.
-            </p>
-          </div>
-
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_20rem] xl:gap-7">
-            <div className="rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
-              <div className="space-y-2">
-                <p className="meta-label">Form details</p>
-                <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
-                  Public form identity
-                </p>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  Update the internal name and public URL slug.
-                </p>
-              </div>
-
-              <div className="mt-5 grid gap-5 lg:grid-cols-2">
-                <Field data-invalid={Boolean(nameError) || undefined}>
-                  <FieldLabel htmlFor="business-inquiry-form-name">
-                    Form name
-                  </FieldLabel>
-                  <FieldContent>
-                    <Input
-                      aria-invalid={Boolean(nameError) || undefined}
-                      defaultValue={settings.formName}
-                      disabled={isSavePending}
-                      id="business-inquiry-form-name"
-                      maxLength={80}
-                      minLength={2}
-                      name="name"
-                      onChange={(event) => {
-                        setNameDraft(event.currentTarget.value);
-                      }}
-                      required
-                    />
-                    <FieldError
-                      errors={nameError ? [{ message: nameError }] : undefined}
-                    />
-                  </FieldContent>
-                </Field>
-
-                <Field data-invalid={Boolean(slugError) || undefined}>
-                  <FieldLabel htmlFor="business-inquiry-form-slug">
-                    Form slug
-                  </FieldLabel>
-                  <FieldContent>
-                    <Input
-                      aria-invalid={Boolean(slugError) || undefined}
-                      defaultValue={settings.formSlug}
-                      disabled={isSavePending}
-                      id="business-inquiry-form-slug"
-                      maxLength={publicSlugMaxLength}
-                      minLength={2}
-                      name="slug"
-                      onChange={(event) => {
-                        setSlugDraft(event.currentTarget.value);
-                      }}
-                      pattern={publicSlugPattern}
-                      required
-                      spellCheck={false}
-                    />
-                    <FieldError
-                      errors={slugError ? [{ message: slugError }] : undefined}
-                    />
-                  </FieldContent>
-                </Field>
-              </div>
+        <div className="flex flex-col gap-8 sm:gap-10">
+          <section className="space-y-5">
+            <div className="space-y-2">
+              <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+                Form setup
+              </h2>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Name the form, update the public URL slug, and choose the business type.
+              </p>
             </div>
 
-            <div className="rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
-              <div className="space-y-2">
-                <p className="meta-label">Preset defaults</p>
-                <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
-                  Apply {businessTypeMeta[businessType].label} defaults
-                </p>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  This resets the inquiry form fields and page content.
-                </p>
-              </div>
-
-              <div className="mt-5 space-y-5">
-                <Field data-invalid={Boolean(businessTypeError) || undefined}>
-                  <FieldLabel htmlFor="business-inquiry-business-type">
-                    Business type
-                  </FieldLabel>
-                  <FieldContent>
-                    <Select
-                      onValueChange={(value) =>
-                        setBusinessType(value as BusinessType)
-                      }
-                      value={businessType}
-                    >
-                      <SelectTrigger
-                        className="w-full"
-                        id="business-inquiry-business-type"
-                      >
-                        <SelectValue placeholder="Choose a business type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          {businessTypes.map((value) => (
-                            <SelectItem key={value} value={value}>
-                              {businessTypeMeta[value].label}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                    <FieldError
-                      errors={
-                        businessTypeError
-                          ? [{ message: businessTypeError }]
-                          : undefined
-                      }
-                    />
-                  </FieldContent>
-                </Field>
-
-                <div className="rounded-2xl border border-border/70 bg-background/88 p-4">
-                  <p className="text-sm font-medium text-foreground">
-                    {businessTypeMeta[businessType].label}
+            <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.08fr)_20rem] xl:gap-7">
+              <div className="rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
+                <div className="space-y-2">
+                  <p className="meta-label">Form details</p>
+                  <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
+                    Public form identity
                   </p>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    {businessTypeMeta[businessType].description}
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    Update the internal name, public URL slug, and business type.
                   </p>
-
-                  <div className="mt-4 grid gap-2 border-t border-border/70 pt-4 text-sm">
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="text-foreground">Inquiry form fields</span>
-                      <span className="text-muted-foreground">Reset</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="text-foreground">Inquiry page content</span>
-                      <span className="text-muted-foreground">Reset</span>
-                    </div>
-                  </div>
                 </div>
 
+                <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                  <Field data-invalid={Boolean(nameError) || undefined}>
+                    <FieldLabel htmlFor="business-inquiry-form-name">
+                      Form name
+                    </FieldLabel>
+                    <FieldContent>
+                      <Input
+                        aria-invalid={Boolean(nameError) || undefined}
+                        defaultValue={settings.formName}
+                        disabled={isSavePending}
+                        id="business-inquiry-form-name"
+                        maxLength={80}
+                        minLength={2}
+                        name="name"
+                        onChange={(event) => {
+                          setNameDraft(event.currentTarget.value);
+                        }}
+                        required
+                      />
+                      <FieldError
+                        errors={nameError ? [{ message: nameError }] : undefined}
+                      />
+                    </FieldContent>
+                  </Field>
+
+                  <Field data-invalid={Boolean(slugError) || undefined}>
+                    <FieldLabel htmlFor="business-inquiry-form-slug">
+                      Form slug
+                    </FieldLabel>
+                    <FieldContent>
+                      <Input
+                        aria-invalid={Boolean(slugError) || undefined}
+                        defaultValue={settings.formSlug}
+                        disabled={isSavePending}
+                        id="business-inquiry-form-slug"
+                        maxLength={publicSlugMaxLength}
+                        minLength={2}
+                        name="slug"
+                        onChange={(event) => {
+                          setSlugDraft(event.currentTarget.value);
+                        }}
+                        pattern={publicSlugPattern}
+                        required
+                        spellCheck={false}
+                      />
+                      <FieldError
+                        errors={slugError ? [{ message: slugError }] : undefined}
+                      />
+                    </FieldContent>
+                  </Field>
+
+                  <Field
+                    className="lg:col-span-2"
+                    data-invalid={Boolean(businessTypeError) || undefined}
+                  >
+                    <FieldLabel htmlFor="business-inquiry-business-type">
+                      Business type
+                    </FieldLabel>
+                    <FieldContent>
+                      <Combobox
+                        aria-invalid={Boolean(businessTypeError) || undefined}
+                        disabled={isSavePending}
+                        id="business-inquiry-business-type"
+                        onValueChange={(value) =>
+                          setBusinessType(value as BusinessType)
+                        }
+                        options={businessTypeOptions}
+                        placeholder="Choose a business type"
+                        renderOption={(option) => (
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{option.label}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {option.description}
+                            </p>
+                          </div>
+                        )}
+                        searchPlaceholder="Search business type"
+                        value={businessType}
+                      />
+                      <p className="text-sm leading-6 text-muted-foreground">
+                        {businessTypeMeta[businessType].description}
+                      </p>
+                      <FieldError
+                        errors={
+                          businessTypeError
+                            ? [{ message: businessTypeError }]
+                            : undefined
+                        }
+                      />
+                    </FieldContent>
+                  </Field>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-border/75 bg-muted/20 p-4 sm:p-5">
                 <Button
                   className="w-full"
                   disabled={isPresetPending}
@@ -713,51 +750,52 @@ export function BusinessInquiryFormForm({
                 </Button>
               </div>
             </div>
-          </div>
 
-          {configError ? (
-            <FieldError errors={[{ message: configError }]} />
-          ) : null}
-        </section>
+            {configError ? (
+              <FieldError errors={[{ message: configError }]} />
+            ) : null}
+          </section>
 
-        <section className="space-y-4">
-          <div className="space-y-2">
-            <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-              {groupLabels.contact}
-            </h2>
-            <p className="text-sm leading-6 text-muted-foreground">
-              Edit the fields shown in Contact.
-            </p>
-          </div>
+          <section className="space-y-4">
+            <div className="space-y-2">
+              <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+                {groupLabels.contact}
+              </h2>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Edit the fields shown in Contact.
+              </p>
+            </div>
 
-          <InquiryFieldSection
-            countLabel={`${inquiryContactFieldKeys.length} fields`}
-            helperText="Name and email stay shown and required."
-            title="Contact fields"
-          >
-            {inquiryContactFieldKeys.map((contactKey, index) => (
-              <ContactFieldCard
-                contactKey={contactKey}
-                field={contactFields[contactKey]}
-                index={index}
-                isPending={isFieldInteractionLocked}
-                key={contactKey}
-                onChange={updateContactField}
-              />
-            ))}
-          </InquiryFieldSection>
-        </section>
+            <InquiryFieldSection
+              countLabel={`${inquiryContactFieldKeys.length} fields`}
+              helperText="Name and email stay shown and required."
+              title="Contact fields"
+            >
+              {inquiryContactFieldKeys.map((contactKey, index) => (
+                <ContactFieldCard
+                  contactKey={contactKey}
+                  field={contactFields[contactKey]}
+                  index={index}
+                  isPending={isFieldInteractionLocked}
+                  key={contactKey}
+                  onChange={updateContactField}
+                />
+              ))}
+            </InquiryFieldSection>
+          </section>
 
-        <section className="space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex flex-col gap-2">
-              {isEditingProjectGroupLabel ? (
-                <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <section className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex flex-col gap-2">
+                {isEditingProjectGroupLabel ? (
                   <Input
                     autoFocus
-                    className="h-9 w-full sm:w-64"
+                    className="h-auto w-full border-0 bg-transparent px-0 py-0 font-heading text-2xl leading-tight font-semibold tracking-tight text-foreground shadow-none md:text-2xl sm:w-auto sm:min-w-[16rem] focus-visible:border-0 focus-visible:bg-transparent focus-visible:ring-0"
                     maxLength={40}
-                    onChange={(event) => setProjectGroupLabelDraft(event.currentTarget.value)}
+                    onBlur={saveProjectGroupLabel}
+                    onChange={(event) =>
+                      setProjectGroupLabelDraft(event.currentTarget.value)
+                    }
                     onKeyDown={(event) => {
                       if (event.key === "Enter") {
                         event.preventDefault();
@@ -771,96 +809,101 @@ export function BusinessInquiryFormForm({
                     }}
                     value={projectGroupLabelDraft}
                   />
-                  <Button onClick={saveProjectGroupLabel} type="button" variant="outline">
-                    Save
-                  </Button>
-                  <Button onClick={cancelProjectGroupLabelEdit} type="button" variant="ghost">
-                    Cancel
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
-                  <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-                    {groupLabels.project}
-                  </h2>
-                  <Button
-                    onClick={startEditingProjectGroupLabel}
-                    type="button"
-                    variant="outline"
-                  >
-                    Edit
-                  </Button>
-                </div>
-              )}
-              <p className="text-sm leading-6 text-muted-foreground">
-                Manage the fields shown in {groupLabels.project}.
-              </p>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+                      {groupLabels.project}
+                    </h2>
+                    <Button
+                      aria-label={`Edit ${groupLabels.project}`}
+                      className="shrink-0"
+                      onClick={startEditingProjectGroupLabel}
+                      size="icon-xs"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <PencilLine />
+                    </Button>
+                  </div>
+                )}
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Manage the fields shown in {groupLabels.project}.
+                </p>
+              </div>
             </div>
-          </div>
 
-          <InquiryFieldSection
-            action={
-              <Button
-                className="w-full sm:w-auto"
-                disabled={isFieldInteractionLocked || hasReachedCustomFieldLimit}
-                onClick={addCustomField}
-                type="button"
-                variant="outline"
-              >
-                <Plus data-icon="inline-start" />
-                Add field
-              </Button>
-            }
-            countLabel={`${customProjectFieldCount}/${MAX_CUSTOM_PROJECT_FIELDS} custom`}
-            helperText="Service/category and details stay shown and required."
-            title="Field library"
-          >
-            {projectFields.map((field, index) => {
-              const fieldId = getFieldId(field);
+            <InquiryFieldSection
+              action={
+                <Button
+                  className="w-full sm:w-auto"
+                  disabled={isFieldInteractionLocked || hasReachedCustomFieldLimit}
+                  onClick={addCustomField}
+                  type="button"
+                  variant="outline"
+                >
+                  <Plus data-icon="inline-start" />
+                  Add field
+                </Button>
+              }
+              countLabel={`${customProjectFieldCount}/${MAX_CUSTOM_PROJECT_FIELDS} custom`}
+              helperText="Service/category and details stay shown and required."
+              title="Field library"
+            >
+              {projectFields.map((field, index) => {
+                const fieldId = getFieldId(field);
 
-              return (
-                <ProjectFieldCard
-                  field={field}
-                  index={index}
-                  inputRef={(node) => {
-                    if (node) {
-                      projectFieldLabelInputRefs.current.set(fieldId, node);
-                      return;
-                    }
+                return (
+                  <ProjectFieldCard
+                    cardRef={(node) => {
+                      if (node) {
+                        projectFieldCardRefs.current.set(fieldId, node);
+                        return;
+                      }
 
-                    projectFieldLabelInputRefs.current.delete(fieldId);
-                  }}
-                  isEntering={enteringProjectFieldIds.includes(fieldId)}
-                  isExiting={exitingProjectFieldIds.includes(fieldId)}
-                  isPending={isFieldInteractionLocked}
-                  key={fieldId}
-                  maxOptions={MAX_CUSTOM_FIELD_OPTIONS}
-                  onAddOption={addCustomFieldOption}
-                  onChangeCustomType={changeCustomFieldType}
-                  onMove={moveProjectField}
-                  onRemove={removeProjectField}
-                  onRemoveOption={removeCustomFieldOption}
-                  onUpdate={updateProjectField}
-                  onUpdateOption={updateCustomFieldOption}
-                  totalFields={projectFields.length}
-                />
-              );
-            })}
+                      projectFieldCardRefs.current.delete(fieldId);
+                    }}
+                    field={field}
+                    index={index}
+                    inputRef={(node) => {
+                      if (node) {
+                        projectFieldLabelInputRefs.current.set(fieldId, node);
+                        return;
+                      }
 
-            {hasReachedCustomFieldLimit ? (
-              <Alert>
-                <AlertTitle>Custom field limit reached</AlertTitle>
-                <AlertDescription>
-                  You can add up to {MAX_CUSTOM_PROJECT_FIELDS} custom fields.
-                </AlertDescription>
-              </Alert>
-            ) : activeProjectFields.length <= 2 ? (
-              <p className="text-xs leading-5 text-muted-foreground">
-                Add fields for location, quantity, or preferences.
-              </p>
-            ) : null}
-          </InquiryFieldSection>
-        </section>
+                      projectFieldLabelInputRefs.current.delete(fieldId);
+                    }}
+                    isEntering={enteringProjectFieldIds.includes(fieldId)}
+                    isExiting={exitingProjectFieldIds.includes(fieldId)}
+                    isPending={isFieldInteractionLocked}
+                    key={fieldId}
+                    maxOptions={MAX_CUSTOM_FIELD_OPTIONS}
+                    onAddOption={addCustomFieldOption}
+                    onChangeCustomType={changeCustomFieldType}
+                    onMove={moveProjectField}
+                    onRemove={removeProjectField}
+                    onRemoveOption={removeCustomFieldOption}
+                    onUpdate={updateProjectField}
+                    onUpdateOption={updateCustomFieldOption}
+                    totalFields={projectFields.length}
+                  />
+                );
+              })}
+
+              {hasReachedCustomFieldLimit ? (
+                <Alert>
+                  <AlertTitle>Custom field limit reached</AlertTitle>
+                  <AlertDescription>
+                    You can add up to {MAX_CUSTOM_PROJECT_FIELDS} custom fields.
+                  </AlertDescription>
+                </Alert>
+              ) : activeProjectFields.length <= 2 ? (
+                <p className="text-xs leading-5 text-muted-foreground">
+                  Add fields for location, quantity, or preferences.
+                </p>
+              ) : null}
+            </InquiryFieldSection>
+          </section>
+        </div>
 
         {shouldRenderFloatingActions ? (
           <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4">
@@ -955,7 +998,14 @@ export function BusinessInquiryFormForm({
                 onClick={() => setIsPresetDialogOpen(false)}
                 type="submit"
               >
-                {isPresetPending ? "Applying..." : "Apply defaults"}
+                {isPresetPending ? (
+                  <>
+                    <Spinner data-icon="inline-start" aria-hidden="true" />
+                    Applying...
+                  </>
+                ) : (
+                  "Apply defaults"
+                )}
               </Button>
             </form>
           </DialogFooter>
@@ -1000,6 +1050,7 @@ function InquiryFieldSection({
 }
 
 function InquiryFieldCardShell({
+  cardRef,
   children,
   description,
   index,
@@ -1009,6 +1060,7 @@ function InquiryFieldCardShell({
   meta,
   title,
 }: {
+  cardRef?: (node: HTMLDivElement | null) => void;
   children: ReactNode;
   description: string;
   index: number;
@@ -1020,6 +1072,7 @@ function InquiryFieldCardShell({
 }) {
   return (
     <div
+      ref={cardRef}
       className={cn(
         "soft-panel rounded-[1.2rem] border border-border/75 bg-background/95 px-3.5 py-3.5 shadow-none motion-reduce:animate-none sm:rounded-[1.35rem] sm:px-5 sm:py-4",
         isEntering &&
@@ -1137,6 +1190,7 @@ function ContactFieldCard({
 }
 
 function ProjectFieldCard({
+  cardRef,
   field,
   index,
   inputRef,
@@ -1153,6 +1207,7 @@ function ProjectFieldCard({
   onUpdateOption,
   totalFields,
 }: {
+  cardRef?: (node: HTMLDivElement | null) => void;
   field: InquiryFormFieldDefinition;
   index: number;
   inputRef: (node: HTMLInputElement | null) => void;
@@ -1185,6 +1240,7 @@ function ProjectFieldCard({
 
   return (
     <InquiryFieldCardShell
+      cardRef={cardRef}
       description={getProjectFieldStateLabel(field)}
       index={index}
       isEntering={isEntering}

@@ -2,6 +2,7 @@ import { getBusinessSettingsPath } from "@/features/businesses/routes";
 
 export type BusinessSettingsNavigationIcon =
   | "profile"
+  | "security"
   | "general"
   | "notifications"
   | "replies"
@@ -31,6 +32,11 @@ export function getBusinessSettingsNavigation(
           href: getBusinessSettingsPath(slug, "profile"),
           label: "Your profile",
           icon: "profile",
+        },
+        {
+          href: getBusinessSettingsPath(slug, "security"),
+          label: "Security",
+          icon: "security",
         },
       ],
     },

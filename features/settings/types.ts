@@ -20,6 +20,7 @@ export type BusinessSettingsView = {
   id: string;
   name: string;
   slug: string;
+  countryCode: string | null;
   shortDescription: string | null;
   contactEmail: string | null;
   logoStoragePath: string | null;
@@ -74,6 +75,7 @@ export type BusinessNotificationSettingsActionState = {
 };
 
 export type BusinessQuoteSettingsFieldName =
+  | "countryCode"
   | "defaultQuoteNotes"
   | "defaultQuoteValidityDays"
   | "defaultCurrency";

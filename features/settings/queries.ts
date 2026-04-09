@@ -35,6 +35,7 @@ export async function getBusinessSettingsForBusiness(
       id: businesses.id,
       name: businesses.name,
       slug: businesses.slug,
+      countryCode: businesses.countryCode,
       businessType: businesses.businessType,
       shortDescription: businesses.shortDescription,
       contactEmail: businesses.contactEmail,

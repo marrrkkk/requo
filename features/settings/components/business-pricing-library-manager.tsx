@@ -124,7 +124,6 @@ export function BusinessPricingLibraryManager({
                   <QuoteLibraryEntryCard
                     action={updateAction.bind(null, entry.id)}
                     animationDelayMs={Math.min(index * 45, 180)}
-                    currency={currency}
                     deleteAction={deleteAction.bind(null, entry.id)}
                     entry={entry}
                     key={entry.id}
@@ -164,7 +163,6 @@ export function BusinessPricingLibraryManager({
                   <QuoteLibraryEntryCard
                     action={updateAction.bind(null, entry.id)}
                     animationDelayMs={Math.min(index * 45, 180)}
-                    currency={currency}
                     deleteAction={deleteAction.bind(null, entry.id)}
                     entry={entry}
                     key={entry.id}

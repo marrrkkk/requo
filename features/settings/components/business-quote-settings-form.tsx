@@ -3,34 +3,34 @@
 import { useActionState, useEffect, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 
+import { CountryCombobox } from "@/components/shared/country-combobox";
 import {
   FloatingFormActions,
   useFloatingUnsavedChanges,
 } from "@/components/shared/floating-form-actions";
 import { FormSection } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Field,
   FieldContent,
+  FieldDescription,
   FieldError,
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import type {
   BusinessQuoteSettingsActionState,
   BusinessSettingsView,
 } from "@/features/settings/types";
-import { businessCurrencyOptions } from "@/features/settings/utils";
+import {
+  businessCurrencyOptions,
+  getBusinessCountryOption,
+  getBusinessCurrencyOption,
+  resolveCurrencyForCountry,
+} from "@/features/businesses/locale";
 
 type BusinessQuoteSettingsFormProps = {
   action: (
@@ -48,6 +48,7 @@ export function BusinessQuoteSettingsForm({
 }: BusinessQuoteSettingsFormProps) {
   const router = useProgressRouter();
   const [state, formAction, isPending] = useActionState(action, initialState);
+  const [countryCode, setCountryCode] = useState(settings.countryCode ?? "");
   const [defaultCurrency, setDefaultCurrency] = useState(settings.defaultCurrency);
   const [defaultQuoteValidityDays, setDefaultQuoteValidityDays] = useState(
     String(settings.defaultQuoteValidityDays),
@@ -56,6 +57,7 @@ export function BusinessQuoteSettingsForm({
     settings.defaultQuoteNotes ?? "",
   );
   const hasUnsavedChanges =
+    countryCode !== (settings.countryCode ?? "") ||
     defaultCurrency !== settings.defaultCurrency ||
     defaultQuoteValidityDays !== String(settings.defaultQuoteValidityDays) ||
     defaultQuoteNotes !== (settings.defaultQuoteNotes ?? "");
@@ -64,6 +66,8 @@ export function BusinessQuoteSettingsForm({
   const quoteNotesPreview = defaultQuoteNotes.trim()
     ? defaultQuoteNotes.trim().slice(0, 140)
     : "No default quote notes.";
+  const selectedCountry = getBusinessCountryOption(countryCode);
+  const selectedCurrency = getBusinessCurrencyOption(defaultCurrency);
 
   useEffect(() => {
     if (!state.success) {
@@ -74,6 +78,7 @@ export function BusinessQuoteSettingsForm({
   }, [router, state.success]);
 
   function handleCancelChanges() {
+    setCountryCode(settings.countryCode ?? "");
     setDefaultCurrency(settings.defaultCurrency);
     setDefaultQuoteValidityDays(String(settings.defaultQuoteValidityDays));
     setDefaultQuoteNotes(settings.defaultQuoteNotes ?? "");
@@ -96,6 +101,7 @@ export function BusinessQuoteSettingsForm({
         </Alert>
       ) : null}
 
+      <input name="countryCode" type="hidden" value={countryCode} />
       <input name="defaultCurrency" type="hidden" value={defaultCurrency} />
 
       <div className="grid gap-6 xl:grid-cols-[18rem_minmax(0,1fr)] xl:gap-7">
@@ -117,7 +123,14 @@ export function BusinessQuoteSettingsForm({
 
             <div className="rounded-3xl border border-border/75 bg-background/80 px-5 py-5">
               <div className="grid gap-4">
-                <QuoteSummaryRow label="Currency" value={defaultCurrency} />
+                <QuoteSummaryRow
+                  label="Country"
+                  value={selectedCountry?.code ?? "Not set"}
+                />
+                <QuoteSummaryRow
+                  label="Currency"
+                  value={selectedCurrency?.code ?? defaultCurrency}
+                />
                 <QuoteSummaryRow
                   label="Validity"
                   value={`${defaultQuoteValidityDays || "0"} days`}
@@ -145,7 +158,55 @@ export function BusinessQuoteSettingsForm({
               description="Base values for new quotes."
               title="Defaults"
             >
-              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_14rem]">
+              <Alert>
+                <AlertTitle>Currency changes apply to future work.</AlertTitle>
+                <AlertDescription>
+                  Existing quotes and saved pricing keep their stored currency.
+                  New quotes and new pricing entries use the default currency saved
+                  here.
+                </AlertDescription>
+              </Alert>
+
+              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                <Field
+                  data-invalid={Boolean(state.fieldErrors?.countryCode) || undefined}
+                >
+                  <FieldLabel htmlFor="quote-settings-country-code">
+                    Country
+                  </FieldLabel>
+                  <FieldContent>
+                    <CountryCombobox
+                      aria-invalid={Boolean(state.fieldErrors?.countryCode) || undefined}
+                      disabled={isPending}
+                      id="quote-settings-country-code"
+                      onValueChange={(value) => {
+                        setCountryCode(value);
+
+                        const nextCurrency = resolveCurrencyForCountry(value);
+
+                        if (nextCurrency) {
+                          setDefaultCurrency(nextCurrency);
+                        }
+                      }}
+                      placeholder="Choose a country"
+                      searchPlaceholder="Search country"
+                      value={countryCode}
+                    />
+                    <FieldDescription>
+                      {selectedCountry
+                        ? `Selecting ${selectedCountry.label} starts with ${selectedCountry.currencyCode}. You can still override the currency below.`
+                        : "Optional for older businesses. New businesses set this during onboarding."}
+                    </FieldDescription>
+                    <FieldError
+                      errors={
+                        state.fieldErrors?.countryCode?.[0]
+                          ? [{ message: state.fieldErrors.countryCode[0] }]
+                          : undefined
+                      }
+                    />
+                  </FieldContent>
+                </Field>
+
                 <Field
                   data-invalid={Boolean(state.fieldErrors?.defaultCurrency) || undefined}
                 >
@@ -153,27 +214,24 @@ export function BusinessQuoteSettingsForm({
                     Default currency
                   </FieldLabel>
                   <FieldContent>
-                    <Select
+                    <Combobox
+                      aria-invalid={Boolean(state.fieldErrors?.defaultCurrency) || undefined}
                       disabled={isPending}
+                      id="quote-settings-default-currency"
                       onValueChange={setDefaultCurrency}
+                      options={businessCurrencyOptions.map((currencyOption) => ({
+                        label: currencyOption.label,
+                        searchText: `${currencyOption.code} ${currencyOption.name}`,
+                        value: currencyOption.code,
+                      }))}
+                      placeholder="Choose a currency"
+                      searchPlaceholder="Search currency"
                       value={defaultCurrency}
-                    >
-                      <SelectTrigger
-                        className="w-full"
-                        id="quote-settings-default-currency"
-                      >
-                        <SelectValue placeholder="Choose a currency" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          {businessCurrencyOptions.map((currency) => (
-                            <SelectItem key={currency} value={currency}>
-                              {currency}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
+                    />
+                    <FieldDescription>
+                      New quotes and pricing entries created after this save use this
+                      currency.
+                    </FieldDescription>
                     <FieldError
                       errors={
                         state.fieldErrors?.defaultCurrency?.[0]

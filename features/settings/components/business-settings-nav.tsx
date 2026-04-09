@@ -6,6 +6,7 @@ import {
   FileText,
   MessageSquareText,
   Settings2,
+  Shield,
   Tags,
   User,
 } from "lucide-react";
@@ -18,22 +19,25 @@ import type {
 } from "@/features/settings/navigation";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Combobox,
+  type ComboboxOptionGroup,
+} from "@/components/ui/combobox";
 import { BusinessSettingsNavLink } from "./business-settings-nav-link";
 
 type BusinessSettingsNavProps = {
   groups: BusinessSettingsNavigationGroup[];
 };
 
+type SettingsNavComboboxOption = {
+  icon: BusinessSettingsNavigationIcon;
+  label: string;
+  searchText: string;
+  value: string;
+};
+
 const settingsNavigationIcons: Record<BusinessSettingsNavigationIcon, typeof User> = {
   profile: User,
+  security: Shield,
   general: Settings2,
   notifications: Bell,
   replies: MessageSquareText,
@@ -51,6 +55,15 @@ export function BusinessSettingsNav({ groups }: BusinessSettingsNavProps) {
   const router = useProgressRouter();
   const flatItems = groups.flatMap((group) => group.items);
   const activeItem = flatItems.find((item) => isActiveSettingsItem(pathname, item.href));
+  const comboboxGroups: ComboboxOptionGroup<SettingsNavComboboxOption>[] = groups.map((group) => ({
+    heading: group.label,
+    options: group.items.map((item) => ({
+      icon: item.icon,
+      label: item.label,
+      searchText: `${group.label} ${item.label}`,
+      value: item.href,
+    })),
+  }));
 
   useEffect(() => {
     for (const item of flatItems) {
@@ -70,7 +83,9 @@ export function BusinessSettingsNav({ groups }: BusinessSettingsNavProps) {
             Settings section
           </p>
 
-          <Select
+          <Combobox
+            groups={comboboxGroups}
+            id="settings-section"
             onValueChange={(value) => {
               if (isActiveSettingsItem(pathname, value)) {
                 return;
@@ -78,31 +93,30 @@ export function BusinessSettingsNav({ groups }: BusinessSettingsNavProps) {
 
               router.push(value);
             }}
-            value={activeItem?.href}
-          >
-            <SelectTrigger aria-label="Select a settings section" className="w-full">
-              <SelectValue placeholder="Choose a settings section" />
-            </SelectTrigger>
-            <SelectContent align="start" position="popper">
-              {groups.map((group) => (
-                <SelectGroup key={group.label}>
-                  <SelectLabel>{group.label}</SelectLabel>
-                  {group.items.map((item) => {
-                    const Icon = settingsNavigationIcons[item.icon];
+            placeholder="Choose a settings section"
+            renderOption={(option) => {
+              const Icon = settingsNavigationIcons[option.icon];
 
-                    return (
-                      <SelectItem key={item.href} value={item.href}>
-                        <span className="flex items-center gap-2">
-                          <Icon className="size-4 text-muted-foreground" />
-                          <span>{item.label}</span>
-                        </span>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectGroup>
-              ))}
-            </SelectContent>
-          </Select>
+              return (
+                <span className="flex items-center gap-2">
+                  <Icon className="size-4 text-muted-foreground" />
+                  <span>{option.label}</span>
+                </span>
+              );
+            }}
+            renderValue={(option) => {
+              const Icon = settingsNavigationIcons[option.icon];
+
+              return (
+                <span className="flex min-w-0 items-center gap-2 text-left">
+                  <Icon className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{option.label}</span>
+                </span>
+              );
+            }}
+            searchPlaceholder="Search settings section"
+            value={activeItem?.href ?? ""}
+          />
         </div>
       </div>
 

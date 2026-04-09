@@ -10,14 +10,7 @@ import {
 
 import { DashboardSidebarStack } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import { cn } from "@/lib/utils";
 
@@ -134,32 +127,41 @@ export function BusinessInquiryFormEditorTabs({
               Form section
             </p>
 
-            <Select
+            <Combobox
+              id="form-editor-section"
               onValueChange={(value) =>
                 handleSectionChange(value as BusinessInquiryFormEditorSection)
               }
-              value={activeSection}
-            >
-              <SelectTrigger aria-label="Select a form editor section" className="w-full">
-                <SelectValue placeholder="Choose a form editor section" />
-              </SelectTrigger>
-              <SelectContent align="start" position="popper">
-                <SelectGroup>
-                  {editorSections.map((section) => {
-                    const Icon = section.icon;
+              options={editorSections.map((section) => ({
+                icon: section.icon,
+                label: section.label,
+                searchText: section.label,
+                value: section.id,
+              }))}
+              placeholder="Choose a form editor section"
+              renderOption={(option) => {
+                const Icon = option.icon;
 
-                    return (
-                      <SelectItem key={section.id} value={section.id}>
-                        <span className="flex items-center gap-2">
-                          <Icon className="size-4 text-muted-foreground" />
-                          <span>{section.label}</span>
-                        </span>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+                return (
+                  <span className="flex items-center gap-2">
+                    <Icon className="size-4 text-muted-foreground" />
+                    <span>{option.label}</span>
+                  </span>
+                );
+              }}
+              renderValue={(option) => {
+                const Icon = option.icon;
+
+                return (
+                  <span className="flex min-w-0 items-center gap-2 text-left">
+                    <Icon className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{option.label}</span>
+                  </span>
+                );
+              }}
+              searchPlaceholder="Search form section"
+              value={activeSection}
+            />
           </div>
         </div>
 
@@ -175,7 +177,7 @@ export function BusinessInquiryFormEditorTabs({
                   className={cn(
                     "group flex items-center gap-3 rounded-xl border px-3 py-3 text-left text-[0.94rem] font-medium tracking-tight transition-[border-color,background-color,color,box-shadow]",
                     isActive
-                      ? "border-border/75 bg-accent/35 text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                      ? "border-border/75 bg-accent/35 text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
                       : "border-transparent text-muted-foreground hover:border-border/55 hover:bg-accent/16 hover:text-foreground",
                   )}
                   key={section.id}
@@ -186,7 +188,7 @@ export function BusinessInquiryFormEditorTabs({
                     className={cn(
                       "flex size-8 shrink-0 items-center justify-center rounded-md text-current transition-colors",
                       isActive
-                        ? "text-foreground"
+                        ? "text-primary"
                         : "text-muted-foreground group-hover:text-foreground",
                     )}
                   >
