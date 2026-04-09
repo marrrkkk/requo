@@ -66,6 +66,7 @@ export const businesses = pgTable(
       .$type<BusinessType>()
       .notNull()
       .default("general_project_services"),
+    countryCode: text("country_code"),
     shortDescription: text("short_description"),
     contactEmail: text("contact_email"),
     logoStoragePath: text("logo_storage_path"),
@@ -109,6 +110,10 @@ export const businesses = pgTable(
     uniqueIndex("businesses_slug_unique").on(table.slug),
     index("businesses_created_at_idx").on(table.createdAt),
     check("businesses_slug_format", sql`${table.slug} ~ '^[a-z0-9-]+$'`),
+    check(
+      "businesses_country_code_format",
+      sql`${table.countryCode} is null or ${table.countryCode} ~ '^[A-Z]{2}$'`,
+    ),
     check(
       "businesses_default_quote_validity_days_range",
       sql`${table.defaultQuoteValidityDays} between 1 and 365`,
