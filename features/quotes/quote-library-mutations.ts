@@ -47,12 +47,14 @@ async function insertQuoteLibraryActivity(
 type CreateQuoteLibraryEntryForBusinessInput = {
   businessId: string;
   actorUserId: string;
+  currency: string;
   entry: QuoteLibraryEntryInput;
 };
 
 export async function createQuoteLibraryEntryForBusiness({
   businessId,
   actorUserId,
+  currency,
   entry,
 }: CreateQuoteLibraryEntryForBusinessInput) {
   const entryId = createId("qlib");
@@ -63,6 +65,7 @@ export async function createQuoteLibraryEntryForBusiness({
       id: entryId,
       businessId,
       kind: entry.kind,
+      currency,
       name: entry.name,
       description: entry.description ?? null,
       createdAt: now,
@@ -121,6 +124,7 @@ export async function updateQuoteLibraryEntryForBusiness({
     const [existingEntry] = await tx
       .select({
         id: quoteLibraryEntries.id,
+        currency: quoteLibraryEntries.currency,
       })
       .from(quoteLibraryEntries)
       .where(
@@ -181,6 +185,7 @@ export async function updateQuoteLibraryEntryForBusiness({
       metadata: {
         quoteLibraryEntryId: entryId,
         kind: entry.kind,
+        currency: existingEntry.currency,
         itemCount: entry.items.length,
       },
       now,

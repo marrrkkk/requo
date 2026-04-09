@@ -19,6 +19,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { QuoteLibrarySheet } from "@/features/quotes/components/quote-library-sheet";
@@ -120,6 +121,10 @@ export function QuoteEditor({
   }
 
   function insertPricingEntry(entry: DashboardQuoteLibraryEntry) {
+    if (entry.currency !== currency) {
+      return;
+    }
+
     const copiedItems = entry.items.map((item) =>
       createQuoteEditorLineItemFromLibraryItem(item),
     );
@@ -512,7 +517,14 @@ export function QuoteEditor({
           footer={
             <>
               <Button disabled={isPending} size="lg" type="submit">
-                {isPending ? submitPendingLabel : submitLabel}
+                {isPending ? (
+                  <>
+                    <Spinner data-icon="inline-start" aria-hidden="true" />
+                    {submitPendingLabel}
+                  </>
+                ) : (
+                  submitLabel
+                )}
               </Button>
             </>
           }

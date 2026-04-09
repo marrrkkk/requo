@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { FormActions } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Field,
@@ -13,14 +14,6 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type {
   QuotePostAcceptanceActionState,
   QuotePostAcceptanceStatus,
@@ -36,6 +29,12 @@ type QuotePostAcceptanceFormProps = {
 };
 
 const initialState: QuotePostAcceptanceActionState = {};
+const quotePostAcceptanceOptions = (
+  ["none", "booked", "scheduled"] as const
+).map((value) => ({
+  label: getQuotePostAcceptanceStatusLabel(value),
+  value,
+}));
 
 export function QuotePostAcceptanceForm({
   action,
@@ -77,27 +76,20 @@ export function QuotePostAcceptanceForm({
             Move accepted work forward
           </FieldLabel>
           <FieldContent>
-            <Select
+            <Combobox
+              aria-invalid={
+                Boolean(state.fieldErrors?.postAcceptanceStatus) || undefined
+              }
+              disabled={isPending}
+              id="quote-post-acceptance-status"
               value={selectedStatus}
               onValueChange={(value) =>
                 setSelectedStatus(value as QuotePostAcceptanceStatus)
               }
-            >
-              <SelectTrigger className="w-full" id="quote-post-acceptance-status">
-                <SelectValue placeholder="Choose a post-acceptance status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {(
-                    ["none", "booked", "scheduled"] as const
-                  ).map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {getQuotePostAcceptanceStatusLabel(status)}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+              options={quotePostAcceptanceOptions}
+              placeholder="Choose a post-acceptance status"
+              searchPlaceholder="Search status"
+            />
             <FieldError
               errors={
                 state.fieldErrors?.postAcceptanceStatus?.[0]

@@ -67,6 +67,7 @@ export type DashboardQuoteLibraryItem = {
 
 export type DashboardQuoteLibraryEntry = {
   id: string;
+  currency: string;
   kind: QuoteLibraryEntryKind;
   name: string;
   description: string | null;

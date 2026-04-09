@@ -77,6 +77,7 @@ export function QuoteLibrarySheet({
 
     const haystack = [
       entry.name,
+      entry.currency,
       entry.description ?? "",
       ...entry.items.map((item) => item.description),
     ]
@@ -151,6 +152,7 @@ export function QuoteLibrarySheet({
               {filteredEntries.map((entry) => {
                 const nextItemCount = baseItemCount + entry.items.length;
                 const wouldExceedLimit = nextItemCount > 50;
+                const hasCurrencyMismatch = entry.currency !== currency;
 
                 return (
                   <div
@@ -170,6 +172,7 @@ export function QuoteLibrarySheet({
                           <DashboardMetaPill>
                             {entry.itemCount} {entry.itemCount === 1 ? "item" : "items"}
                           </DashboardMetaPill>
+                          <DashboardMetaPill>{entry.currency}</DashboardMetaPill>
                         </div>
                         {entry.description ? (
                           <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -178,7 +181,7 @@ export function QuoteLibrarySheet({
                         ) : null}
                       </div>
                       <p className="shrink-0 text-sm font-semibold text-foreground">
-                        {formatQuoteMoney(entry.totalInCents, currency)}
+                        {formatQuoteMoney(entry.totalInCents, entry.currency)}
                       </p>
                     </div>
 
@@ -193,11 +196,18 @@ export function QuoteLibrarySheet({
                               {item.description}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Qty {item.quantity} x {formatQuoteMoney(item.unitPriceInCents, currency)}
+                              Qty {item.quantity} x{" "}
+                              {formatQuoteMoney(
+                                item.unitPriceInCents,
+                                entry.currency,
+                              )}
                             </p>
                           </div>
                           <p className="text-sm font-medium text-foreground">
-                            {formatQuoteMoney(item.quantity * item.unitPriceInCents, currency)}
+                            {formatQuoteMoney(
+                              item.quantity * item.unitPriceInCents,
+                              entry.currency,
+                            )}
                           </p>
                         </div>
                       ))}
@@ -214,11 +224,19 @@ export function QuoteLibrarySheet({
                       </p>
                     ) : null}
 
+                    {hasCurrencyMismatch ? (
+                      <p className="text-sm text-destructive">
+                        This entry is saved in {entry.currency}. Requo does not
+                        auto-convert saved pricing before inserting it into a {currency}
+                        quote.
+                      </p>
+                    ) : null}
+
                     <div className="flex justify-end">
                       <Button
                         type="button"
                         variant="outline"
-                        disabled={wouldExceedLimit}
+                        disabled={wouldExceedLimit || hasCurrencyMismatch}
                         onClick={() => onInsert(entry)}
                       >
                         Insert into quote

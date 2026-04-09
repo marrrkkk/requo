@@ -77,6 +77,7 @@ export async function createQuoteLibraryEntryAction(
     await createQuoteLibraryEntryForBusiness({
       businessId: businessContext.business.id,
       actorUserId: user.id,
+      currency: businessContext.business.defaultCurrency,
       entry: validationResult.data,
     });
 

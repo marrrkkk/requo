@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { FormActions } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Field,
@@ -13,14 +14,6 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type {
   QuoteStatus,
   QuoteStatusActionState,
@@ -36,6 +29,18 @@ type QuoteStatusFormProps = {
 };
 
 const initialState: QuoteStatusActionState = {};
+const quoteStatusOptions = (
+  [
+    "draft",
+    "sent",
+    "accepted",
+    "rejected",
+    "expired",
+  ] as const
+).map((value) => ({
+  label: getQuoteStatusLabel(value),
+  value,
+}));
 
 export function QuoteStatusForm({
   action,
@@ -66,31 +71,16 @@ export function QuoteStatusForm({
         <Field data-invalid={Boolean(state.fieldErrors?.status) || undefined}>
           <FieldLabel htmlFor="quote-status">Change status</FieldLabel>
           <FieldContent>
-            <Select
+            <Combobox
+              aria-invalid={Boolean(state.fieldErrors?.status) || undefined}
+              disabled={isPending}
+              id="quote-status"
               value={selectedStatus}
               onValueChange={(value) => setSelectedStatus(value as QuoteStatus)}
-            >
-              <SelectTrigger className="w-full" id="quote-status">
-                <SelectValue placeholder="Choose a status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {(
-                    [
-                      "draft",
-                      "sent",
-                      "accepted",
-                      "rejected",
-                      "expired",
-                    ] as const
-                  ).map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {getQuoteStatusLabel(status)}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+              options={quoteStatusOptions}
+              placeholder="Choose a status"
+              searchPlaceholder="Search status"
+            />
             <FieldError
               errors={
                 state.fieldErrors?.status?.[0]

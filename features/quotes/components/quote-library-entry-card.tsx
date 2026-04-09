@@ -32,7 +32,6 @@ type QuoteLibraryEntryCardProps = {
     state: QuoteLibraryActionState,
     formData: FormData,
   ) => Promise<QuoteLibraryActionState>;
-  currency: string;
   deleteAction: (
     state: QuoteLibraryDeleteActionState,
     formData: FormData,
@@ -46,7 +45,6 @@ const EDITOR_TRANSITION_DURATION_MS = 220;
 export function QuoteLibraryEntryCard({
   action,
   animationDelayMs,
-  currency,
   deleteAction,
   entry,
 }: QuoteLibraryEntryCardProps) {
@@ -164,9 +162,12 @@ export function QuoteLibraryEntryCard({
 
         <div className="soft-panel p-4 shadow-none">
           <div className="flex items-center justify-between gap-4">
-            <p className="text-sm font-medium text-foreground">Saved items</p>
+            <div>
+              <p className="text-sm font-medium text-foreground">Saved items</p>
+              <p className="text-xs text-muted-foreground">{entry.currency}</p>
+            </div>
             <p className="text-sm font-semibold text-foreground">
-              {formatQuoteMoney(entry.totalInCents, currency)}
+              {formatQuoteMoney(entry.totalInCents, entry.currency)}
             </p>
           </div>
           <div className="mt-4 flex flex-col gap-3">
@@ -180,11 +181,15 @@ export function QuoteLibraryEntryCard({
                     {item.description}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Qty {item.quantity} x {formatQuoteMoney(item.unitPriceInCents, currency)}
+                    Qty {item.quantity} x{" "}
+                    {formatQuoteMoney(item.unitPriceInCents, entry.currency)}
                   </p>
                 </div>
                 <p className="shrink-0 text-sm font-medium text-foreground">
-                  {formatQuoteMoney(item.quantity * item.unitPriceInCents, currency)}
+                  {formatQuoteMoney(
+                    item.quantity * item.unitPriceInCents,
+                    entry.currency,
+                  )}
                 </p>
               </div>
             ))}
@@ -197,7 +202,7 @@ export function QuoteLibraryEntryCard({
               <div className="motion-card-enter pt-1">
                 <QuoteLibraryEntryForm
                   action={action}
-                  currency={currency}
+                  currency={entry.currency}
                   initialValues={{
                     kind: entry.kind,
                     name: entry.name,
