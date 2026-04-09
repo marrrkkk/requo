@@ -1,0 +1,73 @@
+import { z } from "zod";
+
+import { getQuoteDocumentData } from "@/features/quotes/documents";
+import { getQuotePdfFileName } from "@/features/quotes/pdf";
+import { getQuoteDetailForBusiness } from "@/features/quotes/queries";
+import { getBusinessQuotePrintPath } from "@/features/businesses/routes";
+import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
+import { buildContentDisposition } from "@/lib/files";
+import { renderHtmlPageToPdf } from "@/lib/pdf/html-to-pdf";
+
+const routeParamsSchema = z.object({
+  slug: z.string().trim().min(1).max(120),
+  id: z.string().trim().min(1).max(128),
+});
+
+export async function GET(
+  request: Request,
+  context: { params: Promise<{ slug: string; id: string }> },
+) {
+  const parsedParams = routeParamsSchema.safeParse(await context.params);
+
+  if (!parsedParams.success) {
+    return Response.json({ error: "Not found." }, { status: 404 });
+  }
+
+  const requestContext = await getBusinessRequestContextForSlug(
+    parsedParams.data.slug,
+  );
+
+  if (!requestContext) {
+    return Response.json({ error: "Not found." }, { status: 404 });
+  }
+
+  const quote = await getQuoteDetailForBusiness({
+    businessId: requestContext.businessContext.business.id,
+    quoteId: parsedParams.data.id,
+  });
+
+  if (!quote) {
+    return Response.json({ error: "Not found." }, { status: 404 });
+  }
+
+  const printUrl = new URL(
+    `${getBusinessQuotePrintPath(parsedParams.data.slug, quote.id)}?autoprint=0`,
+    request.url,
+  ).toString();
+  const documentData = getQuoteDocumentData({
+    businessName: requestContext.businessContext.business.name,
+    quote,
+  });
+  const pdf = await renderHtmlPageToPdf({
+    url: printUrl,
+    cookieHeader: request.headers.get("cookie"),
+  });
+
+  const pdfBody = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(pdf);
+      controller.close();
+    },
+  });
+
+  return new Response(pdfBody, {
+    headers: {
+      "cache-control": "private, no-store",
+      "content-disposition": buildContentDisposition(
+        getQuotePdfFileName(documentData),
+      ),
+      "content-type": "application/pdf",
+      "x-content-type-options": "nosniff",
+    },
+  });
+}
