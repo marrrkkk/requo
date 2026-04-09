@@ -4,6 +4,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { cache } from "react";
 
+import type { BusinessType } from "@/features/inquiries/business-types";
 import { getSession, requireUser, type AuthUser } from "@/lib/auth/session";
 import { activeBusinessSlugCookieName } from "@/features/businesses/routes";
 import { db } from "@/lib/db/client";
@@ -21,6 +22,7 @@ export type BusinessContext = {
     id: string;
     name: string;
     slug: string;
+    businessType: BusinessType;
     logoStoragePath: string | null;
     defaultCurrency: string;
     publicInquiryEnabled: boolean;
@@ -69,6 +71,7 @@ export const getBusinessMembershipsForUser = cache(async (userId: string) => {
       businessId: businesses.id,
       businessName: businesses.name,
       businessSlug: businesses.slug,
+      businessType: businesses.businessType,
       businessLogoStoragePath: businesses.logoStoragePath,
       defaultCurrency: businesses.defaultCurrency,
       publicInquiryEnabled: publicInquiryEnabledSelection,
@@ -89,6 +92,7 @@ export const getBusinessMembershipsForUser = cache(async (userId: string) => {
       id: membership.businessId,
       name: membership.businessName,
       slug: membership.businessSlug,
+      businessType: membership.businessType,
       logoStoragePath: membership.businessLogoStoragePath,
       defaultCurrency: membership.defaultCurrency,
       publicInquiryEnabled: membership.publicInquiryEnabled,
@@ -116,6 +120,7 @@ export const getBusinessContextForMembershipSlug = cache(async (
       businessId: businesses.id,
       businessName: businesses.name,
       businessSlug: businesses.slug,
+      businessType: businesses.businessType,
       businessLogoStoragePath: businesses.logoStoragePath,
       defaultCurrency: businesses.defaultCurrency,
       publicInquiryEnabled: publicInquiryEnabledSelection,
@@ -141,6 +146,7 @@ export const getBusinessContextForMembershipSlug = cache(async (
       id: context.businessId,
       name: context.businessName,
       slug: context.businessSlug,
+      businessType: context.businessType,
       logoStoragePath: context.businessLogoStoragePath,
       defaultCurrency: context.defaultCurrency,
       publicInquiryEnabled: context.publicInquiryEnabled,

@@ -2,6 +2,7 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 
+import { cleanupAccountOwnedAssets } from "@/features/account/mutations";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { db } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
@@ -91,6 +92,14 @@ export const auth = betterAuth({
   account: {
     accountLinking: {
       trustedProviders: ["google", "microsoft"],
+    },
+  },
+  user: {
+    deleteUser: {
+      enabled: true,
+      beforeDelete: async (deletedUser) => {
+        await cleanupAccountOwnedAssets(deletedUser.id);
+      },
     },
   },
   session: {
