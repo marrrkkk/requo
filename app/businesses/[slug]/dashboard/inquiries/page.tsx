@@ -10,7 +10,7 @@ import {
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { InquiryListFilters as InquiryListToolbar } from "@/features/inquiries/components/inquiry-list-filters";
-import { InquiryExportCsvPopover } from "@/features/inquiries/components/inquiry-export-csv-popover";
+import { InquiryExportCsvDropdown } from "@/features/inquiries/components/inquiry-export-csv-dropdown";
 import { InquiryListResults } from "@/features/inquiries/components/inquiry-list-results";
 import { inquiryListFiltersSchema } from "@/features/inquiries/schemas";
 import {
@@ -133,7 +133,7 @@ export default async function InquiriesPage({
         eyebrow="Requests"
         title="Customer requests"
         actions={
-          <InquiryExportCsvPopover
+          <InquiryExportCsvDropdown
             businessSlug={businessSlug}
             filters={filters}
             formOptions={[

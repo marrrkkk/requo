@@ -61,7 +61,7 @@ export default async function BusinessesPage() {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <AppearanceMenu userId={session.user.id} />
+              <AppearanceMenu iconOnly userId={session.user.id} />
               <LogoutButton variant="outline" />
             </div>
           </header>
