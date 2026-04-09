@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, ReceiptText } from "lucide-react";
+import { ReceiptText } from "lucide-react";
 import { Suspense } from "react";
 
 import { DashboardListResultsSkeleton } from "@/components/shared/dashboard-list-results-skeleton";
