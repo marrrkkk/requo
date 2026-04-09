@@ -141,6 +141,13 @@
       "when": 1775692800000,
       "tag": "0019_business_type_overhaul",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1775746800000,
+      "tag": "0020_business_country_and_pricing_currency",
+      "breakpoints": true
     }
   ]
 }
