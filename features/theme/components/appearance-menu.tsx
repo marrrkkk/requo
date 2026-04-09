@@ -51,9 +51,8 @@ export function AppearanceMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button className={className} type="button" variant="outline">
-          <MonitorCog data-icon="inline-start" />
-          Appearance
+        <Button className={className} type="button" variant="outline" size="icon-sm">
+          <MonitorCog />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align={align} className="w-52 rounded-xl">

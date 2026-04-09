@@ -743,13 +743,13 @@ function MarketingSignedInHeaderActions() {
     <>
       <Button asChild className="hidden sm:inline-flex lg:hidden" size="sm">
         <Link href={businessesHubPath}>
-          Dashboard
+          Visit app
           <ArrowRight data-icon="inline-end" />
         </Link>
       </Button>
       <Button asChild className="hidden lg:inline-flex">
         <Link href={businessesHubPath}>
-          Dashboard
+          Visit app
           <ArrowRight data-icon="inline-end" />
         </Link>
       </Button>
