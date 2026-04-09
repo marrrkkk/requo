@@ -27,14 +27,15 @@ export default async function BusinessGeneralSettingsPage() {
     <>
       <PageHeader
         eyebrow="Business"
-        title="General"
-        description="Brand, contact, writing defaults, and notifications."
+        title="Business profile"
+        description="Business details, branding, and regional defaults."
       />
 
       <BusinessSettingsForm
         action={updateBusinessSettingsAction}
         deleteAction={deleteBusinessAction}
         fallbackContactEmail={user.email}
+        key={`business-settings-${settings.updatedAt.getTime()}`}
         logoPreviewUrl={logoPreviewUrl}
         settings={settings}
       />

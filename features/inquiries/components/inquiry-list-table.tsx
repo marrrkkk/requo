@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { DashboardTableContainer } from "@/components/shared/dashboard-layout";
+import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import {
   Table,
   TableBody,
@@ -10,9 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import type { DashboardInquiryListItem } from "@/features/inquiries/types";
 import {
-  formatInquiryBudget,
   formatInquiryDate,
 } from "@/features/inquiries/utils";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
@@ -29,54 +30,80 @@ export function InquiryListTable({
 }: InquiryListTableProps) {
   return (
     <DashboardTableContainer>
-      <Table className="min-w-[46rem]">
-        <TableCaption className="sr-only">Newest inquiries appear first.</TableCaption>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Customer</TableHead>
-            <TableHead>Form</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>Budget</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {inquiries.map((inquiry) => (
-            <TableRow key={inquiry.id}>
-              <TableCell className="max-w-[20rem]">
-                <div className="table-meta-stack max-w-full">
-                  <Link
-                    className="table-link"
-                    href={getBusinessInquiryPath(businessSlug, inquiry.id)}
-                    prefetch={true}
-                  >
-                    {inquiry.customerName}
-                  </Link>
-                  <span className="table-supporting-text">
-                    {inquiry.customerEmail}
-                  </span>
-                </div>
-              </TableCell>
-              <TableCell className="max-w-[16rem]">
-                <p className="table-emphasis">{inquiry.inquiryFormName}</p>
-              </TableCell>
-              <TableCell className="max-w-[16rem]">
-                <p className="table-emphasis">{inquiry.serviceCategory}</p>
-              </TableCell>
-              <TableCell className="text-sm text-muted-foreground">
-                {formatInquiryBudget(inquiry.budgetText)}
-              </TableCell>
-              <TableCell className="text-sm text-muted-foreground">
-                {formatInquiryDate(inquiry.submittedAt)}
-              </TableCell>
-              <TableCell className="w-[8.75rem]">
-                <InquiryStatusBadge status={inquiry.status} />
-              </TableCell>
+      <TooltipProvider delayDuration={120}>
+        <Table className="min-w-[57rem] table-fixed">
+          <TableCaption className="sr-only">Newest inquiries appear first.</TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[17rem]">Customer</TableHead>
+              <TableHead className="w-[13rem]">Form</TableHead>
+              <TableHead className="w-[13rem]">Category</TableHead>
+              <TableHead className="w-[8rem]">Created</TableHead>
+              <TableHead className="w-[8.75rem]">Status</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {inquiries.map((inquiry) => {
+              const inquiryHref = getBusinessInquiryPath(businessSlug, inquiry.id);
+
+              return (
+                <TableRow className="group/row" key={inquiry.id}>
+                  <TableCell className="w-[17rem]">
+                    <div className="table-meta-stack max-w-full">
+                      <TruncatedTextWithTooltip
+                        className="table-link"
+                        href={inquiryHref}
+                        prefetch={true}
+                        text={inquiry.customerName}
+                      />
+                      <TruncatedTextWithTooltip
+                        className="table-supporting-text"
+                        href={inquiryHref}
+                        prefetch={true}
+                        text={inquiry.customerEmail}
+                      />
+                    </div>
+                  </TableCell>
+                  <TableCell className="w-[13rem]">
+                    <TruncatedTextWithTooltip
+                      className="table-emphasis"
+                      href={inquiryHref}
+                      prefetch={true}
+                      text={inquiry.inquiryFormName}
+                    />
+                  </TableCell>
+                  <TableCell className="w-[13rem]">
+                    <TruncatedTextWithTooltip
+                      className="table-emphasis"
+                      href={inquiryHref}
+                      prefetch={true}
+                      text={inquiry.serviceCategory}
+                    />
+                  </TableCell>
+                  <TableCell className="w-[8rem]">
+                    <Link
+                      className="block text-sm text-muted-foreground transition-colors hover:text-primary group-hover/row:text-primary"
+                      href={inquiryHref}
+                      prefetch={true}
+                    >
+                      {formatInquiryDate(inquiry.submittedAt)}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="w-[8.75rem]">
+                    <Link
+                      className="inline-flex max-w-full"
+                      href={inquiryHref}
+                      prefetch={true}
+                    >
+                      <InquiryStatusBadge status={inquiry.status} />
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TooltipProvider>
     </DashboardTableContainer>
   );
 }

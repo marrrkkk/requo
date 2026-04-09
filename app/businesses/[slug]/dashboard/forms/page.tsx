@@ -1,7 +1,5 @@
-import { FormInput, LayoutTemplate } from "lucide-react";
 import { notFound } from "next/navigation";
 
-import { DashboardMetaPill } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { createBusinessInquiryFormAction } from "@/features/settings/actions";
 import { BusinessInquiryFormsManager } from "@/features/settings/components/business-inquiry-forms-manager";
@@ -18,26 +16,11 @@ export default async function BusinessFormsPage() {
     notFound();
   }
 
-  const activeForms = settings.forms.filter((form) => !form.archivedAt);
-
   return (
     <>
       <PageHeader
-        eyebrow="Forms"
         title="Forms"
         description="Manage inquiry forms, public URLs, and live intake defaults."
-        actions={
-          <>
-            <DashboardMetaPill>
-              <FormInput className="size-3.5" />
-              {activeForms.length} active
-            </DashboardMetaPill>
-            <DashboardMetaPill>
-              <LayoutTemplate className="size-3.5" />
-              {settings.forms.length} total
-            </DashboardMetaPill>
-          </>
-        }
       />
 
       <BusinessInquiryFormsManager

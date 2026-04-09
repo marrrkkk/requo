@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   FileText,
   Inbox,
+  ReceiptText,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -55,11 +56,6 @@ export default async function DashboardOverviewPage() {
   const publicInquiryUrl = getBusinessPublicInquiryUrl(
     businessContext.business.slug,
   );
-  const totalActionCount =
-    overview.counts.overdueReplies +
-    overview.counts.expiringSoonQuotes +
-    overview.counts.inquiriesWithoutQuotes +
-    overview.counts.followUpDueQuotes;
 
   return (
     <DashboardPage className="gap-5 xl:gap-6">
@@ -68,21 +64,9 @@ export default async function DashboardOverviewPage() {
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={totalActionCount ? "outline" : "secondary"}>
-                  {totalActionCount
-                    ? `${totalActionCount} open action${totalActionCount === 1 ? "" : "s"}`
-                    : "Business is caught up"}
-                </Badge>
-                <Badge
-                  variant={
-                    businessContext.business.publicInquiryEnabled
-                      ? "secondary"
-                      : "outline"
-                  }
-                >
-                  {businessContext.business.publicInquiryEnabled
-                    ? "Public form live"
-                    : "Public form paused"}
+                <Badge variant="secondary">/{businessContext.business.slug}</Badge>
+                <Badge variant="outline">
+                  {businessContext.business.defaultCurrency}
                 </Badge>
               </div>
               <h1 className="mt-3 font-heading text-[1.8rem] font-semibold tracking-tight text-foreground sm:text-[2.1rem]">
@@ -99,6 +83,7 @@ export default async function DashboardOverviewPage() {
               </Button>
               <Button asChild variant="secondary">
                 <Link href={getBusinessNewQuotePath(businessSlug)} prefetch={true}>
+                  <ReceiptText data-icon="inline-start" />
                   Create quote
                 </Link>
               </Button>
@@ -227,6 +212,7 @@ export default async function DashboardOverviewPage() {
               action={
                 <Button asChild variant="outline">
                   <Link href={getBusinessNewQuotePath(businessSlug)} prefetch={true}>
+                    <ReceiptText data-icon="inline-start" />
                     Create quote
                   </Link>
                 </Button>

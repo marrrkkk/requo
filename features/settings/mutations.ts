@@ -2,9 +2,15 @@ import "server-only";
 
 import { and, eq, isNull, ne } from "drizzle-orm";
 
-import { type BusinessType } from "@/features/inquiries/business-types";
+import {
+  normalizeBusinessType,
+  type BusinessType,
+} from "@/features/inquiries/business-types";
 import { normalizeInquiryFormSlug } from "@/features/inquiries/inquiry-forms";
-import { createInquiryFormConfigDefaults } from "@/features/inquiries/form-config";
+import {
+  createInquiryFormConfigDefaults,
+  getNormalizedInquiryFormConfig,
+} from "@/features/inquiries/form-config";
 import { createInquiryPageConfigDefaults } from "@/features/inquiries/page-config";
 import type {
   BusinessDeleteInput,
@@ -13,6 +19,7 @@ import type {
   BusinessInquiryFormPresetInput,
   BusinessInquiryFormSettingsInput,
   BusinessInquiryPageSettingsInput,
+  BusinessNotificationSettingsInput,
   BusinessQuoteSettingsInput,
 } from "@/features/settings/schemas";
 import { publicInquiryAttachmentBucket } from "@/features/inquiries/schemas";
@@ -45,6 +52,12 @@ type UpdateBusinessQuoteSettingsInput = {
   businessId: string;
   actorUserId: string;
   values: BusinessQuoteSettingsInput;
+};
+
+type UpdateBusinessNotificationSettingsInput = {
+  businessId: string;
+  actorUserId: string;
+  values: BusinessNotificationSettingsInput;
 };
 
 type DeleteBusinessInput = {
@@ -81,6 +94,9 @@ type TargetBusinessInquiryFormInput = {
   businessId: string;
   actorUserId: string;
   targetFormId: string;
+};
+type SetBusinessInquiryFormPublicStateInput = TargetBusinessInquiryFormInput & {
+  publicInquiryEnabled: boolean;
 };
 
 type UpdateBusinessSettingsResult =
@@ -296,6 +312,7 @@ export async function updateBusinessSettings({
         .set({
           name: values.name,
           slug: values.slug,
+          countryCode: values.countryCode ?? null,
           shortDescription: values.shortDescription ?? null,
           contactEmail: values.contactEmail ?? null,
           logoStoragePath: values.removeLogo
@@ -304,13 +321,9 @@ export async function updateBusinessSettings({
           logoContentType: values.removeLogo
             ? nextLogoContentType
             : nextLogoContentType ?? currentBusiness.logoContentType ?? null,
+          defaultCurrency: values.defaultCurrency,
           defaultEmailSignature: values.defaultEmailSignature ?? null,
           aiTonePreference: values.aiTonePreference,
-          notifyOnNewInquiry: values.notifyOnNewInquiry,
-          notifyOnQuoteSent: values.notifyOnQuoteSent,
-          notifyOnQuoteResponse: values.notifyOnQuoteResponse,
-          notifyInAppOnNewInquiry: values.notifyInAppOnNewInquiry,
-          notifyInAppOnQuoteResponse: values.notifyInAppOnQuoteResponse,
           updatedAt: now,
         })
         .where(eq(businesses.id, businessId));
@@ -323,13 +336,10 @@ export async function updateBusinessSettings({
         summary: "Business settings updated.",
         metadata: {
           slug: values.slug,
+          countryCode: values.countryCode ?? null,
+          defaultCurrency: values.defaultCurrency,
           hasLogo: Boolean(logoFile || previousLogoStoragePath) && !values.removeLogo,
           aiTonePreference: values.aiTonePreference,
-          notifyOnNewInquiry: values.notifyOnNewInquiry,
-          notifyOnQuoteSent: values.notifyOnQuoteSent,
-          notifyOnQuoteResponse: values.notifyOnQuoteResponse,
-          notifyInAppOnNewInquiry: values.notifyInAppOnNewInquiry,
-          notifyInAppOnQuoteResponse: values.notifyInAppOnQuoteResponse,
         },
         createdAt: now,
         updatedAt: now,
@@ -404,7 +414,6 @@ export async function updateBusinessQuoteSettings({
       .set({
         defaultQuoteNotes: values.defaultQuoteNotes ?? null,
         defaultQuoteValidityDays: values.defaultQuoteValidityDays,
-        defaultCurrency: values.defaultCurrency,
         updatedAt: now,
       })
       .where(eq(businesses.id, businessId));
@@ -416,9 +425,69 @@ export async function updateBusinessQuoteSettings({
       type: "business.quote_settings_updated",
       summary: "Quote settings updated.",
       metadata: {
-        defaultCurrency: values.defaultCurrency,
         defaultQuoteValidityDays: values.defaultQuoteValidityDays,
         hasDefaultQuoteNotes: Boolean(values.defaultQuoteNotes?.trim()),
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+
+  return {
+    ok: true,
+    previousSlug: business.slug,
+    nextSlug: business.slug,
+  };
+}
+
+export async function updateBusinessNotificationSettings({
+  businessId,
+  actorUserId,
+  values,
+}: UpdateBusinessNotificationSettingsInput): Promise<UpdateBusinessSettingsResult> {
+  const [business] = await db
+    .select({
+      id: businesses.id,
+      slug: businesses.slug,
+    })
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
+  if (!business) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(businesses)
+      .set({
+        notifyOnNewInquiry: values.notifyOnNewInquiry,
+        notifyOnQuoteSent: values.notifyOnQuoteSent,
+        notifyOnQuoteResponse: values.notifyOnQuoteResponse,
+        notifyInAppOnNewInquiry: values.notifyInAppOnNewInquiry,
+        notifyInAppOnQuoteResponse: values.notifyInAppOnQuoteResponse,
+        updatedAt: now,
+      })
+      .where(eq(businesses.id, businessId));
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      actorUserId,
+      type: "business.notification_settings_updated",
+      summary: "Notification settings updated.",
+      metadata: {
+        notifyOnNewInquiry: values.notifyOnNewInquiry,
+        notifyOnQuoteSent: values.notifyOnQuoteSent,
+        notifyOnQuoteResponse: values.notifyOnQuoteResponse,
+        notifyInAppOnNewInquiry: values.notifyInAppOnNewInquiry,
+        notifyInAppOnQuoteResponse: values.notifyInAppOnQuoteResponse,
       },
       createdAt: now,
       updatedAt: now,
@@ -517,6 +586,7 @@ export async function updateBusinessInquiryPageSettings({
       .select({
         id: businessInquiryForms.id,
         slug: businessInquiryForms.slug,
+        isDefault: businessInquiryForms.isDefault,
       })
       .from(businessInquiryForms)
       .where(
@@ -652,6 +722,12 @@ export async function updateBusinessInquiryFormSettings({
   }
 
   const now = new Date();
+  const inquiryFormConfig = getNormalizedInquiryFormConfig(
+    values.inquiryFormConfig,
+    {
+      businessType: values.businessType,
+    },
+  );
 
   await db.transaction(async (tx) => {
     await tx
@@ -660,10 +736,7 @@ export async function updateBusinessInquiryFormSettings({
         name: values.name,
         slug: values.slug,
         businessType: values.businessType,
-        inquiryFormConfig: {
-          ...values.inquiryFormConfig,
-          businessType: values.businessType,
-        },
+        inquiryFormConfig,
         updatedAt: now,
       })
       .where(
@@ -679,13 +752,13 @@ export async function updateBusinessInquiryFormSettings({
       actorUserId,
       type: "business.inquiry_form_updated",
       summary: `Inquiry form updated for ${form.slug}.`,
-      metadata: {
-        inquiryFormId: values.formId,
-        inquiryFormSlug: values.slug,
-        previousInquiryFormSlug: form.slug,
-        businessType: values.businessType,
-        projectFieldCount: values.inquiryFormConfig.projectFields.length,
-      },
+        metadata: {
+          inquiryFormId: values.formId,
+          inquiryFormSlug: values.slug,
+          previousInquiryFormSlug: form.slug,
+          businessType: values.businessType,
+          projectFieldCount: inquiryFormConfig.projectFields.length,
+        },
       createdAt: now,
       updatedAt: now,
     });
@@ -918,6 +991,13 @@ export async function duplicateBusinessInquiryForm({
   const now = new Date();
   const nextName = createDuplicateInquiryFormName(sourceForm.name);
   const formId = createId("ifm");
+  const sourceFormBusinessType = normalizeBusinessType(sourceForm.businessType);
+  const sourceInquiryFormConfig = getNormalizedInquiryFormConfig(
+    sourceForm.inquiryFormConfig,
+    {
+      businessType: sourceFormBusinessType,
+    },
+  );
   const formSlug = await getAvailableBusinessInquiryFormSlug({
     businessId,
     baseSlug: nextName,
@@ -929,10 +1009,10 @@ export async function duplicateBusinessInquiryForm({
       businessId,
       name: nextName,
       slug: formSlug,
-      businessType: sourceForm.businessType,
+      businessType: sourceFormBusinessType,
       isDefault: false,
       publicInquiryEnabled: sourceForm.publicInquiryEnabled,
-      inquiryFormConfig: sourceForm.inquiryFormConfig,
+      inquiryFormConfig: sourceInquiryFormConfig,
       inquiryPageConfig: {
         ...sourceForm.inquiryPageConfig,
         formTitle: nextName,
@@ -1256,6 +1336,96 @@ export async function deleteBusinessInquiryForm({
       metadata: {
         inquiryFormId: targetFormId,
         inquiryFormSlug: targetForm.slug,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+
+  return {
+    ok: true,
+    businessSlug: business.slug,
+    formSlug: targetForm.slug,
+  };
+}
+
+export async function setBusinessInquiryFormPublicState({
+  businessId,
+  actorUserId,
+  targetFormId,
+  publicInquiryEnabled,
+}: SetBusinessInquiryFormPublicStateInput): Promise<BusinessInquiryFormMutationResult> {
+  const [businessRows, targetFormRows] = await Promise.all([
+    db
+      .select({
+        id: businesses.id,
+        slug: businesses.slug,
+      })
+      .from(businesses)
+      .where(eq(businesses.id, businessId))
+      .limit(1),
+    db
+      .select({
+        id: businessInquiryForms.id,
+        slug: businessInquiryForms.slug,
+        isDefault: businessInquiryForms.isDefault,
+      })
+      .from(businessInquiryForms)
+      .where(
+        and(
+          eq(businessInquiryForms.businessId, businessId),
+          eq(businessInquiryForms.id, targetFormId),
+          isNull(businessInquiryForms.archivedAt),
+        ),
+      )
+      .limit(1),
+  ]);
+
+  const business = businessRows[0];
+  const targetForm = targetFormRows[0];
+
+  if (!business || !targetForm) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
+  if (!publicInquiryEnabled && targetForm.isDefault) {
+    return {
+      ok: false,
+      reason: "invalid-target",
+    };
+  }
+
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(businessInquiryForms)
+      .set({
+        publicInquiryEnabled,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(businessInquiryForms.businessId, businessId),
+          eq(businessInquiryForms.id, targetFormId),
+        ),
+      );
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      actorUserId,
+      type: "business.inquiry_form_page_updated",
+      summary: publicInquiryEnabled
+        ? `Inquiry form published: ${targetForm.slug}.`
+        : `Inquiry form unpublished: ${targetForm.slug}.`,
+      metadata: {
+        inquiryFormId: targetFormId,
+        inquiryFormSlug: targetForm.slug,
+        publicInquiryEnabled,
       },
       createdAt: now,
       updatedAt: now,

@@ -117,7 +117,7 @@ test("owner can create, edit, insert, and delete a saved reply snippet", async (
 
   await signIn(page);
 
-  await openBusinessesPage(page, "/settings/inquiry");
+  await openBusinessesPage(page, "/settings/replies");
 
   await page.locator("#reply-snippet-create-title").fill(initialTitle);
   await page.locator("#reply-snippet-create-body").fill(initialBody);
@@ -163,7 +163,7 @@ test("owner can create, edit, insert, and delete a saved reply snippet", async (
     `${updatedBody}\n\n${existingSnippetBody}`,
   );
 
-  await openBusinessesPage(page, "/settings/inquiry");
+  await openBusinessesPage(page, "/settings/replies");
 
   const deletableSnippetCard = getSnippetCard(page, updatedTitle);
   await deletableSnippetCard.getByRole("button", { name: "Delete" }).click();
@@ -201,6 +201,96 @@ test("accepted quotes can move from booked to scheduled", async ({ page }) => {
     timeout: 20_000,
   });
   await expect(postAcceptanceSelect).toContainText("Scheduled");
+});
+
+test("quotes and requests list exports honor filters and show export actions", async ({
+  page,
+}) => {
+  await signIn(page);
+
+  await openBusinessesPage(page, "/quotes?status=sent&sort=newest");
+  const quotesExport = page.getByRole("link", { name: "Export CSV" });
+  await expect(quotesExport).toBeVisible();
+  await expect(page.getByRole("link", { name: "Create quote" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Create quote" }).locator(
+      "svg[data-lucide='receipt-text']",
+    ),
+  ).toBeVisible();
+
+  const quoteExportHref = await quotesExport.getAttribute("href");
+  expect(quoteExportHref).toContain(
+    `/api/business/${demoBusinessSlug}/quotes/export`,
+  );
+  expect(quoteExportHref).toContain("status=sent");
+  expect(quoteExportHref).toContain("sort=newest");
+  expect(quoteExportHref).not.toContain("page=");
+
+  const quoteCsvResponse = await page.request.get(
+    `/api/business/${demoBusinessSlug}/quotes/export?status=sent&sort=newest&page=2`,
+  );
+  expect(quoteCsvResponse.ok()).toBeTruthy();
+  expect(quoteCsvResponse.headers()["content-type"]).toContain("text/csv");
+  const quoteCsvText = await quoteCsvResponse.text();
+  expect(quoteCsvText.startsWith("\uFEFF")).toBeTruthy();
+  expect(quoteCsvText).toContain(
+    "quote_number,title,customer_name,customer_email,status,post_acceptance_status,linked_inquiry_id,valid_until,total_amount,currency,created_at,sent_at,customer_responded_at",
+  );
+  expect(quoteCsvText).toContain(",sent,");
+
+  await openBusinessesPage(page, "/inquiries?status=new&form=all&sort=newest");
+  const inquiryExport = page.getByRole("link", { name: "Export CSV" });
+  await expect(inquiryExport).toBeVisible();
+
+  const inquiryExportHref = await inquiryExport.getAttribute("href");
+  expect(inquiryExportHref).toContain(
+    `/api/business/${demoBusinessSlug}/inquiries/export`,
+  );
+  expect(inquiryExportHref).toContain("status=new");
+  expect(inquiryExportHref).toContain("sort=newest");
+  expect(inquiryExportHref).not.toContain("page=");
+
+  const inquiryCsvResponse = await page.request.get(
+    `/api/business/${demoBusinessSlug}/inquiries/export?status=new&form=all&sort=newest&page=2`,
+  );
+  expect(inquiryCsvResponse.ok()).toBeTruthy();
+  expect(inquiryCsvResponse.headers()["content-type"]).toContain("text/csv");
+  const inquiryCsvText = await inquiryCsvResponse.text();
+  expect(inquiryCsvText.startsWith("\uFEFF")).toBeTruthy();
+  expect(inquiryCsvText).toContain(
+    "inquiry_id,submitted_at,form_name,customer_name,customer_email,customer_phone,company_name,service_category,subject,status,budget_text,requested_deadline,details",
+  );
+  expect(inquiryCsvText).toContain(",new,");
+});
+
+test("inquiry detail exposes PDF export and print-safe document", async ({
+  page,
+}) => {
+  await signIn(page);
+  await openBusinessesPage(page, "/inquiries/demo_inquiry_quoted_booth_kit");
+
+  await expect(page.getByRole("link", { name: "Export PDF" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Print" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Generate quote" })).toBeVisible();
+
+  const pdfResponse = await page.request.get(
+    `/api/business/${demoBusinessSlug}/inquiries/demo_inquiry_quoted_booth_kit/export`,
+  );
+  expect(pdfResponse.ok()).toBeTruthy();
+  expect(pdfResponse.headers()["content-type"]).toContain("application/pdf");
+  const pdfBuffer = await pdfResponse.body();
+  expect(pdfBuffer.toString("utf-8", 0, 4)).toBe("%PDF");
+
+  await page.goto(
+    `/businesses/${demoBusinessSlug}/print/inquiries/demo_inquiry_quoted_booth_kit`,
+  );
+  await page.waitForLoadState("networkidle");
+
+  await expect(page.getByRole("heading", { name: "Request summary" })).toBeVisible();
+  await expect(page.getByText("Submitted fields")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Internal notes" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Activity log" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Status" })).toHaveCount(0);
 });
 
 test("notification settings live under general settings and persist", async ({

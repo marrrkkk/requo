@@ -5,6 +5,8 @@ import { useActionState, useState } from "react";
 import { FormActions } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Field,
   FieldContent,
@@ -12,14 +14,6 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import type {
   InquiryStatus,
   InquiryStatusActionState,
@@ -35,6 +29,19 @@ type InquiryStatusFormProps = {
 };
 
 const initialState: InquiryStatusActionState = {};
+const inquiryStatusOptions = (
+  [
+    "new",
+    "quoted",
+    "waiting",
+    "won",
+    "lost",
+    "archived",
+  ] as const
+).map((value) => ({
+  label: getInquiryStatusLabel(value),
+  value,
+}));
 
 export function InquiryStatusForm({
   action,
@@ -66,32 +73,16 @@ export function InquiryStatusForm({
         <Field data-invalid={Boolean(state.fieldErrors?.status) || undefined}>
           <FieldLabel htmlFor="inquiry-status">Change status</FieldLabel>
           <FieldContent>
-            <Select
+            <Combobox
+              aria-invalid={Boolean(state.fieldErrors?.status) || undefined}
+              disabled={isPending}
+              id="inquiry-status"
               value={selectedStatus}
               onValueChange={(value) => setSelectedStatus(value as InquiryStatus)}
-            >
-              <SelectTrigger className="w-full" id="inquiry-status">
-                <SelectValue placeholder="Choose a status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {(
-                    [
-                      "new",
-                      "quoted",
-                      "waiting",
-                      "won",
-                      "lost",
-                      "archived",
-                    ] as const
-                  ).map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {getInquiryStatusLabel(status)}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+              options={inquiryStatusOptions}
+              placeholder="Choose a status"
+              searchPlaceholder="Search status"
+            />
             <FieldError
               errors={
                 state.fieldErrors?.status?.[0]
@@ -108,7 +99,14 @@ export function InquiryStatusForm({
           disabled={isPending || selectedStatus === currentStatus}
           type="submit"
         >
-          {isPending ? "Updating status..." : "Save status"}
+          {isPending ? (
+            <>
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+              Updating status...
+            </>
+          ) : (
+            "Save status"
+          )}
         </Button>
       </FormActions>
     </form>

@@ -157,6 +157,13 @@ export const quoteListFiltersSchema = z.object({
       z.enum(quoteStatusFilterValues),
     )
     .catch("all"),
+  sort: z
+    .preprocess(
+      (value) => firstString(value) ?? "newest",
+      z.enum(["newest", "oldest"]),
+    )
+    .catch("newest"),
+  page: coercePositiveInteger("Page").catch(1),
 });
 
 export const quoteEditorSchema = z

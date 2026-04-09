@@ -10,6 +10,7 @@ import {
 import { getFieldError } from "@/lib/action-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Field,
   FieldContent,
@@ -97,7 +98,14 @@ export function PublicQuoteResponseForm({
           value="accepted"
         >
           <CheckCircle2 data-icon="inline-start" />
-          {isPending ? "Saving response..." : "Accept quote"}
+          {isPending ? (
+            <>
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+              Saving response...
+            </>
+          ) : (
+            "Accept quote"
+          )}
         </Button>
         <Button
           className="w-full"
@@ -108,7 +116,14 @@ export function PublicQuoteResponseForm({
           variant="outline"
         >
           <CircleSlash data-icon="inline-start" />
-          {isPending ? "Saving response..." : "Decline quote"}
+          {isPending ? (
+            <>
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+              Saving response...
+            </>
+          ) : (
+            "Decline quote"
+          )}
         </Button>
       </div>
     </form>

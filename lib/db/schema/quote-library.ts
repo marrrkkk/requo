@@ -25,6 +25,7 @@ export const quoteLibraryEntries = pgTable(
       .notNull()
       .references(() => businesses.id, { onDelete: "cascade" }),
     kind: quoteLibraryEntryKindEnum("kind").notNull(),
+    currency: text("currency").notNull().default("USD"),
     name: text("name").notNull(),
     description: text("description"),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -44,6 +45,10 @@ export const quoteLibraryEntries = pgTable(
     index("quote_library_entries_business_created_at_idx").on(
       table.businessId,
       table.createdAt,
+    ),
+    check(
+      "quote_library_entries_currency_format",
+      sql`${table.currency} ~ '^[A-Z]{3}$'`,
     ),
   ],
 );

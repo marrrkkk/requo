@@ -27,7 +27,7 @@ export const businessInquiryForms = pgTable(
     businessType: text("business_type")
       .$type<BusinessType>()
       .notNull()
-      .default("general_services"),
+      .default("general_project_services"),
     isDefault: boolean("is_default").notNull().default(false),
     publicInquiryEnabled: boolean("public_inquiry_enabled")
       .notNull()

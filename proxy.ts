@@ -15,11 +15,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  request.cookies.set(activeBusinessSlugCookieName, businessSlug);
-
-  const response = NextResponse.next({
-    request,
-  });
+  const response = NextResponse.next();
 
   response.cookies.set({
     name: activeBusinessSlugCookieName,

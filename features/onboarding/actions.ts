@@ -23,6 +23,7 @@ export async function completeOnboardingAction(
   const validationResult = completeOnboardingSchema.safeParse({
     businessName: formData.get("businessName"),
     businessType: formData.get("businessType"),
+    countryCode: formData.get("countryCode"),
     shortDescription: formData.get("shortDescription"),
     fullName: formData.get("fullName"),
     jobTitle: formData.get("jobTitle"),
@@ -50,6 +51,7 @@ export async function completeOnboardingAction(
       user,
       businessName: validationResult.data.businessName,
       businessType: validationResult.data.businessType,
+      countryCode: validationResult.data.countryCode,
       shortDescription: validationResult.data.shortDescription,
       fullName: validationResult.data.fullName,
       jobTitle: validationResult.data.jobTitle,

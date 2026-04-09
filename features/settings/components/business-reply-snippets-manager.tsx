@@ -1,15 +1,6 @@
 "use client";
 
-import { MessageSquareText } from "lucide-react";
-
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { ReplySnippetCard } from "@/features/inquiries/components/reply-snippet-card";
 import { ReplySnippetForm } from "@/features/inquiries/components/reply-snippet-form";
 import type {
@@ -42,55 +33,118 @@ export function BusinessReplySnippetsManager({
   updateAction,
   deleteAction,
 }: BusinessReplySnippetsManagerProps) {
+  const snippetCountLabel =
+    snippets.length === 1 ? "1 saved reply ready." : `${snippets.length} saved replies ready.`;
+
   return (
-    <div className="form-stack">
-      <Card className="gap-0 border-border/75 bg-card/97">
-        <CardHeader className="gap-3 pb-5">
-          <CardTitle>Saved reply snippets</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <ReplySnippetForm
-            action={createAction}
-            submitLabel="Save reply snippet"
-            submitPendingLabel="Saving snippet..."
-            idPrefix="reply-snippet-create"
-          />
-        </CardContent>
-      </Card>
-
-      <Card className="gap-0 border-border/75 bg-card/97">
-        <CardHeader className="gap-3 pb-5">
-          <CardTitle>Snippet library</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5 pt-0">
-          {snippets.length ? (
-            <div className="flex flex-col gap-4">
-              {snippets.map((snippet) => (
-                <ReplySnippetCard
-                  key={snippet.id}
-                  snippet={snippet}
-                  updateAction={updateAction.bind(null, snippet.id)}
-                  deleteAction={deleteAction.bind(null, snippet.id)}
-                />
-              ))}
+    <div className="grid gap-6 xl:grid-cols-[18rem_minmax(0,1fr)] xl:gap-7">
+      <div className="self-start xl:sticky xl:top-6">
+        <div className="soft-panel flex flex-col gap-5 p-5 shadow-none sm:p-6">
+          <div className="space-y-2">
+            <p className="text-[0.72rem] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              Reply library
+            </p>
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold tracking-tight text-foreground">
+                Saved replies
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Reusable snippets for faster drafting.
+              </p>
             </div>
-          ) : (
-            <Alert>
-              <MessageSquareText data-icon="inline-start" />
-              <AlertTitle>No snippets yet</AlertTitle>
-              <AlertDescription>
-                Save the replies you reuse most so they are ready inside inquiry drafting.
-              </AlertDescription>
-            </Alert>
-          )}
+          </div>
 
-          {!snippets.length ? (
-            <Button asChild variant="outline">
-              <a href="#reply-snippet-create-title">Create first snippet</a>
-            </Button>
-          ) : null}
-        </CardContent>
-      </Card>
+          <div className="rounded-3xl border border-border/75 bg-background/80 px-5 py-5">
+            <div className="space-y-1">
+              <p className="text-[0.72rem] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                Total saved
+              </p>
+              <p className="text-3xl font-semibold tracking-tight text-foreground">
+                {snippets.length}
+              </p>
+              <p className="text-sm text-muted-foreground">{snippetCountLabel}</p>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-border/75 bg-background/80 px-4 py-4">
+            <p className="text-sm font-medium text-foreground">Best for common replies.</p>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+              Use snippets for follow-ups, missing details, pricing questions, and next
+              steps.
+            </p>
+          </div>
+
+          <Button asChild className="w-full">
+            <a href="#reply-snippet-create-title">New snippet</a>
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex min-w-0 flex-col gap-5">
+        <section className="section-panel p-6">
+          <div className="flex flex-col gap-5">
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold tracking-tight text-foreground">
+                Create saved reply
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Short reusable text for inquiry drafts.
+              </p>
+            </div>
+
+            <ReplySnippetForm
+              action={createAction}
+              showSectionHeader={false}
+              submitLabel="Save reply"
+              submitPendingLabel="Saving reply..."
+              idPrefix="reply-snippet-create"
+            />
+          </div>
+        </section>
+
+        <section className="section-panel p-6">
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold tracking-tight text-foreground">
+                  Snippet library
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Edit or reuse any saved reply.
+                </p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {snippets.length} {snippets.length === 1 ? "saved reply" : "saved replies"}
+              </p>
+            </div>
+
+            {snippets.length ? (
+              <div className="flex flex-col gap-4">
+                {snippets.map((snippet) => (
+                  <ReplySnippetCard
+                    key={snippet.id}
+                    snippet={snippet}
+                    updateAction={updateAction.bind(null, snippet.id)}
+                    deleteAction={deleteAction.bind(null, snippet.id)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-3xl border border-dashed border-border/80 bg-muted/10 px-5 py-10 text-center">
+                <p className="text-base font-semibold tracking-tight text-foreground">
+                  No saved replies yet
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Create one now to reuse it during inquiry drafting.
+                </p>
+                <Button asChild className="mt-5">
+                  <a href="#reply-snippet-create-title">Create first snippet</a>
+                </Button>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

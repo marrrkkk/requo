@@ -21,12 +21,13 @@ export async function createBusinessAction(
   const validationResult = createBusinessSchema.safeParse({
     name: formData.get("name"),
     businessType: formData.get("businessType"),
+    countryCode: formData.get("countryCode"),
   });
 
   if (!validationResult.success) {
     return getValidationActionState(
       validationResult.error,
-      "Check the business name and try again.",
+      "Check the highlighted fields and try again.",
     );
   }
 
@@ -35,6 +36,7 @@ export async function createBusinessAction(
   try {
     const business = await createBusinessForUser({
       user,
+      countryCode: validationResult.data.countryCode,
       name: validationResult.data.name,
       businessType: validationResult.data.businessType,
     });

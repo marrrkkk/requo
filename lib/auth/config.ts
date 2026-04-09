@@ -2,6 +2,7 @@ import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 
+import { cleanupAccountOwnedAssets } from "@/features/account/mutations";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { db } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
@@ -67,6 +68,38 @@ export const auth = betterAuth({
         url,
         token,
       });
+    },
+  },
+  socialProviders: {
+    ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+      ? {
+          google: {
+            clientId: env.GOOGLE_CLIENT_ID,
+            clientSecret: env.GOOGLE_CLIENT_SECRET,
+          },
+        }
+      : {}),
+    ...(env.MICROSOFT_CLIENT_ID && env.MICROSOFT_CLIENT_SECRET
+      ? {
+          microsoft: {
+            clientId: env.MICROSOFT_CLIENT_ID,
+            clientSecret: env.MICROSOFT_CLIENT_SECRET,
+            tenantId: env.MICROSOFT_TENANT_ID,
+          },
+        }
+      : {}),
+  },
+  account: {
+    accountLinking: {
+      trustedProviders: ["google", "microsoft"],
+    },
+  },
+  user: {
+    deleteUser: {
+      enabled: true,
+      beforeDelete: async (deletedUser) => {
+        await cleanupAccountOwnedAssets(deletedUser.id);
+      },
     },
   },
   session: {

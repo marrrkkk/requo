@@ -1,5 +1,13 @@
 import Link from "next/link";
-import { FileText, Mail, Phone, ReceiptText } from "lucide-react";
+import {
+  Building2,
+  Download,
+  FileText,
+  Mail,
+  Phone,
+  Printer,
+  ReceiptText,
+} from "lucide-react";
 import { notFound } from "next/navigation";
 
 import {
@@ -40,6 +48,8 @@ import {
 import { formatQuoteMoney } from "@/features/quotes/utils";
 import {
   getBusinessNewQuotePath,
+  getBusinessInquiryPdfExportPath,
+  getBusinessInquiryPrintPath,
   getBusinessQuotePath,
 } from "@/features/businesses/routes";
 import { Button } from "@/components/ui/button";
@@ -108,12 +118,31 @@ export default async function InquiryDetailPage({
           </>
         }
         actions={
-          <Button asChild>
-            <Link href={getBusinessNewQuotePath(businessSlug, inquiry.id)}>
-              <ReceiptText data-icon="inline-start" />
-              Generate quote
-            </Link>
-          </Button>
+          <div className="dashboard-actions">
+            <Button asChild variant="outline">
+              <a href={getBusinessInquiryPdfExportPath(businessSlug, inquiry.id)}>
+                <Download data-icon="inline-start" />
+                Export PDF
+              </a>
+            </Button>
+            <Button asChild variant="outline">
+              <Link
+                href={getBusinessInquiryPrintPath(businessSlug, inquiry.id)}
+                prefetch={false}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <Printer data-icon="inline-start" />
+                Print
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href={getBusinessNewQuotePath(businessSlug, inquiry.id)}>
+                <ReceiptText data-icon="inline-start" />
+                Generate quote
+              </Link>
+            </Button>
+          </div>
         }
       />
 
@@ -122,7 +151,7 @@ export default async function InquiryDetailPage({
           <DashboardSection
             contentClassName="flex flex-col gap-6"
             description="Submitted through the public form."
-            title="Overview"
+            title="Summary"
           >
             <DashboardStatsGrid className="xl:grid-cols-4">
               <InfoTile label="Category" value={inquiry.serviceCategory} />
@@ -134,12 +163,6 @@ export default async function InquiryDetailPage({
               <InfoTile
                 label="Deadline"
                 value={inquiry.requestedDeadline ?? "Not provided"}
-              />
-              <InfoTile
-                label="Source"
-                value={
-                  inquiry.source ? inquiry.source.replace(/[-_]/g, " ") : "Unknown"
-                }
               />
               {inquiry.subject ? (
                 <InfoTile
@@ -317,7 +340,11 @@ export default async function InquiryDetailPage({
                 }
               />
               {inquiry.companyName ? (
-                <InfoTile label="Company" value={inquiry.companyName} />
+                <InfoTile
+                  icon={Building2}
+                  label="Company"
+                  value={inquiry.companyName}
+                />
               ) : null}
           </DashboardSection>
 
@@ -342,6 +369,7 @@ export default async function InquiryDetailPage({
                   <Link
                     href={getBusinessNewQuotePath(businessSlug, inquiry.id)}
                   >
+                  <ReceiptText data-icon="inline-start" />
                     Generate quote
                   </Link>
                 </Button>

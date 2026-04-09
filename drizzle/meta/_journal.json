@@ -127,6 +127,27 @@
       "when": 1775533200000,
       "tag": "0017_profiles_onboarding_completed_at_repair",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1775566800000,
+      "tag": "0018_profile_avatar_storage",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1775692800000,
+      "tag": "0019_business_type_overhaul",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1775746800000,
+      "tag": "0020_business_country_and_pricing_currency",
+      "breakpoints": true
     }
   ]
 }

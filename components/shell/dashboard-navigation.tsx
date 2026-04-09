@@ -34,8 +34,8 @@ export function getDashboardNavigation(slug: string): DashboardNavigationItem[] 
   return [
     {
       href: getBusinessDashboardPath(slug),
-      label: "Overview",
-      description: "Action queues, momentum, and the next owner actions.",
+      label: "Dashboard",
+      description: "Your home base: queues, momentum, and the next actions to take.",
       icon: LayoutDashboard,
     },
     {
@@ -57,7 +57,7 @@ export function getDashboardNavigation(slug: string): DashboardNavigationItem[] 
       icon: FormInput,
     },
     {
-      href: getBusinessSettingsPath(slug),
+      href: getBusinessSettingsPath(slug, "general"),
       label: "Settings",
       description: "Manage business setup, reusable responses, and quote defaults.",
       icon: Settings2,
@@ -95,6 +95,15 @@ export function isDashboardNavigationItemActive(
 ) {
   const activePathname = resolveDashboardActivePathname(pathname);
 
+  if (href.endsWith("/dashboard/settings/general")) {
+    const settingsRootPath = href.slice(0, -"/general".length);
+
+    return (
+      activePathname === settingsRootPath ||
+      activePathname.startsWith(`${settingsRootPath}/`)
+    );
+  }
+
   if (href.endsWith("/dashboard")) {
     return activePathname === href;
   }
@@ -131,6 +140,34 @@ function formatBreadcrumbLabel(value: string) {
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
+function formatRecordHint(value: string) {
+  const decodedValue = decodeURIComponent(value).trim();
+
+  if (!decodedValue) {
+    return "";
+  }
+
+  // Keep UUID-like or opaque IDs short so breadcrumbs stay readable.
+  if (/^[a-f0-9-]{12,}$/i.test(decodedValue)) {
+    return decodedValue.slice(0, 8);
+  }
+
+  return formatBreadcrumbLabel(decodedValue);
+}
+
+function withDashboardHome(
+  slug: string,
+  items: DashboardBreadcrumbItem[],
+): DashboardBreadcrumbItem[] {
+  const dashboardPath = getBusinessDashboardPath(slug);
+
+  if (items[0]?.label === "Dashboard") {
+    return items;
+  }
+
+  return [{ label: "Dashboard", href: dashboardPath }, ...items];
+}
+
 export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbItem[] {
   const slug = getBusinessDashboardSlugFromPathname(pathname);
 
@@ -150,31 +187,35 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
   }
 
   if (pathname === analyticsPath || pathname.startsWith(`${analyticsPath}/`)) {
-    return [{ label: "Analytics" }];
+    return withDashboardHome(slug, [{ label: "Analytics" }]);
   }
 
   if (pathname === inquiriesPath) {
-    return [{ label: "Requests" }];
+    return withDashboardHome(slug, [{ label: "Requests" }]);
   }
 
   if (pathname.startsWith(`${inquiriesPath}/`)) {
-    return [
+    const inquiryId = pathname.slice(`${inquiriesPath}/`.length).split("/")[0];
+
+    return withDashboardHome(slug, [
       {
         label: "Requests",
         href: inquiriesPath,
       },
       {
-        label: "Request",
+        label: inquiryId
+          ? `Request · ${formatRecordHint(inquiryId)}`
+          : "Request details",
       },
-    ];
+    ]);
   }
 
   if (pathname === quotesPath) {
-    return [{ label: "Quotes" }];
+    return withDashboardHome(slug, [{ label: "Quotes" }]);
   }
 
   if (pathname === `${quotesPath}/new`) {
-    return [
+    return withDashboardHome(slug, [
       {
         label: "Quotes",
         href: quotesPath,
@@ -182,39 +223,45 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
       {
         label: "New quote",
       },
-    ];
+    ]);
   }
 
   if (pathname.startsWith(`${quotesPath}/`)) {
-    return [
+    const quoteId = pathname.slice(`${quotesPath}/`.length).split("/")[0];
+
+    return withDashboardHome(slug, [
       {
         label: "Quotes",
         href: quotesPath,
       },
       {
-        label: "Quote",
+        label: quoteId
+          ? `Quote · ${formatRecordHint(quoteId)}`
+          : "Quote details",
       },
-    ];
+    ]);
   }
 
   if (pathname === formsPath) {
-    return [{ label: "Forms" }];
+    return withDashboardHome(slug, [{ label: "Forms" }]);
   }
 
   if (pathname.startsWith(`${formsPath}/`)) {
-    return [
+    const formSlug = pathname.slice(`${formsPath}/`.length).split("/")[0];
+
+    return withDashboardHome(slug, [
       {
         label: "Forms",
         href: formsPath,
       },
       {
-        label: "Form",
+        label: formSlug ? formatBreadcrumbLabel(formSlug) : "Form details",
       },
-    ];
+    ]);
   }
 
   if (pathname === settingsPath) {
-    return [{ label: "Settings" }];
+    return withDashboardHome(slug, [{ label: "Settings" }]);
   }
 
   if (pathname.startsWith(`${settingsPath}/`)) {
@@ -222,7 +269,9 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
     const segments = relativePath.split("/").filter(Boolean);
     const section = segments[0];
     const sectionLabels: Record<string, string> = {
-      general: "General",
+      general: "Business profile",
+      notifications: "Notifications",
+      profile: "Your profile",
       inquiry: "Forms",
       replies: "Saved replies",
       quote: "Quote defaults",
@@ -232,7 +281,7 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
     const sectionLabel = sectionLabels[section] ?? formatBreadcrumbLabel(section);
 
     if (section === "inquiry" && segments[1]) {
-      return [
+      return withDashboardHome(slug, [
         {
           label: "Forms",
           href: formsPath,
@@ -240,18 +289,18 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
         {
           label: formatBreadcrumbLabel(segments[1]),
         },
-      ];
+      ]);
     }
 
-    return [
+    return withDashboardHome(slug, [
       {
         label: "Settings",
-        href: settingsPath,
+        href: getBusinessSettingsPath(slug, "general"),
       },
       {
         label: sectionLabel,
       },
-    ];
+    ]);
   }
 
   return [{ label: "Dashboard" }];

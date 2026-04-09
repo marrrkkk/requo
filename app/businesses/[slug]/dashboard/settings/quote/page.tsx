@@ -21,11 +21,12 @@ export default async function BusinessQuoteSettingsPage() {
       <PageHeader
         eyebrow="Quotes"
         title="Quote defaults"
-        description="Set default quote copy, currency, and validity."
+        description="Set default quote copy and validity."
       />
 
       <BusinessQuoteSettingsForm
         action={updateBusinessQuoteSettingsAction}
+        key={`business-quote-settings-${settings.updatedAt.getTime()}`}
         settings={settings}
       />
     </>

@@ -20,6 +20,7 @@ export type BusinessSettingsView = {
   id: string;
   name: string;
   slug: string;
+  countryCode: string | null;
   shortDescription: string | null;
   contactEmail: string | null;
   logoStoragePath: string | null;
@@ -40,8 +41,10 @@ export type BusinessSettingsView = {
 export type BusinessGeneralSettingsFieldName =
   | "name"
   | "slug"
+  | "countryCode"
   | "shortDescription"
   | "contactEmail"
+  | "defaultCurrency"
   | "defaultEmailSignature"
   | "aiTonePreference"
   | "logo";
@@ -56,10 +59,26 @@ export type BusinessSettingsActionState = {
   fieldErrors?: BusinessSettingsFieldErrors;
 };
 
+export type BusinessNotificationSettingsFieldName =
+  | "notifyOnNewInquiry"
+  | "notifyOnQuoteSent"
+  | "notifyOnQuoteResponse"
+  | "notifyInAppOnNewInquiry"
+  | "notifyInAppOnQuoteResponse";
+
+export type BusinessNotificationSettingsFieldErrors = Partial<
+  Record<BusinessNotificationSettingsFieldName, string[] | undefined>
+>;
+
+export type BusinessNotificationSettingsActionState = {
+  error?: string;
+  success?: string;
+  fieldErrors?: BusinessNotificationSettingsFieldErrors;
+};
+
 export type BusinessQuoteSettingsFieldName =
   | "defaultQuoteNotes"
-  | "defaultQuoteValidityDays"
-  | "defaultCurrency";
+  | "defaultQuoteValidityDays";
 
 export type BusinessQuoteSettingsFieldErrors = Partial<
   Record<BusinessQuoteSettingsFieldName, string[] | undefined>

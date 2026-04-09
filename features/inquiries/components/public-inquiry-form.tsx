@@ -11,6 +11,7 @@ import {
 } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
   DialogContent,
@@ -27,9 +28,11 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Combobox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import {
   getInquiryFormFieldInputName,
+  getNormalizedInquiryFormConfig,
   inquiryContactFieldKeys,
   type InquiryContactFieldKey,
   type InquiryFormFieldDefinition,
@@ -98,35 +101,43 @@ export function PublicInquiryForm({
   const [state, formAction, isPending] = useActionState(action, initialState);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+  const inquiryFormConfig = useMemo(
+    () =>
+      getNormalizedInquiryFormConfig(business.inquiryFormConfig, {
+        businessType: business.businessType,
+      }),
+    [business.businessType, business.inquiryFormConfig],
+  );
 
   const contactFields = useMemo(
     () =>
       inquiryContactFieldKeys.filter(
-        (key) => business.inquiryFormConfig.contactFields[key].enabled,
+        (key) => inquiryFormConfig.contactFields[key].enabled,
       ),
-    [business.inquiryFormConfig.contactFields],
+    [inquiryFormConfig.contactFields],
   );
   const attachmentField = useMemo<InquiryFormSystemFieldDefinition | null>(
     () =>
-      business.inquiryFormConfig.projectFields.find(
+      inquiryFormConfig.projectFields.find(
         (field): field is InquiryFormSystemFieldDefinition =>
           field.kind === "system" &&
           field.key === "attachment" &&
           field.enabled,
       ) ?? null,
-    [business.inquiryFormConfig.projectFields],
+    [inquiryFormConfig.projectFields],
   );
   const projectFields = useMemo(
     () =>
-      business.inquiryFormConfig.projectFields.filter(
+      inquiryFormConfig.projectFields.filter(
         (field) =>
           field.kind === "custom" ||
           (field.kind === "system" &&
             field.enabled &&
             field.key !== "attachment"),
       ),
-    [business.inquiryFormConfig.projectFields],
+    [inquiryFormConfig.projectFields],
   );
+  const groupLabels = inquiryFormConfig.groupLabels;
 
   function getFieldMessage(fieldName: string) {
     return state.fieldErrors?.[fieldName]?.[0];
@@ -185,7 +196,7 @@ export function PublicInquiryForm({
           </Alert>
         ) : null}
 
-        <FormSection title="Contact">
+        <FormSection title={groupLabels.contact}>
           <FieldGroup>
             <div className="grid gap-5 sm:grid-cols-2">
               {contactFields.map((contactKey) => (
@@ -193,7 +204,7 @@ export function PublicInquiryForm({
                   key={contactKey}
                   contactKey={contactKey}
                   error={getFieldMessage(contactKey)}
-                  fieldConfig={business.inquiryFormConfig.contactFields[contactKey]}
+                  fieldConfig={inquiryFormConfig.contactFields[contactKey]}
                   isPending={isPending}
                 />
               ))}
@@ -202,7 +213,7 @@ export function PublicInquiryForm({
         </FormSection>
 
         {projectFields.length ? (
-          <FormSection title="Project">
+          <FormSection title={groupLabels.project}>
             <FieldGroup>
               <div className="grid gap-5 sm:grid-cols-2">
                 {projectFields.map((field) => {
@@ -249,20 +260,23 @@ export function PublicInquiryForm({
 
         <div className="toolbar-panel">
           <FormActions align="between" className="pt-0">
-            {previewMode ? (
-              <span />
-            ) : (
-              <p className="text-sm leading-6 text-muted-foreground">
-                Sent to {business.name}.
-              </p>
-            )}
+            <p className="text-sm leading-6 text-muted-foreground">
+              Sent to {business.name}.
+            </p>
             <Button
               className="w-full sm:w-auto"
               disabled={isPending}
               type="submit"
               size="lg"
             >
-              {isPending ? "Sending inquiry..." : "Send inquiry"}
+              {isPending ? (
+                <>
+                  <Spinner data-icon="inline-start" aria-hidden="true" />
+                  Sending inquiry...
+                </>
+              ) : (
+                "Send inquiry"
+              )}
             </Button>
           </FormActions>
         </div>
@@ -361,6 +375,7 @@ function ProjectField({
       </FieldLabel>
       <FieldContent>
         {renderProjectInput({
+          hasError: Boolean(error),
           field,
           inputId,
           inputName,
@@ -373,11 +388,13 @@ function ProjectField({
 }
 
 function renderProjectInput({
+  hasError,
   field,
   inputId,
   inputName,
   isPending,
 }: {
+  hasError: boolean;
   field: InquiryFormFieldDefinition;
   inputId: string;
   inputName: string;
@@ -439,23 +456,15 @@ function renderProjectInput({
       );
     case "select":
       return (
-        <select
-          className="h-10 w-full rounded-lg border border-input/95 bg-background/92 px-3 text-sm shadow-xs outline-none transition-[color,box-shadow,border-color] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50"
-          defaultValue=""
+        <ProjectSelectInput
+          ariaInvalid={hasError}
           disabled={isPending}
           id={inputId}
           name={inputName}
+          options={field.options ?? []}
+          placeholder={field.placeholder ?? "Select an option"}
           required={field.required}
-        >
-          <option value="">
-            {field.placeholder ?? "Select an option"}
-          </option>
-          {(field.options ?? []).map((option) => (
-            <option key={option.id} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        />
       );
     case "multi_select":
       return (
@@ -508,20 +517,14 @@ function renderProjectInput({
       );
     case "boolean":
       return (
-        <select
-          className="h-10 w-full rounded-lg border border-input/95 bg-background/92 px-3 text-sm shadow-xs outline-none transition-[color,box-shadow,border-color] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50"
-          defaultValue=""
+        <ProjectBooleanSelectInput
+          ariaInvalid={hasError}
           disabled={isPending}
           id={inputId}
           name={inputName}
+          placeholder={field.placeholder ?? "Choose an option"}
           required={field.required}
-        >
-          <option value="">
-            {field.placeholder ?? "Choose an option"}
-          </option>
-          <option value="true">Yes</option>
-          <option value="false">No</option>
-        </select>
+        />
       );
     case "short_text":
     default:
@@ -536,6 +539,135 @@ function renderProjectInput({
         />
       );
   }
+}
+
+function ProjectSelectInput({
+  ariaInvalid,
+  disabled,
+  id,
+  name,
+  options,
+  placeholder,
+  required,
+}: {
+  ariaInvalid: boolean;
+  disabled: boolean;
+  id: string;
+  name: string;
+  options: Array<{ id: string; label: string; value: string }>;
+  placeholder: string;
+  required: boolean;
+}) {
+  const [value, setValue] = useState<string | undefined>(undefined);
+  const comboboxOptions = useMemo(
+    () => [
+      {
+        label: placeholder,
+        searchText: placeholder,
+        value: "",
+      },
+      ...options.map((option) => ({
+        label: option.label,
+        searchText: `${option.label} ${option.value}`,
+        value: option.value,
+      })),
+    ],
+    [options, placeholder],
+  );
+
+  return (
+    <>
+      <input
+        aria-hidden="true"
+        name={name}
+        required={required}
+        tabIndex={-1}
+        type="text"
+        value={value ?? ""}
+        readOnly
+        className="absolute left-[-10000px] top-auto h-px w-px overflow-hidden"
+      />
+      <Combobox
+        aria-invalid={ariaInvalid || undefined}
+        disabled={disabled}
+        id={id}
+        onValueChange={(nextValue) => setValue(nextValue || undefined)}
+        options={comboboxOptions}
+        placeholder={placeholder}
+        renderValue={(option) =>
+          option.value ? (
+            <span className="truncate">{option.label}</span>
+          ) : (
+            <span className="truncate text-muted-foreground">{placeholder}</span>
+          )
+        }
+        searchPlaceholder="Search option"
+        value={value ?? ""}
+      />
+    </>
+  );
+}
+
+function ProjectBooleanSelectInput({
+  ariaInvalid,
+  disabled,
+  id,
+  name,
+  placeholder,
+  required,
+}: {
+  ariaInvalid: boolean;
+  disabled: boolean;
+  id: string;
+  name: string;
+  placeholder: string;
+  required: boolean;
+}) {
+  const [value, setValue] = useState<string | undefined>(undefined);
+  const comboboxOptions = useMemo(
+    () => [
+      {
+        label: placeholder,
+        searchText: placeholder,
+        value: "",
+      },
+      { label: "Yes", searchText: "Yes true", value: "true" },
+      { label: "No", searchText: "No false", value: "false" },
+    ],
+    [placeholder],
+  );
+
+  return (
+    <>
+      <input
+        aria-hidden="true"
+        name={name}
+        required={required}
+        tabIndex={-1}
+        type="text"
+        value={value ?? ""}
+        readOnly
+        className="absolute left-[-10000px] top-auto h-px w-px overflow-hidden"
+      />
+      <Combobox
+        aria-invalid={ariaInvalid || undefined}
+        disabled={disabled}
+        id={id}
+        onValueChange={(nextValue) => setValue(nextValue || undefined)}
+        options={comboboxOptions}
+        placeholder={placeholder}
+        renderValue={(option) =>
+          option.value ? (
+            <span className="truncate">{option.label}</span>
+          ) : (
+            <span className="truncate text-muted-foreground">{placeholder}</span>
+          )
+        }
+        searchPlaceholder="Search option"
+        value={value ?? ""}
+      />
+    </>
+  );
 }
 
 function AttachmentField({

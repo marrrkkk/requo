@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import {
   CheckCircle2,
   ChevronDown,
@@ -12,11 +12,12 @@ import {
 } from "lucide-react";
 
 import {
-  FormActions,
   FormSection,
 } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Card,
   CardContent,
@@ -31,14 +32,6 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -84,6 +77,8 @@ export function BusinessInquiryPageForm({
   const [cards, setCards] = useState<InquiryPageCard[]>(
     settings.inquiryPageConfig.cards,
   );
+  const formRef = useRef<HTMLFormElement>(null);
+  const [formRevision, setFormRevision] = useState(0);
 
   const fieldErrors = state.fieldErrors;
   const templateError = getFieldError(fieldErrors, "template");
@@ -94,6 +89,87 @@ export function BusinessInquiryPageForm({
   const formTitleError = getFieldError(fieldErrors, "formTitle");
   const formDescriptionError = getFieldError(fieldErrors, "formDescription");
   const cardsError = getFieldError(fieldErrors, "cards");
+  const initialCardsSerialized = useMemo(
+    () => JSON.stringify(settings.inquiryPageConfig.cards),
+    [settings.inquiryPageConfig.cards],
+  );
+  const hasControlledChanges =
+    publicInquiryEnabled !== settings.publicInquiryEnabled ||
+    template !== settings.inquiryPageConfig.template ||
+    JSON.stringify(cards) !== initialCardsSerialized;
+  const [hasTextInputChanges, setHasTextInputChanges] = useState(false);
+
+  useEffect(() => {
+    const form = formRef.current;
+    if (!form) {
+      return;
+    }
+
+    const inputNames = [
+      "eyebrow",
+      "brandTagline",
+      "headline",
+      "description",
+      "formTitle",
+      "formDescription",
+    ] as const;
+
+    const initialValues = {
+      eyebrow: settings.inquiryPageConfig.eyebrow ?? "",
+      brandTagline: settings.inquiryPageConfig.brandTagline ?? "",
+      headline: settings.inquiryPageConfig.headline,
+      description: settings.inquiryPageConfig.description ?? "",
+      formTitle: settings.inquiryPageConfig.formTitle,
+      formDescription: settings.inquiryPageConfig.formDescription ?? "",
+    };
+
+    setHasTextInputChanges(
+      inputNames.some((name) => {
+        const field = form.elements.namedItem(name);
+        if (
+          !(field instanceof HTMLInputElement) &&
+          !(field instanceof HTMLTextAreaElement)
+        ) {
+          return false;
+        }
+
+        return field.value !== initialValues[name];
+      }),
+    );
+  }, [formRevision, settings.inquiryPageConfig]);
+  const hasUnsavedChanges = hasControlledChanges || hasTextInputChanges;
+  const [shouldRenderFloatingActions, setShouldRenderFloatingActions] = useState(false);
+  const [floatingActionsState, setFloatingActionsState] = useState<"open" | "closed">(
+    "closed",
+  );
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setPrefersReducedMotion(mediaQuery.matches);
+    update();
+    mediaQuery.addEventListener("change", update);
+    return () => mediaQuery.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (hasUnsavedChanges) {
+      queueMicrotask(() => {
+        setShouldRenderFloatingActions(true);
+        setFloatingActionsState("open");
+      });
+      return;
+    }
+
+    queueMicrotask(() => {
+      setFloatingActionsState("closed");
+    });
+    const timeout = window.setTimeout(
+      () => setShouldRenderFloatingActions(false),
+      prefersReducedMotion ? 0 : 180,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [hasUnsavedChanges, prefersReducedMotion]);
 
   function updateCard(
     cardId: string,
@@ -145,8 +221,21 @@ export function BusinessInquiryPageForm({
     ]);
   }
 
+  function handleCancelChanges() {
+    formRef.current?.reset();
+    setPublicInquiryEnabled(settings.publicInquiryEnabled);
+    setTemplate(settings.inquiryPageConfig.template);
+    setCards(settings.inquiryPageConfig.cards);
+    setFormRevision((current) => current + 1);
+  }
+
   return (
-    <form action={formAction} className="form-stack">
+    <form
+      action={formAction}
+      className="form-stack pb-28"
+      onInputCapture={() => setFormRevision((current) => current + 1)}
+      ref={formRef}
+    >
       {state.error ? (
         <Alert variant="destructive">
           <AlertTitle>We could not save the inquiry page.</AlertTitle>
@@ -507,38 +596,46 @@ export function BusinessInquiryPageForm({
                         <Field>
                           <FieldLabel>Icon</FieldLabel>
                           <FieldContent>
-                            <Select
+                            <Combobox
                               disabled={isPending}
+                              id={`inquiry-card-icon-${card.id}`}
                               onValueChange={(value) =>
                                 updateCard(card.id, "icon", value)
                               }
-                              value={card.icon}
-                            >
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Choose an icon" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectGroup>
-                                  {(
-                                    Object.keys(
-                                      inquiryPageCardIconMeta,
-                                    ) as InquiryPageCardIcon[]
-                                  ).map((iconKey) => {
-                                    const iconMeta = inquiryPageCardIconMeta[iconKey];
-                                    const Icon = iconMeta.icon;
+                              options={(
+                                Object.keys(
+                                  inquiryPageCardIconMeta,
+                                ) as InquiryPageCardIcon[]
+                              ).map((iconKey) => ({
+                                icon: inquiryPageCardIconMeta[iconKey].icon,
+                                label: inquiryPageCardIconMeta[iconKey].label,
+                                searchText: inquiryPageCardIconMeta[iconKey].label,
+                                value: iconKey,
+                              }))}
+                              placeholder="Choose an icon"
+                              renderOption={(option) => {
+                                const Icon = option.icon;
 
-                                    return (
-                                      <SelectItem key={iconKey} value={iconKey}>
-                                        <span className="inline-flex items-center gap-2">
-                                          <Icon className="size-4" />
-                                          {iconMeta.label}
-                                        </span>
-                                      </SelectItem>
-                                    );
-                                  })}
-                                </SelectGroup>
-                              </SelectContent>
-                            </Select>
+                                return (
+                                  <span className="inline-flex items-center gap-2">
+                                    <Icon className="size-4" />
+                                    {option.label}
+                                  </span>
+                                );
+                              }}
+                              renderValue={(option) => {
+                                const Icon = option.icon;
+
+                                return (
+                                  <span className="inline-flex min-w-0 items-center gap-2 text-left">
+                                    <Icon className="size-4 shrink-0" />
+                                    <span className="truncate">{option.label}</span>
+                                  </span>
+                                );
+                              }}
+                              searchPlaceholder="Search icon"
+                              value={card.icon}
+                            />
                           </FieldContent>
                         </Field>
 
@@ -612,16 +709,36 @@ export function BusinessInquiryPageForm({
         </CardContent>
       </Card>
 
-      <div className="toolbar-panel">
-        <FormActions align="between" className="pt-0">
-          <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            Save before previewing changes.
-          </p>
-          <Button disabled={isPending} size="lg" type="submit">
-            {isPending ? "Saving inquiry page..." : "Save inquiry page"}
-          </Button>
-        </FormActions>
-      </div>
+      {shouldRenderFloatingActions ? (
+        <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4">
+          <div
+            className="soft-panel motion-safe:data-[state=open]:animate-in motion-safe:data-[state=open]:fade-in-0 motion-safe:data-[state=open]:slide-in-from-bottom-2 motion-safe:data-[state=open]:zoom-in-95 motion-safe:data-[state=open]:duration-200 motion-safe:data-[state=open]:ease-(--motion-ease-emphasized) motion-safe:data-[state=closed]:animate-out motion-safe:data-[state=closed]:fade-out-0 motion-safe:data-[state=closed]:slide-out-to-bottom-2 motion-safe:data-[state=closed]:zoom-out-95 motion-safe:data-[state=closed]:duration-150 motion-safe:data-[state=closed]:ease-(--motion-ease-standard) motion-reduce:animate-none flex w-full max-w-2xl items-center justify-between gap-3 border-border/80 bg-background/95 px-4 py-3 shadow-xl backdrop-blur"
+            data-state={floatingActionsState}
+          >
+            <p className="text-sm text-muted-foreground">You have unsaved changes.</p>
+            <div className="flex items-center gap-2">
+              <Button
+                disabled={isPending || !hasUnsavedChanges}
+                onClick={handleCancelChanges}
+                type="button"
+                variant="outline"
+              >
+                Cancel
+              </Button>
+              <Button disabled={isPending} size="lg" type="submit">
+                {isPending ? (
+                  <>
+                    <Spinner data-icon="inline-start" aria-hidden="true" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save changes"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </form>
   );
 }

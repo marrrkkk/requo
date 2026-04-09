@@ -22,10 +22,10 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
   markBusinessNotificationsReadAction,
@@ -321,8 +321,8 @@ export function DashboardNotificationBell({
   }
 
   return (
-    <DropdownMenu onOpenChange={setIsOpen} open={isOpen}>
-      <DropdownMenuTrigger asChild>
+    <Popover modal={false} onOpenChange={setIsOpen} open={isOpen}>
+      <PopoverTrigger asChild>
         <Button
           aria-label={
             view.unreadCount
@@ -341,10 +341,10 @@ export function DashboardNotificationBell({
             </span>
           ) : null}
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
+      </PopoverTrigger>
+      <PopoverContent
         align="end"
-        className="w-[min(25rem,calc(100vw-1.5rem))] rounded-2xl p-0"
+        className="overlay-surface w-[min(25rem,calc(100vw-1.5rem))] rounded-2xl p-0"
         sideOffset={10}
       >
         <div className="flex items-center justify-between gap-3 px-4 py-4">
@@ -433,8 +433,8 @@ export function DashboardNotificationBell({
             </div>
           )}
         </ScrollArea>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </PopoverContent>
+    </Popover>
   );
 }
 

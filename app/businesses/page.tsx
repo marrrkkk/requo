@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { ArrowRight, PlusCircle } from "lucide-react";
 
 import { LogoutButton } from "@/features/auth/components/logout-button";
-import { accountProfilePath } from "@/features/account/routes";
+import { getProfileSettingsPath } from "@/features/account/routes";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { AppearanceMenu } from "@/features/theme/components/appearance-menu";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
@@ -11,6 +11,7 @@ import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { CreateBusinessForm } from "@/features/businesses/components/create-business-form";
 import { createBusinessAction } from "@/features/businesses/actions";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
+import { businessTypeMeta } from "@/features/inquiries/business-types";
 import { onboardingPath } from "@/features/onboarding/routes";
 import { requireSession } from "@/lib/auth/session";
 import {
@@ -18,6 +19,7 @@ import {
   getBusinessMembershipsForUser,
 } from "@/lib/db/business-access";
 import { BrandMark } from "@/components/shared/brand-mark";
+import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +44,12 @@ export default async function BusinessesPage() {
     redirect(onboardingPath);
   }
 
+  const profileSettingsHref = activeBusinessContext
+    ? getProfileSettingsPath(activeBusinessContext.business.slug)
+    : memberships[0]
+      ? getProfileSettingsPath(memberships[0].business.slug)
+      : null;
+
   return (
     <>
       <ThemePreferenceSync
@@ -64,18 +72,20 @@ export default async function BusinessesPage() {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Button asChild variant="outline">
-                <Link href={accountProfilePath} prefetch={true}>
-                  Profile
-                </Link>
-              </Button>
+              {profileSettingsHref ? (
+                <Button asChild variant="outline">
+                  <Link href={profileSettingsHref} prefetch={true}>
+                    Profile
+                  </Link>
+                </Button>
+              ) : null}
               <AppearanceMenu userId={session.user.id} />
               <LogoutButton variant="outline" />
             </div>
           </header>
 
-          <div className="grid flex-1 gap-6 py-8 xl:grid-cols-[minmax(0,1.2fr)_24rem]">
-            <section className="space-y-4">
+          <div className="grid flex-1 gap-6 py-8 xl:grid-cols-3">
+            <section className="space-y-4 xl:col-span-2">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="meta-label">Your businesses</p>
@@ -93,8 +103,6 @@ export default async function BusinessesPage() {
                     const businessPath = getBusinessDashboardPath(
                       membership.business.slug,
                     );
-                    const isActiveBusiness =
-                      activeBusinessContext?.business.id === membership.business.id;
 
                     return (
                       <Card
@@ -102,21 +110,28 @@ export default async function BusinessesPage() {
                         key={membership.membershipId}
                       >
                         <CardHeader className="gap-3">
-                          <div className="flex items-start justify-between gap-4">
+                          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
                             <div className="flex min-w-0 items-start gap-3">
                               <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-background/90 text-sm font-semibold tracking-[0.16em] text-foreground">
                                 {getInitials(membership.business.name)}
                               </div>
-                              <div className="min-w-0">
-                                <CardTitle className="truncate">
-                                  {membership.business.name}
+                              <div className="min-w-0 flex-1">
+                                <CardTitle className="max-w-full">
+                                  <TruncatedTextWithTooltip
+                                    className="w-full"
+                                    text={membership.business.name}
+                                  />
                                 </CardTitle>
-                                <CardDescription className="mt-1 truncate">
-                                  /{membership.business.slug}
+                                <CardDescription className="mt-1 max-w-full">
+                                  <TruncatedTextWithTooltip
+                                    className="w-full"
+                                    text={`/${membership.business.slug}`}
+                                  />
                                 </CardDescription>
                               </div>
                             </div>
                             <Badge
+                              className="shrink-0 self-start"
                               variant={
                                 membership.role === "owner" ? "secondary" : "outline"
                               }
@@ -130,20 +145,14 @@ export default async function BusinessesPage() {
                             <Badge variant="outline">
                               {membership.business.defaultCurrency}
                             </Badge>
-                            <Badge
-                              variant={
-                                membership.business.publicInquiryEnabled
-                                  ? "secondary"
-                                  : "outline"
-                              }
-                            >
-                              {membership.business.publicInquiryEnabled
-                                ? "Public form live"
-                                : "Public form off"}
+                            <Badge className="max-w-full sm:max-w-[16rem]" variant="secondary">
+                              <TruncatedTextWithTooltip
+                                text={
+                                  businessTypeMeta[membership.business.businessType]
+                                    .label
+                                }
+                              />
                             </Badge>
-                            {isActiveBusiness ? (
-                              <Badge variant="secondary">Last opened</Badge>
-                            ) : null}
                           </div>
 
                           <Button asChild className="w-full sm:w-auto">
@@ -176,7 +185,7 @@ export default async function BusinessesPage() {
               )}
             </section>
 
-            <aside>
+            <aside className="xl:col-span-1">
               <Card className="sticky top-6">
                 <CardHeader>
                   <CardTitle>Create business</CardTitle>

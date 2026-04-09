@@ -28,6 +28,7 @@ export async function getQuoteLibraryForBusiness(
   const entries = await db
     .select({
       id: quoteLibraryEntries.id,
+      currency: quoteLibraryEntries.currency,
       kind: quoteLibraryEntries.kind,
       name: quoteLibraryEntries.name,
       description: quoteLibraryEntries.description,
@@ -88,6 +89,7 @@ export async function getQuoteLibraryForBusiness(
 
     return {
       id: entry.id,
+      currency: entry.currency,
       kind: entry.kind,
       name: entry.name,
       description: entry.description,

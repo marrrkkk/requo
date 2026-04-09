@@ -39,13 +39,17 @@ Optional but commonly needed:
 - Set `BETTER_AUTH_URL` to the exact origin you will open in the browser.
 - `NEXT_PUBLIC_BETTER_AUTH_URL` is optional. Keep it aligned with `/api/auth` when you set it.
 - If you switch between `localhost` and `127.0.0.1`, update the auth URL to match the browser origin.
+- Social sign-in is optional. Set provider credentials only for the providers you want to enable:
+  - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+  - `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, and optional `MICROSOFT_TENANT_ID`
+- Provider callback URLs use `/api/auth/callback/<provider>`.
 
 ### Supabase
 
 - Supabase-backed uploads and asset downloads need a real Supabase project.
 - The repo validates Supabase envs even when you are not actively using upload flows.
 - Local builds and tests can use placeholder Supabase values when you are not exercising storage-backed functionality.
-- Knowledge uploads, inquiry attachments, and business logos need a real Supabase project and valid service-role credentials.
+- Knowledge uploads, inquiry attachments, business logos, and profile avatars need a real Supabase project and valid service-role credentials.
 - Realtime dashboard notifications need `SUPABASE_JWT_SECRET` from the Supabase project API settings. Without it, the bell still renders server data but will not live-update.
 - Use your Supabase pooler host for both database env vars:
   - `DATABASE_URL` on port `6543`
@@ -113,6 +117,8 @@ Default demo values:
 - Demo sent quote token: `demoquote1002senttoken`
 - Demo expired quote token: `demoquote1005expiredtoken`
 
+The seed also adds two extra sample businesses, three inquiry forms per business, and several hundred inquiries and quotes while keeping the primary BrightSide demo workspace stable for local testing.
+
 The seed supports overriding these values through the `DEMO_*` env variables in `.env`.
 
 ### 4. Start the app
@@ -138,3 +144,22 @@ npm run test:e2e
 - The Playwright suite starts its own local server, sets `BETTER_AUTH_URL` to `127.0.0.1`, and disables live Resend and OpenRouter calls.
 - The E2E suite uses the seeded demo business and fixed public quote tokens.
 - The current automated suite does not cover live storage uploads, live Resend delivery, or live OpenRouter generation.
+
+### Canonical Dashboard Routes
+
+Use one canonical route set in docs and tests:
+
+- Dashboard home: `/businesses/<slug>/dashboard`
+- Requests: `/businesses/<slug>/dashboard/inquiries`
+- Quotes: `/businesses/<slug>/dashboard/quotes`
+- Forms: `/businesses/<slug>/dashboard/forms`
+- Settings hub: `/businesses/<slug>/dashboard/settings`
+- Settings sections:
+  - General: `/settings/general`
+  - Profile: `/settings/profile`
+  - Saved replies: `/settings/replies`
+  - Quote defaults: `/settings/quote`
+  - Pricing library: `/settings/pricing`
+  - Knowledge base: `/settings/knowledge`
+
+Legacy aliases under settings are kept only as redirects for backward compatibility. Do not use alias paths in new docs or tests.

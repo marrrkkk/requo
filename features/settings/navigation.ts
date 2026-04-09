@@ -1,19 +1,19 @@
-import type { LucideIcon } from "lucide-react";
-import {
-  BookCopy,
-  FileText,
-  MessageSquareText,
-  Settings2,
-  Tags,
-} from "lucide-react";
-
 import { getBusinessSettingsPath } from "@/features/businesses/routes";
+
+export type BusinessSettingsNavigationIcon =
+  | "profile"
+  | "security"
+  | "general"
+  | "notifications"
+  | "replies"
+  | "knowledge"
+  | "quote"
+  | "pricing";
 
 export type BusinessSettingsNavigationItem = {
   href: string;
   label: string;
-  description: string;
-  icon: LucideIcon;
+  icon: BusinessSettingsNavigationIcon;
 };
 
 export type BusinessSettingsNavigationGroup = {
@@ -26,13 +26,32 @@ export function getBusinessSettingsNavigation(
 ): BusinessSettingsNavigationGroup[] {
   return [
     {
+      label: "Account",
+      items: [
+        {
+          href: getBusinessSettingsPath(slug, "profile"),
+          label: "Your profile",
+          icon: "profile",
+        },
+        {
+          href: getBusinessSettingsPath(slug, "security"),
+          label: "Security",
+          icon: "security",
+        },
+      ],
+    },
+    {
       label: "Business",
       items: [
         {
           href: getBusinessSettingsPath(slug, "general"),
-          label: "General",
-          description: "Brand, contact, notifications",
-          icon: Settings2,
+          label: "Business profile",
+          icon: "general",
+        },
+        {
+          href: getBusinessSettingsPath(slug, "notifications"),
+          label: "Notifications",
+          icon: "notifications",
         },
       ],
     },
@@ -42,14 +61,12 @@ export function getBusinessSettingsNavigation(
         {
           href: getBusinessSettingsPath(slug, "replies"),
           label: "Saved replies",
-          description: "Reusable snippets for inquiry responses",
-          icon: MessageSquareText,
+          icon: "replies",
         },
         {
           href: getBusinessSettingsPath(slug, "knowledge"),
           label: "Knowledge base",
-          description: "Files and FAQs for AI context",
-          icon: BookCopy,
+          icon: "knowledge",
         },
       ],
     },
@@ -59,14 +76,12 @@ export function getBusinessSettingsNavigation(
         {
           href: getBusinessSettingsPath(slug, "quote"),
           label: "Quote defaults",
-          description: "Currency, validity, and default copy",
-          icon: FileText,
+          icon: "quote",
         },
         {
           href: getBusinessSettingsPath(slug, "pricing"),
           label: "Pricing library",
-          description: "Saved blocks and service packages",
-          icon: Tags,
+          icon: "pricing",
         },
       ],
     },

@@ -4,6 +4,11 @@ import Link from "next/link";
 import { FormEvent, useState, useTransition } from "react";
 
 import { authClient } from "@/lib/auth/client";
+import {
+  AuthEmailDivider,
+  SocialAuthButtons,
+  type SocialAuthProvider,
+} from "@/features/auth/components/social-auth-buttons";
 import { getAuthErrorMessage, getFieldError, getValidationState } from "@/features/auth/utils";
 import { signupSchema } from "@/features/auth/schemas";
 import type { AuthFormState } from "@/features/auth/types";
@@ -11,6 +16,7 @@ import { AuthFormFeedback } from "@/features/auth/components/auth-form-feedback"
 import { onboardingPath } from "@/features/onboarding/routes";
 import { FormActions } from "@/components/shared/form-layout";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Field,
   FieldContent,
@@ -21,7 +27,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/features/auth/components/password-input";
 
-export function SignupForm() {
+type SignupFormProps = {
+  socialProviders?: SocialAuthProvider[];
+};
+
+export function SignupForm({
+  socialProviders = [],
+}: SignupFormProps) {
   const [state, setState] = useState<AuthFormState>({});
   const [isPending, startTransition] = useTransition();
 
@@ -59,6 +71,27 @@ export function SignupForm() {
     });
   }
 
+  function handleSocialSignIn(provider: SocialAuthProvider) {
+    setState({});
+
+    startTransition(async () => {
+      const result = await authClient.signIn.social({
+        provider,
+        callbackURL: "/businesses",
+        newUserCallbackURL: onboardingPath,
+      });
+
+      if (result.error) {
+        setState({
+          error: getAuthErrorMessage(
+            result.error,
+            `We couldn't continue with ${provider} right now.`,
+          ),
+        });
+      }
+    });
+  }
+
   const nameError = getFieldError(state.fieldErrors, "name");
   const emailError = getFieldError(state.fieldErrors, "email");
   const passwordError = getFieldError(state.fieldErrors, "password");
@@ -66,6 +99,14 @@ export function SignupForm() {
   return (
     <form className="form-stack" onSubmit={handleSubmit}>
       <AuthFormFeedback error={state.error} success={state.success} />
+
+      <SocialAuthButtons
+        disabled={isPending}
+        onProviderClick={handleSocialSignIn}
+        providers={socialProviders}
+      />
+
+      <AuthEmailDivider />
 
       <FieldGroup>
         <Field data-invalid={Boolean(nameError) || undefined}>
@@ -127,7 +168,14 @@ export function SignupForm() {
 
       <FormActions className="items-stretch sm:items-stretch">
         <Button className="w-full" disabled={isPending} type="submit" size="lg">
-          {isPending ? "Creating your account..." : "Create account"}
+          {isPending ? (
+            <>
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+              Creating your account...
+            </>
+          ) : (
+            "Create account"
+          )}
         </Button>
       </FormActions>
 

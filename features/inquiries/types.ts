@@ -97,7 +97,11 @@ export type InquiryListFilters = {
   q?: string;
   status: InquiryStatusFilterValue;
   form: string;
+  sort: "newest" | "oldest";
+  page: number;
 };
+
+export type InquiryListQueryFilters = Omit<InquiryListFilters, "page">;
 
 export type BusinessInquiryFormSummary = {
   id: string;

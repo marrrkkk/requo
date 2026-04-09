@@ -21,8 +21,8 @@ export default function BusinessesLoading() {
           </div>
         </header>
 
-        <div className="grid flex-1 gap-6 py-8 xl:grid-cols-[minmax(0,1.2fr)_24rem]">
-          <section className="space-y-4">
+        <div className="grid flex-1 gap-6 py-8 xl:grid-cols-3">
+          <section className="space-y-4 xl:col-span-2">
             <div className="space-y-2">
               <Skeleton className="h-4 w-28 rounded-md" />
               <Skeleton className="h-8 w-40 rounded-lg" />
@@ -56,7 +56,7 @@ export default function BusinessesLoading() {
             </div>
           </section>
 
-          <aside>
+          <aside className="xl:col-span-1">
             <Card className="sticky top-6">
               <CardHeader>
                 <Skeleton className="h-7 w-36 rounded-md" />

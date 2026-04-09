@@ -5,6 +5,7 @@ import { cacheLife, cacheTag } from "next/cache";
 
 import { getNormalizedInquiryFormConfig } from "@/features/inquiries/form-config";
 import { getNormalizedInquiryPageConfig } from "@/features/inquiries/page-config";
+import { normalizeBusinessType } from "@/features/inquiries/business-types";
 import type {
   BusinessInquiryFormsSettingsView,
   BusinessInquiryFormEditorView,
@@ -34,6 +35,7 @@ export async function getBusinessSettingsForBusiness(
       id: businesses.id,
       name: businesses.name,
       slug: businesses.slug,
+      countryCode: businesses.countryCode,
       businessType: businesses.businessType,
       shortDescription: businesses.shortDescription,
       contactEmail: businesses.contactEmail,
@@ -109,6 +111,8 @@ export async function getBusinessInquiryPageSettingsForBusiness(
     return null;
   }
 
+  const businessType = normalizeBusinessType(row.businessType);
+
   return {
     id: row.id,
     name: row.name,
@@ -118,17 +122,17 @@ export async function getBusinessInquiryPageSettingsForBusiness(
     formId: row.formId,
     formName: row.formName,
     formSlug: row.formSlug,
-    businessType: row.businessType,
+    businessType,
     publicInquiryEnabled: row.publicInquiryEnabled,
     isDefault: row.isDefault,
     inquiryFormConfig: getNormalizedInquiryFormConfig(row.inquiryFormConfig, {
-      businessType: row.businessType,
+      businessType,
     }),
     inquiryPageConfig: getNormalizedInquiryPageConfig(row.inquiryPageConfig, {
       businessName: row.name,
       businessShortDescription: row.shortDescription,
       legacyInquiryHeadline: row.inquiryHeadline,
-      businessType: row.businessType,
+      businessType,
     }),
     updatedAt: row.updatedAt,
   };
@@ -184,6 +188,8 @@ export async function getBusinessInquiryFormSettingsForBusiness(
     return null;
   }
 
+  const businessType = normalizeBusinessType(row.businessType);
+
   return {
     id: row.id,
     name: row.name,
@@ -191,17 +197,17 @@ export async function getBusinessInquiryFormSettingsForBusiness(
     formId: row.formId,
     formName: row.formName,
     formSlug: row.formSlug,
-    businessType: row.businessType,
+    businessType,
     publicInquiryEnabled: row.publicInquiryEnabled,
     isDefault: row.isDefault,
     inquiryFormConfig: getNormalizedInquiryFormConfig(row.inquiryFormConfig, {
-      businessType: row.businessType,
+      businessType,
     }),
     inquiryPageConfig: getNormalizedInquiryPageConfig(row.inquiryPageConfig, {
       businessName: row.name,
       businessShortDescription: row.shortDescription,
       legacyInquiryHeadline: row.inquiryHeadline,
-      businessType: row.businessType,
+      businessType,
     }),
     updatedAt: row.updatedAt,
   };
@@ -262,30 +268,36 @@ export async function getBusinessInquiryFormsSettingsForBusiness(
     return null;
   }
 
+  const businessType = normalizeBusinessType(businessRow.businessType);
+
   return {
     id: businessRow.id,
     name: businessRow.name,
     slug: businessRow.slug,
-    businessType: businessRow.businessType,
-    forms: forms.map((form) => ({
-      id: form.id,
-      name: form.name,
-      slug: form.slug,
-      businessType: form.businessType,
-      isDefault: form.isDefault,
-      publicInquiryEnabled: form.publicInquiryEnabled,
-      archivedAt: form.archivedAt,
-      createdAt: form.createdAt,
-      updatedAt: form.updatedAt,
-      submittedInquiryCount: form.submittedInquiryCount,
-      inquiryFormConfig: getNormalizedInquiryFormConfig(form.inquiryFormConfig, {
-        businessType: form.businessType,
-      }),
-      inquiryPageConfig: getNormalizedInquiryPageConfig(form.inquiryPageConfig, {
-        businessName: businessRow.name,
-        businessType: form.businessType,
-      }),
-    })),
+    businessType,
+    forms: forms.map((form) => {
+      const formBusinessType = normalizeBusinessType(form.businessType);
+
+      return {
+        id: form.id,
+        name: form.name,
+        slug: form.slug,
+        businessType: formBusinessType,
+        isDefault: form.isDefault,
+        publicInquiryEnabled: form.publicInquiryEnabled,
+        archivedAt: form.archivedAt,
+        createdAt: form.createdAt,
+        updatedAt: form.updatedAt,
+        submittedInquiryCount: form.submittedInquiryCount,
+        inquiryFormConfig: getNormalizedInquiryFormConfig(form.inquiryFormConfig, {
+          businessType: formBusinessType,
+        }),
+        inquiryPageConfig: getNormalizedInquiryPageConfig(form.inquiryPageConfig, {
+          businessName: businessRow.name,
+          businessType: formBusinessType,
+        }),
+      };
+    }),
   };
 }
 
@@ -362,6 +374,8 @@ export async function getBusinessInquiryFormEditorForBusiness(
     return null;
   }
 
+  const businessType = normalizeBusinessType(businessRow.businessType);
+
   return {
     id: businessRow.id,
     name: businessRow.name,
@@ -371,17 +385,17 @@ export async function getBusinessInquiryFormEditorForBusiness(
     formId: businessRow.formId,
     formName: businessRow.formName,
     formSlug: businessRow.formSlug,
-    businessType: businessRow.businessType,
+    businessType,
     publicInquiryEnabled: businessRow.publicInquiryEnabled,
     isDefault: businessRow.isDefault,
     inquiryFormConfig: getNormalizedInquiryFormConfig(businessRow.inquiryFormConfig, {
-      businessType: businessRow.businessType,
+      businessType,
     }),
     inquiryPageConfig: getNormalizedInquiryPageConfig(businessRow.inquiryPageConfig, {
       businessName: businessRow.name,
       businessShortDescription: businessRow.shortDescription,
       legacyInquiryHeadline: businessRow.inquiryHeadline,
-      businessType: businessRow.businessType,
+      businessType,
     }),
     updatedAt: businessRow.updatedAt,
     activeFormCount: activeFormRows.length,

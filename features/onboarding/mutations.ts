@@ -17,6 +17,7 @@ type CompleteOnboardingForUserInput = {
   };
   businessName: string;
   businessType: BusinessType;
+  countryCode: string;
   shortDescription: string;
   fullName: string;
   jobTitle: string;
@@ -27,6 +28,7 @@ export async function completeOnboardingForUser({
   user,
   businessName,
   businessType,
+  countryCode,
   shortDescription,
   fullName,
   jobTitle,
@@ -50,6 +52,7 @@ export async function completeOnboardingForUser({
 
     return createBusinessRecordForUser({
       tx,
+      countryCode,
       user,
       name: businessName,
       businessType,

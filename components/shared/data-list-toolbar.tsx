@@ -1,28 +1,25 @@
 "use client";
 
-import { Search, X } from "lucide-react";
-import type { ReactNode } from "react";
+import { ListFilter, X } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import {
   DashboardActionsRow,
   DashboardToolbar,
 } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldContent,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Combobox } from "@/components/ui/combobox";
+import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 type DataListToolbarOption = {
   label: string;
@@ -47,8 +44,12 @@ type DataListToolbarProps = {
   secondaryFilterValue?: string;
   onSecondaryFilterChange?: (value: string) => void;
   secondaryFilterOptions?: DataListToolbarOption[];
+  sortId?: string;
+  sortLabel?: string;
+  sortValue?: string;
+  onSortChange?: (value: string) => void;
+  sortOptions?: DataListToolbarOption[];
   isPending: boolean;
-  onSubmit: () => void;
   onClear: () => void;
   canClear: boolean;
 };
@@ -71,11 +72,115 @@ export function DataListToolbar({
   secondaryFilterValue,
   onSecondaryFilterChange,
   secondaryFilterOptions,
+  sortId,
+  sortLabel,
+  sortValue,
+  onSortChange,
+  sortOptions,
   isPending,
-  onSubmit,
   onClear,
   canClear,
 }: DataListToolbarProps) {
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+
+  const shouldShowSecondaryFilter = Boolean(
+    secondaryFilterId &&
+      secondaryFilterLabel &&
+      secondaryFilterValue !== undefined &&
+      onSecondaryFilterChange &&
+      secondaryFilterOptions?.length,
+  );
+  const shouldShowSortFilter = Boolean(
+    sortId &&
+      sortLabel &&
+      sortValue !== undefined &&
+      onSortChange &&
+      sortOptions?.length,
+  );
+
+  const filterFields = useMemo(
+    () => (
+      <>
+        <Field className="min-w-0 w-full sm:max-w-[14rem] xl:w-[12rem] xl:max-w-[14rem] xl:shrink-0">
+          <FieldLabel className="meta-label px-0.5" htmlFor={filterId}>
+            {filterLabel}
+          </FieldLabel>
+          <FieldContent>
+            <Combobox
+              id={filterId}
+              value={filterValue}
+              onValueChange={(value) => {
+                onFilterChange(value);
+              }}
+              options={filterOptions}
+              placeholder={filterLabel}
+              searchPlaceholder={`Search ${filterLabel.toLowerCase()}`}
+            />
+          </FieldContent>
+        </Field>
+
+        {shouldShowSecondaryFilter ? (
+          <Field className="min-w-0 w-full sm:max-w-[14rem] xl:w-[12rem] xl:max-w-[14rem] xl:shrink-0">
+            <FieldLabel className="meta-label px-0.5" htmlFor={secondaryFilterId}>
+              {secondaryFilterLabel}
+            </FieldLabel>
+            <FieldContent>
+              <Combobox
+                id={secondaryFilterId!}
+                value={secondaryFilterValue!}
+                onValueChange={(value) => {
+                  onSecondaryFilterChange!(value);
+                }}
+                options={secondaryFilterOptions!}
+                placeholder={secondaryFilterLabel!}
+                searchPlaceholder={`Search ${secondaryFilterLabel!.toLowerCase()}`}
+              />
+            </FieldContent>
+          </Field>
+        ) : null}
+
+        {shouldShowSortFilter ? (
+          <Field className="min-w-0 w-full sm:max-w-[14rem] xl:w-[12rem] xl:max-w-[14rem] xl:shrink-0">
+            <FieldLabel className="meta-label px-0.5" htmlFor={sortId}>
+              {sortLabel}
+            </FieldLabel>
+            <FieldContent>
+              <Combobox
+                id={sortId!}
+                value={sortValue!}
+                onValueChange={(value) => {
+                  onSortChange!(value);
+                }}
+                options={sortOptions!}
+                placeholder={sortLabel!}
+                searchPlaceholder={`Search ${sortLabel!.toLowerCase()}`}
+              />
+            </FieldContent>
+          </Field>
+        ) : null}
+      </>
+    ),
+    [
+      filterId,
+      filterLabel,
+      filterOptions,
+      filterValue,
+      onFilterChange,
+      onSecondaryFilterChange,
+      onSortChange,
+      secondaryFilterId,
+      secondaryFilterLabel,
+      secondaryFilterOptions,
+      secondaryFilterValue,
+      shouldShowSecondaryFilter,
+      shouldShowSortFilter,
+      sortId,
+      sortLabel,
+      sortOptions,
+      sortValue,
+    ],
+  );
+
   return (
     <DashboardToolbar>
       <div className="flex flex-col gap-4">
@@ -84,15 +189,9 @@ export function DataListToolbar({
           <p className="data-list-toolbar-count">{resultLabel}</p>
         </div>
 
-        <form
-          className="flex flex-col gap-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            onSubmit();
-          }}
-        >
-          <FieldGroup className="data-list-toolbar-grid gap-4">
-            <Field className="xl:min-w-0">
+        <div className="flex flex-col gap-4">
+          <div className="data-list-toolbar-grid">
+            <Field className="min-w-0 w-full xl:min-w-[10rem] xl:max-w-md xl:flex-1 xl:basis-0">
               <FieldLabel className="meta-label px-0.5" htmlFor={searchId}>
                 {searchLabel}
               </FieldLabel>
@@ -102,85 +201,39 @@ export function DataListToolbar({
                   value={searchValue}
                   onChange={(event) => onSearchChange(event.currentTarget.value)}
                   placeholder={searchPlaceholder}
-                  disabled={isPending}
+                  aria-busy={isPending}
                 />
               </FieldContent>
             </Field>
 
-            <Field className="sm:max-w-[14rem] xl:max-w-none">
-              <FieldLabel className="meta-label px-0.5" htmlFor={filterId}>
-                {filterLabel}
-              </FieldLabel>
-              <FieldContent>
-                <Select value={filterValue} onValueChange={onFilterChange}>
-                  <SelectTrigger id={filterId} className="w-full">
-                    <SelectValue placeholder={filterLabel} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {filterOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </FieldContent>
-            </Field>
+            <div className="hidden sm:contents">{filterFields}</div>
 
-            {secondaryFilterId &&
-            secondaryFilterLabel &&
-            secondaryFilterValue !== undefined &&
-            onSecondaryFilterChange &&
-            secondaryFilterOptions?.length ? (
-              <Field className="sm:max-w-[14rem] xl:max-w-none">
-                <FieldLabel
-                  className="meta-label px-0.5"
-                  htmlFor={secondaryFilterId}
-                >
-                  {secondaryFilterLabel}
-                </FieldLabel>
-                <FieldContent>
-                  <Select
-                    value={secondaryFilterValue}
-                    onValueChange={onSecondaryFilterChange}
-                  >
-                    <SelectTrigger id={secondaryFilterId} className="w-full">
-                      <SelectValue placeholder={secondaryFilterLabel} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {secondaryFilterOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </FieldContent>
-              </Field>
-            ) : null}
-
-            <DashboardActionsRow className="data-list-toolbar-actions lg:self-end">
-              <Button className="w-full sm:w-auto" disabled={isPending} type="submit">
-                <Search data-icon="inline-start" />
-                {isPending ? "Applying..." : "Apply filters"}
-              </Button>
-              <Button
-                className="w-full sm:w-auto"
-                disabled={isPending || !canClear}
-                onClick={onClear}
-                type="button"
-                variant="ghost"
-              >
+            <DashboardActionsRow className="data-list-toolbar-actions">
+              <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
+                <SheetTrigger asChild>
+                  <Button className="w-full sm:hidden" type="button" variant="outline">
+                    <ListFilter data-icon="inline-start" />
+                    Filters
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="bottom">
+                  <SheetHeader>
+                    <SheetTitle>Filters</SheetTitle>
+                    <SheetDescription>
+                      Narrow list results with status, form, and sort options.
+                    </SheetDescription>
+                  </SheetHeader>
+                  <div className="space-y-4 px-5 pb-5">{filterFields}</div>
+                </SheetContent>
+              </Sheet>
+              <Button className="w-full sm:w-auto" disabled={!canClear} onClick={onClear} type="button" variant="ghost">
                 <X data-icon="inline-start" />
                 Clear
               </Button>
+              {isPending ? <Spinner className="hidden sm:inline-flex" aria-hidden="true" /> : null}
             </DashboardActionsRow>
-          </FieldGroup>
-        </form>
+          </div>
+        </div>
       </div>
     </DashboardToolbar>
   );

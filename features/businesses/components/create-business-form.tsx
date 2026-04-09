@@ -2,30 +2,27 @@
 
 import { useActionState, useState } from "react";
 
+import { CountryCombobox } from "@/components/shared/country-combobox";
 import { FormActions, FormSection } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Field,
   FieldContent,
+  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   businessTypeMeta,
-  businessTypes,
+  businessTypeOptions,
   type BusinessType,
 } from "@/features/inquiries/business-types";
+import { getBusinessCountryOption } from "@/features/businesses/locale";
 import type { CreateBusinessActionState } from "@/features/businesses/types";
 
 type CreateBusinessFormProps = {
@@ -42,10 +39,13 @@ export function CreateBusinessForm({
 }: CreateBusinessFormProps) {
   const [state, formAction, isPending] = useActionState(action, initialState);
   const [businessType, setBusinessType] = useState<BusinessType>(
-    "general_services",
+    "general_project_services",
   );
+  const [countryCode, setCountryCode] = useState("");
   const nameError = state.fieldErrors?.name?.[0];
   const businessTypeError = state.fieldErrors?.businessType?.[0];
+  const countryCodeError = state.fieldErrors?.countryCode?.[0];
+  const selectedCountry = getBusinessCountryOption(countryCode);
 
   return (
     <form action={formAction} className="form-stack">
@@ -57,6 +57,7 @@ export function CreateBusinessForm({
       ) : null}
 
       <input name="businessType" type="hidden" value={businessType} />
+      <input name="countryCode" type="hidden" value={countryCode} />
 
       <FormSection title="New business">
         <FieldGroup>
@@ -79,25 +80,56 @@ export function CreateBusinessForm({
             </FieldContent>
           </Field>
 
+          <Field data-invalid={Boolean(countryCodeError) || undefined}>
+            <FieldLabel htmlFor="business-country-code">
+              Country
+            </FieldLabel>
+            <FieldContent>
+              <CountryCombobox
+                aria-invalid={Boolean(countryCodeError) || undefined}
+                disabled={isPending}
+                id="business-country-code"
+                onValueChange={setCountryCode}
+                placeholder="Choose a country"
+                searchPlaceholder="Search country"
+                value={countryCode}
+              />
+              <FieldDescription>
+                {selectedCountry
+                  ? `Default currency: ${selectedCountry.currencyCode}`
+                  : "We use this to set the starting quote currency."}
+              </FieldDescription>
+              <FieldError
+                errors={
+                  countryCodeError ? [{ message: countryCodeError }] : undefined
+                }
+              />
+            </FieldContent>
+          </Field>
+
           <Field data-invalid={Boolean(businessTypeError) || undefined}>
             <FieldLabel htmlFor="business-type">
               Business type
             </FieldLabel>
             <FieldContent>
-              <Select onValueChange={(value) => setBusinessType(value as BusinessType)} value={businessType}>
-                <SelectTrigger className="w-full" id="business-type">
-                  <SelectValue placeholder="Choose a business type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {businessTypes.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {businessTypeMeta[option].label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+              <Combobox
+                aria-invalid={Boolean(businessTypeError) || undefined}
+                disabled={isPending}
+                id="business-type"
+                onValueChange={(value) => setBusinessType(value as BusinessType)}
+                options={businessTypeOptions}
+                placeholder="Choose a business type"
+                renderOption={(option) => (
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{option.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {option.description}
+                    </p>
+                  </div>
+                )}
+                searchPlaceholder="Search business type"
+                value={businessType}
+              />
               <p className="text-sm text-muted-foreground">
                 {businessTypeMeta[businessType].description}
               </p>
@@ -113,7 +145,14 @@ export function CreateBusinessForm({
 
       <FormActions align="start">
         <Button disabled={isPending} type="submit">
-          {isPending ? "Creating business..." : "Create business"}
+          {isPending ? (
+            <>
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+              Creating business...
+            </>
+          ) : (
+            "Create business"
+          )}
         </Button>
       </FormActions>
     </form>

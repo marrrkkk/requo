@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+import {
+  isSupportedBusinessCountryCode,
+  isSupportedBusinessCurrencyCode,
+  normalizeBusinessCountryCode,
+  normalizeBusinessCurrencyCode,
+} from "@/features/businesses/locale";
 import { businessTypes } from "@/features/inquiries/business-types";
 import { inquiryFormConfigSchema } from "@/features/inquiries/form-config";
 import { inquiryPageCardSchema, inquiryPageTemplates } from "@/features/inquiries/page-config";
@@ -11,7 +17,6 @@ import {
 } from "@/lib/slugs";
 import { businessAiTonePreferences } from "@/features/settings/types";
 import {
-  businessCurrencyOptions,
   businessLogoAllowedExtensions,
   normalizeBusinessSlug,
   businessLogoAllowedMimeTypes,
@@ -35,6 +40,33 @@ function optionalText(maxLength: number) {
     emptyToUndefined,
     z.string().trim().max(maxLength).optional(),
   );
+}
+
+function optionalCountryCode() {
+  return z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .trim()
+      .transform(normalizeBusinessCountryCode)
+      .refine(
+        isSupportedBusinessCountryCode,
+        "Choose a valid country.",
+      )
+      .optional(),
+  );
+}
+
+function supportedCurrencyCode(defaultValue = "USD") {
+  return z
+    .string()
+    .trim()
+    .transform(normalizeBusinessCurrencyCode)
+    .refine(
+      isSupportedBusinessCurrencyCode,
+      "Choose a supported currency.",
+    )
+    .default(defaultValue);
 }
 
 function optionalEmail(maxLength = 320) {
@@ -112,21 +144,30 @@ export const businessGeneralSettingsSchema = z.object({
       (value) => publicSlugRegex.test(value),
       "Use lowercase letters, numbers, and hyphens only.",
   ),
+  countryCode: optionalCountryCode(),
   shortDescription: optionalText(280),
   contactEmail: optionalEmail(),
+  defaultCurrency: supportedCurrencyCode(),
   defaultEmailSignature: optionalText(1200),
   aiTonePreference: z.enum(businessAiTonePreferences),
+  logo: businessLogoSchema,
+  removeLogo: formBoolean().default(false),
+});
+
+export const businessNotificationSettingsSchema = z.object({
   notifyOnNewInquiry: formBoolean(),
   notifyOnQuoteSent: formBoolean(),
   notifyOnQuoteResponse: formBoolean(),
   notifyInAppOnNewInquiry: formBoolean(),
   notifyInAppOnQuoteResponse: formBoolean(),
-  logo: businessLogoSchema,
-  removeLogo: formBoolean().default(false),
 });
 
 export type BusinessGeneralSettingsInput = z.infer<
   typeof businessGeneralSettingsSchema
+>;
+
+export type BusinessNotificationSettingsInput = z.infer<
+  typeof businessNotificationSettingsSchema
 >;
 
 export const businessQuoteSettingsSchema = z.object({
@@ -151,7 +192,6 @@ export const businessQuoteSettingsSchema = z.object({
     },
     z.number().int().min(1).max(365),
   ),
-  defaultCurrency: z.enum(businessCurrencyOptions).default("USD"),
 });
 
 export type BusinessQuoteSettingsInput = z.infer<

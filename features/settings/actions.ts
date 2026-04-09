@@ -19,6 +19,7 @@ import {
   businessInquiryFormSettingsSchema,
   businessInquiryFormTargetSchema,
   businessInquiryPageSettingsSchema,
+  businessNotificationSettingsSchema,
   businessQuoteSettingsSchema,
 } from "@/features/settings/schemas";
 import type {
@@ -27,6 +28,7 @@ import type {
   BusinessInquiryFormDangerActionState,
   BusinessInquiryFormsActionState,
   BusinessInquiryPageActionState,
+  BusinessNotificationSettingsActionState,
   BusinessQuoteSettingsActionState,
   BusinessSettingsActionState,
 } from "@/features/settings/types";
@@ -36,10 +38,12 @@ import {
   deleteBusiness,
   deleteBusinessInquiryForm,
   duplicateBusinessInquiryForm,
+  setBusinessInquiryFormPublicState,
   applyBusinessInquiryFormPreset,
   setDefaultBusinessInquiryForm,
   updateBusinessInquiryFormSettings,
   updateBusinessInquiryPageSettings,
+  updateBusinessNotificationSettings,
   updateBusinessQuoteSettings,
   updateBusinessSettings,
 } from "@/features/settings/mutations";
@@ -101,15 +105,12 @@ export async function updateBusinessSettingsAction(
   const validationResult = businessGeneralSettingsSchema.safeParse({
     name: formData.get("name"),
     slug: formData.get("slug"),
+    countryCode: formData.get("countryCode"),
     shortDescription: formData.get("shortDescription"),
     contactEmail: formData.get("contactEmail"),
+    defaultCurrency: formData.get("defaultCurrency"),
     defaultEmailSignature: formData.get("defaultEmailSignature"),
     aiTonePreference: formData.get("aiTonePreference"),
-    notifyOnNewInquiry: formData.get("notifyOnNewInquiry"),
-    notifyOnQuoteSent: formData.get("notifyOnQuoteSent"),
-    notifyOnQuoteResponse: formData.get("notifyOnQuoteResponse"),
-    notifyInAppOnNewInquiry: formData.get("notifyInAppOnNewInquiry"),
-    notifyInAppOnQuoteResponse: formData.get("notifyInAppOnQuoteResponse"),
     logo: formData.get("logo"),
     removeLogo: formData.get("removeLogo"),
   });
@@ -148,6 +149,10 @@ export async function updateBusinessSettingsAction(
     revalidatePath(getBusinessSettingsPath(result.nextSlug));
     revalidatePath(getBusinessSettingsPath(result.previousSlug, "general"));
     revalidatePath(getBusinessSettingsPath(result.nextSlug, "general"));
+    revalidatePath(getBusinessSettingsPath(result.previousSlug, "notifications"));
+    revalidatePath(getBusinessSettingsPath(result.nextSlug, "notifications"));
+    revalidatePath(getBusinessSettingsPath(result.previousSlug, "security"));
+    revalidatePath(getBusinessSettingsPath(result.nextSlug, "security"));
     revalidatePath(getBusinessSettingsPath(result.previousSlug, "replies"));
     revalidatePath(getBusinessSettingsPath(result.nextSlug, "replies"));
     revalidatePath(getBusinessSettingsPath(result.previousSlug, "quote"));
@@ -196,6 +201,61 @@ export async function updateBusinessSettingsAction(
   };
 }
 
+export async function updateBusinessNotificationSettingsAction(
+  _prevState: BusinessNotificationSettingsActionState,
+  formData: FormData,
+): Promise<BusinessNotificationSettingsActionState> {
+  const ownerAccess = await getOwnerBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+  const validationResult = businessNotificationSettingsSchema.safeParse({
+    notifyOnNewInquiry: formData.get("notifyOnNewInquiry"),
+    notifyOnQuoteSent: formData.get("notifyOnQuoteSent"),
+    notifyOnQuoteResponse: formData.get("notifyOnQuoteResponse"),
+    notifyInAppOnNewInquiry: formData.get("notifyInAppOnNewInquiry"),
+    notifyInAppOnQuoteResponse: formData.get("notifyInAppOnQuoteResponse"),
+  });
+
+  if (!validationResult.success) {
+    return getValidationActionState(
+      validationResult.error,
+      "Check the notification settings and try again.",
+    );
+  }
+
+  try {
+    const result = await updateBusinessNotificationSettings({
+      businessId: businessContext.business.id,
+      actorUserId: user.id,
+      values: validationResult.data,
+    });
+
+    if (!result.ok) {
+      return {
+        error: "That business could not be found.",
+      };
+    }
+
+    updateCacheTags(getBusinessSettingsCacheTags(businessContext.business.id));
+  } catch (error) {
+    console.error("Failed to update business notification settings.", error);
+
+    return {
+      error: "We couldn't save the notification settings right now.",
+    };
+  }
+
+  return {
+    success: "Notification settings saved.",
+  };
+}
+
 export async function updateBusinessQuoteSettingsAction(
   _prevState: BusinessQuoteSettingsActionState,
   formData: FormData,
@@ -212,7 +272,6 @@ export async function updateBusinessQuoteSettingsAction(
   const validationResult = businessQuoteSettingsSchema.safeParse({
     defaultQuoteNotes: formData.get("defaultQuoteNotes"),
     defaultQuoteValidityDays: formData.get("defaultQuoteValidityDays"),
-    defaultCurrency: formData.get("defaultCurrency"),
   });
 
   if (!validationResult.success) {
@@ -452,6 +511,11 @@ export async function updateBusinessInquiryFormAction(
       ]),
     );
 
+    // Always revalidate public + dashboard paths so changes
+    // like group label edits reflect on the live form.
+    revalidateBusinessInquiryFormPaths(result.nextSlug, result.nextFormSlug);
+    revalidateBusinessDefaultInquiryPaths(result.nextSlug);
+
     if (result.previousFormSlug !== result.nextFormSlug) {
       revalidateBusinessInquiryFormPaths(result.nextSlug, result.previousFormSlug);
       revalidateBusinessInquiryFormPaths(result.nextSlug, result.nextFormSlug);
@@ -639,6 +703,12 @@ export async function duplicateBusinessInquiryFormAction(
     });
 
     if (!result.ok) {
+      if (result.reason === "invalid-target") {
+        return {
+          error: "Default forms must stay published.",
+        };
+      }
+
       return {
         error: "That inquiry form could not be found.",
       };
@@ -946,6 +1016,69 @@ export async function deleteBusinessInquiryFormAction(
 
     return {
       error: "We couldn't delete the inquiry form right now.",
+    };
+  }
+}
+
+export async function toggleBusinessInquiryFormPublicAction(
+  _prevState: BusinessInquiryFormsActionState,
+  formData: FormData,
+): Promise<BusinessInquiryFormsActionState> {
+  const ownerAccess = await getOwnerBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+  const validationResult = businessInquiryFormTargetSchema.safeParse({
+    targetFormId: formData.get("targetFormId"),
+  });
+
+  if (!validationResult.success) {
+    return getValidationActionState(validationResult.error, "Choose a form and try again.");
+  }
+
+  const publicInquiryEnabled = formData.get("publicInquiryEnabled") === "true";
+
+  try {
+    const result = await setBusinessInquiryFormPublicState({
+      businessId: businessContext.business.id,
+      actorUserId: user.id,
+      targetFormId: validationResult.data.targetFormId,
+      publicInquiryEnabled,
+    });
+
+    if (!result.ok) {
+      return {
+        error: "That inquiry form could not be found.",
+      };
+    }
+
+    updateCacheTags(
+      uniqueCacheTags([
+        ...getBusinessInquiryFormsCacheTags(businessContext.business.id),
+        ...getBusinessInquiryFormCacheTags(
+          businessContext.business.id,
+          result.formSlug,
+        ),
+      ]),
+    );
+    revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+    revalidateBusinessDefaultInquiryPaths(result.businessSlug);
+
+    return {
+      success: publicInquiryEnabled
+        ? "Form published to the public page."
+        : "Form unpublished from the public page.",
+    };
+  } catch (error) {
+    console.error("Failed to toggle public inquiry form state.", error);
+
+    return {
+      error: "We couldn't update the form availability right now.",
     };
   }
 }

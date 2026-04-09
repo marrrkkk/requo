@@ -1,159 +1,89 @@
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+This version has breaking changes - APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any Next-specific code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
-# AGENTS.md
+# Requo Agent Guide
+
+## Canonical Sources
+
+- `DESIGN.md` is the canonical UI system.
+- `.agents/skills/requo-repo-guide/SKILL.md` contains repo-specific working conventions.
+- `docs/architecture/requo-architecture.md` describes the current app structure.
+- `app/globals.css`, `components/shared/*`, and `components/ui/*` define the shared product UI.
 
 ## Project
-This repository contains **Requo**, a SaaS web app for small service businesses.
 
-### Product summary
-Requo helps small businesses collect customer inquiries, manage them in one dashboard, generate quotations, upload business knowledge files, and use AI to draft practical replies.
+Requo is an owner-first SaaS app for service businesses. It handles public inquiry intake, business-scoped dashboards, quotes, knowledge files, AI-assisted drafts, and transactional email.
 
-### Core stack 
-- Next.js (App Router, TypeScript)
-- Tailwind CSS
-- ShadCN UI
-- Supabase (database, storage)
-- Better Auth (authentication and sessions)
-- Resend (transactional email)
-- OpenRouter (AI features)
+### Core Stack
 
-## Working style
-When making changes in this repo:
+- Next.js 16 App Router, React 19, and TypeScript
+- Tailwind CSS v4 and shadcn/ui
+- Drizzle ORM with PostgreSQL
+- Better Auth for authentication and sessions
+- Supabase for storage and realtime-backed plumbing
+- Resend for transactional email
+- OpenRouter for AI features
 
-1. Plan before coding when the task is multi-step or affects architecture.
-2. Prefer small, reviewable changes over giant rewrites.
-3. Keep code production-minded, typed, and modular.
-4. Reuse existing utilities and components where possible.
-5. Do not invent fake implementations if a real one can be built.
-6. If a feature is too large, implement the smallest production-ready slice first.
-7. After coding, run relevant checks and summarize what changed.
+## Working Defaults
 
-## Product constraints
-Keep scope disciplined. Do not add:
-- billing/subscriptions
-- team collaboration beyond owner-first flows
+1. Inspect relevant existing files first.
+2. Plan before coding when the work is multi-step or architectural.
+3. Prefer small, reviewable diffs over rewrites.
+4. Keep `app/` thin and move product logic into `features/` or `lib/`.
+5. Reuse existing utilities, shared wrappers, and semantic tokens before creating new patterns.
+6. Do not invent fake implementations if a real one can be built.
+7. Mention assumptions clearly and summarize changed files plus follow-ups.
+8. Run the relevant checks after code changes.
+
+## Product Constraints
+
+Do not add:
+
+- billing or subscriptions
 - marketplace features
-- mobile app
+- mobile app flows
 - live chat
+- advanced team collaboration beyond owner-first flows
 - advanced RAG infrastructure unless explicitly requested
 - over-engineered abstractions
 
-## UX bar
-The app should feel like a polished SaaS product, not a raw admin panel.
+## Architecture, Auth, And Security
 
-Prioritize:
-- clean layout
-- good spacing
-- consistent typography
-- strong empty states
-- useful defaults
-- responsive UI
-- clear forms and actions
-
-## Design rules
-- Use the existing design system and design tokens.
-- Do not replace the visual language.
-- Keep the UI modern, minimalist, calm, polished, and practical.
-- Avoid clutter, heavy decoration, random gradients, and flashy animation.
-- Prefer clean layout, strong spacing, crisp cards, soft borders, clear hierarchy, and responsive behavior.
-
-## Authentication
-Use **Better Auth**, not Supabase Auth.
-
-Requirements:
-- email/password auth
-- session handling
-- protected app routes
-- forgot/reset password flow
-- business creation on first signup
-- secure server-side auth handling
-
-## Data ownership and security
+- Better Auth is the only auth system. Do not add Supabase Auth.
+- Signup creates the user and profile. Onboarding creates the first business. Additional businesses come through the businesses hub.
+- `app/` owns routes, layouts, loading states, and route handlers.
+- `features/` owns validation, queries, actions, mutations, and feature UI.
+- `lib/` owns auth, database access, provider clients, env parsing, and shared utilities.
 - Users must only access their own business data.
-- Public inquiry submission must be tightly scoped.
-- Protect server-only secrets.
-- Validate all inputs with Zod.
-- Use safe storage rules and file validation.
+- Validate all external input with Zod.
+- Keep private asset access server-side and scoped to the active business context.
 
-## Code quality
-- TypeScript strict
-- clear naming
-- feature-oriented structure where practical
-- avoid giant files
-- no dead code
-- no unnecessary comments
-- no any unless justified
+## UI Rules
 
-## Expected architecture
-Prefer separating:
-- validation schemas
-- database queries
-- server actions / route handlers
-- UI components
-- email utilities
-- AI utilities
+- Follow `DESIGN.md`. Do not invent a new visual language.
+- Reuse shared wrappers such as `DashboardPage`, `PageHeader`, `DashboardSection`, `DashboardTableContainer`, `FormSection`, `FormActions`, `FieldGroup`, `Field`, `Button`, `Card`, `Empty`, `Alert`, `Badge`, `Sheet`, and `Dialog` before custom markup.
+- Prefer semantic tokens and utilities such as `surface-*`, `control-*`, `overlay-*`, `table-*`, `meta-label`, `hero-panel`, `section-panel`, and `soft-panel`.
+- Keep the UI calm, modern, minimalist, polished, and practical.
+- Avoid raw palette utilities, noisy decoration, random gradients, flashy animation, and page-by-page primitive restyling.
+- Legacy raw status colors and `space-y-*` stacks still exist in older files. Treat them as cleanup debt, not patterns for new work.
 
-## Done means
+## Done Means
+
 A task is done when:
-1. the requested feature is implemented,
-2. the code compiles,
-3. lint/type issues are addressed where relevant,
-4. the change is consistent with the current codebase,
-5. a short summary of touched files and follow-ups is provided.
 
-## For every implementation task
-Codex should:
-1. inspect relevant existing files first,
-2. produce a short plan,
-3. implement only the requested slice,
-4. avoid unrelated refactors,
-5. mention any assumptions clearly.
+1. the requested slice is implemented,
+2. the change matches the current architecture and design system,
+3. relevant lint, type, build, or end-to-end checks are run or explicitly called out,
+4. assumptions and follow-ups are stated clearly,
+5. touched files are summarized briefly.
 
-# AGENTS.md
+## Verification
 
-## Project
-This repository contains a modern SaaS-style web app built with Next.js, Tailwind, and ShadCN UI.
-
-## UI goal
-The UI should feel modern, minimalist, polished, calm, and production-ready.
-
-## Existing system
-- The repo already has a design system
-- The repo already has design tokens
-- Reuse the existing visual language
-- Do not replace the design system
-- Do not invent a new style direction from scratch
-
-## Working rules
-1. Inspect relevant existing files before editing.
-2. For multi-step UI tasks, propose a short plan first.
-3. Keep diffs scoped to the requested UI slice.
-4. Reuse existing tokens, utilities, and shared components.
-5. Avoid unrelated refactors.
-6. Keep code production-minded and componentized.
-7. Summarize touched files after implementation.
-
-## UI rules
-- Keep the UI modern, minimalist, calm, polished, and practical
-- Prefer clean layout, strong spacing, soft borders, subtle depth, and clear hierarchy
-- Avoid clutter, noisy decoration, random gradients, and flashy animation
-- Use cards intentionally, not everywhere
-- Keep forms, tables, and detail pages clean and easy to scan
-- Preserve responsive behavior and improve it where needed
-
-## Do not do
-- do not change backend logic unless absolutely necessary for UI wiring
-- do not redesign the product into a different visual language
-- do not add unrelated features
-- do not over-animate
-
-## Done means
-A task is done when:
-1. the requested UI slice is implemented,
-2. layout and styling are consistent with the design system,
-3. the code remains reusable and maintainable,
-4. changed files are summarized clearly.
+- Docs and instruction changes: do a read-through plus targeted grep checks.
+- Most code changes: `npm run lint` and `npm run typecheck`.
+- Route, layout, or system changes: also run `npm run build`.
+- Covered user-flow changes: run the relevant `npm run test:e2e`.
+- CI currently runs lint, typecheck, build, and Playwright on push and pull request.

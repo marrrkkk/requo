@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, ilike, isNull, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, isNull, lte, or } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
 import {
@@ -8,6 +8,7 @@ import {
   getNormalizedInquirySubmittedFieldSnapshot,
 } from "@/features/inquiries/form-config";
 import { getNormalizedInquiryPageConfig } from "@/features/inquiries/page-config";
+import { normalizeBusinessType } from "@/features/inquiries/business-types";
 import {
   getBusinessInquiryDetailCacheTags,
   getBusinessInquiryFormCacheTags,
@@ -30,7 +31,7 @@ import {
 import type {
   DashboardInquiryDetail,
   DashboardInquiryListItem,
-  InquiryListFilters,
+  InquiryListQueryFilters,
   PublicInquiryBusiness,
 } from "@/features/inquiries/types";
 
@@ -72,11 +73,13 @@ export async function getPublicInquiryBusinessBySlug(
     return null;
   }
 
+  const formBusinessType = normalizeBusinessType(business.formBusinessType);
+
   return {
     id: business.id,
     name: business.name,
     slug: business.slug,
-    businessType: business.formBusinessType,
+    businessType: formBusinessType,
     shortDescription: business.shortDescription,
     logoUrl: business.logoStoragePath
       ? `/api/public/businesses/${business.slug}/logo?v=${business.updatedAt.getTime()}`
@@ -85,18 +88,18 @@ export async function getPublicInquiryBusinessBySlug(
       id: business.formId,
       name: business.formName,
       slug: business.formSlug,
-      businessType: business.formBusinessType,
+      businessType: formBusinessType,
       isDefault: business.formIsDefault,
       publicInquiryEnabled: business.publicInquiryEnabled,
     },
     inquiryFormConfig: getNormalizedInquiryFormConfig(business.inquiryFormConfig, {
-      businessType: business.formBusinessType,
+      businessType: formBusinessType,
     }),
     inquiryPageConfig: getNormalizedInquiryPageConfig(business.inquiryPageConfig, {
       businessName: business.name,
       businessShortDescription: business.shortDescription,
       legacyInquiryHeadline: business.inquiryHeadline,
-      businessType: business.formBusinessType,
+      businessType: formBusinessType,
     }),
   };
 }
@@ -196,11 +199,13 @@ async function getInquiryBusinessByFormSlug({
     return null;
   }
 
+  const formBusinessType = normalizeBusinessType(business.formBusinessType);
+
   return {
     id: business.id,
     name: business.name,
     slug: business.slug,
-    businessType: business.formBusinessType,
+    businessType: formBusinessType,
     shortDescription: business.shortDescription,
     logoUrl: business.logoStoragePath
       ? `/api/public/businesses/${business.slug}/logo?v=${business.updatedAt.getTime()}`
@@ -209,18 +214,18 @@ async function getInquiryBusinessByFormSlug({
       id: business.formId,
       name: business.formName,
       slug: business.formSlug,
-      businessType: business.formBusinessType,
+      businessType: formBusinessType,
       isDefault: business.formIsDefault,
       publicInquiryEnabled: business.publicInquiryEnabled,
     },
     inquiryFormConfig: getNormalizedInquiryFormConfig(business.inquiryFormConfig, {
-      businessType: business.formBusinessType,
+      businessType: formBusinessType,
     }),
     inquiryPageConfig: getNormalizedInquiryPageConfig(business.inquiryPageConfig, {
       businessName: business.name,
       businessShortDescription: business.shortDescription,
       legacyInquiryHeadline: business.inquiryHeadline,
-      businessType: business.formBusinessType,
+      businessType: formBusinessType,
     }),
   };
 }
@@ -274,18 +279,13 @@ export async function getBusinessOwnerNotificationEmails(businessId: string) {
 
 type GetInquiryListForBusinessInput = {
   businessId: string;
-  filters: InquiryListFilters;
+  filters: InquiryListQueryFilters;
 };
 
-export async function getInquiryListForBusiness({
+function getInquiryListConditions({
   businessId,
   filters,
-}: GetInquiryListForBusinessInput): Promise<DashboardInquiryListItem[]> {
-  "use cache";
-
-  cacheLife(hotBusinessCacheLife);
-  cacheTag(...getBusinessInquiryListCacheTags(businessId));
-
+}: GetInquiryListForBusinessInput) {
   const conditions = [eq(inquiries.businessId, businessId)];
 
   if (filters.status !== "all") {
@@ -309,6 +309,62 @@ export async function getInquiryListForBusiness({
     conditions.push(eq(businessInquiryForms.slug, filters.form));
   }
 
+  return conditions;
+}
+
+export async function getInquiryListCountForBusiness({
+  businessId,
+  filters,
+}: GetInquiryListForBusinessInput): Promise<number> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessInquiryListCacheTags(businessId));
+
+  const conditions = getInquiryListConditions({
+    businessId,
+    filters,
+  });
+
+  const rows = await db
+    .select({
+      count: count(),
+    })
+    .from(inquiries)
+    .innerJoin(
+      businessInquiryForms,
+      eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
+    )
+    .where(and(...conditions));
+
+  return Number(rows[0]?.count ?? 0);
+}
+
+type GetInquiryListPageForBusinessInput = GetInquiryListForBusinessInput & {
+  page: number;
+  pageSize: number;
+};
+
+export async function getInquiryListPageForBusiness({
+  businessId,
+  filters,
+  page,
+  pageSize,
+}: GetInquiryListPageForBusinessInput): Promise<DashboardInquiryListItem[]> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessInquiryListCacheTags(businessId));
+
+  const conditions = getInquiryListConditions({
+    businessId,
+    filters,
+  });
+
+  const submittedAtSort = filters.sort === "oldest" ? asc : desc;
+  const createdAtSort = filters.sort === "oldest" ? asc : desc;
+  const offset = Math.max(0, (page - 1) * pageSize);
+
   return db
     .select({
       id: inquiries.id,
@@ -330,7 +386,72 @@ export async function getInquiryListForBusiness({
       eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
     )
     .where(and(...conditions))
-    .orderBy(desc(inquiries.submittedAt), desc(inquiries.createdAt));
+    .orderBy(submittedAtSort(inquiries.submittedAt), createdAtSort(inquiries.createdAt))
+    .limit(pageSize)
+    .offset(offset);
+}
+
+type InquiryExportRow = {
+  id: string;
+  inquiryFormName: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string | null;
+  companyName: string | null;
+  serviceCategory: string;
+  requestedDeadline: string | null;
+  budgetText: string | null;
+  subject: string | null;
+  details: string;
+  status: string;
+  submittedAt: Date;
+};
+
+export async function getInquiryExportRowsForBusiness({
+  businessId,
+  filters,
+  from,
+  to,
+}: GetInquiryListForBusinessInput & {
+  from?: string;
+  to?: string;
+}): Promise<InquiryExportRow[]> {
+  const conditions = getInquiryListConditions({
+    businessId,
+    filters,
+  });
+  if (from) {
+    conditions.push(gte(inquiries.submittedAt, new Date(`${from}T00:00:00.000Z`)));
+  }
+  if (to) {
+    conditions.push(lte(inquiries.submittedAt, new Date(`${to}T23:59:59.999Z`)));
+  }
+  const submittedAtSort = filters.sort === "oldest" ? asc : desc;
+  const createdAtSort = filters.sort === "oldest" ? asc : desc;
+
+  return db
+    .select({
+      id: inquiries.id,
+      inquiryFormName: businessInquiryForms.name,
+      customerName: inquiries.customerName,
+      customerEmail: inquiries.customerEmail,
+      customerPhone: inquiries.customerPhone,
+      companyName: inquiries.companyName,
+      serviceCategory: inquiries.serviceCategory,
+      requestedDeadline: inquiries.requestedDeadline,
+      budgetText: inquiries.budgetText,
+      subject: inquiries.subject,
+      details: inquiries.details,
+      status: inquiries.status,
+      submittedAt: inquiries.submittedAt,
+    })
+    .from(inquiries)
+    .innerJoin(
+      businessInquiryForms,
+      eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
+    )
+    .where(and(...conditions))
+    .orderBy(submittedAtSort(inquiries.submittedAt), createdAtSort(inquiries.createdAt));
 }
 
 type GetInquiryDetailForBusinessInput = {
@@ -381,6 +502,10 @@ export async function getInquiryDetailForBusiness({
   if (!inquiry) {
     return null;
   }
+
+  const inquiryFormBusinessType = normalizeBusinessType(
+    inquiry.inquiryFormBusinessType,
+  );
 
   const [attachments, notes, activities, relatedQuoteRows, quoteCountRows] =
     await Promise.all([
@@ -463,6 +588,7 @@ export async function getInquiryDetailForBusiness({
 
   return {
     ...inquiry,
+    inquiryFormBusinessType,
     submittedFieldSnapshot: getNormalizedInquirySubmittedFieldSnapshot(
       inquiry.submittedFieldSnapshot,
     ),

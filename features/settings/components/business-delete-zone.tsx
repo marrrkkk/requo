@@ -5,6 +5,7 @@ import { AlertTriangle, Trash2 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Card,
   CardContent,
@@ -89,7 +90,14 @@ export function BusinessDeleteZone({
           <div className="dashboard-actions">
             <Button disabled={isPending} type="submit" variant="destructive">
               <Trash2 data-icon="inline-start" />
-              {isPending ? "Deleting..." : "Delete business"}
+              {isPending ? (
+                <>
+                  <Spinner data-icon="inline-start" aria-hidden="true" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete business"
+              )}
             </Button>
           </div>
         </form>

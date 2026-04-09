@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useState, useTransition } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 import { DataListToolbar } from "@/components/shared/data-list-toolbar";
 import { useProgressRouter } from "@/hooks/use-progress-router";
@@ -36,17 +36,23 @@ export function InquiryListFilters({
   resultCount,
 }: InquiryListFiltersProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useProgressRouter();
   const [isPending, startTransition] = useTransition();
   const [query, setQuery] = useState(filters.q ?? "");
   const [status, setStatus] = useState<InquiryStatusFilterValue>(filters.status);
   const [form, setForm] = useState(filters.form);
+  const [sort, setSort] = useState(filters.sort);
 
-  function navigate(
+  const hasMountedRef = useRef(false);
+  const lastAppliedHrefRef = useRef<string>("");
+
+  const navigate = useCallback((
     nextQuery: string,
     nextStatus: InquiryStatusFilterValue,
     nextForm: string,
-  ) {
+    nextSort: "newest" | "oldest",
+  ) => {
     const params = new URLSearchParams();
     const trimmedQuery = nextQuery.trim();
 
@@ -62,12 +68,36 @@ export function InquiryListFilters({
       params.set("form", nextForm);
     }
 
+    if (nextSort !== "newest") {
+      params.set("sort", nextSort);
+    }
+
     const href = params.size ? `${pathname}?${params.toString()}` : pathname;
+    const currentHref = searchParams.size
+      ? `${pathname}?${searchParams.toString()}`
+      : pathname;
+
+    if (href === currentHref || href === lastAppliedHrefRef.current) {
+      return;
+    }
+    lastAppliedHrefRef.current = href;
 
     startTransition(() => {
-      router.replace(href);
+      router.replace(href, { scroll: false });
     });
-  }
+  }, [pathname, router, searchParams]);
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      navigate(query, status, form, sort);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [form, navigate, query, sort, status]);
 
   return (
     <DataListToolbar
@@ -81,7 +111,11 @@ export function InquiryListFilters({
       filterId="inquiry-status-filter"
       filterLabel="Filter by status"
       filterValue={status}
-      onFilterChange={(value) => setStatus(value as InquiryStatusFilterValue)}
+      onFilterChange={(value) => {
+        const nextStatus = value as InquiryStatusFilterValue;
+        setStatus(nextStatus);
+        navigate(query, nextStatus, form, sort);
+      }}
       filterOptions={statusOptions.map((option) => ({
         value: option,
         label:
@@ -90,17 +124,34 @@ export function InquiryListFilters({
       secondaryFilterId="inquiry-form-filter"
       secondaryFilterLabel="Form"
       secondaryFilterValue={form}
-      onSecondaryFilterChange={setForm}
+      onSecondaryFilterChange={(value) => {
+        setForm(value);
+        navigate(query, status, value, sort);
+      }}
       secondaryFilterOptions={formOptions}
+      sortId="inquiry-sort"
+      sortLabel="Sort by"
+      sortValue={sort}
+      onSortChange={(value) => {
+        const nextSort = value as "newest" | "oldest";
+        setSort(nextSort);
+        navigate(query, status, form, nextSort);
+      }}
+      sortOptions={[
+        { label: "Newest first", value: "newest" },
+        { label: "Oldest first", value: "oldest" },
+      ]}
       isPending={isPending}
-      onSubmit={() => navigate(query, status, form)}
       onClear={() => {
         setQuery("");
         setStatus("all");
         setForm("all");
-        navigate("", "all", "all");
+        setSort("newest");
+        navigate("", "all", "all", "newest");
       }}
-      canClear={Boolean(query.trim() || status !== "all" || form !== "all")}
+      canClear={Boolean(
+        query.trim() || status !== "all" || form !== "all" || sort !== "newest",
+      )}
     />
   );
 }

@@ -2,7 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Fragment, type CSSProperties, type ReactNode } from "react";
+import {
+  Fragment,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { useTransition } from "react";
 import {
   ArrowUpRight,
@@ -16,7 +20,7 @@ import {
 import { usePathname } from "next/navigation";
 
 import { authClient } from "@/lib/auth/client";
-import { accountProfilePath } from "@/features/account/routes";
+import { getProfileSettingsPath } from "@/features/account/routes";
 import { AppearanceMenuSubmenu } from "@/features/theme/components/appearance-menu";
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
 import type { BusinessNotificationBellView } from "@/features/notifications/types";
@@ -29,7 +33,7 @@ import {
   getDashboardNavigation,
   isDashboardNavigationItemActive,
 } from "@/components/shell/dashboard-navigation";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   Breadcrumb,
@@ -48,6 +52,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Sidebar,
   SidebarContent,
@@ -78,6 +83,7 @@ type DashboardShellProps = {
     id: string;
     email: string;
     name: string;
+    avatarSrc: string | null;
   };
   businessContext: BusinessContext;
   businessMemberships: BusinessContext[];
@@ -187,10 +193,6 @@ export function DashboardShell({
                   </BreadcrumbList>
                 </Breadcrumb>
               </div>
-              <div className="hidden items-center gap-2 xl:flex">
-                <Badge variant="secondary">/{business.slug}</Badge>
-                <Badge variant="outline">{business.defaultCurrency}</Badge>
-              </div>
               <div className="flex items-center gap-1">
                 <DashboardNotificationBell
                   businessId={business.id}
@@ -230,7 +232,7 @@ function DashboardNavigationItem({
     <SidebarMenuItem>
       <SidebarMenuButton
         asChild
-        className="min-h-11 rounded-lg border border-transparent px-3.5 py-2.5 data-[active=true]:border-sidebar-primary/12 data-[active=true]:bg-sidebar-primary/12 data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] dark:data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+        className="min-h-11 rounded-lg border border-transparent px-3.5 py-2.5 data-[active=true]:border-sidebar-primary/12 data-[active=true]:bg-sidebar-primary/12 data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] dark:data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
         isActive={isActive}
         tooltip={item.label}
       >
@@ -245,7 +247,7 @@ function DashboardNavigationItem({
         >
           <Icon
             className={cn(
-              "text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-hover/menu-button:translate-x-0.5 group-data-[active=true]/menu-button:scale-[1.03]",
+              "text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)]",
               isActive && "text-primary",
             )}
           />
@@ -294,6 +296,9 @@ function DashboardUserMenu({
               size="lg"
             >
               <Avatar className="rounded-lg">
+                {user.avatarSrc ? (
+                  <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} />
+                ) : null}
                 <AvatarFallback className="rounded-lg">
                   {getInitials(user.name)}
                 </AvatarFallback>
@@ -313,6 +318,9 @@ function DashboardUserMenu({
             <DropdownMenuLabel className="px-2 py-2.5">
               <div className="flex items-center gap-3">
                 <Avatar className="rounded-lg">
+                  {user.avatarSrc ? (
+                    <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} />
+                  ) : null}
                   <AvatarFallback className="rounded-lg">
                     {getInitials(user.name)}
                   </AvatarFallback>
@@ -331,7 +339,7 @@ function DashboardUserMenu({
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
                 <Link
-                  href={accountProfilePath}
+                  href={getProfileSettingsPath(businessSlug)}
                   prefetch={true}
                   onClick={closeMobileSidebar}
                 >
@@ -341,7 +349,7 @@ function DashboardUserMenu({
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link
-                  href={getBusinessSettingsPath(businessSlug)}
+                  href={getBusinessSettingsPath(businessSlug, "general")}
                   prefetch={true}
                   onClick={closeMobileSidebar}
                 >
@@ -380,8 +388,17 @@ function DashboardUserMenu({
                 handleLogout();
               }}
             >
-              <LogOut data-icon="inline-start" />
-              {isPending ? "Signing out..." : "Sign out"}
+              {isPending ? (
+                <>
+                  <Spinner data-icon="inline-start" aria-hidden="true" />
+                  Signing out...
+                </>
+              ) : (
+                <>
+                  <LogOut data-icon="inline-start" />
+                  Sign out
+                </>
+              )}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -403,7 +420,7 @@ function BusinessSwitcher({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="group/business-switcher motion-lift w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] transition-[background-color,border-color,box-shadow,transform] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-background data-[state=open]:bg-background data-[state=open]:shadow-[var(--control-shadow-hover)] dark:border-white/8 dark:bg-card/90 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-accent dark:data-[state=open]:bg-accent"
+          className="group/business-switcher w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] transition-[background-color,border-color,box-shadow,transform] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-background data-[state=open]:bg-background data-[state=open]:shadow-[var(--control-shadow-hover)] dark:border-white/8 dark:bg-card/90 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-accent dark:data-[state=open]:bg-accent"
           type="button"
         >
           <div className="flex items-start gap-3.5">
@@ -426,7 +443,7 @@ function BusinessSwitcher({
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-3">
                 <p className="meta-label text-sidebar-foreground/60">Business</p>
-                <ChevronsUpDown className="size-4 text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-hover/business-switcher:-translate-y-px group-data-[state=open]/business-switcher:rotate-180" />
+                <ChevronsUpDown className="size-4 text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-data-[state=open]/business-switcher:rotate-180" />
               </div>
               <p className="mt-2 truncate text-sm font-semibold text-sidebar-foreground">
                 {business.name}

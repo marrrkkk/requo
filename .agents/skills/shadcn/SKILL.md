@@ -19,6 +19,17 @@ A framework for building ui, components and design systems. Components are added
 
 The JSON above contains the project config and installed components. Use `npx shadcn@latest docs <component>` to get documentation and example URLs for any component.
 
+## Repo Override
+
+If the current repo has its own UI system or shared wrappers, read that guidance first.
+
+In Requo:
+
+- Read `../../../DESIGN.md` and `../requo-repo-guide/SKILL.md` before restyling or adding primitives.
+- Prefer existing shared wrappers for dashboard pages, forms, and page headers before composing fresh primitive stacks.
+- Use semantic utilities from `app/globals.css` and existing component variants before adding new ones.
+- Do not use registry blocks or custom styling to introduce a new visual language.
+
 ## Principles
 
 1. **Use existing components first.** Use `npx shadcn@latest search` to check registries before writing custom UI. Check community registries too.

@@ -16,6 +16,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import type { KnowledgeFaqActionState } from "@/features/knowledge/types";
 
@@ -32,6 +33,7 @@ type KnowledgeFaqFormProps = {
   submitPendingLabel: string;
   onSuccess?: () => void;
   idPrefix?: string;
+  showSectionHeader?: boolean;
 };
 
 const initialState: KnowledgeFaqActionState = {};
@@ -43,6 +45,7 @@ export function KnowledgeFaqForm({
   submitPendingLabel,
   onSuccess,
   idPrefix = "knowledge-faq",
+  showSectionHeader = true,
 }: KnowledgeFaqFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, isPending] = useActionState(action, initialState);
@@ -75,7 +78,7 @@ export function KnowledgeFaqForm({
         </Alert>
       ) : null}
 
-      <FormSection title={initialValues ? "FAQ content" : "New FAQ"}>
+      <FormSection title={showSectionHeader ? (initialValues ? "FAQ content" : "New FAQ") : undefined}>
         <FieldGroup>
           <Field data-invalid={Boolean(state.fieldErrors?.question) || undefined}>
             <FieldLabel htmlFor={`${idPrefix}-question`}>Question</FieldLabel>
@@ -130,7 +133,14 @@ export function KnowledgeFaqForm({
 
       <FormActions>
         <Button disabled={isPending} type="submit">
-          {isPending ? submitPendingLabel : submitLabel}
+          {isPending ? (
+            <>
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+              {submitPendingLabel}
+            </>
+          ) : (
+            submitLabel
+          )}
         </Button>
       </FormActions>
     </form>

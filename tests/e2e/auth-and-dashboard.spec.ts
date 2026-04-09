@@ -47,6 +47,40 @@ test("owner can sign in, reach the dashboard overview, and sign out", async ({
   await expect(page).toHaveURL(/\/login$/, { timeout: 20_000 });
 });
 
+test("legacy account profile route redirects into business settings profile", async ({
+  page,
+}) => {
+  await signIn(page);
+
+  await page.goto("/account/profile");
+
+  await expect(page).toHaveURL(
+    new RegExp(`/businesses/${demoBusinessSlug}/dashboard/settings/profile$`),
+    { timeout: 20_000 },
+  );
+  await expect(page.locator("h1").filter({ hasText: "Profile" })).toBeVisible();
+  await expect(page.getByLabel("Email")).toHaveValue(demoOwnerEmail);
+});
+
+test("dashboard user menu opens the new profile settings page", async ({
+  page,
+}) => {
+  await signIn(page);
+  await openDemoBusiness(page);
+
+  await page
+    .getByRole("button", { name: `Morgan Lee ${demoOwnerEmail}` })
+    .click();
+  await page.getByRole("menuitem", { name: "Your profile" }).click();
+
+  await expect(page).toHaveURL(
+    new RegExp(`/businesses/${demoBusinessSlug}/dashboard/settings/profile$`),
+    { timeout: 20_000 },
+  );
+  await expect(page.getByText("Owner profile")).toBeVisible();
+  await expect(page.getByText("No avatar uploaded")).toBeVisible();
+});
+
 test("dashboard shows a branded not-found state for unknown records", async ({
   page,
 }) => {

@@ -13,6 +13,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import type { ReplySnippetActionState } from "@/features/inquiries/reply-snippet-types";
 
@@ -29,6 +30,7 @@ type ReplySnippetFormProps = {
   submitPendingLabel: string;
   onSuccess?: () => void;
   idPrefix?: string;
+  showSectionHeader?: boolean;
 };
 
 const initialState: ReplySnippetActionState = {};
@@ -40,6 +42,7 @@ export function ReplySnippetForm({
   submitPendingLabel,
   onSuccess,
   idPrefix = "reply-snippet",
+  showSectionHeader = true,
 }: ReplySnippetFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, isPending] = useActionState(action, initialState);
@@ -72,7 +75,7 @@ export function ReplySnippetForm({
         </Alert>
       ) : null}
 
-      <FormSection title={initialValues ? "Snippet content" : "New reply snippet"}>
+      <FormSection title={showSectionHeader ? (initialValues ? "Snippet content" : "New reply snippet") : undefined}>
         <FieldGroup>
           <Field data-invalid={Boolean(state.fieldErrors?.title) || undefined}>
             <FieldLabel htmlFor={`${idPrefix}-title`}>Title</FieldLabel>
@@ -127,7 +130,14 @@ export function ReplySnippetForm({
 
       <FormActions>
         <Button disabled={isPending} type="submit">
-          {isPending ? submitPendingLabel : submitLabel}
+          {isPending ? (
+            <>
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+              {submitPendingLabel}
+            </>
+          ) : (
+            submitLabel
+          )}
         </Button>
       </FormActions>
     </form>

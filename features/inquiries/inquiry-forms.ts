@@ -19,25 +19,29 @@ export function getDefaultInquiryFormName(
   switch (businessType) {
     case "print_signage":
       return "Project request";
-    case "home_services":
-      return "Service request";
+    case "contractor_home_improvement":
+      return "Project request";
+    case "fabrication_custom_build":
+      return "Quote request";
     case "repair_services":
       return "Repair request";
     case "cleaning_services":
       return "Cleaning request";
-    case "landscaping_outdoor":
+    case "event_services_rentals":
+      return "Event request";
+    case "landscaping_outdoor_services":
       return "Outdoor request";
-    case "creative_studio_agency":
+    case "creative_marketing_services":
       return "Project brief";
-    case "it_web_services":
+    case "web_it_services":
       return "Project request";
-    case "photo_video_events":
-      return "Booking request";
-    case "coaching_consulting":
+    case "photo_video_production":
+      return "Production request";
+    case "consulting_professional_services":
       return "Discovery request";
-    case "general_services":
+    case "general_project_services":
     default:
-      return "General inquiry";
+      return "Project request";
   }
 }
 

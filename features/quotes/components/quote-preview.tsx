@@ -174,7 +174,7 @@ export function QuotePreview({
           </div>
         </div>
 
-        <div className="soft-panel flex w-full flex-col gap-3 px-4 py-4 shadow-none lg:ml-auto lg:max-w-sm">
+        <div className="soft-panel flex w-full flex-col gap-3 px-4 py-4 shadow-none">
           <p className="meta-label">Commercial summary</p>
           <SummaryRow
             label="Subtotal"

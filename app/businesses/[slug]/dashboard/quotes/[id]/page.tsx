@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink, Mail } from "lucide-react";
+import { Download, ExternalLink, Mail, Printer } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import {
@@ -42,7 +42,11 @@ import {
   getPublicQuoteUrl,
   getQuoteEditorInitialValuesFromDetail,
 } from "@/features/quotes/utils";
-import { getBusinessInquiryPath } from "@/features/businesses/routes";
+import {
+  getBusinessInquiryPath,
+  getBusinessQuotePdfExportPath,
+  getBusinessQuotePrintPath,
+} from "@/features/businesses/routes";
 import { requireCurrentBusinessContext } from "@/lib/db/business-access";
 import { env } from "@/lib/env";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -206,12 +210,31 @@ export default async function QuoteDetailPage({
           </>
         }
         actions={
-          <Button asChild variant="outline">
-            <a href={`mailto:${quote.customerEmail}`}>
-              <Mail data-icon="inline-start" />
-              Email customer
-            </a>
-          </Button>
+          <div className="dashboard-actions">
+            <Button asChild variant="outline">
+              <a href={getBusinessQuotePdfExportPath(businessSlug, quote.id)}>
+                <Download data-icon="inline-start" />
+                Export PDF
+              </a>
+            </Button>
+            <Button asChild variant="outline">
+              <Link
+                href={getBusinessQuotePrintPath(businessSlug, quote.id)}
+                prefetch={false}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                <Printer data-icon="inline-start" />
+                Print
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <a href={`mailto:${quote.customerEmail}`}>
+                <Mail data-icon="inline-start" />
+                Email customer
+              </a>
+            </Button>
+          </div>
         }
       />
 

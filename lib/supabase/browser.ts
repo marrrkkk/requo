@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-import { publicEnv } from "@/lib/public-env";
+import { publicEnv } from "@/lib/env";
 
 export function createSupabaseBrowserClient() {
   return createClient(

@@ -4,6 +4,7 @@ import { and, desc, eq } from "drizzle-orm";
 
 import { getNormalizedInquirySubmittedFieldSnapshot } from "@/features/inquiries/form-config";
 import { getNormalizedInquiryPageConfig } from "@/features/inquiries/page-config";
+import { normalizeBusinessType } from "@/features/inquiries/business-types";
 import { buildBusinessKnowledgeContext } from "@/features/knowledge/queries";
 import type { InquiryAssistantContext } from "@/features/ai/types";
 import { db } from "@/lib/db/client";
@@ -99,12 +100,16 @@ export async function getInquiryAssistantContextForBusiness({
     return null;
   }
 
+  const inquiryFormBusinessType = normalizeBusinessType(
+    inquiry.inquiryFormBusinessType,
+  );
+
   const inquiryPageConfig = getNormalizedInquiryPageConfig(
     inquiry.inquiryPageConfig,
     {
       businessName: business.name,
       businessShortDescription: business.shortDescription,
-      businessType: inquiry.inquiryFormBusinessType,
+      businessType: inquiryFormBusinessType,
     },
   );
 
@@ -125,6 +130,7 @@ export async function getInquiryAssistantContextForBusiness({
     },
     inquiry: {
       ...inquiry,
+      inquiryFormBusinessType,
       submittedFieldSnapshot: getNormalizedInquirySubmittedFieldSnapshot(
         inquiry.submittedFieldSnapshot,
       ),

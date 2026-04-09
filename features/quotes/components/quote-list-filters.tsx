@@ -1,7 +1,7 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import { useState, useTransition } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 import { DataListToolbar } from "@/components/shared/data-list-toolbar";
 import { useProgressRouter } from "@/hooks/use-progress-router";
@@ -30,12 +30,21 @@ export function QuoteListFilters({
   resultCount,
 }: QuoteListFiltersProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useProgressRouter();
   const [isPending, startTransition] = useTransition();
   const [query, setQuery] = useState(filters.q ?? "");
   const [status, setStatus] = useState<QuoteStatusFilterValue>(filters.status);
+  const [sort, setSort] = useState(filters.sort);
 
-  function navigate(nextQuery: string, nextStatus: QuoteStatusFilterValue) {
+  const hasMountedRef = useRef(false);
+  const lastAppliedHrefRef = useRef<string>("");
+
+  const navigate = useCallback((
+    nextQuery: string,
+    nextStatus: QuoteStatusFilterValue,
+    nextSort: "newest" | "oldest",
+  ) => {
     const params = new URLSearchParams();
     const trimmedQuery = nextQuery.trim();
 
@@ -47,12 +56,36 @@ export function QuoteListFilters({
       params.set("status", nextStatus);
     }
 
+    if (nextSort !== "newest") {
+      params.set("sort", nextSort);
+    }
+
     const href = params.size ? `${pathname}?${params.toString()}` : pathname;
+    const currentHref = searchParams.size
+      ? `${pathname}?${searchParams.toString()}`
+      : pathname;
+
+    if (href === currentHref || href === lastAppliedHrefRef.current) {
+      return;
+    }
+    lastAppliedHrefRef.current = href;
 
     startTransition(() => {
-      router.replace(href);
+      router.replace(href, { scroll: false });
     });
-  }
+  }, [pathname, router, searchParams]);
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      navigate(query, status, sort);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [navigate, query, sort, status]);
 
   return (
     <DataListToolbar
@@ -66,19 +99,35 @@ export function QuoteListFilters({
       filterId="quote-status-filter"
       filterLabel="Filter by status"
       filterValue={status}
-      onFilterChange={(value) => setStatus(value as QuoteStatusFilterValue)}
+      onFilterChange={(value) => {
+        const nextStatus = value as QuoteStatusFilterValue;
+        setStatus(nextStatus);
+        navigate(query, nextStatus, sort);
+      }}
       filterOptions={statusOptions.map((option) => ({
         value: option,
         label: option === "all" ? "All statuses" : getQuoteStatusLabel(option),
       }))}
+      sortId="quote-sort"
+      sortLabel="Sort by"
+      sortValue={sort}
+      onSortChange={(value) => {
+        const nextSort = value as "newest" | "oldest";
+        setSort(nextSort);
+        navigate(query, status, nextSort);
+      }}
+      sortOptions={[
+        { label: "Newest first", value: "newest" },
+        { label: "Oldest first", value: "oldest" },
+      ]}
       isPending={isPending}
-      onSubmit={() => navigate(query, status)}
       onClear={() => {
         setQuery("");
         setStatus("all");
-        navigate("", "all");
+        setSort("newest");
+        navigate("", "all", "newest");
       }}
-      canClear={Boolean(query.trim() || status !== "all")}
+      canClear={Boolean(query.trim() || status !== "all" || sort !== "newest")}
     />
   );
 }

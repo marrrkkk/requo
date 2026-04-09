@@ -8,6 +8,7 @@ import {
 } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Field,
   FieldContent,
@@ -122,7 +123,14 @@ export function KnowledgeFileUploadForm({
 
       <FormActions>
         <Button disabled={isPending} type="submit">
-          {isPending ? "Uploading file..." : "Upload knowledge file"}
+          {isPending ? (
+            <>
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+              Uploading file...
+            </>
+          ) : (
+            "Upload knowledge file"
+          )}
         </Button>
       </FormActions>
     </form>

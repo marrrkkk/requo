@@ -11,7 +11,10 @@ import {
 } from "lucide-react";
 import { z } from "zod";
 
-import type { BusinessType } from "@/features/inquiries/business-types";
+import {
+  normalizeBusinessType,
+  type BusinessType,
+} from "@/features/inquiries/business-types";
 
 function emptyToUndefined(value: unknown) {
   if (value == null) {
@@ -170,25 +173,46 @@ function createDefaultInquiryPageCards(
           icon: "schedule",
         },
       ];
-    case "home_services":
+    case "contractor_home_improvement":
       return [
         {
           id: "details",
-          title: "Describe the job",
-          description: "Tell us what needs to be fixed or installed.",
+          title: "Describe the project",
+          description: "Tell us the scope, site, and work needed.",
           icon: "details",
         },
         {
           id: "upload",
-          title: "Add photos",
-          description: "Photos help before a visit or estimate.",
+          title: "Add photos or plans",
+          description: "Photos and plans help before a site visit or quote.",
           icon: "upload",
         },
         {
           id: "schedule",
-          title: "Pick a date",
-          description: "Share your preferred visit window.",
+          title: "Share timing",
+          description: "Tell us your target schedule or site visit window.",
           icon: "schedule",
+        },
+      ];
+    case "fabrication_custom_build":
+      return [
+        {
+          id: "specs",
+          title: "Specs first",
+          description: "Share the build type, quantity, and dimensions.",
+          icon: "measurements",
+        },
+        {
+          id: "materials",
+          title: "Material and finish",
+          description: "Call out materials, finishes, and install needs.",
+          icon: "package",
+        },
+        {
+          id: "upload",
+          title: "Upload drawings",
+          description: "Send plans, sketches, or reference files.",
+          icon: "upload",
         },
       ];
     case "repair_services":
@@ -233,7 +257,28 @@ function createDefaultInquiryPageCards(
           icon: "upload",
         },
       ];
-    case "landscaping_outdoor":
+    case "event_services_rentals":
+      return [
+        {
+          id: "schedule",
+          title: "Event date and timing",
+          description: "Share the date, venue, and timing that matter.",
+          icon: "schedule",
+        },
+        {
+          id: "details",
+          title: "Service scope",
+          description: "Tell us the services, rentals, or support needed.",
+          icon: "details",
+        },
+        {
+          id: "upload",
+          title: "Upload inspiration",
+          description: "Send a run sheet, floor plan, or reference files.",
+          icon: "upload",
+        },
+      ];
+    case "landscaping_outdoor_services":
       return [
         {
           id: "details",
@@ -254,7 +299,7 @@ function createDefaultInquiryPageCards(
           icon: "upload",
         },
       ];
-    case "creative_studio_agency":
+    case "creative_marketing_services":
       return [
         {
           id: "details",
@@ -275,7 +320,7 @@ function createDefaultInquiryPageCards(
           icon: "schedule",
         },
       ];
-    case "it_web_services":
+    case "web_it_services":
       return [
         {
           id: "details",
@@ -296,28 +341,28 @@ function createDefaultInquiryPageCards(
           icon: "contact",
         },
       ];
-    case "photo_video_events":
+    case "photo_video_production":
       return [
         {
           id: "schedule",
-          title: "Share the date",
-          description: "Tell us the event date and location.",
+          title: "Share the shoot date",
+          description: "Tell us the date, location, and production window.",
           icon: "schedule",
         },
         {
           id: "details",
-          title: "Coverage details",
-          description: "Tell us what you need captured or delivered.",
+          title: "Production details",
+          description: "Tell us what needs to be captured, edited, or delivered.",
           icon: "details",
         },
         {
           id: "upload",
           title: "Add references",
-          description: "Upload a run of show or inspiration.",
+          description: "Upload a run sheet, shot list, or inspiration.",
           icon: "upload",
         },
       ];
-    case "coaching_consulting":
+    case "consulting_professional_services":
       return [
         {
           id: "details",
@@ -338,7 +383,7 @@ function createDefaultInquiryPageCards(
           icon: "owner",
         },
       ];
-    case "general_services":
+    case "general_project_services":
     default:
       return [
         {
@@ -367,15 +412,17 @@ export function createInquiryPageConfigDefaults({
   businessName,
   businessShortDescription,
   legacyInquiryHeadline,
-  businessType = "general_services",
+  businessType = "general_project_services",
   template,
 }: InquiryPageConfigDefaultsInput): InquiryPageConfig {
+  const resolvedBusinessType = normalizeBusinessType(businessType);
   const resolvedTemplate =
     template ??
-    (businessType === "creative_studio_agency" ||
-    businessType === "photo_video_events"
+    (resolvedBusinessType === "creative_marketing_services" ||
+    resolvedBusinessType === "photo_video_production" ||
+    resolvedBusinessType === "event_services_rentals"
       ? "showcase"
-      : businessType === "coaching_consulting"
+      : resolvedBusinessType === "consulting_professional_services"
         ? "stacked"
         : "split");
 
@@ -387,7 +434,7 @@ export function createInquiryPageConfigDefaults({
   let formTitle = "Send inquiry";
   const formDescription = `Your request goes straight to ${businessName}.`;
 
-  switch (businessType) {
+  switch (resolvedBusinessType) {
     case "print_signage":
       eyebrow = "Project request";
       headline = `Start your print or signage request with ${businessName}.`;
@@ -396,12 +443,21 @@ export function createInquiryPageConfigDefaults({
         `Share specs, timing, and files so ${businessName} can quote accurately.`;
       formTitle = "Send project request";
       break;
-    case "home_services":
-      eyebrow = "Service request";
-      headline = `Book a service request with ${businessName}.`;
+    case "contractor_home_improvement":
+      eyebrow = "Project request";
+      headline = `Start your project request with ${businessName}.`;
       description =
         legacyInquiryHeadline?.trim() ||
-        `Share the job, location, and preferred timing.`;
+        `Share the project scope, site, and preferred timing.`;
+      formTitle = "Send project request";
+      break;
+    case "fabrication_custom_build":
+      eyebrow = "Quote request";
+      headline = `Send your custom build request to ${businessName}.`;
+      description =
+        legacyInquiryHeadline?.trim() ||
+        `Share specs, material, finish, and drawings so ${businessName} can quote accurately.`;
+      formTitle = "Send quote request";
       break;
     case "repair_services":
       eyebrow = "Repair request";
@@ -417,14 +473,22 @@ export function createInquiryPageConfigDefaults({
         legacyInquiryHeadline?.trim() ||
         `Share the space, schedule, and service needs.`;
       break;
-    case "landscaping_outdoor":
+    case "event_services_rentals":
+      eyebrow = "Event request";
+      headline = `Start your event request with ${businessName}.`;
+      description =
+        legacyInquiryHeadline?.trim() ||
+        `Share the event date, location, and services needed for an accurate quote.`;
+      formTitle = "Send event request";
+      break;
+    case "landscaping_outdoor_services":
       eyebrow = "Outdoor project";
       headline = `Start your outdoor project with ${businessName}.`;
       description =
         legacyInquiryHeadline?.trim() ||
         `Share the property, work needed, and preferred timing.`;
       break;
-    case "creative_studio_agency":
+    case "creative_marketing_services":
       eyebrow = "Project brief";
       headline = `Send your project brief to ${businessName}.`;
       description =
@@ -432,29 +496,36 @@ export function createInquiryPageConfigDefaults({
         `Share the goal, deliverables, and launch timing.`;
       formTitle = "Send brief";
       break;
-    case "it_web_services":
+    case "web_it_services":
       eyebrow = "Project request";
       headline = `Tell ${businessName} what you need help with.`;
       description =
         legacyInquiryHeadline?.trim() ||
         `Share the issue, system, and desired outcome.`;
       break;
-    case "photo_video_events":
-      eyebrow = "Booking request";
-      headline = `Start your booking request with ${businessName}.`;
+    case "photo_video_production":
+      eyebrow = "Production request";
+      headline = `Start your production request with ${businessName}.`;
       description =
         legacyInquiryHeadline?.trim() ||
-        `Share the event, date, location, and coverage needed.`;
-      formTitle = "Send booking request";
+        `Share the shoot, date, location, and deliverables needed.`;
+      formTitle = "Send production request";
       break;
-    case "coaching_consulting":
+    case "consulting_professional_services":
       eyebrow = "Discovery request";
       headline = `Start your request with ${businessName}.`;
       description =
         legacyInquiryHeadline?.trim() ||
         `Share the goal, context, and preferred start date.`;
       break;
-    case "general_services":
+    case "general_project_services":
+      eyebrow = "Project request";
+      headline = `Tell ${businessName} what you need.`;
+      description =
+        legacyInquiryHeadline?.trim() ||
+        `Send a project request directly to ${businessName}.`;
+      formTitle = "Send project request";
+      break;
     default:
       break;
   }
@@ -467,7 +538,7 @@ export function createInquiryPageConfigDefaults({
     brandTagline: businessShortDescription?.trim() || undefined,
     formTitle,
     formDescription,
-    cards: createDefaultInquiryPageCards(businessType),
+    cards: createDefaultInquiryPageCards(resolvedBusinessType),
   };
 }
 

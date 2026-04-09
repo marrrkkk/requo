@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { PencilLine } from "lucide-react";
 
-import { DashboardMetaPill } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,7 +32,6 @@ type QuoteLibraryEntryCardProps = {
     state: QuoteLibraryActionState,
     formData: FormData,
   ) => Promise<QuoteLibraryActionState>;
-  currency: string;
   deleteAction: (
     state: QuoteLibraryDeleteActionState,
     formData: FormData,
@@ -47,7 +45,6 @@ const EDITOR_TRANSITION_DURATION_MS = 220;
 export function QuoteLibraryEntryCard({
   action,
   animationDelayMs,
-  currency,
   deleteAction,
   entry,
 }: QuoteLibraryEntryCardProps) {
@@ -128,15 +125,11 @@ export function QuoteLibraryEntryCard({
       <CardHeader className="gap-3 pb-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <CardTitle className="text-xl">{entry.name}</CardTitle>
-              <DashboardMetaPill>{getQuoteLibraryEntryKindLabel(entry.kind)}</DashboardMetaPill>
-              <DashboardMetaPill>
-                {entry.itemCount} {entry.itemCount === 1 ? "item" : "items"}
-              </DashboardMetaPill>
-            </div>
+            <CardTitle className="text-xl">{entry.name}</CardTitle>
             <CardDescription>
-              Updated {formatQuoteDateTime(entry.updatedAt)}
+              {getQuoteLibraryEntryKindLabel(entry.kind)} · {entry.itemCount}{" "}
+              {entry.itemCount === 1 ? "item" : "items"} · Updated{" "}
+              {formatQuoteDateTime(entry.updatedAt)}
             </CardDescription>
           </div>
 
@@ -169,9 +162,12 @@ export function QuoteLibraryEntryCard({
 
         <div className="soft-panel p-4 shadow-none">
           <div className="flex items-center justify-between gap-4">
-            <p className="text-sm font-medium text-foreground">Saved items</p>
+            <div>
+              <p className="text-sm font-medium text-foreground">Saved items</p>
+              <p className="text-xs text-muted-foreground">{entry.currency}</p>
+            </div>
             <p className="text-sm font-semibold text-foreground">
-              {formatQuoteMoney(entry.totalInCents, currency)}
+              {formatQuoteMoney(entry.totalInCents, entry.currency)}
             </p>
           </div>
           <div className="mt-4 flex flex-col gap-3">
@@ -185,11 +181,15 @@ export function QuoteLibraryEntryCard({
                     {item.description}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Qty {item.quantity} x {formatQuoteMoney(item.unitPriceInCents, currency)}
+                    Qty {item.quantity} x{" "}
+                    {formatQuoteMoney(item.unitPriceInCents, entry.currency)}
                   </p>
                 </div>
                 <p className="shrink-0 text-sm font-medium text-foreground">
-                  {formatQuoteMoney(item.quantity * item.unitPriceInCents, currency)}
+                  {formatQuoteMoney(
+                    item.quantity * item.unitPriceInCents,
+                    entry.currency,
+                  )}
                 </p>
               </div>
             ))}
@@ -202,7 +202,7 @@ export function QuoteLibraryEntryCard({
               <div className="motion-card-enter pt-1">
                 <QuoteLibraryEntryForm
                   action={action}
-                  currency={currency}
+                  currency={entry.currency}
                   initialValues={{
                     kind: entry.kind,
                     name: entry.name,

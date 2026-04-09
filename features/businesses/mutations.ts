@@ -2,6 +2,7 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 
+import { resolveCurrencyForCountry } from "@/features/businesses/locale";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
 import { createInquiryFormConfigDefaults } from "@/features/inquiries/form-config";
@@ -22,6 +23,7 @@ type CreateBusinessForUserInput = {
     name: string;
     email: string;
   };
+  countryCode: string;
   name: string;
   businessType: BusinessType;
   shortDescription?: string | null;
@@ -65,6 +67,7 @@ type CreateBusinessRecordForUserInput = CreateBusinessForUserInput & {
 
 export async function createBusinessRecordForUser({
   tx,
+  countryCode,
   user,
   name,
   businessType,
@@ -75,6 +78,7 @@ export async function createBusinessRecordForUser({
 }: CreateBusinessRecordForUserInput) {
   const trimmedName = name.trim();
   const normalizedShortDescription = shortDescription?.trim() || null;
+  const defaultCurrency = resolveCurrencyForCountry(countryCode);
   const slug = await getAvailableBusinessSlug(
     tx,
     slugifyPublicName(trimmedName, {
@@ -87,11 +91,16 @@ export async function createBusinessRecordForUser({
     businessName: trimmedName,
   });
 
+  if (!defaultCurrency) {
+    throw new Error("A supported currency could not be resolved for that country.");
+  }
+
   await tx.insert(businesses).values({
     id: businessId,
     name: trimmedName,
     slug,
     businessType,
+    countryCode,
     shortDescription: normalizedShortDescription,
     contactEmail: user.email,
     inquiryFormConfig: createInquiryFormConfigDefaults({
@@ -101,6 +110,7 @@ export async function createBusinessRecordForUser({
       businessName: trimmedName,
       businessType,
     }),
+    defaultCurrency,
     createdAt: now,
     updatedAt: now,
   });
@@ -148,6 +158,7 @@ export async function createBusinessRecordForUser({
 }
 
 export async function createBusinessForUser({
+  countryCode,
   user,
   name,
   businessType,
@@ -160,6 +171,7 @@ export async function createBusinessForUser({
   return db.transaction(async (tx) =>
     createBusinessRecordForUser({
       tx,
+      countryCode,
       user,
       name,
       businessType,

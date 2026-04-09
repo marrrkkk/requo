@@ -21,7 +21,7 @@ export const audienceSegments = [
   "Repair shops",
   "Tutors",
   "Event suppliers",
-  "Small agencies",
+  "Agencies",
 ] as const;
 
 export const heroSignals = [
@@ -240,7 +240,7 @@ export const faqItems = [
   {
     question: "Who is Requo built for?",
     answer:
-      "It is designed for owner-operated service businesses that handle inquiries, pricing, and follow-up themselves or with a very small team.",
+      "It is designed for owner-operated service businesses that handle inquiries, pricing, and follow-up themselves or with a lean team.",
   },
   {
     question: "What do I get on day one?",

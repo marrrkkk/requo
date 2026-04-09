@@ -12,6 +12,8 @@ import {
   getBusinessQuoteListCacheTags,
 } from "@/lib/cache/business-tags";
 
+const CUSTOMER_HISTORY_LIST_LIMIT = 12;
+
 function normalizeCustomerEmail(email: string) {
   return email.trim().toLowerCase();
 }
@@ -93,7 +95,7 @@ async function getCachedCustomerHistoryForBusiness(input: {
         .from(inquiries)
         .where(and(...inquiryConditions))
         .orderBy(desc(inquiries.submittedAt), desc(inquiries.createdAt))
-        .limit(5),
+        .limit(CUSTOMER_HISTORY_LIST_LIMIT),
       db
         .select({
           id: quotes.id,
@@ -110,7 +112,7 @@ async function getCachedCustomerHistoryForBusiness(input: {
         .from(quotes)
         .where(and(...quoteConditions))
         .orderBy(desc(quotes.createdAt))
-        .limit(5),
+        .limit(CUSTOMER_HISTORY_LIST_LIMIT),
     ]);
 
   const inquiryCount = Number(inquiryCountRows[0]?.count ?? 0);

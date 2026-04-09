@@ -7,6 +7,7 @@ import { FormActions } from "@/components/shared/form-layout";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Field,
   FieldContent,
@@ -15,15 +16,8 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import type {
   QuoteEditorLineItemValue,
@@ -55,6 +49,16 @@ type QuoteLibraryEntryFormProps = {
 const initialState: QuoteLibraryActionState = {};
 const LINE_ITEM_EXIT_DURATION_MS = 180;
 const SAVE_REFRESH_DELAY_MS = 180;
+const quoteLibraryKindOptions = [
+  {
+    label: getQuoteLibraryEntryKindLabel("block"),
+    value: "block",
+  },
+  {
+    label: getQuoteLibraryEntryKindLabel("package"),
+    value: "package",
+  },
+];
 
 type EditorLineItem = QuoteEditorLineItemValue & {
   motionState?: "entering" | "exiting";
@@ -265,21 +269,16 @@ function QuoteLibraryEntryFormFields({
           <Field data-invalid={Boolean(state.fieldErrors?.kind) || undefined}>
             <FieldLabel htmlFor={`${idPrefix}-kind`}>Entry type</FieldLabel>
             <FieldContent>
-              <Select onValueChange={handleKindChange} value={kind}>
-                <SelectTrigger className="w-full" id={`${idPrefix}-kind`}>
-                  <SelectValue placeholder="Choose an entry type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectItem value="block">
-                      {getQuoteLibraryEntryKindLabel("block")}
-                    </SelectItem>
-                    <SelectItem value="package">
-                      {getQuoteLibraryEntryKindLabel("package")}
-                    </SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+              <Combobox
+                aria-invalid={Boolean(state.fieldErrors?.kind) || undefined}
+                disabled={isPending}
+                id={`${idPrefix}-kind`}
+                onValueChange={(value) => handleKindChange(value as "block" | "package")}
+                options={quoteLibraryKindOptions}
+                placeholder="Choose an entry type"
+                searchPlaceholder="Search entry type"
+                value={kind}
+              />
               <FieldError
                 errors={
                   state.fieldErrors?.kind?.[0]
@@ -352,6 +351,9 @@ function QuoteLibraryEntryFormFields({
                 ? "Save one reusable line item."
                 : "Packages can include up to 25 line items."}
             </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Saved currency: {currency}
+            </p>
           </div>
           {kind === "package" ? (
             <Button
@@ -392,7 +394,7 @@ function QuoteLibraryEntryFormFields({
                       <p className="text-sm font-medium text-foreground">
                         Item {index + 1}
                       </p>
-                      <span className="dashboard-meta-pill min-h-0 px-2.5 py-1 text-[0.7rem]">
+                      <span className="text-sm text-muted-foreground">
                         {formatQuoteMoney(
                           safeQuantity * unitPriceInCents,
                           currency,
@@ -509,9 +511,12 @@ function QuoteLibraryEntryFormFields({
       <div className="soft-panel flex flex-col gap-3 px-4 py-4 shadow-none">
         <div className="flex items-center justify-between gap-4">
           <span className="text-sm font-medium text-foreground">Saved total</span>
-          <span className="dashboard-meta-pill">
-            {visibleItems.length} {visibleItems.length === 1 ? "item" : "items"}
-          </span>
+          <div className="text-right">
+            <p className="text-sm text-muted-foreground">
+              {visibleItems.length} {visibleItems.length === 1 ? "item" : "items"}
+            </p>
+            <p className="text-sm text-muted-foreground">{currency}</p>
+          </div>
         </div>
         <Separator />
         <div className="flex items-center justify-between gap-4">
@@ -524,7 +529,14 @@ function QuoteLibraryEntryFormFields({
 
       <FormActions>
         <Button disabled={isPending} type="submit">
-          {isPending ? submitPendingLabel : submitLabel}
+          {isPending ? (
+            <>
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+              {submitPendingLabel}
+            </>
+          ) : (
+            submitLabel
+          )}
         </Button>
       </FormActions>
     </>

@@ -37,6 +37,10 @@ Requo deploys cleanly as a Next.js app with a Postgres database, Supabase storag
 - Set `NEXT_PUBLIC_BETTER_AUTH_URL` only if you need an explicit browser-facing auth route override.
 - Keep preview and production origins aligned with Better Auth trusted origins.
 - If you deploy on Vercel, `VERCEL_URL` can be used to allow preview-origin requests.
+- Add provider credentials only for the OAuth providers you want to expose:
+  - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+  - `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, and optional `MICROSOFT_TENANT_ID`
+- Provider callback URLs use `/api/auth/callback/<provider>`.
 
 ## Supabase Checklist
 
@@ -52,6 +56,7 @@ Requo deploys cleanly as a Next.js app with a Postgres database, Supabase storag
   - `inquiry-attachments`
   - `knowledge-files`
   - `business-assets`
+  - `profile-assets`
 - Keep private asset access server-side. The current design uses authenticated route handlers to download private files.
 
 Example:
