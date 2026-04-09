@@ -1,12 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
-import {
-  FloatingFormActions,
-  useFloatingUnsavedChanges,
-} from "@/components/shared/floating-form-actions";
+import { FormActions } from "@/components/shared/form-layout";
+import { useActionStateWithSuccessToast } from "@/hooks/use-action-state-with-success-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import type {
@@ -36,7 +36,10 @@ export function BusinessNotificationSettingsForm({
   settings,
 }: BusinessNotificationSettingsFormProps) {
   const router = useProgressRouter();
-  const [state, formAction, isPending] = useActionState(action, initialState);
+  const [state, formAction, isPending] = useActionStateWithSuccessToast(
+    action,
+    initialState,
+  );
   const [notifyOnNewInquiry, setNotifyOnNewInquiry] = useState(
     settings.notifyOnNewInquiry,
   );
@@ -58,8 +61,6 @@ export function BusinessNotificationSettingsForm({
     notifyOnQuoteResponse !== settings.notifyOnQuoteResponse ||
     notifyInAppOnNewInquiry !== settings.notifyInAppOnNewInquiry ||
     notifyInAppOnQuoteResponse !== settings.notifyInAppOnQuoteResponse;
-  const { shouldRenderFloatingActions, floatingActionsState } =
-    useFloatingUnsavedChanges(hasUnsavedChanges);
 
   useEffect(() => {
     if (!state.success) {
@@ -78,7 +79,7 @@ export function BusinessNotificationSettingsForm({
   }
 
   return (
-    <form action={formAction} className="form-stack pb-28">
+    <form action={formAction} className="form-stack">
       {state.error ? (
         <Alert variant="destructive">
           <AlertTitle>We could not save the notifications.</AlertTitle>
@@ -86,12 +87,6 @@ export function BusinessNotificationSettingsForm({
         </Alert>
       ) : null}
 
-      {state.success ? (
-        <Alert>
-          <AlertTitle>Notifications saved</AlertTitle>
-          <AlertDescription>{state.success}</AlertDescription>
-        </Alert>
-      ) : null}
 
       <input
         name="notifyOnNewInquiry"
@@ -184,16 +179,26 @@ export function BusinessNotificationSettingsForm({
         </div>
       </section>
 
-      <FloatingFormActions
-        disableSubmit={!hasUnsavedChanges}
-        isPending={isPending}
-        message="You have unsaved notification changes."
-        onCancel={handleCancelChanges}
-        state={floatingActionsState}
-        submitLabel="Save notifications"
-        submitPendingLabel="Saving notifications..."
-        visible={shouldRenderFloatingActions}
-      />
+      <FormActions>
+        <Button
+          disabled={isPending || !hasUnsavedChanges}
+          onClick={handleCancelChanges}
+          type="button"
+          variant="outline"
+        >
+          Cancel
+        </Button>
+        <Button disabled={isPending || !hasUnsavedChanges} type="submit">
+          {isPending ? (
+            <>
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+              Saving notifications...
+            </>
+          ) : (
+            "Save notifications"
+          )}
+        </Button>
+      </FormActions>
     </form>
   );
 }

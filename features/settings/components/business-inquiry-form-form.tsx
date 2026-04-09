@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useActionState,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -11,7 +10,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  CheckCircle2,
   ChevronDown,
   MoreHorizontal,
   PencilLine,
@@ -21,6 +19,7 @@ import {
 } from "lucide-react";
 
 import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useActionStateWithSuccessToast } from "@/hooks/use-action-state-with-success-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
@@ -108,14 +107,10 @@ export function BusinessInquiryFormForm({
     [settings.businessType, settings.inquiryFormConfig],
   );
   const router = useProgressRouter();
-  const [saveState, saveFormAction, isSavePending] = useActionState(
-    saveAction,
-    initialState,
-  );
-  const [presetState, presetFormAction, isPresetPending] = useActionState(
-    applyPresetAction,
-    initialState,
-  );
+  const [saveState, saveFormAction, isSavePending] =
+    useActionStateWithSuccessToast(saveAction, initialState);
+  const [presetState, presetFormAction, isPresetPending] =
+    useActionStateWithSuccessToast(applyPresetAction, initialState);
   const [businessType, setBusinessType] = useState(settings.businessType);
   const [contactFields, setContactFields] = useState(
     normalizedSettingsConfig.contactFields,
@@ -594,13 +589,7 @@ export function BusinessInquiryFormForm({
           </Alert>
         ) : null}
 
-        {saveState.success ? (
-          <Alert>
-            <CheckCircle2 data-icon="inline-start" />
-            <AlertTitle>Inquiry form saved</AlertTitle>
-            <AlertDescription>{saveState.success}</AlertDescription>
-          </Alert>
-        ) : null}
+
 
         {presetState.error ? (
           <Alert variant="destructive">
@@ -609,13 +598,7 @@ export function BusinessInquiryFormForm({
           </Alert>
         ) : null}
 
-        {presetState.success ? (
-          <Alert>
-            <CheckCircle2 data-icon="inline-start" />
-            <AlertTitle>Preset applied</AlertTitle>
-            <AlertDescription>{presetState.success}</AlertDescription>
-          </Alert>
-        ) : null}
+
 
         <input name="formId" type="hidden" value={settings.formId} />
         <input name="businessType" type="hidden" value={businessType} />
@@ -1434,7 +1417,7 @@ function FieldCardMenu({
   typeValue?: InquiryCustomFieldType;
 }) {
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button className="size-8 rounded-full" size="icon" type="button" variant="ghost">
           <MoreHorizontal className="size-4" />
@@ -1532,7 +1515,7 @@ function ProjectFieldDetails() {
       <div className="flex flex-col gap-1">
         <p className="text-sm font-semibold tracking-tight text-foreground">Project field</p>
         <p className="text-sm text-muted-foreground">
-          {isSystem ? "System field" : "Custom field"} — edits affect the public form.
+          {isSystem ? "System field" : "Custom field"} Ã¢â‚¬â€ edits affect the public form.
         </p>
       </div>
 

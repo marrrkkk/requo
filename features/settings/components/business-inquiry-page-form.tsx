@@ -2,9 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  CheckCircle2,
   ChevronDown,
   ChevronUp,
   Plus,
@@ -14,6 +13,7 @@ import {
 import {
   FormSection,
 } from "@/components/shared/form-layout";
+import { useActionStateWithSuccessToast } from "@/hooks/use-action-state-with-success-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
@@ -67,7 +67,10 @@ export function BusinessInquiryPageForm({
   logoPreviewUrl,
   generalSettingsHref,
 }: BusinessInquiryPageFormProps) {
-  const [state, formAction, isPending] = useActionState(action, initialState);
+  const [state, formAction, isPending] = useActionStateWithSuccessToast(
+    action,
+    initialState,
+  );
   const [publicInquiryEnabled, setPublicInquiryEnabled] = useState(
     settings.publicInquiryEnabled,
   );
@@ -242,15 +245,6 @@ export function BusinessInquiryPageForm({
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       ) : null}
-
-      {state.success ? (
-        <Alert>
-          <CheckCircle2 data-icon="inline-start" />
-          <AlertTitle>Inquiry page saved</AlertTitle>
-          <AlertDescription>{state.success}</AlertDescription>
-        </Alert>
-      ) : null}
-
       <input name="formId" type="hidden" value={settings.formId} />
       <input
         name="publicInquiryEnabled"
