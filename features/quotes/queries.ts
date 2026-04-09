@@ -132,6 +132,7 @@ export async function getQuoteListPageForBusiness({
       customerName: quotes.customerName,
       customerEmail: quotes.customerEmail,
       totalInCents: quotes.totalInCents,
+      currency: quotes.currency,
       validUntil: quotes.validUntil,
       status: quotes.status,
       postAcceptanceStatus: quotes.postAcceptanceStatus,

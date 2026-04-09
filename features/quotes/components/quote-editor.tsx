@@ -1,13 +1,18 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import {
   DashboardMetaPill,
   DashboardSection,
   DashboardSidebarStack,
 } from "@/components/shared/dashboard-layout";
+import {
+  FloatingFormActions,
+  useFloatingUnsavedChanges,
+} from "@/components/shared/floating-form-actions";
 import { InfoTile } from "@/components/shared/info-tile";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -39,6 +44,7 @@ import {
   isQuoteEditorLineItemBlank,
   parseCurrencyInputToCents,
 } from "@/features/quotes/utils";
+import { cn } from "@/lib/utils";
 
 type QuoteEditorProps = {
   action: (
@@ -51,11 +57,32 @@ type QuoteEditorProps = {
   linkedInquiry: QuoteLinkedInquirySummary | null;
   pricingLibrary: DashboardQuoteLibraryEntry[];
   quoteNumber?: string;
+  showFloatingUnsavedChanges?: boolean;
   submitLabel: string;
   submitPendingLabel: string;
 };
 
 const initialState: QuoteEditorActionState = {};
+const LINE_ITEM_ENTER_DURATION_MS = 220;
+const LINE_ITEM_EXIT_DURATION_MS = 180;
+
+type EditorLineItem = QuoteEditorLineItemValue & {
+  motionState?: "entering" | "exiting";
+};
+
+function cloneQuoteEditorValues(values: QuoteEditorValues): QuoteEditorValues {
+  return {
+    ...values,
+    items: values.items.map((item) => ({ ...item })),
+  };
+}
+
+function areQuoteEditorValuesEqual(
+  left: QuoteEditorValues,
+  right: QuoteEditorValues,
+) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
 
 export function QuoteEditor({
   action,
@@ -65,6 +92,7 @@ export function QuoteEditor({
   linkedInquiry,
   pricingLibrary,
   quoteNumber,
+  showFloatingUnsavedChanges = false,
   submitLabel,
   submitPendingLabel,
 }: QuoteEditorProps) {
@@ -74,18 +102,26 @@ export function QuoteEditor({
   const [notes, setNotes] = useState(initialValues.notes);
   const [validUntil, setValidUntil] = useState(initialValues.validUntil);
   const [discount, setDiscount] = useState(initialValues.discount);
-  const [items, setItems] = useState<QuoteEditorLineItemValue[]>(
-    initialValues.items,
+  const lineItemTimersRef = useRef<Map<string, number>>(new Map());
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [items, setItems] = useState<EditorLineItem[]>(
+    initialValues.items.map((item) => ({ ...item })),
   );
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const [state, formAction, isPending] = useActionState(action, initialState);
-  const serializedItems = items.map((item) => ({
+  const visibleItems = items.filter((item) => item.motionState !== "exiting");
+  const [savedValues, setSavedValues] = useState(() =>
+    cloneQuoteEditorValues(initialValues),
+  );
+  const submittedValuesRef = useRef<QuoteEditorValues>(
+    cloneQuoteEditorValues(initialValues),
+  );
+  const serializedItems = visibleItems.map((item) => ({
     id: item.id,
     description: item.description,
     quantity: item.quantity,
     unitPriceInCents: item.unitPrice,
   }));
-  const previewItems = items.map((item) => {
+  const previewItems = visibleItems.map((item) => {
     const quantity = Number.parseInt(item.quantity.trim(), 10);
     const safeQuantity =
       Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
@@ -99,11 +135,129 @@ export function QuoteEditor({
       lineTotalInCents: safeQuantity * unitPriceInCents,
     };
   });
-  const totals = calculateQuoteEditorTotals(items, discount);
+  const totals = calculateQuoteEditorTotals(visibleItems, discount);
+  const currentValues = useMemo<QuoteEditorValues>(
+    () => ({
+      title,
+      customerName,
+      customerEmail,
+      notes,
+      validUntil,
+      discount,
+      items: items
+        .filter((item) => item.motionState !== "exiting")
+        .map((item) => ({
+        id: item.id,
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      })),
+    }),
+    [customerEmail, customerName, discount, notes, title, validUntil, items],
+  );
+  const hasUnsavedChanges =
+    showFloatingUnsavedChanges &&
+    !areQuoteEditorValuesEqual(currentValues, savedValues);
+  const { shouldRenderFloatingActions, floatingActionsState } =
+    useFloatingUnsavedChanges(hasUnsavedChanges);
+  const [state, formAction, isPending] = useActionState(
+    async (prevState: QuoteEditorActionState, formData: FormData) => {
+      const nextState = await action(prevState, formData);
+
+      if (nextState.success) {
+        toast.success(nextState.success);
+      }
+
+      if (nextState.success && showFloatingUnsavedChanges) {
+        setSavedValues(cloneQuoteEditorValues(submittedValuesRef.current));
+      }
+
+      return nextState;
+    },
+    initialState,
+  );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setPrefersReducedMotion(mediaQuery.matches);
+    update();
+    mediaQuery.addEventListener("change", update);
+    return () => mediaQuery.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    const lineItemTimers = lineItemTimersRef.current;
+
+    return () => {
+      for (const timeoutId of lineItemTimers.values()) {
+        window.clearTimeout(timeoutId);
+      }
+
+      lineItemTimers.clear();
+    };
+  }, []);
+
+  function clearLineItemTimers() {
+    const lineItemTimers = lineItemTimersRef.current;
+
+    for (const timeoutId of lineItemTimers.values()) {
+      window.clearTimeout(timeoutId);
+    }
+
+    lineItemTimers.clear();
+  }
+
+  function resetEditor(values: QuoteEditorValues) {
+    clearLineItemTimers();
+    setTitle(values.title);
+    setCustomerName(values.customerName);
+    setCustomerEmail(values.customerEmail);
+    setNotes(values.notes);
+    setValidUntil(values.validUntil);
+    setDiscount(values.discount);
+    setItems(values.items.map((item) => ({ ...item })));
+  }
+
+  function handleCancelChanges() {
+    resetEditor(savedValues);
+  }
+
+  function scheduleLineItemTimeout(
+    itemId: string,
+    callback: () => void,
+    duration: number,
+  ) {
+    const lineItemTimers = lineItemTimersRef.current;
+    const existingTimer = lineItemTimers.get(itemId);
+
+    if (existingTimer) {
+      window.clearTimeout(existingTimer);
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      callback();
+      lineItemTimers.delete(itemId);
+    }, prefersReducedMotion ? 0 : duration);
+
+    lineItemTimers.set(itemId, timeoutId);
+  }
+
+  function scheduleItemEnter(itemId: string) {
+    scheduleLineItemTimeout(
+      itemId,
+      () =>
+        setItems((currentItems) =>
+          currentItems.map((item) =>
+            item.id === itemId ? { ...item, motionState: undefined } : item,
+          ),
+        ),
+      LINE_ITEM_ENTER_DURATION_MS,
+    );
+  }
 
   function updateItem(
     itemId: string,
-    patch: Partial<QuoteEditorLineItemValue>,
+    patch: Partial<EditorLineItem>,
   ) {
     setItems((currentItems) =>
       currentItems.map((item) =>
@@ -113,10 +267,29 @@ export function QuoteEditor({
   }
 
   function removeItem(itemId: string) {
+    if (visibleItems.length === 1) {
+      return;
+    }
+
+    const currentItem = items.find((item) => item.id === itemId);
+
+    if (!currentItem || currentItem.motionState === "exiting") {
+      return;
+    }
+
     setItems((currentItems) =>
-      currentItems.length === 1
-        ? currentItems
-        : currentItems.filter((item) => item.id !== itemId),
+      currentItems.map((item) =>
+        item.id === itemId ? { ...item, motionState: "exiting" } : item,
+      ),
+    );
+
+    scheduleLineItemTimeout(
+      itemId,
+      () =>
+        setItems((currentItems) =>
+          currentItems.filter((item) => item.id !== itemId),
+        ),
+      LINE_ITEM_EXIT_DURATION_MS,
     );
   }
 
@@ -125,14 +298,19 @@ export function QuoteEditor({
       return;
     }
 
-    const copiedItems = entry.items.map((item) =>
-      createQuoteEditorLineItemFromLibraryItem(item),
-    );
+    const copiedItems = entry.items.map((item) => ({
+      ...createQuoteEditorLineItemFromLibraryItem(item),
+      motionState: "entering" as const,
+    }));
+
+    for (const item of copiedItems) {
+      scheduleItemEnter(item.id);
+    }
 
     setItems((currentItems) => {
       const shouldReplacePlaceholder =
-        currentItems.length === 1 &&
-        isQuoteEditorLineItemBlank(currentItems[0]);
+        visibleItems.length === 1 &&
+        isQuoteEditorLineItemBlank(visibleItems[0]);
 
       return shouldReplacePlaceholder
         ? copiedItems
@@ -144,7 +322,13 @@ export function QuoteEditor({
   return (
     <form
       action={formAction}
-      className="dashboard-detail-layout items-start xl:grid-cols-[minmax(0,1.08fr)_0.92fr]"
+      className={cn(
+        "dashboard-detail-layout items-start xl:grid-cols-[minmax(0,1.08fr)_0.92fr]",
+        shouldRenderFloatingActions && "pb-28",
+      )}
+      onSubmitCapture={() => {
+        submittedValuesRef.current = cloneQuoteEditorValues(currentValues);
+      }}
     >
       <input name="items" type="hidden" value={JSON.stringify(serializedItems)} />
 
@@ -153,13 +337,6 @@ export function QuoteEditor({
           <Alert variant="destructive">
             <AlertTitle>We could not save the quote.</AlertTitle>
             <AlertDescription>{state.error}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        {state.success ? (
-          <Alert>
-            <AlertTitle>Quote saved</AlertTitle>
-            <AlertDescription>{state.success}</AlertDescription>
           </Alert>
         ) : null}
 
@@ -365,12 +542,15 @@ export function QuoteEditor({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() =>
-                  setItems((currentItems) => [
-                    ...currentItems,
-                    createQuoteEditorLineItem(),
-                  ])
-                }
+                onClick={() => {
+                  const nextItem = {
+                    ...createQuoteEditorLineItem(),
+                    motionState: "entering" as const,
+                  };
+
+                  setItems((currentItems) => [...currentItems, nextItem]);
+                  scheduleItemEnter(nextItem.id);
+                }}
                 disabled={isPending}
               >
                 <Plus data-icon="inline-start" />
@@ -397,7 +577,14 @@ export function QuoteEditor({
 
               return (
                 <div
-                  className="soft-panel p-5"
+                  className={cn(
+                    "soft-panel p-5 motion-reduce:animate-none",
+                    item.motionState === "entering" &&
+                      "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200",
+                    item.motionState === "exiting" &&
+                      "pointer-events-none motion-safe:animate-out motion-safe:fade-out-0 motion-safe:slide-out-to-bottom-2 motion-safe:duration-150",
+                  )}
+                  data-motion-state={item.motionState}
                   key={item.id}
                 >
                   <div className="flex flex-col gap-4">
@@ -415,7 +602,11 @@ export function QuoteEditor({
                         variant="outline"
                         size="icon-sm"
                         onClick={() => removeItem(item.id)}
-                        disabled={isPending || items.length === 1}
+                        disabled={
+                          isPending ||
+                          visibleItems.length === 1 ||
+                          item.motionState === "exiting"
+                        }
                       >
                         <Trash2 data-icon="inline-start" />
                         <span className="sr-only">Remove line item</span>
@@ -515,29 +706,26 @@ export function QuoteEditor({
         <DashboardSection
           contentClassName="flex flex-col gap-4"
           footer={
-            <>
-              <Button disabled={isPending} size="lg" type="submit">
-                {isPending ? (
-                  <>
-                    <Spinner data-icon="inline-start" aria-hidden="true" />
-                    {submitPendingLabel}
-                  </>
-                ) : (
-                  submitLabel
-                )}
-              </Button>
-            </>
+            showFloatingUnsavedChanges ? undefined : (
+              <>
+                <Button disabled={isPending} size="lg" type="submit">
+                  {isPending ? (
+                    <>
+                      <Spinner data-icon="inline-start" aria-hidden="true" />
+                      {submitPendingLabel}
+                    </>
+                  ) : (
+                    submitLabel
+                  )}
+                </Button>
+              </>
+            )
           }
           footerClassName="w-full sm:justify-between"
-          title="Commercial summary"
+          title="Summary"
         >
           <div className="soft-panel flex flex-col gap-4 px-4 py-4 shadow-none">
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-sm font-medium text-foreground">Totals</span>
-              <span className="dashboard-meta-pill">
-                Auto-calculated
-              </span>
-            </div>
+            <span className="text-sm font-medium text-foreground">Totals</span>
             <div className="flex flex-col gap-3">
               <TotalsRow
                 label="Subtotal"
@@ -557,6 +745,17 @@ export function QuoteEditor({
           </div>
         </DashboardSection>
       </DashboardSidebarStack>
+
+      <FloatingFormActions
+        disableSubmit={!hasUnsavedChanges}
+        isPending={isPending}
+        message="You have unsaved quote changes."
+        onCancel={handleCancelChanges}
+        state={floatingActionsState}
+        submitLabel={submitLabel}
+        submitPendingLabel={submitPendingLabel}
+        visible={shouldRenderFloatingActions}
+      />
 
       <QuoteLibrarySheet
         currency={currency}

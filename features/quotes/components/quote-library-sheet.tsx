@@ -121,7 +121,7 @@ export function QuoteLibrarySheet({
           {entries.length === 0 ? (
             <Empty className="border-border/70 bg-background/80">
                 <EmptyHeader>
-                  <EmptyTitle>No pricing library yet</EmptyTitle>
+                  <EmptyTitle>No saved pricing yet</EmptyTitle>
                   <EmptyDescription>
                     Save pricing blocks or service packages in Business settings first.
                   </EmptyDescription>
