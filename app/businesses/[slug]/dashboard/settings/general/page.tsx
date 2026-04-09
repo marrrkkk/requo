@@ -28,7 +28,7 @@ export default async function BusinessGeneralSettingsPage() {
       <PageHeader
         eyebrow="Business"
         title="Business profile"
-        description="Business details and branding."
+        description="Business details, branding, and regional defaults."
       />
 
       <BusinessSettingsForm

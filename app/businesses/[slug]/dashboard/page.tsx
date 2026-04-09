@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   FileText,
   Inbox,
+  ReceiptText,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -82,6 +83,7 @@ export default async function DashboardOverviewPage() {
               </Button>
               <Button asChild variant="secondary">
                 <Link href={getBusinessNewQuotePath(businessSlug)} prefetch={true}>
+                  <ReceiptText data-icon="inline-start" />
                   Create quote
                 </Link>
               </Button>
@@ -210,6 +212,7 @@ export default async function DashboardOverviewPage() {
               action={
                 <Button asChild variant="outline">
                   <Link href={getBusinessNewQuotePath(businessSlug)} prefetch={true}>
+                    <ReceiptText data-icon="inline-start" />
                     Create quote
                   </Link>
                 </Button>

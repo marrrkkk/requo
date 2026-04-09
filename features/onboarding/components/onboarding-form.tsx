@@ -11,7 +11,6 @@ import { Spinner } from "@/components/ui/spinner";
 import {
   Field,
   FieldContent,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -22,7 +21,6 @@ import {
   businessTypeOptions,
   type BusinessType,
 } from "@/features/inquiries/business-types";
-import { getBusinessCountryOption } from "@/features/businesses/locale";
 import {
   onboardingProfileSchema,
   onboardingWorkspaceSchema,
@@ -71,6 +69,10 @@ const onboardingSteps = [
 
 const initialState: OnboardingActionState = {};
 const lastOnboardingStepIndex = onboardingSteps.length - 1;
+const onboardingInputClassName =
+  "h-12 text-base aria-invalid:border-input/95 aria-invalid:ring-0 aria-invalid:ring-transparent";
+const onboardingComboboxButtonClassName =
+  "h-12 text-base aria-invalid:border-border/85 aria-invalid:ring-0 aria-invalid:ring-transparent";
 
 export function OnboardingForm({
   action,
@@ -80,6 +82,9 @@ export function OnboardingForm({
   const [currentStep, setCurrentStep] = useState(0);
   const [clientFieldErrors, setClientFieldErrors] = useState<
     Partial<Record<OnboardingVisibleField, string>>
+  >({});
+  const [dismissedServerErrorSources, setDismissedServerErrorSources] = useState<
+    Partial<Record<OnboardingVisibleField, OnboardingActionState["fieldErrors"]>>
   >({});
   const [values, setValues] = useState({
     businessName: "",
@@ -105,10 +110,22 @@ export function OnboardingForm({
 
       return nextErrors;
     });
+
+    setDismissedServerErrorSources((currentDismissedErrors) => ({
+      ...currentDismissedErrors,
+      [field]: state.fieldErrors,
+    }));
   }
 
   function getFieldError(field: OnboardingVisibleField) {
-    return clientFieldErrors[field] ?? state.fieldErrors?.[field]?.[0];
+    const serverError = state.fieldErrors?.[field]?.[0];
+
+    return (
+      clientFieldErrors[field] ??
+      (dismissedServerErrorSources[field] === state.fieldErrors
+        ? undefined
+        : serverError)
+    );
   }
 
   function getFieldValidationError(field: OnboardingVisibleField) {
@@ -213,7 +230,6 @@ export function OnboardingForm({
   const businessTypeError = getFieldError("businessType");
   const countryCodeError = getFieldError("countryCode");
   const fullNameError = getFieldError("fullName");
-  const selectedCountry = getBusinessCountryOption(values.countryCode);
 
   return (
     <form
@@ -274,7 +290,7 @@ export function OnboardingForm({
                 <Input
                   aria-invalid={Boolean(businessNameError) || undefined}
                   autoFocus
-                  className="h-12 text-base"
+                  className={onboardingInputClassName}
                   id="onboarding-business-name"
                   maxLength={80}
                   minLength={2}
@@ -303,7 +319,7 @@ export function OnboardingForm({
                 <Combobox
                   aria-invalid={Boolean(businessTypeError) || undefined}
                   autoFocus
-                  buttonClassName="h-12 text-base"
+                  buttonClassName={onboardingComboboxButtonClassName}
                   contentClassName="max-h-80"
                   id="onboarding-business-type"
                   onValueChange={(value) =>
@@ -340,7 +356,7 @@ export function OnboardingForm({
                 <Input
                   aria-invalid={Boolean(fullNameError) || undefined}
                   autoFocus
-                  className="h-12 text-base"
+                  className={onboardingInputClassName}
                   id="onboarding-full-name"
                   maxLength={120}
                   minLength={2}
@@ -367,22 +383,14 @@ export function OnboardingForm({
                 <CountryCombobox
                   aria-invalid={Boolean(countryCodeError) || undefined}
                   autoFocus
+                  buttonClassName={onboardingComboboxButtonClassName}
                   disabled={isPending}
                   id="onboarding-country-code"
                   onValueChange={(value) => updateField("countryCode", value)}
                   placeholder="Choose your country"
                   searchPlaceholder="Search country"
+                  showFlags={false}
                   value={values.countryCode}
-                />
-                <FieldDescription>
-                  {selectedCountry
-                    ? `Default currency: ${selectedCountry.currencyCode}`
-                    : "We use this to pick the starting quote currency."}
-                </FieldDescription>
-                <FieldError
-                  errors={
-                    countryCodeError ? [{ message: countryCodeError }] : undefined
-                  }
                 />
               </FieldContent>
             </Field>
