@@ -194,7 +194,7 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 
 - `app/` route groups, layouts, pages, and route handlers
 - `components/` shared UI primitives, shell UI, and marketing components
-- `features/` product slices such as auth, inquiries, quotes, knowledge, AI, analytics, and settings
+- `features/` product slices such as account, auth, businesses, inquiries, quotes, knowledge, AI, analytics, notifications, onboarding, settings, and theme
 - `lib/` auth, database, provider clients, env validation, and shared utilities
 - `emails/templates/` transactional email rendering
 - `docs/` setup and architecture documentation
@@ -203,8 +203,10 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 ## Architecture Notes
 
 - Better Auth is the only authentication system in this app
+- Initial signup creates the user and profile; onboarding creates the first business and later business creation stays explicit in business flows
 - Business ownership is enforced through business-aware server helpers and scoped queries
 - Supabase is used for storage and notification plumbing, not Supabase Auth
+- `DESIGN.md` is the canonical UI system, with semantic tokens and shared wrappers implemented in `app/globals.css` and `components/shared/*`
 - Private assets stay behind authenticated route handlers
 - AI drafting stays server-side and uses business context plus uploaded knowledge
 
@@ -222,6 +224,8 @@ npm run test:e2e
 
 ## Documentation
 
+- [Agent guide](./AGENTS.md)
+- [Design system](./DESIGN.md)
 - [Local setup](./docs/setup/local.md)
 - [Deployment setup](./docs/setup/deployment.md)
 - [Architecture](./docs/architecture/requo-architecture.md)
@@ -231,8 +235,8 @@ npm run test:e2e
 This repository already contains a working product foundation for:
 
 - authentication and password flows
+- profile creation, onboarding, and owner dashboard flows
 - public inquiry intake
-- business creation and owner dashboard flows
 - quote drafting and public quote response
 - business knowledge management
 - AI reply drafting

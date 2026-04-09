@@ -8,13 +8,24 @@ user-invocable: false
 
 Apply these rules when writing or reviewing Next.js code.
 
+## Repo Override
+
+Apply the Next.js rules below after reading the repo's own architecture guidance.
+
+In Requo:
+
+- Read `../../../AGENTS.md` and `../requo-repo-guide/SKILL.md`.
+- Inspect the current route groups and folders before editing.
+- Keep `app/` thin and move business logic into `features/` or `lib/`.
+- Preserve the current route boundaries: `(marketing)`, `(auth)`, `(public)`, `account`, `businesses`, `onboarding`, and `api`.
+
 ## File Conventions
 
 See [file-conventions.md](./file-conventions.md) for:
 - Project structure and special files
 - Route segments (dynamic, catch-all, groups)
 - Parallel and intercepting routes
-- Middleware rename in v16 (middleware → proxy)
+- Middleware rename in v16 (middleware -> proxy)
 
 ## RSC Boundaries
 
@@ -150,4 +161,3 @@ See [self-hosting.md](./self-hosting.md) for:
 See [debug-tricks.md](./debug-tricks.md) for:
 - MCP endpoint for AI-assisted debugging
 - Rebuild specific routes with `--debug-build-paths`
-

@@ -2,7 +2,7 @@
 
 ## Summary
 
-Requo should continue using the existing feature-oriented structure in this repository. The repo is already beyond scaffold stage, so the goal is to harden and extend the current architecture rather than replace it with a new one.
+Requo uses a feature-oriented Next.js App Router architecture. The app is already beyond scaffold stage, so the goal is to extend the current structure rather than replace it.
 
 ## Target Folder Structure
 
@@ -10,8 +10,10 @@ Requo should continue using the existing feature-oriented structure in this repo
 app/
   (marketing)/
   (auth)/
-  business/
   (public)/
+  account/
+  businesses/
+  onboarding/
   api/
 
 components/
@@ -21,22 +23,30 @@ components/
   marketing/
 
 features/
-  auth/
-  inquiries/
-  quotes/
-  knowledge/
+  account/
   ai/
   analytics/
-  settings/
+  auth/
   businesses/
+  customers/
+  inquiries/
+  knowledge/
+  notifications/
+  onboarding/
+  quotes/
+  settings/
+  theme/
 
 lib/
   auth/
+  cache/
   db/
     schema/
-  supabase/
-  resend/
+  navigation/
   openrouter/
+  realtime/
+  resend/
+  supabase/
   env.ts
   files.ts
   action-state.ts
@@ -56,56 +66,63 @@ docs/
 ## Architectural Defaults
 
 - Keep `app/` focused on routing, layouts, page composition, loading states, and route handlers.
-- Keep business logic inside `features/`, not in route files.
-- Keep shared primitives in `components/ui/` and shared app chrome in `components/shell/` and `components/shared/`.
+- Keep business logic in `features/`, not in route files.
+- Keep shared primitives in `components/ui/` and app chrome or layout wrappers in `components/shared/` and `components/shell/`.
 - Keep provider-specific code in `lib/auth`, `lib/supabase`, `lib/resend`, and `lib/openrouter`.
 - Keep database schema and relational modeling in `lib/db/schema`, with Drizzle migrations in `drizzle/`.
 
-## Design System and Tokens
+## Design System And UI Composition
 
-- Global design tokens live in `app/globals.css`.
-- The app uses Tailwind v4 CSS variables for color, spacing surfaces, radii, sidebar colors, and chart colors.
-- shadcn is configured in `components.json` with `radix-nova`, `neutral`, and CSS variable mode.
-- Shared primitives such as Button, Card, Empty, Field, Sidebar, Badge, and Tooltip should continue to define the visual baseline.
-- Product UI should compose these primitives rather than introducing parallel styling systems.
+- `DESIGN.md` is the canonical UI system.
+- `app/globals.css` defines the semantic tokens, motion tokens, surfaces, and shared utility classes.
+- Reuse shared wrappers such as `components/shared/dashboard-layout.tsx`, `components/shared/form-layout.tsx`, and `components/shared/page-header.tsx` before creating one-off layout patterns.
+- Reuse `components/ui/*` primitives instead of building parallel styling systems.
+- Treat remaining raw status colors and `space-y-*` stacks as legacy cleanup targets, not patterns for new work.
 
-## Route and Feature Boundaries
+## Route And Feature Boundaries
 
 - `(marketing)` owns the landing page and top-level marketing presentation.
 - `(auth)` owns signup, login, forgot password, and reset password.
-- `business/` owns the business hub plus business-scoped dashboard routes.
-- `(public)` owns the public inquiry form and public quote response pages.
-- `api/` owns narrow route handlers for Better Auth and authenticated asset downloads.
+- `(public)` owns public inquiry and public quote response routes.
+- `onboarding/` owns first-business creation after authentication.
+- `businesses/` owns the businesses hub and business-scoped dashboard routes.
+- `account/` owns profile and security settings.
+- `api/` owns narrow route handlers for Better Auth and authenticated asset access.
 
 Feature responsibilities:
 
-- `features/auth`: client-side auth forms, validation, and UX feedback.
-- `features/inquiries`: public intake, inbox listing, notes, attachments, and status changes.
-- `features/quotes`: quote editor, quote delivery, public quote response, and quote syncing.
-- `features/knowledge`: FAQs and uploaded text knowledge files.
-- `features/ai`: inquiry assistant prompts, context assembly, and model invocation.
-- `features/analytics`: dashboard metrics and trend queries.
+- `features/account`: profile, security, and account-owned asset flows.
+- `features/auth`: auth forms, validation, and client UX.
+- `features/businesses`: business creation, hub queries, and business overview composition.
+- `features/customers`: customer presentation and customer-related utilities.
+- `features/inquiries`: public intake, inbox listing, notes, attachments, forms, and status changes.
+- `features/knowledge`: FAQs and uploaded knowledge files.
+- `features/notifications`: notification data and UI.
+- `features/onboarding`: first-business onboarding flow.
+- `features/quotes`: quote editor, delivery, reminders, and public quote response.
 - `features/settings`: business identity, logo, notifications, public inquiry settings, and defaults.
-- `features/businesses`: overview cards and dashboard summary composition.
+- `features/ai`, `features/analytics`, and `features/theme`: assistant, reporting, and theme concerns.
 
-## Auth, Data, and Security
+## Auth, Data, And Security
 
 - Better Auth is the only auth system. Do not introduce Supabase Auth.
-- Better Auth creates the authenticated user profile server-side, while businesses are created manually from the protected business hub.
-- Authenticated mutations should continue to go through business-aware helpers such as `getOwnerBusinessActionContext`.
-- Drizzle queries are currently the primary enforcement mechanism for business ownership and membership.
-- SQL RLS helpers and policies exist in migrations, but the app does not currently set `app.current_user_id` on the database session. That means runtime DB-session RLS is not fully activated for app queries yet.
-- Supabase storage access should remain server-side for private assets. Public download routes should keep checking business context before reading from storage.
+- Better Auth creates authenticated users and server-side profiles. Onboarding creates the first business; later business creation is explicit in business flows.
+- Authenticated mutations should continue to use business-aware helpers such as `getOwnerBusinessActionContext`.
+- Drizzle queries are the current enforcement layer for business ownership and membership.
+- SQL RLS helpers and policies exist in migrations, but the app does not currently set `app.current_user_id` on the database session, so runtime session-based RLS is not the primary app guard.
+- Supabase storage access should remain server-side for private assets, with business checks before reads or downloads.
+- Validate input boundaries with Zod and keep secrets server-only.
 
 ## Provider Boundaries
 
-- Supabase: storage clients and download routes only, plus environment-backed project wiring.
+- Supabase: storage, uploads or downloads, and realtime-backed notification plumbing.
 - Resend: transactional email only.
 - OpenRouter: server-side AI drafting only.
 - Better Auth: sessions, password flows, and user lifecycle hooks.
 
-## Near-Term Hardening Priorities
+## Verification Defaults
 
-- Keep environment parsing aligned with the actual runtime env surface.
-- Keep setup and deployment docs in `docs/setup/`.
-- Expand smoke coverage for storage-backed and provider-backed flows without changing the architecture.
+- Run `npm run lint` and `npm run typecheck` for most code changes.
+- Run `npm run build` when routes, layouts, or system wiring change.
+- Run relevant `npm run test:e2e` coverage when user-facing flows change.
+- Keep `docs/setup/` aligned with actual env and runtime expectations.
