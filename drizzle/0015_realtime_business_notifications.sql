@@ -1,3 +1,253 @@
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_name = 'workspaces'
+  ) THEN
+    IF EXISTS (
+      SELECT 1
+      FROM pg_type
+      WHERE typnamespace = 'public'::regnamespace
+        AND typname = 'workspace_member_role'
+    ) AND NOT EXISTS (
+      SELECT 1
+      FROM pg_type
+      WHERE typnamespace = 'public'::regnamespace
+        AND typname = 'business_member_role'
+    ) THEN
+      ALTER TYPE public.workspace_member_role RENAME TO business_member_role;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM pg_type
+      WHERE typnamespace = 'public'::regnamespace
+        AND typname = 'workspace_ai_tone_preference'
+    ) AND NOT EXISTS (
+      SELECT 1
+      FROM pg_type
+      WHERE typnamespace = 'public'::regnamespace
+        AND typname = 'business_ai_tone_preference'
+    ) THEN
+      ALTER TYPE public.workspace_ai_tone_preference RENAME TO business_ai_tone_preference;
+    END IF;
+
+    IF NOT EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = 'businesses'
+    ) THEN
+      ALTER TABLE public.workspaces RENAME TO businesses;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = 'workspace_members'
+    ) AND NOT EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = 'business_members'
+    ) THEN
+      ALTER TABLE public.workspace_members RENAME TO business_members;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = 'workspace_inquiry_forms'
+    ) AND NOT EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = 'business_inquiry_forms'
+    ) THEN
+      ALTER TABLE public.workspace_inquiry_forms RENAME TO business_inquiry_forms;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'activity_logs'
+        AND column_name = 'workspace_id'
+    ) THEN
+      ALTER TABLE public.activity_logs RENAME COLUMN workspace_id TO business_id;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'inquiries'
+        AND column_name = 'workspace_id'
+    ) THEN
+      ALTER TABLE public.inquiries RENAME COLUMN workspace_id TO business_id;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'inquiries'
+        AND column_name = 'workspace_inquiry_form_id'
+    ) THEN
+      ALTER TABLE public.inquiries RENAME COLUMN workspace_inquiry_form_id TO business_inquiry_form_id;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'inquiry_attachments'
+        AND column_name = 'workspace_id'
+    ) THEN
+      ALTER TABLE public.inquiry_attachments RENAME COLUMN workspace_id TO business_id;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'inquiry_notes'
+        AND column_name = 'workspace_id'
+    ) THEN
+      ALTER TABLE public.inquiry_notes RENAME COLUMN workspace_id TO business_id;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'knowledge_faqs'
+        AND column_name = 'workspace_id'
+    ) THEN
+      ALTER TABLE public.knowledge_faqs RENAME COLUMN workspace_id TO business_id;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'knowledge_files'
+        AND column_name = 'workspace_id'
+    ) THEN
+      ALTER TABLE public.knowledge_files RENAME COLUMN workspace_id TO business_id;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'quote_library_entries'
+        AND column_name = 'workspace_id'
+    ) THEN
+      ALTER TABLE public.quote_library_entries RENAME COLUMN workspace_id TO business_id;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'quote_library_entry_items'
+        AND column_name = 'workspace_id'
+    ) THEN
+      ALTER TABLE public.quote_library_entry_items RENAME COLUMN workspace_id TO business_id;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'quote_items'
+        AND column_name = 'workspace_id'
+    ) THEN
+      ALTER TABLE public.quote_items RENAME COLUMN workspace_id TO business_id;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'quotes'
+        AND column_name = 'workspace_id'
+    ) THEN
+      ALTER TABLE public.quotes RENAME COLUMN workspace_id TO business_id;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'reply_snippets'
+        AND column_name = 'workspace_id'
+    ) THEN
+      ALTER TABLE public.reply_snippets RENAME COLUMN workspace_id TO business_id;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'business_members'
+        AND column_name = 'workspace_id'
+    ) THEN
+      ALTER TABLE public.business_members RENAME COLUMN workspace_id TO business_id;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'business_inquiry_forms'
+        AND column_name = 'workspace_id'
+    ) THEN
+      ALTER TABLE public.business_inquiry_forms RENAME COLUMN workspace_id TO business_id;
+    END IF;
+  END IF;
+END
+$$;
+--> statement-breakpoint
+
+CREATE OR REPLACE FUNCTION public.is_workspace_member(target_workspace_id text)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_catalog
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.business_members bm
+    WHERE bm.business_id = target_workspace_id
+      AND bm.user_id = public.current_app_user_id()
+  );
+$$;
+--> statement-breakpoint
+
+CREATE OR REPLACE FUNCTION public.is_workspace_owner(target_workspace_id text)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_catalog
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.business_members bm
+    WHERE bm.business_id = target_workspace_id
+      AND bm.user_id = public.current_app_user_id()
+      AND bm.role = 'owner'
+  );
+$$;
+--> statement-breakpoint
+
 ALTER TABLE public.businesses
   ADD COLUMN IF NOT EXISTS notify_on_quote_response boolean DEFAULT true NOT NULL;
 --> statement-breakpoint
