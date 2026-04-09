@@ -119,3 +119,10 @@ export const businessTypeMeta: Record<
     description: "A flexible setup for custom service businesses with mixed requests.",
   },
 };
+
+export const businessTypeOptions = businessTypes.map((value) => ({
+  description: businessTypeMeta[value].description,
+  label: businessTypeMeta[value].label,
+  searchText: `${businessTypeMeta[value].label} ${businessTypeMeta[value].description}`,
+  value,
+}));
