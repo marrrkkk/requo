@@ -5,6 +5,7 @@ export type BusinessSettingsSection =
   | "general"
   | "notifications"
   | "profile"
+  | "security"
   | "replies"
   | "quote"
   | "pricing"
