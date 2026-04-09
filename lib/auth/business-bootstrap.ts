@@ -111,7 +111,7 @@ export async function bootstrapBusinessForUser(user: BootstrapUser) {
       const membershipId = createId("bm");
       const activityId = createId("act");
       const defaultInquiryForm = createInquiryFormPreset({
-        businessType: "general_services",
+        businessType: "general_project_services",
         businessName,
       });
 
@@ -119,14 +119,14 @@ export async function bootstrapBusinessForUser(user: BootstrapUser) {
         id: businessId,
         name: businessName,
         slug: businessSlug,
-        businessType: "general_services",
+        businessType: "general_project_services",
         contactEmail: user.email,
         inquiryFormConfig: createInquiryFormConfigDefaults({
-          businessType: "general_services",
+          businessType: "general_project_services",
         }),
         inquiryPageConfig: createInquiryPageConfigDefaults({
           businessName,
-          businessType: "general_services",
+          businessType: "general_project_services",
         }),
         createdAt: now,
         updatedAt: now,
