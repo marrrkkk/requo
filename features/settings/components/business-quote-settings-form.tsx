@@ -7,7 +7,7 @@ import {
   useFloatingUnsavedChanges,
 } from "@/components/shared/floating-form-actions";
 import { FormSection } from "@/components/shared/form-layout";
-import { useActionStateWithSuccessToast } from "@/hooks/use-action-state-with-success-toast";
+import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Field,
@@ -38,7 +38,7 @@ export function BusinessQuoteSettingsForm({
   settings,
 }: BusinessQuoteSettingsFormProps) {
   const router = useProgressRouter();
-  const [state, formAction, isPending] = useActionStateWithSuccessToast(
+  const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
   );
@@ -72,14 +72,6 @@ export function BusinessQuoteSettingsForm({
 
   return (
     <form action={formAction} className="form-stack pb-28">
-      {state.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>We could not save the quote settings.</AlertTitle>
-          <AlertDescription>{state.error}</AlertDescription>
-        </Alert>
-      ) : null}
-
-
       <div className="grid gap-6 xl:grid-cols-[18rem_minmax(0,1fr)] xl:gap-7">
         <div className="self-start xl:sticky xl:top-6">
           <div className="soft-panel flex flex-col gap-5 p-5 shadow-none sm:p-6">

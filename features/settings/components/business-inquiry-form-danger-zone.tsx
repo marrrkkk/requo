@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useEffect } from "react";
 import { Archive, Trash2 } from "lucide-react";
 
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import {
   Card,
   CardContent,
@@ -43,11 +44,11 @@ export function BusinessInquiryFormDangerZone({
   submittedInquiryCount,
 }: BusinessInquiryFormDangerZoneProps) {
   const router = useProgressRouter();
-  const [deleteState, deleteFormAction, isDeletePending] = useActionState(
+  const [deleteState, deleteFormAction, isDeletePending] = useActionStateWithSonner(
     deleteAction,
     initialState,
   );
-  const [archiveState, archiveFormAction, isArchivePending] = useActionState(
+  const [archiveState, archiveFormAction, isArchivePending] = useActionStateWithSonner(
     archiveAction,
     initialState,
   );
@@ -69,20 +70,6 @@ export function BusinessInquiryFormDangerZone({
         <CardTitle>Danger zone</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 pt-0">
-        {deleteState.error ? (
-          <Alert variant="destructive">
-            <AlertTitle>We could not delete the form.</AlertTitle>
-            <AlertDescription>{deleteState.error}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        {archiveState.error ? (
-          <Alert variant="destructive">
-            <AlertTitle>We could not archive the form.</AlertTitle>
-            <AlertDescription>{archiveState.error}</AlertDescription>
-          </Alert>
-        ) : null}
-
         {isDefault ? (
           <Alert>
             <AlertTitle>This is the default form.</AlertTitle>

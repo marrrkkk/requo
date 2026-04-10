@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useEffect } from "react";
 import { Copy, Eye, EyeOff, Star } from "lucide-react";
 
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import {
   Card,
   CardContent,
@@ -44,13 +45,13 @@ export function BusinessInquiryFormManageCard({
   togglePublicAction,
 }: BusinessInquiryFormManageCardProps) {
   const router = useProgressRouter();
-  const [duplicateState, duplicateFormAction, isDuplicatePending] =
-    useActionState(duplicateAction, initialState);
-  const [defaultState, defaultFormAction, isDefaultPending] = useActionState(
+  const [, duplicateFormAction, isDuplicatePending] =
+    useActionStateWithSonner(duplicateAction, initialState);
+  const [defaultState, defaultFormAction, isDefaultPending] = useActionStateWithSonner(
     setDefaultAction,
     initialState,
   );
-  const [publicState, publicFormAction, isPublicPending] = useActionState(
+  const [publicState, publicFormAction, isPublicPending] = useActionStateWithSonner(
     togglePublicAction,
     initialState,
   );
@@ -69,26 +70,6 @@ export function BusinessInquiryFormManageCard({
         <CardTitle>Manage</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 pt-0">
-        {duplicateState.error ? (
-          <Alert variant="destructive">
-            <AlertTitle>We could not duplicate the form.</AlertTitle>
-            <AlertDescription>{duplicateState.error}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        {defaultState.error ? (
-          <Alert variant="destructive">
-            <AlertTitle>We could not update the default form.</AlertTitle>
-            <AlertDescription>{defaultState.error}</AlertDescription>
-          </Alert>
-        ) : null}
-        {publicState.error ? (
-          <Alert variant="destructive">
-            <AlertTitle>We could not update public availability.</AlertTitle>
-            <AlertDescription>{publicState.error}</AlertDescription>
-          </Alert>
-        ) : null}
-
         <form action={duplicateFormAction}>
           <input name="targetFormId" type="hidden" value={formId} />
           <Button className="w-full" disabled={isDuplicatePending} type="submit" variant="outline">

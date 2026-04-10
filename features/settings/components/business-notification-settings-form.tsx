@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { FormActions } from "@/components/shared/form-layout";
-import { useActionStateWithSuccessToast } from "@/hooks/use-action-state-with-success-toast";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
@@ -36,7 +35,7 @@ export function BusinessNotificationSettingsForm({
   settings,
 }: BusinessNotificationSettingsFormProps) {
   const router = useProgressRouter();
-  const [state, formAction, isPending] = useActionStateWithSuccessToast(
+  const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
   );
@@ -80,14 +79,6 @@ export function BusinessNotificationSettingsForm({
 
   return (
     <form action={formAction} className="form-stack">
-      {state.error ? (
-        <Alert variant="destructive">
-          <AlertTitle>We could not save the notifications.</AlertTitle>
-          <AlertDescription>{state.error}</AlertDescription>
-        </Alert>
-      ) : null}
-
-
       <input
         name="notifyOnNewInquiry"
         type="hidden"
