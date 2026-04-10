@@ -46,6 +46,11 @@
       "sourceType": "github",
       "computedHash": "0b7ca6d79f000d8883c2039c7c72ec1293ce7f21961aa071bbd561a3da175931"
     },
+    "security-nextjs": {
+      "source": "igorwarzocha/opencode-workflows",
+      "sourceType": "github",
+      "computedHash": "b54aa44cb5ae9866e102263e415a853f032ae89f6043a9e370e51f8e83ea4163"
+    },
     "shadcn": {
       "source": "shadcn/ui",
       "sourceType": "github",
