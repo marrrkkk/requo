@@ -1,14 +1,12 @@
 import {
   createInquiryAssistantStream,
   isInquiryAssistantStreamTruncated,
-  buildRawOpenRouterRequest,
 } from "@/features/ai/service";
 import { aiAssistantRequestSchema } from "@/features/ai/schemas";
 import type { AiAssistantStreamEvent } from "@/features/ai/types";
 import { getInquiryAssistantContextForBusiness } from "@/features/ai/queries";
 import { inquiryRouteParamsSchema } from "@/features/inquiries/schemas";
 import { getOwnerBusinessActionContext } from "@/lib/db/business-access";
-import { env } from "@/lib/env";
 
 const encoder = new TextEncoder();
 
@@ -81,7 +79,7 @@ export async function POST(
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        const { model, title } = createInquiryAssistantStream({
+        const { model, title, result } = createInquiryAssistantStream({
           context: assistantContext,
           request: validationResult.data,
         });
@@ -94,81 +92,25 @@ export async function POST(
           }),
         );
 
-        // Use raw OpenRouter streaming API for true streaming
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "authorization": `Bearer ${env.OPENROUTER_API_KEY}`,
-          },
-          body: JSON.stringify(buildRawOpenRouterRequest({
-            context: assistantContext,
-            request: validationResult.data,
-            intent: validationResult.data.intent,
-          })),
-        });
+        for await (const delta of result.getTextStream()) {
+          if (!delta) {
+            continue;
+          }
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(
-            typeof errorData.error === "object" && errorData.error?.message
-              ? errorData.error.message
-              : "OpenRouter API error",
+          controller.enqueue(
+            encodeStreamEvent({
+              type: "delta",
+              value: delta,
+            }),
           );
         }
 
-        if (!response.body) {
-          throw new Error("No response body from OpenRouter");
-        }
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let truncated = false;
-
-        while (true) {
-          const { value, done } = await reader.read();
-
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split("\n");
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed || trimmed === "[DONE]") continue;
-
-            if (trimmed.startsWith("data: ")) {
-              try {
-                const data = JSON.parse(trimmed.slice(6));
-
-                // Check for truncation
-                if (
-                  data.choices?.[0]?.finish_reason === "length"
-                ) {
-                  truncated = true;
-                }
-
-                // Extract the delta content
-                const content = data.choices?.[0]?.delta?.content;
-                if (content) {
-                  controller.enqueue(
-                    encodeStreamEvent({
-                      type: "delta",
-                      value: content,
-                    }),
-                  );
-                }
-              } catch {
-                // Ignore parse errors for streaming chunks
-              }
-            }
-          }
-        }
+        const response = await result.getResponse();
 
         controller.enqueue(
           encodeStreamEvent({
             type: "done",
-            truncated,
+            truncated: isInquiryAssistantStreamTruncated(response),
           }),
         );
       } catch (error) {
@@ -178,9 +120,7 @@ export async function POST(
           encodeStreamEvent({
             type: "error",
             message:
-              error instanceof Error
-                ? error.message
-                : "The assistant could not generate an answer right now. Try again in a moment.",
+              "The assistant could not generate an answer right now. Try again in a moment.",
           }),
         );
       } finally {

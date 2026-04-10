@@ -101,39 +101,6 @@ function createInquiryAssistantModelResult(input: {
   };
 }
 
-export async function* createInquiryAssistantStreamGenerator(input: {
-  context: InquiryAssistantContext;
-  request: AiAssistantRequestInput;
-}) {
-  const { result } = createInquiryAssistantModelResult(input);
-  
-  for await (const delta of result.getTextStream()) {
-    if (delta) {
-      yield delta;
-    }
-  }
-}
-
-export function buildRawOpenRouterRequest(input: {
-  context: InquiryAssistantContext;
-  request: AiAssistantRequestInput;
-  intent: AiAssistantRequestInput["intent"];
-}) {
-  return {
-    model: defaultOpenRouterModel,
-    stream: true,
-    messages: [
-      {
-        role: "user",
-        content: buildAiAssistantInput(input.context, input.request),
-      },
-    ],
-    system: buildAiAssistantInstructions(input.intent),
-    temperature: 0.2,
-    max_tokens: getAiAssistantMaxOutputTokens(input.intent),
-  };
-}
-
 async function generateTextWithRetry(params: {
   context: InquiryAssistantContext;
   request: AiAssistantRequestInput;
