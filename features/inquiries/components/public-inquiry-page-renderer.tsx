@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import type { ReactNode } from "react";
 
@@ -80,7 +82,19 @@ function SplitInquiryTemplate({
 
   return (
     <PublicHeroSurface className="lg:py-12">
-      <div className="grid gap-10 xl:grid-cols-[minmax(0,0.92fr)_minmax(22rem,0.8fr)] xl:items-start">
+      <div className="flex flex-col gap-6 xl:hidden">
+        <InquiryIntro business={business} />
+        <InquiryFormCard
+          action={action}
+          title={config.formTitle}
+          description={config.formDescription}
+          previewMode={previewMode}
+          business={business}
+        />
+        <InquirySupportCards cards={config.cards} />
+      </div>
+
+      <div className="hidden gap-10 xl:grid xl:grid-cols-[minmax(0,0.92fr)_minmax(22rem,0.8fr)] xl:items-start">
         <div className="flex min-w-0 flex-col gap-6">
           <InquiryIntro business={business} />
           <InquirySupportCards cards={config.cards} />

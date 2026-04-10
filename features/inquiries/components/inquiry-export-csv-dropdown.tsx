@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -163,24 +164,24 @@ export function InquiryExportCsvDropdown({
             <Field className="gap-1.5">
               <FieldLabel htmlFor="inquiry-export-from">From</FieldLabel>
               <FieldContent>
-                <Input
-                  className="h-8 text-xs"
+                <DatePicker
+                  buttonClassName="h-8 px-2.5 text-xs"
                   id="inquiry-export-from"
-                  type="date"
+                  onChange={setFrom}
+                  placeholder="Pick date"
                   value={from}
-                  onChange={(event) => setFrom(event.currentTarget.value)}
                 />
               </FieldContent>
             </Field>
             <Field className="gap-1.5">
               <FieldLabel htmlFor="inquiry-export-to">To</FieldLabel>
               <FieldContent>
-                <Input
-                  className="h-8 text-xs"
+                <DatePicker
+                  buttonClassName="h-8 px-2.5 text-xs"
                   id="inquiry-export-to"
-                  type="date"
+                  onChange={setTo}
+                  placeholder="Pick date"
                   value={to}
-                  onChange={(event) => setTo(event.currentTarget.value)}
                 />
               </FieldContent>
             </Field>

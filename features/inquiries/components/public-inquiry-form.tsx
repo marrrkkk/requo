@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useMemo, useState } from "react";
-import { ArrowRight, CircleAlert, CircleCheckBig } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { ArrowRight, CircleCheckBig } from "lucide-react";
 
 import {
   FormActions,
@@ -11,6 +11,7 @@ import {
 } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Dialog,
@@ -43,6 +44,7 @@ import type {
   PublicInquiryFormState,
   PublicInquiryBusiness,
 } from "@/features/inquiries/types";
+import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { cn } from "@/lib/utils";
 
 type PublicInquiryFormProps = {
@@ -98,9 +100,14 @@ export function PublicInquiryForm({
   action,
   previewMode = false,
 }: PublicInquiryFormProps) {
-  const [state, formAction, isPending] = useActionState(action, initialState);
+  const formRef = useRef<HTMLFormElement | null>(null);
+  const [state, formAction, isPending] = useActionStateWithSonner(
+    action,
+    initialState,
+  );
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
+  const [canSubmit, setCanSubmit] = useState(false);
   const inquiryFormConfig = useMemo(
     () =>
       getNormalizedInquiryFormConfig(business.inquiryFormConfig, {
@@ -143,6 +150,16 @@ export function PublicInquiryForm({
     return state.fieldErrors?.[fieldName]?.[0];
   }
 
+  const syncCanSubmit = useCallback(() => {
+    if (previewMode) {
+      setCanSubmit(true);
+      return;
+    }
+
+    const form = formRef.current;
+    setCanSubmit(form ? form.checkValidity() : false);
+  }, [previewMode]);
+
   if (state.success) {
     return (
       <div className="flex flex-col gap-5">
@@ -177,8 +194,11 @@ export function PublicInquiryForm({
   return (
     <>
       <form
+        ref={formRef}
         action={formAction}
         className="form-stack"
+        onChangeCapture={syncCanSubmit}
+        onInputCapture={syncCanSubmit}
         onSubmit={(event) => {
           if (!previewMode) {
             return;
@@ -188,14 +208,6 @@ export function PublicInquiryForm({
           setIsPreviewDialogOpen(true);
         }}
       >
-        {state.error ? (
-          <Alert variant="destructive">
-            <CircleAlert />
-            <AlertTitle>We could not submit your inquiry.</AlertTitle>
-            <AlertDescription>{state.error}</AlertDescription>
-          </Alert>
-        ) : null}
-
         <FormSection title={groupLabels.contact}>
           <FieldGroup>
             <div className="grid gap-5 sm:grid-cols-2">
@@ -261,15 +273,22 @@ export function PublicInquiryForm({
         <div className="toolbar-panel">
           <FormActions align="between" className="pt-0">
             <p className="text-sm leading-6 text-muted-foreground">
-              Sent to {business.name}.
+              {previewMode
+                ? "Preview only. Inquiry submission is disabled on this page."
+                : `Sent to ${business.name}.`}
             </p>
             <Button
               className="w-full sm:w-auto"
-              disabled={isPending}
-              type="submit"
+              disabled={!previewMode && (isPending || !canSubmit)}
+              onClick={
+                previewMode ? () => setIsPreviewDialogOpen(true) : undefined
+              }
+              type={previewMode ? "button" : "submit"}
               size="lg"
             >
-              {isPending ? (
+              {previewMode ? (
+                "Preview only"
+              ) : isPending ? (
                 <>
                   <Spinner data-icon="inline-start" aria-hidden="true" />
                   Sending inquiry...
@@ -287,7 +306,8 @@ export function PublicInquiryForm({
           <DialogHeader>
             <DialogTitle>This is a preview</DialogTitle>
             <DialogDescription>
-              Submission is disabled here. Open the live page to send a real inquiry.
+              This preview lets you review the layout, fields, and copy only.
+              Open the live page to send a real inquiry.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -403,12 +423,11 @@ function renderProjectInput({
   if (field.kind === "system") {
     if (field.key === "requestedDeadline") {
       return (
-        <Input
+        <ProjectDateInput
           disabled={isPending}
           id={inputId}
           name={inputName}
           required={field.required}
-          type="date"
         />
       );
     }
@@ -507,12 +526,11 @@ function renderProjectInput({
       );
     case "date":
       return (
-        <Input
+        <ProjectDateInput
           disabled={isPending}
           id={inputId}
           name={inputName}
           required={field.required}
-          type="date"
         />
       );
     case "boolean":
@@ -539,6 +557,31 @@ function renderProjectInput({
         />
       );
   }
+}
+
+function ProjectDateInput({
+  disabled,
+  id,
+  name,
+  required,
+}: {
+  disabled: boolean;
+  id: string;
+  name: string;
+  required: boolean;
+}) {
+  const [value, setValue] = useState("");
+
+  return (
+    <DatePicker
+      disabled={disabled}
+      id={id}
+      name={name}
+      onChange={setValue}
+      required={required}
+      value={value}
+    />
+  );
 }
 
 function ProjectSelectInput({

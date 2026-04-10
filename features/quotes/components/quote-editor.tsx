@@ -14,8 +14,8 @@ import {
   useFloatingUnsavedChanges,
 } from "@/components/shared/floating-form-actions";
 import { InfoTile } from "@/components/shared/info-tile";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Field,
   FieldContent,
@@ -163,9 +163,16 @@ export function QuoteEditor({
   const [state, formAction, isPending] = useActionState(
     async (prevState: QuoteEditorActionState, formData: FormData) => {
       const nextState = await action(prevState, formData);
+      const firstFieldError = nextState.fieldErrors
+        ? Object.values(nextState.fieldErrors).find((errors) => errors?.[0])?.[0]
+        : undefined;
 
       if (nextState.success) {
         toast.success(nextState.success);
+      }
+
+       if (firstFieldError || nextState.error) {
+        toast.error(firstFieldError ?? nextState.error ?? "Check the form and try again.");
       }
 
       if (nextState.success && showFloatingUnsavedChanges) {
@@ -333,13 +340,6 @@ export function QuoteEditor({
       <input name="items" type="hidden" value={JSON.stringify(serializedItems)} />
 
       <DashboardSidebarStack className="min-w-0">
-        {state.error ? (
-          <Alert variant="destructive">
-            <AlertTitle>We could not save the quote.</AlertTitle>
-            <AlertDescription>{state.error}</AlertDescription>
-          </Alert>
-        ) : null}
-
         <DashboardSection
           action={
             <>
@@ -455,13 +455,12 @@ export function QuoteEditor({
                   Valid until
                 </FieldLabel>
                 <FieldContent>
-                  <Input
+                  <DatePicker
                     id="quote-valid-until"
                     name="validUntil"
+                    onChange={setValidUntil}
                     required
-                    type="date"
                     value={validUntil}
-                    onChange={(event) => setValidUntil(event.currentTarget.value)}
                     disabled={isPending}
                   />
                   <FieldError
@@ -561,13 +560,6 @@ export function QuoteEditor({
           contentClassName="flex flex-col gap-5"
           title="Line items"
         >
-          {state.fieldErrors?.items?.[0] ? (
-            <Alert variant="destructive">
-              <AlertTitle>Check the line items.</AlertTitle>
-              <AlertDescription>{state.fieldErrors.items[0]}</AlertDescription>
-            </Alert>
-          ) : null}
-
           <div className="flex flex-col gap-4">
             {items.map((item, index) => {
               const unitPriceInCents = parseCurrencyInputToCents(item.unitPrice);
