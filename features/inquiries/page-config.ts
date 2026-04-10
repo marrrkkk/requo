@@ -31,7 +31,11 @@ function emptyToUndefined(value: unknown) {
 function optionalText(maxLength: number) {
   return z.preprocess(
     emptyToUndefined,
-    z.string().trim().max(maxLength).optional(),
+    z
+      .string()
+      .trim()
+      .max(maxLength, `Use ${maxLength} characters or fewer.`)
+      .optional(),
   );
 }
 
@@ -119,9 +123,21 @@ export const inquiryPageCardIconMeta: Record<
 };
 
 export const inquiryPageCardSchema = z.object({
-  id: z.string().trim().min(1).max(120),
-  title: z.string().trim().min(1).max(80),
-  description: z.string().trim().min(1).max(240),
+  id: z
+    .string()
+    .trim()
+    .min(1, "Card id is required.")
+    .max(120, "Card id is too long."),
+  title: z
+    .string()
+    .trim()
+    .min(1, "Card title is required.")
+    .max(80, "Card title must be 80 characters or fewer."),
+  description: z
+    .string()
+    .trim()
+    .min(1, "Card description is required.")
+    .max(240, "Card description must be 240 characters or fewer."),
   icon: z.enum(inquiryPageCardIconKeys),
 });
 
@@ -130,12 +146,20 @@ export type InquiryPageCard = z.infer<typeof inquiryPageCardSchema>;
 export const inquiryPageConfigSchema = z.object({
   template: z.enum(inquiryPageTemplates),
   eyebrow: optionalText(48),
-  headline: z.string().trim().min(1).max(120),
+  headline: z
+    .string()
+    .trim()
+    .min(1, "Enter a headline.")
+    .max(120, "Headline must be 120 characters or fewer."),
   description: optionalText(280),
   brandTagline: optionalText(120),
-  formTitle: z.string().trim().min(1).max(80),
+  formTitle: z
+    .string()
+    .trim()
+    .min(1, "Enter a form title.")
+    .max(80, "Form title must be 80 characters or fewer."),
   formDescription: optionalText(200),
-  cards: z.array(inquiryPageCardSchema).max(8),
+  cards: z.array(inquiryPageCardSchema).max(8, "Use 8 supporting cards or fewer."),
 });
 
 export type InquiryPageConfig = z.infer<typeof inquiryPageConfigSchema>;

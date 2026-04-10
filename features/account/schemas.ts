@@ -83,7 +83,10 @@ const optionalPasswordSchema = z.preprocess(
 export const accountSetPasswordSchema = z
   .object({
     newPassword: accountPasswordSchema,
-    confirmPassword: z.string().min(8).max(128),
+    confirmPassword: z
+      .string()
+      .min(8, "Use at least 8 characters.")
+      .max(128, "Use 128 characters or fewer."),
   })
   .refine((value) => value.newPassword === value.confirmPassword, {
     message: "Passwords must match.",
@@ -97,7 +100,10 @@ export const accountChangePasswordSchema = z
       .min(1, "Enter your current password.")
       .max(128, "Use 128 characters or fewer."),
     newPassword: accountPasswordSchema,
-    confirmPassword: z.string().min(8).max(128),
+    confirmPassword: z
+      .string()
+      .min(8, "Use at least 8 characters.")
+      .max(128, "Use 128 characters or fewer."),
     revokeOtherSessions: formBoolean().default(true),
   })
   .refine((value) => value.newPassword === value.confirmPassword, {

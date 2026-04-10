@@ -38,7 +38,11 @@ function emptyToUndefined(value: unknown) {
 function optionalText(maxLength: number) {
   return z.preprocess(
     emptyToUndefined,
-    z.string().trim().max(maxLength).optional(),
+    z
+      .string()
+      .trim()
+      .max(maxLength, `Use ${maxLength} characters or fewer.`)
+      .optional(),
   );
 }
 
@@ -72,7 +76,12 @@ function supportedCurrencyCode(defaultValue = "USD") {
 function optionalEmail(maxLength = 320) {
   return z.preprocess(
     emptyToUndefined,
-    z.string().trim().max(maxLength).email().optional(),
+    z
+      .string()
+      .trim()
+      .max(maxLength, `Email must be ${maxLength} characters or fewer.`)
+      .email("Enter a valid email address.")
+      .optional(),
   );
 }
 
@@ -133,12 +142,16 @@ const businessLogoSchema = z.preprocess(
 );
 
 export const businessGeneralSettingsSchema = z.object({
-  name: z.string().trim().min(2).max(120),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Enter a business name.")
+    .max(120, "Use 120 characters or fewer."),
   slug: z
     .string()
     .trim()
-    .min(2)
-    .max(publicSlugMaxLength)
+    .min(2, "Use at least 2 characters.")
+    .max(publicSlugMaxLength, `Use ${publicSlugMaxLength} characters or fewer.`)
     .transform(normalizeBusinessSlug)
     .refine(
       (value) => publicSlugRegex.test(value),
@@ -190,7 +203,11 @@ export const businessQuoteSettingsSchema = z.object({
 
       return Number(normalized);
     },
-    z.number().int().min(1).max(365),
+    z
+      .number()
+      .int("Enter a whole number of days.")
+      .min(1, "Use at least 1 day.")
+      .max(365, "Use 365 days or fewer."),
   ),
 });
 
@@ -199,22 +216,41 @@ export type BusinessQuoteSettingsInput = z.infer<
 >;
 
 export const businessDeleteSchema = z.object({
-  confirmation: z.string().trim().min(1).max(120),
+  confirmation: z
+    .string()
+    .trim()
+    .min(1, "Type the confirmation text.")
+    .max(120, "Use 120 characters or fewer."),
 });
 
 export type BusinessDeleteInput = z.infer<typeof businessDeleteSchema>;
 
 export const businessInquiryPageSettingsSchema = z.object({
-  formId: z.string().trim().min(1).max(128),
+  formId: z
+    .string()
+    .trim()
+    .min(1, "Choose a form.")
+    .max(128, "Form id is too long."),
   publicInquiryEnabled: formBoolean(),
   template: z.enum(inquiryPageTemplates),
   eyebrow: optionalText(48),
-  headline: z.string().trim().min(1).max(120),
+  headline: z
+    .string()
+    .trim()
+    .min(1, "Enter a headline.")
+    .max(120, "Use 120 characters or fewer."),
   description: optionalText(280),
   brandTagline: optionalText(120),
-  formTitle: z.string().trim().min(1).max(80),
+  formTitle: z
+    .string()
+    .trim()
+    .min(1, "Enter a form title.")
+    .max(80, "Use 80 characters or fewer."),
   formDescription: optionalText(200),
-  cards: jsonField(z.array(inquiryPageCardSchema).max(8), []),
+  cards: jsonField(
+    z.array(inquiryPageCardSchema).max(8, "Use 8 supporting cards or fewer."),
+    [],
+  ),
 });
 
 export type BusinessInquiryPageSettingsInput = z.infer<
@@ -222,13 +258,21 @@ export type BusinessInquiryPageSettingsInput = z.infer<
 >;
 
 export const businessInquiryFormSettingsSchema = z.object({
-  formId: z.string().trim().min(1).max(128),
-  name: z.string().trim().min(2).max(80),
+  formId: z
+    .string()
+    .trim()
+    .min(1, "Form id is required.")
+    .max(128, "Form id is too long."),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Enter a form name.")
+    .max(80, "Use 80 characters or fewer."),
   slug: z
     .string()
     .trim()
-    .min(2)
-    .max(publicSlugMaxLength)
+    .min(2, "Use at least 2 characters.")
+    .max(publicSlugMaxLength, `Use ${publicSlugMaxLength} characters or fewer.`)
     .transform(normalizePublicSlugInput)
     .refine(
       (value) => publicSlugRegex.test(value),
@@ -243,7 +287,11 @@ export type BusinessInquiryFormSettingsInput = z.infer<
 >;
 
 export const businessInquiryFormPresetSchema = z.object({
-  formId: z.string().trim().min(1).max(128),
+  formId: z
+    .string()
+    .trim()
+    .min(1, "Form id is required.")
+    .max(128, "Form id is too long."),
   businessType: z.enum(businessTypes),
 });
 
@@ -252,7 +300,11 @@ export type BusinessInquiryFormPresetInput = z.infer<
 >;
 
 export const businessInquiryFormCreateSchema = z.object({
-  name: z.string().trim().min(2).max(80),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Enter a form name.")
+    .max(80, "Use 80 characters or fewer."),
   businessType: z.enum(businessTypes),
 });
 
@@ -261,7 +313,11 @@ export type BusinessInquiryFormCreateInput = z.infer<
 >;
 
 export const businessInquiryFormTargetSchema = z.object({
-  targetFormId: z.string().trim().min(1).max(128),
+  targetFormId: z
+    .string()
+    .trim()
+    .min(1, "Target form id is required.")
+    .max(128, "Target form id is too long."),
 });
 
 export type BusinessInquiryFormTargetInput = z.infer<

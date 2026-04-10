@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-export const replySnippetIdSchema = z.string().trim().min(1).max(128);
+export const replySnippetIdSchema = z
+  .string()
+  .trim()
+  .min(1, "Snippet id is required.")
+  .max(128, "Snippet id is too long.");
 
 export const replySnippetSchema = z.object({
   title: z

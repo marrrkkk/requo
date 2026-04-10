@@ -96,7 +96,11 @@ const quoteLibraryItemsFieldSchema = z.preprocess((value) => {
   }
 }, z.array(quoteLibraryFormLineItemSchema).min(1, "Add at least one line item.").max(25, "Saved entries can include up to 25 line items."));
 
-export const quoteLibraryEntryIdSchema = z.string().trim().min(1).max(128);
+export const quoteLibraryEntryIdSchema = z
+  .string()
+  .trim()
+  .min(1, "Entry id is required.")
+  .max(128, "Entry id is too long.");
 
 export const quoteLibraryEntrySchema = z
   .object({

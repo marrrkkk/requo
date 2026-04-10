@@ -103,13 +103,6 @@ function coercePositiveInteger(fieldLabel: string) {
   );
 }
 
-function optionalText(maxLength: number) {
-  return z.preprocess(
-    emptyToUndefined,
-    z.string().trim().max(maxLength).optional(),
-  );
-}
-
 function isValidDateInput(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return false;
@@ -169,6 +162,14 @@ function getTextFieldMessage(label: string) {
   return `Enter ${label.toLowerCase()}.`;
 }
 
+function getMinLengthFieldMessage(label: string, minLength: number) {
+  return `${label} must be at least ${minLength} characters.`;
+}
+
+function getMaxLengthFieldMessage(label: string, maxLength: number) {
+  return `${label} must be ${maxLength} characters or fewer.`;
+}
+
 function getChoiceFieldMessage(label: string) {
   return `Choose ${label.toLowerCase()}.`;
 }
@@ -201,12 +202,24 @@ function createRequiredTextSchema({
   return z
     .string()
     .trim()
-    .min(minLength, getTextFieldMessage(label))
-    .max(maxLength, `${label} must be ${maxLength} characters or fewer.`);
+    .min(
+      minLength,
+      minLength > 1
+        ? getMinLengthFieldMessage(label, minLength)
+        : getTextFieldMessage(label),
+    )
+    .max(maxLength, getMaxLengthFieldMessage(label, maxLength));
 }
 
-function createOptionalTextSchema(maxLength: number) {
-  return optionalText(maxLength);
+function createOptionalTextSchema(label: string, maxLength: number) {
+  return z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .trim()
+      .max(maxLength, getMaxLengthFieldMessage(label, maxLength))
+      .optional(),
+  );
 }
 
 function createDateSchema(label: string, required: boolean) {
@@ -233,7 +246,9 @@ function createNumberSchema(label: string, required: boolean) {
       (value) => /^-?\d+(?:\.\d+)?$/.test(value),
       "Enter a valid number.",
     )
-    .max(80, `${label} must be 80 characters or fewer.`);
+    .max(80, getMaxLengthFieldMessage(label, 80))
+    .refine((value) => Number(value) >= 0, `${label} cannot be negative.`)
+    .refine((value) => Number(value) <= 1_000_000_000, `${label} is too large.`);
 
   if (required) {
     return z.preprocess(
@@ -307,25 +322,43 @@ function createMultiSelectSchema(
 }
 
 function createBooleanSchema(label: string, required: boolean) {
-  const booleanValueSchema = z.preprocess((value) => {
-    if (value === "true") {
-      return true;
-    }
-
-    if (value === "false") {
-      return false;
-    }
-
-    return emptyToUndefined(value);
-  }, z.boolean({
-    error: () => getChoiceFieldMessage(label),
-  }));
-
   if (required) {
-    return booleanValueSchema;
+    return z.preprocess(
+      (value) => {
+        if (value === "true") {
+          return true;
+        }
+
+        if (value === "false") {
+          return false;
+        }
+
+        return emptyToUndefined(value);
+      },
+      z.boolean({
+        error: () => getChoiceFieldMessage(label),
+      }),
+    );
   }
 
-  return booleanValueSchema.optional();
+  return z.preprocess(
+    (value) => {
+      if (value === "true") {
+        return true;
+      }
+
+      if (value === "false") {
+        return false;
+      }
+
+      return emptyToUndefined(value);
+    },
+    z
+      .boolean({
+        error: () => getChoiceFieldMessage(label),
+      })
+      .optional(),
+  );
 }
 
 function createCustomFieldSchema(field: InquiryFormCustomFieldDefinition) {
@@ -333,7 +366,7 @@ function createCustomFieldSchema(field: InquiryFormCustomFieldDefinition) {
     case "short_text":
       return field.required
         ? createRequiredTextSchema({ label: field.label, maxLength: 160 })
-        : createOptionalTextSchema(160);
+        : createOptionalTextSchema(field.label, 160);
     case "long_text":
       return field.required
         ? createRequiredTextSchema({
@@ -341,7 +374,7 @@ function createCustomFieldSchema(field: InquiryFormCustomFieldDefinition) {
             minLength: 1,
             maxLength: 4000,
           })
-        : createOptionalTextSchema(4000);
+        : createOptionalTextSchema(field.label, 4000);
     case "number":
       return createNumberSchema(field.label, field.required);
     case "date":
@@ -389,7 +422,7 @@ function createPublicInquirySubmissionSchema(config: InquiryFormConfig) {
           label: config.contactFields.customerPhone.label,
           maxLength: 40,
         })
-      : createOptionalTextSchema(40);
+      : createOptionalTextSchema(config.contactFields.customerPhone.label, 40);
   }
 
   if (config.contactFields.companyName.enabled) {
@@ -398,7 +431,7 @@ function createPublicInquirySubmissionSchema(config: InquiryFormConfig) {
           label: config.contactFields.companyName.label,
           maxLength: 120,
         })
-      : createOptionalTextSchema(120);
+      : createOptionalTextSchema(config.contactFields.companyName.label, 120);
   }
 
   for (const field of config.projectFields) {
@@ -430,7 +463,7 @@ function createPublicInquirySubmissionSchema(config: InquiryFormConfig) {
               label: field.label,
               maxLength: 120,
             })
-          : createOptionalTextSchema(120);
+          : createOptionalTextSchema(field.label, 120);
         break;
       case "details":
         shape[inputName] = createRequiredTextSchema({

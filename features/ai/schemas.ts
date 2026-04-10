@@ -13,7 +13,11 @@ function emptyToUndefined(value: unknown) {
 function optionalTrimmedText(maxLength: number) {
   return z.preprocess(
     emptyToUndefined,
-    z.string().trim().max(maxLength).optional(),
+    z
+      .string()
+      .trim()
+      .max(maxLength, `Use ${maxLength} characters or fewer.`)
+      .optional(),
   );
 }
 

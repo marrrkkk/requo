@@ -81,7 +81,11 @@ function currencyStringToCents(value: unknown) {
 function optionalText(maxLength: number) {
   return z.preprocess(
     emptyToUndefined,
-    z.string().trim().max(maxLength).optional(),
+    z
+      .string()
+      .trim()
+      .max(maxLength, `Text must be ${maxLength} characters or fewer.`)
+      .optional(),
   );
 }
 
@@ -128,12 +132,16 @@ const quoteItemsFieldSchema = z.preprocess((value) => {
   }
 }, z.array(quoteFormLineItemSchema).min(1, "Add at least one line item.").max(50, "Quotes can include up to 50 line items."));
 
-export const quoteIdSchema = z.string().trim().min(1).max(128);
+export const quoteIdSchema = z
+  .string()
+  .trim()
+  .min(1, "Quote id is required.")
+  .max(128, "Quote id is too long.");
 export const quotePublicTokenSchema = z
   .string()
   .trim()
-  .min(16)
-  .max(128)
+  .min(16, "Quote token is too short.")
+  .max(128, "Quote token is too long.")
   .regex(/^[a-zA-Z0-9_-]+$/, "Enter a valid quote token.");
 
 export const quoteRouteParamsSchema = z.object({
@@ -148,7 +156,11 @@ export const quoteListFiltersSchema = z.object({
   q: z
     .preprocess(
       (value) => emptyToUndefined(firstString(value)),
-      z.string().trim().max(120).optional(),
+      z
+        .string()
+        .trim()
+        .max(120, "Search must be 120 characters or fewer.")
+        .optional(),
     )
     .catch(undefined),
   status: z
@@ -222,15 +234,21 @@ export const quoteEditorSchema = z
   });
 
 export const quoteStatusChangeSchema = z.object({
-  status: z.enum(quoteStatuses),
+  status: z.enum(quoteStatuses, {
+    error: () => "Choose a valid quote status.",
+  }),
 });
 
 export const quotePostAcceptanceStatusChangeSchema = z.object({
-  postAcceptanceStatus: z.enum(quotePostAcceptanceStatuses),
+  postAcceptanceStatus: z.enum(quotePostAcceptanceStatuses, {
+    error: () => "Choose a valid post-acceptance status.",
+  }),
 });
 
 export const publicQuoteResponseSchema = z.object({
-  response: z.enum(["accepted", "rejected"]),
+  response: z.enum(["accepted", "rejected"], {
+    error: () => "Choose whether to accept or decline this quote.",
+  }),
   message: z.preprocess(
     emptyToUndefined,
     z
