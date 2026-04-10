@@ -47,10 +47,34 @@ function getErrorMessage(error: unknown) {
   return "Unknown AI request failure.";
 }
 
-async function generateTextWithRetry(params: {
-  model: string;
-  instructions: string;
-  input: string;
+function getAiAssistantMaxOutputTokens(intent: AiAssistantRequestInput["intent"]) {
+  switch (intent) {
+    case "custom":
+    case "rewrite-draft":
+      return 1800;
+    case "draft-first-reply":
+    case "generate-follow-up-message":
+      return 1400;
+    case "summarize-inquiry":
+    case "suggest-follow-up-questions":
+    case "suggest-quote-line-items":
+      return 1100;
+  }
+}
+
+function isOutputTruncated(response: {
+  status?: string | null;
+  incompleteDetails?: { reason?: string | null } | null;
+}) {
+  return (
+    response.status === "incomplete" &&
+    response.incompleteDetails?.reason === "max_output_tokens"
+  );
+}
+
+function createInquiryAssistantModelResult(input: {
+  context: InquiryAssistantContext;
+  request: AiAssistantRequestInput;
 }) {
   const client = getOpenRouterClient();
 
@@ -60,25 +84,45 @@ async function generateTextWithRetry(params: {
     );
   }
 
+  const model = defaultOpenRouterModel;
+  const title = getAiAssistantTitle(input.request.intent);
+  const result = client.callModel({
+    model,
+    instructions: buildAiAssistantInstructions(input.request.intent),
+    input: buildAiAssistantInput(input.context, input.request),
+    temperature: 0.2,
+    maxOutputTokens: getAiAssistantMaxOutputTokens(input.request.intent),
+  });
+
+  return {
+    model,
+    title,
+    result,
+  };
+}
+
+async function generateTextWithRetry(params: {
+  context: InquiryAssistantContext;
+  request: AiAssistantRequestInput;
+}) {
   let lastError: unknown;
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const result = client.callModel({
-        model: params.model,
-        instructions: params.instructions,
-        input: params.input,
-        temperature: 0.2,
-        maxOutputTokens: 700,
-      });
-
-      const text = await result.getText();
+      const { result } = createInquiryAssistantModelResult(params);
+      const [text, response] = await Promise.all([
+        result.getText(),
+        result.getResponse(),
+      ]);
 
       if (!text.trim()) {
         throw new Error("The AI assistant returned an empty response.");
       }
 
-      return text.trim();
+      return {
+        text: text.trim(),
+        truncated: isOutputTruncated(response),
+      };
     } catch (error) {
       lastError = error;
 
@@ -97,21 +141,32 @@ async function generateTextWithRetry(params: {
   throw new Error(getErrorMessage(lastError));
 }
 
+export function createInquiryAssistantStream(input: {
+  context: InquiryAssistantContext;
+  request: AiAssistantRequestInput;
+}) {
+  return createInquiryAssistantModelResult(input);
+}
+
+export function isInquiryAssistantStreamTruncated(response: {
+  status?: string | null;
+  incompleteDetails?: { reason?: string | null } | null;
+}) {
+  return isOutputTruncated(response);
+}
+
 export async function generateInquiryAssistantResult(input: {
   context: InquiryAssistantContext;
   request: AiAssistantRequestInput;
 }): Promise<AiAssistantResult> {
   const model = defaultOpenRouterModel;
-  const output = await generateTextWithRetry({
-    model,
-    instructions: buildAiAssistantInstructions(input.request.intent),
-    input: buildAiAssistantInput(input.context, input.request),
-  });
+  const title = getAiAssistantTitle(input.request.intent);
+  const { text } = await generateTextWithRetry(input);
 
   return {
     intent: input.request.intent,
-    title: getAiAssistantTitle(input.request.intent),
-    output,
+    title,
+    output: text,
     model,
     canInsertIntoReply: isReplyLikeIntent(input.request.intent),
   };

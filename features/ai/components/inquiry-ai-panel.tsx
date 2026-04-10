@@ -1,6 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 import {
   Check,
   Copy,
@@ -13,106 +19,130 @@ import {
   Wand2,
 } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import type {
-  AiAssistantActionState,
-  AiAssistantIntent,
+import {
+  aiAssistantTruncationMessage,
+  type AiAssistantIntent,
+  type AiAssistantStreamEvent,
 } from "@/features/ai/types";
-import type { DashboardReplySnippet } from "@/features/inquiries/reply-snippet-types";
 import { cn } from "@/lib/utils";
 
 type InquiryAiPanelProps = {
-  action: (
-    state: AiAssistantActionState,
-    formData: FormData,
-  ) => Promise<AiAssistantActionState>;
-  replySnippets: DashboardReplySnippet[];
+  inquiryId: string;
+  userName: string;
 };
 
 type CopyState = "idle" | "copied" | "error";
 
-const initialState: AiAssistantActionState = {};
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  label: string;
+  content: string;
+  title?: string;
+  model?: string;
+  pending?: boolean;
+  isError?: boolean;
+  statusNote?: {
+    content: string;
+    tone: "muted" | "error";
+  };
+};
+
+type MessageCopyState = {
+  messageId: string;
+  state: CopyState;
+} | null;
 
 const presetActions: Array<{
-  intent: AiAssistantIntent;
+  intent: Exclude<AiAssistantIntent, "custom">;
   label: string;
   description: string;
   icon: typeof Mail;
+  userMessage: string;
 }> = [
   {
     intent: "draft-first-reply",
     label: "Draft first reply",
-    description: "Customer-ready first response with clear next questions.",
+    description: "Customer-ready first response with clear next steps.",
     icon: Mail,
+    userMessage: "Draft the first reply for this inquiry.",
   },
   {
     intent: "summarize-inquiry",
     label: "Summarize inquiry",
-    description: "Short owner-facing brief with missing info and next step.",
+    description: "Short owner-facing brief with the main risks and next move.",
     icon: FileText,
+    userMessage: "Summarize this inquiry and tell me what matters most.",
   },
   {
     intent: "suggest-follow-up-questions",
     label: "Suggest questions",
-    description: "Clarifying questions that unblock scope, timing, and quote prep.",
+    description: "Clarifying questions that unblock scope, timing, and quoting.",
     icon: ListChecks,
+    userMessage: "Suggest the follow-up questions I should ask for this inquiry.",
   },
   {
     intent: "suggest-quote-line-items",
     label: "Suggest line items",
     description: "Quote structure ideas without inventing prices.",
     icon: ReceiptText,
+    userMessage: "Suggest quote line items for this inquiry without pricing them.",
   },
   {
     intent: "rewrite-draft",
     label: "Rewrite draft",
-    description: "Professional rewrite of a rough message you paste below.",
+    description: "Paste rough text in the message box, then polish it.",
     icon: Wand2,
+    userMessage: "Rewrite this draft into a clearer, more professional reply.",
   },
   {
     intent: "generate-follow-up-message",
     label: "Generate follow-up",
     description: "Concise check-in for an inquiry that still needs a reply.",
     icon: SendHorizontal,
+    userMessage: "Generate a follow-up message for this inquiry.",
   },
 ];
 
+function createMessageId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function truncateMessagePreview(value: string, limit = 420) {
+  const trimmedValue = value.trim();
+
+  if (trimmedValue.length <= limit) {
+    return trimmedValue;
+  }
+
+  return `${trimmedValue.slice(0, limit).trimEnd()}...`;
+}
+
 function useTimedCopyState() {
-  const [state, setState] = useState<CopyState>("idle");
+  const [state, setState] = useState<MessageCopyState>(null);
 
   useEffect(() => {
-    if (state === "idle") {
+    if (!state) {
       return;
     }
 
     const timeoutId = window.setTimeout(() => {
-      setState("idle");
+      setState(null);
     }, 1800);
 
     return () => window.clearTimeout(timeoutId);
@@ -121,352 +151,615 @@ function useTimedCopyState() {
   return [state, setState] as const;
 }
 
-async function copyText(value: string, setState: (state: CopyState) => void) {
+async function copyText(
+  value: string,
+  messageId: string,
+  setState: (state: MessageCopyState) => void,
+) {
   try {
     await navigator.clipboard.writeText(value);
-    setState("copied");
+    setState({
+      messageId,
+      state: "copied",
+    });
   } catch {
-    setState("error");
+    setState({
+      messageId,
+      state: "error",
+    });
   }
 }
 
-export function InquiryAiPanel({
-  action,
-  replySnippets,
-}: InquiryAiPanelProps) {
-  const [state, formAction, isPending] = useActionState(action, initialState);
-  const [replyDraft, setReplyDraft] = useState("");
-  const [outputCopyState, setOutputCopyState] = useTimedCopyState();
-  const [replyCopyState, setReplyCopyState] = useTimedCopyState();
-  const activeIntent = state.result?.intent;
+function buildUserMessage(intent: AiAssistantIntent, composerValue: string) {
+  const preset = presetActions.find((action) => action.intent === intent);
 
-  function insertReplySnippet(snippet: DashboardReplySnippet) {
-    setReplyDraft((currentDraft) => {
-      const trimmedDraft = currentDraft.trim();
-
-      if (!trimmedDraft) {
-        return snippet.body;
-      }
-
-      return `${currentDraft.trimEnd()}\n\n${snippet.body}`;
-    });
+  if (intent === "custom") {
+    return truncateMessagePreview(composerValue, 600);
   }
 
+  if (intent === "rewrite-draft") {
+    return `${preset?.userMessage ?? "Rewrite this draft."}\n\n${truncateMessagePreview(
+      composerValue,
+      520,
+    )}`;
+  }
+
+  return preset?.userMessage ?? "Run the selected AI request.";
+}
+
+function validateIntent(intent: AiAssistantIntent, composerValue: string) {
+  const trimmedValue = composerValue.trim();
+
+  if (intent === "custom") {
+    if (!trimmedValue) {
+      return "Type a question before sending it to the assistant.";
+    }
+
+    if (trimmedValue.length > 1200) {
+      return "Custom requests must be 1,200 characters or less.";
+    }
+  }
+
+  if (intent === "rewrite-draft") {
+    if (!trimmedValue) {
+      return "Paste a draft into the message box, then click Rewrite draft.";
+    }
+
+    if (composerValue.length > 6000) {
+      return "Drafts for rewrite must be 6,000 characters or less.";
+    }
+  }
+
+  return null;
+}
+
+function buildRequestPayload(intent: AiAssistantIntent, composerValue: string) {
+  return {
+    intent,
+    customPrompt: intent === "custom" ? composerValue.trim() : undefined,
+    sourceDraft: intent === "rewrite-draft" ? composerValue : undefined,
+  };
+}
+
+async function getStreamErrorMessage(response: Response) {
+  try {
+    const payload = (await response.json()) as { error?: string };
+
+    if (payload.error) {
+      return payload.error;
+    }
+  } catch {
+    // Fall through to a generic message.
+  }
+
+  return "The assistant could not generate an answer right now. Try again in a moment.";
+}
+
+function parseStreamEvent(line: string) {
+  const parsed = JSON.parse(line) as AiAssistantStreamEvent;
+
+  if (
+    parsed.type !== "meta" &&
+    parsed.type !== "delta" &&
+    parsed.type !== "done" &&
+    parsed.type !== "error"
+  ) {
+    throw new Error("Unexpected AI stream event.");
+  }
+
+  return parsed;
+}
+
+async function consumeStream(
+  response: Response,
+  onEvent: (event: AiAssistantStreamEvent) => void,
+) {
+  if (!response.body) {
+    throw new Error("The assistant response stream was unavailable.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+
+    let lineBreakIndex = buffer.indexOf("\n");
+
+    while (lineBreakIndex >= 0) {
+      const line = buffer.slice(0, lineBreakIndex).trim();
+      buffer = buffer.slice(lineBreakIndex + 1);
+
+      if (line) {
+        onEvent(parseStreamEvent(line));
+      }
+
+      lineBreakIndex = buffer.indexOf("\n");
+    }
+  }
+
+  buffer += decoder.decode();
+
+  const trailingLine = buffer.trim();
+
+  if (trailingLine) {
+    onEvent(parseStreamEvent(trailingLine));
+  }
+}
+
+function TranscriptMessage({
+  message,
+  copyState,
+  onCopy,
+}: {
+  message: ChatMessage;
+  copyState: MessageCopyState;
+  onCopy: (message: ChatMessage) => void;
+}) {
+  const isUser = message.role === "user";
+  const copyFeedback =
+    copyState && copyState.messageId === message.id ? copyState.state : "idle";
+  const showPendingOnly = message.pending && !message.content.trim();
+
   return (
-    <Card className="gap-0 overflow-visible">
-      <CardHeader className="gap-4 border-b border-border/70 pb-6">
-        <div className="flex items-start gap-4">
-          <div className="flex size-11 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-            <Sparkles />
-          </div>
-          <div className="flex flex-col gap-2">
-            <CardTitle>AI reply assistant</CardTitle>
-            <CardDescription className="max-w-xl leading-6">
-              Generate drafts and guidance from inquiry context, notes, FAQs, and knowledge files.
-            </CardDescription>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-          {[
-            "Inquiry context",
-            "Internal notes",
-            "Business FAQs",
-            "Knowledge snippets",
-          ].map((label) => (
-            <span
-              className="soft-panel rounded-full px-3 py-1 shadow-none"
-              key={label}
-            >
-              {label}
-            </span>
-          ))}
-        </div>
-      </CardHeader>
+    <div className={cn("flex w-full", isUser ? "justify-end" : "justify-start")}>
+      <div
+        className={cn(
+          "flex max-w-[92%] flex-col gap-2",
+          isUser ? "items-end" : "items-start",
+        )}
+      >
+        <span className="meta-label px-1">
+          {isUser
+            ? message.label
+            : message.isError
+              ? "Assistant error"
+              : "AI assistant"}
+        </span>
 
-      <CardContent className="flex flex-col gap-6 pt-6">
-        {state.error ? (
-          <Alert variant="destructive">
-            <AlertTitle>We could not generate the AI output.</AlertTitle>
-            <AlertDescription>{state.error}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        <form action={formAction} className="flex flex-col gap-6">
-          <div className="grid gap-2 sm:grid-cols-2">
-            {presetActions.map((preset) => {
-              const Icon = preset.icon;
-              const isActive = activeIntent === preset.intent;
-
-              return (
-                <Button
-                  className={cn(
-                    "h-auto min-h-22 items-start justify-start rounded-xl px-4 py-3 text-left",
-                    !isActive &&
-                      "bg-background hover:border-primary/20 hover:bg-background",
-                  )}
-                  disabled={isPending}
-                  key={preset.intent}
-                  name="intent"
-                  type="submit"
-                  value={preset.intent}
-                  variant={isActive ? "default" : "outline"}
-                >
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <Icon data-icon="inline-start" />
-                      <span>{preset.label}</span>
-                    </div>
-                    <span
-                      className={cn(
-                        "text-left text-xs leading-5",
-                        isActive
-                          ? "text-primary-foreground/85"
-                          : "text-muted-foreground",
-                      )}
-                    >
-                      {preset.description}
-                    </span>
+        <div
+          className={cn(
+            "w-full rounded-2xl px-4 py-4",
+            isUser
+              ? "bg-primary text-primary-foreground shadow-[var(--control-shadow)]"
+              : "section-panel shadow-none",
+            message.isError && !isUser && "border-destructive/30",
+          )}
+        >
+          {showPendingOnly ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Spinner aria-hidden="true" data-icon="inline-start" />
+              Thinking through the inquiry...
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {!isUser && (message.title || message.model) ? (
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex flex-col gap-1">
+                    {message.title ? (
+                      <h3 className="font-heading text-base font-semibold text-foreground">
+                        {message.title}
+                      </h3>
+                    ) : null}
                   </div>
-                </Button>
-              );
-            })}
-          </div>
 
-          <FieldGroup>
-            <Field
-              data-invalid={Boolean(state.fieldErrors?.customPrompt) || undefined}
-            >
-              <FieldLabel htmlFor="inquiry-ai-custom-prompt">
-                Custom instruction
-              </FieldLabel>
-              <FieldContent>
-                <FieldDescription>Optional for presets. Required for custom.</FieldDescription>
-                <Textarea
-                  defaultValue=""
-                  disabled={isPending}
-                  id="inquiry-ai-custom-prompt"
-                  maxLength={1200}
-                  name="customPrompt"
-                  placeholder="Example: keep this tighter, focus on turnaround expectations, or make the tone more direct."
-                  rows={4}
-                />
-                <FieldError
-                  errors={
-                    state.fieldErrors?.customPrompt?.[0]
-                      ? [{ message: state.fieldErrors.customPrompt[0] }]
-                      : undefined
-                  }
-                />
-              </FieldContent>
-            </Field>
-
-            <Field
-              data-invalid={Boolean(state.fieldErrors?.sourceDraft) || undefined}
-            >
-              <FieldLabel htmlFor="inquiry-ai-source-draft">
-                Draft or working text
-              </FieldLabel>
-              <FieldContent>
-                <FieldDescription>Paste text to rewrite or refine.</FieldDescription>
-                <Textarea
-                  defaultValue=""
-                  disabled={isPending}
-                  id="inquiry-ai-source-draft"
-                  maxLength={6000}
-                  name="sourceDraft"
-                  placeholder="Paste your draft reply here when you want the assistant to rewrite it professionally."
-                  rows={6}
-                />
-                <FieldError
-                  errors={
-                    state.fieldErrors?.sourceDraft?.[0]
-                      ? [{ message: state.fieldErrors.sourceDraft[0] }]
-                      : undefined
-                  }
-                />
-              </FieldContent>
-            </Field>
-          </FieldGroup>
-
-          <div className="soft-panel flex flex-col gap-3 border-dashed px-4 py-4 shadow-none sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm leading-6 text-muted-foreground">
-              Need something more specific? Run a custom request.
-            </p>
-            <Button
-              disabled={isPending}
-              name="intent"
-              type="submit"
-              value="custom"
-              variant="secondary"
-            >
-              {isPending ? (
-                <>
-                  <Spinner data-icon="inline-start" aria-hidden="true" />
-                  Running request...
-                </>
-              ) : (
-                "Run custom prompt"
-              )}
-            </Button>
-          </div>
-        </form>
-
-        {state.result ? (
-          <div className="section-panel p-5 shadow-none">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex flex-col gap-1">
-                  <p className="meta-label">Latest output</p>
-                  <h3 className="font-heading text-lg font-semibold text-foreground">
-                    {state.result.title}
-                  </h3>
+                  {message.model ? (
+                    <span className="rounded-md border border-border/80 bg-secondary px-3 py-1 text-xs text-muted-foreground">
+                      {message.model}
+                    </span>
+                  ) : null}
                 </div>
-                <span className="rounded-md border border-border/80 bg-secondary px-3 py-1 text-xs text-muted-foreground">
-                  {state.result.model}
-                </span>
-              </div>
+              ) : null}
 
-              <div className="soft-panel px-4 py-4 shadow-none">
-                <p className="whitespace-pre-wrap text-sm leading-7 text-foreground">
-                  {state.result.output}
+              <p
+                className={cn(
+                  "whitespace-pre-wrap text-sm leading-7",
+                  isUser
+                    ? "text-primary-foreground"
+                    : message.isError
+                      ? "text-destructive"
+                      : "text-foreground",
+                )}
+              >
+                {message.content}
+              </p>
+
+              {message.pending && !isUser ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Spinner aria-hidden="true" data-icon="inline-start" />
+                  Streaming response...
+                </div>
+              ) : null}
+
+              {message.statusNote ? (
+                <p
+                  className={cn(
+                    "text-xs leading-5",
+                    message.statusNote.tone === "error"
+                      ? "text-destructive"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {message.statusNote.content}
                 </p>
-              </div>
+              ) : null}
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-                {state.result.canInsertIntoReply ? (
+              {!isUser && message.content.trim() ? (
+                <div className="flex justify-end">
                   <Button
-                    onClick={() => setReplyDraft(state.result?.output ?? "")}
+                    onClick={() => onCopy(message)}
+                    size="sm"
                     type="button"
                     variant="outline"
                   >
-                    Insert into reply draft
+                    {copyFeedback === "copied" ? (
+                      <Check data-icon="inline-start" />
+                    ) : (
+                      <Copy data-icon="inline-start" />
+                    )}
+                    {copyFeedback === "copied"
+                      ? "Copied"
+                      : copyFeedback === "error"
+                        ? "Copy failed"
+                        : "Copy"}
                   </Button>
-                ) : null}
-                <Button
-                  onClick={() =>
-                    copyText(state.result?.output ?? "", setOutputCopyState)
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function InquiryAiPanel({ inquiryId, userName }: InquiryAiPanelProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isPending, setIsPending] = useState(false);
+  const [composerValue, setComposerValue] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [copyState, setCopyState] = useTimedCopyState();
+  const transcriptEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    transcriptEndRef.current?.scrollIntoView({
+      block: "end",
+    });
+  }, [messages, isPending]);
+
+  function updateMessage(
+    messageId: string,
+    updater: (message: ChatMessage) => ChatMessage,
+  ) {
+    setMessages((currentMessages) =>
+      currentMessages.map((message) =>
+        message.id === messageId ? updater(message) : message,
+      ),
+    );
+  }
+
+  function appendAssistantNote(content: string, isError = false) {
+    setMessages((currentMessages) => [
+      ...currentMessages,
+      {
+        id: createMessageId(),
+        role: "assistant",
+        label: isError ? "Assistant error" : "AI assistant",
+        content,
+        isError,
+        title: isError ? "Check that request" : undefined,
+      },
+    ]);
+  }
+
+  async function runIntent(intent: AiAssistantIntent) {
+    if (isPending) {
+      return;
+    }
+
+    const composerSnapshot = composerValue;
+    const validationMessage = validateIntent(intent, composerSnapshot);
+
+    if (validationMessage) {
+      appendAssistantNote(validationMessage, intent === "custom");
+      return;
+    }
+
+    const assistantMessageId = createMessageId();
+
+    setMessages((currentMessages) => [
+      ...currentMessages,
+      {
+        id: createMessageId(),
+        role: "user",
+        label: userName,
+        content: buildUserMessage(intent, composerSnapshot),
+      },
+      {
+        id: assistantMessageId,
+        role: "assistant",
+        label: "AI assistant",
+        content: "",
+        pending: true,
+      },
+    ]);
+    setIsPending(true);
+
+    if (intent === "custom" || intent === "rewrite-draft") {
+      setComposerValue("");
+    }
+
+    try {
+      const response = await fetch(`/api/business/inquiries/${inquiryId}/ai`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(buildRequestPayload(intent, composerSnapshot)),
+      });
+
+      if (!response.ok) {
+        const errorMessage = await getStreamErrorMessage(response);
+
+        updateMessage(assistantMessageId, (message) => ({
+          ...message,
+          content: errorMessage,
+          isError: true,
+          pending: false,
+          title: "Could not complete that request",
+        }));
+        return;
+      }
+
+      let receivedTerminalEvent = false;
+
+      await consumeStream(response, (event) => {
+        switch (event.type) {
+          case "meta":
+            updateMessage(assistantMessageId, (message) => ({
+              ...message,
+              title: event.title,
+              model: event.model,
+            }));
+            break;
+          case "delta":
+            updateMessage(assistantMessageId, (message) => ({
+              ...message,
+              content: `${message.content}${event.value}`,
+            }));
+            break;
+          case "done":
+            receivedTerminalEvent = true;
+            updateMessage(assistantMessageId, (message) => ({
+              ...message,
+              content: message.content.trim()
+                ? message.content
+                : "The assistant returned an empty response. Try again.",
+              isError: !message.content.trim(),
+              pending: false,
+              title: message.content.trim()
+                ? message.title
+                : "Could not complete that request",
+              statusNote: event.truncated
+                ? {
+                    content: aiAssistantTruncationMessage,
+                    tone: "muted",
                   }
-                  type="button"
-                  variant="outline"
-                >
-                  {outputCopyState === "copied" ? (
-                    <Check data-icon="inline-start" />
-                  ) : (
-                    <Copy data-icon="inline-start" />
-                  )}
-                  {outputCopyState === "copied"
-                    ? "Copied"
-                    : outputCopyState === "error"
-                      ? "Copy failed"
-                      : "Copy output"}
-                </Button>
+                : undefined,
+            }));
+            break;
+          case "error":
+            receivedTerminalEvent = true;
+            updateMessage(assistantMessageId, (message) => ({
+              ...message,
+              pending: false,
+              isError: !message.content.trim(),
+              content: message.content.trim() ? message.content : event.message,
+              title: message.content.trim()
+                ? message.title
+                : "Could not complete that request",
+              statusNote: message.content.trim()
+                ? {
+                    content: event.message,
+                    tone: "error",
+                  }
+                : undefined,
+            }));
+            break;
+        }
+      });
+
+      if (!receivedTerminalEvent) {
+        updateMessage(assistantMessageId, (message) => ({
+          ...message,
+          pending: false,
+          statusNote: {
+            content: "The stream ended unexpectedly. Try again if you need a fresh reply.",
+            tone: "error",
+          },
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to stream inquiry AI request.", error);
+
+      updateMessage(assistantMessageId, (message) => ({
+        ...message,
+        content:
+          "The assistant could not respond right now. Try again in a moment.",
+        isError: true,
+        pending: false,
+        title: "Could not complete that request",
+      }));
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  function handleCustomSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void runIntent("custom");
+  }
+
+  function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      void runIntent("custom");
+    }
+  }
+
+  return (
+    <>
+      <div className="fixed bottom-4 right-4 z-40 sm:bottom-5 sm:right-5">
+        <Button
+          aria-label="Open AI reply assistant"
+          className="rounded-full px-4 shadow-[var(--surface-shadow-lg)]"
+          data-testid="inquiry-ai-launcher"
+          onClick={() => setIsOpen(true)}
+          size="lg"
+          type="button"
+        >
+          <Sparkles data-icon="inline-start" />
+          <span className="sm:hidden">AI</span>
+          <span className="hidden sm:inline">AI assistant</span>
+        </Button>
+      </div>
+
+      <Dialog onOpenChange={setIsOpen} open={isOpen}>
+        <DialogContent
+          className="max-w-5xl gap-0 p-0 sm:w-[min(calc(100vw-2rem),78rem)]"
+          data-testid="inquiry-ai-dialog"
+        >
+          <DialogHeader className="gap-4 border-b border-border/70 pb-6 pr-14">
+            <div className="flex items-start gap-4">
+              <div className="flex size-11 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+                <Sparkles />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <DialogTitle>AI reply assistant</DialogTitle>
+                <DialogDescription className="max-w-2xl leading-6">
+                  Quick actions send immediately. Use the message box for custom
+                  requests or to paste rough text before running Rewrite draft.
+                </DialogDescription>
               </div>
             </div>
-          </div>
-        ) : (
-          <Empty className="border bg-background">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Sparkles />
-              </EmptyMedia>
-              <EmptyTitle>No AI output yet</EmptyTitle>
-              <EmptyDescription>
-                Run a preset or custom request to generate a draft.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        )}
+          </DialogHeader>
 
-        {replySnippets.length ? (
-          <div className="soft-panel border-dashed px-5 py-5 shadow-none">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <p className="meta-label">Saved snippets</p>
-                <h3 className="font-heading text-lg font-semibold text-foreground">
-                  Insert a reusable reply
-                </h3>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  Keep common follow-ups close to the draft area.
-                </p>
-              </div>
-
-              <div className="grid gap-3">
-                {replySnippets.map((snippet) => (
-                  <div
-                      className="rounded-xl border border-border/70 bg-background/80 p-4"
-                      data-testid="inquiry-reply-snippet-option"
-                      key={snippet.id}
-                    >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground">
-                          {snippet.title}
-                        </p>
-                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
-                          {snippet.body}
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
+              <div className="flex min-h-full flex-col gap-4">
+                {messages.length ? (
+                  messages.map((message) => (
+                    <TranscriptMessage
+                      copyState={copyState}
+                      key={message.id}
+                      message={message}
+                      onCopy={(targetMessage) =>
+                        copyText(targetMessage.content, targetMessage.id, setCopyState)
+                      }
+                    />
+                  ))
+                ) : (
+                  <div className="flex min-h-[20rem] items-end">
+                    <div className="section-panel max-w-2xl rounded-2xl p-5 shadow-none">
+                      <div className="flex flex-col gap-3">
+                        <span className="meta-label">AI assistant</span>
+                        <h3 className="font-heading text-lg font-semibold text-foreground">
+                          Start with a quick ask
+                        </h3>
+                        <p className="text-sm leading-7 text-muted-foreground">
+                          Use the preset buttons below to draft the first reply,
+                          summarize the inquiry, suggest follow-up questions, or
+                          outline quote line items. For a custom ask, type your
+                          request and send it like a chat.
                         </p>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                <div ref={transcriptEndRef} />
+              </div>
+            </div>
+
+            <div className="border-t border-border/70 px-5 py-5 sm:px-6">
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-wrap gap-2">
+                  {presetActions.map((preset) => {
+                    const Icon = preset.icon;
+
+                    return (
                       <Button
-                        onClick={() => insertReplySnippet(snippet)}
+                        disabled={isPending}
+                        key={preset.intent}
+                        onClick={() => {
+                          void runIntent(preset.intent);
+                        }}
+                        size="sm"
+                        title={preset.description}
                         type="button"
                         variant="outline"
                       >
-                        Insert snippet
+                        <Icon data-icon="inline-start" />
+                        {preset.label}
                       </Button>
-                    </div>
+                    );
+                  })}
+                </div>
+
+                <form className="flex flex-col gap-3" onSubmit={handleCustomSubmit}>
+                  <Textarea
+                    className="max-h-56 min-h-28"
+                    disabled={isPending}
+                    maxLength={6000}
+                    onChange={(event) => setComposerValue(event.currentTarget.value)}
+                    onKeyDown={handleComposerKeyDown}
+                    placeholder="Ask anything about this inquiry, or paste rough text and use Rewrite draft."
+                    rows={4}
+                    value={composerValue}
+                  />
+
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      Press Ctrl/Cmd + Enter to send. Rewrite draft uses the text
+                      currently in the message box.
+                    </p>
+
+                    <Button
+                      disabled={isPending || !composerValue.trim()}
+                      type="submit"
+                    >
+                      {isPending ? (
+                        <>
+                          <Spinner aria-hidden="true" data-icon="inline-start" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <SendHorizontal data-icon="inline-start" />
+                          Send
+                        </>
+                      )}
+                    </Button>
                   </div>
-                ))}
+                </form>
               </div>
             </div>
           </div>
-        ) : null}
 
-        <div className="soft-panel border-dashed px-5 py-5 shadow-none">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <p className="meta-label">Reply staging</p>
-              <h3 className="font-heading text-lg font-semibold text-foreground">
-                Reply draft
-              </h3>
-              <p className="text-sm leading-6 text-muted-foreground">
-                Insert AI output here before you copy or trim it.
-              </p>
-            </div>
-
-            <Textarea
-              disabled={isPending}
-              onChange={(event) => setReplyDraft(event.currentTarget.value)}
-              placeholder="Reply-style outputs can be inserted here, then edited before you send them."
-              rows={7}
-              value={replyDraft}
-            />
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-              <Button
-                disabled={!replyDraft}
-                onClick={() => copyText(replyDraft, setReplyCopyState)}
-                type="button"
-                variant="outline"
-              >
-                {replyCopyState === "copied" ? (
-                  <Check data-icon="inline-start" />
-                ) : (
-                  <Copy data-icon="inline-start" />
-                )}
-                {replyCopyState === "copied"
-                  ? "Copied"
-                  : replyCopyState === "error"
-                    ? "Copy failed"
-                    : "Copy reply draft"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-      <CardFooter className="justify-between gap-4 text-xs text-muted-foreground">
-        <span>Internal assistant only</span>
-        <span>No customer-facing chat or automatic sending</span>
-      </CardFooter>
-    </Card>
+          <DialogFooter className="border-t border-border/70 px-5 py-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <span>Internal assistant only</span>
+            <span>No customer-facing chat or automatic sending</span>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

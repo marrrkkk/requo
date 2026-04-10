@@ -78,3 +78,25 @@ export type AiAssistantActionState = {
   fieldErrors?: AiAssistantFieldErrors;
   result?: AiAssistantResult;
 };
+
+export type AiAssistantStreamEvent =
+  | {
+      type: "meta";
+      title: string;
+      model: string;
+    }
+  | {
+      type: "delta";
+      value: string;
+    }
+  | {
+      type: "done";
+      truncated: boolean;
+    }
+  | {
+      type: "error";
+      message: string;
+    };
+
+export const aiAssistantTruncationMessage =
+  "The response hit the current output limit. Ask the assistant to continue if you need the rest.";
