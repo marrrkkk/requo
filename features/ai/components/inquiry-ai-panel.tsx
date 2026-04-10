@@ -64,6 +64,11 @@ type MessageCopyState = {
   state: CopyState;
 } | null;
 
+type AssistantTerminalEvent = Extract<
+  AiAssistantStreamEvent,
+  { type: "done" | "error" }
+>;
+
 const presetActions: Array<{
   intent: Exclude<AiAssistantIntent, "custom">;
   label: string;
@@ -250,6 +255,30 @@ function parseStreamEvent(line: string) {
   return parsed;
 }
 
+function parseServerSentEvent(lines: string[]) {
+  const dataLines: string[] = [];
+
+  for (const line of lines) {
+    if (!line || line.startsWith(":")) {
+      continue;
+    }
+
+    if (line.startsWith("data:")) {
+      dataLines.push(line.slice(5).trimStart());
+    }
+  }
+
+  if (!dataLines.length) {
+    return null;
+  }
+
+  return parseStreamEvent(dataLines.join("\n"));
+}
+
+function splitTextIntoSegments(value: string) {
+  return value.match(/\S+\s*|\s+/g) ?? [value];
+}
+
 async function consumeStream(
   response: Response,
   onEvent: (event: AiAssistantStreamEvent) => void,
@@ -261,6 +290,16 @@ async function consumeStream(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let eventLines: string[] = [];
+
+  function flushEvent() {
+    const event = parseServerSentEvent(eventLines);
+    eventLines = [];
+
+    if (event) {
+      onEvent(event);
+    }
+  }
 
   while (true) {
     const { value, done } = await reader.read();
@@ -274,11 +313,15 @@ async function consumeStream(
     let lineBreakIndex = buffer.indexOf("\n");
 
     while (lineBreakIndex >= 0) {
-      const line = buffer.slice(0, lineBreakIndex).trim();
+      const line = buffer.slice(0, lineBreakIndex).replace(/\r$/, "");
       buffer = buffer.slice(lineBreakIndex + 1);
 
-      if (line) {
-        onEvent(parseStreamEvent(line));
+      if (line === "") {
+        if (eventLines.length) {
+          flushEvent();
+        }
+      } else {
+        eventLines.push(line);
       }
 
       lineBreakIndex = buffer.indexOf("\n");
@@ -287,10 +330,14 @@ async function consumeStream(
 
   buffer += decoder.decode();
 
-  const trailingLine = buffer.trim();
+  const trailingLine = buffer.replace(/\r$/, "");
 
   if (trailingLine) {
-    onEvent(parseStreamEvent(trailingLine));
+    eventLines.push(trailingLine);
+  }
+
+  if (eventLines.length) {
+    flushEvent();
   }
 }
 
@@ -496,6 +543,138 @@ export function InquiryAiPanel({ inquiryId, userName }: InquiryAiPanelProps) {
       setComposerValue("");
     }
 
+    const queuedSegments: string[] = [];
+    let flushTimerId: number | null = null;
+    let providerFinished = false;
+    let terminalEvent: AssistantTerminalEvent | null = null;
+    let renderedContent = "";
+    let resolveQueueDrained: (() => void) | null = null;
+    const queueDrained = new Promise<void>((resolve) => {
+      resolveQueueDrained = resolve;
+    });
+
+    function maybeResolveQueueDrained() {
+      if (!providerFinished || queuedSegments.length || flushTimerId !== null) {
+        return;
+      }
+
+      resolveQueueDrained?.();
+      resolveQueueDrained = null;
+    }
+
+    function stopFlushTimer() {
+      if (flushTimerId !== null) {
+        window.clearInterval(flushTimerId);
+        flushTimerId = null;
+      }
+
+      maybeResolveQueueDrained();
+    }
+
+    function flushQueuedSegments() {
+      if (!queuedSegments.length) {
+        stopFlushTimer();
+        return;
+      }
+
+      const segmentCount = queuedSegments.length > 40 ? 3 : 1;
+      const nextChunk = queuedSegments.splice(0, segmentCount).join("");
+
+      renderedContent += nextChunk;
+
+      updateMessage(assistantMessageId, (message) => ({
+        ...message,
+        content: `${message.content}${nextChunk}`,
+      }));
+
+      if (!queuedSegments.length) {
+        stopFlushTimer();
+      }
+    }
+
+    function ensureFlushTimer() {
+      if (flushTimerId !== null) {
+        return;
+      }
+
+      flushTimerId = window.setInterval(() => {
+        flushQueuedSegments();
+      }, 20);
+    }
+
+    function queueAssistantDelta(value: string) {
+      const segments = splitTextIntoSegments(value);
+
+      if (!segments.length) {
+        return;
+      }
+
+      queuedSegments.push(...segments);
+      ensureFlushTimer();
+    }
+
+    function markProviderFinished(nextTerminalEvent?: AssistantTerminalEvent) {
+      providerFinished = true;
+
+      if (nextTerminalEvent) {
+        terminalEvent = nextTerminalEvent;
+      }
+
+      if (!queuedSegments.length) {
+        stopFlushTimer();
+      }
+    }
+
+    async function waitForQueueToDrain() {
+      providerFinished = true;
+
+      if (!queuedSegments.length) {
+        stopFlushTimer();
+        return;
+      }
+
+      ensureFlushTimer();
+      await queueDrained;
+    }
+
+    function finalizeTerminalEvent(event: AssistantTerminalEvent) {
+      const hasContent = renderedContent.trim().length > 0;
+
+      if (event.type === "done") {
+        updateMessage(assistantMessageId, (message) => ({
+          ...message,
+          content: hasContent
+            ? message.content
+            : "The assistant returned an empty response. Try again.",
+          isError: !hasContent,
+          pending: false,
+          title: hasContent ? message.title : "Could not complete that request",
+          statusNote: event.truncated
+            ? {
+                content: aiAssistantTruncationMessage,
+                tone: "muted",
+              }
+            : undefined,
+        }));
+
+        return;
+      }
+
+      updateMessage(assistantMessageId, (message) => ({
+        ...message,
+        pending: false,
+        isError: !hasContent,
+        content: hasContent ? message.content : event.message,
+        title: hasContent ? message.title : "Could not complete that request",
+        statusNote: hasContent
+          ? {
+              content: event.message,
+              tone: "error",
+            }
+          : undefined,
+      }));
+    }
+
     try {
       const response = await fetch(`/api/business/inquiries/${inquiryId}/ai`, {
         method: "POST",
@@ -518,8 +697,6 @@ export function InquiryAiPanel({ inquiryId, userName }: InquiryAiPanelProps) {
         return;
       }
 
-      let receivedTerminalEvent = false;
-
       await consumeStream(response, (event) => {
         switch (event.type) {
           case "meta":
@@ -530,73 +707,67 @@ export function InquiryAiPanel({ inquiryId, userName }: InquiryAiPanelProps) {
             }));
             break;
           case "delta":
-            updateMessage(assistantMessageId, (message) => ({
-              ...message,
-              content: `${message.content}${event.value}`,
-            }));
+            queueAssistantDelta(event.value);
             break;
           case "done":
-            receivedTerminalEvent = true;
-            updateMessage(assistantMessageId, (message) => ({
-              ...message,
-              content: message.content.trim()
-                ? message.content
-                : "The assistant returned an empty response. Try again.",
-              isError: !message.content.trim(),
-              pending: false,
-              title: message.content.trim()
-                ? message.title
-                : "Could not complete that request",
-              statusNote: event.truncated
-                ? {
-                    content: aiAssistantTruncationMessage,
-                    tone: "muted",
-                  }
-                : undefined,
-            }));
+            markProviderFinished(event);
             break;
           case "error":
-            receivedTerminalEvent = true;
-            updateMessage(assistantMessageId, (message) => ({
-              ...message,
-              pending: false,
-              isError: !message.content.trim(),
-              content: message.content.trim() ? message.content : event.message,
-              title: message.content.trim()
-                ? message.title
-                : "Could not complete that request",
-              statusNote: message.content.trim()
-                ? {
-                    content: event.message,
-                    tone: "error",
-                  }
-                : undefined,
-            }));
+            markProviderFinished(event);
             break;
         }
       });
 
-      if (!receivedTerminalEvent) {
+      await waitForQueueToDrain();
+
+      if (terminalEvent) {
+        finalizeTerminalEvent(terminalEvent);
+      } else {
+        const hasContent = renderedContent.trim().length > 0;
+
         updateMessage(assistantMessageId, (message) => ({
           ...message,
           pending: false,
-          statusNote: {
-            content: "The stream ended unexpectedly. Try again if you need a fresh reply.",
-            tone: "error",
-          },
+          isError: !hasContent,
+          content: hasContent
+            ? message.content
+            : "The stream ended unexpectedly. Try again if you need a fresh reply.",
+          title: hasContent ? message.title : "Could not complete that request",
+          statusNote: hasContent
+            ? {
+                content:
+                  "The stream ended unexpectedly. Try again if you need a fresh reply.",
+                tone: "error",
+              }
+            : undefined,
         }));
       }
     } catch (error) {
+      markProviderFinished();
+      await waitForQueueToDrain();
+
       console.error("Failed to stream inquiry AI request.", error);
 
-      updateMessage(assistantMessageId, (message) => ({
-        ...message,
-        content:
-          "The assistant could not respond right now. Try again in a moment.",
-        isError: true,
-        pending: false,
-        title: "Could not complete that request",
-      }));
+      updateMessage(assistantMessageId, (message) => {
+        const hasContent = renderedContent.trim().length > 0;
+
+        return {
+          ...message,
+          content: hasContent
+            ? message.content
+            : "The assistant could not respond right now. Try again in a moment.",
+          isError: !hasContent,
+          pending: false,
+          title: hasContent ? message.title : "Could not complete that request",
+          statusNote: hasContent
+            ? {
+                content:
+                  "The assistant could not respond right now. Try again in a moment.",
+                tone: "error",
+              }
+            : undefined,
+        };
+      });
     } finally {
       setIsPending(false);
     }
