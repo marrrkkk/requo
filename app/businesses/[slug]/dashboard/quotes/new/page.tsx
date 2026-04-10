@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
@@ -8,22 +8,38 @@ import { getQuoteLibraryForBusiness } from "@/features/quotes/quote-library-quer
 import { getInquiryQuotePrefillForBusiness } from "@/features/quotes/queries";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 import { inquiryRouteParamsSchema } from "@/features/inquiries/schemas";
+import { businessesHubPath } from "@/features/businesses/routes";
 import {
   createQuoteEditorLineItem,
   getDefaultQuoteValidityDate,
   getQuoteEditorInitialValuesFromInquiry,
 } from "@/features/quotes/utils";
-import { requireCurrentBusinessContext } from "@/lib/db/business-access";
+import { requireSession } from "@/lib/auth/session";
+import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
 
 type NewQuotePageProps = {
+  params: Promise<{ slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export default async function NewQuotePage({
+  params,
   searchParams,
 }: NewQuotePageProps) {
-  const { businessContext } = await requireCurrentBusinessContext();
-  const rawSearchParams = await searchParams;
+  const [session, { slug }, rawSearchParams] = await Promise.all([
+    requireSession(),
+    params,
+    searchParams,
+  ]);
+  const businessContext = await getBusinessContextForMembershipSlug(
+    session.user.id,
+    slug,
+  );
+
+  if (!businessContext) {
+    redirect(businessesHubPath);
+  }
+
   const rawInquiryId = Array.isArray(rawSearchParams.inquiryId)
     ? rawSearchParams.inquiryId[0]
     : rawSearchParams.inquiryId;

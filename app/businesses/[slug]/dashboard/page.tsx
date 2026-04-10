@@ -27,6 +27,7 @@ import { formatQuoteDate, formatQuoteMoney } from "@/features/quotes/utils";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { getBusinessOverviewData } from "@/features/businesses/queries";
 import {
+  businessesHubPath,
   getBusinessAnalyticsPath,
   getBusinessInquiriesPath,
   getBusinessInquiryPath,
@@ -39,11 +40,28 @@ import type {
   BusinessOverviewInquiryActionItem,
   BusinessOverviewQuoteActionItem,
 } from "@/features/businesses/types";
-import { requireCurrentBusinessContext } from "@/lib/db/business-access";
+import { requireSession } from "@/lib/auth/session";
+import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
 import { cn } from "@/lib/utils";
+import { redirect } from "next/navigation";
 
-export default async function DashboardOverviewPage() {
-  const { businessContext } = await requireCurrentBusinessContext();
+type DashboardOverviewPageProps = {
+  params: Promise<{ slug: string }>;
+};
+
+export default async function DashboardOverviewPage({
+  params,
+}: DashboardOverviewPageProps) {
+  const [session, { slug }] = await Promise.all([requireSession(), params]);
+  const businessContext = await getBusinessContextForMembershipSlug(
+    session.user.id,
+    slug,
+  );
+
+  if (!businessContext) {
+    redirect(businessesHubPath);
+  }
+
   const [analytics, overview] = await Promise.all([
     getBusinessAnalyticsData(businessContext.business.id),
     getBusinessOverviewData(businessContext.business.id),

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ReceiptText } from "lucide-react";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { DashboardListResultsSkeleton } from "@/components/shared/dashboard-list-results-skeleton";
@@ -18,12 +19,15 @@ import {
 } from "@/features/quotes/queries";
 import { quoteListFiltersSchema } from "@/features/quotes/schemas";
 import {
+  businessesHubPath,
   getBusinessNewQuotePath,
   getBusinessQuotesPath,
 } from "@/features/businesses/routes";
-import { requireCurrentBusinessContext } from "@/lib/db/business-access";
+import { requireSession } from "@/lib/auth/session";
+import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
 
 type QuotesPageProps = {
+  params: Promise<{ slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
@@ -58,11 +62,24 @@ function getCachedPageWindow(currentPage: number, totalPages: number) {
   return Array.from(pages).sort((left, right) => left - right);
 }
 
-export default async function QuotesPage({ searchParams }: QuotesPageProps) {
-  const [{ businessContext }, resolvedSearchParams] = await Promise.all([
-    requireCurrentBusinessContext(),
+export default async function QuotesPage({
+  params,
+  searchParams,
+}: QuotesPageProps) {
+  const [session, { slug }, resolvedSearchParams] = await Promise.all([
+    requireSession(),
+    params,
     searchParams,
   ]);
+  const businessContext = await getBusinessContextForMembershipSlug(
+    session.user.id,
+    slug,
+  );
+
+  if (!businessContext) {
+    redirect(businessesHubPath);
+  }
+
   const parsedFilters = quoteListFiltersSchema.safeParse(resolvedSearchParams);
   const filters = parsedFilters.success
     ? parsedFilters.data

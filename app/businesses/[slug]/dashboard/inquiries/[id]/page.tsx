@@ -8,7 +8,7 @@ import {
   Printer,
   ReceiptText,
 } from "lucide-react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import {
   DashboardDetailLayout,
@@ -45,25 +45,33 @@ import {
 } from "@/features/inquiries/utils";
 import { formatQuoteMoney } from "@/features/quotes/utils";
 import {
+  businessesHubPath,
   getBusinessNewQuotePath,
   getBusinessInquiryPdfExportPath,
   getBusinessInquiryPrintPath,
   getBusinessQuotePath,
 } from "@/features/businesses/routes";
 import { Button } from "@/components/ui/button";
-import { requireCurrentBusinessContext } from "@/lib/db/business-access";
+import { requireSession } from "@/lib/auth/session";
+import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
 
 type InquiryDetailPageProps = {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string; id: string }>;
 };
 
 export default async function InquiryDetailPage({
   params,
 }: InquiryDetailPageProps) {
-  const [resolvedParams, { businessContext, user }] = await Promise.all([
-    params,
-    requireCurrentBusinessContext(),
-  ]);
+  const [session, resolvedParams] = await Promise.all([requireSession(), params]);
+  const businessContext = await getBusinessContextForMembershipSlug(
+    session.user.id,
+    resolvedParams.slug,
+  );
+
+  if (!businessContext) {
+    redirect(businessesHubPath);
+  }
+
   const parsedParams = inquiryRouteParamsSchema.safeParse(resolvedParams);
 
   if (!parsedParams.success) {
@@ -427,7 +435,7 @@ export default async function InquiryDetailPage({
           </DashboardSection>
         </DashboardSidebarStack>
       </DashboardDetailLayout>
-      <InquiryAiPanel inquiryId={inquiry.id} userName={user.name || "You"} />
+      <InquiryAiPanel inquiryId={inquiry.id} userName={session.user.name || "You"} />
     </DashboardPage>
   );
 }
