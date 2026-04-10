@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Sheet,
+  SheetBody,
   SheetContent,
   SheetDescription,
   SheetHeader,
@@ -223,7 +224,7 @@ export function DataListToolbar({
                       Narrow list results with status, form, and sort options.
                     </SheetDescription>
                   </SheetHeader>
-                  <div className="space-y-4 px-5 pb-5">{filterFields}</div>
+                  <SheetBody className="gap-4">{filterFields}</SheetBody>
                 </SheetContent>
               </Sheet>
               <Button className="w-full sm:w-auto" disabled={!canClear} onClick={onClear} type="button" variant="ghost">

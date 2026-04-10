@@ -99,6 +99,30 @@ export function DashboardNotificationBell({
     });
   }
 
+  function markSingleNotificationRead(itemId: string) {
+    setView((currentView) => {
+      let didUpdate = false;
+      const items = currentView.items.map((item) => {
+        if (item.id !== itemId || !item.unread) {
+          return item;
+        }
+
+        didUpdate = true;
+        return { ...item, unread: false };
+      });
+
+      if (!didUpdate) {
+        return currentView;
+      }
+
+      return {
+        ...currentView,
+        items,
+        unreadCount: Math.max(0, currentView.unreadCount - 1),
+      };
+    });
+  }
+
   useEffect(() => {
     let isActive = true;
     const supabase = supabaseRef.current!;
@@ -296,28 +320,10 @@ export function DashboardNotificationBell({
     setIsOpen(false);
 
     if (item.unread) {
-      applyReadWatermark(item.createdAt);
+      markSingleNotificationRead(item.id);
     }
 
-    startTransition(async () => {
-      if (item.unread) {
-        const result = await markBusinessNotificationsReadAction(
-          businessSlug,
-          item.createdAt,
-        );
-
-        if (!result.ok) {
-          console.error(result.error);
-          router.refresh();
-          router.push(item.href);
-          return;
-        }
-
-        applyReadWatermark(result.lastReadAt);
-      }
-
-      router.push(item.href);
-    });
+    router.push(item.href);
   }
 
   return (

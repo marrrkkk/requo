@@ -7,9 +7,9 @@ import { ArrowRight, Menu } from "lucide-react";
 import { navItems } from "@/components/marketing/marketing-data";
 import { Button } from "@/components/ui/button";
 import { businessesHubPath } from "@/features/businesses/routes";
-import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
+  SheetBody,
   SheetContent,
   SheetDescription,
   SheetFooter,
@@ -44,8 +44,8 @@ export function MarketingMobileNav({
         </Button>
       </SheetTrigger>
 
-      <SheetContent className="w-[90vw] p-0 sm:max-w-sm" side="right">
-        <SheetHeader className="gap-2 p-5">
+      <SheetContent className="w-[90vw] sm:max-w-sm" side="right">
+        <SheetHeader>
           <SheetTitle>Menu</SheetTitle>
           <SheetDescription>
             {isAuthenticated
@@ -54,9 +54,7 @@ export function MarketingMobileNav({
           </SheetDescription>
         </SheetHeader>
 
-        <Separator />
-
-        <div className="flex flex-col gap-1 p-4">
+        <SheetBody className="gap-1 py-4">
           {navItems.map((item) => (
             <Button
               asChild
@@ -69,11 +67,9 @@ export function MarketingMobileNav({
               </Link>
             </Button>
           ))}
-        </div>
+        </SheetBody>
 
-        <Separator />
-
-        <SheetFooter className="gap-3 p-5">
+        <SheetFooter className="gap-3">
           {isAuthenticated ? (
             <Button asChild>
               <Link href={businessesHubPath} onClick={closeMenu}>

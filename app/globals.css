@@ -468,9 +468,15 @@
       linear-gradient(180deg, #ffffff 0%, #f8faf8 42%, #f3f6f4 100%);
   }
 
-  /* Prevent layout shift when sheet/dialog opens by locking body scroll */
-  body:has([data-slot="sheet-content"][data-state="open"]) {
-    overflow: hidden;
+  /*
+   * Radix overlays use react-remove-scroll, which adds right-side compensation
+   * when the body is locked. This app already reserves scrollbar space on the
+   * root, so the extra compensation causes centered layouts to nudge left.
+   */
+  body[data-scroll-locked] {
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+    --removed-body-scroll-bar-size: 0px !important;
   }
 
   .dark body {

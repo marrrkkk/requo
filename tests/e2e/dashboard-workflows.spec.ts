@@ -173,6 +173,57 @@ test("owner can create, edit, insert, and delete a saved reply snippet", async (
   });
 });
 
+test("inquiry form preview reflects unsaved field and page edits in realtime", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+
+  const updatedNameLabel = `Your full name ${Date.now()}`;
+  const updatedHeadline = `Custom request preview ${Date.now()}`;
+
+  await signIn(page);
+  await openBusinessesPage(page, "/forms/project-request");
+
+  const contactNameLabelInput = page.locator("#contact-customerName-label");
+  const originalNameLabel = await contactNameLabelInput.inputValue();
+
+  await contactNameLabelInput.fill(updatedNameLabel);
+
+  const previewPagePromise = page.waitForEvent("popup");
+  await page.getByRole("button", { name: "Live preview" }).click();
+  const previewPage = await previewPagePromise;
+  await previewPage.waitForLoadState("networkidle");
+
+  await expect(previewPage.getByLabel(updatedNameLabel)).toBeVisible({
+    timeout: 20_000,
+  });
+
+  await page.bringToFront();
+  await page.getByRole("button", { name: "Page" }).click();
+
+  const headlineInput = page.locator("#inquiry-page-headline");
+  const originalHeadline = await headlineInput.inputValue();
+
+  await headlineInput.fill(updatedHeadline);
+
+  await expect(
+    previewPage.getByRole("heading", { name: updatedHeadline, exact: true }),
+  ).toBeVisible({ timeout: 20_000 });
+
+  await page.getByRole("button", { name: "Cancel" }).click();
+
+  await expect(
+    previewPage.getByRole("heading", { name: originalHeadline, exact: true }),
+  ).toBeVisible({ timeout: 20_000 });
+
+  await page.getByRole("button", { name: "Fields" }).click();
+  await page.getByRole("button", { name: "Cancel" }).click();
+
+  await expect(previewPage.getByLabel(originalNameLabel)).toBeVisible({
+    timeout: 20_000,
+  });
+});
+
 test("accepted quotes can move from booked to scheduled", async ({ page }) => {
   test.setTimeout(60_000);
 
