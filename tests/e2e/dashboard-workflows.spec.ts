@@ -263,6 +263,7 @@ test("inquiry form preview reflects unsaved field and page edits in realtime", a
 
   await signIn(page);
   await openBusinessesPage(page, "/forms/project-request");
+  await page.getByRole("button", { name: "Fields" }).click();
 
   const contactNameLabelInput = page.locator("#contact-customerName-label");
   const originalNameLabel = await contactNameLabelInput.inputValue();
@@ -314,6 +315,7 @@ test("project fields can be dragged and the preview order persists after save", 
 
   await signIn(page);
   await openBusinessesPage(page, "/forms/project-request");
+  await page.getByRole("button", { name: "Fields" }).click();
 
   const budgetHandle = page.getByRole("button", { name: "Reorder Budget" });
   const quantityHandle = page.getByRole("button", { name: "Reorder Quantity" });

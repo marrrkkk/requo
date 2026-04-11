@@ -11,7 +11,7 @@ async function signIn(page: Page) {
   await page.waitForLoadState("networkidle");
 
   await page.getByLabel("Email address").fill(demoOwnerEmail);
-  await page.getByLabel("Password").fill(demoOwnerPassword);
+  await page.locator("#password").fill(demoOwnerPassword);
   await page.getByRole("button", { name: "Sign in" }).click();
 
   await expect(page).toHaveURL(/\/businesses$/, { timeout: 20_000 });

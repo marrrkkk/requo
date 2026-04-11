@@ -2,6 +2,7 @@ import "dotenv/config";
 
 import { and, asc, eq, inArray, ne } from "drizzle-orm";
 
+import { getStarterTemplateDefinition } from "../features/businesses/starter-templates";
 import type { BusinessType } from "../features/inquiries/business-types";
 import { createInquiryFormPreset } from "../features/inquiries/inquiry-forms";
 import { auth } from "../lib/auth/config";
@@ -1233,6 +1234,7 @@ async function ensureDemoBusiness(demoUser: DemoUser): Promise<DemoBusiness> {
     businessShortDescription: definition.shortDescription,
     legacyInquiryHeadline: definition.inquiryHeadline,
   });
+  const starterTemplate = getStarterTemplateDefinition(definition.businessType);
 
   await db
     .update(businesses)
@@ -1248,6 +1250,7 @@ async function ensureDemoBusiness(demoUser: DemoUser): Promise<DemoBusiness> {
       inquiryPageConfig: inquiryPreset.inquiryPageConfig,
       defaultEmailSignature: definition.emailSignatureLines.join("\n"),
       defaultQuoteNotes: definition.defaultQuoteNotes,
+      defaultQuoteValidityDays: starterTemplate.defaultQuoteValidityDays,
       aiTonePreference: definition.aiTonePreference,
       notifyOnNewInquiry: true,
       notifyOnQuoteSent: true,
@@ -1312,6 +1315,7 @@ async function ensureManagedBusiness(
     businessShortDescription: definition.shortDescription,
     legacyInquiryHeadline: definition.inquiryHeadline,
   });
+  const starterTemplate = getStarterTemplateDefinition(definition.businessType);
 
   await db.transaction(async (tx) => {
     if (existingBusiness) {
@@ -1329,6 +1333,7 @@ async function ensureManagedBusiness(
           inquiryPageConfig: inquiryPreset.inquiryPageConfig,
           defaultEmailSignature: definition.emailSignatureLines.join("\n"),
           defaultQuoteNotes: definition.defaultQuoteNotes,
+          defaultQuoteValidityDays: starterTemplate.defaultQuoteValidityDays,
           aiTonePreference: definition.aiTonePreference,
           notifyOnNewInquiry: true,
           notifyOnQuoteSent: true,
@@ -1353,6 +1358,7 @@ async function ensureManagedBusiness(
         inquiryPageConfig: inquiryPreset.inquiryPageConfig,
         defaultEmailSignature: definition.emailSignatureLines.join("\n"),
         defaultQuoteNotes: definition.defaultQuoteNotes,
+        defaultQuoteValidityDays: starterTemplate.defaultQuoteValidityDays,
         aiTonePreference: definition.aiTonePreference,
         notifyOnNewInquiry: true,
         notifyOnQuoteSent: true,

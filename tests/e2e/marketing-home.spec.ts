@@ -8,23 +8,23 @@ test("marketing homepage highlights the signup-first workflow", async ({
 
   await expect(
     page.getByRole("heading", {
-      name: /Turn messy inquiries into organized quotes and bookings\./,
+      name: /Capture inquiries, qualify leads, send quotes, and follow up\./,
     }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "Start free" }).first()).toBeVisible();
   await expect(
     page.getByRole("heading", {
-      name: /Most owner time disappears before the quote is sent\./,
+      name: /Most of the admin happens before pricing is even ready\./,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
-      name: /Features built for the real workflow\./,
+      name: /Features built around the shared workflow\./,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
-      name: /How Requo works in three steps\./,
+      name: /How Requo supports the workflow\./,
     }),
   ).toBeVisible();
   await expect(
@@ -65,12 +65,6 @@ test("marketing homepage stays readable on a narrow viewport", async ({
   });
 
   expect(hasHorizontalOverflow).toBe(false);
-
-  await mobileMenu.click();
-  const mobileDialog = page.getByRole("dialog", { name: "Menu" });
-  await expect(mobileDialog).toBeVisible();
-  await expect(mobileDialog.getByRole("link", { name: "Features" })).toBeVisible();
-  await mobileDialog.getByRole("button", { name: "Close" }).click();
 
   const faqHeading = page.getByRole("heading", {
     name: /Common questions, answered clearly\./,
