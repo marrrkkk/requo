@@ -148,8 +148,6 @@ export const starterTemplateDefinitions: Record<
     label: "General Service Business",
     description:
       "Best for owner-led service businesses with mixed inquiry types that still need a clear lead-to-quote workflow.",
-    helperText:
-      "Starts with broad inquiry fields, practical follow-up snippets, and flexible quote notes you can edit later.",
     recommendedFields: [
       "Service needed",
       "Service location",

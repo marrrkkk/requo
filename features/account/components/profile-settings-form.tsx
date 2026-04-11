@@ -551,15 +551,14 @@ function ProfileAvatarField({
                   <p className="text-base font-semibold tracking-tight text-foreground">
                     {displayName}
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    {jobTitle?.trim() || "Owner account"}
-                  </p>
+                  {jobTitle?.trim() && (
+                    <p className="text-sm text-muted-foreground">
+                      {jobTitle.trim()}
+                    </p>
+                  )}
                   <p className="break-words text-sm text-muted-foreground">{email}</p>
                 </div>
 
-                <p className="text-sm text-muted-foreground">
-                  Click the photo to upload or update it.
-                </p>
               </div>
             </div>
           </div>
