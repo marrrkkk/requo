@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, PlusCircle } from "lucide-react";
@@ -95,8 +96,19 @@ export default async function BusinessesPage() {
                         <CardHeader className="gap-3">
                           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
                             <div className="flex min-w-0 items-start gap-3">
-                              <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-background/90 text-sm font-semibold tracking-[0.16em] text-foreground">
-                                {getInitials(membership.business.name)}
+                              <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-background/90 text-sm font-semibold tracking-[0.16em] text-foreground">
+                                {membership.business.logoStoragePath ? (
+                                  <Image
+                                    alt={`${membership.business.name} logo`}
+                                    className="h-full w-full object-cover"
+                                    height={48}
+                                    src={`/api/business/${membership.business.slug}/logo`}
+                                    unoptimized
+                                    width={48}
+                                  />
+                                ) : (
+                                  getInitials(membership.business.name)
+                                )}
                               </div>
                               <div className="min-w-0 flex-1">
                                 <CardTitle className="max-w-full">
