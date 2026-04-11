@@ -150,7 +150,7 @@ npm run test:e2e
 Use one canonical route set in docs and tests:
 
 - Dashboard home: `/businesses/<slug>/dashboard`
-- Requests: `/businesses/<slug>/dashboard/inquiries`
+- Inquiries: `/businesses/<slug>/dashboard/inquiries`
 - Quotes: `/businesses/<slug>/dashboard/quotes`
 - Forms: `/businesses/<slug>/dashboard/forms`
 - Settings hub: `/businesses/<slug>/dashboard/settings`
@@ -161,5 +161,15 @@ Use one canonical route set in docs and tests:
   - Quote defaults: `/settings/quote`
   - Pricing library: `/settings/pricing`
   - Knowledge base: `/settings/knowledge`
+
+### Product Notes
+
+- Onboarding starts with one guided starter template and keeps everything editable later.
+- The current starter templates are:
+  - `Agency / Studio`
+  - `Consultant / Professional Services`
+  - `Contractor / Home Service`
+  - `General Service Business`
+- Public inquiry pages can include supporting cards, optional showcase images, and editable intro copy.
 
 Legacy aliases under settings are kept only as redirects for backward compatibility. Do not use alias paths in new docs or tests.

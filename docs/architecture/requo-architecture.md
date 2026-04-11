@@ -4,6 +4,17 @@
 
 Requo uses a feature-oriented Next.js App Router architecture. The app is already beyond scaffold stage, so the goal is to extend the current structure rather than replace it.
 
+The product direction is workflow-first:
+
+- capture inquiries
+- qualify leads
+- send professional quotes
+- follow up consistently
+
+The app supports multiple service-business types through editable starter templates, but
+the architecture should continue to favor shared workflow features over vertical-specific
+branching.
+
 ## Target Folder Structure
 
 ```text
@@ -93,14 +104,14 @@ Feature responsibilities:
 
 - `features/account`: profile, security, and account-owned asset flows.
 - `features/auth`: auth forms, validation, and client UX.
-- `features/businesses`: business creation, hub queries, and business overview composition.
+- `features/businesses`: business creation, guided starter templates, hub queries, and business overview composition.
 - `features/customers`: customer presentation and customer-related utilities.
-- `features/inquiries`: public intake, inbox listing, notes, attachments, forms, and status changes.
+- `features/inquiries`: public intake, inquiry page presentation, inbox listing, notes, attachments, forms, and status changes.
 - `features/knowledge`: FAQs and uploaded knowledge files.
 - `features/notifications`: notification data and UI.
-- `features/onboarding`: first-business onboarding flow.
+- `features/onboarding`: first-business onboarding flow and starter-template selection.
 - `features/quotes`: quote editor, delivery, reminders, and public quote response.
-- `features/settings`: business identity, logo, notifications, public inquiry settings, and defaults.
+- `features/settings`: business identity, logo, notifications, public inquiry settings, inquiry page or form defaults, and other workflow settings.
 - `features/ai`, `features/analytics`, and `features/theme`: assistant, reporting, and theme concerns.
 
 ## Auth, Data, And Security
@@ -126,3 +137,4 @@ Feature responsibilities:
 - Run `npm run build` when routes, layouts, or system wiring change.
 - Run relevant `npm run test:e2e` coverage when user-facing flows change.
 - Keep `docs/setup/` aligned with actual env and runtime expectations.
+- Keep README and setup docs aligned with the current starter-template names and the inquiry -> qualification -> quote -> follow-up positioning.

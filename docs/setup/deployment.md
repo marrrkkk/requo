@@ -2,7 +2,11 @@
 
 ## Summary
 
-Requo deploys cleanly as a Next.js app with a Postgres database, Supabase storage credentials, Better Auth secrets, Resend for transactional email, and OpenRouter for AI drafting.
+Requo deploys as a Next.js app with a Postgres database, Supabase storage credentials,
+Better Auth secrets, Resend for transactional email, and OpenRouter for AI drafting.
+
+The deployed product is aimed at owner-led service businesses that need to capture
+inquiries, qualify leads, send quotes, and follow up from one place.
 
 ## Environment Variables
 
@@ -92,7 +96,7 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 4. Configure Supabase storage credentials and verify upload-backed flows.
 5. Configure Resend and verify forgot-password plus quote-send flows.
 6. Configure OpenRouter and verify the inquiry assistant.
-7. Run the baseline health checks and smoke-test the public inquiry page, dashboard login, quote send, and public quote response.
+7. Run the baseline health checks and smoke-test the public inquiry page, onboarding starter templates, dashboard login, quote send, and public quote response.
 
 ## Current Operational Gaps
 

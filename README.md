@@ -5,12 +5,12 @@
 <h1 align="center">Requo</h1>
 
 <p align="center">
-  Owner-first quoting software for service businesses.
+  Inquiry-to-quote software for owner-led service businesses.
 </p>
 
 <p align="center">
-  Requo helps service businesses capture customer inquiries, organize work in one dashboard,
-  build clear quotes, and draft faster replies with their own business knowledge.
+  Requo helps service businesses capture inquiries, qualify leads, send quotes, and
+  follow up from one place.
 </p>
 
 <p align="center">
@@ -19,26 +19,30 @@
 
 ## Overview
 
-Requo is a modern SaaS web app for owner-operated service businesses that need a calmer
-workflow between first inquiry and finished quote.
+Requo is a multi-business SaaS app for owner-led service businesses that manage inbound
+inquiries and custom quotes.
 
-The product is built around a simple operating model:
+It is built around one shared workflow:
 
-- collect structured inquiries from a public form
-- keep customer context, files, notes, and pricing in one place
-- draft and send quotes without losing the thread
-- use AI to prepare practical reply drafts from business knowledge
-- stay inside an owner-first dashboard instead of juggling inboxes and spreadsheets
+- capture inquiries from public forms, referrals, ads, socials, and directories
+- qualify leads before pricing
+- send clear, professional quotes faster
+- follow up consistently without losing context
+
+The product supports multiple business types through guided starter templates, while
+keeping the core experience focused on this workflow rather than generic configurability.
 
 ## Product Areas
 
-- Public inquiry intake with file uploads, budget, timing, and service details
-- Protected owner dashboard for inquiries, quotes, follow-up, and business settings
+- Public inquiry intake with editable forms, supporting cards, optional showcase images, and file uploads
+- Guided onboarding with 4 starter templates:
+  `Agency / Studio`, `Consultant / Professional Services`, `Contractor / Home Service`, and `General Service Business`
+- Owner dashboard for inquiries, lead qualification, quotes, follow-up, and business settings
 - Quote workflow with draft, sent, accepted, rejected, expired, and follow-up states
+- Starter defaults for inquiry fields, reply snippets, and quote notes that stay editable later
 - Knowledge and FAQ management for business-specific reference material
 - AI-assisted response drafting through OpenRouter
 - Transactional email flows through Resend
-- Business branding, public inquiry page settings, and logo support
 - Analytics and notification foundations for operational visibility
 
 ## Tech Stack
@@ -209,6 +213,8 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 - `DESIGN.md` is the canonical UI system, with semantic tokens and shared wrappers implemented in `app/globals.css` and `components/shared/*`
 - Private assets stay behind authenticated route handlers
 - AI drafting stays server-side and uses business context plus uploaded knowledge
+- Marketing, onboarding, starter templates, and in-app copy are aligned around the inquiry -> qualification -> quote -> follow-up workflow
+- Starter templates are opinionated defaults, not rigid vertical product modes
 
 Detailed architecture guidance lives in [docs/architecture/requo-architecture.md](./docs/architecture/requo-architecture.md).
 
@@ -236,11 +242,13 @@ This repository already contains a working product foundation for:
 
 - authentication and password flows
 - profile creation, onboarding, and owner dashboard flows
-- public inquiry intake
+- workflow-led public inquiry intake
 - quote drafting and public quote response
 - business knowledge management
 - AI reply drafting
 - notification and analytics groundwork
 
-Requo is intentionally scoped for service businesses and owner-first workflows. It does not
-try to cover billing, marketplace behavior, advanced team collaboration, or mobile app concerns.
+Requo is intentionally scoped for owner-led service businesses that handle inbound
+inquiries and custom quotes. It does not try to become an enterprise CRM, field-service
+dispatch tool, scheduling suite, payroll tool, invoicing platform, marketplace, or
+mobile-first collaboration app.
