@@ -18,10 +18,12 @@ import type {
   BusinessInquiryFormEditorView,
   BusinessInquiryFormPreviewDraft,
   BusinessInquiryPagePreviewDraft,
+  BusinessInquiryFormActionState,
 } from "@/features/settings/types";
 import { BusinessInquiryFormDangerZone } from "@/features/settings/components/business-inquiry-form-danger-zone";
 import { BusinessInquiryFormForm } from "@/features/settings/components/business-inquiry-form-form";
 import { BusinessInquiryFormManageCard } from "@/features/settings/components/business-inquiry-form-manage-card";
+import { BusinessInquiryFormPresetCard } from "@/features/settings/components/business-inquiry-form-preset-card";
 import { BusinessInquiryPreviewOverlay } from "@/features/settings/components/business-inquiry-preview-overlay";
 import { BusinessInquiryPageForm } from "@/features/settings/components/business-inquiry-page-form";
 
@@ -34,7 +36,10 @@ type BusinessInquiryFormEditorTabsProps = {
   inquiryListHref: string;
   isPublicLive: boolean;
 
-  applyPresetAction: Parameters<typeof BusinessInquiryFormForm>[0]["applyPresetAction"];
+  applyPresetAction: (
+    state: BusinessInquiryFormActionState,
+    formData: FormData,
+  ) => Promise<BusinessInquiryFormActionState>;
   saveFormAction: Parameters<typeof BusinessInquiryFormForm>[0]["saveAction"];
   updatePageAction: Parameters<typeof BusinessInquiryPageForm>[0]["action"];
 
@@ -54,14 +59,14 @@ const editorSections: Array<{
   icon: typeof FormInput;
 }> = [
   {
-    id: "fields",
-    label: "Fields",
-    icon: FormInput,
-  },
-  {
     id: "page",
     label: "Page",
     icon: FileText,
+  },
+  {
+    id: "fields",
+    label: "Fields",
+    icon: FormInput,
   },
   {
     id: "publishing",
@@ -76,7 +81,7 @@ function isEditorSection(value: string | null): value is BusinessInquiryFormEdit
 
 function getEditorSectionValue(searchParams: ReadonlyURLSearchParams) {
   const section = searchParams.get("section");
-  return isEditorSection(section) ? section : "fields";
+  return isEditorSection(section) ? section : "page";
 }
 
 export function BusinessInquiryFormEditorTabs({
@@ -256,7 +261,6 @@ export function BusinessInquiryFormEditorTabs({
             <DashboardSidebarStack>
               <BusinessInquiryFormForm
                 key={`${settings.updatedAt.getTime()}-${settings.formId}-form`}
-                applyPresetAction={applyPresetAction}
                 draft={formDraft}
                 isActive={activeSection === "fields"}
                 onDraftChange={handleFormDraftChange}
@@ -287,14 +291,21 @@ export function BusinessInquiryFormEditorTabs({
           >
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-start">
               <div className="min-w-0">
-                <BusinessInquiryFormManageCard
-                  duplicateAction={duplicateAction}
-                  formId={settings.formId}
-                  isDefault={settings.isDefault}
-                  isPublicInquiryEnabled={settings.publicInquiryEnabled}
-                  setDefaultAction={setDefaultAction}
-                  togglePublicAction={togglePublicAction}
-                />
+                <div className="grid gap-4">
+                  <BusinessInquiryFormManageCard
+                    duplicateAction={duplicateAction}
+                    formId={settings.formId}
+                    isDefault={settings.isDefault}
+                    isPublicInquiryEnabled={settings.publicInquiryEnabled}
+                    setDefaultAction={setDefaultAction}
+                    togglePublicAction={togglePublicAction}
+                  />
+                  <BusinessInquiryFormPresetCard
+                    action={applyPresetAction}
+                    businessType={pageDraft.businessType}
+                    formId={settings.formId}
+                  />
+                </div>
               </div>
               <div className="min-w-0">
                 <BusinessInquiryFormDangerZone
@@ -338,6 +349,9 @@ function createPagePreviewDraft(
   settings: BusinessInquiryFormEditorView,
 ): BusinessInquiryPagePreviewDraft {
   return {
+    businessType: settings.businessType,
+    formName: settings.formName,
+    formSlug: settings.formSlug,
     publicInquiryEnabled: settings.publicInquiryEnabled,
     inquiryPageConfig: settings.inquiryPageConfig,
   };
@@ -354,28 +368,28 @@ function createPreviewSnapshot({
   previewLogoUrl: string | null;
   settings: BusinessInquiryFormEditorView;
 }): PublicInquiryBusiness {
-  const previewInquiryPageConfig = {
-    ...pageDraft.inquiryPageConfig,
-    formTitle: formDraft.inquiryPageConfig.formTitle,
-    formDescription: formDraft.inquiryPageConfig.formDescription,
+  const previewInquiryPageConfig = pageDraft.inquiryPageConfig;
+  const previewInquiryFormConfig = {
+    ...formDraft.inquiryFormConfig,
+    businessType: pageDraft.businessType,
   };
 
   return {
     id: settings.id,
     name: settings.name,
     slug: settings.slug,
-    businessType: formDraft.businessType,
+    businessType: pageDraft.businessType,
     shortDescription: settings.shortDescription,
     logoUrl: previewLogoUrl,
     form: {
       id: settings.formId,
-      name: formDraft.formName,
-      slug: formDraft.formSlug,
-      businessType: formDraft.businessType,
+      name: pageDraft.formName,
+      slug: pageDraft.formSlug,
+      businessType: pageDraft.businessType,
       isDefault: settings.isDefault,
       publicInquiryEnabled: pageDraft.publicInquiryEnabled,
     },
-    inquiryFormConfig: formDraft.inquiryFormConfig,
+    inquiryFormConfig: previewInquiryFormConfig,
     inquiryPageConfig: previewInquiryPageConfig,
   };
 }

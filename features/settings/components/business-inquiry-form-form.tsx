@@ -35,7 +35,6 @@ import {
   MoreHorizontal,
   PencilLine,
   Plus,
-  RefreshCcw,
   Trash2,
 } from "lucide-react";
 
@@ -44,17 +43,6 @@ import { useProgressRouter } from "@/hooks/use-progress-router";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Combobox } from "@/components/ui/combobox";
-import { Spinner } from "@/components/ui/spinner";
-import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -88,17 +76,11 @@ import {
   type InquiryFormSystemFieldDefinition,
   getNormalizedInquiryFormConfig,
 } from "@/features/inquiries/form-config";
-import {
-  businessTypeOptions,
-  businessTypeMeta,
-  type BusinessType,
-} from "@/features/inquiries/business-types";
 import type {
   BusinessInquiryFormActionState,
   BusinessInquiryFormPreviewDraft,
   BusinessInquiryFormSettingsView,
 } from "@/features/settings/types";
-import { publicSlugMaxLength, publicSlugPattern } from "@/lib/slugs";
 import { cn } from "@/lib/utils";
 
 const MAX_CUSTOM_PROJECT_FIELDS = 12;
@@ -112,10 +94,6 @@ const inquirySortableTransition = {
 } as const;
 
 type BusinessInquiryFormFormProps = {
-  applyPresetAction: (
-    state: BusinessInquiryFormActionState,
-    formData: FormData,
-  ) => Promise<BusinessInquiryFormActionState>;
   saveAction: (
     state: BusinessInquiryFormActionState,
     formData: FormData,
@@ -130,7 +108,6 @@ type BusinessInquiryFormFormProps = {
 const initialState: BusinessInquiryFormActionState = {};
 
 export function BusinessInquiryFormForm({
-  applyPresetAction,
   saveAction,
   onDraftChange,
   onPreview,
@@ -138,6 +115,7 @@ export function BusinessInquiryFormForm({
   isActive,
   settings,
 }: BusinessInquiryFormFormProps) {
+  const router = useProgressRouter();
   const normalizedSettingsConfig = useMemo(
     () =>
       getNormalizedInquiryFormConfig(settings.inquiryFormConfig, {
@@ -145,16 +123,11 @@ export function BusinessInquiryFormForm({
       }),
     [settings.businessType, settings.inquiryFormConfig],
   );
-  const router = useProgressRouter();
   const [saveState, saveFormAction, isSavePending] =
     useActionStateWithSonner(saveAction, initialState);
-  const [presetState, presetFormAction, isPresetPending] =
-    useActionStateWithSonner(applyPresetAction, initialState);
-  const [businessType, setBusinessType] = useState(draft.businessType);
   const [contactFields, setContactFields] = useState(draft.inquiryFormConfig.contactFields);
   const [projectFields, setProjectFields] = useState(draft.inquiryFormConfig.projectFields);
   const [groupLabels, setGroupLabels] = useState(draft.inquiryFormConfig.groupLabels);
-  const [isPresetDialogOpen, setIsPresetDialogOpen] = useState(false);
   const [isEditingProjectGroupLabel, setIsEditingProjectGroupLabel] = useState(false);
   const [projectGroupLabelDraft, setProjectGroupLabelDraft] = useState(
     draft.inquiryFormConfig.groupLabels.project,
@@ -166,28 +139,12 @@ export function BusinessInquiryFormForm({
   const projectFieldAnimationsRef = useRef(new Map<string, Animation>());
   const projectFieldTimeoutsRef = useRef<number[]>([]);
   const skipNextProjectFieldLayoutAnimationRef = useRef(false);
-  const [nameDraft, setNameDraft] = useState(draft.formName);
-  const [slugDraft, setSlugDraft] = useState(draft.formSlug);
-  const [formTitleDraft, setFormTitleDraft] = useState(
-    draft.inquiryPageConfig.formTitle,
-  );
-  const [formDescriptionDraft, setFormDescriptionDraft] = useState(
-    draft.inquiryPageConfig.formDescription ?? "",
-  );
   const [enteringProjectFieldIds, setEnteringProjectFieldIds] = useState<string[]>([]);
   const [exitingProjectFieldIds, setExitingProjectFieldIds] = useState<string[]>([]);
   const [pendingProjectFieldFocusId, setPendingProjectFieldFocusId] = useState<
     string | null
   >(null);
   const wasActiveRef = useRef(isActive);
-
-  useEffect(() => {
-    if (!presetState.success) {
-      return;
-    }
-
-    router.refresh();
-  }, [presetState.success, router]);
 
   useEffect(() => {
     if (!saveState.success) {
@@ -210,7 +167,7 @@ export function BusinessInquiryFormForm({
   );
   const serializedConfig = JSON.stringify({
     version: 1,
-    businessType,
+    businessType: settings.businessType,
     groupLabels,
     contactFields,
     projectFields: activeProjectFields,
@@ -232,41 +189,29 @@ export function BusinessInquiryFormForm({
     ],
   );
 
-  const hasConfigChanges = serializedConfig !== initialSerializedConfig;
-  const hasTextInputChanges =
-    nameDraft !== settings.formName ||
-    slugDraft !== settings.formSlug ||
-    formTitleDraft !== settings.inquiryPageConfig.formTitle ||
-    formDescriptionDraft !== (settings.inquiryPageConfig.formDescription ?? "");
-  const hasUnsavedChanges = hasConfigChanges || hasTextInputChanges;
+  const hasUnsavedChanges = serializedConfig !== initialSerializedConfig;
   const previewDraft = useMemo(
     () => ({
-      businessType,
-      formName: nameDraft,
-      formSlug: slugDraft,
+      businessType: settings.businessType,
+      formName: settings.formName,
+      formSlug: settings.formSlug,
       inquiryFormConfig: {
         version: 1,
-        businessType,
+        businessType: settings.businessType,
         groupLabels,
         contactFields,
         projectFields: activeProjectFields,
       } satisfies InquiryFormConfig,
-      inquiryPageConfig: {
-        ...settings.inquiryPageConfig,
-        formTitle: formTitleDraft.trim(),
-        formDescription: normalizeOptionalText(formDescriptionDraft),
-      },
+      inquiryPageConfig: settings.inquiryPageConfig,
     }),
     [
       activeProjectFields,
-      businessType,
       contactFields,
-      formDescriptionDraft,
-      formTitleDraft,
       groupLabels,
-      nameDraft,
       settings.inquiryPageConfig,
-      slugDraft,
+      settings.businessType,
+      settings.formName,
+      settings.formSlug,
     ],
   );
   const [shouldRenderFloatingActions, setShouldRenderFloatingActions] = useState(false);
@@ -302,16 +247,11 @@ export function BusinessInquiryFormForm({
         animation.cancel();
       }
       projectFieldAnimationsRef.current.clear();
-      setBusinessType(draft.businessType);
       setContactFields(draft.inquiryFormConfig.contactFields);
       setProjectFields(draft.inquiryFormConfig.projectFields);
       setGroupLabels(draft.inquiryFormConfig.groupLabels);
       setProjectGroupLabelDraft(draft.inquiryFormConfig.groupLabels.project);
       setIsEditingProjectGroupLabel(false);
-      setNameDraft(draft.formName);
-      setSlugDraft(draft.formSlug);
-      setFormTitleDraft(draft.inquiryPageConfig.formTitle);
-      setFormDescriptionDraft(draft.inquiryPageConfig.formDescription ?? "");
       setEnteringProjectFieldIds([]);
       setExitingProjectFieldIds([]);
       setPendingProjectFieldFocusId(null);
@@ -620,23 +560,14 @@ export function BusinessInquiryFormForm({
 
   const configError = saveState.fieldErrors?.inquiryFormConfig?.[0];
   const businessTypeError = saveState.fieldErrors?.businessType?.[0];
-  const nameError = saveState.fieldErrors?.name?.[0];
-  const slugError = saveState.fieldErrors?.slug?.[0];
-  const formTitleError = saveState.fieldErrors?.formTitle?.[0];
-  const formDescriptionError = saveState.fieldErrors?.formDescription?.[0];
 
   function handleCancelChanges() {
     formRef.current?.reset();
     clearProjectFieldTimers(projectFieldTimeoutsRef);
-    setBusinessType(settings.businessType);
     setGroupLabels(normalizedSettingsConfig.groupLabels);
     setContactFields(normalizedSettingsConfig.contactFields);
     setProjectFields(normalizedSettingsConfig.projectFields);
     setIsEditingProjectGroupLabel(false);
-    setNameDraft(settings.formName);
-    setSlugDraft(settings.formSlug);
-    setFormTitleDraft(settings.inquiryPageConfig.formTitle);
-    setFormDescriptionDraft(settings.inquiryPageConfig.formDescription ?? "");
     setEnteringProjectFieldIds([]);
     setExitingProjectFieldIds([]);
     setPendingProjectFieldFocusId(null);
@@ -730,226 +661,27 @@ export function BusinessInquiryFormForm({
         ref={formRef}
       >
         <input name="formId" type="hidden" value={settings.formId} />
-        <input name="businessType" type="hidden" value={businessType} />
-        <input name="formTitle" type="hidden" value={formTitleDraft} />
-        <input
-          name="formDescription"
-          type="hidden"
-          value={formDescriptionDraft}
-        />
+        <input name="businessType" type="hidden" value={settings.businessType} />
         <input name="inquiryFormConfig" type="hidden" value={serializedConfig} />
 
         <div className="flex flex-col gap-8 sm:gap-10">
           <section className="space-y-5">
             <div className="space-y-2">
               <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-                Form setup
+                Fields
               </h2>
               <p className="text-sm leading-6 text-muted-foreground">
-                Name the form, update the public URL slug, and choose the business type.
+                Edit the contact and project fields shown in the public inquiry form.
               </p>
             </div>
 
-            <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.08fr)_20rem] xl:gap-7">
-              <div className="rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
-                <div className="space-y-2">
-                  <p className="meta-label">Form details</p>
-                  <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
-                    Identity and copy
-                  </p>
-                  <p className="text-sm leading-6 text-muted-foreground">
-                    Update the form name, public URL slug, business type, and the text shown above the form.
-                  </p>
-                </div>
-
-                <div className="mt-5 grid gap-5 lg:grid-cols-2">
-                  <Field data-invalid={Boolean(nameError) || undefined}>
-                    <FieldLabel htmlFor="business-inquiry-form-name">
-                      Form name
-                    </FieldLabel>
-                    <FieldContent>
-                      <Input
-                        aria-invalid={Boolean(nameError) || undefined}
-                        defaultValue={settings.formName}
-                        disabled={isSavePending}
-                        id="business-inquiry-form-name"
-                        maxLength={80}
-                        minLength={2}
-                        name="name"
-                        onChange={(event) => {
-                          setNameDraft(event.currentTarget.value);
-                        }}
-                        required
-                      />
-                      <FieldError
-                        errors={nameError ? [{ message: nameError }] : undefined}
-                      />
-                    </FieldContent>
-                  </Field>
-
-                  <Field data-invalid={Boolean(slugError) || undefined}>
-                    <FieldLabel htmlFor="business-inquiry-form-slug">
-                      Form slug
-                    </FieldLabel>
-                    <FieldContent>
-                      <Input
-                        aria-invalid={Boolean(slugError) || undefined}
-                        defaultValue={settings.formSlug}
-                        disabled={isSavePending}
-                        id="business-inquiry-form-slug"
-                        maxLength={publicSlugMaxLength}
-                        minLength={2}
-                        name="slug"
-                        onChange={(event) => {
-                          setSlugDraft(event.currentTarget.value);
-                        }}
-                        pattern={publicSlugPattern}
-                        required
-                        spellCheck={false}
-                      />
-                      <FieldError
-                        errors={slugError ? [{ message: slugError }] : undefined}
-                      />
-                    </FieldContent>
-                  </Field>
-
-                  <Field
-                    className="lg:col-span-2"
-                    data-invalid={Boolean(businessTypeError) || undefined}
-                  >
-                    <FieldLabel htmlFor="business-inquiry-business-type">
-                      Business type
-                    </FieldLabel>
-                    <FieldContent>
-                      <Combobox
-                        aria-invalid={Boolean(businessTypeError) || undefined}
-                        disabled={isSavePending}
-                        id="business-inquiry-business-type"
-                        onValueChange={(value) =>
-                          setBusinessType(value as BusinessType)
-                        }
-                        options={businessTypeOptions}
-                        placeholder="Choose a business type"
-                        renderOption={(option) => (
-                          <div className="min-w-0">
-                            <p className="truncate font-medium">{option.label}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {option.description}
-                            </p>
-                          </div>
-                        )}
-                        searchPlaceholder="Search business type"
-                        value={businessType}
-                      />
-                      <p className="text-sm leading-6 text-muted-foreground">
-                        {businessTypeMeta[businessType].description}
-                      </p>
-                      <FieldError
-                        errors={
-                          businessTypeError
-                            ? [{ message: businessTypeError }]
-                            : undefined
-                        }
-                      />
-                    </FieldContent>
-                  </Field>
-                </div>
-
-                <div className="mt-6 border-t border-border/70 pt-6">
-                  <div className="space-y-1">
-                    <p className="meta-label">Public form</p>
-                    <p className="text-[0.95rem] font-semibold tracking-tight text-foreground">
-                      Heading and note
-                    </p>
-                    <p className="text-sm leading-6 text-muted-foreground">
-                      Shown at the top of the inquiry form on the public page.
-                    </p>
-                  </div>
-
-                  <div className="mt-5 grid gap-5 lg:grid-cols-2">
-                    <Field data-invalid={Boolean(formTitleError) || undefined}>
-                      <FieldLabel htmlFor="business-inquiry-form-title">
-                        Form heading
-                      </FieldLabel>
-                      <FieldContent>
-                        <Input
-                          aria-invalid={Boolean(formTitleError) || undefined}
-                          disabled={isSavePending}
-                          id="business-inquiry-form-title"
-                          maxLength={80}
-                          name="formTitleInput"
-                          onChange={(event) => {
-                            setFormTitleDraft(event.currentTarget.value);
-                          }}
-                          placeholder="Send inquiry"
-                          required
-                          value={formTitleDraft}
-                        />
-                        <FieldError
-                          errors={
-                            formTitleError ? [{ message: formTitleError }] : undefined
-                          }
-                        />
-                      </FieldContent>
-                    </Field>
-
-                    <Field data-invalid={Boolean(formDescriptionError) || undefined}>
-                      <FieldLabel htmlFor="business-inquiry-form-description">
-                        Optional note
-                      </FieldLabel>
-                      <FieldContent>
-                        <Input
-                          aria-invalid={Boolean(formDescriptionError) || undefined}
-                          disabled={isSavePending}
-                          id="business-inquiry-form-description"
-                          maxLength={200}
-                          name="formDescriptionInput"
-                          onChange={(event) => {
-                            setFormDescriptionDraft(event.currentTarget.value);
-                          }}
-                          placeholder="Optional note above the form"
-                          value={formDescriptionDraft}
-                        />
-                        <FieldError
-                          errors={
-                            formDescriptionError
-                              ? [{ message: formDescriptionError }]
-                              : undefined
-                          }
-                        />
-                      </FieldContent>
-                    </Field>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-border/75 bg-muted/20 p-4 sm:p-5">
-                <Button
-                  className="w-full"
-                  disabled={isPresetPending}
-                  onClick={() => setIsPresetDialogOpen(true)}
-                  type="button"
-                >
-                  <RefreshCcw data-icon="inline-start" />
-                  Apply defaults
-                </Button>
-              </div>
-            </div>
+            {businessTypeError ? (
+              <FieldError errors={[{ message: businessTypeError }]} />
+            ) : null}
 
             {configError ? (
               <FieldError errors={[{ message: configError }]} />
             ) : null}
-          </section>
-
-          <section className="space-y-4">
-            <div className="space-y-2">
-              <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-                {groupLabels.contact}
-              </h2>
-              <p className="text-sm leading-6 text-muted-foreground">
-                Edit the fields shown in Contact.
-              </p>
-            </div>
 
             <InquiryFieldSection
               countLabel={`${inquiryContactFieldKeys.length} fields`}
@@ -1130,77 +862,6 @@ export function BusinessInquiryFormForm({
           visible={shouldRenderFloatingActions}
         />
       </form>
-
-      <Dialog open={isPresetDialogOpen} onOpenChange={setIsPresetDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Apply preset defaults</DialogTitle>
-            <DialogDescription>
-              Current field and page customization will be replaced with the{" "}
-              selected business type defaults.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogBody>
-            <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
-              <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                Selected business type
-              </p>
-              <p className="mt-2 text-base font-semibold tracking-tight text-foreground">
-                {businessTypeMeta[businessType].label}
-              </p>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                {businessTypeMeta[businessType].description}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
-              <p className="text-sm font-medium text-foreground">This will replace</p>
-              <div className="grid gap-2 pt-3 text-sm">
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-muted-foreground">
-                    Inquiry form fields and labels
-                  </span>
-                  <span className="text-foreground">Reset</span>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-muted-foreground">
-                    Inquiry page copy and layout
-                  </span>
-                  <span className="text-foreground">Reset</span>
-                </div>
-              </div>
-            </div>
-          </DialogBody>
-          <DialogFooter>
-            <Button
-              onClick={() => setIsPresetDialogOpen(false)}
-              type="button"
-              variant="ghost"
-            >
-              Cancel
-            </Button>
-            <form action={presetFormAction}>
-              <input name="formId" type="hidden" value={settings.formId} />
-              <input name="businessType" type="hidden" value={businessType} />
-              <Button
-                disabled={isPresetPending}
-                onClick={() => setIsPresetDialogOpen(false)}
-                type="submit"
-              >
-                {isPresetPending ? (
-                  <>
-                    <Spinner data-icon="inline-start" aria-hidden="true" />
-                    Applying...
-                  </>
-                ) : (
-                  "Apply defaults"
-                )}
-              </Button>
-            </form>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
@@ -2089,11 +1750,6 @@ function createFieldOptionDraft(): InquiryFieldOption {
     label: "",
     value: "",
   };
-}
-
-function normalizeOptionalText(value: string) {
-  const trimmedValue = value.trim();
-  return trimmedValue ? trimmedValue : undefined;
 }
 
 function draftMatchesState({

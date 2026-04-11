@@ -40,8 +40,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import {
+  getStarterTemplateBusinessType,
+  starterTemplateOptions,
+} from "@/features/businesses/starter-templates";
+import {
   businessTypeMeta,
-  businessTypeOptions,
   type BusinessType,
 } from "@/features/inquiries/business-types";
 import {
@@ -77,7 +80,7 @@ export function BusinessInquiryFormsManager({
     initialState,
   );
   const [businessType, setBusinessType] = useState<BusinessType>(
-    settings.businessType,
+    getStarterTemplateBusinessType(settings.businessType),
   );
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const nameError = createState.fieldErrors?.name?.[0];
@@ -131,7 +134,7 @@ export function BusinessInquiryFormsManager({
 
                     <Field data-invalid={Boolean(businessTypeError) || undefined}>
                       <FieldLabel htmlFor="business-inquiry-form-create-type">
-                        Business type
+                        Starter template
                       </FieldLabel>
                       <FieldContent>
                         <Combobox
@@ -141,8 +144,8 @@ export function BusinessInquiryFormsManager({
                           onValueChange={(value) =>
                             setBusinessType(value as BusinessType)
                           }
-                          options={businessTypeOptions}
-                          placeholder="Choose a business type"
+                          options={starterTemplateOptions}
+                          placeholder="Choose a starter template"
                           renderOption={(option) => (
                             <div className="min-w-0">
                               <p className="truncate font-medium">{option.label}</p>
@@ -151,7 +154,7 @@ export function BusinessInquiryFormsManager({
                               </p>
                             </div>
                           )}
-                          searchPlaceholder="Search business type"
+                          searchPlaceholder="Search starter template"
                           value={businessType}
                         />
                         <FieldError
