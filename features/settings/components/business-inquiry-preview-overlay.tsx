@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, Eye } from "lucide-react";
+import { ArrowLeft, ArrowUpRight } from "lucide-react";
 
 import {
   Dialog,
@@ -88,20 +88,6 @@ export function BusinessInquiryPreviewOverlay({
           <div className="min-h-0 flex-1 overflow-y-auto">
             <PublicInquiryPageRenderer
               action={previewOnlyAction}
-              beforeHero={
-                <div className="w-full">
-                  <div className="info-tile flex items-start gap-3 bg-primary/8 text-primary">
-                    <Eye className="mt-0.5 size-4 shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">Preview mode</p>
-                      <p className="mt-1 text-sm leading-6 text-primary/80">
-                        This preview reflects the current editor state. Returning
-                        to the editor keeps your draft in place.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              }
               business={business}
               previewMode
             />
