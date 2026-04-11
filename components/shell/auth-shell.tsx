@@ -68,23 +68,23 @@ export function AuthShell({
           </div>
 
           <div className="flex max-w-2xl flex-col gap-5">
-            <span className="eyebrow">Service business workspace</span>
+            <span className="eyebrow">Owner-led service workflow</span>
             <div className="flex flex-col gap-3">
               <h1 className="font-heading text-5xl font-semibold leading-[0.96] tracking-tight text-balance">
-                Keep inquiries, pricing, and follow-up in one place.
+                Capture inquiries, qualify leads, and send quotes from one place.
               </h1>
               <p className="max-w-xl text-base leading-8 text-muted-foreground">
-                Requo keeps customer requests, quote drafting, and replies in one
-                calm workflow.
+                Requo keeps inbound requests, pricing, and follow-up organized
+                for owner-led service businesses and lean teams.
               </p>
             </div>
           </div>
 
           <div className="soft-panel grid gap-3 p-5">
             {[
-              "Collect scope, timing, and files without extra back-and-forth.",
-              "Build reusable pricing and customer-ready quotes from the same record.",
-              "Keep the customer response thread attached to the work.",
+              "Collect scope, timing, budget, and files without extra back-and-forth.",
+              "Qualify the lead before pricing and keep notes attached to the inquiry.",
+              "Send professional quotes and keep the customer response in the same flow.",
             ].map((item) => (
               <div className="flex items-start gap-3" key={item}>
                 <div className="mt-0.5 rounded-md bg-accent px-2 py-1 text-[0.68rem] font-medium uppercase tracking-[0.14em] text-accent-foreground">
@@ -140,10 +140,10 @@ function SignupShowcase() {
             <span className="eyebrow">Preview</span>
             <div className="mt-3 max-w-2xl">
               <h2 className="font-heading text-[1.58rem] font-semibold tracking-tight text-foreground">
-                Turn messy inquiries into organized quotes and bookings.
+                Capture inquiries, qualify leads, send quotes, and follow up.
               </h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Keep intake, quote prep, follow-up, and customer context in one place.
+                Keep inquiry capture, qualification, quote prep, and follow-up in one place.
               </p>
             </div>
           </div>
@@ -153,14 +153,14 @@ function SignupShowcase() {
               <div className="flex items-center justify-between gap-4 border-b border-border/70 pb-2.5">
                 <div>
                   <p className="text-[0.72rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                    Inquiry to quote
+                    Inquiry workflow
                   </p>
                   <p className="mt-1 text-sm font-semibold text-foreground">
                     Harbor Roast storefront refresh
                   </p>
                 </div>
                 <div className="dashboard-meta-pill min-h-0 px-3 py-1 text-[0.68rem]">
-                  Quote ready to send
+                  Quote ready
                 </div>
               </div>
 
@@ -172,7 +172,7 @@ function SignupShowcase() {
                         Public inquiry
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Scope, timing, and files stay attached from the first request.
+                        Scope, timing, budget, and files stay attached from the first inquiry.
                       </p>
                     </div>
                     <MessageSquareText className="size-4 text-muted-foreground" />
@@ -278,8 +278,9 @@ function SignupShowcase() {
                       <p className="text-sm font-semibold text-foreground">Reply draft</p>
                     </div>
                     <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                      Thanks for sending the measurements. I attached the quote with
-                      fabrication, install, and turnaround details for the relaunch week.
+                      Thanks for sending the measurements. I attached the quote
+                      with fabrication, install, and turnaround details for the
+                      relaunch week.
                     </p>
                     <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-border/75 bg-background/90 px-3 py-2.5">
                       <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
