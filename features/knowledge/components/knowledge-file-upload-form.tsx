@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import {
   FormActions,
   FormSection,
 } from "@/components/shared/form-layout";
+import { useActionStateWithSuccessToast } from "@/hooks/use-action-state-with-success-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -37,7 +38,10 @@ export function KnowledgeFileUploadForm({
   action,
 }: KnowledgeFileUploadFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
-  const [state, formAction, isPending] = useActionState(action, initialState);
+  const [state, formAction, isPending] = useActionStateWithSuccessToast(
+    action,
+    initialState,
+  );
 
   useEffect(() => {
     if (state.success) {
@@ -53,14 +57,6 @@ export function KnowledgeFileUploadForm({
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       ) : null}
-
-      {state.success ? (
-        <Alert>
-          <AlertTitle>Knowledge file uploaded</AlertTitle>
-          <AlertDescription>{state.success}</AlertDescription>
-        </Alert>
-      ) : null}
-
       <FormSection
         description="Add one reference document at a time so the business and AI assistant can use it later."
         title="File details"

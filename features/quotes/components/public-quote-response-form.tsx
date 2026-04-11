@@ -1,12 +1,11 @@
 "use client";
-
-import { useActionState } from "react";
 import { CheckCircle2, CircleSlash } from "lucide-react";
 
 import {
   FormNote,
   FormSection,
 } from "@/components/shared/form-layout";
+import { useActionStateWithSuccessToast } from "@/hooks/use-action-state-with-success-toast";
 import { getFieldError } from "@/lib/action-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -33,7 +32,10 @@ const initialState: PublicQuoteResponseActionState = {};
 export function PublicQuoteResponseForm({
   action,
 }: PublicQuoteResponseFormProps) {
-  const [state, formAction, isPending] = useActionState(action, initialState);
+  const [state, formAction, isPending] = useActionStateWithSuccessToast(
+    action,
+    initialState,
+  );
   const messageError = getFieldError(state.fieldErrors, "message");
 
   return (
@@ -42,13 +44,6 @@ export function PublicQuoteResponseForm({
         <Alert variant="destructive">
           <AlertTitle>We could not record your response.</AlertTitle>
           <AlertDescription>{state.error}</AlertDescription>
-        </Alert>
-      ) : null}
-
-      {state.success ? (
-        <Alert>
-          <AlertTitle>Response saved</AlertTitle>
-          <AlertDescription>{state.success}</AlertDescription>
         </Alert>
       ) : null}
 

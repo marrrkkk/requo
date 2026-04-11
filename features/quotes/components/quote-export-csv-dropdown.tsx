@@ -5,18 +5,18 @@ import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverDescription,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { getBusinessQuotesExportPath } from "@/features/businesses/routes";
-import type { QuoteListFilters, QuoteStatusFilterValue } from "@/features/quotes/types";
+import type {
+  QuoteListFilters,
+  QuoteStatusFilterValue,
+} from "@/features/quotes/types";
 import { getQuoteStatusLabel } from "@/features/quotes/utils";
 
 const statusOptions: QuoteStatusFilterValue[] = [
@@ -28,17 +28,17 @@ const statusOptions: QuoteStatusFilterValue[] = [
   "expired",
 ];
 
-type QuoteExportCsvPopoverProps = {
+type QuoteExportCsvDropdownProps = {
   businessSlug: string;
   filters: QuoteListFilters;
   resultCount: number;
 };
 
-export function QuoteExportCsvPopover({
+export function QuoteExportCsvDropdown({
   businessSlug,
   filters,
   resultCount,
-}: QuoteExportCsvPopoverProps) {
+}: QuoteExportCsvDropdownProps) {
   const [query, setQuery] = useState(filters.q ?? "");
   const [status, setStatus] = useState<QuoteStatusFilterValue>(filters.status);
   const [sort, setSort] = useState<"newest" | "oldest">(filters.sort);
@@ -71,26 +71,27 @@ export function QuoteExportCsvPopover({
   }, [businessSlug, from, query, sort, status, to]);
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
         <Button disabled={resultCount === 0} variant="outline">
           <Download data-icon="inline-start" />
           Export CSV
         </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-96">
-        <PopoverHeader>
-          <PopoverTitle>Export quotes CSV</PopoverTitle>
-          <PopoverDescription>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-[22rem] min-w-[22rem] p-0">
+        <div className="space-y-0.5 border-b border-border/70 px-3 py-2.5">
+          <h2 className="text-sm font-medium">Export quotes CSV</h2>
+          <p className="text-xs text-muted-foreground">
             Choose filters and date range for this export.
-          </PopoverDescription>
-        </PopoverHeader>
+          </p>
+        </div>
 
-        <div className="grid gap-3">
-          <Field>
+        <div className="grid gap-2.5 px-3 py-3">
+          <Field className="gap-1.5">
             <FieldLabel htmlFor="quote-export-q">Search</FieldLabel>
             <FieldContent>
               <Input
+                className="h-8 text-xs"
                 id="quote-export-q"
                 value={query}
                 onChange={(event) => setQuery(event.currentTarget.value)}
@@ -99,7 +100,7 @@ export function QuoteExportCsvPopover({
             </FieldContent>
           </Field>
 
-          <Field>
+          <Field className="gap-1.5">
             <FieldLabel htmlFor="quote-export-status">Status</FieldLabel>
             <FieldContent>
               <Combobox
@@ -116,7 +117,7 @@ export function QuoteExportCsvPopover({
             </FieldContent>
           </Field>
 
-          <Field>
+          <Field className="gap-1.5">
             <FieldLabel htmlFor="quote-export-sort">Sort</FieldLabel>
             <FieldContent>
               <Combobox
@@ -133,11 +134,12 @@ export function QuoteExportCsvPopover({
             </FieldContent>
           </Field>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Field className="gap-1.5">
               <FieldLabel htmlFor="quote-export-from">From</FieldLabel>
               <FieldContent>
                 <Input
+                  className="h-8 text-xs"
                   id="quote-export-from"
                   type="date"
                   value={from}
@@ -145,10 +147,11 @@ export function QuoteExportCsvPopover({
                 />
               </FieldContent>
             </Field>
-            <Field>
+            <Field className="gap-1.5">
               <FieldLabel htmlFor="quote-export-to">To</FieldLabel>
               <FieldContent>
                 <Input
+                  className="h-8 text-xs"
                   id="quote-export-to"
                   type="date"
                   value={to}
@@ -159,12 +162,12 @@ export function QuoteExportCsvPopover({
           </div>
         </div>
 
-        <div className="flex justify-end">
-          <Button asChild disabled={resultCount === 0}>
+        <div className="flex justify-end border-t border-border/70 px-3 py-2.5">
+          <Button asChild disabled={resultCount === 0} size="sm">
             <a href={exportHref}>Download CSV</a>
           </Button>
         </div>
-      </PopoverContent>
-    </Popover>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

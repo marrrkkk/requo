@@ -10,7 +10,7 @@ import {
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { QuoteListFilters } from "@/features/quotes/components/quote-list-filters";
-import { QuoteExportCsvPopover } from "@/features/quotes/components/quote-export-csv-popover";
+import { QuoteExportCsvDropdown } from "@/features/quotes/components/quote-export-csv-dropdown";
 import { QuoteListResults } from "@/features/quotes/components/quote-list-results";
 import {
   getQuoteListCountForBusiness,
@@ -121,7 +121,7 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
         title="Quotes"
         actions={
           <div className="dashboard-actions">
-            <QuoteExportCsvPopover
+            <QuoteExportCsvDropdown
               businessSlug={businessSlug}
               filters={filters}
               resultCount={totalItems}
@@ -142,7 +142,6 @@ export default async function QuotesPage({ searchParams }: QuotesPageProps) {
         <Suspense fallback={<DashboardListResultsSkeleton variant="quotes" />}>
           <QuoteListResults
             businessSlug={businessSlug}
-            currency={businessContext.business.defaultCurrency}
             pageData={quotePageDataPromise}
             searchParams={resolvedSearchParams}
           />

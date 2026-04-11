@@ -39,6 +39,7 @@ export type DashboardQuoteListItem = {
   customerName: string;
   customerEmail: string;
   totalInCents: number;
+  currency: string;
   validUntil: string;
   status: QuoteStatus;
   postAcceptanceStatus: QuotePostAcceptanceStatus;

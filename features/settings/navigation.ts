@@ -80,7 +80,7 @@ export function getBusinessSettingsNavigation(
         },
         {
           href: getBusinessSettingsPath(slug, "pricing"),
-          label: "Pricing library",
+          label: "Pricing",
           icon: "pricing",
         },
       ],

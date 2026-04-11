@@ -27,13 +27,11 @@ import {
 
 type QuoteListTableProps = {
   quotes: DashboardQuoteListItem[];
-  currency: string;
   businessSlug: string;
 };
 
 export function QuoteListTable({
   quotes,
-  currency,
   businessSlug,
 }: QuoteListTableProps) {
   return (
@@ -148,7 +146,7 @@ export function QuoteListTable({
                       href={quoteHref}
                       prefetch={true}
                     >
-                      {formatQuoteMoney(quote.totalInCents, currency)}
+                      {formatQuoteMoney(quote.totalInCents, quote.currency)}
                     </Link>
                   </TableCell>
                   <TableCell className="w-[9rem]">

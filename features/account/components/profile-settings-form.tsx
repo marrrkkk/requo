@@ -1,9 +1,7 @@
 "use client";
 
 import Cropper, { type Area } from "react-easy-crop";
-import { CheckCircle2 } from "lucide-react";
 import {
-  useActionState,
   useEffect,
   useRef,
   useState,
@@ -17,6 +15,7 @@ import {
 import {
   FormSection,
 } from "@/components/shared/form-layout";
+import { useActionStateWithSuccessToast } from "@/hooks/use-action-state-with-success-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -77,7 +76,10 @@ export function ProfileSettingsForm({
   profile,
 }: ProfileSettingsFormProps) {
   const router = useProgressRouter();
-  const [state, formAction, isPending] = useActionState(action, initialState);
+  const [state, formAction, isPending] = useActionStateWithSuccessToast(
+    action,
+    initialState,
+  );
   const formRef = useRef<HTMLFormElement>(null);
   const [formRevision, setFormRevision] = useState(0);
   const [removeAvatar, setRemoveAvatar] = useState(false);
@@ -152,13 +154,6 @@ export function ProfileSettingsForm({
         </Alert>
       ) : null}
 
-      {state.success ? (
-        <Alert>
-          <CheckCircle2 data-icon="inline-start" />
-          <AlertTitle>Profile saved</AlertTitle>
-          <AlertDescription>{state.success}</AlertDescription>
-        </Alert>
-      ) : null}
 
       <input name="removeAvatar" type="hidden" value={String(removeAvatar)} />
 

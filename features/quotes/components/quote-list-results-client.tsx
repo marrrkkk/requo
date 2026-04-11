@@ -22,7 +22,6 @@ function normalizePageCache(
 type QuoteListResultsClientProps = {
   businessSlug: string;
   cachedPages?: Record<number, DashboardQuoteListItem[]> | null;
-  currency: string;
   currentPage: number;
   searchParams: SearchParamsRecord;
   totalItems: number;
@@ -32,7 +31,6 @@ type QuoteListResultsClientProps = {
 export function QuoteListResultsClient({
   businessSlug,
   cachedPages,
-  currency,
   currentPage,
   searchParams,
   totalItems,
@@ -63,12 +61,10 @@ export function QuoteListResultsClient({
     <>
       <QuoteListTable
         quotes={quotes}
-        currency={currency}
         businessSlug={businessSlug}
       />
       <QuoteListCards
         quotes={quotes}
-        currency={currency}
         businessSlug={businessSlug}
       />
       <DataListPagination

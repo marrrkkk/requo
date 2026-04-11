@@ -248,8 +248,9 @@ export default async function QuoteDetailPage({
             linkedInquiry={linkedInquiry}
             pricingLibrary={pricingLibrary}
             quoteNumber={quote.quoteNumber}
-            submitLabel="Save draft quote"
-            submitPendingLabel="Saving draft..."
+            showFloatingUnsavedChanges
+            submitLabel="Save changes"
+            submitPendingLabel="Saving changes..."
           />
 
           <DashboardDetailLayout className="xl:grid-cols-[1.25fr_0.75fr]">

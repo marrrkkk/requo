@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import {
   FormActions,
   FormSection,
 } from "@/components/shared/form-layout";
+import { useActionStateWithSuccessToast } from "@/hooks/use-action-state-with-success-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -34,7 +35,10 @@ export function InquiryNoteForm({
   embedded = false,
 }: InquiryNoteFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
-  const [state, formAction, isPending] = useActionState(action, initialState);
+  const [state, formAction, isPending] = useActionStateWithSuccessToast(
+    action,
+    initialState,
+  );
 
   useEffect(() => {
     if (state.success) {
@@ -51,12 +55,6 @@ export function InquiryNoteForm({
         </Alert>
       ) : null}
 
-      {state.success ? (
-        <Alert>
-          <AlertTitle>Note saved</AlertTitle>
-          <AlertDescription>{state.success}</AlertDescription>
-        </Alert>
-      ) : null}
 
       {embedded ? (
         <FieldGroup>

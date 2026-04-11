@@ -1,12 +1,11 @@
 "use client";
-
-import { useActionState } from "react";
 import { SendHorizontal } from "lucide-react";
 
 import {
   FormActions,
   FormNote,
 } from "@/components/shared/form-layout";
+import { useActionStateWithSuccessToast } from "@/hooks/use-action-state-with-success-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -28,7 +27,10 @@ export function QuoteSendForm({
   customerEmail,
   disabled = false,
 }: QuoteSendFormProps) {
-  const [state, formAction, isPending] = useActionState(action, initialState);
+  const [state, formAction, isPending] = useActionStateWithSuccessToast(
+    action,
+    initialState,
+  );
 
   return (
     <form action={formAction} className="form-stack">
@@ -36,13 +38,6 @@ export function QuoteSendForm({
         <Alert variant="destructive">
           <AlertTitle>We could not send the quote.</AlertTitle>
           <AlertDescription>{state.error}</AlertDescription>
-        </Alert>
-      ) : null}
-
-      {state.success ? (
-        <Alert>
-          <AlertTitle>Quote sent</AlertTitle>
-          <AlertDescription>{state.success}</AlertDescription>
         </Alert>
       ) : null}
 

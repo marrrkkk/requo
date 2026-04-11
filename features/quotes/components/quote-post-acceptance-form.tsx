@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 
 import { FormActions } from "@/components/shared/form-layout";
+import { useActionStateWithSuccessToast } from "@/hooks/use-action-state-with-success-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
@@ -42,7 +43,10 @@ export function QuotePostAcceptanceForm({
 }: QuotePostAcceptanceFormProps) {
   const [selectedStatus, setSelectedStatus] =
     useState<QuotePostAcceptanceStatus>(currentStatus);
-  const [state, formAction, isPending] = useActionState(action, initialState);
+  const [state, formAction, isPending] = useActionStateWithSuccessToast(
+    action,
+    initialState,
+  );
 
   return (
     <form action={formAction} className="form-stack">
@@ -50,13 +54,6 @@ export function QuotePostAcceptanceForm({
         <Alert variant="destructive">
           <AlertTitle>We could not update the post-acceptance status.</AlertTitle>
           <AlertDescription>{state.error}</AlertDescription>
-        </Alert>
-      ) : null}
-
-      {state.success ? (
-        <Alert>
-          <AlertTitle>Post-acceptance status updated</AlertTitle>
-          <AlertDescription>{state.success}</AlertDescription>
         </Alert>
       ) : null}
 

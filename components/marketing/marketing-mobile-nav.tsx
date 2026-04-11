@@ -77,7 +77,7 @@ export function MarketingMobileNav({
           {isAuthenticated ? (
             <Button asChild>
               <Link href={businessesHubPath} onClick={closeMenu}>
-                Dashboard
+                Visit app
                 <ArrowRight data-icon="inline-end" />
               </Link>
             </Button>

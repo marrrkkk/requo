@@ -37,6 +37,7 @@ type AppearanceMenuProps = {
   className?: string;
   align?: "start" | "center" | "end";
   userId: string;
+  iconOnly?: boolean;
 };
 
 type AppearanceMenuRadioGroupProps = {
@@ -47,13 +48,20 @@ export function AppearanceMenu({
   className,
   align = "end",
   userId,
+  iconOnly = false,
 }: AppearanceMenuProps) {
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button className={className} type="button" variant="outline">
+        <Button
+          aria-label="Open appearance menu"
+          className={className}
+          size={iconOnly ? "icon" : "default"}
+          type="button"
+          variant="outline"
+        >
           <MonitorCog data-icon="inline-start" />
-          Appearance
+          {iconOnly ? <span className="sr-only">Appearance</span> : "Appearance"}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align={align} className="w-52 rounded-xl">

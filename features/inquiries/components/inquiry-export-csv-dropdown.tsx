@@ -5,16 +5,13 @@ import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverDescription,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { getBusinessInquiriesExportPath } from "@/features/businesses/routes";
 import type {
   InquiryListFilters,
@@ -32,7 +29,7 @@ const statusOptions: InquiryStatusFilterValue[] = [
   "archived",
 ];
 
-type InquiryExportCsvPopoverProps = {
+type InquiryExportCsvDropdownProps = {
   businessSlug: string;
   filters: InquiryListFilters;
   formOptions: Array<{
@@ -42,12 +39,12 @@ type InquiryExportCsvPopoverProps = {
   resultCount: number;
 };
 
-export function InquiryExportCsvPopover({
+export function InquiryExportCsvDropdown({
   businessSlug,
   filters,
   formOptions,
   resultCount,
-}: InquiryExportCsvPopoverProps) {
+}: InquiryExportCsvDropdownProps) {
   const [query, setQuery] = useState(filters.q ?? "");
   const [status, setStatus] = useState<InquiryStatusFilterValue>(filters.status);
   const [form, setForm] = useState(filters.form);
@@ -84,26 +81,27 @@ export function InquiryExportCsvPopover({
   }, [businessSlug, form, from, query, sort, status, to]);
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
         <Button disabled={resultCount === 0} variant="outline">
           <Download data-icon="inline-start" />
           Export CSV
         </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-96">
-        <PopoverHeader>
-          <PopoverTitle>Export requests CSV</PopoverTitle>
-          <PopoverDescription>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-[22rem] min-w-[22rem] p-0">
+        <div className="space-y-0.5 border-b border-border/70 px-3 py-2.5">
+          <h2 className="text-sm font-medium">Export requests CSV</h2>
+          <p className="text-xs text-muted-foreground">
             Choose filters and date range for this export.
-          </PopoverDescription>
-        </PopoverHeader>
+          </p>
+        </div>
 
-        <div className="grid gap-3">
-          <Field>
+        <div className="grid gap-2.5 px-3 py-3">
+          <Field className="gap-1.5">
             <FieldLabel htmlFor="inquiry-export-q">Search</FieldLabel>
             <FieldContent>
               <Input
+                className="h-8 text-xs"
                 id="inquiry-export-q"
                 value={query}
                 onChange={(event) => setQuery(event.currentTarget.value)}
@@ -112,7 +110,7 @@ export function InquiryExportCsvPopover({
             </FieldContent>
           </Field>
 
-          <Field>
+          <Field className="gap-1.5">
             <FieldLabel htmlFor="inquiry-export-status">Status</FieldLabel>
             <FieldContent>
               <Combobox
@@ -130,7 +128,7 @@ export function InquiryExportCsvPopover({
             </FieldContent>
           </Field>
 
-          <Field>
+          <Field className="gap-1.5">
             <FieldLabel htmlFor="inquiry-export-form">Form</FieldLabel>
             <FieldContent>
               <Combobox
@@ -144,7 +142,7 @@ export function InquiryExportCsvPopover({
             </FieldContent>
           </Field>
 
-          <Field>
+          <Field className="gap-1.5">
             <FieldLabel htmlFor="inquiry-export-sort">Sort</FieldLabel>
             <FieldContent>
               <Combobox
@@ -161,11 +159,12 @@ export function InquiryExportCsvPopover({
             </FieldContent>
           </Field>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Field className="gap-1.5">
               <FieldLabel htmlFor="inquiry-export-from">From</FieldLabel>
               <FieldContent>
                 <Input
+                  className="h-8 text-xs"
                   id="inquiry-export-from"
                   type="date"
                   value={from}
@@ -173,10 +172,11 @@ export function InquiryExportCsvPopover({
                 />
               </FieldContent>
             </Field>
-            <Field>
+            <Field className="gap-1.5">
               <FieldLabel htmlFor="inquiry-export-to">To</FieldLabel>
               <FieldContent>
                 <Input
+                  className="h-8 text-xs"
                   id="inquiry-export-to"
                   type="date"
                   value={to}
@@ -187,12 +187,12 @@ export function InquiryExportCsvPopover({
           </div>
         </div>
 
-        <div className="flex justify-end">
-          <Button asChild disabled={resultCount === 0}>
+        <div className="flex justify-end border-t border-border/70 px-3 py-2.5">
+          <Button asChild disabled={resultCount === 0} size="sm">
             <a href={exportHref}>Download CSV</a>
           </Button>
         </div>
-      </PopoverContent>
-    </Popover>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

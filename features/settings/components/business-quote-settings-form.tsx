@@ -1,13 +1,13 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import {
   FloatingFormActions,
   useFloatingUnsavedChanges,
 } from "@/components/shared/floating-form-actions";
 import { FormSection } from "@/components/shared/form-layout";
+import { useActionStateWithSuccessToast } from "@/hooks/use-action-state-with-success-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Field,
@@ -38,7 +38,10 @@ export function BusinessQuoteSettingsForm({
   settings,
 }: BusinessQuoteSettingsFormProps) {
   const router = useProgressRouter();
-  const [state, formAction, isPending] = useActionState(action, initialState);
+  const [state, formAction, isPending] = useActionStateWithSuccessToast(
+    action,
+    initialState,
+  );
   const [defaultQuoteValidityDays, setDefaultQuoteValidityDays] = useState(
     String(settings.defaultQuoteValidityDays),
   );
@@ -76,13 +79,6 @@ export function BusinessQuoteSettingsForm({
         </Alert>
       ) : null}
 
-      {state.success ? (
-        <Alert>
-          <CheckCircle2 data-icon="inline-start" />
-          <AlertTitle>Quote settings saved</AlertTitle>
-          <AlertDescription>{state.success}</AlertDescription>
-        </Alert>
-      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[18rem_minmax(0,1fr)] xl:gap-7">
         <div className="self-start xl:sticky xl:top-6">

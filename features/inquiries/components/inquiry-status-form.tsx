@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 
 import { FormActions } from "@/components/shared/form-layout";
+import { useActionStateWithSuccessToast } from "@/hooks/use-action-state-with-success-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
@@ -49,7 +50,10 @@ export function InquiryStatusForm({
 }: InquiryStatusFormProps) {
   const [selectedStatus, setSelectedStatus] =
     useState<InquiryStatus>(currentStatus);
-  const [state, formAction, isPending] = useActionState(action, initialState);
+  const [state, formAction, isPending] = useActionStateWithSuccessToast(
+    action,
+    initialState,
+  );
 
   return (
     <form action={formAction} className="form-stack">
@@ -60,12 +64,6 @@ export function InquiryStatusForm({
         </Alert>
       ) : null}
 
-      {state.success ? (
-        <Alert>
-          <AlertTitle>Status updated</AlertTitle>
-          <AlertDescription>{state.success}</AlertDescription>
-        </Alert>
-      ) : null}
 
       <input name="status" type="hidden" value={selectedStatus} />
 

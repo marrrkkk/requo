@@ -14,12 +14,14 @@ type QuoteLibraryEntryDeleteButtonProps = {
     state: QuoteLibraryDeleteActionState,
     formData: FormData,
   ) => Promise<QuoteLibraryDeleteActionState>;
+  label?: string;
 };
 
 const initialState: QuoteLibraryDeleteActionState = {};
 
 export function QuoteLibraryEntryDeleteButton({
   action,
+  label = "Delete entry",
 }: QuoteLibraryEntryDeleteButtonProps) {
   const router = useProgressRouter();
   const [state, formAction, isPending] = useActionState(action, initialState);
@@ -49,7 +51,7 @@ export function QuoteLibraryEntryDeleteButton({
             Deleting...
           </>
         ) : (
-          "Delete entry"
+          label
         )}
       </Button>
     </form>

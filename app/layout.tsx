@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { RouteProgressBar } from "@/components/shared/route-progress-bar";
+import { Toaster } from "@/components/ui/sonner";
 import { getThemeInitScript } from "@/features/theme/init-script";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { themeStorageKey } from "@/features/theme/types";
@@ -60,6 +61,7 @@ export default function RootLayout({
             <RouteProgressBar />
           </Suspense>
           <TooltipProvider>{children}</TooltipProvider>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

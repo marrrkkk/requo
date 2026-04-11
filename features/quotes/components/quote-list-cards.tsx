@@ -18,13 +18,11 @@ import { getBusinessQuotePath } from "@/features/businesses/routes";
 
 type QuoteListCardsProps = {
   quotes: DashboardQuoteListItem[];
-  currency: string;
   businessSlug: string;
 };
 
 export function QuoteListCards({
   quotes,
-  currency,
   businessSlug,
 }: QuoteListCardsProps) {
   return (
@@ -91,7 +89,7 @@ export function QuoteListCards({
                   Total
                 </span>
                 <p className="mt-2 truncate text-sm font-semibold text-foreground">
-                  {formatQuoteMoney(quote.totalInCents, currency)}
+                  {formatQuoteMoney(quote.totalInCents, quote.currency)}
                 </p>
               </div>
             </CardContent>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 import { FormActions, FormSection } from "@/components/shared/form-layout";
+import { useActionStateWithSuccessToast } from "@/hooks/use-action-state-with-success-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,7 +46,10 @@ export function ReplySnippetForm({
   showSectionHeader = true,
 }: ReplySnippetFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
-  const [state, formAction, isPending] = useActionState(action, initialState);
+  const [state, formAction, isPending] = useActionStateWithSuccessToast(
+    action,
+    initialState,
+  );
 
   useEffect(() => {
     if (!state.success) {
@@ -68,12 +72,6 @@ export function ReplySnippetForm({
         </Alert>
       ) : null}
 
-      {state.success ? (
-        <Alert>
-          <AlertTitle>Snippet saved</AlertTitle>
-          <AlertDescription>{state.success}</AlertDescription>
-        </Alert>
-      ) : null}
 
       <FormSection title={showSectionHeader ? (initialValues ? "Snippet content" : "New reply snippet") : undefined}>
         <FieldGroup>

@@ -1,10 +1,11 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { BadgeCheck, KeyRound, LogOut, Shield, Trash2 } from "lucide-react";
+import { KeyRound, LogOut, Shield, Trash2 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { useActionStateWithSuccessToast } from "@/hooks/use-action-state-with-success-toast";
 import {
   Field,
   FieldContent,
@@ -57,13 +58,14 @@ export function SecuritySettingsForm({
 }: SecuritySettingsFormProps) {
   const [revokeAfterPasswordChange, setRevokeAfterPasswordChange] = useState(true);
   const [setPasswordState, setPasswordFormAction, isSetPasswordPending] =
-    useActionState(setPasswordAction, initialPasswordState);
+    useActionStateWithSuccessToast(setPasswordAction, initialPasswordState);
   const [changePasswordState, changePasswordFormAction, isChangePasswordPending] =
-    useActionState(changePasswordAction, initialPasswordState);
-  const [sessionState, sessionFormAction, isSessionPending] = useActionState(
-    revokeOtherSessionsAction,
-    initialSessionState,
-  );
+    useActionStateWithSuccessToast(changePasswordAction, initialPasswordState);
+  const [sessionState, sessionFormAction, isSessionPending] =
+    useActionStateWithSuccessToast(
+      revokeOtherSessionsAction,
+      initialSessionState,
+    );
   const [deleteState, deleteFormAction, isDeletePending] = useActionState(
     deleteAccountAction,
     initialDeleteState,
@@ -100,13 +102,6 @@ export function SecuritySettingsForm({
                   </Alert>
                 ) : null}
 
-                {changePasswordState.success ? (
-                  <Alert>
-                    <BadgeCheck data-icon="inline-start" />
-                    <AlertTitle>Password updated</AlertTitle>
-                    <AlertDescription>{changePasswordState.success}</AlertDescription>
-                  </Alert>
-                ) : null}
 
                 <FieldGroup>
                   <Field
@@ -263,13 +258,6 @@ export function SecuritySettingsForm({
                   </Alert>
                 ) : null}
 
-                {setPasswordState.success ? (
-                  <Alert>
-                    <BadgeCheck data-icon="inline-start" />
-                    <AlertTitle>Password enabled</AlertTitle>
-                    <AlertDescription>{setPasswordState.success}</AlertDescription>
-                  </Alert>
-                ) : null}
 
                 <FieldGroup>
                   <Field
@@ -379,13 +367,6 @@ export function SecuritySettingsForm({
               </Alert>
             ) : null}
 
-            {sessionState.success ? (
-              <Alert>
-                <BadgeCheck data-icon="inline-start" />
-                <AlertTitle>Sessions updated</AlertTitle>
-                <AlertDescription>{sessionState.success}</AlertDescription>
-              </Alert>
-            ) : null}
 
             <div className="rounded-2xl border border-border/70 bg-muted/15 px-4 py-4">
               <p className="text-sm font-medium text-foreground">

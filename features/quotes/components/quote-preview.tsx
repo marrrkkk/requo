@@ -175,7 +175,7 @@ export function QuotePreview({
         </div>
 
         <div className="soft-panel flex w-full flex-col gap-3 px-4 py-4 shadow-none">
-          <p className="meta-label">Commercial summary</p>
+          <p className="meta-label">Summary</p>
           <SummaryRow
             label="Subtotal"
             value={formatQuoteMoney(subtotalInCents, currency)}

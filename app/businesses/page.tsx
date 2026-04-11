@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { ArrowRight, PlusCircle } from "lucide-react";
 
 import { LogoutButton } from "@/features/auth/components/logout-button";
-import { getProfileSettingsPath } from "@/features/account/routes";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { AppearanceMenu } from "@/features/theme/components/appearance-menu";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
@@ -14,10 +13,7 @@ import { getBusinessDashboardPath } from "@/features/businesses/routes";
 import { businessTypeMeta } from "@/features/inquiries/business-types";
 import { onboardingPath } from "@/features/onboarding/routes";
 import { requireSession } from "@/lib/auth/session";
-import {
-  getBusinessContextForUser,
-  getBusinessMembershipsForUser,
-} from "@/lib/db/business-access";
+import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { BrandMark } from "@/components/shared/brand-mark";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { Badge } from "@/components/ui/badge";
@@ -32,23 +28,16 @@ import {
 
 export default async function BusinessesPage() {
   const session = await requireSession();
-  const [themePreference, memberships, activeBusinessContext, profile] =
-    await Promise.all([
-      getThemePreferenceForUser(session.user.id),
-      getBusinessMembershipsForUser(session.user.id),
-      getBusinessContextForUser(session.user.id),
-      getAccountProfileForUser(session.user.id),
-    ]);
+  const [themePreference, memberships] = await Promise.all([
+    getThemePreferenceForUser(session.user.id),
+    getBusinessMembershipsForUser(session.user.id),
+  ]);
+
+  const profile = await getAccountProfileForUser(session.user.id);
 
   if (memberships.length === 0 && !profile?.onboardingCompletedAt) {
     redirect(onboardingPath);
   }
-
-  const profileSettingsHref = activeBusinessContext
-    ? getProfileSettingsPath(activeBusinessContext.business.slug)
-    : memberships[0]
-      ? getProfileSettingsPath(memberships[0].business.slug)
-      : null;
 
   return (
     <>
@@ -72,14 +61,7 @@ export default async function BusinessesPage() {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              {profileSettingsHref ? (
-                <Button asChild variant="outline">
-                  <Link href={profileSettingsHref} prefetch={true}>
-                    Profile
-                  </Link>
-                </Button>
-              ) : null}
-              <AppearanceMenu userId={session.user.id} />
+              <AppearanceMenu iconOnly userId={session.user.id} />
               <LogoutButton variant="outline" />
             </div>
           </header>

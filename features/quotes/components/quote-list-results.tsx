@@ -13,14 +13,12 @@ type QuoteListResultsData = {
 
 type QuoteListResultsProps = {
   businessSlug: string;
-  currency: string;
   pageData: Promise<QuoteListResultsData>;
   searchParams: SearchParamsRecord;
 };
 
 export async function QuoteListResults({
   businessSlug,
-  currency,
   pageData,
   searchParams,
 }: QuoteListResultsProps) {
@@ -32,7 +30,6 @@ export async function QuoteListResults({
       key={filterKey}
       businessSlug={businessSlug}
       cachedPages={cachedPages ?? {}}
-      currency={currency}
       currentPage={currentPage}
       searchParams={searchParams}
       totalItems={totalItems}

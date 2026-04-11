@@ -275,7 +275,7 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
       inquiry: "Forms",
       replies: "Saved replies",
       quote: "Quote defaults",
-      pricing: "Pricing library",
+      pricing: "Pricing",
       knowledge: "Knowledge base",
     };
     const sectionLabel = sectionLabels[section] ?? formatBreadcrumbLabel(section);

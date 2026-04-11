@@ -26,13 +26,12 @@ export default async function BusinessPricingPage() {
     <>
       <PageHeader
         eyebrow="Quotes"
-        title="Pricing library"
-        description="Reusable pricing blocks and service packages."
+        title="Pricing"
+        description="Reusable blocks and packages."
       />
 
       <BusinessPricingLibraryManager
         createAction={createQuoteLibraryEntryAction}
-        currency={settings.defaultCurrency}
         deleteAction={deleteQuoteLibraryEntryAction}
         quoteLibrary={quoteLibrary}
         updateAction={updateQuoteLibraryEntryAction}

@@ -4,13 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import Cropper, { type Area } from "react-easy-crop";
 import {
-  useActionState,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { CheckCircle2 } from "lucide-react";
 
 import { CountryCombobox } from "@/components/shared/country-combobox";
 import {
@@ -20,6 +18,7 @@ import {
 import {
   FormSection,
 } from "@/components/shared/form-layout";
+import { useActionStateWithSuccessToast } from "@/hooks/use-action-state-with-success-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getFieldError } from "@/lib/action-state";
 import { Button } from "@/components/ui/button";
@@ -116,6 +115,33 @@ type LoadedLogoAsset = {
   height: number;
 };
 
+type BusinessSettingsDraftValues = {
+  name: string;
+  slug: string;
+  contactEmail: string;
+  shortDescription: string;
+  defaultEmailSignature: string;
+  countryCode: string;
+  defaultCurrency: string;
+  aiTonePreference: BusinessAiTonePreference;
+};
+
+function getBusinessSettingsDraftValues(
+  settings: BusinessSettingsView,
+  fallbackContactEmail: string,
+): BusinessSettingsDraftValues {
+  return {
+    name: settings.name,
+    slug: settings.slug,
+    contactEmail: settings.contactEmail ?? fallbackContactEmail,
+    shortDescription: settings.shortDescription ?? "",
+    defaultEmailSignature: settings.defaultEmailSignature ?? "",
+    countryCode: settings.countryCode ?? "",
+    defaultCurrency: settings.defaultCurrency,
+    aiTonePreference: settings.aiTonePreference,
+  };
+}
+
 export function BusinessSettingsForm({
   action,
   deleteAction,
@@ -124,100 +150,89 @@ export function BusinessSettingsForm({
   settings,
 }: BusinessSettingsFormProps) {
   const router = useProgressRouter();
-  const [state, formAction, isPending] = useActionState(action, initialState);
-  const formRef = useRef<HTMLFormElement>(null);
-  const [formRevision, setFormRevision] = useState(0);
-  const [removeLogo, setRemoveLogo] = useState(false);
-  const [countryCode, setCountryCode] = useState(settings.countryCode ?? "");
-  const [defaultCurrency, setDefaultCurrency] = useState(settings.defaultCurrency);
-  const [aiTonePreference, setAiTonePreference] = useState<BusinessAiTonePreference>(
-    settings.aiTonePreference,
+  const [state, formAction, isPending] = useActionStateWithSuccessToast(
+    action,
+    initialState,
   );
+  const initialDraftValues = useMemo(
+    () => getBusinessSettingsDraftValues(settings, fallbackContactEmail),
+    [fallbackContactEmail, settings],
+  );
+  const [draftValues, setDraftValues] = useState(initialDraftValues);
+  const draftValuesRef = useRef(draftValues);
+  const [savedValues, setSavedValues] = useState(initialDraftValues);
+  const [removeLogo, setRemoveLogo] = useState(false);
   const [hasPendingLogo, setHasPendingLogo] = useState(false);
   const [logoResetSignal, setLogoResetSignal] = useState(0);
-  const [hasTextInputChanges, setHasTextInputChanges] = useState(false);
   const countryCodeError = getFieldError(state.fieldErrors, "countryCode");
   const defaultCurrencyError = getFieldError(state.fieldErrors, "defaultCurrency");
   const aiToneError = getFieldError(state.fieldErrors, "aiTonePreference");
   const publicInquiryUrl = useMemo(
-    () => getBusinessPublicInquiryUrl(settings.slug),
-    [settings.slug],
+    () => getBusinessPublicInquiryUrl(draftValues.slug || settings.slug),
+    [draftValues.slug, settings.slug],
   );
-  const selectedCountry = getBusinessCountryOption(countryCode);
-  const selectedCurrency = getBusinessCurrencyOption(defaultCurrency);
-  const primaryContactEmail = settings.contactEmail ?? fallbackContactEmail;
+  const selectedCountry = getBusinessCountryOption(draftValues.countryCode);
+  const selectedCurrency = getBusinessCurrencyOption(draftValues.defaultCurrency);
+  const hasTextInputChanges =
+    draftValues.name !== savedValues.name ||
+    draftValues.slug !== savedValues.slug ||
+    draftValues.contactEmail !== savedValues.contactEmail ||
+    draftValues.shortDescription !== savedValues.shortDescription ||
+    draftValues.defaultEmailSignature !== savedValues.defaultEmailSignature;
   const hasControlledChanges =
     removeLogo ||
     hasPendingLogo ||
-    countryCode !== (settings.countryCode ?? "") ||
-    defaultCurrency !== settings.defaultCurrency ||
-    aiTonePreference !== settings.aiTonePreference;
+    draftValues.countryCode !== savedValues.countryCode ||
+    draftValues.defaultCurrency !== savedValues.defaultCurrency ||
+    draftValues.aiTonePreference !== savedValues.aiTonePreference;
   const hasUnsavedChanges = hasControlledChanges || hasTextInputChanges;
   const { shouldRenderFloatingActions, floatingActionsState } =
     useFloatingUnsavedChanges(hasUnsavedChanges);
+
+  useEffect(() => {
+    draftValuesRef.current = draftValues;
+  }, [draftValues]);
 
   useEffect(() => {
     if (!state.success) {
       return;
     }
 
+    queueMicrotask(() => {
+      setRemoveLogo(false);
+      setHasPendingLogo(false);
+      setSavedValues(draftValuesRef.current);
+      setLogoResetSignal((current) => current + 1);
+    });
+
     router.refresh();
   }, [router, state.success]);
 
   useEffect(() => {
-    const form = formRef.current;
+    queueMicrotask(() => {
+      setDraftValues(initialDraftValues);
+      setSavedValues(initialDraftValues);
+      setRemoveLogo(false);
+      setHasPendingLogo(false);
+      setLogoResetSignal((current) => current + 1);
+    });
+  }, [initialDraftValues]);
 
-    if (!form) {
-      return;
-    }
-
-    const inputNames = [
-      "name",
-      "slug",
-      "contactEmail",
-      "shortDescription",
-      "defaultEmailSignature",
-    ] as const;
-    const initialValues = {
-      name: settings.name,
-      slug: settings.slug,
-      contactEmail: primaryContactEmail,
-      shortDescription: settings.shortDescription ?? "",
-      defaultEmailSignature: settings.defaultEmailSignature ?? "",
-    };
-
-    setHasTextInputChanges(
-      inputNames.some((name) => {
-        const field = form.elements.namedItem(name);
-
-        if (
-          !(field instanceof HTMLInputElement) &&
-          !(field instanceof HTMLTextAreaElement)
-        ) {
-          return false;
-        }
-
-        return field.value !== initialValues[name];
-      }),
-    );
-  }, [
-    formRevision,
-    primaryContactEmail,
-    settings.defaultEmailSignature,
-    settings.name,
-    settings.shortDescription,
-    settings.slug,
-  ]);
+  function updateDraftValue<Key extends keyof BusinessSettingsDraftValues>(
+    key: Key,
+    value: BusinessSettingsDraftValues[Key],
+  ) {
+    setDraftValues((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
 
   function handleCancelChanges() {
-    formRef.current?.reset();
+    setDraftValues(savedValues);
     setRemoveLogo(false);
     setHasPendingLogo(false);
-    setCountryCode(settings.countryCode ?? "");
-    setDefaultCurrency(settings.defaultCurrency);
-    setAiTonePreference(settings.aiTonePreference);
     setLogoResetSignal((current) => current + 1);
-    setFormRevision((current) => current + 1);
   }
 
   return (
@@ -225,8 +240,6 @@ export function BusinessSettingsForm({
       <form
         action={formAction}
         className="form-stack pb-28"
-        onInputCapture={() => setFormRevision((current) => current + 1)}
-        ref={formRef}
       >
         {state.error ? (
           <Alert variant="destructive">
@@ -234,19 +247,18 @@ export function BusinessSettingsForm({
             <AlertDescription>{state.error}</AlertDescription>
           </Alert>
         ) : null}
-
-        {state.success ? (
-          <Alert>
-            <CheckCircle2 data-icon="inline-start" />
-            <AlertTitle>Settings saved</AlertTitle>
-            <AlertDescription>{state.success}</AlertDescription>
-          </Alert>
-        ) : null}
-
         <input name="removeLogo" type="hidden" value={String(removeLogo)} />
-        <input name="countryCode" type="hidden" value={countryCode} />
-        <input name="defaultCurrency" type="hidden" value={defaultCurrency} />
-        <input name="aiTonePreference" type="hidden" value={aiTonePreference} />
+        <input name="countryCode" type="hidden" value={draftValues.countryCode} />
+        <input
+          name="defaultCurrency"
+          type="hidden"
+          value={draftValues.defaultCurrency}
+        />
+        <input
+          name="aiTonePreference"
+          type="hidden"
+          value={draftValues.aiTonePreference}
+        />
 
         <Card className="gap-0 border-border/75 bg-card/97">
           <CardHeader className="gap-2.5 pb-6">
@@ -280,12 +292,15 @@ export function BusinessSettingsForm({
                         <FieldLabel htmlFor="settings-name">Business name</FieldLabel>
                         <FieldContent>
                           <Input
-                            defaultValue={settings.name}
+                            value={draftValues.name}
                             disabled={isPending}
                             id="settings-name"
                             maxLength={120}
                             minLength={2}
                             name="name"
+                            onChange={(event) =>
+                              updateDraftValue("name", event.currentTarget.value)
+                            }
                             placeholder="Northline Print Studio"
                             required
                           />
@@ -304,12 +319,15 @@ export function BusinessSettingsForm({
                           <FieldLabel htmlFor="settings-slug">Public slug</FieldLabel>
                           <FieldContent>
                             <Input
-                              defaultValue={settings.slug}
+                              value={draftValues.slug}
                               disabled={isPending}
                               id="settings-slug"
                               maxLength={businessSlugMaxLength}
                               minLength={2}
                               name="slug"
+                              onChange={(event) =>
+                                updateDraftValue("slug", event.currentTarget.value)
+                              }
                               pattern={businessSlugPattern}
                               placeholder="northline-print"
                               required
@@ -345,11 +363,17 @@ export function BusinessSettingsForm({
                           </FieldLabel>
                           <FieldContent>
                             <Input
-                              defaultValue={primaryContactEmail}
+                              value={draftValues.contactEmail}
                               disabled={isPending}
                               id="settings-contact-email"
                               maxLength={320}
                               name="contactEmail"
+                              onChange={(event) =>
+                                updateDraftValue(
+                                  "contactEmail",
+                                  event.currentTarget.value,
+                                )
+                              }
                               placeholder="hello@example.com"
                               type="email"
                             />
@@ -380,11 +404,17 @@ export function BusinessSettingsForm({
                       </FieldLabel>
                       <FieldContent>
                         <Textarea
-                          defaultValue={settings.shortDescription ?? ""}
+                          value={draftValues.shortDescription}
                           disabled={isPending}
                           id="settings-short-description"
                           maxLength={280}
                           name="shortDescription"
+                          onChange={(event) =>
+                            updateDraftValue(
+                              "shortDescription",
+                              event.currentTarget.value,
+                            )
+                          }
                           placeholder="Reliable repair, install, and recurring maintenance work for homes and small property portfolios."
                           rows={5}
                         />
@@ -415,18 +445,17 @@ export function BusinessSettingsForm({
                         disabled={isPending}
                         id="settings-country-code"
                         onValueChange={(value) => {
-                          setCountryCode(value);
-
                           const nextCurrency = resolveCurrencyForCountry(value);
-
-                          if (nextCurrency) {
-                            setDefaultCurrency(nextCurrency);
-                          }
+                          setDraftValues((current) => ({
+                            ...current,
+                            countryCode: value,
+                            defaultCurrency: nextCurrency ?? current.defaultCurrency,
+                          }));
                         }}
                         placeholder="Choose a country"
                         searchPlaceholder="Search country"
                         showFlags={false}
-                        value={countryCode}
+                        value={draftValues.countryCode}
                       />
                       <FieldDescription>
                         {selectedCountry
@@ -450,7 +479,9 @@ export function BusinessSettingsForm({
                         aria-invalid={Boolean(defaultCurrencyError) || undefined}
                         disabled={isPending}
                         id="settings-default-currency"
-                        onValueChange={setDefaultCurrency}
+                        onValueChange={(value) =>
+                          updateDraftValue("defaultCurrency", value)
+                        }
                         options={businessCurrencyOptions.map((currencyOption) => ({
                           label: currencyOption.label,
                           searchText: `${currencyOption.code} ${currencyOption.name}`,
@@ -458,11 +489,11 @@ export function BusinessSettingsForm({
                         }))}
                         placeholder="Choose a currency"
                         searchPlaceholder="Search currency"
-                        value={defaultCurrency}
+                        value={draftValues.defaultCurrency}
                       />
                       <FieldDescription>
                         New quotes and pricing entries start with{" "}
-                        {selectedCurrency?.code ?? defaultCurrency}.
+                        {selectedCurrency?.code ?? draftValues.defaultCurrency}.
                       </FieldDescription>
                       <FieldError
                         errors={
@@ -499,12 +530,15 @@ export function BusinessSettingsForm({
                       disabled={isPending}
                       id="settings-ai-tone"
                       onValueChange={(value) =>
-                        setAiTonePreference(value as BusinessAiTonePreference)
+                        updateDraftValue(
+                          "aiTonePreference",
+                          value as BusinessAiTonePreference,
+                        )
                       }
                       options={aiToneComboboxOptions}
                       placeholder="Choose a tone"
                       searchPlaceholder="Search tone"
-                      value={aiTonePreference}
+                      value={draftValues.aiTonePreference}
                     />
                     <FieldError
                       errors={aiToneError ? [{ message: aiToneError }] : undefined}
@@ -528,11 +562,17 @@ export function BusinessSettingsForm({
                   </FieldLabel>
                   <FieldContent>
                     <Textarea
-                      defaultValue={settings.defaultEmailSignature ?? ""}
+                      value={draftValues.defaultEmailSignature}
                       disabled={isPending}
                       id="settings-email-signature"
                       maxLength={1200}
                       name="defaultEmailSignature"
+                      onChange={(event) =>
+                        updateDraftValue(
+                          "defaultEmailSignature",
+                          event.currentTarget.value,
+                        )
+                      }
                       placeholder="Thanks,\nNorthline Home Services"
                       rows={5}
                     />
