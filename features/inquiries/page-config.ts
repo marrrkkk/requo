@@ -41,11 +41,27 @@ function optionalText(maxLength: number) {
 
 export const inquiryPageTemplates = [
   "split",
-  "stacked",
   "showcase",
+  "no_supporting_cards",
 ] as const;
+export const maxInquiryPageCards = 6;
+export const maxInquiryPageCardTitleLength = 48;
+export const maxInquiryPageCardDescriptionLength = 120;
 
 export type InquiryPageTemplate = (typeof inquiryPageTemplates)[number];
+
+function normalizeInquiryPageTemplateValue(value: unknown) {
+  if (value === "stacked") {
+    return "no_supporting_cards";
+  }
+
+  return value;
+}
+
+export const inquiryPageTemplateSchema = z.preprocess(
+  normalizeInquiryPageTemplateValue,
+  z.enum(inquiryPageTemplates),
+);
 
 export const inquiryPageTemplateMeta: Record<
   InquiryPageTemplate,
@@ -58,13 +74,13 @@ export const inquiryPageTemplateMeta: Record<
     label: "Split",
     description: "Story and supporting cards on the left, form on the right.",
   },
-  stacked: {
-    label: "Stacked",
-    description: "Centered intro with supporting cards above a full-width form.",
-  },
   showcase: {
     label: "Showcase",
     description: "A branded lead surface with supporting details beside the form.",
+  },
+  no_supporting_cards: {
+    label: "No supporting cards",
+    description: "Show the intro and inquiry form only, with no supporting card row.",
   },
 };
 
@@ -132,19 +148,25 @@ export const inquiryPageCardSchema = z.object({
     .string()
     .trim()
     .min(1, "Card title is required.")
-    .max(80, "Card title must be 80 characters or fewer."),
+    .max(
+      maxInquiryPageCardTitleLength,
+      `Card title must be ${maxInquiryPageCardTitleLength} characters or fewer.`,
+    ),
   description: z
     .string()
     .trim()
     .min(1, "Card description is required.")
-    .max(240, "Card description must be 240 characters or fewer."),
+    .max(
+      maxInquiryPageCardDescriptionLength,
+      `Card description must be ${maxInquiryPageCardDescriptionLength} characters or fewer.`,
+    ),
   icon: z.enum(inquiryPageCardIconKeys),
 });
 
 export type InquiryPageCard = z.infer<typeof inquiryPageCardSchema>;
 
 export const inquiryPageConfigSchema = z.object({
-  template: z.enum(inquiryPageTemplates),
+  template: inquiryPageTemplateSchema,
   eyebrow: optionalText(48),
   headline: z
     .string()
@@ -159,7 +181,12 @@ export const inquiryPageConfigSchema = z.object({
     .min(1, "Enter a form title.")
     .max(80, "Form title must be 80 characters or fewer."),
   formDescription: optionalText(200),
-  cards: z.array(inquiryPageCardSchema).max(8, "Use 8 supporting cards or fewer."),
+  cards: z
+    .array(inquiryPageCardSchema)
+    .max(
+      maxInquiryPageCards,
+      `Use ${maxInquiryPageCards} supporting cards or fewer.`,
+    ),
 });
 
 export type InquiryPageConfig = z.infer<typeof inquiryPageConfigSchema>;
@@ -447,7 +474,7 @@ export function createInquiryPageConfigDefaults({
     resolvedBusinessType === "event_services_rentals"
       ? "showcase"
       : resolvedBusinessType === "consulting_professional_services"
-        ? "stacked"
+        ? "no_supporting_cards"
         : "split");
 
   let eyebrow = "Inquiry";

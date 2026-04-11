@@ -180,6 +180,7 @@ export type BusinessInquiryFormPreviewDraft = {
   formName: string;
   formSlug: string;
   inquiryFormConfig: InquiryFormConfig;
+  inquiryPageConfig: InquiryPageConfig;
 };
 
 export type BusinessInquiryPagePreviewDraft = {
@@ -191,7 +192,9 @@ export type BusinessInquiryFormFieldName =
   | "name"
   | "slug"
   | "businessType"
-  | "inquiryFormConfig";
+  | "inquiryFormConfig"
+  | "formTitle"
+  | "formDescription";
 
 export type BusinessInquiryFormFieldErrors = Partial<
   Record<BusinessInquiryFormFieldName, string[] | undefined>

@@ -8,7 +8,11 @@ import {
 } from "@/features/businesses/locale";
 import { businessTypes } from "@/features/inquiries/business-types";
 import { inquiryFormConfigSchema } from "@/features/inquiries/form-config";
-import { inquiryPageCardSchema, inquiryPageTemplates } from "@/features/inquiries/page-config";
+import {
+  inquiryPageCardSchema,
+  inquiryPageTemplateSchema,
+  maxInquiryPageCards,
+} from "@/features/inquiries/page-config";
 import { isAcceptedFileType } from "@/lib/files";
 import {
   normalizePublicSlugInput,
@@ -232,7 +236,7 @@ export const businessInquiryPageSettingsSchema = z.object({
     .min(1, "Choose a form.")
     .max(128, "Form id is too long."),
   publicInquiryEnabled: formBoolean(),
-  template: z.enum(inquiryPageTemplates),
+  template: inquiryPageTemplateSchema,
   eyebrow: optionalText(48),
   headline: z
     .string()
@@ -248,7 +252,12 @@ export const businessInquiryPageSettingsSchema = z.object({
     .max(80, "Use 80 characters or fewer."),
   formDescription: optionalText(200),
   cards: jsonField(
-    z.array(inquiryPageCardSchema).max(8, "Use 8 supporting cards or fewer."),
+    z
+      .array(inquiryPageCardSchema)
+      .max(
+        maxInquiryPageCards,
+        `Use ${maxInquiryPageCards} supporting cards or fewer.`,
+      ),
     [],
   ),
 });
@@ -279,6 +288,12 @@ export const businessInquiryFormSettingsSchema = z.object({
       "Use lowercase letters, numbers, and hyphens only.",
     ),
   businessType: z.enum(businessTypes),
+  formTitle: z
+    .string()
+    .trim()
+    .min(1, "Enter a form heading.")
+    .max(80, "Use 80 characters or fewer."),
+  formDescription: optionalText(200),
   inquiryFormConfig: jsonField(inquiryFormConfigSchema, Symbol.for("invalid-json-field")),
 });
 
