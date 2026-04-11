@@ -47,8 +47,8 @@ export function PublicInquiryPageRenderer({
           ) : null}
         </header>
 
-        {config.template === "stacked" ? (
-          <StackedInquiryTemplate
+        {config.template === "no_supporting_cards" ? (
+          <NoSupportingCardsInquiryTemplate
             business={business}
             action={action}
             previewMode={previewMode}
@@ -84,6 +84,7 @@ function SplitInquiryTemplate({
     <PublicHeroSurface className="lg:py-12">
       <div className="flex flex-col gap-6 xl:hidden">
         <InquiryIntro business={business} />
+        <InquirySupportCards cards={config.cards} />
         <InquiryFormCard
           action={action}
           title={config.formTitle}
@@ -91,11 +92,10 @@ function SplitInquiryTemplate({
           previewMode={previewMode}
           business={business}
         />
-        <InquirySupportCards cards={config.cards} />
       </div>
 
-      <div className="hidden gap-10 xl:grid xl:grid-cols-[minmax(0,0.92fr)_minmax(22rem,0.8fr)] xl:items-start">
-        <div className="flex min-w-0 flex-col gap-6">
+      <div className="hidden gap-12 xl:grid xl:grid-cols-[minmax(0,0.96fr)_minmax(22rem,0.84fr)] xl:items-start">
+        <div className="flex min-w-0 flex-col gap-7">
           <InquiryIntro business={business} />
           <InquirySupportCards cards={config.cards} />
         </div>
@@ -113,7 +113,7 @@ function SplitInquiryTemplate({
   );
 }
 
-function StackedInquiryTemplate({
+function NoSupportingCardsInquiryTemplate({
   business,
   action,
   previewMode,
@@ -122,12 +122,10 @@ function StackedInquiryTemplate({
 
   return (
     <PublicHeroSurface className="lg:py-12">
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-10">
         <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-4 text-center">
           <InquiryIntro business={business} align="center" />
         </div>
-
-        <InquirySupportCards cards={config.cards} variant="stacked" />
 
         <div className="mx-auto w-full max-w-4xl">
           <InquiryFormCard
@@ -152,7 +150,7 @@ function ShowcaseInquiryTemplate({
 
   return (
     <PublicHeroSurface className="lg:py-12">
-      <div className="grid gap-8 lg:grid-cols-[minmax(20rem,0.88fr)_minmax(0,1.12fr)]">
+      <div className="grid gap-10 lg:grid-cols-[minmax(22rem,0.92fr)_minmax(0,1.08fr)]">
         <InquiryFormCard
           action={action}
           title={config.formTitle}
@@ -162,15 +160,15 @@ function ShowcaseInquiryTemplate({
           className="lg:sticky lg:top-6"
         />
 
-        <div className="flex min-w-0 flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-7">
           <div className="hero-panel">
-            <div className="grid gap-6 p-6 lg:grid-cols-[13rem_minmax(0,1fr)] lg:p-8">
+            <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[14rem_minmax(0,1fr)] lg:p-7">
               <BusinessInquirySpotlight business={business} />
               <InquiryIntro business={business} />
             </div>
           </div>
 
-          <InquirySupportCards cards={config.cards} variant="showcase" />
+          <InquirySupportCards cards={config.cards} />
         </div>
       </div>
     </PublicHeroSurface>
@@ -205,7 +203,7 @@ function BusinessInquirySpotlight({
   const brandTagline = business.inquiryPageConfig.brandTagline;
 
   return (
-    <div className="soft-panel flex h-full flex-col justify-between gap-4 bg-secondary/70 p-5 shadow-none">
+    <div className="soft-panel flex h-full flex-col justify-between gap-5 bg-secondary/70 p-6 shadow-none">
       <BusinessBrandBadge business={business} size="lg" />
       <div className="space-y-2">
         <p className="meta-label">Business</p>
@@ -288,21 +286,16 @@ function InquiryIntro({
 
 function InquirySupportCards({
   cards,
-  variant = "split",
 }: {
   cards: PublicInquiryBusiness["inquiryPageConfig"]["cards"];
-  variant?: "split" | "stacked" | "showcase";
 }) {
   if (!cards.length) {
     return null;
   }
 
-  const gridClassName =
-    variant === "stacked"
-      ? "grid gap-3 md:grid-cols-2 xl:grid-cols-3"
-      : variant === "showcase"
-        ? "grid gap-3 md:grid-cols-2"
-        : "grid gap-3";
+  const gridClassName = cn(
+    "grid w-full items-stretch gap-4 sm:gap-5",
+  );
 
   return (
     <div className={gridClassName}>
@@ -310,16 +303,24 @@ function InquirySupportCards({
         const Icon = inquiryPageCardIconMeta[card.icon].icon;
 
         return (
-          <Card key={card.id} size="sm" className="bg-background/92">
-            <CardHeader className="gap-3">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-                <Icon className="size-4" />
-              </div>
-              <div className="flex flex-col gap-1">
-                <CardTitle>{card.title}</CardTitle>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  {card.description}
-                </p>
+          <Card
+            key={card.id}
+            size="sm"
+            className="w-full bg-background/94"
+          >
+            <CardHeader className="px-5 py-4">
+              <div className="flex items-center gap-3.5">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent/85 text-accent-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
+                  <Icon className="size-4" />
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col justify-center">
+                  <CardTitle className="text-[1.02rem] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
+                    {card.title}
+                  </CardTitle>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
+                    {card.description}
+                  </p>
+                </div>
               </div>
             </CardHeader>
           </Card>
