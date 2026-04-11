@@ -101,15 +101,6 @@ const aiToneComboboxOptions = aiToneOptions.map((value) => ({
   value,
 }));
 
-const cropAspectOptions = [
-  { id: "original", label: "Original" },
-  { id: "square", label: "Square" },
-  { id: "wide", label: "Wide" },
-  { id: "tall", label: "Tall" },
-] as const;
-
-type CropAspectId = (typeof cropAspectOptions)[number]["id"];
-
 type LoadedLogoAsset = {
   file: File;
   url: string;
@@ -627,7 +618,6 @@ function BusinessLogoField({
   const inputRef = useRef<HTMLInputElement>(null);
   const [draftAsset, setDraftAsset] = useState<LoadedLogoAsset | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
-  const [cropAspect, setCropAspect] = useState<CropAspectId>("original");
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
@@ -675,7 +665,6 @@ function BusinessLogoField({
 
         return null;
       });
-      setCropAspect("original");
       setCrop({ x: 0, y: 0 });
       setZoom(1);
       setCroppedAreaPixels(null);
@@ -684,13 +673,6 @@ function BusinessLogoField({
   }, [resetSignal]);
 
   const currentPreviewUrl = !removeLogo ? previewUrl ?? initialPreviewUrl : null;
-  const logoStatusLabel = previewUrl
-    ? "Pending update"
-    : removeLogo
-      ? "Removing logo"
-      : currentPreviewUrl
-        ? "Logo uploaded"
-        : null;
 
   async function handleLogoSelection(event: React.ChangeEvent<HTMLInputElement>) {
     const nextFile = event.currentTarget.files?.[0];
@@ -711,7 +693,6 @@ function BusinessLogoField({
 
         return nextAsset;
       });
-      setCropAspect("original");
       setCrop({ x: 0, y: 0 });
       setZoom(1);
       setCroppedAreaPixels(null);
@@ -739,21 +720,13 @@ function BusinessLogoField({
 
       return null;
     });
-    setCropAspect("original");
     setCrop({ x: 0, y: 0 });
     setZoom(1);
     setCroppedAreaPixels(null);
   }
 
   async function applyCrop() {
-    console.log("applyCrop called", {
-      draftAsset: !!draftAsset,
-      croppedAreaPixels: !!croppedAreaPixels,
-      inputRef: !!inputRef.current,
-    });
-
     if (!draftAsset || !croppedAreaPixels || !inputRef.current) {
-      console.log("Early return from applyCrop");
       return;
     }
 
@@ -775,9 +748,7 @@ function BusinessLogoField({
           URL.revokeObjectURL(currentPreviewUrlValue);
         }
 
-        const url = URL.createObjectURL(croppedFile);
-        console.log("Preview URL set to:", url);
-        return url;
+        return URL.createObjectURL(croppedFile);
       });
       onRemoveLogoChange(false);
       setCropOpen(false);
@@ -792,7 +763,6 @@ function BusinessLogoField({
       setZoom(1);
       setCroppedAreaPixels(null);
     } catch (error) {
-      console.error("Error in applyCrop:", error);
       setLocalError(
         error instanceof Error
           ? error.message
@@ -892,17 +862,9 @@ function BusinessLogoField({
               </div>
 
               <div className="min-w-0 max-w-full space-y-2">
-                <div className="space-y-1">
-                  <p className="text-base font-semibold tracking-tight text-foreground">
-                    {businessName}
-                  </p>
-                </div>
-
-                {logoStatusLabel ? (
-                  <span className="inline-flex items-center rounded-full border border-border/75 bg-background/90 px-3 py-1 text-[0.72rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                    {logoStatusLabel}
-                  </span>
-                ) : null}
+                <p className="text-base font-semibold tracking-tight text-foreground">
+                  {businessName}
+                </p>
               </div>
             </div>
           </div>
@@ -926,21 +888,25 @@ function BusinessLogoField({
                 </div>
               ) : null}
               {showRemoveToggle && !previewUrl ? (
-                <label className="soft-panel flex items-start gap-3 px-4 py-3 shadow-none">
-                  <input
-                    checked={removeLogo}
-                    className="mt-1 size-4 accent-current"
-                    disabled={disabled}
-                    onChange={(event) => onRemoveLogoChange(event.currentTarget.checked)}
-                    type="checkbox"
-                  />
-                  <span className="flex flex-col gap-1 text-sm">
-                    <span className="font-medium text-foreground">
-                      Remove current logo
-                    </span>
-                    <span className="text-muted-foreground">Falls back to initials.</span>
-                  </span>
-                </label>
+                <div className="flex flex-col gap-1 text-sm">
+                  <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                    <Button
+                      aria-pressed={removeLogo}
+                      disabled={disabled}
+                      onClick={() => onRemoveLogoChange(!removeLogo)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      {removeLogo ? "Keep logo" : "Remove logo"}
+                    </Button>
+                  </div>
+                  {removeLogo ? (
+                    <p className="text-muted-foreground">
+                      Falls back to initials after save.
+                    </p>
+                  ) : null}
+                </div>
               ) : null}
               {localError || fieldError ? (
                 <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
@@ -971,7 +937,7 @@ function BusinessLogoField({
               <div className="soft-panel relative min-h-[26rem] overflow-hidden bg-muted/25">
                 {draftAsset ? (
                   <Cropper
-                    aspect={getCropAspectRatio(cropAspect, draftAsset)}
+                    aspect={1}
                     crop={crop}
                     cropShape="rect"
                     image={draftAsset.url}
@@ -991,22 +957,6 @@ function BusinessLogoField({
             </div>
 
             <div className="flex flex-col gap-5">
-              <div className="space-y-3">
-                <p className="meta-label">Aspect</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {cropAspectOptions.map((option) => (
-                    <Button
-                      key={option.id}
-                      onClick={() => setCropAspect(option.id)}
-                      type="button"
-                      variant={cropAspect === option.id ? "secondary" : "outline"}
-                    >
-                      {option.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
               <FieldGroup>
                 <Field>
                   <FieldLabel htmlFor="logo-crop-zoom">Zoom</FieldLabel>
@@ -1041,13 +991,7 @@ function BusinessLogoField({
               <Button onClick={closeCropper} type="button" variant="outline">
                 Cancel
               </Button>
-              <Button 
-                onClick={() => {
-                  console.log("Button clicked");
-                  applyCrop();
-                }} 
-                type="button"
-              >
+              <Button onClick={applyCrop} type="button">
                 Use cropped logo
               </Button>
             </div>
@@ -1056,22 +1000,6 @@ function BusinessLogoField({
       </Dialog>
     </>
   );
-}
-
-function getCropAspectRatio(
-  cropAspect: CropAspectId,
-  asset: LoadedLogoAsset | null,
-) {
-  switch (cropAspect) {
-    case "square":
-      return 1;
-    case "wide":
-      return 16 / 9;
-    case "tall":
-      return 4 / 5;
-    case "original":
-      return asset ? asset.width / asset.height : 1;
-  }
 }
 
 async function loadLogoAsset(file: File): Promise<LoadedLogoAsset> {
