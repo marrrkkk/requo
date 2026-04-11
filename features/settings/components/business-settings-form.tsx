@@ -49,6 +49,8 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useProgressRouter } from "@/hooks/use-progress-router";
+import { Camera } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   businessCurrencyOptions,
   getBusinessCountryOption,
@@ -822,21 +824,61 @@ function BusinessLogoField({
 
           <div className="rounded-3xl border border-border/75 bg-background/80 px-5 py-5">
             <div className="flex flex-col items-center gap-4 text-center">
-              <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.6rem] border border-border/75 bg-background/92 shadow-[0_10px_28px_rgba(15,23,42,0.08)] xl:size-28">
-                {currentPreviewUrl ? (
-                  <Image
-                    alt={`${businessName} logo`}
-                    className="max-h-[68%] w-auto object-contain"
-                    height={112}
-                    src={currentPreviewUrl}
-                    unoptimized
-                    width={112}
-                  />
-                ) : (
-                  <span className="text-lg font-semibold uppercase tracking-[0.18em] text-foreground">
-                    {getInitials(businessName)}
+              <div className="group relative">
+                <input
+                  ref={inputRef}
+                  accept={businessLogoAccept}
+                  className="sr-only"
+                  disabled={disabled}
+                  id="settings-logo"
+                  name="logo"
+                  onChange={handleLogoSelection}
+                  type="file"
+                />
+                <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.6rem] border border-border/75 bg-background/92 shadow-[0_10px_28px_rgba(15,23,42,0.08)] transition-transform duration-150 group-hover:scale-[1.01] xl:size-28">
+                  {currentPreviewUrl ? (
+                    <Image
+                      alt={`${businessName} logo`}
+                      className="max-h-[68%] w-auto object-contain"
+                      height={112}
+                      src={currentPreviewUrl}
+                      unoptimized
+                      width={112}
+                    />
+                  ) : (
+                    <span className="text-lg font-semibold uppercase tracking-[0.18em] text-foreground">
+                      {getInitials(businessName)}
+                    </span>
+                  )}
+                </div>
+                <label
+                  className={cn(
+                    "absolute inset-0 flex cursor-pointer items-end justify-end rounded-[1.6rem] focus-within:outline-none",
+                    disabled && "pointer-events-none cursor-default opacity-60",
+                  )}
+                  htmlFor="settings-logo"
+                  onKeyDown={(event) => {
+                    if (
+                      disabled ||
+                      (event.key !== "Enter" && event.key !== " ")
+                    ) {
+                      return;
+                    }
+
+                    event.preventDefault();
+                    inputRef.current?.click();
+                  }}
+                  role="button"
+                  tabIndex={disabled ? -1 : 0}
+                >
+                  <span className="absolute inset-0 rounded-[1.6rem] bg-foreground/0 transition-colors duration-150 sm:group-hover:bg-foreground/10 sm:group-focus-within:bg-foreground/10" />
+                  <span className="relative mr-1.5 mb-1.5 inline-flex size-10 items-center justify-center rounded-full border border-border/80 bg-background/94 text-foreground shadow-[0_8px_20px_rgba(15,23,42,0.14)] transition-[transform,opacity] duration-150 opacity-100 sm:translate-y-1 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:group-focus-within:translate-y-0 sm:group-focus-within:opacity-100">
+                    <Camera className="size-4" />
+                    <span className="sr-only">
+                      {currentPreviewUrl ? "Update logo" : "Upload logo"}
+                    </span>
                   </span>
-                )}
+                </label>
               </div>
 
               <div className="min-w-0 max-w-full space-y-2">
@@ -856,63 +898,46 @@ function BusinessLogoField({
           </div>
 
           <div className="border-t border-border/70 pt-5">
-            <Field data-invalid={Boolean(fieldError || localError) || undefined}>
-              <FieldLabel htmlFor="settings-logo">Upload new logo</FieldLabel>
-              <FieldContent>
-                <FieldDescription>JPG, PNG, or WEBP up to 2 MB.</FieldDescription>
-                <Input
-                  ref={inputRef}
-                  accept={businessLogoAccept}
-                  disabled={disabled}
-                  id="settings-logo"
-                  name="logo"
-                  onChange={handleLogoSelection}
-                  type="file"
-                />
-                {previewUrl ? (
-                  <div className="soft-panel mt-4 flex flex-col gap-3 px-4 py-3 text-sm shadow-none sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="font-medium text-foreground">Cropped logo ready</p>
-                      <p className="text-muted-foreground">Uploads after save.</p>
-                    </div>
-                    <Button
-                      disabled={disabled}
-                      onClick={clearPendingLogo}
-                      type="button"
-                      variant="outline"
-                    >
-                      Clear
-                    </Button>
+            <div className="flex flex-col gap-3">
+              {previewUrl ? (
+                <div className="soft-panel flex flex-col gap-3 px-4 py-3 text-sm shadow-none sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium text-foreground">Cropped logo ready</p>
+                    <p className="text-muted-foreground">Uploads after save.</p>
                   </div>
-                ) : null}
-                {showRemoveToggle && !previewUrl ? (
-                  <label className="soft-panel mt-4 flex items-start gap-3 px-4 py-3 shadow-none">
-                    <input
-                      checked={removeLogo}
-                      className="mt-1 size-4 accent-current"
-                      disabled={disabled}
-                      onChange={(event) => onRemoveLogoChange(event.currentTarget.checked)}
-                      type="checkbox"
-                    />
-                    <span className="flex flex-col gap-1 text-sm">
-                      <span className="font-medium text-foreground">
-                        Remove current logo
-                      </span>
-                      <span className="text-muted-foreground">Falls back to initials.</span>
+                  <Button
+                    disabled={disabled}
+                    onClick={clearPendingLogo}
+                    type="button"
+                    variant="outline"
+                  >
+                    Clear
+                  </Button>
+                </div>
+              ) : null}
+              {showRemoveToggle && !previewUrl ? (
+                <label className="soft-panel flex items-start gap-3 px-4 py-3 shadow-none">
+                  <input
+                    checked={removeLogo}
+                    className="mt-1 size-4 accent-current"
+                    disabled={disabled}
+                    onChange={(event) => onRemoveLogoChange(event.currentTarget.checked)}
+                    type="checkbox"
+                  />
+                  <span className="flex flex-col gap-1 text-sm">
+                    <span className="font-medium text-foreground">
+                      Remove current logo
                     </span>
-                  </label>
-                ) : null}
-                <FieldError
-                  errors={
-                    localError
-                      ? [{ message: localError }]
-                      : fieldError
-                        ? [{ message: fieldError }]
-                        : undefined
-                  }
-                />
-              </FieldContent>
-            </Field>
+                    <span className="text-muted-foreground">Falls back to initials.</span>
+                  </span>
+                </label>
+              ) : null}
+              {localError || fieldError ? (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                  {localError || fieldError}
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>

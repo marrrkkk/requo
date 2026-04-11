@@ -27,7 +27,7 @@ type StarterTemplateDefinition = {
   businessType: StarterTemplateBusinessType;
   label: string;
   description: string;
-  helperText: string;
+  helperText?: string;
   recommendedFields: readonly string[];
   statusSummary: string;
   defaultQuoteNotes: string;
