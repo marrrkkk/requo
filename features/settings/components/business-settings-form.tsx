@@ -746,7 +746,14 @@ function BusinessLogoField({
   }
 
   async function applyCrop() {
+    console.log("applyCrop called", {
+      draftAsset: !!draftAsset,
+      croppedAreaPixels: !!croppedAreaPixels,
+      inputRef: !!inputRef.current,
+    });
+
     if (!draftAsset || !croppedAreaPixels || !inputRef.current) {
+      console.log("Early return from applyCrop");
       return;
     }
 
@@ -768,7 +775,9 @@ function BusinessLogoField({
           URL.revokeObjectURL(currentPreviewUrlValue);
         }
 
-        return URL.createObjectURL(croppedFile);
+        const url = URL.createObjectURL(croppedFile);
+        console.log("Preview URL set to:", url);
+        return url;
       });
       onRemoveLogoChange(false);
       setCropOpen(false);
@@ -783,6 +792,7 @@ function BusinessLogoField({
       setZoom(1);
       setCroppedAreaPixels(null);
     } catch (error) {
+      console.error("Error in applyCrop:", error);
       setLocalError(
         error instanceof Error
           ? error.message
@@ -1031,7 +1041,13 @@ function BusinessLogoField({
               <Button onClick={closeCropper} type="button" variant="outline">
                 Cancel
               </Button>
-              <Button onClick={applyCrop} type="button">
+              <Button 
+                onClick={() => {
+                  console.log("Button clicked");
+                  applyCrop();
+                }} 
+                type="button"
+              >
                 Use cropped logo
               </Button>
             </div>
