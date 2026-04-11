@@ -1,17 +1,37 @@
 "use client";
 
 import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type MutableRefObject,
   type ReactNode,
 } from "react";
 import {
   ChevronDown,
   Eye,
+  GripVertical,
   MoreHorizontal,
   PencilLine,
   Plus,
@@ -83,6 +103,13 @@ import { cn } from "@/lib/utils";
 
 const MAX_CUSTOM_PROJECT_FIELDS = 12;
 const MAX_CUSTOM_FIELD_OPTIONS = 12;
+const inquiryProjectFieldsDndContextId = "business-inquiry-project-fields-dnd";
+const inquiryProjectFieldsSortableContextId =
+  "business-inquiry-project-fields-sortable";
+const inquirySortableTransition = {
+  duration: 160,
+  easing: "cubic-bezier(0.25, 1, 0.5, 1)",
+} as const;
 
 type BusinessInquiryFormFormProps = {
   applyPresetAction: (
@@ -95,7 +122,8 @@ type BusinessInquiryFormFormProps = {
   ) => Promise<BusinessInquiryFormActionState>;
   onDraftChange: (draft: BusinessInquiryFormPreviewDraft) => void;
   onPreview: () => void;
-  onUnsavedChangesChange: (hasUnsavedChanges: boolean) => void;
+  draft: BusinessInquiryFormPreviewDraft;
+  isActive: boolean;
   settings: BusinessInquiryFormSettingsView;
 };
 
@@ -106,7 +134,8 @@ export function BusinessInquiryFormForm({
   saveAction,
   onDraftChange,
   onPreview,
-  onUnsavedChangesChange,
+  draft,
+  isActive,
   settings,
 }: BusinessInquiryFormFormProps) {
   const normalizedSettingsConfig = useMemo(
@@ -121,32 +150,36 @@ export function BusinessInquiryFormForm({
     useActionStateWithSonner(saveAction, initialState);
   const [presetState, presetFormAction, isPresetPending] =
     useActionStateWithSonner(applyPresetAction, initialState);
-  const [businessType, setBusinessType] = useState(settings.businessType);
-  const [contactFields, setContactFields] = useState(
-    normalizedSettingsConfig.contactFields,
-  );
-  const [projectFields, setProjectFields] = useState(
-    normalizedSettingsConfig.projectFields,
-  );
-  const [groupLabels, setGroupLabels] = useState(normalizedSettingsConfig.groupLabels);
+  const [businessType, setBusinessType] = useState(draft.businessType);
+  const [contactFields, setContactFields] = useState(draft.inquiryFormConfig.contactFields);
+  const [projectFields, setProjectFields] = useState(draft.inquiryFormConfig.projectFields);
+  const [groupLabels, setGroupLabels] = useState(draft.inquiryFormConfig.groupLabels);
   const [isPresetDialogOpen, setIsPresetDialogOpen] = useState(false);
   const [isEditingProjectGroupLabel, setIsEditingProjectGroupLabel] = useState(false);
-  const [projectGroupLabelDraft, setProjectGroupLabelDraft] = useState(() => {
-    return normalizedSettingsConfig.groupLabels.project;
-  });
+  const [projectGroupLabelDraft, setProjectGroupLabelDraft] = useState(
+    draft.inquiryFormConfig.groupLabels.project,
+  );
   const formRef = useRef<HTMLFormElement>(null);
   const projectFieldLabelInputRefs = useRef(new Map<string, HTMLInputElement | null>());
   const projectFieldCardRefs = useRef(new Map<string, HTMLDivElement | null>());
   const projectFieldRectsRef = useRef(new Map<string, DOMRect>());
   const projectFieldAnimationsRef = useRef(new Map<string, Animation>());
   const projectFieldTimeoutsRef = useRef<number[]>([]);
-  const [nameDraft, setNameDraft] = useState(settings.formName);
-  const [slugDraft, setSlugDraft] = useState(settings.formSlug);
+  const skipNextProjectFieldLayoutAnimationRef = useRef(false);
+  const [nameDraft, setNameDraft] = useState(draft.formName);
+  const [slugDraft, setSlugDraft] = useState(draft.formSlug);
+  const [formTitleDraft, setFormTitleDraft] = useState(
+    draft.inquiryPageConfig.formTitle,
+  );
+  const [formDescriptionDraft, setFormDescriptionDraft] = useState(
+    draft.inquiryPageConfig.formDescription ?? "",
+  );
   const [enteringProjectFieldIds, setEnteringProjectFieldIds] = useState<string[]>([]);
   const [exitingProjectFieldIds, setExitingProjectFieldIds] = useState<string[]>([]);
   const [pendingProjectFieldFocusId, setPendingProjectFieldFocusId] = useState<
     string | null
   >(null);
+  const wasActiveRef = useRef(isActive);
 
   useEffect(() => {
     if (!presetState.success) {
@@ -201,7 +234,10 @@ export function BusinessInquiryFormForm({
 
   const hasConfigChanges = serializedConfig !== initialSerializedConfig;
   const hasTextInputChanges =
-    nameDraft !== settings.formName || slugDraft !== settings.formSlug;
+    nameDraft !== settings.formName ||
+    slugDraft !== settings.formSlug ||
+    formTitleDraft !== settings.inquiryPageConfig.formTitle ||
+    formDescriptionDraft !== (settings.inquiryPageConfig.formDescription ?? "");
   const hasUnsavedChanges = hasConfigChanges || hasTextInputChanges;
   const previewDraft = useMemo(
     () => ({
@@ -215,13 +251,21 @@ export function BusinessInquiryFormForm({
         contactFields,
         projectFields: activeProjectFields,
       } satisfies InquiryFormConfig,
+      inquiryPageConfig: {
+        ...settings.inquiryPageConfig,
+        formTitle: formTitleDraft.trim(),
+        formDescription: normalizeOptionalText(formDescriptionDraft),
+      },
     }),
     [
       activeProjectFields,
       businessType,
       contactFields,
+      formDescriptionDraft,
+      formTitleDraft,
       groupLabels,
       nameDraft,
+      settings.inquiryPageConfig,
       slugDraft,
     ],
   );
@@ -232,14 +276,25 @@ export function BusinessInquiryFormForm({
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+
     onDraftChange(previewDraft);
-  }, [onDraftChange, previewDraft]);
+  }, [isActive, onDraftChange, previewDraft]);
 
   useEffect(() => {
-    onUnsavedChangesChange(hasUnsavedChanges);
-  }, [hasUnsavedChanges, onUnsavedChangesChange]);
+    if (!isActive || wasActiveRef.current) {
+      wasActiveRef.current = isActive;
+      return;
+    }
 
-  useEffect(() => {
+    wasActiveRef.current = isActive;
+
+    if (draftMatchesState({ draft, previewDraft })) {
+      return;
+    }
+
     queueMicrotask(() => {
       clearProjectFieldTimers(projectFieldTimeoutsRef);
       projectFieldRectsRef.current = new Map();
@@ -247,27 +302,21 @@ export function BusinessInquiryFormForm({
         animation.cancel();
       }
       projectFieldAnimationsRef.current.clear();
-      setBusinessType(settings.businessType);
-      setContactFields(normalizedSettingsConfig.contactFields);
-      setProjectFields(normalizedSettingsConfig.projectFields);
-      setGroupLabels(normalizedSettingsConfig.groupLabels);
-      setProjectGroupLabelDraft(normalizedSettingsConfig.groupLabels.project);
+      setBusinessType(draft.businessType);
+      setContactFields(draft.inquiryFormConfig.contactFields);
+      setProjectFields(draft.inquiryFormConfig.projectFields);
+      setGroupLabels(draft.inquiryFormConfig.groupLabels);
+      setProjectGroupLabelDraft(draft.inquiryFormConfig.groupLabels.project);
       setIsEditingProjectGroupLabel(false);
-      setNameDraft(settings.formName);
-      setSlugDraft(settings.formSlug);
+      setNameDraft(draft.formName);
+      setSlugDraft(draft.formSlug);
+      setFormTitleDraft(draft.inquiryPageConfig.formTitle);
+      setFormDescriptionDraft(draft.inquiryPageConfig.formDescription ?? "");
       setEnteringProjectFieldIds([]);
       setExitingProjectFieldIds([]);
       setPendingProjectFieldFocusId(null);
     });
-  }, [
-    normalizedSettingsConfig.contactFields,
-    normalizedSettingsConfig.groupLabels,
-    normalizedSettingsConfig.projectFields,
-    settings.businessType,
-    settings.formId,
-    settings.formName,
-    settings.formSlug,
-  ]);
+  }, [draft, isActive, previewDraft]);
 
   useLayoutEffect(() => {
     const nextRects = new Map<string, DOMRect>();
@@ -283,7 +332,7 @@ export function BusinessInquiryFormForm({
       const nextRect = node.getBoundingClientRect();
       nextRects.set(fieldId, nextRect);
 
-      if (prefersReducedMotion) {
+      if (prefersReducedMotion || skipNextProjectFieldLayoutAnimationRef.current) {
         continue;
       }
 
@@ -323,6 +372,10 @@ export function BusinessInquiryFormForm({
             projectFieldAnimationsRef.current.delete(fieldId);
           }
         });
+    }
+
+    if (skipNextProjectFieldLayoutAnimationRef.current) {
+      skipNextProjectFieldLayoutAnimationRef.current = false;
     }
 
     projectFieldRectsRef.current = nextRects;
@@ -569,6 +622,8 @@ export function BusinessInquiryFormForm({
   const businessTypeError = saveState.fieldErrors?.businessType?.[0];
   const nameError = saveState.fieldErrors?.name?.[0];
   const slugError = saveState.fieldErrors?.slug?.[0];
+  const formTitleError = saveState.fieldErrors?.formTitle?.[0];
+  const formDescriptionError = saveState.fieldErrors?.formDescription?.[0];
 
   function handleCancelChanges() {
     formRef.current?.reset();
@@ -580,6 +635,8 @@ export function BusinessInquiryFormForm({
     setIsEditingProjectGroupLabel(false);
     setNameDraft(settings.formName);
     setSlugDraft(settings.formSlug);
+    setFormTitleDraft(settings.inquiryPageConfig.formTitle);
+    setFormDescriptionDraft(settings.inquiryPageConfig.formDescription ?? "");
     setEnteringProjectFieldIds([]);
     setExitingProjectFieldIds([]);
     setPendingProjectFieldFocusId(null);
@@ -614,6 +671,56 @@ export function BusinessInquiryFormForm({
   );
   const hasReachedCustomFieldLimit = customProjectFieldCount >= MAX_CUSTOM_PROJECT_FIELDS;
   const isFieldInteractionLocked = isSavePending || exitingProjectFieldIds.length > 0;
+  const projectFieldSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 6,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  function resetProjectFieldAnimations() {
+    for (const animation of projectFieldAnimationsRef.current.values()) {
+      animation.cancel();
+    }
+
+    projectFieldAnimationsRef.current.clear();
+  }
+
+  function handleProjectFieldDragStart() {
+    resetProjectFieldAnimations();
+  }
+
+  function handleProjectFieldDragCancel() {
+    skipNextProjectFieldLayoutAnimationRef.current = false;
+  }
+
+  function handleProjectFieldDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    skipNextProjectFieldLayoutAnimationRef.current = true;
+    setProjectFields((currentFields) => {
+      const activeIndex = currentFields.findIndex(
+        (field) => getFieldId(field) === active.id,
+      );
+      const overIndex = currentFields.findIndex(
+        (field) => getFieldId(field) === over.id,
+      );
+
+      if (activeIndex < 0 || overIndex < 0) {
+        return currentFields;
+      }
+
+      return arrayMove(currentFields, activeIndex, overIndex);
+    });
+  }
 
   return (
     <>
@@ -624,6 +731,12 @@ export function BusinessInquiryFormForm({
       >
         <input name="formId" type="hidden" value={settings.formId} />
         <input name="businessType" type="hidden" value={businessType} />
+        <input name="formTitle" type="hidden" value={formTitleDraft} />
+        <input
+          name="formDescription"
+          type="hidden"
+          value={formDescriptionDraft}
+        />
         <input name="inquiryFormConfig" type="hidden" value={serializedConfig} />
 
         <div className="flex flex-col gap-8 sm:gap-10">
@@ -642,10 +755,10 @@ export function BusinessInquiryFormForm({
                 <div className="space-y-2">
                   <p className="meta-label">Form details</p>
                   <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
-                    Public form identity
+                    Identity and copy
                   </p>
                   <p className="text-sm leading-6 text-muted-foreground">
-                    Update the internal name, public URL slug, and business type.
+                    Update the form name, public URL slug, business type, and the text shown above the form.
                   </p>
                 </div>
 
@@ -740,6 +853,73 @@ export function BusinessInquiryFormForm({
                       />
                     </FieldContent>
                   </Field>
+                </div>
+
+                <div className="mt-6 border-t border-border/70 pt-6">
+                  <div className="space-y-1">
+                    <p className="meta-label">Public form</p>
+                    <p className="text-[0.95rem] font-semibold tracking-tight text-foreground">
+                      Heading and note
+                    </p>
+                    <p className="text-sm leading-6 text-muted-foreground">
+                      Shown at the top of the inquiry form on the public page.
+                    </p>
+                  </div>
+
+                  <div className="mt-5 grid gap-5 lg:grid-cols-2">
+                    <Field data-invalid={Boolean(formTitleError) || undefined}>
+                      <FieldLabel htmlFor="business-inquiry-form-title">
+                        Form heading
+                      </FieldLabel>
+                      <FieldContent>
+                        <Input
+                          aria-invalid={Boolean(formTitleError) || undefined}
+                          disabled={isSavePending}
+                          id="business-inquiry-form-title"
+                          maxLength={80}
+                          name="formTitleInput"
+                          onChange={(event) => {
+                            setFormTitleDraft(event.currentTarget.value);
+                          }}
+                          placeholder="Send inquiry"
+                          required
+                          value={formTitleDraft}
+                        />
+                        <FieldError
+                          errors={
+                            formTitleError ? [{ message: formTitleError }] : undefined
+                          }
+                        />
+                      </FieldContent>
+                    </Field>
+
+                    <Field data-invalid={Boolean(formDescriptionError) || undefined}>
+                      <FieldLabel htmlFor="business-inquiry-form-description">
+                        Optional note
+                      </FieldLabel>
+                      <FieldContent>
+                        <Input
+                          aria-invalid={Boolean(formDescriptionError) || undefined}
+                          disabled={isSavePending}
+                          id="business-inquiry-form-description"
+                          maxLength={200}
+                          name="formDescriptionInput"
+                          onChange={(event) => {
+                            setFormDescriptionDraft(event.currentTarget.value);
+                          }}
+                          placeholder="Optional note above the form"
+                          value={formDescriptionDraft}
+                        />
+                        <FieldError
+                          errors={
+                            formDescriptionError
+                              ? [{ message: formDescriptionError }]
+                              : undefined
+                          }
+                        />
+                      </FieldContent>
+                    </Field>
+                  </div>
                 </div>
               </div>
 
@@ -854,45 +1034,63 @@ export function BusinessInquiryFormForm({
               helperText="Service/category and details stay shown and required."
               title="Field library"
             >
-              {projectFields.map((field, index) => {
-                const fieldId = getFieldId(field);
+              <DndContext
+                collisionDetection={closestCenter}
+                id={inquiryProjectFieldsDndContextId}
+                onDragCancel={handleProjectFieldDragCancel}
+                onDragEnd={handleProjectFieldDragEnd}
+                onDragStart={handleProjectFieldDragStart}
+                sensors={projectFieldSensors}
+              >
+                <SortableContext
+                  id={inquiryProjectFieldsSortableContextId}
+                  items={projectFields.map((field) => getFieldId(field))}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="flex flex-col gap-3">
+                    {projectFields.map((field, index) => {
+                      const fieldId = getFieldId(field);
 
-                return (
-                  <ProjectFieldCard
-                    cardRef={(node) => {
-                      if (node) {
-                        projectFieldCardRefs.current.set(fieldId, node);
-                        return;
-                      }
+                      return (
+                        <ProjectFieldCard
+                          cardRef={(node) => {
+                            if (node) {
+                              projectFieldCardRefs.current.set(fieldId, node);
+                              return;
+                            }
 
-                      projectFieldCardRefs.current.delete(fieldId);
-                    }}
-                    field={field}
-                    index={index}
-                    inputRef={(node) => {
-                      if (node) {
-                        projectFieldLabelInputRefs.current.set(fieldId, node);
-                        return;
-                      }
+                            projectFieldCardRefs.current.delete(fieldId);
+                          }}
+                          field={field}
+                          index={index}
+                          inputRef={(node) => {
+                            if (node) {
+                              projectFieldLabelInputRefs.current.set(fieldId, node);
+                              return;
+                            }
 
-                      projectFieldLabelInputRefs.current.delete(fieldId);
-                    }}
-                    isEntering={enteringProjectFieldIds.includes(fieldId)}
-                    isExiting={exitingProjectFieldIds.includes(fieldId)}
-                    isPending={isFieldInteractionLocked}
-                    key={fieldId}
-                    maxOptions={MAX_CUSTOM_FIELD_OPTIONS}
-                    onAddOption={addCustomFieldOption}
-                    onChangeCustomType={changeCustomFieldType}
-                    onMove={moveProjectField}
-                    onRemove={removeProjectField}
-                    onRemoveOption={removeCustomFieldOption}
-                    onUpdate={updateProjectField}
-                    onUpdateOption={updateCustomFieldOption}
-                    totalFields={projectFields.length}
-                  />
-                );
-              })}
+                            projectFieldLabelInputRefs.current.delete(fieldId);
+                          }}
+                          isEntering={enteringProjectFieldIds.includes(fieldId)}
+                          isExiting={exitingProjectFieldIds.includes(fieldId)}
+                          isPending={isFieldInteractionLocked}
+                          key={fieldId}
+                          maxOptions={MAX_CUSTOM_FIELD_OPTIONS}
+                          prefersReducedMotion={prefersReducedMotion}
+                          onAddOption={addCustomFieldOption}
+                          onChangeCustomType={changeCustomFieldType}
+                          onMove={moveProjectField}
+                          onRemove={removeProjectField}
+                          onRemoveOption={removeCustomFieldOption}
+                          onUpdate={updateProjectField}
+                          onUpdateOption={updateCustomFieldOption}
+                          totalFields={projectFields.length}
+                        />
+                      );
+                    })}
+                  </div>
+                </SortableContext>
+              </DndContext>
 
               {hasReachedCustomFieldLimit ? (
                 <Alert>
@@ -922,7 +1120,7 @@ export function BusinessInquiryFormForm({
               variant="outline"
             >
               <Eye data-icon="inline-start" />
-              Live preview
+              Preview
             </Button>
           }
           isPending={isSavePending}
@@ -1043,6 +1241,7 @@ function InquiryFieldSection({
 
 function InquiryFieldCardShell({
   cardRef,
+  className,
   children,
   description,
   index,
@@ -1050,9 +1249,11 @@ function InquiryFieldCardShell({
   isExiting = false,
   menu,
   meta,
+  style,
   title,
 }: {
   cardRef?: (node: HTMLDivElement | null) => void;
+  className?: string;
   children: ReactNode;
   description: string;
   index: number;
@@ -1060,6 +1261,7 @@ function InquiryFieldCardShell({
   isExiting?: boolean;
   menu: ReactNode;
   meta: string;
+  style?: CSSProperties;
   title: string;
 }) {
   return (
@@ -1071,7 +1273,9 @@ function InquiryFieldCardShell({
           "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200",
         isExiting &&
           "pointer-events-none motion-safe:animate-out motion-safe:fade-out-0 motion-safe:slide-out-to-bottom-2 motion-safe:duration-150",
+        className,
       )}
+      style={style}
     >
       <div className="space-y-4">
         <div className="flex items-start justify-between gap-3">
@@ -1190,6 +1394,7 @@ function ProjectFieldCard({
   isExiting,
   isPending,
   maxOptions,
+  prefersReducedMotion,
   onAddOption,
   onChangeCustomType,
   onMove,
@@ -1207,6 +1412,7 @@ function ProjectFieldCard({
   isExiting: boolean;
   isPending: boolean;
   maxOptions: number;
+  prefersReducedMotion: boolean;
   onAddOption: (fieldId: string) => void;
   onChangeCustomType: (fieldId: string, fieldType: InquiryCustomFieldType) => void;
   onMove: (fieldId: string, direction: "up" | "down") => void;
@@ -1217,6 +1423,19 @@ function ProjectFieldCard({
   totalFields: number;
 }) {
   const fieldId = getFieldId(field);
+  const {
+    attributes,
+    listeners,
+    setActivatorNodeRef,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: fieldId,
+    disabled: isPending || isExiting,
+    transition: prefersReducedMotion ? null : inquirySortableTransition,
+  });
   const isSystem = field.kind === "system";
   const hasSelectableOptions =
     field.kind === "custom" &&
@@ -1229,46 +1448,78 @@ function ProjectFieldCard({
   const optionCount = field.kind === "custom" ? (field.options?.length ?? 0) : 0;
   const [optionsOpenOverride, setOptionsOpenOverride] = useState<boolean | null>(null);
   const isOptionsOpen = hasSelectableOptions && (optionsOpenOverride ?? true);
+  const title = field.label || (isSystem ? getSystemFieldTitle(field) : "New field");
+  const sortableStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    willChange: isDragging ? "transform" : undefined,
+  } satisfies CSSProperties;
+  const handleCardRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      setNodeRef(node);
+      cardRef?.(node);
+    },
+    [cardRef, setNodeRef],
+  );
 
   return (
     <InquiryFieldCardShell
-      cardRef={cardRef}
+      cardRef={handleCardRef}
+      className={cn(
+        isDragging && "relative z-10 ring-2 ring-primary/20 shadow-lg",
+      )}
       description={getProjectFieldStateLabel(field)}
       index={index}
       isEntering={isEntering}
       isExiting={isExiting}
       menu={
-        <FieldCardMenu
-          deleteDisabled={isSystem || isPending}
-          moveDownDisabled={isPending || index === totalFields - 1}
-          moveUpDisabled={isPending || index === 0}
-          requiredChecked={field.required}
-          requiredDisabled={!canToggleRequired || (isSystem && !field.enabled) || isPending}
-          showChecked={field.kind === "system" ? field.enabled : true}
-          showDisabled={field.kind === "custom" || !canToggleEnabled || isPending}
-          title={field.label || (isSystem ? getSystemFieldTitle(field) : "New field")}
-          typeDisabled={field.kind !== "custom" || isPending}
-          typeLabel={getFieldTypeLabel(field)}
-          typeValue={field.kind === "custom" ? field.fieldType : undefined}
-          onDelete={() => onRemove(fieldId)}
-          onMoveDown={() => onMove(fieldId, "down")}
-          onMoveUp={() => onMove(fieldId, "up")}
-          onRequiredChange={(required) => onUpdate(fieldId, { required })}
-          onShowChange={(enabled) => {
-            if (field.kind !== "system") {
-              return;
-            }
+        <div className="flex items-center gap-1">
+          <Button
+            aria-label={`Reorder ${title}`}
+            className="size-8 cursor-grab rounded-full touch-none active:cursor-grabbing"
+            disabled={isPending || isExiting}
+            ref={setActivatorNodeRef}
+            size="icon"
+            type="button"
+            variant="ghost"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="size-4" />
+          </Button>
+          <FieldCardMenu
+            deleteDisabled={isSystem || isPending}
+            moveDownDisabled={isPending || index === totalFields - 1}
+            moveUpDisabled={isPending || index === 0}
+            requiredChecked={field.required}
+            requiredDisabled={!canToggleRequired || (isSystem && !field.enabled) || isPending}
+            showChecked={field.kind === "system" ? field.enabled : true}
+            showDisabled={field.kind === "custom" || !canToggleEnabled || isPending}
+            title={title}
+            typeDisabled={field.kind !== "custom" || isPending}
+            typeLabel={getFieldTypeLabel(field)}
+            typeValue={field.kind === "custom" ? field.fieldType : undefined}
+            onDelete={() => onRemove(fieldId)}
+            onMoveDown={() => onMove(fieldId, "down")}
+            onMoveUp={() => onMove(fieldId, "up")}
+            onRequiredChange={(required) => onUpdate(fieldId, { required })}
+            onShowChange={(enabled) => {
+              if (field.kind !== "system") {
+                return;
+              }
 
-            onUpdate(fieldId, {
-              enabled,
-              required: field.key === "attachment" ? false : enabled ? field.required : false,
-            });
-          }}
-          onTypeChange={(fieldType) => onChangeCustomType(fieldId, fieldType)}
-        />
+              onUpdate(fieldId, {
+                enabled,
+                required: field.key === "attachment" ? false : enabled ? field.required : false,
+              });
+            }}
+            onTypeChange={(fieldType) => onChangeCustomType(fieldId, fieldType)}
+          />
+        </div>
       }
       meta={getFieldTypeLabel(field)}
-      title={field.label || (isSystem ? getSystemFieldTitle(field) : "New field")}
+      style={sortableStyle}
+      title={title}
     >
       <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
         <Field>
@@ -1838,4 +2089,19 @@ function createFieldOptionDraft(): InquiryFieldOption {
     label: "",
     value: "",
   };
+}
+
+function normalizeOptionalText(value: string) {
+  const trimmedValue = value.trim();
+  return trimmedValue ? trimmedValue : undefined;
+}
+
+function draftMatchesState({
+  draft,
+  previewDraft,
+}: {
+  draft: BusinessInquiryFormPreviewDraft;
+  previewDraft: BusinessInquiryFormPreviewDraft;
+}) {
+  return JSON.stringify(draft) === JSON.stringify(previewDraft);
 }

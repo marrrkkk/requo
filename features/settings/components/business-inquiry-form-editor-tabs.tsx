@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, Eye, FileText, FormInput, Settings2 } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { ArrowUpRight, FileText, FormInput, Settings2 } from "lucide-react";
 import {
-  usePathname,
   useSearchParams,
   type ReadonlyURLSearchParams,
 } from "next/navigation";
@@ -12,12 +11,7 @@ import {
 import { DashboardSidebarStack } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
-import {
-  getInquiryPreviewTabName,
-  type InquiryPreviewDraftSnapshot,
-} from "@/features/inquiries/preview-draft";
-import { writeInquiryPreviewDraft } from "@/features/inquiries/preview-draft-client";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import type { PublicInquiryBusiness } from "@/features/inquiries/types";
 import { cn } from "@/lib/utils";
 
 import type {
@@ -28,6 +22,7 @@ import type {
 import { BusinessInquiryFormDangerZone } from "@/features/settings/components/business-inquiry-form-danger-zone";
 import { BusinessInquiryFormForm } from "@/features/settings/components/business-inquiry-form-form";
 import { BusinessInquiryFormManageCard } from "@/features/settings/components/business-inquiry-form-manage-card";
+import { BusinessInquiryPreviewOverlay } from "@/features/settings/components/business-inquiry-preview-overlay";
 import { BusinessInquiryPageForm } from "@/features/settings/components/business-inquiry-page-form";
 
 type BusinessInquiryFormEditorTabsProps = {
@@ -84,18 +79,6 @@ function getEditorSectionValue(searchParams: ReadonlyURLSearchParams) {
   return isEditorSection(section) ? section : "fields";
 }
 
-function getEditorSectionHref(
-  pathname: string,
-  searchParams: ReadonlyURLSearchParams,
-  section: BusinessInquiryFormEditorSection,
-) {
-  const nextParams = new URLSearchParams(searchParams.toString());
-  nextParams.set("section", section);
-  const query = nextParams.toString();
-
-  return query ? `${pathname}?${query}` : pathname;
-}
-
 export function BusinessInquiryFormEditorTabs({
   settings,
   logoPreviewUrl,
@@ -113,22 +96,17 @@ export function BusinessInquiryFormEditorTabs({
   archiveAction,
   deleteAction,
 }: BusinessInquiryFormEditorTabsProps) {
-  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const router = useProgressRouter();
-  const activeSection = getEditorSectionValue(searchParams);
-  const [previewSessionId] = useState(() => crypto.randomUUID());
+  const activeSectionFromUrl = getEditorSectionValue(searchParams);
+  const [activeSectionOverride, setActiveSectionOverride] =
+    useState<BusinessInquiryFormEditorSection | null>(null);
+  const activeSection = activeSectionOverride ?? activeSectionFromUrl;
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [formDraft, setFormDraft] = useState(() =>
     createFormPreviewDraft(settings),
   );
   const [pageDraft, setPageDraft] = useState(() =>
     createPagePreviewDraft(settings),
-  );
-  const [fieldsHasUnsavedChanges, setFieldsHasUnsavedChanges] = useState(false);
-  const [pageHasUnsavedChanges, setPageHasUnsavedChanges] = useState(false);
-  const previewTabName = useMemo(
-    () => getInquiryPreviewTabName(settings.formId),
-    [settings.formId],
   );
   const previewLogoUrl = useMemo(
     () =>
@@ -147,17 +125,6 @@ export function BusinessInquiryFormEditorTabs({
       }),
     [formDraft, pageDraft, previewLogoUrl, settings],
   );
-  const hasAnyUnsavedChanges = fieldsHasUnsavedChanges || pageHasUnsavedChanges;
-  const activeSectionHasUnsavedChanges =
-    activeSection === "fields"
-      ? fieldsHasUnsavedChanges
-      : activeSection === "page"
-        ? pageHasUnsavedChanges
-        : false;
-
-  useEffect(() => {
-    writeInquiryPreviewDraft(previewSessionId, previewSnapshot);
-  }, [previewSessionId, previewSnapshot]);
 
   const handleFormDraftChange = useCallback(
     (nextDraft: BusinessInquiryFormPreviewDraft) => {
@@ -171,44 +138,17 @@ export function BusinessInquiryFormEditorTabs({
     },
     [],
   );
-  const handleFieldsUnsavedChangesChange = useCallback(
-    (hasUnsavedChanges: boolean) => {
-      setFieldsHasUnsavedChanges(hasUnsavedChanges);
-    },
-    [],
-  );
-  const handlePageUnsavedChangesChange = useCallback(
-    (hasUnsavedChanges: boolean) => {
-      setPageHasUnsavedChanges(hasUnsavedChanges);
-    },
-    [],
-  );
 
   const handleOpenPreview = useCallback(() => {
-    writeInquiryPreviewDraft(previewSessionId, previewSnapshot);
-
-    const livePreviewHref = hasAnyUnsavedChanges
-      ? `${previewHref}?draft=${encodeURIComponent(previewSessionId)}`
-      : previewHref;
-    const previewWindow = window.open(livePreviewHref, previewTabName);
-
-    previewWindow?.focus();
-  }, [
-    hasAnyUnsavedChanges,
-    previewHref,
-    previewSessionId,
-    previewSnapshot,
-    previewTabName,
-  ]);
+    setIsPreviewOpen(true);
+  }, []);
 
   function handleSectionChange(nextSection: BusinessInquiryFormEditorSection) {
     if (nextSection === activeSection) {
       return;
     }
 
-    router.replace(getEditorSectionHref(pathname, searchParams, nextSection), {
-      scroll: false,
-    });
+    setActiveSectionOverride(nextSection);
   }
 
   return (
@@ -298,17 +238,6 @@ export function BusinessInquiryFormEditorTabs({
 
       <div className="min-w-0 w-full">
         <div className="flex flex-col gap-2 sm:flex-row xl:justify-end">
-          {!activeSectionHasUnsavedChanges ? (
-            <Button
-              className="w-full sm:w-auto"
-              onClick={handleOpenPreview}
-              type="button"
-              variant="outline"
-            >
-              <Eye data-icon="inline-start" />
-              {hasAnyUnsavedChanges ? "Live preview" : "Preview"}
-            </Button>
-          ) : null}
           <Button asChild className="w-full sm:w-auto" type="button">
             <Link
               href={isPublicLive ? publicInquiryHref : previewHref}
@@ -328,9 +257,10 @@ export function BusinessInquiryFormEditorTabs({
               <BusinessInquiryFormForm
                 key={`${settings.updatedAt.getTime()}-${settings.formId}-form`}
                 applyPresetAction={applyPresetAction}
+                draft={formDraft}
+                isActive={activeSection === "fields"}
                 onDraftChange={handleFormDraftChange}
                 onPreview={handleOpenPreview}
-                onUnsavedChangesChange={handleFieldsUnsavedChangesChange}
                 saveAction={saveFormAction}
                 settings={settings}
               />
@@ -346,7 +276,6 @@ export function BusinessInquiryFormEditorTabs({
                 logoPreviewUrl={logoPreviewUrl}
                 onDraftChange={handlePageDraftChange}
                 onPreview={handleOpenPreview}
-                onUnsavedChangesChange={handlePageUnsavedChangesChange}
                 settings={settings}
               />
             </DashboardSidebarStack>
@@ -382,6 +311,13 @@ export function BusinessInquiryFormEditorTabs({
           </div>
         </div>
       </div>
+
+      <BusinessInquiryPreviewOverlay
+        business={previewSnapshot}
+        onOpenChange={setIsPreviewOpen}
+        open={isPreviewOpen}
+        openFormHref={isPublicLive ? publicInquiryHref : previewHref}
+      />
     </div>
   );
 }
@@ -394,6 +330,7 @@ function createFormPreviewDraft(
     formName: settings.formName,
     formSlug: settings.formSlug,
     inquiryFormConfig: settings.inquiryFormConfig,
+    inquiryPageConfig: settings.inquiryPageConfig,
   };
 }
 
@@ -416,7 +353,13 @@ function createPreviewSnapshot({
   pageDraft: BusinessInquiryPagePreviewDraft;
   previewLogoUrl: string | null;
   settings: BusinessInquiryFormEditorView;
-}): InquiryPreviewDraftSnapshot {
+}): PublicInquiryBusiness {
+  const previewInquiryPageConfig = {
+    ...pageDraft.inquiryPageConfig,
+    formTitle: formDraft.inquiryPageConfig.formTitle,
+    formDescription: formDraft.inquiryPageConfig.formDescription,
+  };
+
   return {
     id: settings.id,
     name: settings.name,
@@ -433,6 +376,6 @@ function createPreviewSnapshot({
       publicInquiryEnabled: pageDraft.publicInquiryEnabled,
     },
     inquiryFormConfig: formDraft.inquiryFormConfig,
-    inquiryPageConfig: pageDraft.inquiryPageConfig,
+    inquiryPageConfig: previewInquiryPageConfig,
   };
 }

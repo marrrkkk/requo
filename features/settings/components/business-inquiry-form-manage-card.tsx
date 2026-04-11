@@ -134,7 +134,9 @@ export function BusinessInquiryFormManageCard({
                   ) : (
                     <Eye data-icon="inline-start" />
                   )}
-                  {isPublicInquiryEnabled ? "Unpublish form" : "Publish form"}
+                  {isPublicInquiryEnabled
+                    ? "Disable public inquiry page"
+                    : "Enable public inquiry page"}
                 </>
               )}
             </Button>
