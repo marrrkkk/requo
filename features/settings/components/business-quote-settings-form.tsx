@@ -81,10 +81,10 @@ export function BusinessQuoteSettingsForm({
               </p>
               <div className="space-y-2">
                 <h2 className="text-lg font-semibold tracking-tight text-foreground">
-                  Default quote setup
+                  Professional quote defaults
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Applied when you start a new quote.
+                  Applied when you create a new quote.
                 </p>
               </div>
             </div>
@@ -103,7 +103,7 @@ export function BusinessQuoteSettingsForm({
             </div>
 
             <div className="rounded-3xl border border-border/75 bg-background/80 px-4 py-4">
-              <p className="text-sm font-medium text-foreground">Current note preview</p>
+              <p className="text-sm font-medium text-foreground">Default note preview</p>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 {quoteNotesPreview}
                 {defaultQuoteNotes.trim().length > 140 ? "..." : ""}
@@ -119,7 +119,7 @@ export function BusinessQuoteSettingsForm({
               title="Defaults"
             >
               <Alert>
-                <AlertTitle>Quote defaults apply to future work.</AlertTitle>
+                <AlertTitle>Quote defaults only affect new quotes.</AlertTitle>
                 <AlertDescription>
                   Existing quotes keep their stored validity window and notes.
                   New quotes use the defaults saved here.

@@ -100,10 +100,10 @@ function PricingEntrySection({
   ) => Promise<QuoteLibraryActionState>;
 }) {
   const isBlock = kind === "block";
-  const title = isBlock ? "Blocks" : "Packages";
-  const createLabel = isBlock ? "Add block" : "Add package";
-  const submitLabel = isBlock ? "Save block" : "Save package";
-  const submitPendingLabel = isBlock ? "Saving block..." : "Saving package...";
+  const title = isBlock ? "Pricing blocks" : "Service packages";
+  const createLabel = isBlock ? "Add pricing block" : "Add package";
+  const submitLabel = "Save pricing entry";
+  const submitPendingLabel = "Saving pricing entry...";
   const isCreateVisible = isCreateOpen || entries.length === 0;
 
   return (
@@ -171,11 +171,11 @@ function PricingEntrySection({
           ) : (
             <div className="rounded-2xl border border-border/80 bg-background/80 px-4 py-4">
               <p className="text-sm font-medium text-foreground">
-                {isBlock ? "No blocks saved yet." : "No packages saved yet."}
+                {isBlock ? "No pricing blocks saved yet." : "No packages saved yet."}
               </p>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
                 {isBlock
-                  ? "Create your first block."
+                  ? "Create your first pricing block."
                   : "Create your first package."}
               </p>
             </div>

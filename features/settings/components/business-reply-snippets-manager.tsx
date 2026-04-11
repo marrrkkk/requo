@@ -34,7 +34,9 @@ export function BusinessReplySnippetsManager({
   deleteAction,
 }: BusinessReplySnippetsManagerProps) {
   const snippetCountLabel =
-    snippets.length === 1 ? "1 saved reply ready." : `${snippets.length} saved replies ready.`;
+    snippets.length === 1
+      ? "1 saved reply ready."
+      : `${snippets.length} saved replies ready.`;
 
   return (
     <div className="grid gap-6 xl:grid-cols-[18rem_minmax(0,1fr)] xl:gap-7">
@@ -46,10 +48,10 @@ export function BusinessReplySnippetsManager({
             </p>
             <div className="space-y-2">
               <h2 className="text-lg font-semibold tracking-tight text-foreground">
-                Saved replies
+                Saved follow-up replies
               </h2>
               <p className="text-sm text-muted-foreground">
-                Reusable snippets for faster drafting.
+                Reusable snippets for qualification replies and follow-up.
               </p>
             </div>
           </div>
@@ -67,10 +69,10 @@ export function BusinessReplySnippetsManager({
           </div>
 
           <div className="rounded-3xl border border-border/75 bg-background/80 px-4 py-4">
-            <p className="text-sm font-medium text-foreground">Best for common replies.</p>
+            <p className="text-sm font-medium text-foreground">Best for common reply patterns.</p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              Use snippets for follow-ups, missing details, pricing questions, and next
-              steps.
+              Use snippets for missing details, pricing questions, quote follow-up,
+              and next steps.
             </p>
           </div>
 
@@ -88,7 +90,7 @@ export function BusinessReplySnippetsManager({
                 Create saved reply
               </h2>
               <p className="text-sm text-muted-foreground">
-                Short reusable text for inquiry drafts.
+                Short reusable text for inquiry replies and follow-up drafts.
               </p>
             </div>
 
@@ -135,7 +137,7 @@ export function BusinessReplySnippetsManager({
                   No saved replies yet
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Create one now to reuse it during inquiry drafting.
+                  Create one now to reuse it while qualifying leads and following up.
                 </p>
                 <Button asChild className="mt-5">
                   <a href="#reply-snippet-create-title">Create first snippet</a>
