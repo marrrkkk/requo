@@ -428,11 +428,11 @@ function BusinessSwitcher({
               {business.logoStoragePath ? (
                 <Image
                   alt={`${business.name} logo`}
-                  className="h-auto max-h-10 w-auto object-contain"
-                  height={48}
+                  className="h-full w-full object-cover"
+                  height={56}
                   src="/api/business/logo"
                   unoptimized
-                  width={48}
+                  width={56}
                 />
               ) : (
                 <span className="text-sm font-semibold tracking-[0.16em] text-sidebar-foreground">

@@ -917,9 +917,9 @@ export function BusinessInquiryPageForm({
                     <Image
                       src={logoPreviewUrl}
                       alt={`${settings.name} logo`}
-                      width={44}
-                      height={44}
-                      className="max-h-[70%] w-auto object-contain"
+                      width={64}
+                      height={64}
+                      className="h-full w-full object-cover"
                       unoptimized
                     />
                   ) : (

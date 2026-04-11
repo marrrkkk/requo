@@ -685,6 +685,7 @@ function BusinessLogoField({
 
     try {
       const nextAsset = await loadLogoAsset(nextFile);
+      const nextZoom = getLogoCoverZoom(nextAsset);
 
       setDraftAsset((currentAsset) => {
         if (currentAsset) {
@@ -694,7 +695,7 @@ function BusinessLogoField({
         return nextAsset;
       });
       setCrop({ x: 0, y: 0 });
-      setZoom(1);
+      setZoom(nextZoom);
       setCroppedAreaPixels(null);
       setCropOpen(true);
     } catch (error) {
@@ -819,7 +820,7 @@ function BusinessLogoField({
                   {currentPreviewUrl ? (
                     <Image
                       alt={`${businessName} logo`}
-                      className="max-h-[68%] w-auto object-contain"
+                      className="h-full w-full object-cover"
                       height={112}
                       src={currentPreviewUrl}
                       unoptimized
@@ -928,8 +929,8 @@ function BusinessLogoField({
       >
         <DialogContent className="sm:max-w-5xl">
           <DialogHeader>
-            <DialogTitle>Crop brand asset</DialogTitle>
-            <DialogDescription>Adjust the crop.</DialogDescription>
+            <DialogTitle>Crop logo</DialogTitle>
+            <DialogDescription>Fit your logo to the business frame.</DialogDescription>
           </DialogHeader>
 
           <DialogBody className="grid min-h-0 flex-1 gap-6 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_18rem]">
@@ -948,6 +949,11 @@ function BusinessLogoField({
                     }
                     onZoomChange={setZoom}
                     showGrid={false}
+                    style={{
+                      cropAreaStyle: {
+                        borderRadius: "1.5rem",
+                      },
+                    }}
                     zoom={zoom}
                   />
                 ) : null}
@@ -1136,6 +1142,17 @@ function getLogoExtensionForMimeType(mimeType: string) {
     default:
       return ".png";
   }
+}
+
+function getLogoCoverZoom(asset: LoadedLogoAsset) {
+  const shortestSide = Math.min(asset.width, asset.height);
+  const longestSide = Math.max(asset.width, asset.height);
+
+  if (!shortestSide || !longestSide) {
+    return 1;
+  }
+
+  return Math.min(4, Math.max(1, longestSide / shortestSide));
 }
 
 function getInitials(value: string) {

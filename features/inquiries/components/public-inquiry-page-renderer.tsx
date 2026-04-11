@@ -232,7 +232,7 @@ function BusinessBrandBadge({
   size: "md" | "lg";
 }) {
   const sizeClassName = size === "lg" ? "size-20 rounded-2xl" : "size-14 rounded-2xl";
-  const imageSize = size === "lg" ? 48 : 34;
+  const imageSize = size === "lg" ? 80 : 56;
 
   return (
     <div
@@ -247,7 +247,7 @@ function BusinessBrandBadge({
           alt={`${business.name} logo`}
           width={imageSize}
           height={imageSize}
-          className="max-h-[70%] w-auto object-contain"
+          className="h-full w-full object-cover"
           unoptimized
         />
       ) : (
