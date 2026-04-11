@@ -120,6 +120,16 @@ type UpdateBusinessInquiryFormSettingsResult =
     }
   | { ok: false; reason: "not-found" | "slug-taken" };
 
+type UpdateBusinessInquiryPageSettingsResult =
+  | {
+      ok: true;
+      previousSlug: string;
+      nextSlug: string;
+      previousFormSlug: string;
+      nextFormSlug: string;
+    }
+  | { ok: false; reason: "not-found" | "slug-taken" };
+
 type BusinessInquiryFormMutationResult =
   | { ok: true; businessSlug: string; formSlug: string }
   | {
@@ -615,99 +625,7 @@ export async function updateBusinessInquiryPageSettings({
   businessId,
   actorUserId,
   values,
-}: UpdateBusinessInquiryPageInput): Promise<UpdateBusinessSettingsResult> {
-  const [currentBusiness, currentForm] = await Promise.all([
-    db
-      .select({
-        id: businesses.id,
-        slug: businesses.slug,
-      })
-      .from(businesses)
-      .where(eq(businesses.id, businessId))
-      .limit(1),
-    db
-      .select({
-        id: businessInquiryForms.id,
-        slug: businessInquiryForms.slug,
-        isDefault: businessInquiryForms.isDefault,
-      })
-      .from(businessInquiryForms)
-      .where(
-        and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, values.formId),
-          isNull(businessInquiryForms.archivedAt),
-        ),
-      )
-      .limit(1),
-  ]);
-
-  const business = currentBusiness[0];
-  const form = currentForm[0];
-
-  if (!business || !form) {
-    return {
-      ok: false,
-      reason: "not-found",
-    };
-  }
-
-  const now = new Date();
-
-  await db.transaction(async (tx) => {
-    await tx
-      .update(businessInquiryForms)
-      .set({
-        publicInquiryEnabled: values.publicInquiryEnabled,
-        inquiryPageConfig: {
-          template: values.template,
-          eyebrow: values.eyebrow,
-          headline: values.headline,
-          description: values.description,
-          brandTagline: values.brandTagline,
-          formTitle: values.formTitle,
-          formDescription: values.formDescription,
-          cards: values.cards,
-        },
-        updatedAt: now,
-      })
-      .where(
-        and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.id, values.formId),
-        ),
-      );
-
-    await tx.insert(activityLogs).values({
-      id: createId("act"),
-      businessId,
-      actorUserId,
-      type: "business.inquiry_form_page_updated",
-      summary: `Inquiry page updated for ${form.slug}.`,
-      metadata: {
-        inquiryFormId: values.formId,
-        inquiryFormSlug: form.slug,
-        publicInquiryEnabled: values.publicInquiryEnabled,
-        template: values.template,
-        cardCount: values.cards.length,
-      },
-      createdAt: now,
-      updatedAt: now,
-    });
-  });
-
-  return {
-    ok: true,
-    previousSlug: business.slug,
-    nextSlug: business.slug,
-  };
-}
-
-export async function updateBusinessInquiryFormSettings({
-  businessId,
-  actorUserId,
-  values,
-}: UpdateBusinessInquiryFormInput): Promise<UpdateBusinessInquiryFormSettingsResult> {
+}: UpdateBusinessInquiryPageInput): Promise<UpdateBusinessInquiryPageSettingsResult> {
   const [currentBusiness, currentForm] = await Promise.all([
     db
       .select({
@@ -723,6 +641,7 @@ export async function updateBusinessInquiryFormSettings({
       .select({
         id: businessInquiryForms.id,
         slug: businessInquiryForms.slug,
+        inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
         inquiryPageConfig: businessInquiryForms.inquiryPageConfig,
       })
       .from(businessInquiryForms)
@@ -768,17 +687,39 @@ export async function updateBusinessInquiryFormSettings({
   }
 
   const now = new Date();
-  const inquiryFormConfig = getNormalizedInquiryFormConfig(
-    values.inquiryFormConfig,
+  const inquiryFormConfig = getNormalizedInquiryFormConfig(form.inquiryFormConfig, {
+    businessType: values.businessType,
+  });
+  const inquiryPageConfig = getNormalizedInquiryPageConfig(
     {
+      ...form.inquiryPageConfig,
+      template: values.template,
+      eyebrow: values.eyebrow,
+      headline: values.headline,
+      description: values.description,
+      brandTagline: values.brandTagline,
+      formTitle: values.formTitle,
+      formDescription: values.formDescription,
+      showcaseImage: values.showcaseImageUrl
+        ? {
+            url: values.showcaseImageUrl,
+            frame: values.showcaseImageFrame,
+            size: values.showcaseImageSize,
+            crop: {
+              x: values.showcaseImageCropX,
+              y: values.showcaseImageCropY,
+              zoom: values.showcaseImageCropZoom,
+            },
+          }
+        : undefined,
+      cards: values.cards,
+    },
+    {
+      businessName: business.name,
+      businessShortDescription: business.shortDescription,
       businessType: values.businessType,
     },
   );
-  const inquiryPageConfig = getNormalizedInquiryPageConfig(form.inquiryPageConfig, {
-    businessName: business.name,
-    businessShortDescription: business.shortDescription,
-    businessType: values.businessType,
-  });
 
   await db.transaction(async (tx) => {
     await tx
@@ -787,12 +728,102 @@ export async function updateBusinessInquiryFormSettings({
         name: values.name,
         slug: values.slug,
         businessType: values.businessType,
+        publicInquiryEnabled: values.publicInquiryEnabled,
         inquiryFormConfig,
-        inquiryPageConfig: {
-          ...inquiryPageConfig,
-          formTitle: values.formTitle,
-          formDescription: values.formDescription,
-        },
+        inquiryPageConfig,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(businessInquiryForms.businessId, businessId),
+          eq(businessInquiryForms.id, values.formId),
+        ),
+      );
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      actorUserId,
+      type: "business.inquiry_form_page_updated",
+      summary: `Inquiry page updated for ${values.slug}.`,
+      metadata: {
+        inquiryFormId: values.formId,
+        inquiryFormSlug: values.slug,
+        previousInquiryFormSlug: form.slug,
+        businessType: values.businessType,
+        publicInquiryEnabled: values.publicInquiryEnabled,
+        template: values.template,
+        cardCount: values.cards.length,
+        hasShowcaseImage: Boolean(values.showcaseImageUrl),
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+
+  return {
+    ok: true,
+    previousSlug: business.slug,
+    nextSlug: business.slug,
+    previousFormSlug: form.slug,
+    nextFormSlug: values.slug,
+  };
+}
+
+export async function updateBusinessInquiryFormSettings({
+  businessId,
+  actorUserId,
+  values,
+}: UpdateBusinessInquiryFormInput): Promise<UpdateBusinessInquiryFormSettingsResult> {
+  const [currentBusiness, currentForm] = await Promise.all([
+    db
+      .select({
+        id: businesses.id,
+        slug: businesses.slug,
+      })
+      .from(businesses)
+      .where(eq(businesses.id, businessId))
+      .limit(1),
+    db
+      .select({
+        id: businessInquiryForms.id,
+        slug: businessInquiryForms.slug,
+        businessType: businessInquiryForms.businessType,
+      })
+      .from(businessInquiryForms)
+      .where(
+        and(
+          eq(businessInquiryForms.businessId, businessId),
+          eq(businessInquiryForms.id, values.formId),
+          isNull(businessInquiryForms.archivedAt),
+        ),
+      )
+      .limit(1),
+  ]);
+
+  const business = currentBusiness[0];
+  const form = currentForm[0];
+
+  if (!business || !form) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
+  const now = new Date();
+  const inquiryFormConfig = getNormalizedInquiryFormConfig(
+    values.inquiryFormConfig,
+    {
+      businessType: normalizeBusinessType(form.businessType),
+    },
+  );
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(businessInquiryForms)
+      .set({
+        inquiryFormConfig,
         updatedAt: now,
       })
       .where(
@@ -808,13 +839,12 @@ export async function updateBusinessInquiryFormSettings({
       actorUserId,
       type: "business.inquiry_form_updated",
       summary: `Inquiry form updated for ${form.slug}.`,
-        metadata: {
-          inquiryFormId: values.formId,
-          inquiryFormSlug: values.slug,
-          previousInquiryFormSlug: form.slug,
-          businessType: values.businessType,
-          projectFieldCount: inquiryFormConfig.projectFields.length,
-        },
+      metadata: {
+        inquiryFormId: values.formId,
+        inquiryFormSlug: form.slug,
+        businessType: normalizeBusinessType(form.businessType),
+        projectFieldCount: inquiryFormConfig.projectFields.length,
+      },
       createdAt: now,
       updatedAt: now,
     });
@@ -825,7 +855,7 @@ export async function updateBusinessInquiryFormSettings({
     previousSlug: business.slug,
     nextSlug: business.slug,
     previousFormSlug: form.slug,
-    nextFormSlug: values.slug,
+    nextFormSlug: form.slug,
   };
 }
 

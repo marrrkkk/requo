@@ -380,7 +380,7 @@ export async function deleteBusinessAction(
 }
 
 export async function updateBusinessInquiryPageAction(
-  formSlug: string,
+  _formSlug: string,
   _prevState: BusinessInquiryPageActionState,
   formData: FormData,
 ): Promise<BusinessInquiryPageActionState> {
@@ -396,6 +396,9 @@ export async function updateBusinessInquiryPageAction(
 
   const validationResult = businessInquiryPageSettingsSchema.safeParse({
     formId: formData.get("formId"),
+    name: formData.get("name"),
+    slug: formData.get("slug"),
+    businessType: formData.get("businessType"),
     publicInquiryEnabled: formData.get("publicInquiryEnabled"),
     template: formData.get("template"),
     eyebrow: formData.get("eyebrow"),
@@ -404,6 +407,12 @@ export async function updateBusinessInquiryPageAction(
     brandTagline: formData.get("brandTagline"),
     formTitle: formData.get("formTitle"),
     formDescription: formData.get("formDescription"),
+    showcaseImageUrl: formData.get("showcaseImageUrl"),
+    showcaseImageFrame: formData.get("showcaseImageFrame"),
+    showcaseImageSize: formData.get("showcaseImageSize"),
+    showcaseImageCropX: formData.get("showcaseImageCropX"),
+    showcaseImageCropY: formData.get("showcaseImageCropY"),
+    showcaseImageCropZoom: formData.get("showcaseImageCropZoom"),
     cards: formData.get("cards"),
   });
 
@@ -422,14 +431,48 @@ export async function updateBusinessInquiryPageAction(
     });
 
     if (!result.ok) {
+      if (result.reason === "slug-taken") {
+        return {
+          error: "Choose a different form slug.",
+          fieldErrors: {
+            slug: ["This form slug is already in use in this business."],
+          },
+        };
+      }
+
       return {
         error: "That business could not be found.",
       };
     }
 
     updateCacheTags(
-      getBusinessInquiryFormCacheTags(businessContext.business.id, formSlug),
+      uniqueCacheTags([
+        ...getBusinessInquiryFormsCacheTags(businessContext.business.id),
+        ...getBusinessInquiryFormCacheTags(
+          businessContext.business.id,
+          result.previousFormSlug,
+        ),
+        ...getBusinessInquiryFormCacheTags(
+          businessContext.business.id,
+          result.nextFormSlug,
+        ),
+      ]),
     );
+
+    revalidateBusinessInquiryFormPaths(result.nextSlug, result.nextFormSlug);
+    revalidateBusinessDefaultInquiryPaths(result.nextSlug);
+
+    if (result.previousFormSlug !== result.nextFormSlug) {
+      revalidateBusinessInquiryFormPaths(result.nextSlug, result.previousFormSlug);
+      revalidateBusinessDefaultInquiryPaths(result.nextSlug);
+
+      redirect(
+        `${getBusinessInquiryPageEditorPath(
+          result.nextSlug,
+          result.nextFormSlug,
+        )}?section=page`,
+      );
+    }
 
     return {
       success: "Inquiry page saved.",
@@ -460,11 +503,7 @@ export async function updateBusinessInquiryFormAction(
 
   const validationResult = businessInquiryFormSettingsSchema.safeParse({
     formId: formData.get("formId"),
-    name: formData.get("name"),
-    slug: formData.get("slug"),
     businessType: formData.get("businessType"),
-    formTitle: formData.get("formTitle"),
-    formDescription: formData.get("formDescription"),
     inquiryFormConfig: formData.get("inquiryFormConfig"),
   });
 
@@ -485,15 +524,6 @@ export async function updateBusinessInquiryFormAction(
     });
 
     if (!result.ok) {
-      if (result.reason === "slug-taken") {
-        return {
-          error: "Choose a different form slug.",
-          fieldErrors: {
-            slug: ["This form slug is already in use in this business."],
-          },
-        };
-      }
-
       return {
         error: "That business could not be found.",
       };
@@ -567,7 +597,7 @@ export async function applyBusinessInquiryFormPresetAction(
   if (!validationResult.success) {
     return getValidationActionState(
       validationResult.error,
-      "Choose a business type and try again.",
+      "Choose a starter template and try again.",
     );
   }
 

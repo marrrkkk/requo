@@ -133,6 +133,9 @@ export type BusinessInquiryPageSettingsView = {
 
 export type BusinessInquiryPageFieldName =
   | "formId"
+  | "name"
+  | "slug"
+  | "businessType"
   | "publicInquiryEnabled"
   | "template"
   | "eyebrow"
@@ -141,6 +144,12 @@ export type BusinessInquiryPageFieldName =
   | "brandTagline"
   | "formTitle"
   | "formDescription"
+  | "showcaseImageUrl"
+  | "showcaseImageFrame"
+  | "showcaseImageSize"
+  | "showcaseImageCropX"
+  | "showcaseImageCropY"
+  | "showcaseImageCropZoom"
   | "cards";
 
 export type BusinessInquiryPageFieldErrors = Partial<
@@ -184,17 +193,17 @@ export type BusinessInquiryFormPreviewDraft = {
 };
 
 export type BusinessInquiryPagePreviewDraft = {
+  businessType: BusinessType;
+  formName: string;
+  formSlug: string;
   publicInquiryEnabled: boolean;
   inquiryPageConfig: InquiryPageConfig;
 };
 
 export type BusinessInquiryFormFieldName =
-  | "name"
-  | "slug"
+  | "formId"
   | "businessType"
-  | "inquiryFormConfig"
-  | "formTitle"
-  | "formDescription";
+  | "inquiryFormConfig";
 
 export type BusinessInquiryFormFieldErrors = Partial<
   Record<BusinessInquiryFormFieldName, string[] | undefined>

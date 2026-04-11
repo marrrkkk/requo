@@ -10,6 +10,9 @@ import { businessTypes } from "@/features/inquiries/business-types";
 import { inquiryFormConfigSchema } from "@/features/inquiries/form-config";
 import {
   inquiryPageCardSchema,
+  inquiryPageImageUrlSchema,
+  inquiryPageShowcaseImageFrames,
+  inquiryPageShowcaseImageSizes,
   inquiryPageTemplateSchema,
   maxInquiryPageCards,
 } from "@/features/inquiries/page-config";
@@ -93,6 +96,43 @@ function formBoolean() {
   return z.preprocess(
     (value) => value === true || value === "true" || value === "on",
     z.boolean(),
+  );
+}
+
+function formNumber({
+  invalidMessage,
+  max,
+  min,
+}: {
+  invalidMessage: string;
+  max: number;
+  min: number;
+}) {
+  return z.preprocess(
+    (value) => {
+      if (typeof value === "number") {
+        return value;
+      }
+
+      if (typeof value !== "string") {
+        return value;
+      }
+
+      const normalized = value.trim();
+
+      if (!normalized) {
+        return Number.NaN;
+      }
+
+      return Number(normalized);
+    },
+    z
+      .number({
+        error: invalidMessage,
+      })
+      .finite(invalidMessage)
+      .min(min)
+      .max(max),
   );
 }
 
@@ -235,6 +275,22 @@ export const businessInquiryPageSettingsSchema = z.object({
     .trim()
     .min(1, "Choose a form.")
     .max(128, "Form id is too long."),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Enter a form name.")
+    .max(80, "Use 80 characters or fewer."),
+  slug: z
+    .string()
+    .trim()
+    .min(2, "Use at least 2 characters.")
+    .max(publicSlugMaxLength, `Use ${publicSlugMaxLength} characters or fewer.`)
+    .transform(normalizePublicSlugInput)
+    .refine(
+      (value) => publicSlugRegex.test(value),
+      "Use lowercase letters, numbers, and hyphens only.",
+    ),
+  businessType: z.enum(businessTypes),
   publicInquiryEnabled: formBoolean(),
   template: inquiryPageTemplateSchema,
   eyebrow: optionalText(48),
@@ -251,6 +307,24 @@ export const businessInquiryPageSettingsSchema = z.object({
     .min(1, "Enter a form title.")
     .max(80, "Use 80 characters or fewer."),
   formDescription: optionalText(200),
+  showcaseImageUrl: inquiryPageImageUrlSchema,
+  showcaseImageFrame: z.enum(inquiryPageShowcaseImageFrames),
+  showcaseImageSize: z.enum(inquiryPageShowcaseImageSizes),
+  showcaseImageCropX: formNumber({
+    invalidMessage: "Save the page again after cropping the image.",
+    min: -4,
+    max: 4,
+  }),
+  showcaseImageCropY: formNumber({
+    invalidMessage: "Save the page again after cropping the image.",
+    min: -4,
+    max: 4,
+  }),
+  showcaseImageCropZoom: formNumber({
+    invalidMessage: "Save the page again after cropping the image.",
+    min: 1,
+    max: 4,
+  }),
   cards: jsonField(
     z
       .array(inquiryPageCardSchema)
@@ -272,28 +346,7 @@ export const businessInquiryFormSettingsSchema = z.object({
     .trim()
     .min(1, "Form id is required.")
     .max(128, "Form id is too long."),
-  name: z
-    .string()
-    .trim()
-    .min(2, "Enter a form name.")
-    .max(80, "Use 80 characters or fewer."),
-  slug: z
-    .string()
-    .trim()
-    .min(2, "Use at least 2 characters.")
-    .max(publicSlugMaxLength, `Use ${publicSlugMaxLength} characters or fewer.`)
-    .transform(normalizePublicSlugInput)
-    .refine(
-      (value) => publicSlugRegex.test(value),
-      "Use lowercase letters, numbers, and hyphens only.",
-    ),
   businessType: z.enum(businessTypes),
-  formTitle: z
-    .string()
-    .trim()
-    .min(1, "Enter a form heading.")
-    .max(80, "Use 80 characters or fewer."),
-  formDescription: optionalText(200),
   inquiryFormConfig: jsonField(inquiryFormConfigSchema, Symbol.for("invalid-json-field")),
 });
 
