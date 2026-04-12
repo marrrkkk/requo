@@ -21,7 +21,10 @@ import { getBusinessAnalyticsData } from "@/features/analytics/queries";
 import { formatAnalyticsPercent } from "@/features/analytics/utils";
 import { businessesHubPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
-import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
+import {
+  getBusinessContextForMembershipSlug,
+  hasOperationalBusinessAccess,
+} from "@/lib/db/business-access";
 
 type AnalyticsPageProps = {
   params: Promise<{ slug: string }>;
@@ -36,6 +39,10 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
 
   if (!businessContext) {
     redirect(businessesHubPath);
+  }
+
+  if (!hasOperationalBusinessAccess(businessContext.role)) {
+    redirect(`/businesses/${businessContext.business.slug}/dashboard`);
   }
 
   const analytics = await getBusinessAnalyticsData(businessContext.business.id);
