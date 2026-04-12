@@ -5,9 +5,12 @@ import {
   Inbox,
   LayoutDashboard,
   Settings2,
+  Users,
 } from "lucide-react";
 
+
 import {
+  canManageBusinessAdministration,
   canManageOperationalBusinessSettings,
   type BusinessMemberRole,
 } from "@/lib/business-members";
@@ -18,6 +21,7 @@ import {
   getBusinessFormsPath,
   getBusinessInquiriesPath,
   getBusinessKnowledgeCompatibilityPath,
+  getBusinessMembersPath,
   getBusinessQuotesPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
@@ -66,6 +70,20 @@ export function getDashboardNavigation(
             description: "Manage inquiry forms, public pages, and live intake flows.",
             icon: FormInput,
           },
+        ]
+      : []),
+    ...(canManageBusinessAdministration(role)
+      ? [
+          {
+            href: getBusinessMembersPath(slug),
+            label: "Members",
+            description: "Manage who has access to this business.",
+            icon: Users,
+          },
+        ]
+      : []),
+    ...(canManageOperationalBusinessSettings(role)
+      ? [
           {
             href: getDefaultBusinessSettingsPath(slug, role),
             label: "Settings",
@@ -86,6 +104,7 @@ function resolveDashboardActivePathname(pathname: string) {
 
   const analyticsPath = getBusinessAnalyticsPath(slug);
   const knowledgeCompatibilityPath = getBusinessKnowledgeCompatibilityPath(slug);
+  const membersSettingsPath = getBusinessSettingsPath(slug, "members");
 
   if (pathname === analyticsPath || pathname.startsWith(`${analyticsPath}/`)) {
     return getBusinessDashboardPath(slug);
@@ -96,6 +115,14 @@ function resolveDashboardActivePathname(pathname: string) {
     pathname.startsWith(`${knowledgeCompatibilityPath}/`)
   ) {
     return getBusinessSettingsPath(slug, "knowledge");
+  }
+
+  // Old settings/members → top-level members
+  if (
+    pathname === membersSettingsPath ||
+    pathname.startsWith(`${membersSettingsPath}/`)
+  ) {
+    return getBusinessMembersPath(slug);
   }
 
   return pathname;
@@ -192,6 +219,7 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
   const inquiriesPath = getBusinessInquiriesPath(slug);
   const quotesPath = getBusinessQuotesPath(slug);
   const formsPath = getBusinessFormsPath(slug);
+  const membersPath = getBusinessMembersPath(slug);
   const settingsPath = getBusinessSettingsPath(slug);
 
   if (pathname === dashboardPath) {
@@ -270,6 +298,10 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
         label: formSlug ? formatBreadcrumbLabel(formSlug) : "Form details",
       },
     ]);
+  }
+
+  if (pathname === membersPath || pathname.startsWith(`${membersPath}/`)) {
+    return withDashboardHome(slug, [{ label: "Members" }]);
   }
 
   if (pathname === settingsPath) {

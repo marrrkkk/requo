@@ -77,11 +77,6 @@ export function getBusinessSettingsNavigation(
                     label: "Business profile",
                     icon: "general" as const,
                   },
-                  {
-                    href: getBusinessSettingsPath(slug, "members"),
-                    label: "Members",
-                    icon: "members" as const,
-                  },
                 ]
               : []),
             {
