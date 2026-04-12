@@ -1524,3 +1524,80 @@ export async function setBusinessInquiryFormPublicState({
     formSlug: targetForm.slug,
   };
 }
+
+export async function unarchiveBusinessInquiryForm({
+  businessId,
+  actorUserId,
+  targetFormId,
+}: TargetBusinessInquiryFormInput): Promise<BusinessInquiryFormMutationResult> {
+  const [businessRows, targetFormRows] = await Promise.all([
+    db
+      .select({
+        id: businesses.id,
+        slug: businesses.slug,
+      })
+      .from(businesses)
+      .where(eq(businesses.id, businessId))
+      .limit(1),
+    db
+      .select({
+        id: businessInquiryForms.id,
+        slug: businessInquiryForms.slug,
+      })
+      .from(businessInquiryForms)
+      .where(
+        and(
+          eq(businessInquiryForms.businessId, businessId),
+          eq(businessInquiryForms.id, targetFormId),
+        ),
+      )
+      .limit(1),
+  ]);
+
+  const business = businessRows[0];
+  const targetForm = targetFormRows[0];
+
+  if (!business || !targetForm) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(businessInquiryForms)
+      .set({
+        archivedAt: null,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(businessInquiryForms.businessId, businessId),
+          eq(businessInquiryForms.id, targetFormId),
+        ),
+      );
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      actorUserId,
+      type: "business.inquiry_form_updated",
+      summary: `Inquiry form unarchived: ${targetForm.slug}.`,
+      metadata: {
+        inquiryFormId: targetFormId,
+        inquiryFormSlug: targetForm.slug,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+
+  return {
+    ok: true,
+    businessSlug: business.slug,
+    formSlug: targetForm.slug,
+  };
+}

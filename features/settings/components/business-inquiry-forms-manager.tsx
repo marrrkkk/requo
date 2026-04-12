@@ -2,10 +2,15 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import QRCode from "react-qr-code";
+import { toast } from "sonner";
 import {
   ArrowUpRight,
   CheckCircle2,
+  Download,
   FileArchive,
+  ArchiveRestore,
+  Link2,
   PencilLine,
   Plus,
 } from "lucide-react";
@@ -54,6 +59,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type {
+  BusinessInquiryFormDangerActionState,
   BusinessInquiryFormsActionState,
   BusinessInquiryFormsSettingsView,
 } from "@/features/settings/types";
@@ -67,6 +73,10 @@ type BusinessInquiryFormsManagerProps = {
     state: BusinessInquiryFormsActionState,
     formData: FormData,
   ) => Promise<BusinessInquiryFormsActionState>;
+  unarchiveAction: (
+    state: BusinessInquiryFormDangerActionState,
+    formData: FormData,
+  ) => Promise<BusinessInquiryFormDangerActionState>;
 };
 
 const initialState: BusinessInquiryFormsActionState = {};
@@ -74,6 +84,7 @@ const initialState: BusinessInquiryFormsActionState = {};
 export function BusinessInquiryFormsManager({
   settings,
   createAction,
+  unarchiveAction,
 }: BusinessInquiryFormsManagerProps) {
   const [createState, createFormAction, isCreatePending] = useActionStateWithSonner(
     createAction,
@@ -82,7 +93,12 @@ export function BusinessInquiryFormsManager({
   const [businessType, setBusinessType] = useState<BusinessType>(
     getStarterTemplateBusinessType(settings.businessType),
   );
+  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [unarchiveState, unarchiveFormAction, isUnarchivePending] = useActionStateWithSonner(
+    unarchiveAction,
+    initialState,
+  );
   const nameError = createState.fieldErrors?.name?.[0];
   const businessTypeError = createState.fieldErrors?.businessType?.[0];
   const activeForms = settings.forms.filter((form) => !form.archivedAt);
@@ -91,7 +107,54 @@ export function BusinessInquiryFormsManager({
   return (
     <TooltipProvider>
       <div className="flex flex-col gap-8">
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          {archivedForms.length > 0 && (
+            <Dialog open={isArchiveDialogOpen} onOpenChange={setIsArchiveDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <FileArchive data-icon="inline-start" />
+                  Archived
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                  <DialogTitle>Archived forms</DialogTitle>
+                  <DialogDescription>
+                    These forms are disabled and no longer accept new submissions.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogBody className="gap-4">
+                    {archivedForms.map((form) => (
+                      <Card className="border-border/70 bg-background/75" key={form.id}>
+                        <CardHeader className="gap-3 pb-2 pt-4">
+                          <div className="flex flex-col gap-1">
+                            <CardTitle className="text-base">
+                              <TruncatedWithTooltip text={form.name} />
+                            </CardTitle>
+                            <CardDescription className="font-mono text-xs">
+                              {form.slug}
+                            </CardDescription>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="flex items-center justify-between gap-3 pb-4 pt-2">
+                          <Badge variant="secondary">
+                            {businessTypeMeta[form.businessType]?.label ?? "General"}
+                          </Badge>
+                          <form action={unarchiveFormAction}>
+                            <input type="hidden" name="targetFormId" value={form.id} />
+                            <Button size="sm" variant="outline" disabled={isUnarchivePending}>
+                              <ArchiveRestore data-icon="inline-start" className="size-3.5" />
+                              Unarchive
+                            </Button>
+                          </form>
+                        </CardContent>
+                      </Card>
+                    ))}
+                </DialogBody>
+              </DialogContent>
+            </Dialog>
+          )}
+
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -240,17 +303,25 @@ export function BusinessInquiryFormsManager({
 
                   <div className="flex flex-wrap gap-2">
                     {form.publicInquiryEnabled ? (
-                      <Button asChild>
-                        <Link
-                          href={getBusinessPublicInquiryUrl(settings.slug, form.slug)}
-                          prefetch={false}
-                          rel="noreferrer"
-                          target="_blank"
-                        >
-                          Open live form
-                          <ArrowUpRight data-icon="inline-end" />
-                        </Link>
-                      </Button>
+                      <>
+                        <Button asChild>
+                          <Link
+                            href={getBusinessPublicInquiryUrl(settings.slug, form.slug)}
+                            prefetch={false}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            Open live form
+                            <ArrowUpRight data-icon="inline-end" />
+                          </Link>
+                        </Button>
+                        <FormShareDialog
+                          settingsSlug={settings.slug}
+                          businessName={settings.name}
+                          formSlug={form.slug}
+                          formName={form.name}
+                        />
+                      </>
                     ) : (
                       <Button disabled type="button">
                         Form unpublished
@@ -292,50 +363,7 @@ export function BusinessInquiryFormsManager({
         </Card>
       )}
 
-      {archivedForms.length ? (
-        <div className="flex flex-col gap-4">
-          <div>
-            <h3 className="text-lg font-semibold tracking-tight text-foreground">
-              {archivedForms.length} archived
-            </h3>
-          </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            {archivedForms.map((form) => (
-              <Card className="border-border/70 bg-background/75" key={form.id}>
-                <CardHeader className="gap-3">
-                  <div className="flex min-w-0 items-start justify-between gap-3">
-                    <div className="flex w-0 min-w-0 flex-1 items-start gap-3">
-                      <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-background text-sm font-semibold tracking-[0.16em] text-muted-foreground">
-                        {getFormInitials(form.name)}
-                      </div>
-                      <div className="w-0 min-w-0 flex-1">
-                        <CardTitle className="text-base">
-                          <TruncatedWithTooltip text={form.name} />
-                        </CardTitle>
-                        <CardDescription className="mt-1">
-                          <TruncatedWithTooltip text={`/${settings.slug}/${form.slug}`} />
-                        </CardDescription>
-                      </div>
-                    </div>
-                    <Badge className="w-fit shrink-0 self-start" variant="outline">
-                      Archived
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex items-center justify-between gap-3">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline">
-                      {businessTypeMeta[form.businessType].label}
-                    </Badge>
-                  </div>
-                  <FileArchive className="size-4 shrink-0 text-muted-foreground" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      ) : null}
       </div>
     </TooltipProvider>
   );
@@ -368,4 +396,117 @@ function getFormInitials(value: string) {
     .slice(0, 2)
     .map((segment) => segment[0]?.toUpperCase())
     .join("");
+}
+
+function FormShareDialog({
+  settingsSlug,
+  businessName,
+  formSlug,
+  formName,
+}: {
+  settingsSlug: string;
+  businessName: string;
+  formSlug: string;
+  formName: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const isClient = typeof window !== "undefined";
+  const url = isClient
+    ? new URL(getBusinessPublicInquiryUrl(settingsSlug, formSlug), window.location.origin).toString()
+    : "";
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied to clipboard.");
+    } catch {
+      toast.error("Failed to copy link.");
+    }
+  };
+
+  const handleDownload = () => {
+    const svgElement = document.getElementById(`qr-svg-${formSlug}`);
+    if (!svgElement) return;
+
+    const padding = 32;
+    const qrSize = 256;
+    const textSpace = 70;
+    const finalWidth = qrSize + padding * 2;
+    const finalHeight = qrSize + padding * 2 + textSpace;
+
+    const svgData = new XMLSerializer().serializeToString(svgElement);
+    const canvas = document.createElement("canvas");
+    canvas.width = finalWidth;
+    canvas.height = finalHeight;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, finalWidth, finalHeight);
+
+    ctx.fillStyle = "#111827";
+    ctx.font = "bold 20px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(businessName, finalWidth / 2, padding + 20);
+
+    ctx.fillStyle = "#6B7280";
+    ctx.font = "500 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    ctx.fillText(formName, finalWidth / 2, padding + 44);
+
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, padding, padding + textSpace, qrSize, qrSize);
+      const pngFile = canvas.toDataURL("image/png");
+      const downloadLink = document.createElement("a");
+      downloadLink.download = `${formName.toLowerCase().replace(/\s+/g, "-")}-qr.png`;
+      downloadLink.href = pngFile;
+      downloadLink.click();
+    };
+
+    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" type="button">
+          <Link2 data-icon="inline-start" />
+          Share
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Share form</DialogTitle>
+          <DialogDescription>
+            Share this inquiry form link or scan the QR code.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody className="items-center gap-6">
+          <div className="rounded-xl border border-border/70 bg-white p-4">
+            <QRCode
+              id={`qr-svg-${formSlug}`}
+              value={url}
+              size={200}
+              level="M"
+            />
+          </div>
+          <div className="flex w-full items-center gap-2">
+            <code className="block flex-1 truncate rounded-lg border border-border/70 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+              {url}
+            </code>
+            <Button size="sm" variant="outline" type="button" onClick={handleCopy}>
+              Copy
+            </Button>
+          </div>
+        </DialogBody>
+        <DialogFooter>
+          <Button variant="outline" type="button" onClick={handleDownload}>
+            <Download data-icon="inline-start" />
+            Download QR
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
