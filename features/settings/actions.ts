@@ -34,6 +34,7 @@ import type {
 } from "@/features/settings/types";
 import {
   archiveBusinessInquiryForm,
+  unarchiveBusinessInquiryForm,
   createBusinessInquiryForm,
   deleteBusiness,
   deleteBusinessInquiryForm,
@@ -1116,6 +1117,63 @@ export async function toggleBusinessInquiryFormPublicAction(
 
     return {
       error: "We couldn't update the form availability right now.",
+    };
+  }
+}
+
+export async function unarchiveBusinessInquiryFormAction(
+  _prevState: BusinessInquiryFormDangerActionState,
+  formData: FormData,
+): Promise<BusinessInquiryFormDangerActionState> {
+  const ownerAccess = await getOperationalBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+  const validationResult = businessInquiryFormTargetSchema.safeParse({
+    targetFormId: formData.get("targetFormId"),
+  });
+
+  if (!validationResult.success) {
+    return getValidationActionState(validationResult.error, "Choose a form and try again.");
+  }
+
+  try {
+    const result = await unarchiveBusinessInquiryForm({
+      businessId: businessContext.business.id,
+      actorUserId: user.id,
+      targetFormId: validationResult.data.targetFormId,
+    });
+
+    if (!result.ok) {
+      return {
+        error: "That inquiry form could not be found.",
+      };
+    }
+
+    updateCacheTags(
+      uniqueCacheTags([
+        ...getBusinessInquiryFormsCacheTags(businessContext.business.id),
+        ...getBusinessInquiryFormCacheTags(
+          businessContext.business.id,
+          result.formSlug,
+        ),
+      ]),
+    );
+    revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+
+    return {
+      success: "Inquiry form restored.",
+    };
+  } catch (error) {
+    console.error("Failed to unarchive inquiry form.", error);
+
+    return {
+      error: "We couldn't unarchive the inquiry form right now.",
     };
   }
 }
