@@ -54,3 +54,6 @@ export const isResendConfigured = Boolean(
 
 export const isOpenRouterConfigured = Boolean(env.OPENROUTER_API_KEY);
 export const isSupabaseRealtimeConfigured = Boolean(env.SUPABASE_JWT_SECRET);
+export const isGoogleCalendarConfigured = Boolean(
+  env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET,
+);
