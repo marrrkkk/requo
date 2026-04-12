@@ -1,9 +1,6 @@
-import {
-  ArrowUpRight,
-  CircleCheckBig,
-  FileText,
-  ShieldAlert,
-} from "lucide-react";
+"use client";
+
+import { ArrowUpRight, FileText } from "lucide-react";
 
 import {
   Card,
@@ -13,18 +10,21 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { BusinessAnalyticsData } from "@/features/analytics/types";
-import { formatAnalyticsPercent } from "@/features/analytics/utils";
 
 export function AnalyticsQuoteSummary({
   data,
 }: {
   data: BusinessAnalyticsData["quoteSummary"];
 }) {
+  const decidedQuotes =
+    data.acceptedQuotes + data.rejectedQuotes + data.expiredQuotes;
+  const decided = decidedQuotes > 0;
+
   return (
     <Card className="gap-0 bg-background/72">
       <CardHeader className="gap-2">
-        <CardTitle>Quote workflow summary</CardTitle>
-        <CardDescription>From draft to accepted.</CardDescription>
+        <CardTitle>Quote outcomes</CardTitle>
+        <CardDescription>How sent quotes have resolved.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -38,25 +38,70 @@ export function AnalyticsQuoteSummary({
             label="Sent quotes"
             value={`${data.sentQuotes}`}
           />
-          <SummaryTile
-            icon={CircleCheckBig}
-            label="Accepted rate"
-            value={formatAnalyticsPercent(data.acceptanceRate)}
-          />
-          <SummaryTile
-            icon={ShieldAlert}
-            label="Inquiry coverage"
-            value={formatAnalyticsPercent(data.inquiryCoverageRate)}
-          />
         </div>
 
-        <div className="soft-panel p-4 shadow-none">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <MiniMetric label="Accepted" value={data.acceptedQuotes} />
-            <MiniMetric label="Rejected" value={data.rejectedQuotes} />
-            <MiniMetric label="Expired" value={data.expiredQuotes} />
+        {/* Visual outcome breakdown */}
+        {decided ? (
+          <div className="soft-panel flex flex-col gap-3 p-4 shadow-none">
+            {/* Segmented bar */}
+            <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted/30">
+              {data.acceptedQuotes > 0 ? (
+                <div
+                  className="h-full bg-emerald-500/75 transition-all duration-500 ease-out first:rounded-l-full last:rounded-r-full dark:bg-emerald-400/70"
+                  style={{
+                    width: `${(data.acceptedQuotes / decidedQuotes) * 100}%`,
+                  }}
+                />
+              ) : null}
+              {data.rejectedQuotes > 0 ? (
+                <div
+                  className="h-full bg-red-400/70 transition-all duration-500 ease-out first:rounded-l-full last:rounded-r-full dark:bg-red-400/60"
+                  style={{
+                    width: `${(data.rejectedQuotes / decidedQuotes) * 100}%`,
+                  }}
+                />
+              ) : null}
+              {data.expiredQuotes > 0 ? (
+                <div
+                  className="h-full bg-orange-400/65 transition-all duration-500 ease-out first:rounded-l-full last:rounded-r-full dark:bg-orange-400/55"
+                  style={{
+                    width: `${(data.expiredQuotes / decidedQuotes) * 100}%`,
+                  }}
+                />
+              ) : null}
+            </div>
+
+            {/* Legend + values */}
+            <div className="grid gap-2 sm:grid-cols-3">
+              <OutcomeStat
+                color="bg-emerald-500/75 dark:bg-emerald-400/70"
+                label="Accepted"
+                value={data.acceptedQuotes}
+                total={decidedQuotes}
+              />
+              <OutcomeStat
+                color="bg-red-400/70 dark:bg-red-400/60"
+                label="Rejected"
+                value={data.rejectedQuotes}
+                total={decidedQuotes}
+              />
+              <OutcomeStat
+                color="bg-orange-400/65 dark:bg-orange-400/55"
+                label="Expired"
+                value={data.expiredQuotes}
+                total={decidedQuotes}
+              />
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="soft-panel p-4 shadow-none">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <MiniMetric label="Accepted" value={data.acceptedQuotes} />
+              <MiniMetric label="Rejected" value={data.rejectedQuotes} />
+              <MiniMetric label="Expired" value={data.expiredQuotes} />
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -83,6 +128,37 @@ function SummaryTile({
             {value}
           </p>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function OutcomeStat({
+  color,
+  label,
+  value,
+  total,
+}: {
+  color: string;
+  label: string;
+  value: number;
+  total: number;
+}) {
+  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+
+  return (
+    <div className="soft-panel bg-muted/15 px-3 py-3 shadow-none">
+      <div className="flex items-center gap-1.5">
+        <span className={`inline-block size-2 rounded-full ${color}`} />
+        <p className="meta-label">{label}</p>
+      </div>
+      <div className="mt-1.5 flex items-baseline gap-1.5">
+        <p className="text-base font-semibold tabular-nums text-foreground">
+          {value}
+        </p>
+        <p className="text-[0.68rem] font-medium text-muted-foreground">
+          {pct}%
+        </p>
       </div>
     </div>
   );

@@ -3,19 +3,23 @@ import type { LucideIcon } from "lucide-react";
 import { HelpTooltip } from "@/components/shared/help-tooltip";
 import { Card, CardContent } from "@/components/ui/card";
 
-export function AnalyticsMetricCard({
+export function AnalyticsDurationCard({
   title,
   value,
+  emptyLabel,
   description,
   tooltip,
   icon: Icon,
 }: {
   title: string;
-  value: string;
+  value: string | null;
+  emptyLabel?: string;
   description?: string;
   tooltip?: string;
   icon: LucideIcon;
 }) {
+  const displayValue = value ?? (emptyLabel || "—");
+
   return (
     <Card className="h-full border-border/75 bg-card/97" size="sm">
       <CardContent className="p-5">
@@ -28,7 +32,7 @@ export function AnalyticsMetricCard({
               ) : null}
             </div>
             <p className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
-              {value}
+              {displayValue}
             </p>
             {description ? (
               <p className="mt-2 text-sm leading-6 text-muted-foreground">

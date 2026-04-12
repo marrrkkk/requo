@@ -17,40 +17,45 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import type { BusinessAnalyticsTrendPoint } from "@/features/analytics/types";
+import type { ConversionTrendPoint } from "@/features/analytics/types";
 
 const chartConfig = {
-  inquiries: {
-    label: "Inquiries",
-    color: "oklch(0.623 0.214 259.815)",
-  },
-  won: {
-    label: "Won",
+  accepted: {
+    label: "Accepted",
     color: "oklch(0.765 0.177 163.223)",
   },
-  lost: {
-    label: "Lost",
+  sent: {
+    label: "Pending",
+    color: "oklch(0.715 0.143 215.221)",
+  },
+  rejected: {
+    label: "Rejected",
     color: "oklch(0.637 0.237 25.331)",
+  },
+  expired: {
+    label: "Expired",
+    color: "oklch(0.705 0.191 47.604)",
   },
 } satisfies ChartConfig;
 
-export function AnalyticsTrendOverview({
+export function AnalyticsConversionTrend({
   points,
 }: {
-  points: BusinessAnalyticsTrendPoint[];
+  points: ConversionTrendPoint[];
 }) {
   return (
     <Card className="gap-0">
       <CardHeader className="gap-2">
-        <CardTitle>Inquiry trend</CardTitle>
-        <CardDescription>Rolling six-week view.</CardDescription>
+        <CardTitle>Quote status trend</CardTitle>
+        <CardDescription>
+          Six-week breakdown by outcome.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-64 w-full">
           <BarChart
             data={points}
             barCategoryGap="20%"
-            barGap={2}
           >
             <CartesianGrid vertical={false} />
             <XAxis
@@ -74,18 +79,27 @@ export function AnalyticsTrendOverview({
             />
             <ChartLegend content={<ChartLegendContent />} />
             <Bar
-              dataKey="inquiries"
-              fill="var(--color-inquiries)"
-              radius={[4, 4, 0, 0]}
+              dataKey="accepted"
+              stackId="quotes"
+              fill="var(--color-accepted)"
+              radius={[0, 0, 0, 0]}
             />
             <Bar
-              dataKey="won"
-              fill="var(--color-won)"
-              radius={[4, 4, 0, 0]}
+              dataKey="sent"
+              stackId="quotes"
+              fill="var(--color-sent)"
+              radius={[0, 0, 0, 0]}
             />
             <Bar
-              dataKey="lost"
-              fill="var(--color-lost)"
+              dataKey="rejected"
+              stackId="quotes"
+              fill="var(--color-rejected)"
+              radius={[0, 0, 0, 0]}
+            />
+            <Bar
+              dataKey="expired"
+              stackId="quotes"
+              fill="var(--color-expired)"
               radius={[4, 4, 0, 0]}
             />
           </BarChart>

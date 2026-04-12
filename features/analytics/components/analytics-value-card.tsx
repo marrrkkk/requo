@@ -3,7 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import { HelpTooltip } from "@/components/shared/help-tooltip";
 import { Card, CardContent } from "@/components/ui/card";
 
-export function AnalyticsMetricCard({
+export function AnalyticsValueCard({
   title,
   value,
   description,
@@ -27,7 +27,7 @@ export function AnalyticsMetricCard({
                 <HelpTooltip content={tooltip} label={title} />
               ) : null}
             </div>
-            <p className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
+            <p className="mt-3 text-2xl font-semibold tracking-tight text-foreground">
               {value}
             </p>
             {description ? (
