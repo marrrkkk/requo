@@ -723,6 +723,12 @@ export function MarketingHero() {
             <Link className="transition-colors hover:text-foreground" href="/login">
               Log in
             </Link>
+            <Link className="transition-colors hover:text-foreground" href="/privacy">
+              Privacy Policy
+            </Link>
+            <Link className="transition-colors hover:text-foreground" href="/terms">
+              Terms of Service
+            </Link>
           </div>
         </div>
       </section>
