@@ -1,12 +1,15 @@
 import "server-only";
 
-import { and, count, eq, gte, sql } from "drizzle-orm";
+import { and, count, eq, gte, isNotNull, isNull, lt, lte, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
 import type {
   BusinessAnalyticsData,
   BusinessAnalyticsStatusCount,
   BusinessAnalyticsTrendPoint,
+  ConversionAnalyticsData,
+  ConversionTrendPoint,
+  WorkflowAnalyticsData,
 } from "@/features/analytics/types";
 import { inquiryStatuses } from "@/features/inquiries/types";
 import {
@@ -15,6 +18,10 @@ import {
 } from "@/lib/cache/business-tags";
 import { db } from "@/lib/db/client";
 import { inquiries, quotes } from "@/lib/db/schema";
+
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
 
 const trendLabelFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -57,6 +64,10 @@ function toCountMap(
 
   return map;
 }
+
+// ---------------------------------------------------------------------------
+// Overview analytics (existing, extended)
+// ---------------------------------------------------------------------------
 
 export async function getBusinessAnalyticsData(
   businessId: string,
@@ -104,6 +115,7 @@ export async function getBusinessAnalyticsData(
           rejectedQuotes: sql<number>`count(*) filter (where ${quotes.status} = 'rejected')`,
           expiredQuotes: sql<number>`count(*) filter (where ${quotes.status} = 'expired')`,
           linkedInquiryCount: sql<number>`count(distinct ${quotes.inquiryId}) filter (where ${quotes.inquiryId} is not null)`,
+          avgQuoteValueInCents: sql<number>`coalesce(avg(${quotes.totalInCents}) filter (where ${quotes.status} != 'draft'), 0)`,
         })
         .from(quotes)
         .where(eq(quotes.businessId, businessId)),
@@ -168,6 +180,9 @@ export async function getBusinessAnalyticsData(
     linkedInquiryCount: Number(quoteSummaryRows[0]?.linkedInquiryCount ?? 0),
     acceptanceRate: 0,
     inquiryCoverageRate: 0,
+    averageQuoteValueInCents: Math.round(
+      Number(quoteSummaryRows[0]?.avgQuoteValueInCents ?? 0),
+    ),
   };
 
   quoteSummary.acceptanceRate = quoteSummary.sentQuotes
@@ -218,3 +233,199 @@ export async function getBusinessAnalyticsData(
     recentTrend,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Conversion analytics
+// ---------------------------------------------------------------------------
+
+export async function getConversionAnalyticsData(
+  businessId: string,
+): Promise<ConversionAnalyticsData> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessAnalyticsCacheTags(businessId));
+
+  const now = new Date();
+  const trendStart = addUtcWeeks(startOfUtcWeek(now), -5);
+  const trendStartIso = trendStart.toISOString();
+  const quoteActivityTimestamp = sql`coalesce(${quotes.acceptedAt}, ${quotes.sentAt}, ${quotes.createdAt})`;
+  const quoteActivityWeek = sql`date_trunc('week', ${quoteActivityTimestamp})`;
+
+  const [funnelRows, valueSummaryRows, statusTrendRows] = await Promise.all([
+    // Funnel rates
+    db
+      .select({
+        totalInquiries: sql<number>`count(*)`,
+        linkedInquiryCount: sql<number>`(
+          select count(distinct ${quotes.inquiryId})
+          from ${quotes}
+          where ${quotes.businessId} = ${businessId}
+            and ${quotes.inquiryId} is not null
+        )`,
+      })
+      .from(inquiries)
+      .where(eq(inquiries.businessId, businessId)),
+
+    // Value summary by status
+    db
+      .select({
+        sentQuotes: sql<number>`count(*) filter (where ${quotes.status} in ('sent', 'accepted', 'rejected', 'expired'))`,
+        acceptedQuotes: sql<number>`count(*) filter (where ${quotes.status} = 'accepted')`,
+        acceptedValueInCents: sql<number>`coalesce(sum(${quotes.totalInCents}) filter (where ${quotes.status} = 'accepted'), 0)`,
+        pendingValueInCents: sql<number>`coalesce(sum(${quotes.totalInCents}) filter (where ${quotes.status} = 'sent'), 0)`,
+        rejectedValueInCents: sql<number>`coalesce(sum(${quotes.totalInCents}) filter (where ${quotes.status} = 'rejected'), 0)`,
+        avgAcceptedValueInCents: sql<number>`coalesce(avg(${quotes.totalInCents}) filter (where ${quotes.status} = 'accepted'), 0)`,
+      })
+      .from(quotes)
+      .where(eq(quotes.businessId, businessId)),
+
+    // Quotes-by-status weekly trend
+    db
+      .select({
+        weekStart: sql<string>`to_char(${quoteActivityWeek}, 'YYYY-MM-DD')`,
+        sent: sql<number>`count(*) filter (where ${quotes.status} = 'sent')`,
+        accepted: sql<number>`count(*) filter (where ${quotes.status} = 'accepted')`,
+        rejected: sql<number>`count(*) filter (where ${quotes.status} = 'rejected')`,
+        expired: sql<number>`count(*) filter (where ${quotes.status} = 'expired')`,
+      })
+      .from(quotes)
+      .where(
+        and(
+          eq(quotes.businessId, businessId),
+          sql`${quoteActivityTimestamp} >= ${trendStartIso}::timestamptz`,
+        ),
+      )
+      .groupBy(quoteActivityWeek)
+      .orderBy(quoteActivityWeek),
+  ]);
+
+  const totalInquiries = Number(funnelRows[0]?.totalInquiries ?? 0);
+  const linkedInquiryCount = Number(funnelRows[0]?.linkedInquiryCount ?? 0);
+  const sentQuotes = Number(valueSummaryRows[0]?.sentQuotes ?? 0);
+  const acceptedQuotes = Number(valueSummaryRows[0]?.acceptedQuotes ?? 0);
+
+  const statusTrendMap = new Map(
+    statusTrendRows.map((row) => [
+      row.weekStart,
+      {
+        sent: Number(row.sent),
+        accepted: Number(row.accepted),
+        rejected: Number(row.rejected),
+        expired: Number(row.expired),
+      },
+    ]),
+  );
+
+  const quotesStatusTrend: ConversionTrendPoint[] = Array.from({ length: 6 }).map(
+    (_, index) => {
+      const weekStart = addUtcWeeks(startOfUtcWeek(trendStart), index);
+      const isoDate = toIsoDate(weekStart);
+      const bucket = statusTrendMap.get(isoDate);
+
+      return {
+        label: trendLabelFormatter.format(weekStart),
+        weekStart: isoDate,
+        sent: bucket?.sent ?? 0,
+        accepted: bucket?.accepted ?? 0,
+        rejected: bucket?.rejected ?? 0,
+        expired: bucket?.expired ?? 0,
+      };
+    },
+  );
+
+  return {
+    inquiryToQuoteRate: totalInquiries ? linkedInquiryCount / totalInquiries : 0,
+    quoteToAcceptanceRate: sentQuotes ? acceptedQuotes / sentQuotes : 0,
+    acceptedValueInCents: Number(valueSummaryRows[0]?.acceptedValueInCents ?? 0),
+    pendingValueInCents: Number(valueSummaryRows[0]?.pendingValueInCents ?? 0),
+    rejectedValueInCents: Number(valueSummaryRows[0]?.rejectedValueInCents ?? 0),
+    averageAcceptedValueInCents: Math.round(
+      Number(valueSummaryRows[0]?.avgAcceptedValueInCents ?? 0),
+    ),
+    quotesStatusTrend,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Workflow analytics
+// ---------------------------------------------------------------------------
+
+export async function getWorkflowAnalyticsData(
+  businessId: string,
+): Promise<WorkflowAnalyticsData> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessAnalyticsCacheTags(businessId));
+
+  const staleCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
+  const pendingCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+  const [timingRows, staleRows, pendingRows] = await Promise.all([
+    // Average durations
+    db
+      .select({
+        avgTimeToQuoteHours: sql<number | null>`(
+          select avg(extract(epoch from (q."created_at" - i."submitted_at")) / 3600)
+          from ${quotes} q
+          inner join ${inquiries} i on i."id" = q."inquiry_id"
+          where q."business_id" = ${businessId}
+            and q."inquiry_id" is not null
+        )`,
+        avgSentToDecisionHours: sql<number | null>`(
+          select avg(extract(epoch from (q."customer_responded_at" - q."sent_at")) / 3600)
+          from ${quotes} q
+          where q."business_id" = ${businessId}
+            and q."customer_responded_at" is not null
+            and q."sent_at" is not null
+        )`,
+      })
+      .from(inquiries)
+      .where(eq(inquiries.businessId, businessId)),
+
+    // Stale inquiries (no response > 48h)
+    db
+      .select({ count: count() })
+      .from(inquiries)
+      .where(
+        and(
+          eq(inquiries.businessId, businessId),
+          sql`${inquiries.status} in ('new', 'waiting')`,
+          lt(inquiries.submittedAt, staleCutoff),
+          isNull(inquiries.lastRespondedAt),
+        ),
+      ),
+
+    // Pending quotes > 7 days
+    db
+      .select({ count: count() })
+      .from(quotes)
+      .where(
+        and(
+          eq(quotes.businessId, businessId),
+          eq(quotes.status, "sent"),
+          isNotNull(quotes.sentAt),
+          lte(quotes.sentAt, pendingCutoff),
+          isNull(quotes.customerRespondedAt),
+        ),
+      ),
+  ]);
+
+  const rawToQuote = timingRows[0]?.avgTimeToQuoteHours;
+  const rawToDecision = timingRows[0]?.avgSentToDecisionHours;
+
+  return {
+    avgTimeToQuoteHours:
+      rawToQuote !== null && rawToQuote !== undefined
+        ? Math.round(Number(rawToQuote) * 10) / 10
+        : null,
+    avgTimeSentToDecisionHours:
+      rawToDecision !== null && rawToDecision !== undefined
+        ? Math.round(Number(rawToDecision) * 10) / 10
+        : null,
+    staleInquiryCount: Number(staleRows[0]?.count ?? 0),
+    pendingQuotesOverSevenDays: Number(pendingRows[0]?.count ?? 0),
+  };
+}
+

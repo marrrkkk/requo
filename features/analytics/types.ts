@@ -29,6 +29,41 @@ export type BusinessAnalyticsData = {
     linkedInquiryCount: number;
     acceptanceRate: number;
     inquiryCoverageRate: number;
+    averageQuoteValueInCents: number;
   };
   recentTrend: BusinessAnalyticsTrendPoint[];
+};
+
+// ---------------------------------------------------------------------------
+// Conversion analytics
+// ---------------------------------------------------------------------------
+
+export type ConversionTrendPoint = {
+  label: string;
+  weekStart: string;
+  sent: number;
+  accepted: number;
+  rejected: number;
+  expired: number;
+};
+
+export type ConversionAnalyticsData = {
+  inquiryToQuoteRate: number;
+  quoteToAcceptanceRate: number;
+  acceptedValueInCents: number;
+  pendingValueInCents: number;
+  rejectedValueInCents: number;
+  averageAcceptedValueInCents: number;
+  quotesStatusTrend: ConversionTrendPoint[];
+};
+
+// ---------------------------------------------------------------------------
+// Workflow analytics
+// ---------------------------------------------------------------------------
+
+export type WorkflowAnalyticsData = {
+  avgTimeToQuoteHours: number | null;
+  avgTimeSentToDecisionHours: number | null;
+  staleInquiryCount: number;
+  pendingQuotesOverSevenDays: number;
 };
