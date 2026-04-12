@@ -8,6 +8,7 @@ export type BusinessMemberView = {
   userId: string;
   name: string;
   email: string;
+  image: string | null;
   role: BusinessMemberRole;
   joinedAt: Date;
   isCurrentUser: boolean;

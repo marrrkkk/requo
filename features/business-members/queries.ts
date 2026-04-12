@@ -70,6 +70,7 @@ export async function getBusinessMembersSettingsForBusiness(
         joinedAt: businessMembers.createdAt,
         name: user.name,
         email: user.email,
+        image: user.image,
       })
       .from(businessMembers)
       .innerJoin(user, eq(businessMembers.userId, user.id))
@@ -128,6 +129,7 @@ export async function getBusinessMembersSettingsForBusiness(
       userId: member.userId,
       name: member.name,
       email: member.email,
+      image: member.image ?? null,
       role: member.role,
       joinedAt: member.joinedAt,
       isCurrentUser: member.userId === currentUserId,
