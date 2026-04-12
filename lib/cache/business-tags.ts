@@ -28,6 +28,16 @@ export function getBusinessSettingsCacheTags(businessId: string) {
   return uniqueCacheTags([scopeTag, `${scopeTag}:settings`]);
 }
 
+export function getBusinessMembersCacheTags(businessId: string) {
+  const scopeTag = getBusinessScopeTag(businessId);
+
+  return uniqueCacheTags([
+    scopeTag,
+    `${scopeTag}:settings`,
+    `${scopeTag}:members`,
+  ]);
+}
+
 export function getBusinessInquiryFormsCacheTags(businessId: string) {
   const scopeTag = getBusinessScopeTag(businessId);
 
