@@ -47,7 +47,10 @@ import {
   updateBusinessQuoteSettings,
   updateBusinessSettings,
 } from "@/features/settings/mutations";
-import { getOwnerBusinessActionContext } from "@/lib/db/business-access";
+import {
+  getOperationalBusinessActionContext,
+  getOwnerBusinessActionContext,
+} from "@/lib/db/business-access";
 import {
   activeBusinessSlugCookieName,
   getBusinessDashboardPath,
@@ -149,6 +152,8 @@ export async function updateBusinessSettingsAction(
     revalidatePath(getBusinessSettingsPath(result.nextSlug));
     revalidatePath(getBusinessSettingsPath(result.previousSlug, "general"));
     revalidatePath(getBusinessSettingsPath(result.nextSlug, "general"));
+    revalidatePath(getBusinessSettingsPath(result.previousSlug, "members"));
+    revalidatePath(getBusinessSettingsPath(result.nextSlug, "members"));
     revalidatePath(getBusinessSettingsPath(result.previousSlug, "notifications"));
     revalidatePath(getBusinessSettingsPath(result.nextSlug, "notifications"));
     revalidatePath(getBusinessSettingsPath(result.previousSlug, "security"));
@@ -205,7 +210,7 @@ export async function updateBusinessNotificationSettingsAction(
   _prevState: BusinessNotificationSettingsActionState,
   formData: FormData,
 ): Promise<BusinessNotificationSettingsActionState> {
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {
@@ -260,7 +265,7 @@ export async function updateBusinessQuoteSettingsAction(
   _prevState: BusinessQuoteSettingsActionState,
   formData: FormData,
 ): Promise<BusinessQuoteSettingsActionState> {
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {
@@ -312,7 +317,7 @@ export async function deleteBusinessAction(
   _prevState: BusinessDeleteActionState,
   formData: FormData,
 ): Promise<BusinessDeleteActionState> {
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {
@@ -384,7 +389,7 @@ export async function updateBusinessInquiryPageAction(
   _prevState: BusinessInquiryPageActionState,
   formData: FormData,
 ): Promise<BusinessInquiryPageActionState> {
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {
@@ -491,7 +496,7 @@ export async function updateBusinessInquiryFormAction(
   _prevState: BusinessInquiryFormActionState,
   formData: FormData,
 ): Promise<BusinessInquiryFormActionState> {
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {
@@ -579,7 +584,7 @@ export async function applyBusinessInquiryFormPresetAction(
   _prevState: BusinessInquiryFormActionState,
   formData: FormData,
 ): Promise<BusinessInquiryFormActionState> {
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {
@@ -637,7 +642,7 @@ export async function createBusinessInquiryFormAction(
   _prevState: BusinessInquiryFormsActionState,
   formData: FormData,
 ): Promise<BusinessInquiryFormsActionState> {
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {
@@ -708,7 +713,7 @@ export async function duplicateBusinessInquiryFormAction(
   _prevState: BusinessInquiryFormsActionState,
   formData: FormData,
 ): Promise<BusinessInquiryFormsActionState> {
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {
@@ -781,7 +786,7 @@ export async function setDefaultBusinessInquiryFormAction(
   _prevState: BusinessInquiryFormsActionState,
   formData: FormData,
 ): Promise<BusinessInquiryFormsActionState> {
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {
@@ -839,7 +844,7 @@ export async function archiveBusinessInquiryFormAction(
   _prevState: BusinessInquiryFormsActionState,
   formData: FormData,
 ): Promise<BusinessInquiryFormsActionState> {
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {
@@ -908,7 +913,7 @@ export async function archiveBusinessInquiryFormFromDetailAction(
   _prevState: BusinessInquiryFormDangerActionState,
   formData: FormData,
 ): Promise<BusinessInquiryFormDangerActionState> {
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {
@@ -979,7 +984,7 @@ export async function deleteBusinessInquiryFormAction(
   _prevState: BusinessInquiryFormDangerActionState,
   formData: FormData,
 ): Promise<BusinessInquiryFormDangerActionState> {
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {

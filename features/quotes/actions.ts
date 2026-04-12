@@ -15,7 +15,7 @@ import {
 import {
   getBusinessMessagingSettings,
   getBusinessOwnerEmails,
-  getOwnerBusinessActionContext,
+  getWorkspaceBusinessActionContext,
 } from "@/lib/db/business-access";
 import { env, isResendConfigured } from "@/lib/env";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
@@ -108,7 +108,7 @@ export async function createQuoteAction(
 ): Promise<QuoteEditorActionState> {
   void prevState;
 
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getWorkspaceBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {
@@ -188,7 +188,7 @@ export async function updateQuoteAction(
 ): Promise<QuoteEditorActionState> {
   void prevState;
 
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getWorkspaceBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {
@@ -258,7 +258,7 @@ export async function changeQuoteStatusAction(
 ): Promise<QuoteStatusActionState> {
   void prevState;
 
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getWorkspaceBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {
@@ -323,7 +323,7 @@ export async function sendQuoteAction(
   void prevState;
   void formData;
 
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getWorkspaceBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {
@@ -474,7 +474,7 @@ export async function updateQuotePostAcceptanceStatusAction(
 ): Promise<QuotePostAcceptanceActionState> {
   void prevState;
 
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getWorkspaceBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {

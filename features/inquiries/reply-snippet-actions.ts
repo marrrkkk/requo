@@ -7,7 +7,7 @@ import {
   getBusinessReplySnippetsCacheTags,
   uniqueCacheTags,
 } from "@/lib/cache/business-tags";
-import { getOwnerBusinessActionContext } from "@/lib/db/business-access";
+import { getOperationalBusinessActionContext } from "@/lib/db/business-access";
 import {
   createReplySnippetForBusiness,
   deleteReplySnippetForBusiness,
@@ -37,7 +37,7 @@ export async function createReplySnippetAction(
 ): Promise<ReplySnippetActionState> {
   void prevState;
 
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {
@@ -97,7 +97,7 @@ export async function updateReplySnippetAction(
     };
   }
 
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {
@@ -165,7 +165,7 @@ export async function deleteReplySnippetAction(
     };
   }
 
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getOperationalBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {

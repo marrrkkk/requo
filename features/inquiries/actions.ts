@@ -11,7 +11,7 @@ import {
 } from "@/lib/cache/business-tags";
 import {
   getBusinessMessagingSettings,
-  getOwnerBusinessActionContext,
+  getWorkspaceBusinessActionContext,
 } from "@/lib/db/business-access";
 import { env } from "@/lib/env";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
@@ -176,7 +176,7 @@ export async function addInquiryNoteAction(
   _prevState: InquiryNoteActionState,
   formData: FormData,
 ): Promise<InquiryNoteActionState> {
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getWorkspaceBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {
@@ -228,7 +228,7 @@ export async function changeInquiryStatusAction(
   _prevState: InquiryStatusActionState,
   formData: FormData,
 ): Promise<InquiryStatusActionState> {
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getWorkspaceBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {

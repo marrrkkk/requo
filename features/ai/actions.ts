@@ -5,14 +5,14 @@ import { getValidationActionState } from "@/lib/action-state";
 import { getInquiryAssistantContextForBusiness } from "@/features/ai/queries";
 import { aiAssistantRequestSchema } from "@/features/ai/schemas";
 import { generateInquiryAssistantResult } from "@/features/ai/service";
-import { getOwnerBusinessActionContext } from "@/lib/db/business-access";
+import { getWorkspaceBusinessActionContext } from "@/lib/db/business-access";
 
 export async function generateInquiryAssistantAction(
   inquiryId: string,
   prevState: AiAssistantActionState,
   formData: FormData,
 ): Promise<AiAssistantActionState> {
-  const ownerAccess = await getOwnerBusinessActionContext();
+  const ownerAccess = await getWorkspaceBusinessActionContext();
 
   if (!ownerAccess.ok) {
     return {
