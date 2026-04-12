@@ -7,6 +7,7 @@ import type {
   BusinessAnalyticsData,
   BusinessAnalyticsStatusCount,
   BusinessAnalyticsTrendPoint,
+  BusinessAnalyticsActivityPoint,
   ConversionAnalyticsData,
   ConversionTrendPoint,
   WorkflowAnalyticsData,
@@ -86,8 +87,15 @@ export async function getBusinessAnalyticsData(
   const quoteActivityTimestamp = sql`coalesce(${quotes.acceptedAt}, ${quotes.sentAt}, ${quotes.createdAt})`;
   const quoteActivityWeek = sql`date_trunc('week', ${quoteActivityTimestamp})`;
 
-  const [statusRows, thisWeekRows, quoteSummaryRows, inquiryTrendRows, quoteTrendRows] =
-    await Promise.all([
+  const [
+    statusRows,
+    thisWeekRows,
+    quoteSummaryRows,
+    inquiryTrendRows,
+    quoteTrendRows,
+    inquiryActivityRows,
+    quoteActivityRows,
+  ] = await Promise.all([
       db
         .select({
           status: inquiries.status,
@@ -149,6 +157,22 @@ export async function getBusinessAnalyticsData(
         )
         .groupBy(quoteActivityWeek)
         .orderBy(quoteActivityWeek),
+      db
+        .select({
+          date: sql<string>`to_char(date_trunc('day', ${inquiries.submittedAt}), 'YYYY-MM-DD')`,
+          count: sql<number>`count(*)`,
+        })
+        .from(inquiries)
+        .where(eq(inquiries.businessId, businessId))
+        .groupBy(sql`date_trunc('day', ${inquiries.submittedAt})`),
+      db
+        .select({
+          date: sql<string>`to_char(date_trunc('day', ${quoteActivityTimestamp}), 'YYYY-MM-DD')`,
+          count: sql<number>`count(*)`,
+        })
+        .from(quotes)
+        .where(eq(quotes.businessId, businessId))
+        .groupBy(sql`date_trunc('day', ${quoteActivityTimestamp})`),
     ]);
 
   const inquiryStatusCountsMap = toCountMap(
@@ -223,6 +247,52 @@ export async function getBusinessAnalyticsData(
     },
   );
 
+  let activityStartYear: number | null = null;
+  const activityMap: Record<string, { inquiries: number; quotes: number }> = {};
+  
+  for (const row of inquiryActivityRows) {
+    if (!activityMap[row.date]) {
+      activityMap[row.date] = { inquiries: 0, quotes: 0 };
+    }
+    activityMap[row.date].inquiries += Number(row.count);
+
+    const match = row.date.match(/^(\d{4})/);
+    if (match) {
+      const parsedYear = parseInt(match[1] ?? "", 10);
+      if (!Number.isNaN(parsedYear)) {
+          if (activityStartYear === null || parsedYear < activityStartYear) {
+             activityStartYear = parsedYear;
+          }
+      }
+    }
+  }
+
+  for (const row of quoteActivityRows) {
+    if (!activityMap[row.date]) {
+      activityMap[row.date] = { inquiries: 0, quotes: 0 };
+    }
+    activityMap[row.date].quotes += Number(row.count);
+
+    const match = row.date.match(/^(\d{4})/);
+    if (match) {
+      const parsedYear = parseInt(match[1] ?? "", 10);
+      if (!Number.isNaN(parsedYear)) {
+          if (activityStartYear === null || parsedYear < activityStartYear) {
+             activityStartYear = parsedYear;
+          }
+      }
+    }
+  }
+
+  const currentYear = now.getUTCFullYear();
+  const startYear = activityStartYear ?? currentYear;
+
+  const activityGraph = {
+    startYear: startYear > currentYear ? currentYear : startYear,
+    currentYear,
+    activityMap,
+  };
+
   return {
     totalInquiries,
     inquiriesThisWeek: Number(thisWeekRows[0]?.count ?? 0),
@@ -231,6 +301,7 @@ export async function getBusinessAnalyticsData(
     inquiryStatusCounts,
     quoteSummary,
     recentTrend,
+    activityGraph,
   };
 }
 

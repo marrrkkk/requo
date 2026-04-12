@@ -14,6 +14,7 @@ import { AnalyticsMetricCard } from "@/features/analytics/components/analytics-m
 import { AnalyticsQuoteSummary } from "@/features/analytics/components/analytics-quote-summary";
 import { AnalyticsStatusBreakdown } from "@/features/analytics/components/analytics-status-breakdown";
 import { AnalyticsTrendOverview } from "@/features/analytics/components/analytics-trend-overview";
+import { AnalyticsActivityGraph } from "@/features/analytics/components/analytics-activity-graph";
 import type { BusinessAnalyticsData } from "@/features/analytics/types";
 import { formatAnalyticsPercent } from "@/features/analytics/utils";
 
@@ -57,7 +58,10 @@ export function AnalyticsOverviewTab({
       </DashboardStatsGrid>
 
       <DashboardDetailLayout>
-        <AnalyticsTrendOverview points={data.recentTrend} />
+        <div className="flex flex-col gap-6 min-w-0">
+          <AnalyticsTrendOverview points={data.recentTrend} />
+          <AnalyticsActivityGraph data={data.activityGraph} />
+        </div>
 
         <DashboardSidebarStack>
           <AnalyticsStatusBreakdown rows={data.inquiryStatusCounts} />

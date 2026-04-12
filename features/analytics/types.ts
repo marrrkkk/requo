@@ -14,6 +14,12 @@ export type BusinessAnalyticsTrendPoint = {
   acceptedQuotes: number;
 };
 
+export type BusinessAnalyticsActivityPoint = {
+  date: string;       // ISO date string
+  inquiries: number;
+  quotes: number;
+};
+
 export type BusinessAnalyticsData = {
   totalInquiries: number;
   inquiriesThisWeek: number;
@@ -32,6 +38,11 @@ export type BusinessAnalyticsData = {
     averageQuoteValueInCents: number;
   };
   recentTrend: BusinessAnalyticsTrendPoint[];
+  activityGraph: {
+    startYear: number;
+    currentYear: number;
+    activityMap: Record<string, { inquiries: number; quotes: number }>; // map of ISO date -> counts
+  };
 };
 
 // ---------------------------------------------------------------------------
