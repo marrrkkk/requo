@@ -98,6 +98,10 @@ export function getBusinessFormsPath(slug: string) {
   return `${getBusinessDashboardPath(slug)}/forms`;
 }
 
+export function getBusinessMembersPath(slug: string) {
+  return `${getBusinessDashboardPath(slug)}/members`;
+}
+
 export function getBusinessFormPath(slug: string, formSlug: string) {
   return `${getBusinessFormsPath(slug)}/${formSlug}`;
 }
