@@ -26,6 +26,7 @@ import { DashboardNotificationBell } from "@/features/notifications/components/d
 import type { BusinessNotificationBellView } from "@/features/notifications/types";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import type { ThemePreference } from "@/features/theme/types";
+import { canManageOperationalBusinessSettings } from "@/lib/business-members";
 import type { BusinessContext } from "@/lib/db/business-access";
 import { BrandMark } from "@/components/shared/brand-mark";
 import {
@@ -71,9 +72,9 @@ import {
 } from "@/components/ui/sidebar";
 import {
   getBusinessDashboardPath,
-  getBusinessSettingsPath,
   businessesHubPath,
 } from "@/features/businesses/routes";
+import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
 import { cn } from "@/lib/utils";
 
 type DashboardShellProps = {
@@ -100,7 +101,10 @@ export function DashboardShell({
 }: DashboardShellProps) {
   const pathname = usePathname();
   const breadcrumbs = getDashboardBreadcrumbs(pathname);
-  const dashboardNavigation = getDashboardNavigation(businessContext.business.slug);
+  const dashboardNavigation = getDashboardNavigation(
+    businessContext.business.slug,
+    businessContext.role,
+  );
   const business = businessContext.business;
 
   return (
@@ -152,7 +156,11 @@ export function DashboardShell({
         <SidebarSeparator />
 
         <SidebarFooter className="p-3 pt-2 group-data-[collapsible=icon]:px-2">
-          <DashboardUserMenu user={user} businessSlug={business.slug} />
+          <DashboardUserMenu
+            user={user}
+            businessRole={businessContext.role}
+            businessSlug={business.slug}
+          />
         </SidebarFooter>
 
         <SidebarRail />
@@ -260,9 +268,11 @@ function DashboardNavigationItem({
 
 function DashboardUserMenu({
   user,
+  businessRole,
   businessSlug,
 }: {
   user: DashboardShellProps["user"];
+  businessRole: DashboardShellProps["businessContext"]["role"];
   businessSlug: string;
 }) {
   const [isPending, startTransition] = useTransition();
@@ -285,6 +295,13 @@ function DashboardUserMenu({
       window.location.assign("/login");
     });
   }
+
+  const canOpenBusinessSettings =
+    canManageOperationalBusinessSettings(businessRole);
+  const businessSettingsHref = getDefaultBusinessSettingsPath(
+    businessSlug,
+    businessRole,
+  );
 
   return (
     <SidebarMenu>
@@ -347,16 +364,18 @@ function DashboardUserMenu({
                   Your profile
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link
-                  href={getBusinessSettingsPath(businessSlug, "general")}
-                  prefetch={true}
-                  onClick={closeMobileSidebar}
-                >
-                  <Settings2 data-icon="inline-start" />
-                  Business settings
-                </Link>
-              </DropdownMenuItem>
+              {canOpenBusinessSettings ? (
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={businessSettingsHref}
+                    prefetch={true}
+                    onClick={closeMobileSidebar}
+                  >
+                    <Settings2 data-icon="inline-start" />
+                    Business settings
+                  </Link>
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem asChild>
                 <Link
                   href={businessesHubPath}

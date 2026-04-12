@@ -8,6 +8,10 @@ import {
 } from "lucide-react";
 
 import {
+  canManageOperationalBusinessSettings,
+  type BusinessMemberRole,
+} from "@/lib/business-members";
+import {
   getBusinessAnalyticsPath,
   getBusinessDashboardPath,
   getBusinessDashboardSlugFromPathname,
@@ -17,6 +21,7 @@ import {
   getBusinessQuotesPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
+import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
 
 export type DashboardNavigationItem = {
   href: string;
@@ -30,7 +35,10 @@ export type DashboardBreadcrumbItem = {
   href?: string;
 };
 
-export function getDashboardNavigation(slug: string): DashboardNavigationItem[] {
+export function getDashboardNavigation(
+  slug: string,
+  role: BusinessMemberRole,
+): DashboardNavigationItem[] {
   return [
     {
       href: getBusinessDashboardPath(slug),
@@ -50,18 +58,22 @@ export function getDashboardNavigation(slug: string): DashboardNavigationItem[] 
       description: "Draft, send, and track quotes from one place.",
       icon: FileText,
     },
-    {
-      href: getBusinessFormsPath(slug),
-      label: "Forms",
-      description: "Manage inquiry forms, public pages, and live intake flows.",
-      icon: FormInput,
-    },
-    {
-      href: getBusinessSettingsPath(slug, "general"),
-      label: "Settings",
-      description: "Manage business setup, reusable responses, and quote defaults.",
-      icon: Settings2,
-    },
+    ...(canManageOperationalBusinessSettings(role)
+      ? [
+          {
+            href: getBusinessFormsPath(slug),
+            label: "Forms",
+            description: "Manage inquiry forms, public pages, and live intake flows.",
+            icon: FormInput,
+          },
+          {
+            href: getDefaultBusinessSettingsPath(slug, role),
+            label: "Settings",
+            description: "Manage business setup, reusable responses, and quote defaults.",
+            icon: Settings2,
+          },
+        ]
+      : []),
   ];
 }
 
@@ -119,7 +131,7 @@ export function getActiveDashboardNavigationItem(pathname: string) {
     return null;
   }
 
-  const dashboardNavigation = getDashboardNavigation(slug);
+  const dashboardNavigation = getDashboardNavigation(slug, "owner");
 
   return (
     dashboardNavigation.find((item) =>
