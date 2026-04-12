@@ -102,7 +102,8 @@ type BusinessInquiryPageFormProps = {
   ) => Promise<BusinessInquiryPageActionState>;
   settings: BusinessInquiryPageSettingsView;
   logoPreviewUrl: string | null;
-  generalSettingsHref: string;
+  generalSettingsHref: string | null;
+  settingsHref: string;
   onDraftChange: (draft: BusinessInquiryPagePreviewDraft) => void;
   onPreview: () => void;
 };
@@ -120,6 +121,7 @@ export function BusinessInquiryPageForm({
   settings,
   logoPreviewUrl,
   generalSettingsHref,
+  settingsHref,
   onDraftChange,
   onPreview,
 }: BusinessInquiryPageFormProps) {
@@ -902,13 +904,19 @@ export function BusinessInquiryPageForm({
                     Business brand
                   </p>
                   <p className="text-sm leading-6 text-muted-foreground">
-                    Logo comes from General Settings. Add a page tagline only if you want different text here.
+                    Logo comes from the business profile. Add a page tagline only if you want different text here.
                   </p>
                 </div>
 
-                <Button asChild className="w-full sm:w-auto" variant="outline">
-                  <Link href={generalSettingsHref}>Manage brand assets</Link>
-                </Button>
+                {generalSettingsHref ? (
+                  <Button asChild className="w-full sm:w-auto" variant="outline">
+                    <Link href={generalSettingsHref}>Open business profile</Link>
+                  </Button>
+                ) : (
+                  <Button asChild className="w-full sm:w-auto" variant="outline">
+                    <Link href={settingsHref}>Open settings</Link>
+                  </Button>
+                )}
               </div>
 
               <div className="mt-4 soft-panel flex items-center gap-4 px-5 py-5 shadow-none">
@@ -934,7 +942,7 @@ export function BusinessInquiryPageForm({
                     {settings.name}
                   </p>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    Update the logo and brand line from general settings.
+                    Update the logo and brand line from the business profile.
                   </p>
                 </div>
               </div>

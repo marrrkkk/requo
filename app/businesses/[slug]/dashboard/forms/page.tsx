@@ -4,10 +4,10 @@ import { PageHeader } from "@/components/shared/page-header";
 import { createBusinessInquiryFormAction } from "@/features/settings/actions";
 import { BusinessInquiryFormsManager } from "@/features/settings/components/business-inquiry-forms-manager";
 import { getBusinessInquiryFormsSettingsForBusiness } from "@/features/settings/queries";
-import { getBusinessOwnerPageContext } from "../settings/_lib/page-context";
+import { getBusinessOperationalPageContext } from "../settings/_lib/page-context";
 
 export default async function BusinessFormsPage() {
-  const { businessContext } = await getBusinessOwnerPageContext();
+  const { businessContext } = await getBusinessOperationalPageContext();
   const settings = await getBusinessInquiryFormsSettingsForBusiness(
     businessContext.business.id,
   );

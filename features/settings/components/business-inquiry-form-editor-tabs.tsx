@@ -30,7 +30,8 @@ import { BusinessInquiryPageForm } from "@/features/settings/components/business
 type BusinessInquiryFormEditorTabsProps = {
   settings: BusinessInquiryFormEditorView;
   logoPreviewUrl: string | null;
-  generalSettingsHref: string;
+  generalSettingsHref: string | null;
+  settingsHref: string;
   previewHref: string;
   publicInquiryHref: string;
   inquiryListHref: string;
@@ -88,6 +89,7 @@ export function BusinessInquiryFormEditorTabs({
   settings,
   logoPreviewUrl,
   generalSettingsHref,
+  settingsHref,
   previewHref,
   publicInquiryHref,
   inquiryListHref,
@@ -280,6 +282,7 @@ export function BusinessInquiryFormEditorTabs({
                 logoPreviewUrl={logoPreviewUrl}
                 onDraftChange={handlePageDraftChange}
                 onPreview={handleOpenPreview}
+                settingsHref={settingsHref}
                 settings={settings}
               />
             </DashboardSidebarStack>

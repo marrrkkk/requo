@@ -19,14 +19,16 @@ import {
   getBusinessInquiryFormsPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
-import { getBusinessOwnerPageContext } from "../../settings/_lib/page-context";
+import { canManageBusinessAdministration } from "@/lib/business-members";
+import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
+import { getBusinessOperationalPageContext } from "../../settings/_lib/page-context";
 
 export default async function BusinessFormPage({
   params,
 }: {
   params: Promise<{ formSlug: string }>;
 }) {
-  const { businessContext } = await getBusinessOwnerPageContext();
+  const { businessContext } = await getBusinessOperationalPageContext();
   const { formSlug } = await params;
   const settings = await getBusinessInquiryFormEditorForBusiness(
     businessContext.business.id,
@@ -45,7 +47,13 @@ export default async function BusinessFormPage({
     settings.formSlug,
   );
   const inquiryListHref = getBusinessInquiryFormsPath(settings.slug);
-  const generalSettingsHref = getBusinessSettingsPath(settings.slug, "general");
+  const generalSettingsHref = canManageBusinessAdministration(businessContext.role)
+    ? getBusinessSettingsPath(settings.slug, "general")
+    : null;
+  const settingsHref = getDefaultBusinessSettingsPath(
+    settings.slug,
+    businessContext.role,
+  );
   const publicInquiryHref = settings.isDefault
     ? getBusinessPublicInquiryUrl(settings.slug)
     : getBusinessPublicInquiryUrl(settings.slug, settings.formSlug);
@@ -64,6 +72,7 @@ export default async function BusinessFormPage({
           settings={settings}
           logoPreviewUrl={logoPreviewUrl}
           generalSettingsHref={generalSettingsHref}
+          settingsHref={settingsHref}
           previewHref={previewHref}
           publicInquiryHref={publicInquiryHref}
           inquiryListHref={inquiryListHref}
