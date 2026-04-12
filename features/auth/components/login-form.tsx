@@ -5,6 +5,7 @@ import { FormEvent, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { authClient } from "@/lib/auth/client";
+import { getAuthPathWithNext, getSafeAuthRedirectPath } from "@/lib/auth/redirects";
 import {
   AuthEmailDivider,
   SocialAuthButtons,
@@ -38,6 +39,8 @@ export function LoginForm({
   socialProviders = [],
 }: LoginFormProps) {
   const searchParams = useSearchParams();
+  const nextPath = getSafeAuthRedirectPath(searchParams.get("next"), "/businesses");
+  const signupHref = getAuthPathWithNext("/signup", nextPath);
   const [state, setState] = useState<AuthFormState>({});
   const [isPending, startTransition] = useTransition();
 
@@ -61,7 +64,10 @@ export function LoginForm({
     setState({});
 
     startTransition(async () => {
-      const result = await authClient.signIn.email(validationResult.data);
+      const result = await authClient.signIn.email({
+        ...validationResult.data,
+        callbackURL: nextPath,
+      });
 
       if (result.error) {
         setState({
@@ -73,7 +79,7 @@ export function LoginForm({
         return;
       }
 
-      window.location.assign("/businesses");
+      window.location.assign(nextPath);
     });
   }
 
@@ -83,8 +89,8 @@ export function LoginForm({
     startTransition(async () => {
       const result = await authClient.signIn.social({
         provider,
-        callbackURL: "/businesses",
-        newUserCallbackURL: "/onboarding",
+        callbackURL: nextPath,
+        newUserCallbackURL: nextPath,
       });
 
       if (result.error) {
@@ -182,7 +188,7 @@ export function LoginForm({
         New here?{" "}
         <Link
           className="font-medium text-foreground underline-offset-4 hover:underline"
-          href="/signup"
+          href={signupHref}
         >
           Create an account
         </Link>
