@@ -158,7 +158,7 @@ export default async function InquiriesPage({
               },
               ...inquiryFormOptions.map((form) => ({
                 value: form.slug,
-                label: form.isDefault ? `${form.name} (Default)` : form.name,
+                label: form.archivedAt ? `${form.name} (Archived)` : form.name,
               })),
             ]}
             resultCount={totalItems}
@@ -176,7 +176,7 @@ export default async function InquiriesPage({
           },
           ...inquiryFormOptions.map((form) => ({
             value: form.slug,
-            label: form.isDefault ? `${form.name} (Default)` : form.name,
+            label: form.archivedAt ? `${form.name} (Archived)` : form.name,
           })),
         ]}
         resultCount={totalItems}

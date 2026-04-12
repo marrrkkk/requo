@@ -613,14 +613,10 @@ export async function getBusinessInquiryFormOptionsForBusiness(
       name: businessInquiryForms.name,
       slug: businessInquiryForms.slug,
       isDefault: businessInquiryForms.isDefault,
+      archivedAt: businessInquiryForms.archivedAt,
     })
     .from(businessInquiryForms)
-    .where(
-      and(
-        eq(businessInquiryForms.businessId, businessId),
-        isNull(businessInquiryForms.archivedAt),
-      ),
-    )
+    .where(eq(businessInquiryForms.businessId, businessId))
     .orderBy(desc(businessInquiryForms.isDefault), asc(businessInquiryForms.name));
 }
 
