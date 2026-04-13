@@ -19,7 +19,7 @@ export async function getCurrentUser() {
   return (await getSession())?.user ?? null;
 }
 
-export async function redirectIfAuthenticated(redirectTo = "/businesses") {
+export async function redirectIfAuthenticated(redirectTo = "/workspaces") {
   const session = await getSession();
 
   if (session) {

@@ -1,5 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 
+import type { WorkspacePlan } from "@/lib/plans/plans";
+
 import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
 import { createInquiryFormConfigDefaults } from "@/features/inquiries/form-config";
 import { createInquiryPageConfigDefaults } from "@/features/inquiries/page-config";
@@ -10,6 +12,8 @@ import {
   businessInquiryForms,
   businessMembers,
   businesses,
+  workspaceMembers,
+  workspaces,
 } from "@/lib/db/schema";
 import { appendRandomSlugSuffix, slugifyPublicName } from "@/lib/slugs";
 
@@ -23,14 +27,17 @@ function createId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
 }
 
-async function getAvailableBusinessSlug(baseSlug: string) {
+async function getAvailableSlug(
+  table: typeof businesses | typeof workspaces,
+  baseSlug: string,
+) {
   let candidate = baseSlug;
 
   while (true) {
     const existing = await db
-      .select({ id: businesses.id })
-      .from(businesses)
-      .where(eq(businesses.slug, candidate))
+      .select({ id: table.id })
+      .from(table)
+      .where(eq(table.slug, candidate))
       .limit(1);
 
     if (!existing[0]) {
@@ -38,7 +45,7 @@ async function getAvailableBusinessSlug(baseSlug: string) {
     }
 
     candidate = appendRandomSlugSuffix(baseSlug, {
-      fallback: "business",
+      fallback: "item",
     });
   }
 }
@@ -64,7 +71,62 @@ export async function ensureProfileForUser(user: BootstrapUser) {
   });
 }
 
-export async function bootstrapBusinessForUser(user: BootstrapUser) {
+/**
+ * Creates a workspace for a user if they don't already have one.
+ * Returns the workspace ID.
+ */
+async function ensureWorkspaceForUser(
+  user: BootstrapUser,
+  now: Date,
+  plan: WorkspacePlan = "free",
+) {
+  // Check if user already has a workspace
+  const [existingMembership] = await db
+    .select({
+      workspaceId: workspaceMembers.workspaceId,
+    })
+    .from(workspaceMembers)
+    .where(eq(workspaceMembers.userId, user.id))
+    .limit(1);
+
+  if (existingMembership) {
+    return existingMembership.workspaceId;
+  }
+
+  const workspaceBaseName = user.name.trim() || user.email.split("@")[0] || "My";
+  const workspaceName = `${workspaceBaseName}'s Workspace`;
+  const workspaceSlug = await getAvailableSlug(
+    workspaces,
+    slugifyPublicName(workspaceBaseName, { fallback: "workspace" }) + "-ws",
+  );
+  const workspaceId = createId("ws");
+
+  await db.insert(workspaces).values({
+    id: workspaceId,
+    name: workspaceName,
+    slug: workspaceSlug,
+    plan,
+    ownerUserId: user.id,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  await db.insert(workspaceMembers).values({
+    id: createId("wm"),
+    workspaceId,
+    userId: user.id,
+    role: "owner",
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  return workspaceId;
+}
+
+export async function bootstrapBusinessForUser(
+  user: BootstrapUser,
+  options?: { plan?: WorkspacePlan },
+) {
   const businessBaseName =
     user.name.trim() || user.email.split("@")[0] || "Requo";
   const businessName = `${businessBaseName}'s Business`;
@@ -102,7 +164,11 @@ export async function bootstrapBusinessForUser(user: BootstrapUser) {
       .limit(1);
 
     if (!existingMembership) {
-      const businessSlug = await getAvailableBusinessSlug(
+      // Ensure the user has a workspace
+      const workspaceId = await ensureWorkspaceForUser(user, now, options?.plan);
+
+      const businessSlug = await getAvailableSlug(
+        businesses,
         slugifyPublicName(businessBaseName, {
           fallback: "business",
         }),
@@ -117,6 +183,7 @@ export async function bootstrapBusinessForUser(user: BootstrapUser) {
 
       await tx.insert(businesses).values({
         id: businessId,
+        workspaceId,
         name: businessName,
         slug: businessSlug,
         businessType: "general_project_services",

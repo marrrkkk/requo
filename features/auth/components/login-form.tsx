@@ -39,7 +39,7 @@ export function LoginForm({
   socialProviders = [],
 }: LoginFormProps) {
   const searchParams = useSearchParams();
-  const nextPath = getSafeAuthRedirectPath(searchParams.get("next"), "/businesses");
+  const nextPath = getSafeAuthRedirectPath(searchParams.get("next"), "/workspaces");
   const signupHref = getAuthPathWithNext("/signup", nextPath);
   const [state, setState] = useState<AuthFormState>({});
   const [isPending, startTransition] = useTransition();

@@ -14,7 +14,7 @@ export default async function LoginPage({
   const { next } = await searchParams;
   const nextPath = getSafeAuthRedirectPath(
     typeof next === "string" ? next : next?.[0],
-    "/businesses",
+    "/workspaces",
   );
 
   await redirectIfAuthenticated(nextPath);

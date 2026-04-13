@@ -1,6 +1,6 @@
 export function getSafeAuthRedirectPath(
   value: string | null | undefined,
-  fallback = "/businesses",
+  fallback = "/workspaces",
 ) {
   if (!value) {
     return fallback;
