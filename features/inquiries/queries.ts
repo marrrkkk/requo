@@ -27,6 +27,7 @@ import {
   businessInquiryForms,
   businessMembers,
   businesses,
+  workspaces,
 } from "@/lib/db/schema";
 import type {
   DashboardInquiryDetail,
@@ -43,7 +44,7 @@ export async function getPublicInquiryBusinessBySlug(
       id: businesses.id,
       name: businesses.name,
       slug: businesses.slug,
-      plan: businesses.plan,
+      plan: workspaces.plan,
       businessType: businesses.businessType,
       shortDescription: businesses.shortDescription,
       logoStoragePath: businesses.logoStoragePath,
@@ -59,6 +60,7 @@ export async function getPublicInquiryBusinessBySlug(
       inquiryPageConfig: businessInquiryForms.inquiryPageConfig,
     })
     .from(businesses)
+    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .innerJoin(
       businessInquiryForms,
       and(
@@ -171,7 +173,7 @@ async function getInquiryBusinessByFormSlug({
       id: businesses.id,
       name: businesses.name,
       slug: businesses.slug,
-      plan: businesses.plan,
+      plan: workspaces.plan,
       businessType: businesses.businessType,
       shortDescription: businesses.shortDescription,
       logoStoragePath: businesses.logoStoragePath,
@@ -187,6 +189,7 @@ async function getInquiryBusinessByFormSlug({
       inquiryPageConfig: businessInquiryForms.inquiryPageConfig,
     })
     .from(businesses)
+    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .innerJoin(
       businessInquiryForms,
       and(

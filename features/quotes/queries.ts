@@ -11,6 +11,7 @@ import {
   quotes,
   user,
   businesses,
+  workspaces,
 } from "@/lib/db/schema";
 import {
   syncExpiredQuoteForPublicToken,
@@ -378,7 +379,7 @@ export async function getPublicQuoteByToken(
       quoteNumber: quotes.quoteNumber,
       title: quotes.title,
       businessName: businesses.name,
-      businessPlan: businesses.plan,
+      businessPlan: workspaces.plan,
       businessShortDescription: businesses.shortDescription,
       businessContactEmail: businesses.contactEmail,
       customerName: quotes.customerName,
@@ -398,6 +399,7 @@ export async function getPublicQuoteByToken(
     })
     .from(quotes)
     .innerJoin(businesses, eq(quotes.businessId, businesses.id))
+    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .where(eq(quotes.publicToken, token))
     .limit(1);
 

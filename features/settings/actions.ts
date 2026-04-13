@@ -62,8 +62,8 @@ import {
   getBusinessInquiryPageEditorPath,
   getBusinessPath,
   getBusinessSettingsPath,
-  businessesHubPath,
 } from "@/features/businesses/routes";
+import { workspacesHubPath } from "@/features/workspaces/routes";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { getBusinessInquiryFormsSettingsForBusiness } from "@/features/settings/queries";
 
@@ -366,7 +366,7 @@ export async function deleteBusinessAction(
 
     cookieStore.delete(activeBusinessSlugCookieName);
 
-    revalidatePath(businessesHubPath);
+    revalidatePath(workspacesHubPath);
     shouldRedirect = true;
   } catch (error) {
     console.error("Failed to delete business.", error);
@@ -377,7 +377,7 @@ export async function deleteBusinessAction(
   }
 
   if (shouldRedirect) {
-    redirect(businessesHubPath);
+    redirect(workspacesHubPath);
   }
 
   return {

@@ -10,7 +10,7 @@ import type {
   ConversionAnalyticsData,
   WorkflowAnalyticsData,
 } from "@/features/analytics/types";
-import type { BusinessPlan } from "@/lib/plans";
+import type { WorkspacePlan } from "@/lib/plans";
 import { AnalyticsOverviewTab } from "@/features/analytics/components/analytics-overview-tab";
 import { AnalyticsConversionTab } from "@/features/analytics/components/analytics-conversion-tab";
 import { AnalyticsWorkflowTab } from "@/features/analytics/components/analytics-workflow-tab";
@@ -26,7 +26,7 @@ export function AnalyticsTabsClient({
   conversionData: ConversionAnalyticsData;
   workflowData: WorkflowAnalyticsData;
   currency: string;
-  plan: BusinessPlan;
+  plan: WorkspacePlan;
 }) {
   return (
     <Tabs defaultValue={analyticsSections.overview.id}>

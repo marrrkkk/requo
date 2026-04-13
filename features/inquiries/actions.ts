@@ -14,7 +14,7 @@ import {
   getWorkspaceBusinessActionContext,
 } from "@/lib/db/business-access";
 import { env } from "@/lib/env";
-import { getBusinessPlanById } from "@/lib/plans/queries";
+import { getWorkspacePlanByBusinessId } from "@/lib/plans/queries";
 import { checkUsageAllowance } from "@/lib/plans/usage";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
 import { sendPublicInquiryNotificationEmail } from "@/lib/resend/client";
@@ -87,10 +87,10 @@ export async function submitPublicInquiryAction(
     };
   }
 
-  const businessPlan = await getBusinessPlanById(business.id);
+  const { plan: workspacePlan, workspaceId } = await getWorkspacePlanByBusinessId(business.id);
   const inquiryAllowance = await checkUsageAllowance(
-    business.id,
-    businessPlan,
+    workspaceId,
+    workspacePlan,
     "inquiriesPerMonth",
   );
 

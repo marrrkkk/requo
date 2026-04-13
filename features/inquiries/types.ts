@@ -4,7 +4,7 @@ import type {
   InquirySubmittedFieldSnapshot,
 } from "@/features/inquiries/form-config";
 import type { InquiryPageConfig } from "@/features/inquiries/page-config";
-import type { BusinessPlan } from "@/lib/plans/plans";
+import type { WorkspacePlan } from "@/lib/plans/plans";
 
 export const inquiryStatuses = [
   "new",
@@ -137,7 +137,7 @@ export type PublicInquiryBusiness = {
   id: string;
   name: string;
   slug: string;
-  plan: BusinessPlan;
+  plan: WorkspacePlan;
   businessType: BusinessType;
   shortDescription: string | null;
   logoUrl: string | null;

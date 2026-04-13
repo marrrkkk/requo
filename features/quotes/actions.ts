@@ -120,8 +120,8 @@ export async function createQuoteAction(
   const { user, businessContext } = ownerAccess;
 
   const quoteAllowance = await checkUsageAllowance(
-    businessContext.business.id,
-    businessContext.business.plan,
+    businessContext.business.workspaceId,
+    businessContext.business.workspacePlan,
     "quotesPerMonth",
   );
 

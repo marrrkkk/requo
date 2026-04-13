@@ -26,7 +26,6 @@ import {
 } from "@/features/business-members/mutations";
 import {
   activeBusinessSlugCookieName,
-  businessesHubPath,
   getBusinessDashboardPath,
   getBusinessMemberInvitePath,
   getBusinessSettingsPath,
@@ -38,6 +37,7 @@ import { getBusinessActionContext } from "@/lib/db/business-access";
 import { sendBusinessMemberInviteEmail } from "@/lib/resend/client";
 import { env } from "@/lib/env";
 import { hasFeatureAccess, planMeta, getRequiredPlan } from "@/lib/plans";
+import { workspacesHubPath } from "@/features/workspaces/routes";
 
 function updateCacheTags(tags: string[]) {
   for (const tag of tags) {
@@ -79,7 +79,7 @@ export async function createBusinessMemberInviteAction(
 
   const { user, businessContext } = ownerAccess;
 
-  if (!hasFeatureAccess(businessContext.business.plan, "members")) {
+  if (!hasFeatureAccess(businessContext.business.workspacePlan, "members")) {
     const requiredPlan = getRequiredPlan("members");
 
     return {
@@ -419,6 +419,6 @@ export async function acceptBusinessMemberInviteAction(
   cookieStore.set(activeBusinessSlugCookieName, result.businessSlug);
   updateCacheTags(getBusinessMembersCacheTags(result.businessId));
   revalidateMembersSettingsPath(result.businessSlug);
-  revalidatePath(businessesHubPath);
+  revalidatePath(workspacesHubPath);
   redirect(getBusinessDashboardPath(result.businessSlug));
 }
