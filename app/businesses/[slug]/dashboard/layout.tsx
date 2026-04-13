@@ -17,7 +17,7 @@ export const unstable_instant = false;
 export default async function BusinessDashboardLayout({
   children,
   params,
-}: LayoutProps<"/businesses/[slug]/dashboard">) {
+}: { children: React.ReactNode; params: Promise<{ slug: string }> }) {
   const [session, { slug }] = await Promise.all([requireSession(), params]);
   const [themePreference, businessContext, businessMemberships, profile] = await Promise.all([
     getThemePreferenceForUser(session.user.id),
