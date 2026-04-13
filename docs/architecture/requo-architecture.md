@@ -11,6 +11,14 @@ The product direction is workflow-first:
 - send professional quotes
 - follow up consistently
 
+The subscription and billing model is workspace-based:
+
+- A user belongs to one or more workspaces
+- A workspace is the top-level billing/subscription container
+- A workspace can contain one or more businesses
+- Plans and entitlements apply at the workspace level
+- Businesses inherit workspace entitlements
+
 The app supports multiple service-business types through editable starter templates, but
 the architecture should continue to favor shared workflow features over vertical-specific
 branching.
@@ -117,7 +125,9 @@ Feature responsibilities:
 ## Auth, Data, And Security
 
 - Better Auth is the only auth system. Do not introduce Supabase Auth.
-- Better Auth creates authenticated users and server-side profiles. Onboarding creates the first business; later business creation is explicit in business flows.
+- Better Auth creates authenticated users and server-side profiles. Onboarding creates the first workspace and business; later business creation adds to the existing workspace.
+- Workspaces own plans, entitlements, and usage limits. Businesses inherit these from their workspace.
+- `workspace_members` controls workspace-level access; `business_members` controls business-level roles.
 - Authenticated mutations should continue to use business-aware helpers such as `getOwnerBusinessActionContext`.
 - Drizzle queries are the current enforcement layer for business ownership and membership.
 - SQL RLS helpers and policies exist in migrations, but the app does not currently set `app.current_user_id` on the database session, so runtime session-based RLS is not the primary app guard.
