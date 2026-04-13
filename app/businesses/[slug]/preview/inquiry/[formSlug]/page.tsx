@@ -11,8 +11,9 @@ import {
 import {
   getBusinessDashboardPath,
   getBusinessInquiryPageEditorPath,
-  businessesHubPath,
 } from "@/features/businesses/routes";
+import { workspacesHubPath } from "@/features/workspaces/routes";
+
 
 export default async function BusinessInquiryFormPreviewPage({
   params,
@@ -32,7 +33,7 @@ export default async function BusinessInquiryFormPreviewPage({
   ]);
 
   if (!businessContext) {
-    redirect(businessesHubPath);
+    redirect(workspacesHubPath);
   }
 
   if (!hasOperationalBusinessAccess(businessContext.role)) {

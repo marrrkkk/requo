@@ -2,7 +2,7 @@
 
 import { Lock, ArrowUpRight } from "lucide-react";
 
-import type { BusinessPlan, PlanFeature } from "@/lib/plans";
+import type { WorkspacePlan, PlanFeature } from "@/lib/plans";
 import {
   hasFeatureAccess,
   getRequiredPlan,
@@ -30,7 +30,7 @@ export function UpgradeBadge({
   plan,
   className,
 }: {
-  plan: BusinessPlan;
+  plan: WorkspacePlan;
   className?: string;
 }) {
   return (
@@ -48,7 +48,7 @@ export function PlanBadge({
   plan,
   className,
 }: {
-  plan: BusinessPlan;
+  plan: WorkspacePlan;
   className?: string;
 }) {
   return (
@@ -73,7 +73,7 @@ export function LockedFeatureCard({
   className,
 }: {
   feature: PlanFeature;
-  plan: BusinessPlan;
+  plan: WorkspacePlan;
   /** Override the default feature title. */
   title?: string;
   /** Override the default feature description. */
@@ -135,7 +135,7 @@ export function LockedFeatureOverlay({
   className,
 }: {
   feature: PlanFeature;
-  plan: BusinessPlan;
+  plan: WorkspacePlan;
   children: React.ReactNode;
   title?: string;
   description?: string;
@@ -193,7 +193,7 @@ export function UsageLimitBanner({
   label: string;
   current: number;
   limit: number;
-  plan: BusinessPlan;
+  plan: WorkspacePlan;
   className?: string;
 }) {
   const percentage = Math.min(100, Math.round((current / limit) * 100));
@@ -228,7 +228,7 @@ export function UsageLimitBanner({
       </div>
       {isAtLimit ? (
         <p className="text-xs leading-relaxed text-muted-foreground">
-          You&apos;ve reached the Free plan limit.{" "}
+          You&apos;ve reached this workspace&apos;s plan limit.{" "}
           {getUpgradeCtaLabel(plan)} for unlimited usage.
         </p>
       ) : null}
@@ -248,7 +248,7 @@ export function LockedFeaturePage({
   className,
 }: {
   feature: PlanFeature;
-  plan: BusinessPlan;
+  plan: WorkspacePlan;
   title?: string;
   description?: string;
   className?: string;

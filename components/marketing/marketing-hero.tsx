@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
-import { businessesHubPath } from "@/features/businesses/routes";
+import { workspacesHubPath } from "@/features/workspaces/routes";
 import { getCurrentUser } from "@/lib/auth/session";
 import {
   PublicHeroSurface,
@@ -750,13 +750,13 @@ function MarketingSignedInHeaderActions() {
   return (
     <>
       <Button asChild className="hidden sm:inline-flex lg:hidden" size="sm">
-        <Link href={businessesHubPath}>
+        <Link href={workspacesHubPath}>
           Visit app
           <ArrowRight data-icon="inline-end" />
         </Link>
       </Button>
       <Button asChild className="hidden lg:inline-flex">
-        <Link href={businessesHubPath}>
+        <Link href={workspacesHubPath}>
           Visit app
           <ArrowRight data-icon="inline-end" />
         </Link>

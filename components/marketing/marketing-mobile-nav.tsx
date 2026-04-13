@@ -6,7 +6,7 @@ import { ArrowRight, Menu } from "lucide-react";
 
 import { navItems } from "@/components/marketing/marketing-data";
 import { Button } from "@/components/ui/button";
-import { businessesHubPath } from "@/features/businesses/routes";
+import { workspacesHubPath } from "@/features/workspaces/routes";
 import {
   Sheet,
   SheetBody,
@@ -72,7 +72,7 @@ export function MarketingMobileNav({
         <SheetFooter className="gap-3">
           {isAuthenticated ? (
             <Button asChild>
-              <Link href={businessesHubPath} onClick={closeMenu}>
+              <Link href={workspacesHubPath} onClick={closeMenu}>
                 Visit app
                 <ArrowRight data-icon="inline-end" />
               </Link>

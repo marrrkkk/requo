@@ -10,13 +10,13 @@ import {
 import { navItems } from "@/components/marketing/marketing-data";
 import { MarketingMobileNav } from "@/components/marketing/marketing-mobile-nav";
 import { getCurrentUser } from "@/lib/auth/session";
-import { businessesHubPath } from "@/features/businesses/routes";
+import { workspacesHubPath } from "@/features/workspaces/routes";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import {
-  type BusinessPlan,
+  type WorkspacePlan,
   planMeta,
   getUsageLimit,
   planFeatureLabels,
@@ -134,7 +134,7 @@ const pricingFeatures: PricingFeatureRow[] = [
 ];
 
 const planCardConfig: {
-  plan: BusinessPlan;
+  plan: WorkspacePlan;
   price: string;
   pricePeriod: string;
   highlighted: boolean;
@@ -175,7 +175,7 @@ const planCardConfig: {
   },
 ];
 
-const planHighlights: Record<BusinessPlan, string[]> = {
+const planHighlights: Record<WorkspacePlan, string[]> = {
   free: [
     `${getUsageLimit("free", "inquiriesPerMonth")} inquiries per month`,
     `${getUsageLimit("free", "quotesPerMonth")} quotes per month`,
@@ -452,13 +452,13 @@ function PricingSignedInHeaderActions() {
   return (
     <>
       <Button asChild className="hidden sm:inline-flex lg:hidden" size="sm">
-        <Link href={businessesHubPath}>
+        <Link href={workspacesHubPath}>
           Visit app
           <ArrowRight data-icon="inline-end" />
         </Link>
       </Button>
       <Button asChild className="hidden lg:inline-flex">
-        <Link href={businessesHubPath}>
+        <Link href={workspacesHubPath}>
           Visit app
           <ArrowRight data-icon="inline-end" />
         </Link>

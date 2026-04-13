@@ -12,7 +12,7 @@ export default function NotFound() {
             <Link href="/">Go home</Link>
           </Button>
           <Button asChild>
-            <Link href="/businesses">Open businesses</Link>
+            <Link href="/workspaces">Open workspaces</Link>
           </Button>
         </>
       }
@@ -20,7 +20,7 @@ export default function NotFound() {
       title="That page does not exist."
     >
       <div className="state-card-note">
-        Go home or open your businesses.
+        Go home or open your workspaces.
       </div>
     </StatePageCard>
   );
