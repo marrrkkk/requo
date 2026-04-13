@@ -17,6 +17,7 @@ import type { InquiryFormConfig } from "@/features/inquiries/form-config";
 import type { InquiryPageConfig } from "@/features/inquiries/page-config";
 import { businessMemberRoles } from "@/lib/business-members";
 import { user } from "@/lib/db/schema/auth";
+import type { BusinessPlan } from "@/lib/plans/plans";
 
 export const businessMemberRoleEnum = pgEnum("business_member_role", [
   ...businessMemberRoles,
@@ -60,6 +61,10 @@ export const businesses = pgTable(
   "businesses",
   {
     id: text("id").primaryKey(),
+    plan: text("plan")
+      .$type<BusinessPlan>()
+      .notNull()
+      .default("free"),
     name: text("name").notNull(),
     slug: text("slug").notNull(),
     businessType: text("business_type")
@@ -117,6 +122,10 @@ export const businesses = pgTable(
     check(
       "businesses_default_quote_validity_days_range",
       sql`${table.defaultQuoteValidityDays} between 1 and 365`,
+    ),
+    check(
+      "businesses_plan_valid",
+      sql`${table.plan} in ('free', 'pro', 'business')`,
     ),
   ],
 );
