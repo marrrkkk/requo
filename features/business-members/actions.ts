@@ -37,6 +37,7 @@ import { getBusinessMembersCacheTags } from "@/lib/cache/business-tags";
 import { getBusinessActionContext } from "@/lib/db/business-access";
 import { sendBusinessMemberInviteEmail } from "@/lib/resend/client";
 import { env } from "@/lib/env";
+import { hasFeatureAccess, planMeta, getRequiredPlan } from "@/lib/plans";
 
 function updateCacheTags(tags: string[]) {
   for (const tag of tags) {
@@ -77,6 +78,15 @@ export async function createBusinessMemberInviteAction(
   }
 
   const { user, businessContext } = ownerAccess;
+
+  if (!hasFeatureAccess(businessContext.business.plan, "members")) {
+    const requiredPlan = getRequiredPlan("members");
+
+    return {
+      error: `Team members require the ${requiredPlan ? planMeta[requiredPlan].label : "Business"} plan. ${requiredPlan ? planMeta[requiredPlan].ctaLabel : "Contact us to upgrade"} to invite members.`,
+    };
+  }
+
   const validationResult = businessMemberInviteSchema.safeParse({
     email: formData.get("email"),
     role: formData.get("role"),

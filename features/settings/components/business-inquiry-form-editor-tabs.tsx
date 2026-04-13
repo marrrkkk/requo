@@ -323,6 +323,7 @@ function createPreviewSnapshot({
     id: settings.id,
     name: settings.name,
     slug: settings.slug,
+    plan: settings.plan,
     businessType: pageDraft.businessType,
     shortDescription: settings.shortDescription,
     logoUrl: previewLogoUrl,

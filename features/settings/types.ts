@@ -5,6 +5,7 @@ import type {
 } from "@/features/inquiries/form-config";
 import type { InquiryPageConfig } from "@/features/inquiries/page-config";
 import type { BusinessInquiryFormSummary } from "@/features/inquiries/types";
+import type { BusinessPlan } from "@/lib/plans/plans";
 
 export const businessAiTonePreferences = [
   "balanced",
@@ -166,6 +167,7 @@ export type BusinessInquiryFormSettingsView = {
   id: string;
   name: string;
   slug: string;
+  plan: BusinessPlan;
   formId: string;
   formName: string;
   formSlug: string;
