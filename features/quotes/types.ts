@@ -21,6 +21,8 @@ export type QuoteReminderKind = (typeof quoteReminderKinds)[number];
 export const quoteLibraryEntryKinds = ["block", "package"] as const;
 export type QuoteLibraryEntryKind = (typeof quoteLibraryEntryKinds)[number];
 
+import type { BusinessPlan } from "@/lib/plans/plans";
+
 export type QuoteListFilters = {
   q?: string;
   status: QuoteStatusFilterValue;
@@ -148,6 +150,7 @@ export type PublicQuoteView = {
   quoteNumber: string;
   title: string;
   businessName: string;
+  businessPlan: BusinessPlan;
   businessShortDescription: string | null;
   businessContactEmail: string | null;
   customerName: string;

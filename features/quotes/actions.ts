@@ -18,6 +18,7 @@ import {
   getWorkspaceBusinessActionContext,
 } from "@/lib/db/business-access";
 import { env, isResendConfigured } from "@/lib/env";
+import { checkUsageAllowance } from "@/lib/plans/usage";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
 import {
   getResendFromEmailConfigurationError,
@@ -117,6 +118,19 @@ export async function createQuoteAction(
   }
 
   const { user, businessContext } = ownerAccess;
+
+  const quoteAllowance = await checkUsageAllowance(
+    businessContext.business.id,
+    businessContext.business.plan,
+    "quotesPerMonth",
+  );
+
+  if (!quoteAllowance.allowed) {
+    return {
+      error: `You've reached your plan's limit of ${quoteAllowance.limit} quotes this month. Upgrade your plan for unlimited quotes.`,
+    };
+  }
+
   const validationResult = quoteEditorSchema.safeParse({
     title: formData.get("title"),
     customerName: formData.get("customerName"),

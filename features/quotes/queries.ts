@@ -378,6 +378,7 @@ export async function getPublicQuoteByToken(
       quoteNumber: quotes.quoteNumber,
       title: quotes.title,
       businessName: businesses.name,
+      businessPlan: businesses.plan,
       businessShortDescription: businesses.shortDescription,
       businessContactEmail: businesses.contactEmail,
       customerName: quotes.customerName,
