@@ -42,14 +42,14 @@ export async function createCalendarEventAction(
   }
 
   const validationResult = createCalendarEventSchema.safeParse({
-    title: formData.get("title"),
-    description: formData.get("description"),
-    startDateTime: formData.get("startDateTime"),
-    endDateTime: formData.get("endDateTime"),
-    location: formData.get("location"),
-    attendeeEmail: formData.get("attendeeEmail"),
-    calendarId: formData.get("calendarId"),
-    businessId: formData.get("businessId"),
+    title: formData.get("title") ?? "",
+    description: formData.get("description") ?? "",
+    startDateTime: formData.get("startDateTime") ?? "",
+    endDateTime: formData.get("endDateTime") ?? "",
+    location: formData.get("location") ?? "",
+    attendeeEmail: formData.get("attendeeEmail") ?? "",
+    calendarId: formData.get("calendarId") || undefined,
+    businessId: formData.get("businessId") ?? "",
     inquiryId: formData.get("inquiryId") || undefined,
     quoteId: formData.get("quoteId") || undefined,
   });
