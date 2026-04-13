@@ -1,5 +1,7 @@
 import "dotenv/config";
 
+import { defineConfig } from "drizzle-kit";
+
 const url = process.env.DATABASE_MIGRATION_URL;
 
 if (!url) {
@@ -8,7 +10,7 @@ if (!url) {
   );
 }
 
-const config = {
+export default defineConfig({
   schema: "./lib/db/schema/index.ts",
   out: "./drizzle",
   dialect: "postgresql",
@@ -17,6 +19,4 @@ const config = {
   },
   verbose: true,
   strict: true,
-};
-
-export default config;
+});
