@@ -14,6 +14,7 @@ export const navItems = [
   { href: "#why-requo", label: "Why Requo" },
   { href: "#features", label: "Features" },
   { href: "#how-it-works", label: "How it works" },
+  { href: "/pricing", label: "Pricing" },
   { href: "#faq", label: "FAQ" },
 ] as const;
 
