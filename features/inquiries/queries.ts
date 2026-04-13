@@ -43,6 +43,7 @@ export async function getPublicInquiryBusinessBySlug(
       id: businesses.id,
       name: businesses.name,
       slug: businesses.slug,
+      plan: businesses.plan,
       businessType: businesses.businessType,
       shortDescription: businesses.shortDescription,
       logoStoragePath: businesses.logoStoragePath,
@@ -79,6 +80,7 @@ export async function getPublicInquiryBusinessBySlug(
     id: business.id,
     name: business.name,
     slug: business.slug,
+    plan: business.plan,
     businessType: formBusinessType,
     shortDescription: business.shortDescription,
     logoUrl: business.logoStoragePath
@@ -169,6 +171,7 @@ async function getInquiryBusinessByFormSlug({
       id: businesses.id,
       name: businesses.name,
       slug: businesses.slug,
+      plan: businesses.plan,
       businessType: businesses.businessType,
       shortDescription: businesses.shortDescription,
       logoStoragePath: businesses.logoStoragePath,
@@ -205,6 +208,7 @@ async function getInquiryBusinessByFormSlug({
     id: business.id,
     name: business.name,
     slug: business.slug,
+    plan: business.plan,
     businessType: formBusinessType,
     shortDescription: business.shortDescription,
     logoUrl: business.logoStoragePath

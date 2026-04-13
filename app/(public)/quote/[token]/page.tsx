@@ -6,6 +6,8 @@ import {
   PublicHeroSurface,
   PublicPageShell,
 } from "@/components/shared/public-page-shell";
+import { PoweredByRequo } from "@/components/shared/powered-by-requo";
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -202,6 +204,10 @@ export default async function PublicQuotePage({
           />
         </div>
       </PublicHeroSurface>
+
+      {!hasFeatureAccess(quote.businessPlan, "branding") ? (
+        <PoweredByRequo />
+      ) : null}
     </PublicPageShell>
   );
 }

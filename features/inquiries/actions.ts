@@ -14,6 +14,8 @@ import {
   getWorkspaceBusinessActionContext,
 } from "@/lib/db/business-access";
 import { env } from "@/lib/env";
+import { getBusinessPlanById } from "@/lib/plans/queries";
+import { checkUsageAllowance } from "@/lib/plans/usage";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
 import { sendPublicInquiryNotificationEmail } from "@/lib/resend/client";
 import { getAdditionalInquirySubmittedFields } from "@/features/inquiries/form-config";
@@ -82,6 +84,19 @@ export async function submitPublicInquiryAction(
   if (!business) {
     return {
       error: "This inquiry page is unavailable right now.",
+    };
+  }
+
+  const businessPlan = await getBusinessPlanById(business.id);
+  const inquiryAllowance = await checkUsageAllowance(
+    business.id,
+    businessPlan,
+    "inquiriesPerMonth",
+  );
+
+  if (!inquiryAllowance.allowed) {
+    return {
+      error: "This business has reached its monthly inquiry limit. The owner has been notified.",
     };
   }
 

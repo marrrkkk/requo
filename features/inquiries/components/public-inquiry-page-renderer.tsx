@@ -13,6 +13,8 @@ import type {
   PublicInquiryBusiness,
 } from "@/features/inquiries/types";
 import { cn } from "@/lib/utils";
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
+import { PoweredByRequo } from "@/components/shared/powered-by-requo";
 
 type PublicInquiryPageRendererProps = {
   business: PublicInquiryBusiness;
@@ -70,6 +72,10 @@ export function PublicInquiryPageRenderer({
           />
         ) : null}
       </div>
+
+      {!hasFeatureAccess(business.plan, "branding") ? (
+        <PoweredByRequo />
+      ) : null}
     </div>
   );
 }
