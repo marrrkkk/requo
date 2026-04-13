@@ -27,8 +27,9 @@ import { getBusinessCountryOption } from "@/features/businesses/locale";
 import {
   starterTemplateOptions,
 } from "@/features/businesses/starter-templates";
-import type { BusinessType } from "@/features/inquiries/business-types";
 import type { CreateBusinessActionState } from "@/features/businesses/types";
+import type { WorkspaceListItem } from "@/features/workspaces/types";
+import type { BusinessType } from "@/features/inquiries/business-types";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 
 type CreateBusinessFormProps = {
@@ -36,6 +37,7 @@ type CreateBusinessFormProps = {
     state: CreateBusinessActionState,
     formData: FormData,
   ) => Promise<CreateBusinessActionState>;
+  workspaces: WorkspaceListItem[];
   isLocked?: boolean;
 };
 
@@ -43,6 +45,7 @@ const initialState: CreateBusinessActionState = {};
 
 export function CreateBusinessForm({
   action,
+  workspaces,
   isLocked = false,
 }: CreateBusinessFormProps) {
   const [showLockedDialog, setShowLockedDialog] = useState(false);
@@ -54,9 +57,11 @@ export function CreateBusinessForm({
     "general_project_services",
   );
   const [countryCode, setCountryCode] = useState("");
+  const [workspaceId, setWorkspaceId] = useState(workspaces[0]?.id || "");
   const nameError = state.fieldErrors?.name?.[0];
   const businessTypeError = state.fieldErrors?.businessType?.[0];
   const countryCodeError = state.fieldErrors?.countryCode?.[0];
+  const workspaceIdError = state.fieldErrors?.workspaceId?.[0];
   const selectedCountry = getBusinessCountryOption(countryCode);
 
   return (
@@ -73,9 +78,31 @@ export function CreateBusinessForm({
       >
         <input name="businessType" type="hidden" value={businessType} />
         <input name="countryCode" type="hidden" value={countryCode} />
+        <input name="workspaceId" type="hidden" value={workspaceId} />
 
         <FormSection title="New business">
         <FieldGroup>
+          {workspaces.length > 1 ? (
+             <Field data-invalid={Boolean(workspaceIdError) || undefined}>
+              <FieldLabel htmlFor="business-workspace-id">Workspace</FieldLabel>
+              <FieldContent>
+                <Combobox
+                  aria-invalid={Boolean(workspaceIdError) || undefined}
+                  disabled={isPending}
+                  id="business-workspace-id"
+                  onValueChange={(val) => setWorkspaceId(val)}
+                  options={workspaces.map((w) => ({ value: w.id, label: w.name }))}
+                  placeholder="Choose workspace"
+                  searchPlaceholder="Search workspace"
+                  value={workspaceId}
+                />
+                <FieldError
+                  errors={workspaceIdError ? [{ message: workspaceIdError }] : undefined}
+                />
+              </FieldContent>
+            </Field>
+          ) : null}
+
           <Field data-invalid={Boolean(nameError) || undefined}>
             <FieldLabel htmlFor="business-name">Business name</FieldLabel>
             <FieldContent>
@@ -174,7 +201,7 @@ export function CreateBusinessForm({
         <DialogHeader>
           <DialogTitle>Multiple businesses</DialogTitle>
           <DialogDescription>
-            Managing completely separate brands, services, and billing requires a Pro subscription. Wait for checkout to be added!
+            Managing completely separate brands, services, and billing requires upgrading your workspace plan. Wait for checkout to be added!
           </DialogDescription>
         </DialogHeader>
         <FormActions align="end">
