@@ -1,5 +1,5 @@
 {
-  "name": "quoteflow",
+  "name": "requo",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -17,7 +17,8 @@
     "db:seed-demo": "tsx scripts/seed-demo.ts",
     "test": "vitest run tests/unit/ tests/components/",
     "test:integration": "vitest run tests/integration/ -c vitest.integration.config.ts",
-    "test:all": "npm run test && npm run test:integration && npm run test:e2e"
+    "test:all": "npm run test && npm run test:integration && npm run test:e2e",
+    "test:coverage": "vitest run tests/unit/ tests/components/ --coverage"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.5.6",
@@ -67,6 +68,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/coverage-v8": "^4.1.4",
     "dotenv": "^17.4.0",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
