@@ -10,6 +10,11 @@ export default defineConfig({
       '@': path.resolve(__dirname, './'),
       'server-only': path.resolve(__dirname, 'node_modules/server-only/empty.js'),
     },
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'json'],
+      exclude: ['node_modules/**', '.next/**', 'tests/**', '**/*.config.*', '**/layout.tsx', '**/page.tsx']
+    },
     env: {
       BETTER_AUTH_SECRET: 'test-secret-at-least-32-characters-long-so-zod-passes',
       BETTER_AUTH_URL: 'http://localhost:3000',

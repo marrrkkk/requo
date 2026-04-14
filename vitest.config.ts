@@ -9,6 +9,11 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     globals: true,
     exclude: ['tests/e2e/**', 'node_modules/**', '.next/**'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'json'],
+      exclude: ['node_modules/**', '.next/**', 'tests/**', '**/*.config.*', '**/layout.tsx', '**/page.tsx']
+    },
     alias: {
       '@': path.resolve(__dirname, './'),
     },
