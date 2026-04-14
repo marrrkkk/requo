@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/auth/session";
@@ -78,7 +77,7 @@ export async function createWorkspaceAction(
   revalidatePath(workspacesHubPath);
 
   if (result.workspace) {
-    redirect(getWorkspacePath(result.workspace.slug));
+    // redirect(getWorkspacePath(result.workspace.slug));
   }
 
   return { success: "Workspace created." };

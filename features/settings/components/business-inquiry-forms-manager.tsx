@@ -95,7 +95,7 @@ export function BusinessInquiryFormsManager({
   );
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [unarchiveState, unarchiveFormAction, isUnarchivePending] = useActionStateWithSonner(
+  const [/* unarchiveState */, unarchiveFormAction, isUnarchivePending] = useActionStateWithSonner(
     unarchiveAction,
     initialState,
   );

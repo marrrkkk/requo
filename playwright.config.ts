@@ -13,7 +13,7 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: `npm run db:migrate && npm run db:seed-demo && npm run dev -- --hostname 127.0.0.1 --port ${port}`,
+    command: `npm run db:push && npm run db:seed-demo && npm run dev -- --hostname 127.0.0.1 --port ${port}`,
     env: {
       ...process.env,
       BETTER_AUTH_URL: baseURL,
@@ -23,7 +23,7 @@ export default defineConfig({
       RESEND_FROM_EMAIL: "",
       RESEND_REPLY_TO_EMAIL: "",
     },
-    reuseExistingServer: false,
+    reuseExistingServer: true,
     timeout: 120_000,
     url: baseURL,
   },
