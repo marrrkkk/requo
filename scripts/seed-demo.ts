@@ -468,6 +468,7 @@ const generatedQuoteResponseMessages = {
   ],
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getSeedValue(name: string, fallback: string) {
   const value = process.env[name]?.trim();
   return value ? value : fallback;
@@ -581,6 +582,7 @@ function formatPhoneNumber(random: () => number) {
   return `(${areaCode}) ${exchange}-${line}`;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function fillTemplate(
   template: string,
   values: Record<string, string>,
@@ -1278,11 +1280,7 @@ function generateBulkInquiries(
       budgetText: pickOne(["$500-$1,000", "$1,000-$2,500", "$2,500+", null], random),
       companyName,
       details: `Looking for a quote on ${serviceCategory.toLowerCase()} for ${companyLabel}.`,
-      submittedFieldSnapshot: {
-        version: 1,
-        businessType: business.businessType,
-        fields: [],
-      } as InquirySubmittedFieldSnapshot,
+
       source: `demo-seed-generated:${businessKey}`,
       quoteRequested,
       submittedAt,
@@ -1544,11 +1542,7 @@ async function seedBusinessData(
       companyName: "Park & Pine",
       details:
         "We need front window vinyl for a weekend store refresh. Two large panels plus door hours decal.",
-      submittedFieldSnapshot: {
-        version: 1,
-        businessType: "print_signage",
-        fields: [],
-      },
+
       source: "demo-seed",
       quoteRequested: true,
       submittedAt: daysAgo(1, 9, 15),
@@ -1571,11 +1565,7 @@ async function seedBusinessData(
       companyName: "Cedar Cove Winery",
       details:
         "Need 2,000 flyers for an upcoming wine tasting event. Glossy cardstock, full color.",
-      submittedFieldSnapshot: {
-        version: 1,
-        businessType: "print_signage",
-        fields: [],
-      },
+
       source: "demo-seed",
       quoteRequested: true,
       submittedAt: daysAgo(3, 11, 40),
@@ -1598,11 +1588,7 @@ async function seedBusinessData(
       companyName: "Foundry Labs",
       details:
         "Full booth package needed for tech conference. Retractable banner, table throw, and wall graphics.",
-      submittedFieldSnapshot: {
-        version: 1,
-        businessType: "print_signage",
-        fields: [],
-      },
+
       source: "demo-seed",
       quoteRequested: true,
       submittedAt: daysAgo(6, 15, 0),
@@ -1625,11 +1611,7 @@ async function seedBusinessData(
       companyName: "Harbor Roast Coffee",
       details:
         "Custom menu boards for our new location. Two large boards with chalkboard style design.",
-      submittedFieldSnapshot: {
-        version: 1,
-        businessType: "print_signage",
-        fields: [],
-      },
+
       source: "demo-seed",
       quoteRequested: true,
       submittedAt: daysAgo(10, 10, 0),
@@ -1939,12 +1921,7 @@ async function seedBusinessData(
     },
   ];
 
-  const generatedData = createGeneratedDataset(
-    `${businessKey}-primary`,
-    business,
-    business.businessType,
-    business.quoteNumberStart,
-  );
+  const generatedData = createGeneratedDataset(`${businessKey}-primary`, business, business.quoteNumberStart);
   const bulkInquiries = generatedData.inquiries;
   const bulkQuotes = generatedData.quotes;
   const bulkQuoteItems = generatedData.quoteItems;
@@ -2005,12 +1982,7 @@ async function seedSecondaryBusinessData(
   business: DemoBusiness,
   businessKey: string,
 ): Promise<BusinessSeedCounts> {
-  const generatedData = createGeneratedDataset(
-    businessKey,
-    business,
-    business.businessType,
-    business.quoteNumberStart,
-  );
+  const generatedData = createGeneratedDataset(businessKey, business, business.quoteNumberStart);
   const seedActivityId = createSeededId("seed_act", businessKey, "seeded");
 
   console.log(

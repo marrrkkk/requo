@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { ArrowRight, Plus } from "lucide-react";
+import { ArrowRight, /* Plus */ } from "lucide-react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
 import { PlanBadge } from "@/components/shared/paywall";
@@ -17,7 +16,7 @@ import { CreateWorkspaceDialog } from "@/features/workspaces/components/create-w
 import { getWorkspaceListForUser } from "@/features/workspaces/queries";
 import { getWorkspacePath } from "@/features/workspaces/routes";
 import { getAccountProfileForUser } from "@/features/account/queries";
-import { onboardingPath } from "@/features/onboarding/routes";
+import { /* onboardingPath */ } from "@/features/onboarding/routes";
 
 import { LogoutButton } from "@/features/auth/components/logout-button";
 import { AppearanceMenu } from "@/features/theme/components/appearance-menu";
@@ -35,7 +34,7 @@ export default async function WorkspacesPage() {
   ]);
 
   if (workspaceList.length === 0 && !profile?.onboardingCompletedAt) {
-    redirect(onboardingPath);
+    // redirect(onboardingPath);
   }
 
   return (

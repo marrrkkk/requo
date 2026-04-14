@@ -6,7 +6,7 @@ import { getBusinessSettingsPageContext } from "./_lib/page-context";
 export default async function BusinessSettingsLayout({
   children,
   params,
-}: LayoutProps<"/businesses/[slug]/dashboard/settings">) {
+}: { children: React.ReactNode; params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const { businessContext } = await getBusinessSettingsPageContext(slug);
   const businessSlug = businessContext.business.slug;
