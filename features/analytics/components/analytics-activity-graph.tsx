@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useMemo } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import { format, eachDayOfInterval, startOfYear, endOfYear, getMonth } from "date-fns";
 
 import {
@@ -24,16 +26,9 @@ export function AnalyticsActivityGraph({
 }: {
   data: BusinessAnalyticsData["activityGraph"];
 }) {
-  const { startYear, currentYear, activityMap } = data;
-  const [selectedYear, setSelectedYear] = useState(currentYear);
-
-  const years = useMemo(() => {
-    const arr = [];
-    for (let y = currentYear; y >= startYear; y--) {
-      arr.push(y);
-    }
-    return arr;
-  }, [startYear, currentYear]);
+  const { activityMap, availableYears, selectedYear } = data;
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   // Generate cells for the selected year
   const { cells, monthLabels } = useMemo(() => {
@@ -67,6 +62,15 @@ export function AnalyticsActivityGraph({
 
     return { cells: fullCells, monthLabels };
   }, [selectedYear]);
+
+  function buildYearHref(year: number) {
+    const params = new URLSearchParams(searchParams.toString());
+
+    params.set("tab", "overview");
+    params.set("year", String(year));
+
+    return `${pathname}?${params.toString()}`;
+  }
 
   return (
     <Card className="gap-0 mt-6 overflow-hidden">
@@ -167,10 +171,10 @@ export function AnalyticsActivityGraph({
 
           {/* Year selector sidebar */}
           <div className="flex flex-col gap-1 shrink-0 w-full sm:w-24">
-            {years.map((year) => (
-              <button
+            {availableYears.map((year) => (
+              <Link
                 key={year}
-                onClick={() => setSelectedYear(year)}
+                href={buildYearHref(year)}
                 className={cn(
                   "px-3 py-1.5 text-sm font-medium rounded-md transition-colors w-full text-left sm:text-center",
                   year === selectedYear 
@@ -179,7 +183,7 @@ export function AnalyticsActivityGraph({
                 )}
               >
                 {year}
-              </button>
+              </Link>
             ))}
           </div>
         </div>

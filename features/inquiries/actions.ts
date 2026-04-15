@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidateTag, updateTag } from "next/cache";
+import { after } from "next/server";
 
 import { getValidationActionState } from "@/lib/action-state";
 import {
@@ -133,12 +134,16 @@ export async function submitPublicInquiryAction(
       ...getBusinessInquiryFormsCacheTags(business.id),
     ]);
 
-    const [recipients, businessSettings] = await Promise.all([
-      getBusinessOwnerNotificationEmails(business.id),
-      getBusinessMessagingSettings(business.id),
-    ]);
+    after(async () => {
+      const [recipients, businessSettings] = await Promise.all([
+        getBusinessOwnerNotificationEmails(business.id),
+        getBusinessMessagingSettings(business.id),
+      ]);
 
-    if (businessSettings?.notifyOnNewInquiry && recipients.length) {
+      if (!businessSettings?.notifyOnNewInquiry || !recipients.length) {
+        return;
+      }
+
       try {
         await sendPublicInquiryNotificationEmail({
           inquiryId: createdInquiry.inquiryId,
@@ -171,7 +176,7 @@ export async function submitPublicInquiryAction(
           error,
         );
       }
-    }
+    });
 
     return {
       success: "Thanks. Your inquiry has been sent.",

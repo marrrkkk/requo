@@ -701,8 +701,7 @@ export async function respondToPublicQuoteByToken({
   response,
   message,
 }: RespondToPublicQuoteByTokenInput) {
-  await syncExpiredQuoteForPublicToken(token);
-
+  const today = getTodayUtcDateString();
   const now = new Date();
   const nextStatus = response;
 
@@ -720,6 +719,7 @@ export async function respondToPublicQuoteByToken({
         customerEmail: quotes.customerEmail,
         publicToken: quotes.publicToken,
         status: quotes.status,
+        validUntil: quotes.validUntil,
         sentAt: quotes.sentAt,
         postAcceptanceStatus: quotes.postAcceptanceStatus,
         notifyOnQuoteResponse: businesses.notifyOnQuoteResponse,
@@ -732,6 +732,27 @@ export async function respondToPublicQuoteByToken({
 
     if (!existingQuote) {
       return null;
+    }
+
+    if (existingQuote.status === "sent" && existingQuote.validUntil < today) {
+      await expireQuoteRows(tx, [
+        {
+          id: existingQuote.id,
+          businessId: existingQuote.businessId,
+          inquiryId: existingQuote.inquiryId,
+          quoteNumber: existingQuote.quoteNumber,
+        },
+      ]);
+
+      return {
+        updated: false,
+        businessId: existingQuote.businessId,
+        inquiryId: existingQuote.inquiryId,
+        quoteId: existingQuote.id,
+        businessSlug: existingQuote.businessSlug,
+        quoteNumber: existingQuote.quoteNumber,
+        status: "expired" as const,
+      };
     }
 
     if (existingQuote.status !== "sent") {

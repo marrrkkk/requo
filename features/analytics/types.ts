@@ -39,8 +39,8 @@ export type BusinessAnalyticsData = {
   };
   recentTrend: BusinessAnalyticsTrendPoint[];
   activityGraph: {
-    startYear: number;
-    currentYear: number;
+    selectedYear: number;
+    availableYears: number[];
     activityMap: Record<string, { inquiries: number; quotes: number }>; // map of ISO date -> counts
   };
 };

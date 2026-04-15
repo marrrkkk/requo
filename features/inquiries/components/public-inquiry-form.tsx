@@ -33,7 +33,6 @@ import { Combobox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import {
   getInquiryFormFieldInputName,
-  getNormalizedInquiryFormConfig,
   inquiryContactFieldKeys,
   type InquiryContactFieldKey,
   type InquiryFormFieldDefinition,
@@ -108,13 +107,7 @@ export function PublicInquiryForm({
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [canSubmit, setCanSubmit] = useState(false);
-  const inquiryFormConfig = useMemo(
-    () =>
-      getNormalizedInquiryFormConfig(business.inquiryFormConfig, {
-        businessType: business.businessType,
-      }),
-    [business.businessType, business.inquiryFormConfig],
-  );
+  const inquiryFormConfig = business.inquiryFormConfig;
 
   const contactFields = useMemo(
     () =>

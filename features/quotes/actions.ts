@@ -2,6 +2,7 @@
 
 import { revalidateTag, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 
 import {
   getValidationActionState,
@@ -35,7 +36,7 @@ import {
   updateQuotePostAcceptanceStatusForBusiness,
   updateQuoteForBusiness,
 } from "@/features/quotes/mutations";
-import { getQuoteDetailForBusiness } from "@/features/quotes/queries";
+import { getQuoteSendPayloadForBusiness } from "@/features/quotes/queries";
 import {
   publicQuoteResponseSchema,
   quoteEditorSchema,
@@ -348,7 +349,7 @@ export async function sendQuoteAction(
   const { user, businessContext } = ownerAccess;
 
   try {
-    const quote = await getQuoteDetailForBusiness({
+    const quote = await getQuoteSendPayloadForBusiness({
       businessId: businessContext.business.id,
       quoteId,
     });
@@ -436,28 +437,30 @@ export async function sendQuoteAction(
     }
 
     if (businessSettings.notifyOnQuoteSent && ownerEmails.length) {
-      try {
-        await sendQuoteSentOwnerNotificationEmail({
-          quoteId: quote.id,
-          updatedAt: quote.updatedAt,
-          recipients: ownerEmails,
-          businessName: businessContext.business.name,
-          customerName: quote.customerName,
-          customerEmail: quote.customerEmail,
-          quoteNumber: quote.quoteNumber,
-          title: quote.title,
-          dashboardUrl: new URL(
-            getBusinessQuotePath(businessContext.business.slug, quote.id),
-            env.BETTER_AUTH_URL,
-          ).toString(),
-          publicQuoteUrl,
-        });
-      } catch (error) {
-        console.error(
-          "The quote was sent but the owner notification email failed to send.",
-          error,
-        );
-      }
+      after(async () => {
+        try {
+          await sendQuoteSentOwnerNotificationEmail({
+            quoteId: quote.id,
+            updatedAt: quote.updatedAt,
+            recipients: ownerEmails,
+            businessName: businessContext.business.name,
+            customerName: quote.customerName,
+            customerEmail: quote.customerEmail,
+            quoteNumber: quote.quoteNumber,
+            title: quote.title,
+            dashboardUrl: new URL(
+              getBusinessQuotePath(businessContext.business.slug, quote.id),
+              env.BETTER_AUTH_URL,
+            ).toString(),
+            publicQuoteUrl,
+          });
+        } catch (error) {
+          console.error(
+            "The quote was sent but the owner notification email failed to send.",
+            error,
+          );
+        }
+      });
     }
 
     updateCacheTags(
@@ -637,9 +640,13 @@ export async function respondToPublicQuoteAction(
     }
 
     if (result.notifyOnQuoteResponse) {
-      const ownerEmails = await getBusinessOwnerEmails(result.businessId);
+      after(async () => {
+        const ownerEmails = await getBusinessOwnerEmails(result.businessId);
 
-      if (ownerEmails.length) {
+        if (!ownerEmails.length) {
+          return;
+        }
+
         try {
           await sendQuoteResponseOwnerNotificationEmail({
             quoteId: result.quoteId,
@@ -663,7 +670,7 @@ export async function respondToPublicQuoteAction(
             error,
           );
         }
-      }
+      });
     }
 
     return {

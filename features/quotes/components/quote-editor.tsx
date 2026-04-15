@@ -1,6 +1,14 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import {
+  useActionState,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -27,7 +35,6 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { QuoteLibrarySheet } from "@/features/quotes/components/quote-library-sheet";
 import { QuotePreview } from "@/features/quotes/components/quote-preview";
 import type {
   DashboardQuoteLibraryEntry,
@@ -65,6 +72,11 @@ type QuoteEditorProps = {
 const initialState: QuoteEditorActionState = {};
 const LINE_ITEM_ENTER_DURATION_MS = 220;
 const LINE_ITEM_EXIT_DURATION_MS = 180;
+const LazyQuoteLibrarySheet = dynamic(() =>
+  import("@/features/quotes/components/quote-library-sheet").then(
+    (module) => module.QuoteLibrarySheet,
+  ),
+);
 
 type EditorLineItem = QuoteEditorLineItemValue & {
   motionState?: "entering" | "exiting";
@@ -81,7 +93,61 @@ function areQuoteEditorValuesEqual(
   left: QuoteEditorValues,
   right: QuoteEditorValues,
 ) {
-  return JSON.stringify(left) === JSON.stringify(right);
+  if (
+    left.title !== right.title ||
+    left.customerName !== right.customerName ||
+    left.customerEmail !== right.customerEmail ||
+    left.notes !== right.notes ||
+    left.validUntil !== right.validUntil ||
+    left.discount !== right.discount ||
+    left.items.length !== right.items.length
+  ) {
+    return false;
+  }
+
+  for (let index = 0; index < left.items.length; index += 1) {
+    const leftItem = left.items[index];
+    const rightItem = right.items[index];
+
+    if (
+      leftItem.id !== rightItem.id ||
+      leftItem.description !== rightItem.description ||
+      leftItem.quantity !== rightItem.quantity ||
+      leftItem.unitPrice !== rightItem.unitPrice
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function getVisibleEditorItems(items: EditorLineItem[]): QuoteEditorLineItemValue[] {
+  return items
+    .filter((item) => item.motionState !== "exiting")
+    .map((item) => ({
+      id: item.id,
+      description: item.description,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+    }));
+}
+
+function getQuotePreviewItems(items: QuoteEditorLineItemValue[]) {
+  return items.map((item) => {
+    const quantity = Number.parseInt(item.quantity.trim(), 10);
+    const safeQuantity =
+      Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
+    const unitPriceInCents = parseCurrencyInputToCents(item.unitPrice);
+
+    return {
+      id: item.id,
+      description: item.description.trim(),
+      quantity: safeQuantity,
+      unitPriceInCents,
+      lineTotalInCents: safeQuantity * unitPriceInCents,
+    };
+  });
 }
 
 export function QuoteEditor({
@@ -108,34 +174,34 @@ export function QuoteEditor({
     initialValues.items.map((item) => ({ ...item })),
   );
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
-  const visibleItems = items.filter((item) => item.motionState !== "exiting");
+  const [hasLoadedLibrary, setHasLoadedLibrary] = useState(false);
   const [savedValues, setSavedValues] = useState(() =>
     cloneQuoteEditorValues(initialValues),
   );
   const submittedValuesRef = useRef<QuoteEditorValues>(
     cloneQuoteEditorValues(initialValues),
   );
-  const serializedItems = visibleItems.map((item) => ({
-    id: item.id,
-    description: item.description,
-    quantity: item.quantity,
-    unitPriceInCents: item.unitPrice,
-  }));
-  const previewItems = visibleItems.map((item) => {
-    const quantity = Number.parseInt(item.quantity.trim(), 10);
-    const safeQuantity =
-      Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
-    const unitPriceInCents = parseCurrencyInputToCents(item.unitPrice);
-
-    return {
-      id: item.id,
-      description: item.description.trim(),
-      quantity: safeQuantity,
-      unitPriceInCents,
-      lineTotalInCents: safeQuantity * unitPriceInCents,
-    };
-  });
-  const totals = calculateQuoteEditorTotals(visibleItems, discount);
+  const visibleItems = useMemo(() => getVisibleEditorItems(items), [items]);
+  const deferredVisibleItems = useDeferredValue(visibleItems);
+  const deferredDiscount = useDeferredValue(discount);
+  const serializedItems = useMemo(
+    () =>
+      visibleItems.map((item) => ({
+        id: item.id,
+        description: item.description,
+        quantity: item.quantity,
+        unitPriceInCents: item.unitPrice,
+      })),
+    [visibleItems],
+  );
+  const previewItems = useMemo(
+    () => getQuotePreviewItems(deferredVisibleItems),
+    [deferredVisibleItems],
+  );
+  const totals = useMemo(
+    () => calculateQuoteEditorTotals(deferredVisibleItems, deferredDiscount),
+    [deferredDiscount, deferredVisibleItems],
+  );
   const currentValues = useMemo<QuoteEditorValues>(
     () => ({
       title,
@@ -144,16 +210,9 @@ export function QuoteEditor({
       notes,
       validUntil,
       discount,
-      items: items
-        .filter((item) => item.motionState !== "exiting")
-        .map((item) => ({
-        id: item.id,
-        description: item.description,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-      })),
+      items: visibleItems,
     }),
-    [customerEmail, customerName, discount, notes, title, validUntil, items],
+    [customerEmail, customerName, discount, notes, title, validUntil, visibleItems],
   );
   const hasUnsavedChanges =
     showFloatingUnsavedChanges &&
@@ -227,6 +286,14 @@ export function QuoteEditor({
 
   function handleCancelChanges() {
     resetEditor(savedValues);
+  }
+
+  function handleLibraryOpenChange(open: boolean) {
+    if (open) {
+      setHasLoadedLibrary(true);
+    }
+
+    setIsLibraryOpen(open);
   }
 
   function scheduleLineItemTimeout(
@@ -533,7 +600,7 @@ export function QuoteEditor({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setIsLibraryOpen(true)}
+                onClick={() => handleLibraryOpenChange(true)}
                 disabled={isPending}
               >
                 Insert saved
@@ -749,14 +816,16 @@ export function QuoteEditor({
         visible={shouldRenderFloatingActions}
       />
 
-      <QuoteLibrarySheet
-        currency={currency}
-        entries={pricingLibrary}
-        items={items}
-        onInsert={insertPricingEntry}
-        open={isLibraryOpen}
-        onOpenChange={setIsLibraryOpen}
-      />
+      {hasLoadedLibrary ? (
+        <LazyQuoteLibrarySheet
+          currency={currency}
+          entries={pricingLibrary}
+          items={items}
+          onInsert={insertPricingEntry}
+          open={isLibraryOpen}
+          onOpenChange={handleLibraryOpenChange}
+        />
+      ) : null}
 
       <QuotePreview
         businessName={businessName}

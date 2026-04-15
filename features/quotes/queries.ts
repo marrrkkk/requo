@@ -1,7 +1,9 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, gte, ilike, lte, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
+import { after } from "next/server";
+import { cache } from "react";
 
 import { db } from "@/lib/db/client";
 import {
@@ -29,8 +31,35 @@ import type {
   PublicQuoteView,
   QuoteInquiryPrefill,
   QuoteListQueryFilters,
+  QuoteSendPayload,
+  QuoteStatus,
 } from "@/features/quotes/types";
 import { getQuoteReminderKinds } from "@/features/quotes/utils";
+
+export const getEffectiveQuoteStatus = sql<QuoteStatus>`case
+  when ${quotes.status} = 'sent' and ${quotes.validUntil} < current_date then 'expired'::quote_status
+  else ${quotes.status}
+end`;
+
+const scheduleExpiredQuotesSyncForBusiness = cache((businessId: string) => {
+  after(async () => {
+    try {
+      await syncExpiredQuotesForBusiness(businessId);
+    } catch (error) {
+      console.error("Failed to reconcile expired quotes for business.", error);
+    }
+  });
+});
+
+const scheduleExpiredQuoteSyncForPublicToken = cache((token: string) => {
+  after(async () => {
+    try {
+      await syncExpiredQuoteForPublicToken(token);
+    } catch (error) {
+      console.error("Failed to reconcile expired public quote.", error);
+    }
+  });
+});
 
 type GetQuoteListForBusinessInput = {
   businessId: string;
@@ -44,7 +73,9 @@ function getQuoteListConditions({
   const conditions = [eq(quotes.businessId, businessId)];
 
   if (filters.status !== "all") {
-    conditions.push(eq(quotes.status, filters.status));
+    conditions.push(
+      sql`${getEffectiveQuoteStatus} = ${filters.status}::quote_status`,
+    );
   }
 
   if (filters.q) {
@@ -67,7 +98,7 @@ export async function getQuoteListCountForBusiness({
   businessId,
   filters,
 }: GetQuoteListForBusinessInput): Promise<number> {
-  await syncExpiredQuotesForBusiness(businessId);
+  scheduleExpiredQuotesSyncForBusiness(businessId);
 
   return getCachedQuoteListCountForBusiness({
     businessId,
@@ -110,6 +141,21 @@ export async function getQuoteListPageForBusiness({
   page,
   pageSize,
 }: GetQuoteListPageForBusinessInput): Promise<DashboardQuoteListItem[]> {
+  scheduleExpiredQuotesSyncForBusiness(businessId);
+  return getCachedQuoteListPageForBusiness({
+    businessId,
+    filters,
+    page,
+    pageSize,
+  });
+}
+
+async function getCachedQuoteListPageForBusiness({
+  businessId,
+  filters,
+  page,
+  pageSize,
+}: GetQuoteListPageForBusinessInput): Promise<DashboardQuoteListItem[]> {
   "use cache";
 
   cacheLife(hotBusinessCacheLife);
@@ -135,7 +181,7 @@ export async function getQuoteListPageForBusiness({
       totalInCents: quotes.totalInCents,
       currency: quotes.currency,
       validUntil: quotes.validUntil,
-      status: quotes.status,
+      status: getEffectiveQuoteStatus,
       postAcceptanceStatus: quotes.postAcceptanceStatus,
       createdAt: quotes.createdAt,
       sentAt: quotes.sentAt,
@@ -184,7 +230,7 @@ export async function getQuoteExportRowsForBusiness({
   from?: string;
   to?: string;
 }): Promise<QuoteExportRow[]> {
-  await syncExpiredQuotesForBusiness(businessId);
+  scheduleExpiredQuotesSyncForBusiness(businessId);
 
   const conditions = getQuoteListConditions({
     businessId,
@@ -209,7 +255,7 @@ export async function getQuoteExportRowsForBusiness({
       totalInCents: quotes.totalInCents,
       currency: quotes.currency,
       validUntil: quotes.validUntil,
-      status: quotes.status,
+      status: getEffectiveQuoteStatus,
       postAcceptanceStatus: quotes.postAcceptanceStatus,
       createdAt: quotes.createdAt,
       sentAt: quotes.sentAt,
@@ -229,7 +275,7 @@ export async function getQuoteDetailForBusiness({
   businessId,
   quoteId,
 }: GetQuoteDetailForBusinessInput): Promise<DashboardQuoteDetail | null> {
-  await syncExpiredQuotesForBusiness(businessId);
+  scheduleExpiredQuotesSyncForBusiness(businessId);
 
   return getCachedQuoteDetailForBusiness({
     businessId,
@@ -262,7 +308,7 @@ async function getCachedQuoteDetailForBusiness({
       discountInCents: quotes.discountInCents,
       totalInCents: quotes.totalInCents,
       validUntil: quotes.validUntil,
-      status: quotes.status,
+      status: getEffectiveQuoteStatus,
       postAcceptanceStatus: quotes.postAcceptanceStatus,
       sentAt: quotes.sentAt,
       acceptedAt: quotes.acceptedAt,
@@ -367,10 +413,81 @@ async function getCachedQuoteDetailForBusiness({
   };
 }
 
+export async function getQuoteSendPayloadForBusiness({
+  businessId,
+  quoteId,
+}: GetQuoteDetailForBusinessInput): Promise<QuoteSendPayload | null> {
+  scheduleExpiredQuotesSyncForBusiness(businessId);
+
+  return getCachedQuoteSendPayloadForBusiness({
+    businessId,
+    quoteId,
+  });
+}
+
+async function getCachedQuoteSendPayloadForBusiness({
+  businessId,
+  quoteId,
+}: GetQuoteDetailForBusinessInput): Promise<QuoteSendPayload | null> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessQuoteDetailCacheTags(businessId, quoteId));
+
+  const [quote] = await db
+    .select({
+      id: quotes.id,
+      inquiryId: quotes.inquiryId,
+      quoteNumber: quotes.quoteNumber,
+      publicToken: quotes.publicToken,
+      title: quotes.title,
+      customerName: quotes.customerName,
+      customerEmail: quotes.customerEmail,
+      currency: quotes.currency,
+      notes: quotes.notes,
+      subtotalInCents: quotes.subtotalInCents,
+      discountInCents: quotes.discountInCents,
+      totalInCents: quotes.totalInCents,
+      validUntil: quotes.validUntil,
+      status: getEffectiveQuoteStatus,
+      updatedAt: quotes.updatedAt,
+    })
+    .from(quotes)
+    .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
+    .limit(1);
+
+  if (!quote) {
+    return null;
+  }
+
+  const items = await db
+    .select({
+      id: quoteItems.id,
+      description: quoteItems.description,
+      quantity: quoteItems.quantity,
+      unitPriceInCents: quoteItems.unitPriceInCents,
+      lineTotalInCents: quoteItems.lineTotalInCents,
+      position: quoteItems.position,
+    })
+    .from(quoteItems)
+    .where(
+      and(
+        eq(quoteItems.businessId, businessId),
+        eq(quoteItems.quoteId, quoteId),
+      ),
+    )
+    .orderBy(asc(quoteItems.position), asc(quoteItems.createdAt));
+
+  return {
+    ...quote,
+    items,
+  };
+}
+
 export async function getPublicQuoteByToken(
   token: string,
 ): Promise<PublicQuoteView | null> {
-  await syncExpiredQuoteForPublicToken(token);
+  scheduleExpiredQuoteSyncForPublicToken(token);
 
   const [quote] = await db
     .select({
@@ -387,7 +504,7 @@ export async function getPublicQuoteByToken(
       currency: quotes.currency,
       notes: quotes.notes,
       validUntil: quotes.validUntil,
-      status: quotes.status,
+      status: getEffectiveQuoteStatus,
       subtotalInCents: quotes.subtotalInCents,
       discountInCents: quotes.discountInCents,
       totalInCents: quotes.totalInCents,

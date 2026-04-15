@@ -1,12 +1,24 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, gte, ilike, isNull, lte, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  ilike,
+  isNull,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
 import type { InquiryStatus } from "@/features/inquiries/types";
 
 export const getEffectiveInquiryStatus = sql<InquiryStatus>`case
-  when ${inquiries.status} in ('new', 'waiting', 'quoted') and ${inquiries.requestedDeadline} is not null and ${inquiries.requestedDeadline} < current_date::text then 'overdue'::inquiry_status
+  when ${inquiries.status} in ('new', 'waiting', 'quoted') and ${inquiries.requestedDeadline} is not null and ${inquiries.requestedDeadline} < current_date then 'overdue'::inquiry_status
   when ${inquiries.status} in ('new', 'waiting') and ${inquiries.submittedAt} >= now() - interval '48 hours' then 'new'::inquiry_status
   when ${inquiries.status} in ('new', 'waiting') and ${inquiries.submittedAt} < now() - interval '48 hours' then 'waiting'::inquiry_status
   else ${inquiries.status}
@@ -48,6 +60,38 @@ import type {
 export async function getPublicInquiryBusinessBySlug(
   slug: string,
 ): Promise<PublicInquiryBusiness | null> {
+  return getCachedPublicInquiryBusinessBySlug(slug);
+}
+
+async function getCachedPublicInquiryBusinessBySlug(
+  slug: string,
+): Promise<PublicInquiryBusiness | null> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+
+  const business = await getInquiryBusinessBySlug({
+    slug,
+    includeDisabled: false,
+  });
+
+  if (business) {
+    cacheTag(
+      ...getBusinessInquiryFormsCacheTags(business.id),
+      ...getBusinessInquiryFormCacheTags(business.id, business.form.slug),
+    );
+  }
+
+  return business;
+}
+
+async function getInquiryBusinessBySlug({
+  slug,
+  includeDisabled,
+}: {
+  slug: string;
+  includeDisabled: boolean;
+}): Promise<PublicInquiryBusiness | null> {
   const [business] = await db
     .select({
       id: businesses.id,
@@ -81,7 +125,7 @@ export async function getPublicInquiryBusinessBySlug(
     .where(eq(businesses.slug, slug))
     .limit(1);
 
-  if (!business || !business.publicInquiryEnabled) {
+  if (!business || (!includeDisabled && !business.publicInquiryEnabled)) {
     return null;
   }
 
@@ -124,11 +168,37 @@ export async function getPublicInquiryBusinessByFormSlug({
   businessSlug: string;
   formSlug: string;
 }): Promise<PublicInquiryBusiness | null> {
-  return getInquiryBusinessByFormSlug({
+  return getCachedPublicInquiryBusinessByFormSlug({
+    businessSlug,
+    formSlug,
+  });
+}
+
+async function getCachedPublicInquiryBusinessByFormSlug({
+  businessSlug,
+  formSlug,
+}: {
+  businessSlug: string;
+  formSlug: string;
+}): Promise<PublicInquiryBusiness | null> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+
+  const business = await getInquiryBusinessByFormSlug({
     businessSlug,
     formSlug,
     includeDisabled: false,
   });
+
+  if (business) {
+    cacheTag(
+      ...getBusinessInquiryFormsCacheTags(business.id),
+      ...getBusinessInquiryFormCacheTags(business.id, business.form.slug),
+    );
+  }
+
+  return business;
 }
 
 export async function getInquiryBusinessPreviewByFormSlug({
@@ -162,7 +232,10 @@ async function getCachedInquiryBusinessPreviewByFormSlug({
   });
 
   if (business) {
-    cacheTag(...getBusinessInquiryFormCacheTags(business.id, business.form.slug));
+    cacheTag(
+      ...getBusinessInquiryFormsCacheTags(business.id),
+      ...getBusinessInquiryFormCacheTags(business.id, business.form.slug),
+    );
   }
 
   return business;
@@ -305,7 +378,9 @@ function getInquiryListConditions({
   const conditions = [eq(inquiries.businessId, businessId)];
 
   if (filters.status !== "all") {
-    conditions.push(eq(inquiries.status, filters.status));
+    conditions.push(
+      sql`${getEffectiveInquiryStatus} = ${filters.status}::inquiry_status`,
+    );
   }
 
   if (filters.q) {
@@ -391,7 +466,7 @@ export async function getInquiryListPageForBusiness({
       customerEmail: inquiries.customerEmail,
       serviceCategory: inquiries.serviceCategory,
       budgetText: inquiries.budgetText,
-      status: inquiries.status,
+      status: getEffectiveInquiryStatus,
       subject: inquiries.subject,
       submittedAt: inquiries.submittedAt,
       createdAt: inquiries.createdAt,

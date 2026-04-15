@@ -73,6 +73,9 @@ function toCountMap(
 
 export async function getBusinessAnalyticsData(
   businessId: string,
+  options?: {
+    activityYear?: number;
+  },
 ): Promise<BusinessAnalyticsData> {
   "use cache";
 
@@ -80,11 +83,18 @@ export async function getBusinessAnalyticsData(
   cacheTag(...getBusinessAnalyticsCacheTags(businessId));
 
   const now = new Date();
+  const currentYear = now.getUTCFullYear();
+  const selectedYear = Math.min(
+    currentYear,
+    Math.max(2000, options?.activityYear ?? currentYear),
+  );
   const trendStart = addUtcWeeks(startOfUtcWeek(now), -5);
   const trendStartIso = trendStart.toISOString();
   const thisWeekStart = new Date(now);
   thisWeekStart.setUTCDate(thisWeekStart.getUTCDate() - 6);
   thisWeekStart.setUTCHours(0, 0, 0, 0);
+  const activityYearStartIso = `${selectedYear}-01-01T00:00:00.000Z`;
+  const activityYearEndIso = `${selectedYear + 1}-01-01T00:00:00.000Z`;
   const quoteActivityTimestamp = sql`coalesce(${quotes.acceptedAt}, ${quotes.sentAt}, ${quotes.createdAt})`;
   const quoteActivityWeek = sql`date_trunc('week', ${quoteActivityTimestamp})`;
 
@@ -96,6 +106,8 @@ export async function getBusinessAnalyticsData(
     quoteTrendRows,
     inquiryActivityRows,
     quoteActivityRows,
+    inquiryBoundsRows,
+    quoteBoundsRows,
   ] = await Promise.all([
       db
         .select({
@@ -164,7 +176,13 @@ export async function getBusinessAnalyticsData(
           count: sql<number>`count(*)`,
         })
         .from(inquiries)
-        .where(eq(inquiries.businessId, businessId))
+        .where(
+          and(
+            eq(inquiries.businessId, businessId),
+            gte(inquiries.submittedAt, sql`${activityYearStartIso}::timestamptz`),
+            lt(inquiries.submittedAt, sql`${activityYearEndIso}::timestamptz`),
+          ),
+        )
         .groupBy(sql`date_trunc('day', ${inquiries.submittedAt})`),
       db
         .select({
@@ -172,8 +190,30 @@ export async function getBusinessAnalyticsData(
           count: sql<number>`count(*)`,
         })
         .from(quotes)
-        .where(eq(quotes.businessId, businessId))
+        .where(
+          and(
+            eq(quotes.businessId, businessId),
+            sql`${quoteActivityTimestamp} >= ${activityYearStartIso}::timestamptz`,
+            sql`${quoteActivityTimestamp} < ${activityYearEndIso}::timestamptz`,
+          ),
+        )
         .groupBy(sql`date_trunc('day', ${quoteActivityTimestamp})`),
+      db
+        .select({
+          firstSubmittedAt:
+            sql<Date | null>`min(${inquiries.submittedAt})`.as("first_submitted_at"),
+        })
+        .from(inquiries)
+        .where(eq(inquiries.businessId, businessId)),
+      db
+        .select({
+          firstQuoteActivityAt:
+            sql<Date | null>`min(${quoteActivityTimestamp})`.as(
+              "first_quote_activity_at",
+            ),
+        })
+        .from(quotes)
+        .where(eq(quotes.businessId, businessId)),
     ]);
 
   const inquiryStatusCountsMap = toCountMap(
@@ -248,24 +288,13 @@ export async function getBusinessAnalyticsData(
     },
   );
 
-  let activityStartYear: number | null = null;
   const activityMap: Record<string, { inquiries: number; quotes: number }> = {};
-  
+
   for (const row of inquiryActivityRows) {
     if (!activityMap[row.date]) {
       activityMap[row.date] = { inquiries: 0, quotes: 0 };
     }
     activityMap[row.date].inquiries += Number(row.count);
-
-    const match = row.date.match(/^(\d{4})/);
-    if (match) {
-      const parsedYear = parseInt(match[1] ?? "", 10);
-      if (!Number.isNaN(parsedYear)) {
-          if (activityStartYear === null || parsedYear < activityStartYear) {
-             activityStartYear = parsedYear;
-          }
-      }
-    }
   }
 
   for (const row of quoteActivityRows) {
@@ -273,24 +302,27 @@ export async function getBusinessAnalyticsData(
       activityMap[row.date] = { inquiries: 0, quotes: 0 };
     }
     activityMap[row.date].quotes += Number(row.count);
-
-    const match = row.date.match(/^(\d{4})/);
-    if (match) {
-      const parsedYear = parseInt(match[1] ?? "", 10);
-      if (!Number.isNaN(parsedYear)) {
-          if (activityStartYear === null || parsedYear < activityStartYear) {
-             activityStartYear = parsedYear;
-          }
-      }
-    }
   }
 
-  const currentYear = now.getUTCFullYear();
-  const startYear = activityStartYear ?? currentYear;
+  const candidateYears = [
+    inquiryBoundsRows[0]?.firstSubmittedAt?.getUTCFullYear() ?? null,
+    quoteBoundsRows[0]?.firstQuoteActivityAt?.getUTCFullYear() ?? null,
+  ].filter((year): year is number => typeof year === "number");
+  const startYear = candidateYears.length
+    ? Math.min(...candidateYears)
+    : currentYear;
+  const availableYears = Array.from(
+    new Set(
+      Array.from(
+        { length: Math.max(1, currentYear - startYear + 1) },
+        (_, index) => currentYear - index,
+      ).concat(selectedYear),
+    ),
+  ).sort((left, right) => right - left);
 
   const activityGraph = {
-    startYear: startYear > currentYear ? currentYear : startYear,
-    currentYear,
+    selectedYear,
+    availableYears,
     activityMap,
   };
 

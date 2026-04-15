@@ -1,5 +1,3 @@
-"use client";
-
 import Image from "next/image";
 import type { ReactNode } from "react";
 import { ArrowUpRight, Mail, Phone, Share2 } from "lucide-react";

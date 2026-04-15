@@ -144,6 +144,25 @@ export type DashboardQuoteDetail = {
   reminders: QuoteReminderKind[];
 };
 
+export type QuoteSendPayload = {
+  id: string;
+  inquiryId: string | null;
+  quoteNumber: string;
+  publicToken: string;
+  title: string;
+  customerName: string;
+  customerEmail: string;
+  currency: string;
+  notes: string | null;
+  subtotalInCents: number;
+  discountInCents: number;
+  totalInCents: number;
+  validUntil: string;
+  status: QuoteStatus;
+  updatedAt: Date;
+  items: DashboardQuoteItem[];
+};
+
 export type PublicQuoteView = {
   id: string;
   token: string;
