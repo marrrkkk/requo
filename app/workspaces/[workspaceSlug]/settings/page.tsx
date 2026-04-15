@@ -8,10 +8,13 @@ import { WorkspaceSettingsForm } from "@/features/workspaces/components/workspac
 import { getWorkspacePath } from "@/features/workspaces/routes";
 import { requireSession } from "@/lib/auth/session";
 import { Button } from "@/components/ui/button";
+import { PlanBadge } from "@/components/shared/paywall";
 import { LogoutButton } from "@/features/auth/components/logout-button";
 import { AppearanceMenu } from "@/features/theme/components/appearance-menu";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
+import { getWorkspaceBillingOverview } from "@/features/billing/queries";
+import { BillingStatusCard } from "@/features/billing/components/billing-status-card";
 
 type WorkspaceSettingsPageProps = {
   params: Promise<{
@@ -37,6 +40,8 @@ export default async function WorkspaceSettingsPage(
   if (overview.memberRole !== "owner") {
     redirect(getWorkspacePath(overview.slug));
   }
+
+  const billingOverview = await getWorkspaceBillingOverview(overview.id);
 
   return (
     <>
@@ -87,6 +92,20 @@ export default async function WorkspaceSettingsPage(
                   plan: overview.plan,
                 }}
               />
+
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-lg font-semibold tracking-tight text-foreground">
+                    Plan & billing
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Manage your workspace subscription, payment method, and billing details.
+                  </p>
+                </div>
+                {billingOverview ? (
+                  <BillingStatusCard billing={billingOverview} />
+                ) : null}
+              </div>
             </div>
           </div>
         </main>

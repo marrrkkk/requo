@@ -17,7 +17,6 @@ import {
 import { HelpTooltip } from "@/components/shared/help-tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getBusinessAnalyticsData } from "@/features/analytics/queries";
 import { formatAnalyticsPercent } from "@/features/analytics/utils";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
@@ -25,7 +24,10 @@ import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
 import { formatQuoteDate, formatQuoteMoney } from "@/features/quotes/utils";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
-import { getBusinessOverviewData } from "@/features/businesses/queries";
+import {
+  getBusinessDashboardSummaryData,
+  getBusinessOverviewData,
+} from "@/features/businesses/queries";
 import {
   getBusinessAnalyticsPath,
   getBusinessInquiriesPath,
@@ -39,6 +41,7 @@ import type {
   BusinessOverviewInquiryActionItem,
   BusinessOverviewQuoteActionItem,
 } from "@/features/businesses/types";
+import type { InquiryStatus } from "@/features/inquiries/types";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
 import { cn } from "@/lib/utils";
@@ -48,6 +51,8 @@ import { workspacesHubPath } from "@/features/workspaces/routes";
 type DashboardOverviewPageProps = {
   params: Promise<{ slug: string }>;
 };
+
+const overviewQueueMaxItems = 4;
 
 export default async function DashboardOverviewPage({
   params,
@@ -62,17 +67,25 @@ export default async function DashboardOverviewPage({
     redirect(workspacesHubPath);
   }
 
-  const [analytics, overview] = await Promise.all([
-    getBusinessAnalyticsData(businessContext.business.id),
+  const [summary, overview] = await Promise.all([
+    getBusinessDashboardSummaryData(businessContext.business.id),
     getBusinessOverviewData(businessContext.business.id),
   ]);
   const businessSlug = businessContext.business.slug;
-  const closedOutcomeCount = analytics.wonCount + analytics.lostCount;
+  const closedOutcomeCount = summary.wonCount + summary.lostCount;
   const winRate = closedOutcomeCount
-    ? analytics.wonCount / closedOutcomeCount
+    ? summary.wonCount / closedOutcomeCount
     : 0;
   const publicInquiryUrl = getBusinessPublicInquiryUrl(
     businessContext.business.slug,
+  );
+  const overdueInquiryPath = getBusinessInquiriesStatusPath(
+    businessSlug,
+    "overdue",
+  );
+  const waitingInquiryPath = getBusinessInquiriesStatusPath(
+    businessSlug,
+    "waiting",
   );
 
   return (
@@ -110,9 +123,9 @@ export default async function DashboardOverviewPage({
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <OverviewActionStat
-              label="Overdue replies"
-              note="48h+"
-              value={overview.counts.overdueReplies}
+              label="Overdue"
+              note="Past deadline"
+              value={overview.counts.overdueInquiries}
             />
             <OverviewActionStat
               label="Expiring soon"
@@ -120,9 +133,9 @@ export default async function DashboardOverviewPage({
               value={overview.counts.expiringSoonQuotes}
             />
             <OverviewActionStat
-              label="Awaiting quote"
-              note="No quote yet"
-              value={overview.counts.inquiriesWithoutQuotes}
+              label="Waiting"
+              note="48h+"
+              value={overview.counts.waitingInquiries}
             />
             <OverviewActionStat
               label="Follow up due"
@@ -137,32 +150,34 @@ export default async function DashboardOverviewPage({
         <OverviewQueueCard
           action={
             <Button asChild size="sm" variant="ghost">
-              <Link href={getBusinessInquiriesPath(businessSlug)} prefetch={true}>
-                All inquiries
+              <Link href={overdueInquiryPath} prefetch={true}>
+                All overdue
                 <ArrowRight data-icon="inline-end" />
               </Link>
             </Button>
           }
-          count={overview.counts.overdueReplies}
-          title="Overdue replies"
+          count={overview.counts.overdueInquiries}
+          title="Overdue"
         >
-          {overview.overdueReplies.length ? (
-            <div className="flex flex-col divide-y divide-border/70">
-              {overview.overdueReplies.map((inquiry) => (
+          {overview.overdueInquiries.length ? (
+            <OverviewQueueList
+              emptySlots={overviewQueueMaxItems - overview.overdueInquiries.length}
+            >
+              {overview.overdueInquiries.map((inquiry) => (
                 <OverviewInquiryRow
                   inquiry={inquiry}
                   key={inquiry.id}
-                  metaLabel="Waiting since"
+                  metaLabel="Submitted"
                   businessSlug={businessSlug}
                 />
               ))}
-            </div>
+            </OverviewQueueList>
           ) : (
             <DashboardEmptyState
-              className="px-5 py-12 sm:px-6"
-              description="Nothing has been waiting for qualification or a quote for more than 48 hours."
+              className="h-full px-5 py-12 sm:px-6"
+              description="Requests with a passed deadline show up here."
               icon={Inbox}
-              title="No overdue replies"
+              title="No overdue inquiries"
               variant="flat"
             />
           )}
@@ -205,18 +220,20 @@ export default async function DashboardOverviewPage({
         <OverviewQueueCard
           action={
             <Button asChild size="sm" variant="ghost">
-              <Link href={getBusinessInquiriesPath(businessSlug)} prefetch={true}>
-                Review inquiries
+              <Link href={waitingInquiryPath} prefetch={true}>
+                All waiting
                 <ArrowRight data-icon="inline-end" />
               </Link>
             </Button>
           }
-          count={overview.counts.inquiriesWithoutQuotes}
-          title="Awaiting quote"
+          count={overview.counts.waitingInquiries}
+          title="Waiting"
         >
-          {overview.inquiriesWithoutQuotes.length ? (
-            <div className="flex flex-col divide-y divide-border/70">
-              {overview.inquiriesWithoutQuotes.map((inquiry) => (
+          {overview.waitingInquiries.length ? (
+            <OverviewQueueList
+              emptySlots={overviewQueueMaxItems - overview.waitingInquiries.length}
+            >
+              {overview.waitingInquiries.map((inquiry) => (
                 <OverviewInquiryRow
                   inquiry={inquiry}
                   key={inquiry.id}
@@ -224,21 +241,20 @@ export default async function DashboardOverviewPage({
                   businessSlug={businessSlug}
                 />
               ))}
-            </div>
+            </OverviewQueueList>
           ) : (
             <DashboardEmptyState
               action={
                 <Button asChild variant="outline">
-                  <Link href={getBusinessNewQuotePath(businessSlug)} prefetch={true}>
-                    <ReceiptText data-icon="inline-start" />
-                    Create quote
+                  <Link href={waitingInquiryPath} prefetch={true}>
+                    Open waiting inquiries
                   </Link>
                 </Button>
               }
-              className="px-5 py-12 sm:px-6"
-              description="Every active inquiry already has a quote in motion."
+              className="h-full px-5 py-12 sm:px-6"
+              description="Requests that have been waiting more than 48 hours show up here."
               icon={Inbox}
-              title="Nothing waiting for a quote"
+              title="No waiting inquiries"
               variant="flat"
             />
           )}
@@ -330,13 +346,13 @@ export default async function DashboardOverviewPage({
               <OverviewSidebarMetric
                 label="This week"
                 tooltip="New inquiries this week"
-                value={`${analytics.inquiriesThisWeek}`}
+                value={`${summary.inquiriesThisWeek}`}
               />
               <OverviewSidebarMetric
                 label="Coverage"
                 tooltip="Inquiries turned into quotes"
                 value={formatAnalyticsPercent(
-                  analytics.quoteSummary.inquiryCoverageRate,
+                  summary.inquiryCoverageRate,
                 )}
               />
               <OverviewSidebarMetric
@@ -446,7 +462,7 @@ function OverviewQueueCard({
   children: ReactNode;
 }) {
   return (
-    <section className="section-panel overflow-hidden">
+    <section className="section-panel flex h-full flex-col overflow-hidden">
       <div className="flex items-center justify-between gap-3 border-b border-border/70 px-5 py-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <h2 className="truncate text-base font-semibold tracking-tight text-foreground">
@@ -456,9 +472,38 @@ function OverviewQueueCard({
         </div>
         {action}
       </div>
-      {children}
+      <div className="flex min-h-[21rem] flex-1 flex-col">{children}</div>
     </section>
   );
+}
+
+function OverviewQueueList({
+  children,
+  emptySlots,
+}: {
+  children: ReactNode;
+  emptySlots: number;
+}) {
+  return (
+    <div className="flex flex-1 flex-col divide-y divide-border/70">
+      {children}
+      {Array.from({ length: Math.max(0, emptySlots) }).map((_, index) => (
+        <div
+          aria-hidden="true"
+          className="min-h-[5.75rem] flex-1 px-5 py-4 sm:px-6"
+          key={index}
+        />
+      ))}
+    </div>
+  );
+}
+
+function getBusinessInquiriesStatusPath(
+  businessSlug: string,
+  status: InquiryStatus,
+) {
+  const searchParams = new URLSearchParams({ status });
+  return `${getBusinessInquiriesPath(businessSlug)}?${searchParams.toString()}`;
 }
 
 function OverviewInquiryRow({

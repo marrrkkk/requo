@@ -1,4 +1,5 @@
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import {
   Building2,
   Download,
@@ -27,7 +28,6 @@ import { AddToCalendarButton } from "@/features/calendar/components/add-to-calen
 import { CalendarEventSummary } from "@/features/calendar/components/calendar-event-summary";
 import { prefillFromInquiry } from "@/features/calendar/prefill";
 import { getCalendarConnectionForUser, getCalendarEventsForInquiry } from "@/features/calendar/queries";
-import { InquiryAiPanel } from "@/features/ai/components/inquiry-ai-panel";
 import { CustomerHistoryPanel } from "@/features/customers/components/customer-history-panel";
 import { getCustomerHistoryForBusiness } from "@/features/customers/queries";
 import { getAdditionalInquirySubmittedFields } from "@/features/inquiries/form-config";
@@ -59,6 +59,23 @@ import { Button } from "@/components/ui/button";
 import { isGoogleCalendarConfigured } from "@/lib/env";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
+
+const InquiryAiPanel = dynamic(
+  () =>
+    import("@/features/ai/components/inquiry-ai-panel").then(
+      (module) => module.InquiryAiPanel,
+    ),
+  {
+    loading: () => (
+      <div className="section-panel mt-6 px-5 py-5 sm:px-6">
+        <p className="meta-label">AI assistant</p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Loading assistant tools...
+        </p>
+      </div>
+    ),
+  },
+);
 
 type InquiryDetailPageProps = {
   params: Promise<{ slug: string; id: string }>;

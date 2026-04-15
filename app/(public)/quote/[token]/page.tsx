@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Mail, ShieldCheck } from "lucide-react";
 import { notFound } from "next/navigation";
+import { after } from "next/server";
 
 import {
   PublicHeroSurface,
@@ -46,7 +47,13 @@ export default async function PublicQuotePage({
     notFound();
   }
 
-  await recordQuotePublicViewByToken(quote.token);
+  after(async () => {
+    try {
+      await recordQuotePublicViewByToken(quote.token);
+    } catch (error) {
+      console.error("Failed to record public quote view.", error);
+    }
+  });
 
   const respondAction = respondToPublicQuoteAction.bind(null, quote.token);
   const isActionable = quote.status === "sent";

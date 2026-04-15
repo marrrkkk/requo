@@ -33,8 +33,8 @@ type QuotesPageProps = {
 
 const ITEMS_PER_PAGE = 10;
 const FULL_PAGE_CACHE_MAX_PAGES = 5;
-const FORWARD_PAGE_CACHE_WINDOW = 2;
-const BACKWARD_PAGE_CACHE_WINDOW = 1;
+const FORWARD_PAGE_CACHE_WINDOW = 1;
+const BACKWARD_PAGE_CACHE_WINDOW = 0;
 
 function getCachedPageWindow(currentPage: number, totalPages: number) {
   if (totalPages <= FULL_PAGE_CACHE_MAX_PAGES) {
