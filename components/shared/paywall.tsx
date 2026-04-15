@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock, ArrowUpRight } from "lucide-react";
+import { Crown, Lock, ArrowUpRight, Zap } from "lucide-react";
 
 import type { WorkspacePlan, PlanFeature } from "@/lib/plans";
 import {
@@ -41,21 +41,37 @@ export function UpgradeBadge({
 }
 
 /*──────────────────────────────────────────────────────────────────────────────
- * PlanBadge — shows the current business plan as a badge.
+ * PlanBadge — shows the current workspace plan as a visually distinct badge.
  *────────────────────────────────────────────────────────────────────────────*/
+
+const planBadgeStyles: Record<WorkspacePlan, string> = {
+  free: "",
+  pro: "border-primary/20 bg-primary/10 text-primary dark:border-primary/25 dark:bg-primary/15",
+  business:
+    "border-violet-500/20 bg-violet-500/10 text-violet-600 dark:border-violet-400/25 dark:bg-violet-400/15 dark:text-violet-400",
+};
 
 export function PlanBadge({
   plan,
+  showIcon = true,
   className,
 }: {
   plan: WorkspacePlan;
+  /** Show plan icon. Set false for compact contexts. */
+  showIcon?: boolean;
   className?: string;
 }) {
   return (
     <Badge
       variant={plan === "free" ? "outline" : "secondary"}
-      className={className}
+      className={cn(planBadgeStyles[plan], className)}
     >
+      {showIcon && plan === "pro" ? (
+        <Zap className="size-3 fill-current" />
+      ) : null}
+      {showIcon && plan === "business" ? (
+        <Crown className="size-3" />
+      ) : null}
       {planMeta[plan].label}
     </Badge>
   );
