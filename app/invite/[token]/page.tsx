@@ -4,7 +4,7 @@ import { AuthShell } from "@/components/shell/auth-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/features/auth/components/logout-button";
-import { acceptBusinessMemberInviteAction } from "@/features/business-members/actions";
+import { acceptBusinessMemberInviteAction, declineBusinessMemberInviteAction } from "@/features/business-members/actions";
 import { BusinessMemberInviteAcceptForm } from "@/features/business-members/components/business-member-invite-accept-form";
 import { getBusinessMemberInviteByToken } from "@/features/business-members/queries";
 import { getBusinessMemberInvitePath } from "@/features/business-members/routes";
@@ -136,7 +136,8 @@ export default async function BusinessMemberInvitePage({
         </p>
 
         <BusinessMemberInviteAcceptForm
-          action={acceptBusinessMemberInviteAction.bind(null, invite.token)}
+          acceptAction={acceptBusinessMemberInviteAction.bind(null, invite.token)}
+          declineAction={alreadyHasAccess ? undefined : declineBusinessMemberInviteAction.bind(null, invite.token)}
           submitLabel={alreadyHasAccess ? "Open business" : "Accept invite"}
         />
       </div>

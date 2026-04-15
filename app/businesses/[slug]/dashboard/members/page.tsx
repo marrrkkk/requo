@@ -43,17 +43,13 @@ export default async function BusinessMembersPage({
   }
 
   return (
-    <>
-      <PageHeader title="Members" />
-
-      <BusinessMembersManager
-        businessSlug={businessContext.business.slug}
-        cancelInviteAction={cancelBusinessMemberInviteAction}
-        createInviteAction={createBusinessMemberInviteAction}
-        removeMemberAction={removeBusinessMemberAction}
-        updateRoleAction={updateBusinessMemberRoleAction}
-        view={view}
-      />
-    </>
+    <BusinessMembersManager
+      businessSlug={businessContext.business.slug}
+      cancelInviteAction={cancelBusinessMemberInviteAction}
+      createInviteAction={createBusinessMemberInviteAction}
+      removeMemberAction={removeBusinessMemberAction}
+      updateRoleAction={updateBusinessMemberRoleAction}
+      view={view}
+    />
   );
 }

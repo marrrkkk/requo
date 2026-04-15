@@ -8,6 +8,7 @@ import { WorkspaceOverviewContent } from "@/features/workspaces/components/works
 import { createBusinessAction } from "@/features/businesses/actions";
 import {
   getWorkspaceSettingsPath,
+  getWorkspacePath,
   workspacesHubPath,
 } from "@/features/workspaces/routes";
 import { requireSession } from "@/lib/auth/session";
@@ -48,7 +49,7 @@ export default async function WorkspacePage(props: WorkspacePageProps) {
       <div className="min-h-svh w-full bg-background">
         <header className="sticky top-0 z-10 flex h-[4.5rem] w-full shrink-0 items-center justify-between border-b border-border/70 bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/60 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
-            <BrandMark subtitle={overview.name} />
+            <BrandMark subtitle={overview.name} href={getWorkspacePath(overview.slug)} />
             <div className="h-4 w-px bg-border max-sm:hidden" />
             <Button
               asChild
