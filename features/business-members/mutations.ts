@@ -1,4 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
+import { insertBusinessNotification } from "@/features/notifications/mutations";
 
 import {
   businessMemberInviteDurationDays,
@@ -402,6 +403,7 @@ export async function acceptBusinessMemberInviteForUser({
         role: businessMemberInvites.role,
         expiresAt: businessMemberInvites.expiresAt,
         businessSlug: businesses.slug,
+        notifyInAppOnMemberInviteResponse: businesses.notifyInAppOnMemberInviteResponse,
       })
       .from(businessMemberInvites)
       .innerJoin(businesses, eq(businessMemberInvites.businessId, businesses.id))
@@ -472,6 +474,16 @@ export async function acceptBusinessMemberInviteForUser({
         createdAt: now,
         updatedAt: now,
       });
+
+      if (invite.notifyInAppOnMemberInviteResponse) {
+        await insertBusinessNotification(tx, {
+          businessId: invite.businessId,
+          type: "business_member_invite_accepted",
+          title: "Invite accepted",
+          summary: `${userName} (${invite.email}) joined as ${invite.role}.`,
+          now,
+        });
+      }
     }
 
     await tx
@@ -484,6 +496,80 @@ export async function acceptBusinessMemberInviteForUser({
       businessId: invite.businessId,
       alreadyMember: Boolean(existingMembership),
       role: (existingMembership?.role ?? invite.role) as BusinessMemberRole,
+    };
+  });
+}
+
+export async function declineBusinessMemberInviteForUser({
+  token,
+  userEmail,
+  userName,
+}: {
+  token: string;
+  userEmail: string;
+  userName: string;
+}) {
+  const normalizedUserEmail = normalizeEmailAddress(userEmail);
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [invite] = await tx
+      .select({
+        inviteId: businessMemberInvites.id,
+        businessId: businessMemberInvites.businessId,
+        email: businessMemberInvites.email,
+        role: businessMemberInvites.role,
+        expiresAt: businessMemberInvites.expiresAt,
+        notifyInAppOnMemberInviteResponse: businesses.notifyInAppOnMemberInviteResponse,
+      })
+      .from(businessMemberInvites)
+      .innerJoin(businesses, eq(businessMemberInvites.businessId, businesses.id))
+      .where(eq(businessMemberInvites.token, token))
+      .limit(1);
+
+    if (!invite) {
+      return {
+        ok: false as const,
+        reason: "invalid" as const,
+      };
+    }
+
+    if (invite.expiresAt <= now) {
+      await tx
+        .delete(businessMemberInvites)
+        .where(eq(businessMemberInvites.id, invite.inviteId));
+
+      return {
+        ok: false as const,
+        reason: "expired" as const,
+      };
+    }
+
+    if (normalizeEmailAddress(invite.email) !== normalizedUserEmail) {
+      return {
+        ok: false as const,
+        reason: "email-mismatch" as const,
+        invitedEmail: invite.email,
+      };
+    }
+
+    if (invite.notifyInAppOnMemberInviteResponse) {
+      await insertBusinessNotification(tx, {
+        businessId: invite.businessId,
+        type: "business_member_invite_declined",
+        title: "Invite declined",
+        summary: `${userName} (${invite.email}) declined your invite.`,
+        now,
+      });
+    }
+
+    await tx
+      .delete(businessMemberInvites)
+      .where(eq(businessMemberInvites.id, invite.inviteId));
+
+    return {
+      ok: true as const,
+      businessId: invite.businessId,
     };
   });
 }

@@ -54,8 +54,7 @@ export const starterTemplateDefinitions: Record<
       "Brief or reference files",
     ],
     statusSummary: starterTemplateStatusSummary,
-    defaultQuoteNotes:
-      "Pricing covers the deliverables and scope listed here. Additional revisions, rush requests, or out-of-scope work will be quoted separately before work begins.",
+    defaultQuoteNotes: "",
     defaultQuoteValidityDays: defaultStarterQuoteValidityDays,
     replySnippets: [
       {
@@ -89,8 +88,7 @@ export const starterTemplateDefinitions: Record<
       "Desired start date",
     ],
     statusSummary: starterTemplateStatusSummary,
-    defaultQuoteNotes:
-      "Pricing covers the advisory scope listed here. Additional sessions, expanded scope, or implementation work will be quoted separately if needed.",
+    defaultQuoteNotes: "",
     defaultQuoteValidityDays: defaultStarterQuoteValidityDays,
     replySnippets: [
       {
@@ -120,8 +118,7 @@ export const starterTemplateDefinitions: Record<
       "Photos or plans",
     ],
     statusSummary: starterTemplateStatusSummary,
-    defaultQuoteNotes:
-      "Pricing is based on the current scope and site information. Material changes, concealed conditions, or out-of-scope work may require an updated quote before work proceeds.",
+    defaultQuoteNotes: "",
     defaultQuoteValidityDays: defaultStarterQuoteValidityDays,
     replySnippets: [
       {
@@ -155,8 +152,7 @@ export const starterTemplateDefinitions: Record<
       "Reference files",
     ],
     statusSummary: starterTemplateStatusSummary,
-    defaultQuoteNotes:
-      "Pricing reflects the scope described here. If the scope changes after review, the quote will be updated before work starts.",
+    defaultQuoteNotes: "",
     defaultQuoteValidityDays: defaultStarterQuoteValidityDays,
     replySnippets: [
       {

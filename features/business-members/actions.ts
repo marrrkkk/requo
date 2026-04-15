@@ -21,6 +21,7 @@ import {
   acceptBusinessMemberInviteForUser,
   cancelBusinessMemberInviteForBusiness,
   createBusinessMemberInviteForBusiness,
+  declineBusinessMemberInviteForUser,
   removeBusinessMemberFromBusiness,
   updateBusinessMemberRoleForBusiness,
 } from "@/features/business-members/mutations";
@@ -421,4 +422,57 @@ export async function acceptBusinessMemberInviteAction(
   revalidateMembersSettingsPath(result.businessSlug);
   revalidatePath(workspacesHubPath);
   redirect(getBusinessDashboardPath(result.businessSlug));
+}
+
+export async function declineBusinessMemberInviteAction(
+  token: string,
+  _prevState: BusinessMemberInviteAcceptActionState,
+  _formData: FormData,
+): Promise<BusinessMemberInviteAcceptActionState> {
+  void _prevState;
+  void _formData;
+  const parsedToken = businessMemberInviteTokenSchema.safeParse(token);
+  const invitePath = getBusinessMemberInvitePath(token);
+  const loginPath = `/login?next=${encodeURIComponent(invitePath)}`;
+
+  if (!parsedToken.success) {
+    return {
+      error: "That invite link is not valid.",
+    };
+  }
+
+  const user = await requireUser(loginPath);
+  let result: Awaited<ReturnType<typeof declineBusinessMemberInviteForUser>>;
+
+  try {
+    result = await declineBusinessMemberInviteForUser({
+      token: parsedToken.data,
+      userEmail: user.email,
+      userName: user.name,
+    });
+  } catch (error) {
+    console.error("Failed to decline business member invite.", error);
+
+    return {
+      error: "We couldn't decline that invite right now.",
+    };
+  }
+
+  if (!result.ok) {
+    if (result.reason === "email-mismatch") {
+      return {
+        error: `Sign in with ${result.invitedEmail} to decline this invite.`,
+      };
+    }
+
+    return {
+      error:
+        result.reason === "expired"
+          ? "This invite has expired."
+          : "That invite link is not valid.",
+    };
+  }
+
+  updateCacheTags(getBusinessMembersCacheTags(result.businessId));
+  redirect(workspacesHubPath);
 }

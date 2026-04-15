@@ -8,6 +8,7 @@ export type BusinessSettingsSection =
   | "security"
   | "replies"
   | "quote"
+  | "email"
   | "pricing"
   | "knowledge"
   | "integrations";

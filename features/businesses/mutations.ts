@@ -2,7 +2,6 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 
-import { resolveCurrencyForCountry } from "@/features/businesses/locale";
 import { getStarterTemplateDefinition } from "@/features/businesses/starter-templates";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
@@ -26,9 +25,10 @@ type CreateBusinessForUserInput = {
     email: string;
   };
   workspaceId: string;
-  countryCode: string;
+  defaultCurrency: string;
   name: string;
   businessType: BusinessType;
+  countryCode?: string | null;
   shortDescription?: string | null;
   activitySource?: string;
   activitySummary?: string;
@@ -71,10 +71,11 @@ type CreateBusinessRecordForUserInput = CreateBusinessForUserInput & {
 export async function createBusinessRecordForUser({
   tx,
   workspaceId,
-  countryCode,
+  defaultCurrency,
   user,
   name,
   businessType,
+  countryCode = null,
   shortDescription,
   activitySource = "business-hub",
   activitySummary = "Business created.",
@@ -82,7 +83,6 @@ export async function createBusinessRecordForUser({
 }: CreateBusinessRecordForUserInput) {
   const trimmedName = name.trim();
   const normalizedShortDescription = shortDescription?.trim() || null;
-  const defaultCurrency = resolveCurrencyForCountry(countryCode);
   const starterTemplate = getStarterTemplateDefinition(businessType);
   const slug = await getAvailableBusinessSlug(
     tx,
@@ -95,10 +95,6 @@ export async function createBusinessRecordForUser({
     businessType,
     businessName: trimmedName,
   });
-
-  if (!defaultCurrency) {
-    throw new Error("A supported currency could not be resolved for that country.");
-  }
 
   await tx.insert(businesses).values({
     id: businessId,
@@ -180,10 +176,11 @@ export async function createBusinessRecordForUser({
 
 export async function createBusinessForUser({
   workspaceId,
-  countryCode,
+  defaultCurrency,
   user,
   name,
   businessType,
+  countryCode,
   shortDescription,
   activitySource,
   activitySummary,
@@ -194,10 +191,11 @@ export async function createBusinessForUser({
     createBusinessRecordForUser({
       tx,
       workspaceId,
-      countryCode,
+      defaultCurrency,
       user,
       name,
       businessType,
+      countryCode,
       shortDescription,
       activitySource,
       activitySummary,

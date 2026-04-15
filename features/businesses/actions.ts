@@ -24,7 +24,7 @@ export async function createBusinessAction(
   const validationResult = createBusinessSchema.safeParse({
     name: formData.get("name"),
     businessType: formData.get("businessType"),
-    countryCode: formData.get("countryCode"),
+    defaultCurrency: formData.get("defaultCurrency"),
     workspaceId: formData.get("workspaceId"),
   });
 
@@ -64,7 +64,7 @@ export async function createBusinessAction(
     const business = await createBusinessForUser({
       user,
       workspaceId: workspace.id,
-      countryCode: validationResult.data.countryCode,
+      defaultCurrency: validationResult.data.defaultCurrency,
       name: validationResult.data.name,
       businessType: validationResult.data.businessType,
     });

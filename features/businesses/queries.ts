@@ -17,6 +17,7 @@ import { cacheLife, cacheTag } from "next/cache";
 
 import type { BusinessOverviewData } from "@/features/businesses/types";
 import { syncExpiredQuotesForBusiness } from "@/features/quotes/mutations";
+import { getEffectiveInquiryStatus } from "@/features/inquiries/queries";
 import { getQuoteReminderKinds } from "@/features/quotes/utils";
 import {
   getBusinessOverviewCacheTags,
@@ -74,7 +75,7 @@ async function getCachedBusinessOverviewData(
         customerName: inquiries.customerName,
         customerEmail: inquiries.customerEmail,
         serviceCategory: inquiries.serviceCategory,
-        status: inquiries.status,
+        status: getEffectiveInquiryStatus,
         submittedAt: inquiries.submittedAt,
       })
       .from(inquiries)
@@ -165,7 +166,7 @@ async function getCachedBusinessOverviewData(
         customerName: inquiries.customerName,
         customerEmail: inquiries.customerEmail,
         serviceCategory: inquiries.serviceCategory,
-        status: inquiries.status,
+        status: getEffectiveInquiryStatus,
         submittedAt: inquiries.submittedAt,
       })
       .from(inquiries)

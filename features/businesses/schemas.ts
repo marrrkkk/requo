@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 import {
-  isSupportedBusinessCountryCode,
-  normalizeBusinessCountryCode,
+  isSupportedBusinessCurrencyCode,
+  normalizeBusinessCurrencyCode,
 } from "@/features/businesses/locale";
 import { businessTypes } from "@/features/inquiries/business-types";
 
@@ -13,14 +13,14 @@ export const createBusinessSchema = z.object({
     .min(2, "Enter a business name.")
     .max(80, "Use 80 characters or fewer."),
   businessType: z.enum(businessTypes),
-  countryCode: z
+  defaultCurrency: z
     .string()
     .trim()
-    .min(1, "Choose a country.")
-    .transform(normalizeBusinessCountryCode)
+    .min(1, "Choose a currency.")
+    .transform(normalizeBusinessCurrencyCode)
     .refine(
-      isSupportedBusinessCountryCode,
-      "Choose a valid country.",
+      isSupportedBusinessCurrencyCode,
+      "Choose a supported currency.",
     ),
   workspaceId: z.string().trim().min(1, "Please select a temporary workspace."),
 });

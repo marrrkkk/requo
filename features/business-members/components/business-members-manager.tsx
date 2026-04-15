@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { MailPlus, Plus, UserMinus, Users } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { MailPlus, MoreHorizontal, Plus, Search, Users } from "lucide-react";
 
 import { DashboardEmptyState } from "@/components/shared/dashboard-layout";
+import { PageHeader } from "@/components/shared/page-header";
+import { cn } from "@/lib/utils";
 import {
   Avatar,
   AvatarFallback,
@@ -22,6 +24,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Field,
   FieldContent,
@@ -101,44 +109,87 @@ export function BusinessMembersManager({
   removeMemberAction,
   cancelInviteAction,
 }: BusinessMembersManagerProps) {
-  return (
-    <div className="flex flex-col gap-5">
-      {/* Action bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <InviteMemberDialog
-          action={createInviteAction}
-          businessSlug={businessSlug}
-        />
-        {view.invites.length > 0 ? (
-          <PendingInvitesDialog
-            businessSlug={businessSlug}
-            cancelInviteAction={cancelInviteAction}
-            invites={view.invites}
-          />
-        ) : null}
-      </div>
+  const [searchQuery, setSearchQuery] = useState("");
 
-      {/* Members list */}
-      {view.members.length ? (
-        <div className="flex flex-col gap-2">
-          {view.members.map((member) => (
-            <MemberRow
+  const filteredMembers = view.members.filter((member) => {
+    if (!searchQuery) return true;
+    const lowerQuery = searchQuery.toLowerCase();
+    return (
+      member.name.toLowerCase().includes(lowerQuery) ||
+      member.email.toLowerCase().includes(lowerQuery)
+    );
+  });
+
+  return (
+    <div className="flex flex-col gap-6 lg:gap-8">
+      <PageHeader
+        title="Members"
+        description="Manage who has access to this business and their roles."
+        actions={
+          <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+            {view.invites.length > 0 ? (
+              <PendingInvitesDialog
+                businessSlug={businessSlug}
+                cancelInviteAction={cancelInviteAction}
+                invites={view.invites}
+              />
+            ) : null}
+            <InviteMemberDialog
+              action={createInviteAction}
               businessSlug={businessSlug}
-              key={member.membershipId}
-              member={member}
-              removeAction={removeMemberAction.bind(null, member.membershipId)}
-              updateRoleAction={updateRoleAction.bind(null, member.membershipId)}
             />
-          ))}
+          </div>
+        }
+      />
+
+      <div className="flex flex-col gap-4">
+        {/* Toolbar */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search members..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9"
+            />
+          </div>
         </div>
-      ) : (
-        <DashboardEmptyState
-          description="Invite your first teammate to get started."
-          icon={Users}
-          title="No members yet"
-          variant="section"
-        />
-      )}
+
+        {/* Members list */}
+        {filteredMembers.length > 0 ? (
+          <div className="overflow-hidden rounded-2xl border border-border/70 bg-background/50 shadow-sm">
+            <div className="flex flex-col">
+              {filteredMembers.map((member, i) => (
+                <div
+                  key={member.membershipId}
+                  className={cn(
+                    i > 0 && "border-t border-border/70",
+                  )}
+                >
+                  <MemberRow
+                    businessSlug={businessSlug}
+                    member={member}
+                    removeAction={removeMemberAction.bind(null, member.membershipId)}
+                    updateRoleAction={updateRoleAction.bind(null, member.membershipId)}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <DashboardEmptyState
+            description={
+              searchQuery
+                ? "No members match your search."
+                : "Invite your first teammate to get started."
+            }
+            icon={Users}
+            title={searchQuery ? "No members found" : "No members yet"}
+            variant="section"
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -262,48 +313,90 @@ function MemberRow({
     formData: FormData,
   ) => Promise<BusinessMemberRemoveActionState>;
 }) {
+  const [showRoleDialog, setShowRoleDialog] = useState(false);
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const isEditable = member.role !== "owner" && !member.isCurrentUser;
   const editableRole = member.role === "owner" ? null : member.role;
 
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-border/75 bg-card/97 px-4 py-3.5">
-      <Avatar>
-        {member.image ? <AvatarImage alt={member.name} src={member.image} /> : null}
-        <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
-      </Avatar>
+    <>
+      <div className="flex items-center justify-between gap-4 px-4 py-3.5 transition-colors hover:bg-muted/30">
+        <div className="flex items-center gap-4 min-w-0">
+          <Avatar>
+            {member.image ? <AvatarImage alt={member.name} src={member.image} /> : null}
+            <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
+          </Avatar>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm font-semibold tracking-tight text-foreground">
-            {member.name}
-          </p>
-          <Badge variant={member.role === "owner" ? "secondary" : "outline"}>
-            {businessMemberRoleMeta[member.role].label}
-          </Badge>
-          {member.isCurrentUser ? <Badge variant="outline">You</Badge> : null}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold tracking-tight text-foreground">
+                {member.name}
+              </p>
+              <Badge variant={member.role === "owner" ? "secondary" : "outline"}>
+                {businessMemberRoleMeta[member.role].label}
+              </Badge>
+              {member.isCurrentUser ? <Badge variant="outline">You</Badge> : null}
+            </div>
+            <p className="mt-0.5 truncate text-sm text-muted-foreground">{member.email}</p>
+          </div>
         </div>
-        <p className="mt-0.5 truncate text-sm text-muted-foreground">{member.email}</p>
+
+        {isEditable ? (
+          <div className="flex shrink-0 items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="size-8">
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onSelect={() => setShowRoleDialog(true)}>
+                  Change role
+                </DropdownMenuItem>
+                <DropdownMenuItem 
+                  onSelect={() => setShowRemoveDialog(true)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  Remove member
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        ) : null}
       </div>
 
       {isEditable ? (
-        <MemberRoleForm
-          businessSlug={businessSlug}
-          currentRole={editableRole!}
-          removeAction={removeAction}
-          updateRoleAction={updateRoleAction}
-        />
+        <>
+          <ChangeRoleDialog
+            businessSlug={businessSlug}
+            currentRole={editableRole!}
+            memberName={member.name}
+            updateRoleAction={updateRoleAction}
+            open={showRoleDialog}
+            onOpenChange={setShowRoleDialog}
+          />
+          <RemoveMemberDialog
+            businessSlug={businessSlug}
+            memberName={member.name}
+            removeAction={removeAction}
+            open={showRemoveDialog}
+            onOpenChange={setShowRemoveDialog}
+          />
+        </>
       ) : null}
-    </div>
+    </>
   );
 }
 
-/* ─── Member role form ─── */
+/* ─── Change role dialog ─── */
 
-function MemberRoleForm({
+function ChangeRoleDialog({
   businessSlug,
   currentRole,
   updateRoleAction,
-  removeAction,
+  memberName,
+  open,
+  onOpenChange,
 }: {
   businessSlug: string;
   currentRole: BusinessMemberAssignableRole;
@@ -311,10 +404,9 @@ function MemberRoleForm({
     state: BusinessMemberRoleActionState,
     formData: FormData,
   ) => Promise<BusinessMemberRoleActionState>;
-  removeAction: (
-    state: BusinessMemberRemoveActionState,
-    formData: FormData,
-  ) => Promise<BusinessMemberRemoveActionState>;
+  memberName: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
   const [selectedRole, setSelectedRole] = useState<BusinessMemberAssignableRole>(
     currentRole,
@@ -323,74 +415,140 @@ function MemberRoleForm({
     updateRoleAction,
     initialRoleState,
   );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Change role</DialogTitle>
+          <DialogDescription>
+            Update the access level for {memberName}.
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          action={(formData) => {
+            roleFormAction(formData);
+            onOpenChange(false);
+          }}
+        >
+          <input name="businessSlug" type="hidden" value={businessSlug} />
+          <input name="role" type="hidden" value={selectedRole} />
+          <DialogBody>
+            <Field>
+              <FieldLabel htmlFor={`member-role-${currentRole}`}>Role</FieldLabel>
+              <FieldContent>
+                <Combobox
+                  disabled={isRolePending}
+                  id={`member-role-${currentRole}`}
+                  onValueChange={(value) =>
+                    setSelectedRole(value as BusinessMemberAssignableRole)
+                  }
+                  options={roleOptions}
+                  placeholder="Role"
+                  renderOption={(option) => (
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{option.label}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {businessMemberRoleMeta[option.value].description}
+                      </p>
+                    </div>
+                  )}
+                  searchPlaceholder="Search role"
+                  value={selectedRole}
+                />
+                <FieldError
+                  errors={
+                    roleState.fieldErrors?.role?.[0]
+                      ? [{ message: roleState.fieldErrors.role[0] }]
+                      : undefined
+                  }
+                />
+              </FieldContent>
+            </Field>
+          </DialogBody>
+          <DialogFooter>
+            <Button
+              disabled={isRolePending}
+              variant="outline"
+              type="button"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button disabled={isRolePending} type="submit">
+              {isRolePending ? (
+                <>
+                  <Spinner aria-hidden="true" data-icon="inline-start" />
+                  Saving...
+                </>
+              ) : (
+                "Save changes"
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ─── Remove member dialog ─── */
+
+function RemoveMemberDialog({
+  businessSlug,
+  removeAction,
+  memberName,
+  open,
+  onOpenChange,
+}: {
+  businessSlug: string;
+  removeAction: (
+    state: BusinessMemberRemoveActionState,
+    formData: FormData,
+  ) => Promise<BusinessMemberRemoveActionState>;
+  memberName: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const [, removeFormAction, isRemovePending] = useActionStateWithSonner(
     removeAction,
     initialDangerState,
   );
 
   return (
-    <div className="flex shrink-0 items-center gap-2">
-      <form
-        action={roleFormAction}
-        className="flex items-center gap-2"
-      >
-        <input name="businessSlug" type="hidden" value={businessSlug} />
-        <input name="role" type="hidden" value={selectedRole} />
-        <Combobox
-          disabled={isRolePending || isRemovePending}
-          id={`member-role-${currentRole}`}
-          onValueChange={(value) =>
-            setSelectedRole(value as BusinessMemberAssignableRole)
-          }
-          options={roleOptions}
-          placeholder="Role"
-          renderOption={(option) => (
-            <div className="min-w-0">
-              <p className="truncate font-medium">{option.label}</p>
-              <p className="text-xs text-muted-foreground">
-                {businessMemberRoleMeta[option.value].description}
-              </p>
-            </div>
-          )}
-          searchPlaceholder="Search role"
-          value={selectedRole}
-        />
-        <FieldError
-          errors={
-            roleState.fieldErrors?.role?.[0]
-              ? [{ message: roleState.fieldErrors.role[0] }]
-              : undefined
-          }
-        />
-
-        <Button disabled={isRolePending || isRemovePending} size="sm" type="submit" variant="outline">
-          {isRolePending ? (
-            <>
-              <Spinner aria-hidden="true" data-icon="inline-start" />
-              Saving...
-            </>
-          ) : (
-            "Save"
-          )}
-        </Button>
-      </form>
-
-      <form action={removeFormAction}>
-        <input name="businessSlug" type="hidden" value={businessSlug} />
-        <Button
-          disabled={isRolePending || isRemovePending}
-          size="sm"
-          type="submit"
-          variant="outline"
-        >
-          {isRemovePending ? (
-            <Spinner aria-hidden="true" />
-          ) : (
-            <UserMinus className="size-4" />
-          )}
-        </Button>
-      </form>
-    </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Remove {memberName}</DialogTitle>
+          <DialogDescription>
+            Are you sure you want to remove this member from the business? They will lose all access immediately.
+          </DialogDescription>
+        </DialogHeader>
+        <form action={removeFormAction}>
+          <input name="businessSlug" type="hidden" value={businessSlug} />
+          <DialogFooter>
+            <Button
+              disabled={isRemovePending}
+              variant="outline"
+              type="button"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button disabled={isRemovePending} variant="destructive" type="submit">
+              {isRemovePending ? (
+                <>
+                  <Spinner aria-hidden="true" data-icon="inline-start" />
+                  Removing...
+                </>
+              ) : (
+                "Remove member"
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

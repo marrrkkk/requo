@@ -41,20 +41,17 @@ export function CreateBusinessDialog({
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[32rem]">
-        <DialogHeader className="mb-4">
+        <DialogHeader>
           <DialogTitle>Create new business</DialogTitle>
           <DialogDescription>
             Use a starter template to set up inquiry capture, quote defaults, and follow-up basics.
           </DialogDescription>
         </DialogHeader>
-        <div className="max-h-[70vh] overflow-y-auto pr-2">
-          {/* We strip out the outer form section styling by nesting the form component directly */}
-          <CreateBusinessForm
-            action={action}
-            workspaces={workspaces}
-            isLocked={isLocked}
-          />
-        </div>
+        <CreateBusinessForm
+          action={action}
+          workspaces={workspaces}
+          isLocked={isLocked}
+        />
       </DialogContent>
     </Dialog>
   );

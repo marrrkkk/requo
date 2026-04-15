@@ -6,7 +6,11 @@ import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import type { BusinessMemberInviteAcceptActionState } from "@/features/business-members/types";
 
 type BusinessMemberInviteAcceptFormProps = {
-  action: (
+  acceptAction: (
+    state: BusinessMemberInviteAcceptActionState,
+    formData: FormData,
+  ) => Promise<BusinessMemberInviteAcceptActionState>;
+  declineAction?: (
     state: BusinessMemberInviteAcceptActionState,
     formData: FormData,
   ) => Promise<BusinessMemberInviteAcceptActionState>;
@@ -16,23 +20,51 @@ type BusinessMemberInviteAcceptFormProps = {
 const initialState: BusinessMemberInviteAcceptActionState = {};
 
 export function BusinessMemberInviteAcceptForm({
-  action,
+  acceptAction,
+  declineAction,
   submitLabel,
 }: BusinessMemberInviteAcceptFormProps) {
-  const [, formAction, isPending] = useActionStateWithSonner(action, initialState);
+  const [, acceptFormAction, isAcceptPending] = useActionStateWithSonner(
+    acceptAction,
+    initialState,
+  );
+  
+  const [, declineFormAction, isDeclinePending] = useActionStateWithSonner(
+    declineAction || (async () => initialState),
+    initialState,
+  );
+
+  const isPending = isAcceptPending || isDeclinePending;
 
   return (
-    <form action={formAction}>
-      <Button disabled={isPending} size="lg" type="submit">
-        {isPending ? (
-          <>
-            <Spinner aria-hidden="true" data-icon="inline-start" />
-            Joining...
-          </>
-        ) : (
-          submitLabel
-        )}
-      </Button>
-    </form>
+    <div className="flex flex-wrap items-center gap-3">
+      <form action={acceptFormAction}>
+        <Button disabled={isPending} size="lg" type="submit">
+          {isAcceptPending ? (
+            <>
+              <Spinner aria-hidden="true" data-icon="inline-start" />
+              Joining...
+            </>
+          ) : (
+            submitLabel
+          )}
+        </Button>
+      </form>
+      
+      {declineAction && (
+        <form action={declineFormAction}>
+          <Button disabled={isPending} size="lg" type="submit" variant="outline">
+            {isDeclinePending ? (
+              <>
+                <Spinner aria-hidden="true" data-icon="inline-start" />
+                Declining...
+              </>
+            ) : (
+              "Decline"
+            )}
+          </Button>
+        </form>
+      )}
+    </div>
   );
 }

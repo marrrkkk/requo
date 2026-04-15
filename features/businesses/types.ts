@@ -59,7 +59,7 @@ export type CreateBusinessActionState = {
   fieldErrors?: {
     name?: string[] | undefined;
     businessType?: string[] | undefined;
-    countryCode?: string[] | undefined;
+    defaultCurrency?: string[] | undefined;
     workspaceId?: string[] | undefined;
   };
 };
