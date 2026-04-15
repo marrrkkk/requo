@@ -24,6 +24,8 @@ import { CreateBusinessDialog } from "@/features/businesses/components/create-bu
 import type { WorkspaceOverview, WorkspaceListItem } from "@/features/workspaces/types";
 import type { CreateBusinessActionState } from "@/features/businesses/types";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
 type WorkspaceOverviewContentProps = {
   overview: WorkspaceOverview;
   workspaceList: WorkspaceListItem[];
@@ -159,6 +161,13 @@ export function WorkspaceOverviewContent({
                   {overview.members.map((member) => (
                     <DashboardDetailFeedItem
                       key={member.userId}
+                      avatar={
+                        <Avatar className="size-9 border border-border/70 shadow-sm">
+                          <AvatarFallback className="bg-background text-xs font-semibold text-foreground">
+                            {getInitials(member.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                      }
                       title={member.name}
                       meta={member.email}
                       action={
