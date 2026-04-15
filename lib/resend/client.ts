@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 
+import type { QuoteEmailTemplateConfig } from "@/features/settings/email-templates";
 import { renderBusinessMemberInviteEmail } from "@/emails/templates/business-member-invite";
 import { renderPasswordResetEmail } from "@/emails/templates/password-reset";
 import { renderPublicInquiryNotificationEmail } from "@/emails/templates/public-inquiry-notification";
@@ -90,6 +91,7 @@ type SendQuoteEmailInput = {
     unitPriceInCents: number;
     lineTotalInCents: number;
   }>;
+  templateOverrides?: QuoteEmailTemplateConfig | null;
   replyToEmail?: string;
 };
 
@@ -347,6 +349,7 @@ export async function sendQuoteEmail({
   notes,
   emailSignature,
   items,
+  templateOverrides,
   replyToEmail,
 }: SendQuoteEmailInput) {
   if (!resend || !isResendConfigured || !env.RESEND_FROM_EMAIL) {
@@ -373,6 +376,7 @@ export async function sendQuoteEmail({
     notes,
     emailSignature,
     items,
+    templateOverrides,
   });
 
   const { error } = await resend.emails.send(

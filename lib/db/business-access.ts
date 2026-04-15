@@ -61,11 +61,14 @@ export type BusinessMessagingSettings = {
   shortDescription: string | null;
   contactEmail: string | null;
   defaultEmailSignature: string | null;
+  quoteEmailTemplate: import("@/features/settings/email-templates").QuoteEmailTemplateConfig | null;
   notifyOnNewInquiry: boolean;
   notifyOnQuoteSent: boolean;
   notifyOnQuoteResponse: boolean;
+  notifyOnMemberInviteResponse: boolean;
   notifyInAppOnNewInquiry: boolean;
   notifyInAppOnQuoteResponse: boolean;
+  notifyInAppOnMemberInviteResponse: boolean;
 };
 
 function getBusinessRoleSortExpression() {
@@ -407,11 +410,14 @@ export const getBusinessMessagingSettings = cache(async (businessId: string) => 
       shortDescription: businesses.shortDescription,
       contactEmail: businesses.contactEmail,
       defaultEmailSignature: businesses.defaultEmailSignature,
+      quoteEmailTemplate: businesses.quoteEmailTemplate,
       notifyOnNewInquiry: businesses.notifyOnNewInquiry,
       notifyOnQuoteSent: businesses.notifyOnQuoteSent,
       notifyOnQuoteResponse: businesses.notifyOnQuoteResponse,
       notifyInAppOnNewInquiry: businesses.notifyInAppOnNewInquiry,
       notifyInAppOnQuoteResponse: businesses.notifyInAppOnQuoteResponse,
+      notifyOnMemberInviteResponse: businesses.notifyOnMemberInviteResponse,
+      notifyInAppOnMemberInviteResponse: businesses.notifyInAppOnMemberInviteResponse,
     })
     .from(businesses)
     .where(eq(businesses.id, businessId))

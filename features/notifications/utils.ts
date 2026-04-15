@@ -66,6 +66,10 @@ export function getBusinessNotificationTypeLabel(type: BusinessNotificationType)
       return "Quote accepted";
     case "quote_customer_rejected":
       return "Quote declined";
+    case "business_member_invite_accepted":
+      return "Invite accepted";
+    case "business_member_invite_declined":
+      return "Invite declined";
   }
 }
 

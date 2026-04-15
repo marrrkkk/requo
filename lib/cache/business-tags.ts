@@ -133,7 +133,7 @@ export function getBusinessReplySnippetsCacheTags(businessId: string) {
   ]);
 }
 
-export function getBusinessKnowledgeCacheTags(businessId: string) {
+export function getBusinessMemoryCacheTags(businessId: string) {
   const scopeTag = getBusinessScopeTag(businessId);
 
   return uniqueCacheTags([

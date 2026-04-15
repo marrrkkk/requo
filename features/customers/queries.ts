@@ -4,6 +4,7 @@ import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
 import type { CustomerHistoryData } from "@/features/customers/types";
+import { getEffectiveInquiryStatus } from "@/features/inquiries/queries";
 import { hotBusinessCacheLife } from "@/lib/cache/business-tags";
 import { db } from "@/lib/db/client";
 import { inquiries, quotes } from "@/lib/db/schema";
@@ -89,7 +90,7 @@ async function getCachedCustomerHistoryForBusiness(input: {
           customerName: inquiries.customerName,
           customerEmail: inquiries.customerEmail,
           serviceCategory: inquiries.serviceCategory,
-          status: inquiries.status,
+          status: getEffectiveInquiryStatus,
           submittedAt: inquiries.submittedAt,
         })
         .from(inquiries)

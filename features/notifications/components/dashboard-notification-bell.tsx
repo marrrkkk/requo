@@ -8,6 +8,8 @@ import {
   CircleX,
   Inbox,
   MailPlus,
+  UserCheck,
+  UserX,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -466,5 +468,11 @@ function getNotificationIcon(type: BusinessNotificationType) {
       return CircleCheckBig;
     case "quote_customer_rejected":
       return CircleX;
+    case "business_member_invite_accepted":
+      return UserCheck;
+    case "business_member_invite_declined":
+      return UserX;
+    default:
+      return Bell;
   }
 }

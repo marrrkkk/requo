@@ -101,7 +101,7 @@ export const planFeatureLabels: Record<PlanFeature, string> = {
   attachments: "File attachments",
   replySnippets: "Saved replies",
   quoteLibrary: "Quote library",
-  knowledgeBase: "Knowledge base",
+  knowledgeBase: "Knowledge",
   aiAssistant: "AI assistant",
   members: "Team members",
   exports: "Data exports",

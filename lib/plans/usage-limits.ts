@@ -16,6 +16,7 @@ export const usageLimitKeys = [
   "businessesPerWorkspace",
   "membersPerWorkspace",
   "liveFormsPerWorkspace",
+  "memoriesPerBusiness",
 ] as const;
 
 export type UsageLimitKey = (typeof usageLimitKeys)[number];
@@ -29,6 +30,7 @@ const planUsageLimits: Record<WorkspacePlan, PlanUsageLimits> = {
     businessesPerWorkspace: 1,
     membersPerWorkspace: 1,
     liveFormsPerWorkspace: 1,
+    memoriesPerBusiness: 0,
   },
   pro: {
     inquiriesPerMonth: null,
@@ -36,6 +38,7 @@ const planUsageLimits: Record<WorkspacePlan, PlanUsageLimits> = {
     businessesPerWorkspace: 10,
     membersPerWorkspace: 1,
     liveFormsPerWorkspace: null,
+    memoriesPerBusiness: 10,
   },
   business: {
     inquiriesPerMonth: null,
@@ -43,6 +46,7 @@ const planUsageLimits: Record<WorkspacePlan, PlanUsageLimits> = {
     businessesPerWorkspace: null,
     membersPerWorkspace: 25,
     liveFormsPerWorkspace: null,
+    memoriesPerBusiness: 30,
   },
 };
 
@@ -73,4 +77,5 @@ export const usageLimitLabels: Record<UsageLimitKey, string> = {
   businessesPerWorkspace: "Businesses per workspace",
   membersPerWorkspace: "Members per workspace",
   liveFormsPerWorkspace: "Live inquiry forms",
+  memoriesPerBusiness: "Knowledge items per business",
 };

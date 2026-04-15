@@ -13,6 +13,7 @@ import type {
   WorkflowAnalyticsData,
 } from "@/features/analytics/types";
 import { inquiryStatuses } from "@/features/inquiries/types";
+import { getEffectiveInquiryStatus } from "@/features/inquiries/queries";
 import {
   getBusinessAnalyticsCacheTags,
   hotBusinessCacheLife,
@@ -131,8 +132,8 @@ export async function getBusinessAnalyticsData(
         .select({
           weekStart: sql<string>`to_char(date_trunc('week', ${inquiries.submittedAt}), 'YYYY-MM-DD')`,
           inquiries: sql<number>`count(*)`,
-          won: sql<number>`count(*) filter (where ${inquiries.status} = 'won')`,
-          lost: sql<number>`count(*) filter (where ${inquiries.status} = 'lost')`,
+          won: sql<number>`count(*) filter (where ${getEffectiveInquiryStatus} = 'won')`,
+          lost: sql<number>`count(*) filter (where ${getEffectiveInquiryStatus} = 'lost')`,
         })
         .from(inquiries)
         .where(
