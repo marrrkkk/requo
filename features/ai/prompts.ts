@@ -22,30 +22,17 @@ function truncateText(value: string, maxLength: number) {
   return `${normalized.slice(0, maxLength).trimEnd()}...`;
 }
 
-function formatKnowledgeContext(context: InquiryAssistantContext["knowledge"]) {
-  const faqLines = context.faqs.length
-    ? context.faqs
-        .slice(0, 8)
-        .map((faq) => `- ${faq.question}: ${truncateText(faq.answer, 420)}`)
+function formatMemoryContext(context: InquiryAssistantContext["memory"]) {
+  const memoryLines = context.memories.length
+    ? context.memories
+        .slice(0, 10)
+        .map((m) => `- ${m.title}: ${truncateText(m.content, 800)}`)
         .join("\n")
-    : "- No FAQs added yet.";
-
-  const fileLines = context.files.length
-    ? context.files
-        .slice(0, 4)
-        .map(
-          (file) =>
-            `- ${file.title} (${file.fileName}): ${truncateText(file.extractedText, 900)}`,
-        )
-        .join("\n")
-    : "- No knowledge files uploaded yet.";
+    : "- No knowledge saved yet.";
 
   return [
-    "Business FAQs",
-    faqLines,
-    "",
-    "Knowledge snippets",
-    fileLines,
+    "Business Knowledge",
+    memoryLines,
   ].join("\n");
 }
 
@@ -113,7 +100,7 @@ function buildContextBlock(context: InquiryAssistantContext) {
     "Internal notes",
     formatNotesContext(context.notes),
     "",
-    formatKnowledgeContext(context.knowledge),
+    formatMemoryContext(context.memory),
   ].join("\n");
 }
 

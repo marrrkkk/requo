@@ -1,6 +1,6 @@
 import type { InquiryPageTemplate } from "@/features/inquiries/page-config";
 import type { InquirySubmittedFieldSnapshot } from "@/features/inquiries/form-config";
-import type { BusinessKnowledgeContext } from "@/features/knowledge/types";
+import type { BusinessMemoryContext } from "@/features/memory/types";
 import type { InquiryStatus } from "@/features/inquiries/types";
 import type { BusinessType } from "@/features/inquiries/business-types";
 
@@ -58,7 +58,7 @@ export type InquiryAssistantContext = {
     createdAt: Date;
     authorName: string | null;
   }>;
-  knowledge: BusinessKnowledgeContext;
+  memory: BusinessMemoryContext;
 };
 
 export type AiAssistantFieldErrors = Partial<

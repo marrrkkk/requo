@@ -26,6 +26,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Dialog,
   DialogBody,
@@ -44,6 +45,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { jobTitleOptions } from "@/features/onboarding/schemas";
 import type {
   AccountProfileActionState,
   AccountProfileView,
@@ -88,6 +90,7 @@ export function ProfileSettingsForm({
   const [hasPendingAvatar, setHasPendingAvatar] = useState(false);
   const [avatarResetSignal, setAvatarResetSignal] = useState(0);
   const [hasTextInputChanges, setHasTextInputChanges] = useState(false);
+  const [jobTitle, setJobTitle] = useState(profile.jobTitle ?? "");
   const fullNameError = state.fieldErrors?.fullName?.[0];
   const jobTitleError = state.fieldErrors?.jobTitle?.[0];
   const phoneError = state.fieldErrors?.phone?.[0];
@@ -139,6 +142,7 @@ export function ProfileSettingsForm({
     setRemoveAvatar(false);
     setHasPendingAvatar(false);
     setAvatarResetSignal((current) => current + 1);
+    setJobTitle(profile.jobTitle ?? "");
     setFormRevision((current) => current + 1);
   }
 
@@ -150,6 +154,7 @@ export function ProfileSettingsForm({
       ref={formRef}
     >
       <input name="removeAvatar" type="hidden" value={String(removeAvatar)} />
+      <input name="jobTitle" type="hidden" value={jobTitle} />
 
       <Card className="gap-0 border-border/75 bg-card/97">
         <CardHeader className="gap-2.5 pb-6">
@@ -202,15 +207,19 @@ export function ProfileSettingsForm({
                     <Field data-invalid={Boolean(jobTitleError) || undefined}>
                       <FieldLabel htmlFor="account-job-title">Role or title</FieldLabel>
                       <FieldContent>
-                        <Input
-                          defaultValue={profile.jobTitle ?? ""}
+                        <Combobox
+                          aria-invalid={Boolean(jobTitleError) || undefined}
                           disabled={isPending}
                           id="account-job-title"
-                          maxLength={80}
-                          minLength={2}
-                          name="jobTitle"
-                          placeholder="Owner"
-                          required
+                          onValueChange={(value) => {
+                            setJobTitle(value);
+                            setFormRevision((current) => current + 1);
+                          }}
+                          options={jobTitleOptions}
+                          placeholder="Choose your role"
+                          searchable
+                          searchPlaceholder="Search roles"
+                          value={jobTitle}
                         />
                         <FieldError
                           errors={jobTitleError ? [{ message: jobTitleError }] : undefined}

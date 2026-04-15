@@ -4,7 +4,6 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import type { AccountProfileInput } from "@/features/account/schemas";
 import { publicInquiryAttachmentBucket } from "@/features/inquiries/schemas";
-import { knowledgeFilesBucket } from "@/features/knowledge/schemas";
 import {
   profileAvatarBucket,
   profileAvatarExtensionToMimeType,
@@ -17,7 +16,6 @@ import {
   businesses,
   businessMembers,
   inquiryAttachments,
-  knowledgeFiles,
   profiles,
 } from "@/lib/db/schema";
 import { resolveSafeContentType } from "@/lib/files";
@@ -93,22 +91,14 @@ export async function cleanupAccountOwnedAssets(userId: string) {
   ]);
 
   const ownedBusinessIds = ownedBusinessRows.map((row) => row.id);
-  const [knowledgeFileRows, inquiryAttachmentRows] = ownedBusinessIds.length
-    ? await Promise.all([
-        db
-          .select({
-            storagePath: knowledgeFiles.storagePath,
-          })
-          .from(knowledgeFiles)
-          .where(inArray(knowledgeFiles.businessId, ownedBusinessIds)),
-        db
-          .select({
-            storagePath: inquiryAttachments.storagePath,
-          })
-          .from(inquiryAttachments)
-          .where(inArray(inquiryAttachments.businessId, ownedBusinessIds)),
-      ])
-    : [[], []];
+  const inquiryAttachmentRows = ownedBusinessIds.length
+    ? await db
+        .select({
+          storagePath: inquiryAttachments.storagePath,
+        })
+        .from(inquiryAttachments)
+        .where(inArray(inquiryAttachments.businessId, ownedBusinessIds))
+    : [];
 
   if (ownedBusinessIds.length) {
     await db.delete(businesses).where(inArray(businesses.id, ownedBusinessIds));
@@ -122,10 +112,6 @@ export async function cleanupAccountOwnedAssets(userId: string) {
     removeStoragePaths(
       businessLogoBucket,
       ownedBusinessRows.map((row) => row.logoStoragePath),
-    ),
-    removeStoragePaths(
-      knowledgeFilesBucket,
-      knowledgeFileRows.map((row) => row.storagePath),
     ),
     removeStoragePaths(
       publicInquiryAttachmentBucket,

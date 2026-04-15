@@ -413,6 +413,7 @@ export async function sendQuoteAction(
       notes: quote.notes,
       emailSignature: businessSettings.defaultEmailSignature,
       items: quote.items,
+      templateOverrides: businessSettings.quoteEmailTemplate,
       replyToEmail: businessSettings.contactEmail ?? ownerEmails[0],
     });
 

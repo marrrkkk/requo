@@ -3,6 +3,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 
 import { normalizeOptionalTextValue } from "@/features/account/schemas";
+import { resolveCurrencyForCountry } from "@/features/businesses/locale";
 import { createBusinessRecordForUser } from "@/features/businesses/mutations";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
@@ -112,10 +113,17 @@ export async function completeOnboardingForUser({
       });
     }
 
+    const defaultCurrency = resolveCurrencyForCountry(countryCode);
+
+    if (!defaultCurrency) {
+      throw new Error("A supported currency could not be resolved for that country.");
+    }
+
     // Create the business inside the workspace
     return createBusinessRecordForUser({
       tx,
       workspaceId,
+      defaultCurrency,
       countryCode,
       user,
       name: businessName,

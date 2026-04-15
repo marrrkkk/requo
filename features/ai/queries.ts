@@ -5,7 +5,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { getNormalizedInquirySubmittedFieldSnapshot } from "@/features/inquiries/form-config";
 import { getNormalizedInquiryPageConfig } from "@/features/inquiries/page-config";
 import { normalizeBusinessType } from "@/features/inquiries/business-types";
-import { buildBusinessKnowledgeContext } from "@/features/knowledge/queries";
+import { buildBusinessMemoryContext } from "@/features/memory/queries";
 import type { InquiryAssistantContext } from "@/features/ai/types";
 import { db } from "@/lib/db/client";
 import {
@@ -25,7 +25,7 @@ export async function getInquiryAssistantContextForBusiness({
   businessId,
   inquiryId,
 }: GetInquiryAssistantContextForBusinessInput): Promise<InquiryAssistantContext | null> {
-  const [businessRow, inquiryRow, notes, knowledge] = await Promise.all([
+  const [businessRow, inquiryRow, notes, memory] = await Promise.all([
     db
       .select({
         id: businesses.id,
@@ -90,7 +90,7 @@ export async function getInquiryAssistantContextForBusiness({
       )
       .orderBy(desc(inquiryNotes.createdAt))
       .limit(6),
-    buildBusinessKnowledgeContext(businessId),
+    buildBusinessMemoryContext(businessId),
   ]);
 
   const business = businessRow[0];
@@ -136,6 +136,6 @@ export async function getInquiryAssistantContextForBusiness({
       ),
     },
     notes,
-    knowledge,
+    memory,
   };
 }
