@@ -1,7 +1,16 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, gte, ilike, isNull, lte, or } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, isNull, lte, or, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
+
+import type { InquiryStatus } from "@/features/inquiries/types";
+
+export const getEffectiveInquiryStatus = sql<InquiryStatus>`case
+  when ${inquiries.status} in ('new', 'waiting', 'quoted') and ${inquiries.requestedDeadline} is not null and ${inquiries.requestedDeadline} < current_date::text then 'overdue'::inquiry_status
+  when ${inquiries.status} in ('new', 'waiting') and ${inquiries.submittedAt} >= now() - interval '48 hours' then 'new'::inquiry_status
+  when ${inquiries.status} in ('new', 'waiting') and ${inquiries.submittedAt} < now() - interval '48 hours' then 'waiting'::inquiry_status
+  else ${inquiries.status}
+end`;
 
 import {
   getNormalizedInquiryFormConfig,
@@ -449,7 +458,7 @@ export async function getInquiryExportRowsForBusiness({
       budgetText: inquiries.budgetText,
       subject: inquiries.subject,
       details: inquiries.details,
-      status: inquiries.status,
+      status: getEffectiveInquiryStatus,
       submittedAt: inquiries.submittedAt,
     })
     .from(inquiries)

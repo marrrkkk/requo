@@ -18,6 +18,7 @@ import type {
   InquiryStatus,
   InquiryStatusActionState,
 } from "@/features/inquiries/types";
+import { inquiryStatuses } from "@/features/inquiries/types";
 import { getInquiryStatusLabel } from "@/features/inquiries/utils";
 
 type InquiryStatusFormProps = {
@@ -29,16 +30,7 @@ type InquiryStatusFormProps = {
 };
 
 const initialState: InquiryStatusActionState = {};
-const inquiryStatusOptions = (
-  [
-    "new",
-    "quoted",
-    "waiting",
-    "won",
-    "lost",
-    "archived",
-  ] as const
-).map((value) => ({
+const inquiryStatusOptions = inquiryStatuses.map((value) => ({
   label: getInquiryStatusLabel(value),
   value,
 }));

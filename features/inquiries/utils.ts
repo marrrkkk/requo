@@ -4,6 +4,7 @@ import {
   CircleDot,
   Clock3,
   FileText,
+  Timer,
   Trophy,
 } from "lucide-react";
 
@@ -16,6 +17,7 @@ export const inquiryStatusLabels: Record<InquiryStatus, string> = {
   won: "Won",
   lost: "Lost",
   archived: "Archived",
+  overdue: "Overdue",
 };
 
 export const inquiryStatusClassNames: Record<InquiryStatus, string> = {
@@ -28,6 +30,7 @@ export const inquiryStatusClassNames: Record<InquiryStatus, string> = {
   lost: "border-rose-200/80 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/12 dark:text-rose-200",
   archived:
     "border-slate-200/80 bg-slate-100 text-slate-700 dark:border-slate-500/25 dark:bg-slate-500/12 dark:text-slate-200",
+  overdue: "border-orange-200/80 bg-orange-50 text-orange-700 dark:border-orange-500/25 dark:bg-orange-500/12 dark:text-orange-200",
 };
 
 export const inquiryStatusIcons = {
@@ -37,6 +40,7 @@ export const inquiryStatusIcons = {
   won: Trophy,
   lost: CircleAlert,
   archived: Archive,
+  overdue: Timer,
 } as const;
 
 const inquiryDateFormatter = new Intl.DateTimeFormat("en-US", {

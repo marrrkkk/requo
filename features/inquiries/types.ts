@@ -13,6 +13,7 @@ export const inquiryStatuses = [
   "won",
   "lost",
   "archived",
+  "overdue",
 ] as const;
 
 export type InquiryStatus = (typeof inquiryStatuses)[number];

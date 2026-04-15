@@ -40,6 +40,39 @@ function optionalText(maxLength: number) {
   );
 }
 
+function optionalEmail(maxLength = 320) {
+  return z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .trim()
+      .max(maxLength, `Use ${maxLength} characters or fewer.`)
+      .email("Enter a valid email address.")
+      .optional(),
+  );
+}
+
+function isValidExternalUrl(value: string) {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function optionalExternalUrl(maxLength = 2000) {
+  return z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .trim()
+      .max(maxLength, `Use ${maxLength} characters or fewer.`)
+      .refine(isValidExternalUrl, "Enter a valid URL.")
+      .optional(),
+  );
+}
+
 export const inquiryPageTemplates = [
   "split",
   "showcase",
@@ -227,6 +260,58 @@ export const inquiryPageCardSchema = z.object({
 
 export type InquiryPageCard = z.infer<typeof inquiryPageCardSchema>;
 
+export const inquiryPageBusinessContactSocialKeys = [
+  "facebook",
+  "instagram",
+  "twitterX",
+  "linkedin",
+] as const;
+
+export type InquiryPageBusinessContactSocialKey =
+  (typeof inquiryPageBusinessContactSocialKeys)[number];
+
+export const inquiryPageBusinessContactSocialMeta: Record<
+  InquiryPageBusinessContactSocialKey,
+  {
+    label: string;
+    placeholder: string;
+  }
+> = {
+  facebook: {
+    label: "Facebook",
+    placeholder: "https://facebook.com/your-business",
+  },
+  instagram: {
+    label: "Instagram",
+    placeholder: "https://instagram.com/your-business",
+  },
+  twitterX: {
+    label: "X (Twitter)",
+    placeholder: "https://x.com/your-business",
+  },
+  linkedin: {
+    label: "LinkedIn",
+    placeholder: "https://linkedin.com/company/your-business",
+  },
+};
+
+const inquiryPageBusinessContactSocialLinksSchema = z.object({
+  facebook: optionalExternalUrl(),
+  instagram: optionalExternalUrl(),
+  twitterX: optionalExternalUrl(),
+  linkedin: optionalExternalUrl(),
+});
+
+export const inquiryPageBusinessContactSchema = z.object({
+  phone: optionalText(40),
+  email: optionalEmail(),
+  socialLinks: inquiryPageBusinessContactSocialLinksSchema.optional(),
+});
+
+export type InquiryPageBusinessContact = z.infer<
+  typeof inquiryPageBusinessContactSchema
+>;
+
 function isValidInquiryPageImageUrl(value: string) {
   if (value.startsWith("/")) {
     return true;
@@ -274,6 +359,9 @@ export type InquiryPageShowcaseImage = z.infer<
 
 export const inquiryPageConfigSchema = z.object({
   template: inquiryPageTemplateSchema,
+  showSupportingCards: z.boolean().default(true),
+  showShowcaseImage: z.boolean().default(false),
+  showBusinessContact: z.boolean().default(true),
   eyebrow: optionalText(48),
   headline: z
     .string()
@@ -288,6 +376,7 @@ export const inquiryPageConfigSchema = z.object({
     .min(1, "Enter a form title.")
     .max(80, "Form title must be 80 characters or fewer."),
   formDescription: optionalText(200),
+  businessContact: inquiryPageBusinessContactSchema.optional(),
   cards: z
     .array(inquiryPageCardSchema)
     .max(
@@ -298,6 +387,33 @@ export const inquiryPageConfigSchema = z.object({
 });
 
 export type InquiryPageConfig = z.infer<typeof inquiryPageConfigSchema>;
+
+export function createInquiryPageBusinessContact(input: {
+  phone?: string | null | undefined;
+  email?: string | null | undefined;
+  socialLinks?: Partial<
+    Record<InquiryPageBusinessContactSocialKey, string | null | undefined>
+  >;
+}): InquiryPageBusinessContact | undefined {
+  const phone = normalizeOptionalString(input.phone);
+  const email = normalizeOptionalString(input.email);
+  const socialLinks = Object.fromEntries(
+    inquiryPageBusinessContactSocialKeys.flatMap((key) => {
+      const value = normalizeOptionalString(input.socialLinks?.[key]);
+      return value ? [[key, value]] : [];
+    }),
+  ) as Partial<Record<InquiryPageBusinessContactSocialKey, string>>;
+
+  if (!phone && !email && !Object.keys(socialLinks).length) {
+    return undefined;
+  }
+
+  return {
+    ...(phone ? { phone } : {}),
+    ...(email ? { email } : {}),
+    ...(Object.keys(socialLinks).length ? { socialLinks } : {}),
+  };
+}
 
 type InquiryPageConfigDefaultsInput = {
   businessName: string;
@@ -466,12 +582,16 @@ export function createInquiryPageConfigDefaults(
 
   return {
     template: resolvedTemplate,
+    showSupportingCards: true,
+    showShowcaseImage: false,
+    showBusinessContact: true,
     eyebrow,
     headline,
     description,
     brandTagline: undefined,
     formTitle,
     formDescription,
+    businessContact: undefined,
     cards: createDefaultInquiryPageCards(resolvedBusinessType),
     showcaseImage: undefined,
   };
@@ -488,5 +608,30 @@ export function getNormalizedInquiryPageConfig(
     return fallback;
   }
 
-  return parsed.data;
+  const rawValue = isRecord(value) ? value : null;
+
+  return {
+    ...parsed.data,
+    showSupportingCards:
+      typeof rawValue?.showSupportingCards === "boolean"
+        ? parsed.data.showSupportingCards
+        : fallback.showSupportingCards,
+    showShowcaseImage:
+      typeof rawValue?.showShowcaseImage === "boolean"
+        ? parsed.data.showShowcaseImage
+        : Boolean(parsed.data.showcaseImage?.url),
+    showBusinessContact:
+      typeof rawValue?.showBusinessContact === "boolean"
+        ? parsed.data.showBusinessContact
+        : fallback.showBusinessContact,
+  };
+}
+
+function normalizeOptionalString(value: string | null | undefined) {
+  const trimmedValue = value?.trim();
+  return trimmedValue ? trimmedValue : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }

@@ -18,17 +18,10 @@ import type {
   InquiryListFilters,
   InquiryStatusFilterValue,
 } from "@/features/inquiries/types";
+import { inquiryStatusFilterValues } from "@/features/inquiries/types";
 import { getInquiryStatusLabel } from "@/features/inquiries/utils";
 
-const statusOptions: InquiryStatusFilterValue[] = [
-  "all",
-  "new",
-  "quoted",
-  "waiting",
-  "won",
-  "lost",
-  "archived",
-];
+const statusOptions: InquiryStatusFilterValue[] = [...inquiryStatusFilterValues];
 
 type InquiryExportCsvDropdownProps = {
   businessSlug: string;

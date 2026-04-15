@@ -2,12 +2,16 @@
 
 import Image from "next/image";
 import type { ReactNode } from "react";
+import { ArrowUpRight, Mail, Phone, Share2 } from "lucide-react";
 
 import { PublicHeroSurface } from "@/components/shared/public-page-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PublicInquiryForm } from "@/features/inquiries/components/public-inquiry-form";
 import { InquiryShowcaseImageSurface } from "@/features/inquiries/components/inquiry-showcase-image-surface";
-import { inquiryPageCardIconMeta } from "@/features/inquiries/page-config";
+import {
+  inquiryPageBusinessContactSocialMeta,
+  inquiryPageCardIconMeta,
+} from "@/features/inquiries/page-config";
 import type {
   PublicInquiryFormState,
   PublicInquiryBusiness,
@@ -91,7 +95,10 @@ function SplitInquiryTemplate({
     <PublicHeroSurface className="lg:py-12">
       <div className="flex flex-col gap-6 xl:hidden">
         <InquiryIntro business={business} />
-        <InquirySupportCards cards={config.cards} />
+        <InquiryBusinessContact business={business} />
+        {config.showSupportingCards ? (
+          <InquirySupportCards cards={config.cards} />
+        ) : null}
         <InquiryShowcaseImage business={business} />
         <InquiryFormCard
           action={action}
@@ -105,7 +112,10 @@ function SplitInquiryTemplate({
       <div className="hidden gap-12 xl:grid xl:grid-cols-[minmax(0,0.96fr)_minmax(22rem,0.84fr)] xl:items-start">
         <div className="flex min-w-0 flex-col gap-7">
           <InquiryIntro business={business} />
-          <InquirySupportCards cards={config.cards} />
+          <InquiryBusinessContact business={business} />
+          {config.showSupportingCards ? (
+            <InquirySupportCards cards={config.cards} />
+          ) : null}
           <InquiryShowcaseImage business={business} />
         </div>
 
@@ -134,6 +144,10 @@ function NoSupportingCardsInquiryTemplate({
       <div className="flex flex-col gap-10">
         <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-4 text-center">
           <InquiryIntro business={business} align="center" />
+        </div>
+
+        <div className="mx-auto w-full max-w-3xl">
+          <InquiryBusinessContact business={business} centered />
         </div>
 
         <InquiryShowcaseImage business={business} />
@@ -179,7 +193,10 @@ function ShowcaseInquiryTemplate({
             </div>
           </div>
 
-          <InquirySupportCards cards={config.cards} />
+          <InquiryBusinessContact business={business} />
+          {config.showSupportingCards ? (
+            <InquirySupportCards cards={config.cards} />
+          ) : null}
           <InquiryShowcaseImage business={business} />
         </div>
       </div>
@@ -355,6 +372,10 @@ function InquiryShowcaseImage({
 }: {
   business: PublicInquiryBusiness;
 }) {
+  if (!business.inquiryPageConfig.showShowcaseImage) {
+    return null;
+  }
+
   const showcaseImage = business.inquiryPageConfig.showcaseImage;
 
   if (!showcaseImage?.url) {
@@ -429,4 +450,164 @@ function getShowcaseImageSizeClass(
     default:
       return "w-full max-w-3xl";
   }
+}
+
+function InquiryBusinessContact({
+  business,
+  centered = false,
+}: {
+  business: PublicInquiryBusiness;
+  centered?: boolean;
+}) {
+  if (!business.inquiryPageConfig.showBusinessContact) {
+    return null;
+  }
+
+  const contact = business.inquiryPageConfig.businessContact;
+
+  if (!contact) {
+    return null;
+  }
+
+  const socialLinks = getBusinessContactSocialLinks(contact.socialLinks);
+
+  if (!contact.phone && !contact.email && !socialLinks.length) {
+    return null;
+  }
+
+  return (
+    <section
+      className={cn(
+        "border-t border-border/65 pt-4",
+        centered && "text-center",
+      )}
+    >
+      <div
+        className={cn(
+          "flex flex-col gap-3",
+          centered && "mx-auto max-w-2xl items-center",
+        )}
+      >
+        <div
+          className={cn(
+            "flex items-center gap-2",
+            centered && "justify-center",
+          )}
+        >
+          <Share2 className="size-3.5 text-muted-foreground" />
+          <p className="meta-label">Business contact</p>
+        </div>
+
+        <div
+          className={cn(
+            "flex flex-wrap gap-x-5 gap-y-2.5",
+            centered && "justify-center",
+          )}
+        >
+          {contact.phone ? (
+            <BusinessContactLink
+              href={getPhoneHref(contact.phone)}
+              icon={<Phone className="size-3.5" />}
+              text={contact.phone}
+            />
+          ) : null}
+          {contact.email ? (
+            <BusinessContactLink
+              href={`mailto:${contact.email}`}
+              icon={<Mail className="size-3.5" />}
+              text={contact.email}
+            />
+          ) : null}
+          {socialLinks.map((socialLink) => (
+            <BusinessContactLink
+              key={socialLink.label}
+              href={socialLink.href}
+              icon={<Share2 className="size-3.5" />}
+              text={socialLink.label}
+              external
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function BusinessContactLink({
+  icon,
+  text,
+  href,
+  external = false,
+}: {
+  icon: ReactNode;
+  text: string;
+  href?: string;
+  external?: boolean;
+}) {
+  const content = (
+    <div
+      className={cn(
+        "group inline-flex min-w-0 items-center gap-2 text-sm leading-6 text-muted-foreground transition-colors",
+        href && "hover:text-foreground",
+      )}
+    >
+      <span className="shrink-0 text-muted-foreground">{icon}</span>
+      <span className="break-words text-foreground">{text}</span>
+      {href && external ? (
+        <ArrowUpRight className="size-3 shrink-0 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+      ) : null}
+    </div>
+  );
+
+  if (!href) {
+    return content;
+  }
+
+  return (
+    <a
+      className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/55 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      href={href}
+      rel={external ? "noreferrer" : undefined}
+      target={external ? "_blank" : undefined}
+    >
+      {content}
+    </a>
+  );
+}
+
+function getBusinessContactSocialLinks(
+  socialLinks: NonNullable<
+    PublicInquiryBusiness["inquiryPageConfig"]["businessContact"]
+  >["socialLinks"],
+) {
+  if (!socialLinks) {
+    return [];
+  }
+
+  return Object.entries(socialLinks).flatMap(([key, value]) => {
+    if (!value) {
+      return [];
+    }
+
+    const socialMeta =
+      inquiryPageBusinessContactSocialMeta[
+        key as keyof typeof inquiryPageBusinessContactSocialMeta
+      ];
+
+    if (!socialMeta) {
+      return [];
+    }
+
+    return [
+      {
+        href: value,
+        label: socialMeta.label,
+      },
+    ];
+  });
+}
+
+function getPhoneHref(value: string) {
+  const normalized = value.replace(/[^\d+]/g, "");
+  return normalized ? `tel:${normalized}` : undefined;
 }
