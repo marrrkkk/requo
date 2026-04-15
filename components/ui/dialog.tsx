@@ -12,8 +12,13 @@ import {
   overlayHeaderClassName,
 } from "@/components/ui/overlay-layout"
 
-function Dialog(props: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+function Dialog({
+  modal = true,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  return (
+    <DialogPrimitive.Root data-slot="dialog" modal={modal} {...props} />
+  )
 }
 
 function DialogTrigger(

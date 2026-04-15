@@ -253,6 +253,7 @@ export function DashboardDetailFeed({
 }
 
 type DashboardDetailFeedItemProps = {
+  avatar?: ReactNode;
   title?: ReactNode;
   meta?: ReactNode;
   action?: ReactNode;
@@ -264,6 +265,7 @@ type DashboardDetailFeedItemProps = {
 };
 
 export function DashboardDetailFeedItem({
+  avatar,
   title,
   meta,
   action,
@@ -273,12 +275,13 @@ export function DashboardDetailFeedItem({
   metaClassName,
   bodyClassName,
 }: DashboardDetailFeedItemProps) {
-  const hasHeading = Boolean(title || meta || action);
+  const hasHeading = Boolean(avatar || title || meta || action);
 
   return (
     <div className={cn("dashboard-detail-feed-item", className)}>
       {hasHeading ? (
         <div className="dashboard-detail-feed-heading">
+          {avatar ? <div className="shrink-0">{avatar}</div> : null}
           <div className="min-w-0 flex-1">
             {title ? (
               <div className={cn("text-sm font-semibold text-foreground", titleClassName)}>

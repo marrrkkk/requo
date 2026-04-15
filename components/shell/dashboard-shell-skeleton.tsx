@@ -28,9 +28,9 @@ export function DashboardShellSkeleton({
             <div className="border-t border-sidebar-border px-3 py-3">
               <Skeleton className="h-28 w-full rounded-2xl" />
             </div>
-            <div className="flex flex-1 flex-col gap-2 px-3 py-3">
-              {Array.from({ length: 5 }).map((_, index) => (
-                <Skeleton className="h-11 w-full rounded-lg" key={index} />
+            <div className="flex flex-1 flex-col gap-1 px-3 py-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <Skeleton className="h-9 w-full rounded-lg" key={index} />
               ))}
             </div>
             <div className="border-t border-sidebar-border px-3 py-3">

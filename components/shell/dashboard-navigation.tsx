@@ -320,7 +320,7 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
       replies: "Saved replies",
       quote: "Quote defaults",
       pricing: "Pricing",
-      knowledge: "Knowledge base",
+      knowledge: "Knowledge",
     };
     const sectionLabel = sectionLabels[section] ?? formatBreadcrumbLabel(section);
 

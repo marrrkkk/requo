@@ -465,10 +465,10 @@ function FormEditorNavigationSkeleton() {
       </div>
 
       <aside className="hidden xl:block">
-        <div className="flex flex-col gap-1 pr-3">
+        <div className="flex flex-col gap-0.5 pr-3">
           {["w-20", "w-16", "w-24"].map((width, index) => (
-            <div className="flex items-center gap-3 rounded-xl px-3 py-3" key={index}>
-              <Skeleton className="size-8 rounded-md" />
+            <div className="flex items-center gap-2 rounded-xl px-2.5 py-1.5" key={index}>
+              <Skeleton className="size-7 rounded-md" />
               <Skeleton className={cn("h-4 rounded-md", width)} />
             </div>
           ))}
@@ -653,18 +653,18 @@ function SettingsNavigationSkeleton() {
       </div>
 
       <aside className="hidden xl:block">
-        <div className="flex flex-col gap-4 pr-3">
+        <div className="flex flex-col gap-3 pr-3">
           {[
             ["w-16", "w-24"],
             ["w-18", "w-28"],
             ["w-18", "w-24", "w-24"],
             ["w-14", "w-24", "w-26"],
           ].map((group, groupIndex) => (
-            <div className="flex flex-col gap-1" key={groupIndex}>
-              <Skeleton className={cn("ml-3 h-3 rounded-md", group[0])} />
+            <div className="flex flex-col gap-0.5" key={groupIndex}>
+              <Skeleton className={cn("ml-2.5 h-3 rounded-md", group[0])} />
               {group.slice(1).map((width, itemIndex) => (
-                <div className="flex items-center gap-3 rounded-xl px-3 py-3" key={itemIndex}>
-                  <Skeleton className="size-8 rounded-md" />
+                <div className="flex items-center gap-2 rounded-xl px-2.5 py-1.5" key={itemIndex}>
+                  <Skeleton className="size-7 rounded-md" />
                   <Skeleton className={cn("h-4 rounded-md", width)} />
                 </div>
               ))}

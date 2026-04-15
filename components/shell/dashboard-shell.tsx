@@ -36,6 +36,7 @@ import {
   getDashboardNavigation,
   isDashboardNavigationItemActive,
 } from "@/components/shell/dashboard-navigation";
+import { CommandMenu } from "@/components/shell/command-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -130,6 +131,7 @@ export function DashboardShell({
               collapseLabel
               className="min-w-0 px-2 py-1.5"
               subtitle={null}
+              href={getBusinessDashboardPath(businessContext.business.slug)}
             />
           </div>
           <SidebarSeparator />
@@ -204,7 +206,8 @@ export function DashboardShell({
                   </BreadcrumbList>
                 </Breadcrumb>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
+                <CommandMenu navigation={dashboardNavigation} businessSlug={business.slug} />
                 <DashboardNotificationBell
                   businessId={business.id}
                   businessSlug={business.slug}
@@ -243,7 +246,7 @@ function DashboardNavigationItem({
     <SidebarMenuItem>
       <SidebarMenuButton
         asChild
-        className="min-h-11 rounded-lg border border-transparent px-3.5 py-2.5 data-[active=true]:border-sidebar-primary/12 data-[active=true]:bg-sidebar-primary/12 data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] dark:data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+        className="min-h-9 rounded-lg border border-transparent px-3 py-1.5 data-[active=true]:border-sidebar-primary/12 data-[active=true]:bg-sidebar-primary/12 data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] dark:data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
         isActive={isActive}
         tooltip={item.label}
       >

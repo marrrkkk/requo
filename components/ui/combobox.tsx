@@ -123,10 +123,11 @@ export function Combobox<TOption extends ComboboxOption>({
           "overlay-surface w-[var(--radix-popover-trigger-width)] p-0",
           contentClassName,
         )}
+        onWheel={(e) => e.stopPropagation()}
       >
         <Command>
           {searchable ? <CommandInput placeholder={searchPlaceholder} /> : null}
-          <CommandList className="no-scrollbar">
+          <CommandList onWheel={(e) => e.stopPropagation()}>
             <CommandEmpty>{emptyMessage}</CommandEmpty>
             {resolvedGroups.map((group, index) => (
               <CommandGroup heading={group.heading} key={`${group.heading ?? "group"}-${index}`}>
