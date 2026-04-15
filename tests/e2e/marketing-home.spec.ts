@@ -8,18 +8,18 @@ test("marketing homepage highlights the signup-first workflow", async ({
 
   await expect(
     page.getByRole("heading", {
-      name: /Capture inquiries, qualify leads, send quotes, and follow up\./,
+      name: /Manage inquiries, quotes, and follow-up in one place\./,
     }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "Start free" }).first()).toBeVisible();
   await expect(
     page.getByRole("heading", {
-      name: /Most of the admin happens before pricing is even ready\./,
+      name: /Most of the work gets messy before the quote is ready\./,
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
-      name: /Features built around the shared workflow\./,
+      name: /What the workspace actually covers\./,
     }),
   ).toBeVisible();
   await expect(
@@ -33,6 +33,7 @@ test("marketing homepage highlights the signup-first workflow", async ({
     }),
   ).toBeVisible();
   await expect(page.getByText("Does Requo replace my inbox?")).toBeVisible();
+  await expect(page.getByText("Example workspace")).toBeVisible();
 });
 
 test("marketing homepage stays readable on a narrow viewport", async ({
@@ -44,7 +45,7 @@ test("marketing homepage stays readable on a narrow viewport", async ({
 
   const mobileMenu = page.getByRole("button", { name: "Open navigation" });
   const primaryCta = page.getByRole("link", { name: "Start free" }).first();
-  const secondaryCta = page.getByRole("link", { name: "Request a demo" });
+  const secondaryCta = page.getByRole("link", { name: "See pricing" });
 
   await expect(mobileMenu).toBeVisible();
   await expect(primaryCta).toBeVisible();

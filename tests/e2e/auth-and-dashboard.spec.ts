@@ -81,6 +81,32 @@ test("dashboard user menu opens the new profile settings page", async ({
   await expect(page.getByText("No avatar uploaded")).toBeVisible();
 });
 
+test("dashboard inquiry queue actions open filtered inquiry views", async ({
+  page,
+}) => {
+  await signIn(page);
+  await openDemoBusiness(page);
+
+  const overdueHref = `/businesses/${demoBusinessSlug}/dashboard/inquiries?status=overdue`;
+  const waitingHref = `/businesses/${demoBusinessSlug}/dashboard/inquiries?status=waiting`;
+
+  const overdueLink = page.getByRole("link", { name: "All overdue" });
+  await expect(overdueLink).toHaveAttribute("href", overdueHref);
+  await overdueLink.click();
+  await expect(page).toHaveURL(new RegExp(`${overdueHref}$`), {
+    timeout: 20_000,
+  });
+
+  await openDemoBusiness(page);
+
+  const waitingLink = page.getByRole("link", { name: "All waiting" });
+  await expect(waitingLink).toHaveAttribute("href", waitingHref);
+  await waitingLink.click();
+  await expect(page).toHaveURL(new RegExp(`${waitingHref}$`), {
+    timeout: 20_000,
+  });
+});
+
 test("dashboard shows a branded not-found state for unknown records", async ({
   page,
 }) => {

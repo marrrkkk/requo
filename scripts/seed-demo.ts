@@ -1,16 +1,30 @@
+/**
+ * scripts/seed-demo.ts
+ *
+ * Complete dev/demo database seeder for Requo.
+ *
+ * Creates 3 plan-level users (Free, Pro, Business) with realistic workspaces,
+ * businesses, subscriptions, inquiries, quotes, and supporting data.
+ *
+ * Run:  npm run db:seed-demo
+ * Reqs: DATABASE_URL + BETTER_AUTH_SECRET in .env
+ *
+ * ⚠ Truncates ALL data before seeding. Dev only.
+ */
 import "dotenv/config";
 
-import { and, asc, eq, inArray, ne } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
-import { getStarterTemplateDefinition } from "../features/businesses/starter-templates";
-import type { BusinessType } from "../features/inquiries/business-types";
-import type { InquirySubmittedFieldSnapshot } from "../features/inquiries/form-config";
 import { createInquiryFormPreset } from "../features/inquiries/inquiry-forms";
+import type { BusinessType } from "../features/inquiries/business-types";
 import { auth } from "../lib/auth/config";
-import { bootstrapBusinessForUser } from "../lib/auth/business-bootstrap";
 import { db, dbConnection } from "../lib/db/client";
 import {
   activityLogs,
+  businessMembers,
+  businesses,
+  businessInquiryForms,
+  businessMemories,
   inquiries,
   inquiryNotes,
   profiles,
@@ -18,2197 +32,920 @@ import {
   quotes,
   replySnippets,
   user,
-  businessInquiryForms,
-  businessMembers,
-  businesses,
   workspaceMembers,
   workspaces,
+  workspaceSubscriptions,
 } from "../lib/db/schema";
 import { env } from "../lib/env";
 import type { WorkspacePlan } from "../lib/plans/plans";
 
-type DemoUser = {
-  id: string;
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Constants
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+const PASSWORD = "Demo1234!";
+
+type SeedUserConfig = {
+  name: string;
   email: string;
-  name: string;
   plan: WorkspacePlan;
+  workspaceName: string;
+  workspaceSlug: string;
+  businesses: SeedBusinessConfig[];
+  teamMembers?: SeedTeamMember[];
 };
 
-type DemoBusiness = {
-  key: string;
-  id: string;
-  kind: "primary" | "secondary";
-  name: string;
-  slug: string;
-  businessType: BusinessType;
-  defaultInquiryFormId: string;
-  quoteNumberStart: number;
-  forms: Record<
-    string,
-    {
-      id: string;
-      name: string;
-      slug: string;
-      businessType: BusinessType;
-    }
-  >;
-};
-
-type DemoInquiryStatus =
-  | "new"
-  | "waiting"
-  | "quoted"
-  | "won"
-  | "lost"
-  | "archived";
-
-type DemoQuoteStatus =
-  | "draft"
-  | "sent"
-  | "accepted"
-  | "rejected"
-  | "expired";
-
-type DemoFormDefinition = {
-  key: string;
-  name: string;
-  slug: string;
-  businessType: BusinessType;
-  isDefault: boolean;
-  distributionWeight: number;
-  serviceCategories: string[];
-  subjectTemplates: string[];
-  detailTemplates: string[];
-  budgetOptions: Array<string | null>;
-};
-
-type DemoBusinessDefinition = {
-  key: string;
-  kind: "primary" | "secondary";
+type SeedBusinessConfig = {
   name: string;
   slug: string;
   businessType: BusinessType;
   shortDescription: string;
-  inquiryHeadline: string;
-  emailSignatureLines: string[];
-  defaultQuoteNotes: string;
-  aiTonePreference: "balanced" | "warm" | "direct" | "formal";
   defaultCurrency: string;
+  countryCode: string;
+  contactEmail: string;
   inquiryCount: number;
-  quoteNumberStart: number;
-  forms: DemoFormDefinition[];
+  quoteRatio: number; // % of inquiries that get a quote
+  aiTonePreference: "balanced" | "warm" | "direct" | "formal";
 };
 
-type GeneratedInquiryRow = {
-  id: string;
-  businessId: string;
-  businessInquiryFormId: string;
-  status: DemoInquiryStatus;
-  subject: string;
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string | null;
-  serviceCategory: string;
-  requestedDeadline: string | null;
-  budgetText: string | null;
-  companyName: string | null;
-  details: string;
-  source: string;
-  quoteRequested: boolean;
-  submittedAt: Date;
-  lastRespondedAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-type GeneratedQuoteRow = {
-  id: string;
-  businessId: string;
-  inquiryId: string | null;
-  status: DemoQuoteStatus;
-  quoteNumber: string;
-  publicToken: string;
-  title: string;
-  customerName: string;
-  customerEmail: string;
-  currency: string;
-  notes: string | null;
-  subtotalInCents: number;
-  discountInCents: number;
-  totalInCents: number;
-  sentAt: Date | null;
-  acceptedAt: Date | null;
-  publicViewedAt: Date | null;
-  customerRespondedAt: Date | null;
-  customerResponseMessage: string | null;
-  postAcceptanceStatus: "none" | "booked" | "scheduled";
-  validUntil: string;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-type GeneratedQuoteItemRow = {
-  id: string;
-  businessId: string;
-  quoteId: string;
-  description: string;
-  quantity: number;
-  unitPriceInCents: number;
-  lineTotalInCents: number;
-  position: number;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-type BusinessSeedCounts = {
-  inquiries: number;
-  quotes: number;
-  quoteItems: number;
-};
-
-type PlanUserConfig = {
+type SeedTeamMember = {
   name: string;
   email: string;
-  plan: WorkspacePlan;
-  businessName: string;
-  businessSlug: string;
-  businessType: BusinessType;
-  hasSecondaryBusiness: boolean;
+  businessRole: "manager" | "staff";
 };
 
-const DEFAULT_PASSWORD = "ChangeMe123456!";
-
-const planUserConfigs: PlanUserConfig[] = [
+const USERS: SeedUserConfig[] = [
   {
-    name: "Free User",
-    email: "free@requo.local",
+    name: "Maria Santos",
+    email: "free@requo.dev",
     plan: "free",
-    businessName: "FreeBiz Print Services",
-    businessSlug: "freebiz-print-services",
-    businessType: "print_signage",
-    hasSecondaryBusiness: false,
+    workspaceName: "Maria's Workspace",
+    workspaceSlug: "maria-ws",
+    businesses: [
+      {
+        name: "Santos Print Shop",
+        slug: "santos-print-shop",
+        businessType: "print_signage",
+        shortDescription: "Custom printing, signage, and display graphics for local businesses.",
+        defaultCurrency: "PHP",
+        countryCode: "PH",
+        contactEmail: "maria@santosprint.ph",
+        inquiryCount: 60,
+        quoteRatio: 0.5,
+        aiTonePreference: "warm",
+      },
+    ],
   },
   {
-    name: "Pro User",
-    email: "pro@requo.local",
+    name: "James Carter",
+    email: "pro@requo.dev",
     plan: "pro",
-    businessName: "ProPrint Studio",
-    businessSlug: "proprint-studio",
-    businessType: "print_signage",
-    hasSecondaryBusiness: false,
+    workspaceName: "Carter Interiors",
+    workspaceSlug: "carter-interiors-ws",
+    businesses: [
+      {
+        name: "Carter Interior Design",
+        slug: "carter-interior-design",
+        businessType: "creative_marketing_services",
+        shortDescription: "Residential and commercial interior design consultancy.",
+        defaultCurrency: "USD",
+        countryCode: "US",
+        contactEmail: "james@carterinteriors.com",
+        inquiryCount: 150,
+        quoteRatio: 0.55,
+        aiTonePreference: "balanced",
+      },
+    ],
   },
   {
-    name: "Business User",
-    email: "business@requo.local",
+    name: "Rafael Reyes",
+    email: "business@requo.dev",
     plan: "business",
-    businessName: "Enterprise Print Co",
-    businessSlug: "enterprise-print-co",
-    businessType: "print_signage",
-    hasSecondaryBusiness: true,
+    workspaceName: "Reyes Group",
+    workspaceSlug: "reyes-group-ws",
+    businesses: [
+      {
+        name: "Reyes Contractors",
+        slug: "reyes-contractors",
+        businessType: "contractor_home_improvement",
+        shortDescription: "General contracting, renovations, and build-outs across Luzon.",
+        defaultCurrency: "PHP",
+        countryCode: "PH",
+        contactEmail: "info@reyescontractors.ph",
+        inquiryCount: 250,
+        quoteRatio: 0.5,
+        aiTonePreference: "direct",
+      },
+      {
+        name: "Reyes Event Services",
+        slug: "reyes-event-services",
+        businessType: "event_services_rentals",
+        shortDescription: "Corporate event setup, tent rentals, and audio/visual production.",
+        defaultCurrency: "PHP",
+        countryCode: "PH",
+        contactEmail: "events@reyesgroup.ph",
+        inquiryCount: 80,
+        quoteRatio: 0.5,
+        aiTonePreference: "warm",
+      },
+    ],
+    teamMembers: [
+      { name: "Ana Mendez", email: "manager@requo.dev", businessRole: "manager" },
+      { name: "Paolo Cruz", email: "staff@requo.dev", businessRole: "staff" },
+    ],
   },
 ];
 
-const teamMembers = [
-  {
-    name: "Sarah Manager",
-    email: "business-manager@requo.local",
-    role: "manager" as const,
-  },
-  {
-    name: "Alex Staff",
-    email: "business-staff@requo.local",
-    role: "staff" as const,
-  },
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Deterministic PRNG (FNV-1a)
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+function createRng(seed: string) {
+  let hash = 2166136261;
+  for (const ch of seed) {
+    hash ^= ch.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return () => {
+    hash += 0x6d2b79f5;
+    let n = Math.imul(hash ^ (hash >>> 15), 1 | hash);
+    n ^= n + Math.imul(n ^ (n >>> 7), 61 | n);
+    return ((n ^ (n >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function randInt(rng: () => number, min: number, max: number) {
+  return Math.floor(rng() * (max - min)) + min;
+}
+
+function pick<T>(rng: () => number, arr: readonly T[]): T {
+  return arr[randInt(rng, 0, arr.length)];
+}
+
+function chance(rng: () => number, p: number) {
+  return rng() < p;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * ID helpers
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+function id(prefix: string) {
+  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Date helpers
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+function daysAgo(d: number, h = 10, m = 0) {
+  const date = new Date();
+  date.setUTCHours(h, m, 0, 0);
+  date.setUTCDate(date.getUTCDate() - d);
+  return date;
+}
+
+function addDays(date: Date, d: number) {
+  return new Date(date.getTime() + d * 86_400_000);
+}
+
+function toDateStr(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Realistic data pools
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+const FIRST_NAMES = [
+  "James", "Maya", "Daniel", "Olivia", "Priya", "Carlos", "Harper", "Noah",
+  "Amelia", "Marcus", "Ava", "Elena", "Jordan", "Sofia", "Adrian", "Natalie",
+  "Leo", "Riley", "Mina", "Theo", "Chloe", "Ethan", "Grace", "Liam",
+  "Isabella", "Benjamin", "Hannah", "Samuel", "Victoria", "Nathan",
 ];
 
-const secondaryBusinessDefinition: DemoBusinessDefinition = {
-  key: "event",
-  kind: "secondary",
-  name: "Enterprise Event Graphics",
-  slug: "enterprise-event-graphics",
-  businessType: "event_services_rentals",
-  shortDescription: "Large-scale event graphics and signage production.",
-  inquiryHeadline: "Tell us about your event and we will quote the graphics.",
-  emailSignatureLines: ["Enterprise Print Co", "Event Graphics Division"],
-  defaultQuoteNotes: "Prices include standard production. Rush orders quoted separately.",
-  aiTonePreference: "warm",
-  defaultCurrency: "USD",
-  inquiryCount: 80,
-  quoteNumberStart: 5001,
-  forms: [
-    {
-      key: "event",
-      name: "Event request",
-      slug: "event-request",
-      businessType: "event_services_rentals",
-      isDefault: true,
-      distributionWeight: 50,
-      serviceCategories: [
-        "Conference banners",
-        "Stage graphics",
-        "Booth signage",
-        "Venue signage",
-      ],
-      subjectTemplates: [
-        "{category} request for {company}",
-        "Need pricing on {category}",
-        "{company} needs {category}",
-      ],
-      detailTemplates: [
-        "We need {category} for an upcoming event and want a complete quote.",
-        "Please quote {category}. We have venue details and need production and install timing.",
-        "Looking for a quote on {category} with clear pricing and turnaround.",
-      ],
-      budgetOptions: ["$1,000-$3,000", "$3,000-$7,500", "$7,500+", null],
-    },
+const LAST_NAMES = [
+  "Smith", "Johnson", "Kim", "Patel", "Garcia", "Martinez", "Nguyen",
+  "Anderson", "Thomas", "Bennett", "Park", "Shah", "Rivera", "Hughes",
+  "Carter", "Sullivan", "Lopez", "Wilson", "Santos", "Reyes",
+  "Cruz", "Torres", "Bautista", "Mendoza", "Dela Cruz", "Ramirez",
+];
+
+const COMPANIES = [
+  "North Fork Studio", "Harbor Collective", "Summit Partners", "Brightleaf Co",
+  "Cedar Labs", "Atlas Supply", "Riverview Market", "Maple Works",
+  "Bluebird Media", "Foundry Group", "Parkside Wellness", "Oakline Advisors",
+  "Copper Company", "Mainline Builders", "Willow Clinic", "Zenith Corp",
+  "Lakeshore Properties", "Goldstar Enterprises", "Pacific Edge", "Metro Designs",
+];
+
+const INQUIRY_SUBJECTS: Record<string, string[]> = {
+  print_signage: [
+    "Storefront signage quote", "Banner printing for grand opening",
+    "Vehicle wrap pricing", "Trade show booth graphics", "Window decals for new location",
+    "Menu board design and print", "Real estate sign order", "Wall mural for office",
+    "Billboard design request", "Promotional flyer printing",
+  ],
+  creative_marketing_services: [
+    "Brand identity redesign", "Website redesign project", "Marketing collateral package",
+    "Logo design for new venture", "Social media content package", "Annual report design",
+    "Brochure and catalog design", "Email newsletter template", "Pitch deck design",
+    "Packaging design for product launch",
+  ],
+  contractor_home_improvement: [
+    "Kitchen renovation quote", "Bathroom remodel pricing", "Roof repair estimate",
+    "New deck construction", "Home addition assessment", "Flooring replacement",
+    "Window and door replacement", "Basement finishing project", "Painting interior and exterior",
+    "Fence installation quote", "Drywall repair and patching", "Plumbing fixture upgrade",
+  ],
+  event_services_rentals: [
+    "Corporate gala setup request", "Wedding tent rental quote", "Conference AV setup",
+    "Birthday party rentals", "Product launch event setup", "Outdoor concert staging",
+    "Holiday party planning", "Team building event setup", "Trade show booth assembly",
+    "Award ceremony production",
   ],
 };
 
-const demoInquiryIds = [
-  "seed_inquiry_storefront",
-  "seed_inquiry_waiting",
-  "seed_inquiry_quoted",
-  "seed_inquiry_won",
-  "seed_inquiry_lost",
+const INQUIRY_DETAILS: string[] = [
+  "We need a detailed quote for this project. Please include timeline and payment terms.",
+  "Looking for competitive pricing on this. We have a tight deadline and need to move fast.",
+  "Can you provide options at different price points? We want to compare before deciding.",
+  "This is for a repeat client and we need to deliver high quality. Please advise on best approach.",
+  "We have a strict budget for this project. Please let us know what's feasible within our range.",
+  "Need this completed within the next 3 weeks. Please confirm availability and lead time.",
+  "We're comparing several vendors. A clear breakdown of costs would help us decide.",
+  "This is part of a larger project. If this phase goes well, there's more work coming.",
+  "We'd like to set up a quick call to discuss the details before you quote.",
+  "Please include delivery and installation in the quote if applicable.",
 ];
 
-function getDemoInquiryIds(key: string) {
-  return demoInquiryIds.map((id) => `${id}_${key}`);
-}
+const QUOTE_TITLES: Record<string, string[]> = {
+  print_signage: [
+    "Custom Signage Package", "Banner Production", "Display Graphics Suite",
+    "Print Run — Marketing Materials", "Vehicle Wrap Installation",
+  ],
+  creative_marketing_services: [
+    "Brand Identity Package", "Website Design & Build", "Marketing Collateral Bundle",
+    "Content Production Package", "Design Retainer — Monthly",
+  ],
+  contractor_home_improvement: [
+    "Renovation Scope of Work", "Repair & Maintenance Package", "Build-Out Estimate",
+    "Remodeling Project Proposal", "Construction Package",
+  ],
+  event_services_rentals: [
+    "Event Setup Package", "Rental Bundle — Corporate", "AV Production Quote",
+    "Full Event Production", "Tent & Furnishing Package",
+  ],
+};
 
-function getDemoQuoteIds(key: string) {
-  return demoQuoteIds.map((id) => `${id}_${key}`);
-}
+const QUOTE_ITEMS: Record<string, Array<{ desc: string; minPrice: number; maxPrice: number }>> = {
+  print_signage: [
+    { desc: "Large format banner (8ft x 3ft)", minPrice: 4500, maxPrice: 12000 },
+    { desc: "Vinyl lettering and installation", minPrice: 2500, maxPrice: 8000 },
+    { desc: "Acrylic signage with LED backlight", minPrice: 15000, maxPrice: 45000 },
+    { desc: "Design and layout fee", minPrice: 3000, maxPrice: 8000 },
+    { desc: "Rush production surcharge", minPrice: 1500, maxPrice: 5000 },
+  ],
+  creative_marketing_services: [
+    { desc: "Brand strategy workshop", minPrice: 25000, maxPrice: 75000 },
+    { desc: "Logo design (3 concepts)", minPrice: 15000, maxPrice: 40000 },
+    { desc: "Website design — 5 pages", minPrice: 50000, maxPrice: 150000 },
+    { desc: "Social media content (10 posts)", minPrice: 8000, maxPrice: 20000 },
+    { desc: "Print collateral design", minPrice: 10000, maxPrice: 30000 },
+  ],
+  contractor_home_improvement: [
+    { desc: "Demolition and site prep", minPrice: 15000, maxPrice: 50000 },
+    { desc: "Materials — tiles, fixtures, hardware", minPrice: 25000, maxPrice: 100000 },
+    { desc: "Skilled labor — 5 work days", minPrice: 30000, maxPrice: 80000 },
+    { desc: "Electrical and plumbing work", minPrice: 20000, maxPrice: 60000 },
+    { desc: "Finishing and cleanup", minPrice: 8000, maxPrice: 20000 },
+  ],
+  event_services_rentals: [
+    { desc: "Tent rental — 10m x 20m", minPrice: 25000, maxPrice: 60000 },
+    { desc: "Sound system and lighting", minPrice: 15000, maxPrice: 45000 },
+    { desc: "Tables and chairs (50 guests)", minPrice: 8000, maxPrice: 20000 },
+    { desc: "Setup and teardown crew", minPrice: 10000, maxPrice: 25000 },
+    { desc: "Generator and power distribution", minPrice: 5000, maxPrice: 15000 },
+  ],
+};
 
-function getDemoQuotePublicTokens(key: string) {
-  return demoQuotePublicTokens.map((id) => `${id}_${key}`);
-}
-
-function getDemoQuoteItemIds(key: string) {
-  return demoQuoteItemIds.map((id) => `${id}_${key}`);
-}
-
-function getDemoReplySnippetIds(key: string) {
-  return demoReplySnippetIds.map((id) => `${id}_${key}`);
-}
-
-function getDemoNoteIds(key: string) {
-  return demoNoteIds.map((id) => `${id}_${key}`);
-}
-
-function getDemoActivityIds(key: string) {
-  return demoActivityIds.map((id) => `${id}_${key}`);
-}
-
-const demoQuoteIds = [
-  "seed_quote_draft_1001",
-  "seed_quote_sent_1002",
-  "seed_quote_accepted_1003",
-  "seed_quote_rejected_1004",
-  "seed_quote_expired_1005",
-] as const;
-
-const demoQuotePublicTokens = [
-  "seed_quote_1001_draft_token",
-  "seed_quote_1002_sent_token",
-  "seed_quote_1003_accepted_token",
-  "seed_quote_1004_rejected_token",
-  "seed_quote_1005_expired_token",
-] as const;
-
-const demoQuoteItemIds = [
-  "seed_quote_item_1001_a",
-  "seed_quote_item_1001_b",
-  "seed_quote_item_1002_a",
-  "seed_quote_item_1002_b",
-  "seed_quote_item_1003_a",
-  "seed_quote_item_1003_b",
-  "seed_quote_item_1004_a",
-  "seed_quote_item_1004_b",
-  "seed_quote_item_1005_a",
-  "seed_quote_item_1005_b",
-] as const;
-
-const demoReplySnippetIds = [
-  "seed_reply_snippet_dimensions",
-  "seed_reply_snippet_timeline",
-] as const;
-
-const demoNoteIds = [
-  "seed_note_storefront",
-  "seed_note_flyers",
-] as const;
-
-const demoActivityIds = [
-  "seed_activity_inquiry_new",
-  "seed_activity_quote_created_1001",
-  "seed_activity_quote_created_1002",
-  "seed_activity_quote_sent_1002",
-  "seed_activity_quote_created_1003",
-  "seed_activity_quote_accepted_1003",
-  "seed_activity_quote_sent_1003",
-  "seed_activity_quote_status_changed",
-  "seed_activity_business_seeded",
-] as const;
-
-const inquiryStatusWeights: Array<{
-  status: DemoInquiryStatus;
-  weight: number;
-}> = [
-  { status: "new", weight: 20 },
-  { status: "waiting", weight: 18 },
-  { status: "quoted", weight: 22 },
-  { status: "won", weight: 17 },
-  { status: "lost", weight: 13 },
-  { status: "archived", weight: 10 },
+const REPLY_SNIPPETS = [
+  { title: "Request dimensions", body: "Could you share the exact dimensions or measurements needed? This will help us provide an accurate quote." },
+  { title: "Confirm timeline", body: "What's your ideal completion date? We want to make sure we can meet your schedule." },
+  { title: "Budget clarification", body: "Do you have a target budget range in mind? This helps us tailor the proposal to your needs." },
+  { title: "Thank you for inquiry", body: "Thanks for reaching out! We'll review your request and get back to you within 24 hours with a detailed proposal." },
 ];
 
-const customerFirstNames = [
-  "James",
-  "Maya",
-  "Daniel",
-  "Olivia",
-  "Priya",
-  "Carlos",
-  "Harper",
-  "Noah",
-  "Amelia",
-  "Marcus",
-  "Ava",
-  "Elena",
-  "Jordan",
-  "Sofia",
-  "Adrian",
-  "Natalie",
-  "Leo",
-  "Riley",
-  "Mina",
-  "Theo",
+const KNOWLEDGE_ITEMS = [
+  { title: "Standard turnaround", content: "Our standard production turnaround is 5-7 business days from design approval. Rush orders can be completed in 2-3 business days at a 25% surcharge." },
+  { title: "Payment terms", content: "We require a 50% deposit to begin production. The remaining balance is due upon completion before delivery. We accept bank transfer, GCash, and credit card payment." },
 ];
 
-const customerLastNames = [
-  "Smith",
-  "Johnson",
-  "Kim",
-  "Patel",
-  "Garcia",
-  "Martinez",
-  "Nguyen",
-  "Anderson",
-  "Thomas",
-  "Bennett",
-  "Park",
-  "Shah",
-  "Rivera",
-  "Hughes",
-  "Carter",
-  "Sullivan",
-  "Lopez",
-  "Wilson",
-  "O'Brien",
-  "Davis",
-];
+const INQUIRY_STATUSES = ["new", "waiting", "quoted", "won", "lost", "archived"] as const;
+const INQUIRY_STATUS_WEIGHTS = [20, 18, 22, 17, 13, 10];
 
-const companyPrefixes = [
-  "North Fork",
-  "Harbor",
-  "Summit",
-  "Brightleaf",
-  "Cedar",
-  "Atlas",
-  "Riverview",
-  "Maple",
-  "Bluebird",
-  "Foundry",
-  "Parkside",
-  "Oakline",
-  "Copper",
-  "Mainline",
-  "Willow",
-];
+const QUOTE_STATUSES = ["draft", "sent", "accepted", "rejected", "expired"] as const;
+const QUOTE_STATUS_WEIGHTS = [12, 25, 30, 18, 15];
 
-const companySuffixes = [
-  "Studio",
-  "Collective",
-  "Kitchen",
-  "Builders",
-  "Partners",
-  "Labs",
-  "Supply",
-  "Market",
-  "Wellness",
-  "Media",
-  "Works",
-  "Advisors",
-  "Group",
-  "Company",
-  "Clinic",
-];
-
-const generatedQuoteResponseMessages = {
+const RESPONSE_MESSAGES = {
   accepted: [
-    "This works for us. Please move ahead and send the next steps.",
-    "Approved. We are ready to schedule the work.",
-    "Looks good. Please confirm timing so we can lock it in.",
+    "This works for us. Please move ahead and send next steps.",
+    "Approved. Ready to schedule the work.",
+    "Looks good — please confirm timing so we can lock it in.",
   ],
   rejected: [
     "Thanks for the quote. We decided to go a different direction for now.",
-    "We are pausing this scope and will revisit later.",
+    "We're pausing this scope and will revisit later.",
     "Appreciate the proposal, but we moved ahead with another vendor.",
   ],
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function getSeedValue(name: string, fallback: string) {
-  const value = process.env[name]?.trim();
-  return value ? value : fallback;
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Weighted random
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+function pickWeighted<T>(rng: () => number, items: readonly T[], weights: number[]): T {
+  const total = weights.reduce((a, b) => a + b, 0);
+  let threshold = rng() * total;
+  for (let i = 0; i < items.length; i++) {
+    threshold -= weights[i];
+    if (threshold <= 0) return items[i];
+  }
+  return items[items.length - 1];
 }
 
-function daysAgo(days: number, hour = 10, minute = 0) {
-  const date = new Date();
-  date.setUTCHours(hour, minute, 0, 0);
-  date.setUTCDate(date.getUTCDate() - days);
-  return date;
-}
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Reset
+ * ═══════════════════════════════════════════════════════════════════════════ */
 
-function daysFromNow(days: number) {
-  const date = new Date();
-  date.setUTCDate(date.getUTCDate() + days);
-  return date;
-}
-
-function toIsoDate(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function addMinutes(date: Date, minutes: number) {
-  return new Date(date.getTime() + minutes * 60_000);
-}
-
-function addDays(date: Date, days: number) {
-  return addMinutes(date, days * 24 * 60);
-}
-
-function clampToNow(date: Date) {
-  const now = new Date();
-  return date.getTime() > now.getTime() ? now : date;
-}
-
-function slugify(value: string) {
-  const normalized = value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48);
-
-  return normalized || "business";
-}
-
-function createSeededId(prefix: string, ...parts: string[]) {
-  return [prefix, ...parts.map((part) => slugify(part).replace(/-/g, "_"))].join(
-    "_",
-  );
-}
-
-function createSeededRandom(seed: string) {
-  let hash = 2166136261;
-
-  for (const character of seed) {
-    hash ^= character.charCodeAt(0);
-    hash = Math.imul(hash, 16777619);
+async function resetDatabase() {
+  if (env.NODE_ENV === "production") {
+    throw new Error("Refusing to reset in production!");
   }
 
-  return () => {
-    hash += 0x6d2b79f5;
-    let next = Math.imul(hash ^ (hash >>> 15), 1 | hash);
-    next ^= next + Math.imul(next ^ (next >>> 7), 61 | next);
+  console.log("🗑  Resetting database...");
 
-    return ((next ^ (next >>> 14)) >>> 0) / 4294967296;
-  };
+  await db.execute(sql`
+    TRUNCATE TABLE
+      "user",
+      "session",
+      "account",
+      "verification",
+      "profiles",
+      "workspaces",
+      "workspace_members",
+      "workspace_subscriptions",
+      "billing_events",
+      "payment_attempts",
+      "businesses",
+      "business_members",
+      "business_member_invites",
+      "business_inquiry_forms",
+      "inquiries",
+      "inquiry_attachments",
+      "inquiry_notes",
+      "quotes",
+      "quote_items",
+      "activity_logs",
+      "business_notifications",
+      "business_notification_states",
+      "reply_snippets",
+      "business_memories",
+      "quote_library_entries",
+      "quote_library_entry_items",
+      "google_calendar_connections",
+      "calendar_events",
+      "public_action_events"
+    CASCADE
+  `);
+
+  console.log("   Done.\n");
 }
 
-function randomInt(random: () => number, minInclusive: number, maxExclusive: number) {
-  return Math.floor(random() * (maxExclusive - minInclusive)) + minInclusive;
-}
+/* ═══════════════════════════════════════════════════════════════════════════
+ * User creation (uses Better Auth for proper password hashing)
+ * ═══════════════════════════════════════════════════════════════════════════ */
 
-function chance(random: () => number, probability: number) {
-  return random() < probability;
-}
+async function createUser(name: string, email: string): Promise<string> {
+  // Sign up via Better Auth to get proper password hash + account record
+  const result = await auth.api.signUpEmail({
+    body: { name, email, password: PASSWORD },
+  });
 
-function pickOne<T>(values: T[], random: () => number) {
-  return values[randomInt(random, 0, values.length)];
-}
-
-function pickWeighted<T>(
-  values: Array<{
-    item: T;
-    weight: number;
-  }>,
-  random: () => number,
-) {
-  const totalWeight = values.reduce((sum, value) => sum + value.weight, 0);
-  let threshold = random() * totalWeight;
-
-  for (const value of values) {
-    threshold -= value.weight;
-
-    if (threshold <= 0) {
-      return value.item;
-    }
+  if (!result?.user?.id) {
+    throw new Error(`Failed to create user ${email}`);
   }
 
-  return values[values.length - 1]?.item ?? null;
-}
+  const userId = result.user.id;
 
-function sanitizeEmailPart(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
-}
-
-function formatPhoneNumber(random: () => number) {
-  const areaCode = randomInt(random, 200, 1000);
-  const exchange = randomInt(random, 200, 1000);
-  const line = String(randomInt(random, 0, 10_000)).padStart(4, "0");
-
-  return `(${areaCode}) ${exchange}-${line}`;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function fillTemplate(
-  template: string,
-  values: Record<string, string>,
-) {
-  return template.replace(/\{(\w+)\}/g, (_, key: string) => values[key] ?? "");
-}
-
-async function getAvailableSlug(baseSlug: string, currentBusinessId?: string) {
-  const normalizedBaseSlug = slugify(baseSlug);
-  let candidate = normalizedBaseSlug;
-  let counter = 2;
-
-  while (true) {
-    const existing = await db
-      .select({ id: businesses.id })
-      .from(businesses)
-      .where(
-        currentBusinessId
-          ? and(
-              eq(businesses.slug, candidate),
-              ne(businesses.id, currentBusinessId),
-            )
-          : eq(businesses.slug, candidate),
-      )
-      .limit(1);
-
-    if (!existing[0]) {
-      return candidate;
-    }
-
-    candidate = `${normalizedBaseSlug}-${counter}`;
-    counter += 1;
-  }
-}
-
-async function ensurePlanUser(config: PlanUserConfig): Promise<DemoUser> {
-  let [existingUser] = await db
-    .select({
-      id: user.id,
-      email: user.email,
-      name: user.name,
-    })
-    .from(user)
-    .where(eq(user.email, config.email.toLowerCase()))
-    .limit(1);
-
-  if (!existingUser) {
-    await auth.api.signUpEmail({
-      body: {
-        name: config.name,
-        email: config.email.toLowerCase(),
-        password: DEFAULT_PASSWORD,
-      },
-    });
-
-    [existingUser] = await db
-      .select({
-        id: user.id,
-        email: user.email,
-        name: user.name,
-      })
-      .from(user)
-      .where(eq(user.email, config.email.toLowerCase()))
-      .limit(1);
-  }
-
-  if (!existingUser) {
-    throw new Error(`Unable to create or load the user for ${config.email}.`);
-  }
-
-  const now = new Date();
-
-  await db
-    .update(user)
-    .set({
-      name: config.name,
-      updatedAt: now,
-    })
-    .where(eq(user.id, existingUser.id));
-
+  // Ensure profile with onboarding complete
   await db
     .insert(profiles)
     .values({
-      userId: existingUser.id,
-      fullName: config.name,
-      onboardingCompletedAt: now,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: profiles.userId,
-      set: {
-        fullName: config.name,
-        onboardingCompletedAt: now,
-        updatedAt: now,
-      },
-    });
-
-  await bootstrapBusinessForUser({
-    id: existingUser.id,
-    name: config.name,
-    email: config.email,
-  }, { plan: config.plan });
-
-  await db
-    .update(workspaces)
-    .set({ plan: config.plan })
-    .where(eq(workspaces.ownerUserId, existingUser.id));
-
-  return {
-    id: existingUser.id,
-    email: existingUser.email,
-    name: config.name,
-    plan: config.plan,
-  };
-}
-
-async function ensureTeamMember(
-  ownerUser: DemoUser,
-  name: string,
-  email: string,
-  role: "manager" | "staff",
-): Promise<DemoUser> {
-  let [existingUser] = await db
-    .select({
-      id: user.id,
-      email: user.email,
-      name: user.name,
-    })
-    .from(user)
-    .where(eq(user.email, email.toLowerCase()))
-    .limit(1);
-
-  if (!existingUser) {
-    await auth.api.signUpEmail({
-      body: {
-        name,
-        email: email.toLowerCase(),
-        password: DEFAULT_PASSWORD,
-      },
-    });
-
-    [existingUser] = await db
-      .select({
-        id: user.id,
-        email: user.email,
-        name: user.name,
-      })
-      .from(user)
-      .where(eq(user.email, email.toLowerCase()))
-      .limit(1);
-  }
-
-  if (!existingUser) {
-    throw new Error(`Unable to create or load the team member for ${email}.`);
-  }
-
-  const now = new Date();
-
-  await db
-    .update(user)
-    .set({
-      name,
-      updatedAt: now,
-    })
-    .where(eq(user.id, existingUser.id));
-
-  await db
-    .insert(profiles)
-    .values({
-      userId: existingUser.id,
+      userId,
       fullName: name,
-      onboardingCompletedAt: now,
-      createdAt: now,
-      updatedAt: now,
+      onboardingCompletedAt: new Date(),
     })
     .onConflictDoUpdate({
       target: profiles.userId,
-      set: {
-        fullName: name,
-        onboardingCompletedAt: now,
-        updatedAt: now,
-      },
+      set: { fullName: name, onboardingCompletedAt: new Date(), updatedAt: new Date() },
     });
 
-  return {
-    id: existingUser.id,
-    email: existingUser.email,
-    name,
-    plan: ownerUser.plan,
-  };
+  return userId;
 }
 
-function getDefaultFormDefinition(definition: DemoBusinessDefinition) {
-  const defaultForm = definition.forms.find((form) => form.isDefault);
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Workspace + subscription creation
+ * ═══════════════════════════════════════════════════════════════════════════ */
 
-  if (!defaultForm) {
-    throw new Error(`Business "${definition.key}" is missing a default form.`);
-  }
-
-  return defaultForm;
-}
-
-async function syncBusinessForms(
-  definition: DemoBusinessDefinition,
-  businessId: string,
-  currentDefaultFormId?: string,
-) {
+async function createWorkspace(
+  config: SeedUserConfig,
+  ownerId: string,
+): Promise<string> {
+  const wsId = id("ws");
   const now = new Date();
-  const syncedForms: DemoBusiness["forms"] = {};
 
-  for (const formDefinition of definition.forms) {
-    const formPreset = createInquiryFormPreset({
-      businessType: formDefinition.businessType,
-      businessName: definition.name,
-      businessShortDescription: definition.shortDescription,
-      legacyInquiryHeadline: definition.inquiryHeadline,
-    });
-    const [existingForm] = await db
-      .select({ id: businessInquiryForms.id })
-      .from(businessInquiryForms)
-      .where(
-        and(
-          eq(businessInquiryForms.businessId, businessId),
-          eq(businessInquiryForms.slug, formDefinition.slug),
-        ),
-      )
-      .limit(1);
-    const formId =
-      formDefinition.isDefault && currentDefaultFormId
-        ? currentDefaultFormId
-        : existingForm?.id ??
-          createSeededId("seed_ifm", definition.key, formDefinition.key);
-
-    if (formDefinition.isDefault && currentDefaultFormId) {
-      await db
-        .update(businessInquiryForms)
-        .set({
-          name: formDefinition.name,
-          slug: formDefinition.slug,
-          businessType: formDefinition.businessType,
-          isDefault: true,
-          publicInquiryEnabled: true,
-          inquiryFormConfig: formPreset.inquiryFormConfig,
-          inquiryPageConfig: formPreset.inquiryPageConfig,
-          archivedAt: null,
-          updatedAt: now,
-        })
-        .where(eq(businessInquiryForms.id, formId));
-    } else {
-      await db
-        .insert(businessInquiryForms)
-        .values({
-          id: formId,
-          businessId,
-          name: formDefinition.name,
-          slug: formDefinition.slug,
-          businessType: formDefinition.businessType,
-          isDefault: formDefinition.isDefault,
-          publicInquiryEnabled: true,
-          inquiryFormConfig: formPreset.inquiryFormConfig,
-          inquiryPageConfig: formPreset.inquiryPageConfig,
-          archivedAt: null,
-          createdAt: now,
-          updatedAt: now,
-        })
-        .onConflictDoUpdate({
-          target: businessInquiryForms.id,
-          set: {
-            name: formDefinition.name,
-            slug: formDefinition.slug,
-            businessType: formDefinition.businessType,
-            isDefault: formDefinition.isDefault,
-            publicInquiryEnabled: true,
-            inquiryFormConfig: formPreset.inquiryFormConfig,
-            inquiryPageConfig: formPreset.inquiryPageConfig,
-            archivedAt: null,
-            updatedAt: now,
-          },
-        });
-    }
-
-    syncedForms[formDefinition.key] = {
-      id: formId,
-      name: formDefinition.name,
-      slug: formDefinition.slug,
-      businessType: formDefinition.businessType,
-    };
-  }
-
-  const defaultForm = getDefaultFormDefinition(definition);
-
-  return {
-    defaultInquiryFormId:
-      currentDefaultFormId ?? syncedForms[defaultForm.key]?.id ?? "",
-    forms: syncedForms,
-  };
-}
-
-async function ensurePrimaryBusiness(
-  demoUser: DemoUser,
-  config: PlanUserConfig,
-): Promise<DemoBusiness> {
-  const [membership] = await db
-    .select({
-      businessId: businessMembers.businessId,
-      role: businessMembers.role,
-    })
-    .from(businessMembers)
-    .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
-    .where(
-      and(
-        eq(businessMembers.userId, demoUser.id),
-        eq(businessMembers.role, "owner"),
-      ),
-    )
-    .orderBy(asc(businessMembers.createdAt))
-    .limit(1);
-
-  if (!membership) {
-    throw new Error("The demo owner does not have an owner business.");
-  }
-
-  const now = new Date();
-  const slug = await getAvailableSlug(config.businessSlug, membership.businessId);
-  const inquiryPreset = createInquiryFormPreset({
-    businessType: config.businessType,
-    businessName: config.businessName,
-    businessShortDescription: "Professional print services for businesses.",
-    legacyInquiryHeadline: "Tell us what you need printed and we will turn it into a clean quote.",
+  await db.insert(workspaces).values({
+    id: wsId,
+    name: config.workspaceName,
+    slug: config.workspaceSlug,
+    plan: config.plan,
+    ownerUserId: ownerId,
+    createdAt: daysAgo(180),
+    updatedAt: now,
   });
-  const starterTemplate = getStarterTemplateDefinition(config.businessType);
 
-  await db
-    .update(businesses)
-    .set({
-      name: config.businessName,
-      slug,
-      businessType: config.businessType,
-      shortDescription: "Professional print services for businesses.",
-      contactEmail: demoUser.email,
-      publicInquiryEnabled: true,
-      inquiryHeadline: "Tell us what you need printed and we will turn it into a clean quote.",
-      inquiryFormConfig: inquiryPreset.inquiryFormConfig,
-      inquiryPageConfig: inquiryPreset.inquiryPageConfig,
-      defaultEmailSignature: `${config.businessName}\n${demoUser.email}`,
-      defaultQuoteNotes: starterTemplate.defaultQuoteNotes ?? "Standard production included.",
-      defaultQuoteValidityDays: starterTemplate.defaultQuoteValidityDays,
-      aiTonePreference: "warm",
-      notifyOnNewInquiry: true,
-      notifyOnQuoteSent: true,
-      notifyOnQuoteResponse: true,
-      notifyInAppOnNewInquiry: true,
-      notifyInAppOnQuoteResponse: true,
-      defaultCurrency: "USD",
+  await db.insert(workspaceMembers).values({
+    id: id("wm"),
+    workspaceId: wsId,
+    userId: ownerId,
+    role: "owner",
+    createdAt: daysAgo(180),
+    updatedAt: now,
+  });
+
+  // Create subscription row for paid plans
+  if (config.plan !== "free") {
+    const periodStart = daysAgo(15);
+    const periodEnd = addDays(periodStart, 30);
+
+    await db.insert(workspaceSubscriptions).values({
+      id: id("sub"),
+      workspaceId: wsId,
+      status: "active",
+      plan: config.plan,
+      billingProvider: config.plan === "business" ? "paymongo" : "lemonsqueezy",
+      billingCurrency: config.plan === "business" ? "PHP" : "USD",
+      providerCustomerId: `cus_demo_${config.workspaceSlug}`,
+      providerSubscriptionId: `sub_demo_${config.workspaceSlug}`,
+      currentPeriodStart: periodStart,
+      currentPeriodEnd: periodEnd,
+      createdAt: daysAgo(90),
       updatedAt: now,
-    })
-    .where(eq(businesses.id, membership.businessId));
-
-  const [defaultForm] = await db
-    .select({
-      id: businessInquiryForms.id,
-    })
-    .from(businessInquiryForms)
-    .where(
-      and(
-        eq(businessInquiryForms.businessId, membership.businessId),
-        eq(businessInquiryForms.isDefault, true),
-      ),
-    )
-    .limit(1);
-
-  if (!defaultForm) {
-    throw new Error("The demo business does not have a default inquiry form.");
+    });
   }
 
-  const syncedForms = await syncBusinessForms(
-    {
-      key: "primary",
-      kind: "primary",
-      name: config.businessName,
-      slug,
-      businessType: config.businessType,
-      shortDescription: "Professional print services for businesses.",
-      inquiryHeadline: "Tell us what you need printed.",
-      emailSignatureLines: [config.businessName, demoUser.email],
-      defaultQuoteNotes: "Standard production included.",
-      aiTonePreference: "warm",
-      defaultCurrency: "USD",
-      inquiryCount: 100,
-      quoteNumberStart: 1001,
-      forms: [
-        {
-          key: "project",
-          name: "Project request",
-          slug: "project-request",
-          businessType: config.businessType,
-          isDefault: true,
-          distributionWeight: 50,
-          serviceCategories: [
-            "Window graphics",
-            "Event signage",
-            "Menu boards",
-            "Trade show kits",
-            "Lobby graphics",
-          ],
-          subjectTemplates: [
-            "{category} request for {company}",
-            "Need pricing on {category}",
-            "{company} needs {category}",
-          ],
-          detailTemplates: [
-            "We need {category} for an upcoming launch and want pricing, material guidance, and timing.",
-            "Please scope {category} for {company}. Files are partly ready.",
-            "Looking for a quote on {category} with practical recommendations.",
-          ],
-          budgetOptions: ["$750-$1,500", "$1,500-$3,000", "$3,000+", null],
-        },
-        {
-          key: "reorders",
-          name: "Reorder request",
-          slug: "reorder-request",
-          businessType: config.businessType,
-          isDefault: false,
-          distributionWeight: 30,
-          serviceCategories: [
-            "Flyers",
-            "Brochures",
-            "Business cards",
-            "Labels & stickers",
-            "Postcards",
-          ],
-          subjectTemplates: [
-            "Reorder quote for {category}",
-            "{company} reorder for {category}",
-            "Need a repeat run of {category}",
-          ],
-          detailTemplates: [
-            "This is a repeat order for {category}. Please match the last run.",
-            "We need a fresh quote for {category} with updated quantities.",
-          ],
-          budgetOptions: ["$250-$500", "$500-$1,000", "$1,000-$2,500", null],
-        },
-        {
-          key: "install",
-          name: "Install request",
-          slug: "install-request",
-          businessType: config.businessType,
-          isDefault: false,
-          distributionWeight: 20,
-          serviceCategories: [
-            "Window vinyl install",
-            "Wayfinding signs",
-            "Wall graphics",
-            "Door decals",
-            "Exterior banner install",
-          ],
-          subjectTemplates: [
-            "Need a quote for {category}",
-            "{company} install scope for {category}",
-          ],
-          detailTemplates: [
-            "Need help quoting {category} with site install.",
-            "Please estimate {category} with production and install.",
-          ],
-          budgetOptions: ["$1,000-$2,500", "$2,500-$5,000", "$5,000+", null],
-        },
-      ],
-    },
-    membership.businessId,
-    defaultForm.id,
-  );
+  return wsId;
+}
 
-  return {
-    key: "primary",
-    id: membership.businessId,
-    kind: "primary",
-    name: config.businessName,
-    slug,
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Business creation
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+async function createBusiness(
+  config: SeedBusinessConfig,
+  wsId: string,
+  ownerId: string,
+): Promise<{ businessId: string; formId: string }> {
+  const bizId = id("biz");
+  const formPreset = createInquiryFormPreset({
     businessType: config.businessType,
-    defaultInquiryFormId: syncedForms.defaultInquiryFormId,
-    quoteNumberStart: 1001,
-    forms: syncedForms.forms,
-  };
-}
-
-async function ensureSecondaryBusiness(
-  demoUser: DemoUser,
-  definition: DemoBusinessDefinition,
-): Promise<DemoBusiness> {
-  const businessId = createSeededId("seed_biz", definition.key);
-  const [existingBusiness] = await db
-    .select({ id: businesses.id })
-    .from(businesses)
-    .where(eq(businesses.id, businessId))
-    .limit(1);
-  const slug = await getAvailableSlug(definition.slug, existingBusiness?.id);
+    businessName: config.name,
+    businessShortDescription: config.shortDescription,
+  });
+  const formId = id("ifm");
   const now = new Date();
-  const inquiryPreset = createInquiryFormPreset({
-    businessType: definition.businessType,
-    businessName: definition.name,
-    businessShortDescription: definition.shortDescription,
-    legacyInquiryHeadline: definition.inquiryHeadline,
-  });
-  const starterTemplate = getStarterTemplateDefinition(definition.businessType);
 
-  const [workspaceMembership] = await db
-    .select({ workspaceId: workspaceMembers.workspaceId })
-    .from(workspaceMembers)
-    .where(eq(workspaceMembers.userId, demoUser.id))
-    .limit(1);
-
-  if (!workspaceMembership) {
-    throw new Error("Demo user has no workspace.");
-  }
-
-  const workspaceId = workspaceMembership.workspaceId;
-
-  await db.transaction(async (tx) => {
-    if (existingBusiness) {
-      await tx
-        .update(businesses)
-        .set({
-          workspaceId,
-          name: definition.name,
-          slug,
-          businessType: definition.businessType,
-          shortDescription: definition.shortDescription,
-          contactEmail: demoUser.email,
-          publicInquiryEnabled: true,
-          inquiryHeadline: definition.inquiryHeadline,
-          inquiryFormConfig: inquiryPreset.inquiryFormConfig,
-          inquiryPageConfig: inquiryPreset.inquiryPageConfig,
-          defaultEmailSignature: definition.emailSignatureLines.join("\n"),
-          defaultQuoteNotes: definition.defaultQuoteNotes,
-          defaultQuoteValidityDays: starterTemplate.defaultQuoteValidityDays,
-          aiTonePreference: definition.aiTonePreference,
-          notifyOnNewInquiry: true,
-          notifyOnQuoteSent: true,
-          notifyOnQuoteResponse: true,
-          notifyInAppOnNewInquiry: true,
-          notifyInAppOnQuoteResponse: true,
-          defaultCurrency: definition.defaultCurrency,
-          updatedAt: now,
-        })
-        .where(eq(businesses.id, businessId));
-    } else {
-      await tx.insert(businesses).values({
-        id: businessId,
-        workspaceId,
-        name: definition.name,
-        slug,
-        businessType: definition.businessType,
-        shortDescription: definition.shortDescription,
-        contactEmail: demoUser.email,
-        publicInquiryEnabled: true,
-        inquiryHeadline: definition.inquiryHeadline,
-        inquiryFormConfig: inquiryPreset.inquiryFormConfig,
-        inquiryPageConfig: inquiryPreset.inquiryPageConfig,
-        defaultEmailSignature: definition.emailSignatureLines.join("\n"),
-        defaultQuoteNotes: definition.defaultQuoteNotes,
-        defaultQuoteValidityDays: starterTemplate.defaultQuoteValidityDays,
-        aiTonePreference: definition.aiTonePreference,
-        notifyOnNewInquiry: true,
-        notifyOnQuoteSent: true,
-        notifyOnQuoteResponse: true,
-        notifyInAppOnNewInquiry: true,
-        notifyInAppOnQuoteResponse: true,
-        defaultCurrency: definition.defaultCurrency,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
-
-    const [existingMembership] = await tx
-      .select({ id: businessMembers.id, role: businessMembers.role })
-      .from(businessMembers)
-      .where(
-        and(
-          eq(businessMembers.businessId, businessId),
-          eq(businessMembers.userId, demoUser.id),
-        ),
-      )
-      .limit(1);
-
-    if (!existingMembership) {
-      await tx.insert(businessMembers).values({
-        id: createSeededId("seed_bm", definition.key),
-        businessId,
-        userId: demoUser.id,
-        role: "owner",
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
-
-    await tx
-      .insert(activityLogs)
-      .values({
-        id: createSeededId("seed_act", definition.key, "created"),
-        businessId,
-        actorUserId: demoUser.id,
-        type: "business.created",
-        summary: `Seed business ${definition.name} created.`,
-        metadata: {
-          source: "demo-seed",
-        },
-        createdAt: now,
-        updatedAt: now,
-      })
-      .onConflictDoNothing();
+  await db.insert(businesses).values({
+    id: bizId,
+    workspaceId: wsId,
+    name: config.name,
+    slug: config.slug,
+    businessType: config.businessType,
+    shortDescription: config.shortDescription,
+    contactEmail: config.contactEmail,
+    defaultCurrency: config.defaultCurrency,
+    countryCode: config.countryCode,
+    aiTonePreference: config.aiTonePreference,
+    publicInquiryEnabled: true,
+    createdAt: daysAgo(180),
+    updatedAt: now,
   });
 
-  const syncedForms = await syncBusinessForms(definition, businessId);
+  await db.insert(businessInquiryForms).values({
+    id: formId,
+    businessId: bizId,
+    name: formPreset.name,
+    slug: formPreset.slug,
+    businessType: formPreset.businessType,
+    isDefault: true,
+    publicInquiryEnabled: true,
+    inquiryFormConfig: formPreset.inquiryFormConfig,
+    inquiryPageConfig: formPreset.inquiryPageConfig,
+    createdAt: daysAgo(180),
+    updatedAt: now,
+  });
 
-  return {
-    key: definition.key,
-    id: businessId,
-    kind: definition.kind,
-    name: definition.name,
-    slug,
-    businessType: definition.businessType,
-    defaultInquiryFormId: syncedForms.defaultInquiryFormId,
-    quoteNumberStart: definition.quoteNumberStart,
-    forms: syncedForms.forms,
-  };
-}
+  await db.insert(businessMembers).values({
+    id: id("bm"),
+    businessId: bizId,
+    userId: ownerId,
+    role: "owner",
+    createdAt: daysAgo(180),
+    updatedAt: now,
+  });
 
-function generateBulkInquiries(
-  businessKey: string,
-  business: DemoBusiness,
-  businessType: BusinessType,
-  count = 30,
-) {
-  const random = createSeededRandom(`${businessKey}:inquiries`);
-  const forms = Object.values(business.forms);
-  const inquiries: GeneratedInquiryRow[] = [];
-
-  for (let index = 0; index < count; index += 1) {
-    const form = pickOne(forms, random);
-    const firstName = pickOne(customerFirstNames, random);
-    const lastName = pickOne(customerLastNames, random);
-    const company = `${pickOne(companyPrefixes, random)} ${pickOne(
-      companySuffixes,
-      random,
-    )}`;
-    const serviceCategory = pickOne(form.businessType === "print_signage"
-      ? ["Window graphics", "Event signage", "Menu boards", "Trade show kits", "Flyers"]
-      : ["Conference banners", "Stage graphics", "Booth signage", "Venue signage"], random);
-    const status =
-      pickWeighted(
-        inquiryStatusWeights.map((value) => ({
-          item: value.status,
-          weight: value.weight,
-        })),
-        random,
-      ) ?? "new";
-    const submittedAt = daysAgo(
-      randomInt(random, 0, 150),
-      randomInt(random, 8, 18),
-      randomInt(random, 0, 60),
-    );
-    const lastRespondedAt =
-      status === "new"
-        ? null
-        : clampToNow(addMinutes(submittedAt, randomInt(random, 90, 8 * 24 * 60)));
-    const requestedDeadline = chance(random, 0.72)
-      ? toIsoDate(addDays(submittedAt, randomInt(random, 5, 45)))
-      : null;
-    const customerEmail = `${sanitizeEmailPart(firstName)}.${sanitizeEmailPart(
-      lastName,
-    )}@${sanitizeEmailPart(company) || "client"}.co`.slice(0, 254);
-    const companyName = chance(random, 0.12) ? null : company;
-    const companyLabel = companyName ?? `${firstName} ${lastName}`;
-    const quoteRequested =
-      status === "quoted" || status === "won" || status === "lost"
-        ? true
-        : !chance(random, 0.08);
-
-    inquiries.push({
-      id: createSeededId(
-        "seed_inquiry",
-        businessKey,
-        String(index + 1).padStart(4, "0"),
-      ),
-      businessId: business.id,
-      businessInquiryFormId: form.id,
-      status,
-      subject: `${serviceCategory} request for ${companyLabel}`,
-      customerName: `${firstName} ${lastName}`,
-      customerEmail,
-      customerPhone: chance(random, 0.72) ? formatPhoneNumber(random) : null,
-      serviceCategory,
-      requestedDeadline,
-      budgetText: pickOne(["$500-$1,000", "$1,000-$2,500", "$2,500+", null], random),
-      companyName,
-      details: `Looking for a quote on ${serviceCategory.toLowerCase()} for ${companyLabel}.`,
-
-      source: `demo-seed-generated:${businessKey}`,
-      quoteRequested,
-      submittedAt,
-      lastRespondedAt,
-      createdAt: submittedAt,
-      updatedAt: lastRespondedAt ?? submittedAt,
+  // Seed reply snippets
+  for (const snippet of REPLY_SNIPPETS) {
+    await db.insert(replySnippets).values({
+      id: id("rsp"),
+      businessId: bizId,
+      title: snippet.title,
+      body: snippet.body,
+      createdAt: daysAgo(170),
+      updatedAt: daysAgo(170),
     });
   }
 
-  return inquiries;
-}
-
-function shouldGenerateQuote(status: DemoInquiryStatus, random: () => number) {
-  switch (status) {
-    case "quoted":
-    case "won":
-    case "lost":
-      return true;
-    case "waiting":
-      return chance(random, 0.35);
-    case "archived":
-      return chance(random, 0.2);
-    case "new":
-    default:
-      return false;
-  }
-}
-
-function getGeneratedQuoteStatus(
-  status: DemoInquiryStatus,
-  random: () => number,
-): DemoQuoteStatus | null {
-  switch (status) {
-    case "quoted":
-      return chance(random, 0.45) ? "draft" : "sent";
-    case "waiting":
-      return "draft";
-    case "won":
-      return "accepted";
-    case "lost":
-      return chance(random, 0.2) ? "expired" : "rejected";
-    case "archived":
-      return "expired";
-    case "new":
-    default:
-      return null;
-  }
-}
-
-function generateBulkQuoteData(
-  businessKey: string,
-  business: DemoBusiness,
-  inquiryRows: GeneratedInquiryRow[],
-  quoteNumberStart: number,
-) {
-  const random = createSeededRandom(`${businessKey}:quotes`);
-  const quoteRows: GeneratedQuoteRow[] = [];
-  const quoteItemRows: GeneratedQuoteItemRow[] = [];
-  let quoteNumber = quoteNumberStart;
-  let quoteIndex = 1;
-
-  for (const inquiry of inquiryRows) {
-    if (!inquiry.quoteRequested || !shouldGenerateQuote(inquiry.status, random)) {
-      continue;
-    }
-
-    const quoteStatus = getGeneratedQuoteStatus(inquiry.status, random);
-
-    if (!quoteStatus) {
-      continue;
-    }
-
-    const quoteId = createSeededId(
-      "seed_quote",
-      businessKey,
-      String(quoteIndex).padStart(4, "0"),
-    );
-    const createdAt = clampToNow(
-      addMinutes(inquiry.submittedAt, randomInt(random, 45, 4 * 24 * 60)),
-    );
-    const sentAt =
-      quoteStatus === "draft"
-        ? null
-        : clampToNow(addMinutes(createdAt, randomInt(random, 30, 18 * 60)));
-    const publicViewedAt =
-      sentAt && chance(random, quoteStatus === "expired" ? 0.55 : 0.88)
-        ? clampToNow(addMinutes(sentAt, randomInt(random, 30, 3 * 24 * 60)))
-        : null;
-    const customerRespondedAt =
-      quoteStatus === "accepted" || quoteStatus === "rejected"
-        ? clampToNow(
-            addMinutes(
-              publicViewedAt ?? sentAt ?? createdAt,
-              randomInt(random, 30, 5 * 24 * 60),
-            ),
-          )
-        : null;
-    const acceptedAt = quoteStatus === "accepted" ? customerRespondedAt : null;
-    const postAcceptanceStatus =
-      quoteStatus === "accepted"
-        ? pickWeighted(
-            [
-              { item: "scheduled" as const, weight: 55 },
-              { item: "booked" as const, weight: 30 },
-              { item: "none" as const, weight: 15 },
-            ],
-            random,
-          ) ?? "none"
-        : "none";
-    const itemCount = randomInt(random, 2, 5);
-    const lineItemDescriptions = [
-      `${inquiry.serviceCategory} scope`,
-      "Planning and coordination",
-      "Production and execution",
-      "Delivery and quality assurance",
-    ].slice(0, itemCount);
-    const lineItems = lineItemDescriptions.map((description, position) => {
-      const quantity = position === 0 ? randomInt(random, 1, 5) : 1;
-      const unitPriceInCents =
-        position === 0
-          ? randomInt(random, 18_000, 95_000)
-          : randomInt(random, 4_500, 35_000);
-
-      return {
-        id: createSeededId(
-          "seed_quote_item",
-          businessKey,
-          String(quoteIndex).padStart(4, "0"),
-          String(position + 1),
-        ),
-        businessId: business.id,
-        quoteId,
-        description,
-        quantity,
-        unitPriceInCents,
-        lineTotalInCents: quantity * unitPriceInCents,
-        position,
-        createdAt: addMinutes(createdAt, position),
-        updatedAt: addMinutes(createdAt, position),
-      };
+  // Seed knowledge memories
+  for (let i = 0; i < KNOWLEDGE_ITEMS.length; i++) {
+    await db.insert(businessMemories).values({
+      id: id("mem"),
+      businessId: bizId,
+      title: KNOWLEDGE_ITEMS[i].title,
+      content: KNOWLEDGE_ITEMS[i].content,
+      position: i,
+      createdAt: daysAgo(160),
+      updatedAt: daysAgo(160),
     });
-    const subtotalInCents = lineItems.reduce(
-      (sum, item) => sum + item.lineTotalInCents,
-      0,
-    );
-    const maxDiscount = Math.max(1_500, Math.floor(subtotalInCents * 0.12));
-    const discountInCents = chance(random, 0.32)
-      ? randomInt(random, 500, maxDiscount + 1)
-      : 0;
-    const totalInCents = subtotalInCents - discountInCents;
-    const validUntilDate = addDays(
-      sentAt ?? createdAt,
-      randomInt(random, 7, 21),
-    );
-    const customerResponseMessage =
-      quoteStatus === "accepted"
-        ? pickOne(generatedQuoteResponseMessages.accepted, random)
-        : quoteStatus === "rejected"
-          ? pickOne(generatedQuoteResponseMessages.rejected, random)
-          : null;
-    const updatedAt =
-      customerRespondedAt ?? publicViewedAt ?? sentAt ?? createdAt;
-
-    quoteRows.push({
-      id: quoteId,
-      businessId: business.id,
-      inquiryId: inquiry.id,
-      status: quoteStatus,
-      quoteNumber: `Q-${quoteNumber}`,
-      publicToken: createSeededId("seed_token", businessKey, String(quoteNumber)),
-      title: `${inquiry.serviceCategory} quote`,
-      customerName: inquiry.customerName,
-      customerEmail: inquiry.customerEmail,
-      currency: "USD",
-      notes: `Generated sample quote for ${inquiry.serviceCategory.toLowerCase()}.`,
-      subtotalInCents,
-      discountInCents,
-      totalInCents,
-      sentAt,
-      acceptedAt,
-      publicViewedAt,
-      customerRespondedAt,
-      customerResponseMessage,
-      postAcceptanceStatus,
-      validUntil: toIsoDate(validUntilDate),
-      createdAt,
-      updatedAt,
-    });
-    quoteItemRows.push(...lineItems);
-
-    quoteNumber += 1;
-    quoteIndex += 1;
   }
 
-  return {
-    quotes: quoteRows,
-    quoteItems: quoteItemRows,
-  };
+  return { businessId: bizId, formId };
 }
 
-function createGeneratedDataset(
-  businessKey: string,
-  business: DemoBusiness,
-  quoteNumberStart: number,
-) {
-  const inquiries = generateBulkInquiries(businessKey, business, business.businessType);
-  const { quotes, quoteItems } = generateBulkQuoteData(
-    businessKey,
-    business,
-    inquiries,
-    quoteNumberStart,
-  );
-
-  return {
-    inquiries,
-    quotes,
-    quoteItems,
-  };
-}
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Inquiry + Quote generation
+ * ═══════════════════════════════════════════════════════════════════════════ */
 
 async function seedBusinessData(
-  demoUser: DemoUser,
-  business: DemoBusiness,
-  businessKey: string,
-): Promise<BusinessSeedCounts> {
-  const noteTimestamps = {
-    storefront: daysAgo(1, 14, 20),
-    flyers: daysAgo(3, 11, 40),
-    boothKit: daysAgo(6, 16, 15),
-    menuBundle: daysAgo(10, 13, 5),
-  };
-  const projectFormId = business.forms.project?.id ?? business.defaultInquiryFormId;
-  const reorderFormId =
-    business.forms.reorders?.id ?? business.defaultInquiryFormId;
-  const installFormId = business.forms.install?.id ?? business.defaultInquiryFormId;
+  bizConfig: SeedBusinessConfig,
+  businessId: string,
+  formId: string,
+  ownerId: string,
+): Promise<{ inquiryCount: number; quoteCount: number; quoteItemCount: number }> {
+  const rng = createRng(`${bizConfig.slug}-data`);
+  const subjects = INQUIRY_SUBJECTS[bizConfig.businessType] ?? INQUIRY_SUBJECTS["print_signage"];
+  const quoteTitles = QUOTE_TITLES[bizConfig.businessType] ?? QUOTE_TITLES["print_signage"];
+  const quoteItemPool = QUOTE_ITEMS[bizConfig.businessType] ?? QUOTE_ITEMS["print_signage"];
 
-  const keyedInquiryIds = getDemoInquiryIds(businessKey);
-  const keyedQuoteIds = getDemoQuoteIds(businessKey);
-  const keyedQuotePublicTokens = getDemoQuotePublicTokens(businessKey);
-  const keyedQuoteItemIds = getDemoQuoteItemIds(businessKey);
-  const keyedReplySnippetIds = getDemoReplySnippetIds(businessKey);
-  const keyedNoteIds = getDemoNoteIds(businessKey);
-  const keyedActivityIds = getDemoActivityIds(businessKey);
+  const inquiryRows: Array<typeof inquiries.$inferInsert> = [];
+  const quoteRows: Array<typeof quotes.$inferInsert> = [];
+  const quoteItemRows: Array<typeof quoteItems.$inferInsert> = [];
+  const activityRows: Array<typeof activityLogs.$inferInsert> = [];
+  const noteRows: Array<typeof inquiryNotes.$inferInsert> = [];
 
-  const inquiryRows = [
-    {
-      id: keyedInquiryIds[0],
-      businessId: business.id,
-      businessInquiryFormId: installFormId,
-      status: "new" as const,
-      subject: "New storefront window vinyl",
-      customerName: "Olivia Park",
-      customerEmail: "olivia@parkandpine.co",
-      customerPhone: "(415) 555-0146",
-      serviceCategory: "Window graphics",
-      requestedDeadline: toIsoDate(daysFromNow(6)),
-      budgetText: "$1,200 to $1,600",
-      companyName: "Park & Pine",
-      details:
-        "We need front window vinyl for a weekend store refresh. Two large panels plus door hours decal.",
+  let quoteNumber = 1001;
 
-      source: "demo-seed",
-      quoteRequested: true,
-      submittedAt: daysAgo(1, 9, 15),
-      lastRespondedAt: null,
-      createdAt: daysAgo(1, 9, 15),
-      updatedAt: daysAgo(1, 9, 15),
-    },
-    {
-      id: keyedInquiryIds[1],
-      businessId: business.id,
-      businessInquiryFormId: projectFormId,
-      status: "waiting" as const,
-      subject: "Business flyers reprint",
-      customerName: "Noah Rivera",
-      customerEmail: "noah@cedarcove.co",
-      customerPhone: "(415) 555-0198",
-      serviceCategory: "Flyers & brochures",
-      requestedDeadline: toIsoDate(daysFromNow(12)),
-      budgetText: "$800 to $1,200",
-      companyName: "Cedar Cove Winery",
-      details:
-        "Need 2,000 flyers for an upcoming wine tasting event. Glossy cardstock, full color.",
+  for (let i = 0; i < bizConfig.inquiryCount; i++) {
+    const inquiryId = id("inq");
+    const firstName = pick(rng, FIRST_NAMES);
+    const lastName = pick(rng, LAST_NAMES);
+    const customerName = `${firstName} ${lastName}`;
+    const customerEmail = `${firstName.toLowerCase()}.${lastName.toLowerCase().replace(/[^a-z]/g, "")}@example.com`;
+    const companyName = chance(rng, 0.6) ? pick(rng, COMPANIES) : null;
+    const phone = chance(rng, 0.7) ? `(${randInt(rng, 200, 999)}) ${randInt(rng, 200, 999)}-${String(randInt(rng, 0, 10000)).padStart(4, "0")}` : null;
 
-      source: "demo-seed",
-      quoteRequested: true,
-      submittedAt: daysAgo(3, 11, 40),
-      lastRespondedAt: daysAgo(2, 14, 0),
-      createdAt: daysAgo(3, 11, 40),
-      updatedAt: daysAgo(2, 14, 0),
-    },
-    {
-      id: keyedInquiryIds[2],
-      businessId: business.id,
-      businessInquiryFormId: reorderFormId,
-      status: "quoted" as const,
-      subject: "Trade show booth kit",
-      customerName: "Priya Shah",
-      customerEmail: "priya@foundrylabs.io",
-      customerPhone: "(650) 555-0177",
-      serviceCategory: "Trade show displays",
-      requestedDeadline: toIsoDate(daysFromNow(20)),
-      budgetText: "$2,500 to $3,500",
-      companyName: "Foundry Labs",
-      details:
-        "Full booth package needed for tech conference. Retractable banner, table throw, and wall graphics.",
+    // Spread inquiries over the last 180 days
+    const daysBack = randInt(rng, 0, 180);
+    const submittedAt = daysAgo(daysBack, randInt(rng, 7, 20), randInt(rng, 0, 60));
+    const status = pickWeighted(rng, INQUIRY_STATUSES, INQUIRY_STATUS_WEIGHTS);
+    const serviceCategory = pick(rng, subjects);
+    const hasDeadline = chance(rng, 0.4);
 
-      source: "demo-seed",
-      quoteRequested: true,
-      submittedAt: daysAgo(6, 15, 0),
-      lastRespondedAt: daysAgo(5, 15, 0),
-      createdAt: daysAgo(6, 15, 0),
-      updatedAt: daysAgo(5, 15, 0),
-    },
-    {
-      id: keyedInquiryIds[3],
-      businessId: business.id,
-      businessInquiryFormId: installFormId,
-      status: "won" as const,
-      subject: "Menu board package",
-      customerName: "Maya Chen",
-      customerEmail: "maya@harborroast.com",
-      customerPhone: "(415) 555-0133",
-      serviceCategory: "Interior signage",
-      requestedDeadline: toIsoDate(daysFromNow(10)),
-      budgetText: "$900 to $1,200",
-      companyName: "Harbor Roast Coffee",
-      details:
-        "Custom menu boards for our new location. Two large boards with chalkboard style design.",
-
-      source: "demo-seed",
-      quoteRequested: true,
-      submittedAt: daysAgo(10, 10, 0),
-      lastRespondedAt: daysAgo(9, 10, 0),
-      createdAt: daysAgo(10, 10, 0),
-      updatedAt: daysAgo(8, 16, 35),
-    },
-  ];
-
-  const noteRows = [
-    {
-      id: keyedNoteIds[0],
-      businessId: business.id,
-      inquiryId: keyedInquiryIds[0],
-      authorUserId: demoUser.id,
-      body: "Customer sounds ready to move quickly. Ask for window dimensions and confirm install timing.",
-      createdAt: noteTimestamps.storefront,
-      updatedAt: noteTimestamps.storefront,
-    },
-    {
-      id: keyedNoteIds[1],
-      businessId: business.id,
-      inquiryId: keyedInquiryIds[1],
-      authorUserId: demoUser.id,
-      body: "Waiting on paper stock preference and whether they want local pickup or courier delivery.",
-      createdAt: noteTimestamps.flyers,
-      updatedAt: noteTimestamps.flyers,
-    },
-  ];
-
-  const quoteRows = [
-    {
-      id: keyedQuoteIds[0],
-      businessId: business.id,
-      inquiryId: null,
-      status: "draft" as const,
-      quoteNumber: "Q-1001",
-      publicToken: keyedQuotePublicTokens[0],
-      title: "Seasonal sidewalk sign refresh",
-      customerName: "Jamie Torres",
-      customerEmail: "jamie@cedarandlane.co",
-      currency: "USD",
-      notes:
-        "Draft quote prepared from a walk-in conversation. Final scope still depends on hardware preference.",
-      subtotalInCents: 97000,
-      discountInCents: 5000,
-      totalInCents: 92000,
-      sentAt: null,
-      acceptedAt: null,
-      publicViewedAt: null,
-      customerRespondedAt: null,
-      customerResponseMessage: null,
-      postAcceptanceStatus: "none" as const,
-      validUntil: toIsoDate(daysFromNow(14)),
-      createdAt: daysAgo(2, 15, 15),
-      updatedAt: daysAgo(2, 15, 15),
-    },
-    {
-      id: keyedQuoteIds[1],
-      businessId: business.id,
-      inquiryId: keyedInquiryIds[2],
-      status: "sent" as const,
-      quoteNumber: "Q-1002",
-      publicToken: keyedQuotePublicTokens[1],
-      title: "Foundry Labs booth kit",
-      customerName: "Priya Shah",
-      customerEmail: "priya@foundrylabs.io",
-      currency: "USD",
-      notes:
-        "Includes retractable banner hardware, table throw production, and mounted event signage.",
-      subtotalInCents: 286000,
-      discountInCents: 10000,
-      totalInCents: 276000,
-      sentAt: daysAgo(5, 15, 0),
-      acceptedAt: null,
-      publicViewedAt: daysAgo(4, 10, 20),
-      customerRespondedAt: null,
-      customerResponseMessage: null,
-      postAcceptanceStatus: "none" as const,
-      validUntil: toIsoDate(daysFromNow(5)),
-      createdAt: daysAgo(6, 15, 0),
-      updatedAt: daysAgo(5, 15, 0),
-    },
-    {
-      id: keyedQuoteIds[2],
-      businessId: business.id,
-      inquiryId: keyedInquiryIds[3],
-      status: "accepted" as const,
-      quoteNumber: "Q-1003",
-      publicToken: keyedQuotePublicTokens[2],
-      title: "Harbor Roast menu board package",
-      customerName: "Maya Chen",
-      customerEmail: "maya@harborroast.com",
-      currency: "USD",
-      notes:
-        "Accepted package includes menu boards, counter cards, and mounting hardware.",
-      subtotalInCents: 112000,
-      discountInCents: 7000,
-      totalInCents: 105000,
-      sentAt: daysAgo(9, 10, 0),
-      acceptedAt: daysAgo(8, 16, 35),
-      publicViewedAt: daysAgo(8, 15, 50),
-      customerRespondedAt: daysAgo(8, 16, 35),
-      customerResponseMessage:
-        "Looks good. Please move ahead with production and send the install timing.",
-      postAcceptanceStatus: "none" as const,
-      validUntil: toIsoDate(daysFromNow(5)),
-      createdAt: daysAgo(10, 10, 0),
-      updatedAt: daysAgo(8, 16, 35),
-    },
-  ];
-
-  const quoteItemRows = [
-    {
-      id: keyedQuoteItemIds[0],
-      businessId: business.id,
-      quoteId: keyedQuoteIds[0],
-      description: "A-frame sign panel production",
-      quantity: 2,
-      unitPriceInCents: 28000,
-      lineTotalInCents: 56000,
-      position: 0,
-      createdAt: daysAgo(2, 15, 15),
-      updatedAt: daysAgo(2, 15, 15),
-    },
-    {
-      id: keyedQuoteItemIds[1],
-      businessId: business.id,
-      quoteId: keyedQuoteIds[0],
-      description: "Weather-laminate finishing and install kit",
-      quantity: 1,
-      unitPriceInCents: 41000,
-      lineTotalInCents: 41000,
-      position: 1,
-      createdAt: daysAgo(2, 15, 16),
-      updatedAt: daysAgo(2, 15, 16),
-    },
-    {
-      id: keyedQuoteItemIds[2],
-      businessId: business.id,
-      quoteId: keyedQuoteIds[1],
-      description: "Retractable banner kit",
-      quantity: 2,
-      unitPriceInCents: 62000,
-      lineTotalInCents: 124000,
-      position: 0,
-      createdAt: daysAgo(6, 15, 0),
-      updatedAt: daysAgo(6, 15, 0),
-    },
-    {
-      id: keyedQuoteItemIds[3],
-      businessId: business.id,
-      quoteId: keyedQuoteIds[1],
-      description: "Table throw and mounted booth signage",
-      quantity: 1,
-      unitPriceInCents: 162000,
-      lineTotalInCents: 162000,
-      position: 1,
-      createdAt: daysAgo(6, 15, 1),
-      updatedAt: daysAgo(6, 15, 1),
-    },
-    {
-      id: keyedQuoteItemIds[4],
-      businessId: business.id,
-      quoteId: keyedQuoteIds[2],
-      description: "Rigid menu board set",
-      quantity: 3,
-      unitPriceInCents: 24000,
-      lineTotalInCents: 72000,
-      position: 0,
-      createdAt: daysAgo(10, 10, 0),
-      updatedAt: daysAgo(10, 10, 0),
-    },
-    {
-      id: keyedQuoteItemIds[5],
-      businessId: business.id,
-      quoteId: keyedQuoteIds[2],
-      description: "Counter cards and mounting hardware",
-      quantity: 1,
-      unitPriceInCents: 40000,
-      lineTotalInCents: 40000,
-      position: 1,
-      createdAt: daysAgo(10, 10, 1),
-      updatedAt: daysAgo(10, 10, 1),
-    },
-  ];
-
-  const replySnippetRows = [
-    {
-      id: keyedReplySnippetIds[0],
-      businessId: business.id,
-      title: "Ask for missing dimensions",
-      body:
-        "Thanks for sending this over. To price it accurately, could you confirm the final dimensions and quantity?",
-      createdAt: daysAgo(18, 9, 0),
-      updatedAt: daysAgo(18, 9, 0),
-    },
-  ];
-
-  const activityRows = [
-    {
-      id: keyedActivityIds[0],
-      businessId: business.id,
-      inquiryId: keyedInquiryIds[0],
-      quoteId: null,
-      actorUserId: demoUser.id,
-      type: "inquiry.received",
-      summary: "New storefront inquiry received from Park & Pine.",
-      metadata: { source: "demo-seed" },
-      createdAt: daysAgo(1, 9, 15),
-      updatedAt: daysAgo(1, 9, 15),
-    },
-    {
-      id: keyedActivityIds[1],
-      businessId: business.id,
-      inquiryId: null,
-      quoteId: keyedQuoteIds[0],
-      actorUserId: demoUser.id,
-      type: "quote.created",
-      summary: "Draft quote Q-1001 created from a manual request.",
-      metadata: { source: "demo-seed" },
-      createdAt: daysAgo(2, 15, 15),
-      updatedAt: daysAgo(2, 15, 15),
-    },
-    {
-      id: keyedActivityIds[2],
-      businessId: business.id,
-      inquiryId: keyedInquiryIds[2],
-      quoteId: keyedQuoteIds[1],
-      actorUserId: demoUser.id,
-      type: "quote.created",
-      summary: "Quote Q-1002 prepared for the Foundry Labs booth kit.",
-      metadata: { source: "demo-seed" },
-      createdAt: daysAgo(6, 15, 0),
-      updatedAt: daysAgo(6, 15, 0),
-    },
-    {
-      id: keyedActivityIds[3],
-      businessId: business.id,
-      inquiryId: keyedInquiryIds[2],
-      quoteId: keyedQuoteIds[1],
-      actorUserId: demoUser.id,
-      type: "quote.sent",
-      summary: "Quote Q-1002 sent to Priya Shah.",
-      metadata: { source: "demo-seed" },
-      createdAt: daysAgo(5, 15, 0),
-      updatedAt: daysAgo(5, 15, 0),
-    },
-    {
-      id: keyedActivityIds[4],
-      businessId: business.id,
-      inquiryId: keyedInquiryIds[3],
-      quoteId: keyedQuoteIds[2],
-      actorUserId: demoUser.id,
-      type: "quote.created",
-      summary: "Quote Q-1003 created for the Harbor Roast menu refresh.",
-      metadata: { source: "demo-seed" },
-      createdAt: daysAgo(10, 10, 0),
-      updatedAt: daysAgo(10, 10, 0),
-    },
-    {
-      id: keyedActivityIds[5],
-      businessId: business.id,
-      inquiryId: keyedInquiryIds[3],
-      quoteId: keyedQuoteIds[2],
-      actorUserId: demoUser.id,
-      type: "quote.status_changed",
-      summary: "Quote Q-1003 marked accepted.",
-      metadata: { source: "demo-seed", nextStatus: "accepted" },
-      createdAt: daysAgo(8, 16, 35),
-      updatedAt: daysAgo(8, 16, 35),
-    },
-    {
-      id: keyedActivityIds[8],
-      businessId: business.id,
-      inquiryId: null,
-      quoteId: null,
-      actorUserId: demoUser.id,
-      type: "business.demo_seeded",
-      summary: "Sample Requo data seeded for plan demo.",
-      metadata: { source: "demo-seed", plan: demoUser.plan },
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  ];
-
-  const generatedData = createGeneratedDataset(`${businessKey}-primary`, business, business.quoteNumberStart);
-  const bulkInquiries = generatedData.inquiries;
-  const bulkQuotes = generatedData.quotes;
-  const bulkQuoteItems = generatedData.quoteItems;
-
-  const allInquiries = [...inquiryRows, ...bulkInquiries];
-  const allQuotes = [...quoteRows, ...bulkQuotes];
-  const allQuoteItems = [...quoteItemRows, ...bulkQuoteItems];
-
-  console.log(
-    `Seeding ${business.name}: ${allInquiries.length} inquiries, ${allQuotes.length} quotes, ${allQuoteItems.length} quote items.`,
-  );
-
-  await db.transaction(async (tx) => {
-    await tx.delete(activityLogs).where(inArray(activityLogs.id, keyedActivityIds));
-    await tx.delete(inquiryNotes).where(inArray(inquiryNotes.id, keyedNoteIds));
-
-    await tx
-      .delete(quoteItems)
-      .where(eq(quoteItems.businessId, business.id));
-    await tx
-      .delete(quotes)
-      .where(eq(quotes.businessId, business.id));
-    await tx
-      .delete(inquiries)
-      .where(eq(inquiries.businessId, business.id));
-
-    await tx.delete(replySnippets).where(inArray(replySnippets.id, keyedReplySnippetIds));
-
-    await tx.delete(inquiries).where(
-      eq(inquiries.businessId, business.id)
-    );
-    await tx.delete(quotes).where(
-      eq(quotes.businessId, business.id)
-    );
-    await tx.delete(quoteItems).where(
-      eq(quoteItems.businessId, business.id)
-    );
-
-    await tx.insert(inquiries).values(allInquiries);
-    await tx.insert(quotes).values(allQuotes);
-    await tx.insert(quoteItems).values(allQuoteItems);
-    await tx.insert(inquiryNotes).values(noteRows);
-    await tx.insert(replySnippets).values(replySnippetRows);
-    await tx.insert(activityLogs).values(activityRows);
-  });
-
-  return {
-    inquiries: allInquiries.length,
-    quotes: allQuotes.length,
-    quoteItems: allQuoteItems.length,
-  };
-}
-
-async function seedSecondaryBusinessData(
-  demoUser: DemoUser,
-  business: DemoBusiness,
-  businessKey: string,
-): Promise<BusinessSeedCounts> {
-  const generatedData = createGeneratedDataset(businessKey, business, business.quoteNumberStart);
-  const seedActivityId = createSeededId("seed_act", businessKey, "seeded");
-
-  console.log(
-    `Seeding ${business.name}: ${generatedData.inquiries.length} inquiries, ${generatedData.quotes.length} quotes.`,
-  );
-
-  await db.transaction(async (tx) => {
-    await tx.delete(activityLogs).where(eq(activityLogs.id, seedActivityId));
-    await tx
-      .delete(quoteItems)
-      .where(eq(quoteItems.businessId, business.id));
-    await tx
-      .delete(quotes)
-      .where(eq(quotes.businessId, business.id));
-    await tx
-      .delete(inquiries)
-      .where(eq(inquiries.businessId, business.id));
-
-    await tx.insert(inquiries).values(generatedData.inquiries);
-    await tx.insert(quotes).values(generatedData.quotes);
-    await tx.insert(quoteItems).values(generatedData.quoteItems);
-    await tx.insert(activityLogs).values({
-      id: seedActivityId,
-      businessId: business.id,
-      inquiryId: null,
-      quoteId: null,
-      actorUserId: demoUser.id,
-      type: "business.demo_seeded",
-      summary: `Sample data refreshed for ${business.name}.`,
-      metadata: {
-        source: "demo-seed",
-        businessKey,
-      },
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    inquiryRows.push({
+      id: inquiryId,
+      businessId,
+      businessInquiryFormId: formId,
+      status,
+      subject: serviceCategory,
+      customerName,
+      customerEmail,
+      customerPhone: phone,
+      serviceCategory,
+      requestedDeadline: hasDeadline ? toDateStr(addDays(submittedAt, randInt(rng, 7, 60))) : null,
+      budgetText: chance(rng, 0.5) ? `$${randInt(rng, 5, 50) * 100} - $${randInt(rng, 50, 200) * 100}` : null,
+      companyName,
+      details: pick(rng, INQUIRY_DETAILS),
+      source: "public_form",
+      quoteRequested: chance(rng, 0.85),
+      submittedAt,
+      lastRespondedAt: ["quoted", "won", "lost"].includes(status) ? addDays(submittedAt, randInt(rng, 1, 5)) : null,
+      createdAt: submittedAt,
+      updatedAt: submittedAt,
     });
-  });
 
-  return {
-    inquiries: generatedData.inquiries.length,
-    quotes: generatedData.quotes.length,
-    quoteItems: generatedData.quoteItems.length,
-  };
-}
+    // Activity log for the inquiry
+    activityRows.push({
+      id: id("act"),
+      businessId,
+      inquiryId,
+      actorUserId: null,
+      type: "inquiry.submitted",
+      summary: `${customerName} submitted an inquiry: ${serviceCategory}`,
+      metadata: { source: "public_form" },
+      createdAt: submittedAt,
+      updatedAt: submittedAt,
+    });
 
-async function syncBusinessMembers({
-  owner,
-  businessId,
-  managerId,
-  staffId,
-}: {
-  owner: DemoUser;
-  businessId: string;
-  managerId?: string;
-  staffId?: string;
-}) {
-  const now = new Date();
-  const memberUserIds = [managerId, staffId].filter(Boolean) as string[];
-
-  await db.transaction(async (tx) => {
-    if (memberUserIds.length) {
-      await tx.delete(businessMembers).where(
-        and(
-          eq(businessMembers.businessId, businessId),
-          inArray(businessMembers.userId, memberUserIds),
-        ),
-      );
-    }
-
-    if (managerId) {
-      await tx.insert(businessMembers).values({
-        id: createSeededId("seed_bm", "manager"),
+    // Add note for some inquiries
+    if (chance(rng, 0.25)) {
+      noteRows.push({
+        id: id("note"),
         businessId,
-        userId: managerId,
-        role: "manager",
-        createdAt: now,
-        updatedAt: now,
+        inquiryId,
+        authorUserId: ownerId,
+        body: pick(rng, [
+          "Followed up via phone — client is interested. Will send quote tomorrow.",
+          "Client mentioned they need this urgently. Prioritize.",
+          "Waiting for additional measurements before quoting.",
+          "Budget seems tight — may need to propose a scaled-down option.",
+          "Good lead. They were referred by an existing client.",
+        ]),
+        createdAt: addDays(submittedAt, randInt(rng, 0, 3)),
+        updatedAt: addDays(submittedAt, randInt(rng, 0, 3)),
       });
     }
 
-    if (staffId) {
-      await tx.insert(businessMembers).values({
-        id: createSeededId("seed_bm", "staff"),
-        businessId,
-        userId: staffId,
-        role: "staff",
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
-  });
-}
+    // Create quote for some inquiries
+    if (chance(rng, bizConfig.quoteRatio) && ["quoted", "won", "lost", "waiting"].includes(status)) {
+      const quoteId = id("qt");
+      const qNum = String(quoteNumber++).padStart(4, "0");
+      const quoteStatus = pickWeighted(rng, QUOTE_STATUSES, QUOTE_STATUS_WEIGHTS);
+      const quoteCreatedAt = addDays(submittedAt, randInt(rng, 1, 4));
+      const sentAt = quoteStatus !== "draft" ? addDays(quoteCreatedAt, randInt(rng, 0, 2)) : null;
+      const validUntil = toDateStr(addDays(quoteCreatedAt, 14));
 
-async function main() {
-  console.log("Starting plan-based demo seed...\n");
+      // Generate 2-4 line items
+      const itemCount = randInt(rng, 2, 5);
+      let subtotal = 0;
+      const itemRows: Array<typeof quoteItems.$inferInsert> = [];
 
-  console.log("Cleaning up existing seed data...");
-  const seedEmails = planUserConfigs.map((c) => c.email.toLowerCase());
-  const teamEmails = teamMembers.map((m) => m.email.toLowerCase());
-  const allSeedEmails = [...seedEmails, ...teamEmails];
+      for (let j = 0; j < itemCount; j++) {
+        const template = pick(rng, quoteItemPool);
+        const qty = randInt(rng, 1, 5);
+        const unitPrice = randInt(rng, template.minPrice, template.maxPrice);
+        const lineTotal = qty * unitPrice;
+        subtotal += lineTotal;
 
-  await db.transaction(async (tx) => {
-    const seedUsers = await tx
-      .select({ id: user.id })
-      .from(user)
-      .where(inArray(user.email, allSeedEmails));
-    const seedUserIds = seedUsers.map((u) => u.id);
-
-    if (seedUserIds.length > 0) {
-      const userWorkspaces = await tx
-        .select({ workspaceId: workspaceMembers.workspaceId })
-        .from(workspaceMembers)
-        .where(inArray(workspaceMembers.userId, seedUserIds));
-      const workspaceIds = userWorkspaces.map((w) => w.workspaceId);
-
-      if (workspaceIds.length > 0) {
-        const userBusinesses = await tx
-          .select({ id: businesses.id })
-          .from(businesses)
-          .where(inArray(businesses.workspaceId, workspaceIds));
-        const businessIds = userBusinesses.map((b) => b.id);
-
-        if (businessIds.length > 0) {
-          await tx.delete(activityLogs).where(
-            inArray(activityLogs.businessId, businessIds),
-          );
-          await tx.delete(inquiryNotes).where(
-            inArray(inquiryNotes.businessId, businessIds),
-          );
-          await tx.delete(replySnippets).where(
-            inArray(replySnippets.businessId, businessIds),
-          );
-          await tx.delete(quoteItems).where(
-            inArray(quoteItems.businessId, businessIds),
-          );
-          await tx.delete(quotes).where(
-            inArray(quotes.businessId, businessIds),
-          );
-          await tx.delete(inquiries).where(
-            inArray(inquiries.businessId, businessIds),
-          );
-          await tx.delete(businessInquiryForms).where(
-            inArray(businessInquiryForms.businessId, businessIds),
-          );
-          await tx.delete(businessMembers).where(
-            inArray(businessMembers.businessId, businessIds),
-          );
-          await tx.delete(businesses).where(
-            inArray(businesses.id, businessIds),
-          );
-        }
-
-        await tx.delete(workspaceMembers).where(
-          inArray(workspaceMembers.workspaceId, workspaceIds),
-        );
-        await tx.delete(workspaces).where(
-          inArray(workspaces.id, workspaceIds),
-        );
+        itemRows.push({
+          id: id("qti"),
+          businessId,
+          quoteId,
+          description: template.desc,
+          quantity: qty,
+          unitPriceInCents: unitPrice,
+          lineTotalInCents: lineTotal,
+          position: j,
+          createdAt: quoteCreatedAt,
+          updatedAt: quoteCreatedAt,
+        });
       }
 
-      await tx.delete(businessMembers).where(
-        inArray(businessMembers.userId, seedUserIds),
-      );
-      await tx.delete(workspaceMembers).where(
-        inArray(workspaceMembers.userId, seedUserIds),
-      );
-      await tx.delete(profiles).where(inArray(profiles.userId, seedUserIds));
-      await tx.delete(user).where(inArray(user.id, seedUserIds));
-    }
-  });
-  console.log("Cleanup complete.\n");
+      const discount = chance(rng, 0.2) ? Math.floor(subtotal * randInt(rng, 5, 15) / 100) : 0;
+      const total = subtotal - discount;
 
-  const seededUsers: Array<{
-    user: DemoUser;
-    business: DemoBusiness;
-    config: PlanUserConfig;
-    counts: BusinessSeedCounts;
+      let acceptedAt: Date | null = null;
+      let customerRespondedAt: Date | null = null;
+      let customerResponseMessage: string | null = null;
+      let postAcceptanceStatus: "none" | "booked" | "scheduled" = "none";
+
+      if (quoteStatus === "accepted" && sentAt) {
+        acceptedAt = addDays(sentAt, randInt(rng, 1, 7));
+        customerRespondedAt = acceptedAt;
+        customerResponseMessage = pick(rng, RESPONSE_MESSAGES.accepted);
+        postAcceptanceStatus = chance(rng, 0.4) ? "booked" : chance(rng, 0.3) ? "scheduled" : "none";
+      } else if (quoteStatus === "rejected" && sentAt) {
+        customerRespondedAt = addDays(sentAt, randInt(rng, 2, 10));
+        customerResponseMessage = pick(rng, RESPONSE_MESSAGES.rejected);
+      }
+
+      quoteRows.push({
+        id: quoteId,
+        businessId,
+        inquiryId,
+        status: quoteStatus,
+        quoteNumber: `Q-${qNum}`,
+        publicToken: id("tok"),
+        title: pick(rng, quoteTitles),
+        customerName,
+        customerEmail,
+        currency: bizConfig.defaultCurrency,
+        notes: chance(rng, 0.6) ? "Prices valid for 14 days. 50% deposit required to proceed." : null,
+        subtotalInCents: subtotal,
+        discountInCents: discount,
+        totalInCents: total,
+        sentAt,
+        acceptedAt,
+        publicViewedAt: sentAt ? addDays(sentAt, randInt(rng, 0, 3)) : null,
+        customerRespondedAt,
+        customerResponseMessage,
+        postAcceptanceStatus,
+        validUntil,
+        createdAt: quoteCreatedAt,
+        updatedAt: quoteCreatedAt,
+      });
+
+      quoteItemRows.push(...itemRows);
+
+      // Activity for quote
+      activityRows.push({
+        id: id("act"),
+        businessId,
+        inquiryId,
+        quoteId,
+        actorUserId: ownerId,
+        type: "quote.created",
+        summary: `Quote Q-${qNum} created for ${customerName}`,
+        metadata: { quoteNumber: `Q-${qNum}`, total },
+        createdAt: quoteCreatedAt,
+        updatedAt: quoteCreatedAt,
+      });
+
+      if (sentAt) {
+        activityRows.push({
+          id: id("act"),
+          businessId,
+          inquiryId,
+          quoteId,
+          actorUserId: ownerId,
+          type: "quote.sent",
+          summary: `Quote Q-${qNum} sent to ${customerEmail}`,
+          metadata: {},
+          createdAt: sentAt,
+          updatedAt: sentAt,
+        });
+      }
+    }
+  }
+
+  // Batch insert everything
+  const BATCH = 100;
+
+  for (let i = 0; i < inquiryRows.length; i += BATCH) {
+    await db.insert(inquiries).values(inquiryRows.slice(i, i + BATCH));
+  }
+
+  for (let i = 0; i < quoteRows.length; i += BATCH) {
+    await db.insert(quotes).values(quoteRows.slice(i, i + BATCH));
+  }
+
+  for (let i = 0; i < quoteItemRows.length; i += BATCH) {
+    await db.insert(quoteItems).values(quoteItemRows.slice(i, i + BATCH));
+  }
+
+  for (let i = 0; i < activityRows.length; i += BATCH) {
+    await db.insert(activityLogs).values(activityRows.slice(i, i + BATCH));
+  }
+
+  for (let i = 0; i < noteRows.length; i += BATCH) {
+    await db.insert(inquiryNotes).values(noteRows.slice(i, i + BATCH));
+  }
+
+  return {
+    inquiryCount: inquiryRows.length,
+    quoteCount: quoteRows.length,
+    quoteItemCount: quoteItemRows.length,
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Main
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+async function main() {
+  console.log("\n🌱 Requo Demo Seeder\n");
+  console.log("=" .repeat(50));
+
+  // Phase 1: Reset
+  await resetDatabase();
+
+  // Phase 2: Seed each user
+  const summary: Array<{
+    email: string;
+    plan: string;
+    businesses: Array<{ name: string; slug: string; inquiries: number; quotes: number }>;
   }> = [];
 
-  for (const config of planUserConfigs) {
-    console.log(`Creating ${config.plan} user: ${config.email}`);
+  for (const userConfig of USERS) {
+    console.log(`👤 Creating ${userConfig.plan.toUpperCase()} user: ${userConfig.email}`);
 
-    const demoUser = await ensurePlanUser(config);
-    const business = await ensurePrimaryBusiness(demoUser, config);
-    const counts = await seedBusinessData(demoUser, business, config.plan);
+    // Create user via Better Auth
+    const userId = await createUser(userConfig.name, userConfig.email);
 
-    let managerUser: DemoUser | undefined;
-    let staffUser: DemoUser | undefined;
+    // Create workspace + subscription
+    const wsId = await createWorkspace(userConfig, userId);
+    console.log(`   Workspace: ${userConfig.workspaceName} (${userConfig.plan})`);
 
-    if (config.hasSecondaryBusiness) {
-      const secondaryBusiness = await ensureSecondaryBusiness(
-        demoUser,
-        secondaryBusinessDefinition,
-      );
-      await seedSecondaryBusinessData(
-        demoUser,
-        secondaryBusiness,
-        secondaryBusinessDefinition.key,
-      );
+    // Create team members for this workspace
+    if (userConfig.teamMembers) {
+      for (const tm of userConfig.teamMembers) {
+        const tmId = await createUser(tm.name, tm.email);
+        await db.insert(workspaceMembers).values({
+          id: id("wm"),
+          workspaceId: wsId,
+          userId: tmId,
+          role: "member",
+          createdAt: daysAgo(90),
+          updatedAt: new Date(),
+        });
+        console.log(`   Team member: ${tm.email} (${tm.businessRole})`);
+      }
+    }
 
-      console.log(`Creating team members for ${config.email}`);
-      managerUser = await ensureTeamMember(
-        demoUser,
-        teamMembers[0].name,
-        teamMembers[0].email,
-        teamMembers[0].role,
-      );
-      staffUser = await ensureTeamMember(
-        demoUser,
-        teamMembers[1].name,
-        teamMembers[1].email,
-        teamMembers[1].role,
-      );
+    const bizSummaries: typeof summary[0]["businesses"] = [];
 
-      await syncBusinessMembers({
-        owner: demoUser,
-        businessId: secondaryBusiness.id,
-        managerId: managerUser.id,
-        staffId: staffUser.id,
+    // Create businesses
+    for (const bizConfig of userConfig.businesses) {
+      const { businessId, formId } = await createBusiness(bizConfig, wsId, userId);
+
+      // Add team members to this business
+      if (userConfig.teamMembers) {
+        for (const tm of userConfig.teamMembers) {
+          // Look up user ID
+          const [tmUser] = await db
+            .select({ id: user.id })
+            .from(user)
+            .where(sql`${user.email} = ${tm.email}`)
+            .limit(1);
+
+          if (tmUser) {
+            await db.insert(businessMembers).values({
+              id: id("bm"),
+              businessId,
+              userId: tmUser.id,
+              role: tm.businessRole,
+              createdAt: daysAgo(90),
+              updatedAt: new Date(),
+            });
+          }
+        }
+      }
+
+      // Seed data
+      console.log(`   📦 Business: ${bizConfig.name} — seeding ${bizConfig.inquiryCount} inquiries...`);
+      const counts = await seedBusinessData(bizConfig, businessId, formId, userId);
+      console.log(`      ✓ ${counts.inquiryCount} inquiries, ${counts.quoteCount} quotes, ${counts.quoteItemCount} line items`);
+
+      bizSummaries.push({
+        name: bizConfig.name,
+        slug: bizConfig.slug,
+        inquiries: counts.inquiryCount,
+        quotes: counts.quoteCount,
       });
     }
 
-    seededUsers.push({
-      user: demoUser,
-      business,
-      config,
-      counts,
-    });
+    summary.push({ email: userConfig.email, plan: userConfig.plan, businesses: bizSummaries });
+    console.log("");
   }
 
-  console.log("\n=== Demo seed complete ===\n");
-  console.log("Users created:");
-  for (const { user, business, config, counts } of seededUsers) {
+  // Phase 3: Summary
+  console.log("=" .repeat(50));
+  console.log("\n✅ Demo seed complete!\n");
+  console.log("Login credentials:");
+  console.log(`   Password (all users): ${PASSWORD}\n`);
+
+  for (const s of summary) {
     const dashboardUrl = new URL(
-      `/businesses/${business.slug}/dashboard`,
-      env.BETTER_AUTH_URL,
-    ).toString();
-    const inquiryUrl = new URL(
-      `/inquire/${business.slug}`,
+      `/businesses/${s.businesses[0].slug}/dashboard`,
       env.BETTER_AUTH_URL,
     ).toString();
 
-    console.log(`\n[${config.plan.toUpperCase()}] ${user.email}`);
-    console.log(`  Password: ${DEFAULT_PASSWORD}`);
-    console.log(`  Business: ${business.name} (${business.slug})`);
-    console.log(`  Plan: ${config.plan}`);
-    console.log(`  Inquiries: ${counts.inquiries}, Quotes: ${counts.quotes}`);
-    console.log(`  Dashboard: ${dashboardUrl}`);
-    console.log(`  Public inquiry: ${inquiryUrl}`);
+    console.log(`   [${s.plan.toUpperCase()}] ${s.email}`);
 
-    if (config.hasSecondaryBusiness) {
-      console.log(`  Team members: ${teamMembers.map((m) => m.email).join(", ")}`);
+    for (const b of s.businesses) {
+      console.log(`     ${b.name}: ${b.inquiries} inquiries, ${b.quotes} quotes`);
     }
+
+    console.log(`     Dashboard: ${dashboardUrl}`);
+    console.log("");
   }
 
-  console.log("\n" + "=".repeat(40));
-  console.log("\nAll demo users use password: " + DEFAULT_PASSWORD);
+  console.log("=" .repeat(50) + "\n");
 }
 
 main()
   .catch((error) => {
-    console.error("Failed to seed demo data.");
+    console.error("❌ Failed to seed demo data.");
     console.error(error);
     process.exitCode = 1;
   })
