@@ -20,7 +20,7 @@ if (typeof global.PointerEvent === 'undefined') {
       this.isPrimary = params.isPrimary ?? false;
     }
   }
-  global.PointerEvent = PointerEvent as any;
+  global.PointerEvent = PointerEvent as unknown as typeof global.PointerEvent;
 }
 
 // Mock window.HTMLElement.prototype.scrollIntoView

@@ -3,6 +3,7 @@ import { testDb, closeTestDb } from './db';
 import { user, workspaces, workspaceMembers, businesses, inquiries, businessInquiryForms, businessMembers } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { changeInquiryStatusAction } from '@/features/inquiries/actions';
+import { hasFeatureAccess } from '@/lib/plans/entitlements';
 
 // Mock dependencies
 vi.mock('@/lib/db/client', () => ({ db: testDb }));
@@ -135,6 +136,20 @@ describe('features/inquiries/actions', () => {
 
       const [updatedInquiry] = await testDb.select().from(inquiries).where(eq(inquiries.id, testInquiry.id));
       expect(updatedInquiry.status).toBe('quoted');
+    });
+  });
+
+  describe('hasFeatureAccess branding checks', () => {
+    it('free plan does not have branding access', () => {
+      expect(hasFeatureAccess('free', 'branding')).toBe(false);
+    });
+
+    it('pro plan has branding access', () => {
+      expect(hasFeatureAccess('pro', 'branding')).toBe(true);
+    });
+
+    it('business plan has branding access', () => {
+      expect(hasFeatureAccess('business', 'branding')).toBe(true);
     });
   });
 });
