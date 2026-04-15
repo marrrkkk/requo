@@ -61,6 +61,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   getStarterTemplateDefinition,
@@ -73,6 +74,8 @@ import {
 } from "@/features/inquiries/components/inquiry-showcase-image-surface";
 import { getFieldError } from "@/lib/action-state";
 import {
+  createInquiryPageBusinessContact,
+  inquiryPageBusinessContactSocialMeta,
   inquiryPageCardIconMeta,
   inquiryPageShowcaseImageFrameMeta,
   inquiryPageShowcaseImageSizeMeta,
@@ -138,6 +141,15 @@ export function BusinessInquiryPageForm({
   const [template, setTemplate] = useState<InquiryPageTemplate>(
     settings.inquiryPageConfig.template,
   );
+  const [showSupportingCards, setShowSupportingCards] = useState(
+    settings.inquiryPageConfig.showSupportingCards,
+  );
+  const [showShowcaseImage, setShowShowcaseImage] = useState(
+    settings.inquiryPageConfig.showShowcaseImage,
+  );
+  const [showBusinessContact, setShowBusinessContact] = useState(
+    settings.inquiryPageConfig.showBusinessContact,
+  );
   const [cards, setCards] = useState<InquiryPageCard[]>(
     settings.inquiryPageConfig.cards,
   );
@@ -154,6 +166,24 @@ export function BusinessInquiryPageForm({
   const [formTitle, setFormTitle] = useState(settings.inquiryPageConfig.formTitle);
   const [formDescription, setFormDescription] = useState(
     settings.inquiryPageConfig.formDescription ?? "",
+  );
+  const [businessContactPhone, setBusinessContactPhone] = useState(
+    settings.inquiryPageConfig.businessContact?.phone ?? "",
+  );
+  const [businessContactEmail, setBusinessContactEmail] = useState(
+    settings.inquiryPageConfig.businessContact?.email ?? "",
+  );
+  const [businessFacebookUrl, setBusinessFacebookUrl] = useState(
+    settings.inquiryPageConfig.businessContact?.socialLinks?.facebook ?? "",
+  );
+  const [businessInstagramUrl, setBusinessInstagramUrl] = useState(
+    settings.inquiryPageConfig.businessContact?.socialLinks?.instagram ?? "",
+  );
+  const [businessTwitterXUrl, setBusinessTwitterXUrl] = useState(
+    settings.inquiryPageConfig.businessContact?.socialLinks?.twitterX ?? "",
+  );
+  const [businessLinkedinUrl, setBusinessLinkedinUrl] = useState(
+    settings.inquiryPageConfig.businessContact?.socialLinks?.linkedin ?? "",
   );
   const [showcaseImageUrl, setShowcaseImageUrl] = useState(
     settings.inquiryPageConfig.showcaseImage?.url ?? "",
@@ -196,6 +226,30 @@ export function BusinessInquiryPageForm({
   const brandTaglineError = getFieldError(fieldErrors, "brandTagline");
   const formTitleError = getFieldError(fieldErrors, "formTitle");
   const formDescriptionError = getFieldError(fieldErrors, "formDescription");
+  const businessContactPhoneError = getFieldError(
+    fieldErrors,
+    "businessContactPhone",
+  );
+  const businessContactEmailError = getFieldError(
+    fieldErrors,
+    "businessContactEmail",
+  );
+  const businessFacebookUrlError = getFieldError(
+    fieldErrors,
+    "businessFacebookUrl",
+  );
+  const businessInstagramUrlError = getFieldError(
+    fieldErrors,
+    "businessInstagramUrl",
+  );
+  const businessTwitterXUrlError = getFieldError(
+    fieldErrors,
+    "businessTwitterXUrl",
+  );
+  const businessLinkedinUrlError = getFieldError(
+    fieldErrors,
+    "businessLinkedinUrl",
+  );
   const showcaseImageUrlError = getFieldError(fieldErrors, "showcaseImageUrl");
   const showcaseImageFrameError = getFieldError(fieldErrors, "showcaseImageFrame");
   const showcaseImageSizeError = getFieldError(fieldErrors, "showcaseImageSize");
@@ -213,12 +267,27 @@ export function BusinessInquiryPageForm({
     formSlug !== settings.formSlug ||
     businessType !== settings.businessType ||
     template !== settings.inquiryPageConfig.template ||
+    showSupportingCards !== settings.inquiryPageConfig.showSupportingCards ||
+    showShowcaseImage !== settings.inquiryPageConfig.showShowcaseImage ||
+    showBusinessContact !== settings.inquiryPageConfig.showBusinessContact ||
     eyebrow !== (settings.inquiryPageConfig.eyebrow ?? "") ||
     brandTagline !== (settings.inquiryPageConfig.brandTagline ?? "") ||
     headline !== settings.inquiryPageConfig.headline ||
     description !== (settings.inquiryPageConfig.description ?? "") ||
     formTitle !== settings.inquiryPageConfig.formTitle ||
     formDescription !== (settings.inquiryPageConfig.formDescription ?? "") ||
+    businessContactPhone !==
+      (settings.inquiryPageConfig.businessContact?.phone ?? "") ||
+    businessContactEmail !==
+      (settings.inquiryPageConfig.businessContact?.email ?? "") ||
+    businessFacebookUrl !==
+      (settings.inquiryPageConfig.businessContact?.socialLinks?.facebook ?? "") ||
+    businessInstagramUrl !==
+      (settings.inquiryPageConfig.businessContact?.socialLinks?.instagram ?? "") ||
+    businessTwitterXUrl !==
+      (settings.inquiryPageConfig.businessContact?.socialLinks?.twitterX ?? "") ||
+    businessLinkedinUrl !==
+      (settings.inquiryPageConfig.businessContact?.socialLinks?.linkedin ?? "") ||
     showcaseImageUrl !== (settings.inquiryPageConfig.showcaseImage?.url ?? "") ||
     showcaseImageFrame !==
       (settings.inquiryPageConfig.showcaseImage?.frame ?? "landscape") ||
@@ -318,9 +387,34 @@ export function BusinessInquiryPageForm({
     return () => window.clearTimeout(timeout);
   }, [hasUnsavedChanges, prefersReducedMotion]);
 
+  const draftBusinessContact = useMemo(
+    () =>
+      createInquiryPageBusinessContact({
+        phone: businessContactPhone,
+        email: businessContactEmail,
+        socialLinks: {
+          facebook: businessFacebookUrl,
+          instagram: businessInstagramUrl,
+          twitterX: businessTwitterXUrl,
+          linkedin: businessLinkedinUrl,
+        },
+      }),
+    [
+      businessContactEmail,
+      businessContactPhone,
+      businessFacebookUrl,
+      businessInstagramUrl,
+      businessLinkedinUrl,
+      businessTwitterXUrl,
+    ],
+  );
+
   const draftInquiryPageConfig = useMemo(
     () => ({
       template,
+      showSupportingCards,
+      showShowcaseImage,
+      showBusinessContact,
       cards,
       eyebrow: normalizeOptionalTextDraft(eyebrow),
       brandTagline: normalizeOptionalTextDraft(brandTagline),
@@ -328,6 +422,7 @@ export function BusinessInquiryPageForm({
       description: normalizeOptionalTextDraft(description),
       formTitle: formTitle.trim(),
       formDescription: normalizeOptionalTextDraft(formDescription),
+      businessContact: draftBusinessContact,
       showcaseImage: showcaseImageUrl.trim()
         ? {
             url: showcaseImageUrl.trim(),
@@ -341,10 +436,14 @@ export function BusinessInquiryPageForm({
       brandTagline,
       cards,
       description,
+      draftBusinessContact,
       eyebrow,
       formDescription,
       formTitle,
       headline,
+      showBusinessContact,
+      showShowcaseImage,
+      showSupportingCards,
       showcaseImageCrop,
       showcaseImageFrame,
       showcaseImageSize,
@@ -475,6 +574,9 @@ export function BusinessInquiryPageForm({
     setFormSlug(settings.formSlug);
     setBusinessType(settings.businessType);
     setTemplate(settings.inquiryPageConfig.template);
+    setShowSupportingCards(settings.inquiryPageConfig.showSupportingCards);
+    setShowShowcaseImage(settings.inquiryPageConfig.showShowcaseImage);
+    setShowBusinessContact(settings.inquiryPageConfig.showBusinessContact);
     setCards(settings.inquiryPageConfig.cards);
     setEyebrow(settings.inquiryPageConfig.eyebrow ?? "");
     setBrandTagline(settings.inquiryPageConfig.brandTagline ?? "");
@@ -482,6 +584,24 @@ export function BusinessInquiryPageForm({
     setDescription(settings.inquiryPageConfig.description ?? "");
     setFormTitle(settings.inquiryPageConfig.formTitle);
     setFormDescription(settings.inquiryPageConfig.formDescription ?? "");
+    setBusinessContactPhone(
+      settings.inquiryPageConfig.businessContact?.phone ?? "",
+    );
+    setBusinessContactEmail(
+      settings.inquiryPageConfig.businessContact?.email ?? "",
+    );
+    setBusinessFacebookUrl(
+      settings.inquiryPageConfig.businessContact?.socialLinks?.facebook ?? "",
+    );
+    setBusinessInstagramUrl(
+      settings.inquiryPageConfig.businessContact?.socialLinks?.instagram ?? "",
+    );
+    setBusinessTwitterXUrl(
+      settings.inquiryPageConfig.businessContact?.socialLinks?.twitterX ?? "",
+    );
+    setBusinessLinkedinUrl(
+      settings.inquiryPageConfig.businessContact?.socialLinks?.linkedin ?? "",
+    );
     setShowcaseImageUrl(settings.inquiryPageConfig.showcaseImage?.url ?? "");
     setShowcaseImageFrame(
       settings.inquiryPageConfig.showcaseImage?.frame ?? "landscape",
@@ -515,6 +635,21 @@ export function BusinessInquiryPageForm({
         value={String(settings.publicInquiryEnabled)}
       />
       <input name="template" type="hidden" value={template} />
+      <input
+        name="showSupportingCards"
+        type="hidden"
+        value={String(showSupportingCards)}
+      />
+      <input
+        name="showShowcaseImage"
+        type="hidden"
+        value={String(showShowcaseImage)}
+      />
+      <input
+        name="showBusinessContact"
+        type="hidden"
+        value={String(showBusinessContact)}
+      />
       <input name="showcaseImageUrl" type="hidden" value={showcaseImageUrl} />
       <input
         name="showcaseImageFrame"
@@ -828,6 +963,7 @@ export function BusinessInquiryPageForm({
                   </Field>
                 </FieldGroup>
               </DetailsPanel>
+
             </div>
           </div>
         </section>
@@ -957,6 +1093,14 @@ export function BusinessInquiryPageForm({
               title="Supporting cards"
             />
 
+            <SectionVisibilityToggle
+              checked={showSupportingCards}
+              description="Keep the cards saved, but hide them from the public page when this is off."
+              disabled={isPending}
+              label="Show supporting cards"
+              onCheckedChange={setShowSupportingCards}
+            />
+
             <BuilderSection
               action={
                 <Button
@@ -1025,6 +1169,14 @@ export function BusinessInquiryPageForm({
           />
 
           <div className="rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
+            <SectionVisibilityToggle
+              checked={showShowcaseImage}
+              description="Keep the image settings saved, but hide the showcase image on the public page when this is off."
+              disabled={isPending}
+              label="Show showcase image"
+              onCheckedChange={setShowShowcaseImage}
+            />
+
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
               <div className="grid gap-5">
                 <Field data-invalid={Boolean(showcaseImageUrlError) || undefined}>
@@ -1157,6 +1309,221 @@ export function BusinessInquiryPageForm({
                 />
               </div>
             ) : null}
+
+            <div className="mt-6 border-t border-border/70 pt-6">
+              <div className="space-y-5">
+                <SectionVisibilityToggle
+                  checked={showBusinessContact}
+                  description="Keep the contact details saved, but hide the business contact block on the public form when this is off."
+                  disabled={isPending}
+                  label="Show business contact"
+                  onCheckedChange={setShowBusinessContact}
+                />
+
+                <DetailsPanel
+                  description="Shown in the public form area when at least one detail is filled in."
+                  eyebrow="Contact"
+                  title="Business contact"
+                >
+                  <FieldGroup>
+                    <div className="grid gap-5 lg:grid-cols-2">
+                      <Field
+                        data-invalid={Boolean(businessContactPhoneError) || undefined}
+                      >
+                        <FieldLabel htmlFor="inquiry-page-business-contact-phone">
+                          Phone number
+                        </FieldLabel>
+                        <FieldContent>
+                          <Input
+                            aria-invalid={Boolean(businessContactPhoneError) || undefined}
+                            disabled={isPending}
+                            id="inquiry-page-business-contact-phone"
+                            inputMode="tel"
+                            maxLength={40}
+                            name="businessContactPhone"
+                            onChange={(event) =>
+                              setBusinessContactPhone(event.currentTarget.value)
+                            }
+                            placeholder="+1 (555) 123-4567"
+                            value={businessContactPhone}
+                          />
+                          <FieldError
+                            errors={
+                              businessContactPhoneError
+                                ? [{ message: businessContactPhoneError }]
+                                : undefined
+                            }
+                          />
+                        </FieldContent>
+                      </Field>
+
+                      <Field
+                        data-invalid={Boolean(businessContactEmailError) || undefined}
+                      >
+                        <FieldLabel htmlFor="inquiry-page-business-contact-email">
+                          Email
+                        </FieldLabel>
+                        <FieldContent>
+                          <Input
+                            aria-invalid={Boolean(businessContactEmailError) || undefined}
+                            disabled={isPending}
+                            id="inquiry-page-business-contact-email"
+                            maxLength={320}
+                            name="businessContactEmail"
+                            onChange={(event) =>
+                              setBusinessContactEmail(event.currentTarget.value)
+                            }
+                            placeholder="hello@example.com"
+                            type="email"
+                            value={businessContactEmail}
+                          />
+                          <FieldError
+                            errors={
+                              businessContactEmailError
+                                ? [{ message: businessContactEmailError }]
+                                : undefined
+                            }
+                          />
+                        </FieldContent>
+                      </Field>
+                    </div>
+
+                    <div className="grid gap-5 lg:grid-cols-2">
+                      <Field
+                        data-invalid={Boolean(businessFacebookUrlError) || undefined}
+                      >
+                        <FieldLabel htmlFor="inquiry-page-business-facebook-url">
+                          {inquiryPageBusinessContactSocialMeta.facebook.label}
+                        </FieldLabel>
+                        <FieldContent>
+                          <Input
+                            aria-invalid={Boolean(businessFacebookUrlError) || undefined}
+                            disabled={isPending}
+                            id="inquiry-page-business-facebook-url"
+                            maxLength={2000}
+                            name="businessFacebookUrl"
+                            onChange={(event) =>
+                              setBusinessFacebookUrl(event.currentTarget.value)
+                            }
+                            placeholder={
+                              inquiryPageBusinessContactSocialMeta.facebook.placeholder
+                            }
+                            type="url"
+                            value={businessFacebookUrl}
+                          />
+                          <FieldError
+                            errors={
+                              businessFacebookUrlError
+                                ? [{ message: businessFacebookUrlError }]
+                                : undefined
+                            }
+                          />
+                        </FieldContent>
+                      </Field>
+
+                      <Field
+                        data-invalid={Boolean(businessInstagramUrlError) || undefined}
+                      >
+                        <FieldLabel htmlFor="inquiry-page-business-instagram-url">
+                          {inquiryPageBusinessContactSocialMeta.instagram.label}
+                        </FieldLabel>
+                        <FieldContent>
+                          <Input
+                            aria-invalid={Boolean(businessInstagramUrlError) || undefined}
+                            disabled={isPending}
+                            id="inquiry-page-business-instagram-url"
+                            maxLength={2000}
+                            name="businessInstagramUrl"
+                            onChange={(event) =>
+                              setBusinessInstagramUrl(event.currentTarget.value)
+                            }
+                            placeholder={
+                              inquiryPageBusinessContactSocialMeta.instagram.placeholder
+                            }
+                            type="url"
+                            value={businessInstagramUrl}
+                          />
+                          <FieldError
+                            errors={
+                              businessInstagramUrlError
+                                ? [{ message: businessInstagramUrlError }]
+                                : undefined
+                            }
+                          />
+                        </FieldContent>
+                      </Field>
+
+                      <Field
+                        data-invalid={Boolean(businessTwitterXUrlError) || undefined}
+                      >
+                        <FieldLabel htmlFor="inquiry-page-business-twitter-x-url">
+                          {inquiryPageBusinessContactSocialMeta.twitterX.label}
+                        </FieldLabel>
+                        <FieldContent>
+                          <Input
+                            aria-invalid={Boolean(businessTwitterXUrlError) || undefined}
+                            disabled={isPending}
+                            id="inquiry-page-business-twitter-x-url"
+                            maxLength={2000}
+                            name="businessTwitterXUrl"
+                            onChange={(event) =>
+                              setBusinessTwitterXUrl(event.currentTarget.value)
+                            }
+                            placeholder={
+                              inquiryPageBusinessContactSocialMeta.twitterX.placeholder
+                            }
+                            type="url"
+                            value={businessTwitterXUrl}
+                          />
+                          <FieldError
+                            errors={
+                              businessTwitterXUrlError
+                                ? [{ message: businessTwitterXUrlError }]
+                                : undefined
+                            }
+                          />
+                        </FieldContent>
+                      </Field>
+
+                      <Field
+                        data-invalid={Boolean(businessLinkedinUrlError) || undefined}
+                      >
+                        <FieldLabel htmlFor="inquiry-page-business-linkedin-url">
+                          {inquiryPageBusinessContactSocialMeta.linkedin.label}
+                        </FieldLabel>
+                        <FieldContent>
+                          <Input
+                            aria-invalid={Boolean(businessLinkedinUrlError) || undefined}
+                            disabled={isPending}
+                            id="inquiry-page-business-linkedin-url"
+                            maxLength={2000}
+                            name="businessLinkedinUrl"
+                            onChange={(event) =>
+                              setBusinessLinkedinUrl(event.currentTarget.value)
+                            }
+                            placeholder={
+                              inquiryPageBusinessContactSocialMeta.linkedin.placeholder
+                            }
+                            type="url"
+                            value={businessLinkedinUrl}
+                          />
+                          <FieldDescription>
+                            Leave fields blank if you only want phone or email.
+                          </FieldDescription>
+                          <FieldError
+                            errors={
+                              businessLinkedinUrlError
+                                ? [{ message: businessLinkedinUrlError }]
+                                : undefined
+                            }
+                          />
+                        </FieldContent>
+                      </Field>
+                    </div>
+                  </FieldGroup>
+                </DetailsPanel>
+              </div>
+            </div>
           </div>
         </section>
       </div>
@@ -1278,6 +1645,34 @@ function SectionIntro({
       </h2>
       <p className="text-sm leading-6 text-muted-foreground">{description}</p>
     </div>
+  );
+}
+
+function SectionVisibilityToggle({
+  checked,
+  description,
+  disabled,
+  label,
+  onCheckedChange,
+}: {
+  checked: boolean;
+  description: string;
+  disabled: boolean;
+  label: string;
+  onCheckedChange: (nextValue: boolean) => void;
+}) {
+  return (
+    <label className="soft-panel flex flex-col gap-4 px-4 py-4 shadow-none sm:flex-row sm:items-center sm:justify-between sm:px-5">
+      <div className="min-w-0 space-y-1">
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        <p className="text-sm leading-6 text-muted-foreground">{description}</p>
+      </div>
+      <Switch
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={onCheckedChange}
+      />
+    </label>
   );
 }
 

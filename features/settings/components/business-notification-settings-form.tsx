@@ -23,8 +23,10 @@ type BusinessNotificationSettingsFormProps = {
     | "notifyOnNewInquiry"
     | "notifyOnQuoteSent"
     | "notifyOnQuoteResponse"
+    | "notifyOnMemberInviteResponse"
     | "notifyInAppOnNewInquiry"
     | "notifyInAppOnQuoteResponse"
+    | "notifyInAppOnMemberInviteResponse"
   >;
 };
 
@@ -48,18 +50,26 @@ export function BusinessNotificationSettingsForm({
   const [notifyOnQuoteResponse, setNotifyOnQuoteResponse] = useState(
     settings.notifyOnQuoteResponse,
   );
+  const [notifyOnMemberInviteResponse, setNotifyOnMemberInviteResponse] = useState(
+    settings.notifyOnMemberInviteResponse,
+  );
   const [notifyInAppOnNewInquiry, setNotifyInAppOnNewInquiry] = useState(
     settings.notifyInAppOnNewInquiry,
   );
   const [notifyInAppOnQuoteResponse, setNotifyInAppOnQuoteResponse] = useState(
     settings.notifyInAppOnQuoteResponse,
   );
+  const [notifyInAppOnMemberInviteResponse, setNotifyInAppOnMemberInviteResponse] = useState(
+    settings.notifyInAppOnMemberInviteResponse,
+  );
   const hasUnsavedChanges =
     notifyOnNewInquiry !== settings.notifyOnNewInquiry ||
     notifyOnQuoteSent !== settings.notifyOnQuoteSent ||
     notifyOnQuoteResponse !== settings.notifyOnQuoteResponse ||
+    notifyOnMemberInviteResponse !== settings.notifyOnMemberInviteResponse ||
     notifyInAppOnNewInquiry !== settings.notifyInAppOnNewInquiry ||
-    notifyInAppOnQuoteResponse !== settings.notifyInAppOnQuoteResponse;
+    notifyInAppOnQuoteResponse !== settings.notifyInAppOnQuoteResponse ||
+    notifyInAppOnMemberInviteResponse !== settings.notifyInAppOnMemberInviteResponse;
 
   useEffect(() => {
     if (!state.success) {
@@ -73,8 +83,10 @@ export function BusinessNotificationSettingsForm({
     setNotifyOnNewInquiry(settings.notifyOnNewInquiry);
     setNotifyOnQuoteSent(settings.notifyOnQuoteSent);
     setNotifyOnQuoteResponse(settings.notifyOnQuoteResponse);
+    setNotifyOnMemberInviteResponse(settings.notifyOnMemberInviteResponse);
     setNotifyInAppOnNewInquiry(settings.notifyInAppOnNewInquiry);
     setNotifyInAppOnQuoteResponse(settings.notifyInAppOnQuoteResponse);
+    setNotifyInAppOnMemberInviteResponse(settings.notifyInAppOnMemberInviteResponse);
   }
 
   return (
@@ -95,6 +107,11 @@ export function BusinessNotificationSettingsForm({
         value={String(notifyOnQuoteResponse)}
       />
       <input
+        name="notifyOnMemberInviteResponse"
+        type="hidden"
+        value={String(notifyOnMemberInviteResponse)}
+      />
+      <input
         name="notifyInAppOnNewInquiry"
         type="hidden"
         value={String(notifyInAppOnNewInquiry)}
@@ -103,6 +120,11 @@ export function BusinessNotificationSettingsForm({
         name="notifyInAppOnQuoteResponse"
         type="hidden"
         value={String(notifyInAppOnQuoteResponse)}
+      />
+      <input
+        name="notifyInAppOnMemberInviteResponse"
+        type="hidden"
+        value={String(notifyInAppOnMemberInviteResponse)}
       />
 
       <section className="section-panel p-6">
@@ -128,6 +150,13 @@ export function BusinessNotificationSettingsForm({
               disabled={isPending}
               label="Quote responses"
               onCheckedChange={setNotifyInAppOnQuoteResponse}
+            />
+            <NotificationSettingRow
+              checked={notifyInAppOnMemberInviteResponse}
+              description="Show an alert when a member invite is accepted or declined."
+              disabled={isPending}
+              label="Invites"
+              onCheckedChange={setNotifyInAppOnMemberInviteResponse}
             />
           </div>
         </div>
@@ -165,6 +194,13 @@ export function BusinessNotificationSettingsForm({
               disabled={isPending}
               label="Quote responses"
               onCheckedChange={setNotifyOnQuoteResponse}
+            />
+            <NotificationSettingRow
+              checked={notifyOnMemberInviteResponse}
+              description="Email the owner when a member invite is accepted or declined."
+              disabled={isPending}
+              label="Invites"
+              onCheckedChange={setNotifyOnMemberInviteResponse}
             />
           </div>
         </div>
