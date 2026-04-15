@@ -12,11 +12,13 @@ import {
   getNormalizedInquiryFormConfig,
 } from "@/features/inquiries/form-config";
 import {
+  createInquiryPageBusinessContact,
   createInquiryPageConfigDefaults,
   getNormalizedInquiryPageConfig,
 } from "@/features/inquiries/page-config";
 import type {
   BusinessDeleteInput,
+  BusinessEmailTemplateSettingsInput,
   BusinessGeneralSettingsInput,
   BusinessInquiryFormCreateInput,
   BusinessInquiryFormPresetInput,
@@ -26,7 +28,6 @@ import type {
   BusinessQuoteSettingsInput,
 } from "@/features/settings/schemas";
 import { publicInquiryAttachmentBucket } from "@/features/inquiries/schemas";
-import { knowledgeFilesBucket } from "@/features/knowledge/schemas";
 import { resolveSafeContentType } from "@/lib/files";
 import {
   sanitizeBusinessLogoFileName,
@@ -38,7 +39,6 @@ import {
   activityLogs,
   inquiries,
   inquiryAttachments,
-  knowledgeFiles,
   businessInquiryForms,
   businesses,
 } from "@/lib/db/schema";
@@ -61,6 +61,12 @@ type UpdateBusinessNotificationSettingsInput = {
   businessId: string;
   actorUserId: string;
   values: BusinessNotificationSettingsInput;
+};
+
+type UpdateBusinessEmailTemplateSettingsInput = {
+  businessId: string;
+  actorUserId: string;
+  values: BusinessEmailTemplateSettingsInput;
 };
 
 type DeleteBusinessInput = {
@@ -493,6 +499,71 @@ export async function updateBusinessQuoteSettings({
   };
 }
 
+export async function updateBusinessEmailTemplateSettings({
+  businessId,
+  actorUserId,
+  values,
+}: UpdateBusinessEmailTemplateSettingsInput): Promise<UpdateBusinessSettingsResult> {
+  const [business] = await db
+    .select({
+      id: businesses.id,
+      slug: businesses.slug,
+    })
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
+  if (!business) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
+  const hasAnyOverride =
+    values.subject || values.greeting || values.introText ||
+    values.ctaLabel || values.closingText;
+
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(businesses)
+      .set({
+        quoteEmailTemplate: hasAnyOverride
+          ? {
+              subject: values.subject ?? undefined,
+              greeting: values.greeting ?? undefined,
+              introText: values.introText ?? undefined,
+              ctaLabel: values.ctaLabel ?? undefined,
+              closingText: values.closingText ?? undefined,
+            }
+          : null,
+        updatedAt: now,
+      })
+      .where(eq(businesses.id, businessId));
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      actorUserId,
+      type: "business.email_template_updated",
+      summary: "Email template settings updated.",
+      metadata: {
+        hasCustomTemplate: Boolean(hasAnyOverride),
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+
+  return {
+    ok: true,
+    previousSlug: business.slug,
+    nextSlug: business.slug,
+  };
+}
+
 export async function updateBusinessNotificationSettings({
   businessId,
   actorUserId,
@@ -586,29 +657,17 @@ export async function deleteBusiness({
     };
   }
 
-  const [knowledgeFileRows, inquiryAttachmentRows] = await Promise.all([
-    db
-      .select({
-        storagePath: knowledgeFiles.storagePath,
-      })
-      .from(knowledgeFiles)
-      .where(eq(knowledgeFiles.businessId, businessId)),
-    db
-      .select({
-        storagePath: inquiryAttachments.storagePath,
-      })
-      .from(inquiryAttachments)
-      .where(eq(inquiryAttachments.businessId, businessId)),
-  ]);
+  const inquiryAttachmentRows = await db
+    .select({
+      storagePath: inquiryAttachments.storagePath,
+    })
+    .from(inquiryAttachments)
+    .where(eq(inquiryAttachments.businessId, businessId));
 
   await db.delete(businesses).where(eq(businesses.id, businessId));
 
   await Promise.all([
     removeStoragePaths(businessLogoBucket, [business.logoStoragePath]),
-    removeStoragePaths(
-      knowledgeFilesBucket,
-      knowledgeFileRows.map((row) => row.storagePath),
-    ),
     removeStoragePaths(
       publicInquiryAttachmentBucket,
       inquiryAttachmentRows.map((row) => row.storagePath),
@@ -690,16 +749,30 @@ export async function updateBusinessInquiryPageSettings({
   const inquiryFormConfig = getNormalizedInquiryFormConfig(form.inquiryFormConfig, {
     businessType: values.businessType,
   });
+  const businessContact = createInquiryPageBusinessContact({
+    phone: values.businessContactPhone,
+    email: values.businessContactEmail,
+    socialLinks: {
+      facebook: values.businessFacebookUrl,
+      instagram: values.businessInstagramUrl,
+      twitterX: values.businessTwitterXUrl,
+      linkedin: values.businessLinkedinUrl,
+    },
+  });
   const inquiryPageConfig = getNormalizedInquiryPageConfig(
     {
       ...form.inquiryPageConfig,
       template: values.template,
+      showSupportingCards: values.showSupportingCards,
+      showShowcaseImage: values.showShowcaseImage,
+      showBusinessContact: values.showBusinessContact,
       eyebrow: values.eyebrow,
       headline: values.headline,
       description: values.description,
       brandTagline: values.brandTagline,
       formTitle: values.formTitle,
       formDescription: values.formDescription,
+      businessContact,
       showcaseImage: values.showcaseImageUrl
         ? {
             url: values.showcaseImageUrl,
@@ -753,7 +826,11 @@ export async function updateBusinessInquiryPageSettings({
         businessType: values.businessType,
         publicInquiryEnabled: values.publicInquiryEnabled,
         template: values.template,
+        showSupportingCards: values.showSupportingCards,
+        showShowcaseImage: values.showShowcaseImage,
+        showBusinessContact: values.showBusinessContact,
         cardCount: values.cards.length,
+        hasBusinessContact: Boolean(businessContact),
         hasShowcaseImage: Boolean(values.showcaseImageUrl),
       },
       createdAt: now,

@@ -5,6 +5,7 @@ import type {
 } from "@/features/inquiries/form-config";
 import type { InquiryPageConfig } from "@/features/inquiries/page-config";
 import type { BusinessInquiryFormSummary } from "@/features/inquiries/types";
+import type { QuoteEmailTemplateConfig } from "@/features/settings/email-templates";
 import type { WorkspacePlan } from "@/lib/plans/plans";
 
 export const businessAiTonePreferences = [
@@ -28,13 +29,16 @@ export type BusinessSettingsView = {
   logoContentType: string | null;
   defaultEmailSignature: string | null;
   defaultQuoteNotes: string | null;
+  quoteEmailTemplate: QuoteEmailTemplateConfig | null;
   defaultQuoteValidityDays: number;
   aiTonePreference: BusinessAiTonePreference;
   notifyOnNewInquiry: boolean;
   notifyOnQuoteSent: boolean;
   notifyOnQuoteResponse: boolean;
+  notifyOnMemberInviteResponse: boolean;
   notifyInAppOnNewInquiry: boolean;
   notifyInAppOnQuoteResponse: boolean;
+  notifyInAppOnMemberInviteResponse: boolean;
   defaultCurrency: string;
   updatedAt: Date;
 };
@@ -64,8 +68,10 @@ export type BusinessNotificationSettingsFieldName =
   | "notifyOnNewInquiry"
   | "notifyOnQuoteSent"
   | "notifyOnQuoteResponse"
+  | "notifyOnMemberInviteResponse"
   | "notifyInAppOnNewInquiry"
-  | "notifyInAppOnQuoteResponse";
+  | "notifyInAppOnQuoteResponse"
+  | "notifyInAppOnMemberInviteResponse";
 
 export type BusinessNotificationSettingsFieldErrors = Partial<
   Record<BusinessNotificationSettingsFieldName, string[] | undefined>
@@ -89,6 +95,23 @@ export type BusinessQuoteSettingsActionState = {
   error?: string;
   success?: string;
   fieldErrors?: BusinessQuoteSettingsFieldErrors;
+};
+
+export type BusinessEmailTemplateFieldName =
+  | "subject"
+  | "greeting"
+  | "introText"
+  | "ctaLabel"
+  | "closingText";
+
+export type BusinessEmailTemplateFieldErrors = Partial<
+  Record<BusinessEmailTemplateFieldName, string[] | undefined>
+>;
+
+export type BusinessEmailTemplateActionState = {
+  error?: string;
+  success?: string;
+  fieldErrors?: BusinessEmailTemplateFieldErrors;
 };
 
 export type BusinessDeleteFieldErrors = Partial<
@@ -139,12 +162,21 @@ export type BusinessInquiryPageFieldName =
   | "businessType"
   | "publicInquiryEnabled"
   | "template"
+  | "showSupportingCards"
+  | "showShowcaseImage"
+  | "showBusinessContact"
   | "eyebrow"
   | "headline"
   | "description"
   | "brandTagline"
   | "formTitle"
   | "formDescription"
+  | "businessContactPhone"
+  | "businessContactEmail"
+  | "businessFacebookUrl"
+  | "businessInstagramUrl"
+  | "businessTwitterXUrl"
+  | "businessLinkedinUrl"
   | "showcaseImageUrl"
   | "showcaseImageFrame"
   | "showcaseImageSize"

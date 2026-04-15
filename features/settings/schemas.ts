@@ -92,6 +92,25 @@ function optionalEmail(maxLength = 320) {
   );
 }
 
+function optionalExternalUrl(maxLength = 2000) {
+  return z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .trim()
+      .max(maxLength, `Use ${maxLength} characters or fewer.`)
+      .refine((value) => {
+        try {
+          const parsed = new URL(value);
+          return parsed.protocol === "http:" || parsed.protocol === "https:";
+        } catch {
+          return false;
+        }
+      }, "Enter a valid URL.")
+      .optional(),
+  );
+}
+
 function formBoolean() {
   return z.preprocess(
     (value) => value === true || value === "true" || value === "on",
@@ -212,11 +231,13 @@ export const businessGeneralSettingsSchema = z.object({
 });
 
 export const businessNotificationSettingsSchema = z.object({
-  notifyOnNewInquiry: formBoolean(),
-  notifyOnQuoteSent: formBoolean(),
-  notifyOnQuoteResponse: formBoolean(),
-  notifyInAppOnNewInquiry: formBoolean(),
-  notifyInAppOnQuoteResponse: formBoolean(),
+  notifyOnNewInquiry: z.boolean(),
+  notifyOnQuoteSent: z.boolean(),
+  notifyOnQuoteResponse: z.boolean(),
+  notifyOnMemberInviteResponse: z.boolean(),
+  notifyInAppOnNewInquiry: z.boolean(),
+  notifyInAppOnQuoteResponse: z.boolean(),
+  notifyInAppOnMemberInviteResponse: z.boolean(),
 });
 
 export type BusinessGeneralSettingsInput = z.infer<
@@ -259,6 +280,18 @@ export type BusinessQuoteSettingsInput = z.infer<
   typeof businessQuoteSettingsSchema
 >;
 
+export const businessEmailTemplateSettingsSchema = z.object({
+  subject: optionalText(200),
+  greeting: optionalText(200),
+  introText: optionalText(400),
+  ctaLabel: optionalText(60),
+  closingText: optionalText(400),
+});
+
+export type BusinessEmailTemplateSettingsInput = z.infer<
+  typeof businessEmailTemplateSettingsSchema
+>;
+
 export const businessDeleteSchema = z.object({
   confirmation: z
     .string()
@@ -293,6 +326,9 @@ export const businessInquiryPageSettingsSchema = z.object({
   businessType: z.enum(businessTypes),
   publicInquiryEnabled: formBoolean(),
   template: inquiryPageTemplateSchema,
+  showSupportingCards: formBoolean(),
+  showShowcaseImage: formBoolean(),
+  showBusinessContact: formBoolean(),
   eyebrow: optionalText(48),
   headline: z
     .string()
@@ -307,6 +343,12 @@ export const businessInquiryPageSettingsSchema = z.object({
     .min(1, "Enter a form title.")
     .max(80, "Use 80 characters or fewer."),
   formDescription: optionalText(200),
+  businessContactPhone: optionalText(40),
+  businessContactEmail: optionalEmail(),
+  businessFacebookUrl: optionalExternalUrl(),
+  businessInstagramUrl: optionalExternalUrl(),
+  businessTwitterXUrl: optionalExternalUrl(),
+  businessLinkedinUrl: optionalExternalUrl(),
   showcaseImageUrl: inquiryPageImageUrlSchema,
   showcaseImageFrame: z.enum(inquiryPageShowcaseImageFrames),
   showcaseImageSize: z.enum(inquiryPageShowcaseImageSizes),

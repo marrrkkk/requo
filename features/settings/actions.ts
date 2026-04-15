@@ -13,6 +13,7 @@ import {
 } from "@/lib/cache/business-tags";
 import {
   businessDeleteSchema,
+  businessEmailTemplateSettingsSchema,
   businessGeneralSettingsSchema,
   businessInquiryFormCreateSchema,
   businessInquiryFormPresetSchema,
@@ -24,6 +25,7 @@ import {
 } from "@/features/settings/schemas";
 import type {
   BusinessDeleteActionState,
+  BusinessEmailTemplateActionState,
   BusinessInquiryFormActionState,
   BusinessInquiryFormDangerActionState,
   BusinessInquiryFormsActionState,
@@ -42,6 +44,7 @@ import {
   setBusinessInquiryFormPublicState,
   applyBusinessInquiryFormPreset,
   setDefaultBusinessInquiryForm,
+  updateBusinessEmailTemplateSettings,
   updateBusinessInquiryFormSettings,
   updateBusinessInquiryPageSettings,
   updateBusinessNotificationSettings,
@@ -221,11 +224,13 @@ export async function updateBusinessNotificationSettingsAction(
 
   const { user, businessContext } = ownerAccess;
   const validationResult = businessNotificationSettingsSchema.safeParse({
-    notifyOnNewInquiry: formData.get("notifyOnNewInquiry"),
-    notifyOnQuoteSent: formData.get("notifyOnQuoteSent"),
-    notifyOnQuoteResponse: formData.get("notifyOnQuoteResponse"),
-    notifyInAppOnNewInquiry: formData.get("notifyInAppOnNewInquiry"),
-    notifyInAppOnQuoteResponse: formData.get("notifyInAppOnQuoteResponse"),
+    notifyOnNewInquiry: formData.get("notifyOnNewInquiry") === "on",
+    notifyOnQuoteSent: formData.get("notifyOnQuoteSent") === "on",
+    notifyOnQuoteResponse: formData.get("notifyOnQuoteResponse") === "on",
+    notifyOnMemberInviteResponse: formData.get("notifyOnMemberInviteResponse") === "on",
+    notifyInAppOnNewInquiry: formData.get("notifyInAppOnNewInquiry") === "on",
+    notifyInAppOnQuoteResponse: formData.get("notifyInAppOnQuoteResponse") === "on",
+    notifyInAppOnMemberInviteResponse: formData.get("notifyInAppOnMemberInviteResponse") === "on",
   });
 
   if (!validationResult.success) {
@@ -310,6 +315,61 @@ export async function updateBusinessQuoteSettingsAction(
 
     return {
       error: "We couldn't save the quote settings right now.",
+    };
+  }
+}
+
+export async function updateBusinessEmailTemplateSettingsAction(
+  _prevState: BusinessEmailTemplateActionState,
+  formData: FormData,
+): Promise<BusinessEmailTemplateActionState> {
+  const ownerAccess = await getOperationalBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+  const validationResult = businessEmailTemplateSettingsSchema.safeParse({
+    subject: formData.get("subject"),
+    greeting: formData.get("greeting"),
+    introText: formData.get("introText"),
+    ctaLabel: formData.get("ctaLabel"),
+    closingText: formData.get("closingText"),
+  });
+
+  if (!validationResult.success) {
+    return getValidationActionState(
+      validationResult.error,
+      "Check the email template settings and try again.",
+    );
+  }
+
+  try {
+    const result = await updateBusinessEmailTemplateSettings({
+      businessId: businessContext.business.id,
+      actorUserId: user.id,
+      values: validationResult.data,
+    });
+
+    if (!result.ok) {
+      return {
+        error: "That business could not be found.",
+      };
+    }
+
+    updateCacheTags(getBusinessSettingsCacheTags(businessContext.business.id));
+
+    return {
+      success: "Email template saved.",
+    };
+  } catch (error) {
+    console.error("Failed to update business email template settings.", error);
+
+    return {
+      error: "We couldn't save the email template right now.",
     };
   }
 }
@@ -407,12 +467,21 @@ export async function updateBusinessInquiryPageAction(
     businessType: formData.get("businessType"),
     publicInquiryEnabled: formData.get("publicInquiryEnabled"),
     template: formData.get("template"),
+    showSupportingCards: formData.get("showSupportingCards"),
+    showShowcaseImage: formData.get("showShowcaseImage"),
+    showBusinessContact: formData.get("showBusinessContact"),
     eyebrow: formData.get("eyebrow"),
     headline: formData.get("headline"),
     description: formData.get("description"),
     brandTagline: formData.get("brandTagline"),
     formTitle: formData.get("formTitle"),
     formDescription: formData.get("formDescription"),
+    businessContactPhone: formData.get("businessContactPhone"),
+    businessContactEmail: formData.get("businessContactEmail"),
+    businessFacebookUrl: formData.get("businessFacebookUrl"),
+    businessInstagramUrl: formData.get("businessInstagramUrl"),
+    businessTwitterXUrl: formData.get("businessTwitterXUrl"),
+    businessLinkedinUrl: formData.get("businessLinkedinUrl"),
     showcaseImageUrl: formData.get("showcaseImageUrl"),
     showcaseImageFrame: formData.get("showcaseImageFrame"),
     showcaseImageSize: formData.get("showcaseImageSize"),

@@ -14,6 +14,7 @@ export type BusinessSettingsNavigationIcon =
   | "replies"
   | "knowledge"
   | "quote"
+  | "email"
   | "pricing"
   | "integrations";
 
@@ -99,7 +100,7 @@ export function getBusinessSettingsNavigation(
             },
             {
               href: getBusinessSettingsPath(slug, "knowledge"),
-              label: "Knowledge base",
+              label: "Knowledge",
               icon: "knowledge" as const,
             },
           ],
@@ -113,6 +114,11 @@ export function getBusinessSettingsNavigation(
               href: getBusinessSettingsPath(slug, "quote"),
               label: "Quote defaults",
               icon: "quote" as const,
+            },
+            {
+              href: getBusinessSettingsPath(slug, "email"),
+              label: "Email templates",
+              icon: "email" as const,
             },
             {
               href: getBusinessSettingsPath(slug, "pricing"),
