@@ -80,11 +80,8 @@ export function DashboardNotificationBell({
   const refreshTimerRef = useRef<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
+  const [shouldConnectRealtime, setShouldConnectRealtime] = useState(false);
   const [view, setView] = useState(initialView);
-
-  if (supabaseRef.current === null) {
-    supabaseRef.current = createSupabaseBrowserClient();
-  }
 
   function applyReadWatermark(nextLastReadAt: string) {
     setView((currentView) => {
@@ -126,8 +123,42 @@ export function DashboardNotificationBell({
   }
 
   useEffect(() => {
+    if (shouldConnectRealtime) {
+      return;
+    }
+
+    const connectWhenIdle = () => {
+      setShouldConnectRealtime(true);
+    };
+
+    if (isOpen) {
+      connectWhenIdle();
+      return;
+    }
+
+    if (typeof window.requestIdleCallback === "function") {
+      const idleCallbackId = window.requestIdleCallback(connectWhenIdle, {
+        timeout: 8_000,
+      });
+
+      return () => window.cancelIdleCallback(idleCallbackId);
+    }
+
+    const timeoutId = globalThis.setTimeout(connectWhenIdle, 4_000);
+
+    return () => globalThis.clearTimeout(timeoutId);
+  }, [isOpen, shouldConnectRealtime]);
+
+  useEffect(() => {
+    if (!shouldConnectRealtime) {
+      return;
+    }
+
     let isActive = true;
-    const supabase = supabaseRef.current!;
+    const supabase =
+      supabaseRef.current ?? createSupabaseBrowserClient();
+
+    supabaseRef.current = supabase;
     let notificationChannel:
       | Awaited<ReturnType<typeof supabase.channel>>
       | null = null;
@@ -291,7 +322,7 @@ export function DashboardNotificationBell({
         void supabase.removeChannel(stateChannel);
       }
     };
-  }, [businessId, businessSlug, userId]);
+  }, [businessId, businessSlug, shouldConnectRealtime, userId]);
 
   function markAllRead() {
     const newestNotification = view.items[0];

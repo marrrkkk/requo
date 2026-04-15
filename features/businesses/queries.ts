@@ -3,31 +3,32 @@ import "server-only";
 import {
   and,
   asc,
-  count,
   desc,
   eq,
   gte,
-  inArray,
   isNotNull,
   isNull,
-  lt,
   lte,
+  sql,
 } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
-import type { BusinessOverviewData } from "@/features/businesses/types";
-import { syncExpiredQuotesForBusiness } from "@/features/quotes/mutations";
+import type {
+  BusinessDashboardSummaryData,
+  BusinessOverviewData,
+} from "@/features/businesses/types";
 import { getEffectiveInquiryStatus } from "@/features/inquiries/queries";
+import { getEffectiveQuoteStatus } from "@/features/quotes/queries";
 import { getQuoteReminderKinds } from "@/features/quotes/utils";
 import {
+  getBusinessAnalyticsCacheTags,
   getBusinessOverviewCacheTags,
   hotBusinessCacheLife,
 } from "@/lib/cache/business-tags";
 import { db } from "@/lib/db/client";
 import { inquiries, quotes } from "@/lib/db/schema";
 
-const overdueReplyStatuses = ["new", "waiting"] as const;
-const actionableInquiryStatuses = ["new", "waiting", "quoted"] as const;
+const overviewQueueItemLimit = 4;
 
 function getFutureUtcDateString(daysAhead: number) {
   return new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000)
@@ -38,8 +39,6 @@ function getFutureUtcDateString(daysAhead: number) {
 export async function getBusinessOverviewData(
   businessId: string,
 ): Promise<BusinessOverviewData> {
-  await syncExpiredQuotesForBusiness(businessId);
-
   return getCachedBusinessOverviewData(businessId);
 }
 
@@ -51,23 +50,20 @@ async function getCachedBusinessOverviewData(
   cacheLife(hotBusinessCacheLife);
   cacheTag(...getBusinessOverviewCacheTags(businessId));
 
-  const overdueCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
   const followUpDueCutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
   const recentAcceptedCutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
   const today = new Date().toISOString().slice(0, 10);
   const expiringSoonCutoff = getFutureUtcDateString(7);
+  const isOverdueInquiry = sql`${getEffectiveInquiryStatus} = 'overdue'::inquiry_status`;
+  const isWaitingInquiry = sql`${getEffectiveInquiryStatus} = 'waiting'::inquiry_status`;
+  const totalCount = sql<number>`count(*) over ()`;
 
   const [
-    overdueReplies,
-    overdueReplyCountRows,
+    overdueInquiries,
     expiringSoonQuotes,
-    expiringSoonQuoteCountRows,
-    inquiriesWithoutQuotes,
-    inquiryWithoutQuoteCountRows,
+    waitingInquiries,
     followUpDueQuotes,
-    followUpDueQuoteCountRows,
     recentAcceptedQuotes,
-    recentAcceptedQuoteCountRows,
   ] = await Promise.all([
     db
       .select({
@@ -77,45 +73,21 @@ async function getCachedBusinessOverviewData(
         serviceCategory: inquiries.serviceCategory,
         status: getEffectiveInquiryStatus,
         submittedAt: inquiries.submittedAt,
+        totalCount,
       })
       .from(inquiries)
-      .leftJoin(
-        quotes,
-        and(
-          eq(quotes.inquiryId, inquiries.id),
-          eq(quotes.businessId, businessId),
-        ),
-      )
       .where(
         and(
           eq(inquiries.businessId, businessId),
-          inArray(inquiries.status, overdueReplyStatuses),
-          lt(inquiries.submittedAt, overdueCutoff),
-          isNull(quotes.id),
+          isOverdueInquiry,
         ),
       )
-      .orderBy(asc(inquiries.submittedAt), asc(inquiries.createdAt))
-      .limit(4),
-    db
-      .select({
-        count: count(),
-      })
-      .from(inquiries)
-      .leftJoin(
-        quotes,
-        and(
-          eq(quotes.inquiryId, inquiries.id),
-          eq(quotes.businessId, businessId),
-        ),
+      .orderBy(
+        asc(inquiries.requestedDeadline),
+        asc(inquiries.submittedAt),
+        asc(inquiries.createdAt),
       )
-      .where(
-        and(
-          eq(inquiries.businessId, businessId),
-          inArray(inquiries.status, overdueReplyStatuses),
-          lt(inquiries.submittedAt, overdueCutoff),
-          isNull(quotes.id),
-        ),
-      ),
+      .limit(overviewQueueItemLimit),
     db
       .select({
         id: quotes.id,
@@ -126,40 +98,27 @@ async function getCachedBusinessOverviewData(
         customerEmail: quotes.customerEmail,
         currency: quotes.currency,
         totalInCents: quotes.totalInCents,
-        status: quotes.status,
+        status: getEffectiveQuoteStatus,
         postAcceptanceStatus: quotes.postAcceptanceStatus,
         validUntil: quotes.validUntil,
         sentAt: quotes.sentAt,
         acceptedAt: quotes.acceptedAt,
         customerRespondedAt: quotes.customerRespondedAt,
         updatedAt: quotes.updatedAt,
+        totalCount,
       })
       .from(quotes)
       .where(
         and(
           eq(quotes.businessId, businessId),
-          eq(quotes.status, "sent"),
+          sql`${getEffectiveQuoteStatus} = 'sent'::quote_status`,
           isNull(quotes.customerRespondedAt),
           gte(quotes.validUntil, today),
           lte(quotes.validUntil, expiringSoonCutoff),
         ),
       )
       .orderBy(asc(quotes.validUntil), desc(quotes.sentAt), desc(quotes.createdAt))
-      .limit(4),
-    db
-      .select({
-        count: count(),
-      })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, businessId),
-          eq(quotes.status, "sent"),
-          isNull(quotes.customerRespondedAt),
-          gte(quotes.validUntil, today),
-          lte(quotes.validUntil, expiringSoonCutoff),
-        ),
-      ),
+      .limit(overviewQueueItemLimit),
     db
       .select({
         id: inquiries.id,
@@ -168,43 +127,17 @@ async function getCachedBusinessOverviewData(
         serviceCategory: inquiries.serviceCategory,
         status: getEffectiveInquiryStatus,
         submittedAt: inquiries.submittedAt,
+        totalCount,
       })
       .from(inquiries)
-      .leftJoin(
-        quotes,
-        and(
-          eq(quotes.inquiryId, inquiries.id),
-          eq(quotes.businessId, businessId),
-        ),
-      )
       .where(
         and(
           eq(inquiries.businessId, businessId),
-          inArray(inquiries.status, actionableInquiryStatuses),
-          isNull(quotes.id),
+          isWaitingInquiry,
         ),
       )
-      .orderBy(desc(inquiries.submittedAt), desc(inquiries.createdAt))
-      .limit(4),
-    db
-      .select({
-        count: count(),
-      })
-      .from(inquiries)
-      .leftJoin(
-        quotes,
-        and(
-          eq(quotes.inquiryId, inquiries.id),
-          eq(quotes.businessId, businessId),
-        ),
-      )
-      .where(
-        and(
-          eq(inquiries.businessId, businessId),
-          inArray(inquiries.status, actionableInquiryStatuses),
-          isNull(quotes.id),
-        ),
-      ),
+      .orderBy(asc(inquiries.submittedAt), asc(inquiries.createdAt))
+      .limit(overviewQueueItemLimit),
     db
       .select({
         id: quotes.id,
@@ -215,40 +148,28 @@ async function getCachedBusinessOverviewData(
         customerEmail: quotes.customerEmail,
         currency: quotes.currency,
         totalInCents: quotes.totalInCents,
-        status: quotes.status,
+        status: getEffectiveQuoteStatus,
         postAcceptanceStatus: quotes.postAcceptanceStatus,
         validUntil: quotes.validUntil,
         sentAt: quotes.sentAt,
         acceptedAt: quotes.acceptedAt,
         customerRespondedAt: quotes.customerRespondedAt,
         updatedAt: quotes.updatedAt,
+        totalCount,
       })
       .from(quotes)
       .where(
         and(
           eq(quotes.businessId, businessId),
-          eq(quotes.status, "sent"),
+          sql`${getEffectiveQuoteStatus} = 'sent'::quote_status`,
           isNull(quotes.customerRespondedAt),
           isNotNull(quotes.sentAt),
           lte(quotes.sentAt, followUpDueCutoff),
+          gte(quotes.validUntil, today),
         ),
       )
       .orderBy(asc(quotes.validUntil), asc(quotes.sentAt), desc(quotes.createdAt))
-      .limit(4),
-    db
-      .select({
-        count: count(),
-      })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, businessId),
-          eq(quotes.status, "sent"),
-          isNull(quotes.customerRespondedAt),
-          isNotNull(quotes.sentAt),
-          lte(quotes.sentAt, followUpDueCutoff),
-        ),
-      ),
+      .limit(overviewQueueItemLimit),
     db
       .select({
         id: quotes.id,
@@ -259,13 +180,14 @@ async function getCachedBusinessOverviewData(
         customerEmail: quotes.customerEmail,
         currency: quotes.currency,
         totalInCents: quotes.totalInCents,
-        status: quotes.status,
+        status: getEffectiveQuoteStatus,
         postAcceptanceStatus: quotes.postAcceptanceStatus,
         validUntil: quotes.validUntil,
         sentAt: quotes.sentAt,
         acceptedAt: quotes.acceptedAt,
         customerRespondedAt: quotes.customerRespondedAt,
         updatedAt: quotes.updatedAt,
+        totalCount,
       })
       .from(quotes)
       .where(
@@ -277,20 +199,7 @@ async function getCachedBusinessOverviewData(
         ),
       )
       .orderBy(desc(quotes.acceptedAt), desc(quotes.createdAt))
-      .limit(4),
-    db
-      .select({
-        count: count(),
-      })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, businessId),
-          eq(quotes.status, "accepted"),
-          isNotNull(quotes.acceptedAt),
-          gte(quotes.acceptedAt, recentAcceptedCutoff),
-        ),
-      ),
+      .limit(overviewQueueItemLimit),
   ]);
 
   function withQuoteReminders<
@@ -299,31 +208,103 @@ async function getCachedBusinessOverviewData(
       sentAt: Date | null;
       customerRespondedAt: Date | null;
       validUntil: string;
+      totalCount: number;
     },
   >(quote: T) {
+    const { totalCount, ...row } = quote;
+
+    void totalCount;
+
     return {
-      ...quote,
+      ...row,
       reminders: getQuoteReminderKinds({
-        status: quote.status,
-        sentAt: quote.sentAt,
-        customerRespondedAt: quote.customerRespondedAt,
-        validUntil: quote.validUntil,
+        status: row.status,
+        sentAt: row.sentAt,
+        customerRespondedAt: row.customerRespondedAt,
+        validUntil: row.validUntil,
       }),
     };
   }
 
+  function stripTotalCount<T extends { totalCount: number }>(row: T) {
+    const { totalCount, ...rest } = row;
+
+    void totalCount;
+
+    return rest;
+  }
+
   return {
-    overdueReplies,
+    overdueInquiries: overdueInquiries.map(stripTotalCount),
     expiringSoonQuotes: expiringSoonQuotes.map(withQuoteReminders),
-    inquiriesWithoutQuotes,
+    waitingInquiries: waitingInquiries.map(stripTotalCount),
     followUpDueQuotes: followUpDueQuotes.map(withQuoteReminders),
     recentAcceptedQuotes: recentAcceptedQuotes.map(withQuoteReminders),
     counts: {
-      overdueReplies: Number(overdueReplyCountRows[0]?.count ?? 0),
-      expiringSoonQuotes: Number(expiringSoonQuoteCountRows[0]?.count ?? 0),
-      inquiriesWithoutQuotes: Number(inquiryWithoutQuoteCountRows[0]?.count ?? 0),
-      followUpDueQuotes: Number(followUpDueQuoteCountRows[0]?.count ?? 0),
-      recentAcceptedQuotes: Number(recentAcceptedQuoteCountRows[0]?.count ?? 0),
+      overdueInquiries: Number(overdueInquiries[0]?.totalCount ?? 0),
+      expiringSoonQuotes: Number(expiringSoonQuotes[0]?.totalCount ?? 0),
+      waitingInquiries: Number(waitingInquiries[0]?.totalCount ?? 0),
+      followUpDueQuotes: Number(followUpDueQuotes[0]?.totalCount ?? 0),
+      recentAcceptedQuotes: Number(recentAcceptedQuotes[0]?.totalCount ?? 0),
     },
+  };
+}
+
+export async function getBusinessDashboardSummaryData(
+  businessId: string,
+): Promise<BusinessDashboardSummaryData> {
+  return getCachedBusinessDashboardSummaryData(businessId);
+}
+
+async function getCachedBusinessDashboardSummaryData(
+  businessId: string,
+): Promise<BusinessDashboardSummaryData> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessAnalyticsCacheTags(businessId));
+
+  const thisWeekStart = new Date();
+
+  thisWeekStart.setUTCDate(thisWeekStart.getUTCDate() - 6);
+  thisWeekStart.setUTCHours(0, 0, 0, 0);
+  const thisWeekStartIso = thisWeekStart.toISOString();
+
+  const [inquirySummaryRows, quoteSummaryRows] = await Promise.all([
+    db
+      .select({
+        totalInquiries: sql<number>`count(*)`.as("total_inquiries"),
+        inquiriesThisWeek: sql<number>`count(*) filter (where ${inquiries.submittedAt} >= ${thisWeekStartIso}::timestamptz)`.as(
+          "inquiries_this_week",
+        ),
+        wonCount:
+          sql<number>`count(*) filter (where ${inquiries.status} = 'won')`.as(
+            "won_count",
+          ),
+        lostCount:
+          sql<number>`count(*) filter (where ${inquiries.status} = 'lost')`.as(
+            "lost_count",
+          ),
+      })
+      .from(inquiries)
+      .where(eq(inquiries.businessId, businessId)),
+    db
+      .select({
+        linkedInquiryCount: sql<number>`count(distinct ${quotes.inquiryId}) filter (where ${quotes.inquiryId} is not null)`.as(
+          "linked_inquiry_count",
+        ),
+      })
+      .from(quotes)
+      .where(eq(quotes.businessId, businessId)),
+  ]);
+
+  const totalInquiries = Number(inquirySummaryRows[0]?.totalInquiries ?? 0);
+  const linkedInquiryCount = Number(quoteSummaryRows[0]?.linkedInquiryCount ?? 0);
+
+  return {
+    inquiriesThisWeek: Number(inquirySummaryRows[0]?.inquiriesThisWeek ?? 0),
+    inquiryCoverageRate: totalInquiries ? linkedInquiryCount / totalInquiries : 0,
+    wonCount: Number(inquirySummaryRows[0]?.wonCount ?? 0),
+    lostCount: Number(inquirySummaryRows[0]?.lostCount ?? 0),
   };
 }

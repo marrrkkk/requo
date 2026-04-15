@@ -41,8 +41,8 @@ export function BusinessDeleteZone({
   );
 
   return (
-    <Card className="gap-0 border-destructive/25 bg-card/97">
-      <CardHeader className="gap-3 pb-5">
+    <Card className="gap-0 border-border/75 bg-card/97">
+      <CardHeader className="gap-2.5 pb-5">
         <CardTitle>Danger zone</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-5 pt-0">
@@ -51,7 +51,7 @@ export function BusinessDeleteZone({
           <AlertTitle>Delete business</AlertTitle>
           <AlertDescription>
             This permanently deletes the business, its inquiries, quotes, pricing,
-            files, and settings.
+            files, and settings. This cannot be undone.
           </AlertDescription>
         </Alert>
 

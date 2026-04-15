@@ -4,6 +4,7 @@ import {
   BookCopy,
   Bell,
   Cable,
+  CreditCard,
   FileText,
   Mail,
   MessageSquareText,
@@ -50,6 +51,7 @@ const settingsNavigationIcons: Record<BusinessSettingsNavigationIcon, typeof Use
   email: Mail,
   pricing: Tags,
   integrations: Cable,
+  billing: CreditCard,
 };
 
 function isActiveSettingsItem(pathname: string, href: string) {

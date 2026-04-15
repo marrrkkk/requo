@@ -16,7 +16,8 @@ export type BusinessSettingsNavigationIcon =
   | "quote"
   | "email"
   | "pricing"
-  | "integrations";
+  | "integrations"
+  | "billing";
 
 export type BusinessSettingsNavigationItem = {
   href: string;
@@ -139,4 +140,30 @@ export function getBusinessSettingsNavigation(
       ],
     },
   ].filter((group): group is BusinessSettingsNavigationGroup => Boolean(group));
+}
+
+/**
+ * Returns the billing navigation group for workspace owners.
+ * Billing is workspace-scoped but rendered within the business settings sidebar.
+ */
+export function getWorkspaceSettingsNavigation(
+  businessSlug: string,
+  role: BusinessMemberRole,
+): BusinessSettingsNavigationGroup[] {
+  if (!canManageBusinessAdministration(role)) {
+    return [];
+  }
+
+  return [
+    {
+      label: "Workspace",
+      items: [
+        {
+          href: getBusinessSettingsPath(businessSlug, "billing"),
+          label: "Plan & billing",
+          icon: "billing" as const,
+        },
+      ],
+    },
+  ];
 }

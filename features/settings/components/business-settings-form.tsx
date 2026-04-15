@@ -25,7 +25,6 @@ import { Combobox } from "@/components/ui/combobox";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -53,8 +52,6 @@ import { Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   businessCurrencyOptions,
-  getBusinessCountryOption,
-  getBusinessCurrencyOption,
   resolveCurrencyForCountry,
 } from "@/features/businesses/locale";
 import type {
@@ -164,8 +161,6 @@ export function BusinessSettingsForm({
     () => getBusinessPublicInquiryUrl(draftValues.slug || settings.slug),
     [draftValues.slug, settings.slug],
   );
-  const selectedCountry = getBusinessCountryOption(draftValues.countryCode);
-  const selectedCurrency = getBusinessCurrencyOption(draftValues.defaultCurrency);
   const hasTextInputChanges =
     draftValues.name !== savedValues.name ||
     draftValues.slug !== savedValues.slug ||
@@ -181,6 +176,7 @@ export function BusinessSettingsForm({
   const hasUnsavedChanges = hasControlledChanges || hasTextInputChanges;
   const { shouldRenderFloatingActions, floatingActionsState } =
     useFloatingUnsavedChanges(hasUnsavedChanges);
+  const businessNamePreview = draftValues.name.trim() || settings.name;
 
   useEffect(() => {
     draftValuesRef.current = draftValues;
@@ -250,15 +246,11 @@ export function BusinessSettingsForm({
         <Card className="gap-0 border-border/75 bg-card/97">
           <CardHeader className="gap-2.5 pb-6">
             <CardTitle>Business profile</CardTitle>
-            <CardDescription>
-              Update your business details, branding, and workflow defaults.
-            </CardDescription>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="flex flex-col gap-6">
-              <div className="grid gap-6 xl:grid-cols-[19rem_minmax(0,1fr)] xl:gap-7">
+            <div className="flex min-w-0 flex-col gap-5">
                 <BusinessLogoField
-                  businessName={settings.name}
+                  businessName={businessNamePreview}
                   disabled={isPending}
                   fieldError={state.fieldErrors?.logo?.[0]}
                   initialPreviewUrl={logoPreviewUrl}
@@ -271,8 +263,7 @@ export function BusinessSettingsForm({
                 <div className="flex min-w-0 flex-col gap-5">
                   <FormSection
                     className="soft-panel px-5 py-5 shadow-none sm:px-6"
-                    description="Shown to customers."
-                    title="Identity & public details"
+                    title="Identity & contact"
                   >
                     <FieldGroup>
                       <Field data-invalid={Boolean(state.fieldErrors?.name) || undefined}>
@@ -321,7 +312,7 @@ export function BusinessSettingsForm({
                               spellCheck={false}
                             />
                             <FieldDescription>
-                              Public URL:{" "}
+                              Public inquiry URL:{" "}
                               <Link
                                 className="underline underline-offset-4"
                                 href={publicInquiryUrl}
@@ -364,7 +355,6 @@ export function BusinessSettingsForm({
                               placeholder="hello@example.com"
                               type="email"
                             />
-                            <FieldDescription>Shown to customers.</FieldDescription>
                             <FieldError
                               errors={
                                 state.fieldErrors?.contactEmail?.[0]
@@ -378,201 +368,188 @@ export function BusinessSettingsForm({
                     </FieldGroup>
                   </FormSection>
 
-                  <FormSection
-                    className="soft-panel px-5 py-5 shadow-none sm:px-6"
-                    description="Used on inquiry pages and quotes."
-                    title="Business summary"
-                  >
-                    <Field
-                      data-invalid={Boolean(state.fieldErrors?.shortDescription) || undefined}
+                  <div className="flex min-w-0 flex-col gap-5">
+                    <FormSection
+                      className="soft-panel px-5 py-5 shadow-none sm:px-6"
+                      title="Business summary"
                     >
-                      <FieldLabel htmlFor="settings-short-description">
-                        Short description
-                      </FieldLabel>
-                      <FieldContent>
-                        <Textarea
-                          value={draftValues.shortDescription}
-                          disabled={isPending}
-                          id="settings-short-description"
-                          maxLength={280}
-                          name="shortDescription"
-                          onChange={(event) =>
-                            updateDraftValue(
-                              "shortDescription",
-                              event.currentTarget.value,
+                      <Field
+                        data-invalid={Boolean(state.fieldErrors?.shortDescription) || undefined}
+                      >
+                        <FieldLabel htmlFor="settings-short-description">
+                          Short description
+                        </FieldLabel>
+                        <FieldContent>
+                          <Textarea
+                            value={draftValues.shortDescription}
+                            disabled={isPending}
+                            id="settings-short-description"
+                            maxLength={280}
+                            name="shortDescription"
+                            onChange={(event) =>
+                              updateDraftValue(
+                                "shortDescription",
+                                event.currentTarget.value,
                             )
                           }
                           placeholder="Reliable repair, install, and recurring maintenance work for homes and small property portfolios."
-                          rows={5}
+                          rows={6}
                         />
-                        <FieldError
-                          errors={
-                            state.fieldErrors?.shortDescription?.[0]
-                              ? [{ message: state.fieldErrors.shortDescription[0] }]
-                              : undefined
-                          }
-                        />
-                      </FieldContent>
-                    </Field>
-                  </FormSection>
+                          <FieldError
+                            errors={
+                              state.fieldErrors?.shortDescription?.[0]
+                                ? [{ message: state.fieldErrors.shortDescription[0] }]
+                                : undefined
+                            }
+                          />
+                        </FieldContent>
+                      </Field>
+                    </FormSection>
+
+                    <FormSection
+                      className="soft-panel px-5 py-5 shadow-none sm:px-6"
+                      title="Regional defaults"
+                    >
+                      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                        <Field data-invalid={Boolean(countryCodeError) || undefined}>
+                          <FieldLabel htmlFor="settings-country-code">Country</FieldLabel>
+                          <FieldContent>
+                            <CountryCombobox
+                              aria-invalid={Boolean(countryCodeError) || undefined}
+                              disabled={isPending}
+                              id="settings-country-code"
+                              onValueChange={(value) => {
+                                const nextCurrency = resolveCurrencyForCountry(value);
+                                setDraftValues((current) => ({
+                                  ...current,
+                                  countryCode: value,
+                                  defaultCurrency: nextCurrency ?? current.defaultCurrency,
+                                }));
+                              }}
+                              placeholder="Choose a country"
+                              searchPlaceholder="Search country"
+                              showFlags={false}
+                              value={draftValues.countryCode}
+                            />
+                            <FieldError
+                              errors={
+                                countryCodeError ? [{ message: countryCodeError }] : undefined
+                              }
+                            />
+                          </FieldContent>
+                        </Field>
+
+                        <Field data-invalid={Boolean(defaultCurrencyError) || undefined}>
+                          <FieldLabel htmlFor="settings-default-currency">
+                            Default currency
+                          </FieldLabel>
+                          <FieldContent>
+                            <Combobox
+                              aria-invalid={Boolean(defaultCurrencyError) || undefined}
+                              disabled={isPending}
+                              id="settings-default-currency"
+                              onValueChange={(value) =>
+                                updateDraftValue("defaultCurrency", value)
+                              }
+                              options={businessCurrencyOptions.map((currencyOption) => ({
+                                label: currencyOption.label,
+                                searchText: `${currencyOption.code} ${currencyOption.name}`,
+                                value: currencyOption.code,
+                              }))}
+                              placeholder="Choose a currency"
+                              searchPlaceholder="Search currency"
+                              value={draftValues.defaultCurrency}
+                            />
+                            <FieldError
+                              errors={
+                                defaultCurrencyError
+                                  ? [{ message: defaultCurrencyError }]
+                                  : undefined
+                              }
+                            />
+                          </FieldContent>
+                        </Field>
+                      </div>
+                    </FormSection>
+                  </div>
                 </div>
               </div>
-
-              <FormSection
-                className="soft-panel px-5 py-5 shadow-none sm:px-6"
-                description="Used for regional defaults and new quotes."
-                title="Location & currency"
-              >
-                <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
-                  <Field data-invalid={Boolean(countryCodeError) || undefined}>
-                    <FieldLabel htmlFor="settings-country-code">Country</FieldLabel>
-                    <FieldContent>
-                      <CountryCombobox
-                        aria-invalid={Boolean(countryCodeError) || undefined}
-                        disabled={isPending}
-                        id="settings-country-code"
-                        onValueChange={(value) => {
-                          const nextCurrency = resolveCurrencyForCountry(value);
-                          setDraftValues((current) => ({
-                            ...current,
-                            countryCode: value,
-                            defaultCurrency: nextCurrency ?? current.defaultCurrency,
-                          }));
-                        }}
-                        placeholder="Choose a country"
-                        searchPlaceholder="Search country"
-                        showFlags={false}
-                        value={draftValues.countryCode}
-                      />
-                      <FieldDescription>
-                        {selectedCountry
-                          ? `Selecting ${selectedCountry.label} starts with ${selectedCountry.currencyCode}. You can still set a different default currency.`
-                          : "Optional for older businesses. New businesses set this during onboarding."}
-                      </FieldDescription>
-                      <FieldError
-                        errors={
-                          countryCodeError ? [{ message: countryCodeError }] : undefined
-                        }
-                      />
-                    </FieldContent>
-                  </Field>
-
-                  <Field data-invalid={Boolean(defaultCurrencyError) || undefined}>
-                    <FieldLabel htmlFor="settings-default-currency">
-                      Default currency
-                    </FieldLabel>
-                    <FieldContent>
-                      <Combobox
-                        aria-invalid={Boolean(defaultCurrencyError) || undefined}
-                        disabled={isPending}
-                        id="settings-default-currency"
-                        onValueChange={(value) =>
-                          updateDraftValue("defaultCurrency", value)
-                        }
-                        options={businessCurrencyOptions.map((currencyOption) => ({
-                          label: currencyOption.label,
-                          searchText: `${currencyOption.code} ${currencyOption.name}`,
-                          value: currencyOption.code,
-                        }))}
-                        placeholder="Choose a currency"
-                        searchPlaceholder="Search currency"
-                        value={draftValues.defaultCurrency}
-                      />
-                      <FieldDescription>
-                        New quotes and pricing entries start with{" "}
-                        {selectedCurrency?.code ?? draftValues.defaultCurrency}.
-                      </FieldDescription>
-                      <FieldError
-                        errors={
-                          defaultCurrencyError
-                            ? [{ message: defaultCurrencyError }]
-                            : undefined
-                        }
-                      />
-                    </FieldContent>
-                  </Field>
-                </div>
-              </FormSection>
-            </div>
           </CardContent>
         </Card>
 
         <Card className="gap-0 border-border/75 bg-card/97">
           <CardHeader className="gap-2.5 pb-6">
-            <CardTitle>Writing and follow-up defaults</CardTitle>
-            <CardDescription>Default tone and signature for replies and drafts.</CardDescription>
+            <CardTitle>Reply defaults</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="flex min-w-0 flex-col gap-5">
-              <FormSection
-                className="soft-panel px-5 py-5 shadow-none sm:px-6"
-                description="Used for AI drafts."
-                title="AI writing tone"
-              >
-                <Field data-invalid={Boolean(aiToneError) || undefined}>
-                  <FieldLabel htmlFor="settings-ai-tone">Tone preference</FieldLabel>
-                  <FieldContent>
-                    <Combobox
-                      aria-invalid={Boolean(aiToneError) || undefined}
-                      disabled={isPending}
-                      id="settings-ai-tone"
-                      onValueChange={(value) =>
-                        updateDraftValue(
-                          "aiTonePreference",
-                          value as BusinessAiTonePreference,
-                        )
-                      }
-                      options={aiToneComboboxOptions}
-                      placeholder="Choose a tone"
-                      searchPlaceholder="Search tone"
-                      value={draftValues.aiTonePreference}
-                    />
-                    <FieldError
-                      errors={aiToneError ? [{ message: aiToneError }] : undefined}
-                    />
-                  </FieldContent>
-                </Field>
-              </FormSection>
-
-              <FormSection
-                className="soft-panel px-5 py-5 shadow-none sm:px-6"
-                description="Used in email drafts."
-                title="Email signature"
-              >
-                <Field
-                  data-invalid={
-                    Boolean(state.fieldErrors?.defaultEmailSignature) || undefined
-                  }
+                <FormSection
+                  className="soft-panel px-5 py-5 shadow-none sm:px-6"
+                  title="AI writing tone"
                 >
-                  <FieldLabel htmlFor="settings-email-signature">
-                    Default email signature
-                  </FieldLabel>
-                  <FieldContent>
-                    <Textarea
-                      value={draftValues.defaultEmailSignature}
-                      disabled={isPending}
-                      id="settings-email-signature"
-                      maxLength={1200}
-                      name="defaultEmailSignature"
-                      onChange={(event) =>
-                        updateDraftValue(
-                          "defaultEmailSignature",
-                          event.currentTarget.value,
+                  <Field data-invalid={Boolean(aiToneError) || undefined}>
+                    <FieldLabel htmlFor="settings-ai-tone">Tone preference</FieldLabel>
+                    <FieldContent>
+                      <Combobox
+                        aria-invalid={Boolean(aiToneError) || undefined}
+                        disabled={isPending}
+                        id="settings-ai-tone"
+                        onValueChange={(value) =>
+                          updateDraftValue(
+                            "aiTonePreference",
+                            value as BusinessAiTonePreference,
+                          )
+                        }
+                        options={aiToneComboboxOptions}
+                        placeholder="Choose a tone"
+                        searchPlaceholder="Search tone"
+                        value={draftValues.aiTonePreference}
+                      />
+                      <FieldError
+                        errors={aiToneError ? [{ message: aiToneError }] : undefined}
+                      />
+                    </FieldContent>
+                  </Field>
+                </FormSection>
+
+                <FormSection
+                  className="soft-panel px-5 py-5 shadow-none sm:px-6"
+                  title="Email signature"
+                >
+                  <Field
+                    data-invalid={
+                      Boolean(state.fieldErrors?.defaultEmailSignature) || undefined
+                    }
+                  >
+                    <FieldLabel htmlFor="settings-email-signature">
+                      Default email signature
+                    </FieldLabel>
+                    <FieldContent>
+                      <Textarea
+                        value={draftValues.defaultEmailSignature}
+                        disabled={isPending}
+                        id="settings-email-signature"
+                        maxLength={1200}
+                        name="defaultEmailSignature"
+                        onChange={(event) =>
+                          updateDraftValue(
+                            "defaultEmailSignature",
+                            event.currentTarget.value,
                         )
                       }
                       placeholder="Thanks,\nNorthline Home Services"
                       rows={5}
                     />
-                    <FieldError
-                      errors={
-                        state.fieldErrors?.defaultEmailSignature?.[0]
-                          ? [{ message: state.fieldErrors.defaultEmailSignature[0] }]
-                          : undefined
-                      }
-                    />
-                  </FieldContent>
-                </Field>
-              </FormSection>
+                      <FieldError
+                        errors={
+                          state.fieldErrors?.defaultEmailSignature?.[0]
+                            ? [{ message: state.fieldErrors.defaultEmailSignature[0] }]
+                            : undefined
+                        }
+                      />
+                    </FieldContent>
+                  </Field>
+                </FormSection>
             </div>
           </CardContent>
         </Card>
@@ -789,21 +766,16 @@ function BusinessLogoField({
 
   return (
     <>
-      <div className="self-start xl:sticky xl:top-6">
+      <div>
         <div className="soft-panel flex flex-col gap-5 p-5 shadow-none sm:p-6">
-          <div className="space-y-2">
-            <p className="text-[0.72rem] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              Brand asset
-            </p>
-            <div className="space-y-2">
-              <h2 className="text-lg font-semibold tracking-tight text-foreground">
-                Business identity
-              </h2>
-              <p className="text-sm text-muted-foreground">Shown on inquiry pages and quotes.</p>
-            </div>
+          <div className="flex flex-col gap-2">
+            <p className="meta-label">Logo</p>
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">
+              Business logo
+            </h2>
           </div>
 
-          <div className="rounded-3xl border border-border/75 bg-background/80 px-5 py-5">
+          <div className="rounded-xl border border-border/75 bg-background/80 px-5 py-5">
             <div className="flex flex-col items-center gap-4 text-center">
               <div className="group relative">
                 <input
@@ -862,7 +834,7 @@ function BusinessLogoField({
                 </label>
               </div>
 
-              <div className="min-w-0 max-w-full space-y-2">
+              <div className="min-w-0 max-w-full">
                 <p className="text-base font-semibold tracking-tight text-foreground">
                   {businessName}
                 </p>
