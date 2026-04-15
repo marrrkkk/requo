@@ -21,6 +21,8 @@ import {
   getUsageLimit,
   planFeatureLabels,
 } from "@/lib/plans";
+import { getPlanPriceLabel } from "@/lib/billing/plans";
+import type { BillingCurrency } from "@/lib/billing/types";
 
 /*──────────────────────────────────────────────────────────────────────────────
  * Plan feature list definition — drives the comparison table.
@@ -133,47 +135,42 @@ const pricingFeatures: PricingFeatureRow[] = [
   },
 ];
 
-const planCardConfig: {
-  plan: WorkspacePlan;
-  price: string;
-  pricePeriod: string;
-  highlighted: boolean;
-  cta: { label: string; href: string; variant: "default" | "outline" };
-  includes: string;
-}[] = [
-  {
-    plan: "free",
-    price: "$0",
-    pricePeriod: "forever",
-    highlighted: false,
-    cta: { label: "Get started free", href: "/signup", variant: "outline" },
-    includes: "Core workflow for a single business:",
-  },
-  {
-    plan: "pro",
-    price: "Coming soon",
-    pricePeriod: "",
-    highlighted: true,
-    cta: {
-      label: "Request Pro access",
-      href: "mailto:hello@requo.io?subject=Pro%20plan%20interest",
-      variant: "default",
+function getPlanCardConfig(currency: BillingCurrency) {
+  return [
+    {
+      plan: "free" as WorkspacePlan,
+      price: currency === "PHP" ? "₱0" : "$0",
+      pricePeriod: "forever",
+      highlighted: false,
+      cta: { label: "Get started free", href: "/signup", variant: "outline" as const },
+      includes: "Core workflow for a single business:",
     },
-    includes: "Everything in Free, plus:",
-  },
-  {
-    plan: "business",
-    price: "Coming soon",
-    pricePeriod: "",
-    highlighted: false,
-    cta: {
-      label: "Contact us for Business",
-      href: "mailto:hello@requo.io?subject=Business%20plan%20inquiry",
-      variant: "outline",
+    {
+      plan: "pro" as WorkspacePlan,
+      price: getPlanPriceLabel("pro", currency).replace("/mo", ""),
+      pricePeriod: "month",
+      highlighted: true,
+      cta: {
+        label: "Upgrade to Pro",
+        href: "/signup",
+        variant: "default" as const,
+      },
+      includes: "Everything in Free, plus:",
     },
-    includes: "Everything in Pro, plus:",
-  },
-];
+    {
+      plan: "business" as WorkspacePlan,
+      price: getPlanPriceLabel("business", currency).replace("/mo", ""),
+      pricePeriod: "month",
+      highlighted: false,
+      cta: {
+        label: "Upgrade to Business",
+        href: "/signup",
+        variant: "outline" as const,
+      },
+      includes: "Everything in Pro, plus:",
+    },
+  ];
+}
 
 const planHighlights: Record<WorkspacePlan, string[]> = {
   free: [
@@ -205,7 +202,9 @@ const planHighlights: Record<WorkspacePlan, string[]> = {
  * Component
  *────────────────────────────────────────────────────────────────────────────*/
 
-export function PricingPage() {
+export function PricingPage({ currency }: { currency: BillingCurrency }) {
+  const planCards = getPlanCardConfig(currency);
+
   return (
     <PublicPageShell
       brandSubtitle={null}
@@ -246,7 +245,7 @@ export function PricingPage() {
 
       {/* Plan cards */}
       <section className="mx-auto grid w-full max-w-6xl gap-5 px-5 py-8 sm:px-6 md:grid-cols-3 lg:px-8 lg:py-12">
-        {planCardConfig.map((config) => (
+        {planCards.map((config) => (
           <div
             className={cn(
               "flex flex-col rounded-xl border p-6",
