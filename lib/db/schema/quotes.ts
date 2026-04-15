@@ -70,6 +70,14 @@ export const quotes = pgTable(
     index("quotes_business_id_idx").on(table.businessId),
     index("quotes_business_status_idx").on(table.businessId, table.status),
     index("quotes_business_created_at_idx").on(table.businessId, table.createdAt),
+    index("quotes_sent_valid_until_idx")
+      .on(table.businessId, table.validUntil)
+      .where(sql`${table.status} = 'sent'`),
+    index("quotes_sent_follow_up_idx")
+      .on(table.businessId, table.sentAt)
+      .where(
+        sql`${table.status} = 'sent' and ${table.customerRespondedAt} is null`,
+      ),
     index("quotes_inquiry_id_idx").on(table.inquiryId),
     uniqueIndex("quotes_public_token_unique").on(table.publicToken),
     uniqueIndex("quotes_business_quote_number_unique").on(

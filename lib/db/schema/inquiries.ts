@@ -72,6 +72,11 @@ export const inquiries = pgTable(
       table.businessId,
       table.submittedAt,
     ),
+    index("inquiries_open_deadline_idx")
+      .on(table.businessId, table.requestedDeadline)
+      .where(
+        sql`${table.status} in ('new', 'waiting', 'quoted') and ${table.requestedDeadline} is not null`,
+      ),
     index("inquiries_business_service_category_idx").on(
       table.businessId,
       table.serviceCategory,
