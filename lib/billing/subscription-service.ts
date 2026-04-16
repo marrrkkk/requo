@@ -174,8 +174,13 @@ export async function activateSubscription(
     subscription = created!;
   }
 
-  // Sync workspace plan column
-  await syncWorkspacePlanColumn(params.workspaceId, params.plan);
+  // Sync workspace plan column — only upgrade when status grants access
+  const effectiveStatus = params.status ?? "active";
+  const planToSync =
+    effectiveStatus === "active" || effectiveStatus === "past_due"
+      ? params.plan
+      : "free";
+  await syncWorkspacePlanColumn(params.workspaceId, planToSync);
 
   return subscription;
 }

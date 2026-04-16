@@ -16,6 +16,7 @@ import {
 } from "@/lib/billing/subscription-service";
 
 export async function POST(request: Request) {
+  console.log("[PayMongo Webhook] ⚡ Webhook received!");
   const rawBody = await request.text();
   const signature = request.headers.get("paymongo-signature") ?? "";
 

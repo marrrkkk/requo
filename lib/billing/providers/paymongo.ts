@@ -89,6 +89,11 @@ type PayMongoAttachResponse = {
       next_action?: {
         type: string;
         redirect?: { url: string };
+        code?: {
+          url?: string;
+          test_url?: string;
+          image_url?: string;
+        };
       };
     };
   };
@@ -165,9 +170,11 @@ export async function createQrPhCheckout(params: {
       },
     );
 
-    // The QR code URL is in the redirect URL from the attach response
+    const nextAction = attachResponse.data.attributes.next_action;
     const redirectUrl =
-      attachResponse.data.attributes.next_action?.redirect?.url;
+      nextAction?.redirect?.url ??
+      nextAction?.code?.url ??
+      nextAction?.code?.test_url;
 
     if (redirectUrl) {
       return {
@@ -246,7 +253,7 @@ export function verifyPayMongoWebhookSignature(
     }
 
     const timestamp = timestampPart.slice(2);
-    const sigToCheck = liveSigPart?.slice(3) ?? testSigPart?.slice(3);
+    const sigToCheck = liveSigPart?.slice(3) || testSigPart?.slice(3);
 
     if (!sigToCheck) {
       return false;

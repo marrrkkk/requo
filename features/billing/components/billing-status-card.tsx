@@ -152,7 +152,7 @@ export function BillingStatusCard({ billing }: BillingStatusCardProps) {
           ) : null}
 
           {hasSubscription &&
-          subscription.status === "active" ? (
+          (subscription.status === "active" || subscription.status === "pending") ? (
             <form action={cancelAction}>
               <input name="workspaceId" type="hidden" value={workspaceId} />
               <Button
@@ -166,6 +166,8 @@ export function BillingStatusCard({ billing }: BillingStatusCardProps) {
                     <Spinner aria-hidden="true" />
                     Canceling...
                   </>
+                ) : subscription.status === "pending" ? (
+                  "Cancel pending payment"
                 ) : (
                   "Cancel subscription"
                 )}

@@ -262,6 +262,16 @@ function QrPhPaymentView({
         </div>
       </div>
 
+      {qrData.qrCodeData.startsWith("https://") ? (
+        <div className="flex justify-center">
+          <Button asChild variant="secondary" size="sm" className="mt-2">
+            <a href={qrData.qrCodeData} target="_blank" rel="noreferrer">
+              Open Test Payment Page (Dev Only)
+            </a>
+          </Button>
+        </div>
+      ) : null}
+
       <div className="rounded-xl border border-border/70 bg-muted/30 p-4">
         <div className="grid gap-2 text-sm">
           <div className="flex items-center justify-between">
