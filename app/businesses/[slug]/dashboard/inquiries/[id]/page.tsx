@@ -23,6 +23,16 @@ import {
   DashboardSidebarStack,
   DashboardStatsGrid,
 } from "@/components/shared/dashboard-layout";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { InfoTile } from "@/components/shared/info-tile";
 import { AddToCalendarButton } from "@/features/calendar/components/add-to-calendar-button";
 import { CalendarEventSummary } from "@/features/calendar/components/calendar-event-summary";
@@ -301,17 +311,52 @@ export default async function InquiryDetailPage({
             >
               <InquiryNoteForm action={noteAction} embedded />
               {inquiry.notes.length ? (
-                <DashboardDetailFeed>
-                  {inquiry.notes.map((note) => (
-                    <DashboardDetailFeedItem
-                      key={note.id}
-                      meta={formatInquiryDateTime(note.createdAt)}
-                      title={note.authorName ?? "Business owner"}
-                    >
-                      <p className="whitespace-pre-wrap">{note.body}</p>
-                    </DashboardDetailFeedItem>
-                  ))}
-                </DashboardDetailFeed>
+                <div className="flex flex-col gap-3">
+                  <DashboardDetailFeed>
+                    {inquiry.notes.slice(0, 1).map((note) => (
+                      <DashboardDetailFeedItem
+                        key={note.id}
+                        meta={formatInquiryDateTime(note.createdAt)}
+                        title={note.authorName ?? "Business owner"}
+                      >
+                        <p className="whitespace-pre-wrap">{note.body}</p>
+                      </DashboardDetailFeedItem>
+                    ))}
+                  </DashboardDetailFeed>
+
+                  {inquiry.notes.length > 1 && (
+                    <Sheet>
+                      <SheetTrigger asChild>
+                        <Button className="w-full" type="button" variant="outline">
+                          View all notes
+                        </Button>
+                      </SheetTrigger>
+                      <SheetContent className="w-full sm:max-w-md">
+                        <SheetHeader>
+                          <SheetTitle>Internal notes</SheetTitle>
+                          <SheetDescription>
+                            All private notes for this inquiry.
+                          </SheetDescription>
+                        </SheetHeader>
+                        <SheetBody className="min-h-0 flex-1 gap-5">
+                          <ScrollArea className="h-[calc(100vh-10rem)] pr-4">
+                            <DashboardDetailFeed>
+                              {inquiry.notes.map((note) => (
+                                <DashboardDetailFeedItem
+                                  key={note.id}
+                                  meta={formatInquiryDateTime(note.createdAt)}
+                                  title={note.authorName ?? "Business owner"}
+                                >
+                                  <p className="whitespace-pre-wrap">{note.body}</p>
+                                </DashboardDetailFeedItem>
+                              ))}
+                            </DashboardDetailFeed>
+                          </ScrollArea>
+                        </SheetBody>
+                      </SheetContent>
+                    </Sheet>
+                  )}
+                </div>
               ) : (
                 <DashboardEmptyState
                   description="Use the note form above to capture follow-up context, decisions, or customer details."
@@ -326,21 +371,60 @@ export default async function InquiryDetailPage({
               title="Activity log"
             >
               {inquiry.activities.length ? (
-                <DashboardDetailFeed>
-                  {inquiry.activities.map((activity) => (
-                    <DashboardDetailFeedItem
-                      key={activity.id}
-                      meta={
-                        <>
-                          <span>{activity.actorName ?? "Requo"}</span>
-                          <span aria-hidden="true">|</span>
-                          <span>{formatInquiryDateTime(activity.createdAt)}</span>
-                        </>
-                      }
-                      title={activity.summary}
-                    />
-                  ))}
-                </DashboardDetailFeed>
+                <div className="flex flex-col gap-3">
+                  <DashboardDetailFeed>
+                    {inquiry.activities.slice(0, 1).map((activity) => (
+                      <DashboardDetailFeedItem
+                        key={activity.id}
+                        meta={
+                          <>
+                            <span>{activity.actorName ?? "Requo"}</span>
+                            <span aria-hidden="true">|</span>
+                            <span>{formatInquiryDateTime(activity.createdAt)}</span>
+                          </>
+                        }
+                        title={activity.summary}
+                      />
+                    ))}
+                  </DashboardDetailFeed>
+
+                  {inquiry.activities.length > 1 && (
+                    <Sheet>
+                      <SheetTrigger asChild>
+                        <Button className="w-full" type="button" variant="outline">
+                          View all activity
+                        </Button>
+                      </SheetTrigger>
+                      <SheetContent className="w-full sm:max-w-md">
+                        <SheetHeader>
+                          <SheetTitle>Activity log</SheetTitle>
+                          <SheetDescription>
+                            Complete timeline of events for this inquiry.
+                          </SheetDescription>
+                        </SheetHeader>
+                        <SheetBody className="min-h-0 flex-1 gap-5">
+                          <ScrollArea className="h-[calc(100vh-10rem)] pr-4">
+                            <DashboardDetailFeed>
+                              {inquiry.activities.map((activity) => (
+                                <DashboardDetailFeedItem
+                                  key={activity.id}
+                                  meta={
+                                    <>
+                                      <span>{activity.actorName ?? "Requo"}</span>
+                                      <span aria-hidden="true">|</span>
+                                      <span>{formatInquiryDateTime(activity.createdAt)}</span>
+                                    </>
+                                  }
+                                  title={activity.summary}
+                                />
+                              ))}
+                            </DashboardDetailFeed>
+                          </ScrollArea>
+                        </SheetBody>
+                      </SheetContent>
+                    </Sheet>
+                  )}
+                </div>
               ) : (
                 <DashboardEmptyState
                   description="Change the status or generate a quote to start the timeline for this inquiry."

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
+import { Facebook, Instagram, Linkedin, X } from "@thesvg/react";
 import { ArrowUpRight, Mail, Phone, Share2 } from "lucide-react";
 
 import { PublicHeroSurface } from "@/components/shared/public-page-shell";
@@ -74,6 +75,7 @@ export function PublicInquiryPageRenderer({
           />
         ) : null}
       </div>
+      <InquiryBusinessContact business={business} centered />
 
       {!hasFeatureAccess(business.plan, "branding") ? (
         <PoweredByRequo />
@@ -93,7 +95,6 @@ function SplitInquiryTemplate({
     <PublicHeroSurface className="lg:py-12">
       <div className="flex flex-col gap-6 xl:hidden">
         <InquiryIntro business={business} />
-        <InquiryBusinessContact business={business} />
         {config.showSupportingCards ? (
           <InquirySupportCards cards={config.cards} />
         ) : null}
@@ -110,7 +111,6 @@ function SplitInquiryTemplate({
       <div className="hidden gap-12 xl:grid xl:grid-cols-[minmax(0,0.96fr)_minmax(22rem,0.84fr)] xl:items-start">
         <div className="flex min-w-0 flex-col gap-7">
           <InquiryIntro business={business} />
-          <InquiryBusinessContact business={business} />
           {config.showSupportingCards ? (
             <InquirySupportCards cards={config.cards} />
           ) : null}
@@ -142,10 +142,6 @@ function NoSupportingCardsInquiryTemplate({
       <div className="flex flex-col gap-10">
         <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-4 text-center">
           <InquiryIntro business={business} align="center" />
-        </div>
-
-        <div className="mx-auto w-full max-w-3xl">
-          <InquiryBusinessContact business={business} centered />
         </div>
 
         <InquiryShowcaseImage business={business} />
@@ -191,7 +187,6 @@ function ShowcaseInquiryTemplate({
             </div>
           </div>
 
-          <InquiryBusinessContact business={business} />
           {config.showSupportingCards ? (
             <InquirySupportCards cards={config.cards} />
           ) : null}
@@ -476,7 +471,7 @@ function InquiryBusinessContact({
   return (
     <section
       className={cn(
-        "border-t border-border/65 pt-4",
+        "border-t border-border/65 pt-10 pb-4",
         centered && "text-center",
       )}
     >
@@ -486,16 +481,6 @@ function InquiryBusinessContact({
           centered && "mx-auto max-w-2xl items-center",
         )}
       >
-        <div
-          className={cn(
-            "flex items-center gap-2",
-            centered && "justify-center",
-          )}
-        >
-          <Share2 className="size-3.5 text-muted-foreground" />
-          <p className="meta-label">Business contact</p>
-        </div>
-
         <div
           className={cn(
             "flex flex-wrap gap-x-5 gap-y-2.5",
@@ -520,7 +505,7 @@ function InquiryBusinessContact({
             <BusinessContactLink
               key={socialLink.label}
               href={socialLink.href}
-              icon={<Share2 className="size-3.5" />}
+              icon={socialLink.icon}
               text={socialLink.label}
               external
             />
@@ -596,10 +581,17 @@ function getBusinessContactSocialLinks(
       return [];
     }
 
+    let BrandIcon = Share2;
+    if (key === "facebook") BrandIcon = Facebook;
+    else if (key === "instagram") BrandIcon = Instagram;
+    else if (key === "twitterX") BrandIcon = X;
+    else if (key === "linkedin") BrandIcon = Linkedin;
+
     return [
       {
         href: value,
         label: socialMeta.label,
+        icon: <BrandIcon className="size-3.5" fill="currentColor" width={14} height={14} />,
       },
     ];
   });
