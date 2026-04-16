@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 
 import {
   aiAssistNote,
@@ -92,42 +92,48 @@ export function MarketingHero() {
       </PublicHeroSurface>
 
       <section className="section-panel overflow-hidden" id="why-requo">
-        <div className="flex flex-col gap-3 border-b border-border/70 px-5 py-5 sm:px-6 sm:py-6">
-          <Badge className="w-fit" variant="outline">
+        <div className="flex flex-col items-center gap-4 border-b border-border/70 px-5 py-10 text-center sm:px-6 sm:py-14">
+          <Badge className="bg-background shadow-sm" variant="outline">
             Why Requo
           </Badge>
-          <h2 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+          <h2 className="max-w-3xl font-heading text-3xl font-semibold tracking-tight text-balance sm:text-5xl">
             Most of the work gets messy before the quote is ready.
           </h2>
-          <p className="max-w-3xl text-sm leading-7 text-muted-foreground sm:text-base">
+          <p className="max-w-2xl text-sm leading-8 text-muted-foreground sm:text-lg">
             The first customer message is usually just the start. Requo keeps
             intake, qualification, pricing, and follow-up connected so the
             owner is not rebuilding the job story in every tool.
           </p>
         </div>
 
-        <div className="grid gap-4 px-5 py-5 sm:px-6 sm:py-6 lg:grid-cols-3">
+        <div className="grid gap-5 bg-muted/20 px-5 py-8 sm:px-6 sm:py-10 bg-[url('/noise.png')] lg:grid-cols-3">
           {whyCards.map((item) => (
-            <div className="marketing-proof-card" key={item.title}>
-              <div className="flex items-start gap-3">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-                  <item.icon className="size-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">{item.title}</p>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    {item.description}
-                  </p>
-                </div>
+            <div
+              className="surface-card motion-lift flex flex-col items-start gap-5 p-6 sm:p-8"
+              key={item.title}
+            >
+              <div className="flex size-14 shrink-0 items-center justify-center rounded-[1.125rem] border border-border/80 bg-background shadow-[var(--surface-shadow-sm)] text-primary">
+                <item.icon className="size-[1.35rem]" strokeWidth={2.2} />
+              </div>
+              <div className="flex flex-col gap-2.5">
+                <h3 className="font-heading text-xl font-semibold tracking-tight text-foreground">
+                  {item.title}
+                </h3>
+                <p className="text-sm leading-7 text-muted-foreground">
+                  {item.description}
+                </p>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="border-t border-border/70 px-5 py-5 sm:px-6 sm:py-6">
-          <div className="soft-panel px-4 py-4 sm:px-5">
-            <p className="text-sm font-medium text-foreground">
-              Requo is not trying to be a generic CRM. It is built around the
+        <div className="border-t border-border/70 bg-secondary/40 px-5 py-10 sm:px-6 sm:py-12">
+          <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 text-center">
+            <div className="flex size-12 items-center justify-center rounded-full border border-border/60 bg-background text-primary shadow-sm">
+              <Sparkles className="size-5" />
+            </div>
+            <p className="font-heading text-xl font-medium leading-[1.6] tracking-tight text-foreground sm:text-2xl text-balance">
+              Requo is not trying to be a generic CRM. It is built strictly around the
               owner workflow from new request to sent quote and the follow-up after.
             </p>
           </div>

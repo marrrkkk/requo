@@ -19,7 +19,7 @@ export function Toaster({ className, toastOptions, ...props }: ToasterProps) {
         ...toastOptions,
         classNames: {
           toast: cn(
-            "group toast rounded-2xl border border-border/80 bg-background/96 text-foreground shadow-[var(--surface-shadow-md)] backdrop-blur supports-[backdrop-filter]:bg-background/88",
+            "group toast flex w-full flex-col gap-3 surface-card p-5 sm:p-6 backdrop-blur supports-[backdrop-filter]:bg-background/88 sm:flex-row sm:items-start sm:gap-4",
             "data-[type=success]:![background:var(--alert-surface-bg)] data-[type=success]:!border-primary/20",
             "data-[type=error]:![background:var(--alert-destructive-surface-bg)] data-[type=error]:!border-destructive/20",
             toastOptions?.classNames?.toast,
