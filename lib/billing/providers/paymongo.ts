@@ -14,7 +14,7 @@ import "server-only";
 import crypto from "crypto";
 
 import { env } from "@/lib/env";
-import type { CheckoutResult, PaidPlan } from "@/lib/billing/types";
+import type { CheckoutResult, PaidPlan, BillingInterval } from "@/lib/billing/types";
 import { getPlanPrice } from "@/lib/billing/plans";
 
 const PAYMONGO_API_BASE = "https://api.paymongo.com/v1";
@@ -109,8 +109,11 @@ export async function createQrPhCheckout(params: {
   plan: PaidPlan;
   workspaceId: string;
   description?: string;
+  interval?: BillingInterval;
 }): Promise<CheckoutResult> {
-  const amount = getPlanPrice(params.plan, "PHP");
+  const interval = params.interval ?? "monthly";
+  const amount = getPlanPrice(params.plan, "PHP", interval);
+  const periodLabel = interval === "yearly" ? "1 year" : "1 month";
 
   try {
     // 1. Create payment intent
@@ -126,7 +129,7 @@ export async function createQrPhCheckout(params: {
               currency: "PHP",
               description:
                 params.description ??
-                `Requo ${params.plan === "pro" ? "Pro" : "Business"} plan — 1 month`,
+                `Requo ${params.plan === "pro" ? "Pro" : "Business"} plan — ${periodLabel}`,
               metadata: {
                 workspace_id: params.workspaceId,
                 plan: params.plan,

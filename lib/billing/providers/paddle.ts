@@ -14,7 +14,7 @@ import "server-only";
 import crypto from "crypto";
 
 import { env } from "@/lib/env";
-import type { CheckoutResult, PaidPlan, SubscriptionStatus } from "@/lib/billing/types";
+import type { CheckoutResult, PaidPlan, SubscriptionStatus, BillingInterval } from "@/lib/billing/types";
 
 function getPaddleApiBase(): string {
   return env.PADDLE_ENVIRONMENT === "production"
@@ -49,14 +49,26 @@ async function paddleRequest<T>(
 
 /* ── Price ID mapping ─────────────────────────────────────────────────────── */
 
-function getPriceId(plan: PaidPlan): string {
-  const priceId =
-    plan === "pro"
-      ? env.PADDLE_PRO_PRICE_ID
-      : env.PADDLE_BUSINESS_PRICE_ID;
+function getPriceId(plan: PaidPlan, interval: BillingInterval = "monthly"): string {
+  let priceId: string | undefined;
+
+  if (interval === "yearly") {
+    priceId =
+      plan === "pro"
+        ? env.PADDLE_PRO_YEARLY_PRICE_ID
+        : env.PADDLE_BUSINESS_YEARLY_PRICE_ID;
+  }
+
+  // Fall back to monthly if yearly not configured
+  if (!priceId) {
+    priceId =
+      plan === "pro"
+        ? env.PADDLE_PRO_PRICE_ID
+        : env.PADDLE_BUSINESS_PRICE_ID;
+  }
 
   if (!priceId) {
-    throw new Error(`Missing Paddle price ID for ${plan} plan`);
+    throw new Error(`Missing Paddle price ID for ${plan} ${interval} plan`);
   }
 
   return priceId;
@@ -86,8 +98,9 @@ export async function createPaddleTransaction(params: {
   workspaceId: string;
   userEmail: string;
   userName?: string;
+  interval?: BillingInterval;
 }): Promise<CheckoutResult> {
-  const priceId = getPriceId(params.plan);
+  const priceId = getPriceId(params.plan, params.interval);
 
   try {
     const response = await paddleRequest<PaddleTransactionResponse>(
