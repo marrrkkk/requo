@@ -4,13 +4,9 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
   DialogBody,
-  DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog";
 import { Combobox } from "@/components/ui/combobox";
 import { Spinner } from "@/components/ui/spinner";
@@ -41,7 +37,6 @@ type CreateBusinessFormProps = {
     formData: FormData,
   ) => Promise<CreateBusinessActionState>;
   workspaces: WorkspaceListItem[];
-  isLocked?: boolean;
 };
 
 const initialState: CreateBusinessActionState = {};
@@ -49,9 +44,7 @@ const initialState: CreateBusinessActionState = {};
 export function CreateBusinessForm({
   action,
   workspaces,
-  isLocked = false,
 }: CreateBusinessFormProps) {
-  const [showLockedDialog, setShowLockedDialog] = useState(false);
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
@@ -68,17 +61,10 @@ export function CreateBusinessForm({
   const selectedCurrency = getBusinessCurrencyOption(defaultCurrency);
 
   return (
-    <>
-      <form
-        action={formAction}
-        className="flex min-h-0 flex-1 flex-col"
-        onSubmit={(e) => {
-          if (isLocked) {
-            e.preventDefault();
-            setShowLockedDialog(true);
-          }
-        }}
-      >
+    <form
+      action={formAction}
+      className="flex min-h-0 flex-1 flex-col"
+    >
         <input name="businessType" type="hidden" value={businessType} />
         <input name="defaultCurrency" type="hidden" value={defaultCurrency} />
         <input name="workspaceId" type="hidden" value={workspaceId} />
@@ -203,23 +189,5 @@ export function CreateBusinessForm({
           </Button>
         </DialogFooter>
       </form>
-
-      <Dialog open={showLockedDialog} onOpenChange={setShowLockedDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Multiple businesses</DialogTitle>
-            <DialogDescription>
-              Managing completely separate brands, services, and billing requires upgrading your workspace plan. Wait for checkout to be added!
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowLockedDialog(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-
   );
 }

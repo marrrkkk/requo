@@ -60,6 +60,17 @@ export function WorkspaceOverviewContent({
               action={createBusinessAction}
               workspaces={workspaceList}
               isLocked={overview.businesses.length > 0 && overview.plan === "free"}
+              billingProps={
+                overview.businesses.length > 0 && overview.plan === "free"
+                  ? {
+                      workspaceId: billingOverview.workspaceId,
+                      workspaceSlug: billingOverview.workspaceSlug,
+                      currentPlan: billingOverview.currentPlan,
+                      region: billingOverview.region,
+                      defaultCurrency: billingOverview.defaultCurrency,
+                    }
+                  : undefined
+              }
             />
           </div>
 
