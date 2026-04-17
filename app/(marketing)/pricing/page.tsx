@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { Suspense } from "react";
 
 import { PricingPage } from "@/components/marketing/pricing-page";
+import { getBillingRegion, getDefaultCurrency } from "@/lib/billing/region";
 
 export const metadata: Metadata = {
   title: "Pricing — Requo",
@@ -8,12 +11,23 @@ export const metadata: Metadata = {
     "Simple, transparent pricing for owner-led service businesses. Start free, upgrade when you need more.",
 };
 
+async function PricingRouteDynamic() {
+  const requestHeaders = await headers();
+  const region = getBillingRegion(requestHeaders);
+  const currency = getDefaultCurrency(region);
+
+  return <PricingPage currency={currency} />;
+}
+
 /**
- * The pricing page is statically prerendered for performance.
- * It defaults to USD pricing. Users see localized PHP pricing
- * when they open the checkout dialog inside the app, where
- * region detection via request headers is available.
+ * Dynamic pricing page — detects the visitor's region from request
+ * headers and shows localized pricing (PHP for Philippines, USD
+ * everywhere else). Wrapped in Suspense to allow PPR of the page shell.
  */
 export default function PricingRoute() {
-  return <PricingPage currency="USD" />;
+  return (
+    <Suspense fallback={<PricingPage currency="USD" />}>
+      <PricingRouteDynamic />
+    </Suspense>
+  );
 }
