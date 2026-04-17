@@ -21,8 +21,13 @@ import {
   getUsageLimit,
   planFeatureLabels,
 } from "@/lib/plans";
-import { getPlanPriceLabel } from "@/lib/billing/plans";
-import type { BillingCurrency } from "@/lib/billing/types";
+import {
+  getPlanPriceLabel,
+  getMonthlyEquivalentLabel,
+  getYearlySavingsPercent,
+} from "@/lib/billing/plans";
+import type { BillingCurrency, BillingInterval } from "@/lib/billing/types";
+import { PricingIntervalToggle } from "@/components/marketing/pricing-interval-toggle";
 
 /*──────────────────────────────────────────────────────────────────────────────
  * Plan feature list definition — drives the comparison table.
@@ -135,20 +140,22 @@ const pricingFeatures: PricingFeatureRow[] = [
   },
 ];
 
-function getPlanCardConfig(currency: BillingCurrency) {
+function getPlanCardConfig(currency: BillingCurrency, interval: BillingInterval) {
   return [
     {
       plan: "free" as WorkspacePlan,
       price: currency === "PHP" ? "₱0" : "$0",
       pricePeriod: "forever",
+      monthlyEquivalent: null,
       highlighted: false,
       cta: { label: "Get started free", href: "/signup", variant: "outline" as const },
       includes: "Core workflow for a single business:",
     },
     {
       plan: "pro" as WorkspacePlan,
-      price: getPlanPriceLabel("pro", currency).replace("/mo", ""),
-      pricePeriod: "month",
+      price: getPlanPriceLabel("pro", currency, interval).replace(interval === "monthly" ? "/mo" : "/yr", ""),
+      pricePeriod: interval === "monthly" ? "month" : "year",
+      monthlyEquivalent: interval === "yearly" ? getMonthlyEquivalentLabel("pro", currency) : null,
       highlighted: true,
       cta: {
         label: "Upgrade to Pro",
@@ -159,8 +166,9 @@ function getPlanCardConfig(currency: BillingCurrency) {
     },
     {
       plan: "business" as WorkspacePlan,
-      price: getPlanPriceLabel("business", currency).replace("/mo", ""),
-      pricePeriod: "month",
+      price: getPlanPriceLabel("business", currency, interval).replace(interval === "monthly" ? "/mo" : "/yr", ""),
+      pricePeriod: interval === "monthly" ? "month" : "year",
+      monthlyEquivalent: interval === "yearly" ? getMonthlyEquivalentLabel("business", currency) : null,
       highlighted: false,
       cta: {
         label: "Upgrade to Business",
@@ -203,8 +211,6 @@ const planHighlights: Record<WorkspacePlan, string[]> = {
  *────────────────────────────────────────────────────────────────────────────*/
 
 export function PricingPage({ currency }: { currency: BillingCurrency }) {
-  const planCards = getPlanCardConfig(currency);
-
   return (
     <PublicPageShell
       brandSubtitle={null}
@@ -243,78 +249,8 @@ export function PricingPage({ currency }: { currency: BillingCurrency }) {
         </div>
       </PublicHeroSurface>
 
-      {/* Plan cards */}
-      <section className="mx-auto grid w-full max-w-6xl gap-5 px-5 py-8 sm:px-6 md:grid-cols-3 lg:px-8 lg:py-12">
-        {planCards.map((config) => (
-          <div
-            className={cn(
-              "flex flex-col rounded-xl border p-6",
-              config.highlighted
-                ? "border-primary/30 bg-accent/20 shadow-[0_0_0_1px_hsl(var(--primary)/0.12)]"
-                : "border-border/70 bg-card/60",
-            )}
-            key={config.plan}
-          >
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <Badge
-                  variant={config.highlighted ? "default" : "secondary"}
-                >
-                  {planMeta[config.plan].label}
-                </Badge>
-                {config.highlighted ? (
-                  <Badge variant="outline">Most popular</Badge>
-                ) : null}
-              </div>
-
-              <div className="flex items-baseline gap-1.5">
-                <span className="font-heading text-3xl font-semibold tracking-tight text-foreground">
-                  {config.price}
-                </span>
-                {config.pricePeriod ? (
-                  <span className="text-sm text-muted-foreground">
-                    /{config.pricePeriod}
-                  </span>
-                ) : null}
-              </div>
-
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {planMeta[config.plan].description}
-              </p>
-            </div>
-
-            <Separator className="my-5 bg-border/60" />
-
-            <div className="flex flex-1 flex-col gap-4">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {config.includes}
-              </p>
-              <ul className="grid gap-3">
-                {planHighlights[config.plan].map((item) => (
-                  <li className="flex items-start gap-2.5 text-sm leading-6 text-foreground" key={item}>
-                    <Check className="mt-0.5 size-4 shrink-0 text-primary" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="mt-6">
-              <Button
-                asChild
-                className="w-full"
-                size="lg"
-                variant={config.cta.variant}
-              >
-                <Link href={config.cta.href}>
-                  {config.cta.label}
-                  <ArrowRight data-icon="inline-end" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-        ))}
-      </section>
+      {/* Plan cards with toggle — rendered client-side for interval state */}
+      <PricingIntervalToggle currency={currency} />
 
       {/* Feature comparison table */}
       <section className="section-panel mx-auto max-w-6xl overflow-hidden">
@@ -410,7 +346,7 @@ export function PricingPage({ currency }: { currency: BillingCurrency }) {
 }
 
 /*──────────────────────────────────────────────────────────────────────────────
- * Helper components
+ * Helper components (server)
  *────────────────────────────────────────────────────────────────────────────*/
 
 function PricingCell({
@@ -495,3 +431,9 @@ function PricingSignedOutHeaderActions() {
     </>
   );
 }
+
+/*──────────────────────────────────────────────────────────────────────────────
+ * Exports used by the interval toggle client component
+ *────────────────────────────────────────────────────────────────────────────*/
+
+export { getPlanCardConfig, planHighlights };
