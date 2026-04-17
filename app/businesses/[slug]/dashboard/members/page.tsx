@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { LockedFeaturePage } from "@/components/shared/paywall";
 import {
   cancelBusinessMemberInviteAction,
+  copyBusinessMemberInviteLinkAction,
   createBusinessMemberInviteAction,
   removeBusinessMemberAction,
   updateBusinessMemberRoleAction,
@@ -46,6 +47,7 @@ export default async function BusinessMembersPage({
     <BusinessMembersManager
       businessSlug={businessContext.business.slug}
       cancelInviteAction={cancelBusinessMemberInviteAction}
+      copyInviteLinkAction={copyBusinessMemberInviteLinkAction}
       createInviteAction={createBusinessMemberInviteAction}
       removeMemberAction={removeBusinessMemberAction}
       updateRoleAction={updateBusinessMemberRoleAction}

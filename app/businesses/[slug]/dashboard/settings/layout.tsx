@@ -22,7 +22,9 @@ export default async function BusinessSettingsLayout({
     <DashboardPage>
       <div className="grid min-w-0 items-start gap-4 lg:gap-5 xl:grid-cols-[16rem_minmax(0,1fr)] xl:gap-4">
         <BusinessSettingsNav groups={navigationGroups} />
-        <div className="min-w-0 w-full">{children}</div>
+        <div className="flex min-w-0 w-full flex-col gap-6 sm:gap-7">
+          {children}
+        </div>
       </div>
     </DashboardPage>
   );

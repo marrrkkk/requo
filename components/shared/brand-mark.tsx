@@ -1,6 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 type BrandMarkProps = {
@@ -26,15 +26,15 @@ export function BrandMark({
         className,
       )}
     >
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-background/80 shadow-sm dark:border-white/8 dark:bg-card dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_1px_rgba(0,0,0,0.2)]">
-        <Image
-          src="/logo.svg"
-          alt=""
-          width={24}
-          height={24}
-          className="size-6"
-        />
-      </span>
+      <Avatar
+        size="lg"
+        className="size-10 shrink-0 rounded-xl border border-border/70 bg-background/80 shadow-sm dark:border-white/8 dark:bg-card dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_1px_rgba(0,0,0,0.2)]"
+      >
+        <AvatarImage src="/logo.svg" alt="" className="rounded-xl object-contain p-1.5" />
+        <AvatarFallback className="rounded-xl font-heading text-sm font-semibold text-foreground">
+          R
+        </AvatarFallback>
+      </Avatar>
       <span
         className={cn(
           "flex min-w-0 flex-col leading-none",
