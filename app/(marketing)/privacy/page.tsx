@@ -1,16 +1,14 @@
 import type { Metadata } from "next";
 
 import { PrivacyPolicyPage } from "@/features/legal/components/privacy-policy-page";
-import { legalConfig } from "@/features/legal/config";
+import { createPageMetadata } from "@/lib/seo/site";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy",
+export const metadata: Metadata = createPageMetadata({
   description:
-    "Read the published Requo Privacy Policy for information about accounts, public inquiry pages, public quote links, uploads, and AI-assisted features.",
-  alternates: {
-    canonical: `${legalConfig.domain}/privacy`,
-  },
-};
+    "Read the Requo Privacy Policy covering accounts, public inquiry pages, quote links, uploads, and AI-assisted features.",
+  pathname: "/privacy",
+  title: "Privacy Policy",
+});
 
 export default function PrivacyPage() {
   return <PrivacyPolicyPage />;

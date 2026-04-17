@@ -1,8 +1,30 @@
-import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import { notFound, permanentRedirect } from "next/navigation";
 
 import { submitPublicInquiryAction } from "@/features/inquiries/actions";
 import { PublicInquiryPageRenderer } from "@/features/inquiries/components/public-inquiry-page-renderer";
+import {
+  getMissingPublicInquiryMetadata,
+  getPublicInquiryPageMetadata,
+} from "@/features/inquiries/metadata";
 import { getPublicInquiryBusinessByFormSlug } from "@/features/inquiries/queries";
+import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string; formSlug: string }>;
+}): Promise<Metadata> {
+  const { formSlug, slug } = await params;
+  const business = await getPublicInquiryBusinessByFormSlug({
+    businessSlug: slug,
+    formSlug,
+  });
+
+  return business
+    ? getPublicInquiryPageMetadata(business)
+    : getMissingPublicInquiryMetadata();
+}
 
 export default async function PublicInquiryFormPage({
   params,
@@ -17,6 +39,10 @@ export default async function PublicInquiryFormPage({
 
   if (!business) {
     notFound();
+  }
+
+  if (business.form.isDefault) {
+    permanentRedirect(getBusinessPublicInquiryUrl(business.slug));
   }
 
   const submitPublicInquiry = submitPublicInquiryAction.bind(

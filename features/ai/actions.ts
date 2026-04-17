@@ -6,6 +6,7 @@ import { getInquiryAssistantContextForBusiness } from "@/features/ai/queries";
 import { aiAssistantRequestSchema } from "@/features/ai/schemas";
 import { generateInquiryAssistantResult } from "@/features/ai/service";
 import { getWorkspaceBusinessActionContext } from "@/lib/db/business-access";
+import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
 
 export async function generateInquiryAssistantAction(
   inquiryId: string,
@@ -22,6 +23,19 @@ export async function generateInquiryAssistantAction(
   }
 
   const { businessContext } = ownerAccess;
+  const isAllowed = await assertPublicActionRateLimit({
+    action: "business-inquiry-ai",
+    limit: 10,
+    scope: `${businessContext.business.id}:${ownerAccess.user.id}:${inquiryId}`,
+    windowMs: 60_000,
+  });
+
+  if (!isAllowed) {
+    return {
+      ...prevState,
+      error: "Too many AI requests. Wait a minute and try again.",
+    };
+  }
 
   const validationResult = aiAssistantRequestSchema.safeParse({
     intent: formData.get("intent"),

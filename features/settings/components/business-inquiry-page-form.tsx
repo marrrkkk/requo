@@ -1168,7 +1168,7 @@ export function BusinessInquiryPageForm({
             title="Showcase image"
           />
 
-          <div className="rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
+          <div className="flex flex-col gap-6 rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
             <SectionVisibilityToggle
               checked={showShowcaseImage}
               description="Keep the image settings saved, but hide the showcase image on the public page when this is off."
@@ -1309,221 +1309,226 @@ export function BusinessInquiryPageForm({
                 />
               </div>
             ) : null}
+          </div>
+        </section>
 
-            <div className="mt-6 border-t border-border/70 pt-6">
-              <div className="space-y-5">
-                <SectionVisibilityToggle
-                  checked={showBusinessContact}
-                  description="Keep the contact details saved, but hide the business contact block on the public form when this is off."
-                  disabled={isPending}
-                  label="Show business contact"
-                  onCheckedChange={setShowBusinessContact}
-                />
+        <section className="space-y-4">
+          <SectionIntro
+            description="Shown in the public form area when at least one detail is filled in."
+            title="Business contact"
+          />
 
-                <DetailsPanel
-                  description="Shown in the public form area when at least one detail is filled in."
-                  eyebrow="Contact"
-                  title="Business contact"
-                >
-                  <FieldGroup>
-                    <div className="grid gap-5 lg:grid-cols-2">
-                      <Field
-                        data-invalid={Boolean(businessContactPhoneError) || undefined}
-                      >
-                        <FieldLabel htmlFor="inquiry-page-business-contact-phone">
-                          Phone number
-                        </FieldLabel>
-                        <FieldContent>
-                          <Input
-                            aria-invalid={Boolean(businessContactPhoneError) || undefined}
-                            disabled={isPending}
-                            id="inquiry-page-business-contact-phone"
-                            inputMode="tel"
-                            maxLength={40}
-                            name="businessContactPhone"
-                            onChange={(event) =>
-                              setBusinessContactPhone(event.currentTarget.value)
-                            }
-                            placeholder="+1 (555) 123-4567"
-                            value={businessContactPhone}
-                          />
-                          <FieldError
-                            errors={
-                              businessContactPhoneError
-                                ? [{ message: businessContactPhoneError }]
-                                : undefined
-                            }
-                          />
-                        </FieldContent>
-                      </Field>
+          <div className="flex flex-col gap-6 rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
+            <SectionVisibilityToggle
+              checked={showBusinessContact}
+              description="Keep the contact details saved, but hide the business contact block on the public form when this is off."
+              disabled={isPending}
+              label="Show business contact"
+              onCheckedChange={setShowBusinessContact}
+            />
 
-                      <Field
-                        data-invalid={Boolean(businessContactEmailError) || undefined}
-                      >
-                        <FieldLabel htmlFor="inquiry-page-business-contact-email">
-                          Email
-                        </FieldLabel>
-                        <FieldContent>
-                          <Input
-                            aria-invalid={Boolean(businessContactEmailError) || undefined}
-                            disabled={isPending}
-                            id="inquiry-page-business-contact-email"
-                            maxLength={320}
-                            name="businessContactEmail"
-                            onChange={(event) =>
-                              setBusinessContactEmail(event.currentTarget.value)
-                            }
-                            placeholder="hello@example.com"
-                            type="email"
-                            value={businessContactEmail}
-                          />
-                          <FieldError
-                            errors={
-                              businessContactEmailError
-                                ? [{ message: businessContactEmailError }]
-                                : undefined
-                            }
-                          />
-                        </FieldContent>
-                      </Field>
-                    </div>
+            <DetailsPanel
+              description="Phone, email, and social links appear when visibility is on."
+              eyebrow="Contact"
+              title="Details"
+            >
+              <FieldGroup>
+                <div className="grid gap-5 lg:grid-cols-2">
+                  <Field
+                    data-invalid={Boolean(businessContactPhoneError) || undefined}
+                  >
+                    <FieldLabel htmlFor="inquiry-page-business-contact-phone">
+                      Phone number
+                    </FieldLabel>
+                    <FieldContent>
+                      <Input
+                        aria-invalid={Boolean(businessContactPhoneError) || undefined}
+                        disabled={isPending}
+                        id="inquiry-page-business-contact-phone"
+                        inputMode="tel"
+                        maxLength={40}
+                        name="businessContactPhone"
+                        onChange={(event) =>
+                          setBusinessContactPhone(event.currentTarget.value)
+                        }
+                        placeholder="+1 (555) 123-4567"
+                        value={businessContactPhone}
+                      />
+                      <FieldError
+                        errors={
+                          businessContactPhoneError
+                            ? [{ message: businessContactPhoneError }]
+                            : undefined
+                        }
+                      />
+                    </FieldContent>
+                  </Field>
 
-                    <div className="grid gap-5 lg:grid-cols-2">
-                      <Field
-                        data-invalid={Boolean(businessFacebookUrlError) || undefined}
-                      >
-                        <FieldLabel htmlFor="inquiry-page-business-facebook-url">
-                          {inquiryPageBusinessContactSocialMeta.facebook.label}
-                        </FieldLabel>
-                        <FieldContent>
-                          <Input
-                            aria-invalid={Boolean(businessFacebookUrlError) || undefined}
-                            disabled={isPending}
-                            id="inquiry-page-business-facebook-url"
-                            maxLength={2000}
-                            name="businessFacebookUrl"
-                            onChange={(event) =>
-                              setBusinessFacebookUrl(event.currentTarget.value)
-                            }
-                            placeholder={
-                              inquiryPageBusinessContactSocialMeta.facebook.placeholder
-                            }
-                            type="url"
-                            value={businessFacebookUrl}
-                          />
-                          <FieldError
-                            errors={
-                              businessFacebookUrlError
-                                ? [{ message: businessFacebookUrlError }]
-                                : undefined
-                            }
-                          />
-                        </FieldContent>
-                      </Field>
+                  <Field
+                    data-invalid={Boolean(businessContactEmailError) || undefined}
+                  >
+                    <FieldLabel htmlFor="inquiry-page-business-contact-email">
+                      Email
+                    </FieldLabel>
+                    <FieldContent>
+                      <Input
+                        aria-invalid={Boolean(businessContactEmailError) || undefined}
+                        disabled={isPending}
+                        id="inquiry-page-business-contact-email"
+                        maxLength={320}
+                        name="businessContactEmail"
+                        onChange={(event) =>
+                          setBusinessContactEmail(event.currentTarget.value)
+                        }
+                        placeholder="hello@example.com"
+                        type="email"
+                        value={businessContactEmail}
+                      />
+                      <FieldError
+                        errors={
+                          businessContactEmailError
+                            ? [{ message: businessContactEmailError }]
+                            : undefined
+                        }
+                      />
+                    </FieldContent>
+                  </Field>
+                </div>
 
-                      <Field
-                        data-invalid={Boolean(businessInstagramUrlError) || undefined}
-                      >
-                        <FieldLabel htmlFor="inquiry-page-business-instagram-url">
-                          {inquiryPageBusinessContactSocialMeta.instagram.label}
-                        </FieldLabel>
-                        <FieldContent>
-                          <Input
-                            aria-invalid={Boolean(businessInstagramUrlError) || undefined}
-                            disabled={isPending}
-                            id="inquiry-page-business-instagram-url"
-                            maxLength={2000}
-                            name="businessInstagramUrl"
-                            onChange={(event) =>
-                              setBusinessInstagramUrl(event.currentTarget.value)
-                            }
-                            placeholder={
-                              inquiryPageBusinessContactSocialMeta.instagram.placeholder
-                            }
-                            type="url"
-                            value={businessInstagramUrl}
-                          />
-                          <FieldError
-                            errors={
-                              businessInstagramUrlError
-                                ? [{ message: businessInstagramUrlError }]
-                                : undefined
-                            }
-                          />
-                        </FieldContent>
-                      </Field>
+                <div className="grid gap-5 lg:grid-cols-2">
+                  <Field
+                    data-invalid={Boolean(businessFacebookUrlError) || undefined}
+                  >
+                    <FieldLabel htmlFor="inquiry-page-business-facebook-url">
+                      {inquiryPageBusinessContactSocialMeta.facebook.label}
+                    </FieldLabel>
+                    <FieldContent>
+                      <Input
+                        aria-invalid={Boolean(businessFacebookUrlError) || undefined}
+                        disabled={isPending}
+                        id="inquiry-page-business-facebook-url"
+                        maxLength={2000}
+                        name="businessFacebookUrl"
+                        onChange={(event) =>
+                          setBusinessFacebookUrl(event.currentTarget.value)
+                        }
+                        placeholder={
+                          inquiryPageBusinessContactSocialMeta.facebook.placeholder
+                        }
+                        type="url"
+                        value={businessFacebookUrl}
+                      />
+                      <FieldError
+                        errors={
+                          businessFacebookUrlError
+                            ? [{ message: businessFacebookUrlError }]
+                            : undefined
+                        }
+                      />
+                    </FieldContent>
+                  </Field>
 
-                      <Field
-                        data-invalid={Boolean(businessTwitterXUrlError) || undefined}
-                      >
-                        <FieldLabel htmlFor="inquiry-page-business-twitter-x-url">
-                          {inquiryPageBusinessContactSocialMeta.twitterX.label}
-                        </FieldLabel>
-                        <FieldContent>
-                          <Input
-                            aria-invalid={Boolean(businessTwitterXUrlError) || undefined}
-                            disabled={isPending}
-                            id="inquiry-page-business-twitter-x-url"
-                            maxLength={2000}
-                            name="businessTwitterXUrl"
-                            onChange={(event) =>
-                              setBusinessTwitterXUrl(event.currentTarget.value)
-                            }
-                            placeholder={
-                              inquiryPageBusinessContactSocialMeta.twitterX.placeholder
-                            }
-                            type="url"
-                            value={businessTwitterXUrl}
-                          />
-                          <FieldError
-                            errors={
-                              businessTwitterXUrlError
-                                ? [{ message: businessTwitterXUrlError }]
-                                : undefined
-                            }
-                          />
-                        </FieldContent>
-                      </Field>
+                  <Field
+                    data-invalid={Boolean(businessInstagramUrlError) || undefined}
+                  >
+                    <FieldLabel htmlFor="inquiry-page-business-instagram-url">
+                      {inquiryPageBusinessContactSocialMeta.instagram.label}
+                    </FieldLabel>
+                    <FieldContent>
+                      <Input
+                        aria-invalid={Boolean(businessInstagramUrlError) || undefined}
+                        disabled={isPending}
+                        id="inquiry-page-business-instagram-url"
+                        maxLength={2000}
+                        name="businessInstagramUrl"
+                        onChange={(event) =>
+                          setBusinessInstagramUrl(event.currentTarget.value)
+                        }
+                        placeholder={
+                          inquiryPageBusinessContactSocialMeta.instagram.placeholder
+                        }
+                        type="url"
+                        value={businessInstagramUrl}
+                      />
+                      <FieldError
+                        errors={
+                          businessInstagramUrlError
+                            ? [{ message: businessInstagramUrlError }]
+                            : undefined
+                        }
+                      />
+                    </FieldContent>
+                  </Field>
 
-                      <Field
-                        data-invalid={Boolean(businessLinkedinUrlError) || undefined}
-                      >
-                        <FieldLabel htmlFor="inquiry-page-business-linkedin-url">
-                          {inquiryPageBusinessContactSocialMeta.linkedin.label}
-                        </FieldLabel>
-                        <FieldContent>
-                          <Input
-                            aria-invalid={Boolean(businessLinkedinUrlError) || undefined}
-                            disabled={isPending}
-                            id="inquiry-page-business-linkedin-url"
-                            maxLength={2000}
-                            name="businessLinkedinUrl"
-                            onChange={(event) =>
-                              setBusinessLinkedinUrl(event.currentTarget.value)
-                            }
-                            placeholder={
-                              inquiryPageBusinessContactSocialMeta.linkedin.placeholder
-                            }
-                            type="url"
-                            value={businessLinkedinUrl}
-                          />
-                          <FieldDescription>
-                            Leave fields blank if you only want phone or email.
-                          </FieldDescription>
-                          <FieldError
-                            errors={
-                              businessLinkedinUrlError
-                                ? [{ message: businessLinkedinUrlError }]
-                                : undefined
-                            }
-                          />
-                        </FieldContent>
-                      </Field>
-                    </div>
-                  </FieldGroup>
-                </DetailsPanel>
-              </div>
-            </div>
+                  <Field
+                    data-invalid={Boolean(businessTwitterXUrlError) || undefined}
+                  >
+                    <FieldLabel htmlFor="inquiry-page-business-twitter-x-url">
+                      {inquiryPageBusinessContactSocialMeta.twitterX.label}
+                    </FieldLabel>
+                    <FieldContent>
+                      <Input
+                        aria-invalid={Boolean(businessTwitterXUrlError) || undefined}
+                        disabled={isPending}
+                        id="inquiry-page-business-twitter-x-url"
+                        maxLength={2000}
+                        name="businessTwitterXUrl"
+                        onChange={(event) =>
+                          setBusinessTwitterXUrl(event.currentTarget.value)
+                        }
+                        placeholder={
+                          inquiryPageBusinessContactSocialMeta.twitterX.placeholder
+                        }
+                        type="url"
+                        value={businessTwitterXUrl}
+                      />
+                      <FieldError
+                        errors={
+                          businessTwitterXUrlError
+                            ? [{ message: businessTwitterXUrlError }]
+                            : undefined
+                        }
+                      />
+                    </FieldContent>
+                  </Field>
+
+                  <Field
+                    data-invalid={Boolean(businessLinkedinUrlError) || undefined}
+                  >
+                    <FieldLabel htmlFor="inquiry-page-business-linkedin-url">
+                      {inquiryPageBusinessContactSocialMeta.linkedin.label}
+                    </FieldLabel>
+                    <FieldContent>
+                      <Input
+                        aria-invalid={Boolean(businessLinkedinUrlError) || undefined}
+                        disabled={isPending}
+                        id="inquiry-page-business-linkedin-url"
+                        maxLength={2000}
+                        name="businessLinkedinUrl"
+                        onChange={(event) =>
+                          setBusinessLinkedinUrl(event.currentTarget.value)
+                        }
+                        placeholder={
+                          inquiryPageBusinessContactSocialMeta.linkedin.placeholder
+                        }
+                        type="url"
+                        value={businessLinkedinUrl}
+                      />
+                      <FieldDescription>
+                        Leave fields blank if you only want phone or email.
+                      </FieldDescription>
+                      <FieldError
+                        errors={
+                          businessLinkedinUrlError
+                            ? [{ message: businessLinkedinUrlError }]
+                            : undefined
+                        }
+                      />
+                    </FieldContent>
+                  </Field>
+                </div>
+              </FieldGroup>
+            </DetailsPanel>
           </div>
         </section>
       </div>

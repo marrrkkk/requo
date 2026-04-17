@@ -4,12 +4,14 @@ import { Suspense } from "react";
 
 import { PricingPage } from "@/components/marketing/pricing-page";
 import { getBillingRegion, getDefaultCurrency } from "@/lib/billing/region";
+import { createPageMetadata } from "@/lib/seo/site";
 
-export const metadata: Metadata = {
-  title: "Pricing — Requo",
+export const metadata: Metadata = createPageMetadata({
   description:
-    "Simple, transparent pricing for owner-led service businesses. Start free, upgrade when you need more.",
-};
+    "Simple pricing for service businesses using Requo to manage inquiries, quotes, and follow-up.",
+  pathname: "/pricing",
+  title: "Pricing",
+});
 
 async function PricingRouteDynamic() {
   const requestHeaders = await headers();
@@ -20,9 +22,9 @@ async function PricingRouteDynamic() {
 }
 
 /**
- * Dynamic pricing page — detects the visitor's region from request
- * headers and shows localized pricing (PHP for Philippines, USD
- * everywhere else). Wrapped in Suspense to allow PPR of the page shell.
+ * Dynamic pricing page detects the visitor's region from request headers and
+ * shows localized pricing (PHP for Philippines, USD everywhere else). Wrapped
+ * in Suspense to allow PPR of the page shell.
  */
 export default function PricingRoute() {
   return (
