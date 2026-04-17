@@ -34,7 +34,20 @@ export type BusinessNotificationBellView = {
   items: BusinessNotificationItem[];
   unreadCount: number;
   lastReadAt: string | null;
+  /** True when more rows exist beyond `items` (load older via cursor). */
+  hasMore: boolean;
 };
+
+export type BusinessNotificationLoadMoreResult =
+  | {
+      ok: true;
+      items: BusinessNotificationItem[];
+      hasMore: boolean;
+    }
+  | {
+      ok: false;
+      error: string;
+    };
 
 export type BusinessNotificationActionResult =
   | {

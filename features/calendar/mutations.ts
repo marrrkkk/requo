@@ -8,6 +8,7 @@ import {
   calendarEvents,
   googleCalendarConnections,
 } from "@/lib/db/schema";
+import { encryptValue } from "@/lib/security/encryption";
 
 /**
  * Update the stored access token after a refresh.
@@ -20,7 +21,8 @@ export async function updateCalendarAccessToken(
   await db
     .update(googleCalendarConnections)
     .set({
-      accessToken,
+      accessToken: null,
+      accessTokenEncrypted: encryptValue(accessToken),
       accessTokenExpiresAt: expiresAt,
       updatedAt: new Date(),
     })

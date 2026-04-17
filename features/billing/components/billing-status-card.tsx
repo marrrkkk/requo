@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 
+import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { PlanBadge } from "@/components/shared/paywall";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
@@ -44,9 +45,20 @@ import { cn } from "@/lib/utils";
 
 type BillingStatusCardProps = {
   billing: WorkspaceBillingOverview;
+  /** When false, hides the plan comparison grid (e.g. workspace overview). */
+  showPlanComparison?: boolean;
+  /** Current-month counts for Free plan usage meters (workspace-wide). */
+  monthlyUsage?: {
+    inquiries: number;
+    quotes: number;
+  };
 };
 
-export function BillingStatusCard({ billing }: BillingStatusCardProps) {
+export function BillingStatusCard({
+  billing,
+  showPlanComparison = true,
+  monthlyUsage,
+}: BillingStatusCardProps) {
   const { subscription, currentPlan, workspaceId, workspaceSlug, region, defaultCurrency } =
     billing;
   const [cancelState, cancelAction, isCanceling] = useActionState(
@@ -244,8 +256,32 @@ export function BillingStatusCard({ billing }: BillingStatusCardProps) {
         </CardFooter>
       </Card>
 
-      {/* Plan comparison — always show for free/pro */}
-      {(isFreePlan || currentPlan === "pro") ? (
+      {isFreePlan && monthlyUsage ? (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">This month&apos;s usage</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Counts reset on the first day of each month (UTC). Upgrade for
+              higher limits.
+            </p>
+          </CardHeader>
+          <CardContent className="grid gap-6">
+            <MonthlyUsageMeter
+              current={monthlyUsage.inquiries}
+              label="Inquiries"
+              limit={getUsageLimit("free", "inquiriesPerMonth") ?? 100}
+            />
+            <MonthlyUsageMeter
+              current={monthlyUsage.quotes}
+              label="Quotes"
+              limit={getUsageLimit("free", "quotesPerMonth") ?? 50}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* Plan comparison — optional; hidden on workspace overview */}
+      {showPlanComparison && (isFreePlan || currentPlan === "pro") ? (
         <Card>
           <CardHeader>
             <CardTitle>Compare plans</CardTitle>
@@ -301,6 +337,39 @@ export function BillingStatusCard({ billing }: BillingStatusCardProps) {
           </CardContent>
         </Card>
       ) : null}
+    </div>
+  );
+}
+
+/* ── Free plan monthly usage ─────────────────────────────────────────────── */
+
+function MonthlyUsageMeter({
+  label,
+  current,
+  limit,
+}: {
+  label: string;
+  current: number;
+  limit: number;
+}) {
+  const pct =
+    limit > 0 ? Math.min(100, Math.round((current / limit) * 100)) : 0;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="font-medium text-foreground">{label}</span>
+        <span className="tabular-nums text-muted-foreground">
+          <span className="font-medium text-foreground">{current}</span>
+          {" / "}
+          {limit}
+        </span>
+      </div>
+      <Progress
+        aria-label={`${label}: ${current} of ${limit} used this month`}
+        className="h-2"
+        value={pct}
+      />
     </div>
   );
 }

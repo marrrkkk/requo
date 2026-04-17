@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import {
   Bell,
   CheckCheck,
@@ -14,7 +14,6 @@ import {
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
   Empty,
@@ -30,6 +29,7 @@ import {
 } from "@/components/ui/popover";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
+  loadMoreBusinessNotificationsAction,
   markBusinessNotificationsReadAction,
 } from "@/features/notifications/actions";
 import type {
@@ -65,8 +65,6 @@ type RealtimeNotificationStateRow = {
   last_read_at: string | null;
 };
 
-const maxVisibleNotifications = 15;
-
 export function DashboardNotificationBell({
   businessId,
   businessSlug,
@@ -79,9 +77,15 @@ export function DashboardNotificationBell({
   );
   const refreshTimerRef = useRef<number | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isLoadingMore, startLoadMore] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
   const [shouldConnectRealtime, setShouldConnectRealtime] = useState(false);
-  const [view, setView] = useState(initialView);
+  const [view, setView] = useState({
+    ...initialView,
+    hasMore: initialView.hasMore ?? false,
+  });
+  const scrollViewportRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreInFlightRef = useRef(false);
 
   function applyReadWatermark(nextLastReadAt: string) {
     setView((currentView) => {
@@ -94,6 +98,7 @@ export function DashboardNotificationBell({
         items,
         unreadCount: items.filter((item) => item.unread).length,
         lastReadAt: nextLastReadAt,
+        hasMore: currentView.hasMore,
       };
     });
   }
@@ -118,6 +123,7 @@ export function DashboardNotificationBell({
         ...currentView,
         items,
         unreadCount: Math.max(0, currentView.unreadCount - 1),
+        hasMore: currentView.hasMore,
       };
     });
   }
@@ -246,9 +252,10 @@ export function DashboardNotificationBell({
           };
 
           return {
-            items: [nextItem, ...currentView.items].slice(0, maxVisibleNotifications),
+            items: [nextItem, ...currentView.items],
             unreadCount: currentView.unreadCount + (unread ? 1 : 0),
             lastReadAt: currentView.lastReadAt,
+            hasMore: currentView.hasMore,
           };
         });
       };
@@ -323,6 +330,72 @@ export function DashboardNotificationBell({
       }
     };
   }, [businessId, businessSlug, shouldConnectRealtime, userId]);
+
+  const loadOlderNotifications = useCallback(() => {
+    if (!view.hasMore || loadMoreInFlightRef.current || isLoadingMore) {
+      return;
+    }
+
+    const oldest = view.items[view.items.length - 1];
+
+    if (!oldest) {
+      return;
+    }
+
+    loadMoreInFlightRef.current = true;
+
+    startLoadMore(async () => {
+      const result = await loadMoreBusinessNotificationsAction(
+        businessSlug,
+        oldest.createdAt,
+        oldest.id,
+        view.lastReadAt,
+      );
+
+      loadMoreInFlightRef.current = false;
+
+      if (!result.ok) {
+        console.error(result.error);
+        return;
+      }
+
+      setView((current) => {
+        const existingIds = new Set(current.items.map((item) => item.id));
+        const merged = [
+          ...current.items,
+          ...result.items.filter((item) => !existingIds.has(item.id)),
+        ];
+
+        return {
+          ...current,
+          items: merged,
+          hasMore: result.hasMore,
+        };
+      });
+    });
+  }, [
+    businessSlug,
+    isLoadingMore,
+    view.hasMore,
+    view.items,
+    view.lastReadAt,
+  ]);
+
+  function handleNotificationScroll() {
+    const el = scrollViewportRef.current;
+
+    if (!el || !view.hasMore || loadMoreInFlightRef.current || isLoadingMore) {
+      return;
+    }
+
+    const thresholdPx = 80;
+    const nearBottom =
+      el.scrollTop + el.clientHeight >= el.scrollHeight - thresholdPx;
+
+    if (nearBottom) {
+      loadOlderNotifications();
+    }
+  }
 
   function markAllRead() {
     const newestNotification = view.items[0];
@@ -421,7 +494,11 @@ export function DashboardNotificationBell({
           </Button>
         </div>
         <Separator />
-        <ScrollArea className="max-h-[26rem]">
+        <div
+          ref={scrollViewportRef}
+          className="max-h-[26rem] overflow-y-auto"
+          onScroll={handleNotificationScroll}
+        >
           {view.items.length ? (
             <div className="flex flex-col p-2">
               {view.items.map((item) => {
@@ -469,6 +546,15 @@ export function DashboardNotificationBell({
                   </button>
                 );
               })}
+              {view.hasMore ? (
+                <div className="flex justify-center py-3">
+                  {isLoadingMore ? (
+                    <span className="text-xs text-muted-foreground">Loading…</span>
+                  ) : (
+                    <span className="sr-only">Scroll for more</span>
+                  )}
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="p-4">
@@ -485,7 +571,7 @@ export function DashboardNotificationBell({
               </Empty>
             </div>
           )}
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   );

@@ -19,7 +19,10 @@ import {
   updateCalendarAccessToken,
   updateSelectedCalendar,
 } from "./mutations";
-import { getCalendarConnectionRecord } from "./queries";
+import {
+  getCalendarConnectionRecord,
+  resolveAuthorizedCalendarEventTarget,
+} from "./queries";
 import { revokeGoogleToken } from "@/lib/google-calendar/client";
 import type {
   CalendarEventActionState,
@@ -62,6 +65,18 @@ export async function createCalendarEventAction(
   }
 
   const data = validationResult.data;
+  const authorizedTarget = await resolveAuthorizedCalendarEventTarget({
+    userId: user.id,
+    businessId: data.businessId,
+    inquiryId: data.inquiryId,
+    quoteId: data.quoteId,
+  });
+
+  if (!authorizedTarget) {
+    return {
+      error: "That calendar event context could not be verified.",
+    };
+  }
 
   try {
     // Get a valid access token, refreshing if needed
@@ -108,10 +123,10 @@ export async function createCalendarEventAction(
 
     // Save the event reference
     await saveCalendarEventRecord({
-      businessId: data.businessId,
+      businessId: authorizedTarget.businessId,
       userId: user.id,
-      inquiryId: data.inquiryId,
-      quoteId: data.quoteId,
+      inquiryId: authorizedTarget.inquiryId,
+      quoteId: authorizedTarget.quoteId,
       googleEventId: googleEvent.id,
       googleCalendarId: calendarId,
       title: data.title,
@@ -128,10 +143,10 @@ export async function createCalendarEventAction(
     });
 
     await logCalendarEventActivity({
-      businessId: data.businessId,
+      businessId: authorizedTarget.businessId,
       userId: user.id,
-      inquiryId: data.inquiryId,
-      quoteId: data.quoteId,
+      inquiryId: authorizedTarget.inquiryId,
+      quoteId: authorizedTarget.quoteId,
       eventTitle: data.title,
       eventDate: eventDateFormatted,
       googleEventId: googleEvent.id,
