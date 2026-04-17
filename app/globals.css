@@ -457,6 +457,44 @@
     scrollbar-gutter: stable;
     /* Ensure scrollbar behavior is consistent */
     overflow-y: scroll;
+    /* Minimal scrollbar styling */
+    scrollbar-width: thin;
+    scrollbar-color: rgb(214 221 216 / 0.5) transparent;
+  }
+
+  /* Webkit scrollbar styling (Chrome, Safari, Edge) */
+  html::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  html::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  html::-webkit-scrollbar-thumb {
+    background-color: rgb(214 221 216 / 0.5);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  html::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(214 221 216 / 0.8);
+    background-clip: content-box;
+  }
+
+  /* Dark mode scrollbar */
+  .dark html {
+    scrollbar-color: rgb(255 255 255 / 0.1) transparent;
+  }
+
+  .dark html::-webkit-scrollbar-thumb {
+    background-color: rgb(255 255 255 / 0.1);
+  }
+
+  .dark html::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(255 255 255 / 0.2);
   }
 
   body {

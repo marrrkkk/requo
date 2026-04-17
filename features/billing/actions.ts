@@ -4,12 +4,12 @@ import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/auth/session";
 import { getWorkspaceContextForUser } from "@/lib/db/workspace-access";
-import { isPayMongoConfigured, isLemonSqueezyConfigured } from "@/lib/env";
+import { isPayMongoConfigured, isPaddleConfigured } from "@/lib/env";
 import { getProviderForCurrency } from "@/lib/billing/region";
 import { createPendingSubscription } from "@/lib/billing/subscription-service";
 import { recordPaymentAttempt } from "@/lib/billing/webhook-processor";
 import type { CheckoutActionState, CancelActionState } from "@/features/billing/types";
-import type { BillingCurrency, PaidPlan } from "@/lib/billing/types";
+import type { BillingCurrency, BillingInterval, PaidPlan } from "@/lib/billing/types";
 import { getWorkspacePath } from "@/features/workspaces/routes";
 
 /**
@@ -25,6 +25,7 @@ export async function createCheckoutAction(
   const workspaceId = formData.get("workspaceId");
   const plan = formData.get("plan");
   const currency = formData.get("currency");
+  const interval = (formData.get("interval") as BillingInterval) ?? "monthly";
 
   if (
     typeof workspaceId !== "string" ||
@@ -62,6 +63,7 @@ export async function createCheckoutAction(
 
   const typedPlan = plan as PaidPlan;
   const typedCurrency = currency as BillingCurrency;
+  const typedInterval: BillingInterval = interval === "yearly" ? "yearly" : "monthly";
   const provider = getProviderForCurrency(typedCurrency);
 
   // Route to correct provider
@@ -85,6 +87,7 @@ export async function createCheckoutAction(
     const result = await createQrPhCheckout({
       plan: typedPlan,
       workspaceId,
+      interval: typedInterval,
     });
 
     if (result.type === "error") {
@@ -117,21 +120,21 @@ export async function createCheckoutAction(
     return { error: "Unexpected checkout result." };
   }
 
-  // Lemon Squeezy
-  if (!isLemonSqueezyConfigured) {
+  // Paddle
+  if (!isPaddleConfigured) {
     return { error: "Card payments are not yet configured. Please try QRPh payment instead." };
   }
 
-  const { createLemonSqueezyCheckout } = await import(
-    "@/lib/billing/providers/lemonsqueezy"
+  const { createPaddleTransaction } = await import(
+    "@/lib/billing/providers/paddle"
   );
 
-  const result = await createLemonSqueezyCheckout({
+  const result = await createPaddleTransaction({
     plan: typedPlan,
     workspaceId,
     userEmail: user.email,
     userName: user.name,
-    successUrl: `${process.env.BETTER_AUTH_URL}/workspaces/${workspace.slug}?billing=success`,
+    interval: typedInterval,
   });
 
   if (result.type === "error") {
@@ -139,7 +142,8 @@ export async function createCheckoutAction(
   }
 
   if (result.type === "redirect") {
-    return { checkoutUrl: result.url };
+    // result.url contains the Paddle transaction ID for overlay checkout
+    return { paddleTransactionId: result.url };
   }
 
   return { error: "Unexpected checkout result." };
@@ -181,24 +185,39 @@ export async function cancelSubscriptionAction(
     return { error: "No active subscription to cancel." };
   }
 
+  const isPending = subscription.status === "pending";
+
   // Cancel based on provider
   if (
-    subscription.billingProvider === "lemonsqueezy" &&
+    subscription.billingProvider === "paddle" &&
     subscription.providerSubscriptionId
   ) {
-    const { cancelLemonSqueezySubscription } = await import(
-      "@/lib/billing/providers/lemonsqueezy"
+    const { cancelPaddleSubscription } = await import(
+      "@/lib/billing/providers/paddle"
     );
-    const success = await cancelLemonSqueezySubscription(
+    const success = await cancelPaddleSubscription(
       subscription.providerSubscriptionId,
     );
 
     if (!success) {
       return { error: "Failed to cancel subscription. Please try again." };
     }
+
+    // Paddle cancels at end of billing period — mark canceledAt but keep status active.
+    // The actual status change to "canceled" will come via webhook when the period ends.
+    const { updateSubscriptionStatus } = await import(
+      "@/lib/billing/subscription-service"
+    );
+    await updateSubscriptionStatus(workspaceId, "active", {
+      canceledAt: new Date(),
+    });
+
+    revalidatePath(getWorkspacePath(workspace.slug));
+
+    return { success: "Subscription canceled. You\u2019ll keep access until the end of your billing period." };
   }
 
-  // For PayMongo (no managed subscription), just cancel locally
+  // For PayMongo (no managed subscription), cancel locally and immediately
   const { cancelSubscription } = await import(
     "@/lib/billing/subscription-service"
   );
@@ -206,5 +225,9 @@ export async function cancelSubscriptionAction(
 
   revalidatePath(getWorkspacePath(workspace.slug));
 
-  return { success: "Subscription canceled. You'll keep access until the end of your billing period." };
+  if (isPending) {
+    return { success: "Pending payment canceled." };
+  }
+
+  return { success: "Subscription canceled. You\u2019ll keep access until the end of your billing period." };
 }

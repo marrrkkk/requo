@@ -40,6 +40,7 @@ export type CheckoutActionState = {
   error?: string;
   success?: string;
   checkoutUrl?: string;
+  paddleTransactionId?: string;
   qrData?: {
     qrCodeData: string;
     paymentIntentId: string;

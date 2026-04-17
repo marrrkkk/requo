@@ -169,6 +169,22 @@ export async function activateSubscription(
         createdAt: now,
         updatedAt: now,
       })
+      .onConflictDoUpdate({
+        target: workspaceSubscriptions.workspaceId,
+        set: {
+          status: params.status ?? "active",
+          plan: params.plan,
+          billingProvider: params.provider,
+          billingCurrency: params.currency,
+          providerCustomerId: params.providerCustomerId ?? null,
+          providerSubscriptionId: params.providerSubscriptionId ?? null,
+          providerCheckoutId: params.providerCheckoutId ?? null,
+          currentPeriodStart: params.currentPeriodStart ?? now,
+          currentPeriodEnd: params.currentPeriodEnd ?? null,
+          canceledAt: null,
+          updatedAt: now,
+        },
+      })
       .returning();
 
     subscription = created!;

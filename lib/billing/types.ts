@@ -16,6 +16,8 @@ export type {
 
 export type BillingRegion = "PH" | "INTL";
 
+export type BillingInterval = "monthly" | "yearly";
+
 export type PaidPlan = Exclude<WorkspacePlan, "free">;
 
 export type PlanPricing = {

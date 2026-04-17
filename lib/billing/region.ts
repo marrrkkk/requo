@@ -54,12 +54,12 @@ export function getDefaultCurrency(region: BillingRegion): BillingCurrency {
 
 /** Maps a billing region to its default payment provider. */
 export function getDefaultProvider(region: BillingRegion): BillingProvider {
-  return region === "PH" ? "paymongo" : "lemonsqueezy";
+  return region === "PH" ? "paymongo" : "paddle";
 }
 
 /** Maps a billing currency to its corresponding provider. */
 export function getProviderForCurrency(
   currency: BillingCurrency,
 ): BillingProvider {
-  return currency === "PHP" ? "paymongo" : "lemonsqueezy";
+  return currency === "PHP" ? "paymongo" : "paddle";
 }

@@ -35,11 +35,15 @@ const envSchema = z.object({
   PAYMONGO_SECRET_KEY: emptyToUndefined(z.string().min(1)),
   PAYMONGO_PUBLIC_KEY: emptyToUndefined(z.string().min(1)),
   PAYMONGO_WEBHOOK_SECRET: emptyToUndefined(z.string().min(1)),
-  LEMONSQUEEZY_API_KEY: emptyToUndefined(z.string().min(1)),
-  LEMONSQUEEZY_STORE_ID: emptyToUndefined(z.string().min(1)),
-  LEMONSQUEEZY_WEBHOOK_SECRET: emptyToUndefined(z.string().min(1)),
-  LEMONSQUEEZY_PRO_VARIANT_ID: emptyToUndefined(z.string().min(1)),
-  LEMONSQUEEZY_BUSINESS_VARIANT_ID: emptyToUndefined(z.string().min(1)),
+  PADDLE_API_KEY: emptyToUndefined(z.string().min(1)),
+  PADDLE_WEBHOOK_SECRET: emptyToUndefined(z.string().min(1)),
+  PADDLE_PRO_PRICE_ID: emptyToUndefined(z.string().min(1)),
+  PADDLE_PRO_YEARLY_PRICE_ID: emptyToUndefined(z.string().min(1)),
+  PADDLE_BUSINESS_PRICE_ID: emptyToUndefined(z.string().min(1)),
+  PADDLE_BUSINESS_YEARLY_PRICE_ID: emptyToUndefined(z.string().min(1)),
+  PADDLE_ENVIRONMENT: emptyToUndefined(z.enum(["sandbox", "production"])).default("sandbox"),
+  NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: emptyToUndefined(z.string().min(1)),
+  NEXT_PUBLIC_PADDLE_ENVIRONMENT: emptyToUndefined(z.enum(["sandbox", "production"])).default("sandbox"),
   DEMO_OWNER_NAME: emptyToUndefined(z.string().trim().min(1)),
   DEMO_OWNER_EMAIL: emptyToUndefined(z.email()),
   DEMO_OWNER_PASSWORD: emptyToUndefined(z.string().min(8)),
@@ -54,6 +58,8 @@ export const env = envSchema.parse(process.env);
 export const publicEnv = {
   NEXT_PUBLIC_SUPABASE_URL: env.NEXT_PUBLIC_SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
+  NEXT_PUBLIC_PADDLE_ENVIRONMENT: env.NEXT_PUBLIC_PADDLE_ENVIRONMENT,
 };
 
 export const isResendConfigured = Boolean(
@@ -68,6 +74,7 @@ export const isGoogleCalendarConfigured = Boolean(
 export const isPayMongoConfigured = Boolean(
   env.PAYMONGO_SECRET_KEY && env.PAYMONGO_PUBLIC_KEY,
 );
-export const isLemonSqueezyConfigured = Boolean(
-  env.LEMONSQUEEZY_API_KEY && env.LEMONSQUEEZY_STORE_ID,
+export const isPaddleConfigured = Boolean(
+  env.PADDLE_API_KEY && env.PADDLE_PRO_PRICE_ID,
 );
+

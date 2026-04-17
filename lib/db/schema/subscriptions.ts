@@ -13,7 +13,7 @@ import { workspaces } from "@/lib/db/schema/workspaces";
 
 /* ── Enums ────────────────────────────────────────────────────────────────── */
 
-export const billingProviders = ["paymongo", "lemonsqueezy"] as const;
+export const billingProviders = ["paymongo", "paddle"] as const;
 export type BillingProvider = (typeof billingProviders)[number];
 
 export const billingProviderEnum = pgEnum("billing_provider", [

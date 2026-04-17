@@ -494,7 +494,7 @@ async function createWorkspace(
       workspaceId: wsId,
       status: "active",
       plan: config.plan,
-      billingProvider: config.plan === "business" ? "paymongo" : "lemonsqueezy",
+      billingProvider: config.plan === "business" ? "paymongo" : "paddle",
       billingCurrency: config.plan === "business" ? "PHP" : "USD",
       providerCustomerId: `cus_demo_${config.workspaceSlug}`,
       providerSubscriptionId: `sub_demo_${config.workspaceSlug}`,
