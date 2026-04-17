@@ -76,14 +76,6 @@ export async function createCheckoutAction(
       "@/lib/billing/providers/paymongo"
     );
 
-    // Create pending subscription
-    await createPendingSubscription({
-      workspaceId,
-      plan: typedPlan,
-      provider: "paymongo",
-      currency: "PHP",
-    });
-
     const result = await createQrPhCheckout({
       plan: typedPlan,
       workspaceId,
@@ -95,6 +87,14 @@ export async function createCheckoutAction(
     }
 
     if (result.type === "qrph") {
+      // Only create a pending subscription after we have a valid QR code
+      await createPendingSubscription({
+        workspaceId,
+        plan: typedPlan,
+        provider: "paymongo",
+        currency: "PHP",
+      });
+
       // Record pending payment
       await recordPaymentAttempt({
         workspaceId,
