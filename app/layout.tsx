@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { Suspense } from "react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -62,6 +63,7 @@ export default function RootLayout({
           </Suspense>
           <TooltipProvider>{children}</TooltipProvider>
           <Toaster />
+          <SpeedInsights />
         </ThemeProvider>
       </body>
     </html>
