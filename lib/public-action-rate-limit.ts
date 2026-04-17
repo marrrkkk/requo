@@ -8,7 +8,10 @@ import { db } from "@/lib/db/client";
 import { publicActionEvents } from "@/lib/db/schema";
 
 type AssertPublicActionRateLimitInput = {
-  action: "public-inquiry-submit" | "public-quote-respond";
+  action:
+    | "business-inquiry-ai"
+    | "public-inquiry-submit"
+    | "public-quote-respond";
   scope: string;
   limit: number;
   windowMs: number;
