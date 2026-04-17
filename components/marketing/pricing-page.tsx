@@ -21,12 +21,7 @@ import {
   getUsageLimit,
   planFeatureLabels,
 } from "@/lib/plans";
-import {
-  getPlanPriceLabel,
-  getMonthlyEquivalentLabel,
-  getYearlySavingsPercent,
-} from "@/lib/billing/plans";
-import type { BillingCurrency, BillingInterval } from "@/lib/billing/types";
+import type { BillingCurrency } from "@/lib/billing/types";
 import { PricingIntervalToggle } from "@/components/marketing/pricing-interval-toggle";
 
 /*──────────────────────────────────────────────────────────────────────────────
@@ -140,71 +135,7 @@ const pricingFeatures: PricingFeatureRow[] = [
   },
 ];
 
-function getPlanCardConfig(currency: BillingCurrency, interval: BillingInterval) {
-  return [
-    {
-      plan: "free" as WorkspacePlan,
-      price: currency === "PHP" ? "₱0" : "$0",
-      pricePeriod: "forever",
-      monthlyEquivalent: null,
-      highlighted: false,
-      cta: { label: "Get started free", href: "/signup", variant: "outline" as const },
-      includes: "Core workflow for a single business:",
-    },
-    {
-      plan: "pro" as WorkspacePlan,
-      price: getPlanPriceLabel("pro", currency, interval).replace(interval === "monthly" ? "/mo" : "/yr", ""),
-      pricePeriod: interval === "monthly" ? "month" : "year",
-      monthlyEquivalent: interval === "yearly" ? getMonthlyEquivalentLabel("pro", currency) : null,
-      highlighted: true,
-      cta: {
-        label: "Upgrade to Pro",
-        href: "/signup",
-        variant: "default" as const,
-      },
-      includes: "Everything in Free, plus:",
-    },
-    {
-      plan: "business" as WorkspacePlan,
-      price: getPlanPriceLabel("business", currency, interval).replace(interval === "monthly" ? "/mo" : "/yr", ""),
-      pricePeriod: interval === "monthly" ? "month" : "year",
-      monthlyEquivalent: interval === "yearly" ? getMonthlyEquivalentLabel("business", currency) : null,
-      highlighted: false,
-      cta: {
-        label: "Upgrade to Business",
-        href: "/signup",
-        variant: "outline" as const,
-      },
-      includes: "Everything in Pro, plus:",
-    },
-  ];
-}
 
-const planHighlights: Record<WorkspacePlan, string[]> = {
-  free: [
-    `${getUsageLimit("free", "inquiriesPerMonth")} inquiries per month`,
-    `${getUsageLimit("free", "quotesPerMonth")} quotes per month`,
-    "Public inquiry pages",
-    "Quote workflow",
-    "Dashboard & overview analytics",
-    "Activity log",
-  ],
-  pro: [
-    "Unlimited inquiries and quotes",
-    "Conversion & workflow analytics",
-    "Multiple inquiry forms",
-    "Inquiry page customization",
-    "AI assistant & knowledge",
-    "Saved replies & quote library",
-    "Data exports & branding",
-    "Multiple businesses",
-  ],
-  business: [
-    "Everything in Pro",
-    "Team members & roles",
-    "Priority support",
-  ],
-};
 
 /*──────────────────────────────────────────────────────────────────────────────
  * Component
@@ -432,8 +363,4 @@ function PricingSignedOutHeaderActions() {
   );
 }
 
-/*──────────────────────────────────────────────────────────────────────────────
- * Exports used by the interval toggle client component
- *────────────────────────────────────────────────────────────────────────────*/
 
-export { getPlanCardConfig, planHighlights };
