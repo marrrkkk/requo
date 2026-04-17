@@ -283,6 +283,9 @@ export function MarketingHero() {
             <Link className="transition-colors hover:text-foreground" href="/terms">
               Terms of Service
             </Link>
+            <Link className="transition-colors hover:text-foreground" href="/refund-policy">
+              Refund Policy
+            </Link>
           </div>
         </div>
       </section>
