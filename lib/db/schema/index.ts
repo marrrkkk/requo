@@ -1,4 +1,5 @@
 export * from "./activity";
+export * from "./analytics";
 export * from "./auth";
 export * from "./inquiries";
 export * from "./notifications";

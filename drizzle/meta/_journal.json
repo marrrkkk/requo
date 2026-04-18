@@ -225,6 +225,13 @@
       "when": 1776493361254,
       "tag": "0032_auth_rate_limit_adapter_compat",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1776542400000,
+      "tag": "0033_workflow_analytics_events",
+      "breakpoints": true
     }
   ]
 }
