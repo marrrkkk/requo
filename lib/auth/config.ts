@@ -149,11 +149,16 @@ export const auth = betterAuth({
   },
   advanced: {
     useSecureCookies: env.NODE_ENV === "production",
+    // Prefer concrete proxy headers before x-forwarded-for so "::" is not used as a stable client key when a better header exists.
+    ipAddress: {
+      ipAddressHeaders: ["cf-connecting-ip", "x-real-ip", "x-forwarded-for"],
+    },
   },
   rateLimit: {
     enabled: true,
     storage: "database",
     customRules: {
+      "/get-session": false,
       "/request-password-reset": {
         max: 5,
         window: 300,

@@ -15,12 +15,20 @@ export const getSession = cache(async () => {
   });
 });
 
+export const getOptionalSession = cache(async () => {
+  try {
+    return await getSession();
+  } catch {
+    return null;
+  }
+});
+
 export async function getCurrentUser() {
-  return (await getSession())?.user ?? null;
+  return (await getOptionalSession())?.user ?? null;
 }
 
 export async function redirectIfAuthenticated(redirectTo = "/workspaces") {
-  const session = await getSession();
+  const session = await getOptionalSession();
 
   if (session) {
     redirect(redirectTo);
