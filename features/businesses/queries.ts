@@ -30,6 +30,34 @@ import { inquiries, quotes } from "@/lib/db/schema";
 
 const overviewQueueItemLimit = 4;
 
+function createEmptyBusinessOverviewData(): BusinessOverviewData {
+  return {
+    overdueInquiries: [],
+    expiringSoonQuotes: [],
+    waitingInquiries: [],
+    followUpDueQuotes: [],
+    recentAcceptedQuotes: [],
+    counts: {
+      overdueInquiries: 0,
+      expiringSoonQuotes: 0,
+      waitingInquiries: 0,
+      followUpDueQuotes: 0,
+      recentAcceptedQuotes: 0,
+    },
+  };
+}
+
+function createEmptyBusinessDashboardSummaryData(): BusinessDashboardSummaryData {
+  return {
+    totalInquiries: 0,
+    totalQuotes: 0,
+    inquiriesThisWeek: 0,
+    inquiryCoverageRate: 0,
+    wonCount: 0,
+    lostCount: 0,
+  };
+}
+
 function getFutureUtcDateString(daysAhead: number) {
   return new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000)
     .toISOString()
@@ -39,7 +67,17 @@ function getFutureUtcDateString(daysAhead: number) {
 export async function getBusinessOverviewData(
   businessId: string,
 ): Promise<BusinessOverviewData> {
-  return getCachedBusinessOverviewData(businessId);
+  try {
+    return await getCachedBusinessOverviewData(businessId);
+  } catch (error) {
+    console.error(
+      "Failed to load business overview data.",
+      { businessId },
+      error,
+    );
+
+    return createEmptyBusinessOverviewData();
+  }
 }
 
 async function getCachedBusinessOverviewData(
@@ -253,7 +291,17 @@ async function getCachedBusinessOverviewData(
 export async function getBusinessDashboardSummaryData(
   businessId: string,
 ): Promise<BusinessDashboardSummaryData> {
-  return getCachedBusinessDashboardSummaryData(businessId);
+  try {
+    return await getCachedBusinessDashboardSummaryData(businessId);
+  } catch (error) {
+    console.error(
+      "Failed to load business dashboard summary data.",
+      { businessId },
+      error,
+    );
+
+    return createEmptyBusinessDashboardSummaryData();
+  }
 }
 
 async function getCachedBusinessDashboardSummaryData(

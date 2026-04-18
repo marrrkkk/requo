@@ -18,46 +18,56 @@ import type { BillingRegion } from "@/lib/billing/types";
 export async function getWorkspaceBillingOverview(
   workspaceId: string,
 ): Promise<WorkspaceBillingOverview | null> {
-  const [workspace] = await db
-    .select({
-      id: workspaces.id,
-      name: workspaces.name,
-      slug: workspaces.slug,
-      plan: workspaces.plan,
-    })
-    .from(workspaces)
-    .where(eq(workspaces.id, workspaceId))
-    .limit(1);
+  try {
+    const [workspace] = await db
+      .select({
+        id: workspaces.id,
+        name: workspaces.name,
+        slug: workspaces.slug,
+        plan: workspaces.plan,
+      })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId))
+      .limit(1);
 
-  if (!workspace) {
+    if (!workspace) {
+      return null;
+    }
+
+    const subscription = await getWorkspaceSubscription(workspaceId);
+    const requestHeaders = await headers();
+    const region = getBillingRegion(requestHeaders);
+    const defaultCurrency = getDefaultCurrency(region);
+
+    return {
+      workspaceId: workspace.id,
+      workspaceName: workspace.name,
+      workspaceSlug: workspace.slug,
+      currentPlan: workspace.plan as WorkspacePlan,
+      subscription: subscription
+        ? {
+            status: subscription.status,
+            plan: subscription.plan,
+            provider: subscription.billingProvider,
+            currency: subscription.billingCurrency,
+            currentPeriodStart: subscription.currentPeriodStart,
+            currentPeriodEnd: subscription.currentPeriodEnd,
+            canceledAt: subscription.canceledAt,
+            providerSubscriptionId: subscription.providerSubscriptionId,
+          }
+        : null,
+      region,
+      defaultCurrency,
+    };
+  } catch (error) {
+    console.error(
+      "Failed to load workspace billing overview.",
+      { workspaceId },
+      error,
+    );
+
     return null;
   }
-
-  const subscription = await getWorkspaceSubscription(workspaceId);
-  const requestHeaders = await headers();
-  const region = getBillingRegion(requestHeaders);
-  const defaultCurrency = getDefaultCurrency(region);
-
-  return {
-    workspaceId: workspace.id,
-    workspaceName: workspace.name,
-    workspaceSlug: workspace.slug,
-    currentPlan: workspace.plan as WorkspacePlan,
-    subscription: subscription
-      ? {
-          status: subscription.status,
-          plan: subscription.plan,
-          provider: subscription.billingProvider,
-          currency: subscription.billingCurrency,
-          currentPeriodStart: subscription.currentPeriodStart,
-          currentPeriodEnd: subscription.currentPeriodEnd,
-          canceledAt: subscription.canceledAt,
-          providerSubscriptionId: subscription.providerSubscriptionId,
-        }
-      : null,
-    region,
-    defaultCurrency,
-  };
 }
 
 /**
