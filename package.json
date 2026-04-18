@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm run dev:app\" \"ngrok http 3000\"",
-    "dev:app": "next dev",
+    "dev:app": "node --max-old-space-size=12288 ./node_modules/next/dist/bin/next dev",
     "build": "next build",
     "start": "next start",
     "start:app": "next start",

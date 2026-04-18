@@ -15,7 +15,7 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: z.url(),
   NEXT_PUBLIC_BETTER_AUTH_URL: emptyToUndefined(z.url()),
-  APP_ENCRYPTION_KEYS: emptyToUndefined(z.string().min(1)),
+  APP_ENCRYPTION_KEYS: z.string().min(1),
   APP_TOKEN_HASH_SECRET: emptyToUndefined(z.string().min(32)),
   VERCEL_URL: emptyToUndefined(z.string().min(1)),
   GOOGLE_CLIENT_ID: emptyToUndefined(z.string().min(1)),

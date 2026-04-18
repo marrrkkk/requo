@@ -18,6 +18,7 @@ import { HelpTooltip } from "@/components/shared/help-tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatAnalyticsPercent } from "@/features/analytics/utils";
+import { DashboardActivationChecklist } from "@/features/businesses/components/dashboard-activation-checklist";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
 import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
@@ -79,6 +80,10 @@ export default async function DashboardOverviewPage({
   const publicInquiryUrl = getBusinessPublicInquiryUrl(
     businessContext.business.slug,
   );
+  const showActivationChecklist =
+    !businessContext.business.publicInquiryEnabled ||
+    summary.totalInquiries === 0 ||
+    summary.totalQuotes === 0;
   const overdueInquiryPath = getBusinessInquiriesStatusPath(
     businessSlug,
     "overdue",
@@ -90,6 +95,18 @@ export default async function DashboardOverviewPage({
 
   return (
     <DashboardPage className="gap-5 xl:gap-6">
+      {showActivationChecklist ? (
+        <DashboardActivationChecklist
+          businessName={businessContext.business.name}
+          inquiriesPath={getBusinessInquiriesPath(businessSlug)}
+          newQuotePath={getBusinessNewQuotePath(businessSlug)}
+          publicInquiryEnabled={businessContext.business.publicInquiryEnabled}
+          publicInquiryUrl={publicInquiryUrl}
+          totalInquiries={summary.totalInquiries}
+          totalQuotes={summary.totalQuotes}
+        />
+      ) : null}
+
       <section className="section-panel overflow-hidden">
         <div className="flex flex-col gap-6 px-5 py-5 sm:px-6 sm:py-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">

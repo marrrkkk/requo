@@ -5,6 +5,8 @@ import { AuthenticatedPageRedirect } from "@/features/auth/components/authentica
 import { SignupForm } from "@/features/auth/components/signup-form";
 import type { SocialAuthProvider } from "@/features/auth/components/social-auth-buttons";
 import { onboardingPath } from "@/features/onboarding/routes";
+import { workspacesHubPath } from "@/features/workspaces/routes";
+import { redirectIfAuthenticated } from "@/lib/auth/session";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirects";
 import { createPageMetadata } from "@/lib/seo/site";
 
@@ -22,6 +24,8 @@ export default async function SignupPage({
     next?: string | string[];
   }>;
 }) {
+  await redirectIfAuthenticated(workspacesHubPath);
+
   const { next } = await searchParams;
   const nextPath = getSafeAuthRedirectPath(
     typeof next === "string" ? next : next?.[0],
