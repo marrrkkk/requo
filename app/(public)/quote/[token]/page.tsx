@@ -8,7 +8,7 @@ import {
   PublicHeroSurface,
   PublicPageShell,
 } from "@/components/shared/public-page-shell";
-import { PoweredByRequo } from "@/components/shared/powered-by-requo";
+import { MadeWithRequo } from "@/components/shared/made-with-requo";
 import { PublicQuoteViewTracker } from "@/features/analytics/components/public-page-analytics-tracker";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { Button } from "@/components/ui/button";
@@ -81,7 +81,7 @@ export default async function PublicQuotePage({
         </PublicHeroSurface>
 
         {!hasFeatureAccess(quote.businessPlan, "branding") ? (
-          <PoweredByRequo />
+          <MadeWithRequo />
         ) : null}
       </PublicPageShell>
       <Suspense fallback={null}>
