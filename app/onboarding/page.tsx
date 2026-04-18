@@ -40,7 +40,7 @@ export default async function OnboardingPage() {
       <div className="min-h-svh">
         <div className="mx-auto flex min-h-svh w-full max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-8">
           <header className="flex flex-col gap-4 border-b border-border/70 pb-6 sm:flex-row sm:items-center sm:justify-between">
-            <BrandMark subtitle="Guided setup" />
+            <BrandMark subtitle={null} />
             <AppearanceMenu userId={session.user.id} />
           </header>
 

@@ -27,12 +27,12 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { StarterTemplateChoiceGrid } from "@/features/businesses/components/starter-template-choice-grid";
 import {
+  businessCurrencyOptions,
   getBusinessCountryOption,
   getBusinessCurrencyOption,
-  businessCurrencyOptions,
 } from "@/features/businesses/locale";
-import { StarterTemplateChoiceGrid } from "@/features/businesses/components/starter-template-choice-grid";
 import {
   getStarterTemplateDefinition,
   starterTemplateSelectionDescription,
@@ -47,6 +47,7 @@ import type {
   InquiryFormConfig,
   InquiryFormFieldDefinition,
 } from "@/features/inquiries/form-config";
+import { OnboardingPreviewDialog } from "@/features/onboarding/components/onboarding-preview-dialog";
 import {
   createEmptyOnboardingDraft,
   createOnboardingPreviewBusiness,
@@ -55,7 +56,6 @@ import {
   resolveOnboardingCurrencyChange,
   type OnboardingDraft,
 } from "@/features/onboarding/helpers";
-import { OnboardingPreviewDialog } from "@/features/onboarding/components/onboarding-preview-dialog";
 import {
   onboardingBusinessContextSchema,
   onboardingTemplateSchema,
@@ -81,7 +81,7 @@ const onboardingSteps = [
   {
     id: "workspace" as const,
     label: "Workspace",
-    description: "Name the workspace you’ll use for your businesses.",
+    description: "Name the workspace you'll use for your businesses.",
     title: "Create your workspace",
     body:
       "Keep this simple. You can add more businesses inside the workspace later.",
@@ -393,18 +393,13 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
         <div className="section-panel flex flex-col gap-8 px-5 py-5 sm:px-6 sm:py-6">
           <div className="flex flex-col gap-3">
             <p className="meta-label">Onboarding</p>
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-              <div className="min-w-0">
-                <h1 className="font-heading text-[2rem] font-semibold tracking-tight text-foreground sm:text-[2.35rem]">
-                  {currentStepMeta.title}
-                </h1>
-                <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground sm:text-[0.96rem]">
-                  {currentStepMeta.body}
-                </p>
-              </div>
-              <Badge className="w-fit" variant="secondary">
-                Guided setup
-              </Badge>
+            <div className="min-w-0">
+              <h1 className="font-heading text-[2rem] font-semibold tracking-tight text-foreground sm:text-[2.35rem]">
+                {currentStepMeta.title}
+              </h1>
+              <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground sm:text-[0.96rem]">
+                {currentStepMeta.body}
+              </p>
             </div>
           </div>
 
@@ -421,398 +416,329 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
             </Alert>
           ) : null}
 
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
-            <div className="min-w-0">
-              {currentStep === 0 ? (
-                <Card className="border-border/75 bg-card/97">
-                  <CardHeader>
-                    <CardTitle>Workspace details</CardTitle>
-                    <CardDescription>
-                      Use a simple name you’ll recognize in the workspace hub.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <FieldGroup>
+          <div className="min-w-0">
+            {currentStep === 0 ? (
+              <Card className="border-border/75 bg-card/97">
+                <CardHeader>
+                  <CardTitle>Workspace details</CardTitle>
+                  <CardDescription>
+                    Use a simple name you&apos;ll recognize in the workspace hub.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <FieldGroup>
+                    <Field
+                      data-invalid={Boolean(fieldErrors.workspaceName) || undefined}
+                    >
+                      <FieldLabel htmlFor="onboarding-workspace-name">
+                        Workspace name
+                      </FieldLabel>
+                      <FieldContent>
+                        <Input
+                          aria-invalid={
+                            Boolean(fieldErrors.workspaceName) || undefined
+                          }
+                          autoFocus={isDraftHydrated}
+                          className={onboardingInputClassName}
+                          disabled={isPending}
+                          id="onboarding-workspace-name"
+                          maxLength={80}
+                          minLength={2}
+                          onChange={(event) =>
+                            updateField(
+                              "workspaceName",
+                              event.currentTarget.value,
+                            )
+                          }
+                          placeholder="Acme Studio"
+                          required
+                          value={draft.workspaceName}
+                        />
+                        <FieldDescription>
+                          This is the top-level workspace for your first business.
+                        </FieldDescription>
+                      </FieldContent>
+                    </Field>
+                  </FieldGroup>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {currentStep === 1 ? (
+              <Card className="border-border/75 bg-card/97">
+                <CardHeader>
+                  <CardTitle>Business context</CardTitle>
+                  <CardDescription>
+                    Set the basics customers will see, then we&apos;ll suggest a
+                    template that fits.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <FieldGroup>
+                    <Field
+                      data-invalid={Boolean(fieldErrors.businessName) || undefined}
+                    >
+                      <FieldLabel htmlFor="onboarding-business-name">
+                        Business name
+                      </FieldLabel>
+                      <FieldContent>
+                        <Input
+                          aria-invalid={
+                            Boolean(fieldErrors.businessName) || undefined
+                          }
+                          autoFocus={isDraftHydrated}
+                          className={onboardingInputClassName}
+                          disabled={isPending}
+                          id="onboarding-business-name"
+                          maxLength={80}
+                          minLength={2}
+                          onChange={(event) =>
+                            updateField(
+                              "businessName",
+                              event.currentTarget.value,
+                            )
+                          }
+                          placeholder="Northline Print Studio"
+                          required
+                          value={draft.businessName}
+                        />
+                      </FieldContent>
+                    </Field>
+
+                    <Field
+                      data-invalid={Boolean(fieldErrors.businessType) || undefined}
+                    >
+                      <FieldLabel htmlFor="onboarding-business-type">
+                        Business category
+                      </FieldLabel>
+                      <FieldContent>
+                        <Combobox
+                          aria-invalid={
+                            Boolean(fieldErrors.businessType) || undefined
+                          }
+                          autoFocus={false}
+                          buttonClassName={onboardingComboboxButtonClassName}
+                          disabled={isPending}
+                          id="onboarding-business-type"
+                          onValueChange={handleBusinessTypeChange}
+                          options={businessTypeOptions}
+                          placeholder="Choose a category"
+                          renderOption={(option) => (
+                            <div className="flex min-w-0 flex-col gap-0.5 py-0.5">
+                              <p className="truncate font-medium">
+                                {option.label}
+                              </p>
+                              <p className="text-xs leading-5 text-muted-foreground">
+                                {option.description}
+                              </p>
+                            </div>
+                          )}
+                          searchPlaceholder="Search categories"
+                          searchable
+                          value={draft.businessType}
+                        />
+                        <FieldDescription>
+                          We&apos;ll use this to recommend the best starting template
+                          next.
+                        </FieldDescription>
+                      </FieldContent>
+                    </Field>
+
+                    <div className="grid gap-6 md:grid-cols-2">
                       <Field
-                        data-invalid={Boolean(fieldErrors.workspaceName) || undefined}
+                        data-invalid={Boolean(fieldErrors.countryCode) || undefined}
                       >
-                        <FieldLabel htmlFor="onboarding-workspace-name">
-                          Workspace name
+                        <FieldLabel htmlFor="onboarding-country-code">
+                          Country
                         </FieldLabel>
                         <FieldContent>
-                          <Input
+                          <CountryCombobox
                             aria-invalid={
-                              Boolean(fieldErrors.workspaceName) || undefined
+                              Boolean(fieldErrors.countryCode) || undefined
                             }
-                            autoFocus={isDraftHydrated}
-                            className={onboardingInputClassName}
+                            buttonClassName={onboardingComboboxButtonClassName}
                             disabled={isPending}
-                            id="onboarding-workspace-name"
-                            maxLength={80}
-                            minLength={2}
-                            onChange={(event) =>
-                              updateField(
-                                "workspaceName",
-                                event.currentTarget.value,
-                              )
-                            }
-                            placeholder="Acme Studio"
-                            required
-                            value={draft.workspaceName}
+                            id="onboarding-country-code"
+                            onValueChange={handleCountryChange}
+                            placeholder="Choose your country"
+                            searchPlaceholder="Search country"
+                            showFlags={false}
+                            value={draft.countryCode}
                           />
                           <FieldDescription>
-                            This is the top-level workspace for your first business.
+                            {selectedCountry
+                              ? `Quotes and public inquiry details will start from ${selectedCountry.label}.`
+                              : "Use the country your business mainly operates from."}
                           </FieldDescription>
                         </FieldContent>
                       </Field>
-                    </FieldGroup>
-                  </CardContent>
-                </Card>
-              ) : null}
-
-              {currentStep === 1 ? (
-                <Card className="border-border/75 bg-card/97">
-                  <CardHeader>
-                    <CardTitle>Business context</CardTitle>
-                    <CardDescription>
-                      Set the basics customers will see, then we’ll suggest a
-                      template that fits.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <FieldGroup>
-                      <Field
-                        data-invalid={Boolean(fieldErrors.businessName) || undefined}
-                      >
-                        <FieldLabel htmlFor="onboarding-business-name">
-                          Business name
-                        </FieldLabel>
-                        <FieldContent>
-                          <Input
-                            aria-invalid={
-                              Boolean(fieldErrors.businessName) || undefined
-                            }
-                            autoFocus={isDraftHydrated}
-                            className={onboardingInputClassName}
-                            disabled={isPending}
-                            id="onboarding-business-name"
-                            maxLength={80}
-                            minLength={2}
-                            onChange={(event) =>
-                              updateField(
-                                "businessName",
-                                event.currentTarget.value,
-                              )
-                            }
-                            placeholder="Northline Print Studio"
-                            required
-                            value={draft.businessName}
-                          />
-                        </FieldContent>
-                      </Field>
 
                       <Field
-                        data-invalid={Boolean(fieldErrors.businessType) || undefined}
+                        data-invalid={
+                          Boolean(fieldErrors.defaultCurrency) || undefined
+                        }
                       >
-                        <FieldLabel htmlFor="onboarding-business-type">
-                          Business category
+                        <FieldLabel htmlFor="onboarding-default-currency">
+                          Currency
                         </FieldLabel>
                         <FieldContent>
                           <Combobox
                             aria-invalid={
-                              Boolean(fieldErrors.businessType) || undefined
+                              Boolean(fieldErrors.defaultCurrency) || undefined
                             }
-                            autoFocus={false}
                             buttonClassName={onboardingComboboxButtonClassName}
                             disabled={isPending}
-                            id="onboarding-business-type"
-                            onValueChange={handleBusinessTypeChange}
-                            options={businessTypeOptions}
-                            placeholder="Choose a category"
-                            renderOption={(option) => (
-                              <div className="flex min-w-0 flex-col gap-0.5 py-0.5">
-                                <p className="truncate font-medium">
-                                  {option.label}
-                                </p>
-                                <p className="text-xs leading-5 text-muted-foreground">
-                                  {option.description}
-                                </p>
-                              </div>
-                            )}
-                            searchPlaceholder="Search categories"
+                            id="onboarding-default-currency"
+                            onValueChange={(value) =>
+                              updateField("defaultCurrency", value)
+                            }
+                            options={businessCurrencyOptions.map((option) => ({
+                              value: option.code,
+                              label: option.label,
+                              searchText: `${option.code} ${option.name}`,
+                            }))}
+                            placeholder="Choose a currency"
+                            searchPlaceholder="Search currency"
                             searchable
-                            value={draft.businessType}
+                            value={draft.defaultCurrency}
                           />
                           <FieldDescription>
-                            We’ll use this to recommend the best starting template
-                            next.
+                            {selectedCurrency
+                              ? `New quotes will start in ${selectedCurrency.code}.`
+                              : "You can change this later in business settings."}
                           </FieldDescription>
                         </FieldContent>
                       </Field>
+                    </div>
+                  </FieldGroup>
+                </CardContent>
+              </Card>
+            ) : null}
 
-                      <div className="grid gap-6 md:grid-cols-2">
-                        <Field
-                          data-invalid={
-                            Boolean(fieldErrors.countryCode) || undefined
-                          }
-                        >
-                          <FieldLabel htmlFor="onboarding-country-code">
-                            Country
-                          </FieldLabel>
-                          <FieldContent>
-                            <CountryCombobox
-                              aria-invalid={
-                                Boolean(fieldErrors.countryCode) || undefined
-                              }
-                              buttonClassName={
-                                onboardingComboboxButtonClassName
-                              }
-                              disabled={isPending}
-                              id="onboarding-country-code"
-                              onValueChange={handleCountryChange}
-                              placeholder="Choose your country"
-                              searchPlaceholder="Search country"
-                              showFlags={false}
-                              value={draft.countryCode}
-                            />
-                            <FieldDescription>
-                              {selectedCountry
-                                ? `Quotes and public inquiry details will start from ${selectedCountry.label}.`
-                                : "Use the country your business mainly operates from."}
-                            </FieldDescription>
-                          </FieldContent>
-                        </Field>
+            {currentStep === 2 ? (
+              <div className="flex flex-col gap-5">
+                <Alert>
+                  <Sparkles data-icon="inline-start" />
+                  <AlertTitle>
+                    {selectedBusinessTypeMeta
+                      ? `Recommended for ${selectedBusinessTypeMeta.label}`
+                      : "Pick the best starting point"}
+                  </AlertTitle>
+                  <AlertDescription>
+                    {starterTemplateSelectionDescription}
+                  </AlertDescription>
+                </Alert>
 
-                        <Field
-                          data-invalid={
-                            Boolean(fieldErrors.defaultCurrency) || undefined
-                          }
-                        >
-                          <FieldLabel htmlFor="onboarding-default-currency">
-                            Currency
-                          </FieldLabel>
-                          <FieldContent>
-                            <Combobox
-                              aria-invalid={
-                                Boolean(fieldErrors.defaultCurrency) || undefined
-                              }
-                              buttonClassName={
-                                onboardingComboboxButtonClassName
-                              }
-                              disabled={isPending}
-                              id="onboarding-default-currency"
-                              onValueChange={(value) =>
-                                updateField("defaultCurrency", value)
-                              }
-                              options={businessCurrencyOptions.map((option) => ({
-                                value: option.code,
-                                label: option.label,
-                                searchText: `${option.code} ${option.name}`,
-                              }))}
-                              placeholder="Choose a currency"
-                              searchPlaceholder="Search currency"
-                              searchable
-                              value={draft.defaultCurrency}
-                            />
-                            <FieldDescription>
-                              {selectedCurrency
-                                ? `New quotes will start in ${selectedCurrency.code}.`
-                                : "You can change this later in business settings."}
-                            </FieldDescription>
-                          </FieldContent>
-                        </Field>
-                      </div>
-                    </FieldGroup>
-                  </CardContent>
-                </Card>
-              ) : null}
-
-              {currentStep === 2 ? (
-                <div className="flex flex-col gap-5">
-                  <Alert>
-                    <Sparkles data-icon="inline-start" />
-                    <AlertTitle>
-                      {selectedBusinessTypeMeta
-                        ? `Recommended for ${selectedBusinessTypeMeta.label}`
-                        : "Pick the best starting point"}
-                    </AlertTitle>
-                    <AlertDescription>
-                      {starterTemplateSelectionDescription}
-                    </AlertDescription>
-                  </Alert>
-
-                  <Card className="border-border/75 bg-card/97">
-                    <CardHeader>
-                      <CardTitle>Starter templates</CardTitle>
-                      <CardDescription>
-                        Choose the structure that gets your inquiry form close to
-                        usable from day one.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <StarterTemplateChoiceGrid
-                        ariaLabel="Starter template"
-                        disabled={isPending}
-                        inputName="onboarding-starter-template"
-                        onChange={(value) =>
-                          updateField(
-                            "starterTemplateBusinessType",
-                            value as OnboardingDraft["starterTemplateBusinessType"],
-                          )
-                        }
-                        recommendedValue={recommendedTemplate}
-                        showHelperText
-                        value={draft.starterTemplateBusinessType}
-                      />
-                    </CardContent>
-                  </Card>
-                </div>
-              ) : null}
-
-              {currentStep === 3 ? (
-                <div className="flex flex-col gap-5">
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <SummaryCard
-                      description="Top-level workspace"
-                      title="Workspace"
-                      value={draft.workspaceName || "Untitled workspace"}
-                    />
-                    <SummaryCard
-                      description={
-                        selectedBusinessTypeMeta?.label ?? "Business category"
-                      }
-                      title="Business"
-                      value={draft.businessName || "Untitled business"}
-                    />
-                    <SummaryCard
-                      description="Starter template"
-                      title="Template"
-                      value={selectedTemplateMeta.label}
-                    />
-                  </div>
-
-                  <Card className="border-border/75 bg-card/97">
-                    <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <CardTitle>What customers will see</CardTitle>
-                        <CardDescription>
-                          This first version is already geared toward the inquiry
-                          to quote workflow.
-                        </CardDescription>
-                      </div>
-                      <Button
-                        className="w-full sm:w-auto"
-                        onClick={() => setIsPreviewOpen(true)}
-                        type="button"
-                        variant="outline"
-                      >
-                        Open full preview
-                      </Button>
-                    </CardHeader>
-                    <CardContent className="flex flex-col gap-5">
-                      <div className="rounded-xl border border-border/70 bg-muted/20 px-4 py-4">
-                        <p className="meta-label">Inquiry page</p>
-                        <p className="mt-2 font-heading text-xl font-semibold tracking-tight text-foreground">
-                          {previewBusiness.inquiryPageConfig.headline}
-                        </p>
-                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                          {previewBusiness.inquiryPageConfig.description}
-                        </p>
-                      </div>
-
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold text-foreground">
-                            Inquiry fields
-                          </p>
-                          <Badge variant="secondary">
-                            {previewFieldItems.length} fields
-                          </Badge>
-                        </div>
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {previewFieldItems.map((field) => (
-                            <div
-                              className="soft-panel flex items-center justify-between gap-3 px-4 py-3"
-                              key={field.id}
-                            >
-                              <span className="text-sm font-medium text-foreground">
-                                {field.label}
-                              </span>
-                              <Badge
-                                variant={
-                                  field.required ? "secondary" : "outline"
-                                }
-                              >
-                                {field.required ? "Required" : "Optional"}
-                              </Badge>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="min-w-0">
-              <div className="flex flex-col gap-4">
                 <Card className="border-border/75 bg-card/97">
                   <CardHeader>
-                    <CardTitle>You’ll finish with</CardTitle>
+                    <CardTitle>Starter templates</CardTitle>
                     <CardDescription>
-                      A live workspace, a first business, and a ready-to-use
-                      inquiry flow.
+                      Choose the structure that gets your inquiry form close to
+                      usable from day one.
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="flex flex-col gap-3">
-                    <ChecklistRow
-                      complete={currentStep >= 0}
-                      detail="Ready for future businesses"
-                      title="Workspace created"
-                    />
-                    <ChecklistRow
-                      complete={currentStep >= 1}
-                      detail="Scoped to your country and currency"
-                      title="Business context set"
-                    />
-                    <ChecklistRow
-                      complete={currentStep >= 2}
-                      detail="Uses a starter template you can edit later"
-                      title="Inquiry form generated"
-                    />
-                    <ChecklistRow
-                      complete={currentStep >= 3}
-                      detail="You’ll land in the dashboard with next actions"
-                      title="Dashboard handoff ready"
+                  <CardContent>
+                    <StarterTemplateChoiceGrid
+                      ariaLabel="Starter template"
+                      disabled={isPending}
+                      inputName="onboarding-starter-template"
+                      onChange={(value) =>
+                        updateField(
+                          "starterTemplateBusinessType",
+                          value as OnboardingDraft["starterTemplateBusinessType"],
+                        )
+                      }
+                      recommendedValue={recommendedTemplate}
+                      showHelperText
+                      value={draft.starterTemplateBusinessType}
                     />
                   </CardContent>
                 </Card>
+              </div>
+            ) : null}
 
-                {(currentStep >= 1 || draft.businessType) && (
-                  <Card className="border-border/75 bg-card/97">
-                    <CardHeader>
-                      <CardTitle>{selectedTemplateMeta.label}</CardTitle>
+            {currentStep === 3 ? (
+              <div className="flex flex-col gap-5">
+                <div className="grid gap-4 md:grid-cols-3">
+                  <SummaryCard
+                    description="Top-level workspace"
+                    title="Workspace"
+                    value={draft.workspaceName || "Untitled workspace"}
+                  />
+                  <SummaryCard
+                    description={
+                      selectedBusinessTypeMeta?.label ?? "Business category"
+                    }
+                    title="Business"
+                    value={draft.businessName || "Untitled business"}
+                  />
+                  <SummaryCard
+                    description="Starter template"
+                    title="Template"
+                    value={selectedTemplateMeta.label}
+                  />
+                </div>
+
+                <Card className="border-border/75 bg-card/97">
+                  <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <CardTitle>What customers will see</CardTitle>
                       <CardDescription>
-                        {selectedTemplateMeta.description}
+                        This first version is already geared toward the inquiry
+                        to quote workflow.
                       </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex flex-col gap-3">
-                      <div className="flex flex-wrap gap-2">
-                        {selectedTemplateMeta.recommendedFields.map((field) => (
-                          <Badge key={field} variant="outline">
-                            {field}
-                          </Badge>
+                    </div>
+                    <Button
+                      className="w-full sm:w-auto"
+                      onClick={() => setIsPreviewOpen(true)}
+                      type="button"
+                      variant="outline"
+                    >
+                      Open full preview
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-5">
+                    <div className="rounded-xl border border-border/70 bg-muted/20 px-4 py-4">
+                      <p className="meta-label">Inquiry page</p>
+                      <p className="mt-2 font-heading text-xl font-semibold tracking-tight text-foreground">
+                        {previewBusiness.inquiryPageConfig.headline}
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        {previewBusiness.inquiryPageConfig.description}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-foreground">
+                          Inquiry fields
+                        </p>
+                        <Badge variant="secondary">
+                          {previewFieldItems.length} fields
+                        </Badge>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {previewFieldItems.map((field) => (
+                          <div
+                            className="soft-panel flex items-center justify-between gap-3 px-4 py-3"
+                            key={field.id}
+                          >
+                            <span className="text-sm font-medium text-foreground">
+                              {field.label}
+                            </span>
+                            <Badge
+                              variant={field.required ? "secondary" : "outline"}
+                            >
+                              {field.required ? "Required" : "Optional"}
+                            </Badge>
+                          </div>
                         ))}
                       </div>
-                      <p className="text-sm leading-6 text-muted-foreground">
-                        {selectedTemplateMeta.statusSummary}
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            </div>
+            ) : null}
           </div>
 
           <FormActions
@@ -833,6 +759,7 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
 
             {currentStep < lastOnboardingStepIndex ? (
               <Button
+                key="continue"
                 disabled={isPending}
                 onClick={handleContinue}
                 size="lg"
@@ -841,7 +768,7 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
                 Continue
               </Button>
             ) : (
-              <Button disabled={isPending} size="lg" type="submit">
+              <Button key="finish" disabled={isPending} size="lg" type="submit">
                 {isPending ? (
                   <>
                     <Spinner data-icon="inline-start" aria-hidden="true" />
@@ -884,35 +811,6 @@ function SummaryCard({
         <p className="text-sm leading-6 text-muted-foreground">{description}</p>
       </CardContent>
     </Card>
-  );
-}
-
-function ChecklistRow({
-  title,
-  detail,
-  complete,
-}: {
-  title: string;
-  detail: string;
-  complete: boolean;
-}) {
-  return (
-    <div className="soft-panel flex items-start gap-3 px-4 py-3">
-      <span
-        aria-hidden="true"
-        className={
-          complete
-            ? "mt-0.5 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground"
-            : "mt-0.5 flex size-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground"
-        }
-      >
-        {complete ? "✓" : "•"}
-      </span>
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-foreground">{title}</p>
-        <p className="text-sm leading-6 text-muted-foreground">{detail}</p>
-      </div>
-    </div>
   );
 }
 
@@ -962,12 +860,13 @@ function getFieldValidationError(
   }
 }
 
-function getPreviewFieldItems(
-  inquiryFormConfig: InquiryFormConfig,
-) {
+function getPreviewFieldItems(inquiryFormConfig: InquiryFormConfig) {
   const contactFields = (
     Object.entries(inquiryFormConfig.contactFields) as Array<
-      [InquiryContactFieldKey, (typeof inquiryFormConfig.contactFields)[InquiryContactFieldKey]]
+      [
+        InquiryContactFieldKey,
+        (typeof inquiryFormConfig.contactFields)[InquiryContactFieldKey],
+      ]
     >
   )
     .filter(([, field]) => field.enabled)

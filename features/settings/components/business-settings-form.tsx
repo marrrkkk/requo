@@ -228,7 +228,7 @@ export function BusinessSettingsForm({
     <>
       <form
         action={formAction}
-        className="form-stack pb-28"
+        className="form-stack"
       >
         <input name="removeLogo" type="hidden" value={String(removeLogo)} />
         <input name="countryCode" type="hidden" value={draftValues.countryCode} />
