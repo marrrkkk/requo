@@ -1,43 +1,44 @@
 name: CI
 
 on:
+  pull_request:
   push:
     branches:
       - main
       - master
-  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_ENV: test
+  DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/requo
+  DATABASE_DIRECT_URL: postgres://postgres:postgres@127.0.0.1:5432/requo
+  BETTER_AUTH_SECRET: 0123456789abcdef0123456789abcdef
+  BETTER_AUTH_URL: http://127.0.0.1:3000
+  NEXT_PUBLIC_BETTER_AUTH_URL: http://127.0.0.1:3000/api/auth
+  NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: demo-anon-key
+  SUPABASE_SERVICE_ROLE_KEY: demo-service-role-key
+  APP_ENCRYPTION_KEYS: v1:AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=
+  APP_TOKEN_HASH_SECRET: 0123456789abcdef0123456789abcdef
+  DEMO_OWNER_EMAIL: demo@requo.test
+  DEMO_OWNER_PASSWORD: ChangeMe123456!
+  DEMO_BUSINESS_SLUG: brightside-print-studio
+  DEMO_QUOTE_PUBLIC_TOKEN: demoquote1002senttoken
+  DEMO_EXPIRED_QUOTE_PUBLIC_TOKEN: demoquote1005expiredtoken
 
 jobs:
   verify:
+    name: Verify
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: requo
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_USER: postgres
-        ports:
-          - 5432:5432
-        options: >
-          --health-cmd "pg_isready -U postgres -d requo"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      NODE_ENV: test
-      DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/requo
-      DATABASE_DIRECT_URL: postgres://postgres:postgres@127.0.0.1:5432/requo
-      BETTER_AUTH_SECRET: 0123456789abcdef0123456789abcdef
-      BETTER_AUTH_URL: http://127.0.0.1:3000
-      NEXT_PUBLIC_BETTER_AUTH_URL: http://127.0.0.1:3000/api/auth
-      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: demo-anon-key
-      SUPABASE_SERVICE_ROLE_KEY: demo-service-role-key
-      DEMO_OWNER_EMAIL: demo@requo.test
-      DEMO_OWNER_PASSWORD: ChangeMe123456!
-      DEMO_BUSINESS_SLUG: brightside-print-studio
-      DEMO_QUOTE_PUBLIC_TOKEN: demoquote1002senttoken
+    timeout-minutes: 20
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -51,25 +52,64 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
-
       - name: Lint
         run: npm run lint
 
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Run unit and component tests
+        run: npm run test
+
       - name: Build
         run: npm run build
 
-      - name: Run end-to-end tests
-        run: npm run test:e2e
+  server-tests:
+    name: Server Tests
+    runs-on: ubuntu-latest
+    needs: verify
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: requo
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d requo"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run integration tests
+        run: npm run test:integration
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run smoke end-to-end tests
+        run: npm run test:e2e:smoke
 
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-smoke
           path: playwright-report
           if-no-files-found: ignore

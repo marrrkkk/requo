@@ -2,6 +2,7 @@ import { Resend } from "resend";
 
 import type { QuoteEmailTemplateConfig } from "@/features/settings/email-templates";
 import { renderBusinessMemberInviteEmail } from "@/emails/templates/business-member-invite";
+import { renderEmailVerificationEmail } from "@/emails/templates/email-verification";
 import { renderPasswordResetEmail } from "@/emails/templates/password-reset";
 import { renderPublicInquiryNotificationEmail } from "@/emails/templates/public-inquiry-notification";
 import { renderQuoteEmail } from "@/emails/templates/quote-email";
@@ -36,6 +37,14 @@ type SendPasswordResetEmailInput = {
   name: string;
   url: string;
   token: string;
+};
+
+type SendVerificationEmailInput = {
+  userId: string;
+  email: string;
+  name: string;
+  token: string;
+  url: string;
 };
 
 type SendBusinessMemberInviteEmailInput = {
@@ -199,6 +208,47 @@ export async function sendPasswordResetEmail({
     },
     {
       idempotencyKey: `password-reset/${userId}/${token}`,
+    },
+  );
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function sendVerificationEmail({
+  userId,
+  email,
+  name,
+  token,
+  url,
+}: SendVerificationEmailInput) {
+  if (!resend || !isResendConfigured || !env.RESEND_FROM_EMAIL) {
+    throw new Error("Email verification delivery is not configured yet.");
+  }
+
+  const senderConfigurationError = getResendFromEmailConfigurationError();
+
+  if (senderConfigurationError) {
+    throw new Error(senderConfigurationError);
+  }
+
+  const template = renderEmailVerificationEmail({
+    name,
+    verificationUrl: url,
+  });
+
+  const { error } = await resend.emails.send(
+    {
+      from: env.RESEND_FROM_EMAIL,
+      to: [email],
+      replyTo: env.RESEND_REPLY_TO_EMAIL ? [env.RESEND_REPLY_TO_EMAIL] : undefined,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+    },
+    {
+      idempotencyKey: `email-verification/${userId}/${token}`,
     },
   );
 

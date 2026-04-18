@@ -272,8 +272,16 @@ export type PublicQuoteResponseFieldErrors = Partial<
   Record<"response" | "message", string[] | undefined>
 >;
 
+export type PublicQuoteResolvedSnapshot = {
+  status: QuoteStatus;
+  customerRespondedAt: string;
+  customerResponseMessage: string | null;
+};
+
 export type PublicQuoteResponseActionState = {
   error?: string;
   success?: string;
   fieldErrors?: PublicQuoteResponseFieldErrors;
+  /** Set after a successful accept/decline so the customer view can update immediately. */
+  resolvedQuote?: PublicQuoteResolvedSnapshot;
 };

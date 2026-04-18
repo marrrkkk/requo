@@ -46,6 +46,10 @@ export function LoginForm({
 
   const resetMessage =
     searchParams.get("reset") === "success" ? resetSuccessMessage : undefined;
+  const verifiedMessage =
+    searchParams.get("verified") === "success"
+      ? "Your email is verified. Sign in to continue."
+      : undefined;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -111,8 +115,14 @@ export function LoginForm({
     <form className="form-stack" onSubmit={handleSubmit}>
       <AuthFormFeedback
         error={state.error}
-        success={state.success ?? resetMessage}
-        successTitle={resetMessage ? "Password updated" : undefined}
+        success={state.success ?? verifiedMessage ?? resetMessage}
+        successTitle={
+          verifiedMessage
+            ? "Email verified"
+            : resetMessage
+              ? "Password updated"
+              : undefined
+        }
       />
 
       <SocialAuthButtons

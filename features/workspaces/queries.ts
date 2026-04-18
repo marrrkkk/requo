@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, count, eq } from "drizzle-orm";
+import { and, asc, count, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import {
@@ -64,7 +64,12 @@ export async function getWorkspaceOverviewBySlug(
     })
     .from(workspaceMembers)
     .innerJoin(workspaces, eq(workspaceMembers.workspaceId, workspaces.id))
-    .where(eq(workspaces.slug, workspaceSlug))
+    .where(
+      and(
+        eq(workspaceMembers.userId, userId),
+        eq(workspaces.slug, workspaceSlug),
+      ),
+    )
     .limit(1);
 
   if (!workspace) {
@@ -109,6 +114,7 @@ export async function getWorkspaceOverviewBySlug(
  * Get workspace settings by slug.
  */
 export async function getWorkspaceSettingsBySlug(
+  userId: string,
   workspaceSlug: string,
 ): Promise<WorkspaceSettingsView | null> {
   const [workspace] = await db
@@ -118,8 +124,14 @@ export async function getWorkspaceSettingsBySlug(
       slug: workspaces.slug,
       plan: workspaces.plan,
     })
-    .from(workspaces)
-    .where(eq(workspaces.slug, workspaceSlug))
+    .from(workspaceMembers)
+    .innerJoin(workspaces, eq(workspaceMembers.workspaceId, workspaces.id))
+    .where(
+      and(
+        eq(workspaceMembers.userId, userId),
+        eq(workspaces.slug, workspaceSlug),
+      ),
+    )
     .limit(1);
 
   return workspace ?? null;

@@ -1,7 +1,8 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
+import { getEffectivePlan } from "@/lib/billing/subscription-service";
 import { normalizeOptionalTextValue } from "@/features/account/schemas";
 import { resolveCurrencyForCountry } from "@/features/businesses/locale";
 import { createBusinessRecordForUser } from "@/features/businesses/mutations";
@@ -34,6 +35,156 @@ type CompleteOnboardingForUserInput = {
 
 function createId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
+}
+
+/**
+ * First workspace membership for a user (onboarding uses a single workspace).
+ */
+export async function getFirstWorkspaceIdForUser(
+  userId: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ workspaceId: workspaceMembers.workspaceId })
+    .from(workspaceMembers)
+    .where(eq(workspaceMembers.userId, userId))
+    .limit(1);
+
+  return row?.workspaceId ?? null;
+}
+
+type OnboardingUser = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+/**
+ * Creates a free workspace for checkout, or returns the user's existing workspace
+ * and keeps the workspace name in sync.
+ */
+export async function ensureWorkspaceForOnboarding(
+  user: OnboardingUser,
+  workspaceName: string,
+): Promise<{ workspaceId: string; workspaceSlug: string }> {
+  await ensureProfileForUser(user);
+
+  const nameTrimmed = workspaceName.trim();
+  const now = new Date();
+
+  const [existingMembership] = await db
+    .select({ workspaceId: workspaceMembers.workspaceId })
+    .from(workspaceMembers)
+    .where(eq(workspaceMembers.userId, user.id))
+    .limit(1);
+
+  if (existingMembership) {
+    const [ws] = await db
+      .select({
+        id: workspaces.id,
+        slug: workspaces.slug,
+        name: workspaces.name,
+        ownerUserId: workspaces.ownerUserId,
+      })
+      .from(workspaces)
+      .where(eq(workspaces.id, existingMembership.workspaceId))
+      .limit(1);
+
+    if (!ws || ws.ownerUserId !== user.id) {
+      throw new Error("Workspace access denied.");
+    }
+
+    if (ws.name !== nameTrimmed) {
+      await db
+        .update(workspaces)
+        .set({ name: nameTrimmed, updatedAt: now })
+        .where(eq(workspaces.id, ws.id));
+    }
+
+    return { workspaceId: ws.id, workspaceSlug: ws.slug };
+  }
+
+  return db.transaction(async (tx) => {
+    let workspaceSlugCandidate = slugifyPublicName(nameTrimmed, {
+      fallback: "workspace",
+    });
+
+    while (true) {
+      const [existing] = await tx
+        .select({ id: workspaces.id })
+        .from(workspaces)
+        .where(eq(workspaces.slug, workspaceSlugCandidate))
+        .limit(1);
+
+      if (!existing) break;
+      workspaceSlugCandidate = appendRandomSlugSuffix(workspaceSlugCandidate, {
+        fallback: "workspace",
+      });
+    }
+
+    const workspaceId = createId("ws");
+
+    await tx.insert(workspaces).values({
+      id: workspaceId,
+      name: nameTrimmed,
+      slug: workspaceSlugCandidate,
+      plan: "free",
+      ownerUserId: user.id,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await tx.insert(workspaceMembers).values({
+      id: createId("wm"),
+      workspaceId,
+      userId: user.id,
+      role: "owner",
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return { workspaceId, workspaceSlug: workspaceSlugCandidate };
+  });
+}
+
+export async function verifyOnboardingPaidPlanForUser(
+  userId: string,
+  workspaceSlug: string,
+  expectedPlan: "pro" | "business",
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const [ws] = await db
+    .select({ id: workspaces.id })
+    .from(workspaces)
+    .where(eq(workspaces.slug, workspaceSlug))
+    .limit(1);
+
+  if (!ws) {
+    return { ok: false, error: "Workspace not found." };
+  }
+
+  const [member] = await db
+    .select({ id: workspaceMembers.id })
+    .from(workspaceMembers)
+    .where(
+      and(
+        eq(workspaceMembers.userId, userId),
+        eq(workspaceMembers.workspaceId, ws.id),
+      ),
+    )
+    .limit(1);
+
+  if (!member) {
+    return { ok: false, error: "Workspace not found." };
+  }
+
+  const effective = await getEffectivePlan(ws.id);
+  if (effective !== expectedPlan) {
+    return {
+      ok: false,
+      error: "Complete payment for your selected plan to continue.",
+    };
+  }
+
+  return { ok: true };
 }
 
 export async function completeOnboardingForUser({
@@ -75,6 +226,14 @@ export async function completeOnboardingForUser({
 
     if (existingMembership) {
       workspaceId = existingMembership.workspaceId;
+
+      await tx
+        .update(workspaces)
+        .set({
+          name: workspaceName,
+          updatedAt: now,
+        })
+        .where(eq(workspaces.id, workspaceId));
     } else {
       // Create workspace for the user with the provided name and plan
       let workspaceSlugCandidate = slugifyPublicName(workspaceName, { fallback: "workspace" });

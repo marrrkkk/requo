@@ -4,7 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Menu } from "lucide-react";
 
-import { navItems } from "@/components/marketing/marketing-data";
+import {
+  getMarketingNavHref,
+  getMarketingNavKey,
+  navItems,
+} from "@/components/marketing/marketing-data";
 import { Button } from "@/components/ui/button";
 import { workspacesHubPath } from "@/features/workspaces/routes";
 import {
@@ -44,7 +48,11 @@ export function MarketingMobileNav({
         </Button>
       </SheetTrigger>
 
-      <SheetContent className="w-[90vw] sm:max-w-sm" side="right">
+      <SheetContent
+        className="w-[90vw] transition-none data-closed:animate-none data-open:animate-none sm:max-w-sm"
+        overlayClassName="duration-0 data-closed:animate-none data-open:animate-none"
+        side="right"
+      >
         <SheetHeader>
           <SheetTitle>Menu</SheetTitle>
           <SheetDescription>
@@ -59,10 +67,10 @@ export function MarketingMobileNav({
             <Button
               asChild
               className="h-11 justify-start text-left"
-              key={item.href}
+              key={getMarketingNavKey(item)}
               variant="ghost"
             >
-              <Link href={item.href} onClick={closeMenu}>
+              <Link href={getMarketingNavHref(item)} onClick={closeMenu}>
                 {item.label}
               </Link>
             </Button>

@@ -66,30 +66,28 @@ export default async function BusinessFormPage({
         description="Edit the fields, public page, preview, and publishing controls for this inquiry workflow."
       />
 
-      <div className="mt-6 sm:mt-8">
-        <BusinessInquiryFormEditorTabs
-          key={`${settings.formId}-${settings.updatedAt.getTime()}`}
-          settings={settings}
-          logoPreviewUrl={logoPreviewUrl}
-          generalSettingsHref={generalSettingsHref}
-          settingsHref={settingsHref}
-          previewHref={previewHref}
-          publicInquiryHref={publicInquiryHref}
-          inquiryListHref={inquiryListHref}
-          isPublicLive={settings.publicInquiryEnabled}
-          applyPresetAction={applyBusinessInquiryFormPresetAction.bind(
-            null,
-            settings.formSlug,
-          )}
-          saveFormAction={updateBusinessInquiryFormAction.bind(null, settings.formSlug)}
-          updatePageAction={updateBusinessInquiryPageAction.bind(null, settings.formSlug)}
-          duplicateAction={duplicateBusinessInquiryFormAction}
-          setDefaultAction={setDefaultBusinessInquiryFormAction}
-          togglePublicAction={toggleBusinessInquiryFormPublicAction}
-          archiveAction={archiveBusinessInquiryFormFromDetailAction}
-          deleteAction={deleteBusinessInquiryFormAction}
-        />
-      </div>
+      <BusinessInquiryFormEditorTabs
+        key={`${settings.formId}-${settings.updatedAt.getTime()}`}
+        settings={settings}
+        logoPreviewUrl={logoPreviewUrl}
+        generalSettingsHref={generalSettingsHref}
+        settingsHref={settingsHref}
+        previewHref={previewHref}
+        publicInquiryHref={publicInquiryHref}
+        inquiryListHref={inquiryListHref}
+        isPublicLive={settings.publicInquiryEnabled}
+        applyPresetAction={applyBusinessInquiryFormPresetAction.bind(
+          null,
+          settings.formSlug,
+        )}
+        saveFormAction={updateBusinessInquiryFormAction.bind(null, settings.formSlug)}
+        updatePageAction={updateBusinessInquiryPageAction.bind(null, settings.formSlug)}
+        duplicateAction={duplicateBusinessInquiryFormAction}
+        setDefaultAction={setDefaultBusinessInquiryFormAction}
+        togglePublicAction={toggleBusinessInquiryFormPublicAction}
+        archiveAction={archiveBusinessInquiryFormFromDetailAction}
+        deleteAction={deleteBusinessInquiryFormAction}
+      />
     </>
   );
 }

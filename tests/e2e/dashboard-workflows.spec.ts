@@ -181,6 +181,39 @@ test("dashboard and detail pages surface follow-up, expiring-soon, and customer 
   await expect(page.getByRole("link", { name: "Event signage" })).toHaveCount(0);
 });
 
+test("owner can open the quote editor from an inquiry and create a linked draft quote", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+
+  await signIn(page);
+  await openBusinessesPage(page, "/inquiries/demo_inquiry_quoted_booth_kit");
+
+  await page.getByRole("link", { name: "Generate quote" }).first().click();
+
+  await expect(page).toHaveURL(
+    new RegExp(
+      `/businesses/${demoBusinessSlug}/dashboard/quotes/new\\?inquiryId=demo_inquiry_quoted_booth_kit$`,
+    ),
+    { timeout: 20_000 },
+  );
+  await expect(
+    page.getByRole("heading", { name: "Turn this inquiry into a quote" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Quote title")).toHaveValue(/\S+/);
+  await expect(page.getByLabel("Customer name")).toHaveValue(/\S+/);
+  await expect(page.getByLabel("Customer email")).toHaveValue(/@/);
+
+  await page.getByRole("button", { name: "Create draft quote" }).click();
+
+  await expect(
+    page,
+  ).toHaveURL(new RegExp(`/businesses/${demoBusinessSlug}/dashboard/quotes/.+$`), {
+    timeout: 20_000,
+  });
+  await expect(page.getByLabel("Quote title")).toHaveValue(/\S+/);
+});
+
 test("owner can create, edit, insert, and delete a saved reply snippet", async ({
   page,
 }) => {

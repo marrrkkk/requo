@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AuthShell } from "@/components/shell/auth-shell";
@@ -11,8 +12,13 @@ import { getBusinessMemberInvitePath } from "@/features/business-members/routes"
 import { getAuthPathWithNext } from "@/lib/auth/redirects";
 import { getCurrentUser } from "@/lib/auth/session";
 import { businessMemberRoleMeta } from "@/lib/business-members";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const unstable_instant = false;
+export const metadata: Metadata = createNoIndexMetadata({
+  absoluteTitle: "Business invite",
+  description: "Review a business access invite securely.",
+});
 
 function normalizeEmailAddress(email: string) {
   return email.trim().toLowerCase();
@@ -54,19 +60,21 @@ export default async function BusinessMemberInvitePage({
   const loginHref = getAuthPathWithNext("/login", invitePath);
   const signupHref = getAuthPathWithNext("/signup", invitePath);
   const invitedEmail = normalizeEmailAddress(invite.email);
+  const inviteRoleMeta =
+    businessMemberRoleMeta[invite.role as keyof typeof businessMemberRoleMeta];
   const signedInEmail = currentUser ? normalizeEmailAddress(currentUser.email) : null;
 
   if (!currentUser) {
     return (
       <AuthShell
         badge="Invite"
-        description={`You've been invited to join ${invite.business.name} as a ${businessMemberRoleMeta[invite.role].label.toLowerCase()}.`}
+        description={`You've been invited to join ${invite.business.name} as a ${inviteRoleMeta.label.toLowerCase()}.`}
         layout="centered"
         title={`Join ${invite.business.name}`}
       >
         <div className="flex flex-col gap-5">
           <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">{businessMemberRoleMeta[invite.role].label}</Badge>
+            <Badge variant="secondary">{inviteRoleMeta.label}</Badge>
             <Badge variant="outline">{invite.email}</Badge>
           </div>
 
@@ -120,14 +128,14 @@ export default async function BusinessMemberInvitePage({
       description={
         alreadyHasAccess
           ? `You already have access to ${invite.business.name}.`
-          : `Accept access to ${invite.business.name} as a ${businessMemberRoleMeta[invite.role].label.toLowerCase()}.`
+          : `Accept access to ${invite.business.name} as a ${inviteRoleMeta.label.toLowerCase()}.`
       }
       layout="centered"
       title={alreadyHasAccess ? "Open business" : `Join ${invite.business.name}`}
     >
       <div className="flex flex-col gap-5">
         <div className="flex flex-wrap gap-2">
-          <Badge variant="secondary">{businessMemberRoleMeta[invite.role].label}</Badge>
+          <Badge variant="secondary">{inviteRoleMeta.label}</Badge>
           <Badge variant="outline">{invite.email}</Badge>
         </div>
 

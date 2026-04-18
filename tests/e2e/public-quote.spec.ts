@@ -19,7 +19,7 @@ test("public quote page caps customer messages at 1,200 characters", async ({
   await expect(messageField).toHaveValue("a".repeat(1_200));
 });
 
-test("customer can accept a sent quote from the public quote page", async ({
+test("customer can accept a sent quote from the public quote page @smoke", async ({
   page,
 }) => {
   await page.goto(`/quote/${demoQuotePublicToken}`);

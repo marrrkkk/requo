@@ -8,6 +8,7 @@ import {
 } from "@/features/inquiries/reply-snippet-actions";
 import { getReplySnippetsForBusiness } from "@/features/inquiries/reply-snippet-queries";
 import { BusinessReplySnippetsManager } from "@/features/settings/components/business-reply-snippets-manager";
+import { getWorkspaceBillingOverview } from "@/features/billing/queries";
 import { hasFeatureAccess } from "@/lib/plans";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
 
@@ -15,6 +16,10 @@ export default async function BusinessSavedRepliesPage() {
   const { businessContext } = await getBusinessOperationalPageContext();
 
   if (!hasFeatureAccess(businessContext.business.workspacePlan, "replySnippets")) {
+    const billingOverview = await getWorkspaceBillingOverview(
+      businessContext.business.workspaceId,
+    );
+
     return (
       <>
         <PageHeader
@@ -25,6 +30,19 @@ export default async function BusinessSavedRepliesPage() {
         <LockedFeaturePage
           feature="replySnippets"
           plan={businessContext.business.workspacePlan}
+          description="Upgrade to save reusable follow-up messages and respond faster."
+          upgradeAction={
+            billingOverview
+              ? {
+                  workspaceId: billingOverview.workspaceId,
+                  workspaceSlug: billingOverview.workspaceSlug,
+                  currentPlan: billingOverview.currentPlan,
+                  region: billingOverview.region,
+                  defaultCurrency: billingOverview.defaultCurrency,
+                  ctaLabel: "Upgrade for saved replies",
+                }
+              : undefined
+          }
         />
       </>
     );

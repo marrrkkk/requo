@@ -15,7 +15,11 @@ import {
   canManageOperationalBusinessSettings,
   hasBusinessRoleAccess,
 } from "@/lib/business-members";
-import { getSession, requireUser, type AuthUser } from "@/lib/auth/session";
+import {
+  getOptionalSession,
+  requireUser,
+  type AuthUser,
+} from "@/lib/auth/session";
 import { activeBusinessSlugCookieName } from "@/features/businesses/routes";
 import { db } from "@/lib/db/client";
 import {
@@ -259,7 +263,7 @@ export async function requireOwnerBusinessContext() {
 }
 
 export async function getCurrentBusinessRequestContext() {
-  const session = await getSession();
+  const session = await getOptionalSession();
 
   if (!session) {
     return null;
@@ -278,7 +282,7 @@ export async function getCurrentBusinessRequestContext() {
 }
 
 export async function getBusinessRequestContextForSlug(slug: string) {
-  const session = await getSession();
+  const session = await getOptionalSession();
 
   if (!session) {
     return null;

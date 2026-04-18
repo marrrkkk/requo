@@ -18,7 +18,6 @@ export type BusinessMemberInviteView = {
   inviteId: string;
   email: string;
   role: BusinessMemberAssignableRole;
-  inviteUrl: string;
   inviterName: string;
   createdAt: Date;
   expiresAt: Date;

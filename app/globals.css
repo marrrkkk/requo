@@ -668,6 +668,26 @@
       both;
   }
 
+  .motion-delay-1 {
+    animation-delay: 40ms;
+  }
+
+  .motion-delay-2 {
+    animation-delay: 90ms;
+  }
+
+  .motion-delay-3 {
+    animation-delay: 140ms;
+  }
+
+  .motion-delay-4 {
+    animation-delay: 190ms;
+  }
+
+  .motion-delay-5 {
+    animation-delay: 240ms;
+  }
+
   .motion-disclosure {
     display: grid;
     grid-template-rows: 0fr;

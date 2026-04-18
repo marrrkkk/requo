@@ -22,6 +22,7 @@ import {
   cancelBusinessMemberInviteForBusiness,
   createBusinessMemberInviteForBusiness,
   declineBusinessMemberInviteForUser,
+  regenerateBusinessMemberInviteLinkForBusiness,
   removeBusinessMemberFromBusiness,
   updateBusinessMemberRoleForBusiness,
 } from "@/features/business-members/mutations";
@@ -161,7 +162,7 @@ export async function createBusinessMemberInviteAction(
     return {
       success: emailSent
         ? "Invite sent."
-        : "Invite saved. Share the invite link from the pending invites list.",
+        : "Invite saved. Generate a fresh invite link from the pending invites list.",
     };
   } catch (error) {
     console.error("Failed to create business member invite.", error);
@@ -361,6 +362,64 @@ export async function cancelBusinessMemberInviteAction(
 
     return {
       error: "We couldn't cancel that invite right now.",
+    };
+  }
+}
+
+export async function copyBusinessMemberInviteLinkAction(
+  inviteId: string,
+  businessSlug: string,
+) {
+  const parsedInviteId = businessMemberInviteIdSchema.safeParse(inviteId);
+
+  if (!parsedInviteId.success) {
+    return {
+      error: "That invite could not be found.",
+    };
+  }
+
+  const ownerAccess = await getBusinessActionContext({
+    businessSlug,
+    minimumRole: "owner",
+    unauthorizedMessage: "Only the business owner can do that.",
+  });
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+
+  try {
+    const result = await regenerateBusinessMemberInviteLinkForBusiness({
+      businessId: businessContext.business.id,
+      actorUserId: user.id,
+      actorUserName: user.name,
+      inviteId: parsedInviteId.data,
+    });
+
+    if (!result.ok) {
+      return {
+        error: "That invite could not be found.",
+      };
+    }
+
+    updateCacheTags(getBusinessMembersCacheTags(businessContext.business.id));
+    revalidateMembersSettingsPath(businessContext.business.slug);
+
+    return {
+      inviteUrl: new URL(
+        getBusinessMemberInvitePath(result.token),
+        env.BETTER_AUTH_URL,
+      ).toString(),
+    };
+  } catch (error) {
+    console.error("Failed to regenerate business member invite link.", error);
+
+    return {
+      error: "We couldn't create a fresh invite link right now.",
     };
   }
 }

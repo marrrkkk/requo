@@ -104,8 +104,8 @@ describe('lib/billing/region', () => {
       expect(getDefaultProvider('PH')).toBe('paymongo');
     });
 
-    it('returns lemonsqueezy for INTL region', () => {
-      expect(getDefaultProvider('INTL')).toBe('lemonsqueezy');
+    it('returns paddle for INTL region', () => {
+      expect(getDefaultProvider('INTL')).toBe('paddle');
     });
   });
 
@@ -114,8 +114,8 @@ describe('lib/billing/region', () => {
       expect(getProviderForCurrency('PHP')).toBe('paymongo');
     });
 
-    it('returns lemonsqueezy for USD', () => {
-      expect(getProviderForCurrency('USD')).toBe('lemonsqueezy');
+    it('returns paddle for USD', () => {
+      expect(getProviderForCurrency('USD')).toBe('paddle');
     });
   });
 });

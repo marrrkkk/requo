@@ -13,7 +13,7 @@
  */
 import "dotenv/config";
 
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { createInquiryFormPreset } from "../features/inquiries/inquiry-forms";
 import type { BusinessType } from "../features/inquiries/business-types";
@@ -43,7 +43,45 @@ import type { WorkspacePlan } from "../lib/plans/plans";
  * Constants
  * ═══════════════════════════════════════════════════════════════════════════ */
 
-const PASSWORD = "Demo1234!";
+const PASSWORD = env.DEMO_OWNER_PASSWORD ?? "ChangeMe123456!";
+const demoManagerEmail = process.env.DEMO_MANAGER_EMAIL ?? "manager@requo.local";
+const demoStaffEmail = process.env.DEMO_STAFF_EMAIL ?? "staff@requo.local";
+const demoOutsiderEmail =
+  process.env.DEMO_OUTSIDER_EMAIL ?? "outsider@requo.local";
+const primaryDemoUser: SeedUserConfig = {
+  name: env.DEMO_OWNER_NAME ?? "Morgan Lee",
+  email: env.DEMO_OWNER_EMAIL ?? "demo@requo.local",
+  plan: "business",
+  workspaceName: "BrightSide Workspace",
+  workspaceSlug: "brightside-workspace",
+  businesses: [
+    {
+      name: env.DEMO_BUSINESS_NAME ?? "BrightSide Print Studio",
+      slug: env.DEMO_BUSINESS_SLUG ?? "brightside-print-studio",
+      businessType: "print_signage",
+      shortDescription:
+        "Print, signage, and display graphics for storefronts, events, and campaigns.",
+      defaultCurrency: "USD",
+      countryCode: "US",
+      contactEmail: "hello@brightsideprint.com",
+      inquiryCount: 24,
+      quoteRatio: 0.5,
+      aiTonePreference: "balanced",
+    },
+  ],
+  teamMembers: [
+    {
+      name: "Ava Morris",
+      email: demoManagerEmail,
+      businessRole: "manager",
+    },
+    {
+      name: "Noah Price",
+      email: demoStaffEmail,
+      businessRole: "staff",
+    },
+  ],
+};
 
 type SeedUserConfig = {
   name: string;
@@ -75,6 +113,7 @@ type SeedTeamMember = {
 };
 
 const USERS: SeedUserConfig[] = [
+  primaryDemoUser,
   {
     name: "Maria Santos",
     email: "free@requo.dev",
@@ -438,6 +477,14 @@ async function createUser(name: string, email: string): Promise<string> {
 
   const userId = result.user.id;
 
+  await db
+    .update(user)
+    .set({
+      emailVerified: true,
+      updatedAt: new Date(),
+    })
+    .where(eq(user.id, userId));
+
   // Ensure profile with onboarding complete
   await db
     .insert(profiles)
@@ -452,6 +499,139 @@ async function createUser(name: string, email: string): Promise<string> {
     });
 
   return userId;
+}
+
+async function seedStableSmokeFixtures(params: {
+  businessId: string;
+  formId: string;
+  ownerId: string;
+}) {
+  const now = new Date();
+  const demoInquiryId = "demo_inquiry_quoted_booth_kit";
+  const sentQuoteId = "demo_quote_sent_1002";
+  const expiredQuoteId = "demo_quote_expired_1005";
+
+  await db.insert(inquiries).values({
+    id: demoInquiryId,
+    businessId: params.businessId,
+    businessInquiryFormId: params.formId,
+    status: "quoted",
+    subject: "Foundry Labs booth kit",
+    customerName: "Taylor Nguyen",
+    customerEmail: "taylor@example.com",
+    customerPhone: "+1 415 555 0199",
+    serviceCategory: "Event signage",
+    details:
+      "Need modular booth graphics, a counter wrap, and two directional signs for an upcoming expo.",
+    source: "public_form",
+    quoteRequested: true,
+    submittedFieldSnapshot: {
+      version: 1,
+      businessType: "print_signage",
+      fields: [],
+    },
+    submittedAt: daysAgo(5),
+    createdAt: daysAgo(5),
+    updatedAt: daysAgo(3),
+  });
+
+  await db.insert(activityLogs).values({
+    id: id("act"),
+    businessId: params.businessId,
+    inquiryId: demoInquiryId,
+    actorUserId: params.ownerId,
+    type: "quote.created",
+    summary: "Quote Q-1002 created for Taylor Nguyen",
+    metadata: {
+      quoteNumber: "Q-SMOKE-1002",
+    },
+    createdAt: daysAgo(4),
+    updatedAt: daysAgo(4),
+  });
+
+  await db.insert(quotes).values([
+    {
+      id: sentQuoteId,
+      businessId: params.businessId,
+      inquiryId: demoInquiryId,
+      status: "sent",
+      quoteNumber: "Q-SMOKE-1002",
+      publicToken: env.DEMO_QUOTE_PUBLIC_TOKEN,
+      title: "Foundry Labs booth kit",
+      customerName: "Taylor Nguyen",
+      customerEmail: "taylor@example.com",
+      currency: "USD",
+      notes: "Production starts after approval. Delivery is included in the quoted total.",
+      subtotalInCents: 245000,
+      discountInCents: 15000,
+      totalInCents: 230000,
+      sentAt: daysAgo(2),
+      publicViewedAt: daysAgo(1),
+      validUntil: toDateStr(addDays(now, 14)),
+      createdAt: daysAgo(4),
+      updatedAt: daysAgo(2),
+    },
+    {
+      id: expiredQuoteId,
+      businessId: params.businessId,
+      inquiryId: demoInquiryId,
+      status: "expired",
+      quoteNumber: "Q-SMOKE-1005",
+      publicToken: env.DEMO_EXPIRED_QUOTE_PUBLIC_TOKEN,
+      title: "Foundry Labs booth kit refresh",
+      customerName: "Taylor Nguyen",
+      customerEmail: "taylor@example.com",
+      currency: "USD",
+      notes: "Expired quote fixture for public testing.",
+      subtotalInCents: 120000,
+      discountInCents: 0,
+      totalInCents: 120000,
+      sentAt: daysAgo(25),
+      publicViewedAt: daysAgo(24),
+      validUntil: toDateStr(addDays(now, -2)),
+      createdAt: daysAgo(30),
+      updatedAt: daysAgo(20),
+    },
+  ]);
+
+  await db.insert(quoteItems).values([
+    {
+      id: id("qti"),
+      businessId: params.businessId,
+      quoteId: sentQuoteId,
+      description: "Booth backdrop graphic panels",
+      quantity: 2,
+      unitPriceInCents: 85000,
+      lineTotalInCents: 170000,
+      position: 0,
+      createdAt: daysAgo(4),
+      updatedAt: daysAgo(4),
+    },
+    {
+      id: id("qti"),
+      businessId: params.businessId,
+      quoteId: sentQuoteId,
+      description: "Counter wrap and installation",
+      quantity: 1,
+      unitPriceInCents: 75000,
+      lineTotalInCents: 75000,
+      position: 1,
+      createdAt: daysAgo(4),
+      updatedAt: daysAgo(4),
+    },
+    {
+      id: id("qti"),
+      businessId: params.businessId,
+      quoteId: expiredQuoteId,
+      description: "Refresh signage package",
+      quantity: 1,
+      unitPriceInCents: 120000,
+      lineTotalInCents: 120000,
+      position: 0,
+      createdAt: daysAgo(30),
+      updatedAt: daysAgo(30),
+    },
+  ]);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -904,19 +1084,32 @@ async function main() {
       // Seed data
       console.log(`   📦 Business: ${bizConfig.name} — seeding ${bizConfig.inquiryCount} inquiries...`);
       const counts = await seedBusinessData(bizConfig, businessId, formId, userId);
+      const isPrimaryDemoBusiness =
+        bizConfig.slug === primaryDemoUser.businesses[0].slug;
+
+      if (isPrimaryDemoBusiness) {
+        await seedStableSmokeFixtures({
+          businessId,
+          formId,
+          ownerId: userId,
+        });
+      }
       console.log(`      ✓ ${counts.inquiryCount} inquiries, ${counts.quoteCount} quotes, ${counts.quoteItemCount} line items`);
 
       bizSummaries.push({
         name: bizConfig.name,
         slug: bizConfig.slug,
-        inquiries: counts.inquiryCount,
-        quotes: counts.quoteCount,
+        inquiries: counts.inquiryCount + (isPrimaryDemoBusiness ? 1 : 0),
+        quotes: counts.quoteCount + (isPrimaryDemoBusiness ? 2 : 0),
       });
     }
 
     summary.push({ email: userConfig.email, plan: userConfig.plan, businesses: bizSummaries });
     console.log("");
   }
+
+  await createUser("Casey Walker", demoOutsiderEmail);
+  console.log(`   Extra user: ${demoOutsiderEmail} (no business access)\n`);
 
   // Phase 3: Summary
   console.log("=" .repeat(50));

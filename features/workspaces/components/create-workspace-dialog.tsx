@@ -26,16 +26,13 @@ export function CreateWorkspaceDialog() {
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[32rem]">
-        <DialogHeader className="mb-4">
+        <DialogHeader>
           <DialogTitle>Create new workspace</DialogTitle>
           <DialogDescription>
             Create a separate workspace for a different team, client, or project.
           </DialogDescription>
         </DialogHeader>
-        <div className="max-h-[70vh] overflow-y-auto pr-2">
-          {/* We strip out the outer form section styling by nesting the form component directly */}
-          <CreateWorkspaceForm />
-        </div>
+        <CreateWorkspaceForm />
       </DialogContent>
     </Dialog>
   );

@@ -1,32 +1,27 @@
 import { NextResponse } from "next/server";
 
+import { verifyPayMongoWebhookSignature } from "@/lib/billing/providers/paymongo";
 import {
-  verifyPayMongoWebhookSignature,
-} from "@/lib/billing/providers/paymongo";
-import {
-  recordWebhookEvent,
   markEventProcessed,
   recordPaymentAttempt,
+  recordWebhookEvent,
   updatePaymentAttemptStatus,
 } from "@/lib/billing/webhook-processor";
 import {
   activateSubscription,
-  updateSubscriptionStatus,
   getWorkspaceSubscription,
+  updateSubscriptionStatus,
 } from "@/lib/billing/subscription-service";
 
 export async function POST(request: Request) {
-  console.log("[PayMongo Webhook] ⚡ Webhook received!");
   const rawBody = await request.text();
   const signature = request.headers.get("paymongo-signature") ?? "";
 
-  // 1. Verify signature
   if (!verifyPayMongoWebhookSignature(rawBody, signature)) {
-    console.error("[PayMongo Webhook] Invalid signature");
+    console.error("[PayMongo Webhook] Invalid signature.");
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  // 2. Parse payload
   let payload: Record<string, unknown>;
 
   try {
@@ -49,7 +44,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing event data" }, { status: 400 });
   }
 
-  // 3. Extract payment data
   const eventData = attributes?.data as Record<string, unknown> | undefined;
   const paymentAttributes = eventData?.attributes as
     | Record<string, unknown>
@@ -60,91 +54,74 @@ export async function POST(request: Request) {
   const workspaceId = metadata?.workspace_id;
   const plan = metadata?.plan;
 
-  // 4. Idempotency check
-  const { isNew, eventId: storedEventId } = await recordWebhookEvent({
+  const { eventId: storedEventId, isNew } = await recordWebhookEvent({
     providerEventId: eventId,
     provider: "paymongo",
     eventType,
-    workspaceId: workspaceId ?? null,
     payload,
+    workspaceId: workspaceId ?? null,
   });
 
   if (!isNew) {
     return NextResponse.json({ message: "Event already processed" });
   }
 
-  // 5. Process event
   try {
     if (eventType === "payment.paid" && workspaceId && plan) {
       const amount = (paymentAttributes?.amount as number) ?? 0;
       const paymentId = (eventData?.id as string) ?? eventId;
-
-      // Record payment attempt
-      await recordPaymentAttempt({
-        workspaceId,
-        plan,
-        provider: "paymongo",
-        providerPaymentId: paymentId,
-        amount,
-        currency: "PHP",
-        status: "succeeded",
-      });
-
-      // Calculate billing period (30 days from now)
       const now = new Date();
       const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-      // Activate or update subscription
-      await activateSubscription({
-        workspaceId,
-        plan: plan as "pro" | "business",
-        provider: "paymongo",
+      await recordPaymentAttempt({
+        amount,
         currency: "PHP",
-        status: "active",
-        providerCheckoutId: paymentId,
-        currentPeriodStart: now,
-        currentPeriodEnd: periodEnd,
+        plan,
+        provider: "paymongo",
+        providerPaymentId: paymentId,
+        status: "succeeded",
+        workspaceId,
       });
 
-      console.log(
-        `[PayMongo Webhook] Activated ${plan} for workspace ${workspaceId}`,
-      );
+      await activateSubscription({
+        currentPeriodEnd: periodEnd,
+        currentPeriodStart: now,
+        currency: "PHP",
+        plan: plan as "pro" | "business",
+        provider: "paymongo",
+        providerCheckoutId: paymentId,
+        status: "active",
+        workspaceId,
+      });
     } else if (eventType === "payment.failed" && workspaceId) {
       const paymentId = (eventData?.id as string) ?? eventId;
 
       await updatePaymentAttemptStatus(paymentId, "failed");
 
-      // Update subscription to incomplete if it was pending
       const subscription = await getWorkspaceSubscription(workspaceId);
+
       if (subscription?.status === "pending") {
         await updateSubscriptionStatus(workspaceId, "incomplete");
       }
-
-      console.log(
-        `[PayMongo Webhook] Payment failed for workspace ${workspaceId}`,
-      );
     } else if (eventType === "payment.expired" && workspaceId) {
       const paymentId = (eventData?.id as string) ?? eventId;
 
       await updatePaymentAttemptStatus(paymentId, "expired");
 
       const subscription = await getWorkspaceSubscription(workspaceId);
+
       if (subscription?.status === "pending") {
         await updateSubscriptionStatus(workspaceId, "expired");
       }
-
-      console.log(
-        `[PayMongo Webhook] Payment expired for workspace ${workspaceId}`,
-      );
     }
 
     await markEventProcessed(storedEventId);
-  } catch (error) {
-    console.error("[PayMongo Webhook] Processing error:", error);
-    return NextResponse.json(
-      { error: "Processing failed" },
-      { status: 500 },
-    );
+  } catch {
+    console.error("[PayMongo Webhook] Processing error.", {
+      eventType,
+      workspaceId: workspaceId ?? null,
+    });
+    return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
 
   return NextResponse.json({ message: "OK" });

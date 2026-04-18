@@ -1,16 +1,24 @@
-import { ResetPasswordForm } from "@/features/auth/components/reset-password-form";
-import { redirectIfAuthenticated } from "@/lib/auth/session";
+import type { Metadata } from "next";
+
 import { AuthShell } from "@/components/shell/auth-shell";
+import { AuthenticatedPageRedirect } from "@/features/auth/components/authenticated-page-redirect";
+import { ResetPasswordForm } from "@/features/auth/components/reset-password-form";
+import { createPageMetadata } from "@/lib/seo/site";
 
-export default async function ResetPasswordPage() {
-  await redirectIfAuthenticated();
+export const metadata: Metadata = createPageMetadata({
+  description: "Set a new password for your Requo account.",
+  noIndex: true,
+  title: "Choose a new password",
+});
 
+export default function ResetPasswordPage() {
   return (
     <AuthShell
       badge="New password"
       title="Choose a new password"
       layout="centered"
     >
+      <AuthenticatedPageRedirect redirectTo="/workspaces" />
       <ResetPasswordForm />
     </AuthShell>
   );

@@ -1,3 +1,5 @@
+import { getPublicQuoteUrl } from "@/features/quotes/utils";
+
 import type { CalendarEventPrefill } from "./types";
 
 type InquiryContext = {
@@ -33,8 +35,8 @@ export function prefillFromInquiry(
   business: BusinessContext,
 ): CalendarEventPrefill {
   const title = inquiry.subject
-    ? `${inquiry.serviceCategory} — ${inquiry.subject}`
-    : `${inquiry.serviceCategory} — ${inquiry.customerName}`;
+    ? `${inquiry.serviceCategory} - ${inquiry.subject}`
+    : `${inquiry.serviceCategory} - ${inquiry.customerName}`;
 
   const descriptionParts: string[] = [
     `Customer: ${inquiry.customerName}`,
@@ -68,8 +70,8 @@ export function prefillFromQuote(
   business: BusinessContext,
   baseUrl: string,
 ): CalendarEventPrefill {
-  const title = `${quote.title} — ${quote.customerName}`;
-  const publicQuoteUrl = `${baseUrl}/quotes/${quote.publicToken}`;
+  const title = `${quote.title} - ${quote.customerName}`;
+  const publicQuoteUrl = `${baseUrl}${getPublicQuoteUrl(quote.publicToken)}`;
 
   const descriptionParts: string[] = [
     `Customer: ${quote.customerName}`,
@@ -102,6 +104,6 @@ export function prefillFromAcceptedQuote(
 
   return {
     ...prefill,
-    title: `Follow-up: ${quote.title} — ${quote.customerName}`,
+    title: `Follow-up: ${quote.title} - ${quote.customerName}`,
   };
 }

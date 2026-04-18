@@ -1,13 +1,37 @@
 import type { Metadata } from "next";
 
 import { MarketingHero } from "@/components/marketing/marketing-hero";
+import { StructuredData } from "@/components/seo/structured-data";
+import { getSoftwareApplicationStructuredData } from "@/lib/seo/structured-data";
+import {
+  createPageMetadata,
+  getSiteOrigin,
+  siteDescription,
+  siteName,
+} from "@/lib/seo/site";
 
-export const metadata: Metadata = {
-  title: "Manage inquiries, quotes, and follow-up | Requo",
-  description:
-    "Requo helps service businesses manage incoming requests, quotes, and follow-up from one calm owner workflow.",
-};
+export const metadata: Metadata = createPageMetadata({
+  description: siteDescription,
+  pathname: "/",
+  title: "Service business software for inquiries, quotes, and follow-up",
+});
 
 export default function MarketingPage() {
-  return <MarketingHero />;
+  const softwareApplicationStructuredData = getSoftwareApplicationStructuredData(
+    {
+      description: siteDescription,
+      name: siteName,
+      url: getSiteOrigin(),
+    },
+  );
+
+  return (
+    <>
+      <StructuredData
+        data={softwareApplicationStructuredData}
+        id="requo-software-application-structured-data"
+      />
+      <MarketingHero />
+    </>
+  );
 }

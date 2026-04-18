@@ -14,6 +14,7 @@ import { analyticsSections } from "@/features/analytics/config";
 import { AnalyticsOverviewTab } from "@/features/analytics/components/analytics-overview-tab";
 import { AnalyticsConversionTab } from "@/features/analytics/components/analytics-conversion-tab";
 import { AnalyticsWorkflowTab } from "@/features/analytics/components/analytics-workflow-tab";
+import { getWorkspaceBillingOverview } from "@/features/billing/queries";
 import {
   getBusinessAnalyticsData,
   getConversionAnalyticsData,
@@ -103,6 +104,10 @@ export default async function AnalyticsPage({
   const businessSlug = businessContext.business.slug;
   const canViewConversion = hasFeatureAccess(plan, "analyticsConversion");
   const canViewWorkflow = hasFeatureAccess(plan, "analyticsWorkflow");
+  const billingOverview =
+    !canViewConversion || !canViewWorkflow
+      ? await getWorkspaceBillingOverview(businessContext.business.workspaceId)
+      : null;
 
   const [overviewData, conversionData, workflowData] = await Promise.all([
     activeTab === analyticsSections.overview.id
@@ -158,7 +163,19 @@ export default async function AnalyticsPage({
               feature="analyticsConversion"
               plan={plan}
               title="Conversion analytics"
-              description="Upgrade to unlock inquiry-to-quote and quote-to-acceptance analytics."
+              description="Upgrade to track how inquiries convert into quotes and accepted work."
+              upgradeAction={
+                billingOverview
+                  ? {
+                      workspaceId: billingOverview.workspaceId,
+                      workspaceSlug: billingOverview.workspaceSlug,
+                      currentPlan: billingOverview.currentPlan,
+                      region: billingOverview.region,
+                      defaultCurrency: billingOverview.defaultCurrency,
+                      ctaLabel: "Upgrade for conversion analytics",
+                    }
+                  : undefined
+              }
             />
           )
         ) : null}
@@ -171,7 +188,19 @@ export default async function AnalyticsPage({
               feature="analyticsWorkflow"
               plan={plan}
               title="Workflow analytics"
-              description="Upgrade to unlock response-time and follow-up workflow analytics."
+              description="Upgrade to monitor response speed, follow-up cadence, and bottlenecks."
+              upgradeAction={
+                billingOverview
+                  ? {
+                      workspaceId: billingOverview.workspaceId,
+                      workspaceSlug: billingOverview.workspaceSlug,
+                      currentPlan: billingOverview.currentPlan,
+                      region: billingOverview.region,
+                      defaultCurrency: billingOverview.defaultCurrency,
+                      ctaLabel: "Upgrade for workflow analytics",
+                    }
+                  : undefined
+              }
             />
           )
         ) : null}

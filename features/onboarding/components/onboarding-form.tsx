@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+
+import { toast } from "sonner";
 
 import { CountryCombobox } from "@/components/shared/country-combobox";
 import { FormActions } from "@/components/shared/form-layout";
@@ -19,6 +21,10 @@ import { Progress } from "@/components/ui/progress";
 import { StarterTemplateCombobox } from "@/features/businesses/components/starter-template-combobox";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import {
+  ensureOnboardingWorkspaceAction,
+  verifyOnboardingPaidPlanAction,
+} from "@/features/onboarding/actions";
+import {
   jobTitleOptions,
   onboardingBusinessSchema,
   onboardingProfileSchema,
@@ -27,6 +33,8 @@ import {
   referralSourceOptions,
 } from "@/features/onboarding/schemas";
 import type { OnboardingActionState } from "@/features/onboarding/types";
+import { CheckoutDialog } from "@/features/billing/components/checkout-dialog";
+import type { BillingCurrency, BillingRegion, PaidPlan } from "@/lib/billing/types";
 import type { WorkspacePlan } from "@/lib/plans/plans";
 import { planMeta } from "@/lib/plans/plans";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
@@ -36,6 +44,8 @@ type OnboardingFormProps = {
     state: OnboardingActionState,
     formData: FormData,
   ) => Promise<OnboardingActionState>;
+  billingRegion: BillingRegion;
+  defaultCurrency: BillingCurrency;
   initialValues: {
     fullName: string;
     jobTitle: string;
@@ -97,12 +107,21 @@ const onboardingComboboxButtonClassName =
 
 export function OnboardingForm({
   action,
+  billingRegion,
+  defaultCurrency,
   initialValues,
 }: OnboardingFormProps) {
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
   );
+  const [isCheckoutBusy, startCheckoutTransition] = useTransition();
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [onboardingWorkspace, setOnboardingWorkspace] = useState<{
+    id: string;
+    slug: string;
+  } | null>(null);
+  const [paidCheckoutVerified, setPaidCheckoutVerified] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [clientFieldErrors, setClientFieldErrors] = useState<
     Partial<Record<OnboardingVisibleField, string>>
@@ -125,6 +144,10 @@ export function OnboardingForm({
     field: FieldName,
     value: string,
   ) {
+    if (field === "workspacePlan" && value !== values.workspacePlan) {
+      setPaidCheckoutVerified(false);
+    }
+
     setValues((currentValues) => ({
       ...currentValues,
       [field]: value,
@@ -229,8 +252,64 @@ export function OnboardingForm({
     return firstInvalidStepIndex;
   }
 
+  function handleCheckoutOpenChange(open: boolean) {
+    setCheckoutOpen(open);
+    if (open) return;
+    if (values.workspacePlan === "free" || !onboardingWorkspace) return;
+
+    startCheckoutTransition(async () => {
+      const result = await verifyOnboardingPaidPlanAction(
+        onboardingWorkspace.slug,
+        values.workspacePlan as "pro" | "business",
+      );
+      if (result.ok) {
+        setPaidCheckoutVerified(true);
+        setCurrentStep(1);
+        toast.success("Plan active — let's set up your business.");
+      }
+    });
+  }
+
   function handleContinue() {
     if (!validateStepFields(currentStep)) return;
+
+    if (currentStep === 0 && values.workspacePlan !== "free") {
+      if (paidCheckoutVerified) {
+        setCurrentStep(1);
+        return;
+      }
+
+      startCheckoutTransition(async () => {
+        const formData = new FormData();
+        formData.set("workspaceName", values.workspaceName);
+
+        const ensured = await ensureOnboardingWorkspaceAction(formData);
+        if (!ensured.ok) {
+          toast.error(ensured.error);
+          return;
+        }
+
+        setOnboardingWorkspace({
+          id: ensured.workspaceId,
+          slug: ensured.workspaceSlug,
+        });
+
+        const verified = await verifyOnboardingPaidPlanAction(
+          ensured.workspaceSlug,
+          values.workspacePlan as "pro" | "business",
+        );
+        if (verified.ok) {
+          setPaidCheckoutVerified(true);
+          setCurrentStep(1);
+          toast.success("Plan active — let's set up your business.");
+          return;
+        }
+
+        setCheckoutOpen(true);
+      });
+      return;
+    }
+
     setCurrentStep((step) => Math.min(step + 1, lastOnboardingStepIndex));
   }
 
@@ -258,6 +337,16 @@ export function OnboardingForm({
         if (currentStep < lastOnboardingStepIndex) {
           event.preventDefault();
           handleContinue();
+          return;
+        }
+
+        if (
+          values.workspacePlan !== "free" &&
+          !paidCheckoutVerified
+        ) {
+          event.preventDefault();
+          setCurrentStep(0);
+          toast.error("Complete payment for your selected plan to finish setup.");
           return;
         }
 
@@ -537,7 +626,18 @@ export function OnboardingForm({
         ) : null}
 
         {currentStep < lastOnboardingStepIndex ? (
-          <Button disabled={isPending} onClick={handleContinue} size="lg" type="button">
+          <Button
+            disabled={
+              isPending ||
+              (currentStep === 0 &&
+                values.workspacePlan !== "free" &&
+                !paidCheckoutVerified &&
+                isCheckoutBusy)
+            }
+            onClick={handleContinue}
+            size="lg"
+            type="button"
+          >
             Continue
           </Button>
         ) : (
@@ -553,6 +653,19 @@ export function OnboardingForm({
           </Button>
         )}
       </FormActions>
+
+      {onboardingWorkspace && values.workspacePlan !== "free" ? (
+        <CheckoutDialog
+          currentPlan="free"
+          defaultCurrency={defaultCurrency}
+          onOpenChange={handleCheckoutOpenChange}
+          open={checkoutOpen}
+          region={billingRegion}
+          targetPlan={values.workspacePlan as PaidPlan}
+          workspaceId={onboardingWorkspace.id}
+          workspaceSlug={onboardingWorkspace.slug}
+        />
+      ) : null}
     </form>
   );
 }

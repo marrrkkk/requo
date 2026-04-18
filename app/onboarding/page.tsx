@@ -1,6 +1,8 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { BrandMark } from "@/components/shared/brand-mark";
+import { getBillingRegion, getDefaultCurrency } from "@/lib/billing/region";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { workspacesHubPath } from "@/features/workspaces/routes";
 import { completeOnboardingAction } from "@/features/onboarding/actions";
@@ -31,6 +33,10 @@ export default async function OnboardingPage() {
     redirect(workspacesHubPath);
   }
 
+  const requestHeaders = await headers();
+  const billingRegion = getBillingRegion(requestHeaders);
+  const defaultCurrency = getDefaultCurrency(billingRegion);
+
   return (
     <>
       <ThemePreferenceSync
@@ -47,6 +53,8 @@ export default async function OnboardingPage() {
           <div className="flex flex-1 items-center justify-center py-10 sm:py-14">
             <OnboardingForm
               action={completeOnboardingAction}
+              billingRegion={billingRegion}
+              defaultCurrency={defaultCurrency}
               initialValues={{
                 fullName: profile?.fullName ?? session.user.name,
                 jobTitle: profile?.jobTitle ?? "",

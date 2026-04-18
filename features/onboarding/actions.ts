@@ -4,11 +4,20 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getValidationActionState } from "@/lib/action-state";
+import { getEffectivePlan } from "@/lib/billing/subscription-service";
 import { requireUser } from "@/lib/auth/session";
 import { auth } from "@/lib/auth/server";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
-import { completeOnboardingForUser } from "@/features/onboarding/mutations";
-import { completeOnboardingSchema } from "@/features/onboarding/schemas";
+import {
+  completeOnboardingForUser,
+  ensureWorkspaceForOnboarding,
+  getFirstWorkspaceIdForUser,
+  verifyOnboardingPaidPlanForUser,
+} from "@/features/onboarding/mutations";
+import {
+  completeOnboardingSchema,
+  onboardingWorkspaceSchema,
+} from "@/features/onboarding/schemas";
 import type { OnboardingActionState } from "@/features/onboarding/types";
 
 const initialState: OnboardingActionState = {};
@@ -36,6 +45,25 @@ export async function completeOnboardingAction(
       validationResult.error,
       "Check the highlighted details and try again.",
     );
+  }
+
+  const selectedPlan = validationResult.data.workspacePlan;
+  if (selectedPlan === "pro" || selectedPlan === "business") {
+    const workspaceId = await getFirstWorkspaceIdForUser(user.id);
+    if (!workspaceId) {
+      return {
+        error:
+          "Complete checkout for your selected plan before finishing setup.",
+      };
+    }
+
+    const effective = await getEffectivePlan(workspaceId);
+    if (effective !== selectedPlan) {
+      return {
+        error:
+          "Complete payment for your selected plan before finishing setup.",
+      };
+    }
   }
 
   let dashboardPath: string | null = null;
@@ -76,4 +104,45 @@ export async function completeOnboardingAction(
   return {
     error: "We couldn't finish setting up your workspace right now.",
   };
+}
+
+export async function ensureOnboardingWorkspaceAction(
+  formData: FormData,
+): Promise<
+  | { ok: true; workspaceId: string; workspaceSlug: string }
+  | { ok: false; error: string }
+> {
+  const user = await requireUser();
+  const parsed = onboardingWorkspaceSchema.pick({ workspaceName: true }).safeParse({
+    workspaceName: formData.get("workspaceName"),
+  });
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Enter a workspace name.",
+    };
+  }
+
+  try {
+    const result = await ensureWorkspaceForOnboarding(
+      user,
+      parsed.data.workspaceName,
+    );
+    return { ok: true, ...result };
+  } catch (error) {
+    console.error("Failed to ensure onboarding workspace.", error);
+    return {
+      ok: false,
+      error: "We couldn't prepare your workspace. Try again.",
+    };
+  }
+}
+
+export async function verifyOnboardingPaidPlanAction(
+  workspaceSlug: string,
+  expectedPlan: "pro" | "business",
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await requireUser();
+  return verifyOnboardingPaidPlanForUser(user.id, workspaceSlug, expectedPlan);
 }

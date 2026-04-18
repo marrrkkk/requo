@@ -410,9 +410,11 @@ export function QuoteEditor({
         <DashboardSection
           action={
             <>
-              <DashboardMetaPill className="text-foreground">
-                {quoteNumber ?? "Assigned on save"}
-              </DashboardMetaPill>
+              {quoteNumber ? (
+                <DashboardMetaPill className="text-foreground">
+                  {quoteNumber}
+                </DashboardMetaPill>
+              ) : null}
               <DashboardMetaPill>{currency}</DashboardMetaPill>
             </>
           }
@@ -648,14 +650,9 @@ export function QuoteEditor({
                 >
                   <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <p className="text-sm font-medium text-foreground">
-                          Item {index + 1}
-                        </p>
-                        <span className="dashboard-meta-pill min-h-0 px-2.5 py-1 text-[0.7rem]">
-                          Live total
-                        </span>
-                      </div>
+                      <p className="text-sm font-medium text-foreground">
+                        Item {index + 1}
+                      </p>
                       <Button
                         type="button"
                         variant="outline"

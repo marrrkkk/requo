@@ -24,17 +24,23 @@ import { AppearanceMenu } from "@/features/theme/components/appearance-menu";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { requireSession } from "@/lib/auth/session";
+import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 
 export default async function WorkspacesPage() {
   const session = await requireSession();
 
-  const [themePreference, workspaceList, profile] = await Promise.all([
+  const [themePreference, workspaceList, profile, memberships] = await Promise.all([
     getThemePreferenceForUser(session.user.id),
     getWorkspaceListForUser(session.user.id),
     getAccountProfileForUser(session.user.id),
+    getBusinessMembershipsForUser(session.user.id),
   ]);
 
-  if (workspaceList.length === 0 && !profile?.onboardingCompletedAt) {
+  if (
+    workspaceList.length === 0 &&
+    memberships.length === 0 &&
+    !profile?.onboardingCompletedAt
+  ) {
     redirect(onboardingPath);
   }
 

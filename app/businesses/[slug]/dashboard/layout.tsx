@@ -4,6 +4,7 @@ import { DashboardShell } from "@/components/shell/dashboard-shell";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
+import { getWorkspaceBillingOverview } from "@/features/billing/queries";
 import { getBusinessNotificationBellView } from "@/features/notifications/queries";
 import { workspacesHubPath } from "@/features/workspaces/routes";
 import { requireSession } from "@/lib/auth/session";
@@ -30,11 +31,14 @@ export default async function BusinessDashboardLayout({
     redirect(workspacesHubPath);
   }
 
-  const notificationView = await getBusinessNotificationBellView({
-    businessId: businessContext.business.id,
-    businessSlug: businessContext.business.slug,
-    userId: session.user.id,
-  });
+  const [notificationView, workspaceBilling] = await Promise.all([
+    getBusinessNotificationBellView({
+      businessId: businessContext.business.id,
+      businessSlug: businessContext.business.slug,
+      userId: session.user.id,
+    }),
+    getWorkspaceBillingOverview(businessContext.business.workspaceId),
+  ]);
   const avatarSrc = resolveUserAvatarSrc({
     avatarStoragePath: profile?.avatarStoragePath,
     profileUpdatedAt: profile?.updatedAt,
@@ -53,6 +57,17 @@ export default async function BusinessDashboardLayout({
       businessContext={businessContext}
       businessMemberships={businessMemberships}
       notificationView={notificationView}
+      workspaceBilling={
+        workspaceBilling
+          ? {
+              workspaceId: workspaceBilling.workspaceId,
+              workspaceSlug: workspaceBilling.workspaceSlug,
+              currentPlan: workspaceBilling.currentPlan,
+              region: workspaceBilling.region,
+              defaultCurrency: workspaceBilling.defaultCurrency,
+            }
+          : null
+      }
     >
       {children}
     </DashboardShell>

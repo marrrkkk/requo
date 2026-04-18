@@ -35,7 +35,7 @@ export function PublicPageShell({
           ) : null}
         </header>
 
-        {children}
+        <main className="contents">{children}</main>
       </div>
     </div>
   );

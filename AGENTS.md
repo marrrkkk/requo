@@ -42,6 +42,7 @@ The app also handles public inquiry intake, business-scoped dashboards, quotes, 
 - `lib/billing/` owns billing domain types, plan pricing, region detection, subscription service, webhook processing, and provider clients.
 - `features/billing/` owns checkout UI, billing status, server actions, and billing-related queries.
 - `scripts/` owns migrations, seeders, and operational scripts.
+- `tests/unit/`, `tests/components/`, and `tests/integration/` own fast automated confidence for logic, UI, and server behavior.
 - `tests/e2e/` owns Playwright coverage for user flows.
 
 ### Core Stack
@@ -54,7 +55,7 @@ The app also handles public inquiry intake, business-scoped dashboards, quotes, 
 - Resend for transactional email
 - OpenRouter for AI features
 - PayMongo for QRPh payments (Philippines)
-- Lemon Squeezy for card/global payments
+- Paddle for card/global payments
 
 ## Working Defaults
 
@@ -109,8 +110,8 @@ Do not add:
 - The `workspaces.plan` column is a denormalized read cache. The authoritative state lives in `workspace_subscriptions`.
 - `lib/billing/subscription-service.ts` is the single write path for all subscription mutations. It keeps `workspaces.plan` in sync.
 - `lib/billing/webhook-processor.ts` provides idempotent event deduplication using `billing_events`.
-- PayMongo handles QRPh (one-time payment intents, manual renewal). Lemon Squeezy handles recurring card subscriptions.
-- Webhook routes live at `app/api/billing/paymongo/webhook/route.ts` and `app/api/billing/lemonsqueezy/webhook/route.ts`.
+- PayMongo handles QRPh (one-time payment intents, manual renewal). Paddle handles recurring card subscriptions.
+- Webhook routes live at `app/api/billing/paymongo/webhook/route.ts` and `app/api/billing/paddle/webhook/route.ts`.
 - Plan access is resolved through `getEffectivePlan()` in the subscription service, which checks subscription status, cancellation dates, and grace periods.
 - Do not bypass the subscription service or write directly to `workspace_subscriptions`.
 
@@ -145,7 +146,13 @@ A task is done when:
 
 - Docs and instruction changes: do a read-through plus targeted grep checks.
 - Most code changes: `npm run check` or run `npm run lint` plus `npm run typecheck`.
+- Logic, component, or validation changes: also run `npm run test`.
+- Server actions, route handlers, authz, billing, or DB-backed changes: run `npm run test:integration`.
 - Route, layout, or system changes: also run `npm run build`.
-- Covered user-flow changes: run the relevant `npm run test:e2e`.
+- Covered user-flow changes: run the relevant `npm run test:e2e:smoke`; use `npm run test:e2e` when the change touches broader browser journeys.
 - If demo data or e2e fixtures need refreshing, use `npm run db:migrate` and `npm run db:seed-demo` when the environment supports it.
-- CI currently runs lint, typecheck, build, and Playwright on push and pull request.
+- Secret-storage or reversible-credential changes may also require `npm run db:backfill-security-secrets` after keys are configured.
+- Prefer `npm run dev:app` for app-only local work. `npm run dev` also starts `ngrok` for callback and webhook testing.
+- Vercel owns preview and production deployment. GitHub Actions owns merge gates:
+  - `verify`: lint, typecheck, unit/component tests, build
+  - `server-tests`: Postgres-backed integration tests and Playwright smoke coverage

@@ -1,11 +1,11 @@
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { profileAvatarBucket } from "@/features/account/utils";
 import { buildContentDisposition } from "@/lib/files";
-import { getSession } from "@/lib/auth/session";
+import { getOptionalSession } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export async function GET() {
-  const session = await getSession();
+  const session = await getOptionalSession();
 
   if (!session) {
     return new Response("Not found", {

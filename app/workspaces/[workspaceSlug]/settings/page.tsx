@@ -8,7 +8,6 @@ import { WorkspaceSettingsForm } from "@/features/workspaces/components/workspac
 import { getWorkspacePath } from "@/features/workspaces/routes";
 import { requireSession } from "@/lib/auth/session";
 import { Button } from "@/components/ui/button";
-import { PlanBadge } from "@/components/shared/paywall";
 import { LogoutButton } from "@/features/auth/components/logout-button";
 import { AppearanceMenu } from "@/features/theme/components/appearance-menu";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
@@ -103,7 +102,10 @@ export default async function WorkspaceSettingsPage(
                   </p>
                 </div>
                 {billingOverview ? (
-                  <BillingStatusCard billing={billingOverview} />
+                  <BillingStatusCard
+                    billing={billingOverview}
+                    showPlanComparison={false}
+                  />
                 ) : null}
               </div>
             </div>

@@ -13,11 +13,15 @@ import {
 import type { QuoteEditorInput } from "@/features/quotes/schemas";
 import type { QuoteStatus } from "@/features/quotes/types";
 import {
-  createQuotePublicToken,
   getQuoteStatusLabel,
   getTodayUtcDateString,
 } from "@/features/quotes/utils";
 import { insertBusinessNotification } from "@/features/notifications/mutations";
+import {
+  createStoredQuotePublicToken,
+  getQuotePublicTokenLookupCondition,
+  resolveStoredQuotePublicToken,
+} from "@/features/quotes/token-storage";
 
 function createId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
@@ -57,16 +61,18 @@ function calculateQuoteTotals(input: QuoteEditorInput) {
 
 function isRetryableUniqueConflict(error: unknown) {
   return (
-    typeof error === "object" &&
+      typeof error === "object" &&
     error !== null &&
     "code" in error &&
     error.code === "23505" &&
     (("constraint_name" in error &&
       (error.constraint_name === "quotes_business_quote_number_unique" ||
-        error.constraint_name === "quotes_public_token_unique")) ||
+        error.constraint_name === "quotes_public_token_unique" ||
+        error.constraint_name === "quotes_public_token_hash_unique")) ||
       ("constraint" in error &&
         (error.constraint === "quotes_business_quote_number_unique" ||
-          error.constraint === "quotes_public_token_unique")))
+          error.constraint === "quotes_public_token_unique" ||
+          error.constraint === "quotes_public_token_hash_unique")))
   );
 }
 
@@ -259,7 +265,7 @@ export async function syncExpiredQuoteForPublicToken(token: string) {
     .from(quotes)
     .where(
       and(
-        eq(quotes.publicToken, token),
+        getQuotePublicTokenLookupCondition(token),
         eq(quotes.status, "sent"),
         lt(quotes.validUntil, today),
       ),
@@ -316,6 +322,7 @@ export async function createQuoteForBusiness({
         const quoteNumber = getNextQuoteNumberFromSequence(
           latestQuote?.latestSequence,
         );
+        const storedPublicToken = createStoredQuotePublicToken();
         const now = new Date();
 
         await tx.insert(quotes).values({
@@ -324,7 +331,9 @@ export async function createQuoteForBusiness({
           inquiryId,
           status: "draft",
           quoteNumber,
-          publicToken: createQuotePublicToken(),
+          publicToken: null,
+          publicTokenHash: storedPublicToken.publicTokenHash,
+          publicTokenEncrypted: storedPublicToken.publicTokenEncrypted,
           title: quote.title,
           customerName: quote.customerName,
           customerEmail: quote.customerEmail,
@@ -612,6 +621,7 @@ export async function markQuoteSentForBusiness({
         inquiryId: quotes.inquiryId,
         quoteNumber: quotes.quoteNumber,
         publicToken: quotes.publicToken,
+        publicTokenEncrypted: quotes.publicTokenEncrypted,
         status: quotes.status,
         postAcceptanceStatus: quotes.postAcceptanceStatus,
       })
@@ -624,14 +634,14 @@ export async function markQuoteSentForBusiness({
     }
 
     if (existingQuote.status !== "draft") {
-      return {
-        changed: false,
-        status: existingQuote.status,
-        quoteNumber: existingQuote.quoteNumber,
-        inquiryId: existingQuote.inquiryId,
-        publicToken: existingQuote.publicToken,
-      };
-    }
+        return {
+          changed: false,
+          status: existingQuote.status,
+          quoteNumber: existingQuote.quoteNumber,
+          inquiryId: existingQuote.inquiryId,
+          publicToken: resolveStoredQuotePublicToken(existingQuote),
+        };
+      }
 
     await tx
       .update(quotes)
@@ -667,7 +677,7 @@ export async function markQuoteSentForBusiness({
       status: "sent" as const,
       quoteNumber: existingQuote.quoteNumber,
       inquiryId: existingQuote.inquiryId,
-      publicToken: existingQuote.publicToken,
+      publicToken: resolveStoredQuotePublicToken(existingQuote),
     };
   });
 }
@@ -682,7 +692,7 @@ export async function recordQuotePublicViewByToken(token: string) {
     })
     .where(
       and(
-        eq(quotes.publicToken, token),
+        getQuotePublicTokenLookupCondition(token),
         inArray(quotes.status, ["sent", "accepted", "rejected", "expired"]),
       ),
     );
@@ -718,6 +728,7 @@ export async function respondToPublicQuoteByToken({
         customerName: quotes.customerName,
         customerEmail: quotes.customerEmail,
         publicToken: quotes.publicToken,
+        publicTokenEncrypted: quotes.publicTokenEncrypted,
         status: quotes.status,
         validUntil: quotes.validUntil,
         sentAt: quotes.sentAt,
@@ -727,7 +738,7 @@ export async function respondToPublicQuoteByToken({
       })
       .from(quotes)
       .innerJoin(businesses, eq(quotes.businessId, businesses.id))
-      .where(eq(quotes.publicToken, token))
+      .where(getQuotePublicTokenLookupCondition(token))
       .limit(1);
 
     if (!existingQuote) {
@@ -850,7 +861,7 @@ export async function respondToPublicQuoteByToken({
       customerEmail: existingQuote.customerEmail,
       customerResponseMessage: message?.trim() || null,
       notifyOnQuoteResponse: existingQuote.notifyOnQuoteResponse,
-      publicToken: existingQuote.publicToken,
+      publicToken: resolveStoredQuotePublicToken(existingQuote),
       quoteNumber: existingQuote.quoteNumber,
       status: nextStatus,
       title: existingQuote.title,

@@ -6,6 +6,10 @@ import {
   type BusinessMemberAssignableRole,
   type BusinessMemberRole,
 } from "@/lib/business-members";
+import {
+  createBusinessMemberInviteToken,
+  getBusinessMemberInviteLookupCondition,
+} from "@/features/business-members/invite-tokens";
 import { db } from "@/lib/db/client";
 import {
   activityLogs,
@@ -97,7 +101,7 @@ export async function createBusinessMemberInviteForBusiness({
       .limit(1);
 
     const inviteId = existingInvite?.id ?? createId("bmi");
-    const token = createId("bmit");
+    const { rawToken, tokenHash } = createBusinessMemberInviteToken();
     const expiresAt = getInviteExpirationDate();
     const now = new Date();
 
@@ -107,7 +111,8 @@ export async function createBusinessMemberInviteForBusiness({
         .set({
           inviterUserId: actorUserId,
           role,
-          token,
+          token: null,
+          tokenHash,
           expiresAt,
           updatedAt: now,
         })
@@ -119,7 +124,8 @@ export async function createBusinessMemberInviteForBusiness({
         inviterUserId: actorUserId,
         email: normalizedEmail,
         role,
-        token,
+        token: null,
+        tokenHash,
         expiresAt,
         createdAt: now,
         updatedAt: now,
@@ -146,11 +152,87 @@ export async function createBusinessMemberInviteForBusiness({
     return {
       ok: true as const,
       inviteId,
-      token,
+      token: rawToken,
       role,
       email: normalizedEmail,
       expiresAt,
       business,
+    };
+  });
+}
+
+export async function regenerateBusinessMemberInviteLinkForBusiness({
+  businessId,
+  actorUserId,
+  actorUserName,
+  inviteId,
+}: {
+  businessId: string;
+  actorUserId: string;
+  actorUserName: string;
+  inviteId: string;
+}) {
+  const now = new Date();
+  const expiresAt = getInviteExpirationDate();
+  const { rawToken, tokenHash } = createBusinessMemberInviteToken();
+
+  return db.transaction(async (tx) => {
+    const [invite] = await tx
+      .select({
+        id: businessMemberInvites.id,
+        email: businessMemberInvites.email,
+        role: businessMemberInvites.role,
+      })
+      .from(businessMemberInvites)
+      .where(
+        and(
+          eq(businessMemberInvites.businessId, businessId),
+          eq(businessMemberInvites.id, inviteId),
+        ),
+      )
+      .limit(1);
+
+    if (!invite) {
+      return {
+        ok: false as const,
+        reason: "not-found" as const,
+      };
+    }
+
+    await tx
+      .update(businessMemberInvites)
+      .set({
+        inviterUserId: actorUserId,
+        token: null,
+        tokenHash,
+        expiresAt,
+        updatedAt: now,
+      })
+      .where(eq(businessMemberInvites.id, invite.id));
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      inquiryId: null,
+      quoteId: null,
+      actorUserId,
+      type: "business.member_invite_link_regenerated",
+      summary: `${actorUserName} regenerated the invite link for ${invite.email}.`,
+      metadata: {
+        inviteId: invite.id,
+        role: invite.role,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      ok: true as const,
+      email: invite.email,
+      expiresAt,
+      inviteId: invite.id,
+      role: invite.role,
+      token: rawToken,
     };
   });
 }
@@ -407,7 +489,7 @@ export async function acceptBusinessMemberInviteForUser({
       })
       .from(businessMemberInvites)
       .innerJoin(businesses, eq(businessMemberInvites.businessId, businesses.id))
-      .where(eq(businessMemberInvites.token, token))
+      .where(getBusinessMemberInviteLookupCondition(token))
       .limit(1);
 
     if (!invite) {
@@ -524,7 +606,7 @@ export async function declineBusinessMemberInviteForUser({
       })
       .from(businessMemberInvites)
       .innerJoin(businesses, eq(businessMemberInvites.businessId, businesses.id))
-      .where(eq(businessMemberInvites.token, token))
+      .where(getBusinessMemberInviteLookupCondition(token))
       .limit(1);
 
     if (!invite) {

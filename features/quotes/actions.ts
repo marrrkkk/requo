@@ -673,11 +673,21 @@ export async function respondToPublicQuoteAction(
       });
     }
 
+    const respondedAt =
+      "updatedAt" in result && result.updatedAt
+        ? result.updatedAt
+        : new Date();
+
     return {
       success:
         result.status === "accepted"
           ? `Quote ${result.quoteNumber} accepted. Your response has been recorded.`
           : `Quote ${result.quoteNumber} declined. Your response has been recorded.`,
+      resolvedQuote: {
+        status: result.status,
+        customerRespondedAt: respondedAt.toISOString(),
+        customerResponseMessage: result.customerResponseMessage ?? null,
+      },
     };
   } catch (error) {
     console.error("Failed to record public quote response.", error);

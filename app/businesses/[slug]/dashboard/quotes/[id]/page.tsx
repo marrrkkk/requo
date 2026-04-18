@@ -26,6 +26,7 @@ import {
   updateQuoteAction,
 } from "@/features/quotes/actions";
 import { CustomerHistoryPanel } from "@/features/customers/components/customer-history-panel";
+import { QuoteActivityPanel } from "@/features/quotes/components/quote-activity-panel";
 import { getCustomerHistoryForBusiness } from "@/features/customers/queries";
 import { CopyQuoteLinkButton } from "@/features/quotes/components/copy-quote-link-button";
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";
@@ -195,37 +196,6 @@ export default async function QuoteDetailPage({
     </DashboardSection>
   );
 
-  const activitySection = (
-    <DashboardSection
-      description="Quote events and owner actions."
-      title="Activity log"
-    >
-      {quote.activities.length ? (
-        <DashboardDetailFeed>
-          {quote.activities.map((activity) => (
-            <DashboardDetailFeedItem
-              key={activity.id}
-              meta={
-                <>
-                  <span>{activity.actorName ?? "Requo"}</span>
-                  <span aria-hidden="true">|</span>
-                  <span>{formatQuoteDateTime(activity.createdAt)}</span>
-                </>
-              }
-              title={activity.summary}
-            />
-          ))}
-        </DashboardDetailFeed>
-      ) : (
-        <DashboardEmptyState
-          description="Send the quote or change its status to start the timeline for this quote."
-          title="No quote activity yet"
-          variant="section"
-        />
-      )}
-    </DashboardSection>
-  );
-
   return (
     <DashboardPage>
       <DashboardDetailHeader
@@ -235,9 +205,6 @@ export default async function QuoteDetailPage({
         meta={
           <>
             <QuoteStatusBadge status={quote.status} />
-            <DashboardMetaPill className="text-foreground">
-              {quote.quoteNumber}
-            </DashboardMetaPill>
             <DashboardMetaPill>
               Valid until {formatQuoteDate(quote.validUntil)}
             </DashboardMetaPill>
@@ -276,7 +243,7 @@ export default async function QuoteDetailPage({
                 Print
               </Link>
             </Button>
-            <Button asChild variant="outline">
+            <Button asChild>
               <a href={`mailto:${quote.customerEmail}`}>
                 <Mail data-icon="inline-start" />
                 Email customer
@@ -304,7 +271,7 @@ export default async function QuoteDetailPage({
           <DashboardDetailLayout className="xl:grid-cols-[1.25fr_0.75fr]">
             <DashboardSidebarStack>
               {linkedInquirySection}
-              {activitySection}
+              <QuoteActivityPanel activities={quote.activities} />
               <CustomerHistoryPanel
                 history={customerHistory}
                 businessSlug={businessSlug}
@@ -389,7 +356,7 @@ export default async function QuoteDetailPage({
             />
 
             {linkedInquirySection}
-            {activitySection}
+            <QuoteActivityPanel activities={quote.activities} />
             <CustomerHistoryPanel
               history={customerHistory}
               businessSlug={businessSlug}

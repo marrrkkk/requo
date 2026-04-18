@@ -204,6 +204,27 @@
       "when": 1776262371864,
       "tag": "0028_huge_flatman",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1776470400000,
+      "tag": "0030_security_hardening",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1776474000000,
+      "tag": "0031_billing_provider_paddle",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1776493361254,
+      "tag": "0032_auth_rate_limit_adapter_compat",
+      "breakpoints": true
     }
   ]
 }

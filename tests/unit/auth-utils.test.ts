@@ -19,5 +19,28 @@ describe('features/auth/utils', () => {
       expect(getAuthErrorMessage(null, 'Fallback')).toBe('Fallback');
       expect(getAuthErrorMessage(undefined, 'Fallback')).toBe('Fallback');
     });
+
+    it('maps verification and abuse-control errors to safer copy', () => {
+      expect(
+        getAuthErrorMessage(
+          { message: 'Email not verified. Please verify your email address.' },
+          'Fallback',
+        ),
+      ).toBe('Verify your email before signing in.');
+
+      expect(
+        getAuthErrorMessage(
+          { message: 'Too many requests. Please try again later.' },
+          'Fallback',
+        ),
+      ).toBe('Too many attempts. Wait a few minutes and try again.');
+
+      expect(
+        getAuthErrorMessage(
+          { message: 'Captcha validation failed.' },
+          'Fallback',
+        ),
+      ).toBe('Complete the security check and try again.');
+    });
   });
 });

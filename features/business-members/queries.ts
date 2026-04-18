@@ -7,7 +7,7 @@ import type {
   BusinessMemberInviteAcceptanceView,
   BusinessMembersSettingsView,
 } from "@/features/business-members/types";
-import { getBusinessMemberInvitePath } from "@/features/businesses/routes";
+import { getBusinessMemberInviteLookupCondition } from "@/features/business-members/invite-tokens";
 import { isBusinessMemberAssignableRole } from "@/lib/business-members";
 import {
   getBusinessMembersCacheTags,
@@ -20,7 +20,6 @@ import {
   businesses,
   user,
 } from "@/lib/db/schema";
-import { env } from "@/lib/env";
 
 function getMemberRoleSortExpression() {
   return sql`case
@@ -87,7 +86,6 @@ export async function getBusinessMembersSettingsForBusiness(
         inviterUserId: businessMemberInvites.inviterUserId,
         email: businessMemberInvites.email,
         role: businessMemberInvites.role,
-        token: businessMemberInvites.token,
         createdAt: businessMemberInvites.createdAt,
         expiresAt: businessMemberInvites.expiresAt,
       })
@@ -140,10 +138,6 @@ export async function getBusinessMembersSettingsForBusiness(
         inviteId: invite.inviteId,
         email: invite.email,
         role: invite.role,
-        inviteUrl: new URL(
-          getBusinessMemberInvitePath(invite.token),
-          env.BETTER_AUTH_URL,
-        ).toString(),
         inviterName: inviterNames.get(invite.inviterUserId) ?? "Business owner",
         createdAt: invite.createdAt,
         expiresAt: invite.expiresAt,
@@ -158,7 +152,6 @@ export async function getBusinessMemberInviteByToken(
   const [invite] = await db
     .select({
       inviteId: businessMemberInvites.id,
-      token: businessMemberInvites.token,
       inviterUserId: businessMemberInvites.inviterUserId,
       email: businessMemberInvites.email,
       role: businessMemberInvites.role,
@@ -169,7 +162,7 @@ export async function getBusinessMemberInviteByToken(
     })
     .from(businessMemberInvites)
     .innerJoin(businesses, eq(businessMemberInvites.businessId, businesses.id))
-    .where(eq(businessMemberInvites.token, token))
+    .where(getBusinessMemberInviteLookupCondition(token))
     .limit(1);
 
   if (!invite) {
@@ -207,7 +200,7 @@ export async function getBusinessMemberInviteByToken(
 
   return {
     inviteId: invite.inviteId,
-    token: invite.token,
+    token,
     email: invite.email,
     role: invite.role,
     business: {

@@ -18,8 +18,10 @@ export const googleCalendarConnections = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     googleAccountId: text("google_account_id").notNull(),
     googleEmail: text("google_email").notNull(),
-    accessToken: text("access_token").notNull(),
-    refreshToken: text("refresh_token").notNull(),
+    accessToken: text("access_token"),
+    accessTokenEncrypted: text("access_token_encrypted"),
+    refreshToken: text("refresh_token"),
+    refreshTokenEncrypted: text("refresh_token_encrypted"),
     accessTokenExpiresAt: timestamp("access_token_expires_at", {
       withTimezone: true,
     }).notNull(),

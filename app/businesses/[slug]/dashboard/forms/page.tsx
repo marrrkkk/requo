@@ -7,13 +7,15 @@ import {
 } from "@/features/settings/actions";
 import { BusinessInquiryFormsManager } from "@/features/settings/components/business-inquiry-forms-manager";
 import { getBusinessInquiryFormsSettingsForBusiness } from "@/features/settings/queries";
+import { getWorkspaceBillingOverview } from "@/features/billing/queries";
 import { getBusinessOperationalPageContext } from "../settings/_lib/page-context";
 
 export default async function BusinessFormsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();
-  const settings = await getBusinessInquiryFormsSettingsForBusiness(
-    businessContext.business.id,
-  );
+  const [settings, billingOverview] = await Promise.all([
+    getBusinessInquiryFormsSettingsForBusiness(businessContext.business.id),
+    getWorkspaceBillingOverview(businessContext.business.workspaceId),
+  ]);
 
   if (!settings) {
     notFound();
@@ -30,6 +32,18 @@ export default async function BusinessFormsPage() {
         createAction={createBusinessInquiryFormAction}
         unarchiveAction={unarchiveBusinessInquiryFormAction}
         settings={settings}
+        workspacePlan={businessContext.business.workspacePlan}
+        billingProps={
+          billingOverview
+            ? {
+                workspaceId: billingOverview.workspaceId,
+                workspaceSlug: billingOverview.workspaceSlug,
+                currentPlan: billingOverview.currentPlan,
+                region: billingOverview.region,
+                defaultCurrency: billingOverview.defaultCurrency,
+              }
+            : undefined
+        }
       />
     </>
   );

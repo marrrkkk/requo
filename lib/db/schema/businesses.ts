@@ -176,7 +176,8 @@ export const businessMemberInvites = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     email: text("email").notNull(),
     role: businessMemberRoleEnum("role").notNull().default("staff"),
-    token: text("token").notNull(),
+    token: text("token"),
+    tokenHash: text("token_hash"),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -187,12 +188,14 @@ export const businessMemberInvites = pgTable(
   },
   (table) => [
     uniqueIndex("business_member_invites_token_unique").on(table.token),
+    uniqueIndex("business_member_invites_token_hash_unique").on(table.tokenHash),
     uniqueIndex("business_member_invites_business_email_unique").on(
       table.businessId,
       table.email,
     ),
     index("business_member_invites_business_id_idx").on(table.businessId),
     index("business_member_invites_email_idx").on(table.email),
+    index("business_member_invites_token_hash_idx").on(table.tokenHash),
     index("business_member_invites_expires_at_idx").on(table.expiresAt),
   ],
 );

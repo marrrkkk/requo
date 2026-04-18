@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useRef } from "react";
 import { CheckCircle2, CircleSlash } from "lucide-react";
 
 import {
@@ -17,25 +18,46 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import type { PublicQuoteResponseActionState } from "@/features/quotes/types";
+import type {
+  PublicQuoteResolvedSnapshot,
+  PublicQuoteResponseActionState,
+} from "@/features/quotes/types";
 
 type PublicQuoteResponseFormProps = {
   action: (
     state: PublicQuoteResponseActionState,
     formData: FormData,
   ) => Promise<PublicQuoteResponseActionState>;
+  onResolved?: (snapshot: PublicQuoteResolvedSnapshot) => void;
 };
 
 const initialState: PublicQuoteResponseActionState = {};
 
 export function PublicQuoteResponseForm({
   action,
+  onResolved,
 }: PublicQuoteResponseFormProps) {
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
   );
   const messageError = getFieldError(state.fieldErrors, "message");
+  const lastResolvedKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!state.resolvedQuote) {
+      return;
+    }
+
+    const key = `${state.resolvedQuote.status}:${state.resolvedQuote.customerRespondedAt}`;
+
+    if (lastResolvedKeyRef.current === key) {
+      return;
+    }
+
+    lastResolvedKeyRef.current = key;
+    onResolved?.(state.resolvedQuote);
+  }, [onResolved, state.resolvedQuote]);
 
   return (
     <form action={formAction} className="form-stack">

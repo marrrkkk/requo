@@ -25,7 +25,7 @@ async function signIn(page: Page, email: string, password: string) {
   await page.locator("#password").fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();
 
-  await expect(page).toHaveURL(/\/businesses$/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/workspaces$/, { timeout: 20_000 });
 }
 
 test("owner can invite a new member from business settings", async ({ page }) => {
@@ -136,16 +136,16 @@ test("staff can access inquiry work but not forms or operational settings", asyn
   );
 });
 
-test("non-members cannot open another business dashboard", async ({ page }) => {
+test("non-members cannot open another business dashboard @smoke", async ({ page }) => {
   await signIn(page, demoOutsiderEmail, demoOutsiderPassword);
   await expect(
-    page.getByRole("heading", { name: "Choose a business" }),
+    page.getByRole("heading", { name: "Your workspaces" }),
   ).toBeVisible();
 
   await page.goto(`/businesses/${demoBusinessSlug}/dashboard`);
-  await expect(page).toHaveURL(/\/businesses$/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/workspaces$/, { timeout: 20_000 });
   await expect(
-    page.getByRole("heading", { name: "Choose a business" }),
+    page.getByRole("heading", { name: "Your workspaces" }),
   ).toBeVisible();
 });
 

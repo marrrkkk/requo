@@ -31,19 +31,19 @@ export default function WorkspaceLoading() {
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
         <div className="space-y-8">
           <div>
-            <Skeleton className="h-10 w-72 rounded-lg" />
-            <Skeleton className="mt-4 h-5 w-full max-w-2xl rounded-md" />
+            <Skeleton className="h-10 max-w-md rounded-lg sm:h-11" />
+            <Skeleton className="mt-2 h-5 w-full max-w-2xl rounded-md" />
           </div>
-          
+
           <div className="grid flex-1 gap-6 xl:grid-cols-3">
             <section className="space-y-4 xl:col-span-2">
               <div className="w-full">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-10 w-32 rounded-md" />
-                    <Skeleton className="h-10 w-28 rounded-md" />
+                <div className="mb-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                  <div className="inline-flex h-10 w-full max-w-[19rem] items-center gap-0.5 rounded-lg border border-border/80 bg-[var(--table-header-bg)] p-1 sm:w-fit">
+                    <Skeleton className="h-8 flex-1 rounded-md sm:w-[9.25rem]" />
+                    <Skeleton className="h-8 flex-1 rounded-md sm:w-[8.25rem]" />
                   </div>
-                  <Skeleton className="h-9 w-36 rounded-md" />
+                  <Skeleton className="h-9 w-full shrink-0 rounded-md sm:w-40" />
                 </div>
 
                 <div className="space-y-4">
@@ -54,7 +54,7 @@ export default function WorkspaceLoading() {
                           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
                             <div className="flex min-w-0 items-start gap-3">
                               <Skeleton className="size-12 shrink-0 rounded-xl" />
-                              <div className="min-w-0 flex-1 space-y-2 mt-1">
+                              <div className="mt-1 min-w-0 flex-1 space-y-2">
                                 <Skeleton className="h-5 w-32 rounded-md" />
                                 <Skeleton className="h-4 w-20 rounded-md" />
                               </div>
@@ -66,7 +66,7 @@ export default function WorkspaceLoading() {
                             <Skeleton className="h-6 w-12 rounded-full" />
                             <Skeleton className="h-6 w-24 sm:w-32 rounded-full" />
                           </div>
-                          <Skeleton className="h-10 w-full sm:w-36 rounded-md" />
+                          <Skeleton className="h-10 w-full rounded-md sm:w-36" />
                         </CardContent>
                       </Card>
                     ))}
@@ -76,17 +76,29 @@ export default function WorkspaceLoading() {
             </section>
 
             <aside className="xl:col-span-1">
-              <Card className="sticky top-6">
-                <CardHeader className="pb-3 text-lg font-semibold">
-                  <Skeleton className="h-6 w-32 rounded-md" />
-                </CardHeader>
-                <CardContent className="space-y-5">
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-6 w-16 rounded-full" />
-                  </div>
-                  <Skeleton className="h-14 w-full rounded-md" />
-                </CardContent>
-              </Card>
+              <div className="sticky top-6">
+                <Card>
+                  <CardHeader className="pb-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 flex-1 flex-col gap-2">
+                        <Skeleton className="h-3 w-24 rounded-md" />
+                        <div className="flex flex-wrap items-center gap-3">
+                          <Skeleton className="h-8 w-28 rounded-md" />
+                          <Skeleton className="h-6 w-16 shrink-0 rounded-full" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-6 w-14 shrink-0 rounded-full" />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="grid gap-5 pt-6">
+                    <div className="space-y-2">
+                      <Skeleton className="h-9 w-36 rounded-md" />
+                      <Skeleton className="h-4 w-full max-w-sm rounded-md" />
+                    </div>
+                    <Skeleton className="h-24 w-full rounded-xl" />
+                  </CardContent>
+                </Card>
+              </div>
             </aside>
           </div>
         </div>

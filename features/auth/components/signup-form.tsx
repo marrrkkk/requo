@@ -44,6 +44,7 @@ export function SignupForm({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const form = event.currentTarget;
 
     const formData = new FormData(event.currentTarget);
     const validationResult = signupSchema.safeParse({
@@ -58,11 +59,12 @@ export function SignupForm({
     }
 
     setState({});
+    const verificationCallback = `/login?verified=success&next=${encodeURIComponent(nextPath)}`;
 
     startTransition(async () => {
       const result = await authClient.signUp.email({
         ...validationResult.data,
-        callbackURL: nextPath,
+        callbackURL: verificationCallback,
       });
 
       if (result.error) {
@@ -75,7 +77,10 @@ export function SignupForm({
         return;
       }
 
-      window.location.assign(nextPath);
+      form.reset();
+      setState({
+        success: "Check your inbox to verify your email before signing in.",
+      });
     });
   }
 

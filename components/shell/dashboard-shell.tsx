@@ -11,7 +11,6 @@ import {
 } from "react";
 import { useTransition } from "react";
 import {
-  ArrowUpRight,
   BriefcaseBusiness,
   Check,
   ChevronsUpDown,
@@ -25,8 +24,11 @@ import { usePathname } from "next/navigation";
 import { authClient } from "@/lib/auth/client";
 import { getProfileSettingsPath } from "@/features/account/routes";
 import { AppearanceMenuSubmenu } from "@/features/theme/components/appearance-menu";
+import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
 import type { BusinessNotificationBellView } from "@/features/notifications/types";
+import type { BillingCurrency, BillingRegion } from "@/lib/billing/types";
+import type { WorkspacePlan } from "@/lib/plans/plans";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import type { ThemePreference } from "@/features/theme/types";
 import { canManageOperationalBusinessSettings } from "@/lib/business-members";
@@ -105,6 +107,14 @@ type DashboardShellProps = {
   businessContext: BusinessContext;
   businessMemberships: BusinessContext[];
   notificationView: BusinessNotificationBellView;
+  /** When set and plan is Free, shows an Upgrade control in the top bar. */
+  workspaceBilling?: {
+    workspaceId: string;
+    workspaceSlug: string;
+    currentPlan: WorkspacePlan;
+    region: BillingRegion;
+    defaultCurrency: BillingCurrency;
+  } | null;
 };
 
 export function DashboardShell({
@@ -114,6 +124,7 @@ export function DashboardShell({
   businessContext,
   businessMemberships,
   notificationView,
+  workspaceBilling,
 }: DashboardShellProps) {
   const pathname = usePathname();
   const breadcrumbs = getDashboardBreadcrumbs(pathname);
@@ -194,7 +205,7 @@ export function DashboardShell({
                 aria-hidden="true"
                 className="hidden h-4 w-px shrink-0 self-center bg-border md:block"
               />
-              <div className="min-w-0 flex-1">
+              <div className="hidden min-w-0 flex-1 md:block">
                 <Breadcrumb>
                   <BreadcrumbList>
                     {breadcrumbs.map((item, index) => {
@@ -220,8 +231,28 @@ export function DashboardShell({
                   </BreadcrumbList>
                 </Breadcrumb>
               </div>
-              <div className="flex items-center gap-2">
-                <CommandMenu navigation={dashboardNavigation} businessSlug={business.slug} />
+              <div className="flex min-w-0 flex-1 items-center justify-end gap-2 md:min-w-0 md:flex-initial md:justify-start">
+                <div className="hidden md:block">
+                  <CommandMenu
+                    businessSlug={business.slug}
+                    role={businessContext.role}
+                    workspaceSlug={business.workspaceSlug}
+                  />
+                </div>
+                {workspaceBilling &&
+                workspaceBilling.currentPlan === "free" ? (
+                  <div className="shrink-0">
+                    <UpgradeButton
+                      className="whitespace-nowrap"
+                      currentPlan={workspaceBilling.currentPlan}
+                      defaultCurrency={workspaceBilling.defaultCurrency}
+                      region={workspaceBilling.region}
+                      size="sm"
+                      workspaceId={workspaceBilling.workspaceId}
+                      workspaceSlug={workspaceBilling.workspaceSlug}
+                    />
+                  </div>
+                ) : null}
                 <DashboardNotificationBell
                   businessId={business.id}
                   businessSlug={business.slug}
@@ -407,7 +438,7 @@ function DashboardUserMenu({
                   onClick={closeMobileSidebar}
                 >
                   <BriefcaseBusiness data-icon="inline-start" />
-                  Workspace & billing
+                  Billing
                   <PlanBadge plan={workspacePlan} showIcon={false} className="ml-auto" />
                 </Link>
               </DropdownMenuItem>
@@ -422,17 +453,6 @@ function DashboardUserMenu({
                 </Link>
               </DropdownMenuItem>
               <AppearanceMenuSubmenu userId={user.id} />
-              <DropdownMenuItem asChild>
-                <Link
-                  href={`/inquire/${businessSlug}`}
-                  onClick={closeMobileSidebar}
-                  prefetch={false}
-                  target="_blank"
-                >
-                  <ArrowUpRight data-icon="inline-start" />
-                  Public inquiry page
-                </Link>
-              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem

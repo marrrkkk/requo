@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { MailPlus, MoreHorizontal, Plus, Search, Users } from "lucide-react";
 
 import { DashboardEmptyState } from "@/components/shared/dashboard-layout";
@@ -60,6 +60,10 @@ type BusinessMembersManagerProps = {
     state: BusinessMemberInviteActionState,
     formData: FormData,
   ) => Promise<BusinessMemberInviteActionState>;
+  copyInviteLinkAction: (
+    inviteId: string,
+    businessSlug: string,
+  ) => Promise<{ error?: string; inviteUrl?: string }>;
   updateRoleAction: (
     membershipId: string,
     state: BusinessMemberRoleActionState,
@@ -105,6 +109,7 @@ export function BusinessMembersManager({
   businessSlug,
   view,
   createInviteAction,
+  copyInviteLinkAction,
   updateRoleAction,
   removeMemberAction,
   cancelInviteAction,
@@ -131,6 +136,7 @@ export function BusinessMembersManager({
               <PendingInvitesDialog
                 businessSlug={businessSlug}
                 cancelInviteAction={cancelInviteAction}
+                copyInviteLinkAction={copyInviteLinkAction}
                 invites={view.invites}
               />
             ) : null}
@@ -558,10 +564,12 @@ function PendingInvitesDialog({
   businessSlug,
   invites,
   cancelInviteAction,
+  copyInviteLinkAction,
 }: {
   businessSlug: string;
   invites: BusinessMembersSettingsView["invites"];
   cancelInviteAction: BusinessMembersManagerProps["cancelInviteAction"];
+  copyInviteLinkAction: BusinessMembersManagerProps["copyInviteLinkAction"];
 }) {
   return (
     <Dialog>
@@ -584,6 +592,7 @@ function PendingInvitesDialog({
               <InviteRow
                 businessSlug={businessSlug}
                 cancelAction={cancelInviteAction.bind(null, invite.inviteId)}
+                copyInviteLinkAction={copyInviteLinkAction}
                 invite={invite}
                 key={invite.inviteId}
               />
@@ -601,6 +610,7 @@ function InviteRow({
   businessSlug,
   invite,
   cancelAction,
+  copyInviteLinkAction,
 }: {
   businessSlug: string;
   invite: BusinessMembersSettingsView["invites"][number];
@@ -608,6 +618,7 @@ function InviteRow({
     state: BusinessMemberRemoveActionState,
     formData: FormData,
   ) => Promise<BusinessMemberRemoveActionState>;
+  copyInviteLinkAction: BusinessMembersManagerProps["copyInviteLinkAction"];
 }) {
   const [, cancelFormAction, isPending] = useActionStateWithSonner(
     cancelAction,
@@ -632,7 +643,11 @@ function InviteRow({
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        <CopyBusinessInviteLinkButton inviteUrl={invite.inviteUrl} />
+        <CopyBusinessInviteLinkButton
+          businessSlug={businessSlug}
+          copyInviteLinkAction={copyInviteLinkAction}
+          inviteId={invite.inviteId}
+        />
         <form action={cancelFormAction}>
           <input name="businessSlug" type="hidden" value={businessSlug} />
           <Button disabled={isPending} size="sm" type="submit" variant="ghost">

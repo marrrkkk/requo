@@ -7,10 +7,23 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { RouteProgressBar } from "@/components/shared/route-progress-bar";
+import { StructuredData } from "@/components/seo/structured-data";
 import { Toaster } from "@/components/ui/sonner";
 import { getThemeInitScript } from "@/features/theme/init-script";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { legalConfig } from "@/features/legal/config";
 import { themeStorageKey } from "@/features/theme/types";
+import {
+  getOrganizationStructuredData,
+  getWebsiteStructuredData,
+} from "@/lib/seo/structured-data";
+import {
+  absoluteUrl,
+  getSiteUrl,
+  siteDescription,
+  siteName,
+  siteTagline,
+} from "@/lib/seo/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,15 +36,40 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: "Requo",
-    template: "%s | Requo",
+  applicationName: siteName,
+  description: siteDescription,
+  metadataBase: getSiteUrl(),
+  openGraph: {
+    description: siteDescription,
+    images: [
+      {
+        alt: `${siteName} social preview`,
+        height: 630,
+        url: "/opengraph-image",
+        width: 1200,
+      },
+    ],
+    siteName,
+    title: siteName,
+    type: "website",
   },
-  description:
-    "Requo helps owner-led service businesses capture inquiries, qualify leads, send professional quotes, and follow up from one place.",
+  robots: {
+    follow: true,
+    index: true,
+  },
+  title: {
+    default: siteName,
+    template: `%s | ${siteName}`,
+  },
   icons: {
     icon: "/logo.svg",
     shortcut: "/logo.svg",
+  },
+  twitter: {
+    card: "summary_large_image",
+    description: siteDescription,
+    images: ["/twitter-image"],
+    title: siteName,
   },
 };
 
@@ -40,6 +78,19 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const organizationStructuredData = getOrganizationStructuredData({
+    description: siteTagline,
+    email: legalConfig.supportEmail,
+    logoUrl: absoluteUrl("/logo.svg"),
+    name: siteName,
+    url: getSiteUrl().toString(),
+  });
+  const websiteStructuredData = getWebsiteStructuredData({
+    description: siteDescription,
+    name: siteName,
+    url: getSiteUrl().toString(),
+  });
+
   return (
     <html
       lang="en"
@@ -47,6 +98,14 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
+        <StructuredData
+          data={organizationStructuredData}
+          id="requo-organization-structured-data"
+        />
+        <StructuredData
+          data={websiteStructuredData}
+          id="requo-website-structured-data"
+        />
         <Script id="requo-theme-init" strategy="beforeInteractive">
           {getThemeInitScript({
             storageKey: themeStorageKey,

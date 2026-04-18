@@ -13,7 +13,6 @@ import {
 } from "@/features/workspaces/routes";
 import { requireSession } from "@/lib/auth/session";
 import { Button } from "@/components/ui/button";
-import { PlanBadge } from "@/components/shared/paywall";
 import { LogoutButton } from "@/features/auth/components/logout-button";
 import { AppearanceMenu } from "@/features/theme/components/appearance-menu";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
@@ -82,14 +81,11 @@ export default async function WorkspacePage(props: WorkspacePageProps) {
         <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
           <div className="space-y-8">
             <div>
-              <div className="flex items-center gap-3">
-                <h1 className="font-heading text-[2rem] font-semibold tracking-tight text-foreground sm:text-[2.35rem]">
-                  Workspace Overview
-                </h1>
-                <PlanBadge plan={overview.plan} />
-              </div>
+              <h1 className="font-heading text-[2rem] font-semibold tracking-tight text-foreground sm:text-[2.35rem]">
+                {overview.name}
+              </h1>
               <p className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-[0.96rem]">
-                Manage businesses, team members, and billing for {overview.name}.
+                Manage businesses, team members, and billing for this workspace.
               </p>
             </div>
             

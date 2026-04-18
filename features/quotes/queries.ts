@@ -35,6 +35,10 @@ import type {
   QuoteStatus,
 } from "@/features/quotes/types";
 import { getQuoteReminderKinds } from "@/features/quotes/utils";
+import {
+  getQuotePublicTokenLookupCondition,
+  resolveStoredQuotePublicToken,
+} from "@/features/quotes/token-storage";
 
 export const getEffectiveQuoteStatus = sql<QuoteStatus>`case
   when ${quotes.status} = 'sent' and ${quotes.validUntil} < current_date then 'expired'::quote_status
@@ -175,6 +179,7 @@ async function getCachedQuoteListPageForBusiness({
       inquiryId: quotes.inquiryId,
       quoteNumber: quotes.quoteNumber,
       publicToken: quotes.publicToken,
+      publicTokenEncrypted: quotes.publicTokenEncrypted,
       title: quotes.title,
       customerName: quotes.customerName,
       customerEmail: quotes.customerEmail,
@@ -193,15 +198,31 @@ async function getCachedQuoteListPageForBusiness({
     .limit(pageSize)
     .offset(offset);
 
-  return rows.map((row) => ({
-    ...row,
-    reminders: getQuoteReminderKinds({
-      status: row.status,
-      sentAt: row.sentAt,
+  return rows.map((row) => {
+    return {
+      createdAt: row.createdAt,
+      currency: row.currency,
+      customerEmail: row.customerEmail,
+      customerName: row.customerName,
       customerRespondedAt: row.customerRespondedAt,
+      id: row.id,
+      inquiryId: row.inquiryId,
+      postAcceptanceStatus: row.postAcceptanceStatus,
+      publicToken: resolveStoredQuotePublicToken(row),
+      quoteNumber: row.quoteNumber,
+      reminders: getQuoteReminderKinds({
+        status: row.status,
+        sentAt: row.sentAt,
+        customerRespondedAt: row.customerRespondedAt,
+        validUntil: row.validUntil,
+      }),
+      sentAt: row.sentAt,
+      status: row.status,
+      title: row.title,
+      totalInCents: row.totalInCents,
       validUntil: row.validUntil,
-    }),
-  }));
+    };
+  });
 }
 
 type QuoteExportRow = {
@@ -299,6 +320,7 @@ async function getCachedQuoteDetailForBusiness({
       inquiryId: quotes.inquiryId,
       quoteNumber: quotes.quoteNumber,
       publicToken: quotes.publicToken,
+      publicTokenEncrypted: quotes.publicTokenEncrypted,
       title: quotes.title,
       customerName: quotes.customerName,
       customerEmail: quotes.customerEmail,
@@ -374,7 +396,7 @@ async function getCachedQuoteDetailForBusiness({
     businessId: quote.businessId,
     inquiryId: quote.inquiryId,
     quoteNumber: quote.quoteNumber,
-    publicToken: quote.publicToken,
+    publicToken: resolveStoredQuotePublicToken(quote),
     title: quote.title,
     customerName: quote.customerName,
     customerEmail: quote.customerEmail,
@@ -440,6 +462,7 @@ async function getCachedQuoteSendPayloadForBusiness({
       inquiryId: quotes.inquiryId,
       quoteNumber: quotes.quoteNumber,
       publicToken: quotes.publicToken,
+      publicTokenEncrypted: quotes.publicTokenEncrypted,
       title: quotes.title,
       customerName: quotes.customerName,
       customerEmail: quotes.customerEmail,
@@ -479,7 +502,21 @@ async function getCachedQuoteSendPayloadForBusiness({
     .orderBy(asc(quoteItems.position), asc(quoteItems.createdAt));
 
   return {
-    ...quote,
+    currency: quote.currency,
+    customerEmail: quote.customerEmail,
+    customerName: quote.customerName,
+    discountInCents: quote.discountInCents,
+    id: quote.id,
+    inquiryId: quote.inquiryId,
+    notes: quote.notes,
+    publicToken: resolveStoredQuotePublicToken(quote),
+    quoteNumber: quote.quoteNumber,
+    status: quote.status,
+    subtotalInCents: quote.subtotalInCents,
+    title: quote.title,
+    totalInCents: quote.totalInCents,
+    updatedAt: quote.updatedAt,
+    validUntil: quote.validUntil,
     items,
   };
 }
@@ -493,6 +530,7 @@ export async function getPublicQuoteByToken(
     .select({
       id: quotes.id,
       token: quotes.publicToken,
+      publicTokenEncrypted: quotes.publicTokenEncrypted,
       quoteNumber: quotes.quoteNumber,
       title: quotes.title,
       businessName: businesses.name,
@@ -517,7 +555,7 @@ export async function getPublicQuoteByToken(
     .from(quotes)
     .innerJoin(businesses, eq(quotes.businessId, businesses.id))
     .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
-    .where(eq(quotes.publicToken, token))
+    .where(getQuotePublicTokenLookupCondition(token))
     .limit(1);
 
   if (!quote || quote.status === "draft") {
@@ -538,7 +576,31 @@ export async function getPublicQuoteByToken(
     .orderBy(asc(quoteItems.position), asc(quoteItems.createdAt));
 
   return {
-    ...quote,
+    acceptedAt: quote.acceptedAt,
+    businessContactEmail: quote.businessContactEmail,
+    businessName: quote.businessName,
+    businessPlan: quote.businessPlan,
+    businessShortDescription: quote.businessShortDescription,
+    currency: quote.currency,
+    customerEmail: quote.customerEmail,
+    customerName: quote.customerName,
+    customerRespondedAt: quote.customerRespondedAt,
+    customerResponseMessage: quote.customerResponseMessage,
+    discountInCents: quote.discountInCents,
+    id: quote.id,
+    notes: quote.notes,
+    publicViewedAt: quote.publicViewedAt,
+    quoteNumber: quote.quoteNumber,
+    sentAt: quote.sentAt,
+    status: quote.status,
+    subtotalInCents: quote.subtotalInCents,
+    token: resolveStoredQuotePublicToken({
+      publicToken: quote.token,
+      publicTokenEncrypted: quote.publicTokenEncrypted,
+    }),
+    title: quote.title,
+    totalInCents: quote.totalInCents,
+    validUntil: quote.validUntil,
     items,
   };
 }

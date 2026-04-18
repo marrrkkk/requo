@@ -37,19 +37,23 @@ test("public inquiry page rejects unsupported attachments", async ({ page }) => 
   ).toBeVisible();
 });
 
-test("public inquiry page accepts a new submission", async ({ page }) => {
+test("public inquiry page accepts a new submission @smoke", async ({ page }) => {
   await page.goto(`/inquire/${demoBusinessSlug}`);
   await page.waitForLoadState("networkidle");
 
-  await page.getByLabel("Your name").fill("Taylor Nguyen");
+  await page.locator("#inquiry-customerName:visible").fill("Taylor Nguyen");
   await page
-    .getByLabel("Email address")
+    .locator("#inquiry-customerEmail:visible")
     .fill(`taylor+${Date.now()}@example.com`);
-  await page.getByLabel("Phone number").fill("+1 415 555 0199");
-  await page.getByLabel("Service or category").fill("Window graphics");
-  await page.getByLabel("Budget").fill("Around $1,500");
   await page
-    .getByLabel("Message and details")
+    .locator("#inquiry-customerPhone:visible")
+    .fill("+1 415 555 0199");
+  await page
+    .locator("#inquiry-serviceCategory:visible")
+    .fill("Window graphics");
+  await page.locator("#inquiry-budgetText:visible").fill("Around $1,500");
+  await page
+    .locator("#inquiry-details:visible")
     .fill(
       "Need two front-window vinyl panels and a smaller door decal for a spring refresh.",
     );
