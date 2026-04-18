@@ -84,7 +84,7 @@ export function BusinessSettingsNav({ groups }: BusinessSettingsNavProps) {
   }
 
   return (
-    <div className="min-w-0 xl:w-64 xl:justify-self-start xl:sticky xl:top-[5.5rem] xl:self-start">
+    <div className="min-w-0 xl:w-64 xl:justify-self-start xl:max-h-[calc(100svh-10rem)] xl:overflow-y-auto xl:overscroll-y-contain xl:-mr-2 xl:pr-2 xl:pb-12 hover-scrollbar">
       <div className="px-1 pb-1 xl:hidden">
         <div className="flex flex-col gap-2">
           <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">

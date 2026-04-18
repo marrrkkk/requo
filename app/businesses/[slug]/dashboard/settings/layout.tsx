@@ -22,8 +22,10 @@ export default async function BusinessSettingsLayout({
     <DashboardPage>
       <div className="grid min-w-0 items-start gap-4 lg:gap-5 xl:grid-cols-[16rem_minmax(0,1fr)] xl:gap-4">
         <BusinessSettingsNav groups={navigationGroups} />
-        <div className="flex min-w-0 w-full flex-col gap-6 sm:gap-7">
-          {children}
+        <div id="settings-content" className="min-w-0 w-full xl:max-h-[calc(100vh-10rem)] xl:overflow-y-auto xl:overscroll-y-contain xl:pr-1 hover-scrollbar">
+          <div className="flex flex-col gap-6 sm:gap-7 pb-24 xl:pb-28">
+            {children}
+          </div>
         </div>
       </div>
     </DashboardPage>
