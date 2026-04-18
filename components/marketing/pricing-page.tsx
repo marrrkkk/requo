@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Suspense } from "react";
 import { ArrowRight, Check } from "lucide-react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
@@ -7,10 +6,12 @@ import {
   PublicPageShell,
   PublicHeroSurface,
 } from "@/components/shared/public-page-shell";
-import { navItems } from "@/components/marketing/marketing-data";
-import { MarketingMobileNav } from "@/components/marketing/marketing-mobile-nav";
-import { getCurrentUser } from "@/lib/auth/session";
-import { workspacesHubPath } from "@/features/workspaces/routes";
+import {
+  getMarketingNavHref,
+  getMarketingNavKey,
+  navItems,
+} from "@/components/marketing/marketing-data";
+import { PublicHeaderActions } from "@/components/marketing/public-header-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -146,16 +147,16 @@ export function PricingPage({ currency }: { currency: BillingCurrency }) {
     <PublicPageShell
       brandSubtitle={null}
       className="pb-14 lg:pb-20"
-      headerAction={
-        <Suspense fallback={<PricingSignedOutHeaderActions />}>
-          <PricingHeaderActions />
-        </Suspense>
-      }
+      headerAction={<PublicHeaderActions />}
       headerClassName="sticky top-0 z-40 rounded-none border-x-0 border-t-0 bg-background/92 px-0 py-4 shadow-none backdrop-blur-xl supports-backdrop-filter:bg-background/88 md:px-0"
       headerNav={
         <nav className="public-page-header-nav">
           {navItems.map((item) => (
-            <Link className="public-page-header-link" href={item.href} key={item.href}>
+            <Link
+              className="public-page-header-link"
+              href={getMarketingNavHref(item)}
+              key={getMarketingNavKey(item)}
+            >
               {item.label}
             </Link>
           ))}
@@ -307,60 +308,5 @@ function PricingCell({
   );
 }
 
-async function PricingHeaderActions() {
-  const isAuthenticated = Boolean(await getCurrentUser());
-
-  return isAuthenticated ? (
-    <PricingSignedInHeaderActions />
-  ) : (
-    <PricingSignedOutHeaderActions />
-  );
-}
-
-function PricingSignedInHeaderActions() {
-  return (
-    <>
-      <Button asChild className="hidden sm:inline-flex lg:hidden" size="sm">
-        <Link href={workspacesHubPath}>
-          Visit app
-          <ArrowRight data-icon="inline-end" />
-        </Link>
-      </Button>
-      <Button asChild className="hidden lg:inline-flex">
-        <Link href={workspacesHubPath}>
-          Visit app
-          <ArrowRight data-icon="inline-end" />
-        </Link>
-      </Button>
-      <MarketingMobileNav isAuthenticated={true} />
-    </>
-  );
-}
-
-function PricingSignedOutHeaderActions() {
-  return (
-    <>
-      <Button asChild className="hidden sm:inline-flex lg:hidden" size="sm" variant="ghost">
-        <Link href="/login">Log in</Link>
-      </Button>
-      <Button asChild className="hidden lg:inline-flex" variant="ghost">
-        <Link href="/login">Log in</Link>
-      </Button>
-      <Button asChild className="hidden sm:inline-flex lg:hidden" size="sm">
-        <Link href="/signup">
-          Start free
-          <ArrowRight data-icon="inline-end" />
-        </Link>
-      </Button>
-      <Button asChild className="hidden lg:inline-flex">
-        <Link href="/signup">
-          Start free
-          <ArrowRight data-icon="inline-end" />
-        </Link>
-      </Button>
-      <MarketingMobileNav isAuthenticated={false} />
-    </>
-  );
-}
 
 
