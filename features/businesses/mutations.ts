@@ -28,6 +28,7 @@ type CreateBusinessForUserInput = {
   defaultCurrency: string;
   name: string;
   businessType: BusinessType;
+  starterTemplateBusinessType?: BusinessType;
   countryCode?: string | null;
   shortDescription?: string | null;
   activitySource?: string;
@@ -75,6 +76,7 @@ export async function createBusinessRecordForUser({
   user,
   name,
   businessType,
+  starterTemplateBusinessType = businessType,
   countryCode = null,
   shortDescription,
   activitySource = "business-hub",
@@ -83,7 +85,9 @@ export async function createBusinessRecordForUser({
 }: CreateBusinessRecordForUserInput) {
   const trimmedName = name.trim();
   const normalizedShortDescription = shortDescription?.trim() || null;
-  const starterTemplate = getStarterTemplateDefinition(businessType);
+  const starterTemplate = getStarterTemplateDefinition(
+    starterTemplateBusinessType,
+  );
   const slug = await getAvailableBusinessSlug(
     tx,
     slugifyPublicName(trimmedName, {
@@ -92,7 +96,7 @@ export async function createBusinessRecordForUser({
   );
   const businessId = createId("biz");
   const defaultInquiryForm = createInquiryFormPreset({
-    businessType,
+    businessType: starterTemplateBusinessType,
     businessName: trimmedName,
   });
 
@@ -101,21 +105,21 @@ export async function createBusinessRecordForUser({
     workspaceId,
     name: trimmedName,
     slug,
-    businessType,
-    countryCode,
-    shortDescription: normalizedShortDescription,
-    contactEmail: user.email,
-    inquiryFormConfig: createInquiryFormConfigDefaults({
-      businessType,
-    }),
-    inquiryPageConfig: createInquiryPageConfigDefaults({
-      businessName: trimmedName,
-      businessType,
-    }),
-    defaultQuoteNotes: starterTemplate.defaultQuoteNotes,
-    defaultQuoteValidityDays: starterTemplate.defaultQuoteValidityDays,
-    defaultCurrency,
-    createdAt: now,
+        businessType,
+        countryCode,
+        shortDescription: normalizedShortDescription,
+        contactEmail: user.email,
+        inquiryFormConfig: createInquiryFormConfigDefaults({
+          businessType: starterTemplateBusinessType,
+        }),
+        inquiryPageConfig: createInquiryPageConfigDefaults({
+          businessName: trimmedName,
+          businessType: starterTemplateBusinessType,
+        }),
+        defaultQuoteNotes: starterTemplate.defaultQuoteNotes,
+        defaultQuoteValidityDays: starterTemplate.defaultQuoteValidityDays,
+        defaultCurrency,
+        createdAt: now,
     updatedAt: now,
   });
 
@@ -180,6 +184,7 @@ export async function createBusinessForUser({
   user,
   name,
   businessType,
+  starterTemplateBusinessType,
   countryCode,
   shortDescription,
   activitySource,
@@ -195,6 +200,7 @@ export async function createBusinessForUser({
       user,
       name,
       businessType,
+      starterTemplateBusinessType,
       countryCode,
       shortDescription,
       activitySource,

@@ -18,10 +18,10 @@ import { cacheLife, cacheTag } from "next/cache";
 import type { InquiryStatus } from "@/features/inquiries/types";
 
 export const getEffectiveInquiryStatus = sql<InquiryStatus>`case
-  when ${inquiries.status} in ('new', 'waiting', 'quoted') and ${inquiries.requestedDeadline} is not null and ${inquiries.requestedDeadline} < current_date then 'overdue'::inquiry_status
-  when ${inquiries.status} in ('new', 'waiting') and ${inquiries.submittedAt} >= now() - interval '48 hours' then 'new'::inquiry_status
-  when ${inquiries.status} in ('new', 'waiting') and ${inquiries.submittedAt} < now() - interval '48 hours' then 'waiting'::inquiry_status
-  else ${inquiries.status}
+  when ${inquiries.status} in ('new', 'waiting', 'quoted') and ${inquiries.requestedDeadline} is not null and ${inquiries.requestedDeadline} < current_date then 'overdue'
+  when ${inquiries.status} in ('new', 'waiting') and ${inquiries.submittedAt} >= now() - interval '48 hours' then 'new'
+  when ${inquiries.status} in ('new', 'waiting') and ${inquiries.submittedAt} < now() - interval '48 hours' then 'waiting'
+  else ${inquiries.status}::text
 end`;
 
 import {
@@ -379,7 +379,7 @@ function getInquiryListConditions({
 
   if (filters.status !== "all") {
     conditions.push(
-      sql`${getEffectiveInquiryStatus} = ${filters.status}::inquiry_status`,
+      sql`${getEffectiveInquiryStatus} = ${filters.status}`,
     );
   }
 

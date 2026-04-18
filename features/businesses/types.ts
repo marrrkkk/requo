@@ -55,6 +55,8 @@ export type BusinessOverviewData = {
 };
 
 export type BusinessDashboardSummaryData = {
+  totalInquiries: number;
+  totalQuotes: number;
   inquiriesThisWeek: number;
   inquiryCoverageRate: number;
   wonCount: number;

@@ -54,8 +54,8 @@ async function getCachedBusinessOverviewData(
   const recentAcceptedCutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
   const today = new Date().toISOString().slice(0, 10);
   const expiringSoonCutoff = getFutureUtcDateString(7);
-  const isOverdueInquiry = sql`${getEffectiveInquiryStatus} = 'overdue'::inquiry_status`;
-  const isWaitingInquiry = sql`${getEffectiveInquiryStatus} = 'waiting'::inquiry_status`;
+  const isOverdueInquiry = sql`${getEffectiveInquiryStatus} = 'overdue'`;
+  const isWaitingInquiry = sql`${getEffectiveInquiryStatus} = 'waiting'`;
   const totalCount = sql<number>`count(*) over ()`;
 
   const [
@@ -290,6 +290,7 @@ async function getCachedBusinessDashboardSummaryData(
       .where(eq(inquiries.businessId, businessId)),
     db
       .select({
+        totalQuotes: sql<number>`count(*)`.as("total_quotes"),
         linkedInquiryCount: sql<number>`count(distinct ${quotes.inquiryId}) filter (where ${quotes.inquiryId} is not null)`.as(
           "linked_inquiry_count",
         ),
@@ -299,9 +300,12 @@ async function getCachedBusinessDashboardSummaryData(
   ]);
 
   const totalInquiries = Number(inquirySummaryRows[0]?.totalInquiries ?? 0);
+  const totalQuotes = Number(quoteSummaryRows[0]?.totalQuotes ?? 0);
   const linkedInquiryCount = Number(quoteSummaryRows[0]?.linkedInquiryCount ?? 0);
 
   return {
+    totalInquiries,
+    totalQuotes,
     inquiriesThisWeek: Number(inquirySummaryRows[0]?.inquiriesThisWeek ?? 0),
     inquiryCoverageRate: totalInquiries ? linkedInquiryCount / totalInquiries : 0,
     wonCount: Number(inquirySummaryRows[0]?.wonCount ?? 0),
