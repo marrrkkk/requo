@@ -347,6 +347,9 @@ function DashboardUserMenu({
         return;
       }
 
+      window.localStorage.removeItem(themeUserStorageKey);
+      window.localStorage.removeItem(themeStorageKey);
+
       window.location.assign("/login");
     });
   }

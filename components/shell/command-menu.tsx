@@ -42,6 +42,7 @@ import {
 } from "@/features/businesses/routes";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { workspacesHubPath, getWorkspacePath, getWorkspaceSettingsPath } from "@/features/workspaces/routes";
+import { themeStorageKey, themeUserStorageKey } from "@/features/theme/types";
 import { authClient } from "@/lib/auth/client";
 import {
   canManageBusinessAdministration,
@@ -98,6 +99,9 @@ export function CommandMenu({ businessSlug, role, workspaceSlug }: CommandMenuPr
       toast.error("Could not sign out");
       return;
     }
+
+    window.localStorage.removeItem(themeUserStorageKey);
+    window.localStorage.removeItem(themeStorageKey);
 
     window.location.assign("/login");
   }
