@@ -66,6 +66,10 @@ import type {
 import { getBusinessInquiryFormEditorPath } from "@/features/businesses/routes";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
+import { hasFeatureAccess } from "@/lib/plans";
+import type { WorkspacePlan } from "@/lib/plans/plans";
+import type { BillingCurrency, BillingRegion } from "@/lib/billing/types";
+import { CheckoutDialog } from "@/features/billing/components/checkout-dialog";
 
 type BusinessInquiryFormsManagerProps = {
   settings: BusinessInquiryFormsSettingsView;
@@ -77,6 +81,14 @@ type BusinessInquiryFormsManagerProps = {
     state: BusinessInquiryFormDangerActionState,
     formData: FormData,
   ) => Promise<BusinessInquiryFormDangerActionState>;
+  workspacePlan: WorkspacePlan;
+  billingProps?: {
+    workspaceId: string;
+    workspaceSlug: string;
+    currentPlan: WorkspacePlan;
+    region: BillingRegion;
+    defaultCurrency: BillingCurrency;
+  };
 };
 
 const initialState: BusinessInquiryFormsActionState = {};
@@ -85,6 +97,8 @@ export function BusinessInquiryFormsManager({
   settings,
   createAction,
   unarchiveAction,
+  workspacePlan,
+  billingProps,
 }: BusinessInquiryFormsManagerProps) {
   const [createState, createFormAction, isCreatePending] = useActionStateWithSonner(
     createAction,
@@ -95,6 +109,8 @@ export function BusinessInquiryFormsManager({
   );
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [/* unarchiveState */, unarchiveFormAction, isUnarchivePending] = useActionStateWithSonner(
     unarchiveAction,
     initialState,
@@ -103,6 +119,8 @@ export function BusinessInquiryFormsManager({
   const businessTypeError = createState.fieldErrors?.businessType?.[0];
   const activeForms = settings.forms.filter((form) => !form.archivedAt);
   const archivedForms = settings.forms.filter((form) => form.archivedAt);
+  const canCreateAdditionalForms =
+    hasFeatureAccess(workspacePlan, "multipleForms") || activeForms.length === 0;
 
   return (
     <TooltipProvider>
@@ -155,114 +173,164 @@ export function BusinessInquiryFormsManager({
             </Dialog>
           )}
 
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
+          {canCreateAdditionalForms ? (
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus data-icon="inline-start" />
+                  Create form
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                  <DialogTitle>Create form</DialogTitle>
+                  <DialogDescription>
+                    Add a new inquiry form and its public page for this business.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <form action={createFormAction} className="flex min-h-0 flex-1 flex-col">
+                  <DialogBody className="gap-6">
+                    <input name="businessType" type="hidden" value={businessType} />
+
+                    <FieldGroup className="rounded-xl border border-border/70 bg-muted/20 p-3 sm:p-4">
+                      <Field data-invalid={Boolean(nameError) || undefined}>
+                        <FieldLabel htmlFor="business-inquiry-form-create-name">
+                          Form name
+                        </FieldLabel>
+                        <FieldContent>
+                          <Input
+                            disabled={isCreatePending}
+                            id="business-inquiry-form-create-name"
+                            maxLength={80}
+                            minLength={2}
+                            name="name"
+                            placeholder="Wholesale request"
+                            required
+                          />
+                          <FieldError
+                            errors={nameError ? [{ message: nameError }] : undefined}
+                          />
+                        </FieldContent>
+                      </Field>
+
+                      <Field data-invalid={Boolean(businessTypeError) || undefined}>
+                        <FieldLabel htmlFor="business-inquiry-form-create-type">
+                          Starter template
+                        </FieldLabel>
+                        <FieldContent>
+                          <Combobox
+                            aria-invalid={Boolean(businessTypeError) || undefined}
+                            disabled={isCreatePending}
+                            id="business-inquiry-form-create-type"
+                            onValueChange={(value) =>
+                              setBusinessType(value as BusinessType)
+                            }
+                            options={starterTemplateOptions}
+                            placeholder="Choose a starter template"
+                            renderOption={(option) => (
+                              <div className="min-w-0">
+                                <p className="truncate font-medium">{option.label}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {option.description}
+                                </p>
+                              </div>
+                            )}
+                            searchPlaceholder="Search starter template"
+                            value={businessType}
+                          />
+                          <FieldError
+                            errors={
+                              businessTypeError
+                                ? [{ message: businessTypeError }]
+                                : undefined
+                            }
+                          />
+                        </FieldContent>
+                      </Field>
+                    </FieldGroup>
+                  </DialogBody>
+
+                  <DialogFooter className="grid grid-cols-1 sm:grid-cols-2">
+                    <Button
+                      className="w-full"
+                      onClick={() => setIsCreateDialogOpen(false)}
+                      type="button"
+                      variant="outline"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      className="w-full"
+                      disabled={isCreatePending}
+                      size="lg"
+                      type="submit"
+                    >
+                      {isCreatePending ? (
+                        <>
+                          <Spinner data-icon="inline-start" aria-hidden="true" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <Plus data-icon="inline-start" />
+                          Create form
+                        </>
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          ) : (
+            <>
+              <Button onClick={() => setIsUpgradeDialogOpen(true)}>
                 <Plus data-icon="inline-start" />
                 Create form
               </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-xl">
-              <DialogHeader>
-                <DialogTitle>Create form</DialogTitle>
-                <DialogDescription>
-                  Add a new inquiry form and its public page for this business.
-                </DialogDescription>
-              </DialogHeader>
-
-              <form action={createFormAction} className="flex min-h-0 flex-1 flex-col">
-                <DialogBody className="gap-6">
-                  <input name="businessType" type="hidden" value={businessType} />
-
-                  <FieldGroup className="rounded-xl border border-border/70 bg-muted/20 p-3 sm:p-4">
-                    <Field data-invalid={Boolean(nameError) || undefined}>
-                      <FieldLabel htmlFor="business-inquiry-form-create-name">
-                        Form name
-                      </FieldLabel>
-                      <FieldContent>
-                        <Input
-                          disabled={isCreatePending}
-                          id="business-inquiry-form-create-name"
-                          maxLength={80}
-                          minLength={2}
-                          name="name"
-                          placeholder="Wholesale request"
-                          required
-                        />
-                        <FieldError
-                          errors={nameError ? [{ message: nameError }] : undefined}
-                        />
-                      </FieldContent>
-                    </Field>
-
-                    <Field data-invalid={Boolean(businessTypeError) || undefined}>
-                      <FieldLabel htmlFor="business-inquiry-form-create-type">
-                        Starter template
-                      </FieldLabel>
-                      <FieldContent>
-                        <Combobox
-                          aria-invalid={Boolean(businessTypeError) || undefined}
-                          disabled={isCreatePending}
-                          id="business-inquiry-form-create-type"
-                          onValueChange={(value) =>
-                            setBusinessType(value as BusinessType)
-                          }
-                          options={starterTemplateOptions}
-                          placeholder="Choose a starter template"
-                          renderOption={(option) => (
-                            <div className="min-w-0">
-                              <p className="truncate font-medium">{option.label}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {option.description}
-                              </p>
-                            </div>
-                          )}
-                          searchPlaceholder="Search starter template"
-                          value={businessType}
-                        />
-                        <FieldError
-                          errors={
-                            businessTypeError
-                              ? [{ message: businessTypeError }]
-                              : undefined
-                          }
-                        />
-                      </FieldContent>
-                    </Field>
-                  </FieldGroup>
-                </DialogBody>
-
-                <DialogFooter className="grid grid-cols-1 sm:grid-cols-2">
-                  <Button
-                    className="w-full"
-                    onClick={() => setIsCreateDialogOpen(false)}
-                    type="button"
-                    variant="outline"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    className="w-full"
-                    disabled={isCreatePending}
-                    size="lg"
-                    type="submit"
-                  >
-                    {isCreatePending ? (
-                      <>
-                        <Spinner data-icon="inline-start" aria-hidden="true" />
-                        Creating...
-                      </>
-                    ) : (
-                      <>
-                        <Plus data-icon="inline-start" />
-                        Create form
-                      </>
-                    )}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+              <Dialog open={isUpgradeDialogOpen} onOpenChange={setIsUpgradeDialogOpen}>
+                <DialogContent className="sm:max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle>Upgrade to create more forms</DialogTitle>
+                    <DialogDescription>
+                      The Free plan includes one inquiry form. Upgrade to Pro to add forms for
+                      more services and audiences.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <Button
+                      onClick={() => setIsUpgradeDialogOpen(false)}
+                      type="button"
+                      variant="outline"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setIsUpgradeDialogOpen(false);
+                        setIsCheckoutOpen(true);
+                      }}
+                      type="button"
+                    >
+                      <ArrowUpRight data-icon="inline-start" />
+                      Upgrade
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              {billingProps ? (
+                <CheckoutDialog
+                  currentPlan={billingProps.currentPlan}
+                  defaultCurrency={billingProps.defaultCurrency}
+                  onOpenChange={setIsCheckoutOpen}
+                  open={isCheckoutOpen}
+                  region={billingProps.region}
+                  workspaceId={billingProps.workspaceId}
+                  workspaceSlug={billingProps.workspaceSlug}
+                />
+              ) : null}
+            </>
+          )}
         </div>
 
         {activeForms.length ? (

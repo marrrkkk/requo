@@ -21,6 +21,17 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { UpgradeButton } from "@/features/billing/components/upgrade-button";
+import type { BillingCurrency, BillingRegion } from "@/lib/billing/types";
+type UpgradeActionProps = {
+  workspaceId: string;
+  workspaceSlug: string;
+  currentPlan: WorkspacePlan;
+  region: BillingRegion;
+  defaultCurrency: BillingCurrency;
+  ctaLabel?: string;
+};
+
 
 /*──────────────────────────────────────────────────────────────────────────────
  * UpgradeBadge — small inline badge that shows the required plan.
@@ -87,6 +98,7 @@ export function LockedFeatureCard({
   title,
   description,
   className,
+  upgradeAction,
 }: {
   feature: PlanFeature;
   plan: WorkspacePlan;
@@ -95,6 +107,7 @@ export function LockedFeatureCard({
   /** Override the default feature description. */
   description?: string;
   className?: string;
+  upgradeAction?: UpgradeActionProps;
 }) {
   if (hasFeatureAccess(plan, feature)) {
     return null;
@@ -128,10 +141,24 @@ export function LockedFeatureCard({
         </div>
       </CardHeader>
       <CardContent>
-        <Button variant="outline" size="sm" disabled className="pointer-events-none">
-          <ArrowUpRight data-icon="inline-start" />
-          {getUpgradeCtaLabel(plan)}
-        </Button>
+        {upgradeAction ? (
+          <UpgradeButton
+            currentPlan={upgradeAction.currentPlan}
+            defaultCurrency={upgradeAction.defaultCurrency}
+            region={upgradeAction.region}
+            size="sm"
+            workspaceId={upgradeAction.workspaceId}
+            workspaceSlug={upgradeAction.workspaceSlug}
+          >
+            <ArrowUpRight data-icon="inline-start" />
+            {upgradeAction.ctaLabel ?? getUpgradeCtaLabel(plan)}
+          </UpgradeButton>
+        ) : (
+          <Button variant="outline" size="sm" disabled className="pointer-events-none">
+            <ArrowUpRight data-icon="inline-start" />
+            {getUpgradeCtaLabel(plan)}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
@@ -262,12 +289,14 @@ export function LockedFeaturePage({
   title,
   description,
   className,
+  upgradeAction,
 }: {
   feature: PlanFeature;
   plan: WorkspacePlan;
   title?: string;
   description?: string;
   className?: string;
+  upgradeAction?: UpgradeActionProps;
 }) {
   if (hasFeatureAccess(plan, feature)) {
     return null;
@@ -297,10 +326,24 @@ export function LockedFeaturePage({
           </p>
         </div>
         {requiredPlan ? (
-          <Button variant="outline" size="sm" disabled className="pointer-events-none">
-            <ArrowUpRight data-icon="inline-start" />
-            {planMeta[requiredPlan].ctaLabel}
-          </Button>
+          upgradeAction ? (
+            <UpgradeButton
+              currentPlan={upgradeAction.currentPlan}
+              defaultCurrency={upgradeAction.defaultCurrency}
+              region={upgradeAction.region}
+              size="sm"
+              workspaceId={upgradeAction.workspaceId}
+              workspaceSlug={upgradeAction.workspaceSlug}
+            >
+              <ArrowUpRight data-icon="inline-start" />
+              {upgradeAction.ctaLabel ?? planMeta[requiredPlan].ctaLabel}
+            </UpgradeButton>
+          ) : (
+            <Button variant="outline" size="sm" disabled className="pointer-events-none">
+              <ArrowUpRight data-icon="inline-start" />
+              {planMeta[requiredPlan].ctaLabel}
+            </Button>
+          )
         ) : null}
       </div>
     </div>
