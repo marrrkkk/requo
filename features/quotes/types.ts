@@ -165,6 +165,7 @@ export type QuoteSendPayload = {
 
 export type PublicQuoteView = {
   id: string;
+  businessId: string;
   token: string;
   quoteNumber: string;
   title: string;

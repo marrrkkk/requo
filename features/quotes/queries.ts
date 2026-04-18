@@ -529,6 +529,7 @@ export async function getPublicQuoteByToken(
   const [quote] = await db
     .select({
       id: quotes.id,
+      businessId: quotes.businessId,
       token: quotes.publicToken,
       publicTokenEncrypted: quotes.publicTokenEncrypted,
       quoteNumber: quotes.quoteNumber,
@@ -577,6 +578,7 @@ export async function getPublicQuoteByToken(
 
   return {
     acceptedAt: quote.acceptedAt,
+    businessId: quote.businessId,
     businessContactEmail: quote.businessContactEmail,
     businessName: quote.businessName,
     businessPlan: quote.businessPlan,

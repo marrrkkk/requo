@@ -682,7 +682,7 @@ export async function markQuoteSentForBusiness({
   });
 }
 
-export async function recordQuotePublicViewByToken(token: string) {
+export async function recordQuotePublicViewAt(quoteId: string) {
   const now = new Date();
 
   await db
@@ -692,7 +692,7 @@ export async function recordQuotePublicViewByToken(token: string) {
     })
     .where(
       and(
-        getQuotePublicTokenLookupCondition(token),
+        eq(quotes.id, quoteId),
         inArray(quotes.status, ["sent", "accepted", "rejected", "expired"]),
       ),
     );
