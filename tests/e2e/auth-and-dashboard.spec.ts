@@ -31,6 +31,12 @@ async function openDemoBusiness(page: Page) {
   ).toBeVisible({ timeout: 20_000 });
 }
 
+async function expectBodyScrollUnlocked(page: Page) {
+  await expect
+    .poll(() => page.evaluate(() => document.body.hasAttribute("data-scroll-locked")))
+    .toBe(false);
+}
+
 test("owner can sign in, reach the dashboard overview, and sign out @smoke", async ({
   page,
 }) => {
@@ -118,6 +124,43 @@ test("dashboard shows a branded not-found state for unknown records", async ({
     page.getByText("That dashboard record could not be found."),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "Back to overview" })).toBeVisible();
+});
+
+test("dashboard quick actions keep the top bar stable after scrolling", async ({
+  page,
+}) => {
+  await signIn(page);
+  await openDemoBusiness(page);
+
+  const topbar = page.locator("header.dashboard-topbar");
+
+  await page.evaluate(() => {
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+  });
+
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
+
+  const scrollBefore = await page.evaluate(() => window.scrollY);
+  const topBefore = await topbar.evaluate((element) =>
+    Math.round(element.getBoundingClientRect().top),
+  );
+
+  await page.getByRole("button", { name: /Quick actions/i }).click();
+
+  await expect(page.getByRole("dialog", { name: "Quick actions" })).toBeVisible();
+  await expect(
+    page.locator('[data-slot="dialog-overlay"][data-state="open"]'),
+  ).toBeVisible();
+  await expectBodyScrollUnlocked(page);
+
+  const scrollAfter = await page.evaluate(() => window.scrollY);
+  const topAfter = await topbar.evaluate((element) =>
+    Math.round(element.getBoundingClientRect().top),
+  );
+
+  expect(Math.abs(topBefore)).toBeLessThanOrEqual(1);
+  expect(Math.abs(topAfter)).toBeLessThanOrEqual(1);
+  expect(Math.abs(scrollAfter - scrollBefore)).toBeLessThanOrEqual(1);
 });
 
 test("sending a draft quote shows a safe delivery error when email is unavailable", async ({

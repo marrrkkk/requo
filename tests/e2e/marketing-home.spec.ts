@@ -1,4 +1,10 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+async function expectBodyScrollUnlocked(page: Page) {
+  await expect
+    .poll(() => page.evaluate(() => document.body.hasAttribute("data-scroll-locked")))
+    .toBe(false);
+}
 
 test("marketing homepage highlights the signup-first workflow", async ({
   page,
@@ -73,4 +79,24 @@ test("marketing homepage stays readable on a narrow viewport", async ({
 
   await faqHeading.scrollIntoViewIfNeeded();
   await expect(faqHeading).toBeVisible();
+});
+
+test("marketing mobile nav uses the shared backdrop without scroll locking", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+
+  await page.getByRole("button", { name: "Open navigation" }).click();
+
+  const overlay = page.locator('[data-slot="sheet-overlay"][data-state="open"]');
+
+  await expect(page.getByRole("heading", { name: "Menu" })).toBeVisible();
+  await expect(overlay).toBeVisible();
+  await expectBodyScrollUnlocked(page);
+
+  await overlay.click({ position: { x: 12, y: 12 } });
+
+  await expect(page.getByRole("heading", { name: "Menu" })).toBeHidden();
 });
