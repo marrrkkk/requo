@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 import { AuthShell } from "@/components/shell/auth-shell";
+import { AuthenticatedPageRedirect } from "@/features/auth/components/authenticated-page-redirect";
 import { ForgotPasswordForm } from "@/features/auth/components/forgot-password-form";
-import { redirectIfAuthenticated } from "@/lib/auth/session";
 import { createPageMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createPageMetadata({
@@ -11,11 +11,10 @@ export const metadata: Metadata = createPageMetadata({
   title: "Reset your password",
 });
 
-export default async function ForgotPasswordPage() {
-  await redirectIfAuthenticated();
-
+export default function ForgotPasswordPage() {
   return (
     <AuthShell badge="Recovery" title="Reset password" layout="centered">
+      <AuthenticatedPageRedirect redirectTo="/workspaces" />
       <ForgotPasswordForm />
     </AuthShell>
   );

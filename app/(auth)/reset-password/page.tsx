@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 import { AuthShell } from "@/components/shell/auth-shell";
+import { AuthenticatedPageRedirect } from "@/features/auth/components/authenticated-page-redirect";
 import { ResetPasswordForm } from "@/features/auth/components/reset-password-form";
-import { redirectIfAuthenticated } from "@/lib/auth/session";
 import { createPageMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createPageMetadata({
@@ -11,15 +11,14 @@ export const metadata: Metadata = createPageMetadata({
   title: "Choose a new password",
 });
 
-export default async function ResetPasswordPage() {
-  await redirectIfAuthenticated();
-
+export default function ResetPasswordPage() {
   return (
     <AuthShell
       badge="New password"
       title="Choose a new password"
       layout="centered"
     >
+      <AuthenticatedPageRedirect redirectTo="/workspaces" />
       <ResetPasswordForm />
     </AuthShell>
   );
