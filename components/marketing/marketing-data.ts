@@ -1,5 +1,18 @@
 import type { LucideIcon } from "lucide-react";
-import { FileText, Globe2, Inbox, Upload } from "lucide-react";
+import {
+  BarChart3,
+  Bell,
+  BookOpen,
+  CreditCard,
+  Download,
+  FileText,
+  FormInput,
+  Inbox,
+  Plug,
+  Tags,
+  Upload,
+  Users,
+} from "lucide-react";
 
 export const navItems = [
   { pathname: "/", hash: "why-requo", label: "Why Requo" },
@@ -72,58 +85,83 @@ export const workflowSteps = [
   },
 ] as const;
 
-export const featureBentoItems: readonly {
+/** Landing page Features accordion — aligned with dashboard capabilities. */
+export const landingFeatureItems: readonly {
   icon: LucideIcon;
-  label: string;
   title: string;
   description: string;
-  points: readonly string[];
-  className: string;
 }[] = [
   {
-    icon: Globe2,
-    label: "Inquiry capture",
-    title: "Start with a branded inquiry page that asks for the right details",
+    icon: Inbox,
+    title: "Incoming requests",
     description:
-      "Give customers a cleaner place to reach out so new requests arrive with scope, timing, and contact details attached.",
-    points: ["Public inquiry pages", "Custom intake forms"],
-    className: "lg:col-span-3",
+      "Capture new leads in one queue, review scope and timing, and move work forward without losing context between messages and tools.",
   },
   {
     icon: FileText,
-    label: "Quote workflow",
-    title: "Build the quote without losing the original request",
+    title: "Quotes",
     description:
-      "Keep the inquiry, notes, and files in view while you draft, price, and send the quote.",
-    points: ["Draft from real inquiry context", "Send a clear customer-facing quote"],
-    className: "lg:col-span-3",
+      "Draft and send quotes with the inquiry still in view, share a clear customer-facing quote link, and track responses after it goes out.",
   },
   {
-    icon: Inbox,
-    label: "Follow-up",
-    title: "See what needs review, what has been quoted, and what needs a nudge",
+    icon: FormInput,
+    title: "Inquiry forms & public intake",
     description:
-      "Stay on top of open leads and quote responses without relying on memory or a scattered inbox.",
-    points: ["Visible quote status", "Clear next-step follow-up"],
-    className: "lg:col-span-2",
+      "Choose how customers reach you with customizable inquiry forms and public pages so the right details arrive before you price the job.",
+  },
+  {
+    icon: BarChart3,
+    title: "Analytics",
+    description:
+      "See how inquiries and quotes trend over time so you can spot bottlenecks and focus where the pipeline needs attention.",
+  },
+  {
+    icon: Users,
+    title: "Workspace & members",
+    description:
+      "Organize businesses under workspaces, invite teammates, and align roles so permissions match who runs intake versus who administers the account.",
+  },
+  {
+    icon: BookOpen,
+    title: "Knowledge & saved replies",
+    description:
+      "Keep consistent answers ready and reuse vetted wording when you respond so follow-up stays fast without sounding generic.",
+  },
+  {
+    icon: Tags,
+    title: "Quote defaults & pricing library",
+    description:
+      "Configure quote defaults and line-item libraries so pricing stays consistent while you still adapt each job.",
+  },
+  {
+    icon: Bell,
+    title: "Notifications",
+    description:
+      "Stay aware of new requests, quote activity, and what needs a reply with notification settings you can tune to your role.",
+  },
+  {
+    icon: CreditCard,
+    title: "Billing & plans",
+    description:
+      "Manage workspace subscription and plan choices in one place so upgrade paths stay clear as you grow.",
+  },
+  {
+    icon: Plug,
+    title: "Integrations",
+    description:
+      "Connect tools you already rely on so Requo fits the workflow instead of forcing another silo.",
   },
   {
     icon: Upload,
-    label: "Files and context",
-    title: "Keep files, notes, and job details tied to the same lead",
+    title: "Files & context",
     description:
-      "Attachments and internal context stay with the inquiry and the quote instead of getting buried in side threads.",
-    points: ["Files on the inquiry", "Notes carried into the quote"],
-    className: "lg:col-span-2",
+      "Keep attachments and internal notes tied to the same lead so nothing important lives only in a side thread.",
   },
   {
-    icon: FileText,
-    label: "Customer response",
-    title: "Let customers review and respond from the quote link",
+    icon: Download,
+    title: "Exports",
     description:
-      "Share a clear public quote page so the customer can review the details and reply without extra back-and-forth.",
-    points: ["Public quote pages", "Approve or decline online"],
-    className: "lg:col-span-2",
+      "Download inquiry and quote data when you need to analyze or archive outside Requo.",
   },
 ] as const;
 

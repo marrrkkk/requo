@@ -3,9 +3,9 @@ import { ArrowRight } from "lucide-react";
 
 import {
   faqItems,
-  featureBentoItems,
   getMarketingNavHref,
   getMarketingNavKey,
+  landingFeatureItems,
   navItems,
   workflowSteps,
   whyPoints,
@@ -27,13 +27,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { cn } from "@/lib/utils";
-
 export function MarketingHero() {
   return (
     <PublicPageShell
       brandSubtitle={null}
-      className="pb-24 lg:pb-32"
+      className="pb-28 lg:pb-40"
       headerAction={<PublicHeaderActions />}
       headerClassName="sticky top-0 z-40 rounded-none border-x-0 border-t-0 bg-background/92 px-0 py-4 shadow-none backdrop-blur-xl supports-backdrop-filter:bg-background/88 md:px-0"
       headerNav={
@@ -87,7 +85,7 @@ export function MarketingHero() {
       </PublicHeroSurface>
 
       <section
-        className="mx-auto mt-16 grid w-full max-w-6xl gap-10 xl:mt-20 xl:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)] xl:items-start"
+        className="mx-auto mt-20 grid w-full max-w-6xl gap-12 sm:mt-24 xl:mt-28 xl:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)] xl:items-start xl:gap-14"
         id="why-requo"
       >
         <InViewReveal className="flex flex-col gap-4">
@@ -135,7 +133,7 @@ export function MarketingHero() {
       </section>
 
       <section
-        className="section-panel mx-auto mt-16 w-full max-w-6xl overflow-hidden xl:mt-20"
+        className="section-panel mx-auto mt-20 w-full max-w-6xl overflow-hidden sm:mt-24 xl:mt-28"
         id="workflow"
       >
         <InViewReveal className="mx-auto flex max-w-3xl flex-col items-center gap-4 border-b border-border/70 px-5 py-8 text-center sm:px-6 sm:py-10">
@@ -163,63 +161,49 @@ export function MarketingHero() {
       </section>
 
       <section
-        className="mx-auto mt-16 flex w-full max-w-6xl flex-col gap-10 xl:mt-20"
+        className="mx-auto mt-20 grid w-full max-w-6xl gap-12 sm:mt-24 xl:mt-28 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] xl:items-start xl:gap-14"
         id="features"
       >
-        <InViewReveal className="flex max-w-3xl flex-col gap-4">
-          <p className="eyebrow">What Requo covers</p>
+        <InViewReveal className="flex max-w-2xl flex-col gap-4">
+          <p className="eyebrow">Features</p>
           <h2 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-5xl">
-            Small enough to understand. Complete enough to run the workflow.
+            Everything between the first inquiry and the sent quote.
           </h2>
           <p className="text-sm leading-8 text-muted-foreground sm:text-lg">
-            Requo is built for the part of the business that usually slips
-            between the first inquiry and the final quote.
+            Requests, quotes, forms, analytics, workspace and billing — organized
+            so your team spends less time chasing context and more time closing
+            work.
           </p>
         </InViewReveal>
 
-        <div className="grid gap-4 lg:grid-cols-6">
-          {featureBentoItems.map((item, index) => (
-            <InViewReveal
-              className={cn("h-full", item.className)}
-              delay={120 + index * 45}
-              key={item.title}
-            >
-              <article className="surface-card flex h-full flex-col justify-between gap-6 rounded-xl p-6 sm:p-7">
-                <div className="flex flex-col gap-4">
-                  <div className="flex size-11 items-center justify-center rounded-xl border border-border/80 bg-background text-primary shadow-[var(--surface-shadow-sm)]">
-                    <item.icon className="size-[1.125rem]" />
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <p className="meta-label">{item.label}</p>
-                    <h3 className="font-heading text-xl font-semibold tracking-tight text-foreground">
-                      {item.title}
-                    </h3>
-                  </div>
-
-                  <p className="text-sm leading-7 text-muted-foreground">
-                    {item.description}
-                  </p>
-                </div>
-
-                <ul className="grid gap-2 sm:grid-cols-2">
-                  {item.points.map((point) => (
-                    <li
-                      className="rounded-lg border border-border/75 bg-background/80 px-3.5 py-3 text-sm leading-6 text-muted-foreground shadow-[var(--surface-shadow-sm)]"
-                      key={point}
-                    >
-                      {point}
-                    </li>
-                  ))}
-                </ul>
-              </article>
-            </InViewReveal>
-          ))}
-        </div>
+        <InViewReveal delay={80}>
+          <Accordion className="marketing-accordion" collapsible type="single">
+            {landingFeatureItems.map((item, index) => (
+              <AccordionItem
+                className="marketing-faq-item overflow-hidden px-5 py-0 sm:px-6"
+                key={item.title}
+                value={`feature-${index + 1}`}
+              >
+                <AccordionTrigger className="gap-4 py-5 sm:py-6">
+                  <span className="flex items-start gap-3 text-left">
+                    <item.icon
+                      aria-hidden
+                      className="mt-0.5 size-5 shrink-0 text-primary"
+                    />
+                    <span>{item.title}</span>
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="pb-5 sm:pb-6">
+                  {item.description}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </InViewReveal>
       </section>
 
       <section
-        className="mx-auto mt-16 grid w-full max-w-6xl gap-10 xl:mt-20 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] xl:items-start"
+        className="mx-auto mt-20 grid w-full max-w-6xl gap-12 sm:mt-24 xl:mt-28 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] xl:items-start xl:gap-14"
         id="faq"
       >
         <InViewReveal className="flex max-w-2xl flex-col gap-4">
@@ -235,7 +219,7 @@ export function MarketingHero() {
         </InViewReveal>
 
         <InViewReveal delay={80}>
-          <Accordion className="flex flex-col gap-3" collapsible type="single">
+          <Accordion className="marketing-accordion" collapsible type="single">
             {faqItems.map((item, index) => (
               <AccordionItem
                 className="marketing-faq-item overflow-hidden px-5 py-0 sm:px-6"
@@ -255,7 +239,7 @@ export function MarketingHero() {
       </section>
 
       <InViewReveal
-        className="mx-auto mt-16 w-full max-w-6xl xl:mt-20"
+        className="mx-auto mt-20 w-full max-w-6xl sm:mt-24 xl:mt-28"
         delay={120}
       >
         <section className="hero-panel overflow-hidden">
