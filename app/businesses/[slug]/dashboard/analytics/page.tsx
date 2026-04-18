@@ -51,25 +51,13 @@ function getAnalyticsTab(
     : analyticsSections.overview.id;
 }
 
-function getAnalyticsYear(value: string | string[] | undefined) {
-  const normalized = typeof value === "string" ? value : value?.[0];
-  const parsed = normalized ? Number.parseInt(normalized, 10) : NaN;
-
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
 function getAnalyticsTabHref(
   businessSlug: string,
   tab: AnalyticsTabId,
-  year?: number,
 ) {
   const params = new URLSearchParams();
 
   params.set("tab", tab);
-
-  if (typeof year === "number") {
-    params.set("year", String(year));
-  }
 
   return `/businesses/${businessSlug}/dashboard/analytics?${params.toString()}`;
 }
@@ -97,7 +85,6 @@ export default async function AnalyticsPage({
   }
 
   const activeTab = getAnalyticsTab(resolvedSearchParams.tab);
-  const selectedYear = getAnalyticsYear(resolvedSearchParams.year);
   const businessId = businessContext.business.id;
   const plan = businessContext.business.workspacePlan;
   const currency = businessContext.business.defaultCurrency;
@@ -111,7 +98,7 @@ export default async function AnalyticsPage({
 
   const [overviewData, conversionData, workflowData] = await Promise.all([
     activeTab === analyticsSections.overview.id
-      ? getBusinessAnalyticsData(businessId, { activityYear: selectedYear })
+      ? getBusinessAnalyticsData(businessId)
       : Promise.resolve(null),
     activeTab === analyticsSections.conversion.id && canViewConversion
       ? getConversionAnalyticsData(businessId)
@@ -125,26 +112,26 @@ export default async function AnalyticsPage({
     <DashboardPage>
       <PageHeader
         eyebrow="Analytics"
-        title="Inquiry-to-quote performance"
-        description="Track your inquiry pipeline, quote conversions, and workflow efficiency."
+        title="Inquiry workflow analytics"
+        description="See how public form traffic turns into inquiries, quotes, and accepted work."
       />
 
       <div className="flex flex-col gap-6">
         <div className="inline-flex w-fit flex-wrap items-center gap-1 rounded-lg border border-border/80 bg-[var(--table-header-bg)] p-1">
           <AnalyticsTabLink
-            href={getAnalyticsTabHref(businessSlug, analyticsSections.overview.id, selectedYear)}
+            href={getAnalyticsTabHref(businessSlug, analyticsSections.overview.id)}
             icon={BarChart3}
             isActive={activeTab === analyticsSections.overview.id}
             label={analyticsSections.overview.label}
           />
           <AnalyticsTabLink
-            href={getAnalyticsTabHref(businessSlug, analyticsSections.conversion.id, selectedYear)}
+            href={getAnalyticsTabHref(businessSlug, analyticsSections.conversion.id)}
             icon={GitCompareArrows}
             isActive={activeTab === analyticsSections.conversion.id}
             label={analyticsSections.conversion.label}
           />
           <AnalyticsTabLink
-            href={getAnalyticsTabHref(businessSlug, analyticsSections.workflow.id, selectedYear)}
+            href={getAnalyticsTabHref(businessSlug, analyticsSections.workflow.id)}
             icon={Timer}
             isActive={activeTab === analyticsSections.workflow.id}
             label={analyticsSections.workflow.label}

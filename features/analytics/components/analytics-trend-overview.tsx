@@ -1,6 +1,6 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import {
   Card,
@@ -20,17 +20,21 @@ import {
 import type { BusinessAnalyticsTrendPoint } from "@/features/analytics/types";
 
 const chartConfig = {
-  inquiries: {
-    label: "Inquiries",
+  formViews: {
+    label: "Form views",
     color: "oklch(0.623 0.214 259.815)",
   },
-  won: {
-    label: "Won",
-    color: "oklch(0.765 0.177 163.223)",
+  inquirySubmissions: {
+    label: "Inquiries",
+    color: "oklch(0.704 0.14 171.77)",
   },
-  lost: {
-    label: "Lost",
-    color: "oklch(0.637 0.237 25.331)",
+  quotesSent: {
+    label: "Quotes sent",
+    color: "oklch(0.744 0.16 79.64)",
+  },
+  acceptedQuotes: {
+    label: "Accepted quotes",
+    color: "oklch(0.765 0.177 163.223)",
   },
 } satisfies ChartConfig;
 
@@ -42,16 +46,14 @@ export function AnalyticsTrendOverview({
   return (
     <Card className="gap-0">
       <CardHeader className="gap-2">
-        <CardTitle>Inquiry trend</CardTitle>
-        <CardDescription>Rolling six-week view.</CardDescription>
+        <CardTitle>Funnel trend</CardTitle>
+        <CardDescription>
+          Last 12 weeks of form traffic, inquiries, and quote movement.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-64 w-full">
-          <BarChart
-            data={points}
-            barCategoryGap="20%"
-            barGap={2}
-          >
+          <LineChart data={points}>
             <CartesianGrid vertical={false} />
             <XAxis
               dataKey="label"
@@ -73,22 +75,35 @@ export function AnalyticsTrendOverview({
               content={<ChartTooltipContent />}
             />
             <ChartLegend content={<ChartLegendContent />} />
-            <Bar
-              dataKey="inquiries"
-              fill="var(--color-inquiries)"
-              radius={[4, 4, 0, 0]}
+            <Line
+              dataKey="formViews"
+              stroke="var(--color-formViews)"
+              strokeWidth={2.25}
+              dot={false}
+              type="monotone"
             />
-            <Bar
-              dataKey="won"
-              fill="var(--color-won)"
-              radius={[4, 4, 0, 0]}
+            <Line
+              dataKey="inquirySubmissions"
+              stroke="var(--color-inquirySubmissions)"
+              strokeWidth={2.25}
+              dot={false}
+              type="monotone"
             />
-            <Bar
-              dataKey="lost"
-              fill="var(--color-lost)"
-              radius={[4, 4, 0, 0]}
+            <Line
+              dataKey="quotesSent"
+              stroke="var(--color-quotesSent)"
+              strokeWidth={2.25}
+              dot={false}
+              type="monotone"
             />
-          </BarChart>
+            <Line
+              dataKey="acceptedQuotes"
+              stroke="var(--color-acceptedQuotes)"
+              strokeWidth={2.25}
+              dot={false}
+              type="monotone"
+            />
+          </LineChart>
         </ChartContainer>
       </CardContent>
     </Card>

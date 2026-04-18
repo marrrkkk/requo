@@ -8,73 +8,97 @@ export type BusinessAnalyticsStatusCount = {
 export type BusinessAnalyticsTrendPoint = {
   label: string;
   weekStart: string;
-  inquiries: number;
-  won: number;
-  lost: number;
+  formViews: number;
+  inquirySubmissions: number;
+  quotesSent: number;
   acceptedQuotes: number;
 };
 
-export type BusinessAnalyticsActivityPoint = {
-  date: string;       // ISO date string
-  inquiries: number;
-  quotes: number;
-};
-
 export type BusinessAnalyticsData = {
-  totalInquiries: number;
-  inquiriesThisWeek: number;
-  wonCount: number;
-  lostCount: number;
-  inquiryStatusCounts: BusinessAnalyticsStatusCount[];
-  quoteSummary: {
-    totalQuotes: number;
-    sentQuotes: number;
-    acceptedQuotes: number;
-    rejectedQuotes: number;
-    expiredQuotes: number;
-    linkedInquiryCount: number;
-    acceptanceRate: number;
-    inquiryCoverageRate: number;
-    averageQuoteValueInCents: number;
+  summary: {
+    formViews: number;
+    uniqueVisitors: number;
+    inquirySubmissions: number;
+    formConversionRate: number;
+    responseRate: number;
+    avgFirstResponseHours: number | null;
   };
+  funnel: {
+    uniqueVisitors: number;
+    inquirySubmissions: number;
+    inquiriesWithQuote: number;
+    acceptedQuotes: number;
+  };
+  inquiryStatusCounts: BusinessAnalyticsStatusCount[];
   recentTrend: BusinessAnalyticsTrendPoint[];
-  activityGraph: {
-    selectedYear: number;
-    availableYears: number[];
-    activityMap: Record<string, { inquiries: number; quotes: number }>; // map of ISO date -> counts
+  backlog: {
+    staleInquiryCount: number;
+    pendingQuotesOverSevenDays: number;
   };
 };
-
-// ---------------------------------------------------------------------------
-// Conversion analytics
-// ---------------------------------------------------------------------------
 
 export type ConversionTrendPoint = {
   label: string;
   weekStart: string;
-  sent: number;
-  accepted: number;
-  rejected: number;
-  expired: number;
+  quotesSent: number;
+  quoteViews: number;
+  acceptedQuotes: number;
+  rejectedQuotes: number;
+};
+
+export type FormPerformanceAnalyticsRow = {
+  formId: string;
+  formName: string;
+  formSlug: string;
+  isDefault: boolean;
+  publicInquiryEnabled: boolean;
+  archivedAt: Date | null;
+  viewCount: number;
+  uniqueVisitorCount: number;
+  submissionCount: number;
+  inquiriesWithQuoteCount: number;
+  sentQuoteCount: number;
+  acceptedQuoteCount: number;
+  formConversionRate: number;
+  inquiryToQuoteRate: number;
+  quoteAcceptanceRate: number;
 };
 
 export type ConversionAnalyticsData = {
-  inquiryToQuoteRate: number;
-  quoteToAcceptanceRate: number;
-  acceptedValueInCents: number;
-  pendingValueInCents: number;
-  rejectedValueInCents: number;
-  averageAcceptedValueInCents: number;
-  quotesStatusTrend: ConversionTrendPoint[];
+  summary: {
+    inquirySubmissions: number;
+    inquiriesWithQuote: number;
+    quotesSent: number;
+    quotesViewed: number;
+    quotePageViews: number;
+    quotesAccepted: number;
+    quotesRejected: number;
+    inquiryToQuoteRate: number;
+    quoteViewRate: number;
+    quoteAcceptanceRate: number;
+    acceptedValueInCents: number;
+    averageAcceptedValueInCents: number;
+  };
+  funnel: {
+    inquirySubmissions: number;
+    inquiriesWithQuote: number;
+    quotesSent: number;
+    quotesViewed: number;
+    quotesAccepted: number;
+  };
+  quotesTrend: ConversionTrendPoint[];
+  formPerformance: FormPerformanceAnalyticsRow[];
 };
 
-// ---------------------------------------------------------------------------
-// Workflow analytics
-// ---------------------------------------------------------------------------
-
 export type WorkflowAnalyticsData = {
-  avgTimeToQuoteHours: number | null;
-  avgTimeSentToDecisionHours: number | null;
-  staleInquiryCount: number;
-  pendingQuotesOverSevenDays: number;
+  summary: {
+    responseRate: number;
+    avgFirstResponseHours: number | null;
+    avgTimeToFirstQuoteHours: number | null;
+    avgTimeSentToDecisionHours: number | null;
+  };
+  alerts: {
+    staleInquiryCount: number;
+    pendingQuotesOverSevenDays: number;
+  };
 };

@@ -3,6 +3,7 @@ import {
   Clock,
   Hourglass,
   Inbox,
+  MessagesSquare,
   Timer,
 } from "lucide-react";
 
@@ -28,10 +29,13 @@ export function AnalyticsWorkflowTab({
   data: WorkflowAnalyticsData;
 }) {
   const hasTimingData =
-    data.avgTimeToQuoteHours !== null ||
-    data.avgTimeSentToDecisionHours !== null;
+    data.summary.avgFirstResponseHours !== null ||
+    data.summary.avgTimeToFirstQuoteHours !== null ||
+    data.summary.avgTimeSentToDecisionHours !== null ||
+    data.summary.responseRate > 0;
   const hasWorkItems =
-    data.staleInquiryCount > 0 || data.pendingQuotesOverSevenDays > 0;
+    data.alerts.staleInquiryCount > 0 ||
+    data.alerts.pendingQuotesOverSevenDays > 0;
 
   if (!hasTimingData && !hasWorkItems) {
     return (
@@ -47,21 +51,36 @@ export function AnalyticsWorkflowTab({
   return (
     <div className="flex flex-col gap-6">
       {hasTimingData ? (
-        <DashboardStatsGrid className="sm:grid-cols-2 xl:grid-cols-2">
+        <DashboardStatsGrid className="sm:grid-cols-2 xl:grid-cols-4">
+          <AnalyticsMetricCard
+            icon={MessagesSquare}
+            title="Response rate"
+            value={`${Math.round(data.summary.responseRate * 100)}%`}
+            description="Recent inquiries that received a first response"
+            tooltip="Percentage of inquiries from the last 30 days that received at least one owner or staff response."
+          />
           <AnalyticsDurationCard
             icon={Clock}
-            title="Avg inquiry → quote"
-            value={formatAnalyticsDuration(data.avgTimeToQuoteHours)}
+            title="Avg first response"
+            value={formatAnalyticsDuration(data.summary.avgFirstResponseHours)}
             emptyLabel="No data"
-            description="Time from inquiry to quote creation"
-            tooltip="Average time between receiving an inquiry and creating a quote for it."
+            description="Time from inquiry to first owner or staff action"
+            tooltip="Average time between receiving an inquiry and the first owner or staff response."
           />
           <AnalyticsDurationCard
             icon={Hourglass}
-            title="Avg sent → decision"
-            value={formatAnalyticsDuration(data.avgTimeSentToDecisionHours)}
+            title="Avg inquiry to quote"
+            value={formatAnalyticsDuration(data.summary.avgTimeToFirstQuoteHours)}
             emptyLabel="No data"
-            description="Time from quote sent to customer response"
+            description="Time from inquiry submission to first quote creation"
+            tooltip="Average time between receiving an inquiry and creating the first quote linked to it."
+          />
+          <AnalyticsDurationCard
+            icon={Timer}
+            title="Avg sent to decision"
+            value={formatAnalyticsDuration(data.summary.avgTimeSentToDecisionHours)}
+            emptyLabel="No data"
+            description="Time from quote sent to customer decision"
             tooltip="How long customers take to accept or reject after you send a quote."
           />
         </DashboardStatsGrid>
@@ -80,14 +99,14 @@ export function AnalyticsWorkflowTab({
               <AnalyticsMetricCard
                 icon={Inbox}
                 title="Stale inquiries"
-                value={`${data.staleInquiryCount}`}
+                value={`${data.alerts.staleInquiryCount}`}
                 description="No response for 48+ hours"
-                tooltip="Inquiries still in new or waiting status with no reply for over 2 days."
+                tooltip="Open inquiries that still have no owner or staff response after 48 hours."
               />
               <AnalyticsMetricCard
                 icon={AlertTriangle}
                 title="Pending quotes 7d+"
-                value={`${data.pendingQuotesOverSevenDays}`}
+                value={`${data.alerts.pendingQuotesOverSevenDays}`}
                 description="Sent over 7 days ago, no response"
                 tooltip="Quotes you sent that the customer hasn't responded to in over a week."
               />
