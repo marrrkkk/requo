@@ -1,21 +1,14 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import type { AccountProfileInput } from "@/features/account/schemas";
-import { publicInquiryAttachmentBucket } from "@/features/inquiries/schemas";
 import {
   profileAvatarBucket,
   profileAvatarExtensionToMimeType,
   sanitizeProfileAvatarFileName,
 } from "@/features/account/utils";
-import { businessLogoBucket } from "@/features/settings/utils";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { db } from "@/lib/db/client";
-import {
-  businesses,
-  businessMembers,
-  inquiryAttachments,
-  profiles,
-} from "@/lib/db/schema";
+import { profiles } from "@/lib/db/schema";
 import { resolveSafeContentType } from "@/lib/files";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
@@ -64,58 +57,16 @@ async function removeStoragePaths(
   }
 }
 
-export async function cleanupAccountOwnedAssets(userId: string) {
-  const [profileRows, ownedBusinessRows] = await Promise.all([
-    db
-      .select({
-        avatarStoragePath: profiles.avatarStoragePath,
-      })
-      .from(profiles)
-      .where(eq(profiles.userId, userId))
-      .limit(1),
-    db
-      .select({
-        id: businesses.id,
-        logoStoragePath: businesses.logoStoragePath,
-      })
-      .from(businessMembers)
-      .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
-      .where(
-        and(
-          eq(businessMembers.userId, userId),
-          eq(businessMembers.role, "owner"),
-        ),
-      ),
-  ]);
+export async function cleanupDeletedAccountAssets(userId: string) {
+  const [profile] = await db
+    .select({
+      avatarStoragePath: profiles.avatarStoragePath,
+    })
+    .from(profiles)
+    .where(eq(profiles.userId, userId))
+    .limit(1);
 
-  const ownedBusinessIds = ownedBusinessRows.map((row) => row.id);
-  const inquiryAttachmentRows = ownedBusinessIds.length
-    ? await db
-        .select({
-          storagePath: inquiryAttachments.storagePath,
-        })
-        .from(inquiryAttachments)
-        .where(inArray(inquiryAttachments.businessId, ownedBusinessIds))
-    : [];
-
-  if (ownedBusinessIds.length) {
-    await db.delete(businesses).where(inArray(businesses.id, ownedBusinessIds));
-  }
-
-  await Promise.all([
-    removeStoragePaths(
-      profileAvatarBucket,
-      [profileRows[0]?.avatarStoragePath ?? null],
-    ),
-    removeStoragePaths(
-      businessLogoBucket,
-      ownedBusinessRows.map((row) => row.logoStoragePath),
-    ),
-    removeStoragePaths(
-      publicInquiryAttachmentBucket,
-      inquiryAttachmentRows.map((row) => row.storagePath),
-    ),
-  ]);
+  await removeStoragePaths(profileAvatarBucket, [profile?.avatarStoragePath ?? null]);
 }
 
 export async function updateAccountProfile({

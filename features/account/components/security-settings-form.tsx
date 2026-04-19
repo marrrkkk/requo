@@ -100,6 +100,7 @@ export function SecuritySettingsForm({
     sessionState.success || (changePasswordState.success && revokeAfterPasswordChange)
       ? security.activeSessions.filter((session) => session.isCurrent).slice(0, 1)
       : security.activeSessions;
+  const accountDeletionBlocked = !security.deletion.allowed;
 
   return (
     <div className="flex min-w-0 flex-col gap-5">
@@ -446,19 +447,38 @@ export function SecuritySettingsForm({
                 Delete account
               </h2>
               <p className="text-sm text-muted-foreground">
-                Permanently remove this account and any workspaces it owns.
+                {accountDeletionBlocked
+                  ? "Resolve workspace ownership or billing blockers before deleting this account."
+                  : "Permanently remove this account after confirming the final details below."}
               </p>
             </div>
 
             <Alert variant="destructive">
               <Shield data-icon="inline-start" />
-              <AlertTitle>This action is permanent.</AlertTitle>
+              <AlertTitle>
+                {accountDeletionBlocked
+                  ? "Account deletion is currently blocked."
+                  : "This action is permanent."}
+              </AlertTitle>
               <AlertDescription>
-                {getDeleteDescription(security.ownedBusinessCount)}
+                {getDeleteDescription(security)}
               </AlertDescription>
             </Alert>
 
-            {!hasPassword ? (
+            {accountDeletionBlocked ? (
+              <div className="grid gap-3">
+                {security.deletion.blockers.map((blocker, index) => (
+                  <Alert key={`${blocker.code}-${index}`}>
+                    <AlertTitle>
+                      {blocker.workspaceName ?? blocker.businessName ?? "Blocking relationship"}
+                    </AlertTitle>
+                    <AlertDescription>{blocker.message}</AlertDescription>
+                  </Alert>
+                ))}
+              </div>
+            ) : null}
+
+            {!accountDeletionBlocked && !hasPassword ? (
               <Alert>
                 <AlertTitle>Provider-only sign-in detected</AlertTitle>
                 <AlertDescription>
@@ -468,83 +488,85 @@ export function SecuritySettingsForm({
               </Alert>
             ) : null}
 
-            <form action={deleteFormAction} className="form-stack">
-              <FieldGroup>
-                <Field data-invalid={Boolean(deleteState.fieldErrors?.email) || undefined}>
-                  <FieldLabel htmlFor="security-delete-email">
-                    Confirm account email
-                  </FieldLabel>
-                  <FieldContent>
-                    <Input
-                      autoComplete="email"
-                      disabled={isDeletePending}
-                      id="security-delete-email"
-                      name="email"
-                      placeholder={security.email}
-                      required
-                      type="email"
-                    />
-                    <FieldDescription>
-                      Enter {security.email} to confirm deletion.
-                    </FieldDescription>
-                    <FieldError
-                      errors={
-                        deleteState.fieldErrors?.email?.[0]
-                          ? [{ message: deleteState.fieldErrors.email[0] }]
-                          : undefined
-                      }
-                    />
-                  </FieldContent>
-                </Field>
-
-                {hasPassword ? (
-                  <Field
-                    data-invalid={Boolean(deleteState.fieldErrors?.password) || undefined}
-                  >
-                    <FieldLabel htmlFor="security-delete-password">
-                      Current password
+            {!accountDeletionBlocked ? (
+              <form action={deleteFormAction} className="form-stack">
+                <FieldGroup>
+                  <Field data-invalid={Boolean(deleteState.fieldErrors?.email) || undefined}>
+                    <FieldLabel htmlFor="security-delete-email">
+                      Confirm account email
                     </FieldLabel>
                     <FieldContent>
-                      <PasswordInput
-                        autoComplete="current-password"
+                      <Input
+                        autoComplete="email"
                         disabled={isDeletePending}
-                        id="security-delete-password"
-                        name="password"
-                        placeholder="Enter your current password"
+                        id="security-delete-email"
+                        name="email"
+                        placeholder={security.email}
                         required
+                        type="email"
                       />
+                      <FieldDescription>
+                        Enter {security.email} to confirm deletion.
+                      </FieldDescription>
                       <FieldError
                         errors={
-                          deleteState.fieldErrors?.password?.[0]
-                            ? [{ message: deleteState.fieldErrors.password[0] }]
+                          deleteState.fieldErrors?.email?.[0]
+                            ? [{ message: deleteState.fieldErrors.email[0] }]
                             : undefined
                         }
                       />
                     </FieldContent>
                   </Field>
-                ) : null}
-              </FieldGroup>
 
-              <div className="flex justify-end">
-                <Button
-                  disabled={isDeletePending}
-                  type="submit"
-                  variant="destructive"
-                >
-                  {isDeletePending ? (
-                    <>
-                      <Spinner data-icon="inline-start" aria-hidden="true" />
-                      Deleting account...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 data-icon="inline-start" />
-                      Delete account
-                    </>
-                  )}
-                </Button>
-              </div>
-            </form>
+                  {hasPassword ? (
+                    <Field
+                      data-invalid={Boolean(deleteState.fieldErrors?.password) || undefined}
+                    >
+                      <FieldLabel htmlFor="security-delete-password">
+                        Current password
+                      </FieldLabel>
+                      <FieldContent>
+                        <PasswordInput
+                          autoComplete="current-password"
+                          disabled={isDeletePending}
+                          id="security-delete-password"
+                          name="password"
+                          placeholder="Enter your current password"
+                          required
+                        />
+                        <FieldError
+                          errors={
+                            deleteState.fieldErrors?.password?.[0]
+                              ? [{ message: deleteState.fieldErrors.password[0] }]
+                              : undefined
+                          }
+                        />
+                      </FieldContent>
+                    </Field>
+                  ) : null}
+                </FieldGroup>
+
+                <div className="flex justify-end">
+                  <Button
+                    disabled={isDeletePending}
+                    type="submit"
+                    variant="destructive"
+                  >
+                    {isDeletePending ? (
+                      <>
+                        <Spinner data-icon="inline-start" aria-hidden="true" />
+                        Deleting account...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 data-icon="inline-start" />
+                        Delete account
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            ) : null}
           </div>
       </section>
     </div>
@@ -730,12 +752,14 @@ function formatDateTime(value: string) {
   }).format(date);
 }
 
-function getDeleteDescription(ownedBusinessCount: number) {
-  if (ownedBusinessCount <= 0) {
+function getDeleteDescription(security: AccountSecurityView) {
+  if (!security.deletion.allowed) {
+    return "This account still owns a workspace, still carries billing responsibility, or is the last owner of a business. Resolve those relationships first.";
+  }
+
+  if (security.ownedBusinessCount <= 0) {
     return "Your profile, sessions, and account access will be permanently deleted.";
   }
 
-  return `Your profile, sessions, and ${ownedBusinessCount} owned ${
-    ownedBusinessCount === 1 ? "business" : "businesses"
-  } will be permanently deleted, including related inquiries, quotes, knowledge files, and uploaded assets.`;
+  return `Your profile, sessions, and account access will be permanently deleted. Shared businesses will stay in place for the remaining owners and members.`;
 }

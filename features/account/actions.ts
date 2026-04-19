@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { getValidationActionState } from "@/lib/action-state";
 import { requireUser } from "@/lib/auth/session";
 import { auth } from "@/lib/auth/server";
+import { writeAccountAuditLogsForUser } from "@/features/audit/mutations";
 import {
   accountChangePasswordSchema,
   accountDeleteSchema,
@@ -325,6 +326,14 @@ export async function deleteAccountAction(
 
   const security = await getAccountSecurityForUser(user.id, user.email);
 
+  if (!security.deletion.allowed) {
+    return {
+      error:
+        security.deletion.blockers[0]?.message ??
+        "Resolve your owned workspaces or business ownership before deleting this account.",
+    };
+  }
+
   if (security.hasPassword && !validationResult.data.password) {
     return {
       error: "Enter your current password to delete this account.",
@@ -335,8 +344,20 @@ export async function deleteAccountAction(
   }
 
   let shouldRedirect = false;
+  const now = new Date();
 
   try {
+    await writeAccountAuditLogsForUser(user.id, {
+      actorUserId: user.id,
+      actorName: user.name,
+      actorEmail: user.email,
+      action: "account.deletion_requested",
+      metadata: {
+        accountEmail: user.email,
+      },
+      createdAt: now,
+    });
+
     await auth.api.deleteUser({
       body: {
         password: validationResult.data.password,

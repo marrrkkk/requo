@@ -19,8 +19,42 @@ export type AccountSecurityView = {
   hasPassword: boolean;
   connectedProviders: string[];
   ownedBusinessCount: number;
+  deletion: AccountDeletionPreflight;
   activeSessionCount: number;
   activeSessions: AccountSessionView[];
+};
+
+export type AccountDeletionBlocker = {
+  code:
+    | "owned_workspace_subscription"
+    | "owned_workspace"
+    | "sole_business_owner";
+  message: string;
+  workspaceName?: string;
+  workspaceSlug?: string;
+  businessName?: string;
+  businessSlug?: string;
+};
+
+export type AccountDeletionWorkspaceSummary = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+export type AccountDeletionBusinessSummary = {
+  id: string;
+  name: string;
+  slug: string;
+  workspaceName: string;
+  workspaceSlug: string;
+};
+
+export type AccountDeletionPreflight = {
+  allowed: boolean;
+  blockers: AccountDeletionBlocker[];
+  ownedWorkspaces: AccountDeletionWorkspaceSummary[];
+  soleOwnedBusinesses: AccountDeletionBusinessSummary[];
 };
 
 export type AccountSessionView = {
