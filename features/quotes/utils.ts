@@ -1,4 +1,12 @@
-import { CircleCheck, CircleX, Clock3, FileText, Send } from "lucide-react";
+import {
+  Archive,
+  Ban,
+  CircleCheck,
+  CircleX,
+  Clock3,
+  FileText,
+  Send,
+} from "lucide-react";
 
 import type {
   DashboardQuoteLibraryItem,
@@ -17,6 +25,7 @@ export const quoteStatusLabels: Record<QuoteStatus, string> = {
   accepted: "Accepted",
   rejected: "Rejected",
   expired: "Expired",
+  voided: "Voided",
 };
 
 export const quoteStatusClassNames: Record<QuoteStatus, string> = {
@@ -29,6 +38,8 @@ export const quoteStatusClassNames: Record<QuoteStatus, string> = {
     "border-red-200/80 bg-red-50 text-red-700 dark:border-red-500/25 dark:bg-red-500/12 dark:text-red-200",
   expired:
     "border-orange-200/80 bg-orange-50 text-orange-700 dark:border-orange-500/25 dark:bg-orange-500/12 dark:text-orange-200",
+  voided:
+    "border-slate-200/80 bg-slate-100 text-slate-700 dark:border-slate-500/25 dark:bg-slate-500/12 dark:text-slate-200",
 };
 
 export const quoteStatusIcons = {
@@ -37,6 +48,20 @@ export const quoteStatusIcons = {
   accepted: CircleCheck,
   rejected: CircleX,
   expired: Clock3,
+  voided: Ban,
+} as const;
+
+export const quoteRecordStateLabels = {
+  archived: "Archived",
+} as const;
+
+export const quoteRecordStateClassNames = {
+  archived:
+    "border-slate-200/80 bg-slate-100 text-slate-700 dark:border-slate-500/25 dark:bg-slate-500/12 dark:text-slate-200",
+} as const;
+
+export const quoteRecordStateIcons = {
+  archived: Archive,
 } as const;
 
 export const quoteLibraryEntryKindLabels: Record<QuoteLibraryEntryKind, string> = {

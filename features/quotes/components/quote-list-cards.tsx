@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
+import { QuoteRecordStateBadge } from "@/features/quotes/components/quote-record-state-badge";
 import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
 import type { DashboardQuoteListItem } from "@/features/quotes/types";
@@ -57,12 +58,15 @@ export function QuoteListCards({
                     </div>
                   ) : null}
                 </div>
-                <div className="shrink-0">
+                <div className="shrink-0 space-y-2">
                   <QuoteStatusBadge status={quote.status} />
+                  {quote.archivedAt ? (
+                    <QuoteRecordStateBadge state="archived" />
+                  ) : null}
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="data-list-card-meta pt-0">
+            <CardContent className="grid gap-3 pt-0 sm:grid-cols-2">
               <div className="info-tile min-w-0 h-full px-3.5 py-3 shadow-none">
                 <span className="meta-label">
                   Customer

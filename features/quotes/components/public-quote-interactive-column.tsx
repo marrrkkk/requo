@@ -86,6 +86,14 @@ export function PublicQuoteInteractiveColumn({
       };
     }
 
+    if (displayStatus === "voided") {
+      return {
+        title: "Quote voided" as const,
+        description:
+          "This quote was voided and is no longer accepting online responses." as const,
+      };
+    }
+
     return {
       title: "Quote no longer active" as const,
       description: "This quote is no longer accepting online responses." as const,
@@ -148,6 +156,8 @@ export function PublicQuoteInteractiveColumn({
                   Response recorded on{" "}
                   {formatQuoteDateTime(customerRespondedAt)}.
                 </>
+              ) : displayStatus === "voided" ? (
+                "This quote was voided by the business and is now read-only."
               ) : displayStatus === "expired" ? (
                 <>
                   This quote expired on {formatQuoteDate(quote.validUntil)}.

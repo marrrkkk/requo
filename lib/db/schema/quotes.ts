@@ -13,6 +13,7 @@ import {
 
 import { inquiries } from "@/lib/db/schema/inquiries";
 import { businesses } from "@/lib/db/schema/businesses";
+import { user } from "@/lib/db/schema/auth";
 
 export const quoteStatusEnum = pgEnum("quote_status", [
   "draft",
@@ -20,6 +21,7 @@ export const quoteStatusEnum = pgEnum("quote_status", [
   "accepted",
   "rejected",
   "expired",
+  "voided",
 ]);
 
 export const quotePostAcceptanceStatusEnum = pgEnum(
@@ -61,6 +63,18 @@ export const quotes = pgTable(
       .notNull()
       .default("none"),
     validUntil: date("expires_at", { mode: "string" }).notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    archivedBy: text("archived_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    deletedBy: text("deleted_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidedBy: text("voided_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -71,14 +85,16 @@ export const quotes = pgTable(
   (table) => [
     index("quotes_business_id_idx").on(table.businessId),
     index("quotes_business_status_idx").on(table.businessId, table.status),
+    index("quotes_business_archived_at_idx").on(table.businessId, table.archivedAt),
+    index("quotes_business_deleted_at_idx").on(table.businessId, table.deletedAt),
     index("quotes_business_created_at_idx").on(table.businessId, table.createdAt),
     index("quotes_sent_valid_until_idx")
       .on(table.businessId, table.validUntil)
-      .where(sql`${table.status} = 'sent'`),
+      .where(sql`${table.status} = 'sent' and ${table.deletedAt} is null`),
     index("quotes_sent_follow_up_idx")
       .on(table.businessId, table.sentAt)
       .where(
-        sql`${table.status} = 'sent' and ${table.customerRespondedAt} is null`,
+        sql`${table.status} = 'sent' and ${table.customerRespondedAt} is null and ${table.deletedAt} is null`,
       ),
     index("quotes_inquiry_id_idx").on(table.inquiryId),
     uniqueIndex("quotes_public_token_unique").on(table.publicToken),

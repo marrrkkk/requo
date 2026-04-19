@@ -1,6 +1,19 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  ilike,
+  isNotNull,
+  isNull,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { after } from "next/server";
 import { cache } from "react";
@@ -20,6 +33,10 @@ import {
   syncExpiredQuotesForBusiness,
 } from "@/features/quotes/mutations";
 import {
+  getEffectiveInquiryStatus,
+  getInquiryRecordState,
+} from "@/features/inquiries/queries";
+import {
   getBusinessInquiryDetailCacheTags,
   getBusinessQuoteDetailCacheTags,
   getBusinessQuoteListCacheTags,
@@ -31,6 +48,7 @@ import type {
   PublicQuoteView,
   QuoteInquiryPrefill,
   QuoteListQueryFilters,
+  QuoteRecordView,
   QuoteSendPayload,
   QuoteStatus,
 } from "@/features/quotes/types";
@@ -43,6 +61,11 @@ import {
 export const getEffectiveQuoteStatus = sql<QuoteStatus>`case
   when ${quotes.status} = 'sent' and ${quotes.validUntil} < current_date then 'expired'::quote_status
   else ${quotes.status}
+end`;
+
+export const getQuoteRecordState = sql<QuoteRecordView>`case
+  when ${quotes.archivedAt} is not null then 'archived'
+  else 'active'
 end`;
 
 const scheduleExpiredQuotesSyncForBusiness = cache((businessId: string) => {
@@ -70,11 +93,32 @@ type GetQuoteListForBusinessInput = {
   filters: QuoteListQueryFilters;
 };
 
+export function getNonDeletedQuoteCondition() {
+  return isNull(quotes.deletedAt);
+}
+
+export function getOperationalQuoteCondition() {
+  return and(isNull(quotes.deletedAt), isNull(quotes.archivedAt));
+}
+
+function getQuoteViewCondition(view: QuoteRecordView) {
+  switch (view) {
+    case "archived":
+      return and(isNull(quotes.deletedAt), isNotNull(quotes.archivedAt));
+    case "active":
+    default:
+      return and(isNull(quotes.deletedAt), isNull(quotes.archivedAt));
+  }
+}
+
 function getQuoteListConditions({
   businessId,
   filters,
 }: GetQuoteListForBusinessInput) {
-  const conditions = [eq(quotes.businessId, businessId)];
+  const conditions = [
+    eq(quotes.businessId, businessId),
+    getQuoteViewCondition(filters.view),
+  ];
 
   if (filters.status !== "all") {
     conditions.push(
@@ -176,7 +220,6 @@ async function getCachedQuoteListPageForBusiness({
   const rows = await db
     .select({
       id: quotes.id,
-      inquiryId: quotes.inquiryId,
       quoteNumber: quotes.quoteNumber,
       publicToken: quotes.publicToken,
       publicTokenEncrypted: quotes.publicTokenEncrypted,
@@ -187,8 +230,8 @@ async function getCachedQuoteListPageForBusiness({
       currency: quotes.currency,
       validUntil: quotes.validUntil,
       status: getEffectiveQuoteStatus,
+      archivedAt: quotes.archivedAt,
       postAcceptanceStatus: quotes.postAcceptanceStatus,
-      createdAt: quotes.createdAt,
       sentAt: quotes.sentAt,
       customerRespondedAt: quotes.customerRespondedAt,
     })
@@ -200,13 +243,11 @@ async function getCachedQuoteListPageForBusiness({
 
   return rows.map((row) => {
     return {
-      createdAt: row.createdAt,
       currency: row.currency,
       customerEmail: row.customerEmail,
       customerName: row.customerName,
       customerRespondedAt: row.customerRespondedAt,
       id: row.id,
-      inquiryId: row.inquiryId,
       postAcceptanceStatus: row.postAcceptanceStatus,
       publicToken: resolveStoredQuotePublicToken(row),
       quoteNumber: row.quoteNumber,
@@ -216,6 +257,7 @@ async function getCachedQuoteListPageForBusiness({
         customerRespondedAt: row.customerRespondedAt,
         validUntil: row.validUntil,
       }),
+      archivedAt: row.archivedAt,
       sentAt: row.sentAt,
       status: row.status,
       title: row.title,
@@ -236,6 +278,8 @@ type QuoteExportRow = {
   currency: string;
   validUntil: string;
   status: string;
+  archivedAt: Date | null;
+  voidedAt: Date | null;
   postAcceptanceStatus: string;
   createdAt: Date;
   sentAt: Date | null;
@@ -277,6 +321,8 @@ export async function getQuoteExportRowsForBusiness({
       currency: quotes.currency,
       validUntil: quotes.validUntil,
       status: getEffectiveQuoteStatus,
+      archivedAt: quotes.archivedAt,
+      voidedAt: quotes.voidedAt,
       postAcceptanceStatus: quotes.postAcceptanceStatus,
       createdAt: quotes.createdAt,
       sentAt: quotes.sentAt,
@@ -331,6 +377,8 @@ async function getCachedQuoteDetailForBusiness({
       totalInCents: quotes.totalInCents,
       validUntil: quotes.validUntil,
       status: getEffectiveQuoteStatus,
+      archivedAt: quotes.archivedAt,
+      voidedAt: quotes.voidedAt,
       postAcceptanceStatus: quotes.postAcceptanceStatus,
       sentAt: quotes.sentAt,
       acceptedAt: quotes.acceptedAt,
@@ -343,11 +391,18 @@ async function getCachedQuoteDetailForBusiness({
       linkedInquiryCustomerName: inquiries.customerName,
       linkedInquiryCustomerEmail: inquiries.customerEmail,
       linkedInquiryServiceCategory: inquiries.serviceCategory,
-      linkedInquiryStatus: inquiries.status,
+      linkedInquiryStatus: getEffectiveInquiryStatus,
+      linkedInquiryRecordState: getInquiryRecordState,
     })
     .from(quotes)
     .leftJoin(inquiries, eq(quotes.inquiryId, inquiries.id))
-    .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
+    .where(
+      and(
+        eq(quotes.id, quoteId),
+        eq(quotes.businessId, businessId),
+        isNull(quotes.deletedAt),
+      ),
+    )
     .limit(1);
 
   if (!quote) {
@@ -407,6 +462,8 @@ async function getCachedQuoteDetailForBusiness({
     totalInCents: quote.totalInCents,
     validUntil: quote.validUntil,
     status: quote.status,
+    archivedAt: quote.archivedAt,
+    voidedAt: quote.voidedAt,
     postAcceptanceStatus: quote.postAcceptanceStatus,
     sentAt: quote.sentAt,
     acceptedAt: quote.acceptedAt,
@@ -424,6 +481,7 @@ async function getCachedQuoteDetailForBusiness({
           customerEmail: quote.linkedInquiryCustomerEmail!,
           serviceCategory: quote.linkedInquiryServiceCategory!,
           status: quote.linkedInquiryStatus!,
+          recordState: quote.linkedInquiryRecordState!,
         }
       : null,
     reminders: getQuoteReminderKinds({
@@ -476,7 +534,13 @@ async function getCachedQuoteSendPayloadForBusiness({
       updatedAt: quotes.updatedAt,
     })
     .from(quotes)
-    .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
+    .where(
+      and(
+        eq(quotes.id, quoteId),
+        eq(quotes.businessId, businessId),
+        isNull(quotes.deletedAt),
+      ),
+    )
     .limit(1);
 
   if (!quote) {
@@ -556,7 +620,15 @@ export async function getPublicQuoteByToken(
     .from(quotes)
     .innerJoin(businesses, eq(quotes.businessId, businesses.id))
     .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
-    .where(getQuotePublicTokenLookupCondition(token))
+    .where(
+      and(
+        getQuotePublicTokenLookupCondition(token),
+        isNull(quotes.deletedAt),
+        isNull(workspaces.deletedAt),
+        isNull(businesses.deletedAt),
+        isNull(businesses.archivedAt),
+      ),
+    )
     .limit(1);
 
   if (!quote || quote.status === "draft") {
@@ -627,13 +699,20 @@ export async function getInquiryQuotePrefillForBusiness({
       customerName: inquiries.customerName,
       customerEmail: inquiries.customerEmail,
       serviceCategory: inquiries.serviceCategory,
-      status: inquiries.status,
+      status: getEffectiveInquiryStatus,
+      recordState: getInquiryRecordState,
       details: inquiries.details,
       requestedDeadline: inquiries.requestedDeadline,
       budgetText: inquiries.budgetText,
     })
     .from(inquiries)
-    .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
+    .where(
+      and(
+        eq(inquiries.id, inquiryId),
+        eq(inquiries.businessId, businessId),
+        isNull(inquiries.deletedAt),
+      ),
+    )
     .limit(1);
 
   return inquiry ?? null;
