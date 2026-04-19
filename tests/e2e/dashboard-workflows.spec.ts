@@ -585,9 +585,13 @@ test("inquiry detail exposes PDF export and print-safe document", async ({
   await signIn(page);
   await openBusinessesPage(page, "/inquiries/demo_inquiry_quoted_booth_kit");
 
-  await expect(page.getByRole("link", { name: "Export PDF" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Export" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Print" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Generate quote" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Export" }).click();
+  await expect(page.getByRole("link", { name: "Export PDF" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Export PNG" })).toBeVisible();
 
   const pdfResponse = await page.request.get(
     `/api/business/${demoBusinessSlug}/inquiries/demo_inquiry_quoted_booth_kit/export`,
@@ -596,6 +600,16 @@ test("inquiry detail exposes PDF export and print-safe document", async ({
   expect(pdfResponse.headers()["content-type"]).toContain("application/pdf");
   const pdfBuffer = await pdfResponse.body();
   expect(pdfBuffer.toString("utf-8", 0, 4)).toBe("%PDF");
+
+  const pngResponse = await page.request.get(
+    `/api/business/${demoBusinessSlug}/inquiries/demo_inquiry_quoted_booth_kit/export?format=png`,
+  );
+  expect(pngResponse.ok()).toBeTruthy();
+  expect(pngResponse.headers()["content-type"]).toContain("image/png");
+  const pngBuffer = await pngResponse.body();
+  expect(Array.from(pngBuffer.subarray(0, 8))).toEqual([
+    137, 80, 78, 71, 13, 10, 26, 10,
+  ]);
 
   await page.goto(
     `/businesses/${demoBusinessSlug}/print/inquiries/demo_inquiry_quoted_booth_kit`,
@@ -607,6 +621,47 @@ test("inquiry detail exposes PDF export and print-safe document", async ({
   await expect(page.getByRole("heading", { name: "Internal notes" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Activity log" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Status" })).toHaveCount(0);
+});
+
+test("quote detail exposes export formats and returns PDF and PNG downloads", async ({
+  page,
+}) => {
+  await signIn(page);
+  await openBusinessesPage(page, "/quotes/demo_quote_sent_1002");
+
+  await expect(page.getByRole("button", { name: "Export" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Print" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Export" }).click();
+  await expect(page.getByRole("link", { name: "Export PDF" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Export PNG" })).toBeVisible();
+
+  const pdfResponse = await page.request.get(
+    `/api/business/${demoBusinessSlug}/quotes/demo_quote_sent_1002/export`,
+  );
+  expect(pdfResponse.ok()).toBeTruthy();
+  expect(pdfResponse.headers()["content-type"]).toContain("application/pdf");
+  const pdfBuffer = await pdfResponse.body();
+  expect(pdfBuffer.toString("utf-8", 0, 4)).toBe("%PDF");
+
+  const pngResponse = await page.request.get(
+    `/api/business/${demoBusinessSlug}/quotes/demo_quote_sent_1002/export?format=png`,
+  );
+  expect(pngResponse.ok()).toBeTruthy();
+  expect(pngResponse.headers()["content-type"]).toContain("image/png");
+  const pngBuffer = await pngResponse.body();
+  expect(Array.from(pngBuffer.subarray(0, 8))).toEqual([
+    137, 80, 78, 71, 13, 10, 26, 10,
+  ]);
+
+  await page.goto(
+    `/businesses/${demoBusinessSlug}/print/quotes/demo_quote_sent_1002?autoprint=0`,
+  );
+  await page.waitForLoadState("networkidle");
+
+  await expect(page.getByRole("heading", { name: "Foundry Labs booth kit" })).toBeVisible();
+  await expect(page.getByText("Prepared for")).toBeVisible();
+  await expect(page.getByText("Quote details")).toBeVisible();
 });
 
 test("notification settings live under general settings and persist", async ({

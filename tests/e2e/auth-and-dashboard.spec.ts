@@ -94,7 +94,7 @@ test("dashboard inquiry queue actions open filtered inquiry views", async ({
   await openDemoBusiness(page);
 
   const overdueHref = `/businesses/${demoBusinessSlug}/dashboard/inquiries?status=overdue`;
-  const waitingHref = `/businesses/${demoBusinessSlug}/dashboard/inquiries?status=waiting`;
+  const newHref = `/businesses/${demoBusinessSlug}/dashboard/inquiries?status=new`;
 
   const overdueLink = page.getByRole("link", { name: "All overdue" });
   await expect(overdueLink).toHaveAttribute("href", overdueHref);
@@ -105,10 +105,10 @@ test("dashboard inquiry queue actions open filtered inquiry views", async ({
 
   await openDemoBusiness(page);
 
-  const waitingLink = page.getByRole("link", { name: "All waiting" });
-  await expect(waitingLink).toHaveAttribute("href", waitingHref);
-  await waitingLink.click();
-  await expect(page).toHaveURL(new RegExp(`${waitingHref}$`), {
+  const newLink = page.getByRole("link", { name: "All new" });
+  await expect(newLink).toHaveAttribute("href", newHref);
+  await newLink.click();
+  await expect(page).toHaveURL(new RegExp(`${newHref}$`), {
     timeout: 20_000,
   });
 });
@@ -173,7 +173,8 @@ test("sending a draft quote shows a safe delivery error when email is unavailabl
   );
   await page.waitForLoadState("networkidle");
 
-  await page.getByRole("button", { name: "Send quote email" }).click();
+  await page.getByRole("button", { name: "Send quote" }).click();
+  await page.getByRole("menuitem", { name: "Send with Requo" }).click();
 
   await expect(
     page.getByText(
