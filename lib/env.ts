@@ -53,6 +53,7 @@ const envSchema = z.object({
   DEMO_BUSINESS_SLUG: emptyToUndefined(z.string().trim().min(1)),
   DEMO_QUOTE_PUBLIC_TOKEN: emptyToUndefined(z.string().trim().min(1)),
   DEMO_EXPIRED_QUOTE_PUBLIC_TOKEN: emptyToUndefined(z.string().trim().min(1)),
+  DEMO_VOIDED_QUOTE_PUBLIC_TOKEN: emptyToUndefined(z.string().trim().min(1)),
 });
 
 export const env = envSchema.parse(process.env);

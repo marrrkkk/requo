@@ -8,10 +8,17 @@ import "server-only";
  * timestamps. No dedicated usage table is needed.
  */
 
-import { and, count, eq, gte, inArray, lt } from "drizzle-orm";
+import { and, count, eq, gte, inArray, isNull, lt } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
-import { businesses, businessInquiryForms, inquiries, quotes, workspaceMembers } from "@/lib/db/schema";
+import {
+  businesses,
+  businessInquiryForms,
+  inquiries,
+  quotes,
+  workspaceMembers,
+  workspaces,
+} from "@/lib/db/schema";
 import type { WorkspacePlan } from "@/lib/plans/plans";
 import {
   getUsageLimit,
@@ -37,7 +44,14 @@ async function getWorkspaceBusinessIds(
   const rows = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(eq(businesses.workspaceId, workspaceId));
+    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
+    .where(
+      and(
+        eq(businesses.workspaceId, workspaceId),
+        isNull(workspaces.deletedAt),
+        isNull(businesses.deletedAt),
+      ),
+    );
 
   return rows.map((r) => r.id);
 }
@@ -62,6 +76,7 @@ export async function getMonthlyInquiryCount(
     .where(
       and(
         inArray(inquiries.businessId, bizIds),
+        isNull(inquiries.deletedAt),
         gte(inquiries.createdAt, start),
         lt(inquiries.createdAt, end),
       ),
@@ -90,6 +105,7 @@ export async function getMonthlyQuoteCount(
     .where(
       and(
         inArray(quotes.businessId, bizIds),
+        isNull(quotes.deletedAt),
         gte(quotes.createdAt, start),
         lt(quotes.createdAt, end),
       ),
@@ -107,7 +123,12 @@ export async function getWorkspaceBusinessCount(
   const [row] = await db
     .select({ value: count() })
     .from(businesses)
-    .where(eq(businesses.workspaceId, workspaceId));
+    .where(
+      and(
+        eq(businesses.workspaceId, workspaceId),
+        isNull(businesses.deletedAt),
+      ),
+    );
 
   return Number(row?.value ?? 0);
 }
@@ -146,6 +167,7 @@ export async function getWorkspaceLiveFormsCount(
       and(
         inArray(businessInquiryForms.businessId, bizIds),
         eq(businessInquiryForms.publicInquiryEnabled, true),
+        isNull(businessInquiryForms.archivedAt),
       ),
     );
 
