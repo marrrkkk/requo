@@ -1,17 +1,22 @@
 import { z } from "zod";
 
 import { getInquiryDocumentData } from "@/features/inquiries/documents";
-import { getInquiryPdfFileName } from "@/features/inquiries/pdf";
+import {
+  getInquiryPdfFileName,
+  getInquiryPngFileName,
+} from "@/features/inquiries/pdf";
 import { getInquiryDetailForBusiness } from "@/features/inquiries/queries";
 import { getBusinessInquiryPrintPath } from "@/features/businesses/routes";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 import { buildContentDisposition } from "@/lib/files";
-import { renderHtmlPageToPdf } from "@/lib/pdf/html-to-pdf";
+import { renderHtmlPageElementToPng } from "@/lib/pdf/html-to-image";
+import { createPdfFromPng } from "@/lib/pdf/png-to-pdf";
 
 const routeParamsSchema = z.object({
   slug: z.string().trim().min(1).max(120),
   id: z.string().trim().min(1).max(128),
 });
+const exportFormatSchema = z.enum(["pdf", "png"]);
 
 export async function GET(
   request: Request,
@@ -40,6 +45,10 @@ export async function GET(
     return Response.json({ error: "Not found." }, { status: 404 });
   }
 
+  const formatResult = exportFormatSchema.safeParse(
+    new URL(request.url).searchParams.get("format") ?? "pdf",
+  );
+  const format = formatResult.success ? formatResult.data : "pdf";
   const documentData = getInquiryDocumentData({
     businessName: requestContext.businessContext.business.name,
     businessCurrency: requestContext.businessContext.business.defaultCurrency,
@@ -49,19 +58,34 @@ export async function GET(
     `${getBusinessInquiryPrintPath(parsedParams.data.slug, inquiry.id)}?autoprint=0`,
     request.url,
   ).toString();
-  const pdf = await renderHtmlPageToPdf({
+  const png = await renderHtmlPageElementToPng({
     url: printUrl,
+    selector: "[data-export-document]",
     cookieHeader: request.headers.get("cookie"),
   });
 
-  const pdfBody = new ReadableStream<Uint8Array>({
-    start(controller) {
-      controller.enqueue(pdf);
-      controller.close();
-    },
-  });
+  if (format === "png") {
+    const pngBytes = Uint8Array.from(png);
 
-  return new Response(pdfBody, {
+    return new Response(new Blob([pngBytes], { type: "image/png" }), {
+      headers: {
+        "cache-control": "private, no-store",
+        "content-disposition": buildContentDisposition(
+          getInquiryPngFileName(documentData),
+        ),
+        "content-type": "image/png",
+        "x-content-type-options": "nosniff",
+      },
+    });
+  }
+
+  const pdf = await createPdfFromPng({
+    png,
+    title: `${documentData.referenceId} request`,
+  });
+  const pdfBytes = Uint8Array.from(pdf);
+
+  return new Response(new Blob([pdfBytes], { type: "application/pdf" }), {
     headers: {
       "cache-control": "private, no-store",
       "content-disposition": buildContentDisposition(
