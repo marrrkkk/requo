@@ -83,13 +83,14 @@ export default async function NewQuotePage({
         items: [createQuoteEditorLineItem()],
       };
   const linkedInquiry = inquiryPrefill
-    ? {
-        id: inquiryPrefill.id,
-        customerName: inquiryPrefill.customerName,
-        customerEmail: inquiryPrefill.customerEmail,
-        serviceCategory: inquiryPrefill.serviceCategory,
-        status: inquiryPrefill.status,
-      }
+      ? {
+          id: inquiryPrefill.id,
+          customerName: inquiryPrefill.customerName,
+          customerEmail: inquiryPrefill.customerEmail,
+          recordState: inquiryPrefill.recordState,
+          serviceCategory: inquiryPrefill.serviceCategory,
+          status: inquiryPrefill.status,
+        }
     : null;
   const action = createQuoteAction.bind(null, inquiryPrefill?.id ?? null);
 
