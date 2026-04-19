@@ -1,3 +1,4 @@
+import type { BusinessRecordState } from "@/features/businesses/lifecycle";
 import type { InquiryStatus } from "@/features/inquiries/types";
 import type {
   QuotePostAcceptanceStatus,
@@ -71,4 +72,24 @@ export type CreateBusinessActionState = {
     defaultCurrency?: string[] | undefined;
     workspaceId?: string[] | undefined;
   };
+};
+
+export type BusinessRecordActionState = {
+  error?: string;
+  success?: string;
+  fieldErrors?: {
+    confirmation?: string[] | undefined;
+  };
+};
+
+export type BusinessLifecycleView = {
+  id: string;
+  name: string;
+  slug: string;
+  workspaceId: string;
+  workspaceSlug: string;
+  recordState: BusinessRecordState;
+  archivedAt: Date | null;
+  deletedAt: Date | null;
+  activeWorkspaceBusinessCount: number;
 };

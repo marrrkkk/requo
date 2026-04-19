@@ -1,7 +1,9 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { and, count, eq, isNull } from "drizzle-orm";
 
+import { writeAuditLog } from "@/features/audit/mutations";
+import type { BusinessRecordState } from "@/features/businesses/lifecycle";
 import { getStarterTemplateDefinition } from "@/features/businesses/starter-templates";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
@@ -15,6 +17,7 @@ import {
   businessMembers,
   businesses,
   replySnippets,
+  workspaces,
 } from "@/lib/db/schema";
 import { appendRandomSlugSuffix, slugifyPublicName } from "@/lib/slugs";
 
@@ -172,6 +175,24 @@ export async function createBusinessRecordForUser({
     updatedAt: now,
   });
 
+  await writeAuditLog(tx, {
+    workspaceId,
+    businessId,
+    actorUserId: user.id,
+    actorName: user.name,
+    actorEmail: user.email,
+    entityType: "business",
+    entityId: businessId,
+    action: "business.created",
+    metadata: {
+      businessName: trimmedName,
+      businessSlug: slug,
+      businessType,
+      source: activitySource,
+    },
+    createdAt: now,
+  });
+
   return {
     id: businessId,
     slug,
@@ -207,4 +228,379 @@ export async function createBusinessForUser({
       activitySummary,
     }),
   );
+}
+
+type BusinessLifecycleMutationInput = {
+  businessId: string;
+  actorUserId: string;
+};
+
+type TrashBusinessInput = BusinessLifecycleMutationInput & {
+  confirmation: string | null;
+};
+
+type BusinessLifecycleResult =
+  | {
+      ok: true;
+      businessSlug: string;
+      workspaceSlug: string;
+      nextState: BusinessRecordState;
+    }
+  | {
+      ok: false;
+      reason:
+        | "not-found"
+        | "confirmation-mismatch"
+        | "already-active"
+        | "already-archived"
+        | "already-trash"
+        | "trash-required"
+        | "last-active";
+    };
+
+async function getBusinessLifecycleTarget(businessId: string) {
+  const [business] = await db
+    .select({
+      id: businesses.id,
+      name: businesses.name,
+      slug: businesses.slug,
+      workspaceId: businesses.workspaceId,
+      workspaceSlug: workspaces.slug,
+      archivedAt: businesses.archivedAt,
+      deletedAt: businesses.deletedAt,
+    })
+    .from(businesses)
+    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
+  return business ?? null;
+}
+
+async function getActiveWorkspaceBusinessCount(workspaceId: string) {
+  const [row] = await db
+    .select({
+      value: count(),
+    })
+    .from(businesses)
+    .where(
+      and(
+        eq(businesses.workspaceId, workspaceId),
+        isNull(businesses.archivedAt),
+        isNull(businesses.deletedAt),
+      ),
+    );
+
+  return Number(row?.value ?? 0);
+}
+
+export async function archiveBusiness({
+  businessId,
+  actorUserId,
+}: BusinessLifecycleMutationInput): Promise<BusinessLifecycleResult> {
+  const business = await getBusinessLifecycleTarget(businessId);
+
+  if (!business) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
+  if (business.deletedAt) {
+    return {
+      ok: false,
+      reason: "trash-required",
+    };
+  }
+
+  if (business.archivedAt) {
+    return {
+      ok: false,
+      reason: "already-archived",
+    };
+  }
+
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(businesses)
+      .set({
+        archivedAt: now,
+        archivedBy: actorUserId,
+        deletedAt: null,
+        deletedBy: null,
+        updatedAt: now,
+      })
+      .where(eq(businesses.id, businessId));
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      actorUserId,
+      type: "business.archived",
+      summary: "Business archived.",
+      metadata: {},
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await writeAuditLog(tx, {
+      workspaceId: business.workspaceId,
+      businessId,
+      actorUserId,
+      entityType: "business",
+      entityId: businessId,
+      action: "business.archived",
+      metadata: {
+        businessName: business.name,
+        businessSlug: business.slug,
+      },
+      createdAt: now,
+    });
+  });
+
+  return {
+    ok: true,
+    businessSlug: business.slug,
+    workspaceSlug: business.workspaceSlug,
+    nextState: "archived",
+  };
+}
+
+export async function unarchiveBusiness({
+  businessId,
+  actorUserId,
+}: BusinessLifecycleMutationInput): Promise<BusinessLifecycleResult> {
+  const business = await getBusinessLifecycleTarget(businessId);
+
+  if (!business) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
+  if (business.deletedAt) {
+    return {
+      ok: false,
+      reason: "trash-required",
+    };
+  }
+
+  if (!business.archivedAt) {
+    return {
+      ok: false,
+      reason: "already-active",
+    };
+  }
+
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(businesses)
+      .set({
+        archivedAt: null,
+        archivedBy: null,
+        updatedAt: now,
+      })
+      .where(eq(businesses.id, businessId));
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      actorUserId,
+      type: "business.restored",
+      summary: "Business restored to active.",
+      metadata: {
+        from: "archived",
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await writeAuditLog(tx, {
+      workspaceId: business.workspaceId,
+      businessId,
+      actorUserId,
+      entityType: "business",
+      entityId: businessId,
+      action: "business.restored",
+      metadata: {
+        businessName: business.name,
+        businessSlug: business.slug,
+        from: "archived",
+      },
+      createdAt: now,
+    });
+  });
+
+  return {
+    ok: true,
+    businessSlug: business.slug,
+    workspaceSlug: business.workspaceSlug,
+    nextState: "active",
+  };
+}
+
+export async function trashBusiness({
+  businessId,
+  actorUserId,
+  confirmation,
+}: TrashBusinessInput): Promise<BusinessLifecycleResult> {
+  const business = await getBusinessLifecycleTarget(businessId);
+
+  if (!business) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
+  if (confirmation && confirmation.trim() !== business.name) {
+    return {
+      ok: false,
+      reason: "confirmation-mismatch",
+    };
+  }
+
+  if (business.deletedAt) {
+    return {
+      ok: false,
+      reason: "already-trash",
+    };
+  }
+
+  if (!business.archivedAt) {
+    const activeBusinessCount = await getActiveWorkspaceBusinessCount(
+      business.workspaceId,
+    );
+
+    if (activeBusinessCount <= 1) {
+      return {
+        ok: false,
+        reason: "last-active",
+      };
+    }
+  }
+
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(businesses)
+      .set({
+        archivedAt: null,
+        archivedBy: null,
+        deletedAt: now,
+        deletedBy: actorUserId,
+        updatedAt: now,
+      })
+      .where(eq(businesses.id, businessId));
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      actorUserId,
+      type: "business.trashed",
+      summary: "Business moved to trash.",
+      metadata: {},
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await writeAuditLog(tx, {
+      workspaceId: business.workspaceId,
+      businessId,
+      actorUserId,
+      entityType: "business",
+      entityId: businessId,
+      action: "business.trashed",
+      metadata: {
+        businessName: business.name,
+        businessSlug: business.slug,
+      },
+      createdAt: now,
+    });
+  });
+
+  return {
+    ok: true,
+    businessSlug: business.slug,
+    workspaceSlug: business.workspaceSlug,
+    nextState: "trash",
+  };
+}
+
+export async function restoreBusiness({
+  businessId,
+  actorUserId,
+}: BusinessLifecycleMutationInput): Promise<BusinessLifecycleResult> {
+  const business = await getBusinessLifecycleTarget(businessId);
+
+  if (!business) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
+  if (!business.deletedAt) {
+    return {
+      ok: false,
+      reason: "already-active",
+    };
+  }
+
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(businesses)
+      .set({
+        archivedAt: null,
+        archivedBy: null,
+        deletedAt: null,
+        deletedBy: null,
+        updatedAt: now,
+      })
+      .where(eq(businesses.id, businessId));
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      actorUserId,
+      type: "business.restored",
+      summary: "Business restored from trash.",
+      metadata: {
+        from: "trash",
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await writeAuditLog(tx, {
+      workspaceId: business.workspaceId,
+      businessId,
+      actorUserId,
+      entityType: "business",
+      entityId: businessId,
+      action: "business.restored",
+      metadata: {
+        businessName: business.name,
+        businessSlug: business.slug,
+        from: "trash",
+      },
+      createdAt: now,
+    });
+  });
+
+  return {
+    ok: true,
+    businessSlug: business.slug,
+    workspaceSlug: business.workspaceSlug,
+    nextState: "active",
+  };
 }
