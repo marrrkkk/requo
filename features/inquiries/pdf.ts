@@ -163,3 +163,7 @@ export async function createInquiryPdf(data: InquiryDocumentData) {
 export function getInquiryPdfFileName(data: InquiryDocumentData) {
   return `${sanitizeStorageFileName(data.referenceId, "request")}.pdf`;
 }
+
+export function getInquiryPngFileName(data: InquiryDocumentData) {
+  return `${sanitizeStorageFileName(data.referenceId, "request")}.png`;
+}
