@@ -12,7 +12,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { getThemeInitScript } from "@/features/theme/init-script";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { legalConfig } from "@/features/legal/config";
-import { themeStorageKey } from "@/features/theme/types";
+import { themeCookieKey, themeStorageKey } from "@/features/theme/types";
 import {
   getOrganizationStructuredData,
   getWebsiteStructuredData,
@@ -108,6 +108,7 @@ export default function RootLayout({
         />
         <Script id="requo-theme-init" strategy="beforeInteractive">
           {getThemeInitScript({
+            cookieKey: themeCookieKey,
             storageKey: themeStorageKey,
           })}
         </Script>

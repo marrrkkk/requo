@@ -7,7 +7,8 @@ import { useTransition } from "react";
 import { authClient } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { themeStorageKey, themeUserStorageKey } from "@/features/theme/types";
+import { clearPersistedThemePreference } from "@/features/theme/persistence";
+import { themeUserStorageKey } from "@/features/theme/types";
 
 type LogoutButtonProps = Pick<
   ComponentProps<typeof Button>,
@@ -30,7 +31,7 @@ export function LogoutButton({
       }
 
       window.localStorage.removeItem(themeUserStorageKey);
-      window.localStorage.removeItem(themeStorageKey);
+      clearPersistedThemePreference();
 
       window.location.assign("/login");
     });
