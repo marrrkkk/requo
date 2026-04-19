@@ -3,6 +3,9 @@ import { ArrowLeft, Settings2 } from "lucide-react";
 import Link from "next/link";
 
 import { BrandMark } from "@/components/shared/brand-mark";
+import { AccountUserMenu } from "@/features/account/components/account-user-menu";
+import { getAccountProfileForUser } from "@/features/account/queries";
+import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { getWorkspaceOverviewBySlug, getWorkspaceListForUser } from "@/features/workspaces/queries";
 import { WorkspaceOverviewContent } from "@/features/workspaces/components/workspace-overview";
 import { createBusinessAction } from "@/features/businesses/actions";
@@ -13,34 +16,53 @@ import {
 } from "@/features/workspaces/routes";
 import { requireSession } from "@/lib/auth/session";
 import { Button } from "@/components/ui/button";
-import { LogoutButton } from "@/features/auth/components/logout-button";
-import { AppearanceMenu } from "@/features/theme/components/appearance-menu";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { getWorkspaceBillingOverview } from "@/features/billing/queries";
+import { finalizeScheduledWorkspaceDeletionIfDue } from "@/features/workspaces/mutations";
 
 type WorkspacePageProps = {
   params: Promise<{
     workspaceSlug: string;
   }>;
+  searchParams?: Promise<{
+    view?: string;
+  }>;
 };
 
 export default async function WorkspacePage(props: WorkspacePageProps) {
   const params = await props.params;
+  const searchParams = (await props.searchParams) ?? {};
   const session = await requireSession();
+  const businessView =
+    searchParams.view === "archived" || searchParams.view === "trash"
+      ? searchParams.view
+      : "active";
 
-  const [overview, themePreference, workspaceList] = await Promise.all([
-    getWorkspaceOverviewBySlug(session.user.id, params.workspaceSlug),
+  const [overview, themePreference, workspaceList, profile] = await Promise.all([
+    getWorkspaceOverviewBySlug(session.user.id, params.workspaceSlug, businessView),
     getThemePreferenceForUser(session.user.id),
     getWorkspaceListForUser(session.user.id),
+    getAccountProfileForUser(session.user.id),
   ]);
 
   if (!overview) {
     notFound();
   }
 
+  const finalizedDeletion = await finalizeScheduledWorkspaceDeletionIfDue(overview.id);
+
+  if (finalizedDeletion.deleted) {
+    redirect(workspacesHubPath);
+  }
+
   const billingOverview = await getWorkspaceBillingOverview(overview.id);
   const isOwner = overview.memberRole === "owner";
+  const avatarSrc = resolveUserAvatarSrc({
+    avatarStoragePath: profile?.avatarStoragePath,
+    profileUpdatedAt: profile?.updatedAt,
+    oauthImage: session.user.image ?? null,
+  });
 
   return (
     <>
@@ -67,14 +89,26 @@ export default async function WorkspacePage(props: WorkspacePageProps) {
           </div>
           <div className="flex items-center gap-3">
             {isOwner && (
-              <Button asChild size="icon" variant="ghost" title="Workspace settings">
+              <Button
+                asChild
+                className="size-10 rounded-xl border-border/70 bg-background/90 shadow-sm hover:bg-muted/35"
+                size="icon"
+                title="Workspace settings"
+                variant="outline"
+              >
                 <Link href={getWorkspaceSettingsPath(overview.slug)} prefetch={true}>
                   <Settings2 className="size-4" />
                 </Link>
               </Button>
             )}
-            <AppearanceMenu iconOnly userId={session.user.id} />
-            <LogoutButton variant="outline" />
+            <AccountUserMenu
+              user={{
+                id: session.user.id,
+                email: session.user.email,
+                name: session.user.name,
+                avatarSrc,
+              }}
+            />
           </div>
         </header>
 
@@ -90,7 +124,9 @@ export default async function WorkspacePage(props: WorkspacePageProps) {
             </div>
             
             <WorkspaceOverviewContent
+              businessView={businessView}
               overview={overview}
+              searchParams={searchParams}
               workspaceList={workspaceList}
               billingOverview={billingOverview!}
               createBusinessAction={createBusinessAction}

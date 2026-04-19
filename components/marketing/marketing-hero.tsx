@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { Suspense } from "react";
 
 import {
   faqItems,
@@ -12,7 +13,10 @@ import {
 } from "@/components/marketing/marketing-data";
 import { InViewReveal } from "@/components/marketing/in-view-reveal";
 import { MarketingShowcase } from "@/components/marketing/marketing-showcase";
-import { PublicHeaderActions } from "@/components/marketing/public-header-actions";
+import {
+  PublicHeaderActions,
+  PublicHeaderActionsFallback,
+} from "@/components/marketing/public-header-actions";
 import { WorkflowStep } from "@/components/marketing/marketing-parts";
 import { BrandMark } from "@/components/shared/brand-mark";
 import {
@@ -32,7 +36,11 @@ export function MarketingHero() {
     <PublicPageShell
       brandSubtitle={null}
       className="pb-28 lg:pb-40"
-      headerAction={<PublicHeaderActions />}
+      headerAction={
+        <Suspense fallback={<PublicHeaderActionsFallback />}>
+          <PublicHeaderActions />
+        </Suspense>
+      }
       headerClassName="sticky top-0 z-40 rounded-none border-x-0 border-t-0 bg-background/92 px-0 py-4 shadow-none backdrop-blur-xl supports-backdrop-filter:bg-background/88 md:px-0"
       headerNav={
         <nav className="public-page-header-nav">
