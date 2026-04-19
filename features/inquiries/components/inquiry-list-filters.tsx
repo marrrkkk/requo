@@ -36,6 +36,7 @@ export function InquiryListFilters({
   const [status, setStatus] = useState<InquiryStatusFilterValue>(filters.status);
   const [form, setForm] = useState(filters.form);
   const [sort, setSort] = useState(filters.sort);
+  const view = filters.view;
 
   const hasMountedRef = useRef(false);
   const lastAppliedHrefRef = useRef<string>("");
@@ -45,9 +46,14 @@ export function InquiryListFilters({
     nextStatus: InquiryStatusFilterValue,
     nextForm: string,
     nextSort: "newest" | "oldest",
+    nextView: InquiryListFilters["view"],
   ) => {
     const params = new URLSearchParams();
     const trimmedQuery = nextQuery.trim();
+
+    if (nextView !== "active") {
+      params.set("view", nextView);
+    }
 
     if (trimmedQuery) {
       params.set("q", trimmedQuery);
@@ -87,10 +93,10 @@ export function InquiryListFilters({
     }
 
     const timer = setTimeout(() => {
-      navigate(query, status, form, sort);
+      navigate(query, status, form, sort, view);
     }, 400);
     return () => clearTimeout(timer);
-  }, [form, navigate, query, sort, status]);
+  }, [form, navigate, query, sort, status, view]);
 
   return (
     <DataListToolbar
@@ -107,7 +113,7 @@ export function InquiryListFilters({
       onFilterChange={(value) => {
         const nextStatus = value as InquiryStatusFilterValue;
         setStatus(nextStatus);
-        navigate(query, nextStatus, form, sort);
+        navigate(query, nextStatus, form, sort, view);
       }}
       filterOptions={statusOptions.map((option) => ({
         value: option,
@@ -119,7 +125,7 @@ export function InquiryListFilters({
       secondaryFilterValue={form}
       onSecondaryFilterChange={(value) => {
         setForm(value);
-        navigate(query, status, value, sort);
+        navigate(query, status, value, sort, view);
       }}
       secondaryFilterOptions={formOptions}
       sortId="inquiry-sort"
@@ -128,7 +134,7 @@ export function InquiryListFilters({
       onSortChange={(value) => {
         const nextSort = value as "newest" | "oldest";
         setSort(nextSort);
-        navigate(query, status, form, nextSort);
+        navigate(query, status, form, nextSort, view);
       }}
       sortOptions={[
         { label: "Newest first", value: "newest" },
@@ -140,7 +146,7 @@ export function InquiryListFilters({
         setStatus("all");
         setForm("all");
         setSort("newest");
-        navigate("", "all", "all", "newest");
+        navigate("", "all", "all", "newest", view);
       }}
       canClear={Boolean(
         query.trim() || status !== "all" || form !== "all" || sort !== "newest",

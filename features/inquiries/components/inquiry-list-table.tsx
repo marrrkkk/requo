@@ -15,6 +15,7 @@ import type { DashboardInquiryListItem } from "@/features/inquiries/types";
 import {
   formatInquiryDate,
 } from "@/features/inquiries/utils";
+import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
 
@@ -89,11 +90,14 @@ export function InquiryListTable({
                 </TableCell>
                 <TableCell className="w-[8.75rem]">
                   <Link
-                    className="inline-flex max-w-full"
+                    className="inline-flex max-w-full flex-wrap gap-2"
                     href={inquiryHref}
                     prefetch={true}
                   >
                     <InquiryStatusBadge status={inquiry.status} />
+                    {inquiry.recordState !== "active" ? (
+                      <InquiryRecordStateBadge state={inquiry.recordState} />
+                    ) : null}
                   </Link>
                 </TableCell>
               </TableRow>

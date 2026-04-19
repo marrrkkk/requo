@@ -10,6 +10,7 @@ import type { DashboardInquiryListItem } from "@/features/inquiries/types";
 import {
   formatInquiryDate,
 } from "@/features/inquiries/utils";
+import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
 
@@ -42,8 +43,11 @@ export function InquiryListCards({
                     {inquiry.customerEmail}
                   </CardDescription>
                 </div>
-                <div className="shrink-0">
+                <div className="shrink-0 space-y-2">
                   <InquiryStatusBadge status={inquiry.status} />
+                  {inquiry.recordState !== "active" ? (
+                    <InquiryRecordStateBadge state={inquiry.recordState} />
+                  ) : null}
                 </div>
               </div>
             </CardHeader>

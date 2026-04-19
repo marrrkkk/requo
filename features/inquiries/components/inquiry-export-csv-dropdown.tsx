@@ -40,6 +40,7 @@ export function InquiryExportCsvDropdown({
   resultCount,
 }: InquiryExportCsvDropdownProps) {
   const [query, setQuery] = useState(filters.q ?? "");
+  const view = filters.view;
   const [status, setStatus] = useState<InquiryStatusFilterValue>(filters.status);
   const [form, setForm] = useState(filters.form);
   const [sort, setSort] = useState<"newest" | "oldest">(filters.sort);
@@ -52,6 +53,9 @@ export function InquiryExportCsvDropdown({
 
     if (trimmedQuery) {
       params.set("q", trimmedQuery);
+    }
+    if (view !== "active") {
+      params.set("view", view);
     }
     if (status !== "all") {
       params.set("status", status);
@@ -72,7 +76,7 @@ export function InquiryExportCsvDropdown({
     return `${getBusinessInquiriesExportPath(businessSlug)}${
       params.size ? `?${params.toString()}` : ""
     }`;
-  }, [businessSlug, form, from, query, sort, status, to]);
+  }, [businessSlug, form, from, query, sort, status, to, view]);
 
   return (
     <DropdownMenu modal={false}>
