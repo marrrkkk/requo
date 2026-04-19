@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import { PublicInquiryFormViewTracker } from "@/features/analytics/components/public-page-analytics-tracker";
@@ -59,12 +58,10 @@ export default async function PublicInquiryFormPage({
         business={business}
         action={submitPublicInquiry}
       />
-      <Suspense fallback={null}>
-        <PublicInquiryFormViewTracker
-          businessId={business.id}
-          businessInquiryFormId={business.form.id}
-        />
-      </Suspense>
+      <PublicInquiryFormViewTracker
+        businessId={business.id}
+        businessInquiryFormId={business.form.id}
+      />
     </>
   );
 }

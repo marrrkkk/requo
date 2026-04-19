@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
 
 import {
   PublicHeroSurface,
@@ -84,12 +83,10 @@ export default async function PublicQuotePage({
           <MadeWithRequo />
         ) : null}
       </PublicPageShell>
-      <Suspense fallback={null}>
-        <PublicQuoteViewTracker
-          businessId={quote.businessId}
-          quoteId={quote.id}
-        />
-      </Suspense>
+      <PublicQuoteViewTracker
+        businessId={quote.businessId}
+        quoteId={quote.id}
+      />
     </>
   );
 }
