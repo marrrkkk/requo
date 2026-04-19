@@ -38,12 +38,15 @@ vi.mock("@/lib/public-action-rate-limit", () => ({
 }));
 
 vi.mock("@/features/quotes/mutations", () => ({
-  changeQuoteStatusForBusiness: vi.fn(),
+  archiveQuoteForBusiness: vi.fn(),
   createQuoteForBusiness: vi.fn(),
+  deleteDraftQuoteForBusiness: vi.fn(),
   markQuoteSentForBusiness: vi.fn(),
   respondToPublicQuoteByToken: respondToPublicQuoteByTokenMock,
+  restoreArchivedQuoteForBusiness: vi.fn(),
   updateQuoteForBusiness: vi.fn(),
   updateQuotePostAcceptanceStatusForBusiness: vi.fn(),
+  voidQuoteForBusiness: vi.fn(),
 }));
 
 vi.mock("@/features/quotes/queries", () => ({
@@ -188,6 +191,35 @@ describe("quote actions", () => {
       response: "rejected",
       dashboardUrl:
         "https://requo.test/businesses/brightside-print-studio/dashboard/quotes/quote_123",
+    });
+  });
+
+  it("returns a clear message when a public quote has been voided", async () => {
+    respondToPublicQuoteByTokenMock.mockResolvedValue({
+      updated: false,
+      status: "voided",
+      quoteNumber: "Q-1002",
+      businessId: "business_123",
+      businessSlug: "brightside-print-studio",
+      inquiryId: "inquiry_123",
+      quoteId: "quote_123",
+      updatedAt: new Date("2026-04-18T08:00:00.000Z"),
+      notifyOnQuoteResponse: false,
+      businessName: "BrightSide Print Studio",
+      customerName: "Taylor Nguyen",
+      customerEmail: "taylor@example.com",
+      customerResponseMessage: null,
+      title: "Foundry Labs booth kit",
+    });
+
+    const formData = new FormData();
+    formData.set("response", "accepted");
+    formData.set("message", "Please proceed.");
+
+    const result = await respondToPublicQuoteAction("quote_token_123", {}, formData);
+
+    expect(result).toEqual({
+      error: "This quote has been voided and can no longer be accepted online.",
     });
   });
 });

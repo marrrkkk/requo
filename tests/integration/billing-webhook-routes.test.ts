@@ -7,8 +7,10 @@ const {
   markEventProcessedMock,
   recordPaymentAttemptMock,
   activateSubscriptionMock,
+  getWorkspaceSubscriptionMock,
   updateSubscriptionStatusMock,
   expireSubscriptionMock,
+  finalizeScheduledWorkspaceDeletionIfDueMock,
 } = vi.hoisted(() => ({
   verifyPaddleWebhookSignatureMock: vi.fn(),
   mapPaddleStatusMock: vi.fn(),
@@ -16,8 +18,10 @@ const {
   markEventProcessedMock: vi.fn(),
   recordPaymentAttemptMock: vi.fn(),
   activateSubscriptionMock: vi.fn(),
+  getWorkspaceSubscriptionMock: vi.fn(),
   updateSubscriptionStatusMock: vi.fn(),
   expireSubscriptionMock: vi.fn(),
+  finalizeScheduledWorkspaceDeletionIfDueMock: vi.fn(),
 }));
 
 vi.mock("@/lib/billing/providers/paddle", () => ({
@@ -34,7 +38,13 @@ vi.mock("@/lib/billing/webhook-processor", () => ({
 vi.mock("@/lib/billing/subscription-service", () => ({
   activateSubscription: activateSubscriptionMock,
   expireSubscription: expireSubscriptionMock,
+  getWorkspaceSubscription: getWorkspaceSubscriptionMock,
   updateSubscriptionStatus: updateSubscriptionStatusMock,
+}));
+
+vi.mock("@/features/workspaces/mutations", () => ({
+  finalizeScheduledWorkspaceDeletionIfDue:
+    finalizeScheduledWorkspaceDeletionIfDueMock,
 }));
 
 import { POST as postPaddleWebhook } from "@/app/api/billing/paddle/webhook/route";
@@ -44,6 +54,10 @@ describe("billing webhook routes", () => {
     vi.clearAllMocks();
     verifyPaddleWebhookSignatureMock.mockReturnValue(true);
     mapPaddleStatusMock.mockReturnValue("active");
+    getWorkspaceSubscriptionMock.mockResolvedValue(null);
+    finalizeScheduledWorkspaceDeletionIfDueMock.mockResolvedValue({
+      deleted: false,
+    });
     recordWebhookEventMock.mockResolvedValue({
       eventId: "stored_evt_123",
       isNew: true,
