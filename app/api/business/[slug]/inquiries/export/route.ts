@@ -42,6 +42,7 @@ export async function GET(
     ? parsedFilters.data
     : {
         q: undefined,
+        view: "active" as const,
         status: "all" as const,
         form: "all",
         sort: "newest" as const,
@@ -60,6 +61,7 @@ export async function GET(
     businessId: requestContext.businessContext.business.id,
     filters: {
       q: filters.q,
+      view: filters.view,
       status: filters.status,
       form: filters.form,
       sort: filters.sort,
@@ -111,6 +113,10 @@ export async function GET(
         render: (row) => row.status,
       },
       {
+        header: "record_state",
+        render: (row) => row.recordState,
+      },
+      {
         header: "budget_text",
         render: (row) => row.budgetText,
       },
@@ -121,6 +127,14 @@ export async function GET(
       {
         header: "details",
         render: (row) => row.details,
+      },
+      {
+        header: "archived_at",
+        render: (row) => row.archivedAt?.toISOString(),
+      },
+      {
+        header: "deleted_at",
+        render: (row) => row.deletedAt?.toISOString(),
       },
     ],
     rows,
