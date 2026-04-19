@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
   usageLimitKeys,
-  type UsageLimitKey,
   getUsageLimit,
   isUsageLimited,
   usageLimitLabels,
@@ -12,13 +11,15 @@ describe('lib/plans/usage-limits', () => {
     it('contains all required limit keys', () => {
       expect(usageLimitKeys).toContain('inquiriesPerMonth');
       expect(usageLimitKeys).toContain('quotesPerMonth');
+      expect(usageLimitKeys).toContain('requoQuoteEmailsPerDay');
+      expect(usageLimitKeys).toContain('requoQuoteEmailsPerMonth');
       expect(usageLimitKeys).toContain('businessesPerWorkspace');
       expect(usageLimitKeys).toContain('membersPerWorkspace');
       expect(usageLimitKeys).toContain('liveFormsPerWorkspace');
     });
 
     it('has expected count of limit keys', () => {
-      expect(usageLimitKeys.length).toBe(6);
+      expect(usageLimitKeys.length).toBe(8);
     });
   });
 
@@ -30,6 +31,14 @@ describe('lib/plans/usage-limits', () => {
 
       it('has limited quotes per month', () => {
         expect(getUsageLimit('free', 'quotesPerMonth')).toBe(50);
+      });
+
+      it('has limited Requo quote sends per day', () => {
+        expect(getUsageLimit('free', 'requoQuoteEmailsPerDay')).toBe(3);
+      });
+
+      it('has limited Requo quote sends per month', () => {
+        expect(getUsageLimit('free', 'requoQuoteEmailsPerMonth')).toBe(30);
       });
 
       it('has limited businesses per workspace', () => {
@@ -54,6 +63,14 @@ describe('lib/plans/usage-limits', () => {
         expect(getUsageLimit('pro', 'quotesPerMonth')).toBeNull();
       });
 
+      it('has unlimited Requo quote sends per day', () => {
+        expect(getUsageLimit('pro', 'requoQuoteEmailsPerDay')).toBeNull();
+      });
+
+      it('has unlimited Requo quote sends per month', () => {
+        expect(getUsageLimit('pro', 'requoQuoteEmailsPerMonth')).toBeNull();
+      });
+
       it('has limited but higher businesses limit', () => {
         expect(getUsageLimit('pro', 'businessesPerWorkspace')).toBe(10);
       });
@@ -76,6 +93,14 @@ describe('lib/plans/usage-limits', () => {
         expect(getUsageLimit('business', 'quotesPerMonth')).toBeNull();
       });
 
+      it('has unlimited Requo quote sends per day', () => {
+        expect(getUsageLimit('business', 'requoQuoteEmailsPerDay')).toBeNull();
+      });
+
+      it('has unlimited Requo quote sends per month', () => {
+        expect(getUsageLimit('business', 'requoQuoteEmailsPerMonth')).toBeNull();
+      });
+
       it('has unlimited businesses', () => {
         expect(getUsageLimit('business', 'businessesPerWorkspace')).toBeNull();
       });
@@ -94,6 +119,8 @@ describe('lib/plans/usage-limits', () => {
     it('free plan is limited on all keys', () => {
       expect(isUsageLimited('free', 'inquiriesPerMonth')).toBe(true);
       expect(isUsageLimited('free', 'quotesPerMonth')).toBe(true);
+      expect(isUsageLimited('free', 'requoQuoteEmailsPerDay')).toBe(true);
+      expect(isUsageLimited('free', 'requoQuoteEmailsPerMonth')).toBe(true);
       expect(isUsageLimited('free', 'businessesPerWorkspace')).toBe(true);
       expect(isUsageLimited('free', 'membersPerWorkspace')).toBe(true);
       expect(isUsageLimited('free', 'liveFormsPerWorkspace')).toBe(true);
@@ -102,6 +129,8 @@ describe('lib/plans/usage-limits', () => {
     it('pro plan is limited on some keys', () => {
       expect(isUsageLimited('pro', 'inquiriesPerMonth')).toBe(false);
       expect(isUsageLimited('pro', 'quotesPerMonth')).toBe(false);
+      expect(isUsageLimited('pro', 'requoQuoteEmailsPerDay')).toBe(false);
+      expect(isUsageLimited('pro', 'requoQuoteEmailsPerMonth')).toBe(false);
       expect(isUsageLimited('pro', 'businessesPerWorkspace')).toBe(true);
       expect(isUsageLimited('pro', 'membersPerWorkspace')).toBe(true);
       expect(isUsageLimited('pro', 'liveFormsPerWorkspace')).toBe(false);
@@ -110,6 +139,8 @@ describe('lib/plans/usage-limits', () => {
     it('business plan is limited only on members', () => {
       expect(isUsageLimited('business', 'inquiriesPerMonth')).toBe(false);
       expect(isUsageLimited('business', 'quotesPerMonth')).toBe(false);
+      expect(isUsageLimited('business', 'requoQuoteEmailsPerDay')).toBe(false);
+      expect(isUsageLimited('business', 'requoQuoteEmailsPerMonth')).toBe(false);
       expect(isUsageLimited('business', 'businessesPerWorkspace')).toBe(false);
       expect(isUsageLimited('business', 'membersPerWorkspace')).toBe(true);
       expect(isUsageLimited('business', 'liveFormsPerWorkspace')).toBe(false);
@@ -131,6 +162,14 @@ describe('lib/plans/usage-limits', () => {
 
     it('quotesPerMonth has correct label', () => {
       expect(usageLimitLabels.quotesPerMonth).toBe('Quotes per month');
+    });
+
+    it('requoQuoteEmailsPerDay has correct label', () => {
+      expect(usageLimitLabels.requoQuoteEmailsPerDay).toBe('Requo quote sends per day');
+    });
+
+    it('requoQuoteEmailsPerMonth has correct label', () => {
+      expect(usageLimitLabels.requoQuoteEmailsPerMonth).toBe('Requo quote sends per month');
     });
 
     it('businessesPerWorkspace has correct label', () => {
