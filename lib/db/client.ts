@@ -2,9 +2,8 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 import { env } from "@/lib/env";
+import { getDatabaseConnectionOptions } from "@/lib/db/connection-options";
 import * as schema from "@/lib/db/schema";
-
-const dbConnectTimeoutSeconds = 5;
 
 const globalForDb = globalThis as unknown as {
   connection: postgres.Sql | undefined;
@@ -13,10 +12,7 @@ const globalForDb = globalThis as unknown as {
 
 const connection =
   globalForDb.connection ??
-  postgres(env.DATABASE_URL, {
-    connect_timeout: dbConnectTimeoutSeconds,
-    prepare: false,
-  });
+  postgres(env.DATABASE_URL, getDatabaseConnectionOptions(env.DATABASE_URL));
 
 export const db = globalForDb.db ?? drizzle(connection, { schema });
 export const dbConnection = connection;

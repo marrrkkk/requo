@@ -17,6 +17,12 @@ async function signIn(page: Page) {
   await expect(page).toHaveURL(/\/businesses$/, { timeout: 20_000 });
 }
 
+async function expectBodyScrollUnlocked(page: Page) {
+  await expect
+    .poll(() => page.evaluate(() => document.body.hasAttribute("data-scroll-locked")))
+    .toBe(false);
+}
+
 test("owner can save a pricing block and insert it into a new quote", async ({
   page,
 }) => {
@@ -52,6 +58,10 @@ test("owner can save a pricing block and insert it into a new quote", async ({
 
   await page.getByRole("button", { name: "Insert saved" }).click();
   await expect(page.getByText("Insert saved pricing")).toBeVisible();
+  await expect(
+    page.locator('[data-slot="sheet-overlay"][data-state="open"]'),
+  ).toBeVisible();
+  await expectBodyScrollUnlocked(page);
 
   const pricingSheetEntry = page
     .getByTestId("quote-library-sheet-entry")

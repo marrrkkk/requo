@@ -1,6 +1,7 @@
 import "server-only";
 
 import { db } from "@/lib/db/client";
+import { writeAuditLog } from "@/features/audit/mutations";
 import {
   resolveSafeContentType,
   sanitizeStorageFileName,
@@ -19,7 +20,10 @@ import {
   publicInquiryExtensionToMimeType,
   type PublicInquirySubmissionInput,
 } from "@/features/inquiries/schemas";
-import type { InquiryStatus } from "@/features/inquiries/types";
+import type {
+  InquiryStatus,
+  InquiryWorkflowStatus,
+} from "@/features/inquiries/types";
 import { getInquiryStatusLabel } from "@/features/inquiries/utils";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
 import { and, eq } from "drizzle-orm";
@@ -44,6 +48,10 @@ type PreparedAttachment = {
 
 function createId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
+}
+
+function normalizeLegacyArchivedInquiryStatus(status: InquiryStatus) {
+  return status === "archived" ? "waiting" : status;
 }
 
 export async function createPublicInquirySubmission({
@@ -261,7 +269,7 @@ type ChangeInquiryStatusForBusinessInput = {
   businessId: string;
   inquiryId: string;
   actorUserId: string;
-  nextStatus: InquiryStatus;
+  nextStatus: InquiryWorkflowStatus;
 };
 
 export async function changeInquiryStatusForBusiness({
@@ -278,8 +286,14 @@ export async function changeInquiryStatusForBusiness({
       .select({
         id: inquiries.id,
         status: inquiries.status,
+        archivedAt: inquiries.archivedAt,
+        deletedAt: inquiries.deletedAt,
+        workspaceId: businesses.workspaceId,
+        customerName: inquiries.customerName,
+        serviceCategory: inquiries.serviceCategory,
       })
       .from(inquiries)
+      .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
       .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
       .limit(1);
 
@@ -287,9 +301,30 @@ export async function changeInquiryStatusForBusiness({
       return null;
     }
 
+    if (existingInquiry.deletedAt) {
+      return {
+        changed: false,
+        locked: true,
+        lockedReason: "trash" as const,
+        previousStatus: existingInquiry.status,
+        nextStatus: existingInquiry.status,
+      };
+    }
+
+    if (existingInquiry.archivedAt) {
+      return {
+        changed: false,
+        locked: true,
+        lockedReason: "archived" as const,
+        previousStatus: existingInquiry.status,
+        nextStatus: existingInquiry.status,
+      };
+    }
+
     if (existingInquiry.status === nextStatus) {
       return {
         changed: false,
+        locked: false,
         previousStatus: existingInquiry.status,
         nextStatus,
       };
@@ -322,8 +357,343 @@ export async function changeInquiryStatusForBusiness({
 
     return {
       changed: true,
+      locked: false,
       previousStatus: existingInquiry.status,
       nextStatus,
+    };
+  });
+}
+
+type UpdateInquiryRecordStateForBusinessInput = {
+  businessId: string;
+  inquiryId: string;
+  actorUserId: string;
+};
+
+export async function archiveInquiryForBusiness({
+  businessId,
+  inquiryId,
+  actorUserId,
+}: UpdateInquiryRecordStateForBusinessInput) {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [existingInquiry] = await tx
+      .select({
+        id: inquiries.id,
+        status: inquiries.status,
+        archivedAt: inquiries.archivedAt,
+        deletedAt: inquiries.deletedAt,
+        workspaceId: businesses.workspaceId,
+        customerName: inquiries.customerName,
+        serviceCategory: inquiries.serviceCategory,
+      })
+      .from(inquiries)
+      .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
+      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
+      .limit(1);
+
+    if (!existingInquiry) {
+      return null;
+    }
+
+    if (existingInquiry.deletedAt) {
+      return {
+        changed: false,
+        locked: true,
+        lockedReason: "trash" as const,
+      };
+    }
+
+    if (existingInquiry.archivedAt) {
+      return {
+        changed: false,
+        locked: false,
+      };
+    }
+
+    await tx
+      .update(inquiries)
+      .set({
+        archivedAt: now,
+        archivedBy: actorUserId,
+        deletedAt: null,
+        deletedBy: null,
+        updatedAt: now,
+      })
+      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)));
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      inquiryId,
+      actorUserId,
+      type: "inquiry.archived",
+      summary: "Request archived.",
+      metadata: {
+        previousStatus: existingInquiry.status,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await writeAuditLog(tx, {
+      workspaceId: existingInquiry.workspaceId,
+      businessId,
+      actorUserId,
+      entityType: "request",
+      entityId: inquiryId,
+      action: "request.archived",
+      metadata: {
+        customerName: existingInquiry.customerName,
+        serviceCategory: existingInquiry.serviceCategory,
+      },
+      createdAt: now,
+    });
+
+    return {
+      changed: true,
+      locked: false,
+    };
+  });
+}
+
+export async function unarchiveInquiryForBusiness({
+  businessId,
+  inquiryId,
+  actorUserId,
+}: UpdateInquiryRecordStateForBusinessInput) {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [existingInquiry] = await tx
+      .select({
+        id: inquiries.id,
+        status: inquiries.status,
+        archivedAt: inquiries.archivedAt,
+        deletedAt: inquiries.deletedAt,
+        workspaceId: businesses.workspaceId,
+        customerName: inquiries.customerName,
+        serviceCategory: inquiries.serviceCategory,
+      })
+      .from(inquiries)
+      .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
+      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
+      .limit(1);
+
+    if (!existingInquiry) {
+      return null;
+    }
+
+    if (existingInquiry.deletedAt) {
+      return {
+        changed: false,
+        locked: true,
+        lockedReason: "trash" as const,
+      };
+    }
+
+    const nextStatus = normalizeLegacyArchivedInquiryStatus(existingInquiry.status);
+
+    if (!existingInquiry.archivedAt && nextStatus === existingInquiry.status) {
+      return {
+        changed: false,
+        locked: false,
+      };
+    }
+
+    await tx
+      .update(inquiries)
+      .set({
+        status: nextStatus,
+        archivedAt: null,
+        archivedBy: null,
+        updatedAt: now,
+      })
+      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)));
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      inquiryId,
+      actorUserId,
+      type: "inquiry.unarchived",
+      summary: "Request restored to active.",
+      metadata: {
+        previousStatus: existingInquiry.status,
+        restoredStatus: nextStatus,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      changed: true,
+      locked: false,
+      status: nextStatus,
+    };
+  });
+}
+
+export async function trashInquiryForBusiness({
+  businessId,
+  inquiryId,
+  actorUserId,
+}: UpdateInquiryRecordStateForBusinessInput) {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [existingInquiry] = await tx
+      .select({
+        id: inquiries.id,
+        status: inquiries.status,
+        archivedAt: inquiries.archivedAt,
+        deletedAt: inquiries.deletedAt,
+        workspaceId: businesses.workspaceId,
+        customerName: inquiries.customerName,
+        serviceCategory: inquiries.serviceCategory,
+      })
+      .from(inquiries)
+      .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
+      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
+      .limit(1);
+
+    if (!existingInquiry) {
+      return null;
+    }
+
+    if (existingInquiry.deletedAt) {
+      return {
+        changed: false,
+      };
+    }
+
+    const nextStatus = normalizeLegacyArchivedInquiryStatus(existingInquiry.status);
+
+    await tx
+      .update(inquiries)
+      .set({
+        status: nextStatus,
+        archivedAt: null,
+        archivedBy: null,
+        deletedAt: now,
+        deletedBy: actorUserId,
+        updatedAt: now,
+      })
+      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)));
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      inquiryId,
+      actorUserId,
+      type: "inquiry.trashed",
+      summary: "Request moved to trash.",
+      metadata: {
+        previousStatus: existingInquiry.status,
+        restoredStatus: nextStatus,
+        wasArchived: Boolean(existingInquiry.archivedAt),
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await writeAuditLog(tx, {
+      workspaceId: existingInquiry.workspaceId,
+      businessId,
+      actorUserId,
+      entityType: "request",
+      entityId: inquiryId,
+      action: "request.trashed",
+      metadata: {
+        customerName: existingInquiry.customerName,
+        serviceCategory: existingInquiry.serviceCategory,
+      },
+      createdAt: now,
+    });
+
+    return {
+      changed: true,
+    };
+  });
+}
+
+export async function restoreInquiryFromTrashForBusiness({
+  businessId,
+  inquiryId,
+  actorUserId,
+}: UpdateInquiryRecordStateForBusinessInput) {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [existingInquiry] = await tx
+      .select({
+        id: inquiries.id,
+        status: inquiries.status,
+        deletedAt: inquiries.deletedAt,
+        workspaceId: businesses.workspaceId,
+        customerName: inquiries.customerName,
+        serviceCategory: inquiries.serviceCategory,
+      })
+      .from(inquiries)
+      .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
+      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
+      .limit(1);
+
+    if (!existingInquiry) {
+      return null;
+    }
+
+    if (!existingInquiry.deletedAt) {
+      return {
+        changed: false,
+      };
+    }
+
+    const nextStatus = normalizeLegacyArchivedInquiryStatus(existingInquiry.status);
+
+    await tx
+      .update(inquiries)
+      .set({
+        status: nextStatus,
+        deletedAt: null,
+        deletedBy: null,
+        updatedAt: now,
+      })
+      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)));
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      inquiryId,
+      actorUserId,
+      type: "inquiry.restored_from_trash",
+      summary: "Request restored from trash.",
+      metadata: {
+        previousStatus: existingInquiry.status,
+        restoredStatus: nextStatus,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await writeAuditLog(tx, {
+      workspaceId: existingInquiry.workspaceId,
+      businessId,
+      actorUserId,
+      entityType: "request",
+      entityId: inquiryId,
+      action: "request.restored",
+      metadata: {
+        customerName: existingInquiry.customerName,
+        serviceCategory: existingInquiry.serviceCategory,
+      },
+      createdAt: now,
+    });
+
+    return {
+      changed: true,
+      status: nextStatus,
     };
   });
 }

@@ -38,7 +38,7 @@ export default async function BusinessKnowledgePage() {
                   currentPlan: billingOverview.currentPlan,
                   region: billingOverview.region,
                   defaultCurrency: billingOverview.defaultCurrency,
-                  ctaLabel: "Upgrade for knowledge base",
+                  ctaLabel: "Upgrade for Knowledge",
                 }
               : undefined
           }
@@ -59,7 +59,7 @@ export default async function BusinessKnowledgePage() {
     <>
       <PageHeader
         eyebrow="Responses"
-        title="Knowledge base"
+        title="Knowledge"
         description="Saved context for AI drafting."
       />
 

@@ -163,7 +163,7 @@ test("dashboard and detail pages surface follow-up, expiring-soon, and customer 
   await expect(page.getByRole("link", { name: "Office signage" })).toBeVisible();
   await expect(
     page.getByRole("link", {
-      name: "Q-0998 | Foundry Labs rebrand signage package",
+      name: "Q-SMOKE-0998 | Foundry Labs rebrand signage package",
     }),
   ).toBeVisible();
   await expect(
@@ -175,7 +175,7 @@ test("dashboard and detail pages surface follow-up, expiring-soon, and customer 
   await expect(page.getByRole("link", { name: "Office signage" })).toBeVisible();
   await expect(
     page.getByRole("link", {
-      name: "Q-0998 | Foundry Labs rebrand signage package",
+      name: "Q-SMOKE-0998 | Foundry Labs rebrand signage package",
     }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "Event signage" })).toHaveCount(0);
@@ -504,7 +504,7 @@ test("accepted quotes can move from booked to scheduled", async ({ page }) => {
   await page.getByRole("option", { name: "Booked" }).click();
   await page.getByRole("button", { name: "Save post-acceptance status" }).click();
 
-  await expect(page.getByText("Quote Q-1003 marked booked.")).toBeVisible({
+  await expect(page.getByText("Quote Q-SMOKE-1003 marked booked.")).toBeVisible({
     timeout: 20_000,
   });
   await expect(postAcceptanceSelect).toContainText("Booked");
@@ -513,7 +513,7 @@ test("accepted quotes can move from booked to scheduled", async ({ page }) => {
   await page.getByRole("option", { name: "Scheduled" }).click();
   await page.getByRole("button", { name: "Save post-acceptance status" }).click();
 
-  await expect(page.getByText("Quote Q-1003 marked scheduled.")).toBeVisible({
+  await expect(page.getByText("Quote Q-SMOKE-1003 marked scheduled.")).toBeVisible({
     timeout: 20_000,
   });
   await expect(postAcceptanceSelect).toContainText("Scheduled");
@@ -550,7 +550,7 @@ test("quotes and requests list exports honor filters and show export actions", a
   const quoteCsvText = await quoteCsvResponse.text();
   expect(quoteCsvText.startsWith("\uFEFF")).toBeTruthy();
   expect(quoteCsvText).toContain(
-    "quote_number,title,customer_name,customer_email,status,post_acceptance_status,linked_inquiry_id,valid_until,total_amount,currency,created_at,sent_at,customer_responded_at",
+    "quote_number,title,customer_name,customer_email,status,archived_at,voided_at,post_acceptance_status,linked_inquiry_id,valid_until,total_amount,currency,created_at,sent_at,customer_responded_at",
   );
   expect(quoteCsvText).toContain(",sent,");
 
@@ -574,7 +574,7 @@ test("quotes and requests list exports honor filters and show export actions", a
   const inquiryCsvText = await inquiryCsvResponse.text();
   expect(inquiryCsvText.startsWith("\uFEFF")).toBeTruthy();
   expect(inquiryCsvText).toContain(
-    "inquiry_id,submitted_at,form_name,customer_name,customer_email,customer_phone,company_name,service_category,subject,status,budget_text,requested_deadline,details",
+    "inquiry_id,submitted_at,form_name,customer_name,customer_email,customer_phone,company_name,service_category,subject,status,record_state,budget_text,requested_deadline,details,archived_at,deleted_at",
   );
   expect(inquiryCsvText).toContain(",new,");
 });
@@ -585,9 +585,13 @@ test("inquiry detail exposes PDF export and print-safe document", async ({
   await signIn(page);
   await openBusinessesPage(page, "/inquiries/demo_inquiry_quoted_booth_kit");
 
-  await expect(page.getByRole("link", { name: "Export PDF" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Export" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Print" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Generate quote" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Export" }).click();
+  await expect(page.getByRole("link", { name: "Export PDF" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Export PNG" })).toBeVisible();
 
   const pdfResponse = await page.request.get(
     `/api/business/${demoBusinessSlug}/inquiries/demo_inquiry_quoted_booth_kit/export`,
@@ -596,6 +600,16 @@ test("inquiry detail exposes PDF export and print-safe document", async ({
   expect(pdfResponse.headers()["content-type"]).toContain("application/pdf");
   const pdfBuffer = await pdfResponse.body();
   expect(pdfBuffer.toString("utf-8", 0, 4)).toBe("%PDF");
+
+  const pngResponse = await page.request.get(
+    `/api/business/${demoBusinessSlug}/inquiries/demo_inquiry_quoted_booth_kit/export?format=png`,
+  );
+  expect(pngResponse.ok()).toBeTruthy();
+  expect(pngResponse.headers()["content-type"]).toContain("image/png");
+  const pngBuffer = await pngResponse.body();
+  expect(Array.from(pngBuffer.subarray(0, 8))).toEqual([
+    137, 80, 78, 71, 13, 10, 26, 10,
+  ]);
 
   await page.goto(
     `/businesses/${demoBusinessSlug}/print/inquiries/demo_inquiry_quoted_booth_kit`,
@@ -607,6 +621,47 @@ test("inquiry detail exposes PDF export and print-safe document", async ({
   await expect(page.getByRole("heading", { name: "Internal notes" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Activity log" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Status" })).toHaveCount(0);
+});
+
+test("quote detail exposes export formats and returns PDF and PNG downloads", async ({
+  page,
+}) => {
+  await signIn(page);
+  await openBusinessesPage(page, "/quotes/demo_quote_sent_1002");
+
+  await expect(page.getByRole("button", { name: "Export" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Print" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Export" }).click();
+  await expect(page.getByRole("link", { name: "Export PDF" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Export PNG" })).toBeVisible();
+
+  const pdfResponse = await page.request.get(
+    `/api/business/${demoBusinessSlug}/quotes/demo_quote_sent_1002/export`,
+  );
+  expect(pdfResponse.ok()).toBeTruthy();
+  expect(pdfResponse.headers()["content-type"]).toContain("application/pdf");
+  const pdfBuffer = await pdfResponse.body();
+  expect(pdfBuffer.toString("utf-8", 0, 4)).toBe("%PDF");
+
+  const pngResponse = await page.request.get(
+    `/api/business/${demoBusinessSlug}/quotes/demo_quote_sent_1002/export?format=png`,
+  );
+  expect(pngResponse.ok()).toBeTruthy();
+  expect(pngResponse.headers()["content-type"]).toContain("image/png");
+  const pngBuffer = await pngResponse.body();
+  expect(Array.from(pngBuffer.subarray(0, 8))).toEqual([
+    137, 80, 78, 71, 13, 10, 26, 10,
+  ]);
+
+  await page.goto(
+    `/businesses/${demoBusinessSlug}/print/quotes/demo_quote_sent_1002?autoprint=0`,
+  );
+  await page.waitForLoadState("networkidle");
+
+  await expect(page.getByRole("heading", { name: "Foundry Labs booth kit" })).toBeVisible();
+  await expect(page.getByText("Prepared for")).toBeVisible();
+  await expect(page.getByText("Quote details")).toBeVisible();
 });
 
 test("notification settings live under general settings and persist", async ({

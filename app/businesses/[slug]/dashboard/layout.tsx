@@ -20,25 +20,28 @@ export default async function BusinessDashboardLayout({
   params,
 }: { children: React.ReactNode; params: Promise<{ slug: string }> }) {
   const [session, { slug }] = await Promise.all([requireSession(), params]);
-  const [themePreference, businessContext, businessMemberships, profile] = await Promise.all([
-    getThemePreferenceForUser(session.user.id),
-    getBusinessContextForMembershipSlug(session.user.id, slug),
-    getBusinessMembershipsForUser(session.user.id),
-    getAccountProfileForUser(session.user.id),
-  ]);
+  const businessContext = await getBusinessContextForMembershipSlug(
+    session.user.id,
+    slug,
+  );
 
   if (!businessContext) {
     redirect(workspacesHubPath);
   }
 
-  const [notificationView, workspaceBilling] = await Promise.all([
-    getBusinessNotificationBellView({
-      businessId: businessContext.business.id,
-      businessSlug: businessContext.business.slug,
-      userId: session.user.id,
-    }),
-    getWorkspaceBillingOverview(businessContext.business.workspaceId),
+  const [themePreference, businessMemberships, profile] = await Promise.all([
+    getThemePreferenceForUser(session.user.id),
+    getBusinessMembershipsForUser(session.user.id),
+    getAccountProfileForUser(session.user.id),
   ]);
+  const notificationView = await getBusinessNotificationBellView({
+    businessId: businessContext.business.id,
+    businessSlug: businessContext.business.slug,
+    userId: session.user.id,
+  });
+  const workspaceBilling = await getWorkspaceBillingOverview(
+    businessContext.business.workspaceId,
+  );
   const avatarSrc = resolveUserAvatarSrc({
     avatarStoragePath: profile?.avatarStoragePath,
     profileUpdatedAt: profile?.updatedAt,

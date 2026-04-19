@@ -8,10 +8,18 @@ import "server-only";
  * timestamps. No dedicated usage table is needed.
  */
 
-import { and, count, eq, gte, inArray, lt } from "drizzle-orm";
+import { and, count, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
-import { businesses, businessInquiryForms, inquiries, quotes, workspaceMembers } from "@/lib/db/schema";
+import {
+  activityLogs,
+  businesses,
+  businessInquiryForms,
+  inquiries,
+  quotes,
+  workspaceMembers,
+  workspaces,
+} from "@/lib/db/schema";
 import type { WorkspacePlan } from "@/lib/plans/plans";
 import {
   getUsageLimit,
@@ -28,6 +36,18 @@ function getCurrentMonthBounds() {
   return { start, end };
 }
 
+function getCurrentDayBounds() {
+  const now = new Date();
+  const start = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+  const end = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1),
+  );
+
+  return { start, end };
+}
+
 /**
  * Returns all business IDs belonging to a workspace.
  */
@@ -37,7 +57,14 @@ async function getWorkspaceBusinessIds(
   const rows = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(eq(businesses.workspaceId, workspaceId));
+    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
+    .where(
+      and(
+        eq(businesses.workspaceId, workspaceId),
+        isNull(workspaces.deletedAt),
+        isNull(businesses.deletedAt),
+      ),
+    );
 
   return rows.map((r) => r.id);
 }
@@ -62,6 +89,7 @@ export async function getMonthlyInquiryCount(
     .where(
       and(
         inArray(inquiries.businessId, bizIds),
+        isNull(inquiries.deletedAt),
         gte(inquiries.createdAt, start),
         lt(inquiries.createdAt, end),
       ),
@@ -90,12 +118,65 @@ export async function getMonthlyQuoteCount(
     .where(
       and(
         inArray(quotes.businessId, bizIds),
+        isNull(quotes.deletedAt),
         gte(quotes.createdAt, start),
         lt(quotes.createdAt, end),
       ),
     );
 
   return Number(row?.value ?? 0);
+}
+
+async function getWorkspaceQuoteSendCountByMethod(
+  workspaceId: string,
+  {
+    end,
+    method,
+    start,
+  }: {
+    start: Date;
+    end: Date;
+    method: "requo";
+  },
+): Promise<number> {
+  const bizIds = await getWorkspaceBusinessIds(workspaceId);
+
+  if (bizIds.length === 0) {
+    return 0;
+  }
+
+  const [row] = await db
+    .select({ value: count() })
+    .from(activityLogs)
+    .where(
+      and(
+        inArray(activityLogs.businessId, bizIds),
+        eq(activityLogs.type, "quote.sent"),
+        gte(activityLogs.createdAt, start),
+        lt(activityLogs.createdAt, end),
+        sql`${activityLogs.metadata} ->> 'sendMethod' = ${method}`,
+      ),
+    );
+
+  return Number(row?.value ?? 0);
+}
+
+export async function getDailyRequoQuoteSendCount(
+  workspaceId: string,
+): Promise<number> {
+  return getWorkspaceQuoteSendCountByMethod(workspaceId, {
+    ...getCurrentDayBounds(),
+    method: "requo",
+  });
+}
+
+export async function getMonthlyRequoQuoteSendCount(
+  workspaceId: string,
+): Promise<number> {
+  return getWorkspaceQuoteSendCountByMethod(workspaceId, {
+    ...getCurrentMonthBounds(),
+    method: "requo",
+  });
 }
 
 /**
@@ -107,7 +188,12 @@ export async function getWorkspaceBusinessCount(
   const [row] = await db
     .select({ value: count() })
     .from(businesses)
-    .where(eq(businesses.workspaceId, workspaceId));
+    .where(
+      and(
+        eq(businesses.workspaceId, workspaceId),
+        isNull(businesses.deletedAt),
+      ),
+    );
 
   return Number(row?.value ?? 0);
 }
@@ -146,6 +232,7 @@ export async function getWorkspaceLiveFormsCount(
       and(
         inArray(businessInquiryForms.businessId, bizIds),
         eq(businessInquiryForms.publicInquiryEnabled, true),
+        isNull(businessInquiryForms.archivedAt),
       ),
     );
 
@@ -181,6 +268,12 @@ export async function checkUsageAllowance(
       break;
     case "quotesPerMonth":
       current = await getMonthlyQuoteCount(workspaceId);
+      break;
+    case "requoQuoteEmailsPerDay":
+      current = await getDailyRequoQuoteSendCount(workspaceId);
+      break;
+    case "requoQuoteEmailsPerMonth":
+      current = await getMonthlyRequoQuoteSendCount(workspaceId);
       break;
     case "businessesPerWorkspace":
       current = await getWorkspaceBusinessCount(workspaceId);

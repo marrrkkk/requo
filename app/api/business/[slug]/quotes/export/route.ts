@@ -46,6 +46,7 @@ export async function GET(
     ? parsedFilters.data
     : {
         q: undefined,
+        view: "active" as const,
         status: "all" as const,
         sort: "newest" as const,
         page: 1,
@@ -63,6 +64,7 @@ export async function GET(
     businessId: requestContext.businessContext.business.id,
     filters: {
       q: filters.q,
+      view: filters.view,
       status: filters.status,
       sort: filters.sort,
     },
@@ -91,6 +93,14 @@ export async function GET(
       {
         header: "status",
         render: (row) => row.status,
+      },
+      {
+        header: "archived_at",
+        render: (row) => row.archivedAt?.toISOString(),
+      },
+      {
+        header: "voided_at",
+        render: (row) => row.voidedAt?.toISOString(),
       },
       {
         header: "post_acceptance_status",

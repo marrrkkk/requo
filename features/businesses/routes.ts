@@ -71,16 +71,52 @@ export function getBusinessQuotesExportPath(slug: string) {
   return `/api/business/${slug}/quotes/export`;
 }
 
+export function getBusinessQuoteExportPath(
+  slug: string,
+  quoteId: string,
+  format?: "pdf" | "png",
+) {
+  const basePath = `/api/business/${slug}/quotes/${quoteId}/export`;
+
+  if (!format || format === "pdf") {
+    return basePath;
+  }
+
+  const searchParams = new URLSearchParams({
+    format,
+  });
+
+  return `${basePath}?${searchParams.toString()}`;
+}
+
 export function getBusinessQuotePdfExportPath(slug: string, quoteId: string) {
-  return `/api/business/${slug}/quotes/${quoteId}/export`;
+  return getBusinessQuoteExportPath(slug, quoteId, "pdf");
 }
 
 export function getBusinessInquiriesExportPath(slug: string) {
   return `/api/business/${slug}/inquiries/export`;
 }
 
+export function getBusinessInquiryExportPath(
+  slug: string,
+  inquiryId: string,
+  format?: "pdf" | "png",
+) {
+  const basePath = `/api/business/${slug}/inquiries/${inquiryId}/export`;
+
+  if (!format || format === "pdf") {
+    return basePath;
+  }
+
+  const searchParams = new URLSearchParams({
+    format,
+  });
+
+  return `${basePath}?${searchParams.toString()}`;
+}
+
 export function getBusinessInquiryPdfExportPath(slug: string, inquiryId: string) {
-  return `/api/business/${slug}/inquiries/${inquiryId}/export`;
+  return getBusinessInquiryExportPath(slug, inquiryId, "pdf");
 }
 
 export function getBusinessSettingsPath(

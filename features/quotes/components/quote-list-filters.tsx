@@ -9,6 +9,7 @@ import type {
   QuoteListFilters,
   QuoteStatusFilterValue,
 } from "@/features/quotes/types";
+import { quoteStatusFilterValues } from "@/features/quotes/types";
 import { getQuoteStatusLabel } from "@/features/quotes/utils";
 
 type QuoteListFiltersProps = {
@@ -16,14 +17,7 @@ type QuoteListFiltersProps = {
   resultCount: number;
 };
 
-const statusOptions: QuoteStatusFilterValue[] = [
-  "all",
-  "draft",
-  "sent",
-  "accepted",
-  "rejected",
-  "expired",
-];
+const statusOptions: QuoteStatusFilterValue[] = [...quoteStatusFilterValues];
 
 export function QuoteListFilters({
   filters,
@@ -36,6 +30,7 @@ export function QuoteListFilters({
   const [query, setQuery] = useState(filters.q ?? "");
   const [status, setStatus] = useState<QuoteStatusFilterValue>(filters.status);
   const [sort, setSort] = useState(filters.sort);
+  const view = filters.view;
 
   const hasMountedRef = useRef(false);
   const lastAppliedHrefRef = useRef<string>("");
@@ -44,9 +39,14 @@ export function QuoteListFilters({
     nextQuery: string,
     nextStatus: QuoteStatusFilterValue,
     nextSort: "newest" | "oldest",
+    nextView: QuoteListFilters["view"],
   ) => {
     const params = new URLSearchParams();
     const trimmedQuery = nextQuery.trim();
+
+    if (nextView !== "active") {
+      params.set("view", nextView);
+    }
 
     if (trimmedQuery) {
       params.set("q", trimmedQuery);
@@ -82,10 +82,10 @@ export function QuoteListFilters({
     }
 
     const timer = setTimeout(() => {
-      navigate(query, status, sort);
+      navigate(query, status, sort, view);
     }, 400);
     return () => clearTimeout(timer);
-  }, [navigate, query, sort, status]);
+  }, [navigate, query, sort, status, view]);
 
   return (
     <DataListToolbar
@@ -102,7 +102,7 @@ export function QuoteListFilters({
       onFilterChange={(value) => {
         const nextStatus = value as QuoteStatusFilterValue;
         setStatus(nextStatus);
-        navigate(query, nextStatus, sort);
+        navigate(query, nextStatus, sort, view);
       }}
       filterOptions={statusOptions.map((option) => ({
         value: option,
@@ -114,7 +114,7 @@ export function QuoteListFilters({
       onSortChange={(value) => {
         const nextSort = value as "newest" | "oldest";
         setSort(nextSort);
-        navigate(query, status, nextSort);
+        navigate(query, status, nextSort, view);
       }}
       sortOptions={[
         { label: "Newest first", value: "newest" },
@@ -125,7 +125,7 @@ export function QuoteListFilters({
         setQuery("");
         setStatus("all");
         setSort("newest");
-        navigate("", "all", "newest");
+        navigate("", "all", "newest", view);
       }}
       canClear={Boolean(query.trim() || status !== "all" || sort !== "newest")}
     />

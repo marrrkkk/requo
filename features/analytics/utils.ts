@@ -2,6 +2,12 @@ export function formatAnalyticsPercent(value: number) {
   return `${Math.round(value * 100)}%`;
 }
 
+const analyticsDateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+});
+
 export function getTrendBarHeight(value: number, maxValue: number) {
   if (maxValue <= 0) {
     return "12%";
@@ -51,4 +57,20 @@ export function formatAnalyticsMoney(
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amountInCents / 100);
+}
+
+export function formatAnalyticsWeekRangeLabel(weekStart: Date): string {
+  const weekEnd = new Date(weekStart);
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+
+  if (
+    weekStart.getUTCFullYear() === weekEnd.getUTCFullYear() &&
+    weekStart.getUTCMonth() === weekEnd.getUTCMonth()
+  ) {
+    return `${analyticsDateFormatter.format(weekStart)}-${weekEnd.getUTCDate()}`;
+  }
+
+  return `${analyticsDateFormatter.format(weekStart)}-${analyticsDateFormatter.format(
+    weekEnd,
+  )}`;
 }

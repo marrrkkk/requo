@@ -1,18 +1,15 @@
-"use client";
-
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import { MarketingMobileNav } from "@/components/marketing/marketing-mobile-nav";
 import { Button } from "@/components/ui/button";
 import { workspacesHubPath } from "@/features/workspaces/routes";
-import { authClient } from "@/lib/auth/client";
+import { getOptionalSession } from "@/lib/auth/session";
 
-export function PublicHeaderActions() {
-  const { data: session } = authClient.useSession();
-  const isAuthenticated = Boolean(session?.user);
+export async function PublicHeaderActions() {
+  const session = await getOptionalSession();
 
-  return isAuthenticated ? (
+  return session?.user ? (
     <>
       <Button asChild className="hidden sm:inline-flex lg:hidden" size="sm">
         <Link href={workspacesHubPath}>
@@ -30,6 +27,16 @@ export function PublicHeaderActions() {
     </>
   ) : (
     <PublicHeaderActionsSignedOut />
+  );
+}
+
+export function PublicHeaderActionsFallback() {
+  return (
+    <>
+      <div className="hidden h-9 w-24 rounded-md border border-border/60 bg-muted/25 sm:block lg:hidden" />
+      <div className="hidden h-10 w-28 rounded-md border border-border/60 bg-muted/25 lg:block" />
+      <div className="size-9 rounded-lg border border-border/60 bg-muted/25 lg:hidden" />
+    </>
   );
 }
 

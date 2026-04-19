@@ -12,6 +12,8 @@ import {
   getWorkspaceSubscription,
   updateSubscriptionStatus,
 } from "@/lib/billing/subscription-service";
+import { writeSubscriptionTransitionAuditLogs } from "@/features/audit/subscription";
+import { finalizeScheduledWorkspaceDeletionIfDue } from "@/features/workspaces/mutations";
 
 export async function POST(request: Request) {
   const rawBody = await request.text();
@@ -68,6 +70,7 @@ export async function POST(request: Request) {
 
   try {
     if (eventType === "payment.paid" && workspaceId && plan) {
+      const previousSubscription = await getWorkspaceSubscription(workspaceId);
       const amount = (paymentAttributes?.amount as number) ?? 0;
       const paymentId = (eventData?.id as string) ?? eventId;
       const now = new Date();
@@ -83,7 +86,7 @@ export async function POST(request: Request) {
         workspaceId,
       });
 
-      await activateSubscription({
+      const nextSubscription = await activateSubscription({
         currentPeriodEnd: periodEnd,
         currentPeriodStart: now,
         currency: "PHP",
@@ -92,6 +95,14 @@ export async function POST(request: Request) {
         providerCheckoutId: paymentId,
         status: "active",
         workspaceId,
+      });
+
+      await writeSubscriptionTransitionAuditLogs({
+        workspaceId,
+        previousSubscription,
+        nextSubscription,
+        source: "webhook",
+        providerEventId: eventId,
       });
     } else if (eventType === "payment.failed" && workspaceId) {
       const paymentId = (eventData?.id as string) ?? eventId;
@@ -113,6 +124,10 @@ export async function POST(request: Request) {
       if (subscription?.status === "pending") {
         await updateSubscriptionStatus(workspaceId, "expired");
       }
+    }
+
+    if (workspaceId) {
+      await finalizeScheduledWorkspaceDeletionIfDue(workspaceId);
     }
 
     await markEventProcessed(storedEventId);

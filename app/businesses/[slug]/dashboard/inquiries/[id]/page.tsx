@@ -2,7 +2,6 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
   Building2,
-  Download,
   FileText,
   Mail,
   Phone,
@@ -24,6 +23,7 @@ import {
   DashboardStatsGrid,
 } from "@/components/shared/dashboard-layout";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Sheet,
   SheetBody,
@@ -43,10 +43,17 @@ import { getCustomerHistoryForBusiness } from "@/features/customers/queries";
 import { getAdditionalInquirySubmittedFields } from "@/features/inquiries/form-config";
 import {
   addInquiryNoteAction,
+  archiveInquiryAction,
   changeInquiryStatusAction,
+  restoreInquiryFromTrashAction,
+  trashInquiryAction,
+  unarchiveInquiryAction,
 } from "@/features/inquiries/actions";
 import { CopyEmailButton } from "@/features/inquiries/components/copy-email-button";
 import { InquiryNoteForm } from "@/features/inquiries/components/inquiry-note-form";
+import { InquiryRecordActions } from "@/features/inquiries/components/inquiry-record-actions";
+import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
+import { InquiryExportPopover } from "@/features/inquiries/components/inquiry-export-popover";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { InquiryStatusForm } from "@/features/inquiries/components/inquiry-status-form";
 import { getInquiryDetailForBusiness } from "@/features/inquiries/queries";
@@ -57,11 +64,12 @@ import {
   formatInquiryDate,
   formatInquiryDateTime,
 } from "@/features/inquiries/utils";
+import type { InquiryWorkflowStatus } from "@/features/inquiries/types";
 import { formatQuoteMoney } from "@/features/quotes/utils";
 import { workspacesHubPath } from "@/features/workspaces/routes";
 import {
+  getBusinessInquiryExportPath,
   getBusinessNewQuotePath,
-  getBusinessInquiryPdfExportPath,
   getBusinessInquiryPrintPath,
   getBusinessQuotePath,
 } from "@/features/businesses/routes";
@@ -121,6 +129,10 @@ export default async function InquiryDetailPage({
 
   const noteAction = addInquiryNoteAction.bind(null, inquiry.id);
   const statusAction = changeInquiryStatusAction.bind(null, inquiry.id);
+  const archiveAction = archiveInquiryAction.bind(null, inquiry.id);
+  const unarchiveAction = unarchiveInquiryAction.bind(null, inquiry.id);
+  const trashAction = trashInquiryAction.bind(null, inquiry.id);
+  const restoreAction = restoreInquiryFromTrashAction.bind(null, inquiry.id);
   const additionalFields = getAdditionalInquirySubmittedFields(
     inquiry.submittedFieldSnapshot,
   );
@@ -129,6 +141,7 @@ export default async function InquiryDetailPage({
       businessId: businessContext.business.id,
       customerEmail: inquiry.customerEmail,
       excludeInquiryId: inquiry.id,
+      excludeQuoteId: inquiry.relatedQuote?.id ?? null,
     }),
     isGoogleCalendarConfigured
       ? getCalendarConnectionForUser(session.user.id)
@@ -153,6 +166,13 @@ export default async function InquiryDetailPage({
         },
       )
     : null;
+  const canGenerateQuote = inquiry.recordState !== "trash";
+  const workflowStatus: InquiryWorkflowStatus =
+    inquiry.status === "quoted" ||
+    inquiry.status === "won" ||
+    inquiry.status === "lost"
+      ? inquiry.status
+      : "waiting";
 
   return (
     <DashboardPage className="pb-24">
@@ -165,6 +185,9 @@ export default async function InquiryDetailPage({
         meta={
           <>
             <InquiryStatusBadge status={inquiry.status} />
+            {inquiry.recordState !== "active" ? (
+              <InquiryRecordStateBadge state={inquiry.recordState} />
+            ) : null}
             <DashboardMetaPill>
               Received {formatInquiryDateTime(inquiry.submittedAt)}
             </DashboardMetaPill>
@@ -185,12 +208,18 @@ export default async function InquiryDetailPage({
                 prefill={calendarPrefill}
               />
             ) : null}
-            <Button asChild variant="outline">
-              <a href={getBusinessInquiryPdfExportPath(businessSlug, inquiry.id)}>
-                <Download data-icon="inline-start" />
-                Export PDF
-              </a>
-            </Button>
+            <InquiryExportPopover
+              pdfHref={getBusinessInquiryExportPath(
+                businessSlug,
+                inquiry.id,
+                "pdf",
+              )}
+              pngHref={getBusinessInquiryExportPath(
+                businessSlug,
+                inquiry.id,
+                "png",
+              )}
+            />
             <Button asChild variant="outline">
               <Link
                 href={getBusinessInquiryPrintPath(businessSlug, inquiry.id)}
@@ -202,12 +231,14 @@ export default async function InquiryDetailPage({
                 Print
               </Link>
             </Button>
-            <Button asChild>
-              <Link href={getBusinessNewQuotePath(businessSlug, inquiry.id)}>
-                <ReceiptText data-icon="inline-start" />
-                Generate quote
-              </Link>
-            </Button>
+            {canGenerateQuote ? (
+              <Button asChild>
+                <Link href={getBusinessNewQuotePath(businessSlug, inquiry.id)}>
+                  <ReceiptText data-icon="inline-start" />
+                  Generate quote
+                </Link>
+              </Button>
+            ) : null}
           </div>
         }
       />
@@ -505,14 +536,16 @@ export default async function InquiryDetailPage({
                     </Link>
                   </Button>
                 ) : null}
-                <Button asChild>
-                  <Link
-                    href={getBusinessNewQuotePath(businessSlug, inquiry.id)}
-                  >
-                  <ReceiptText data-icon="inline-start" />
-                    Generate quote
-                  </Link>
-                </Button>
+                {!inquiry.relatedQuote && canGenerateQuote ? (
+                  <Button asChild>
+                    <Link
+                      href={getBusinessNewQuotePath(businessSlug, inquiry.id)}
+                    >
+                    <ReceiptText data-icon="inline-start" />
+                      Generate quote
+                    </Link>
+                  </Button>
+                ) : null}
               </>
             }
             title="Related quote"
@@ -566,13 +599,40 @@ export default async function InquiryDetailPage({
           ) : null}
 
           <DashboardSection
-            description="Move the inquiry forward."
-            title="Status"
+            description="Move the request through your workflow."
+            title="Workflow"
           >
-            <InquiryStatusForm
-              key={inquiry.status}
-              action={statusAction}
-              currentStatus={inquiry.status}
+            {inquiry.recordState === "active" ? (
+              <InquiryStatusForm
+                key={workflowStatus}
+                action={statusAction}
+                currentStatus={workflowStatus}
+              />
+            ) : (
+              <Alert>
+                <AlertTitle>
+                  {inquiry.recordState === "archived"
+                    ? "Restore this request to active first."
+                    : "Restore this request from trash first."}
+                </AlertTitle>
+                <AlertDescription>
+                  Workflow status is locked while the request is{" "}
+                  {inquiry.recordState === "archived" ? "archived" : "in trash"}.
+                </AlertDescription>
+              </Alert>
+            )}
+          </DashboardSection>
+
+          <DashboardSection
+            description="Archive for safekeeping or move obvious junk to trash."
+            title="Manage request"
+          >
+            <InquiryRecordActions
+              archiveAction={archiveAction}
+              recordState={inquiry.recordState}
+              restoreAction={restoreAction}
+              trashAction={trashAction}
+              unarchiveAction={unarchiveAction}
             />
           </DashboardSection>
         </DashboardSidebarStack>

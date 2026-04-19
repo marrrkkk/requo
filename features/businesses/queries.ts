@@ -17,8 +17,16 @@ import type {
   BusinessDashboardSummaryData,
   BusinessOverviewData,
 } from "@/features/businesses/types";
-import { getEffectiveInquiryStatus } from "@/features/inquiries/queries";
-import { getEffectiveQuoteStatus } from "@/features/quotes/queries";
+import {
+  getEffectiveInquiryStatus,
+  getNonDeletedInquiryCondition,
+  getOperationalInquiryCondition,
+} from "@/features/inquiries/queries";
+import {
+  getEffectiveQuoteStatus,
+  getNonDeletedQuoteCondition,
+  getOperationalQuoteCondition,
+} from "@/features/quotes/queries";
 import { getQuoteReminderKinds } from "@/features/quotes/utils";
 import {
   getBusinessAnalyticsCacheTags,
@@ -30,6 +38,34 @@ import { inquiries, quotes } from "@/lib/db/schema";
 
 const overviewQueueItemLimit = 4;
 
+function createEmptyBusinessOverviewData(): BusinessOverviewData {
+  return {
+    overdueInquiries: [],
+    expiringSoonQuotes: [],
+    newInquiries: [],
+    followUpDueQuotes: [],
+    recentAcceptedQuotes: [],
+    counts: {
+      overdueInquiries: 0,
+      expiringSoonQuotes: 0,
+      newInquiries: 0,
+      followUpDueQuotes: 0,
+      recentAcceptedQuotes: 0,
+    },
+  };
+}
+
+function createEmptyBusinessDashboardSummaryData(): BusinessDashboardSummaryData {
+  return {
+    totalInquiries: 0,
+    totalQuotes: 0,
+    inquiriesThisWeek: 0,
+    inquiryCoverageRate: 0,
+    wonCount: 0,
+    lostCount: 0,
+  };
+}
+
 function getFutureUtcDateString(daysAhead: number) {
   return new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000)
     .toISOString()
@@ -39,7 +75,17 @@ function getFutureUtcDateString(daysAhead: number) {
 export async function getBusinessOverviewData(
   businessId: string,
 ): Promise<BusinessOverviewData> {
-  return getCachedBusinessOverviewData(businessId);
+  try {
+    return await getCachedBusinessOverviewData(businessId);
+  } catch (error) {
+    console.error(
+      "Failed to load business overview data.",
+      { businessId },
+      error,
+    );
+
+    return createEmptyBusinessOverviewData();
+  }
 }
 
 async function getCachedBusinessOverviewData(
@@ -54,14 +100,14 @@ async function getCachedBusinessOverviewData(
   const recentAcceptedCutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
   const today = new Date().toISOString().slice(0, 10);
   const expiringSoonCutoff = getFutureUtcDateString(7);
-  const isOverdueInquiry = sql`${getEffectiveInquiryStatus} = 'overdue'::inquiry_status`;
-  const isWaitingInquiry = sql`${getEffectiveInquiryStatus} = 'waiting'::inquiry_status`;
+  const isOverdueInquiry = sql`${getEffectiveInquiryStatus} = 'overdue'`;
+  const isNewInquiry = sql`${getEffectiveInquiryStatus} = 'new'`;
   const totalCount = sql<number>`count(*) over ()`;
 
   const [
     overdueInquiries,
     expiringSoonQuotes,
-    waitingInquiries,
+    newInquiries,
     followUpDueQuotes,
     recentAcceptedQuotes,
   ] = await Promise.all([
@@ -79,6 +125,7 @@ async function getCachedBusinessOverviewData(
       .where(
         and(
           eq(inquiries.businessId, businessId),
+          getOperationalInquiryCondition(),
           isOverdueInquiry,
         ),
       )
@@ -111,6 +158,7 @@ async function getCachedBusinessOverviewData(
       .where(
         and(
           eq(quotes.businessId, businessId),
+          getOperationalQuoteCondition(),
           sql`${getEffectiveQuoteStatus} = 'sent'::quote_status`,
           isNull(quotes.customerRespondedAt),
           gte(quotes.validUntil, today),
@@ -133,7 +181,8 @@ async function getCachedBusinessOverviewData(
       .where(
         and(
           eq(inquiries.businessId, businessId),
-          isWaitingInquiry,
+          getOperationalInquiryCondition(),
+          isNewInquiry,
         ),
       )
       .orderBy(asc(inquiries.submittedAt), asc(inquiries.createdAt))
@@ -161,6 +210,7 @@ async function getCachedBusinessOverviewData(
       .where(
         and(
           eq(quotes.businessId, businessId),
+          getOperationalQuoteCondition(),
           sql`${getEffectiveQuoteStatus} = 'sent'::quote_status`,
           isNull(quotes.customerRespondedAt),
           isNotNull(quotes.sentAt),
@@ -193,6 +243,7 @@ async function getCachedBusinessOverviewData(
       .where(
         and(
           eq(quotes.businessId, businessId),
+          getOperationalQuoteCondition(),
           eq(quotes.status, "accepted"),
           isNotNull(quotes.acceptedAt),
           gte(quotes.acceptedAt, recentAcceptedCutoff),
@@ -237,13 +288,13 @@ async function getCachedBusinessOverviewData(
   return {
     overdueInquiries: overdueInquiries.map(stripTotalCount),
     expiringSoonQuotes: expiringSoonQuotes.map(withQuoteReminders),
-    waitingInquiries: waitingInquiries.map(stripTotalCount),
+    newInquiries: newInquiries.map(stripTotalCount),
     followUpDueQuotes: followUpDueQuotes.map(withQuoteReminders),
     recentAcceptedQuotes: recentAcceptedQuotes.map(withQuoteReminders),
     counts: {
       overdueInquiries: Number(overdueInquiries[0]?.totalCount ?? 0),
       expiringSoonQuotes: Number(expiringSoonQuotes[0]?.totalCount ?? 0),
-      waitingInquiries: Number(waitingInquiries[0]?.totalCount ?? 0),
+      newInquiries: Number(newInquiries[0]?.totalCount ?? 0),
       followUpDueQuotes: Number(followUpDueQuotes[0]?.totalCount ?? 0),
       recentAcceptedQuotes: Number(recentAcceptedQuotes[0]?.totalCount ?? 0),
     },
@@ -253,7 +304,17 @@ async function getCachedBusinessOverviewData(
 export async function getBusinessDashboardSummaryData(
   businessId: string,
 ): Promise<BusinessDashboardSummaryData> {
-  return getCachedBusinessDashboardSummaryData(businessId);
+  try {
+    return await getCachedBusinessDashboardSummaryData(businessId);
+  } catch (error) {
+    console.error(
+      "Failed to load business dashboard summary data.",
+      { businessId },
+      error,
+    );
+
+    return createEmptyBusinessDashboardSummaryData();
+  }
 }
 
 async function getCachedBusinessDashboardSummaryData(
@@ -287,21 +348,25 @@ async function getCachedBusinessDashboardSummaryData(
           ),
       })
       .from(inquiries)
-      .where(eq(inquiries.businessId, businessId)),
+      .where(and(eq(inquiries.businessId, businessId), getNonDeletedInquiryCondition())),
     db
       .select({
+        totalQuotes: sql<number>`count(*)`.as("total_quotes"),
         linkedInquiryCount: sql<number>`count(distinct ${quotes.inquiryId}) filter (where ${quotes.inquiryId} is not null)`.as(
           "linked_inquiry_count",
         ),
       })
       .from(quotes)
-      .where(eq(quotes.businessId, businessId)),
+      .where(and(eq(quotes.businessId, businessId), getNonDeletedQuoteCondition())),
   ]);
 
   const totalInquiries = Number(inquirySummaryRows[0]?.totalInquiries ?? 0);
+  const totalQuotes = Number(quoteSummaryRows[0]?.totalQuotes ?? 0);
   const linkedInquiryCount = Number(quoteSummaryRows[0]?.linkedInquiryCount ?? 0);
 
   return {
+    totalInquiries,
+    totalQuotes,
     inquiriesThisWeek: Number(inquirySummaryRows[0]?.inquiriesThisWeek ?? 0),
     inquiryCoverageRate: totalInquiries ? linkedInquiryCount / totalInquiries : 0,
     wonCount: Number(inquirySummaryRows[0]?.wonCount ?? 0),

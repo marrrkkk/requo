@@ -2,8 +2,8 @@ import { z } from "zod";
 
 import {
   quotePostAcceptanceStatuses,
+  quoteRecordViews,
   quoteStatusFilterValues,
-  quoteStatuses,
 } from "@/features/quotes/types";
 
 function emptyToUndefined(value: unknown) {
@@ -163,6 +163,12 @@ export const quoteListFiltersSchema = z.object({
         .optional(),
     )
     .catch(undefined),
+  view: z
+    .preprocess(
+      (value) => firstString(value) ?? "active",
+      z.enum(quoteRecordViews),
+    )
+    .catch("active"),
   status: z
     .preprocess(
       (value) => firstString(value) ?? "all",
@@ -218,7 +224,7 @@ export const quoteEditorSchema = z
     ),
     items: quoteItemsFieldSchema,
   })
-  .superRefine((value, ctx) => {
+      .superRefine((value, ctx) => {
     const subtotalInCents = value.items.reduce(
       (sum, item) => sum + item.quantity * item.unitPriceInCents,
       0,
@@ -232,12 +238,6 @@ export const quoteEditorSchema = z
       });
     }
   });
-
-export const quoteStatusChangeSchema = z.object({
-  status: z.enum(quoteStatuses, {
-    error: () => "Choose a valid quote status.",
-  }),
-});
 
 export const quotePostAcceptanceStatusChangeSchema = z.object({
   postAcceptanceStatus: z.enum(quotePostAcceptanceStatuses, {

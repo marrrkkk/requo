@@ -28,3 +28,5 @@ export const demoQuotePublicToken =
   process.env.DEMO_QUOTE_PUBLIC_TOKEN ?? "demoquote1002senttoken";
 export const demoExpiredQuotePublicToken =
   process.env.DEMO_EXPIRED_QUOTE_PUBLIC_TOKEN ?? "demoquote1005expiredtoken";
+export const demoVoidedQuotePublicToken =
+  process.env.DEMO_VOIDED_QUOTE_PUBLIC_TOKEN ?? "demoquote1006voidedtoken";

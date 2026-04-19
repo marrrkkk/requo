@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Download, ExternalLink, Mail, Printer } from "lucide-react";
+import { ExternalLink, Mail, Printer } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 
 import {
@@ -20,23 +20,30 @@ import { CalendarEventSummary } from "@/features/calendar/components/calendar-ev
 import { prefillFromQuote, prefillFromAcceptedQuote } from "@/features/calendar/prefill";
 import { getCalendarConnectionForUser, getCalendarEventsForQuote } from "@/features/calendar/queries";
 import {
-  changeQuoteStatusAction,
+  archiveQuoteAction,
+  deleteDraftQuoteAction,
+  restoreArchivedQuoteAction,
   sendQuoteAction,
   updateQuotePostAcceptanceStatusAction,
   updateQuoteAction,
+  voidQuoteAction,
 } from "@/features/quotes/actions";
 import { CustomerHistoryPanel } from "@/features/customers/components/customer-history-panel";
+import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
+import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { QuoteActivityPanel } from "@/features/quotes/components/quote-activity-panel";
 import { getCustomerHistoryForBusiness } from "@/features/customers/queries";
 import { CopyQuoteLinkButton } from "@/features/quotes/components/copy-quote-link-button";
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";
+import { QuoteExportPopover } from "@/features/quotes/components/quote-export-popover";
+import { QuoteLifecycleActions } from "@/features/quotes/components/quote-lifecycle-actions";
 import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
 import { QuotePostAcceptanceForm } from "@/features/quotes/components/quote-post-acceptance-form";
 import { QuotePreview } from "@/features/quotes/components/quote-preview";
+import { QuoteRecordStateBadge } from "@/features/quotes/components/quote-record-state-badge";
 import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
 import { QuoteSendForm } from "@/features/quotes/components/quote-send-form";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
-import { QuoteStatusForm } from "@/features/quotes/components/quote-status-form";
 import { getQuoteLibraryForBusiness } from "@/features/quotes/quote-library-queries";
 import { getQuoteDetailForBusiness } from "@/features/quotes/queries";
 import { quoteRouteParamsSchema } from "@/features/quotes/schemas";
@@ -49,8 +56,9 @@ import {
 } from "@/features/quotes/utils";
 import {
   getBusinessInquiryPath,
-  getBusinessQuotePdfExportPath,
+  getBusinessQuoteExportPath,
   getBusinessQuotePrintPath,
+  getBusinessQuotesPath,
 } from "@/features/businesses/routes";
 import { workspacesHubPath } from "@/features/workspaces/routes";
 import { env, isGoogleCalendarConfigured } from "@/lib/env";
@@ -94,12 +102,15 @@ export default async function QuoteDetailPage({
   }
 
   const updateAction = updateQuoteAction.bind(null, quote.id);
-  const statusAction = changeQuoteStatusAction.bind(null, quote.id);
+  const archiveAction = archiveQuoteAction.bind(null, quote.id);
+  const deleteDraftAction = deleteDraftQuoteAction.bind(null, quote.id);
   const postAcceptanceAction = updateQuotePostAcceptanceStatusAction.bind(
     null,
     quote.id,
   );
+  const restoreArchivedAction = restoreArchivedQuoteAction.bind(null, quote.id);
   const sendAction = sendQuoteAction.bind(null, quote.id);
+  const voidAction = voidQuoteAction.bind(null, quote.id);
   const customerQuotePath = getPublicQuoteUrl(quote.publicToken);
   const customerQuoteUrl = new URL(
     customerQuotePath,
@@ -108,6 +119,7 @@ export default async function QuoteDetailPage({
   const customerHistory = await getCustomerHistoryForBusiness({
     businessId: businessContext.business.id,
     customerEmail: quote.customerEmail,
+    excludeInquiryId: quote.inquiryId,
     excludeQuoteId: quote.id,
   });
 
@@ -143,10 +155,35 @@ export default async function QuoteDetailPage({
         id: quote.linkedInquiry.id,
         customerName: quote.linkedInquiry.customerName,
         customerEmail: quote.linkedInquiry.customerEmail,
+        recordState: quote.linkedInquiry.recordState,
         serviceCategory: quote.linkedInquiry.serviceCategory,
         status: quote.linkedInquiry.status,
       }
     : null;
+  const isArchived = quote.archivedAt !== null;
+
+  const customerViewCopy =
+    quote.status === "sent"
+      ? {
+          title: "Waiting for a customer response",
+          description:
+            "The customer can review the quote and respond from the secure public page.",
+        }
+      : quote.status === "voided"
+        ? {
+            title: "Quote voided",
+            description:
+              "The public quote stays readable for reference, but it is no longer accepting online responses.",
+          }
+        : {
+            title: `Quote ${quote.status}`,
+            description:
+              "The public quote remains available for review, but it is no longer accepting a new online response.",
+          };
+  const lifecycleSectionDescription =
+    quote.status === "sent"
+      ? "Use void for sent quotes and archive for safe cleanup."
+      : "Preserve the quote history and archive it when you want to hide it from active lists.";
 
   const linkedInquirySection = (
     <DashboardSection
@@ -167,9 +204,14 @@ export default async function QuoteDetailPage({
           <DashboardDetailFeed>
             <DashboardDetailFeedItem
               action={
-                <DashboardMetaPill className="capitalize">
-                  {quote.linkedInquiry.status}
-                </DashboardMetaPill>
+                <div className="flex flex-wrap items-center gap-2">
+                  <InquiryStatusBadge status={quote.linkedInquiry.status} />
+                  {quote.linkedInquiry.recordState !== "active" ? (
+                    <InquiryRecordStateBadge
+                      state={quote.linkedInquiry.recordState}
+                    />
+                  ) : null}
+                </div>
               }
               meta={
                 <>
@@ -205,6 +247,7 @@ export default async function QuoteDetailPage({
         meta={
           <>
             <QuoteStatusBadge status={quote.status} />
+            {isArchived ? <QuoteRecordStateBadge state="archived" /> : null}
             <DashboardMetaPill>
               Valid until {formatQuoteDate(quote.validUntil)}
             </DashboardMetaPill>
@@ -226,12 +269,10 @@ export default async function QuoteDetailPage({
                 quoteId={quote.id}
               />
             ) : null}
-            <Button asChild variant="outline">
-              <a href={getBusinessQuotePdfExportPath(businessSlug, quote.id)}>
-                <Download data-icon="inline-start" />
-                Export PDF
-              </a>
-            </Button>
+            <QuoteExportPopover
+              pdfHref={getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")}
+              pngHref={getBusinessQuoteExportPath(businessSlug, quote.id, "png")}
+            />
             <Button asChild variant="outline">
               <Link
                 href={getBusinessQuotePrintPath(businessSlug, quote.id)}
@@ -260,6 +301,7 @@ export default async function QuoteDetailPage({
             businessName={businessContext.business.name}
             currency={quote.currency}
             initialValues={getQuoteEditorInitialValuesFromDetail(quote)}
+            key={quote.id}
             linkedInquiry={linkedInquiry}
             pricingLibrary={pricingLibrary}
             quoteNumber={quote.quoteNumber}
@@ -280,23 +322,12 @@ export default async function QuoteDetailPage({
 
             <DashboardSidebarStack>
               <DashboardSection
-                description="Email the finished draft once the totals are final."
+                description="Send the finished draft with Requo or share the customer link yourself."
                 title="Send quote"
               >
                 <QuoteSendForm
                   action={sendAction}
-                  customerEmail={quote.customerEmail}
-                />
-              </DashboardSection>
-
-              <DashboardSection
-                description="Move the quote through its lifecycle."
-                title="Status"
-              >
-                <QuoteStatusForm
-                  key={quote.status}
-                  action={statusAction}
-                  currentStatus={quote.status}
+                  customerQuoteUrl={customerQuoteUrl}
                 />
               </DashboardSection>
 
@@ -314,6 +345,21 @@ export default async function QuoteDetailPage({
                 <InfoTile
                   label="Current total"
                   value={formatQuoteMoney(quote.totalInCents, quote.currency)}
+                />
+              </DashboardSection>
+
+              <DashboardSection
+                description="Delete unneeded drafts before they enter the quote lifecycle."
+                title="Draft actions"
+              >
+                <QuoteLifecycleActions
+                  archiveAction={archiveAction}
+                  businessQuoteListHref={getBusinessQuotesPath(businessSlug)}
+                  deleteDraftAction={deleteDraftAction}
+                  isArchived={isArchived}
+                  restoreArchivedAction={restoreArchivedAction}
+                  status={quote.status}
+                  voidAction={voidAction}
                 />
               </DashboardSection>
             </DashboardSidebarStack>
@@ -398,14 +444,10 @@ export default async function QuoteDetailPage({
             >
               <div className="soft-panel px-4 py-4 shadow-none">
                 <p className="text-sm font-medium text-foreground">
-                  {quote.status === "sent"
-                    ? "Waiting for a customer response"
-                    : `Quote ${quote.status}`}
+                  {customerViewCopy.title}
                 </p>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {quote.status === "sent"
-                    ? "The customer can review the quote and respond from the secure public page."
-                    : "The public quote remains available for review, but it is no longer accepting a new online response."}
+                  {customerViewCopy.description}
                 </p>
                 {quote.sentAt ? (
                   <p className="mt-3 text-xs text-muted-foreground">
@@ -468,17 +510,6 @@ export default async function QuoteDetailPage({
               </div>
             </DashboardSection>
 
-            <DashboardSection
-              description="Move the quote through its lifecycle."
-              title="Status"
-            >
-              <QuoteStatusForm
-                key={quote.status}
-                action={statusAction}
-                currentStatus={quote.status}
-              />
-            </DashboardSection>
-
             {quote.status === "accepted" ? (
               <DashboardSection
                 description="Track the handoff after the customer says yes."
@@ -495,6 +526,21 @@ export default async function QuoteDetailPage({
             {isGoogleCalendarConfigured ? (
               <CalendarEventSummary events={calendarEvents} />
             ) : null}
+
+            <DashboardSection
+              description={lifecycleSectionDescription}
+              title="Lifecycle"
+            >
+              <QuoteLifecycleActions
+                archiveAction={archiveAction}
+                businessQuoteListHref={getBusinessQuotesPath(businessSlug)}
+                deleteDraftAction={deleteDraftAction}
+                isArchived={isArchived}
+                restoreArchivedAction={restoreArchivedAction}
+                status={quote.status}
+                voidAction={voidAction}
+              />
+            </DashboardSection>
           </DashboardSidebarStack>
         </DashboardDetailLayout>
       )}

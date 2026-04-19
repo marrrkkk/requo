@@ -10,6 +10,7 @@ import {
 
 import { DashboardSidebarStack } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";
+import { createPublicInquiryPreviewBusiness } from "@/features/inquiries/preview-business";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
 import { cn } from "@/lib/utils";
 
@@ -319,7 +320,7 @@ function createPreviewSnapshot({
     businessType: pageDraft.businessType,
   };
 
-  return {
+  return createPublicInquiryPreviewBusiness({
     id: settings.id,
     name: settings.name,
     slug: settings.slug,
@@ -337,5 +338,5 @@ function createPreviewSnapshot({
     },
     inquiryFormConfig: previewInquiryFormConfig,
     inquiryPageConfig: previewInquiryPageConfig,
-  };
+  });
 }

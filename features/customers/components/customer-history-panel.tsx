@@ -56,7 +56,7 @@ type CustomerHistoryTimelineItem =
       quoteNumber: string;
     };
 
-const CUSTOMER_HISTORY_PREVIEW_LIMIT = 1;
+const CUSTOMER_HISTORY_PREVIEW_LIMIT = 2;
 
 export function CustomerHistoryPanel({
   history,

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { PublicInquiryFormViewTracker } from "@/features/analytics/components/public-page-analytics-tracker";
 import { submitPublicInquiryAction } from "@/features/inquiries/actions";
 import { PublicInquiryPageRenderer } from "@/features/inquiries/components/public-inquiry-page-renderer";
 import {
@@ -41,9 +42,15 @@ export default async function PublicInquiryPage({
   );
 
   return (
-    <PublicInquiryPageRenderer
-      business={business}
-      action={submitPublicInquiry}
-    />
+    <>
+      <PublicInquiryPageRenderer
+        business={business}
+        action={submitPublicInquiry}
+      />
+      <PublicInquiryFormViewTracker
+        businessId={business.id}
+        businessInquiryFormId={business.form.id}
+      />
+    </>
   );
 }

@@ -1,42 +1,71 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { CountryCombobox } from "@/components/shared/country-combobox";
 import { FormActions } from "@/components/shared/form-layout";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Combobox } from "@/components/ui/combobox";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Field,
   FieldContent,
-  FieldError,
+  FieldDescription,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
-import { StarterTemplateCombobox } from "@/features/businesses/components/starter-template-combobox";
-import type { BusinessType } from "@/features/inquiries/business-types";
+import { Spinner } from "@/components/ui/spinner";
+import { StarterTemplateChoiceGrid } from "@/features/businesses/components/starter-template-choice-grid";
 import {
-  ensureOnboardingWorkspaceAction,
-  verifyOnboardingPaidPlanAction,
-} from "@/features/onboarding/actions";
+  businessCurrencyOptions,
+  getBusinessCountryOption,
+  getBusinessCurrencyOption,
+} from "@/features/businesses/locale";
 import {
-  jobTitleOptions,
-  onboardingBusinessSchema,
-  onboardingProfileSchema,
-  onboardingReferralSchema,
+  getStarterTemplateDefinition,
+  starterTemplateSelectionDescription,
+} from "@/features/businesses/starter-templates";
+import {
+  businessTypeMeta,
+  businessTypeOptions,
+  type BusinessType,
+} from "@/features/inquiries/business-types";
+import type {
+  InquiryContactFieldKey,
+  InquiryFormConfig,
+  InquiryFormFieldDefinition,
+} from "@/features/inquiries/form-config";
+import { OnboardingPreviewDialog } from "@/features/onboarding/components/onboarding-preview-dialog";
+import {
+  createEmptyOnboardingDraft,
+  createOnboardingPreviewBusiness,
+  getRecommendedStarterTemplateForBusinessType,
+  onboardingSessionStorageKey,
+  resolveOnboardingCurrencyChange,
+  type OnboardingDraft,
+} from "@/features/onboarding/helpers";
+import {
+  onboardingBusinessContextSchema,
+  onboardingTemplateSchema,
   onboardingWorkspaceSchema,
-  referralSourceOptions,
 } from "@/features/onboarding/schemas";
-import type { OnboardingActionState } from "@/features/onboarding/types";
-import { CheckoutDialog } from "@/features/billing/components/checkout-dialog";
-import type { BillingCurrency, BillingRegion, PaidPlan } from "@/lib/billing/types";
-import type { WorkspacePlan } from "@/lib/plans/plans";
-import { planMeta } from "@/lib/plans/plans";
+import { OnboardingStepper } from "@/features/onboarding/components/onboarding-stepper";
+import type {
+  OnboardingActionState,
+  OnboardingFieldName,
+} from "@/features/onboarding/types";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 
 type OnboardingFormProps = {
@@ -44,59 +73,62 @@ type OnboardingFormProps = {
     state: OnboardingActionState,
     formData: FormData,
   ) => Promise<OnboardingActionState>;
-  billingRegion: BillingRegion;
-  defaultCurrency: BillingCurrency;
-  initialValues: {
-    fullName: string;
-    jobTitle: string;
-  };
 };
 
-type OnboardingVisibleField =
-  | "workspaceName"
-  | "workspacePlan"
-  | "businessName"
-  | "businessType"
-  | "countryCode"
-  | "fullName"
-  | "jobTitle"
-  | "referralSource";
+type OnboardingStepId = "workspace" | "business" | "template" | "review";
 
-type OnboardingStep = {
-  fields: OnboardingVisibleField[];
-  label: string;
-  prompt: string;
-};
-
-const onboardingSteps: OnboardingStep[] = [
+const onboardingSteps = [
   {
-    fields: ["workspaceName", "workspacePlan"],
+    id: "workspace" as const,
     label: "Workspace",
-    prompt: "Set up your workspace",
+    description: "Name the workspace you'll use for your businesses.",
+    title: "Create your workspace",
+    body:
+      "Keep this simple. You can add more businesses inside the workspace later.",
+    fields: ["workspaceName"] as const satisfies readonly OnboardingFieldName[],
   },
   {
-    fields: ["businessName", "businessType", "countryCode"],
+    id: "business" as const,
     label: "Business",
-    prompt: "Create your first business",
+    description: "Add the core details for your first business.",
+    title: "Add your first business",
+    body:
+      "This sets the business context and helps Requo suggest the best starting workflow.",
+    fields: [
+      "businessName",
+      "businessType",
+      "countryCode",
+      "defaultCurrency",
+    ] as const satisfies readonly OnboardingFieldName[],
   },
   {
-    fields: ["fullName", "jobTitle"],
-    label: "About you",
-    prompt: "Tell us about yourself",
+    id: "template" as const,
+    label: "Template",
+    description: "Choose the fastest path to a usable inquiry form.",
+    title: "Start with a template",
+    body:
+      "Pick the structure that gets you closest to a live inquiry workflow. You can customize it later.",
+    fields: [
+      "starterTemplateBusinessType",
+    ] as const satisfies readonly OnboardingFieldName[],
   },
   {
-    fields: ["referralSource"],
-    label: "One last thing",
-    prompt: "How did you find us?",
+    id: "review" as const,
+    label: "Review",
+    description: "Preview the first version before you finish setup.",
+    title: "Review your inquiry page",
+    body:
+      "Check the generated intake flow, then finish setup and move straight into the dashboard.",
+    fields: [] as const satisfies readonly OnboardingFieldName[],
   },
-];
-
-const planOptions = (["free", "pro", "business"] as const).map((plan) => ({
-  value: plan,
-  label: planMeta[plan].label,
-  description: planMeta[plan].description,
-  searchText: `${planMeta[plan].label} ${planMeta[plan].description}`,
-}));
+] satisfies ReadonlyArray<{
+  id: OnboardingStepId;
+  label: string;
+  description: string;
+  title: string;
+  body: string;
+  fields: readonly OnboardingFieldName[];
+}>;
 
 const initialState: OnboardingActionState = {};
 const lastOnboardingStepIndex = onboardingSteps.length - 1;
@@ -105,208 +137,206 @@ const onboardingInputClassName =
 const onboardingComboboxButtonClassName =
   "h-12 text-base aria-invalid:border-border/85 aria-invalid:ring-0 aria-invalid:ring-transparent";
 
-export function OnboardingForm({
-  action,
-  billingRegion,
-  defaultCurrency,
-  initialValues,
-}: OnboardingFormProps) {
+export function OnboardingForm({ action }: OnboardingFormProps) {
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
   );
-  const [isCheckoutBusy, startCheckoutTransition] = useTransition();
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [onboardingWorkspace, setOnboardingWorkspace] = useState<{
-    id: string;
-    slug: string;
-  } | null>(null);
-  const [paidCheckoutVerified, setPaidCheckoutVerified] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
-  const [clientFieldErrors, setClientFieldErrors] = useState<
-    Partial<Record<OnboardingVisibleField, string>>
+  const [draft, setDraft] = useState<OnboardingDraft>(() =>
+    createEmptyOnboardingDraft(),
+  );
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<OnboardingFieldName, string>>
   >({});
-  const [dismissedServerErrorSources, setDismissedServerErrorSources] = useState<
-    Partial<Record<OnboardingVisibleField, OnboardingActionState["fieldErrors"]>>
-  >({});
-  const [values, setValues] = useState({
-    workspaceName: "",
-    workspacePlan: "free" as WorkspacePlan,
-    businessName: "",
-    businessType: "" as BusinessType | "",
-    countryCode: "",
-    fullName: initialValues.fullName,
-    jobTitle: initialValues.jobTitle.trim() || "",
-    referralSource: "",
-  });
+  const [isDraftHydrated, setIsDraftHydrated] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const currentStepMeta = onboardingSteps[currentStep];
+  const recommendedTemplate = useMemo(
+    () => getRecommendedStarterTemplateForBusinessType(draft.businessType),
+    [draft.businessType],
+  );
+  const selectedTemplate =
+    draft.starterTemplateBusinessType || recommendedTemplate;
+  const selectedTemplateMeta = getStarterTemplateDefinition(selectedTemplate);
+  const selectedBusinessTypeMeta = draft.businessType
+    ? businessTypeMeta[draft.businessType]
+    : null;
+  const selectedCountry = getBusinessCountryOption(draft.countryCode);
+  const selectedCurrency = getBusinessCurrencyOption(draft.defaultCurrency);
+  const previewBusiness = useMemo(
+    () => createOnboardingPreviewBusiness(draft),
+    [draft],
+  );
+  const previewFieldItems = useMemo(
+    () => getPreviewFieldItems(previewBusiness.inquiryFormConfig),
+    [previewBusiness.inquiryFormConfig],
+  );
 
-  function updateField<FieldName extends OnboardingVisibleField>(
-    field: FieldName,
-    value: string,
-  ) {
-    if (field === "workspacePlan" && value !== values.workspacePlan) {
-      setPaidCheckoutVerified(false);
+  useEffect(() => {
+    try {
+      const storedValue = window.sessionStorage.getItem(
+        onboardingSessionStorageKey,
+      );
+
+      if (storedValue) {
+        const parsedValue = JSON.parse(storedValue) as {
+          currentStep?: number;
+          draft?: Partial<OnboardingDraft>;
+        };
+
+        setDraft((currentDraft) => ({
+          ...currentDraft,
+          ...sanitizeDraft(parsedValue.draft),
+        }));
+        setCurrentStep(
+          clampStepIndex(parsedValue.currentStep ?? 0, lastOnboardingStepIndex),
+        );
+      }
+    } catch (error) {
+      console.error("Failed to restore onboarding draft.", error);
+    } finally {
+      setIsDraftHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isDraftHydrated) {
+      return;
     }
 
-    setValues((currentValues) => ({
-      ...currentValues,
+    try {
+      window.sessionStorage.setItem(
+        onboardingSessionStorageKey,
+        JSON.stringify({
+          currentStep,
+          draft,
+        }),
+      );
+    } catch (error) {
+      console.error("Failed to save onboarding draft.", error);
+    }
+  }, [currentStep, draft, isDraftHydrated]);
+
+  useEffect(() => {
+    if (!state.fieldErrors) {
+      return;
+    }
+
+    setFieldErrors((currentErrors) => ({
+      ...currentErrors,
+      ...mapServerFieldErrors(state.fieldErrors),
+    }));
+  }, [state.fieldErrors]);
+
+  function updateField<FieldName extends OnboardingFieldName>(
+    field: FieldName,
+    value: OnboardingDraft[FieldName],
+  ) {
+    setDraft((currentDraft) => ({
+      ...currentDraft,
       [field]: value,
     }));
 
-    setClientFieldErrors((currentErrors) => {
+    setFieldErrors((currentErrors) => {
+      const nextErrors = { ...currentErrors };
+      delete nextErrors[field];
+      return nextErrors;
+    });
+  }
+
+  function handleBusinessTypeChange(value: string) {
+    const nextBusinessType = value as BusinessType;
+    const previousRecommendation = getRecommendedStarterTemplateForBusinessType(
+      draft.businessType,
+    );
+    const nextRecommendation =
+      getRecommendedStarterTemplateForBusinessType(nextBusinessType);
+
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      businessType: nextBusinessType,
+      starterTemplateBusinessType:
+        !currentDraft.starterTemplateBusinessType ||
+        currentDraft.starterTemplateBusinessType === previousRecommendation
+          ? nextRecommendation
+          : currentDraft.starterTemplateBusinessType,
+    }));
+
+    clearFieldErrors("businessType", "starterTemplateBusinessType");
+  }
+
+  function handleCountryChange(countryCode: string) {
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      countryCode,
+      defaultCurrency: resolveOnboardingCurrencyChange({
+        currentCurrency: currentDraft.defaultCurrency,
+        previousCountryCode: currentDraft.countryCode,
+        nextCountryCode: countryCode,
+      }),
+    }));
+
+    clearFieldErrors("countryCode", "defaultCurrency");
+  }
+
+  function clearFieldErrors(...fields: OnboardingFieldName[]) {
+    setFieldErrors((currentErrors) => {
       const nextErrors = { ...currentErrors };
 
-      delete nextErrors[field];
+      for (const field of fields) {
+        delete nextErrors[field];
+      }
 
       return nextErrors;
     });
-
-    setDismissedServerErrorSources((currentDismissedErrors) => ({
-      ...currentDismissedErrors,
-      [field]: state.fieldErrors,
-    }));
   }
 
-  function getFieldError(field: OnboardingVisibleField) {
-    const serverError = state.fieldErrors?.[field]?.[0];
+  function validateFields(fields: readonly OnboardingFieldName[]) {
+    const nextErrors: Partial<Record<OnboardingFieldName, string>> = {};
 
-    return (
-      clientFieldErrors[field] ??
-      (dismissedServerErrorSources[field] === state.fieldErrors
-        ? undefined
-        : serverError)
-    );
-  }
+    for (const field of fields) {
+      const error = getFieldValidationError(field, draft);
 
-  function getFieldValidationError(field: OnboardingVisibleField) {
-    switch (field) {
-      case "workspaceName": {
-        const result = onboardingWorkspaceSchema.shape.workspaceName.safeParse(values.workspaceName);
-        return result.success ? undefined : result.error.issues[0]?.message;
-      }
-      case "workspacePlan": {
-        const result = onboardingWorkspaceSchema.shape.workspacePlan.safeParse(values.workspacePlan);
-        return result.success ? undefined : result.error.issues[0]?.message;
-      }
-      case "businessName": {
-        const result = onboardingBusinessSchema.shape.businessName.safeParse(values.businessName);
-        return result.success ? undefined : result.error.issues[0]?.message;
-      }
-      case "businessType": {
-        const result = onboardingBusinessSchema.shape.businessType.safeParse(values.businessType);
-        return result.success ? undefined : result.error.issues[0]?.message;
-      }
-      case "countryCode": {
-        const result = onboardingBusinessSchema.shape.countryCode.safeParse(values.countryCode);
-        return result.success ? undefined : result.error.issues[0]?.message;
-      }
-      case "fullName": {
-        const result = onboardingProfileSchema.shape.fullName.safeParse(values.fullName);
-        return result.success ? undefined : result.error.issues[0]?.message;
-      }
-      case "jobTitle": {
-        const result = onboardingProfileSchema.shape.jobTitle.safeParse(values.jobTitle);
-        return result.success ? undefined : result.error.issues[0]?.message;
-      }
-      case "referralSource": {
-        const result = onboardingReferralSchema.shape.referralSource.safeParse(values.referralSource);
-        return result.success ? undefined : result.error.issues[0]?.message;
-      }
-    }
-  }
-
-  function validateStepFields(stepIndex: number) {
-    const step = onboardingSteps[stepIndex];
-    if (!step) return true;
-
-    let allValid = true;
-
-    for (const field of step.fields) {
-      const error = getFieldValidationError(field);
       if (error) {
-        setClientFieldErrors((current) => ({ ...current, [field]: error }));
-        allValid = false;
+        nextErrors[field] = error;
       }
     }
 
-    return allValid;
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors((currentErrors) => ({
+        ...currentErrors,
+        ...nextErrors,
+      }));
+
+      const firstError = Object.values(nextErrors)[0];
+
+      if (firstError) {
+        toast.error(firstError);
+      }
+
+      return false;
+    }
+
+    return true;
   }
 
-  function validateAllSteps() {
-    const nextErrors: Partial<Record<OnboardingVisibleField, string>> = {};
-    let firstInvalidStepIndex = -1;
-
-    onboardingSteps.forEach((step, index) => {
-      for (const field of step.fields) {
-        const error = getFieldValidationError(field);
-        if (error) {
-          nextErrors[field] = error;
-          if (firstInvalidStepIndex === -1) {
-            firstInvalidStepIndex = index;
-          }
-        }
+  function getFirstInvalidStepIndex() {
+    for (const [index, step] of onboardingSteps.entries()) {
+      if (step.fields.length === 0) {
+        continue;
       }
-    });
 
-    setClientFieldErrors(nextErrors);
-    return firstInvalidStepIndex;
-  }
-
-  function handleCheckoutOpenChange(open: boolean) {
-    setCheckoutOpen(open);
-    if (open) return;
-    if (values.workspacePlan === "free" || !onboardingWorkspace) return;
-
-    startCheckoutTransition(async () => {
-      const result = await verifyOnboardingPaidPlanAction(
-        onboardingWorkspace.slug,
-        values.workspacePlan as "pro" | "business",
-      );
-      if (result.ok) {
-        setPaidCheckoutVerified(true);
-        setCurrentStep(1);
-        toast.success("Plan active — let's set up your business.");
+      if (!validateFields(step.fields)) {
+        return index;
       }
-    });
+    }
+
+    return -1;
   }
 
   function handleContinue() {
-    if (!validateStepFields(currentStep)) return;
-
-    if (currentStep === 0 && values.workspacePlan !== "free") {
-      if (paidCheckoutVerified) {
-        setCurrentStep(1);
-        return;
-      }
-
-      startCheckoutTransition(async () => {
-        const formData = new FormData();
-        formData.set("workspaceName", values.workspaceName);
-
-        const ensured = await ensureOnboardingWorkspaceAction(formData);
-        if (!ensured.ok) {
-          toast.error(ensured.error);
-          return;
-        }
-
-        setOnboardingWorkspace({
-          id: ensured.workspaceId,
-          slug: ensured.workspaceSlug,
-        });
-
-        const verified = await verifyOnboardingPaidPlanAction(
-          ensured.workspaceSlug,
-          values.workspacePlan as "pro" | "business",
-        );
-        if (verified.ok) {
-          setPaidCheckoutVerified(true);
-          setCurrentStep(1);
-          toast.success("Plan active — let's set up your business.");
-          return;
-        }
-
-        setCheckoutOpen(true);
-      });
+    if (!validateFields(currentStepMeta.fields)) {
       return;
     }
 
@@ -317,355 +347,588 @@ export function OnboardingForm({
     setCurrentStep((step) => Math.max(step - 1, 0));
   }
 
-  const currentStepMeta = onboardingSteps[currentStep];
-  const progressValue = ((currentStep + 1) / onboardingSteps.length) * 100;
+  function handleStepSelect(nextStep: number) {
+    if (nextStep >= currentStep) {
+      return;
+    }
 
-  const workspaceNameError = getFieldError("workspaceName");
-  const workspacePlanError = getFieldError("workspacePlan");
-  const businessNameError = getFieldError("businessName");
-  const businessTypeError = getFieldError("businessType");
-  const countryCodeError = getFieldError("countryCode");
-  const fullNameError = getFieldError("fullName");
-  const jobTitleError = getFieldError("jobTitle");
-  const referralSourceError = getFieldError("referralSource");
+    setCurrentStep(nextStep);
+  }
 
   return (
-    <form
-      action={formAction}
-      className="mx-auto flex w-full max-w-xl flex-col gap-8"
-      onSubmit={(event) => {
-        if (currentStep < lastOnboardingStepIndex) {
-          event.preventDefault();
-          handleContinue();
-          return;
-        }
+    <>
+      <form
+        action={formAction}
+        className="mx-auto w-full max-w-6xl"
+        onSubmit={(event) => {
+          if (currentStep < lastOnboardingStepIndex) {
+            event.preventDefault();
+            handleContinue();
+            return;
+          }
 
-        if (
-          values.workspacePlan !== "free" &&
-          !paidCheckoutVerified
-        ) {
-          event.preventDefault();
-          setCurrentStep(0);
-          toast.error("Complete payment for your selected plan to finish setup.");
-          return;
-        }
+          const firstInvalidStepIndex = getFirstInvalidStepIndex();
 
-        const firstInvalidStepIndex = validateAllSteps();
+          if (firstInvalidStepIndex >= 0) {
+            event.preventDefault();
+            setCurrentStep(firstInvalidStepIndex);
+          }
+        }}
+      >
+        <input name="workspaceName" type="hidden" value={draft.workspaceName} />
+        <input name="businessName" type="hidden" value={draft.businessName} />
+        <input name="businessType" type="hidden" value={draft.businessType} />
+        <input name="countryCode" type="hidden" value={draft.countryCode} />
+        <input
+          name="defaultCurrency"
+          type="hidden"
+          value={draft.defaultCurrency}
+        />
+        <input
+          name="starterTemplateBusinessType"
+          type="hidden"
+          value={draft.starterTemplateBusinessType}
+        />
 
-        if (firstInvalidStepIndex >= 0) {
-          event.preventDefault();
-          setCurrentStep(firstInvalidStepIndex);
-        }
-      }}
-    >
-      <input name="workspaceName" type="hidden" value={values.workspaceName} />
-      <input name="workspacePlan" type="hidden" value={values.workspacePlan} />
-      <input name="businessName" type="hidden" value={values.businessName} />
-      <input name="businessType" type="hidden" value={values.businessType} />
-      <input name="countryCode" type="hidden" value={values.countryCode} />
-      <input name="fullName" type="hidden" value={values.fullName} />
-      <input name="jobTitle" type="hidden" value={values.jobTitle} />
-      <input name="referralSource" type="hidden" value={values.referralSource} />
+        <div className="section-panel flex flex-col gap-8 px-5 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-col gap-3">
+            <p className="meta-label">Onboarding</p>
+            <div className="min-w-0">
+              <h1 className="font-heading text-[2rem] font-semibold tracking-tight text-foreground sm:text-[2.35rem]">
+                {currentStepMeta.title}
+              </h1>
+              <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground sm:text-[0.96rem]">
+                {currentStepMeta.body}
+              </p>
+            </div>
+          </div>
 
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-4">
-          <p className="meta-label">{currentStepMeta.label}</p>
-          <p className="text-sm text-muted-foreground">
-            Step {currentStep + 1} of {onboardingSteps.length}
-          </p>
-        </div>
-        <Progress value={progressValue} />
-      </div>
+          <OnboardingStepper
+            currentStep={currentStep}
+            items={onboardingSteps}
+            onStepSelect={handleStepSelect}
+          />
 
-      <div className="flex min-h-[22rem] flex-col justify-center gap-8">
-        <h1 className="font-heading text-[2rem] font-semibold tracking-tight text-foreground sm:text-[2.4rem]">
-          {currentStepMeta.prompt}
-        </h1>
+          {state.error ? (
+            <Alert>
+              <AlertTitle>Setup hit a problem</AlertTitle>
+              <AlertDescription>{state.error}</AlertDescription>
+            </Alert>
+          ) : null}
 
-        {/* Step 1: Workspace */}
-        {currentStep === 0 ? (
-          <FieldGroup className="gap-5">
-            <Field data-invalid={Boolean(workspaceNameError) || undefined}>
-              <FieldLabel htmlFor="onboarding-workspace-name">
-                Workspace name
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  aria-invalid={Boolean(workspaceNameError) || undefined}
-                  autoFocus
-                  className={onboardingInputClassName}
-                  id="onboarding-workspace-name"
-                  maxLength={80}
-                  minLength={2}
-                  onChange={(event) =>
-                    updateField("workspaceName", event.currentTarget.value)
-                  }
-                  placeholder="Acme Studio"
-                  required
-                  value={values.workspaceName}
-                />
-                <FieldError
-                  errors={
-                    workspaceNameError ? [{ message: workspaceNameError }] : undefined
-                  }
-                />
-              </FieldContent>
-            </Field>
+          <div className="min-w-0">
+            {currentStep === 0 ? (
+              <Card className="border-border/75 bg-card/97">
+                <CardHeader>
+                  <CardTitle>Workspace details</CardTitle>
+                  <CardDescription>
+                    Use a simple name you&apos;ll recognize in the workspace hub.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <FieldGroup>
+                    <Field
+                      data-invalid={Boolean(fieldErrors.workspaceName) || undefined}
+                    >
+                      <FieldLabel htmlFor="onboarding-workspace-name">
+                        Workspace name
+                      </FieldLabel>
+                      <FieldContent>
+                        <Input
+                          aria-invalid={
+                            Boolean(fieldErrors.workspaceName) || undefined
+                          }
+                          autoFocus={isDraftHydrated}
+                          className={onboardingInputClassName}
+                          disabled={isPending}
+                          id="onboarding-workspace-name"
+                          maxLength={80}
+                          minLength={2}
+                          onChange={(event) =>
+                            updateField(
+                              "workspaceName",
+                              event.currentTarget.value,
+                            )
+                          }
+                          placeholder="Acme Studio"
+                          required
+                          value={draft.workspaceName}
+                        />
+                        <FieldDescription>
+                          This is the top-level workspace for your first business.
+                        </FieldDescription>
+                      </FieldContent>
+                    </Field>
+                  </FieldGroup>
+                </CardContent>
+              </Card>
+            ) : null}
 
-            <Field data-invalid={Boolean(workspacePlanError) || undefined}>
-              <FieldLabel htmlFor="onboarding-workspace-plan">
-                Plan
-              </FieldLabel>
-              <FieldContent>
-                <Combobox
-                  aria-invalid={Boolean(workspacePlanError) || undefined}
-                  buttonClassName={onboardingComboboxButtonClassName}
-                  disabled={isPending}
-                  id="onboarding-workspace-plan"
-                  onValueChange={(value) => updateField("workspacePlan", value)}
-                  options={planOptions}
-                  placeholder="Choose a plan"
-                  renderOption={(option) => (
-                    <div className="flex min-w-0 flex-col gap-0.5 py-0.5">
-                      <p className="truncate font-medium">{option.label}</p>
-                      <p className="text-xs leading-5 text-muted-foreground">
-                        {option.description}
+            {currentStep === 1 ? (
+              <Card className="border-border/75 bg-card/97">
+                <CardHeader>
+                  <CardTitle>Business context</CardTitle>
+                  <CardDescription>
+                    Set the basics customers will see, then we&apos;ll suggest a
+                    template that fits.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <FieldGroup>
+                    <Field
+                      data-invalid={Boolean(fieldErrors.businessName) || undefined}
+                    >
+                      <FieldLabel htmlFor="onboarding-business-name">
+                        Business name
+                      </FieldLabel>
+                      <FieldContent>
+                        <Input
+                          aria-invalid={
+                            Boolean(fieldErrors.businessName) || undefined
+                          }
+                          autoFocus={isDraftHydrated}
+                          className={onboardingInputClassName}
+                          disabled={isPending}
+                          id="onboarding-business-name"
+                          maxLength={80}
+                          minLength={2}
+                          onChange={(event) =>
+                            updateField(
+                              "businessName",
+                              event.currentTarget.value,
+                            )
+                          }
+                          placeholder="Northline Print Studio"
+                          required
+                          value={draft.businessName}
+                        />
+                      </FieldContent>
+                    </Field>
+
+                    <Field
+                      data-invalid={Boolean(fieldErrors.businessType) || undefined}
+                    >
+                      <FieldLabel htmlFor="onboarding-business-type">
+                        Business category
+                      </FieldLabel>
+                      <FieldContent>
+                        <Combobox
+                          aria-invalid={
+                            Boolean(fieldErrors.businessType) || undefined
+                          }
+                          autoFocus={false}
+                          buttonClassName={onboardingComboboxButtonClassName}
+                          disabled={isPending}
+                          id="onboarding-business-type"
+                          onValueChange={handleBusinessTypeChange}
+                          options={businessTypeOptions}
+                          placeholder="Choose a category"
+                          renderOption={(option) => (
+                            <div className="flex min-w-0 flex-col gap-0.5 py-0.5">
+                              <p className="truncate font-medium">
+                                {option.label}
+                              </p>
+                              <p className="text-xs leading-5 text-muted-foreground">
+                                {option.description}
+                              </p>
+                            </div>
+                          )}
+                          searchPlaceholder="Search categories"
+                          searchable
+                          value={draft.businessType}
+                        />
+                        <FieldDescription>
+                          We&apos;ll use this to recommend the best starting template
+                          next.
+                        </FieldDescription>
+                      </FieldContent>
+                    </Field>
+
+                    <div className="grid gap-6 md:grid-cols-2">
+                      <Field
+                        data-invalid={Boolean(fieldErrors.countryCode) || undefined}
+                      >
+                        <FieldLabel htmlFor="onboarding-country-code">
+                          Country
+                        </FieldLabel>
+                        <FieldContent>
+                          <CountryCombobox
+                            aria-invalid={
+                              Boolean(fieldErrors.countryCode) || undefined
+                            }
+                            buttonClassName={onboardingComboboxButtonClassName}
+                            disabled={isPending}
+                            id="onboarding-country-code"
+                            onValueChange={handleCountryChange}
+                            placeholder="Choose your country"
+                            searchPlaceholder="Search country"
+                            showFlags={false}
+                            value={draft.countryCode}
+                          />
+                          <FieldDescription>
+                            {selectedCountry
+                              ? `Quotes and public inquiry details will start from ${selectedCountry.label}.`
+                              : "Use the country your business mainly operates from."}
+                          </FieldDescription>
+                        </FieldContent>
+                      </Field>
+
+                      <Field
+                        data-invalid={
+                          Boolean(fieldErrors.defaultCurrency) || undefined
+                        }
+                      >
+                        <FieldLabel htmlFor="onboarding-default-currency">
+                          Currency
+                        </FieldLabel>
+                        <FieldContent>
+                          <Combobox
+                            aria-invalid={
+                              Boolean(fieldErrors.defaultCurrency) || undefined
+                            }
+                            buttonClassName={onboardingComboboxButtonClassName}
+                            disabled={isPending}
+                            id="onboarding-default-currency"
+                            onValueChange={(value) =>
+                              updateField("defaultCurrency", value)
+                            }
+                            options={businessCurrencyOptions.map((option) => ({
+                              value: option.code,
+                              label: option.label,
+                              searchText: `${option.code} ${option.name}`,
+                            }))}
+                            placeholder="Choose a currency"
+                            searchPlaceholder="Search currency"
+                            searchable
+                            value={draft.defaultCurrency}
+                          />
+                          <FieldDescription>
+                            {selectedCurrency
+                              ? `New quotes will start in ${selectedCurrency.code}.`
+                              : "You can change this later in business settings."}
+                          </FieldDescription>
+                        </FieldContent>
+                      </Field>
+                    </div>
+                  </FieldGroup>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {currentStep === 2 ? (
+              <div className="flex flex-col gap-5">
+                <Alert>
+                  <Sparkles data-icon="inline-start" />
+                  <AlertTitle>
+                    {selectedBusinessTypeMeta
+                      ? `Recommended for ${selectedBusinessTypeMeta.label}`
+                      : "Pick the best starting point"}
+                  </AlertTitle>
+                  <AlertDescription>
+                    {starterTemplateSelectionDescription}
+                  </AlertDescription>
+                </Alert>
+
+                <Card className="border-border/75 bg-card/97">
+                  <CardHeader>
+                    <CardTitle>Starter templates</CardTitle>
+                    <CardDescription>
+                      Choose the structure that gets your inquiry form close to
+                      usable from day one.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <StarterTemplateChoiceGrid
+                      ariaLabel="Starter template"
+                      disabled={isPending}
+                      inputName="onboarding-starter-template"
+                      onChange={(value) =>
+                        updateField(
+                          "starterTemplateBusinessType",
+                          value as OnboardingDraft["starterTemplateBusinessType"],
+                        )
+                      }
+                      recommendedValue={recommendedTemplate}
+                      showHelperText
+                      value={draft.starterTemplateBusinessType}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            ) : null}
+
+            {currentStep === 3 ? (
+              <div className="flex flex-col gap-5">
+                <div className="grid gap-4 md:grid-cols-3">
+                  <SummaryCard
+                    description="Top-level workspace"
+                    title="Workspace"
+                    value={draft.workspaceName || "Untitled workspace"}
+                  />
+                  <SummaryCard
+                    description={
+                      selectedBusinessTypeMeta?.label ?? "Business category"
+                    }
+                    title="Business"
+                    value={draft.businessName || "Untitled business"}
+                  />
+                  <SummaryCard
+                    description="Starter template"
+                    title="Template"
+                    value={selectedTemplateMeta.label}
+                  />
+                </div>
+
+                <Card className="border-border/75 bg-card/97">
+                  <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <CardTitle>What customers will see</CardTitle>
+                      <CardDescription>
+                        This first version is already geared toward the inquiry
+                        to quote workflow.
+                      </CardDescription>
+                    </div>
+                    <Button
+                      className="w-full sm:w-auto"
+                      onClick={() => setIsPreviewOpen(true)}
+                      type="button"
+                      variant="outline"
+                    >
+                      Open full preview
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-5">
+                    <div className="rounded-xl border border-border/70 bg-muted/20 px-4 py-4">
+                      <p className="meta-label">Inquiry page</p>
+                      <p className="mt-2 font-heading text-xl font-semibold tracking-tight text-foreground">
+                        {previewBusiness.inquiryPageConfig.headline}
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        {previewBusiness.inquiryPageConfig.description}
                       </p>
                     </div>
-                  )}
-                  searchable={false}
-                  value={values.workspacePlan}
-                />
-                <FieldError
-                  errors={
-                    workspacePlanError ? [{ message: workspacePlanError }] : undefined
-                  }
-                />
-              </FieldContent>
-            </Field>
-          </FieldGroup>
-        ) : null}
 
-        {/* Step 2: Business */}
-        {currentStep === 1 ? (
-          <FieldGroup className="gap-5">
-            <Field data-invalid={Boolean(businessNameError) || undefined}>
-              <FieldLabel htmlFor="onboarding-business-name">
-                Business name
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  aria-invalid={Boolean(businessNameError) || undefined}
-                  autoFocus
-                  className={onboardingInputClassName}
-                  id="onboarding-business-name"
-                  maxLength={80}
-                  minLength={2}
-                  onChange={(event) =>
-                    updateField("businessName", event.currentTarget.value)
-                  }
-                  placeholder="Northline Print Studio"
-                  required
-                  value={values.businessName}
-                />
-                <FieldError
-                  errors={
-                    businessNameError ? [{ message: businessNameError }] : undefined
-                  }
-                />
-              </FieldContent>
-            </Field>
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-foreground">
+                          Inquiry fields
+                        </p>
+                        <Badge variant="secondary">
+                          {previewFieldItems.length} fields
+                        </Badge>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {previewFieldItems.map((field) => (
+                          <div
+                            className="soft-panel flex items-center justify-between gap-3 px-4 py-3"
+                            key={field.id}
+                          >
+                            <span className="text-sm font-medium text-foreground">
+                              {field.label}
+                            </span>
+                            <Badge
+                              variant={field.required ? "secondary" : "outline"}
+                            >
+                              {field.required ? "Required" : "Optional"}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : null}
+          </div>
 
-            <Field data-invalid={Boolean(businessTypeError) || undefined}>
-              <FieldLabel htmlFor="onboarding-starter-template">
-                Starter template
-              </FieldLabel>
-              <FieldContent>
-                <StarterTemplateCombobox
-                  aria-invalid={Boolean(businessTypeError) || undefined}
-                  buttonClassName={onboardingComboboxButtonClassName}
-                  disabled={isPending}
-                  id="onboarding-starter-template"
-                  onValueChange={(value) => updateField("businessType", value)}
-                  placeholder="Choose a template"
-                  value={values.businessType}
-                />
-                <FieldError
-                  errors={
-                    businessTypeError ? [{ message: businessTypeError }] : undefined
-                  }
-                />
-              </FieldContent>
-            </Field>
-
-            <Field data-invalid={Boolean(countryCodeError) || undefined}>
-              <FieldLabel htmlFor="onboarding-country-code">
-                Country
-              </FieldLabel>
-              <FieldContent>
-                <CountryCombobox
-                  aria-invalid={Boolean(countryCodeError) || undefined}
-                  buttonClassName={onboardingComboboxButtonClassName}
-                  disabled={isPending}
-                  id="onboarding-country-code"
-                  onValueChange={(value) => updateField("countryCode", value)}
-                  placeholder="Choose your country"
-                  searchPlaceholder="Search country"
-                  showFlags={false}
-                  value={values.countryCode}
-                />
-                <FieldError
-                  errors={
-                    countryCodeError ? [{ message: countryCodeError }] : undefined
-                  }
-                />
-              </FieldContent>
-            </Field>
-          </FieldGroup>
-        ) : null}
-
-        {/* Step 3: About you */}
-        {currentStep === 2 ? (
-          <FieldGroup className="gap-5">
-            <Field data-invalid={Boolean(fullNameError) || undefined}>
-              <FieldLabel htmlFor="onboarding-full-name">
-                Full name
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  aria-invalid={Boolean(fullNameError) || undefined}
-                  autoFocus
-                  className={onboardingInputClassName}
-                  id="onboarding-full-name"
-                  maxLength={120}
-                  minLength={2}
-                  onChange={(event) =>
-                    updateField("fullName", event.currentTarget.value)
-                  }
-                  placeholder="Alicia Cruz"
-                  required
-                  value={values.fullName}
-                />
-                <FieldError
-                  errors={fullNameError ? [{ message: fullNameError }] : undefined}
-                />
-              </FieldContent>
-            </Field>
-
-            <Field data-invalid={Boolean(jobTitleError) || undefined}>
-              <FieldLabel htmlFor="onboarding-job-title">
-                Your role
-              </FieldLabel>
-              <FieldContent>
-                <Combobox
-                  aria-invalid={Boolean(jobTitleError) || undefined}
-                  buttonClassName={onboardingComboboxButtonClassName}
-                  disabled={isPending}
-                  id="onboarding-job-title"
-                  onValueChange={(value) => updateField("jobTitle", value)}
-                  options={jobTitleOptions}
-                  placeholder="Choose your role"
-                  searchable
-                  searchPlaceholder="Search roles"
-                  value={values.jobTitle}
-                />
-                <FieldError
-                  errors={jobTitleError ? [{ message: jobTitleError }] : undefined}
-                />
-              </FieldContent>
-            </Field>
-          </FieldGroup>
-        ) : null}
-
-        {/* Step 4: How did you find us */}
-        {currentStep === 3 ? (
-          <FieldGroup className="gap-5">
-            <Field data-invalid={Boolean(referralSourceError) || undefined}>
-              <FieldLabel htmlFor="onboarding-referral-source">
-                Where did you hear about us?
-              </FieldLabel>
-              <FieldContent>
-                <Combobox
-                  aria-invalid={Boolean(referralSourceError) || undefined}
-                  autoFocus
-                  buttonClassName={onboardingComboboxButtonClassName}
-                  disabled={isPending}
-                  id="onboarding-referral-source"
-                  onValueChange={(value) => updateField("referralSource", value)}
-                  options={referralSourceOptions}
-                  placeholder="Choose an option"
-                  searchable
-                  searchPlaceholder="Search"
-                  value={values.referralSource}
-                />
-                <FieldError
-                  errors={
-                    referralSourceError ? [{ message: referralSourceError }] : undefined
-                  }
-                />
-              </FieldContent>
-            </Field>
-          </FieldGroup>
-        ) : null}
-      </div>
-
-      <FormActions
-        align={currentStep === 0 ? "end" : "between"}
-        className="gap-3 pt-0"
-      >
-        {currentStep > 0 ? (
-          <Button
-            disabled={isPending}
-            onClick={handleBack}
-            size="lg"
-            type="button"
-            variant="outline"
+          <FormActions
+            align={currentStep === 0 ? "end" : "between"}
+            className="pt-0"
           >
-            Back
-          </Button>
-        ) : null}
+            {currentStep > 0 ? (
+              <Button
+                disabled={isPending}
+                onClick={handleBack}
+                size="lg"
+                type="button"
+                variant="outline"
+              >
+                Back
+              </Button>
+            ) : null}
 
-        {currentStep < lastOnboardingStepIndex ? (
-          <Button
-            disabled={
-              isPending ||
-              (currentStep === 0 &&
-                values.workspacePlan !== "free" &&
-                !paidCheckoutVerified &&
-                isCheckoutBusy)
-            }
-            onClick={handleContinue}
-            size="lg"
-            type="button"
-          >
-            Continue
-          </Button>
-        ) : (
-          <Button disabled={isPending} size="lg" type="submit">
-            {isPending ? (
-              <>
-                <Spinner data-icon="inline-start" aria-hidden="true" />
-                Creating workspace...
-              </>
+            {currentStep < lastOnboardingStepIndex ? (
+              <Button
+                key="continue"
+                disabled={isPending}
+                onClick={handleContinue}
+                size="lg"
+                type="button"
+              >
+                Continue
+              </Button>
             ) : (
-              "Create workspace"
+              <Button key="finish" disabled={isPending} size="lg" type="submit">
+                {isPending ? (
+                  <>
+                    <Spinner data-icon="inline-start" aria-hidden="true" />
+                    Finishing setup...
+                  </>
+                ) : (
+                  "Finish setup"
+                )}
+              </Button>
             )}
-          </Button>
-        )}
-      </FormActions>
+          </FormActions>
+        </div>
+      </form>
 
-      {onboardingWorkspace && values.workspacePlan !== "free" ? (
-        <CheckoutDialog
-          currentPlan="free"
-          defaultCurrency={defaultCurrency}
-          onOpenChange={handleCheckoutOpenChange}
-          open={checkoutOpen}
-          region={billingRegion}
-          targetPlan={values.workspacePlan as PaidPlan}
-          workspaceId={onboardingWorkspace.id}
-          workspaceSlug={onboardingWorkspace.slug}
-        />
-      ) : null}
-    </form>
+      <OnboardingPreviewDialog
+        business={previewBusiness}
+        onOpenChange={setIsPreviewOpen}
+        open={isPreviewOpen}
+      />
+    </>
   );
+}
+
+function SummaryCard({
+  title,
+  description,
+  value,
+}: {
+  title: string;
+  description: string;
+  value: string;
+}) {
+  return (
+    <Card className="border-border/75 bg-card/97">
+      <CardHeader className="gap-2">
+        <CardDescription>{title}</CardDescription>
+        <CardTitle className="text-base">{value}</CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <p className="text-sm leading-6 text-muted-foreground">{description}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function getFieldValidationError(
+  field: OnboardingFieldName,
+  draft: OnboardingDraft,
+) {
+  switch (field) {
+    case "workspaceName": {
+      const result = onboardingWorkspaceSchema.shape.workspaceName.safeParse(
+        draft.workspaceName,
+      );
+      return result.success ? undefined : result.error.issues[0]?.message;
+    }
+    case "businessName": {
+      const result = onboardingBusinessContextSchema.shape.businessName.safeParse(
+        draft.businessName,
+      );
+      return result.success ? undefined : result.error.issues[0]?.message;
+    }
+    case "businessType": {
+      const result = onboardingBusinessContextSchema.shape.businessType.safeParse(
+        draft.businessType,
+      );
+      return result.success ? undefined : result.error.issues[0]?.message;
+    }
+    case "countryCode": {
+      const result = onboardingBusinessContextSchema.shape.countryCode.safeParse(
+        draft.countryCode,
+      );
+      return result.success ? undefined : result.error.issues[0]?.message;
+    }
+    case "defaultCurrency": {
+      const result =
+        onboardingBusinessContextSchema.shape.defaultCurrency.safeParse(
+          draft.defaultCurrency,
+        );
+      return result.success ? undefined : result.error.issues[0]?.message;
+    }
+    case "starterTemplateBusinessType": {
+      const result =
+        onboardingTemplateSchema.shape.starterTemplateBusinessType.safeParse(
+          draft.starterTemplateBusinessType,
+        );
+      return result.success ? undefined : result.error.issues[0]?.message;
+    }
+  }
+}
+
+function getPreviewFieldItems(inquiryFormConfig: InquiryFormConfig) {
+  const contactFields = (
+    Object.entries(inquiryFormConfig.contactFields) as Array<
+      [
+        InquiryContactFieldKey,
+        (typeof inquiryFormConfig.contactFields)[InquiryContactFieldKey],
+      ]
+    >
+  )
+    .filter(([, field]) => field.enabled)
+    .map(([key, field]) => ({
+      id: key,
+      label: field.label,
+      required: field.required,
+    }));
+
+  const projectFields = inquiryFormConfig.projectFields
+    .filter((field) => isPreviewFieldVisible(field))
+    .map((field) => ({
+      id: field.kind === "system" ? field.key : field.id,
+      label: field.label,
+      required: field.required,
+    }));
+
+  return [...contactFields, ...projectFields];
+}
+
+function isPreviewFieldVisible(field: InquiryFormFieldDefinition) {
+  return field.kind === "custom" || field.enabled;
+}
+
+function sanitizeDraft(
+  value: Partial<OnboardingDraft> | undefined,
+): Partial<OnboardingDraft> {
+  if (!value) {
+    return {};
+  }
+
+  return {
+    workspaceName:
+      typeof value.workspaceName === "string" ? value.workspaceName : "",
+    businessName:
+      typeof value.businessName === "string" ? value.businessName : "",
+    businessType:
+      typeof value.businessType === "string"
+        ? (value.businessType as OnboardingDraft["businessType"])
+        : "",
+    starterTemplateBusinessType:
+      typeof value.starterTemplateBusinessType === "string"
+        ? (value.starterTemplateBusinessType as OnboardingDraft["starterTemplateBusinessType"])
+        : "",
+    countryCode: typeof value.countryCode === "string" ? value.countryCode : "",
+    defaultCurrency:
+      typeof value.defaultCurrency === "string" ? value.defaultCurrency : "",
+  };
+}
+
+function mapServerFieldErrors(
+  fieldErrors: OnboardingActionState["fieldErrors"],
+): Partial<Record<OnboardingFieldName, string>> {
+  return Object.fromEntries(
+    Object.entries(fieldErrors ?? {}).flatMap(([field, errors]) => {
+      const message = errors?.[0];
+
+      return message ? [[field, message]] : [];
+    }),
+  ) as Partial<Record<OnboardingFieldName, string>>;
+}
+
+function clampStepIndex(value: number, maxStepIndex: number) {
+  return Math.min(Math.max(value, 0), maxStepIndex);
 }

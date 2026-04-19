@@ -113,6 +113,14 @@ export const businesses = pgTable(
       .notNull()
       .default(true),
     defaultCurrency: text("default_currency").notNull().default("USD"),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    archivedBy: text("archived_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    deletedBy: text("deleted_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -124,6 +132,14 @@ export const businesses = pgTable(
     uniqueIndex("businesses_slug_unique").on(table.slug),
     index("businesses_created_at_idx").on(table.createdAt),
     index("businesses_workspace_id_idx").on(table.workspaceId),
+    index("businesses_workspace_archived_at_idx").on(
+      table.workspaceId,
+      table.archivedAt,
+    ),
+    index("businesses_workspace_deleted_at_idx").on(
+      table.workspaceId,
+      table.deletedAt,
+    ),
     check("businesses_slug_format", sql`${table.slug} ~ '^[a-z0-9-]+$'`),
     check(
       "businesses_country_code_format",

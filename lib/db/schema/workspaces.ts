@@ -31,7 +31,18 @@ export const workspaces = pgTable(
       .default("free"),
     ownerUserId: text("owner_user_id")
       .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
+      .references(() => user.id, { onDelete: "restrict" }),
+    scheduledDeletionAt: timestamp("scheduled_deletion_at", {
+      withTimezone: true,
+    }),
+    scheduledDeletionBy: text("scheduled_deletion_by").references(
+      () => user.id,
+      { onDelete: "set null" },
+    ),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    deletedBy: text("deleted_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -42,6 +53,12 @@ export const workspaces = pgTable(
   (table) => [
     uniqueIndex("workspaces_slug_unique").on(table.slug),
     index("workspaces_owner_user_id_idx").on(table.ownerUserId),
+    index("workspaces_scheduled_deletion_at_idx").on(table.scheduledDeletionAt),
+    index("workspaces_deleted_at_idx").on(table.deletedAt),
+    index("workspaces_owner_deleted_at_idx").on(
+      table.ownerUserId,
+      table.deletedAt,
+    ),
     check(
       "workspaces_slug_format",
       sql`${table.slug} ~ '^[a-z0-9-]+$'`,

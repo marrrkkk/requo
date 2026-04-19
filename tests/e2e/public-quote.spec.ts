@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import {
   demoExpiredQuotePublicToken,
   demoQuotePublicToken,
+  demoVoidedQuotePublicToken,
 } from "./fixtures";
 
 test.describe.configure({ mode: "serial" });
@@ -51,6 +52,19 @@ test("expired public quote links stay read-only", async ({ page }) => {
   await page.waitForLoadState("networkidle");
 
   await expect(page.getByText("Quote no longer active")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Accept quote" })).toHaveCount(0);
+});
+
+test("voided public quote links stay readable but non-actionable", async ({
+  page,
+}) => {
+  await page.goto(`/quote/${demoVoidedQuotePublicToken}`);
+  await page.waitForLoadState("networkidle");
+
+  await expect(page.getByText("Quote voided")).toBeVisible();
+  await expect(
+    page.getByText("This quote was voided and is no longer accepting online responses."),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: "Accept quote" })).toHaveCount(0);
 });
 

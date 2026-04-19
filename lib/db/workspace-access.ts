@@ -7,7 +7,7 @@ import "server-only";
  * queries for workspace-scoped operations.
  */
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { cache } from "react";
 
 import type { WorkspacePlan } from "@/lib/plans/plans";
@@ -24,6 +24,8 @@ export type WorkspaceContext = {
   slug: string;
   plan: WorkspacePlan;
   ownerUserId: string;
+  scheduledDeletionAt: Date | null;
+  deletedAt: Date | null;
   membershipId: string;
   memberRole: WorkspaceMemberRole;
 };
@@ -39,12 +41,16 @@ export const getWorkspacesForUser = cache(async (userId: string) => {
       workspaceSlug: workspaces.slug,
       workspacePlan: workspaces.plan,
       ownerUserId: workspaces.ownerUserId,
+      scheduledDeletionAt: workspaces.scheduledDeletionAt,
+      deletedAt: workspaces.deletedAt,
       membershipId: workspaceMembers.id,
       memberRole: workspaceMembers.role,
     })
     .from(workspaceMembers)
     .innerJoin(workspaces, eq(workspaceMembers.workspaceId, workspaces.id))
-    .where(eq(workspaceMembers.userId, userId))
+    .where(
+      and(eq(workspaceMembers.userId, userId), isNull(workspaces.deletedAt)),
+    )
     .orderBy(asc(workspaces.name), asc(workspaces.createdAt));
 
   return rows.map((row) => ({
@@ -53,6 +59,8 @@ export const getWorkspacesForUser = cache(async (userId: string) => {
     slug: row.workspaceSlug,
     plan: row.workspacePlan as WorkspacePlan,
     ownerUserId: row.ownerUserId,
+    scheduledDeletionAt: row.scheduledDeletionAt,
+    deletedAt: row.deletedAt,
     membershipId: row.membershipId,
     memberRole: row.memberRole,
   })) satisfies WorkspaceContext[];
@@ -70,6 +78,8 @@ export const getWorkspaceContextForUser = cache(
         workspaceSlug: workspaces.slug,
         workspacePlan: workspaces.plan,
         ownerUserId: workspaces.ownerUserId,
+        scheduledDeletionAt: workspaces.scheduledDeletionAt,
+        deletedAt: workspaces.deletedAt,
         membershipId: workspaceMembers.id,
         memberRole: workspaceMembers.role,
       })
@@ -79,6 +89,7 @@ export const getWorkspaceContextForUser = cache(
         and(
           eq(workspaceMembers.userId, userId),
           eq(workspaces.id, workspaceId),
+          isNull(workspaces.deletedAt),
         ),
       )
       .limit(1);
@@ -93,6 +104,8 @@ export const getWorkspaceContextForUser = cache(
       slug: row.workspaceSlug,
       plan: row.workspacePlan as WorkspacePlan,
       ownerUserId: row.ownerUserId,
+      scheduledDeletionAt: row.scheduledDeletionAt,
+      deletedAt: row.deletedAt,
       membershipId: row.membershipId,
       memberRole: row.memberRole,
     } satisfies WorkspaceContext;
@@ -113,10 +126,12 @@ export const getWorkspaceForBusiness = cache(
         workspaceSlug: workspaces.slug,
         workspacePlan: workspaces.plan,
         ownerUserId: workspaces.ownerUserId,
+        scheduledDeletionAt: workspaces.scheduledDeletionAt,
+        deletedAt: workspaces.deletedAt,
       })
       .from(businesses)
       .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
-      .where(eq(businesses.id, businessId))
+      .where(and(eq(businesses.id, businessId), isNull(workspaces.deletedAt)))
       .limit(1);
 
     if (!row) {
@@ -129,6 +144,8 @@ export const getWorkspaceForBusiness = cache(
       slug: row.workspaceSlug,
       plan: row.workspacePlan as WorkspacePlan,
       ownerUserId: row.ownerUserId,
+      scheduledDeletionAt: row.scheduledDeletionAt,
+      deletedAt: row.deletedAt,
     };
   },
 );

@@ -1,102 +1,139 @@
 "use client";
 
-import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { AlertTriangle, Trash2 } from "lucide-react";
+import { Archive, RotateCcw, Trash2 } from "lucide-react";
 
+import {
+  ServerActionButton,
+  ServerActionConfirmDialog,
+} from "@/components/shared/server-action-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Field,
-  FieldContent,
-  FieldError,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import type { BusinessDeleteActionState } from "@/features/settings/types";
+import type { BusinessRecordState } from "@/features/businesses/lifecycle";
+import type { BusinessRecordActionState } from "@/features/businesses/types";
 
 type BusinessDeleteZoneProps = {
-  action: (
-    state: BusinessDeleteActionState,
+  archiveAction: (
+    state: BusinessRecordActionState,
     formData: FormData,
-  ) => Promise<BusinessDeleteActionState>;
+  ) => Promise<BusinessRecordActionState>;
+  activeWorkspaceBusinessCount: number;
+  archivedRedirectHref: string;
   businessName: string;
+  recordState: BusinessRecordState;
+  restoreAction: (
+    state: BusinessRecordActionState,
+    formData: FormData,
+  ) => Promise<BusinessRecordActionState>;
+  trashAction: (
+    state: BusinessRecordActionState,
+    formData: FormData,
+  ) => Promise<BusinessRecordActionState>;
+  trashRedirectHref: string;
+  unarchiveAction: (
+    state: BusinessRecordActionState,
+    formData: FormData,
+  ) => Promise<BusinessRecordActionState>;
 };
 
-const initialState: BusinessDeleteActionState = {};
-
 export function BusinessDeleteZone({
-  action,
+  archiveAction,
+  activeWorkspaceBusinessCount,
+  archivedRedirectHref,
   businessName,
+  recordState,
+  restoreAction,
+  trashAction,
+  trashRedirectHref,
+  unarchiveAction,
 }: BusinessDeleteZoneProps) {
-  const [state, formAction, isPending] = useActionStateWithSonner(
-    action,
-    initialState,
-  );
+  const isTrashDisabled =
+    recordState === "active" && activeWorkspaceBusinessCount <= 1;
 
   return (
     <Card className="gap-0 border-border/75 bg-card/97">
       <CardHeader className="gap-2.5 pb-5">
-        <CardTitle>Danger zone</CardTitle>
+        <CardTitle>Business lifecycle</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-5 pt-0">
-        <Alert variant="destructive">
-          <AlertTriangle data-icon="inline-start" />
-          <AlertTitle>Delete business</AlertTitle>
-          <AlertDescription>
-            This permanently deletes the business, its inquiries, quotes, pricing,
-            files, and settings. This cannot be undone.
-          </AlertDescription>
-        </Alert>
+        {recordState === "trash" ? (
+          <Alert>
+            <AlertTitle>Business is in trash</AlertTitle>
+            <AlertDescription>
+              {businessName} is hidden from active workspace views and public
+              inquiry pages. Restore it to make it active again.
+            </AlertDescription>
+          </Alert>
+        ) : recordState === "archived" ? (
+          <Alert>
+            <AlertTitle>Business is archived</AlertTitle>
+            <AlertDescription>
+              Archived businesses stay preserved for history, but they are hidden
+              from normal active workspace views.
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <Alert>
+            <AlertTitle>Clean up without losing history</AlertTitle>
+            <AlertDescription>
+              Archive is the safe default. Move a business to trash only when you
+              want it removed from normal workspace views.
+            </AlertDescription>
+          </Alert>
+        )}
 
-        <form action={formAction} className="form-stack">
-          <Field
-            data-invalid={Boolean(state.fieldErrors?.confirmation) || undefined}
-          >
-            <FieldLabel htmlFor="business-delete-confirmation">
-              Type <span className="font-semibold text-foreground">{businessName}</span> to confirm
-            </FieldLabel>
-            <FieldContent>
-              <Input
-                aria-invalid={Boolean(state.fieldErrors?.confirmation) || undefined}
-                autoComplete="off"
-                disabled={isPending}
-                id="business-delete-confirmation"
-                maxLength={120}
-                name="confirmation"
-                required
-                spellCheck={false}
-              />
-              <FieldError
-                errors={
-                  state.fieldErrors?.confirmation?.[0]
-                    ? [{ message: state.fieldErrors.confirmation[0] }]
-                    : undefined
-                }
-              />
-            </FieldContent>
-          </Field>
-
+        {recordState === "trash" ? (
           <div className="dashboard-actions">
-            <Button disabled={isPending} type="submit" variant="destructive">
-              <Trash2 data-icon="inline-start" />
-              {isPending ? (
-                <>
-                  <Spinner data-icon="inline-start" aria-hidden="true" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete business"
-              )}
-            </Button>
+            <ServerActionButton
+              action={restoreAction}
+              icon={RotateCcw}
+              label="Restore business"
+              pendingLabel="Restoring..."
+            />
           </div>
-        </form>
+        ) : (
+          <div className="dashboard-actions">
+            {recordState === "archived" ? (
+              <ServerActionButton
+                action={unarchiveAction}
+                icon={RotateCcw}
+                label="Restore business"
+                pendingLabel="Restoring..."
+              />
+            ) : (
+              <ServerActionButton
+                action={archiveAction}
+                icon={Archive}
+                label="Archive business"
+                pendingLabel="Archiving..."
+                redirectHref={archivedRedirectHref}
+              />
+            )}
+            <ServerActionConfirmDialog
+              action={trashAction}
+              confirmLabel="Move business to trash"
+              confirmPendingLabel="Moving..."
+              description="This hides the business from active workspace views and public intake, but the business can still be restored later."
+              disabled={isTrashDisabled}
+              icon={Trash2}
+              redirectHref={trashRedirectHref}
+              title="Move business to trash?"
+              triggerLabel="Move to trash"
+              triggerVariant="destructive"
+            />
+          </div>
+        )}
+
+        {isTrashDisabled ? (
+          <p className="text-sm text-muted-foreground">
+            Keep at least one active business in this workspace before moving this
+            one to trash.
+          </p>
+        ) : null}
       </CardContent>
     </Card>
   );

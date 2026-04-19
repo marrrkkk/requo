@@ -1,6 +1,6 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import {
   Card,
@@ -20,21 +20,21 @@ import {
 import type { ConversionTrendPoint } from "@/features/analytics/types";
 
 const chartConfig = {
-  accepted: {
+  quotesSent: {
+    label: "Quotes sent",
+    color: "oklch(0.715 0.143 215.221)",
+  },
+  quoteViews: {
+    label: "Quote views",
+    color: "oklch(0.623 0.214 259.815)",
+  },
+  acceptedQuotes: {
     label: "Accepted",
     color: "oklch(0.765 0.177 163.223)",
   },
-  sent: {
-    label: "Pending",
-    color: "oklch(0.715 0.143 215.221)",
-  },
-  rejected: {
+  rejectedQuotes: {
     label: "Rejected",
     color: "oklch(0.637 0.237 25.331)",
-  },
-  expired: {
-    label: "Expired",
-    color: "oklch(0.705 0.191 47.604)",
   },
 } satisfies ChartConfig;
 
@@ -46,17 +46,14 @@ export function AnalyticsConversionTrend({
   return (
     <Card className="gap-0">
       <CardHeader className="gap-2">
-        <CardTitle>Quote status trend</CardTitle>
+        <CardTitle>Quote engagement trend</CardTitle>
         <CardDescription>
-          Six-week breakdown by outcome.
+          Last 12 weeks of sent quotes, public views, and customer decisions.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-64 w-full">
-          <BarChart
-            data={points}
-            barCategoryGap="20%"
-          >
+          <LineChart data={points}>
             <CartesianGrid vertical={false} />
             <XAxis
               dataKey="label"
@@ -78,31 +75,35 @@ export function AnalyticsConversionTrend({
               content={<ChartTooltipContent />}
             />
             <ChartLegend content={<ChartLegendContent />} />
-            <Bar
-              dataKey="accepted"
-              stackId="quotes"
-              fill="var(--color-accepted)"
-              radius={[0, 0, 0, 0]}
+            <Line
+              dataKey="quotesSent"
+              stroke="var(--color-quotesSent)"
+              strokeWidth={2.25}
+              dot={false}
+              type="monotone"
             />
-            <Bar
-              dataKey="sent"
-              stackId="quotes"
-              fill="var(--color-sent)"
-              radius={[0, 0, 0, 0]}
+            <Line
+              dataKey="quoteViews"
+              stroke="var(--color-quoteViews)"
+              strokeWidth={2.25}
+              dot={false}
+              type="monotone"
             />
-            <Bar
-              dataKey="rejected"
-              stackId="quotes"
-              fill="var(--color-rejected)"
-              radius={[0, 0, 0, 0]}
+            <Line
+              dataKey="acceptedQuotes"
+              stroke="var(--color-acceptedQuotes)"
+              strokeWidth={2.25}
+              dot={false}
+              type="monotone"
             />
-            <Bar
-              dataKey="expired"
-              stackId="quotes"
-              fill="var(--color-expired)"
-              radius={[4, 4, 0, 0]}
+            <Line
+              dataKey="rejectedQuotes"
+              stroke="var(--color-rejectedQuotes)"
+              strokeWidth={2.25}
+              dot={false}
+              type="monotone"
             />
-          </BarChart>
+          </LineChart>
         </ChartContainer>
       </CardContent>
     </Card>

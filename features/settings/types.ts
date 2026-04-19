@@ -1,3 +1,4 @@
+import type { BusinessRecordState } from "@/features/businesses/lifecycle";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import type {
   InquiryFormConfig,
@@ -20,8 +21,14 @@ export type BusinessAiTonePreference =
 
 export type BusinessSettingsView = {
   id: string;
+  workspaceId: string;
+  workspaceSlug: string;
   name: string;
   slug: string;
+  recordState: BusinessRecordState;
+  archivedAt: Date | null;
+  deletedAt: Date | null;
+  activeWorkspaceBusinessCount: number;
   countryCode: string | null;
   shortDescription: string | null;
   contactEmail: string | null;

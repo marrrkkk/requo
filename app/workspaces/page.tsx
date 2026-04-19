@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, /* Plus */ } from "lucide-react";
+import { ArrowRight, CalendarClock, /* Plus */ } from "lucide-react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
 import { PlanBadge } from "@/components/shared/paywall";
@@ -17,10 +17,10 @@ import { CreateWorkspaceDialog } from "@/features/workspaces/components/create-w
 import { getWorkspaceListForUser } from "@/features/workspaces/queries";
 import { getWorkspacePath, workspacesHubPath } from "@/features/workspaces/routes";
 import { getAccountProfileForUser } from "@/features/account/queries";
+import { AccountUserMenu } from "@/features/account/components/account-user-menu";
+import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { onboardingPath } from "@/features/onboarding/routes";
 
-import { LogoutButton } from "@/features/auth/components/logout-button";
-import { AppearanceMenu } from "@/features/theme/components/appearance-menu";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { requireSession } from "@/lib/auth/session";
@@ -44,6 +44,12 @@ export default async function WorkspacesPage() {
     redirect(onboardingPath);
   }
 
+  const avatarSrc = resolveUserAvatarSrc({
+    avatarStoragePath: profile?.avatarStoragePath,
+    profileUpdatedAt: profile?.updatedAt,
+    oauthImage: session.user.image ?? null,
+  });
+
   return (
     <>
       <ThemePreferenceSync
@@ -58,8 +64,14 @@ export default async function WorkspacesPage() {
 
           </div>
           <div className="flex items-center gap-3">
-            <AppearanceMenu iconOnly userId={session.user.id} />
-            <LogoutButton variant="outline" />
+            <AccountUserMenu
+              user={{
+                id: session.user.id,
+                email: session.user.email,
+                name: session.user.name,
+                avatarSrc,
+              }}
+            />
           </div>
         </header>
 
@@ -122,6 +134,12 @@ export default async function WorkspacesPage() {
                           >
                             {ws.memberRole}
                           </Badge>
+                          {ws.scheduledDeletionAt ? (
+                            <Badge className="gap-1" variant="outline">
+                              <CalendarClock className="size-3.5" />
+                              Deletion scheduled
+                            </Badge>
+                          ) : null}
                         </div>
                         <Button asChild className="w-full sm:w-auto">
                           <Link href={getWorkspacePath(ws.slug)} prefetch={true}>

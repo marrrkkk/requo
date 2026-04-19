@@ -8,6 +8,7 @@ import {
   eq,
   gte,
   ilike,
+  isNotNull,
   isNull,
   lte,
   or,
@@ -16,12 +17,22 @@ import {
 import { cacheLife, cacheTag } from "next/cache";
 
 import type { InquiryStatus } from "@/features/inquiries/types";
+import type {
+  InquiryRecordState,
+  InquiryRecordView,
+} from "@/features/inquiries/types";
 
 export const getEffectiveInquiryStatus = sql<InquiryStatus>`case
-  when ${inquiries.status} in ('new', 'waiting', 'quoted') and ${inquiries.requestedDeadline} is not null and ${inquiries.requestedDeadline} < current_date then 'overdue'::inquiry_status
-  when ${inquiries.status} in ('new', 'waiting') and ${inquiries.submittedAt} >= now() - interval '48 hours' then 'new'::inquiry_status
-  when ${inquiries.status} in ('new', 'waiting') and ${inquiries.submittedAt} < now() - interval '48 hours' then 'waiting'::inquiry_status
-  else ${inquiries.status}
+  when ${inquiries.status} in ('new', 'waiting', 'quoted') and ${inquiries.requestedDeadline} is not null and ${inquiries.requestedDeadline} < current_date then 'overdue'
+  when ${inquiries.status} in ('new', 'waiting') and ${inquiries.submittedAt} >= now() - interval '48 hours' then 'new'
+  when ${inquiries.status} in ('new', 'waiting') and ${inquiries.submittedAt} < now() - interval '48 hours' then 'waiting'
+  else ${inquiries.status}::text
+end`;
+
+export const getInquiryRecordState = sql<InquiryRecordState>`case
+  when ${inquiries.deletedAt} is not null then 'trash'
+  when ${inquiries.archivedAt} is not null then 'archived'
+  else 'active'
 end`;
 
 import {
@@ -122,7 +133,14 @@ async function getInquiryBusinessBySlug({
         isNull(businessInquiryForms.archivedAt),
       ),
     )
-    .where(eq(businesses.slug, slug))
+    .where(
+      and(
+        eq(businesses.slug, slug),
+        isNull(workspaces.deletedAt),
+        isNull(businesses.deletedAt),
+        includeDisabled ? undefined : isNull(businesses.archivedAt),
+      ),
+    )
     .limit(1);
 
   if (!business || (!includeDisabled && !business.publicInquiryEnabled)) {
@@ -280,7 +298,14 @@ async function getInquiryBusinessByFormSlug({
         isNull(businessInquiryForms.archivedAt),
       ),
     )
-    .where(eq(businesses.slug, businessSlug))
+    .where(
+      and(
+        eq(businesses.slug, businessSlug),
+        isNull(workspaces.deletedAt),
+        isNull(businesses.deletedAt),
+        includeDisabled ? undefined : isNull(businesses.archivedAt),
+      ),
+    )
     .limit(1);
 
   if (!business || (!includeDisabled && !business.publicInquiryEnabled)) {
@@ -326,7 +351,15 @@ export async function getPublicBusinessLogoAssetBySlug(slug: string) {
       logoContentType: businesses.logoContentType,
     })
     .from(businesses)
-    .where(eq(businesses.slug, slug))
+    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
+    .where(
+      and(
+        eq(businesses.slug, slug),
+        isNull(workspaces.deletedAt),
+        isNull(businesses.archivedAt),
+        isNull(businesses.deletedAt),
+      ),
+    )
     .limit(1);
 
   return business ?? null;
@@ -371,15 +404,38 @@ type GetInquiryListForBusinessInput = {
   filters: InquiryListQueryFilters;
 };
 
+export function getNonDeletedInquiryCondition() {
+  return isNull(inquiries.deletedAt);
+}
+
+export function getOperationalInquiryCondition() {
+  return and(isNull(inquiries.deletedAt), isNull(inquiries.archivedAt));
+}
+
+function getInquiryViewCondition(view: InquiryRecordView) {
+  switch (view) {
+    case "archived":
+      return and(isNull(inquiries.deletedAt), isNotNull(inquiries.archivedAt));
+    case "trash":
+      return isNotNull(inquiries.deletedAt);
+    case "active":
+    default:
+      return and(isNull(inquiries.deletedAt), isNull(inquiries.archivedAt));
+  }
+}
+
 function getInquiryListConditions({
   businessId,
   filters,
 }: GetInquiryListForBusinessInput) {
-  const conditions = [eq(inquiries.businessId, businessId)];
+  const conditions = [
+    eq(inquiries.businessId, businessId),
+    getInquiryViewCondition(filters.view),
+  ];
 
   if (filters.status !== "all") {
     conditions.push(
-      sql`${getEffectiveInquiryStatus} = ${filters.status}::inquiry_status`,
+      sql`${getEffectiveInquiryStatus} = ${filters.status}`,
     );
   }
 
@@ -467,7 +523,10 @@ export async function getInquiryListPageForBusiness({
       serviceCategory: inquiries.serviceCategory,
       budgetText: inquiries.budgetText,
       status: getEffectiveInquiryStatus,
+      recordState: getInquiryRecordState,
       subject: inquiries.subject,
+      archivedAt: inquiries.archivedAt,
+      deletedAt: inquiries.deletedAt,
       submittedAt: inquiries.submittedAt,
       createdAt: inquiries.createdAt,
     })
@@ -495,6 +554,9 @@ type InquiryExportRow = {
   subject: string | null;
   details: string;
   status: string;
+  recordState: InquiryRecordState;
+  archivedAt: Date | null;
+  deletedAt: Date | null;
   submittedAt: Date;
 };
 
@@ -534,6 +596,9 @@ export async function getInquiryExportRowsForBusiness({
       subject: inquiries.subject,
       details: inquiries.details,
       status: getEffectiveInquiryStatus,
+      recordState: getInquiryRecordState,
+      archivedAt: inquiries.archivedAt,
+      deletedAt: inquiries.deletedAt,
       submittedAt: inquiries.submittedAt,
     })
     .from(inquiries)
@@ -577,7 +642,10 @@ export async function getInquiryDetailForBusiness({
       subject: inquiries.subject,
       details: inquiries.details,
       source: inquiries.source,
-      status: inquiries.status,
+      status: getEffectiveInquiryStatus,
+      recordState: getInquiryRecordState,
+      archivedAt: inquiries.archivedAt,
+      deletedAt: inquiries.deletedAt,
       submittedAt: inquiries.submittedAt,
       createdAt: inquiries.createdAt,
       submittedFieldSnapshot: inquiries.submittedFieldSnapshot,
@@ -659,7 +727,13 @@ export async function getInquiryDetailForBusiness({
           createdAt: quotes.createdAt,
         })
         .from(quotes)
-        .where(and(eq(quotes.businessId, businessId), eq(quotes.inquiryId, inquiryId)))
+        .where(
+          and(
+            eq(quotes.businessId, businessId),
+            eq(quotes.inquiryId, inquiryId),
+            isNull(quotes.deletedAt),
+          ),
+        )
         .orderBy(desc(quotes.createdAt))
         .limit(1),
       db
@@ -667,7 +741,13 @@ export async function getInquiryDetailForBusiness({
           count: count(),
         })
         .from(quotes)
-        .where(and(eq(quotes.businessId, businessId), eq(quotes.inquiryId, inquiryId))),
+        .where(
+          and(
+            eq(quotes.businessId, businessId),
+            eq(quotes.inquiryId, inquiryId),
+            isNull(quotes.deletedAt),
+          ),
+        ),
     ]);
 
   const relatedQuote = relatedQuoteRows[0]

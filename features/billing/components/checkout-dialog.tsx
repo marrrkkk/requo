@@ -18,7 +18,7 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
-import { CreditCard, QrCode, Check, Zap, Crown, Sparkles } from "lucide-react";
+import { CreditCard, QrCode, Check, Zap, Crown, ShoppingCart } from "lucide-react";
 import QRCode from "react-qr-code";
 
 import { Badge } from "@/components/ui/badge";
@@ -412,7 +412,7 @@ function CheckoutDialogInner({
                     </>
                   ) : (
                     <>
-                      <Sparkles className="size-4" data-icon="inline-start" />
+                      <ShoppingCart className="size-4" data-icon="inline-start" />
                       {isQrPh ? "Generate QR code" : "Continue to checkout"}
                       <span className="ml-1 opacity-70">
                         • {formatPrice(totalPrice, currency)}

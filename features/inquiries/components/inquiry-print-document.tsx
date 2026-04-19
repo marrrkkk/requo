@@ -12,10 +12,6 @@ import {
 } from "@/features/inquiries/utils";
 import { formatQuoteMoney } from "@/features/quotes/utils";
 
-const MAX_PRINT_DETAILS_CHARS = 460;
-const MAX_PRINT_FIELDS = 6;
-const MAX_PRINT_ATTACHMENTS = 4;
-
 type InquiryPrintDocumentProps = {
   businessName: string;
   businessCurrency: string;
@@ -29,25 +25,14 @@ export function InquiryPrintDocument({
 }: InquiryPrintDocumentProps) {
   const additionalFields = getAdditionalInquirySubmittedFields(
     inquiry.submittedFieldSnapshot,
-  ).slice(0, MAX_PRINT_FIELDS);
-  const hiddenFieldsCount = Math.max(
-    0,
-    getAdditionalInquirySubmittedFields(inquiry.submittedFieldSnapshot).length -
-      additionalFields.length,
-  );
-  const attachments = inquiry.attachments.slice(0, MAX_PRINT_ATTACHMENTS);
-  const hiddenAttachmentsCount = Math.max(
-    0,
-    inquiry.attachments.length - attachments.length,
   );
   const details = inquiry.details.trim();
-  const detailsPreview =
-    details.length > MAX_PRINT_DETAILS_CHARS
-      ? `${details.slice(0, MAX_PRINT_DETAILS_CHARS)}...`
-      : details;
 
   return (
-    <div className="flex flex-col gap-4 print:gap-2 print:[zoom:0.84] print:text-[11px]">
+    <div
+      className="mx-auto flex w-full max-w-[62rem] flex-col gap-4"
+      data-export-document
+    >
       <section className="section-panel overflow-hidden print:rounded-none print:border-0 print:bg-transparent print:shadow-none">
         <div className="flex flex-col gap-3 px-4 py-4">
           <div className="flex flex-col gap-2 border-b border-border/70 pb-3">
@@ -132,7 +117,7 @@ export function InquiryPrintDocument({
             </CardHeader>
             <CardContent>
               <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
-                {detailsPreview}
+                {details}
               </p>
             </CardContent>
           </Card>
@@ -153,13 +138,6 @@ export function InquiryPrintDocument({
                     value={field.displayValue}
                   />
                 ))}
-                {hiddenFieldsCount > 0 ? (
-                  <p className="text-xs text-muted-foreground sm:col-span-2">
-                    +{hiddenFieldsCount} more submitted field
-                    {hiddenFieldsCount === 1 ? "" : "s"} omitted for one-page
-                    print.
-                  </p>
-                ) : null}
               </CardContent>
             </Card>
           ) : null}
@@ -174,9 +152,9 @@ export function InquiryPrintDocument({
               </p>
             </CardHeader>
             <CardContent>
-              {attachments.length ? (
+              {inquiry.attachments.length ? (
                 <div className="flex flex-col gap-2">
-                  {attachments.map((attachment) => (
+                  {inquiry.attachments.map((attachment) => (
                     <div
                       className="soft-panel px-3 py-3 shadow-none print:border print:border-border/70"
                       key={attachment.id}
@@ -195,13 +173,6 @@ export function InquiryPrintDocument({
                       </div>
                     </div>
                   ))}
-                  {hiddenAttachmentsCount > 0 ? (
-                    <p className="text-xs text-muted-foreground">
-                      +{hiddenAttachmentsCount} more attachment
-                      {hiddenAttachmentsCount === 1 ? "" : "s"} omitted for
-                      one-page print.
-                    </p>
-                  ) : null}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">

@@ -5,22 +5,16 @@ import {
   Timer,
 } from "lucide-react";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
-import { LockedFeatureCard } from "@/components/shared/paywall";
 import { cn } from "@/lib/utils";
 import { analyticsSections } from "@/features/analytics/config";
-import { AnalyticsOverviewTab } from "@/features/analytics/components/analytics-overview-tab";
-import { AnalyticsConversionTab } from "@/features/analytics/components/analytics-conversion-tab";
-import { AnalyticsWorkflowTab } from "@/features/analytics/components/analytics-workflow-tab";
-import { getWorkspaceBillingOverview } from "@/features/billing/queries";
 import {
-  getBusinessAnalyticsData,
-  getConversionAnalyticsData,
-  getWorkflowAnalyticsData,
-} from "@/features/analytics/queries";
-import { hasFeatureAccess } from "@/lib/plans";
+  AnalyticsTabPanel,
+  AnalyticsTabPanelFallback,
+} from "@/features/analytics/components/analytics-tab-panel";
 import { workspacesHubPath } from "@/features/workspaces/routes";
 import { requireSession } from "@/lib/auth/session";
 import {
@@ -51,25 +45,13 @@ function getAnalyticsTab(
     : analyticsSections.overview.id;
 }
 
-function getAnalyticsYear(value: string | string[] | undefined) {
-  const normalized = typeof value === "string" ? value : value?.[0];
-  const parsed = normalized ? Number.parseInt(normalized, 10) : NaN;
-
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
 function getAnalyticsTabHref(
   businessSlug: string,
   tab: AnalyticsTabId,
-  year?: number,
 ) {
   const params = new URLSearchParams();
 
   params.set("tab", tab);
-
-  if (typeof year === "number") {
-    params.set("year", String(year));
-  }
 
   return `/businesses/${businessSlug}/dashboard/analytics?${params.toString()}`;
 }
@@ -97,113 +79,50 @@ export default async function AnalyticsPage({
   }
 
   const activeTab = getAnalyticsTab(resolvedSearchParams.tab);
-  const selectedYear = getAnalyticsYear(resolvedSearchParams.year);
   const businessId = businessContext.business.id;
   const plan = businessContext.business.workspacePlan;
   const currency = businessContext.business.defaultCurrency;
   const businessSlug = businessContext.business.slug;
-  const canViewConversion = hasFeatureAccess(plan, "analyticsConversion");
-  const canViewWorkflow = hasFeatureAccess(plan, "analyticsWorkflow");
-  const billingOverview =
-    !canViewConversion || !canViewWorkflow
-      ? await getWorkspaceBillingOverview(businessContext.business.workspaceId)
-      : null;
-
-  const [overviewData, conversionData, workflowData] = await Promise.all([
-    activeTab === analyticsSections.overview.id
-      ? getBusinessAnalyticsData(businessId, { activityYear: selectedYear })
-      : Promise.resolve(null),
-    activeTab === analyticsSections.conversion.id && canViewConversion
-      ? getConversionAnalyticsData(businessId)
-      : Promise.resolve(null),
-    activeTab === analyticsSections.workflow.id && canViewWorkflow
-      ? getWorkflowAnalyticsData(businessId)
-      : Promise.resolve(null),
-  ]);
 
   return (
     <DashboardPage>
       <PageHeader
         eyebrow="Analytics"
-        title="Inquiry-to-quote performance"
-        description="Track your inquiry pipeline, quote conversions, and workflow efficiency."
+        title="Performance analytics"
+        description="Track how inquiry form traffic turns into quotes, customer decisions, and follow-through."
       />
 
       <div className="flex flex-col gap-6">
         <div className="inline-flex w-fit flex-wrap items-center gap-1 rounded-lg border border-border/80 bg-[var(--table-header-bg)] p-1">
           <AnalyticsTabLink
-            href={getAnalyticsTabHref(businessSlug, analyticsSections.overview.id, selectedYear)}
+            href={getAnalyticsTabHref(businessSlug, analyticsSections.overview.id)}
             icon={BarChart3}
             isActive={activeTab === analyticsSections.overview.id}
             label={analyticsSections.overview.label}
           />
           <AnalyticsTabLink
-            href={getAnalyticsTabHref(businessSlug, analyticsSections.conversion.id, selectedYear)}
+            href={getAnalyticsTabHref(businessSlug, analyticsSections.conversion.id)}
             icon={GitCompareArrows}
             isActive={activeTab === analyticsSections.conversion.id}
             label={analyticsSections.conversion.label}
           />
           <AnalyticsTabLink
-            href={getAnalyticsTabHref(businessSlug, analyticsSections.workflow.id, selectedYear)}
+            href={getAnalyticsTabHref(businessSlug, analyticsSections.workflow.id)}
             icon={Timer}
             isActive={activeTab === analyticsSections.workflow.id}
             label={analyticsSections.workflow.label}
           />
         </div>
 
-        {activeTab === analyticsSections.overview.id && overviewData ? (
-          <AnalyticsOverviewTab data={overviewData} />
-        ) : null}
-
-        {activeTab === analyticsSections.conversion.id ? (
-          canViewConversion && conversionData ? (
-            <AnalyticsConversionTab data={conversionData} currency={currency} />
-          ) : (
-            <LockedFeatureCard
-              feature="analyticsConversion"
-              plan={plan}
-              title="Conversion analytics"
-              description="Upgrade to track how inquiries convert into quotes and accepted work."
-              upgradeAction={
-                billingOverview
-                  ? {
-                      workspaceId: billingOverview.workspaceId,
-                      workspaceSlug: billingOverview.workspaceSlug,
-                      currentPlan: billingOverview.currentPlan,
-                      region: billingOverview.region,
-                      defaultCurrency: billingOverview.defaultCurrency,
-                      ctaLabel: "Upgrade for conversion analytics",
-                    }
-                  : undefined
-              }
-            />
-          )
-        ) : null}
-
-        {activeTab === analyticsSections.workflow.id ? (
-          canViewWorkflow && workflowData ? (
-            <AnalyticsWorkflowTab data={workflowData} />
-          ) : (
-            <LockedFeatureCard
-              feature="analyticsWorkflow"
-              plan={plan}
-              title="Workflow analytics"
-              description="Upgrade to monitor response speed, follow-up cadence, and bottlenecks."
-              upgradeAction={
-                billingOverview
-                  ? {
-                      workspaceId: billingOverview.workspaceId,
-                      workspaceSlug: billingOverview.workspaceSlug,
-                      currentPlan: billingOverview.currentPlan,
-                      region: billingOverview.region,
-                      defaultCurrency: billingOverview.defaultCurrency,
-                      ctaLabel: "Upgrade for workflow analytics",
-                    }
-                  : undefined
-              }
-            />
-          )
-        ) : null}
+        <Suspense fallback={<AnalyticsTabPanelFallback activeTab={activeTab} />}>
+          <AnalyticsTabPanel
+            activeTab={activeTab}
+            businessId={businessId}
+            currency={currency}
+            plan={plan}
+            workspaceId={businessContext.business.workspaceId}
+          />
+        </Suspense>
       </div>
     </DashboardPage>
   );

@@ -18,16 +18,10 @@ import type {
   QuoteListFilters,
   QuoteStatusFilterValue,
 } from "@/features/quotes/types";
+import { quoteStatusFilterValues } from "@/features/quotes/types";
 import { getQuoteStatusLabel } from "@/features/quotes/utils";
 
-const statusOptions: QuoteStatusFilterValue[] = [
-  "all",
-  "draft",
-  "sent",
-  "accepted",
-  "rejected",
-  "expired",
-];
+const statusOptions: QuoteStatusFilterValue[] = [...quoteStatusFilterValues];
 
 type QuoteExportCsvDropdownProps = {
   businessSlug: string;
@@ -41,6 +35,7 @@ export function QuoteExportCsvDropdown({
   resultCount,
 }: QuoteExportCsvDropdownProps) {
   const [query, setQuery] = useState(filters.q ?? "");
+  const view = filters.view;
   const [status, setStatus] = useState<QuoteStatusFilterValue>(filters.status);
   const [sort, setSort] = useState<"newest" | "oldest">(filters.sort);
   const [from, setFrom] = useState("");
@@ -52,6 +47,9 @@ export function QuoteExportCsvDropdown({
 
     if (trimmedQuery) {
       params.set("q", trimmedQuery);
+    }
+    if (view !== "active") {
+      params.set("view", view);
     }
     if (status !== "all") {
       params.set("status", status);
@@ -69,7 +67,7 @@ export function QuoteExportCsvDropdown({
     return `${getBusinessQuotesExportPath(businessSlug)}${
       params.size ? `?${params.toString()}` : ""
     }`;
-  }, [businessSlug, from, query, sort, status, to]);
+  }, [businessSlug, from, query, sort, status, to, view]);
 
   return (
     <DropdownMenu modal={false}>

@@ -47,17 +47,18 @@ type BillingStatusCardProps = {
   billing: WorkspaceBillingOverview;
   /** When false, hides the plan comparison grid (e.g. workspace overview). */
   showPlanComparison?: boolean;
-  /** Current-month counts for Free plan usage meters (workspace-wide). */
-  monthlyUsage?: {
+  /** Free plan usage meters (workspace-wide). */
+  freePlanUsage?: {
     inquiries: number;
     quotes: number;
+    requoQuoteEmailsThisMonth: number;
   };
 };
 
 export function BillingStatusCard({
   billing,
   showPlanComparison = true,
-  monthlyUsage,
+  freePlanUsage,
 }: BillingStatusCardProps) {
   const { subscription, currentPlan, workspaceId, workspaceSlug, region, defaultCurrency } =
     billing;
@@ -256,25 +257,29 @@ export function BillingStatusCard({
         </CardFooter>
       </Card>
 
-      {isFreePlan && monthlyUsage ? (
+      {isFreePlan && freePlanUsage ? (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">This month&apos;s usage</CardTitle>
+            <CardTitle className="text-lg">Free plan usage</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Counts reset on the first day of each month (UTC). Upgrade for
-              higher limits.
+              Monthly counts reset on the first day of each month (UTC).
             </p>
           </CardHeader>
           <CardContent className="grid gap-6">
-            <MonthlyUsageMeter
-              current={monthlyUsage.inquiries}
+            <UsageMeter
+              current={freePlanUsage.inquiries}
               label="Inquiries"
               limit={getUsageLimit("free", "inquiriesPerMonth") ?? 100}
             />
-            <MonthlyUsageMeter
-              current={monthlyUsage.quotes}
+            <UsageMeter
+              current={freePlanUsage.quotes}
               label="Quotes"
               limit={getUsageLimit("free", "quotesPerMonth") ?? 50}
+            />
+            <UsageMeter
+              current={freePlanUsage.requoQuoteEmailsThisMonth}
+              label="Email sent"
+              limit={getUsageLimit("free", "requoQuoteEmailsPerMonth") ?? 30}
             />
           </CardContent>
         </Card>
@@ -343,7 +348,7 @@ export function BillingStatusCard({
 
 /* ── Free plan monthly usage ─────────────────────────────────────────────── */
 
-function MonthlyUsageMeter({
+function UsageMeter({
   label,
   current,
   limit,
@@ -356,7 +361,7 @@ function MonthlyUsageMeter({
     limit > 0 ? Math.min(100, Math.round((current / limit) * 100)) : 0;
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3 text-sm">
         <span className="font-medium text-foreground">{label}</span>
         <span className="tabular-nums text-muted-foreground">

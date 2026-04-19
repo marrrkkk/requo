@@ -11,9 +11,59 @@ import {
   overlayFooterClassName,
   overlayHeaderClassName,
 } from "@/components/ui/overlay-layout"
+import {
+  useControllableOpenState,
+  useOverlayPresence,
+} from "@/components/ui/overlay-state"
 
-function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
-  return <SheetPrimitive.Root data-slot="sheet" {...props} />
+type SheetStateContextValue = {
+  open: boolean
+  present: boolean
+}
+
+const SheetStateContext = React.createContext<SheetStateContextValue | null>(null)
+
+function useSheetStateContext(componentName: string) {
+  const context = React.useContext(SheetStateContext)
+
+  if (!context) {
+    throw new Error(`${componentName} must be used within Sheet.`)
+  }
+
+  return context
+}
+
+function Sheet({
+  defaultOpen = false,
+  onOpenChange,
+  open: openProp,
+  ...props
+}: React.ComponentProps<typeof SheetPrimitive.Root>) {
+  const [open, setOpen] = useControllableOpenState({
+    defaultOpen,
+    onOpenChange,
+    open: openProp,
+  })
+  const present = useOverlayPresence(open)
+  const contextValue = React.useMemo(
+    () => ({
+      open,
+      present,
+    }),
+    [open, present]
+  )
+
+  return (
+    <SheetStateContext.Provider value={contextValue}>
+      <SheetPrimitive.Root
+        data-slot="sheet"
+        defaultOpen={defaultOpen}
+        onOpenChange={setOpen}
+        open={open}
+        {...props}
+      />
+    </SheetStateContext.Provider>
+  )
 }
 
 function SheetTrigger({
@@ -37,12 +87,21 @@ function SheetPortal({
 function SheetOverlay({
   className,
   ...props
-}: React.ComponentProps<typeof SheetPrimitive.Overlay>) {
+}: React.ComponentProps<"div">) {
+  const { open, present } = useSheetStateContext("SheetOverlay")
+
+  if (!present) {
+    return null
+  }
+
   return (
-    <SheetPrimitive.Overlay
+    <div
+      aria-hidden="true"
+      data-state={open ? "open" : "closed"}
       data-slot="sheet-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-black/28 duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "modal-backdrop modal-layer-overlay fixed inset-0 pointer-events-auto duration-100 fill-mode-forwards data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        !open && "pointer-events-none",
         className
       )}
       {...props}
@@ -64,20 +123,26 @@ function SheetContent({
   overlayClassName?: string
   motionPreset?: "default" | "sidebar"
 }) {
+  const { open, present } = useSheetStateContext("SheetContent")
+  const isClosing = !open && present
   const baseClasses =
-    "overlay-surface fixed z-50 flex flex-col gap-0 border bg-clip-padding text-sm text-popover-foreground data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:rounded-t-xl data-[side=bottom]:border-t data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-[92vw] data-[side=left]:border-r data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-[92vw] data-[side=right]:border-l data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:rounded-b-xl data-[side=top]:border-b data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm"
+    "overlay-surface modal-layer-content fixed flex flex-col gap-0 border bg-clip-padding text-sm text-popover-foreground data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:rounded-t-xl data-[side=bottom]:border-t data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-[92vw] data-[side=left]:border-r data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-[92vw] data-[side=right]:border-l data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:rounded-b-xl data-[side=top]:border-b data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm"
 
   const motionClasses =
     motionPreset === "sidebar"
       ? "motion-sheet-sidebar transform-gpu"
-      : "transition duration-200 ease-in-out data-open:animate-in data-open:fade-in-0 data-[side=bottom]:data-open:slide-in-from-bottom-10 data-[side=left]:data-open:slide-in-from-left-10 data-[side=right]:data-open:slide-in-from-right-10 data-[side=top]:data-open:slide-in-from-top-10 data-closed:animate-out data-closed:fade-out-0 data-[side=bottom]:data-closed:slide-out-to-bottom-10 data-[side=left]:data-closed:slide-out-to-left-10 data-[side=right]:data-closed:slide-out-to-right-10 data-[side=top]:data-closed:slide-out-to-top-10"
+      : "transition duration-200 ease-in-out fill-mode-forwards data-open:animate-in data-open:fade-in-0 data-[side=bottom]:data-open:slide-in-from-bottom-10 data-[side=left]:data-open:slide-in-from-left-10 data-[side=right]:data-open:slide-in-from-right-10 data-[side=top]:data-open:slide-in-from-top-10 data-closed:animate-out data-closed:fade-out-0 data-[side=bottom]:data-closed:slide-out-to-bottom-10 data-[side=left]:data-closed:slide-out-to-left-10 data-[side=right]:data-closed:slide-out-to-right-10 data-[side=top]:data-closed:slide-out-to-top-10"
+
+  if (!present) {
+    return null
+  }
 
   return (
-    <SheetPortal>
+    <SheetPortal forceMount>
       <SheetOverlay
         className={cn(
           motionPreset === "sidebar" &&
-            "motion-sheet-overlay bg-black/18 supports-backdrop-filter:backdrop-blur-none",
+            "motion-sheet-overlay supports-backdrop-filter:backdrop-blur-none",
           overlayClassName
         )}
       />
@@ -87,8 +152,12 @@ function SheetContent({
         className={cn(
           baseClasses,
           motionClasses,
+          isClosing && "pointer-events-none",
           className
         )}
+        forceMount
+        onInteractOutside={isClosing ? (e) => e.preventDefault() : props.onInteractOutside}
+        onEscapeKeyDown={isClosing ? (e) => e.preventDefault() : props.onEscapeKeyDown}
         {...props}
       >
         {children}

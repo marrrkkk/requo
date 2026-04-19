@@ -15,19 +15,19 @@ export const analyticsSections = {
   overview: {
     id: "overview",
     label: "Overview",
-    description: "Core business health metrics at a glance.",
+    description: "Traffic, submissions, quotes, and timing in one view.",
     tier: "basic",
   },
   conversion: {
     id: "conversion",
-    label: "Conversion",
-    description: "Inquiry-to-quote and quote-to-acceptance funnel.",
+    label: "Inquiry/Form Performance",
+    description: "Form traffic, submissions, and inquiry-to-quote conversion.",
     tier: "pro",
   },
   workflow: {
     id: "workflow",
-    label: "Workflow",
-    description: "Response times, stale items, and follow-up gaps.",
+    label: "Quote Performance",
+    description: "Quote outcomes, lifecycle mix, and turnaround timing.",
     tier: "pro",
   },
 } as const;

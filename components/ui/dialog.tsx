@@ -11,13 +11,64 @@ import {
   overlayFooterClassName,
   overlayHeaderClassName,
 } from "@/components/ui/overlay-layout"
+import {
+  useControllableOpenState,
+  useOverlayPresence,
+} from "@/components/ui/overlay-state"
+
+type DialogStateContextValue = {
+  modal: boolean
+  open: boolean
+  present: boolean
+}
+
+const DialogStateContext = React.createContext<DialogStateContextValue | null>(
+  null
+)
+
+function useDialogStateContext(componentName: string) {
+  const context = React.useContext(DialogStateContext)
+
+  if (!context) {
+    throw new Error(`${componentName} must be used within Dialog.`)
+  }
+
+  return context
+}
 
 function Dialog({
+  defaultOpen = false,
   modal = true,
+  onOpenChange,
+  open: openProp,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  const [open, setOpen] = useControllableOpenState({
+    defaultOpen,
+    onOpenChange,
+    open: openProp,
+  })
+  const present = useOverlayPresence(open)
+  const contextValue = React.useMemo(
+    () => ({
+      modal,
+      open,
+      present,
+    }),
+    [modal, open, present]
+  )
+
   return (
-    <DialogPrimitive.Root data-slot="dialog" modal={modal} {...props} />
+    <DialogStateContext.Provider value={contextValue}>
+      <DialogPrimitive.Root
+        data-slot="dialog"
+        defaultOpen={defaultOpen}
+        modal={modal}
+        onOpenChange={setOpen}
+        open={open}
+        {...props}
+      />
+    </DialogStateContext.Provider>
   )
 }
 
@@ -40,13 +91,22 @@ function DialogClose(props: React.ComponentProps<typeof DialogPrimitive.Close>) 
 function DialogOverlay({
   className,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+}: React.ComponentProps<"div">) {
+  const { modal, open, present } = useDialogStateContext("DialogOverlay")
+
+  if (!modal || !present) {
+    return null
+  }
+
   return (
-    <DialogPrimitive.Overlay
+    <div
+      aria-hidden="true"
+      data-state={open ? "open" : "closed"}
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 z-50 bg-black/32 duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
-        className
+        "modal-backdrop modal-layer-overlay fixed inset-0 pointer-events-auto duration-100 fill-mode-forwards data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        !open && "pointer-events-none",
+        className,
       )}
       {...props}
     />
@@ -57,19 +117,32 @@ function DialogContent({
   children,
   className,
   showCloseButton = true,
+  overlayClassName,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  overlayClassName?: string
 }) {
+  const { open, present } = useDialogStateContext("DialogContent")
+  const isClosing = !open && present
+
+  if (!present) {
+    return null
+  }
+
   return (
-    <DialogPortal>
-      <DialogOverlay />
+    <DialogPortal forceMount>
+      <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "overlay-surface fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100vh-2rem)] w-[calc(100vw-1rem)] max-w-3xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border text-popover-foreground duration-200 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 sm:w-[calc(100vw-2rem)]",
+          "overlay-surface modal-layer-content fixed top-1/2 left-1/2 flex max-h-[calc(100vh-2rem)] w-[calc(100vw-1rem)] max-w-3xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border text-popover-foreground duration-200 fill-mode-forwards data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 sm:w-[calc(100vw-2rem)]",
+          isClosing && "pointer-events-none",
           className
         )}
+        forceMount
+        onInteractOutside={isClosing ? (e) => e.preventDefault() : props.onInteractOutside}
+        onEscapeKeyDown={isClosing ? (e) => e.preventDefault() : props.onEscapeKeyDown}
         {...props}
       >
         {children}

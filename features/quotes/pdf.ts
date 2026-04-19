@@ -123,3 +123,7 @@ export async function createQuotePdf(data: QuoteDocumentData) {
 export function getQuotePdfFileName(data: QuoteDocumentData) {
   return `${sanitizeStorageFileName(data.quoteNumber, "quote")}.pdf`;
 }
+
+export function getQuotePngFileName(data: QuoteDocumentData) {
+  return `${sanitizeStorageFileName(data.quoteNumber, "quote")}.png`;
+}

@@ -4,7 +4,14 @@ import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
 import type { CustomerHistoryData } from "@/features/customers/types";
-import { getEffectiveInquiryStatus } from "@/features/inquiries/queries";
+import {
+  getEffectiveInquiryStatus,
+  getNonDeletedInquiryCondition,
+} from "@/features/inquiries/queries";
+import {
+  getEffectiveQuoteStatus,
+  getNonDeletedQuoteCondition,
+} from "@/features/quotes/queries";
 import { hotBusinessCacheLife } from "@/lib/cache/business-tags";
 import { db } from "@/lib/db/client";
 import { inquiries, quotes } from "@/lib/db/schema";
@@ -56,10 +63,12 @@ async function getCachedCustomerHistoryForBusiness(input: {
   const inquiryConditions = [
     eq(inquiries.businessId, input.businessId),
     sql`lower(${inquiries.customerEmail}) = ${input.customerEmail}`,
+    getNonDeletedInquiryCondition(),
   ];
   const quoteConditions = [
     eq(quotes.businessId, input.businessId),
     sql`lower(${quotes.customerEmail}) = ${input.customerEmail}`,
+    getNonDeletedQuoteCondition(),
   ];
 
   if (input.excludeInquiryId) {
@@ -104,7 +113,7 @@ async function getCachedCustomerHistoryForBusiness(input: {
           customerEmail: quotes.customerEmail,
           quoteNumber: quotes.quoteNumber,
           title: quotes.title,
-          status: quotes.status,
+          status: getEffectiveQuoteStatus,
           postAcceptanceStatus: quotes.postAcceptanceStatus,
           totalInCents: quotes.totalInCents,
           currency: quotes.currency,

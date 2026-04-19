@@ -61,7 +61,6 @@ export function BusinessInquiryFormDangerZone({
     }
 
     router.replace(inquiryListHref);
-    router.refresh();
   }, [archiveState.success, deleteState.success, inquiryListHref, router]);
 
   return (

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/auth/session";
+import { writeAuditLog } from "@/features/audit/mutations";
 import { getWorkspaceContextForUser } from "@/lib/db/workspace-access";
 import { isPayMongoConfigured, isPaddleConfigured } from "@/lib/env";
 import { getProviderForCurrency } from "@/lib/billing/region";
@@ -211,6 +212,22 @@ export async function cancelSubscriptionAction(
     await updateSubscriptionStatus(workspaceId, "active", {
       canceledAt: new Date(),
     });
+    const { db } = await import("@/lib/db/client");
+
+    await writeAuditLog(db, {
+      workspaceId,
+      actorUserId: user.id,
+      actorName: user.name,
+      actorEmail: user.email,
+      entityType: "subscription",
+      action: "subscription.cancellation_requested",
+      metadata: {
+        plan: subscription.plan,
+        provider: subscription.billingProvider,
+        currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,
+        providerSubscriptionId: subscription.providerSubscriptionId,
+      },
+    });
 
     revalidatePath(getWorkspacePath(workspace.slug));
 
@@ -221,7 +238,25 @@ export async function cancelSubscriptionAction(
   const { cancelSubscription } = await import(
     "@/lib/billing/subscription-service"
   );
-  await cancelSubscription(workspaceId);
+  const updatedSubscription = await cancelSubscription(workspaceId);
+
+  if (updatedSubscription) {
+    const { db } = await import("@/lib/db/client");
+    await writeAuditLog(db, {
+      workspaceId,
+      actorUserId: user.id,
+      actorName: user.name,
+      actorEmail: user.email,
+      entityType: "subscription",
+      action: "subscription.canceled",
+      metadata: {
+        plan: updatedSubscription.plan,
+        provider: updatedSubscription.billingProvider,
+        currentPeriodEnd: updatedSubscription.currentPeriodEnd?.toISOString() ?? null,
+        providerSubscriptionId: updatedSubscription.providerSubscriptionId,
+      },
+    });
+  }
 
   revalidatePath(getWorkspacePath(workspace.slug));
 

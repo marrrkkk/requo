@@ -1,8 +1,6 @@
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { BrandMark } from "@/components/shared/brand-mark";
-import { getBillingRegion, getDefaultCurrency } from "@/lib/billing/region";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { workspacesHubPath } from "@/features/workspaces/routes";
 import { completeOnboardingAction } from "@/features/onboarding/actions";
@@ -33,10 +31,6 @@ export default async function OnboardingPage() {
     redirect(workspacesHubPath);
   }
 
-  const requestHeaders = await headers();
-  const billingRegion = getBillingRegion(requestHeaders);
-  const defaultCurrency = getDefaultCurrency(billingRegion);
-
   return (
     <>
       <ThemePreferenceSync
@@ -44,22 +38,14 @@ export default async function OnboardingPage() {
         userId={session.user.id}
       />
       <div className="min-h-svh">
-        <div className="mx-auto flex min-h-svh w-full max-w-4xl flex-col px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mx-auto flex min-h-svh w-full max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-8">
           <header className="flex flex-col gap-4 border-b border-border/70 pb-6 sm:flex-row sm:items-center sm:justify-between">
-            <BrandMark subtitle="Guided setup" />
+            <BrandMark subtitle={null} />
             <AppearanceMenu userId={session.user.id} />
           </header>
 
           <div className="flex flex-1 items-center justify-center py-10 sm:py-14">
-            <OnboardingForm
-              action={completeOnboardingAction}
-              billingRegion={billingRegion}
-              defaultCurrency={defaultCurrency}
-              initialValues={{
-                fullName: profile?.fullName ?? session.user.name,
-                jobTitle: profile?.jobTitle ?? "",
-              }}
-            />
+            <OnboardingForm action={completeOnboardingAction} />
           </div>
         </div>
       </div>

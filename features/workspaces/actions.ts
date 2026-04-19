@@ -1,29 +1,34 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/session";
 import {
   getWorkspaceContextForUser,
-  getWorkspacesForUser,
 } from "@/lib/db/workspace-access";
 import {
+  cancelScheduledWorkspaceDeletion,
   renameWorkspace,
   createWorkspace,
+  requestWorkspaceDeletion,
 } from "@/features/workspaces/mutations";
 import {
   getWorkspacePath,
+  getWorkspaceSettingsPath,
   workspacesHubPath,
 } from "@/features/workspaces/routes";
 import type {
   WorkspaceSettingsActionState,
   CreateWorkspaceActionState,
+  WorkspaceDeletionActionState,
 } from "@/features/workspaces/types";
 
 export async function renameWorkspaceAction(
-  _prev: WorkspaceSettingsActionState,
+  prev: WorkspaceSettingsActionState,
   formData: FormData,
 ): Promise<WorkspaceSettingsActionState> {
+  void prev;
   const user = await requireUser();
 
   const workspaceId = formData.get("workspaceId");
@@ -57,9 +62,10 @@ export async function renameWorkspaceAction(
 }
 
 export async function createWorkspaceAction(
-  _prev: CreateWorkspaceActionState,
+  prev: CreateWorkspaceActionState,
   formData: FormData,
 ): Promise<CreateWorkspaceActionState> {
+  void prev;
   const user = await requireUser();
 
   const name = formData.get("name");
@@ -81,4 +87,107 @@ export async function createWorkspaceAction(
   }
 
   return { success: "Workspace created." };
+}
+
+export async function requestWorkspaceDeletionAction(
+  workspaceId: string,
+  workspaceSlug: string,
+  prev: WorkspaceDeletionActionState,
+  formData: FormData,
+): Promise<WorkspaceDeletionActionState> {
+  void prev;
+  void formData;
+  const user = await requireUser();
+  const workspace = await getWorkspaceContextForUser(user.id, workspaceId);
+
+  if (!workspace) {
+    return {
+      error: "Workspace not found.",
+    };
+  }
+
+  if (workspace.memberRole !== "owner") {
+    return {
+      error: "Only the workspace owner can delete the workspace.",
+    };
+  }
+
+  const result = await requestWorkspaceDeletion(workspaceId, user.id);
+
+  if (!result.ok) {
+    if (result.reason === "cancellation-required") {
+      return {
+        error:
+          "Cancel the workspace subscription first. Deleting a workspace does not cancel billing for you.",
+      };
+    }
+
+    if (result.reason === "already-deleted") {
+      redirect(workspacesHubPath);
+    }
+
+    return {
+      error: "We couldn't start workspace deletion right now.",
+    };
+  }
+
+  revalidatePath(workspacesHubPath);
+  revalidatePath(getWorkspacePath(workspaceSlug));
+  revalidatePath(getWorkspaceSettingsPath(workspaceSlug));
+
+  if (result.mode === "deleted") {
+    redirect(workspacesHubPath);
+  }
+
+  return {
+    success: result.scheduledDeletionAt
+      ? "Workspace deletion scheduled."
+      : "Workspace deleted.",
+  };
+}
+
+export async function cancelWorkspaceDeletionAction(
+  workspaceId: string,
+  workspaceSlug: string,
+  prev: WorkspaceDeletionActionState,
+  formData: FormData,
+): Promise<WorkspaceDeletionActionState> {
+  void prev;
+  void formData;
+  const user = await requireUser();
+  const workspace = await getWorkspaceContextForUser(user.id, workspaceId);
+
+  if (!workspace) {
+    return {
+      error: "Workspace not found.",
+    };
+  }
+
+  if (workspace.memberRole !== "owner") {
+    return {
+      error: "Only the workspace owner can manage workspace deletion.",
+    };
+  }
+
+  const result = await cancelScheduledWorkspaceDeletion(workspaceId, user.id);
+
+  if (!result.ok) {
+    if (result.reason === "not-scheduled") {
+      return {
+        success: "Workspace deletion schedule cleared.",
+      };
+    }
+
+    return {
+      error: "We couldn't cancel workspace deletion right now.",
+    };
+  }
+
+  revalidatePath(workspacesHubPath);
+  revalidatePath(getWorkspacePath(workspaceSlug));
+  revalidatePath(getWorkspaceSettingsPath(workspaceSlug));
+
+  return {
+    success: "Workspace deletion schedule cancelled.",
+  };
 }

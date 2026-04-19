@@ -11,9 +11,12 @@ import {
 } from "@/lib/billing/webhook-processor";
 import {
   activateSubscription,
+  getWorkspaceSubscription,
   expireSubscription,
   updateSubscriptionStatus,
 } from "@/lib/billing/subscription-service";
+import { writeSubscriptionTransitionAuditLogs } from "@/features/audit/subscription";
+import { finalizeScheduledWorkspaceDeletionIfDue } from "@/features/workspaces/mutations";
 
 export async function POST(request: Request) {
   const rawBody = await request.text();
@@ -82,6 +85,7 @@ export async function POST(request: Request) {
           break;
         }
 
+        const previousSubscription = await getWorkspaceSubscription(workspaceId);
         const periodStart = billingPeriod?.starts_at
           ? new Date(billingPeriod.starts_at)
           : new Date();
@@ -89,7 +93,7 @@ export async function POST(request: Request) {
           ? new Date(billingPeriod.ends_at)
           : null;
 
-        await activateSubscription({
+        const nextSubscription = await activateSubscription({
           currency: "USD",
           currentPeriodEnd: periodEnd,
           currentPeriodStart: periodStart,
@@ -100,6 +104,14 @@ export async function POST(request: Request) {
           status: mapPaddleStatus(paddleStatus ?? "active"),
           workspaceId,
         });
+
+        await writeSubscriptionTransitionAuditLogs({
+          workspaceId,
+          previousSubscription,
+          nextSubscription,
+          source: "webhook",
+          providerEventId: eventId,
+        });
         break;
       }
 
@@ -109,6 +121,7 @@ export async function POST(request: Request) {
           break;
         }
 
+        const previousSubscription = await getWorkspaceSubscription(workspaceId);
         const periodEnd = billingPeriod?.ends_at
           ? new Date(billingPeriod.ends_at)
           : null;
@@ -116,10 +129,18 @@ export async function POST(request: Request) {
         const canceledAt =
           scheduledChange?.action === "cancel" ? new Date() : undefined;
 
-        await updateSubscriptionStatus(workspaceId, status, {
+        const nextSubscription = await updateSubscriptionStatus(workspaceId, status, {
           ...(canceledAt ? { canceledAt } : {}),
           currentPeriodEnd: periodEnd,
           providerSubscriptionId: subscriptionId,
+        });
+
+        await writeSubscriptionTransitionAuditLogs({
+          workspaceId,
+          previousSubscription,
+          nextSubscription,
+          source: "webhook",
+          providerEventId: eventId,
         });
         break;
       }
@@ -129,15 +150,24 @@ export async function POST(request: Request) {
           break;
         }
 
+        const previousSubscription = await getWorkspaceSubscription(workspaceId);
         const endsAt = billingPeriod?.ends_at
           ? new Date(billingPeriod.ends_at)
           : scheduledChange?.effective_at
             ? new Date(scheduledChange.effective_at)
             : null;
 
-        await updateSubscriptionStatus(workspaceId, "canceled", {
+        const nextSubscription = await updateSubscriptionStatus(workspaceId, "canceled", {
           canceledAt: new Date(),
           currentPeriodEnd: endsAt,
+        });
+
+        await writeSubscriptionTransitionAuditLogs({
+          workspaceId,
+          previousSubscription,
+          nextSubscription,
+          source: "webhook",
+          providerEventId: eventId,
         });
         break;
       }
@@ -206,6 +236,10 @@ export async function POST(request: Request) {
         console.warn("[Paddle Webhook] Unhandled event type.", {
           eventType,
         });
+    }
+
+    if (workspaceId) {
+      await finalizeScheduledWorkspaceDeletionIfDue(workspaceId);
     }
 
     await markEventProcessed(storedEventId);

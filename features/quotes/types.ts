@@ -4,27 +4,37 @@ export const quoteStatuses = [
   "accepted",
   "rejected",
   "expired",
+  "voided",
 ] as const;
+export const quoteRecordViews = ["active", "archived"] as const;
 
 export type QuoteStatus = (typeof quoteStatuses)[number];
 export const quoteStatusFilterValues = ["all", ...quoteStatuses] as const;
 export type QuoteStatusFilterValue = (typeof quoteStatusFilterValues)[number];
+export type QuoteRecordView = (typeof quoteRecordViews)[number];
 export const quotePostAcceptanceStatuses = [
   "none",
   "booked",
   "scheduled",
 ] as const;
+export const quoteDeliveryMethods = ["requo", "manual"] as const;
 export type QuotePostAcceptanceStatus =
   (typeof quotePostAcceptanceStatuses)[number];
+export type QuoteDeliveryMethod = (typeof quoteDeliveryMethods)[number];
 export const quoteReminderKinds = ["follow_up_due", "expiring_soon"] as const;
 export type QuoteReminderKind = (typeof quoteReminderKinds)[number];
 export const quoteLibraryEntryKinds = ["block", "package"] as const;
 export type QuoteLibraryEntryKind = (typeof quoteLibraryEntryKinds)[number];
 
+import type {
+  InquiryRecordState,
+  InquiryStatus,
+} from "@/features/inquiries/types";
 import type { BusinessPlan } from "@/lib/plans/plans";
 
 export type QuoteListFilters = {
   q?: string;
+  view: QuoteRecordView;
   status: QuoteStatusFilterValue;
   sort: "newest" | "oldest";
   page: number;
@@ -34,7 +44,6 @@ export type QuoteListQueryFilters = Omit<QuoteListFilters, "page">;
 
 export type DashboardQuoteListItem = {
   id: string;
-  inquiryId: string | null;
   quoteNumber: string;
   publicToken: string;
   title: string;
@@ -44,8 +53,8 @@ export type DashboardQuoteListItem = {
   currency: string;
   validUntil: string;
   status: QuoteStatus;
+  archivedAt: Date | null;
   postAcceptanceStatus: QuotePostAcceptanceStatus;
-  createdAt: Date;
   sentAt: Date | null;
   customerRespondedAt: Date | null;
   reminders: QuoteReminderKind[];
@@ -100,7 +109,8 @@ export type QuoteLinkedInquirySummary = {
   customerName: string;
   customerEmail: string;
   serviceCategory: string;
-  status: string;
+  status: InquiryStatus;
+  recordState: InquiryRecordState;
 };
 
 export type QuoteInquiryPrefill = {
@@ -108,7 +118,8 @@ export type QuoteInquiryPrefill = {
   customerName: string;
   customerEmail: string;
   serviceCategory: string;
-  status: string;
+  status: InquiryStatus;
+  recordState: InquiryRecordState;
   details: string;
   requestedDeadline: string | null;
   budgetText: string | null;
@@ -130,6 +141,8 @@ export type DashboardQuoteDetail = {
   totalInCents: number;
   validUntil: string;
   status: QuoteStatus;
+  archivedAt: Date | null;
+  voidedAt: Date | null;
   postAcceptanceStatus: QuotePostAcceptanceStatus;
   sentAt: Date | null;
   acceptedAt: Date | null;
@@ -165,6 +178,7 @@ export type QuoteSendPayload = {
 
 export type PublicQuoteView = {
   id: string;
+  businessId: string;
   token: string;
   quoteNumber: string;
   title: string;
@@ -249,10 +263,9 @@ export type QuoteLibraryDeleteActionState = {
   success?: boolean;
 };
 
-export type QuoteStatusActionState = {
+export type QuoteRecordActionState = {
   error?: string;
   success?: string;
-  fieldErrors?: Partial<Record<"status", string[] | undefined>>;
 };
 
 export type QuotePostAcceptanceActionState = {

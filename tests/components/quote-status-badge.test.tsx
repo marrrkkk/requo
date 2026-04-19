@@ -29,6 +29,12 @@ describe('QuoteStatusBadge', () => {
     expect(badge).toBeInTheDocument();
   });
 
+  it('renders a voided badge', () => {
+    render(<QuoteStatusBadge status="voided" />);
+    const badge = screen.getByText('Voided');
+    expect(badge).toBeInTheDocument();
+  });
+
   it('allows custom className injection', () => {
     render(<QuoteStatusBadge status="draft" className="my-custom-class" />);
     const badge = screen.getByText('Draft');

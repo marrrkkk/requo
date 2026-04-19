@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
+import { QuoteRecordStateBadge } from "@/features/quotes/components/quote-record-state-badge";
 import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
 import type { DashboardQuoteListItem } from "@/features/quotes/types";
@@ -19,10 +20,7 @@ import {
   formatQuoteDate,
   formatQuoteMoney,
 } from "@/features/quotes/utils";
-import {
-  getBusinessInquiryPath,
-  getBusinessQuotePath,
-} from "@/features/businesses/routes";
+import { getBusinessQuotePath } from "@/features/businesses/routes";
 
 type QuoteListTableProps = {
   quotes: DashboardQuoteListItem[];
@@ -35,17 +33,15 @@ export function QuoteListTable({
 }: QuoteListTableProps) {
   return (
     <DashboardTableContainer>
-      <Table className="min-w-[58rem] table-fixed 2xl:min-w-[75rem]">
+      <Table className="min-w-[54rem] table-fixed 2xl:min-w-[64rem]">
         <TableCaption className="sr-only">Newest quotes appear first.</TableCaption>
         <TableHeader>
           <TableRow>
             <TableHead className="w-[18rem]">Quote</TableHead>
             <TableHead className="w-[15rem]">Customer</TableHead>
-            <TableHead className="hidden w-[9rem] 2xl:table-cell">Linked inquiry</TableHead>
             <TableHead className="w-[8rem]">Valid until</TableHead>
             <TableHead className="w-[8rem]">Total</TableHead>
             <TableHead className="w-[9rem]">Status</TableHead>
-            <TableHead className="hidden w-[8rem] 2xl:table-cell">Created</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -84,14 +80,6 @@ export function QuoteListTable({
                         ) : null}
                       </Link>
                     ) : null}
-                    <Link
-                      className="table-supporting-text 2xl:hidden"
-                      href={quoteHref}
-                      prefetch={true}
-                    >
-                      {quote.inquiryId ? "Linked inquiry" : "Manual quote"} |{" "}
-                      {formatQuoteDate(quote.createdAt)}
-                    </Link>
                   </div>
                 </TableCell>
                 <TableCell className="w-[15rem]">
@@ -109,25 +97,6 @@ export function QuoteListTable({
                       text={quote.customerEmail}
                     />
                   </div>
-                </TableCell>
-                <TableCell className="hidden w-[9rem] 2xl:table-cell">
-                  {quote.inquiryId ? (
-                    <Link
-                      className="text-sm font-medium text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline group-hover/row:text-primary"
-                      href={getBusinessInquiryPath(businessSlug, quote.inquiryId)}
-                      prefetch={true}
-                    >
-                      Open inquiry
-                    </Link>
-                  ) : (
-                    <Link
-                      className="text-sm text-muted-foreground transition-colors hover:text-primary group-hover/row:text-primary"
-                      href={quoteHref}
-                      prefetch={true}
-                    >
-                      Manual quote
-                    </Link>
-                  )}
                 </TableCell>
                 <TableCell className="w-[8rem]">
                   <Link
@@ -149,20 +118,12 @@ export function QuoteListTable({
                 </TableCell>
                 <TableCell className="w-[9rem]">
                   <Link
-                    className="inline-flex max-w-full"
+                    className="inline-flex max-w-full flex-wrap gap-2"
                     href={quoteHref}
                     prefetch={true}
                   >
                     <QuoteStatusBadge status={quote.status} />
-                  </Link>
-                </TableCell>
-                <TableCell className="hidden w-[8rem] 2xl:table-cell">
-                  <Link
-                    className="block text-sm text-muted-foreground transition-colors hover:text-primary group-hover/row:text-primary"
-                    href={quoteHref}
-                    prefetch={true}
-                  >
-                    {formatQuoteDate(quote.createdAt)}
+                    {quote.archivedAt ? <QuoteRecordStateBadge state="archived" /> : null}
                   </Link>
                 </TableCell>
               </TableRow>

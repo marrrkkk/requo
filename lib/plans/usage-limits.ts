@@ -13,6 +13,8 @@ import type { WorkspacePlan } from "@/lib/plans/plans";
 export const usageLimitKeys = [
   "inquiriesPerMonth",
   "quotesPerMonth",
+  "requoQuoteEmailsPerDay",
+  "requoQuoteEmailsPerMonth",
   "businessesPerWorkspace",
   "membersPerWorkspace",
   "liveFormsPerWorkspace",
@@ -27,6 +29,8 @@ const planUsageLimits: Record<WorkspacePlan, PlanUsageLimits> = {
   free: {
     inquiriesPerMonth: 100,
     quotesPerMonth: 50,
+    requoQuoteEmailsPerDay: 3,
+    requoQuoteEmailsPerMonth: 30,
     businessesPerWorkspace: 1,
     membersPerWorkspace: 1,
     liveFormsPerWorkspace: 1,
@@ -35,6 +39,8 @@ const planUsageLimits: Record<WorkspacePlan, PlanUsageLimits> = {
   pro: {
     inquiriesPerMonth: null,
     quotesPerMonth: null,
+    requoQuoteEmailsPerDay: null,
+    requoQuoteEmailsPerMonth: null,
     businessesPerWorkspace: 10,
     membersPerWorkspace: 1,
     liveFormsPerWorkspace: null,
@@ -43,6 +49,8 @@ const planUsageLimits: Record<WorkspacePlan, PlanUsageLimits> = {
   business: {
     inquiriesPerMonth: null,
     quotesPerMonth: null,
+    requoQuoteEmailsPerDay: null,
+    requoQuoteEmailsPerMonth: null,
     businessesPerWorkspace: null,
     membersPerWorkspace: 25,
     liveFormsPerWorkspace: null,
@@ -74,6 +82,8 @@ export function isUsageLimited(
 export const usageLimitLabels: Record<UsageLimitKey, string> = {
   inquiriesPerMonth: "Inquiries per month",
   quotesPerMonth: "Quotes per month",
+  requoQuoteEmailsPerDay: "Requo quote sends per day",
+  requoQuoteEmailsPerMonth: "Requo quote sends per month",
   businessesPerWorkspace: "Businesses per workspace",
   membersPerWorkspace: "Members per workspace",
   liveFormsPerWorkspace: "Live inquiry forms",

@@ -12,6 +12,8 @@ type StarterTemplateChoiceGridProps = {
   disabled?: boolean;
   inputName: string;
   onChange: (value: BusinessType) => void;
+  recommendedValue?: BusinessType | "";
+  recommendedLabel?: string;
   value: BusinessType | "";
   showHelperText?: boolean;
   showStatusSummary?: boolean;
@@ -22,6 +24,8 @@ export function StarterTemplateChoiceGrid({
   disabled = false,
   inputName,
   onChange,
+  recommendedValue,
+  recommendedLabel = "Recommended",
   value,
   showHelperText = false,
   showStatusSummary = true,
@@ -35,6 +39,7 @@ export function StarterTemplateChoiceGrid({
       {starterTemplateOptions.map((option) => {
         const template = getStarterTemplateDefinition(option.value);
         const isSelected = value === option.value;
+        const isRecommended = recommendedValue === option.value;
 
         return (
           <label
@@ -59,9 +64,16 @@ export function StarterTemplateChoiceGrid({
             />
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground">
-                  {option.label}
-                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-semibold text-foreground">
+                    {option.label}
+                  </p>
+                  {isRecommended ? (
+                    <span className="rounded-full border border-primary/20 bg-primary/[0.08] px-2 py-0.5 text-[0.68rem] font-medium uppercase tracking-[0.14em] text-primary">
+                      {recommendedLabel}
+                    </span>
+                  ) : null}
+                </div>
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
                   {option.description}
                 </p>

@@ -10,7 +10,7 @@ export function Toaster({ className, toastOptions, ...props }: ToasterProps) {
 
   return (
     <Sonner
-      className={cn("toaster group", className)}
+      className={cn("toaster toast-layer group", className)}
       closeButton
       expand={false}
       position="top-right"

@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { FileText, Globe2, Inbox, Upload } from "lucide-react";
+import { FileText, Inbox, Upload } from "lucide-react";
 
 export const navItems = [
   { pathname: "/", hash: "why-requo", label: "Why Requo" },
@@ -72,85 +72,81 @@ export const workflowSteps = [
   },
 ] as const;
 
-export const featureBentoItems: readonly {
-  icon: LucideIcon;
-  label: string;
+export type LandingFeatureId =
+  | "quotes"
+  | "forms"
+  | "analytics"
+  | "collaboration";
+
+export const landingFeatureItems: readonly {
+  id: LandingFeatureId;
   title: string;
   description: string;
-  points: readonly string[];
-  className: string;
+  previewTitle: string;
+  previewDescription: string;
 }[] = [
   {
-    icon: Globe2,
-    label: "Inquiry capture",
-    title: "Start with a branded inquiry page that asks for the right details",
+    id: "quotes",
+    title: "Send quotes faster.",
     description:
-      "Give customers a cleaner place to reach out so new requests arrive with scope, timing, and contact details attached.",
-    points: ["Public inquiry pages", "Custom intake forms"],
-    className: "lg:col-span-3",
+      "Build a clear quote without losing the job details. Customer info, scope, notes, and pricing stay together.",
+    previewTitle: "Quote preview",
+    previewDescription:
+      "A draft quote with line items, totals, and a customer share view.",
   },
   {
-    icon: FileText,
-    label: "Quote workflow",
-    title: "Build the quote without losing the original request",
+    id: "forms",
+    title: "Get better inquiry details upfront.",
     description:
-      "Keep the inquiry, notes, and files in view while you draft, price, and send the quote.",
-    points: ["Draft from real inquiry context", "Send a clear customer-facing quote"],
-    className: "lg:col-span-3",
+      "Use simple forms to collect scope, timing, files, and the basics you need before you start quoting.",
+    previewTitle: "Form preview",
+    previewDescription:
+      "A public form that collects the details you need.",
   },
   {
-    icon: Inbox,
-    label: "Follow-up",
-    title: "See what needs review, what has been quoted, and what needs a nudge",
+    id: "analytics",
+    title: "See what needs follow-up.",
     description:
-      "Stay on top of open leads and quote responses without relying on memory or a scattered inbox.",
-    points: ["Visible quote status", "Clear next-step follow-up"],
-    className: "lg:col-span-2",
+      "Track inquiries, quotes, and replies so you know what is moving and what needs attention.",
+    previewTitle: "Analytics preview",
+    previewDescription:
+      "A simple view of pipeline activity and follow-up.",
   },
   {
-    icon: Upload,
-    label: "Files and context",
-    title: "Keep files, notes, and job details tied to the same lead",
+    id: "collaboration",
+    title: "Keep your team on the same page.",
     description:
-      "Attachments and internal context stay with the inquiry and the quote instead of getting buried in side threads.",
-    points: ["Files on the inquiry", "Notes carried into the quote"],
-    className: "lg:col-span-2",
-  },
-  {
-    icon: FileText,
-    label: "Customer response",
-    title: "Let customers review and respond from the quote link",
-    description:
-      "Share a clear public quote page so the customer can review the details and reply without extra back-and-forth.",
-    points: ["Public quote pages", "Approve or decline online"],
-    className: "lg:col-span-2",
+      "Share notes, activity, and customer history so the next person can pick up the job without asking around.",
+    previewTitle: "Team preview",
+    previewDescription:
+      "Shared notes, activity, and customer context in one view.",
   },
 ] as const;
 
 export const faqItems = [
   {
-    question: "Is Requo a full CRM?",
+    question: "What if most inquiries still come from Facebook, email, or phone?",
     answer:
-      "No. Requo is focused on the part of the workflow between the first inquiry and the sent quote. It helps service businesses keep requests, quotes, and follow-up in one place without turning into a giant sales system.",
+      "You can still use Requo. Add inquiries manually or send customers to your public form when you need a cleaner intake.",
   },
   {
-    question: "Can customers send inquiries through Requo?",
+    question: "Can I use Requo if every job is priced differently?",
     answer:
-      "Yes. Requo includes public inquiry pages so customers can send a request with the details you need before you start quoting the work.",
+      "Yes. Requo is built for custom work. You can quote with your own line items, pricing, notes, and scope for each job.",
   },
   {
-    question: "Can customers view and respond to quotes online?",
+    question: "What happens after I send a quote?",
     answer:
-      "Yes. Quotes can be shared through a customer-facing page so clients can review the details and respond from the link.",
+      "You can keep the quote, customer response, and follow-up in the same workflow so the next step does not get lost.",
   },
   {
-    question: "Will this work for my type of service business?",
+    question: "Can my team work from the same job details?",
     answer:
-      "Requo is built for service businesses handling custom work and lead-based quoting. It is not tied to a single trade, so you can adapt the setup to how your business qualifies and quotes jobs.",
+      "Yes. Notes, activity, quote details, and customer history stay in one place so the next person can pick up the job with context.",
   },
   {
-    question: "What happens after I sign up?",
+    question: "Do I need to rebuild my whole process before using it?",
     answer:
-      "You create your business, choose a starter setup, and can begin collecting inquiries and preparing quotes from there. The defaults are opinionated, but you can edit them later.",
+      "No. Start with your next inquiry, send your next quote, and adjust the setup as you go.",
   },
 ] as const;

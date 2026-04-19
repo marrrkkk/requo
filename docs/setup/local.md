@@ -17,10 +17,17 @@ Minimum local requirements:
 - `DATABASE_MIGRATION_URL`
 - `BETTER_AUTH_SECRET`
 - `BETTER_AUTH_URL`
+- `APP_ENCRYPTION_KEYS`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_JWT_SECRET`
+
+Generate `APP_ENCRYPTION_KEYS` with:
+
+```bash
+node -e "console.log('v1:' + require('node:crypto').randomBytes(32).toString('base64'))"
+```
 
 Optional but commonly needed:
 

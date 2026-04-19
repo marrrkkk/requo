@@ -34,13 +34,13 @@ function AccordionTrigger({
         data-slot="accordion-trigger"
         className={cn(
           "group/accordion flex flex-1 items-start justify-between gap-4 text-left text-base font-semibold tracking-tight text-foreground transition-colors hover:text-primary focus-visible:outline-hidden focus-visible:ring-[3px] focus-visible:ring-ring/50",
-          "[&[data-state=open]>svg]:rotate-180",
+          "[&[data-state=open]>svg:last-child]:rotate-180",
           className
         )}
         {...props}
       >
         <span className="flex-1">{children}</span>
-        <ChevronDownIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform duration-200" />
+        <ChevronDownIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform duration-[var(--motion-duration-base)] ease-[var(--motion-ease-standard)]" />
       </AccordionPrimitive.Trigger>
     </AccordionPrimitive.Header>
   )
@@ -55,7 +55,7 @@ function AccordionContent({
     <AccordionPrimitive.Content
       data-slot="accordion-content"
       className={cn(
-        "overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down",
+        "accordion-motion overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down",
         className
       )}
       {...props}

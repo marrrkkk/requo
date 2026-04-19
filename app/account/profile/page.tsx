@@ -1,17 +1,46 @@
-import { redirect } from "next/navigation";
+import { connection } from "next/server";
 
-import { getProfileSettingsPath } from "@/features/account/routes";
-import { workspacesHubPath } from "@/features/workspaces/routes";
+import { updateAccountProfileAction } from "@/features/account/actions";
+import { ProfileSettingsForm } from "@/features/account/components/profile-settings-form";
+import { getAccountProfileForUser } from "@/features/account/queries";
+import { resolveUserAvatarSrc } from "@/features/account/utils";
+import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { requireSession } from "@/lib/auth/session";
-import { getBusinessContextForUser } from "@/lib/db/business-access";
 
 export default async function AccountProfilePage() {
-  const session = await requireSession();
-  const businessContext = await getBusinessContextForUser(session.user.id);
+  await connection();
 
-  if (!businessContext) {
-    redirect(workspacesHubPath);
-  }
+  const user = await requireSession();
 
-  redirect(getProfileSettingsPath(businessContext.business.slug));
+  await ensureProfileForUser({
+    id: user.user.id,
+    name: user.user.name,
+    email: user.user.email,
+  });
+
+  const profile = await getAccountProfileForUser(user.user.id);
+  const avatarSrc = resolveUserAvatarSrc({
+    avatarStoragePath: profile?.avatarStoragePath,
+    profileUpdatedAt: profile?.updatedAt,
+    oauthImage: user.user.image ?? null,
+  });
+
+  return (
+    <ProfileSettingsForm
+      action={updateAccountProfileAction}
+      key={`account-profile-${profile?.updatedAt?.getTime() ?? 0}`}
+      profile={{
+        fullName: profile?.fullName ?? user.user.name,
+        jobTitle: profile?.jobTitle ?? null,
+        phone: profile?.phone ?? null,
+        avatarStoragePath: profile?.avatarStoragePath ?? null,
+        avatarContentType: profile?.avatarContentType ?? null,
+        onboardingCompletedAt: profile?.onboardingCompletedAt ?? null,
+        updatedAt: profile?.updatedAt ?? new Date(),
+        email: user.user.email,
+        avatarSrc,
+        oauthAvatarSrc: user.user.image ?? null,
+      }}
+    />
+  );
 }

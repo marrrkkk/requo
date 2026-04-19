@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm";
 
 import type { WorkspacePlan } from "@/lib/plans/plans";
 
+import { writeAuditLog } from "@/features/audit/mutations";
 import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
 import { createInquiryFormConfigDefaults } from "@/features/inquiries/form-config";
 import { createInquiryPageConfigDefaults } from "@/features/inquiries/page-config";
@@ -118,6 +119,22 @@ async function ensureWorkspaceForUser(
     role: "owner",
     createdAt: now,
     updatedAt: now,
+  });
+
+  await writeAuditLog(db, {
+    workspaceId,
+    actorUserId: user.id,
+    actorName: user.name,
+    actorEmail: user.email,
+    entityType: "workspace",
+    entityId: workspaceId,
+    action: "workspace.created",
+    metadata: {
+      workspaceName,
+      workspaceSlug,
+      source: "better-auth-signup",
+    },
+    createdAt: now,
   });
 
   return workspaceId;

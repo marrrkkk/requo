@@ -149,7 +149,7 @@ export function ProfileSettingsForm({
   return (
     <form
       action={formAction}
-      className="form-stack pb-28"
+      className="form-stack"
       onInputCapture={() => setFormRevision((current) => current + 1)}
       ref={formRef}
     >

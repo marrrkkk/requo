@@ -1,51 +1,19 @@
 import { z } from "zod";
 
-import { ownerProfileDetailsSchema } from "@/features/account/schemas";
 import {
   isSupportedBusinessCountryCode,
+  isSupportedBusinessCurrencyCode,
   normalizeBusinessCountryCode,
+  normalizeBusinessCurrencyCode,
 } from "@/features/businesses/locale";
-import { businessTypes } from "@/features/inquiries/business-types";
-import { workspacePlans } from "@/lib/plans/plans";
-
-export const referralSources = [
-  "google_search",
-  "facebook",
-  "instagram",
-  "twitter_x",
-  "linkedin",
-  "product_hunt",
-  "youtube",
-  "tiktok",
-  "reddit",
-  "friend_referral",
-  "blog_article",
-  "podcast",
-  "other",
-] as const;
-
-export type ReferralSource = (typeof referralSources)[number];
-
-export const referralSourceLabels: Record<ReferralSource, string> = {
-  google_search: "Google Search",
-  facebook: "Facebook",
-  instagram: "Instagram",
-  twitter_x: "X (Twitter)",
-  linkedin: "LinkedIn",
-  product_hunt: "Product Hunt",
-  youtube: "YouTube",
-  tiktok: "TikTok",
-  reddit: "Reddit",
-  friend_referral: "Friend or referral",
-  blog_article: "Blog or article",
-  podcast: "Podcast",
-  other: "Other",
-};
-
-export const referralSourceOptions = referralSources.map((source) => ({
-  value: source,
-  label: referralSourceLabels[source],
-}));
+import {
+  starterTemplateBusinessTypes,
+  type StarterTemplateBusinessType,
+} from "@/features/businesses/starter-templates";
+import {
+  businessTypes,
+  type BusinessType,
+} from "@/features/inquiries/business-types";
 
 export const jobTitleOptions = [
   { value: "Owner", label: "Owner" },
@@ -70,10 +38,9 @@ export const onboardingWorkspaceSchema = z.object({
     .trim()
     .min(2, "Enter a workspace name.")
     .max(80, "Use 80 characters or fewer."),
-  workspacePlan: z.enum(workspacePlans),
 });
 
-export const onboardingBusinessSchema = z.object({
+export const onboardingBusinessContextSchema = z.object({
   businessName: z
     .string()
     .trim()
@@ -85,31 +52,25 @@ export const onboardingBusinessSchema = z.object({
     .trim()
     .min(1, "Choose a country.")
     .transform(normalizeBusinessCountryCode)
-    .refine(
-      isSupportedBusinessCountryCode,
-      "Choose a valid country.",
-    ),
-});
-
-export const onboardingProfileSchema = z.object({
-  fullName: ownerProfileDetailsSchema.shape.fullName,
-  jobTitle: z
+    .refine(isSupportedBusinessCountryCode, "Choose a valid country."),
+  defaultCurrency: z
     .string()
     .trim()
-    .min(1, "Choose a role.")
-    .max(80, "Use 80 characters or fewer."),
+    .min(1, "Choose a currency.")
+    .transform(normalizeBusinessCurrencyCode)
+    .refine(isSupportedBusinessCurrencyCode, "Choose a supported currency."),
 });
 
-export const onboardingReferralSchema = z.object({
-  referralSource: z
-    .string()
-    .trim()
-    .min(1, "Let us know how you found us."),
+export const onboardingTemplateSchema = z.object({
+  starterTemplateBusinessType: z.enum(starterTemplateBusinessTypes),
 });
 
 export const completeOnboardingSchema = z.object({
   ...onboardingWorkspaceSchema.shape,
-  ...onboardingBusinessSchema.shape,
-  ...onboardingProfileSchema.shape,
-  ...onboardingReferralSchema.shape,
+  ...onboardingBusinessContextSchema.shape,
+  ...onboardingTemplateSchema.shape,
 });
+
+export type OnboardingBusinessType = BusinessType;
+export type OnboardingStarterTemplateBusinessType =
+  StarterTemplateBusinessType;

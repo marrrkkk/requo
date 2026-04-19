@@ -1,3 +1,4 @@
+import type { BusinessRecordState } from "@/features/businesses/lifecycle";
 import type { InquiryStatus } from "@/features/inquiries/types";
 import type {
   QuotePostAcceptanceStatus,
@@ -40,7 +41,7 @@ export type BusinessOverviewQuoteActionItem = {
 export type BusinessOverviewCounts = {
   overdueInquiries: number;
   expiringSoonQuotes: number;
-  waitingInquiries: number;
+  newInquiries: number;
   followUpDueQuotes: number;
   recentAcceptedQuotes: number;
 };
@@ -48,13 +49,15 @@ export type BusinessOverviewCounts = {
 export type BusinessOverviewData = {
   overdueInquiries: BusinessOverviewInquiryActionItem[];
   expiringSoonQuotes: BusinessOverviewQuoteActionItem[];
-  waitingInquiries: BusinessOverviewInquiryActionItem[];
+  newInquiries: BusinessOverviewInquiryActionItem[];
   followUpDueQuotes: BusinessOverviewQuoteActionItem[];
   recentAcceptedQuotes: BusinessOverviewQuoteActionItem[];
   counts: BusinessOverviewCounts;
 };
 
 export type BusinessDashboardSummaryData = {
+  totalInquiries: number;
+  totalQuotes: number;
   inquiriesThisWeek: number;
   inquiryCoverageRate: number;
   wonCount: number;
@@ -69,4 +72,24 @@ export type CreateBusinessActionState = {
     defaultCurrency?: string[] | undefined;
     workspaceId?: string[] | undefined;
   };
+};
+
+export type BusinessRecordActionState = {
+  error?: string;
+  success?: string;
+  fieldErrors?: {
+    confirmation?: string[] | undefined;
+  };
+};
+
+export type BusinessLifecycleView = {
+  id: string;
+  name: string;
+  slug: string;
+  workspaceId: string;
+  workspaceSlug: string;
+  recordState: BusinessRecordState;
+  archivedAt: Date | null;
+  deletedAt: Date | null;
+  activeWorkspaceBusinessCount: number;
 };

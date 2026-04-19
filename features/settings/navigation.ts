@@ -1,3 +1,4 @@
+import { getAccountProfilePath } from "@/features/account/routes";
 import { getBusinessSettingsPath } from "@/features/businesses/routes";
 import type { BusinessMemberRole } from "@/lib/business-members";
 import {
@@ -6,8 +7,6 @@ import {
 } from "@/lib/business-members";
 
 export type BusinessSettingsNavigationIcon =
-  | "profile"
-  | "security"
   | "general"
   | "members"
   | "notifications"
@@ -35,17 +34,17 @@ export function getDefaultBusinessSettingsSection(role: BusinessMemberRole) {
     return "general" as const;
   }
 
-  if (canManageOperationalBusinessSettings(role)) {
-    return "notifications" as const;
-  }
-
-  return "profile" as const;
+  return "notifications" as const;
 }
 
 export function getDefaultBusinessSettingsPath(
   slug: string,
   role: BusinessMemberRole,
 ) {
+  if (!canManageOperationalBusinessSettings(role)) {
+    return getAccountProfilePath();
+  }
+
   return getBusinessSettingsPath(slug, getDefaultBusinessSettingsSection(role));
 }
 
@@ -53,22 +52,7 @@ export function getBusinessSettingsNavigation(
   slug: string,
   role: BusinessMemberRole,
 ): BusinessSettingsNavigationGroup[] {
-  return [
-    {
-      label: "Account",
-      items: [
-        {
-          href: getBusinessSettingsPath(slug, "profile"),
-          label: "Your profile",
-          icon: "profile",
-        },
-        {
-          href: getBusinessSettingsPath(slug, "security"),
-          label: "Security",
-          icon: "security",
-        },
-      ],
-    },
+  const groups: Array<BusinessSettingsNavigationGroup | null> = [
     canManageOperationalBusinessSettings(role)
       ? {
           label: "Business",
@@ -139,7 +123,11 @@ export function getBusinessSettingsNavigation(
         },
       ],
     },
-  ].filter((group): group is BusinessSettingsNavigationGroup => Boolean(group));
+  ];
+
+  return groups.filter(
+    (group): group is BusinessSettingsNavigationGroup => group !== null,
+  );
 }
 
 /**

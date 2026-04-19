@@ -2,7 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, PlusCircle } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarClock,
+  PlusCircle,
+} from "lucide-react";
 
 import { BillingStatusCard } from "@/features/billing/components/billing-status-card";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +19,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Combobox } from "@/components/ui/combobox";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
+import { getWorkspacePath } from "@/features/workspaces/routes";
 import { businessTypeMeta } from "@/features/inquiries/business-types";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
@@ -25,10 +31,13 @@ import type { WorkspaceOverview, WorkspaceListItem } from "@/features/workspaces
 import type { CreateBusinessActionState } from "@/features/businesses/types";
 import type { WorkspaceBillingOverview } from "@/features/billing/types";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useProgressRouter } from "@/hooks/use-progress-router";
 
 type WorkspaceOverviewContentProps = {
+  businessView: "active" | "archived" | "trash";
   overview: WorkspaceOverview;
+  searchParams: Record<string, string | undefined>;
   workspaceList: WorkspaceListItem[];
   billingOverview: WorkspaceBillingOverview;
   createBusinessAction: (
@@ -38,40 +47,89 @@ type WorkspaceOverviewContentProps = {
 };
 
 export function WorkspaceOverviewContent({
+  businessView,
   overview,
+  searchParams,
   workspaceList,
   billingOverview,
   createBusinessAction,
 }: WorkspaceOverviewContentProps) {
+  const router = useProgressRouter();
+  const workspacePath = getWorkspacePath(overview.slug);
+
   return (
     <div className="grid flex-1 gap-6 xl:grid-cols-3">
       <section className="space-y-4 xl:col-span-2">
         <Tabs defaultValue="businesses" className="w-full">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-            <TabsList>
-              <TabsTrigger value="businesses">
-                Businesses ({overview.businesses.length})
-              </TabsTrigger>
-              <TabsTrigger value="members">
-                Members ({overview.members.length})
-              </TabsTrigger>
-            </TabsList>
-            <CreateBusinessDialog
-              action={createBusinessAction}
-              workspaces={workspaceList}
-              isLocked={overview.businesses.length > 0 && overview.plan === "free"}
-              billingProps={
-                overview.businesses.length > 0 && overview.plan === "free"
-                  ? {
-                      workspaceId: billingOverview.workspaceId,
-                      workspaceSlug: billingOverview.workspaceSlug,
-                      currentPlan: billingOverview.currentPlan,
-                      region: billingOverview.region,
-                      defaultCurrency: billingOverview.defaultCurrency,
+          <div className="mb-4 flex flex-col gap-3">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <TabsList>
+                  <TabsTrigger value="businesses">
+                    Businesses ({overview.businesses.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="members">
+                    Members ({overview.members.length})
+                  </TabsTrigger>
+                </TabsList>
+                <Combobox
+                  buttonClassName="w-full sm:w-[11rem]"
+                  id="workspace-business-view"
+                  onValueChange={(value) => {
+                    const params = new URLSearchParams();
+
+                    for (const [key, currentValue] of Object.entries(searchParams)) {
+                      if (typeof currentValue === "string" && key !== "view") {
+                        params.set(key, currentValue);
+                      }
                     }
-                  : undefined
-              }
-            />
+
+                    if (value !== "active") {
+                      params.set("view", value);
+                    }
+
+                    params.delete("page");
+
+                    const href = params.size
+                      ? `${workspacePath}?${params.toString()}`
+                      : workspacePath;
+
+                    router.push(href);
+                  }}
+                  options={[
+                    { label: "Active", value: "active" },
+                    { label: "Archived", value: "archived" },
+                    { label: "Trash", value: "trash" },
+                  ]}
+                  placeholder="Choose a business view"
+                  value={businessView}
+                />
+              </div>
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
+                <CreateBusinessDialog
+                  action={createBusinessAction}
+                  workspaces={workspaceList}
+                  isLocked={overview.businesses.length > 0 && overview.plan === "free"}
+                  billingProps={
+                    overview.businesses.length > 0 && overview.plan === "free"
+                      ? {
+                          workspaceId: billingOverview.workspaceId,
+                          workspaceSlug: billingOverview.workspaceSlug,
+                          currentPlan: billingOverview.currentPlan,
+                          region: billingOverview.region,
+                          defaultCurrency: billingOverview.defaultCurrency,
+                        }
+                      : undefined
+                  }
+                />
+                {overview.scheduledDeletionAt ? (
+                  <Badge className="gap-1 self-start sm:self-auto" variant="outline">
+                    <CalendarClock className="size-3.5" />
+                    Deletion scheduled
+                  </Badge>
+                ) : null}
+              </div>
+            </div>
           </div>
 
           <TabsContent value="businesses" className="space-y-4 outline-none">
@@ -126,14 +184,22 @@ export function WorkspaceOverviewContent({
                               text={businessTypeMeta[business.businessType as BusinessType].label}
                             />
                           </Badge>
+                          {business.recordState === "archived" ? (
+                            <Badge variant="secondary">Archived</Badge>
+                          ) : null}
+                          {business.recordState === "trash" ? (
+                            <Badge variant="secondary">In trash</Badge>
+                          ) : null}
                         </div>
 
-                        <Button asChild className="w-full sm:w-auto">
-                          <Link href={businessPath} prefetch={true}>
-                            Open dashboard
-                            <ArrowRight data-icon="inline-end" className="size-4" />
-                          </Link>
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                          <Button asChild className="w-full sm:w-auto">
+                            <Link href={businessPath} prefetch={true}>
+                              Open dashboard
+                              <ArrowRight data-icon="inline-end" className="size-4" />
+                            </Link>
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   );

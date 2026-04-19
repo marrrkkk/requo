@@ -132,11 +132,37 @@ export const auth = betterAuth({
     deleteUser: {
       enabled: true,
       beforeDelete: async (deletedUser) => {
-        const { cleanupAccountOwnedAssets } = await import(
+        const { getAccountDeletionPreflight } = await import(
+          "@/features/account/queries"
+        );
+        const { cleanupDeletedAccountAssets } = await import(
           "@/features/account/mutations"
         );
+        const { writeAccountAuditLogsForUser } = await import(
+          "@/features/audit/mutations"
+        );
+        const preflight = await getAccountDeletionPreflight(deletedUser.id);
 
-        await cleanupAccountOwnedAssets(deletedUser.id);
+        if (!preflight.allowed) {
+          throw new Error(
+            preflight.blockers[0]?.message ??
+              "Resolve your owned workspaces or business ownership before deleting this account.",
+          );
+        }
+
+        await writeAccountAuditLogsForUser(deletedUser.id, {
+          actorUserId: deletedUser.id,
+          actorName: deletedUser.name,
+          actorEmail: deletedUser.email,
+          action: "account.deleted",
+          metadata: {
+            accountEmail: deletedUser.email,
+          },
+          source: "system",
+          createdAt: new Date(),
+        });
+
+        await cleanupDeletedAccountAssets(deletedUser.id);
       },
     },
   },

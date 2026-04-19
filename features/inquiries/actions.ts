@@ -22,8 +22,12 @@ import { sendPublicInquiryNotificationEmail } from "@/lib/resend/client";
 import { getAdditionalInquirySubmittedFields } from "@/features/inquiries/form-config";
 import {
   addInquiryNoteForBusiness,
+  archiveInquiryForBusiness,
   changeInquiryStatusForBusiness,
   createPublicInquirySubmission,
+  restoreInquiryFromTrashForBusiness,
+  trashInquiryForBusiness,
+  unarchiveInquiryForBusiness,
 } from "@/features/inquiries/mutations";
 import {
   getPublicInquiryBusinessByFormSlug,
@@ -37,6 +41,7 @@ import {
 } from "@/features/inquiries/schemas";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
 import type {
+  InquiryRecordActionState,
   InquiryNoteActionState,
   InquiryStatusActionState,
   PublicInquiryFormState,
@@ -59,6 +64,13 @@ function revalidateCacheTags(tags: string[]) {
   for (const tag of uniqueCacheTags(tags)) {
     revalidateTag(tag, "max");
   }
+}
+
+function getInquiryMutationCacheTags(businessId: string, inquiryId: string) {
+  return uniqueCacheTags([
+    ...getBusinessInquiryListCacheTags(businessId),
+    ...getBusinessInquiryDetailCacheTags(businessId, inquiryId),
+  ]);
 }
 
 export async function submitPublicInquiryAction(
@@ -228,9 +240,7 @@ export async function addInquiryNoteAction(
       };
     }
 
-    updateCacheTags(
-      getBusinessInquiryDetailCacheTags(businessContext.business.id, inquiryId),
-    );
+    updateCacheTags(getInquiryMutationCacheTags(businessContext.business.id, inquiryId));
     return {
       success: "Internal note added.",
     };
@@ -280,9 +290,16 @@ export async function changeInquiryStatusAction(
       };
     }
 
-    updateCacheTags(
-      getBusinessInquiryDetailCacheTags(businessContext.business.id, inquiryId),
-    );
+    updateCacheTags(getInquiryMutationCacheTags(businessContext.business.id, inquiryId));
+    if (result.locked) {
+      return {
+        error:
+          result.lockedReason === "trash"
+            ? "Restore this request from trash before updating its workflow status."
+            : "Unarchive this request before updating its workflow status.",
+      };
+    }
+
     if (!result.changed) {
       return {
         success: `Inquiry is already ${getInquiryStatusLabel(result.nextStatus)}.`,
@@ -299,4 +316,135 @@ export async function changeInquiryStatusAction(
       error: "We couldn't update the inquiry status right now.",
     };
   }
+}
+
+async function runInquiryRecordAction(
+  inquiryId: string,
+  mutation: (input: {
+    businessId: string;
+    inquiryId: string;
+    actorUserId: string;
+  }) => Promise<
+    | {
+        changed: boolean;
+        locked?: boolean;
+        lockedReason?: "archived" | "trash";
+      }
+    | null
+  >,
+  messages: {
+    success: string;
+    unchanged: string;
+    missing?: string;
+    archivedLocked?: string;
+    trashLocked?: string;
+    fallbackError: string;
+  },
+): Promise<InquiryRecordActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+
+  try {
+    const result = await mutation({
+      businessId: businessContext.business.id,
+      inquiryId,
+      actorUserId: user.id,
+    });
+
+    if (!result) {
+      return {
+        error: messages.missing ?? "That request could not be found.",
+      };
+    }
+
+    updateCacheTags(getInquiryMutationCacheTags(businessContext.business.id, inquiryId));
+
+    if (result.locked) {
+      return {
+        error:
+          result.lockedReason === "trash"
+            ? messages.trashLocked ?? "Restore this request from trash first."
+            : messages.archivedLocked ?? "Unarchive this request first.",
+      };
+    }
+
+    return {
+      success: result.changed ? messages.success : messages.unchanged,
+    };
+  } catch (error) {
+    console.error(messages.fallbackError, error);
+
+    return {
+      error: "We couldn't update that request right now.",
+    };
+  }
+}
+
+export async function archiveInquiryAction(
+  inquiryId: string,
+  _prevState: InquiryRecordActionState,
+  _formData: FormData,
+): Promise<InquiryRecordActionState> {
+  void _prevState;
+  void _formData;
+
+  return runInquiryRecordAction(inquiryId, archiveInquiryForBusiness, {
+    success: "Request archived.",
+    unchanged: "Request is already archived.",
+    trashLocked: "Restore this request from trash before archiving it.",
+    fallbackError: "Failed to archive inquiry.",
+  });
+}
+
+export async function unarchiveInquiryAction(
+  inquiryId: string,
+  _prevState: InquiryRecordActionState,
+  _formData: FormData,
+): Promise<InquiryRecordActionState> {
+  void _prevState;
+  void _formData;
+
+  return runInquiryRecordAction(inquiryId, unarchiveInquiryForBusiness, {
+    success: "Request restored to active.",
+    unchanged: "Request is already active.",
+    trashLocked: "Restore this request from trash instead.",
+    fallbackError: "Failed to unarchive inquiry.",
+  });
+}
+
+export async function trashInquiryAction(
+  inquiryId: string,
+  _prevState: InquiryRecordActionState,
+  _formData: FormData,
+): Promise<InquiryRecordActionState> {
+  void _prevState;
+  void _formData;
+
+  return runInquiryRecordAction(inquiryId, trashInquiryForBusiness, {
+    success: "Request moved to trash.",
+    unchanged: "Request is already in trash.",
+    fallbackError: "Failed to move inquiry to trash.",
+  });
+}
+
+export async function restoreInquiryFromTrashAction(
+  inquiryId: string,
+  _prevState: InquiryRecordActionState,
+  _formData: FormData,
+): Promise<InquiryRecordActionState> {
+  void _prevState;
+  void _formData;
+
+  return runInquiryRecordAction(inquiryId, restoreInquiryFromTrashForBusiness, {
+    success: "Request restored from trash.",
+    unchanged: "Request is already active.",
+    fallbackError: "Failed to restore inquiry from trash.",
+  });
 }

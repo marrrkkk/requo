@@ -22,9 +22,8 @@ export default function WorkspaceLoading() {
           </Button>
         </div>
         <div className="flex items-center gap-3">
-          <Skeleton className="size-9 rounded-md" />
-          <Skeleton className="size-9 rounded-md" />
-          <Skeleton className="h-9 w-20 rounded-md" />
+          <Skeleton className="size-10 rounded-xl" />
+          <Skeleton className="size-10 rounded-full" />
         </div>
       </header>
 
@@ -38,12 +37,20 @@ export default function WorkspaceLoading() {
           <div className="grid flex-1 gap-6 xl:grid-cols-3">
             <section className="space-y-4 xl:col-span-2">
               <div className="w-full">
-                <div className="mb-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                  <div className="inline-flex h-10 w-full max-w-[19rem] items-center gap-0.5 rounded-lg border border-border/80 bg-[var(--table-header-bg)] p-1 sm:w-fit">
-                    <Skeleton className="h-8 flex-1 rounded-md sm:w-[9.25rem]" />
-                    <Skeleton className="h-8 flex-1 rounded-md sm:w-[8.25rem]" />
+                <div className="mb-4 flex flex-col gap-3">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <div className="inline-flex h-10 w-full max-w-[19rem] items-center gap-0.5 rounded-lg border border-border/80 bg-[var(--table-header-bg)] p-1 sm:w-fit">
+                        <Skeleton className="h-8 flex-1 rounded-md sm:w-[9.25rem]" />
+                        <Skeleton className="h-8 flex-1 rounded-md sm:w-[8.25rem]" />
+                      </div>
+                      <Skeleton className="h-10 w-full rounded-xl sm:w-44" />
+                    </div>
+                    <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
+                      <Skeleton className="h-9 w-full shrink-0 rounded-md sm:w-40" />
+                      <Skeleton className="h-6 w-36 rounded-full" />
+                    </div>
                   </div>
-                  <Skeleton className="h-9 w-full shrink-0 rounded-md sm:w-40" />
                 </div>
 
                 <div className="space-y-4">

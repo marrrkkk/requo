@@ -1,7 +1,8 @@
 import "server-only";
 
-import { and, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 
+import { writeAuditLog } from "@/features/audit/mutations";
 import { db } from "@/lib/db/client";
 import {
   activityLogs,
@@ -11,9 +12,8 @@ import {
   businesses,
 } from "@/lib/db/schema";
 import type { QuoteEditorInput } from "@/features/quotes/schemas";
-import type { QuoteStatus } from "@/features/quotes/types";
+import type { QuoteDeliveryMethod, QuoteStatus } from "@/features/quotes/types";
 import {
-  getQuoteStatusLabel,
   getTodayUtcDateString,
 } from "@/features/quotes/utils";
 import { insertBusinessNotification } from "@/features/notifications/mutations";
@@ -93,6 +93,15 @@ function truncateNotificationMessage(
   return `${trimmedValue.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
+function getStoredEffectiveQuoteStatus(
+  status: QuoteStatus,
+  validUntil: string,
+) {
+  return status === "sent" && validUntil < getTodayUtcDateString()
+    ? "expired"
+    : status;
+}
+
 async function maybeMoveInquiryToQuoted(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
   businessId: string,
@@ -114,6 +123,8 @@ async function maybeMoveInquiryToQuoted(
         eq(inquiries.id, inquiryId),
         eq(inquiries.businessId, businessId),
         inArray(inquiries.status, ["new", "waiting"]),
+        isNull(inquiries.archivedAt),
+        isNull(inquiries.deletedAt),
       ),
     )
     .returning({ id: inquiries.id });
@@ -142,6 +153,8 @@ async function maybeMoveInquiryToWon(
         eq(inquiries.id, inquiryId),
         eq(inquiries.businessId, businessId),
         inArray(inquiries.status, ["new", "quoted", "waiting"]),
+        isNull(inquiries.archivedAt),
+        isNull(inquiries.deletedAt),
       ),
     )
     .returning({ id: inquiries.id });
@@ -242,6 +255,7 @@ export async function syncExpiredQuotesForBusiness(businessId: string) {
       and(
         eq(quotes.businessId, businessId),
         eq(quotes.status, "sent"),
+        isNull(quotes.deletedAt),
         lt(quotes.validUntil, today),
       ),
     );
@@ -267,6 +281,7 @@ export async function syncExpiredQuoteForPublicToken(token: string) {
       and(
         getQuotePublicTokenLookupCondition(token),
         eq(quotes.status, "sent"),
+        isNull(quotes.deletedAt),
         lt(quotes.validUntil, today),
       ),
     )
@@ -300,11 +315,29 @@ export async function createQuoteForBusiness({
   for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
       return await db.transaction(async (tx) => {
+        const [business] = await tx
+          .select({
+            workspaceId: businesses.workspaceId,
+          })
+          .from(businesses)
+          .where(eq(businesses.id, businessId))
+          .limit(1);
+
+        if (!business) {
+          return null;
+        }
+
         if (inquiryId) {
           const [inquiry] = await tx
             .select({ id: inquiries.id })
             .from(inquiries)
-            .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
+            .where(
+              and(
+                eq(inquiries.id, inquiryId),
+                eq(inquiries.businessId, businessId),
+                isNull(inquiries.deletedAt),
+              ),
+            )
             .limit(1);
 
           if (!inquiry) {
@@ -375,6 +408,21 @@ export async function createQuoteForBusiness({
           now,
         });
 
+        await writeAuditLog(tx, {
+          workspaceId: business.workspaceId,
+          businessId,
+          actorUserId,
+          entityType: "quote",
+          entityId: quoteId,
+          action: "quote.created",
+          metadata: {
+            quoteNumber,
+            title: quote.title,
+            customerName: quote.customerName,
+          },
+          createdAt: now,
+        });
+
         return {
           id: quoteId,
           quoteNumber,
@@ -417,8 +465,14 @@ export async function updateQuoteForBusiness({
         quoteNumber: quotes.quoteNumber,
         currency: quotes.currency,
         postAcceptanceStatus: quotes.postAcceptanceStatus,
+        archivedAt: quotes.archivedAt,
+        deletedAt: quotes.deletedAt,
+        workspaceId: businesses.workspaceId,
+        title: quotes.title,
+        customerName: quotes.customerName,
       })
       .from(quotes)
+      .innerJoin(businesses, eq(quotes.businessId, businesses.id))
       .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
       .limit(1);
 
@@ -426,7 +480,11 @@ export async function updateQuoteForBusiness({
       return null;
     }
 
-    if (existingQuote.status !== "draft") {
+    if (
+      existingQuote.deletedAt ||
+      existingQuote.archivedAt ||
+      existingQuote.status !== "draft"
+    ) {
       return {
         updated: false,
         locked: true,
@@ -490,19 +548,17 @@ export async function updateQuoteForBusiness({
   });
 }
 
-type ChangeQuoteStatusForBusinessInput = {
+type UpdateQuoteRecordStateForBusinessInput = {
   businessId: string;
   quoteId: string;
   actorUserId: string;
-  nextStatus: QuoteStatus;
 };
 
-export async function changeQuoteStatusForBusiness({
+export async function deleteDraftQuoteForBusiness({
   businessId,
   quoteId,
   actorUserId,
-  nextStatus,
-}: ChangeQuoteStatusForBusinessInput) {
+}: UpdateQuoteRecordStateForBusinessInput) {
   const now = new Date();
 
   return db.transaction(async (tx) => {
@@ -512,11 +568,15 @@ export async function changeQuoteStatusForBusiness({
         inquiryId: quotes.inquiryId,
         quoteNumber: quotes.quoteNumber,
         status: quotes.status,
-        sentAt: quotes.sentAt,
-        acceptedAt: quotes.acceptedAt,
-        postAcceptanceStatus: quotes.postAcceptanceStatus,
+        validUntil: quotes.validUntil,
+        archivedAt: quotes.archivedAt,
+        deletedAt: quotes.deletedAt,
+        workspaceId: businesses.workspaceId,
+        title: quotes.title,
+        customerName: quotes.customerName,
       })
       .from(quotes)
+      .innerJoin(businesses, eq(quotes.businessId, businesses.id))
       .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
       .limit(1);
 
@@ -524,79 +584,351 @@ export async function changeQuoteStatusForBusiness({
       return null;
     }
 
-    if (existingQuote.status === nextStatus) {
+    const effectiveStatus = getStoredEffectiveQuoteStatus(
+      existingQuote.status,
+      existingQuote.validUntil,
+    );
+
+    if (existingQuote.deletedAt) {
       return {
-        changed: false,
-        previousStatus: existingQuote.status,
-        nextStatus,
-        quoteNumber: existingQuote.quoteNumber,
+        deleted: false,
+        locked: false,
         inquiryId: existingQuote.inquiryId,
+        quoteNumber: existingQuote.quoteNumber,
+        status: effectiveStatus,
       };
+    }
+
+    if (existingQuote.archivedAt || effectiveStatus !== "draft") {
+      return {
+        deleted: false,
+        locked: true,
+        lockedReason: existingQuote.archivedAt ? "archived" : "lifecycle",
+        inquiryId: existingQuote.inquiryId,
+        quoteNumber: existingQuote.quoteNumber,
+        status: effectiveStatus,
+      } as const;
     }
 
     await tx
       .update(quotes)
       .set({
-        status: nextStatus,
-        sentAt:
-          nextStatus === "draft"
-            ? null
-            : nextStatus === "sent"
-              ? existingQuote.sentAt ?? now
-              : existingQuote.sentAt,
-        acceptedAt:
-          nextStatus === "accepted"
-            ? existingQuote.acceptedAt ?? now
-            : null,
-        publicViewedAt: nextStatus === "draft" ? null : undefined,
-        customerRespondedAt:
-          nextStatus === "draft" || nextStatus === "sent" ? null : undefined,
-        customerResponseMessage:
-          nextStatus === "draft" || nextStatus === "sent" ? null : undefined,
-        postAcceptanceStatus:
-          nextStatus === "accepted"
-            ? existingQuote.postAcceptanceStatus
-            : "none",
+        deletedAt: now,
+        deletedBy: actorUserId,
         updatedAt: now,
       })
       .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)));
-
-    if (nextStatus === "sent") {
-      await maybeMoveInquiryToQuoted(
-        tx,
-        businessId,
-        existingQuote.inquiryId,
-        now,
-      );
-    }
-
-    if (nextStatus === "accepted") {
-      await maybeMoveInquiryToWon(tx, businessId, existingQuote.inquiryId, now);
-    }
 
     await insertQuoteActivity(tx, {
       businessId,
       inquiryId: existingQuote.inquiryId,
       quoteId,
       actorUserId,
-      type: "quote.status_changed",
-      summary: `Quote ${existingQuote.quoteNumber} moved from ${getQuoteStatusLabel(
-        existingQuote.status,
-      )} to ${getQuoteStatusLabel(nextStatus)}.`,
+      type: "quote.deleted_draft",
+      summary: `Draft quote ${existingQuote.quoteNumber} deleted.`,
       metadata: {
-        previousStatus: existingQuote.status,
-        nextStatus,
         quoteNumber: existingQuote.quoteNumber,
+      },
+      now,
+    });
+
+    await writeAuditLog(tx, {
+      workspaceId: existingQuote.workspaceId,
+      businessId,
+      actorUserId,
+      entityType: "quote",
+      entityId: quoteId,
+      action: "quote.draft_deleted",
+      metadata: {
+        quoteNumber: existingQuote.quoteNumber,
+        title: existingQuote.title,
+        customerName: existingQuote.customerName,
+      },
+      createdAt: now,
+    });
+
+    return {
+      deleted: true,
+      locked: false,
+      inquiryId: existingQuote.inquiryId,
+      quoteNumber: existingQuote.quoteNumber,
+      status: effectiveStatus,
+    } as const;
+  });
+}
+
+export async function archiveQuoteForBusiness({
+  businessId,
+  quoteId,
+  actorUserId,
+}: UpdateQuoteRecordStateForBusinessInput) {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [existingQuote] = await tx
+      .select({
+        id: quotes.id,
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+        status: quotes.status,
+        validUntil: quotes.validUntil,
+        archivedAt: quotes.archivedAt,
+        deletedAt: quotes.deletedAt,
+      })
+      .from(quotes)
+      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
+      .limit(1);
+
+    if (!existingQuote || existingQuote.deletedAt) {
+      return null;
+    }
+
+    const effectiveStatus = getStoredEffectiveQuoteStatus(
+      existingQuote.status,
+      existingQuote.validUntil,
+    );
+
+    if (effectiveStatus === "draft") {
+      return {
+        changed: false,
+        locked: true,
+        lockedReason: "draft",
+        inquiryId: existingQuote.inquiryId,
+        quoteNumber: existingQuote.quoteNumber,
+        status: effectiveStatus,
+      } as const;
+    }
+
+    if (existingQuote.archivedAt) {
+      return {
+        changed: false,
+        locked: false,
+        inquiryId: existingQuote.inquiryId,
+        quoteNumber: existingQuote.quoteNumber,
+        status: effectiveStatus,
+      };
+    }
+
+    await tx
+      .update(quotes)
+      .set({
+        archivedAt: now,
+        archivedBy: actorUserId,
+        updatedAt: now,
+      })
+      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)));
+
+    await insertQuoteActivity(tx, {
+      businessId,
+      inquiryId: existingQuote.inquiryId,
+      quoteId,
+      actorUserId,
+      type: "quote.archived",
+      summary: `Quote ${existingQuote.quoteNumber} archived.`,
+      metadata: {
+        quoteNumber: existingQuote.quoteNumber,
+        status: effectiveStatus,
       },
       now,
     });
 
     return {
       changed: true,
-      previousStatus: existingQuote.status,
-      nextStatus,
-      quoteNumber: existingQuote.quoteNumber,
+      locked: false,
       inquiryId: existingQuote.inquiryId,
+      quoteNumber: existingQuote.quoteNumber,
+      status: effectiveStatus,
+    };
+  });
+}
+
+export async function restoreArchivedQuoteForBusiness({
+  businessId,
+  quoteId,
+  actorUserId,
+}: UpdateQuoteRecordStateForBusinessInput) {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [existingQuote] = await tx
+      .select({
+        id: quotes.id,
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+        status: quotes.status,
+        validUntil: quotes.validUntil,
+        archivedAt: quotes.archivedAt,
+        deletedAt: quotes.deletedAt,
+      })
+      .from(quotes)
+      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
+      .limit(1);
+
+    if (!existingQuote || existingQuote.deletedAt) {
+      return null;
+    }
+
+    const effectiveStatus = getStoredEffectiveQuoteStatus(
+      existingQuote.status,
+      existingQuote.validUntil,
+    );
+
+    if (!existingQuote.archivedAt) {
+      return {
+        changed: false,
+        locked: false,
+        inquiryId: existingQuote.inquiryId,
+        quoteNumber: existingQuote.quoteNumber,
+        status: effectiveStatus,
+      };
+    }
+
+    await tx
+      .update(quotes)
+      .set({
+        archivedAt: null,
+        archivedBy: null,
+        updatedAt: now,
+      })
+      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)));
+
+    await insertQuoteActivity(tx, {
+      businessId,
+      inquiryId: existingQuote.inquiryId,
+      quoteId,
+      actorUserId,
+      type: "quote.unarchived",
+      summary: `Quote ${existingQuote.quoteNumber} restored to active.`,
+      metadata: {
+        quoteNumber: existingQuote.quoteNumber,
+        status: effectiveStatus,
+      },
+      now,
+    });
+
+    return {
+      changed: true,
+      locked: false,
+      inquiryId: existingQuote.inquiryId,
+      quoteNumber: existingQuote.quoteNumber,
+      status: effectiveStatus,
+    };
+  });
+}
+
+export async function voidQuoteForBusiness({
+  businessId,
+  quoteId,
+  actorUserId,
+}: UpdateQuoteRecordStateForBusinessInput) {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [existingQuote] = await tx
+      .select({
+        id: quotes.id,
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+        status: quotes.status,
+        validUntil: quotes.validUntil,
+        archivedAt: quotes.archivedAt,
+        deletedAt: quotes.deletedAt,
+        sentAt: quotes.sentAt,
+        workspaceId: businesses.workspaceId,
+        title: quotes.title,
+        customerName: quotes.customerName,
+      })
+      .from(quotes)
+      .innerJoin(businesses, eq(quotes.businessId, businesses.id))
+      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
+      .limit(1);
+
+    if (!existingQuote || existingQuote.deletedAt) {
+      return null;
+    }
+
+    const effectiveStatus = getStoredEffectiveQuoteStatus(
+      existingQuote.status,
+      existingQuote.validUntil,
+    );
+
+    if (existingQuote.status === "sent" && effectiveStatus === "expired") {
+      await expireQuoteRows(tx, [
+        {
+          id: existingQuote.id,
+          businessId,
+          inquiryId: existingQuote.inquiryId,
+          quoteNumber: existingQuote.quoteNumber,
+        },
+      ]);
+    }
+
+    if (effectiveStatus === "voided") {
+      return {
+        changed: false,
+        locked: false,
+        inquiryId: existingQuote.inquiryId,
+        quoteNumber: existingQuote.quoteNumber,
+        status: effectiveStatus,
+      };
+    }
+
+    if (effectiveStatus !== "sent") {
+      return {
+        changed: false,
+        locked: true,
+        inquiryId: existingQuote.inquiryId,
+        quoteNumber: existingQuote.quoteNumber,
+        status: effectiveStatus,
+      } as const;
+    }
+
+    await tx
+      .update(quotes)
+      .set({
+        status: "voided",
+        voidedAt: now,
+        voidedBy: actorUserId,
+        acceptedAt: null,
+        postAcceptanceStatus: "none",
+        updatedAt: now,
+      })
+      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)));
+
+    await insertQuoteActivity(tx, {
+      businessId,
+      inquiryId: existingQuote.inquiryId,
+      quoteId,
+      actorUserId,
+      type: "quote.voided",
+      summary: `Quote ${existingQuote.quoteNumber} voided.`,
+      metadata: {
+        quoteNumber: existingQuote.quoteNumber,
+      },
+      now,
+    });
+
+    await writeAuditLog(tx, {
+      workspaceId: existingQuote.workspaceId,
+      businessId,
+      actorUserId,
+      entityType: "quote",
+      entityId: quoteId,
+      action: "quote.voided",
+      metadata: {
+        quoteNumber: existingQuote.quoteNumber,
+        title: existingQuote.title,
+        customerName: existingQuote.customerName,
+      },
+      createdAt: now,
+    });
+
+    return {
+      changed: true,
+      locked: false,
+      inquiryId: existingQuote.inquiryId,
+      quoteNumber: existingQuote.quoteNumber,
+      status: "voided" as const,
     };
   });
 }
@@ -605,12 +937,14 @@ type MarkQuoteSentForBusinessInput = {
   businessId: string;
   quoteId: string;
   actorUserId: string;
+  sendMethod?: QuoteDeliveryMethod;
 };
 
 export async function markQuoteSentForBusiness({
   businessId,
   quoteId,
   actorUserId,
+  sendMethod = "requo",
 }: MarkQuoteSentForBusinessInput) {
   const now = new Date();
 
@@ -624,24 +958,30 @@ export async function markQuoteSentForBusiness({
         publicTokenEncrypted: quotes.publicTokenEncrypted,
         status: quotes.status,
         postAcceptanceStatus: quotes.postAcceptanceStatus,
+        archivedAt: quotes.archivedAt,
+        deletedAt: quotes.deletedAt,
+        workspaceId: businesses.workspaceId,
+        title: quotes.title,
+        customerName: quotes.customerName,
       })
       .from(quotes)
+      .innerJoin(businesses, eq(quotes.businessId, businesses.id))
       .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
       .limit(1);
 
-    if (!existingQuote) {
+    if (!existingQuote || existingQuote.deletedAt) {
       return null;
     }
 
-    if (existingQuote.status !== "draft") {
-        return {
-          changed: false,
-          status: existingQuote.status,
-          quoteNumber: existingQuote.quoteNumber,
-          inquiryId: existingQuote.inquiryId,
-          publicToken: resolveStoredQuotePublicToken(existingQuote),
-        };
-      }
+    if (existingQuote.archivedAt || existingQuote.status !== "draft") {
+      return {
+        changed: false,
+        status: existingQuote.status,
+        quoteNumber: existingQuote.quoteNumber,
+        inquiryId: existingQuote.inquiryId,
+        publicToken: resolveStoredQuotePublicToken(existingQuote),
+      };
+    }
 
     await tx
       .update(quotes)
@@ -665,11 +1005,31 @@ export async function markQuoteSentForBusiness({
       quoteId,
       actorUserId,
       type: "quote.sent",
-      summary: `Quote ${existingQuote.quoteNumber} sent to the customer.`,
+      summary:
+        sendMethod === "manual"
+          ? `Quote ${existingQuote.quoteNumber} marked as sent after manual delivery.`
+          : `Quote ${existingQuote.quoteNumber} sent with Requo email.`,
       metadata: {
         quoteNumber: existingQuote.quoteNumber,
+        sendMethod,
       },
       now,
+    });
+
+    await writeAuditLog(tx, {
+      workspaceId: existingQuote.workspaceId,
+      businessId,
+      actorUserId,
+      entityType: "quote",
+      entityId: quoteId,
+      action: "quote.sent",
+      metadata: {
+        quoteNumber: existingQuote.quoteNumber,
+        title: existingQuote.title,
+        customerName: existingQuote.customerName,
+        sendMethod,
+      },
+      createdAt: now,
     });
 
     return {
@@ -682,7 +1042,7 @@ export async function markQuoteSentForBusiness({
   });
 }
 
-export async function recordQuotePublicViewByToken(token: string) {
+export async function recordQuotePublicViewAt(quoteId: string) {
   const now = new Date();
 
   await db
@@ -692,8 +1052,9 @@ export async function recordQuotePublicViewByToken(token: string) {
     })
     .where(
       and(
-        getQuotePublicTokenLookupCondition(token),
-        inArray(quotes.status, ["sent", "accepted", "rejected", "expired"]),
+        eq(quotes.id, quoteId),
+        isNull(quotes.deletedAt),
+        inArray(quotes.status, ["sent", "accepted", "rejected", "expired", "voided"]),
       ),
     );
 
@@ -738,7 +1099,7 @@ export async function respondToPublicQuoteByToken({
       })
       .from(quotes)
       .innerJoin(businesses, eq(quotes.businessId, businesses.id))
-      .where(getQuotePublicTokenLookupCondition(token))
+      .where(and(getQuotePublicTokenLookupCondition(token), isNull(quotes.deletedAt)))
       .limit(1);
 
     if (!existingQuote) {
@@ -893,12 +1254,13 @@ export async function updateQuotePostAcceptanceStatusForBusiness({
         quoteNumber: quotes.quoteNumber,
         status: quotes.status,
         postAcceptanceStatus: quotes.postAcceptanceStatus,
+        deletedAt: quotes.deletedAt,
       })
       .from(quotes)
       .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
       .limit(1);
 
-    if (!existingQuote) {
+    if (!existingQuote || existingQuote.deletedAt) {
       return null;
     }
 

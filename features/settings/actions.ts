@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath, updateTag } from "next/cache";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getValidationActionState } from "@/lib/action-state";
@@ -12,7 +11,6 @@ import {
   uniqueCacheTags,
 } from "@/lib/cache/business-tags";
 import {
-  businessDeleteSchema,
   businessEmailTemplateSettingsSchema,
   businessGeneralSettingsSchema,
   businessInquiryFormCreateSchema,
@@ -24,7 +22,6 @@ import {
   businessQuoteSettingsSchema,
 } from "@/features/settings/schemas";
 import type {
-  BusinessDeleteActionState,
   BusinessEmailTemplateActionState,
   BusinessInquiryFormActionState,
   BusinessInquiryFormDangerActionState,
@@ -38,7 +35,6 @@ import {
   archiveBusinessInquiryForm,
   unarchiveBusinessInquiryForm,
   createBusinessInquiryForm,
-  deleteBusiness,
   deleteBusinessInquiryForm,
   duplicateBusinessInquiryForm,
   setBusinessInquiryFormPublicState,
@@ -56,7 +52,6 @@ import {
   getOwnerBusinessActionContext,
 } from "@/lib/db/business-access";
 import {
-  activeBusinessSlugCookieName,
   getBusinessDashboardPath,
   getBusinessFormsPath,
   getBusinessInquiryFormEditorPath,
@@ -66,7 +61,6 @@ import {
   getBusinessPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
-import { workspacesHubPath } from "@/features/workspaces/routes";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { getBusinessInquiryFormsSettingsForBusiness } from "@/features/settings/queries";
 
@@ -372,77 +366,6 @@ export async function updateBusinessEmailTemplateSettingsAction(
       error: "We couldn't save the email template right now.",
     };
   }
-}
-
-export async function deleteBusinessAction(
-  _prevState: BusinessDeleteActionState,
-  formData: FormData,
-): Promise<BusinessDeleteActionState> {
-  const ownerAccess = await getOperationalBusinessActionContext();
-
-  if (!ownerAccess.ok) {
-    return {
-      error: ownerAccess.error,
-    };
-  }
-
-  const { user, businessContext } = ownerAccess;
-  const validationResult = businessDeleteSchema.safeParse({
-    confirmation: formData.get("confirmation"),
-  });
-
-  if (!validationResult.success) {
-    return getValidationActionState(
-      validationResult.error,
-      "Type the business name to continue.",
-    );
-  }
-
-  let shouldRedirect = false;
-
-  try {
-    const result = await deleteBusiness({
-      businessId: businessContext.business.id,
-      actorUserId: user.id,
-      values: validationResult.data,
-    });
-
-    if (!result.ok) {
-      if (result.reason === "confirmation-mismatch") {
-        return {
-          error: "Type the exact business name to delete it.",
-          fieldErrors: {
-            confirmation: ["This does not match the business name."],
-          },
-        };
-      }
-
-      return {
-        error: "That business could not be found.",
-      };
-    }
-
-    const cookieStore = await cookies();
-
-    cookieStore.delete(activeBusinessSlugCookieName);
-
-    revalidatePath(workspacesHubPath);
-    shouldRedirect = true;
-  } catch (error) {
-    console.error("Failed to delete business.", error);
-
-    return {
-      error: "We couldn't delete the business right now.",
-    };
-  }
-
-  if (shouldRedirect) {
-    redirect(workspacesHubPath);
-  }
-
-  return {
-    error: "We couldn't delete the business right now.",
-  };
 }
 
 export async function updateBusinessInquiryPageAction(

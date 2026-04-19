@@ -15,6 +15,10 @@ import {
   themeStorageKey,
   type ThemePreference,
 } from "@/features/theme/types";
+import {
+  persistThemePreference,
+  readPersistedThemePreference,
+} from "@/features/theme/persistence";
 
 type ResolvedTheme = "light" | "dark";
 
@@ -64,10 +68,9 @@ export function ThemeProvider({
   const setTheme = useCallback(
     (nextTheme: ThemePreference) => {
       setThemeState(nextTheme);
-
-      try {
-        window.localStorage.setItem(storageKey, nextTheme);
-      } catch {}
+      persistThemePreference(nextTheme, {
+        storageKey,
+      });
     },
     [storageKey],
   );
@@ -145,7 +148,9 @@ function readStoredTheme(
   }
 
   try {
-    const storedTheme = window.localStorage.getItem(storageKey);
+    const storedTheme = readPersistedThemePreference({
+      storageKey,
+    });
 
     if (storedTheme && isThemePreference(storedTheme)) {
       return storedTheme;

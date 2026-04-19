@@ -10,12 +10,11 @@ export function DashboardListResultsSkeleton({
 }: DashboardListResultsSkeletonProps) {
   const isInquiryList = variant === "inquiries";
   const tableColumns = isInquiryList
-    ? "grid-cols-[1.8fr_1.3fr_1.2fr_0.9fr_0.9fr_1fr]"
-    : "grid-cols-[1.5fr_1.2fr_1fr_0.9fr_0.9fr_1fr_0.9fr]";
-  const mobileTileCount = isInquiryList ? 4 : 3;
+    ? "grid-cols-[1.8fr_1.3fr_1.3fr_0.9fr_1fr]"
+    : "grid-cols-[1.8fr_1.4fr_0.9fr_0.9fr_1fr]";
+  const mobileTileCount = 3;
   const rowSkeletonClasses = isInquiryList
     ? [
-        "h-4 w-24 rounded-md",
         "h-4 w-24 rounded-md",
         "h-4 w-24 rounded-md",
         "h-4 w-24 rounded-md",
@@ -23,11 +22,9 @@ export function DashboardListResultsSkeleton({
       ]
     : [
         "h-4 w-24 rounded-md",
-        "h-4 w-20 rounded-md",
         "h-4 w-24 rounded-md",
         "h-4 w-20 rounded-md",
         "h-6 w-24 rounded-full",
-        "h-4 w-20 rounded-md",
       ];
 
   return (
@@ -35,7 +32,7 @@ export function DashboardListResultsSkeleton({
       <DashboardTableContainer>
         <div className="overflow-hidden rounded-[1.1rem] border border-border/60 bg-background/70">
           <div className={`grid gap-4 border-b border-border/60 px-5 py-3 ${tableColumns}`}>
-            {Array.from({ length: isInquiryList ? 6 : 7 }).map((_, index) => (
+            {Array.from({ length: 5 }).map((_, index) => (
               <Skeleton key={index} className="h-3 w-full rounded-md" />
             ))}
           </div>
@@ -74,7 +71,7 @@ export function DashboardListResultsSkeleton({
                 <Skeleton className="h-6 w-24 rounded-full" />
               </div>
 
-              <div className={`grid gap-3 ${isInquiryList ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
+              <div className={`grid gap-3 ${isInquiryList ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
                 {Array.from({ length: mobileTileCount }).map((__, tileIndex) => (
                   <div key={tileIndex} className="info-tile h-full px-3.5 py-3 shadow-none">
                     <Skeleton className="h-3 w-16 rounded-md" />

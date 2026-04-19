@@ -4,11 +4,15 @@ import {
   CircleDot,
   Clock3,
   FileText,
+  Trash2,
   Timer,
   Trophy,
 } from "lucide-react";
 
-import type { InquiryStatus } from "@/features/inquiries/types";
+import type {
+  InquiryRecordState,
+  InquiryStatus,
+} from "@/features/inquiries/types";
 
 export const inquiryStatusLabels: Record<InquiryStatus, string> = {
   new: "New",
@@ -43,6 +47,29 @@ export const inquiryStatusIcons = {
   overdue: Timer,
 } as const;
 
+export const inquiryRecordStateLabels: Record<
+  Exclude<InquiryRecordState, "active">,
+  string
+> = {
+  archived: "Archived",
+  trash: "In trash",
+};
+
+export const inquiryRecordStateClassNames: Record<
+  Exclude<InquiryRecordState, "active">,
+  string
+> = {
+  archived:
+    "border-slate-200/80 bg-slate-100 text-slate-700 dark:border-slate-500/25 dark:bg-slate-500/12 dark:text-slate-200",
+  trash:
+    "border-rose-200/80 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/12 dark:text-rose-200",
+};
+
+export const inquiryRecordStateIcons = {
+  archived: Archive,
+  trash: Trash2,
+} as const;
+
 const inquiryDateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
 });
@@ -54,6 +81,12 @@ const inquiryDateTimeFormatter = new Intl.DateTimeFormat("en-US", {
 
 export function getInquiryStatusLabel(status: InquiryStatus) {
   return inquiryStatusLabels[status];
+}
+
+export function getInquiryRecordStateLabel(
+  state: Exclude<InquiryRecordState, "active">,
+) {
+  return inquiryRecordStateLabels[state];
 }
 
 export function formatInquiryDate(value: Date | string) {

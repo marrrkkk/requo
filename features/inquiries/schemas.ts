@@ -12,8 +12,9 @@ import {
 } from "@/features/inquiries/form-config";
 import { isAcceptedFileType } from "@/lib/files";
 import {
+  inquiryRecordViews,
   inquiryStatusFilterValues,
-  inquiryStatuses,
+  inquiryWorkflowStatuses,
 } from "@/features/inquiries/types";
 
 export const publicInquiryAttachmentBucket = "inquiry-attachments";
@@ -640,6 +641,12 @@ export const inquiryListFiltersSchema = z.object({
       z.string().trim().max(120).optional(),
     )
     .catch(undefined),
+  view: z
+    .preprocess(
+      (value) => firstString(value) ?? "active",
+      z.enum(inquiryRecordViews),
+    )
+    .catch("active"),
   status: z
     .preprocess(
       (value) => firstString(value) ?? "all",
@@ -670,5 +677,5 @@ export const inquiryNoteSchema = z.object({
 });
 
 export const inquiryStatusChangeSchema = z.object({
-  status: z.enum(inquiryStatuses),
+  status: z.enum(inquiryWorkflowStatuses),
 });

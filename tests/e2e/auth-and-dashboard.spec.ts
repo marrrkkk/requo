@@ -31,6 +31,12 @@ async function openDemoBusiness(page: Page) {
   ).toBeVisible({ timeout: 20_000 });
 }
 
+async function expectBodyScrollUnlocked(page: Page) {
+  await expect
+    .poll(() => page.evaluate(() => document.body.hasAttribute("data-scroll-locked")))
+    .toBe(false);
+}
+
 test("owner can sign in, reach the dashboard overview, and sign out @smoke", async ({
   page,
 }) => {
@@ -88,7 +94,7 @@ test("dashboard inquiry queue actions open filtered inquiry views", async ({
   await openDemoBusiness(page);
 
   const overdueHref = `/businesses/${demoBusinessSlug}/dashboard/inquiries?status=overdue`;
-  const waitingHref = `/businesses/${demoBusinessSlug}/dashboard/inquiries?status=waiting`;
+  const newHref = `/businesses/${demoBusinessSlug}/dashboard/inquiries?status=new`;
 
   const overdueLink = page.getByRole("link", { name: "All overdue" });
   await expect(overdueLink).toHaveAttribute("href", overdueHref);
@@ -99,10 +105,10 @@ test("dashboard inquiry queue actions open filtered inquiry views", async ({
 
   await openDemoBusiness(page);
 
-  const waitingLink = page.getByRole("link", { name: "All waiting" });
-  await expect(waitingLink).toHaveAttribute("href", waitingHref);
-  await waitingLink.click();
-  await expect(page).toHaveURL(new RegExp(`${waitingHref}$`), {
+  const newLink = page.getByRole("link", { name: "All new" });
+  await expect(newLink).toHaveAttribute("href", newHref);
+  await newLink.click();
+  await expect(page).toHaveURL(new RegExp(`${newHref}$`), {
     timeout: 20_000,
   });
 });
@@ -120,6 +126,43 @@ test("dashboard shows a branded not-found state for unknown records", async ({
   await expect(page.getByRole("link", { name: "Back to overview" })).toBeVisible();
 });
 
+test("dashboard quick actions keep the top bar stable after scrolling", async ({
+  page,
+}) => {
+  await signIn(page);
+  await openDemoBusiness(page);
+
+  const topbar = page.locator("header.dashboard-topbar");
+
+  await page.evaluate(() => {
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+  });
+
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
+
+  const scrollBefore = await page.evaluate(() => window.scrollY);
+  const topBefore = await topbar.evaluate((element) =>
+    Math.round(element.getBoundingClientRect().top),
+  );
+
+  await page.getByRole("button", { name: /Quick actions/i }).click();
+
+  await expect(page.getByRole("dialog", { name: "Quick actions" })).toBeVisible();
+  await expect(
+    page.locator('[data-slot="dialog-overlay"][data-state="open"]'),
+  ).toBeVisible();
+  await expectBodyScrollUnlocked(page);
+
+  const scrollAfter = await page.evaluate(() => window.scrollY);
+  const topAfter = await topbar.evaluate((element) =>
+    Math.round(element.getBoundingClientRect().top),
+  );
+
+  expect(Math.abs(topBefore)).toBeLessThanOrEqual(1);
+  expect(Math.abs(topAfter)).toBeLessThanOrEqual(1);
+  expect(Math.abs(scrollAfter - scrollBefore)).toBeLessThanOrEqual(1);
+});
+
 test("sending a draft quote shows a safe delivery error when email is unavailable", async ({
   page,
 }) => {
@@ -130,7 +173,8 @@ test("sending a draft quote shows a safe delivery error when email is unavailabl
   );
   await page.waitForLoadState("networkidle");
 
-  await page.getByRole("button", { name: "Send quote email" }).click();
+  await page.getByRole("button", { name: "Send quote" }).click();
+  await page.getByRole("menuitem", { name: "Send with Requo" }).click();
 
   await expect(
     page.getByText(

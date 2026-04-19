@@ -16,8 +16,27 @@ export const inquiryStatuses = [
   "overdue",
 ] as const;
 
+export const inquiryWorkflowStatuses = [
+  "new",
+  "quoted",
+  "waiting",
+  "won",
+  "lost",
+] as const;
+export const inquiryFilterableStatuses = [
+  ...inquiryWorkflowStatuses,
+  "overdue",
+] as const;
+export const inquiryRecordViews = ["active", "archived", "trash"] as const;
+
 export type InquiryStatus = (typeof inquiryStatuses)[number];
-export const inquiryStatusFilterValues = ["all", ...inquiryStatuses] as const;
+export type InquiryWorkflowStatus = (typeof inquiryWorkflowStatuses)[number];
+export type InquiryRecordView = (typeof inquiryRecordViews)[number];
+export type InquiryRecordState = InquiryRecordView;
+export const inquiryStatusFilterValues = [
+  "all",
+  ...inquiryFilterableStatuses,
+] as const;
 export type InquiryStatusFilterValue = (typeof inquiryStatusFilterValues)[number];
 
 export type DashboardInquiryListItem = {
@@ -30,7 +49,10 @@ export type DashboardInquiryListItem = {
   serviceCategory: string;
   budgetText: string | null;
   status: InquiryStatus;
+  recordState: InquiryRecordState;
   subject: string | null;
+  archivedAt: Date | null;
+  deletedAt: Date | null;
   submittedAt: Date;
   createdAt: Date;
 };
@@ -86,6 +108,9 @@ export type DashboardInquiryDetail = {
   details: string;
   source: string | null;
   status: InquiryStatus;
+  recordState: InquiryRecordState;
+  archivedAt: Date | null;
+  deletedAt: Date | null;
   submittedAt: Date;
   createdAt: Date;
   attachments: DashboardInquiryAttachment[];
@@ -97,6 +122,7 @@ export type DashboardInquiryDetail = {
 
 export type InquiryListFilters = {
   q?: string;
+  view: InquiryRecordView;
   status: InquiryStatusFilterValue;
   form: string;
   sort: "newest" | "oldest";
@@ -132,6 +158,11 @@ export type InquiryStatusActionState = {
   error?: string;
   success?: string;
   fieldErrors?: InquiryStatusFieldErrors;
+};
+
+export type InquiryRecordActionState = {
+  error?: string;
+  success?: string;
 };
 
 export type PublicInquiryBusiness = {

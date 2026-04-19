@@ -156,6 +156,11 @@
   --overlay-surface-bg: var(--surface-elevated-bg);
   --overlay-surface-border: var(--surface-stroke);
   --overlay-surface-shadow: var(--surface-shadow-lg);
+  --modal-backdrop: rgb(0 0 0 / 0.44);
+  --z-modal-overlay: 100;
+  --z-modal-content: 101;
+  --z-popover-layer: 110;
+  --z-toast: 150;
   --tooltip-surface-bg: #172b24;
   --tooltip-surface-fg: #f7f9f7;
   --tooltip-surface-border: rgb(23 43 36 / 0.28);
@@ -304,6 +309,11 @@
   --alert-destructive-surface-shadow:
     0 1px 2px rgb(0 0 0 / 0.18),
     inset 0 1px 0 rgb(255 255 255 / 0.04);
+  --modal-backdrop: rgb(0 0 0 / 0.56);
+  --z-modal-overlay: 100;
+  --z-modal-content: 101;
+  --z-popover-layer: 110;
+  --z-toast: 150;
 }
 
 @keyframes subtle-fade-up {
@@ -511,7 +521,8 @@
    * when the body is locked. This app already reserves scrollbar space on the
    * root, so the extra compensation causes centered layouts to nudge left.
    */
-  body[data-scroll-locked] {
+  body[data-scroll-locked],
+  html[data-scroll-locked] {
     margin-right: 0 !important;
     padding-right: 0 !important;
     --removed-body-scroll-bar-size: 0px !important;
@@ -784,7 +795,7 @@
   }
 
   .dashboard-detail-support-grid {
-    @apply grid gap-6 2xl:grid-cols-2;
+    @apply flex min-w-0 flex-col gap-6;
   }
 
   .dashboard-detail-feed {
@@ -1064,6 +1075,46 @@
     display: none;
   }
 
+  .hover-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.3s ease;
+  }
+
+  .hover-scrollbar:hover,
+  .hover-scrollbar:focus-within {
+    scrollbar-color: rgb(214 221 216 / 0.5) transparent;
+  }
+
+  .dark .hover-scrollbar:hover,
+  .dark .hover-scrollbar:focus-within {
+    scrollbar-color: rgb(255 255 255 / 0.1) transparent;
+  }
+
+  .hover-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .hover-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .hover-scrollbar::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 3px;
+  }
+
+  .hover-scrollbar:hover::-webkit-scrollbar-thumb,
+  .hover-scrollbar:focus-within::-webkit-scrollbar-thumb {
+    background-color: rgb(214 221 216 / 0.5);
+  }
+
+  .dark .hover-scrollbar:hover::-webkit-scrollbar-thumb,
+  .dark .hover-scrollbar:focus-within::-webkit-scrollbar-thumb {
+    background-color: rgb(255 255 255 / 0.1);
+  }
+
   .surface-grid {
     background-image:
       linear-gradient(to right, color-mix(in srgb, var(--color-border) 45%, transparent) 1px, transparent 1px),
@@ -1223,6 +1274,37 @@
     background: var(--overlay-surface-bg);
     border-color: var(--overlay-surface-border);
     box-shadow: var(--overlay-surface-shadow);
+  }
+
+  .modal-backdrop {
+    background: var(--modal-backdrop);
+  }
+
+  /* Above sticky app chrome (~30); below popover/dropdown portals inside modals */
+  .modal-layer-overlay {
+    z-index: var(--z-modal-overlay);
+  }
+
+  .modal-layer-content {
+    z-index: var(--z-modal-content);
+  }
+
+  /* Floating menus / popovers portaled to body — must sit above modal content */
+  .popover-layer {
+    z-index: var(--z-popover-layer);
+  }
+
+  .toast-layer {
+    z-index: var(--z-toast);
+  }
+
+  .accordion-motion[data-slot="accordion-content"] {
+    animation-duration: var(--motion-duration-base);
+    animation-timing-function: var(--motion-ease-standard);
+  }
+
+  .marketing-accordion {
+    @apply flex flex-col gap-3;
   }
 
   .tooltip-surface {

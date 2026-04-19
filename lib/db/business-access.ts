@@ -1,9 +1,17 @@
 import "server-only";
 
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { cache } from "react";
 
+import type {
+  BusinessRecordState,
+  BusinessRecordView,
+} from "@/features/businesses/lifecycle";
+import {
+  getBusinessRecordState,
+  getBusinessViewCondition,
+} from "@/features/businesses/lifecycle";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import type { WorkspacePlan } from "@/lib/plans/plans";
 import {
@@ -44,6 +52,9 @@ export type BusinessContext = {
     logoStoragePath: string | null;
     defaultCurrency: string;
     publicInquiryEnabled: boolean;
+    recordState: BusinessRecordState;
+    archivedAt: Date | null;
+    deletedAt: Date | null;
   };
 };
 
@@ -83,7 +94,10 @@ function getBusinessRoleSortExpression() {
   end`;
 }
 
-export const getBusinessMembershipsForUser = cache(async (userId: string) => {
+export const getBusinessMembershipsForUser = cache(async (
+  userId: string,
+  view: BusinessRecordView | "all" = "active",
+) => {
   const publicInquiryEnabledSelection = sql<boolean>`coalesce((
     select ${businessInquiryForms.publicInquiryEnabled}
     from ${businessInquiryForms}
@@ -107,11 +121,20 @@ export const getBusinessMembershipsForUser = cache(async (userId: string) => {
       businessLogoStoragePath: businesses.logoStoragePath,
       defaultCurrency: businesses.defaultCurrency,
       publicInquiryEnabled: publicInquiryEnabledSelection,
+      recordState: getBusinessRecordState,
+      archivedAt: businesses.archivedAt,
+      deletedAt: businesses.deletedAt,
     })
     .from(businessMembers)
     .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
     .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
-    .where(eq(businessMembers.userId, userId))
+    .where(
+      and(
+        eq(businessMembers.userId, userId),
+        isNull(workspaces.deletedAt),
+        view === "all" ? undefined : getBusinessViewCondition(view),
+      ),
+    )
     .orderBy(
       getBusinessRoleSortExpression(),
       asc(businesses.name),
@@ -132,6 +155,9 @@ export const getBusinessMembershipsForUser = cache(async (userId: string) => {
       logoStoragePath: membership.businessLogoStoragePath,
       defaultCurrency: membership.defaultCurrency,
       publicInquiryEnabled: membership.publicInquiryEnabled,
+      recordState: membership.recordState,
+      archivedAt: membership.archivedAt,
+      deletedAt: membership.deletedAt,
     },
   })) satisfies BusinessContext[];
 });
@@ -139,6 +165,7 @@ export const getBusinessMembershipsForUser = cache(async (userId: string) => {
 export const getBusinessContextForMembershipSlug = cache(async (
   userId: string,
   businessSlug: string,
+  includeInactive = true,
 ) => {
   const publicInquiryEnabledSelection = sql<boolean>`coalesce((
     select ${businessInquiryForms.publicInquiryEnabled}
@@ -163,6 +190,9 @@ export const getBusinessContextForMembershipSlug = cache(async (
       businessLogoStoragePath: businesses.logoStoragePath,
       defaultCurrency: businesses.defaultCurrency,
       publicInquiryEnabled: publicInquiryEnabledSelection,
+      recordState: getBusinessRecordState,
+      archivedAt: businesses.archivedAt,
+      deletedAt: businesses.deletedAt,
     })
     .from(businessMembers)
     .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
@@ -171,6 +201,8 @@ export const getBusinessContextForMembershipSlug = cache(async (
       and(
         eq(businessMembers.userId, userId),
         eq(businesses.slug, businessSlug),
+        isNull(workspaces.deletedAt),
+        includeInactive ? undefined : getBusinessViewCondition("active"),
       ),
     )
     .limit(1);
@@ -193,6 +225,9 @@ export const getBusinessContextForMembershipSlug = cache(async (
       logoStoragePath: context.businessLogoStoragePath,
       defaultCurrency: context.defaultCurrency,
       publicInquiryEnabled: context.publicInquiryEnabled,
+      recordState: context.recordState,
+      archivedAt: context.archivedAt,
+      deletedAt: context.deletedAt,
     },
   } satisfies BusinessContext;
 });
@@ -214,6 +249,7 @@ export const getBusinessContextForUser = cache(async (
     const scopedContext = await getBusinessContextForMembershipSlug(
       userId,
       requestedBusinessSlug,
+      false,
     );
 
     if (scopedContext) {
@@ -221,7 +257,7 @@ export const getBusinessContextForUser = cache(async (
     }
   }
 
-  const memberships = await getBusinessMembershipsForUser(userId);
+  const memberships = await getBusinessMembershipsForUser(userId, "active");
 
   return memberships[0] ?? null;
 });
@@ -306,14 +342,18 @@ export async function getBusinessRequestContextForSlug(slug: string) {
 export async function getBusinessActionContext({
   businessSlug,
   minimumRole = "staff",
+  requireActiveBusiness = false,
   unauthorizedMessage,
 }: {
   businessSlug?: string | null;
   minimumRole?: BusinessMemberRole;
+  requireActiveBusiness?: boolean;
   unauthorizedMessage?: string;
 } = {}): Promise<BusinessActionContextResult> {
   const user = await requireUser();
-  const businessContext = await getBusinessContextForUser(user.id, businessSlug);
+  const businessContext = businessSlug
+    ? await getBusinessContextForMembershipSlug(user.id, businessSlug, true)
+    : await getBusinessContextForUser(user.id);
 
   if (!businessContext) {
     return {
@@ -331,6 +371,16 @@ export async function getBusinessActionContext({
     };
   }
 
+  if (
+    requireActiveBusiness &&
+    businessContext.business.recordState !== "active"
+  ) {
+    return {
+      ok: false,
+      error: "Restore this business before doing that.",
+    };
+  }
+
   return {
     ok: true,
     user,
@@ -341,6 +391,7 @@ export async function getBusinessActionContext({
 export async function getOwnerBusinessActionContext() {
   return getBusinessActionContext({
     minimumRole: "owner",
+    requireActiveBusiness: true,
     unauthorizedMessage: "Only the business owner can do that.",
   });
 }
@@ -348,6 +399,7 @@ export async function getOwnerBusinessActionContext() {
 export async function getOperationalBusinessActionContext() {
   return getBusinessActionContext({
     minimumRole: "manager",
+    requireActiveBusiness: true,
     unauthorizedMessage: "Only an owner or manager can do that.",
   });
 }
@@ -355,7 +407,16 @@ export async function getOperationalBusinessActionContext() {
 export async function getWorkspaceBusinessActionContext() {
   return getBusinessActionContext({
     minimumRole: "staff",
+    requireActiveBusiness: true,
     unauthorizedMessage: "You do not have access to that business action.",
+  });
+}
+
+export async function getOwnerBusinessLifecycleActionContext() {
+  return getBusinessActionContext({
+    minimumRole: "owner",
+    requireActiveBusiness: false,
+    unauthorizedMessage: "Only the business owner can do that.",
   });
 }
 

@@ -1,18 +1,14 @@
-import Link from "next/link";
-import { Inbox } from "lucide-react";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { DashboardListResultsSkeleton } from "@/components/shared/dashboard-list-results-skeleton";
-import {
-  DashboardEmptyState,
-  DashboardPage,
-} from "@/components/shared/dashboard-layout";
+import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
-import { Button } from "@/components/ui/button";
-import { InquiryListFilters as InquiryListToolbar } from "@/features/inquiries/components/inquiry-list-filters";
-import { InquiryExportCsvDropdown } from "@/features/inquiries/components/inquiry-export-csv-dropdown";
-import { InquiryListResults } from "@/features/inquiries/components/inquiry-list-results";
+import {
+  InquiryListContentFallback,
+  InquiryListContentSection,
+  InquiryListControlsFallback,
+  InquiryListControlsSection,
+} from "@/features/inquiries/components/inquiry-list-page-sections";
 import { inquiryListFiltersSchema } from "@/features/inquiries/schemas";
 import {
   getBusinessInquiryFormOptionsForBusiness,
@@ -86,6 +82,7 @@ export default async function InquiriesPage({
     ? parsedFilters.data
     : {
         q: undefined,
+        view: "active" as const,
         status: "all" as const,
         form: "all",
         sort: "newest" as const,
@@ -93,6 +90,7 @@ export default async function InquiriesPage({
       };
   const baseFilters = {
     q: filters.q,
+    view: filters.view,
     status: filters.status,
     form: filters.form,
     sort: filters.sort,
@@ -129,17 +127,27 @@ export default async function InquiriesPage({
     };
   });
 
-  const [totalItems, inquiryFormOptions] = await Promise.all([
-    inquiryCountPromise,
-    getBusinessInquiryFormOptionsForBusiness(businessContext.business.id),
-  ]);
+  const inquiryFormOptionsPromise = getBusinessInquiryFormOptionsForBusiness(
+    businessContext.business.id,
+  );
   const businessSlug = businessContext.business.slug;
-  const hasFilters = Boolean(
+  const hasNonViewFilters = Boolean(
     baseFilters.q ||
       baseFilters.status !== "all" ||
       baseFilters.form !== "all" ||
       baseFilters.sort !== "newest",
   );
+  const clearFiltersPath = (() => {
+    const params = new URLSearchParams();
+
+    if (filters.view !== "active") {
+      params.set("view", filters.view);
+    }
+
+    return params.size
+      ? `${getBusinessInquiriesPath(businessSlug)}?${params.toString()}`
+      : getBusinessInquiriesPath(businessSlug);
+  })();
   const publicInquiryUrl = getBusinessPublicInquiryUrl(businessSlug);
 
   return (
@@ -147,81 +155,30 @@ export default async function InquiriesPage({
       <PageHeader
         eyebrow="Requests"
         title="Customer inquiries"
-        actions={
-          <InquiryExportCsvDropdown
-            businessSlug={businessSlug}
-            filters={filters}
-            formOptions={[
-              {
-                value: "all",
-                label: "All forms",
-              },
-              ...inquiryFormOptions.map((form) => ({
-                value: form.slug,
-                label: form.archivedAt ? `${form.name} (Archived)` : form.name,
-              })),
-            ]}
-            resultCount={totalItems}
-          />
-        }
       />
 
-      <InquiryListToolbar
-        key={`${filters.status}:${filters.form}:${filters.q ?? ""}:${filters.sort}`}
-        filters={filters}
-        formOptions={[
-          {
-            value: "all",
-            label: "All forms",
-          },
-          ...inquiryFormOptions.map((form) => ({
-            value: form.slug,
-            label: form.archivedAt ? `${form.name} (Archived)` : form.name,
-          })),
-        ]}
-        resultCount={totalItems}
-      />
-
-      {totalItems ? (
-        <Suspense fallback={<DashboardListResultsSkeleton variant="inquiries" />}>
-          <InquiryListResults
-            businessSlug={businessSlug}
-            pageData={inquiryPageDataPromise}
-            searchParams={resolvedSearchParams}
-          />
-        </Suspense>
-      ) : (
-        <DashboardEmptyState
-          action={
-            hasFilters ? (
-              <Button asChild variant="outline">
-                <Link href={getBusinessInquiriesPath(businessSlug)} prefetch={true}>Clear filters</Link>
-              </Button>
-            ) : (
-              <Button asChild>
-                <Link
-                  href={publicInquiryUrl}
-                  prefetch={false}
-                >
-                  Preview inquiry page
-                </Link>
-              </Button>
-            )
-          }
-          description={
-            hasFilters
-              ? "Try another search or status."
-              : "New inquiries show up here."
-          }
-          icon={Inbox}
-          title={
-            hasFilters
-              ? "No requests match these filters."
-              : "Your inquiry inbox is still empty."
-          }
-          variant="list"
+      <Suspense fallback={<InquiryListControlsFallback />}>
+        <InquiryListControlsSection
+          businessSlug={businessSlug}
+          filters={filters}
+          formOptionsPromise={inquiryFormOptionsPromise}
+          searchParams={resolvedSearchParams}
+          totalItemsPromise={inquiryCountPromise}
         />
-      )}
+      </Suspense>
+
+      <Suspense fallback={<InquiryListContentFallback />}>
+        <InquiryListContentSection
+          businessSlug={businessSlug}
+          clearFiltersPath={clearFiltersPath}
+          filters={filters}
+          hasNonViewFilters={hasNonViewFilters}
+          pageDataPromise={inquiryPageDataPromise}
+          publicInquiryUrl={publicInquiryUrl}
+          searchParams={resolvedSearchParams}
+          totalItemsPromise={inquiryCountPromise}
+        />
+      </Suspense>
     </DashboardPage>
   );
 }

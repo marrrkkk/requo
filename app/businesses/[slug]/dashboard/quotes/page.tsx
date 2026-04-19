@@ -1,25 +1,20 @@
-import Link from "next/link";
-import { ReceiptText } from "lucide-react";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { DashboardListResultsSkeleton } from "@/components/shared/dashboard-list-results-skeleton";
-import {
-  DashboardEmptyState,
-  DashboardPage,
-} from "@/components/shared/dashboard-layout";
+import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
-import { Button } from "@/components/ui/button";
-import { QuoteListFilters } from "@/features/quotes/components/quote-list-filters";
-import { QuoteExportCsvDropdown } from "@/features/quotes/components/quote-export-csv-dropdown";
-import { QuoteListResults } from "@/features/quotes/components/quote-list-results";
+import {
+  QuoteListContentFallback,
+  QuoteListContentSection,
+  QuoteListControlsFallback,
+  QuoteListControlsSection,
+} from "@/features/quotes/components/quote-list-page-sections";
 import {
   getQuoteListCountForBusiness,
   getQuoteListPageForBusiness,
 } from "@/features/quotes/queries";
 import { quoteListFiltersSchema } from "@/features/quotes/schemas";
 import {
-  getBusinessNewQuotePath,
   getBusinessQuotesPath,
 } from "@/features/businesses/routes";
 import { workspacesHubPath } from "@/features/workspaces/routes";
@@ -85,12 +80,14 @@ export default async function QuotesPage({
     ? parsedFilters.data
     : {
         q: undefined,
+        view: "active" as const,
         status: "all" as const,
         sort: "newest" as const,
         page: 1,
       };
   const baseFilters = {
     q: filters.q,
+    view: filters.view,
     status: filters.status,
     sort: filters.sort,
   };
@@ -125,74 +122,49 @@ export default async function QuotesPage({
       totalPages,
     };
   });
-  const totalItems = await quoteCountPromise;
   const businessSlug = businessContext.business.slug;
-  const hasFilters = Boolean(
+  const hasNonViewFilters = Boolean(
     baseFilters.q || baseFilters.status !== "all" || baseFilters.sort !== "newest",
   );
+  const clearFiltersPath = (() => {
+    const params = new URLSearchParams();
+
+    if (filters.view !== "active") {
+      params.set("view", filters.view);
+    }
+
+    return params.size
+      ? `${getBusinessQuotesPath(businessSlug)}?${params.toString()}`
+      : getBusinessQuotesPath(businessSlug);
+  })();
 
   return (
     <DashboardPage>
       <PageHeader
         eyebrow="Quotes"
         title="Quotes"
-        actions={
-          <div className="dashboard-actions">
-            <QuoteExportCsvDropdown
-              businessSlug={businessSlug}
-              filters={filters}
-              resultCount={totalItems}
-            />
-            <Button asChild>
-              <Link href={getBusinessNewQuotePath(businessSlug)} prefetch={true}>
-                <ReceiptText data-icon="inline-start" />
-                Create quote
-              </Link>
-            </Button>
-          </div>
-        }
       />
 
-      <QuoteListFilters filters={filters} resultCount={totalItems} />
-
-      {totalItems ? (
-        <Suspense fallback={<DashboardListResultsSkeleton variant="quotes" />}>
-          <QuoteListResults
-            businessSlug={businessSlug}
-            pageData={quotePageDataPromise}
-            searchParams={resolvedSearchParams}
-          />
-        </Suspense>
-      ) : (
-        <DashboardEmptyState
-          action={
-            hasFilters ? (
-              <Button asChild variant="outline">
-                <Link href={getBusinessQuotesPath(businessSlug)} prefetch={true}>Clear filters</Link>
-              </Button>
-            ) : (
-              <Button asChild>
-                <Link href={getBusinessNewQuotePath(businessSlug)} prefetch={true}>
-                  <ReceiptText data-icon="inline-start" />
-                  Create first quote
-                </Link>
-              </Button>
-            )
-          }
-          description={
-            hasFilters
-              ? "Try another search or status."
-              : "Create a quote manually or send one from an inquiry."
-          }
-          icon={ReceiptText}
-          title={
-            hasFilters
-              ? "No quotes match these filters."
-              : "Your quote list is still empty."
-          }
-          variant="list"
+      <Suspense fallback={<QuoteListControlsFallback />}>
+        <QuoteListControlsSection
+          businessSlug={businessSlug}
+          filters={filters}
+          searchParams={resolvedSearchParams}
+          totalItemsPromise={quoteCountPromise}
         />
-      )}
+      </Suspense>
+
+      <Suspense fallback={<QuoteListContentFallback />}>
+        <QuoteListContentSection
+          businessSlug={businessSlug}
+          clearFiltersPath={clearFiltersPath}
+          filters={filters}
+          hasNonViewFilters={hasNonViewFilters}
+          pageDataPromise={quotePageDataPromise}
+          searchParams={resolvedSearchParams}
+          totalItemsPromise={quoteCountPromise}
+        />
+      </Suspense>
     </DashboardPage>
   );
 }

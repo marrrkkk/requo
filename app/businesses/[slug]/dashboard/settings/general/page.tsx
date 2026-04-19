@@ -3,9 +3,14 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { PlanBadge } from "@/components/shared/paywall";
 import {
-  deleteBusinessAction,
   updateBusinessSettingsAction,
 } from "@/features/settings/actions";
+import {
+  archiveBusinessAction,
+  restoreBusinessAction,
+  trashBusinessAction,
+  unarchiveBusinessAction,
+} from "@/features/businesses/actions";
 import { BusinessSettingsForm } from "@/features/settings/components/business-settings-form";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 import { getBusinessOwnerPageContext } from "../_lib/page-context";
@@ -35,11 +40,14 @@ export default async function BusinessGeneralSettingsPage() {
 
       <BusinessSettingsForm
         action={updateBusinessSettingsAction}
-        deleteAction={deleteBusinessAction}
+        archiveAction={archiveBusinessAction.bind(null, settings.id, settings.slug)}
         fallbackContactEmail={user.email}
         key={`business-settings-${settings.updatedAt.getTime()}`}
         logoPreviewUrl={logoPreviewUrl}
+        restoreAction={restoreBusinessAction.bind(null, settings.id, settings.slug)}
         settings={settings}
+        trashAction={trashBusinessAction.bind(null, settings.id, settings.slug)}
+        unarchiveAction={unarchiveBusinessAction.bind(null, settings.id, settings.slug)}
       />
     </>
   );

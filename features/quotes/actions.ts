@@ -19,6 +19,7 @@ import {
   getWorkspaceBusinessActionContext,
 } from "@/lib/db/business-access";
 import { env, isResendConfigured } from "@/lib/env";
+import { getUsageLimit } from "@/lib/plans";
 import { checkUsageAllowance } from "@/lib/plans/usage";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
 import {
@@ -29,41 +30,46 @@ import {
   sendQuoteSentOwnerNotificationEmail,
 } from "@/lib/resend/client";
 import {
-  changeQuoteStatusForBusiness,
+  archiveQuoteForBusiness,
   createQuoteForBusiness,
+  deleteDraftQuoteForBusiness,
   markQuoteSentForBusiness,
   respondToPublicQuoteByToken,
+  restoreArchivedQuoteForBusiness,
   updateQuotePostAcceptanceStatusForBusiness,
   updateQuoteForBusiness,
+  voidQuoteForBusiness,
 } from "@/features/quotes/mutations";
 import { getQuoteSendPayloadForBusiness } from "@/features/quotes/queries";
 import {
   publicQuoteResponseSchema,
   quoteEditorSchema,
   quotePostAcceptanceStatusChangeSchema,
-  quoteStatusChangeSchema,
 } from "@/features/quotes/schemas";
 import {
   getBusinessQuotePath,
 } from "@/features/businesses/routes";
 import type {
   PublicQuoteResponseActionState,
+  QuoteDeliveryMethod,
   QuoteEditorActionState,
   QuotePostAcceptanceActionState,
+  QuoteRecordActionState,
   QuoteSendActionState,
-  QuoteStatusActionState,
 } from "@/features/quotes/types";
 import {
   getPublicQuoteUrl,
   getQuotePostAcceptanceStatusLabel,
-  getQuoteStatusLabel,
 } from "@/features/quotes/utils";
 
 const initialEditorState: QuoteEditorActionState = {};
-const initialStatusState: QuoteStatusActionState = {};
 const initialPostAcceptanceState: QuotePostAcceptanceActionState = {};
 const initialSendState: QuoteSendActionState = {};
 const initialPublicQuoteResponseState: PublicQuoteResponseActionState = {};
+const freePlanRequoQuoteSendsPerDay =
+  getUsageLimit("free", "requoQuoteEmailsPerDay") ?? 3;
+const freePlanRequoQuoteSendsPerMonth =
+  getUsageLimit("free", "requoQuoteEmailsPerMonth") ?? 30;
 
 function updateCacheTags(tags: string[]) {
   for (const tag of uniqueCacheTags(tags)) {
@@ -266,13 +272,33 @@ export async function updateQuoteAction(
   }
 }
 
-export async function changeQuoteStatusAction(
+async function runQuoteRecordAction(
   quoteId: string,
-  prevState: QuoteStatusActionState = initialStatusState,
-  formData: FormData,
-): Promise<QuoteStatusActionState> {
-  void prevState;
-
+  mutation: (input: {
+    businessId: string;
+    quoteId: string;
+    actorUserId: string;
+  }) => Promise<
+    | {
+        inquiryId: string | null;
+        changed?: boolean;
+        deleted?: boolean;
+        locked?: boolean;
+        lockedReason?: "archived" | "draft" | "lifecycle";
+        quoteNumber: string;
+        status: string;
+      }
+    | null
+  >,
+  messages: {
+    success: string;
+    unchanged: string;
+    lockedDraft?: string;
+    lockedArchived?: string;
+    lockedLifecycle?: string;
+    fallbackError: string;
+  },
+): Promise<QuoteRecordActionState> {
   const ownerAccess = await getWorkspaceBusinessActionContext();
 
   if (!ownerAccess.ok) {
@@ -282,20 +308,12 @@ export async function changeQuoteStatusAction(
   }
 
   const { user, businessContext } = ownerAccess;
-  const validationResult = quoteStatusChangeSchema.safeParse({
-    status: formData.get("status"),
-  });
-
-  if (!validationResult.success) {
-    return getValidationActionState(validationResult.error, "Choose a valid status.");
-  }
 
   try {
-    const result = await changeQuoteStatusForBusiness({
+    const result = await mutation({
       businessId: businessContext.business.id,
       quoteId,
       actorUserId: user.id,
-      nextStatus: validationResult.data.status,
     });
 
     if (!result) {
@@ -312,22 +330,93 @@ export async function changeQuoteStatusAction(
       ),
     );
 
-    if (!result.changed) {
+    if (result.locked) {
       return {
-        success: `Quote is already ${getQuoteStatusLabel(result.nextStatus)}.`,
+        error:
+          result.lockedReason === "draft"
+            ? messages.lockedDraft ?? "Draft quotes use a different action."
+            : result.lockedReason === "archived"
+              ? messages.lockedArchived ?? "Restore this quote to active first."
+              : messages.lockedLifecycle ?? "This quote can no longer be changed that way.",
       };
     }
 
     return {
-      success: `Quote moved to ${getQuoteStatusLabel(result.nextStatus)}.`,
+      success:
+        result.changed || result.deleted ? messages.success : messages.unchanged,
     };
   } catch (error) {
-    console.error("Failed to change quote status.", error);
+    console.error(messages.fallbackError, error);
 
     return {
-      error: "We couldn't update the quote status right now.",
+      error: "We couldn't update that quote right now.",
     };
   }
+}
+
+export async function deleteDraftQuoteAction(
+  quoteId: string,
+  _prevState: QuoteRecordActionState,
+  _formData: FormData,
+): Promise<QuoteRecordActionState> {
+  void _prevState;
+  void _formData;
+
+  return runQuoteRecordAction(quoteId, deleteDraftQuoteForBusiness, {
+    success: "Draft quote deleted.",
+    unchanged: "Draft quote is already deleted.",
+    lockedArchived: "Restore this draft to active before deleting it.",
+    lockedLifecycle:
+      "Only draft quotes can be deleted. Use void or archive for quotes that were already sent.",
+    fallbackError: "Failed to delete draft quote.",
+  });
+}
+
+export async function archiveQuoteAction(
+  quoteId: string,
+  _prevState: QuoteRecordActionState,
+  _formData: FormData,
+): Promise<QuoteRecordActionState> {
+  void _prevState;
+  void _formData;
+
+  return runQuoteRecordAction(quoteId, archiveQuoteForBusiness, {
+    success: "Quote archived.",
+    unchanged: "Quote is already archived.",
+    lockedDraft: "Delete draft quotes instead of archiving them.",
+    fallbackError: "Failed to archive quote.",
+  });
+}
+
+export async function restoreArchivedQuoteAction(
+  quoteId: string,
+  _prevState: QuoteRecordActionState,
+  _formData: FormData,
+): Promise<QuoteRecordActionState> {
+  void _prevState;
+  void _formData;
+
+  return runQuoteRecordAction(quoteId, restoreArchivedQuoteForBusiness, {
+    success: "Quote restored to active.",
+    unchanged: "Quote is already active.",
+    fallbackError: "Failed to restore archived quote.",
+  });
+}
+
+export async function voidQuoteAction(
+  quoteId: string,
+  _prevState: QuoteRecordActionState,
+  _formData: FormData,
+): Promise<QuoteRecordActionState> {
+  void _prevState;
+  void _formData;
+
+  return runQuoteRecordAction(quoteId, voidQuoteForBusiness, {
+    success: "Quote voided.",
+    unchanged: "Quote is already voided.",
+    lockedLifecycle: "Only sent quotes can be voided.",
+    fallbackError: "Failed to void quote.",
+  });
 }
 
 export async function sendQuoteAction(
@@ -336,7 +425,6 @@ export async function sendQuoteAction(
   formData: FormData,
 ): Promise<QuoteSendActionState> {
   void prevState;
-  void formData;
 
   const ownerAccess = await getWorkspaceBusinessActionContext();
 
@@ -347,6 +435,8 @@ export async function sendQuoteAction(
   }
 
   const { user, businessContext } = ownerAccess;
+  const deliveryMethod: QuoteDeliveryMethod =
+    formData.get("deliveryMethod") === "manual" ? "manual" : "requo";
 
   try {
     const quote = await getQuoteSendPayloadForBusiness({
@@ -366,6 +456,36 @@ export async function sendQuoteAction(
       };
     }
 
+    if (
+      deliveryMethod === "requo" &&
+      businessContext.business.workspacePlan === "free"
+    ) {
+      const [dailyAllowance, monthlyAllowance] = await Promise.all([
+        checkUsageAllowance(
+          businessContext.business.workspaceId,
+          businessContext.business.workspacePlan,
+          "requoQuoteEmailsPerDay",
+        ),
+        checkUsageAllowance(
+          businessContext.business.workspaceId,
+          businessContext.business.workspacePlan,
+          "requoQuoteEmailsPerMonth",
+        ),
+      ]);
+
+      if (!dailyAllowance.allowed) {
+        return {
+          error: `Free plan includes ${freePlanRequoQuoteSendsPerDay} Requo sends per day and ${freePlanRequoQuoteSendsPerMonth} per month. You've hit today's send limit. Send this quote manually or upgrade to keep using Requo delivery.`,
+        };
+      }
+
+      if (!monthlyAllowance.allowed) {
+        return {
+          error: `Free plan includes ${freePlanRequoQuoteSendsPerDay} Requo sends per day and ${freePlanRequoQuoteSendsPerMonth} per month. You've hit this month's send limit. Send this quote manually or upgrade to keep using Requo delivery.`,
+        };
+      }
+    }
+
     const businessSettings = await getBusinessMessagingSettings(
       businessContext.business.id,
     );
@@ -382,46 +502,50 @@ export async function sendQuoteAction(
       env.BETTER_AUTH_URL,
     ).toString();
 
-    if (!isResendConfigured) {
-      return {
-        error: "Quote email delivery is unavailable right now. Configure email and try again.",
-      };
+    if (deliveryMethod === "requo") {
+      if (!isResendConfigured) {
+        return {
+          error:
+            "Quote email delivery is unavailable right now. Configure email and try again.",
+        };
+      }
+
+      const resendSenderConfigurationError =
+        getResendFromEmailConfigurationError();
+
+      if (resendSenderConfigurationError) {
+        return {
+          error: resendSenderConfigurationError,
+        };
+      }
+
+      await sendQuoteEmail({
+        quoteId: quote.id,
+        updatedAt: quote.updatedAt,
+        businessName: businessContext.business.name,
+        customerName: quote.customerName,
+        customerEmail: quote.customerEmail,
+        quoteNumber: quote.quoteNumber,
+        title: quote.title,
+        publicQuoteUrl,
+        currency: quote.currency,
+        validUntil: quote.validUntil,
+        subtotalInCents: quote.subtotalInCents,
+        discountInCents: quote.discountInCents,
+        totalInCents: quote.totalInCents,
+        notes: quote.notes,
+        emailSignature: businessSettings.defaultEmailSignature,
+        items: quote.items,
+        templateOverrides: businessSettings.quoteEmailTemplate,
+        replyToEmail: businessSettings.contactEmail ?? ownerEmails[0],
+      });
     }
-
-    const resendSenderConfigurationError =
-      getResendFromEmailConfigurationError();
-
-    if (resendSenderConfigurationError) {
-      return {
-        error: resendSenderConfigurationError,
-      };
-    }
-
-    await sendQuoteEmail({
-      quoteId: quote.id,
-      updatedAt: quote.updatedAt,
-      businessName: businessContext.business.name,
-      customerName: quote.customerName,
-      customerEmail: quote.customerEmail,
-      quoteNumber: quote.quoteNumber,
-      title: quote.title,
-      publicQuoteUrl,
-      currency: quote.currency,
-      validUntil: quote.validUntil,
-      subtotalInCents: quote.subtotalInCents,
-      discountInCents: quote.discountInCents,
-      totalInCents: quote.totalInCents,
-      notes: quote.notes,
-      emailSignature: businessSettings.defaultEmailSignature,
-      items: quote.items,
-      templateOverrides: businessSettings.quoteEmailTemplate,
-      replyToEmail: businessSettings.contactEmail ?? ownerEmails[0],
-    });
 
     const result = await markQuoteSentForBusiness({
       businessId: businessContext.business.id,
       quoteId,
       actorUserId: user.id,
+      sendMethod: deliveryMethod,
     });
 
     if (!result) {
@@ -432,7 +556,7 @@ export async function sendQuoteAction(
 
     if (!result.changed) {
       return {
-        error: "This quote is no longer in draft status.",
+        error: "Only active draft quotes can be sent.",
       };
     }
 
@@ -472,7 +596,10 @@ export async function sendQuoteAction(
     );
 
     return {
-      success: `Quote ${result.quoteNumber} sent to ${quote.customerEmail}.`,
+      success:
+        deliveryMethod === "manual"
+          ? `Quote ${result.quoteNumber} marked as sent after manual delivery.`
+          : `Quote ${result.quoteNumber} sent to ${quote.customerEmail}.`,
     };
   } catch (error) {
     console.error("Failed to send quote email.", error);
@@ -631,6 +758,12 @@ export async function respondToPublicQuoteAction(
       if (result.status === "expired") {
         return {
           error: "This quote has expired and can no longer be accepted online.",
+        };
+      }
+
+      if (result.status === "voided") {
+        return {
+          error: "This quote has been voided and can no longer be accepted online.",
         };
       }
 

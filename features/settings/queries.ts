@@ -3,6 +3,7 @@ import "server-only";
 import { and, asc, desc, eq, isNull, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
+import { getBusinessRecordState } from "@/features/businesses/lifecycle";
 import { getNormalizedInquiryFormConfig } from "@/features/inquiries/form-config";
 import { getNormalizedInquiryPageConfig } from "@/features/inquiries/page-config";
 import { normalizeBusinessType } from "@/features/inquiries/business-types";
@@ -33,8 +34,13 @@ export async function getBusinessSettingsForBusiness(
   const [business] = await db
     .select({
       id: businesses.id,
+      workspaceId: businesses.workspaceId,
+      workspaceSlug: workspaces.slug,
       name: businesses.name,
       slug: businesses.slug,
+      recordState: getBusinessRecordState,
+      archivedAt: businesses.archivedAt,
+      deletedAt: businesses.deletedAt,
       countryCode: businesses.countryCode,
       businessType: businesses.businessType,
       shortDescription: businesses.shortDescription,
@@ -54,9 +60,17 @@ export async function getBusinessSettingsForBusiness(
       notifyInAppOnQuoteResponse: businesses.notifyInAppOnQuoteResponse,
       notifyInAppOnMemberInviteResponse: businesses.notifyInAppOnMemberInviteResponse,
       defaultCurrency: businesses.defaultCurrency,
+      activeWorkspaceBusinessCount: sql<number>`(
+        select count(*)::int
+        from ${businesses} as workspace_businesses
+        where workspace_businesses.workspace_id = ${businesses.workspaceId}
+          and workspace_businesses.archived_at is null
+          and workspace_businesses.deleted_at is null
+      )`,
       updatedAt: businesses.updatedAt,
     })
     .from(businesses)
+    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .where(eq(businesses.id, businessId))
     .limit(1);
 

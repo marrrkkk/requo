@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-export function PoweredByRequo({ className }: { className?: string }) {
+export function MadeWithRequo({ className }: { className?: string }) {
   return (
     <Link
       href="/"
@@ -23,7 +23,7 @@ export function PoweredByRequo({ className }: { className?: string }) {
         />
       </span>
       <span className="text-sm font-semibold tracking-tight text-foreground">
-        Powered by Requo
+        Made with Requo
       </span>
     </Link>
   );

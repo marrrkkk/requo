@@ -54,12 +54,13 @@ import {
   businessCurrencyOptions,
   resolveCurrencyForCountry,
 } from "@/features/businesses/locale";
+import { getWorkspacePath } from "@/features/workspaces/routes";
 import type {
   BusinessAiTonePreference,
-  BusinessDeleteActionState,
   BusinessSettingsActionState,
   BusinessSettingsView,
 } from "@/features/settings/types";
+import type { BusinessRecordActionState } from "@/features/businesses/types";
 import {
   formatBusinessAiToneLabel,
   getBusinessPublicInquiryUrl,
@@ -76,13 +77,25 @@ type BusinessSettingsFormProps = {
     state: BusinessSettingsActionState,
     formData: FormData,
   ) => Promise<BusinessSettingsActionState>;
-  deleteAction: (
-    state: BusinessDeleteActionState,
+  archiveAction: (
+    state: BusinessRecordActionState,
     formData: FormData,
-  ) => Promise<BusinessDeleteActionState>;
+  ) => Promise<BusinessRecordActionState>;
   fallbackContactEmail: string;
   logoPreviewUrl: string | null;
+  restoreAction: (
+    state: BusinessRecordActionState,
+    formData: FormData,
+  ) => Promise<BusinessRecordActionState>;
   settings: BusinessSettingsView;
+  trashAction: (
+    state: BusinessRecordActionState,
+    formData: FormData,
+  ) => Promise<BusinessRecordActionState>;
+  unarchiveAction: (
+    state: BusinessRecordActionState,
+    formData: FormData,
+  ) => Promise<BusinessRecordActionState>;
 };
 
 const initialState: BusinessSettingsActionState = {};
@@ -134,10 +147,13 @@ function getBusinessSettingsDraftValues(
 
 export function BusinessSettingsForm({
   action,
-  deleteAction,
+  archiveAction,
   fallbackContactEmail,
   logoPreviewUrl,
+  restoreAction,
   settings,
+  trashAction,
+  unarchiveAction,
 }: BusinessSettingsFormProps) {
   const router = useProgressRouter();
   const [state, formAction, isPending] = useActionStateWithSonner(
@@ -228,7 +244,7 @@ export function BusinessSettingsForm({
     <>
       <form
         action={formAction}
-        className="form-stack pb-28"
+        className="form-stack"
       >
         <input name="removeLogo" type="hidden" value={String(removeLogo)} />
         <input name="countryCode" type="hidden" value={draftValues.countryCode} />
@@ -566,7 +582,17 @@ export function BusinessSettingsForm({
         />
       </form>
 
-      <BusinessDeleteZone action={deleteAction} businessName={settings.name} />
+      <BusinessDeleteZone
+        activeWorkspaceBusinessCount={settings.activeWorkspaceBusinessCount}
+        archiveAction={archiveAction}
+        archivedRedirectHref={`${getWorkspacePath(settings.workspaceSlug)}?view=archived`}
+        businessName={settings.name}
+        recordState={settings.recordState}
+        restoreAction={restoreAction}
+        trashAction={trashAction}
+        trashRedirectHref={`${getWorkspacePath(settings.workspaceSlug)}?view=trash`}
+        unarchiveAction={unarchiveAction}
+      />
     </>
   );
 }

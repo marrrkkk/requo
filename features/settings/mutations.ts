@@ -27,7 +27,6 @@ import type {
   BusinessNotificationSettingsInput,
   BusinessQuoteSettingsInput,
 } from "@/features/settings/schemas";
-import { publicInquiryAttachmentBucket } from "@/features/inquiries/schemas";
 import { resolveSafeContentType } from "@/lib/files";
 import {
   sanitizeBusinessLogoFileName,
@@ -38,7 +37,6 @@ import { db } from "@/lib/db/client";
 import {
   activityLogs,
   inquiries,
-  inquiryAttachments,
   businessInquiryForms,
   businesses,
 } from "@/lib/db/schema";
@@ -149,37 +147,6 @@ type BusinessInquiryFormMutationResult =
 
 function createId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
-
-function chunkPaths(paths: string[], size = 100) {
-  const chunks: string[][] = [];
-
-  for (let index = 0; index < paths.length; index += size) {
-    chunks.push(paths.slice(index, index + size));
-  }
-
-  return chunks;
-}
-
-async function removeStoragePaths(
-  bucket: string,
-  paths: Array<string | null | undefined>,
-) {
-  const sanitizedPaths = paths.filter((path): path is string => Boolean(path));
-
-  if (!sanitizedPaths.length) {
-    return;
-  }
-
-  const storageClient = createSupabaseAdminClient();
-
-  for (const chunk of chunkPaths(sanitizedPaths)) {
-    const { error } = await storageClient.storage.from(bucket).remove(chunk);
-
-    if (error) {
-      console.error(`Failed to remove storage objects from ${bucket}.`, error);
-    }
-  }
 }
 
 async function getAvailableBusinessInquiryFormSlug({
@@ -630,54 +597,13 @@ export async function deleteBusiness({
   actorUserId,
   values,
 }: DeleteBusinessInput): Promise<DeleteBusinessResult> {
+  void businessId;
   void actorUserId;
+  void values;
 
-  const [business] = await db
-    .select({
-      id: businesses.id,
-      name: businesses.name,
-      slug: businesses.slug,
-      logoStoragePath: businesses.logoStoragePath,
-    })
-    .from(businesses)
-    .where(eq(businesses.id, businessId))
-    .limit(1);
-
-  if (!business) {
-    return {
-      ok: false,
-      reason: "not-found",
-    };
-  }
-
-  if (values.confirmation !== business.name) {
-    return {
-      ok: false,
-      reason: "confirmation-mismatch",
-    };
-  }
-
-  const inquiryAttachmentRows = await db
-    .select({
-      storagePath: inquiryAttachments.storagePath,
-    })
-    .from(inquiryAttachments)
-    .where(eq(inquiryAttachments.businessId, businessId));
-
-  await db.delete(businesses).where(eq(businesses.id, businessId));
-
-  await Promise.all([
-    removeStoragePaths(businessLogoBucket, [business.logoStoragePath]),
-    removeStoragePaths(
-      publicInquiryAttachmentBucket,
-      inquiryAttachmentRows.map((row) => row.storagePath),
-    ),
-  ]);
-
-  return {
-    ok: true,
-    businessSlug: business.slug,
-  };
+  throw new Error(
+    "Hard business deletion is no longer supported. Use the business lifecycle actions instead.",
+  );
 }
 
 export async function updateBusinessInquiryPageSettings({

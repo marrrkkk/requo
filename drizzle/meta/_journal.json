@@ -225,6 +225,34 @@
       "when": 1776493361254,
       "tag": "0032_auth_rate_limit_adapter_compat",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1776542400000,
+      "tag": "0033_workflow_analytics_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1776576000000,
+      "tag": "0034_request_quote_record_state",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1776614400000,
+      "tag": "0035_safe_workspace_business_deletion",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1776618000000,
+      "tag": "0036_workspace_audit_log",
+      "breakpoints": true
     }
   ]
 }

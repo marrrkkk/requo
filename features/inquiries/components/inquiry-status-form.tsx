@@ -15,10 +15,10 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import type {
-  InquiryStatus,
   InquiryStatusActionState,
+  InquiryWorkflowStatus,
 } from "@/features/inquiries/types";
-import { inquiryStatuses } from "@/features/inquiries/types";
+import { inquiryWorkflowStatuses } from "@/features/inquiries/types";
 import { getInquiryStatusLabel } from "@/features/inquiries/utils";
 
 type InquiryStatusFormProps = {
@@ -26,11 +26,11 @@ type InquiryStatusFormProps = {
     state: InquiryStatusActionState,
     formData: FormData,
   ) => Promise<InquiryStatusActionState>;
-  currentStatus: InquiryStatus;
+  currentStatus: InquiryWorkflowStatus;
 };
 
 const initialState: InquiryStatusActionState = {};
-const inquiryStatusOptions = inquiryStatuses.map((value) => ({
+const inquiryStatusOptions = inquiryWorkflowStatuses.map((value) => ({
   label: getInquiryStatusLabel(value),
   value,
 }));
@@ -40,7 +40,7 @@ export function InquiryStatusForm({
   currentStatus,
 }: InquiryStatusFormProps) {
   const [selectedStatus, setSelectedStatus] =
-    useState<InquiryStatus>(currentStatus);
+    useState<InquiryWorkflowStatus>(currentStatus);
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
@@ -59,7 +59,9 @@ export function InquiryStatusForm({
               disabled={isPending}
               id="inquiry-status"
               value={selectedStatus}
-              onValueChange={(value) => setSelectedStatus(value as InquiryStatus)}
+              onValueChange={(value) =>
+                setSelectedStatus(value as InquiryWorkflowStatus)
+              }
               options={inquiryStatusOptions}
               placeholder="Choose a status"
               searchPlaceholder="Search status"
