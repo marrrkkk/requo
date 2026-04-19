@@ -262,7 +262,7 @@ export function BillingStatusCard({
             <CardTitle className="text-lg">This month&apos;s usage</CardTitle>
             <p className="text-sm text-muted-foreground">
               Counts reset on the first day of each month (UTC). Upgrade for
-              higher limits.
+              unlimited inquiries and quotes.
             </p>
           </CardHeader>
           <CardContent className="grid gap-6">

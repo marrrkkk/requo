@@ -17,8 +17,16 @@ import type {
   BusinessDashboardSummaryData,
   BusinessOverviewData,
 } from "@/features/businesses/types";
-import { getEffectiveInquiryStatus } from "@/features/inquiries/queries";
-import { getEffectiveQuoteStatus } from "@/features/quotes/queries";
+import {
+  getEffectiveInquiryStatus,
+  getNonDeletedInquiryCondition,
+  getOperationalInquiryCondition,
+} from "@/features/inquiries/queries";
+import {
+  getEffectiveQuoteStatus,
+  getNonDeletedQuoteCondition,
+  getOperationalQuoteCondition,
+} from "@/features/quotes/queries";
 import { getQuoteReminderKinds } from "@/features/quotes/utils";
 import {
   getBusinessAnalyticsCacheTags,
@@ -117,6 +125,7 @@ async function getCachedBusinessOverviewData(
       .where(
         and(
           eq(inquiries.businessId, businessId),
+          getOperationalInquiryCondition(),
           isOverdueInquiry,
         ),
       )
@@ -149,6 +158,7 @@ async function getCachedBusinessOverviewData(
       .where(
         and(
           eq(quotes.businessId, businessId),
+          getOperationalQuoteCondition(),
           sql`${getEffectiveQuoteStatus} = 'sent'::quote_status`,
           isNull(quotes.customerRespondedAt),
           gte(quotes.validUntil, today),
@@ -171,6 +181,7 @@ async function getCachedBusinessOverviewData(
       .where(
         and(
           eq(inquiries.businessId, businessId),
+          getOperationalInquiryCondition(),
           isWaitingInquiry,
         ),
       )
@@ -199,6 +210,7 @@ async function getCachedBusinessOverviewData(
       .where(
         and(
           eq(quotes.businessId, businessId),
+          getOperationalQuoteCondition(),
           sql`${getEffectiveQuoteStatus} = 'sent'::quote_status`,
           isNull(quotes.customerRespondedAt),
           isNotNull(quotes.sentAt),
@@ -231,6 +243,7 @@ async function getCachedBusinessOverviewData(
       .where(
         and(
           eq(quotes.businessId, businessId),
+          getOperationalQuoteCondition(),
           eq(quotes.status, "accepted"),
           isNotNull(quotes.acceptedAt),
           gte(quotes.acceptedAt, recentAcceptedCutoff),
@@ -335,7 +348,7 @@ async function getCachedBusinessDashboardSummaryData(
           ),
       })
       .from(inquiries)
-      .where(eq(inquiries.businessId, businessId)),
+      .where(and(eq(inquiries.businessId, businessId), getNonDeletedInquiryCondition())),
     db
       .select({
         totalQuotes: sql<number>`count(*)`.as("total_quotes"),
@@ -344,7 +357,7 @@ async function getCachedBusinessDashboardSummaryData(
         ),
       })
       .from(quotes)
-      .where(eq(quotes.businessId, businessId)),
+      .where(and(eq(quotes.businessId, businessId), getNonDeletedQuoteCondition())),
   ]);
 
   const totalInquiries = Number(inquirySummaryRows[0]?.totalInquiries ?? 0);

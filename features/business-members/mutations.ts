@@ -1,6 +1,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import { insertBusinessNotification } from "@/features/notifications/mutations";
 
+import { writeAuditLog } from "@/features/audit/mutations";
 import {
   businessMemberInviteDurationDays,
   type BusinessMemberAssignableRole,
@@ -54,6 +55,7 @@ export async function createBusinessMemberInviteForBusiness({
         id: businesses.id,
         name: businesses.name,
         slug: businesses.slug,
+        workspaceId: businesses.workspaceId,
       })
       .from(businesses)
       .where(eq(businesses.id, businessId))
@@ -182,8 +184,12 @@ export async function regenerateBusinessMemberInviteLinkForBusiness({
         id: businessMemberInvites.id,
         email: businessMemberInvites.email,
         role: businessMemberInvites.role,
+        workspaceId: businesses.workspaceId,
+        businessName: businesses.name,
+        businessSlug: businesses.slug,
       })
       .from(businessMemberInvites)
+      .innerJoin(businesses, eq(businessMemberInvites.businessId, businesses.id))
       .where(
         and(
           eq(businessMemberInvites.businessId, businessId),
@@ -226,6 +232,23 @@ export async function regenerateBusinessMemberInviteLinkForBusiness({
       updatedAt: now,
     });
 
+    await writeAuditLog(tx, {
+      workspaceId: invite.workspaceId,
+      businessId,
+      actorUserId,
+      actorName: actorUserName,
+      entityType: "member",
+      entityId: inviteId,
+      action: "member.invited",
+      metadata: {
+        businessName: invite.businessName,
+        businessSlug: invite.businessSlug,
+        targetEmail: invite.email,
+        role: invite.role,
+      },
+      createdAt: now,
+    });
+
     return {
       ok: true as const,
       email: invite.email,
@@ -259,9 +282,11 @@ export async function updateBusinessMemberRoleForBusiness({
         userId: businessMembers.userId,
         role: businessMembers.role,
         memberEmail: user.email,
+        workspaceId: businesses.workspaceId,
       })
       .from(businessMembers)
       .innerJoin(user, eq(businessMembers.userId, user.id))
+      .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
       .where(
         and(
           eq(businessMembers.businessId, businessId),
@@ -316,6 +341,22 @@ export async function updateBusinessMemberRoleForBusiness({
       updatedAt: now,
     });
 
+    await writeAuditLog(tx, {
+      workspaceId: targetMember.workspaceId,
+      businessId,
+      actorUserId,
+      actorName: actorUserName,
+      entityType: "member",
+      entityId: membershipId,
+      action: "member.role_changed",
+      metadata: {
+        targetEmail: targetMember.memberEmail,
+        previousRole: targetMember.role,
+        nextRole: role,
+      },
+      createdAt: now,
+    });
+
     return {
       ok: true as const,
       previousRole: targetMember.role,
@@ -344,9 +385,11 @@ export async function removeBusinessMemberFromBusiness({
         userId: businessMembers.userId,
         role: businessMembers.role,
         memberEmail: user.email,
+        workspaceId: businesses.workspaceId,
       })
       .from(businessMembers)
       .innerJoin(user, eq(businessMembers.userId, user.id))
+      .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
       .where(
         and(
           eq(businessMembers.businessId, businessId),
@@ -392,6 +435,21 @@ export async function removeBusinessMemberFromBusiness({
       },
       createdAt: now,
       updatedAt: now,
+    });
+
+    await writeAuditLog(tx, {
+      workspaceId: targetMember.workspaceId,
+      businessId,
+      actorUserId,
+      actorName: actorUserName,
+      entityType: "member",
+      entityId: membershipId,
+      action: "member.removed",
+      metadata: {
+        targetEmail: targetMember.memberEmail,
+        removedRole: targetMember.role,
+      },
+      createdAt: now,
     });
 
     return {
