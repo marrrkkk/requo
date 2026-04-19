@@ -110,6 +110,7 @@ export default async function NewQuotePage({
         businessName={businessContext.business.name}
         currency={businessContext.business.defaultCurrency}
         initialValues={initialValues}
+        key={inquiryPrefill?.id ?? "manual"}
         linkedInquiry={linkedInquiry}
         pricingLibrary={pricingLibrary}
         submitLabel="Create draft quote"

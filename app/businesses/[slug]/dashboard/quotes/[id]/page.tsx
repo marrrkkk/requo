@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Download, ExternalLink, Mail, Printer } from "lucide-react";
+import { ExternalLink, Mail, Printer } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 
 import {
@@ -35,6 +35,7 @@ import { QuoteActivityPanel } from "@/features/quotes/components/quote-activity-
 import { getCustomerHistoryForBusiness } from "@/features/customers/queries";
 import { CopyQuoteLinkButton } from "@/features/quotes/components/copy-quote-link-button";
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";
+import { QuoteExportPopover } from "@/features/quotes/components/quote-export-popover";
 import { QuoteLifecycleActions } from "@/features/quotes/components/quote-lifecycle-actions";
 import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
 import { QuotePostAcceptanceForm } from "@/features/quotes/components/quote-post-acceptance-form";
@@ -55,7 +56,7 @@ import {
 } from "@/features/quotes/utils";
 import {
   getBusinessInquiryPath,
-  getBusinessQuotePdfExportPath,
+  getBusinessQuoteExportPath,
   getBusinessQuotePrintPath,
   getBusinessQuotesPath,
 } from "@/features/businesses/routes";
@@ -268,12 +269,10 @@ export default async function QuoteDetailPage({
                 quoteId={quote.id}
               />
             ) : null}
-            <Button asChild variant="outline">
-              <a href={getBusinessQuotePdfExportPath(businessSlug, quote.id)}>
-                <Download data-icon="inline-start" />
-                Export PDF
-              </a>
-            </Button>
+            <QuoteExportPopover
+              pdfHref={getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")}
+              pngHref={getBusinessQuoteExportPath(businessSlug, quote.id, "png")}
+            />
             <Button asChild variant="outline">
               <Link
                 href={getBusinessQuotePrintPath(businessSlug, quote.id)}
@@ -302,6 +301,7 @@ export default async function QuoteDetailPage({
             businessName={businessContext.business.name}
             currency={quote.currency}
             initialValues={getQuoteEditorInitialValuesFromDetail(quote)}
+            key={quote.id}
             linkedInquiry={linkedInquiry}
             pricingLibrary={pricingLibrary}
             quoteNumber={quote.quoteNumber}
@@ -322,12 +322,12 @@ export default async function QuoteDetailPage({
 
             <DashboardSidebarStack>
               <DashboardSection
-                description="Email the finished draft once the totals are final."
+                description="Send the finished draft with Requo or share the customer link yourself."
                 title="Send quote"
               >
                 <QuoteSendForm
                   action={sendAction}
-                  customerEmail={quote.customerEmail}
+                  customerQuoteUrl={customerQuoteUrl}
                 />
               </DashboardSection>
 

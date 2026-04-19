@@ -77,30 +77,23 @@ export function QuoteLifecycleActions({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="dashboard-actions">
-        {isArchived ? (
-          <ServerActionButton
-            action={restoreArchivedAction}
-            icon={RotateCcw}
-            label="Restore to active"
-            pendingLabel="Restoring..."
-          />
-        ) : (
-          <ServerActionButton
-            action={archiveAction}
-            icon={Archive}
-            label="Archive quote"
-            pendingLabel="Archiving..."
-          />
-        )}
-      </div>
-
-      {destructiveAction ? (
-        <div className="border-t border-border pt-4">
-          <div className="dashboard-actions">{destructiveAction}</div>
-        </div>
-      ) : null}
+    <div className="dashboard-actions pt-1">
+      {isArchived ? (
+        <ServerActionButton
+          action={restoreArchivedAction}
+          icon={RotateCcw}
+          label="Restore to active"
+          pendingLabel="Restoring..."
+        />
+      ) : (
+        <ServerActionButton
+          action={archiveAction}
+          icon={Archive}
+          label="Archive quote"
+          pendingLabel="Archiving..."
+        />
+      )}
+      {destructiveAction}
     </div>
   );
 }
