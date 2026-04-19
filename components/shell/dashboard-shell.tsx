@@ -22,7 +22,7 @@ import {
 import { usePathname } from "next/navigation";
 
 import { authClient } from "@/lib/auth/client";
-import { getProfileSettingsPath } from "@/features/account/routes";
+import { getAccountProfilePath } from "@/features/account/routes";
 import { AppearanceMenuSubmenu } from "@/features/theme/components/appearance-menu";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
@@ -30,7 +30,11 @@ import type { BusinessNotificationBellView } from "@/features/notifications/type
 import type { BillingCurrency, BillingRegion } from "@/lib/billing/types";
 import type { WorkspacePlan } from "@/lib/plans/plans";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
-import type { ThemePreference } from "@/features/theme/types";
+import { clearPersistedThemePreference } from "@/features/theme/persistence";
+import {
+  themeUserStorageKey,
+  type ThemePreference,
+} from "@/features/theme/types";
 import { canManageOperationalBusinessSettings } from "@/lib/business-members";
 import type { BusinessContext } from "@/lib/db/business-access";
 import { BrandMark } from "@/components/shared/brand-mark";
@@ -79,7 +83,11 @@ import {
 import {
   getBusinessDashboardPath,
 } from "@/features/businesses/routes";
-import { workspacesHubPath, getWorkspacePath } from "@/features/workspaces/routes";
+import {
+  workspacesHubPath,
+  getWorkspacePath,
+  getWorkspaceSettingsPath,
+} from "@/features/workspaces/routes";
 import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
 import { cn } from "@/lib/utils";
 
@@ -348,7 +356,7 @@ function DashboardUserMenu({
       }
 
       window.localStorage.removeItem(themeUserStorageKey);
-      window.localStorage.removeItem(themeStorageKey);
+      clearPersistedThemePreference();
 
       window.location.assign("/login");
     });
@@ -414,12 +422,12 @@ function DashboardUserMenu({
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
                 <Link
-                  href={getProfileSettingsPath(businessSlug)}
+                  href={getAccountProfilePath()}
                   prefetch={true}
                   onClick={closeMobileSidebar}
                 >
                   <User data-icon="inline-start" />
-                  Your profile
+                  User settings
                 </Link>
               </DropdownMenuItem>
               {canOpenBusinessSettings ? (
@@ -436,7 +444,7 @@ function DashboardUserMenu({
               ) : null}
               <DropdownMenuItem asChild>
                 <Link
-                  href={getWorkspacePath(workspaceSlug)}
+                  href={getWorkspaceSettingsPath(workspaceSlug, "billing")}
                   prefetch={true}
                   onClick={closeMobileSidebar}
                 >

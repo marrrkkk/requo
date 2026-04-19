@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  BarChart3,
   FormInput,
   FileText,
   Inbox,
@@ -65,6 +66,16 @@ export function getDashboardNavigation(
     ...(canManageOperationalBusinessSettings(role)
       ? [
           {
+            href: getBusinessAnalyticsPath(slug),
+            label: "Analytics",
+            description: "Track form performance, quote outcomes, and workflow timing.",
+            icon: BarChart3,
+          },
+        ]
+      : []),
+    ...(canManageOperationalBusinessSettings(role)
+      ? [
+          {
             href: getBusinessFormsPath(slug),
             label: "Forms",
             description: "Manage inquiry forms, public pages, and live intake flows.",
@@ -102,13 +113,8 @@ function resolveDashboardActivePathname(pathname: string) {
     return pathname;
   }
 
-  const analyticsPath = getBusinessAnalyticsPath(slug);
   const knowledgeCompatibilityPath = getBusinessKnowledgeCompatibilityPath(slug);
   const membersSettingsPath = getBusinessSettingsPath(slug, "members");
-
-  if (pathname === analyticsPath || pathname.startsWith(`${analyticsPath}/`)) {
-    return getBusinessDashboardPath(slug);
-  }
 
   if (
     pathname === knowledgeCompatibilityPath ||

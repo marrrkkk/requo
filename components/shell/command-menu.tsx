@@ -32,7 +32,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { getProfileSettingsPath } from "@/features/account/routes";
+import { getAccountProfilePath } from "@/features/account/routes";
 import {
   getBusinessAnalyticsPath,
   getBusinessInquiriesExportPath,
@@ -42,7 +42,8 @@ import {
 } from "@/features/businesses/routes";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { workspacesHubPath, getWorkspacePath, getWorkspaceSettingsPath } from "@/features/workspaces/routes";
-import { themeStorageKey, themeUserStorageKey } from "@/features/theme/types";
+import { clearPersistedThemePreference } from "@/features/theme/persistence";
+import { themeUserStorageKey } from "@/features/theme/types";
 import { authClient } from "@/lib/auth/client";
 import {
   canManageBusinessAdministration,
@@ -101,7 +102,7 @@ export function CommandMenu({ businessSlug, role, workspaceSlug }: CommandMenuPr
     }
 
     window.localStorage.removeItem(themeUserStorageKey);
-    window.localStorage.removeItem(themeStorageKey);
+    clearPersistedThemePreference();
 
     window.location.assign("/login");
   }
@@ -318,11 +319,11 @@ export function CommandMenu({ businessSlug, role, workspaceSlug }: CommandMenuPr
               <CommandGroup heading="Account">
                 <CommandItem
                   onSelect={() =>
-                    runCommand(() => router.push(getProfileSettingsPath(businessSlug)))
+                    runCommand(() => router.push(getAccountProfilePath()))
                   }
                 >
                   <User className="mr-2 h-4 w-4" />
-                  <span>Your profile</span>
+                  <span>User settings</span>
                 </CommandItem>
                 <CommandItem
                   onSelect={() => {
