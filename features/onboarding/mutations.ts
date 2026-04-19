@@ -2,6 +2,7 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 
+import { writeAuditLog } from "@/features/audit/mutations";
 import {
   type StarterTemplateBusinessType,
 } from "@/features/businesses/starter-templates";
@@ -113,6 +114,22 @@ export async function completeOnboardingForUser({
         role: "owner",
         createdAt: now,
         updatedAt: now,
+      });
+
+      await writeAuditLog(tx, {
+        workspaceId,
+        actorUserId: user.id,
+        actorName: user.name,
+        actorEmail: user.email,
+        entityType: "workspace",
+        entityId: workspaceId,
+        action: "workspace.created",
+        metadata: {
+          workspaceName,
+          workspaceSlug: workspaceSlugCandidate,
+          source: "onboarding",
+        },
+        createdAt: now,
       });
     }
 
