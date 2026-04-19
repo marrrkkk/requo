@@ -5,22 +5,16 @@ import {
   Timer,
 } from "lucide-react";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
-import { LockedFeatureCard } from "@/components/shared/paywall";
 import { cn } from "@/lib/utils";
 import { analyticsSections } from "@/features/analytics/config";
-import { AnalyticsOverviewTab } from "@/features/analytics/components/analytics-overview-tab";
-import { AnalyticsConversionTab } from "@/features/analytics/components/analytics-conversion-tab";
-import { AnalyticsWorkflowTab } from "@/features/analytics/components/analytics-workflow-tab";
-import { getWorkspaceBillingOverview } from "@/features/billing/queries";
 import {
-  getBusinessAnalyticsData,
-  getConversionAnalyticsData,
-  getWorkflowAnalyticsData,
-} from "@/features/analytics/queries";
-import { hasFeatureAccess } from "@/lib/plans";
+  AnalyticsTabPanel,
+  AnalyticsTabPanelFallback,
+} from "@/features/analytics/components/analytics-tab-panel";
 import { workspacesHubPath } from "@/features/workspaces/routes";
 import { requireSession } from "@/lib/auth/session";
 import {
@@ -89,31 +83,13 @@ export default async function AnalyticsPage({
   const plan = businessContext.business.workspacePlan;
   const currency = businessContext.business.defaultCurrency;
   const businessSlug = businessContext.business.slug;
-  const canViewConversion = hasFeatureAccess(plan, "analyticsConversion");
-  const canViewWorkflow = hasFeatureAccess(plan, "analyticsWorkflow");
-  const billingOverview =
-    !canViewConversion || !canViewWorkflow
-      ? await getWorkspaceBillingOverview(businessContext.business.workspaceId)
-      : null;
-
-  const [overviewData, conversionData, workflowData] = await Promise.all([
-    activeTab === analyticsSections.overview.id
-      ? getBusinessAnalyticsData(businessId)
-      : Promise.resolve(null),
-    activeTab === analyticsSections.conversion.id && canViewConversion
-      ? getConversionAnalyticsData(businessId)
-      : Promise.resolve(null),
-    activeTab === analyticsSections.workflow.id && canViewWorkflow
-      ? getWorkflowAnalyticsData(businessId)
-      : Promise.resolve(null),
-  ]);
 
   return (
     <DashboardPage>
       <PageHeader
         eyebrow="Analytics"
-        title="Inquiry workflow analytics"
-        description="See how public form traffic turns into inquiries, quotes, and accepted work."
+        title="Performance analytics"
+        description="Track how inquiry form traffic turns into quotes, customer decisions, and follow-through."
       />
 
       <div className="flex flex-col gap-6">
@@ -138,59 +114,15 @@ export default async function AnalyticsPage({
           />
         </div>
 
-        {activeTab === analyticsSections.overview.id && overviewData ? (
-          <AnalyticsOverviewTab data={overviewData} />
-        ) : null}
-
-        {activeTab === analyticsSections.conversion.id ? (
-          canViewConversion && conversionData ? (
-            <AnalyticsConversionTab data={conversionData} currency={currency} />
-          ) : (
-            <LockedFeatureCard
-              feature="analyticsConversion"
-              plan={plan}
-              title="Conversion analytics"
-              description="Upgrade to track how inquiries convert into quotes and accepted work."
-              upgradeAction={
-                billingOverview
-                  ? {
-                      workspaceId: billingOverview.workspaceId,
-                      workspaceSlug: billingOverview.workspaceSlug,
-                      currentPlan: billingOverview.currentPlan,
-                      region: billingOverview.region,
-                      defaultCurrency: billingOverview.defaultCurrency,
-                      ctaLabel: "Upgrade for conversion analytics",
-                    }
-                  : undefined
-              }
-            />
-          )
-        ) : null}
-
-        {activeTab === analyticsSections.workflow.id ? (
-          canViewWorkflow && workflowData ? (
-            <AnalyticsWorkflowTab data={workflowData} />
-          ) : (
-            <LockedFeatureCard
-              feature="analyticsWorkflow"
-              plan={plan}
-              title="Workflow analytics"
-              description="Upgrade to monitor response speed, follow-up cadence, and bottlenecks."
-              upgradeAction={
-                billingOverview
-                  ? {
-                      workspaceId: billingOverview.workspaceId,
-                      workspaceSlug: billingOverview.workspaceSlug,
-                      currentPlan: billingOverview.currentPlan,
-                      region: billingOverview.region,
-                      defaultCurrency: billingOverview.defaultCurrency,
-                      ctaLabel: "Upgrade for workflow analytics",
-                    }
-                  : undefined
-              }
-            />
-          )
-        ) : null}
+        <Suspense fallback={<AnalyticsTabPanelFallback activeTab={activeTab} />}>
+          <AnalyticsTabPanel
+            activeTab={activeTab}
+            businessId={businessId}
+            currency={currency}
+            plan={plan}
+            workspaceId={businessContext.business.workspaceId}
+          />
+        </Suspense>
       </div>
     </DashboardPage>
   );
