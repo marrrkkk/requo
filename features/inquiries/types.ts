@@ -45,7 +45,7 @@ export type DashboardInquiryListItem = {
   inquiryFormName: string;
   inquiryFormSlug: string;
   customerName: string;
-  customerEmail: string;
+  customerEmail: string | null;
   serviceCategory: string;
   budgetText: string | null;
   status: InquiryStatus;
@@ -98,9 +98,9 @@ export type DashboardInquiryDetail = {
   inquiryFormSlug: string;
   inquiryFormBusinessType: BusinessType;
   customerName: string;
-  customerEmail: string;
-  customerPhone: string | null;
-  companyName: string | null;
+  customerEmail: string | null;
+  customerContactMethod: string;
+  customerContactHandle: string;
   serviceCategory: string;
   requestedDeadline: string | null;
   budgetText: string | null;

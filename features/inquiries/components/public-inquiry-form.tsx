@@ -33,8 +33,9 @@ import { Combobox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import {
   getInquiryFormFieldInputName,
-  inquiryContactFieldKeys,
-  type InquiryContactFieldKey,
+  inquiryContactMethods,
+  inquiryContactMethodLabels,
+  type InquiryContactMethod,
   type InquiryFormFieldDefinition,
   type InquiryFormSystemFieldDefinition,
 } from "@/features/inquiries/form-config";
@@ -57,16 +58,55 @@ type PublicInquiryFormProps = {
 
 const initialState: PublicInquiryFormState = {};
 
-function getContactFieldMaxLength(contactKey: InquiryContactFieldKey) {
-  switch (contactKey) {
-    case "customerName":
-      return 120;
-    case "customerEmail":
-      return 320;
-    case "customerPhone":
-      return 40;
-    case "companyName":
-      return 120;
+const contactMethodOptions = inquiryContactMethods.map((method) => ({
+  label: inquiryContactMethodLabels[method],
+  value: method,
+}));
+
+function getContactHandlePlaceholder(method: InquiryContactMethod) {
+  switch (method) {
+    case "email":
+      return "you@example.com";
+    case "phone":
+      return "+63 912 345 6789";
+    case "facebook":
+      return "https://facebook.com/yourpage";
+    case "instagram":
+      return "@yourhandle";
+    case "whatsapp":
+      return "+63 912 345 6789";
+    case "other":
+      return "How should we reach you?";
+  }
+}
+
+function getContactHandleInputType(method: InquiryContactMethod) {
+  switch (method) {
+    case "email":
+      return "email";
+    case "phone":
+    case "whatsapp":
+      return "tel";
+    case "facebook":
+    case "instagram":
+      return "url";
+    default:
+      return "text";
+  }
+}
+
+function getContactHandleInputMode(method: InquiryContactMethod) {
+  switch (method) {
+    case "email":
+      return "email" as const;
+    case "phone":
+    case "whatsapp":
+      return "tel" as const;
+    case "facebook":
+    case "instagram":
+      return "url" as const;
+    default:
+      return "text" as const;
   }
 }
 
@@ -107,15 +147,8 @@ export function PublicInquiryForm({
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [canSubmit, setCanSubmit] = useState(false);
+  const [contactMethod, setContactMethod] = useState<InquiryContactMethod>("email");
   const inquiryFormConfig = business.inquiryFormConfig;
-
-  const contactFields = useMemo(
-    () =>
-      inquiryContactFieldKeys.filter(
-        (key) => inquiryFormConfig.contactFields[key].enabled,
-      ),
-    [inquiryFormConfig.contactFields],
-  );
   const attachmentField = useMemo<InquiryFormSystemFieldDefinition | null>(
     () =>
       inquiryFormConfig.projectFields.find(
@@ -204,15 +237,69 @@ export function PublicInquiryForm({
         <FormSection title={groupLabels.contact}>
           <FieldGroup>
             <div className="grid gap-5 sm:grid-cols-2">
-              {contactFields.map((contactKey) => (
-                <ContactField
-                  key={contactKey}
-                  contactKey={contactKey}
-                  error={getFieldMessage(contactKey)}
-                  fieldConfig={inquiryFormConfig.contactFields[contactKey]}
-                  isPending={isPending}
-                />
-              ))}
+              <Field data-invalid={Boolean(getFieldMessage("customerName")) || undefined}>
+                <FieldLabel htmlFor="inquiry-customerName">
+                  <FieldLabelText label="Your name" required />
+                </FieldLabel>
+                <FieldContent>
+                  <Input
+                    autoComplete="name"
+                    disabled={isPending}
+                    id="inquiry-customerName"
+                    maxLength={120}
+                    minLength={2}
+                    name="customerName"
+                    placeholder="e.g. Alicia Cruz"
+                    required
+                  />
+                  <FieldError errors={getFieldMessage("customerName") ? [{ message: getFieldMessage("customerName")! }] : undefined} />
+                </FieldContent>
+              </Field>
+
+              <Field data-invalid={Boolean(getFieldMessage("customerContactMethod")) || undefined}>
+                <FieldLabel htmlFor="inquiry-contactMethod">
+                  <FieldLabelText label="Preferred contact method" required />
+                </FieldLabel>
+                <FieldContent>
+                  <input type="hidden" name="customerContactMethod" value={contactMethod} />
+                  <Combobox
+                    id="inquiry-contactMethod"
+                    disabled={isPending}
+                    options={contactMethodOptions}
+                    placeholder="Choose how to reach you"
+                    value={contactMethod}
+                    onValueChange={(value) => {
+                      setContactMethod(value as InquiryContactMethod);
+                      syncCanSubmit();
+                    }}
+                    aria-invalid={Boolean(getFieldMessage("customerContactMethod"))}
+                  />
+                  <FieldError errors={getFieldMessage("customerContactMethod") ? [{ message: getFieldMessage("customerContactMethod")! }] : undefined} />
+                </FieldContent>
+              </Field>
+
+              <Field
+                className="sm:col-span-2"
+                data-invalid={Boolean(getFieldMessage("customerContactHandle")) || undefined}
+              >
+                <FieldLabel htmlFor="inquiry-contactHandle">
+                  <FieldLabelText label={inquiryContactMethodLabels[contactMethod]} required />
+                </FieldLabel>
+                <FieldContent>
+                  <Input
+                    disabled={isPending}
+                    id="inquiry-contactHandle"
+                    inputMode={getContactHandleInputMode(contactMethod)}
+                    key={contactMethod}
+                    maxLength={320}
+                    name="customerContactHandle"
+                    placeholder={getContactHandlePlaceholder(contactMethod)}
+                    required
+                    type={getContactHandleInputType(contactMethod)}
+                  />
+                  <FieldError errors={getFieldMessage("customerContactHandle") ? [{ message: getFieldMessage("customerContactHandle")! }] : undefined} />
+                </FieldContent>
+              </Field>
             </div>
           </FieldGroup>
         </FormSection>
@@ -314,53 +401,7 @@ export function PublicInquiryForm({
   );
 }
 
-function ContactField({
-  contactKey,
-  error,
-  fieldConfig,
-  isPending,
-}: {
-  contactKey: InquiryContactFieldKey;
-  error?: string;
-  fieldConfig: PublicInquiryBusiness["inquiryFormConfig"]["contactFields"][InquiryContactFieldKey];
-  isPending: boolean;
-}) {
-  const inputId = `inquiry-${contactKey}`;
-  const inputType = contactKey === "customerEmail" ? "email" : "text";
-  const autoComplete =
-    contactKey === "customerName"
-      ? "name"
-      : contactKey === "customerEmail"
-        ? "email"
-        : contactKey === "customerPhone"
-          ? "tel"
-          : "organization";
 
-  return (
-    <Field data-invalid={Boolean(error) || undefined}>
-      <FieldLabel htmlFor={inputId}>
-        <FieldLabelText
-          label={fieldConfig.label}
-          required={fieldConfig.required}
-        />
-      </FieldLabel>
-      <FieldContent>
-        <Input
-          autoComplete={autoComplete}
-          disabled={isPending}
-          id={inputId}
-          inputMode={contactKey === "customerPhone" ? "tel" : undefined}
-          maxLength={getContactFieldMaxLength(contactKey)}
-          name={contactKey}
-          placeholder={fieldConfig.placeholder}
-          required={fieldConfig.required}
-          type={inputType}
-        />
-        <FieldError errors={error ? [{ message: error }] : undefined} />
-      </FieldContent>
-    </Field>
-  );
-}
 
 function ProjectField({
   field,

@@ -40,12 +40,30 @@ export type InquiryCustomFieldType = (typeof inquiryCustomFieldTypes)[number];
 
 export const inquiryContactFieldKeys = [
   "customerName",
-  "customerEmail",
-  "customerPhone",
-  "companyName",
+  "preferredContact",
 ] as const;
 
 export type InquiryContactFieldKey = (typeof inquiryContactFieldKeys)[number];
+
+export const inquiryContactMethods = [
+  "email",
+  "phone",
+  "facebook",
+  "instagram",
+  "whatsapp",
+  "other",
+] as const;
+
+export type InquiryContactMethod = (typeof inquiryContactMethods)[number];
+
+export const inquiryContactMethodLabels: Record<InquiryContactMethod, string> = {
+  email: "Email Address",
+  phone: "Phone Number",
+  facebook: "Facebook URL",
+  instagram: "Instagram Handle",
+  whatsapp: "WhatsApp Number",
+  other: "Other Contact Info",
+};
 
 export const inquiryProjectSystemFieldKeys = [
   "serviceCategory",
@@ -243,9 +261,7 @@ export const inquiryFormConfigSchema = z
     groupLabels: inquiryFormGroupLabelsSchema.optional(),
     contactFields: z.object({
       customerName: inquiryContactFieldConfigSchema,
-      customerEmail: inquiryContactFieldConfigSchema,
-      customerPhone: inquiryContactFieldConfigSchema,
-      companyName: inquiryContactFieldConfigSchema,
+      preferredContact: inquiryContactFieldConfigSchema,
     }),
     projectFields: z.array(inquiryFormFieldSchema).max(24),
   })
@@ -273,13 +289,13 @@ export const inquiryFormConfigSchema = z
       });
     }
 
-    for (const contactKey of ["customerName", "customerEmail"] as const) {
-      const field = value.contactFields[contactKey];
+    for (const contactKey of ["customerName", "preferredContact"] as const) {
+      const field = value.contactFields[contactKey as keyof typeof value.contactFields];
 
-      if (!field.enabled || !field.required) {
+      if (!field?.enabled || !field?.required) {
         context.addIssue({
           code: "custom",
-          message: "Name and email must stay enabled and required.",
+          message: "Name and preferred contact must stay enabled and required.",
           path: ["contactFields", contactKey],
         });
       }
@@ -345,13 +361,6 @@ function getDefaultInquiryFormGroupLabels(
   }
 }
 
-type ContactFieldOverrides = Partial<
-  Record<
-    InquiryContactFieldKey,
-    Partial<Omit<InquiryContactFieldConfig, "required" | "enabled">> &
-      Pick<InquiryContactFieldConfig, "enabled" | "required">
-  >
->;
 
 function createOption(value: string, label?: string): InquiryFieldOption {
   return {
@@ -411,33 +420,19 @@ function createCustomField(
   };
 }
 
-function createContactFieldConfig(
-  overrides?: ContactFieldOverrides,
-): Record<InquiryContactFieldKey, InquiryContactFieldConfig> {
+function createContactFieldConfig(): Record<InquiryContactFieldKey, InquiryContactFieldConfig> {
   return {
     customerName: {
-      label: overrides?.customerName?.label ?? "Your name",
-      placeholder: overrides?.customerName?.placeholder ?? "Alicia Cruz",
+      label: "Your name",
+      placeholder: "e.g. Alicia Cruz",
       enabled: true,
       required: true,
     },
-    customerEmail: {
-      label: overrides?.customerEmail?.label ?? "Email",
-      placeholder: overrides?.customerEmail?.placeholder ?? "you@example.com",
+    preferredContact: {
+      label: "Preferred contact method",
+      placeholder: "e.g. Email",
       enabled: true,
       required: true,
-    },
-    customerPhone: {
-      label: overrides?.customerPhone?.label ?? "Phone",
-      placeholder: overrides?.customerPhone?.placeholder ?? "Optional",
-      enabled: overrides?.customerPhone?.enabled ?? true,
-      required: false,
-    },
-    companyName: {
-      label: overrides?.companyName?.label ?? "Company or organization",
-      placeholder: overrides?.companyName?.placeholder ?? "Optional",
-      enabled: overrides?.companyName?.enabled ?? false,
-      required: false,
     },
   };
 }
@@ -475,28 +470,8 @@ function createGeneralProjectServicesFields() {
 
 function normalizeLegacyContactFieldLabel(
   field: InquiryContactFieldConfig,
-  contactKey: InquiryContactFieldKey,
+  _contactKey: InquiryContactFieldKey,
 ): InquiryContactFieldConfig {
-  const normalizedLabel = field.label.trim().toLowerCase();
-
-  if (contactKey === "customerEmail" && normalizedLabel === "best email") {
-    return {
-      ...field,
-      label: "Email",
-    };
-  }
-
-  if (
-    contactKey === "customerPhone" &&
-    (normalizedLabel === "best phone" ||
-      normalizedLabel === "best phone number")
-  ) {
-    return {
-      ...field,
-      label: "Phone",
-    };
-  }
-
   return field;
 }
 
@@ -635,15 +610,6 @@ export function createInquiryFormConfigDefaults({
   const resolvedBusinessType = normalizeBusinessType(businessType);
   const starterTemplateBusinessType =
     getStarterTemplateBusinessType(resolvedBusinessType);
-  const contactFieldOverrides: ContactFieldOverrides = {
-    companyName: {
-      enabled: [
-        "creative_marketing_services",
-        "consulting_professional_services",
-      ].includes(starterTemplateBusinessType),
-      required: false,
-    },
-  };
 
   let projectFields: InquiryFormFieldDefinition[];
 
@@ -667,7 +633,7 @@ export function createInquiryFormConfigDefaults({
     version: 1,
     businessType: resolvedBusinessType,
     groupLabels: getDefaultInquiryFormGroupLabels(resolvedBusinessType),
-    contactFields: createContactFieldConfig(contactFieldOverrides),
+    contactFields: createContactFieldConfig(),
     projectFields,
   };
 }
@@ -696,17 +662,9 @@ export function getNormalizedInquiryFormConfig(
         parsed.data.contactFields.customerName,
         "customerName",
       ),
-      customerEmail: normalizeLegacyContactFieldLabel(
-        parsed.data.contactFields.customerEmail,
-        "customerEmail",
-      ),
-      customerPhone: normalizeLegacyContactFieldLabel(
-        parsed.data.contactFields.customerPhone,
-        "customerPhone",
-      ),
-      companyName: normalizeLegacyContactFieldLabel(
-        parsed.data.contactFields.companyName,
-        "companyName",
+      preferredContact: normalizeLegacyContactFieldLabel(
+        parsed.data.contactFields.preferredContact,
+        "preferredContact",
       ),
     },
   } satisfies InquiryFormConfig;
@@ -765,9 +723,7 @@ export function getAdditionalInquirySubmittedFields(
 
   const primaryFieldIds = new Set([
     "customerName",
-    "customerEmail",
-    "customerPhone",
-    "companyName",
+    "preferredContact",
     "serviceCategory",
     "requestedDeadline",
     "budgetText",

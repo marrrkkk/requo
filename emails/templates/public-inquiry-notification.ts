@@ -3,9 +3,9 @@ type PublicInquiryNotificationTemplateInput = {
   dashboardUrl: string;
   inquiryFormName: string;
   customerName: string;
-  customerEmail: string;
-  customerPhone?: string;
-  companyName?: string;
+  customerEmail?: string;
+  customerContactMethod: string;
+  customerContactHandle: string;
   serviceCategory: string;
   deadline?: string;
   budget?: string;
@@ -40,8 +40,8 @@ export function renderPublicInquiryNotificationEmail({
   inquiryFormName,
   customerName,
   customerEmail,
-  customerPhone,
-  companyName,
+  customerContactMethod,
+  customerContactHandle,
   serviceCategory,
   deadline,
   budget,
@@ -53,9 +53,9 @@ export function renderPublicInquiryNotificationEmail({
   const detailLines = [
     `Form: ${inquiryFormName}`,
     `Customer: ${customerName}`,
-    `Email: ${customerEmail}`,
-    buildOptionalLine("Phone", customerPhone),
-    buildOptionalLine("Company", companyName),
+    buildOptionalLine("Email", customerEmail),
+    `Contact method: ${customerContactMethod}`,
+    `Contact: ${customerContactHandle}`,
     `Service/category: ${serviceCategory}`,
     buildOptionalLine("Deadline", deadline),
     buildOptionalLine("Budget", budget),
@@ -83,17 +83,9 @@ export function renderPublicInquiryNotificationEmail({
       <div style="border: 1px solid #d9deeb; border-radius: 16px; background: #ffffff; padding: 18px; margin-bottom: 18px;">
         <p style="margin: 0 0 8px;"><strong>Customer:</strong> ${escapeHtml(customerName)}</p>
         <p style="margin: 0 0 8px;"><strong>Form:</strong> ${escapeHtml(inquiryFormName)}</p>
-        <p style="margin: 0 0 8px;"><strong>Email:</strong> ${escapeHtml(customerEmail)}</p>
-        ${
-          customerPhone
-            ? `<p style="margin: 0 0 8px;"><strong>Phone:</strong> ${escapeHtml(customerPhone)}</p>`
-            : ""
-        }
-        ${
-          companyName
-            ? `<p style="margin: 0 0 8px;"><strong>Company:</strong> ${escapeHtml(companyName)}</p>`
-            : ""
-        }
+        ${customerEmail ? `<p style="margin: 0 0 8px;"><strong>Email:</strong> ${escapeHtml(customerEmail)}</p>` : ""}
+        <p style="margin: 0 0 8px;"><strong>Contact method:</strong> ${escapeHtml(customerContactMethod)}</p>
+        <p style="margin: 0 0 8px;"><strong>Contact:</strong> ${escapeHtml(customerContactHandle)}</p>
         <p style="margin: 0 0 8px;"><strong>Service/category:</strong> ${escapeHtml(serviceCategory)}</p>
         ${
           deadline

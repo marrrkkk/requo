@@ -1,10 +1,9 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import {
-  Building2,
+  AtSign,
   FileText,
   Mail,
-  Phone,
   Printer,
   ReceiptText,
 } from "lucide-react";
@@ -140,6 +139,7 @@ export default async function InquiryDetailPage({
     getCustomerHistoryForBusiness({
       businessId: businessContext.business.id,
       customerEmail: inquiry.customerEmail,
+      customerContactHandle: inquiry.customerContactHandle,
       excludeInquiryId: inquiry.id,
       excludeQuoteId: inquiry.relatedQuote?.id ?? null,
     }),
@@ -155,7 +155,7 @@ export default async function InquiryDetailPage({
     ? prefillFromInquiry(
         {
           customerName: inquiry.customerName,
-          customerEmail: inquiry.customerEmail,
+          customerEmail: inquiry.customerEmail ?? "",
           serviceCategory: inquiry.serviceCategory,
           subject: inquiry.subject,
           details: inquiry.details,
@@ -472,12 +472,14 @@ export default async function InquiryDetailPage({
             contentClassName="flex flex-col gap-4"
             description="Reach out directly from the business."
             footer={
-              <>
-                <Button asChild variant="outline">
-                  <a href={`mailto:${inquiry.customerEmail}`}>Email customer</a>
-                </Button>
-                <CopyEmailButton email={inquiry.customerEmail} />
-              </>
+              inquiry.customerEmail ? (
+                <>
+                  <Button asChild variant="outline">
+                    <a href={`mailto:${inquiry.customerEmail}`}>Email customer</a>
+                  </Button>
+                  <CopyEmailButton email={inquiry.customerEmail} />
+                </>
+              ) : null
             }
             title="Customer contact"
           >
@@ -485,38 +487,24 @@ export default async function InquiryDetailPage({
                 icon={Mail}
                 label="Email"
                 value={
-                  <a
-                    className="truncate underline-offset-4 hover:underline"
-                    href={`mailto:${inquiry.customerEmail}`}
-                  >
-                    {inquiry.customerEmail}
-                  </a>
-                }
-              />
-
-              <InfoTile
-                icon={Phone}
-                label="Phone"
-                value={
-                  inquiry.customerPhone ? (
+                  inquiry.customerEmail ? (
                     <a
-                      className="underline-offset-4 hover:underline"
-                      href={`tel:${inquiry.customerPhone}`}
+                      className="truncate underline-offset-4 hover:underline"
+                      href={`mailto:${inquiry.customerEmail}`}
                     >
-                      {inquiry.customerPhone}
+                      {inquiry.customerEmail}
                     </a>
                   ) : (
                     "Not provided"
                   )
                 }
               />
-              {inquiry.companyName ? (
-                <InfoTile
-                  icon={Building2}
-                  label="Company"
-                  value={inquiry.companyName}
-                />
-              ) : null}
+
+              <InfoTile
+                icon={AtSign}
+                label={`Contact (${inquiry.customerContactMethod})`}
+                value={inquiry.customerContactHandle}
+              />
           </DashboardSection>
 
           <DashboardSection

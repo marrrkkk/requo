@@ -1,4 +1,4 @@
-import { Building2, Mail, Phone } from "lucide-react";
+import { AtSign, Mail } from "lucide-react";
 
 import { InfoTile } from "@/components/shared/info-tile";
 import { Badge } from "@/components/ui/badge";
@@ -58,17 +58,12 @@ export function InquiryPrintDocument({
             <InfoTile
               icon={Mail}
               label="Email"
-              value={inquiry.customerEmail}
+              value={inquiry.customerEmail ?? "Not provided"}
             />
             <InfoTile
-              icon={Phone}
-              label="Phone"
-              value={inquiry.customerPhone ?? "Not provided"}
-            />
-            <InfoTile
-              icon={Building2}
-              label="Company"
-              value={inquiry.companyName ?? "Not provided"}
+              icon={AtSign}
+              label={`Contact (${inquiry.customerContactMethod})`}
+              value={inquiry.customerContactHandle}
             />
             <InfoTile
               label="Received"

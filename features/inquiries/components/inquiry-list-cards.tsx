@@ -40,7 +40,7 @@ export function InquiryListCards({
                     <span className="block truncate">{inquiry.customerName}</span>
                   </CardTitle>
                   <CardDescription className="truncate text-sm">
-                    {inquiry.customerEmail}
+                    {inquiry.customerEmail ?? ""}
                   </CardDescription>
                 </div>
                 <div className="shrink-0 space-y-2">

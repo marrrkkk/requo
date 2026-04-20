@@ -93,12 +93,12 @@ export async function GET(
         render: (row) => row.customerEmail,
       },
       {
-        header: "customer_phone",
-        render: (row) => row.customerPhone,
+        header: "contact_method",
+        render: (row) => row.customerContactMethod,
       },
       {
-        header: "company_name",
-        render: (row) => row.companyName,
+        header: "contact_handle",
+        render: (row) => row.customerContactHandle,
       },
       {
         header: "service_category",

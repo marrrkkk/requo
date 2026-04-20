@@ -545,9 +545,9 @@ type InquiryExportRow = {
   id: string;
   inquiryFormName: string;
   customerName: string;
-  customerEmail: string;
-  customerPhone: string | null;
-  companyName: string | null;
+  customerEmail: string | null;
+  customerContactMethod: string;
+  customerContactHandle: string;
   serviceCategory: string;
   requestedDeadline: string | null;
   budgetText: string | null;
@@ -588,8 +588,8 @@ export async function getInquiryExportRowsForBusiness({
       inquiryFormName: businessInquiryForms.name,
       customerName: inquiries.customerName,
       customerEmail: inquiries.customerEmail,
-      customerPhone: inquiries.customerPhone,
-      companyName: inquiries.companyName,
+      customerContactMethod: inquiries.customerContactMethod,
+      customerContactHandle: inquiries.customerContactHandle,
       serviceCategory: inquiries.serviceCategory,
       requestedDeadline: inquiries.requestedDeadline,
       budgetText: inquiries.budgetText,
@@ -634,8 +634,8 @@ export async function getInquiryDetailForBusiness({
       inquiryFormBusinessType: businessInquiryForms.businessType,
       customerName: inquiries.customerName,
       customerEmail: inquiries.customerEmail,
-      customerPhone: inquiries.customerPhone,
-      companyName: inquiries.companyName,
+      customerContactMethod: inquiries.customerContactMethod,
+      customerContactHandle: inquiries.customerContactHandle,
       serviceCategory: inquiries.serviceCategory,
       requestedDeadline: inquiries.requestedDeadline,
       budgetText: inquiries.budgetText,

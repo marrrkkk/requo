@@ -9,8 +9,8 @@ import { PublicInquiryForm } from "@/features/inquiries/components/public-inquir
 import { InquiryShowcaseImageSurface } from "@/features/inquiries/components/inquiry-showcase-image-surface";
 import {
   inquiryPageBusinessContactSocialMeta,
-  inquiryPageCardIconMeta,
 } from "@/features/inquiries/page-config";
+import { inquiryPageCardIconMeta } from "@/features/inquiries/components/inquiry-page-card-icon-meta";
 import type {
   PublicInquiryFormState,
   PublicInquiryBusiness,

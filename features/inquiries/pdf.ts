@@ -70,9 +70,9 @@ export async function createInquiryPdf(data: InquiryDocumentData) {
 
   report.drawDivider(0, 6);
   drawField(report, "Customer", data.customerName);
-  drawField(report, "Email", data.customerEmail);
-  drawField(report, "Phone", data.customerPhone || "Not provided");
-  drawField(report, "Company", data.companyName || "Not provided");
+  drawField(report, "Email", data.customerEmail || "Not provided");
+  drawField(report, "Contact method", data.customerContactMethod);
+  drawField(report, "Contact", data.customerContactHandle);
   drawField(report, "Form", data.inquiryFormName);
   drawField(report, "Category", data.serviceCategory);
   drawField(report, "Status", data.status);

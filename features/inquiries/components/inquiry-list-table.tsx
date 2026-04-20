@@ -59,7 +59,7 @@ export function InquiryListTable({
                       className="table-supporting-text"
                       href={inquiryHref}
                       prefetch={true}
-                      text={inquiry.customerEmail}
+                      text={inquiry.customerEmail ?? ""}
                     />
                   </div>
                 </TableCell>

@@ -40,12 +40,14 @@ export const inquiries = pgTable(
     status: inquiryStatusEnum("status").notNull().default("new"),
     subject: text("subject"),
     customerName: text("customer_name").notNull(),
-    customerEmail: text("customer_email").notNull(),
-    customerPhone: text("customer_phone"),
+    customerEmail: text("customer_email"),
+    customerContactMethod: text("customer_contact_method")
+      .notNull()
+      .default("email"),
+    customerContactHandle: text("customer_contact_handle").notNull().default(""),
     serviceCategory: text("service_category").notNull(),
     requestedDeadline: date("requested_deadline", { mode: "string" }),
     budgetText: text("budget_text"),
-    companyName: text("company_name"),
     details: text("details").notNull(),
     submittedFieldSnapshot:
       jsonb("submitted_field_snapshot").$type<InquirySubmittedFieldSnapshot>(),
