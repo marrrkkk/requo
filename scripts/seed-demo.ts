@@ -536,7 +536,8 @@ async function seedStableSmokeFixtures(params: {
       subject: "Foundry Labs booth kit",
       customerName: "Taylor Nguyen",
       customerEmail: "taylor@example.com",
-      customerPhone: "+1 415 555 0199",
+      customerContactMethod: "phone",
+      customerContactHandle: "+1 415 555 0199",
       serviceCategory: "Event signage",
       details:
         "Need modular booth graphics, a counter wrap, and two directional signs for an upcoming expo.",
@@ -555,7 +556,8 @@ async function seedStableSmokeFixtures(params: {
       subject: "Foundry Labs storefront rebrand",
       customerName: "Taylor Nguyen",
       customerEmail: "taylor@example.com",
-      customerPhone: "+1 415 555 0199",
+      customerContactMethod: "phone",
+      customerContactHandle: "+1 415 555 0199",
       serviceCategory: "Office signage",
       details:
         "Need fresh exterior lettering, lobby signage, and directional panels for the new storefront rollout.",
@@ -574,7 +576,8 @@ async function seedStableSmokeFixtures(params: {
       subject: "Showroom graphics refresh",
       customerName: "Jordan Silva",
       customerEmail: "jordan.silva@example.com",
-      customerPhone: "+1 415 555 0147",
+      customerContactMethod: "phone",
+      customerContactHandle: "+1 415 555 0147",
       serviceCategory: "Showroom refresh",
       details:
         "Seasonal showroom update request kept for reference after pricing was paused.",
@@ -595,7 +598,8 @@ async function seedStableSmokeFixtures(params: {
       subject: "Spam test submission",
       customerName: "Spam Bot",
       customerEmail: "spam@example.com",
-      customerPhone: null,
+      customerContactMethod: "email",
+      customerContactHandle: "spam@example.com",
       serviceCategory: "Test submission",
       details: "Automated junk request fixture that should only appear in trash.",
       source: "public_form",
@@ -610,70 +614,6 @@ async function seedStableSmokeFixtures(params: {
   ];
 
   await db.insert(inquiries).values(inquiryFixtures);
-
-  await db.insert(activityLogs).values([
-    {
-      id: id("act"),
-      businessId: params.businessId,
-      inquiryId: demoInquiryId,
-      actorUserId: params.ownerId,
-      type: "quote.created",
-      summary: "Quote Q-SMOKE-1002 created for Taylor Nguyen",
-      metadata: {
-        quoteNumber: "Q-SMOKE-1002",
-      },
-      createdAt: daysAgo(4),
-      updatedAt: daysAgo(4),
-    },
-    {
-      id: id("act"),
-      businessId: params.businessId,
-      inquiryId: storefrontInquiryId,
-      actorUserId: params.ownerId,
-      type: "quote.sent",
-      summary: "Quote Q-SMOKE-0998 sent to Taylor Nguyen",
-      metadata: {
-        quoteNumber: "Q-SMOKE-0998",
-      },
-      createdAt: daysAgo(18),
-      updatedAt: daysAgo(18),
-    },
-    {
-      id: id("act"),
-      businessId: params.businessId,
-      inquiryId: archivedInquiryId,
-      actorUserId: params.ownerId,
-      type: "inquiry.archived",
-      summary: "Request archived after the customer paused the showroom refresh.",
-      metadata: {},
-      createdAt: daysAgo(6),
-      updatedAt: daysAgo(6),
-    },
-    {
-      id: id("act"),
-      businessId: params.businessId,
-      inquiryId: trashedInquiryId,
-      actorUserId: params.ownerId,
-      type: "inquiry.trashed",
-      summary: "Request moved to trash after it was confirmed as junk.",
-      metadata: {},
-      createdAt: daysAgo(1),
-      updatedAt: daysAgo(1),
-    },
-    {
-      id: id("act"),
-      businessId: params.businessId,
-      quoteId: voidedQuoteId,
-      actorUserId: params.ownerId,
-      type: "quote.voided",
-      summary: "Quote Q-SMOKE-1006 voided after the scope changed.",
-      metadata: {
-        quoteNumber: "Q-SMOKE-1006",
-      },
-      createdAt: daysAgo(5),
-      updatedAt: daysAgo(5),
-    },
-  ]);
 
   await db.insert(quotes).values([
     {
@@ -893,6 +833,70 @@ async function seedStableSmokeFixtures(params: {
       updatedAt: daysAgo(10),
     },
   ]);
+
+  await db.insert(activityLogs).values([
+    {
+      id: id("act"),
+      businessId: params.businessId,
+      inquiryId: demoInquiryId,
+      actorUserId: params.ownerId,
+      type: "quote.created",
+      summary: "Quote Q-SMOKE-1002 created for Taylor Nguyen",
+      metadata: {
+        quoteNumber: "Q-SMOKE-1002",
+      },
+      createdAt: daysAgo(4),
+      updatedAt: daysAgo(4),
+    },
+    {
+      id: id("act"),
+      businessId: params.businessId,
+      inquiryId: storefrontInquiryId,
+      actorUserId: params.ownerId,
+      type: "quote.sent",
+      summary: "Quote Q-SMOKE-0998 sent to Taylor Nguyen",
+      metadata: {
+        quoteNumber: "Q-SMOKE-0998",
+      },
+      createdAt: daysAgo(18),
+      updatedAt: daysAgo(18),
+    },
+    {
+      id: id("act"),
+      businessId: params.businessId,
+      inquiryId: archivedInquiryId,
+      actorUserId: params.ownerId,
+      type: "inquiry.archived",
+      summary: "Request archived after the customer paused the showroom refresh.",
+      metadata: {},
+      createdAt: daysAgo(6),
+      updatedAt: daysAgo(6),
+    },
+    {
+      id: id("act"),
+      businessId: params.businessId,
+      inquiryId: trashedInquiryId,
+      actorUserId: params.ownerId,
+      type: "inquiry.trashed",
+      summary: "Request moved to trash after it was confirmed as junk.",
+      metadata: {},
+      createdAt: daysAgo(1),
+      updatedAt: daysAgo(1),
+    },
+    {
+      id: id("act"),
+      businessId: params.businessId,
+      quoteId: voidedQuoteId,
+      actorUserId: params.ownerId,
+      type: "quote.voided",
+      summary: "Quote Q-SMOKE-1006 voided after the scope changed.",
+      metadata: {
+        quoteNumber: "Q-SMOKE-1006",
+      },
+      createdAt: daysAgo(5),
+      updatedAt: daysAgo(5),
+    },
+  ]);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1081,11 +1085,11 @@ async function seedBusinessData(
       subject: serviceCategory,
       customerName,
       customerEmail,
-      customerPhone: phone,
+      customerContactMethod: phone ? "phone" : "email",
+      customerContactHandle: phone ?? customerEmail,
       serviceCategory,
       requestedDeadline: hasDeadline ? toDateStr(addDays(submittedAt, randInt(rng, 7, 60))) : null,
       budgetText: chance(rng, 0.5) ? `$${randInt(rng, 5, 50) * 100} - $${randInt(rng, 50, 200) * 100}` : null,
-      companyName,
       details: pick(rng, INQUIRY_DETAILS),
       source: "public_form",
       quoteRequested: chance(rng, 0.85),

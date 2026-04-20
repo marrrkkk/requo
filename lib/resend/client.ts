@@ -64,9 +64,9 @@ type SendPublicInquiryNotificationEmailInput = {
   dashboardUrl: string;
   inquiryFormName: string;
   customerName: string;
-  customerEmail: string;
-  customerPhone?: string;
-  companyName?: string;
+  customerEmail?: string;
+  customerContactMethod: string;
+  customerContactHandle: string;
   serviceCategory: string;
   deadline?: string;
   budget?: string;
@@ -83,7 +83,9 @@ type SendQuoteEmailInput = {
   updatedAt: Date;
   businessName: string;
   customerName: string;
-  customerEmail: string;
+  customerEmail: string | null;
+  customerContactMethod?: string;
+  customerContactHandle?: string;
   quoteNumber: string;
   title: string;
   publicQuoteUrl: string;
@@ -110,7 +112,9 @@ type SendQuoteSentOwnerNotificationEmailInput = {
   recipients: string[];
   businessName: string;
   customerName: string;
-  customerEmail: string;
+  customerEmail: string | null;
+  customerContactMethod?: string;
+  customerContactHandle?: string;
   quoteNumber: string;
   title: string;
   dashboardUrl: string;
@@ -123,7 +127,9 @@ type SendQuoteResponseOwnerNotificationEmailInput = {
   recipients: string[];
   businessName: string;
   customerName: string;
-  customerEmail: string;
+  customerEmail: string | null;
+  customerContactMethod?: string;
+  customerContactHandle?: string;
   customerMessage?: string | null;
   quoteNumber: string;
   title: string;
@@ -318,8 +324,8 @@ export async function sendPublicInquiryNotificationEmail({
   inquiryFormName,
   customerName,
   customerEmail,
-  customerPhone,
-  companyName,
+  customerContactMethod,
+  customerContactHandle,
   serviceCategory,
   deadline,
   budget,
@@ -353,8 +359,8 @@ export async function sendPublicInquiryNotificationEmail({
     inquiryFormName,
     customerName,
     customerEmail,
-    customerPhone,
-    companyName,
+    customerContactMethod,
+    customerContactHandle,
     serviceCategory,
     deadline,
     budget,
@@ -402,6 +408,10 @@ export async function sendQuoteEmail({
   templateOverrides,
   replyToEmail,
 }: SendQuoteEmailInput) {
+  if (!customerEmail) {
+    return;
+  }
+
   if (!resend || !isResendConfigured || !env.RESEND_FROM_EMAIL) {
     throw new Error("Quote delivery email is not configured yet.");
   }
@@ -487,7 +497,7 @@ export async function sendQuoteSentOwnerNotificationEmail({
   const template = renderQuoteSentOwnerNotificationEmail({
     businessName,
     customerName,
-    customerEmail,
+    customerEmail: customerEmail ?? "Not provided",
     quoteNumber,
     title,
     dashboardUrl,
@@ -549,7 +559,7 @@ export async function sendQuoteResponseOwnerNotificationEmail({
   const template = renderQuoteResponseOwnerNotificationEmail({
     businessName,
     customerName,
-    customerEmail,
+    customerEmail: customerEmail ?? "Not provided",
     customerMessage,
     quoteNumber,
     title,
