@@ -35,7 +35,7 @@ export function PublicHeaderActionsFallback() {
     <>
       <div className="hidden h-9 w-24 rounded-md border border-border/60 bg-muted/25 sm:block lg:hidden" />
       <div className="hidden h-10 w-28 rounded-md border border-border/60 bg-muted/25 lg:block" />
-      <div className="size-9 rounded-lg border border-border/60 bg-muted/25 lg:hidden" />
+      <div className="size-12 rounded-lg border border-border/60 bg-muted/25 lg:hidden" />
     </>
   );
 }
