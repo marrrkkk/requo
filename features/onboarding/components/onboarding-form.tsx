@@ -1,10 +1,28 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 
-import { Sparkles } from "lucide-react";
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { CheckCircle2, GripVertical, PencilLine, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
+import { BrandMark } from "@/components/shared/brand-mark";
 import { CountryCombobox } from "@/components/shared/country-combobox";
 import { FormActions } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -42,11 +60,13 @@ import {
   businessTypeOptions,
   type BusinessType,
 } from "@/features/inquiries/business-types";
-import type {
-  InquiryContactFieldKey,
-  InquiryFormConfig,
-  InquiryFormFieldDefinition,
+import {
+  inquiryContactFieldKeys,
+  type InquiryContactFieldKey,
+  type InquiryFormConfig,
+  type InquiryFormFieldDefinition,
 } from "@/features/inquiries/form-config";
+import { cn } from "@/lib/utils";
 import { OnboardingPreviewDialog } from "@/features/onboarding/components/onboarding-preview-dialog";
 import {
   createEmptyOnboardingDraft,
@@ -151,6 +171,9 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
   >({});
   const [isDraftHydrated, setIsDraftHydrated] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [reviewFormConfig, setReviewFormConfig] = useState<InquiryFormConfig | null>(null);
+  const [editingReviewFieldId, setEditingReviewFieldId] = useState<string | null>(null);
+  const [editingReviewFieldValue, setEditingReviewFieldValue] = useState("");
   const currentStepMeta = onboardingSteps[currentStep];
   const recommendedTemplate = useMemo(
     () => getRecommendedStarterTemplateForBusinessType(draft.businessType),
@@ -168,9 +191,78 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
     () => createOnboardingPreviewBusiness(draft),
     [draft],
   );
+  const effectivePreviewBusiness = useMemo(() => {
+    if (!reviewFormConfig) return previewBusiness;
+    return {
+      ...previewBusiness,
+      inquiryFormConfig: reviewFormConfig,
+    };
+  }, [previewBusiness, reviewFormConfig]);
+  const hasReviewChanges = reviewFormConfig !== null;
   const previewFieldItems = useMemo(
     () => getPreviewFieldItems(previewBusiness.inquiryFormConfig),
     [previewBusiness.inquiryFormConfig],
+  );
+  const effectiveReviewConfig = useMemo(
+    () =>
+      currentStep === 3
+        ? (reviewFormConfig ?? previewBusiness.inquiryFormConfig)
+        : null,
+    [currentStep, reviewFormConfig, previewBusiness.inquiryFormConfig],
+  );
+  const reviewContactFieldItems = useMemo(() => {
+    if (!effectiveReviewConfig) return [];
+    return (
+      Object.entries(effectiveReviewConfig.contactFields) as Array<
+        [
+          InquiryContactFieldKey,
+          (typeof effectiveReviewConfig.contactFields)[InquiryContactFieldKey],
+        ]
+      >
+    )
+      .filter(([, field]) => field.enabled)
+      .map(([key, field]) => ({
+        id: key,
+        label: field.label,
+        required: field.required,
+        isRequiredLocked: key === "customerName" || key === "preferredContact",
+        isWide: false,
+        placeholder: field.placeholder || "",
+      }));
+  }, [effectiveReviewConfig]);
+  const reviewProjectFieldItems = useMemo(() => {
+    if (!effectiveReviewConfig) return [];
+    return effectiveReviewConfig.projectFields
+      .filter((field) => field.kind === "custom" || field.enabled)
+      .map((field) => {
+        const isWide =
+          (field.kind === "system" && field.key === "details") ||
+          (field.kind === "custom" &&
+            (field.fieldType === "long_text" ||
+              field.fieldType === "multi_select"));
+        return {
+          id: field.kind === "system" ? field.key : field.id,
+          label: field.label,
+          required: field.required,
+          isRequiredLocked:
+            field.kind === "system" &&
+            (field.key === "serviceCategory" ||
+              field.key === "details" ||
+              field.key === "attachment"),
+          isWide,
+          placeholder: field.placeholder || "",
+        };
+      });
+  }, [effectiveReviewConfig]);
+  const reviewFieldSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+  const serializedReviewConfig = useMemo(
+    () => (effectiveReviewConfig ? JSON.stringify(effectiveReviewConfig) : ""),
+    [effectiveReviewConfig],
   );
 
   useEffect(() => {
@@ -355,6 +447,127 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
     setCurrentStep(nextStep);
   }
 
+  // Reset review customizations when template changes
+  useEffect(() => {
+    setReviewFormConfig(null);
+    setEditingReviewFieldId(null);
+  }, [selectedTemplate]);
+
+  function handleStartReviewFieldEdit(fieldId: string, currentLabel: string) {
+    setEditingReviewFieldId(fieldId);
+    setEditingReviewFieldValue(currentLabel);
+  }
+
+  function handleCancelReviewFieldEdit() {
+    setEditingReviewFieldId(null);
+    setEditingReviewFieldValue("");
+  }
+
+  function handleSaveReviewFieldEdit(
+    fieldId: string,
+    group: "contact" | "project",
+  ) {
+    const trimmed = editingReviewFieldValue.trim();
+
+    if (!trimmed) {
+      handleCancelReviewFieldEdit();
+      return;
+    }
+
+    setReviewFormConfig((prev) => {
+      const config = prev ?? previewBusiness.inquiryFormConfig;
+
+      if (group === "contact") {
+        const contactKey = fieldId as InquiryContactFieldKey;
+
+        return {
+          ...config,
+          contactFields: {
+            ...config.contactFields,
+            [contactKey]: {
+              ...config.contactFields[contactKey],
+              label: trimmed,
+            },
+          },
+        };
+      }
+
+      return {
+        ...config,
+        projectFields: config.projectFields.map((f) => {
+          const id = f.kind === "system" ? f.key : f.id;
+          return id === fieldId ? { ...f, label: trimmed } : f;
+        }),
+      };
+    });
+
+    setEditingReviewFieldId(null);
+    setEditingReviewFieldValue("");
+  }
+
+  function handleToggleReviewFieldRequired(
+    fieldId: string,
+    group: "contact" | "project",
+  ) {
+    setReviewFormConfig((prev) => {
+      const config = prev ?? previewBusiness.inquiryFormConfig;
+
+      if (group === "contact") {
+        const contactKey = fieldId as InquiryContactFieldKey;
+        const current = config.contactFields[contactKey];
+
+        return {
+          ...config,
+          contactFields: {
+            ...config.contactFields,
+            [contactKey]: { ...current, required: !current.required },
+          },
+        };
+      }
+
+      return {
+        ...config,
+        projectFields: config.projectFields.map((f) => {
+          const id = f.kind === "system" ? f.key : f.id;
+          return id === fieldId
+            ? ({ ...f, required: !f.required } as typeof f)
+            : f;
+        }),
+      };
+    });
+  }
+
+  function handleReviewProjectFieldDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    setReviewFormConfig((prev) => {
+      const config = prev ?? previewBusiness.inquiryFormConfig;
+      const activeIndex = config.projectFields.findIndex(
+        (f) => (f.kind === "system" ? f.key : f.id) === String(active.id),
+      );
+      const overIndex = config.projectFields.findIndex(
+        (f) => (f.kind === "system" ? f.key : f.id) === String(over.id),
+      );
+
+      if (activeIndex < 0 || overIndex < 0) {
+        return config;
+      }
+
+      return {
+        ...config,
+        projectFields: arrayMove(
+          config.projectFields,
+          activeIndex,
+          overIndex,
+        ),
+      };
+    });
+  }
+
   return (
     <>
       <form
@@ -388,6 +601,11 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
           name="starterTemplateBusinessType"
           type="hidden"
           value={draft.starterTemplateBusinessType}
+        />
+        <input
+          name="inquiryFormConfigOverride"
+          type="hidden"
+          value={serializedReviewConfig}
         />
 
         <div className="section-panel flex flex-col gap-8 px-5 py-5 sm:px-6 sm:py-6">
@@ -684,8 +902,8 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
                     <div className="min-w-0">
                       <CardTitle>What customers will see</CardTitle>
                       <CardDescription>
-                        This first version is already geared toward the inquiry
-                        to quote workflow.
+                        Edit field labels, toggle required, and drag to
+                        reorder before you finish.
                       </CardDescription>
                     </div>
                     <Button
@@ -711,35 +929,111 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
                     <div className="flex flex-col gap-3">
                       <div className="flex items-center justify-between gap-3">
                         <p className="text-sm font-semibold text-foreground">
+                          Contact fields
+                        </p>
+                        <Badge variant="secondary">
+                          {reviewContactFieldItems.length} fields
+                        </Badge>
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        {reviewContactFieldItems.map((field) => (
+                          <ReviewFieldCard
+                            editingFieldId={editingReviewFieldId}
+                            editingFieldValue={editingReviewFieldValue}
+                            field={field}
+                            key={field.id}
+                            onCancelEdit={handleCancelReviewFieldEdit}
+                            onEditChange={setEditingReviewFieldValue}
+                            onSaveEdit={(id) =>
+                              handleSaveReviewFieldEdit(id, "contact")
+                            }
+                            onStartEdit={handleStartReviewFieldEdit}
+                            onToggleRequired={(id) =>
+                              handleToggleReviewFieldRequired(id, "contact")
+                            }
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-foreground">
                           Inquiry fields
                         </p>
                         <Badge variant="secondary">
-                          {previewFieldItems.length} fields
+                          {reviewProjectFieldItems.length} fields
                         </Badge>
                       </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        {previewFieldItems.map((field) => (
-                          <div
-                            className="soft-panel flex items-center justify-between gap-3 px-4 py-3"
-                            key={field.id}
-                          >
-                            <span className="text-sm font-medium text-foreground">
-                              {field.label}
-                            </span>
-                            <Badge
-                              variant={field.required ? "secondary" : "outline"}
-                            >
-                              {field.required ? "Required" : "Optional"}
-                            </Badge>
+                      <DndContext
+                        collisionDetection={closestCenter}
+                        id="onboarding-review-project-fields-dnd"
+                        onDragEnd={handleReviewProjectFieldDragEnd}
+                        sensors={reviewFieldSensors}
+                      >
+                        <SortableContext
+                          items={reviewProjectFieldItems.map((f) => f.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            {reviewProjectFieldItems.map((field) => (
+                              <SortableReviewFieldCard
+                                editingFieldId={editingReviewFieldId}
+                                editingFieldValue={editingReviewFieldValue}
+                                field={field}
+                                key={field.id}
+                                onCancelEdit={handleCancelReviewFieldEdit}
+                                onEditChange={setEditingReviewFieldValue}
+                                onSaveEdit={(id) =>
+                                  handleSaveReviewFieldEdit(id, "project")
+                                }
+                                onStartEdit={handleStartReviewFieldEdit}
+                                onToggleRequired={(id) =>
+                                  handleToggleReviewFieldRequired(id, "project")
+                                }
+                              />
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        </SortableContext>
+                      </DndContext>
                     </div>
                   </CardContent>
                 </Card>
               </div>
             ) : null}
           </div>
+
+          {currentStep === 3 && hasReviewChanges ? (
+            <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4">
+              <div
+                className="soft-panel flex w-full max-w-2xl items-center justify-between gap-3 border-border/80 bg-background/95 px-4 py-3 shadow-xl backdrop-blur motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:zoom-in-95 motion-safe:duration-200"
+              >
+                <p className="text-sm text-muted-foreground">
+                  You&apos;ve customized the inquiry form.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => {
+                      setReviewFormConfig(null);
+                      setEditingReviewFieldId(null);
+                    }}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    Discard
+                  </Button>
+                  <Button
+                    onClick={() => setIsPreviewOpen(true)}
+                    size="sm"
+                    type="button"
+                  >
+                    Open preview
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <FormActions
             align={currentStep === 0 ? "end" : "between"}
@@ -783,8 +1077,12 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
         </div>
       </form>
 
+      {isPending && currentStep === lastOnboardingStepIndex ? (
+        <SetupLoadingOverlay />
+      ) : null}
+
       <OnboardingPreviewDialog
-        business={previewBusiness}
+        business={effectivePreviewBusiness}
         onOpenChange={setIsPreviewOpen}
         open={isPreviewOpen}
       />
@@ -931,4 +1229,264 @@ function mapServerFieldErrors(
 
 function clampStepIndex(value: number, maxStepIndex: number) {
   return Math.min(Math.max(value, 0), maxStepIndex);
+}
+
+type ReviewFieldItemData = {
+  id: string;
+  label: string;
+  required: boolean;
+  isRequiredLocked: boolean;
+  isWide: boolean;
+  placeholder: string;
+};
+
+type ReviewFieldCardProps = {
+  field: ReviewFieldItemData;
+  editingFieldId: string | null;
+  editingFieldValue: string;
+  onStartEdit: (id: string, label: string) => void;
+  onEditChange: (value: string) => void;
+  onSaveEdit: (id: string) => void;
+  onCancelEdit: () => void;
+  onToggleRequired: (id: string) => void;
+};
+
+function ReviewFieldCard({
+  field,
+  editingFieldId,
+  editingFieldValue,
+  onStartEdit,
+  onEditChange,
+  onSaveEdit,
+  onCancelEdit,
+  onToggleRequired,
+}: ReviewFieldCardProps) {
+  return (
+    <div className={cn("flex flex-col gap-1.5", field.isWide && "sm:col-span-2")}>
+      <ReviewFieldLabel
+        editingFieldId={editingFieldId}
+        editingFieldValue={editingFieldValue}
+        field={field}
+        onCancelEdit={onCancelEdit}
+        onEditChange={onEditChange}
+        onSaveEdit={onSaveEdit}
+        onStartEdit={onStartEdit}
+        onToggleRequired={onToggleRequired}
+      />
+      <div className="pointer-events-none rounded-lg border border-input/60 bg-muted/30 px-3 py-2">
+        <span className="text-sm text-muted-foreground/50">
+          {field.placeholder || field.label}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function SortableReviewFieldCard({
+  field,
+  editingFieldId,
+  editingFieldValue,
+  onStartEdit,
+  onEditChange,
+  onSaveEdit,
+  onCancelEdit,
+  onToggleRequired,
+}: ReviewFieldCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: field.id });
+
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    willChange: isDragging ? "transform" : undefined,
+  };
+
+  return (
+    <div
+      className={cn(
+        "flex gap-2",
+        field.isWide && "sm:col-span-2",
+        isDragging && "relative z-10",
+      )}
+      ref={setNodeRef}
+      style={style}
+    >
+      <button
+        aria-label={`Reorder ${field.label}`}
+        className="mt-1 shrink-0 cursor-grab touch-none self-start text-muted-foreground/50 transition-colors hover:text-muted-foreground active:cursor-grabbing"
+        ref={setActivatorNodeRef}
+        type="button"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="size-4" />
+      </button>
+      <div className={cn(
+        "flex min-w-0 flex-1 flex-col gap-1.5 rounded-lg p-2 transition-shadow",
+        isDragging && "bg-background shadow-lg ring-2 ring-primary/20",
+      )}>
+        <ReviewFieldLabel
+          editingFieldId={editingFieldId}
+          editingFieldValue={editingFieldValue}
+          field={field}
+          onCancelEdit={onCancelEdit}
+          onEditChange={onEditChange}
+          onSaveEdit={onSaveEdit}
+          onStartEdit={onStartEdit}
+          onToggleRequired={onToggleRequired}
+        />
+        <div className="pointer-events-none rounded-lg border border-input/60 bg-muted/30 px-3 py-2">
+          <span className="text-sm text-muted-foreground/50">
+            {field.placeholder || field.label}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReviewFieldLabel({
+  field,
+  editingFieldId,
+  editingFieldValue,
+  onStartEdit,
+  onEditChange,
+  onSaveEdit,
+  onCancelEdit,
+  onToggleRequired,
+}: ReviewFieldCardProps) {
+  const isEditing = editingFieldId === field.id;
+
+  return (
+    <div className="flex min-w-0 items-center gap-1.5">
+      {isEditing ? (
+        <input
+          autoFocus
+          className="min-w-0 flex-1 border-0 bg-transparent px-0 py-0 text-sm font-medium text-foreground outline-none focus:ring-0"
+          maxLength={80}
+          onBlur={() => onSaveEdit(field.id)}
+          onChange={(event) => onEditChange(event.currentTarget.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              onSaveEdit(field.id);
+            }
+
+            if (event.key === "Escape") {
+              event.preventDefault();
+              onCancelEdit();
+            }
+          }}
+          value={editingFieldValue}
+        />
+      ) : (
+        <>
+          <span className="truncate text-sm font-medium text-foreground">
+            {field.label}
+          </span>
+          <button
+            aria-label={`Edit ${field.label}`}
+            className="shrink-0 text-muted-foreground/40 transition-colors hover:text-muted-foreground"
+            onClick={() => onStartEdit(field.id, field.label)}
+            type="button"
+          >
+            <PencilLine className="size-3" />
+          </button>
+        </>
+      )}
+      <span className="ml-auto shrink-0">
+        {field.isRequiredLocked ? (
+          !field.required ? (
+            <span className="text-xs font-medium text-muted-foreground">
+              Optional
+            </span>
+          ) : null
+        ) : (
+          <button
+            className="text-xs font-medium transition-colors"
+            onClick={() => onToggleRequired(field.id)}
+            type="button"
+          >
+            <span
+              className={cn(
+                field.required
+                  ? "text-muted-foreground/50 hover:text-muted-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {field.required ? "Required" : "Optional"}
+            </span>
+          </button>
+        )}
+      </span>
+    </div>
+  );
+}
+
+const setupLoadingSteps = [
+  "Creating your workspace…",
+  "Setting up your business…",
+  "Building your inquiry form…",
+];
+
+function SetupLoadingOverlay() {
+  const [activeStep, setActiveStep] = useState(0);
+
+  useEffect(() => {
+    if (activeStep >= setupLoadingSteps.length - 1) {
+      return;
+    }
+
+    const timeout = window.setTimeout(
+      () => setActiveStep((step) => Math.min(step + 1, setupLoadingSteps.length - 1)),
+      1200,
+    );
+
+    return () => window.clearTimeout(timeout);
+  }, [activeStep]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-10 px-6">
+        <BrandMark subtitle={null} />
+        <div className="flex flex-col gap-4">
+          {setupLoadingSteps.map((step, index) => (
+            <div
+              className={cn(
+                "flex items-center gap-3 transition-all duration-500",
+                index > activeStep && "translate-y-2 opacity-0",
+                index <= activeStep && "translate-y-0 opacity-100",
+              )}
+              key={step}
+            >
+              {index < activeStep ? (
+                <CheckCircle2 className="size-5 shrink-0 text-primary" />
+              ) : index === activeStep ? (
+                <Spinner className="size-5 shrink-0" />
+              ) : (
+                <div className="size-5 shrink-0" />
+              )}
+              <p
+                className={cn(
+                  "text-sm font-medium transition-colors duration-300",
+                  index <= activeStep
+                    ? "text-foreground"
+                    : "text-muted-foreground",
+                )}
+              >
+                {step}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }

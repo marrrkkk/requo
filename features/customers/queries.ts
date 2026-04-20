@@ -28,19 +28,22 @@ function normalizeCustomerEmail(email: string) {
 
 export async function getCustomerHistoryForBusiness(input: {
   businessId: string;
-  customerEmail: string;
+  customerEmail?: string | null;
+  customerContactHandle?: string | null;
   excludeInquiryId?: string | null;
   excludeQuoteId?: string | null;
 }): Promise<CustomerHistoryData | null> {
-  const normalizedEmail = normalizeCustomerEmail(input.customerEmail);
+  const normalizedEmail = input.customerEmail ? normalizeCustomerEmail(input.customerEmail) : null;
+  const normalizedHandle = input.customerContactHandle ? normalizeCustomerEmail(input.customerContactHandle) : null;
 
-  if (!normalizedEmail) {
+  if (!normalizedEmail && !normalizedHandle) {
     return null;
   }
 
   return getCachedCustomerHistoryForBusiness({
     businessId: input.businessId,
     customerEmail: normalizedEmail,
+    customerContactHandle: normalizedHandle,
     excludeInquiryId: input.excludeInquiryId ?? null,
     excludeQuoteId: input.excludeQuoteId ?? null,
   });
@@ -48,7 +51,8 @@ export async function getCustomerHistoryForBusiness(input: {
 
 async function getCachedCustomerHistoryForBusiness(input: {
   businessId: string;
-  customerEmail: string;
+  customerEmail: string | null;
+  customerContactHandle: string | null;
   excludeInquiryId: string | null;
   excludeQuoteId: string | null;
 }): Promise<CustomerHistoryData | null> {
@@ -62,14 +66,20 @@ async function getCachedCustomerHistoryForBusiness(input: {
 
   const inquiryConditions = [
     eq(inquiries.businessId, input.businessId),
-    sql`lower(${inquiries.customerEmail}) = ${input.customerEmail}`,
     getNonDeletedInquiryCondition(),
   ];
   const quoteConditions = [
     eq(quotes.businessId, input.businessId),
-    sql`lower(${quotes.customerEmail}) = ${input.customerEmail}`,
     getNonDeletedQuoteCondition(),
   ];
+
+  if (input.customerEmail) {
+    inquiryConditions.push(sql`lower(${inquiries.customerEmail}) = ${input.customerEmail}`);
+    quoteConditions.push(sql`lower(${quotes.customerEmail}) = ${input.customerEmail}`);
+  } else if (input.customerContactHandle) {
+    inquiryConditions.push(sql`lower(${inquiries.customerContactHandle}) = ${input.customerContactHandle}`);
+    quoteConditions.push(sql`lower(${quotes.customerContactHandle}) = ${input.customerContactHandle}`);
+  }
 
   if (input.excludeInquiryId) {
     inquiryConditions.push(ne(inquiries.id, input.excludeInquiryId));
@@ -98,6 +108,8 @@ async function getCachedCustomerHistoryForBusiness(input: {
           id: inquiries.id,
           customerName: inquiries.customerName,
           customerEmail: inquiries.customerEmail,
+          customerContactMethod: inquiries.customerContactMethod,
+          customerContactHandle: inquiries.customerContactHandle,
           serviceCategory: inquiries.serviceCategory,
           status: getEffectiveInquiryStatus,
           submittedAt: inquiries.submittedAt,
@@ -111,6 +123,8 @@ async function getCachedCustomerHistoryForBusiness(input: {
           id: quotes.id,
           customerName: quotes.customerName,
           customerEmail: quotes.customerEmail,
+          customerContactMethod: quotes.customerContactMethod,
+          customerContactHandle: quotes.customerContactHandle,
           quoteNumber: quotes.quoteNumber,
           title: quotes.title,
           status: getEffectiveQuoteStatus,
@@ -160,7 +174,7 @@ async function getCachedCustomerHistoryForBusiness(input: {
           : null;
 
   return {
-    customerEmail: input.customerEmail,
+    customerEmail: input.customerEmail ?? input.customerContactHandle ?? "",
     inquiryCount,
     quoteCount,
     latestOutcome,

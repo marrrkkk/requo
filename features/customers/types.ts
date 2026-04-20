@@ -7,7 +7,9 @@ import type {
 export type CustomerHistoryInquiryItem = {
   id: string;
   customerName: string;
-  customerEmail: string;
+  customerEmail: string | null;
+  customerContactMethod: string;
+  customerContactHandle: string;
   serviceCategory: string;
   status: InquiryStatus;
   submittedAt: Date;
@@ -16,7 +18,9 @@ export type CustomerHistoryInquiryItem = {
 export type CustomerHistoryQuoteItem = {
   id: string;
   customerName: string;
-  customerEmail: string;
+  customerEmail: string | null;
+  customerContactMethod: string;
+  customerContactHandle: string;
   quoteNumber: string;
   title: string;
   status: QuoteStatus;

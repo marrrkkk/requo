@@ -38,9 +38,9 @@ export type InquiryAssistantContext = {
     inquiryFormSlug: string;
     inquiryFormBusinessType: BusinessType;
     customerName: string;
-    customerEmail: string;
-    customerPhone: string | null;
-    companyName: string | null;
+    customerEmail: string | null;
+    customerContactMethod: string;
+    customerContactHandle: string;
     serviceCategory: string;
     requestedDeadline: string | null;
     budgetText: string | null;

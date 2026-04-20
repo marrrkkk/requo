@@ -8,6 +8,7 @@ import {
 } from "@/features/businesses/starter-templates";
 import { createBusinessRecordForUser } from "@/features/businesses/mutations";
 import type { BusinessType } from "@/features/inquiries/business-types";
+import type { InquiryFormConfig } from "@/features/inquiries/form-config";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { db } from "@/lib/db/client";
 import { profiles, workspaceMembers, workspaces } from "@/lib/db/schema";
@@ -25,6 +26,7 @@ type CompleteOnboardingForUserInput = {
   starterTemplateBusinessType: StarterTemplateBusinessType;
   countryCode: string;
   defaultCurrency: string;
+  inquiryFormConfigOverride?: InquiryFormConfig;
 };
 
 function createId(prefix: string) {
@@ -39,6 +41,7 @@ export async function completeOnboardingForUser({
   starterTemplateBusinessType,
   countryCode,
   defaultCurrency,
+  inquiryFormConfigOverride,
 }: CompleteOnboardingForUserInput) {
   await ensureProfileForUser(user);
 
@@ -143,6 +146,7 @@ export async function completeOnboardingForUser({
       businessType,
       starterTemplateBusinessType,
       shortDescription: null,
+      inquiryFormConfigOverride,
       activitySource: "onboarding",
       activitySummary: "Business created during onboarding.",
       now,

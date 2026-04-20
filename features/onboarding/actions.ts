@@ -5,11 +5,32 @@ import { redirect } from "next/navigation";
 import { getValidationActionState } from "@/lib/action-state";
 import { requireUser } from "@/lib/auth/session";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
+import {
+  inquiryFormConfigSchema,
+  type InquiryFormConfig,
+} from "@/features/inquiries/form-config";
 import { completeOnboardingForUser } from "@/features/onboarding/mutations";
 import { completeOnboardingSchema } from "@/features/onboarding/schemas";
 import type { OnboardingActionState } from "@/features/onboarding/types";
 
 const initialState: OnboardingActionState = {};
+
+function parseInquiryFormConfigOverride(
+  raw: FormDataEntryValue | null,
+): InquiryFormConfig | undefined {
+  if (!raw || typeof raw !== "string" || !raw.trim()) {
+    return undefined;
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    const result = inquiryFormConfigSchema.safeParse(parsed);
+
+    return result.success ? (result.data as InquiryFormConfig) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export async function completeOnboardingAction(
   prevState: OnboardingActionState = initialState,
@@ -34,6 +55,10 @@ export async function completeOnboardingAction(
     );
   }
 
+  const inquiryFormConfigOverride = parseInquiryFormConfigOverride(
+    formData.get("inquiryFormConfigOverride"),
+  );
+
   let dashboardPath: string | null = null;
 
   try {
@@ -46,6 +71,7 @@ export async function completeOnboardingAction(
       defaultCurrency: validationResult.data.defaultCurrency,
       starterTemplateBusinessType:
         validationResult.data.starterTemplateBusinessType,
+      inquiryFormConfigOverride,
     });
 
     dashboardPath = getBusinessDashboardPath(business.slug);
@@ -65,3 +91,4 @@ export async function completeOnboardingAction(
     error: "We couldn't finish setting up your workspace right now.",
   };
 }
+

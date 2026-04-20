@@ -7,7 +7,10 @@ import type { BusinessRecordState } from "@/features/businesses/lifecycle";
 import { getStarterTemplateDefinition } from "@/features/businesses/starter-templates";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
-import { createInquiryFormConfigDefaults } from "@/features/inquiries/form-config";
+import {
+  createInquiryFormConfigDefaults,
+  type InquiryFormConfig,
+} from "@/features/inquiries/form-config";
 import { createInquiryPageConfigDefaults } from "@/features/inquiries/page-config";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { db } from "@/lib/db/client";
@@ -34,6 +37,7 @@ type CreateBusinessForUserInput = {
   starterTemplateBusinessType?: BusinessType;
   countryCode?: string | null;
   shortDescription?: string | null;
+  inquiryFormConfigOverride?: InquiryFormConfig;
   activitySource?: string;
   activitySummary?: string;
 };
@@ -82,6 +86,7 @@ export async function createBusinessRecordForUser({
   starterTemplateBusinessType = businessType,
   countryCode = null,
   shortDescription,
+  inquiryFormConfigOverride,
   activitySource = "business-hub",
   activitySummary = "Business created.",
   now = new Date(),
@@ -102,6 +107,9 @@ export async function createBusinessRecordForUser({
     businessType: starterTemplateBusinessType,
     businessName: trimmedName,
   });
+  const resolvedFormConfig =
+    inquiryFormConfigOverride ??
+    createInquiryFormConfigDefaults({ businessType: starterTemplateBusinessType });
 
   await tx.insert(businesses).values({
     id: businessId,
@@ -112,9 +120,7 @@ export async function createBusinessRecordForUser({
         countryCode,
         shortDescription: normalizedShortDescription,
         contactEmail: user.email,
-        inquiryFormConfig: createInquiryFormConfigDefaults({
-          businessType: starterTemplateBusinessType,
-        }),
+        inquiryFormConfig: resolvedFormConfig,
         inquiryPageConfig: createInquiryPageConfigDefaults({
           businessName: trimmedName,
           businessType: starterTemplateBusinessType,
@@ -134,7 +140,7 @@ export async function createBusinessRecordForUser({
     businessType: defaultInquiryForm.businessType,
     isDefault: true,
     publicInquiryEnabled: defaultInquiryForm.publicInquiryEnabled,
-    inquiryFormConfig: defaultInquiryForm.inquiryFormConfig,
+    inquiryFormConfig: inquiryFormConfigOverride ?? defaultInquiryForm.inquiryFormConfig,
     inquiryPageConfig: defaultInquiryForm.inquiryPageConfig,
     createdAt: now,
     updatedAt: now,
