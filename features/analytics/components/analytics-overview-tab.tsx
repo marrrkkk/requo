@@ -11,7 +11,6 @@ import {
 
 import {
   DashboardDetailLayout,
-  DashboardEmptyState,
   DashboardSidebarStack,
   DashboardStatsGrid,
 } from "@/components/shared/dashboard-layout";
@@ -36,22 +35,6 @@ export function AnalyticsOverviewTab({
 }: {
   data: BusinessAnalyticsData;
 }) {
-  const hasOverviewData =
-    data.summary.formViews > 0 ||
-    data.summary.inquirySubmissions > 0 ||
-    data.inquiryStatusCounts.some((row) => row.count > 0);
-
-  if (!hasOverviewData) {
-    return (
-      <DashboardEmptyState
-        description="Form traffic, inquiry submissions, and funnel health will appear here once your public form starts getting visits."
-        icon={MessagesSquare}
-        title="No analytics data yet"
-        variant="section"
-      />
-    );
-  }
-
   return (
     <div className="flex flex-col gap-6">
       <DashboardStatsGrid>

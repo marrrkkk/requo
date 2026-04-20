@@ -76,7 +76,6 @@ import { getFieldError } from "@/lib/action-state";
 import {
   createInquiryPageBusinessContact,
   inquiryPageBusinessContactSocialMeta,
-  inquiryPageCardIconMeta,
   inquiryPageShowcaseImageFrameMeta,
   inquiryPageShowcaseImageSizeMeta,
   maxInquiryPageCardDescriptionLength,
@@ -90,6 +89,7 @@ import {
   type InquiryPageShowcaseImageSize,
   type InquiryPageTemplate,
 } from "@/features/inquiries/page-config";
+import { inquiryPageCardIconMeta } from "@/features/inquiries/components/inquiry-page-card-icon-meta";
 import type {
   BusinessInquiryPageActionState,
   BusinessInquiryPagePreviewDraft,
@@ -698,60 +698,56 @@ export function BusinessInquiryPageForm({
 
             <div className="mt-5 grid gap-4">
               <DetailsPanel
-                description="Name this form."
-                eyebrow="Name"
-                title="Form name"
+                description="Name your form and set its public link."
+                eyebrow="Identity"
+                title="Form details"
               >
-                <Field data-invalid={Boolean(nameError) || undefined}>
-                  <FieldLabel htmlFor="inquiry-page-form-name">Form name</FieldLabel>
-                  <FieldContent>
-                    <Input
-                      aria-invalid={Boolean(nameError) || undefined}
-                      disabled={isPending}
-                      id="inquiry-page-form-name"
-                      maxLength={80}
-                      minLength={2}
-                      name="name"
-                      onChange={(event) => setFormName(event.currentTarget.value)}
-                      required
-                      value={formName}
-                    />
-                    <FieldError
-                      errors={nameError ? [{ message: nameError }] : undefined}
-                    />
-                  </FieldContent>
-                </Field>
-              </DetailsPanel>
+                <div className="grid gap-5 lg:grid-cols-2">
+                  <Field data-invalid={Boolean(nameError) || undefined}>
+                    <FieldLabel htmlFor="inquiry-page-form-name">Form name</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        aria-invalid={Boolean(nameError) || undefined}
+                        disabled={isPending}
+                        id="inquiry-page-form-name"
+                        maxLength={80}
+                        minLength={2}
+                        name="name"
+                        onChange={(event) => setFormName(event.currentTarget.value)}
+                        required
+                        value={formName}
+                      />
+                      <FieldError
+                        errors={nameError ? [{ message: nameError }] : undefined}
+                      />
+                    </FieldContent>
+                  </Field>
 
-              <DetailsPanel
-                description="Choose the public link."
-                eyebrow="Link"
-                title="Public link"
-              >
-                <Field data-invalid={Boolean(slugError) || undefined}>
-                  <FieldLabel htmlFor="inquiry-page-form-slug">Form slug</FieldLabel>
-                  <FieldContent>
-                    <Input
-                      aria-invalid={Boolean(slugError) || undefined}
-                      disabled={isPending}
-                      id="inquiry-page-form-slug"
-                      maxLength={publicSlugMaxLength}
-                      minLength={2}
-                      name="slug"
-                      onChange={(event) => setFormSlug(event.currentTarget.value)}
-                      pattern={publicSlugPattern}
-                      required
-                      spellCheck={false}
-                      value={formSlug}
-                    />
-                    <FieldDescription>
-                      Public URL: `/inquire/{settings.slug}/{formSlug || "form-slug"}`.
-                    </FieldDescription>
-                    <FieldError
-                      errors={slugError ? [{ message: slugError }] : undefined}
-                    />
-                  </FieldContent>
-                </Field>
+                  <Field data-invalid={Boolean(slugError) || undefined}>
+                    <FieldLabel htmlFor="inquiry-page-form-slug">Form slug</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        aria-invalid={Boolean(slugError) || undefined}
+                        disabled={isPending}
+                        id="inquiry-page-form-slug"
+                        maxLength={publicSlugMaxLength}
+                        minLength={2}
+                        name="slug"
+                        onChange={(event) => setFormSlug(event.currentTarget.value)}
+                        pattern={publicSlugPattern}
+                        required
+                        spellCheck={false}
+                        value={formSlug}
+                      />
+                      <FieldDescription>
+                        `/inquire/{settings.slug}/{formSlug || "form-slug"}`
+                      </FieldDescription>
+                      <FieldError
+                        errors={slugError ? [{ message: slugError }] : undefined}
+                      />
+                    </FieldContent>
+                  </Field>
+                </div>
               </DetailsPanel>
 
               <DetailsPanel
@@ -1093,14 +1089,6 @@ export function BusinessInquiryPageForm({
               title="Supporting cards"
             />
 
-            <SectionVisibilityToggle
-              checked={showSupportingCards}
-              description="Keep the cards saved, but hide them from the public page when this is off."
-              disabled={isPending}
-              label="Show supporting cards"
-              onCheckedChange={setShowSupportingCards}
-            />
-
             <BuilderSection
               action={
                 <Button
@@ -1116,6 +1104,14 @@ export function BusinessInquiryPageForm({
               }
               title="Cards"
             >
+              <SectionVisibilityToggle
+                checked={showSupportingCards}
+                description="Keep the cards saved, but hide them from the public page when this is off."
+                disabled={isPending}
+                label="Show supporting cards"
+                onCheckedChange={setShowSupportingCards}
+              />
+
               {cards.length ? (
                 <DndContext
                   collisionDetection={closestCenter}

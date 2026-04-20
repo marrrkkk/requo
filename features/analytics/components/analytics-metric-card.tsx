@@ -36,8 +36,8 @@ export function AnalyticsMetricCard({
               </p>
             ) : null}
           </div>
-          <div className="flex size-10 items-center justify-center rounded-xl border border-border/70 bg-accent/85 text-accent-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
-            <Icon className="size-4" />
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-accent/85 text-accent-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
+            <Icon className="size-4 shrink-0" />
           </div>
         </div>
       </CardContent>
