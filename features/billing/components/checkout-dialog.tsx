@@ -17,7 +17,6 @@ import {
   useEffect,
   useRef,
   useState,
-  useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
 import { QrCode, Check, Zap, Crown, ShoppingCart, Wallet } from "lucide-react";
@@ -38,7 +37,7 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import {
   createCheckoutAction,
-  getPendingQrPhCheckoutAction,
+  cleanupExpiredPendingAction,
 } from "@/features/billing/actions";
 import { usePaddle, PaddleProvider } from "@/features/billing/components/paddle-provider";
 import type { CheckoutActionState, PendingQrPhData } from "@/features/billing/types";
@@ -103,6 +102,46 @@ const planHighlightsShort: Record<PaidPlan, string[]> = {
 
 const PADDLE_FRAME_TARGET = "requo-paddle-checkout";
 
+/* ── SessionStorage cache for pending QR data ────────────────────────────── */
+
+const PENDING_QR_KEY = "requo:pending-qrph";
+
+function getCachedPendingQr(workspaceId: string): PendingQrPhData | null {
+  try {
+    const raw = sessionStorage.getItem(`${PENDING_QR_KEY}:${workspaceId}`);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as PendingQrPhData;
+    if (new Date(data.expiresAt) <= new Date()) {
+      sessionStorage.removeItem(`${PENDING_QR_KEY}:${workspaceId}`);
+      // Flag for automatic server-side pending status cleanup
+      sessionStorage.setItem(`${PENDING_QR_KEY}:expired:${workspaceId}`, "1");
+      return null;
+    }
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedPendingQr(workspaceId: string, data: PendingQrPhData): void {
+  try {
+    sessionStorage.setItem(
+      `${PENDING_QR_KEY}:${workspaceId}`,
+      JSON.stringify(data),
+    );
+  } catch {
+    /* storage full or unavailable */
+  }
+}
+
+export function clearCachedPendingQr(workspaceId: string): void {
+  try {
+    sessionStorage.removeItem(`${PENDING_QR_KEY}:${workspaceId}`);
+  } catch {
+    /* ignore */
+  }
+}
+
 /* ── Main dialog inner ───────────────────────────────────────────────────── */
 
 function CheckoutDialogInner({
@@ -113,13 +152,16 @@ function CheckoutDialogInner({
   targetPlan,
   region,
 }: CheckoutDialogProps) {
+  // ── Initialize from sessionStorage cache (instant, no server call) ───────
+  const cachedQr = getCachedPendingQr(workspaceId);
+
   const [selectedPlan, setSelectedPlan] = useState<PaidPlan>(
-    targetPlan ?? (currentPlan === "pro" ? "business" : "pro"),
+    () => cachedQr?.plan as PaidPlan ?? targetPlan ?? (currentPlan === "pro" ? "business" : "pro"),
   );
   const [interval, setInterval] = useState<BillingInterval>("monthly");
   const isPH = region === "PH";
   const [paymentMethod, setPaymentMethod] = useState<"qrph" | "card">(
-    isPH ? "qrph" : "card",
+    () => cachedQr ? "qrph" : isPH ? "qrph" : "card",
   );
   const [processingUpgrade, setProcessingUpgrade] = useState(false);
   const [state, formAction, isPending] = useActionState(
@@ -130,11 +172,23 @@ function CheckoutDialogInner({
   const router = useRouter();
   const handledTxnRef = useRef<string | null>(null);
 
-  // ── Pending QR persistence state ─────────────────────────────────────────
-  const [pendingQr, setPendingQr] = useState<PendingQrPhData | null>(null);
-  const [loadingPendingQr, setLoadingPendingQr] = useState(false);
-  const [isPendingQrTransition, startPendingQrTransition] = useTransition();
-  const pendingQrCheckedRef = useRef(false);
+  // ── Pending QR — derived from sessionStorage cache, no state needed ──────
+  const pendingQr = cachedQr;
+
+  // ── Auto-cleanup expired pending subscription ────────────────────────────
+  const cleanupFiredRef = useRef(false);
+  useEffect(() => {
+    if (cleanupFiredRef.current) return;
+    const expiredKey = `${PENDING_QR_KEY}:expired:${workspaceId}`;
+    try {
+      if (sessionStorage.getItem(expiredKey)) {
+        sessionStorage.removeItem(expiredKey);
+        cleanupFiredRef.current = true;
+        // Fire-and-forget: clear the pending subscription status on the server
+        cleanupExpiredPendingAction(workspaceId).catch(() => {});
+      }
+    } catch { /* ignore */ }
+  }, [workspaceId]);
 
   // ── Paddle inline state ──────────────────────────────────────────────────
   const [showPaddleInline, setShowPaddleInline] = useState(false);
@@ -148,42 +202,23 @@ function CheckoutDialogInner({
   const effectiveInterval: BillingInterval = paymentMethod === "qrph" ? "monthly" : interval;
   const isQrPh = paymentMethod === "qrph";
 
-  // ── Check for pending QRPh on dialog open ────────────────────────────────
+  // ── Persist fresh QR from checkout action into sessionStorage ─────────────
   useEffect(() => {
-    if (!open || pendingQrCheckedRef.current) {
-      return;
+    if (state.qrData) {
+      setCachedPendingQr(workspaceId, {
+        qrCodeData: state.qrData.qrCodeData,
+        paymentIntentId: state.qrData.paymentIntentId,
+        expiresAt: state.qrData.expiresAt,
+        amount: state.qrData.amount,
+        currency: "PHP",
+        plan: selectedPlan,
+      });
     }
+  }, [state.qrData, workspaceId, selectedPlan]);
 
-    pendingQrCheckedRef.current = true;
-    setLoadingPendingQr(true);
-
-    startPendingQrTransition(async () => {
-      try {
-        const data = await getPendingQrPhCheckoutAction(workspaceId);
-
-        if (data) {
-          // Check if the QR has expired client-side
-          const expiresAt = new Date(data.expiresAt);
-
-          if (expiresAt > new Date()) {
-            setPendingQr(data);
-            setPaymentMethod("qrph");
-            setSelectedPlan(data.plan as PaidPlan);
-          }
-        }
-      } catch {
-        // Silently fail — user can still create a new QR
-      } finally {
-        setLoadingPendingQr(false);
-      }
-    });
-  }, [open, workspaceId, startPendingQrTransition]);
-
-  // Reset pending QR check when dialog closes
+  // Reset ephemeral UI state when dialog closes (keep cache alive)
   useEffect(() => {
     if (!open) {
-      pendingQrCheckedRef.current = false;
-      setPendingQr(null);
       setShowPaddleInline(false);
       paddleInlineOpenedRef.current = null;
     }
@@ -223,7 +258,7 @@ function CheckoutDialogInner({
     }
   }, [state.paddleTransactionId, paddle, onOpenChange, router]);
 
-  // Also update QR state from fresh checkout action result
+  // Derive QR display from action result or cached pending QR
   const showQrCode = (state.qrData && isQrPh) || pendingQr;
   const activeQrData = state.qrData ?? (pendingQr
     ? {
@@ -279,13 +314,6 @@ function CheckoutDialogInner({
             <Spinner className="size-8" aria-hidden="true" />
             <p className="text-sm text-muted-foreground">
               Your workspace is being upgraded to {planMeta[selectedPlan].label}...
-            </p>
-          </DialogBody>
-        ) : loadingPendingQr || isPendingQrTransition ? (
-          <DialogBody className="flex flex-col items-center gap-4 py-10">
-            <Spinner className="size-8" aria-hidden="true" />
-            <p className="text-sm text-muted-foreground">
-              Checking for pending payments...
             </p>
           </DialogBody>
         ) : showPaddleInline ? (

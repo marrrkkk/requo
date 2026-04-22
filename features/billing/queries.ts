@@ -19,23 +19,26 @@ export async function getWorkspaceBillingOverview(
   workspaceId: string,
 ): Promise<WorkspaceBillingOverview | null> {
   try {
-    const [workspace] = await db
-      .select({
-        id: workspaces.id,
-        name: workspaces.name,
-        slug: workspaces.slug,
-        plan: workspaces.plan,
-      })
-      .from(workspaces)
-      .where(eq(workspaces.id, workspaceId))
-      .limit(1);
+    const [workspaceRows, subscription, requestHeaders] = await Promise.all([
+      db
+        .select({
+          id: workspaces.id,
+          name: workspaces.name,
+          slug: workspaces.slug,
+          plan: workspaces.plan,
+        })
+        .from(workspaces)
+        .where(eq(workspaces.id, workspaceId))
+        .limit(1),
+      getWorkspaceSubscription(workspaceId),
+      headers(),
+    ]);
+    const workspace = workspaceRows[0];
 
     if (!workspace) {
       return null;
     }
 
-    const subscription = await getWorkspaceSubscription(workspaceId);
-    const requestHeaders = await headers();
     const region = getBillingRegion(requestHeaders);
     const defaultCurrency = getDefaultCurrency(region);
 

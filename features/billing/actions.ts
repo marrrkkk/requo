@@ -350,3 +350,32 @@ export async function getPendingQrPhCheckoutAction(
     plan: subscription.plan,
   };
 }
+
+/**
+ * Cleans up an expired pending PayMongo subscription.
+ *
+ * Called automatically from the client when a cached QRPh QR code
+ * expires, so the workspace doesn't stay stuck in "pending" status.
+ */
+export async function cleanupExpiredPendingAction(
+  workspaceId: string,
+): Promise<void> {
+  const user = await requireUser();
+
+  const workspace = await getWorkspaceContextForUser(user.id, workspaceId);
+  if (!workspace || workspace.memberRole !== "owner") return;
+
+  const subscription = await getWorkspaceSubscription(workspaceId);
+  if (
+    !subscription ||
+    subscription.status !== "pending" ||
+    subscription.billingProvider !== "paymongo"
+  ) {
+    return;
+  }
+
+  const { expireSubscription } = await import(
+    "@/lib/billing/subscription-service"
+  );
+  await expireSubscription(workspaceId);
+}

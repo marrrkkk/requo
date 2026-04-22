@@ -19,11 +19,16 @@ export default async function WorkspaceSettingsBillingPage({
   }
 
   return (
-    <DashboardSection
-      description="Manage your workspace subscription, payment method, and billing lifecycle separately from business operations."
-      title="Plan & billing"
-    >
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold tracking-tight text-foreground">
+          Plan & billing
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Manage your workspace subscription, payment method, and billing lifecycle separately from business operations.
+        </p>
+      </div>
       <BillingStatusCard billing={billingOverview} showPlanComparison={false} />
-    </DashboardSection>
+    </div>
   );
 }
