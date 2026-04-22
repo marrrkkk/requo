@@ -72,11 +72,15 @@ export default async function WorkspaceSettingsLayout({
               eyebrow="Workspace settings"
               title={workspace.name}
             />
-            <div className="mt-8 grid min-w-0 items-start gap-4 lg:gap-5 xl:grid-cols-[15rem_minmax(0,1fr)] xl:gap-4">
+            <div className="grid min-w-0 items-start gap-4 lg:gap-5 xl:grid-cols-[15rem_minmax(0,1fr)] xl:gap-4">
               <div className="xl:sticky xl:top-24 xl:self-start">
                 <WorkspaceSettingsNav groups={navigationGroups} />
               </div>
-              <div className="min-w-0">{children}</div>
+              <div className="min-w-0">
+                <div className="flex flex-col gap-6 pb-24 sm:gap-7 xl:pb-28">
+                  {children}
+                </div>
+              </div>
             </div>
           </DashboardPage>
         </main>

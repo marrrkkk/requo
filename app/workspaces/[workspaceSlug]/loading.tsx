@@ -98,9 +98,26 @@ export default function WorkspaceLoading() {
                     </div>
                   </CardHeader>
                   <CardContent className="grid gap-5 pt-6">
-                    <div className="space-y-2">
-                      <Skeleton className="h-9 w-36 rounded-md" />
-                      <Skeleton className="h-4 w-full max-w-sm rounded-md" />
+                    <div className="space-y-4">
+                      <Skeleton className="h-4 w-full rounded-md" />
+                      <div className="flex flex-col gap-2 border-t border-border/40 pt-2">
+                        <div className="flex items-center justify-between gap-2 py-0.5">
+                          <Skeleton className="h-3 w-16 rounded-md" />
+                          <Skeleton className="h-3 w-8 rounded-md" />
+                        </div>
+                        <div className="flex items-center justify-between gap-2 py-0.5">
+                          <Skeleton className="h-3 w-16 rounded-md" />
+                          <Skeleton className="h-3 w-8 rounded-md" />
+                        </div>
+                        <div className="flex items-center justify-between gap-2 py-0.5">
+                          <Skeleton className="h-3 w-20 rounded-md" />
+                          <Skeleton className="h-3 w-8 rounded-md" />
+                        </div>
+                        <div className="flex items-center justify-between gap-2 py-0.5">
+                          <Skeleton className="h-3 w-16 rounded-md" />
+                          <Skeleton className="h-3 w-8 rounded-md" />
+                        </div>
+                      </div>
                     </div>
                     <Skeleton className="h-24 w-full rounded-xl" />
                   </CardContent>
