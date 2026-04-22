@@ -32,8 +32,11 @@ export const auditActionLabels = {
   "subscription.canceled": "Subscription canceled",
   "subscription.reactivated": "Subscription reactivated",
   "member.invited": "Member invited",
+  "member.joined": "Member joined",
   "member.removed": "Member removed",
   "member.role_changed": "Member role changed",
+  "member.invite_link_regenerated": "Member invite link regenerated",
+  "member.invite_canceled": "Member invite canceled",
   "account.deletion_requested": "Account deletion requested",
   "account.deleted": "Account deleted",
 } as const;

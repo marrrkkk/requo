@@ -1,9 +1,15 @@
-import { SearchX } from "lucide-react";
+"use client";
+
+import Link from "next/link";
+import { X } from "lucide-react";
+import { useState } from "react";
 
 import { DashboardActionsRow, DashboardSection } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Combobox } from "@/components/ui/combobox";
+import { DatePicker } from "@/components/ui/date-picker";
 import type { AuditLogFilters, WorkspaceAuditLogFiltersView } from "@/features/audit/types";
+import { useProgressRouter } from "@/hooks/use-progress-router";
 
 type WorkspaceAuditLogFiltersProps = {
   action: string;
@@ -11,7 +17,7 @@ type WorkspaceAuditLogFiltersProps = {
   options: WorkspaceAuditLogFiltersView;
 };
 
-function FilterSelect({
+function FilterCombobox({
   name,
   value,
   placeholder,
@@ -25,19 +31,40 @@ function FilterSelect({
     label: string;
   }>;
 }) {
+  const [val, setVal] = useState(value ?? "");
   return (
-    <select
-      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none transition-[border-color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20"
-      defaultValue={value ?? ""}
+    <>
+      <input type="hidden" name={name} value={val} />
+      <Combobox
+        id={name}
+        value={val}
+        onValueChange={setVal}
+        options={options}
+        placeholder={placeholder}
+        searchPlaceholder={`Search ${placeholder.toLowerCase()}`}
+      />
+    </>
+  );
+}
+
+function FilterDatePicker({
+  name,
+  value,
+  placeholder,
+}: {
+  name: string;
+  value: string | null;
+  placeholder: string;
+}) {
+  const [val, setVal] = useState(value ?? "");
+  return (
+    <DatePicker
+      id={name}
       name={name}
-    >
-      <option value="">{placeholder}</option>
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
+      value={val}
+      onChange={setVal}
+      placeholder={placeholder}
+    />
   );
 }
 
@@ -46,46 +73,63 @@ export function WorkspaceAuditLogFilters({
   filters,
   options,
 }: WorkspaceAuditLogFiltersProps) {
+  const router = useProgressRouter();
+  const hasFilters = Boolean(filters.actor || filters.business || filters.entity || filters.action || filters.from || filters.to);
+
   return (
     <DashboardSection
       description="Filter by actor, business, action, entity, or date range to find meaningful accountability events."
       title="Filters"
     >
-      <form action={action} className="grid gap-4 lg:grid-cols-3">
-        <FilterSelect
+      <form
+        action={action}
+        className="grid gap-4 lg:grid-cols-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const formData = new FormData(e.currentTarget);
+          const params = new URLSearchParams();
+          for (const [key, value] of formData.entries()) {
+            if (value && typeof value === "string") {
+              params.set(key, value);
+            }
+          }
+          router.push(`${action}?${params.toString()}`);
+        }}
+      >
+        <FilterCombobox
           name="actor"
           options={options.actors}
           placeholder="All actors"
           value={filters.actor}
         />
-        <FilterSelect
+        <FilterCombobox
           name="business"
           options={options.businesses}
           placeholder="All businesses"
           value={filters.business}
         />
-        <FilterSelect
+        <FilterCombobox
           name="entity"
           options={options.entities}
           placeholder="All entities"
           value={filters.entity}
         />
-        <FilterSelect
+        <FilterCombobox
           name="action"
           options={options.actions}
           placeholder="All actions"
           value={filters.action}
         />
-        <Input defaultValue={filters.from ?? ""} name="from" type="date" />
-        <Input defaultValue={filters.to ?? ""} name="to" type="date" />
+        <FilterDatePicker name="from" placeholder="From date" value={filters.from} />
+        <FilterDatePicker name="to" placeholder="To date" value={filters.to} />
         <input name="page" type="hidden" value="1" />
         <DashboardActionsRow className="lg:col-span-3 lg:justify-end">
           <Button type="submit">Apply filters</Button>
-          <Button asChild variant="ghost">
-            <a href={action}>
-              <SearchX data-icon="inline-start" className="size-4" />
+          <Button asChild variant="ghost" disabled={!hasFilters}>
+            <Link href={action} prefetch={true} className={!hasFilters ? "pointer-events-none opacity-50" : ""}>
+              <X data-icon="inline-start" className="size-4" />
               Clear
-            </a>
+            </Link>
           </Button>
         </DashboardActionsRow>
       </form>
