@@ -28,21 +28,7 @@ export function AnalyticsConversionTab({
   data: ConversionAnalyticsData;
   currency: string;
 }) {
-  const hasConversionData =
-    data.summary.inquirySubmissions > 0 ||
-    data.summary.quotesSent > 0 ||
-    data.summary.quotePageViews > 0;
 
-  if (!hasConversionData) {
-    return (
-      <DashboardEmptyState
-        description="Inquiry and form performance appears once your forms start capturing real traffic and those inquiries begin moving into quotes."
-        icon={Target}
-        title="No inquiry or form data yet"
-        variant="section"
-      />
-    );
-  }
 
   return (
     <div className="flex flex-col gap-6">
