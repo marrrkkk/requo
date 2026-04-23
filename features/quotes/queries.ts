@@ -55,7 +55,7 @@ import type {
 import { getQuoteReminderKinds } from "@/features/quotes/utils";
 import {
   getQuotePublicTokenLookupCondition,
-  resolveStoredQuotePublicToken,
+  tryResolveStoredQuotePublicToken,
 } from "@/features/quotes/token-storage";
 
 export const getEffectiveQuoteStatus = sql<QuoteStatus>`case
@@ -221,8 +221,6 @@ async function getCachedQuoteListPageForBusiness({
     .select({
       id: quotes.id,
       quoteNumber: quotes.quoteNumber,
-      publicToken: quotes.publicToken,
-      publicTokenEncrypted: quotes.publicTokenEncrypted,
       title: quotes.title,
       customerName: quotes.customerName,
       customerEmail: quotes.customerEmail,
@@ -253,7 +251,6 @@ async function getCachedQuoteListPageForBusiness({
       customerRespondedAt: row.customerRespondedAt,
       id: row.id,
       postAcceptanceStatus: row.postAcceptanceStatus,
-      publicToken: resolveStoredQuotePublicToken(row),
       quoteNumber: row.quoteNumber,
       reminders: getQuoteReminderKinds({
         status: row.status,
@@ -374,7 +371,6 @@ async function getCachedQuoteDetailForBusiness({
       inquiryId: quotes.inquiryId,
       quoteNumber: quotes.quoteNumber,
       publicToken: quotes.publicToken,
-      publicTokenEncrypted: quotes.publicTokenEncrypted,
       title: quotes.title,
       customerName: quotes.customerName,
       customerEmail: quotes.customerEmail,
@@ -463,7 +459,7 @@ async function getCachedQuoteDetailForBusiness({
     businessId: quote.businessId,
     inquiryId: quote.inquiryId,
     quoteNumber: quote.quoteNumber,
-    publicToken: resolveStoredQuotePublicToken(quote),
+    publicToken: tryResolveStoredQuotePublicToken(quote),
     title: quote.title,
     customerName: quote.customerName,
     customerEmail: quote.customerEmail,
@@ -536,7 +532,6 @@ async function getCachedQuoteSendPayloadForBusiness({
       inquiryId: quotes.inquiryId,
       quoteNumber: quotes.quoteNumber,
       publicToken: quotes.publicToken,
-      publicTokenEncrypted: quotes.publicTokenEncrypted,
       title: quotes.title,
       customerName: quotes.customerName,
       customerEmail: quotes.customerEmail,
@@ -593,7 +588,7 @@ async function getCachedQuoteSendPayloadForBusiness({
     id: quote.id,
     inquiryId: quote.inquiryId,
     notes: quote.notes,
-    publicToken: resolveStoredQuotePublicToken(quote),
+    publicToken: tryResolveStoredQuotePublicToken(quote),
     quoteNumber: quote.quoteNumber,
     status: quote.status,
     subtotalInCents: quote.subtotalInCents,
@@ -614,8 +609,6 @@ export async function getPublicQuoteByToken(
     .select({
       id: quotes.id,
       businessId: quotes.businessId,
-      token: quotes.publicToken,
-      publicTokenEncrypted: quotes.publicTokenEncrypted,
       quoteNumber: quotes.quoteNumber,
       title: quotes.title,
       businessName: businesses.name,
@@ -692,10 +685,7 @@ export async function getPublicQuoteByToken(
     sentAt: quote.sentAt,
     status: quote.status,
     subtotalInCents: quote.subtotalInCents,
-    token: resolveStoredQuotePublicToken({
-      publicToken: quote.token,
-      publicTokenEncrypted: quote.publicTokenEncrypted,
-    }),
+    token,
     title: quote.title,
     totalInCents: quote.totalInCents,
     validUntil: quote.validUntil,

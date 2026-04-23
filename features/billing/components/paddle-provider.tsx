@@ -142,7 +142,9 @@ export function PaddleProvider({
         eventCallback: handleEvent,
         token: clientToken,
       });
-      setIsReady(true);
+      queueMicrotask(() => {
+        setIsReady(true);
+      });
       return;
     }
 

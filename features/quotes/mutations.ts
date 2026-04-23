@@ -20,7 +20,7 @@ import { insertBusinessNotification } from "@/features/notifications/mutations";
 import {
   createStoredQuotePublicToken,
   getQuotePublicTokenLookupCondition,
-  resolveStoredQuotePublicToken,
+  tryResolveStoredQuotePublicToken,
 } from "@/features/quotes/token-storage";
 
 function createId(prefix: string) {
@@ -364,9 +364,8 @@ export async function createQuoteForBusiness({
           inquiryId,
           status: "draft",
           quoteNumber,
-          publicToken: null,
+          publicToken: storedPublicToken.publicToken,
           publicTokenHash: storedPublicToken.publicTokenHash,
-          publicTokenEncrypted: storedPublicToken.publicTokenEncrypted,
           title: quote.title,
           customerName: quote.customerName,
           customerEmail: quote.customerContactMethod === "email" ? quote.customerContactHandle : quote.customerEmail ?? null,
@@ -959,7 +958,6 @@ export async function markQuoteSentForBusiness({
         inquiryId: quotes.inquiryId,
         quoteNumber: quotes.quoteNumber,
         publicToken: quotes.publicToken,
-        publicTokenEncrypted: quotes.publicTokenEncrypted,
         status: quotes.status,
         postAcceptanceStatus: quotes.postAcceptanceStatus,
         archivedAt: quotes.archivedAt,
@@ -983,7 +981,7 @@ export async function markQuoteSentForBusiness({
         status: existingQuote.status,
         quoteNumber: existingQuote.quoteNumber,
         inquiryId: existingQuote.inquiryId,
-        publicToken: resolveStoredQuotePublicToken(existingQuote),
+        publicToken: tryResolveStoredQuotePublicToken(existingQuote),
       };
     }
 
@@ -1041,7 +1039,7 @@ export async function markQuoteSentForBusiness({
       status: "sent" as const,
       quoteNumber: existingQuote.quoteNumber,
       inquiryId: existingQuote.inquiryId,
-      publicToken: resolveStoredQuotePublicToken(existingQuote),
+      publicToken: tryResolveStoredQuotePublicToken(existingQuote),
     };
   });
 }
@@ -1093,7 +1091,6 @@ export async function respondToPublicQuoteByToken({
         customerName: quotes.customerName,
         customerEmail: quotes.customerEmail,
         publicToken: quotes.publicToken,
-        publicTokenEncrypted: quotes.publicTokenEncrypted,
         status: quotes.status,
         validUntil: quotes.validUntil,
         sentAt: quotes.sentAt,
@@ -1228,7 +1225,7 @@ export async function respondToPublicQuoteByToken({
       customerResponseMessage: message?.trim() || null,
       notifyOnQuoteResponse: existingQuote.notifyOnQuoteResponse,
       notifyPushOnQuoteResponse: existingQuote.notifyPushOnQuoteResponse,
-      publicToken: resolveStoredQuotePublicToken(existingQuote),
+      publicToken: tryResolveStoredQuotePublicToken(existingQuote),
       quoteNumber: existingQuote.quoteNumber,
       status: nextStatus,
       title: existingQuote.title,

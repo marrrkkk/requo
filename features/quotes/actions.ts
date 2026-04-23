@@ -462,6 +462,13 @@ export async function sendQuoteAction(
       };
     }
 
+    if (!quote.publicToken) {
+      return {
+        error:
+          "This quote's customer link is unavailable right now, so it can't be sent.",
+      };
+    }
+
     if (
       deliveryMethod === "requo" &&
       businessContext.business.workspacePlan === "free"

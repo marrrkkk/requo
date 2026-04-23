@@ -249,6 +249,48 @@ describe("quote actions", () => {
     });
   });
 
+  it("returns a clear error when the customer quote link cannot be recovered", async () => {
+    vi.mocked(getQuoteSendPayloadForBusiness).mockResolvedValue({
+      id: "quote_123",
+      inquiryId: "inquiry_123",
+      quoteNumber: "Q-1002",
+      publicToken: null,
+      title: "Foundry Labs booth kit",
+      customerName: "Taylor Nguyen",
+      customerEmail: "taylor@example.com",
+      currency: "USD",
+      notes: "Please review the attached scope.",
+      subtotalInCents: 20000,
+      discountInCents: 0,
+      totalInCents: 20000,
+      validUntil: "2026-04-30",
+      status: "draft",
+      updatedAt: new Date("2026-04-18T08:00:00.000Z"),
+      items: [
+        {
+          id: "qit_123",
+          description: "Booth kit",
+          quantity: 1,
+          unitPriceInCents: 20000,
+          lineTotalInCents: 20000,
+          position: 0,
+        },
+      ],
+    } as Awaited<ReturnType<typeof getQuoteSendPayloadForBusiness>>);
+
+    const formData = new FormData();
+    formData.set("deliveryMethod", "manual");
+
+    const result = await sendQuoteAction("quote_123", {}, formData);
+
+    expect(sendQuoteEmail).not.toHaveBeenCalled();
+    expect(markQuoteSentForBusiness).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      error:
+        "This quote's customer link is unavailable right now, so it can't be sent.",
+    });
+  });
+
   it("rejects public quote responses when the public rate limit is exceeded", async () => {
     assertPublicActionRateLimitMock.mockResolvedValue(false);
 

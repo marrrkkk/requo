@@ -1,41 +1,37 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const primaryKey = Buffer.alloc(32, 7).toString("base64");
-const rotatedKey = Buffer.alloc(32, 11).toString("base64");
-
 describe("security helpers", () => {
   afterEach(() => {
     vi.resetModules();
     vi.unstubAllEnvs();
   });
 
-  it("encrypts and decrypts reversible secrets", async () => {
-    vi.stubEnv("APP_ENCRYPTION_KEYS", `v1:${primaryKey}`);
+  it("stores quote public tokens in plaintext while hashing lookups", async () => {
+    const {
+      createStoredQuotePublicToken,
+      resolveStoredQuotePublicToken,
+      tryResolveStoredQuotePublicToken,
+    } = await import("@/features/quotes/token-storage");
+    const storedToken = createStoredQuotePublicToken("quote-public-token");
 
-    const { decryptValue, encryptValue, isEncryptedValue } = await import(
-      "@/lib/security/encryption"
-    );
-
-    const encryptedValue = encryptValue("refresh-token-value");
-
-    expect(isEncryptedValue(encryptedValue)).toBe(true);
-    expect(encryptedValue).not.toContain("refresh-token-value");
-    expect(decryptValue(encryptedValue)).toBe("refresh-token-value");
-  });
-
-  it("supports decrypting values after key rotation", async () => {
-    vi.stubEnv("APP_ENCRYPTION_KEYS", `v1:${primaryKey}`);
-
-    const firstModule = await import("@/lib/security/encryption");
-    const encryptedValue = firstModule.encryptValue("stable-secret");
-
-    vi.resetModules();
-    vi.stubEnv("APP_ENCRYPTION_KEYS", `v2:${rotatedKey},v1:${primaryKey}`);
-
-    const rotatedModule = await import("@/lib/security/encryption");
-
-    expect(rotatedModule.decryptValue(encryptedValue)).toBe("stable-secret");
-    expect(rotatedModule.encryptValue("new-secret")).toMatch(/^enc:v2:/);
+    expect(storedToken.publicToken).toBe("quote-public-token");
+    expect(storedToken.publicTokenHash).toBeTruthy();
+    expect(storedToken.publicTokenHash).not.toContain("quote-public-token");
+    expect(
+      tryResolveStoredQuotePublicToken({
+        publicToken: storedToken.publicToken,
+      }),
+    ).toBe("quote-public-token");
+    expect(
+      tryResolveStoredQuotePublicToken({
+        publicToken: null,
+      }),
+    ).toBeNull();
+    expect(() =>
+      resolveStoredQuotePublicToken({
+        publicToken: null,
+      }),
+    ).toThrow("recoverable public token");
   });
 
   it("hashes opaque lookup tokens without exposing the original token", async () => {

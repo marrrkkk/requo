@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { FormActions } from "@/components/shared/form-layout";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
   DialogBody,
@@ -35,7 +36,7 @@ type QuoteSendFormProps = {
     state: QuoteSendActionState,
     formData: FormData,
   ) => Promise<QuoteSendActionState>;
-  customerQuoteUrl: string;
+  customerQuoteUrl: string | null;
   customerContactMethod?: string;
   disabled?: boolean;
 };
@@ -86,6 +87,10 @@ export function QuoteSendForm({
   }, [hideManualGuide]);
 
   async function copyCustomerLink() {
+    if (!customerQuoteUrl) {
+      return false;
+    }
+
     try {
       await navigator.clipboard.writeText(customerQuoteUrl);
       toast.success("Customer link copied.");
@@ -122,6 +127,18 @@ export function QuoteSendForm({
   const activeSubmitMode = isPending ? submitMode : null;
   const isSendingWithRequo = activeSubmitMode === "requo";
   const isMarkingManualSent = activeSubmitMode === "manual";
+
+  if (!customerQuoteUrl) {
+    return (
+      <Alert>
+        <AlertTitle>Customer link unavailable</AlertTitle>
+        <AlertDescription>
+          Requo couldn&apos;t recover the secure customer link for this quote, so
+          sending is temporarily unavailable.
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <>
@@ -301,7 +318,7 @@ export function QuoteSendForm({
                       `Hi, here is your requested quote:\n\n${customerQuoteUrl}`,
                     );
                     toast.success("Message copied.");
-                  } catch (error) {
+                  } catch {
                     toast.error("We couldn't copy the message.");
                   }
                 }}

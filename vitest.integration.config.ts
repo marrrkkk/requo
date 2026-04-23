@@ -20,7 +20,6 @@ export default defineConfig({
       exclude: ['node_modules/**', '.next/**', 'tests/**', '**/*.config.*', '**/layout.tsx', '**/page.tsx']
     },
     env: {
-      APP_ENCRYPTION_KEYS: `v1:${Buffer.alloc(32, 1).toString('base64')}`,
       BETTER_AUTH_SECRET: 'test-secret-at-least-32-characters-long-so-zod-passes',
       BETTER_AUTH_URL: process.env.BETTER_AUTH_URL ?? 'http://localhost:3000',
       DATABASE_URL:

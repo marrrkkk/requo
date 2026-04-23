@@ -58,6 +58,7 @@ type PayMongoPaymentIntentResponse = {
       currency: string;
       status: string;
       client_key: string;
+      created_at?: number;
       next_action?: {
         type: string;
         redirect?: { url: string };
@@ -166,6 +167,7 @@ export async function createQrPhCheckout(params: {
           data: {
             attributes: {
               type: "qrph",
+              expiry_seconds: 1800,
             },
           },
         },
@@ -199,7 +201,11 @@ export async function createQrPhCheckout(params: {
         type: "qrph",
         qrCodeData: redirectUrl,
         paymentIntentId,
-        expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 min
+        expiresAt: new Date(
+          ((intentResponse.data.attributes.created_at ?? Math.floor(Date.now() / 1000)) +
+            30 * 60) *
+            1000,
+        ).toISOString(),
         amount,
         currency: "PHP",
       };
@@ -256,11 +262,6 @@ export async function cancelPaymentIntent(
     const response = await paymongoRequest<PayMongoPaymentIntentResponse>(
       "POST",
       `/payment_intents/${paymentIntentId}/cancel`,
-      {
-        data: {
-          attributes: {},
-        },
-      },
     );
 
     const status = mapPaymentIntentResolutionStatus(
@@ -318,7 +319,7 @@ export async function getPaymentIntentQrData(
     return null;
   }
 
-  const { status, amount, next_action } = data.attributes;
+  const { created_at, status, amount, next_action } = data.attributes;
   const mappedStatus = mapPayMongoStatus(status);
 
   // Only return QR data if the intent is still pending
@@ -335,10 +336,9 @@ export async function getPaymentIntentQrData(
     return null;
   }
 
-  // PayMongo QRPh intents expire 30 minutes after creation.
-  // We don't have the exact creation time from the API response,
-  // so we give a conservative 20-minute window from now.
-  const expiresAt = new Date(Date.now() + 20 * 60 * 1000).toISOString();
+  const expiresAt = new Date(
+    ((created_at ?? Math.floor(Date.now() / 1000)) + 30 * 60) * 1000,
+  ).toISOString();
 
   return {
     qrCodeData: qrUrl,

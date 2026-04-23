@@ -14,7 +14,6 @@ export default defineConfig({
     globals: true,
     exclude: ['tests/e2e/**', 'node_modules/**', '.next/**'],
     env: {
-      APP_ENCRYPTION_KEYS: `v1:${Buffer.alloc(32, 1).toString('base64')}`,
       BETTER_AUTH_SECRET: 'test-secret-at-least-32-characters-long-so-zod-passes',
       BETTER_AUTH_URL: 'http://localhost:3000',
       DATABASE_URL: 'postgresql://postgres:postgres@127.0.0.1:5432/requo',

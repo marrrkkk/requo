@@ -84,6 +84,11 @@ type PaddleTransactionResponse = {
       url: string | null;
     };
     custom_data?: Record<string, string>;
+    details?: {
+      totals?: {
+        total?: string;
+      };
+    };
   };
 };
 
@@ -114,6 +119,7 @@ export async function createPaddleTransaction(params: {
           },
         ],
         custom_data: {
+          interval: params.interval ?? "monthly",
           workspace_id: params.workspaceId,
           plan: params.plan,
         },
@@ -141,6 +147,24 @@ export async function createPaddleTransaction(params: {
           ? error.message
           : "Payment creation failed. Please try again.",
     };
+  }
+}
+
+/**
+ * Retrieves a Paddle transaction by ID.
+ */
+export async function getPaddleTransaction(
+  transactionId: string,
+): Promise<PaddleTransactionResponse["data"] | null> {
+  try {
+    const response = await paddleRequest<PaddleTransactionResponse>(
+      "GET",
+      `/transactions/${transactionId}`,
+    );
+
+    return response.data;
+  } catch {
+    return null;
   }
 }
 

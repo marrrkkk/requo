@@ -11,9 +11,13 @@ const {
   recordPaymentAttemptMock,
   updatePaymentAttemptStatusMock,
   createQrPhCheckoutMock,
+  getPaymentIntentMock,
+  getPaymentIntentQrDataMock,
   cancelPaymentIntentMock,
   createPaddleTransactionMock,
+  getPaddleTransactionMock,
   cancelPaddleSubscriptionMock,
+  dbSelectOrderByMock,
   dbSelectMock,
   dbSelectFromMock,
   dbSelectWhereMock,
@@ -29,9 +33,13 @@ const {
   recordPaymentAttemptMock: vi.fn(),
   updatePaymentAttemptStatusMock: vi.fn(),
   createQrPhCheckoutMock: vi.fn(),
+  getPaymentIntentMock: vi.fn(),
+  getPaymentIntentQrDataMock: vi.fn(),
   cancelPaymentIntentMock: vi.fn(),
   createPaddleTransactionMock: vi.fn(),
+  getPaddleTransactionMock: vi.fn(),
   cancelPaddleSubscriptionMock: vi.fn(),
+  dbSelectOrderByMock: vi.fn(),
   dbSelectLimitMock: vi.fn(),
   dbSelectWhereMock: vi.fn(),
   dbSelectFromMock: vi.fn(),
@@ -69,11 +77,14 @@ vi.mock("@/lib/billing/webhook-processor", () => ({
 
 vi.mock("@/lib/billing/providers/paymongo", () => ({
   createQrPhCheckout: createQrPhCheckoutMock,
+  getPaymentIntent: getPaymentIntentMock,
+  getPaymentIntentQrData: getPaymentIntentQrDataMock,
   cancelPaymentIntent: cancelPaymentIntentMock,
 }));
 
 vi.mock("@/lib/billing/providers/paddle", () => ({
   createPaddleTransaction: createPaddleTransactionMock,
+  getPaddleTransaction: getPaddleTransactionMock,
   cancelPaddleSubscription: cancelPaddleSubscriptionMock,
 }));
 
@@ -97,12 +108,17 @@ import {
   cancelPendingQrCheckoutAction,
   cancelSubscriptionAction,
   createCheckoutAction,
+  getCheckoutStatusAction,
 } from "@/features/billing/actions";
 
 describe("billing actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     dbSelectWhereMock.mockReturnValue({
+      limit: dbSelectLimitMock,
+      orderBy: dbSelectOrderByMock,
+    });
+    dbSelectOrderByMock.mockReturnValue({
       limit: dbSelectLimitMock,
     });
     dbSelectFromMock.mockReturnValue({
@@ -134,17 +150,16 @@ describe("billing actions", () => {
       type: "redirect",
       url: "txn_123",
     });
+    getPaymentIntentMock.mockResolvedValue(null);
+    getPaymentIntentQrDataMock.mockResolvedValue(null);
+    getPaddleTransactionMock.mockResolvedValue(null);
     cancelPaddleSubscriptionMock.mockResolvedValue(true);
     cancelPaymentIntentMock.mockResolvedValue({
       ok: true,
       status: "canceled",
     });
-    dbSelectLimitMock.mockResolvedValue([{ id: "pay_123" }]);
-    getWorkspaceSubscriptionMock.mockResolvedValue({
-      status: "pending",
-      billingProvider: "paymongo",
-      providerSubscriptionId: null,
-    });
+    dbSelectLimitMock.mockResolvedValue([]);
+    getWorkspaceSubscriptionMock.mockResolvedValue(null);
   });
 
   it("routes USD checkout requests to Paddle for workspace owners", async () => {
@@ -206,7 +221,115 @@ describe("billing actions", () => {
     });
   });
 
+  it("reuses an existing pending PayMongo checkout instead of creating a new QR code", async () => {
+    getWorkspaceSubscriptionMock.mockResolvedValue({
+      status: "pending",
+      billingProvider: "paymongo",
+    });
+    dbSelectLimitMock.mockResolvedValue([
+      {
+        providerPaymentId: "pi_existing",
+      },
+    ]);
+    getPaymentIntentMock.mockResolvedValue({
+      id: "pi_existing",
+      attributes: {
+        amount: 249900,
+        created_at: 4102444800,
+        status: "awaiting_next_action",
+        next_action: {
+          code: {
+            test_url: "000201010299",
+          },
+          type: "consume_qr",
+        },
+      },
+    });
+
+    const formData = new FormData();
+    formData.set("workspaceId", "workspace_123");
+    formData.set("plan", "pro");
+    formData.set("currency", "PHP");
+
+    const result = await createCheckoutAction({}, formData);
+
+    expect(result).toEqual({
+      qrData: {
+        amount: 249900,
+        currency: "PHP",
+        expiresAt: "2100-01-01T00:30:00.000Z",
+        paymentIntentId: "pi_existing",
+        qrCodeData: "000201010299",
+      },
+    });
+    expect(createQrPhCheckoutMock).not.toHaveBeenCalled();
+    expect(createPendingSubscriptionMock).not.toHaveBeenCalled();
+  });
+
+  it("reuses an existing pending Paddle transaction instead of creating a new one", async () => {
+    dbSelectLimitMock.mockResolvedValue([
+      {
+        plan: "pro",
+        providerPaymentId: "txn_existing",
+      },
+    ]);
+    getPaddleTransactionMock.mockResolvedValue({
+      custom_data: {
+        interval: "monthly",
+      },
+      details: {
+        totals: {
+          total: "2900",
+        },
+      },
+      id: "txn_existing",
+      status: "ready",
+    });
+
+    const formData = new FormData();
+    formData.set("workspaceId", "workspace_123");
+    formData.set("plan", "pro");
+    formData.set("currency", "USD");
+
+    const result = await createCheckoutAction({}, formData);
+
+    expect(result).toEqual({ paddleTransactionId: "txn_existing" });
+    expect(createPaddleTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("returns the current subscription and payment attempt status for checkout sync", async () => {
+    getWorkspaceSubscriptionMock.mockResolvedValue({
+      plan: "pro",
+      status: "active",
+    });
+    dbSelectLimitMock.mockResolvedValue([
+      {
+        providerPaymentId: "pi_123",
+        status: "succeeded",
+      },
+    ]);
+
+    const result = await getCheckoutStatusAction("workspace_123", "pi_123");
+
+    expect(result).toEqual({
+      subscription: {
+        plan: "pro",
+        status: "active",
+      },
+      paymentAttempt: {
+        providerPaymentId: "pi_123",
+        status: "succeeded",
+      },
+    });
+  });
+
   it("cancels pending PayMongo subscriptions locally and revalidates the workspace page", async () => {
+    getWorkspaceSubscriptionMock.mockResolvedValue({
+      status: "pending",
+      billingProvider: "paymongo",
+      providerSubscriptionId: null,
+    });
+
     const formData = new FormData();
     formData.set("workspaceId", "workspace_123");
 
@@ -221,6 +344,13 @@ describe("billing actions", () => {
   });
 
   it("cancels pending QR Ph checkout state when the modal is closed", async () => {
+    getWorkspaceSubscriptionMock.mockResolvedValue({
+      status: "pending",
+      billingProvider: "paymongo",
+      providerSubscriptionId: null,
+    });
+    dbSelectLimitMock.mockResolvedValue([{ id: "pay_123" }]);
+
     const result = await cancelPendingQrCheckoutAction(
       "workspace_123",
       "pi_123",
@@ -243,6 +373,12 @@ describe("billing actions", () => {
   });
 
   it("returns already_paid when PayMongo confirms the QR checkout was already completed", async () => {
+    getWorkspaceSubscriptionMock.mockResolvedValue({
+      status: "pending",
+      billingProvider: "paymongo",
+      providerSubscriptionId: null,
+    });
+    dbSelectLimitMock.mockResolvedValue([{ id: "pay_123" }]);
     cancelPaymentIntentMock.mockResolvedValue({
       ok: true,
       status: "active",
@@ -266,6 +402,12 @@ describe("billing actions", () => {
   });
 
   it("falls back to local cleanup when PayMongo cancel does not succeed", async () => {
+    getWorkspaceSubscriptionMock.mockResolvedValue({
+      status: "pending",
+      billingProvider: "paymongo",
+      providerSubscriptionId: null,
+    });
+    dbSelectLimitMock.mockResolvedValue([{ id: "pay_123" }]);
     cancelPaymentIntentMock.mockResolvedValue({
       ok: false,
       message: "PayMongo did not confirm the cancellation yet.",

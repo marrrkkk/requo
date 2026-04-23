@@ -21,9 +21,6 @@ export default defineConfig({
     command: webServerCommand,
     env: {
       ...process.env,
-      APP_ENCRYPTION_KEYS:
-        process.env.APP_ENCRYPTION_KEYS ??
-        `v1:${Buffer.alloc(32, 1).toString("base64")}`,
       APP_TOKEN_HASH_SECRET:
         process.env.APP_TOKEN_HASH_SECRET ??
         "test-token-hash-secret-at-least-32-characters",

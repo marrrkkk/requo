@@ -45,7 +45,6 @@ export type QuoteListQueryFilters = Omit<QuoteListFilters, "page">;
 export type DashboardQuoteListItem = {
   id: string;
   quoteNumber: string;
-  publicToken: string;
   title: string;
   customerName: string;
   customerEmail: string | null;
@@ -136,7 +135,7 @@ export type DashboardQuoteDetail = {
   businessId: string;
   inquiryId: string | null;
   quoteNumber: string;
-  publicToken: string;
+  publicToken: string | null;
   title: string;
   customerName: string;
   customerEmail: string | null;
@@ -169,7 +168,7 @@ export type QuoteSendPayload = {
   id: string;
   inquiryId: string | null;
   quoteNumber: string;
-  publicToken: string;
+  publicToken: string | null;
   title: string;
   customerName: string;
   customerEmail: string | null;
