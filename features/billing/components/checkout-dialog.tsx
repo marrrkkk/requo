@@ -39,7 +39,6 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import {
   cancelPendingQrCheckoutAction,
-  cleanupExpiredPendingAction,
   createCheckoutAction,
 } from "@/features/billing/actions";
 import {
@@ -50,6 +49,12 @@ import {
   PaddleProvider,
   usePaddle,
 } from "@/features/billing/components/paddle-provider";
+import {
+  clearCachedPendingCheckout,
+  getCachedPendingCheckoutForPlan,
+  setCachedPendingCheckout,
+  type PersistedPendingCheckout,
+} from "@/features/billing/pending-checkout";
 import type {
   CheckoutActionState,
   CheckoutDialogProps,
@@ -68,26 +73,18 @@ import type {
   PaidPlan,
 } from "@/lib/billing/types";
 import { planMeta } from "@/lib/plans";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
 
 type ControlledCheckoutDialogProps = CheckoutDialogProps & {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  pendingCheckout?: PersistedPendingCheckout | null;
+  checkoutError?: string | null;
+  onCheckoutErrorChange?: (error: string | null) => void;
 };
 
 type PaymentMethod = "qrph" | "card";
-type CheckoutView = "selection" | "qr" | "paddle" | "processing";
-
-type WorkspaceSubscriptionRealtimeRow = {
-  plan?: string | null;
-  status?: string | null;
-};
-
-type PaymentAttemptRealtimeRow = {
-  provider_payment_id?: string | null;
-  status?: string | null;
-};
+type CheckoutView = "selection" | "qr" | "paddle";
 
 const planHighlightsShort: Record<PaidPlan, string[]> = {
   pro: [
@@ -105,85 +102,22 @@ const planHighlightsShort: Record<PaidPlan, string[]> = {
 };
 
 const PADDLE_FRAME_TARGET = "requo-paddle-checkout";
-const PENDING_QR_KEY = "requo:pending-qrph";
-const PROCESSING_RELOAD_DELAY_MS = 1200;
 const isDevelopment = process.env.NODE_ENV === "development";
 
-function getCachedPendingQr(
-  workspaceId: string,
-  plan: PaidPlan,
+function toPendingQrData(
+  checkout: PersistedPendingCheckout | null,
 ): PendingQrPhData | null {
-  if (typeof window === "undefined") {
+  if (!checkout || checkout.provider !== "paymongo") {
     return null;
   }
 
-  try {
-    const raw = window.sessionStorage.getItem(`${PENDING_QR_KEY}:${workspaceId}`);
-
-    if (!raw) {
-      return null;
-    }
-
-    const data = JSON.parse(raw) as PendingQrPhData;
-
-    if (data.plan !== plan) {
-      return null;
-    }
-
-    if (new Date(data.expiresAt) <= new Date()) {
-      window.sessionStorage.removeItem(`${PENDING_QR_KEY}:${workspaceId}`);
-      window.sessionStorage.setItem(
-        `${PENDING_QR_KEY}:expired:${workspaceId}`,
-        "1",
-      );
-      return null;
-    }
-
-    return data;
-  } catch {
-    return null;
-  }
-}
-
-function setCachedPendingQr(workspaceId: string, data: PendingQrPhData): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    window.sessionStorage.setItem(
-      `${PENDING_QR_KEY}:${workspaceId}`,
-      JSON.stringify(data),
-    );
-  } catch {
-    // Ignore unavailable or full storage.
-  }
-}
-
-export function clearCachedPendingQr(workspaceId: string): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    window.sessionStorage.removeItem(`${PENDING_QR_KEY}:${workspaceId}`);
-  } catch {
-    // Ignore unavailable storage.
-  }
-}
-
-async function fetchRealtimeToken() {
-  const response = await fetch("/api/business/notifications/realtime-token", {
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    return null;
-  }
-
-  return (await response.json()) as {
-    expiresAt: string;
-    token: string;
+  return {
+    amount: checkout.amount,
+    currency: "PHP",
+    expiresAt: checkout.expiresAt,
+    paymentIntentId: checkout.paymentIntentId,
+    plan: checkout.plan,
+    qrCodeData: checkout.qrCodeData,
   };
 }
 
@@ -193,12 +127,7 @@ export function CheckoutDialog(props: ControlledCheckoutDialogProps) {
     | "sandbox"
     | "production";
 
-  const dialog = (
-    <CheckoutDialogInner
-      key={`${props.workspaceId}:${props.plan}:${props.open ? "open" : "closed"}`}
-      {...props}
-    />
-  );
+  const dialog = <CheckoutDialogInner {...props} />;
 
   if (!clientToken) {
     return dialog;
@@ -217,35 +146,65 @@ function CheckoutDialogInner({
   plan,
   region,
   workspaceId,
+  checkoutError,
+  onCheckoutErrorChange,
+  pendingCheckout,
 }: ControlledCheckoutDialogProps) {
   const router = useRouter();
   const paddle = usePaddle();
-  const initialPendingQr = getCachedPendingQr(workspaceId, plan);
-  const [interval, setInterval] = useState<BillingInterval>("monthly");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(() =>
-    initialPendingQr ? "qrph" : region === "PH" ? "qrph" : "card",
+  const initialPendingCheckout =
+    pendingCheckout?.plan === plan
+      ? pendingCheckout
+      : getCachedPendingCheckoutForPlan(workspaceId, plan);
+  const initialPendingQr = toPendingQrData(initialPendingCheckout);
+  const initialPaddleTransactionId =
+    initialPendingCheckout?.provider === "paddle"
+      ? initialPendingCheckout.transactionId
+      : null;
+  const [interval, setInterval] = useState<BillingInterval>(
+    initialPendingCheckout?.provider === "paddle"
+      ? initialPendingCheckout.interval
+      : "monthly",
   );
-  const [view, setView] = useState<CheckoutView>(
-    initialPendingQr ? "qr" : "selection",
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(() => {
+    if (initialPendingCheckout?.provider === "paymongo") {
+      return "qrph";
+    }
+
+    if (initialPendingCheckout?.provider === "paddle") {
+      return "card";
+    }
+
+    return region === "PH" ? "qrph" : "card";
+  });
+  const [view, setView] = useState<CheckoutView>(() => {
+    if (initialPendingCheckout?.provider === "paymongo") {
+      return "qr";
+    }
+
+    if (initialPendingCheckout?.provider === "paddle") {
+      return "paddle";
+    }
+
+    return "selection";
+  });
+  const [localCheckoutError, setLocalCheckoutError] = useState<string | null>(
+    checkoutError ?? null,
   );
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [pendingQr, setPendingQr] = useState<PendingQrPhData | null>(
     initialPendingQr,
   );
   const [activePaddleTransactionId, setActivePaddleTransactionId] = useState<
     string | null
-  >(null);
-  const [completedPaddleTransactionId, setCompletedPaddleTransactionId] =
-    useState<string | null>(null);
+  >(initialPaddleTransactionId);
+  const [isAwaitingPaddleConfirmation, setIsAwaitingPaddleConfirmation] =
+    useState(false);
   const [isCancelingQr, setIsCancelingQr] = useState(false);
   const [state, formAction, isPending] = useActionState(
     createCheckoutAction,
     {} as CheckoutActionState,
   );
-  const handledTransactionIdRef = useRef<string | null>(null);
-  const qrCancelInFlightRef = useRef(false);
-  const reloadTimerRef = useRef<number | null>(null);
-  const cleanupFiredRef = useRef(false);
+  const openedPaddleTransactionRef = useRef<string | null>(null);
   const isPH = region === "PH";
   const isQrPh = paymentMethod === "qrph";
   const currency: BillingCurrency = isQrPh ? "PHP" : "USD";
@@ -254,134 +213,155 @@ function CheckoutDialogInner({
   const savingsPercent = getYearlySavingsPercent(plan, currency);
   const PlanIcon = plan === "pro" ? Zap : Crown;
 
-  const scheduleReload = useCallback(() => {
-    if (typeof window === "undefined" || reloadTimerRef.current) {
-      return;
-    }
+  const updateCheckoutError = useCallback(
+    (message: string | null) => {
+      setLocalCheckoutError(message);
+      onCheckoutErrorChange?.(message);
+    },
+    [onCheckoutErrorChange],
+  );
 
-    reloadTimerRef.current = window.setTimeout(() => {
-      window.location.reload();
-    }, PROCESSING_RELOAD_DELAY_MS);
-  }, []);
+  useEffect(() => {
+    const matchingPendingCheckout =
+      pendingCheckout?.plan === plan ? pendingCheckout : null;
 
-  const handleCheckoutSuccess = useCallback(() => {
-    clearCachedPendingQr(workspaceId);
-    setPendingQr(null);
-    setCheckoutError(null);
-    setIsCancelingQr(false);
-    setView("processing");
-    scheduleReload();
-  }, [scheduleReload, workspaceId]);
-
-  const handleQrFailure = useCallback(
-    (message: string) => {
-      if (qrCancelInFlightRef.current) {
+    queueMicrotask(() => {
+      if (!matchingPendingCheckout) {
+        setPendingQr(null);
+        setActivePaddleTransactionId(null);
+        setIsAwaitingPaddleConfirmation(false);
+        setIsCancelingQr(false);
+        setView("selection");
         return;
       }
 
-      clearCachedPendingQr(workspaceId);
-      setPendingQr(null);
-      setIsCancelingQr(false);
-      setCheckoutError(message);
-      setView("selection");
-    },
-    [workspaceId],
-  );
+      if (matchingPendingCheckout.provider === "paymongo") {
+        setPendingQr(toPendingQrData(matchingPendingCheckout));
+        setActivePaddleTransactionId(null);
+        setIsAwaitingPaddleConfirmation(false);
+        setPaymentMethod("qrph");
+        setView("qr");
+        return;
+      }
 
-  const handlePaddleFailure = useCallback((message: string) => {
-    setActivePaddleTransactionId(null);
-    setCompletedPaddleTransactionId(null);
-    setCheckoutError(message);
-    setView("selection");
-  }, []);
+      setPendingQr(null);
+      setActivePaddleTransactionId(matchingPendingCheckout.transactionId);
+      setInterval(matchingPendingCheckout.interval);
+      setPaymentMethod("card");
+      setView("paddle");
+    });
+  }, [pendingCheckout, plan]);
 
   useEffect(() => {
-    return () => {
-      if (reloadTimerRef.current) {
-        clearTimeout(reloadTimerRef.current);
-      }
-    };
-  }, []);
+    if (!open) {
+      openedPaddleTransactionRef.current = null;
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!state.qrData) {
       return;
     }
 
-    const nextPendingQr: PendingQrPhData = {
+    const nextPendingCheckout: PersistedPendingCheckout = {
       amount: state.qrData.amount,
       currency: "PHP",
       expiresAt: state.qrData.expiresAt,
       paymentIntentId: state.qrData.paymentIntentId,
       plan,
+      provider: "paymongo",
       qrCodeData: state.qrData.qrCodeData,
     };
 
-    setCachedPendingQr(workspaceId, nextPendingQr);
-
+    setCachedPendingCheckout(workspaceId, nextPendingCheckout);
     queueMicrotask(() => {
-      setPendingQr(nextPendingQr);
-      setCheckoutError(null);
+      setPendingQr(toPendingQrData(nextPendingCheckout));
+      setActivePaddleTransactionId(null);
+      setIsAwaitingPaddleConfirmation(false);
+      updateCheckoutError(null);
       setIsCancelingQr(false);
       setView("qr");
     });
-  }, [plan, state.qrData, workspaceId]);
+  }, [plan, state.qrData, updateCheckoutError, workspaceId]);
+
+  useEffect(() => {
+    if (!state.paddleTransactionId) {
+      return;
+    }
+
+    const transactionId = state.paddleTransactionId;
+
+    setCachedPendingCheckout(workspaceId, {
+      amount: totalPrice,
+      currency: "USD",
+      interval: effectiveInterval,
+      plan,
+      provider: "paddle",
+      transactionId,
+    });
+    queueMicrotask(() => {
+      setPendingQr(null);
+      setActivePaddleTransactionId(transactionId);
+      setIsAwaitingPaddleConfirmation(false);
+      updateCheckoutError(null);
+      setView("paddle");
+    });
+  }, [
+    effectiveInterval,
+    plan,
+    state.paddleTransactionId,
+    totalPrice,
+    updateCheckoutError,
+    workspaceId,
+  ]);
 
   useEffect(() => {
     if (!state.error) {
       return;
     }
 
+    const error = state.error;
+
     queueMicrotask(() => {
-      setCheckoutError(state.error!);
       setIsCancelingQr(false);
+      setIsAwaitingPaddleConfirmation(false);
       setView("selection");
+      updateCheckoutError(error);
     });
-  }, [state.error]);
+  }, [state.error, updateCheckoutError]);
 
   useEffect(() => {
     if (
-      !state.paddleTransactionId ||
+      !open ||
+      !activePaddleTransactionId ||
       !paddle.isReady ||
-      handledTransactionIdRef.current === state.paddleTransactionId
+      isAwaitingPaddleConfirmation ||
+      openedPaddleTransactionRef.current === activePaddleTransactionId
     ) {
       return;
     }
 
-    const transactionId = state.paddleTransactionId;
-
-    handledTransactionIdRef.current = transactionId;
-    queueMicrotask(() => {
-      setCheckoutError(null);
-      setActivePaddleTransactionId(transactionId);
-      setCompletedPaddleTransactionId(null);
-      setView("paddle");
-    });
+    openedPaddleTransactionRef.current = activePaddleTransactionId;
 
     requestAnimationFrame(() => {
       paddle.openCheckout(
-        transactionId,
+        activePaddleTransactionId,
         {
           onClose: () => {
-            setActivePaddleTransactionId(null);
-            setView("selection");
+            onOpenChange(false);
           },
           onComplete: () => {
-            setCompletedPaddleTransactionId(transactionId);
-            setView("processing");
+            setIsAwaitingPaddleConfirmation(true);
+            updateCheckoutError(null);
+            setView("paddle");
           },
           onError: (message) => {
-            setActivePaddleTransactionId(null);
-            setCompletedPaddleTransactionId(null);
-            setCheckoutError(message);
+            setIsAwaitingPaddleConfirmation(false);
             setView("selection");
+            updateCheckoutError(message);
           },
-          onPaymentFailed: (message) => {
-            paddle.closeCheckout();
-            setActivePaddleTransactionId(null);
-            setCompletedPaddleTransactionId(null);
-            setCheckoutError(message);
-            setView("selection");
+          onPaymentFailed: () => {
+            setIsAwaitingPaddleConfirmation(false);
           },
         },
         {
@@ -393,264 +373,22 @@ function CheckoutDialogInner({
         },
       );
     });
-  }, [paddle, state.paddleTransactionId]);
-
-  useEffect(() => {
-    if (cleanupFiredRef.current) {
-      return;
-    }
-
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const expiredKey = `${PENDING_QR_KEY}:expired:${workspaceId}`;
-
-    if (!window.sessionStorage.getItem(expiredKey)) {
-      return;
-    }
-
-    window.sessionStorage.removeItem(expiredKey);
-    cleanupFiredRef.current = true;
-    void cleanupExpiredPendingAction(workspaceId);
-  }, [workspaceId]);
-
-  useEffect(() => {
-    const shouldMonitorQr = open && Boolean(pendingQr) && view === "qr";
-    const shouldMonitorPaddle = open && Boolean(completedPaddleTransactionId);
-
-    if (!shouldMonitorQr && !shouldMonitorPaddle) {
-      return;
-    }
-
-    let isActive = true;
-    const supabase = createSupabaseBrowserClient();
-    let refreshTimerId: number | null = null;
-    let subscriptionChannel:
-      | Awaited<ReturnType<typeof supabase.channel>>
-      | null = null;
-    let paymentAttemptsChannel:
-      | Awaited<ReturnType<typeof supabase.channel>>
-      | null = null;
-
-    function clearRefreshTimer() {
-      if (refreshTimerId) {
-        clearTimeout(refreshTimerId);
-        refreshTimerId = null;
-      }
-    }
-
-    function scheduleRefresh(expiresAt: string) {
-      clearRefreshTimer();
-      const refreshInMs = Math.max(
-        new Date(expiresAt).getTime() - Date.now() - 60_000,
-        30_000,
-      );
-
-      refreshTimerId = window.setTimeout(() => {
-        void refreshRealtimeAuth();
-      }, refreshInMs);
-    }
-
-    async function refreshRealtimeAuth() {
-      const nextToken = await fetchRealtimeToken();
-
-      if (!nextToken || !isActive) {
-        return;
-      }
-
-      await supabase.realtime.setAuth(nextToken.token);
-      scheduleRefresh(nextToken.expiresAt);
-    }
-
-    function handleSubscriptionRow(row: WorkspaceSubscriptionRealtimeRow) {
-      const status = row.status;
-      const rowPlan = row.plan;
-
-      if (status === "active" && rowPlan === plan) {
-        handleCheckoutSuccess();
-        return;
-      }
-
-      if (!shouldMonitorQr) {
-        return;
-      }
-
-      if (
-        status === "expired" ||
-        status === "incomplete" ||
-        status === "canceled" ||
-        status === "free"
-      ) {
-        const message =
-          status === "expired"
-            ? "This QR Ph payment expired. Generate a new QR code to try again."
-            : "QR Ph payment failed. Please try again.";
-
-        handleQrFailure(message);
-      }
-    }
-
-    function handlePaymentAttemptRow(row: PaymentAttemptRealtimeRow) {
-      if (
-        !shouldMonitorPaddle ||
-        row.provider_payment_id !== completedPaddleTransactionId
-      ) {
-        return;
-      }
-
-      if (row.status === "failed") {
-        handlePaddleFailure("Payment failed. Please try again.");
-      }
-    }
-
-    async function checkSubscriptionStatus() {
-      const { data: subscriptionData } = await supabase
-        .from("workspace_subscriptions")
-        .select("plan, status")
-        .eq("workspace_id", workspaceId)
-        .maybeSingle();
-
-      if (subscriptionData && isActive) {
-        handleSubscriptionRow(subscriptionData);
-      }
-    }
-
-    async function checkPaymentAttemptStatus() {
-      if (!shouldMonitorPaddle || !completedPaddleTransactionId) {
-        return;
-      }
-
-      const { data: paymentAttempts } = await supabase
-        .from("payment_attempts")
-        .select("provider_payment_id, status")
-        .eq("provider_payment_id", completedPaddleTransactionId)
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      const latestAttempt = paymentAttempts?.[0];
-
-      if (latestAttempt && isActive) {
-        handlePaymentAttemptRow(latestAttempt);
-      }
-    }
-
-    async function connectRealtime() {
-      const tokenData = await fetchRealtimeToken();
-
-      if (!tokenData || !isActive) {
-        return;
-      }
-
-      await supabase.realtime.setAuth(tokenData.token);
-
-      subscriptionChannel = supabase
-        .channel(`workspace-subscription:${workspaceId}:${plan}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            filter: `workspace_id=eq.${workspaceId}`,
-            schema: "public",
-            table: "workspace_subscriptions",
-          },
-          (payload) => {
-            handleSubscriptionRow(
-              payload.new as WorkspaceSubscriptionRealtimeRow,
-            );
-          },
-        )
-        .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            filter: `workspace_id=eq.${workspaceId}`,
-            schema: "public",
-            table: "workspace_subscriptions",
-          },
-          (payload) => {
-            handleSubscriptionRow(
-              payload.new as WorkspaceSubscriptionRealtimeRow,
-            );
-          },
-        )
-        .subscribe(async (status) => {
-          if (status === "SUBSCRIBED" && isActive) {
-            await checkSubscriptionStatus();
-          }
-        });
-
-      if (shouldMonitorPaddle && completedPaddleTransactionId) {
-        paymentAttemptsChannel = supabase
-          .channel(`payment-attempt:${completedPaddleTransactionId}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "INSERT",
-              filter: `provider_payment_id=eq.${completedPaddleTransactionId}`,
-              schema: "public",
-              table: "payment_attempts",
-            },
-            (payload) => {
-              handlePaymentAttemptRow(payload.new as PaymentAttemptRealtimeRow);
-            },
-          )
-          .on(
-            "postgres_changes",
-            {
-              event: "UPDATE",
-              filter: `provider_payment_id=eq.${completedPaddleTransactionId}`,
-              schema: "public",
-              table: "payment_attempts",
-            },
-            (payload) => {
-              handlePaymentAttemptRow(payload.new as PaymentAttemptRealtimeRow);
-            },
-          )
-          .subscribe(async (status) => {
-            if (status === "SUBSCRIBED" && isActive) {
-              await checkPaymentAttemptStatus();
-            }
-          });
-      }
-
-      scheduleRefresh(tokenData.expiresAt);
-    }
-
-    void connectRealtime();
-
-    return () => {
-      isActive = false;
-      clearRefreshTimer();
-
-      if (subscriptionChannel) {
-        void supabase.removeChannel(subscriptionChannel);
-      }
-
-      if (paymentAttemptsChannel) {
-        void supabase.removeChannel(paymentAttemptsChannel);
-      }
-    };
   }, [
-    completedPaddleTransactionId,
-    handleCheckoutSuccess,
-    handlePaddleFailure,
-    handleQrFailure,
+    activePaddleTransactionId,
+    isAwaitingPaddleConfirmation,
+    onOpenChange,
+    paddle,
     open,
-    pendingQr,
-    plan,
-    view,
-    workspaceId,
+    updateCheckoutError,
   ]);
 
-  const handleQrClose = useCallback(async () => {
-    if (!pendingQr || qrCancelInFlightRef.current) {
+  const handleQrCancel = useCallback(async () => {
+    if (!pendingQr) {
       return;
     }
 
-    qrCancelInFlightRef.current = true;
     setIsCancelingQr(true);
-    setCheckoutError(null);
+    updateCheckoutError(null);
 
     const result = await cancelPendingQrCheckoutAction(
       workspaceId,
@@ -658,25 +396,25 @@ function CheckoutDialogInner({
     );
 
     if (!result.ok) {
-      qrCancelInFlightRef.current = false;
       setIsCancelingQr(false);
-      setCheckoutError(result.error);
+      updateCheckoutError(result.error);
       return;
     }
 
     if (result.outcome === "already_paid") {
-      qrCancelInFlightRef.current = false;
-      handleCheckoutSuccess();
+      setIsCancelingQr(false);
+      onOpenChange(false);
+      router.refresh();
       return;
     }
 
-    clearCachedPendingQr(workspaceId);
-    qrCancelInFlightRef.current = false;
+    clearCachedPendingCheckout(workspaceId, "paymongo");
     setPendingQr(null);
     setIsCancelingQr(false);
+    setView("selection");
     onOpenChange(false);
     router.refresh();
-  }, [handleCheckoutSuccess, onOpenChange, pendingQr, router, workspaceId]);
+  }, [onOpenChange, pendingQr, router, updateCheckoutError, workspaceId]);
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -685,90 +423,89 @@ function CheckoutDialogInner({
         return;
       }
 
-      if (isPending || view === "processing") {
+      if (isPending) {
         return;
       }
 
-      if (pendingQr) {
-        void handleQrClose();
-        return;
-      }
-
-      if (view === "paddle" || activePaddleTransactionId) {
+      if (view === "paddle" && activePaddleTransactionId) {
         paddle.closeCheckout();
       }
 
       onOpenChange(false);
     },
-    [
-      activePaddleTransactionId,
-      handleQrClose,
-      isPending,
-      onOpenChange,
-      paddle,
-      pendingQr,
-      view,
-    ],
+    [activePaddleTransactionId, isPending, onOpenChange, paddle, view],
   );
+
+  const resolvedCheckoutError = checkoutError ?? localCheckoutError;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
-        className="max-w-lg gap-0 overflow-hidden p-0"
-        showCloseButton={view !== "processing"}
-      >
+      <DialogContent className="max-w-lg gap-0 overflow-hidden p-0">
         <DialogHeader className="px-6 pt-6 pb-0">
           <DialogTitle className="px-2 text-xl">
-            {view === "processing"
-              ? "Processing your payment"
-              : view === "paddle"
-                ? "Complete your payment"
-                : view === "qr"
-                  ? "Scan to pay"
-                  : `Upgrade to ${planMeta[plan].label}`}
+            {view === "paddle"
+              ? "Complete your payment"
+              : view === "qr"
+                ? "Scan to pay"
+                : `Upgrade to ${planMeta[plan].label}`}
           </DialogTitle>
           <DialogDescription className="px-2">
-            {view === "processing"
-              ? "We are confirming your payment and activating your workspace."
-              : view === "paddle"
-                ? "Finish the payment in the inline checkout below."
-                : view === "qr"
-                  ? "Scan the QR code with your banking app. Closing this dialog will stop the pending QR checkout."
-                  : "Choose how you want to pay for this plan upgrade."}
+            {view === "paddle"
+              ? "Finish the payment in the inline checkout below."
+              : view === "qr"
+                ? "Scan the QR code with your banking app. You can close this dialog and continue from the same QR code later."
+                : "Choose how you want to pay for this plan upgrade."}
           </DialogDescription>
         </DialogHeader>
 
-        {view === "processing" ? (
-          <DialogBody className="flex flex-col items-center gap-4 py-10">
-            <Spinner aria-hidden="true" className="size-8" />
-            <p className="text-center text-sm text-muted-foreground">
-              Activating {planMeta[plan].label} for this workspace.
-            </p>
-          </DialogBody>
-        ) : view === "paddle" && activePaddleTransactionId ? (
+        {view === "paddle" ? (
           <DialogBody className="overflow-y-auto p-0">
-            <div className="flex items-center justify-between border-b border-border/40 px-6 py-4 text-sm">
-              <span className="text-muted-foreground">
-                {planMeta[plan].label} plan
-                <span className="ml-1 text-xs">
-                  ({effectiveInterval === "monthly" ? "monthly" : "yearly"})
-                </span>
-              </span>
-              <span className="font-medium text-foreground">
-                {getPlanPriceLabel(plan, currency, effectiveInterval)}
-              </span>
-            </div>
-            <div className="px-4 py-4">
-              <div className={PADDLE_FRAME_TARGET} />
-            </div>
+            {isAwaitingPaddleConfirmation ? (
+              <div className="flex flex-col items-center gap-4 px-6 py-10">
+                <Spinner aria-hidden="true" className="size-8" />
+                <div className="space-y-1 text-center">
+                  <p className="text-sm font-medium text-foreground">
+                    Waiting for payment confirmation
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    We&apos;ll update this workspace as soon as Paddle confirms
+                    the payment.
+                  </p>
+                </div>
+              </div>
+            ) : activePaddleTransactionId ? (
+              <>
+                <div className="flex items-center justify-between border-b border-border/40 px-6 py-4 text-sm">
+                  <span className="text-muted-foreground">
+                    {planMeta[plan].label} plan
+                    <span className="ml-1 text-xs">
+                      ({effectiveInterval === "monthly" ? "monthly" : "yearly"})
+                    </span>
+                  </span>
+                  <span className="font-medium text-foreground">
+                    {getPlanPriceLabel(plan, currency, effectiveInterval)}
+                  </span>
+                </div>
+                <div className="px-4 py-4">
+                  <div className={PADDLE_FRAME_TARGET} />
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-4 px-6 py-10">
+                <Spinner aria-hidden="true" className="size-8" />
+                <p className="text-center text-sm text-muted-foreground">
+                  Restoring your checkout session.
+                </p>
+              </div>
+            )}
           </DialogBody>
         ) : view === "qr" && pendingQr ? (
           <DialogBody className="overflow-y-auto pb-6">
             <QrPhPaymentView
-              error={checkoutError}
+              error={resolvedCheckoutError}
               isCanceling={isCancelingQr}
-              onClose={() => {
-                void handleQrClose();
+              onCancel={() => {
+                void handleQrCancel();
               }}
               plan={plan}
               qrData={pendingQr}
@@ -821,7 +558,10 @@ function CheckoutDialogInner({
                             ? "bg-background text-foreground shadow-sm"
                             : "text-muted-foreground hover:text-foreground",
                         )}
-                        onClick={() => setInterval("monthly")}
+                        onClick={() => {
+                          setInterval("monthly");
+                          updateCheckoutError(null);
+                        }}
                         type="button"
                       >
                         Monthly
@@ -833,7 +573,10 @@ function CheckoutDialogInner({
                             ? "bg-background text-foreground shadow-sm"
                             : "text-muted-foreground hover:text-foreground",
                         )}
-                        onClick={() => setInterval("yearly")}
+                        onClick={() => {
+                          setInterval("yearly");
+                          updateCheckoutError(null);
+                        }}
                         type="button"
                       >
                         Yearly
@@ -859,7 +602,10 @@ function CheckoutDialogInner({
                             ? "border-primary/40 bg-accent/30 shadow-[0_0_0_1px_hsl(var(--primary)/0.12)]"
                             : "border-border/60 bg-card/60 hover:border-border hover:bg-accent/10",
                         )}
-                        onClick={() => setPaymentMethod("qrph")}
+                        onClick={() => {
+                          setPaymentMethod("qrph");
+                          updateCheckoutError(null);
+                        }}
                         type="button"
                       >
                         <div className="min-w-0 flex-1">
@@ -884,7 +630,10 @@ function CheckoutDialogInner({
                           ? "border-primary/40 bg-accent/30 shadow-[0_0_0_1px_hsl(var(--primary)/0.12)]"
                           : "border-border/60 bg-card/60 hover:border-border hover:bg-accent/10",
                       )}
-                      onClick={() => setPaymentMethod("card")}
+                      onClick={() => {
+                        setPaymentMethod("card");
+                        updateCheckoutError(null);
+                      }}
                       type="button"
                     >
                       <div className="min-w-0 flex-1">
@@ -967,11 +716,11 @@ function CheckoutDialogInner({
                   </span>
                 </div>
 
-                {checkoutError ? (
+                {resolvedCheckoutError ? (
                   <Alert variant="destructive">
                     <AlertCircle />
                     <AlertTitle>Payment issue</AlertTitle>
-                    <AlertDescription>{checkoutError}</AlertDescription>
+                    <AlertDescription>{resolvedCheckoutError}</AlertDescription>
                   </Alert>
                 ) : null}
 
@@ -1013,13 +762,13 @@ function CheckoutDialogInner({
 function QrPhPaymentView({
   error,
   isCanceling,
-  onClose,
+  onCancel,
   plan,
   qrData,
 }: {
   error: string | null;
   isCanceling: boolean;
-  onClose: () => void;
+  onCancel: () => void;
   plan: PaidPlan;
   qrData: PendingQrPhData;
 }) {
@@ -1082,16 +831,16 @@ function QrPhPaymentView({
         </Alert>
       ) : null}
 
-      <Button className="w-full" onClick={onClose} type="button" variant="outline">
+      <Button className="w-full" onClick={onCancel} type="button" variant="outline">
         {isCanceling ? (
           <>
             <Spinner aria-hidden="true" />
-            Stopping pending checkout...
+            Canceling pending checkout...
           </>
         ) : (
           <>
             <QrCode data-icon="inline-start" />
-            Stop pending checkout
+            Cancel pending checkout
           </>
         )}
       </Button>

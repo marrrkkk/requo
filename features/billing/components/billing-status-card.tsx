@@ -41,8 +41,8 @@ import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { PlanBadge } from "@/components/shared/paywall";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
-import { clearCachedPendingQr } from "@/features/billing/components/checkout-dialog";
 import { cancelSubscriptionAction } from "@/features/billing/actions";
+import { clearCachedPendingCheckout, clearCachedPendingQrCheckout } from "@/features/billing/pending-checkout";
 import type { WorkspaceBillingOverview, CancelActionState } from "@/features/billing/types";
 import { planMeta, getUsageLimit, planFeatures, hasFeatureAccess, planFeatureLabels } from "@/lib/plans";
 import { getPlanPriceLabel, getCurrencySymbol } from "@/lib/billing/plans";
@@ -80,7 +80,7 @@ export function BillingStatusCard({
   const cancelSuccess = cancelState.success;
   useEffect(() => {
     if (cancelSuccess) {
-      clearCachedPendingQr(workspaceId);
+      clearCachedPendingCheckout(workspaceId);
     }
   }, [cancelSuccess, workspaceId]);
 
@@ -97,10 +97,10 @@ export function BillingStatusCard({
   // payment.failed) updated the status but the sessionStorage cache wasn't
   // cleared (e.g. user closed the tab or realtime was disconnected).
   useEffect(() => {
-    if (!hasPendingSubscription) {
-      clearCachedPendingQr(workspaceId);
+    if (subscription?.provider !== "paymongo" || !hasPendingSubscription) {
+      clearCachedPendingQrCheckout(workspaceId);
     }
-  }, [hasPendingSubscription, workspaceId]);
+  }, [hasPendingSubscription, subscription?.provider, workspaceId]);
 
   return (
     <div className="flex flex-col gap-6">
