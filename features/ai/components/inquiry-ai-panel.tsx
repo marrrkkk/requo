@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   useEffect,
   useRef,
@@ -15,20 +16,18 @@ import {
   Mail,
   ReceiptText,
   SendHorizontal,
-  Sparkles,
   Wand2,
+  X,
 } from "lucide-react";
 
+import { BrandWordmark } from "@/components/shared/brand-wordmark";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -369,7 +368,7 @@ function TranscriptMessage({
             ? message.label
             : message.isError
               ? "Assistant error"
-              : "AI assistant"}
+              : "Requo assistant"}
         </span>
 
         <div
@@ -480,7 +479,7 @@ export function InquiryAiPanel({ inquiryId, userName }: InquiryAiPanelProps) {
     transcriptEndRef.current?.scrollIntoView({
       block: "end",
     });
-  }, [messages, isPending]);
+  }, [isOpen, messages, isPending]);
 
   function updateMessage(
     messageId: string,
@@ -499,7 +498,7 @@ export function InquiryAiPanel({ inquiryId, userName }: InquiryAiPanelProps) {
       {
         id: createMessageId(),
         role: "assistant",
-        label: isError ? "Assistant error" : "AI assistant",
+        label: isError ? "Assistant error" : "Requo assistant",
         content,
         isError,
         title: isError ? "Check that request" : undefined,
@@ -533,7 +532,7 @@ export function InquiryAiPanel({ inquiryId, userName }: InquiryAiPanelProps) {
       {
         id: assistantMessageId,
         role: "assistant",
-        label: "AI assistant",
+        label: "Requo assistant",
         content: "",
         pending: true,
       },
@@ -787,47 +786,81 @@ export function InquiryAiPanel({ inquiryId, userName }: InquiryAiPanelProps) {
   }
 
   return (
-    <>
-      <div className="fixed bottom-4 right-4 z-40 sm:bottom-5 sm:right-5">
-        <Button
-          aria-label="Open AI reply assistant"
-          className="rounded-full px-4 shadow-[var(--surface-shadow-lg)]"
-          data-testid="inquiry-ai-launcher"
-          onClick={() => setIsOpen(true)}
-          size="lg"
-          type="button"
-        >
-          <Sparkles data-icon="inline-start" />
-          <span className="sm:hidden">AI</span>
-          <span className="hidden sm:inline">AI assistant</span>
-        </Button>
-      </div>
+    <div className="fixed bottom-4 right-4 z-40 sm:bottom-5 sm:right-5">
+      <Popover onOpenChange={setIsOpen} open={isOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            aria-label={isOpen ? "Close Requo assistant" : "Open Requo assistant"}
+            className="size-14 rounded-full border-border/70 bg-[var(--surface-elevated-bg)] p-0 shadow-[var(--surface-shadow-lg)]"
+            data-testid="inquiry-ai-launcher"
+            size="icon-lg"
+            type="button"
+            variant="outline"
+          >
+            <Image
+              src="/logo.svg"
+              alt=""
+              width={34}
+              height={34}
+              className="size-[2.15rem] object-contain"
+            />
+            <span className="sr-only">
+              {isOpen ? "Close Requo assistant" : "Open Requo assistant"}
+            </span>
+          </Button>
+        </PopoverTrigger>
 
-      <Dialog onOpenChange={setIsOpen} open={isOpen}>
-        <DialogContent
-          className="max-w-5xl sm:w-[min(calc(100vw-2rem),78rem)]"
+        <PopoverContent
+          align="end"
+          className="overlay-surface h-[min(calc(100vh-6rem),42rem)] w-[min(calc(100vw-1rem),27rem)] gap-0 overflow-hidden rounded-[1.5rem] border p-0 text-foreground"
+          collisionPadding={8}
           data-testid="inquiry-ai-dialog"
+          onOpenAutoFocus={(event) => event.preventDefault()}
+          side="top"
+          sideOffset={18}
         >
-          <DialogHeader className="gap-4">
-            <div className="flex items-start gap-4">
-              <div className="flex size-11 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-                <Sparkles />
+          <div className="flex h-full min-h-0 flex-col">
+            <div className="surface-card-footer flex items-start justify-between gap-3 border-b border-border/70 px-4 py-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-background/84 shadow-[var(--surface-shadow-sm)]">
+                  <Image
+                    src="/logo.svg"
+                    alt=""
+                    width={28}
+                    height={28}
+                    className="size-7 object-contain"
+                  />
+                </div>
+
+                <div className="min-w-0 flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <BrandWordmark className="text-[1.08rem]" />
+                    <span className="inline-flex items-center gap-1 text-[0.66rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                      <span className="size-1.5 rounded-full bg-primary" />
+                      Internal
+                    </span>
+                  </div>
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    Ask about this inquiry, draft a reply, or rewrite rough text.
+                  </p>
+                </div>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <DialogTitle>AI reply assistant</DialogTitle>
-                <DialogDescription className="max-w-2xl leading-6">
-                  Quick actions send immediately. Use the message box for custom
-                  requests or to paste rough text before running Rewrite draft.
-                </DialogDescription>
-              </div>
+              <Button
+                aria-label="Close Requo assistant"
+                onClick={() => setIsOpen(false)}
+                size="icon-sm"
+                type="button"
+                variant="ghost"
+              >
+                <X />
+                <span className="sr-only">Close assistant</span>
+              </Button>
             </div>
-          </DialogHeader>
 
-          <DialogBody className="min-h-0 flex-1 gap-0 px-0 py-0 sm:px-0 sm:py-0">
-            <div className="flex min-h-0 flex-1 flex-col">
-              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
-                <div className="flex min-h-full flex-col gap-4">
+            <div className="min-h-0 flex-1">
+              <ScrollArea className="h-full">
+                <div className="flex min-h-full flex-col gap-4 px-4 py-4">
                   {messages.length ? (
                     messages.map((message) => (
                       <TranscriptMessage
@@ -840,14 +873,14 @@ export function InquiryAiPanel({ inquiryId, userName }: InquiryAiPanelProps) {
                       />
                     ))
                   ) : (
-                    <div className="flex min-h-[20rem] items-end">
-                      <div className="section-panel max-w-2xl rounded-2xl p-5 shadow-none">
+                    <div className="flex min-h-[17rem] items-end">
+                      <div className="soft-panel max-w-[20rem] rounded-[1.35rem] px-4 py-4 shadow-none">
                         <div className="flex flex-col gap-3">
-                          <span className="meta-label">AI assistant</span>
+                          <span className="meta-label">Requo assistant</span>
                           <h3 className="font-heading text-lg font-semibold text-foreground">
                             Start with a quick ask
                           </h3>
-                          <p className="text-sm leading-7 text-muted-foreground">
+                          <p className="text-sm leading-6 text-muted-foreground">
                             Use the preset buttons below to draft the first reply,
                             summarize the inquiry, suggest follow-up questions, or
                             outline quote line items. For a custom ask, type your
@@ -860,80 +893,80 @@ export function InquiryAiPanel({ inquiryId, userName }: InquiryAiPanelProps) {
 
                   <div ref={transcriptEndRef} />
                 </div>
-              </div>
+              </ScrollArea>
+            </div>
 
-              <div className="border-t border-border/70 px-5 py-5 sm:px-6">
-                <div className="flex flex-col gap-4">
-                  <div className="flex flex-wrap gap-2">
-                    {presetActions.map((preset) => {
-                      const Icon = preset.icon;
+            <div className="border-t border-border/70 px-4 py-4">
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-wrap gap-2">
+                  {presetActions.map((preset) => {
+                    const Icon = preset.icon;
 
-                      return (
-                        <Button
-                          disabled={isPending}
-                          key={preset.intent}
-                          onClick={() => {
-                            void runIntent(preset.intent);
-                          }}
-                          size="sm"
-                          title={preset.description}
-                          type="button"
-                          variant="outline"
-                        >
-                          <Icon data-icon="inline-start" />
-                          {preset.label}
-                        </Button>
-                      );
-                    })}
-                  </div>
-
-                  <form className="flex flex-col gap-3" onSubmit={handleCustomSubmit}>
-                    <Textarea
-                      className="max-h-56 min-h-28"
-                      disabled={isPending}
-                      maxLength={6000}
-                      onChange={(event) => setComposerValue(event.currentTarget.value)}
-                      onKeyDown={handleComposerKeyDown}
-                      placeholder="Ask anything about this inquiry, or paste rough text and use Rewrite draft."
-                      rows={4}
-                      value={composerValue}
-                    />
-
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                      <p className="text-xs leading-5 text-muted-foreground">
-                        Press Ctrl/Cmd + Enter to send. Rewrite draft uses the text
-                        currently in the message box.
-                      </p>
-
+                    return (
                       <Button
-                        disabled={isPending || !composerValue.trim()}
-                        type="submit"
+                        className="rounded-full"
+                        disabled={isPending}
+                        key={preset.intent}
+                        onClick={() => {
+                          void runIntent(preset.intent);
+                        }}
+                        size="sm"
+                        title={preset.description}
+                        type="button"
+                        variant="outline"
                       >
-                        {isPending ? (
-                          <>
-                            <Spinner aria-hidden="true" data-icon="inline-start" />
-                            Sending...
-                          </>
-                        ) : (
-                          <>
-                            <SendHorizontal data-icon="inline-start" />
-                            Send
-                          </>
-                        )}
+                        <Icon data-icon="inline-start" />
+                        {preset.label}
                       </Button>
-                    </div>
-                  </form>
+                    );
+                  })}
                 </div>
+
+                <form className="flex flex-col gap-3" onSubmit={handleCustomSubmit}>
+                  <Textarea
+                    className="max-h-44 min-h-24"
+                    disabled={isPending}
+                    maxLength={6000}
+                    onChange={(event) => setComposerValue(event.currentTarget.value)}
+                    onKeyDown={handleComposerKeyDown}
+                    placeholder="Ask about this inquiry, or paste rough text and use Rewrite draft."
+                    rows={4}
+                    value={composerValue}
+                  />
+
+                  <div className="flex items-end justify-between gap-3">
+                    <p className="max-w-[14rem] text-xs leading-5 text-muted-foreground">
+                      Press Ctrl/Cmd + Enter to send.
+                    </p>
+
+                    <Button
+                      disabled={isPending || !composerValue.trim()}
+                      type="submit"
+                    >
+                      {isPending ? (
+                        <>
+                          <Spinner aria-hidden="true" data-icon="inline-start" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <SendHorizontal data-icon="inline-start" />
+                          Send
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </form>
               </div>
             </div>
-          </DialogBody>
 
-          <DialogFooter className="text-xs text-muted-foreground sm:items-center sm:justify-between sm:gap-4">
-            <span>Internal assistant only</span>
-            <span>No customer-facing chat or automatic sending</span>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+            <div className="surface-card-footer flex flex-wrap items-center justify-between gap-2 border-t border-border/70 px-4 py-3 text-[0.72rem] text-muted-foreground">
+              <span>Internal assistant only</span>
+              <span>No customer-facing sending</span>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 }
