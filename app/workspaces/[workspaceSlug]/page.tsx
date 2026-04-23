@@ -89,19 +89,6 @@ export default async function WorkspacePage(props: WorkspacePageProps) {
             </Button>
           </div>
           <div className="flex items-center gap-3">
-            {isOwner && (
-              <Button
-                asChild
-                className="size-10 rounded-xl border-border/70 bg-background/90 shadow-sm hover:bg-muted/35"
-                size="icon"
-                title="Workspace settings"
-                variant="outline"
-              >
-                <Link href={getWorkspaceSettingsPath(overview.slug)} prefetch={true}>
-                  <Settings2 className="size-4" />
-                </Link>
-              </Button>
-            )}
             <AccountUserMenu
               user={{
                 id: session.user.id,
@@ -125,9 +112,7 @@ export default async function WorkspacePage(props: WorkspacePageProps) {
             </div>
             
             <WorkspaceOverviewContent
-              businessView={businessView}
               overview={overview}
-              searchParams={searchParams}
               workspaceList={workspaceList}
               billingOverview={billingOverview!}
               createBusinessAction={createBusinessAction}

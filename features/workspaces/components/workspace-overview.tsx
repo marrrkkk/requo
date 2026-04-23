@@ -6,10 +6,11 @@ import {
   ArrowRight,
   CalendarClock,
   PlusCircle,
+  Settings2,
 } from "lucide-react";
 
-import { BillingStatusCard } from "@/features/billing/components/billing-status-card";
 import { Badge } from "@/components/ui/badge";
+import { BillingStatusCard } from "@/features/billing/components/billing-status-card";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,26 +19,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Combobox } from "@/components/ui/combobox";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
-import { getWorkspacePath } from "@/features/workspaces/routes";
+import { getWorkspacePath, getWorkspaceSettingsPath } from "@/features/workspaces/routes";
 import { businessTypeMeta } from "@/features/inquiries/business-types";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
-import { DashboardDetailFeed, DashboardDetailFeedItem } from "@/components/shared/dashboard-layout";
 import { CreateBusinessDialog } from "@/features/businesses/components/create-business-dialog";
 import type { WorkspaceOverview, WorkspaceListItem } from "@/features/workspaces/types";
 import type { CreateBusinessActionState } from "@/features/businesses/types";
 import type { WorkspaceBillingOverview } from "@/features/billing/types";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useProgressRouter } from "@/hooks/use-progress-router";
 
 type WorkspaceOverviewContentProps = {
-  businessView: "active" | "archived" | "trash";
   overview: WorkspaceOverview;
-  searchParams: Record<string, string | undefined>;
   workspaceList: WorkspaceListItem[];
   billingOverview: WorkspaceBillingOverview;
   createBusinessAction: (
@@ -47,63 +41,24 @@ type WorkspaceOverviewContentProps = {
 };
 
 export function WorkspaceOverviewContent({
-  businessView,
   overview,
-  searchParams,
   workspaceList,
   billingOverview,
   createBusinessAction,
 }: WorkspaceOverviewContentProps) {
-  const router = useProgressRouter();
-  const workspacePath = getWorkspacePath(overview.slug);
-
   return (
     <div className="grid flex-1 gap-6 xl:grid-cols-3">
       <section className="space-y-4 xl:col-span-2">
-        <Tabs defaultValue="businesses" className="w-full">
+        <div className="w-full">
           <div className="mb-4 flex flex-col gap-3">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <TabsList>
-                  <TabsTrigger value="businesses">
-                    Businesses ({overview.businesses.length})
-                  </TabsTrigger>
-                  <TabsTrigger value="members">
-                    Members ({overview.members.length})
-                  </TabsTrigger>
-                </TabsList>
-                <Combobox
-                  buttonClassName="w-full sm:w-[11rem]"
-                  id="workspace-business-view"
-                  onValueChange={(value) => {
-                    const params = new URLSearchParams();
-
-                    for (const [key, currentValue] of Object.entries(searchParams)) {
-                      if (typeof currentValue === "string" && key !== "view") {
-                        params.set(key, currentValue);
-                      }
-                    }
-
-                    if (value !== "active") {
-                      params.set("view", value);
-                    }
-
-                    params.delete("page");
-
-                    const href = params.size
-                      ? `${workspacePath}?${params.toString()}`
-                      : workspacePath;
-
-                    router.push(href);
-                  }}
-                  options={[
-                    { label: "Active", value: "active" },
-                    { label: "Archived", value: "archived" },
-                    { label: "Trash", value: "trash" },
-                  ]}
-                  placeholder="Choose a business view"
-                  value={businessView}
-                />
+                <Button asChild variant="outline">
+                  <Link href={getWorkspaceSettingsPath(overview.slug)} prefetch={true}>
+                    <Settings2 data-icon="inline-start" className="size-4" />
+                    Manage workspace
+                  </Link>
+                </Button>
               </div>
               <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
                 <CreateBusinessDialog
@@ -132,7 +87,7 @@ export function WorkspaceOverviewContent({
             </div>
           </div>
 
-          <TabsContent value="businesses" className="space-y-4 outline-none">
+          <div className="space-y-4 outline-none">
             {overview.businesses.length ? (
               <div className="grid gap-4 lg:grid-cols-2">
                 {overview.businesses.map((business) => {
@@ -226,47 +181,13 @@ export function WorkspaceOverviewContent({
                 </CardContent>
               </Card>
             )}
-          </TabsContent>
-
-          <TabsContent value="members" className="outline-none">
-            <Card>
-              <CardHeader>
-                <CardTitle>Workspace Members</CardTitle>
-                <CardDescription>
-                  Users with access to this workspace.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <DashboardDetailFeed>
-                  {overview.members.map((member) => (
-                    <DashboardDetailFeedItem
-                      key={member.userId}
-                      avatar={
-                        <Avatar className="size-9 border border-border/70 shadow-sm">
-                          <AvatarFallback className="bg-background text-xs font-semibold text-foreground">
-                            {getInitials(member.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                      }
-                      title={member.name}
-                      meta={member.email}
-                      action={
-                        <Badge variant="outline" className="capitalize">
-                          {member.role}
-                        </Badge>
-                      }
-                    />
-                  ))}
-                </DashboardDetailFeed>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       </section>
 
       <aside className="xl:col-span-1">
         <div className="sticky top-6">
-          <BillingStatusCard billing={billingOverview} showPlanComparison={false} />
+          <BillingStatusCard billing={billingOverview} showPlanComparison={false} variant="overview" />
         </div>
       </aside>
     </div>

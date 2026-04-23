@@ -17,9 +17,7 @@ export type WorkspaceSettingsNavigationGroup = {
   items: WorkspaceSettingsNavigationItem[];
 };
 
-export function getDefaultWorkspaceSettingsSection() {
-  return "general" as const;
-}
+
 
 export function getWorkspaceSettingsNavigation(
   workspaceSlug: string,

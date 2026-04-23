@@ -23,12 +23,14 @@ import {
   Check,
   X,
 } from "lucide-react";
+import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -44,6 +46,7 @@ import { cancelSubscriptionAction } from "@/features/billing/actions";
 import type { WorkspaceBillingOverview, CancelActionState } from "@/features/billing/types";
 import { planMeta, getUsageLimit, planFeatures, hasFeatureAccess, planFeatureLabels } from "@/lib/plans";
 import { getPlanPriceLabel, getCurrencySymbol } from "@/lib/billing/plans";
+import { getWorkspaceSettingsPath } from "@/features/workspaces/routes";
 import { cn } from "@/lib/utils";
 
 type BillingStatusCardProps = {
@@ -56,12 +59,14 @@ type BillingStatusCardProps = {
     quotes: number;
     requoQuoteEmailsThisMonth: number;
   };
+  variant?: "full" | "overview";
 };
 
 export function BillingStatusCard({
   billing,
   showPlanComparison = true,
   freePlanUsage,
+  variant = "full",
 }: BillingStatusCardProps) {
   const { subscription, currentPlan, workspaceId, workspaceSlug, region, defaultCurrency } =
     billing;
@@ -86,34 +91,65 @@ export function BillingStatusCard({
   const hasPendingSubscription =
     subscription && subscription.status === "pending";
   const hasSubscription = hasActiveSubscription || hasPendingSubscription;
+  const isOverviewVariant = variant === "overview";
 
   return (
     <div className="flex flex-col gap-6">
       {/* Current plan overview */}
-      <Card>
-        <CardHeader className="pb-0">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex flex-col gap-1.5">
-              <span className="meta-label">Current plan</span>
-              <div className="flex items-center gap-3">
-                <CardTitle className="text-2xl">
-                  {planMeta[currentPlan].label}
-                </CardTitle>
-                {hasSubscription ? (
-                  <StatusBadge status={subscription.status} canceled={!!subscription.canceledAt} />
-                ) : null}
+      <Card className={cn(isOverviewVariant && "gap-0")}>
+        {isOverviewVariant ? (
+          <CardHeader className="gap-3 pb-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-col gap-2">
+                <span className="meta-label">Current plan</span>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <CardTitle className="text-2xl">
+                    {planMeta[currentPlan].label}
+                  </CardTitle>
+                  {hasSubscription ? (
+                    <StatusBadge
+                      status={subscription.status}
+                      canceled={!!subscription.canceledAt}
+                    />
+                  ) : null}
+                </div>
               </div>
+              <PlanBadge className="shrink-0" plan={currentPlan} />
             </div>
-            <PlanBadge plan={currentPlan} />
-          </div>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            {planMeta[currentPlan].description}
-          </p>
-        </CardContent>
-        {isFreePlan || currentPlan === "pro" ? (
-          <CardFooter className="flex-wrap gap-2.5">
+            <CardDescription className="max-w-[34ch] leading-relaxed">
+              {planMeta[currentPlan].description}
+            </CardDescription>
+          </CardHeader>
+        ) : (
+          <>
+            <CardHeader className="pb-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <span className="meta-label">Current plan</span>
+                  <div className="flex items-center gap-3">
+                    <CardTitle className="text-2xl">
+                      {planMeta[currentPlan].label}
+                    </CardTitle>
+                    {hasSubscription ? (
+                      <StatusBadge
+                        status={subscription.status}
+                        canceled={!!subscription.canceledAt}
+                      />
+                    ) : null}
+                  </div>
+                </div>
+                <PlanBadge plan={currentPlan} />
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {planMeta[currentPlan].description}
+              </p>
+            </CardContent>
+          </>
+        )}
+        <CardFooter className="flex-wrap gap-2.5">
+          {isFreePlan ? (
             <UpgradeButton
               currentPlan={currentPlan}
               defaultCurrency={defaultCurrency}
@@ -121,13 +157,20 @@ export function BillingStatusCard({
               workspaceId={workspaceId}
               workspaceSlug={workspaceSlug}
             />
-          </CardFooter>
-        ) : null}
+          ) : (
+            <Button variant="default" asChild>
+              <Link href={`${getWorkspaceSettingsPath(workspaceSlug)}#billing-details`}>
+                Manage plan
+              </Link>
+            </Button>
+          )}
+        </CardFooter>
       </Card>
 
       {/* Plan Features */}
-      <Card>
-        <CardHeader>
+      {variant === "full" ? (
+        <Card>
+          <CardHeader>
           <CardTitle className="text-lg">Plan features</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
@@ -159,10 +202,11 @@ export function BillingStatusCard({
           </div>
         </CardContent>
       </Card>
+      ) : null}
 
       {/* Billing Details */}
-      {hasSubscription ? (
-        <Card>
+      {hasSubscription && variant === "full" ? (
+        <Card id="billing-details">
           <CardHeader>
             <CardTitle className="text-lg">Billing details</CardTitle>
           </CardHeader>

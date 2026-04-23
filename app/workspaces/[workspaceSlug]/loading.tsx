@@ -1,5 +1,5 @@
 import { BrandMark } from "@/components/shared/brand-mark";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,6 @@ export default function WorkspaceLoading() {
           </Button>
         </div>
         <div className="flex items-center gap-3">
-          <Skeleton className="size-10 rounded-xl" />
           <Skeleton className="size-10 rounded-full" />
         </div>
       </header>
@@ -40,15 +39,11 @@ export default function WorkspaceLoading() {
                 <div className="mb-4 flex flex-col gap-3">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                      <div className="inline-flex h-10 w-full max-w-[19rem] items-center gap-0.5 rounded-lg border border-border/80 bg-[var(--table-header-bg)] p-1 sm:w-fit">
-                        <Skeleton className="h-8 flex-1 rounded-md sm:w-[9.25rem]" />
-                        <Skeleton className="h-8 flex-1 rounded-md sm:w-[8.25rem]" />
-                      </div>
                       <Skeleton className="h-10 w-full rounded-xl sm:w-44" />
                     </div>
                     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
-                      <Skeleton className="h-9 w-full shrink-0 rounded-md sm:w-40" />
                       <Skeleton className="h-6 w-36 rounded-full" />
+                      <Skeleton className="h-10 w-full shrink-0 rounded-xl sm:w-40" />
                     </div>
                   </div>
                 </div>
@@ -85,42 +80,25 @@ export default function WorkspaceLoading() {
             <aside className="xl:col-span-1">
               <div className="sticky top-6">
                 <Card>
-                  <CardHeader className="pb-0">
+                  <CardHeader className="gap-3 pb-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 flex-1 flex-col gap-2">
                         <Skeleton className="h-3 w-24 rounded-md" />
-                        <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-2.5">
                           <Skeleton className="h-8 w-28 rounded-md" />
                           <Skeleton className="h-6 w-16 shrink-0 rounded-full" />
                         </div>
                       </div>
                       <Skeleton className="h-6 w-14 shrink-0 rounded-full" />
                     </div>
-                  </CardHeader>
-                  <CardContent className="grid gap-5 pt-6">
-                    <div className="space-y-4">
+                    <div className="flex max-w-[34ch] flex-col gap-2">
                       <Skeleton className="h-4 w-full rounded-md" />
-                      <div className="flex flex-col gap-2 border-t border-border/40 pt-2">
-                        <div className="flex items-center justify-between gap-2 py-0.5">
-                          <Skeleton className="h-3 w-16 rounded-md" />
-                          <Skeleton className="h-3 w-8 rounded-md" />
-                        </div>
-                        <div className="flex items-center justify-between gap-2 py-0.5">
-                          <Skeleton className="h-3 w-16 rounded-md" />
-                          <Skeleton className="h-3 w-8 rounded-md" />
-                        </div>
-                        <div className="flex items-center justify-between gap-2 py-0.5">
-                          <Skeleton className="h-3 w-20 rounded-md" />
-                          <Skeleton className="h-3 w-8 rounded-md" />
-                        </div>
-                        <div className="flex items-center justify-between gap-2 py-0.5">
-                          <Skeleton className="h-3 w-16 rounded-md" />
-                          <Skeleton className="h-3 w-8 rounded-md" />
-                        </div>
-                      </div>
+                      <Skeleton className="h-4 w-5/6 rounded-md" />
                     </div>
-                    <Skeleton className="h-24 w-full rounded-xl" />
-                  </CardContent>
+                  </CardHeader>
+                  <CardFooter className="flex-wrap gap-2.5">
+                    <Skeleton className="h-10 w-full rounded-xl sm:w-32" />
+                  </CardFooter>
                 </Card>
               </div>
             </aside>

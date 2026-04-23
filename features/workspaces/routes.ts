@@ -14,7 +14,7 @@ export function getWorkspaceSettingsPath(
 ) {
   const basePath = `${getWorkspacePath(slug)}/settings`;
 
-  return section ? `${basePath}/${section}` : basePath;
+  return section && section !== "general" ? `${basePath}/${section}` : basePath;
 }
 
 export function getWorkspaceMembersPath(slug: string) {
