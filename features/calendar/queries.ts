@@ -15,22 +15,17 @@ import type {
   CalendarConnectionStatus,
   CalendarEventSummaryItem,
 } from "./types";
-import { decryptValue } from "@/lib/security/encryption";
 
-function readCalendarConnectionSecret(
-  encryptedValue: string | null,
-  legacyValue: string | null,
-  fieldName: string,
-) {
-  if (encryptedValue) {
-    return decryptValue(encryptedValue);
-  }
-
-  if (legacyValue) {
-    return legacyValue;
-  }
-
-  throw new Error(`The Google Calendar connection is missing its ${fieldName}.`);
+function hasStoredCalendarTokens<T extends {
+  accessToken: string | null;
+  refreshToken: string | null;
+}>(
+  connection: T,
+): connection is T & {
+  accessToken: string;
+  refreshToken: string;
+} {
+  return Boolean(connection.accessToken && connection.refreshToken);
 }
 
 /**
@@ -42,12 +37,14 @@ export const getCalendarConnectionForUser = cache(
       .select({
         googleEmail: googleCalendarConnections.googleEmail,
         selectedCalendarId: googleCalendarConnections.selectedCalendarId,
+        accessToken: googleCalendarConnections.accessToken,
+        refreshToken: googleCalendarConnections.refreshToken,
       })
       .from(googleCalendarConnections)
       .where(eq(googleCalendarConnections.userId, userId))
       .limit(1);
 
-    if (!connection) {
+    if (!connection || !hasStoredCalendarTokens(connection)) {
       return {
         connected: false,
         googleEmail: null,
@@ -74,9 +71,7 @@ export async function getCalendarConnectionRecord(userId: string) {
       googleAccountId: googleCalendarConnections.googleAccountId,
       googleEmail: googleCalendarConnections.googleEmail,
       accessToken: googleCalendarConnections.accessToken,
-      accessTokenEncrypted: googleCalendarConnections.accessTokenEncrypted,
       refreshToken: googleCalendarConnections.refreshToken,
-      refreshTokenEncrypted: googleCalendarConnections.refreshTokenEncrypted,
       accessTokenExpiresAt: googleCalendarConnections.accessTokenExpiresAt,
       scope: googleCalendarConnections.scope,
       selectedCalendarId: googleCalendarConnections.selectedCalendarId,
@@ -87,23 +82,11 @@ export async function getCalendarConnectionRecord(userId: string) {
     .where(eq(googleCalendarConnections.userId, userId))
     .limit(1);
 
-  if (!connection) {
+  if (!connection || !hasStoredCalendarTokens(connection)) {
     return null;
   }
 
-  return {
-    ...connection,
-    accessToken: readCalendarConnectionSecret(
-      connection.accessTokenEncrypted,
-      connection.accessToken,
-      "access token",
-    ),
-    refreshToken: readCalendarConnectionSecret(
-      connection.refreshTokenEncrypted,
-      connection.refreshToken,
-      "refresh token",
-    ),
-  };
+  return connection;
 }
 
 type ResolveAuthorizedCalendarEventTargetInput = {

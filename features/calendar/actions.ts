@@ -221,15 +221,18 @@ export async function disconnectGoogleCalendarAction(): Promise<DisconnectCalend
   const user = await requireUser();
   const connection = await getCalendarConnectionRecord(user.id);
 
-  if (!connection) {
-    return { success: "Google Calendar is not connected." };
-  }
-
   try {
-    await revokeGoogleToken(connection.refreshToken);
+    if (connection) {
+      await revokeGoogleToken(connection.refreshToken);
+    }
+
     await removeCalendarConnection(user.id);
 
-    return { success: "Google Calendar disconnected." };
+    return {
+      success: connection
+        ? "Google Calendar disconnected."
+        : "Google Calendar is not connected.",
+    };
   } catch (err) {
     console.error("Failed to disconnect Google Calendar:", err);
 
