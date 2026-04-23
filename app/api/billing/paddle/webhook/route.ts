@@ -8,6 +8,7 @@ import {
   markEventProcessed,
   recordPaymentAttempt,
   recordWebhookEvent,
+  updatePaymentAttemptStatus,
 } from "@/lib/billing/webhook-processor";
 import {
   activateSubscription,
@@ -17,6 +18,26 @@ import {
 } from "@/lib/billing/subscription-service";
 import { writeSubscriptionTransitionAuditLogs } from "@/features/audit/subscription";
 import { finalizeScheduledWorkspaceDeletionIfDue } from "@/features/workspaces/mutations";
+
+async function getPaddleAttempt(providerPaymentId: string) {
+  const { db } = await import("@/lib/db/client");
+  const { paymentAttempts } = await import("@/lib/db/schema/subscriptions");
+  const { desc, eq } = await import("drizzle-orm");
+
+  const [attempt] = await db
+    .select({
+      amount: paymentAttempts.amount,
+      currency: paymentAttempts.currency,
+      plan: paymentAttempts.plan,
+      workspaceId: paymentAttempts.workspaceId,
+    })
+    .from(paymentAttempts)
+    .where(eq(paymentAttempts.providerPaymentId, providerPaymentId))
+    .orderBy(desc(paymentAttempts.createdAt))
+    .limit(1);
+
+  return attempt ?? null;
+}
 
 export async function POST(request: Request) {
   const rawBody = await request.text();
@@ -49,8 +70,12 @@ export async function POST(request: Request) {
 
   const data = payload.data as Record<string, unknown> | undefined;
   const customData = data?.custom_data as Record<string, string> | undefined;
-  const workspaceId = customData?.workspace_id;
-  const plan = customData?.plan;
+  const transactionId = data?.id as string | undefined;
+  const matchedAttempt = transactionId
+    ? await getPaddleAttempt(transactionId)
+    : null;
+  const workspaceId = customData?.workspace_id ?? matchedAttempt?.workspaceId;
+  const plan = customData?.plan ?? matchedAttempt?.plan;
   const subscriptionId = data?.id as string | undefined;
   const paddleStatus = data?.status as string | undefined;
   const customerId = data?.customer_id as string | undefined;
@@ -191,7 +216,7 @@ export async function POST(request: Request) {
       }
 
       case "transaction.completed": {
-        if (!workspaceId || !plan) {
+        if (!workspaceId || !plan || !transactionId) {
           break;
         }
 
@@ -199,36 +224,48 @@ export async function POST(request: Request) {
         const totals = details?.totals as Record<string, unknown> | undefined;
         const total = totals?.total as string | undefined;
         const currencyCode = (data?.currency_code as string) ?? "USD";
-        const transactionId = data?.id as string;
+        const updated = await updatePaymentAttemptStatus(
+          transactionId,
+          "succeeded",
+        );
 
-        await recordPaymentAttempt({
-          amount: total ? Number.parseInt(total, 10) : 0,
-          currency: currencyCode === "PHP" ? "PHP" : "USD",
-          plan,
-          provider: "paddle",
-          providerPaymentId: transactionId ?? eventId,
-          status: "succeeded",
-          workspaceId,
-        });
+        if (!updated) {
+          await recordPaymentAttempt({
+            amount: total
+              ? Number.parseInt(total, 10)
+              : matchedAttempt?.amount ?? 0,
+            currency:
+              currencyCode === "PHP"
+                ? "PHP"
+                : (matchedAttempt?.currency ?? "USD"),
+            plan,
+            provider: "paddle",
+            providerPaymentId: transactionId,
+            status: "succeeded",
+            workspaceId,
+          });
+        }
         break;
       }
 
       case "transaction.payment_failed": {
-        if (!workspaceId) {
+        if (!workspaceId || !transactionId) {
           break;
         }
 
-        const transactionId = data?.id as string;
+        const updated = await updatePaymentAttemptStatus(transactionId, "failed");
 
-        await recordPaymentAttempt({
-          amount: 0,
-          currency: "USD",
-          plan: plan ?? "pro",
-          provider: "paddle",
-          providerPaymentId: transactionId ?? eventId,
-          status: "failed",
-          workspaceId,
-        });
+        if (!updated) {
+          await recordPaymentAttempt({
+            amount: matchedAttempt?.amount ?? 0,
+            currency: matchedAttempt?.currency ?? "USD",
+            plan: plan ?? "pro",
+            provider: "paddle",
+            providerPaymentId: transactionId,
+            status: "failed",
+            workspaceId,
+          });
+        }
         break;
       }
 
