@@ -6,6 +6,10 @@ import { Analytics } from "@vercel/analytics/next";
 
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import {
+  getReloadLoadingInitScript,
+  ReloadLoadingOverlay,
+} from "@/components/shared/reload-loading-overlay";
 import { RouteProgressBar } from "@/components/shared/route-progress-bar";
 import { StructuredData } from "@/components/seo/structured-data";
 import { Toaster } from "@/components/ui/sonner";
@@ -98,33 +102,39 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body suppressHydrationWarning className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
-        <StructuredData
-          data={organizationStructuredData}
-          id="requo-organization-structured-data"
-        />
-        <StructuredData
-          data={websiteStructuredData}
-          id="requo-website-structured-data"
-        />
+        <ReloadLoadingOverlay />
         <Script id="requo-theme-init" strategy="beforeInteractive">
           {getThemeInitScript({
             cookieKey: themeCookieKey,
             storageKey: themeStorageKey,
           })}
         </Script>
-        <ThemeProvider
-          defaultTheme="system"
-          disableTransitionOnChange
-          enableSystem
-          storageKey={themeStorageKey}
-        >
-          <Suspense fallback={null}>
-            <RouteProgressBar />
-          </Suspense>
-          <TooltipProvider>{children}</TooltipProvider>
-          <Toaster />
-        </ThemeProvider>
-        <Analytics />
+        <Script id="requo-reload-loading-init" strategy="beforeInteractive">
+          {getReloadLoadingInitScript()}
+        </Script>
+        <div id="app-root-content">
+          <StructuredData
+            data={organizationStructuredData}
+            id="requo-organization-structured-data"
+          />
+          <StructuredData
+            data={websiteStructuredData}
+            id="requo-website-structured-data"
+          />
+          <ThemeProvider
+            defaultTheme="system"
+            disableTransitionOnChange
+            enableSystem
+            storageKey={themeStorageKey}
+          >
+            <Suspense fallback={null}>
+              <RouteProgressBar />
+            </Suspense>
+            <TooltipProvider>{children}</TooltipProvider>
+            <Toaster />
+          </ThemeProvider>
+          <Analytics />
+        </div>
       </body>
     </html>
   );

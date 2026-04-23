@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { BrandWordmark } from "@/components/shared/brand-wordmark";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
@@ -41,9 +42,7 @@ export function BrandMark({
           collapseLabel && "group-data-[collapsible=icon]:hidden",
         )}
       >
-        <span className="truncate font-heading text-[1.02rem] font-semibold tracking-tight">
-          Requo
-        </span>
+        <BrandWordmark className="truncate" />
         {subtitle !== null ? (
           <span className="truncate text-[0.64rem] font-medium uppercase tracking-[0.16em] text-muted-foreground">
             {subtitle}
