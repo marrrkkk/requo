@@ -139,7 +139,6 @@ The demo seed also creates two additional sample businesses, three inquiry forms
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_JWT_SECRET`
-- `APP_ENCRYPTION_KEYS`
 - `APP_TOKEN_HASH_SECRET`
 
 ### Database tooling
@@ -163,6 +162,8 @@ The demo seed also creates two additional sample businesses, three inquiry forms
 
 - `NEXT_PUBLIC_BETTER_AUTH_URL`
 - `VERCEL_URL`
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
 - `DEMO_OWNER_NAME`
 - `DEMO_OWNER_EMAIL`
 - `DEMO_OWNER_PASSWORD`
@@ -226,7 +227,6 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 | `npm run test:coverage` | Run unit and component tests with coverage report |
 | `npm run db:generate` | Generate Drizzle artifacts |
 | `npm run db:migrate` | Apply Drizzle migrations |
-| `npm run db:backfill-security-secrets` | Backfill encrypted reversible secrets after configuring app crypto keys |
 | `npm run db:push` | Push schema changes directly |
 | `npm run db:studio` | Open Drizzle Studio |
 | `npm run db:seed-demo` | Seed the demo workspace |
@@ -287,7 +287,7 @@ Deployment and CI responsibilities are intentionally split:
 - Subscriptions are workspace-scoped with PayMongo for QRPh and Paddle for cards
 - The `workspaces.plan` column is a denormalized read cache; the authoritative state lives in `workspace_subscriptions`
 - Billing mutations go through `lib/billing/subscription-service.ts`; webhooks go through `lib/billing/webhook-processor.ts`
-- Reversible stored credentials and provider tokens use app-layer encryption via `APP_ENCRYPTION_KEYS`; opaque lookup tokens are hashed
+- Opaque lookup tokens are hashed with `APP_TOKEN_HASH_SECRET` or `BETTER_AUTH_SECRET`
 - See [docs/setup/billing.md](./docs/setup/billing.md) for provider setup instructions
 
 Detailed architecture guidance lives in [docs/architecture/requo-architecture.md](./docs/architecture/requo-architecture.md).

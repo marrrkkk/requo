@@ -17,26 +17,27 @@ Minimum local requirements:
 - `DATABASE_MIGRATION_URL`
 - `BETTER_AUTH_SECRET`
 - `BETTER_AUTH_URL`
-- `APP_ENCRYPTION_KEYS`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_JWT_SECRET`
 
-Generate `APP_ENCRYPTION_KEYS` with:
-
-```bash
-node -e "console.log('v1:' + require('node:crypto').randomBytes(32).toString('base64'))"
-```
-
 Optional but commonly needed:
 
 - `NEXT_PUBLIC_BETTER_AUTH_URL`
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL`
 - `RESEND_REPLY_TO_EMAIL`
 - `OPENROUTER_API_KEY`
 - `OPENROUTER_DEFAULT_MODEL`
+
+Generate Web Push VAPID keys with:
+
+```bash
+npx web-push generate-vapid-keys
+```
 
 ## Provider Expectations
 
