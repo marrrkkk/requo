@@ -103,6 +103,9 @@ export const businesses = pgTable(
     notifyInAppOnNewInquiry: boolean("notify_in_app_on_new_inquiry")
       .notNull()
       .default(true),
+    notifyInAppOnQuoteSent: boolean("notify_in_app_on_quote_sent")
+      .notNull()
+      .default(true),
     notifyInAppOnQuoteResponse: boolean("notify_in_app_on_quote_response")
       .notNull()
       .default(true),
@@ -110,6 +113,30 @@ export const businesses = pgTable(
       .notNull()
       .default(true),
     notifyInAppOnMemberInviteResponse: boolean("notify_in_app_on_member_invite_response")
+      .notNull()
+      .default(true),
+    notifyPushOnNewInquiry: boolean("notify_push_on_new_inquiry")
+      .notNull()
+      .default(false),
+    notifyPushOnQuoteSent: boolean("notify_push_on_quote_sent")
+      .notNull()
+      .default(false),
+    notifyPushOnQuoteResponse: boolean("notify_push_on_quote_response")
+      .notNull()
+      .default(false),
+    notifyPushOnMemberInviteResponse: boolean("notify_push_on_member_invite_response")
+      .notNull()
+      .default(false),
+    notifyOnFollowUpReminder: boolean("notify_on_follow_up_reminder")
+      .notNull()
+      .default(true),
+    notifyInAppOnFollowUpReminder: boolean("notify_in_app_on_follow_up_reminder")
+      .notNull()
+      .default(true),
+    notifyOnQuoteExpiring: boolean("notify_on_quote_expiring")
+      .notNull()
+      .default(true),
+    notifyInAppOnQuoteExpiring: boolean("notify_in_app_on_quote_expiring")
       .notNull()
       .default(true),
     defaultCurrency: text("default_currency").notNull().default("USD"),

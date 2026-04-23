@@ -82,8 +82,17 @@ export type BusinessMessagingSettings = {
   notifyOnQuoteResponse: boolean;
   notifyOnMemberInviteResponse: boolean;
   notifyInAppOnNewInquiry: boolean;
+  notifyInAppOnQuoteSent: boolean;
   notifyInAppOnQuoteResponse: boolean;
   notifyInAppOnMemberInviteResponse: boolean;
+  notifyPushOnNewInquiry: boolean;
+  notifyPushOnQuoteSent: boolean;
+  notifyPushOnQuoteResponse: boolean;
+  notifyPushOnMemberInviteResponse: boolean;
+  notifyOnFollowUpReminder: boolean;
+  notifyInAppOnFollowUpReminder: boolean;
+  notifyOnQuoteExpiring: boolean;
+  notifyInAppOnQuoteExpiring: boolean;
 };
 
 function getBusinessRoleSortExpression() {
@@ -480,9 +489,18 @@ export const getBusinessMessagingSettings = cache(async (businessId: string) => 
       notifyOnQuoteSent: businesses.notifyOnQuoteSent,
       notifyOnQuoteResponse: businesses.notifyOnQuoteResponse,
       notifyInAppOnNewInquiry: businesses.notifyInAppOnNewInquiry,
+      notifyInAppOnQuoteSent: businesses.notifyInAppOnQuoteSent,
       notifyInAppOnQuoteResponse: businesses.notifyInAppOnQuoteResponse,
       notifyOnMemberInviteResponse: businesses.notifyOnMemberInviteResponse,
       notifyInAppOnMemberInviteResponse: businesses.notifyInAppOnMemberInviteResponse,
+      notifyPushOnNewInquiry: businesses.notifyPushOnNewInquiry,
+      notifyPushOnQuoteSent: businesses.notifyPushOnQuoteSent,
+      notifyPushOnQuoteResponse: businesses.notifyPushOnQuoteResponse,
+      notifyPushOnMemberInviteResponse: businesses.notifyPushOnMemberInviteResponse,
+      notifyOnFollowUpReminder: businesses.notifyOnFollowUpReminder,
+      notifyInAppOnFollowUpReminder: businesses.notifyInAppOnFollowUpReminder,
+      notifyOnQuoteExpiring: businesses.notifyOnQuoteExpiring,
+      notifyInAppOnQuoteExpiring: businesses.notifyInAppOnQuoteExpiring,
     })
     .from(businesses)
     .where(eq(businesses.id, businessId))
