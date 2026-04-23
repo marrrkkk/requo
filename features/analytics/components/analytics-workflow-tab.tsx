@@ -12,7 +12,6 @@ import {
 
 import {
   DashboardDetailLayout,
-  DashboardEmptyState,
   DashboardSidebarStack,
   DashboardStatsGrid,
 } from "@/components/shared/dashboard-layout";
@@ -72,7 +71,7 @@ export function AnalyticsWorkflowTab({
 
       <DashboardDetailLayout>
         <div className="min-w-0 flex flex-col gap-6">
-          <Card className="gap-0 bg-background/72">
+          <Card className="gap-0 bg-background/72 xl:min-h-[27rem]">
             <CardHeader className="gap-2">
               <CardTitle>Quote timing</CardTitle>
               <CardDescription>
@@ -80,12 +79,11 @@ export function AnalyticsWorkflowTab({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
                 <AnalyticsMetricCard
                   icon={MessagesSquare}
                   title="Response rate"
                   value={`${Math.round(data.summary.responseRate * 100)}%`}
-                  description="Recent inquiries that received a first response"
                   tooltip="Percentage of inquiries from the last 30 days that received at least one owner or staff response."
                 />
                 <AnalyticsDurationCard
@@ -93,7 +91,6 @@ export function AnalyticsWorkflowTab({
                   title="Avg first response"
                   value={formatAnalyticsDuration(data.summary.avgFirstResponseHours)}
                   emptyLabel="No data"
-                  description="Time from inquiry to first owner or staff action"
                   tooltip="Average time between receiving an inquiry and the first owner or staff response."
                 />
                 <AnalyticsDurationCard
@@ -101,7 +98,6 @@ export function AnalyticsWorkflowTab({
                   title="Avg inquiry to quote"
                   value={formatAnalyticsDuration(data.summary.avgTimeToFirstQuoteHours)}
                   emptyLabel="No data"
-                  description="Time from inquiry submission to first quote creation"
                   tooltip="Average time between receiving an inquiry and creating the first quote linked to it."
                 />
                 <AnalyticsDurationCard
@@ -109,7 +105,6 @@ export function AnalyticsWorkflowTab({
                   title="Avg sent to decision"
                   value={formatAnalyticsDuration(data.summary.avgTimeSentToDecisionHours)}
                   emptyLabel="No data"
-                  description="Time from quote sent to customer decision"
                   tooltip="How long customers take to accept or reject after you send a quote."
                 />
               </div>
