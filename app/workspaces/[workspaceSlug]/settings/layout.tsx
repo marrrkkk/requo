@@ -10,6 +10,8 @@ import { getAccountProfileForUser } from "@/features/account/queries";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
+import { getWorkspaceBillingOverview } from "@/features/billing/queries";
+import { WorkspaceCheckoutProvider } from "@/features/billing/components/workspace-checkout-provider";
 import { WorkspaceSettingsNav } from "@/features/workspaces/components/workspace-settings-nav";
 import { getWorkspaceSettingsNavigation } from "@/features/workspaces/navigation";
 import { getWorkspacePath } from "@/features/workspaces/routes";
@@ -24,9 +26,10 @@ export default async function WorkspaceSettingsLayout({
 }) {
   const { workspaceSlug } = await params;
   const { user, workspace } = await getWorkspaceOwnerPageContext(workspaceSlug);
-  const [themePreference, profile] = await Promise.all([
+  const [themePreference, profile, billing] = await Promise.all([
     getThemePreferenceForUser(user.id),
     getAccountProfileForUser(user.id),
+    getWorkspaceBillingOverview(workspace.id),
   ]);
   const navigationGroups = getWorkspaceSettingsNavigation(workspace.slug);
   const avatarSrc = resolveUserAvatarSrc({
@@ -35,7 +38,7 @@ export default async function WorkspaceSettingsLayout({
     oauthImage: user.image ?? null,
   });
 
-  return (
+  const content = (
     <>
       <ThemePreferenceSync themePreference={themePreference} userId={user.id} />
       <div className="min-h-svh w-full bg-background">
@@ -86,5 +89,15 @@ export default async function WorkspaceSettingsLayout({
         </main>
       </div>
     </>
+  );
+
+  if (!billing) {
+    return content;
+  }
+
+  return (
+    <WorkspaceCheckoutProvider billing={billing}>
+      {content}
+    </WorkspaceCheckoutProvider>
   );
 }

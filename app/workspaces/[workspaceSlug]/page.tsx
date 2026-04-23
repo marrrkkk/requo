@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, Settings2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 import { BrandMark } from "@/components/shared/brand-mark";
@@ -10,7 +10,6 @@ import { getWorkspaceOverviewBySlug, getWorkspaceListForUser } from "@/features/
 import { WorkspaceOverviewContent } from "@/features/workspaces/components/workspace-overview";
 import { createBusinessAction } from "@/features/businesses/actions";
 import {
-  getWorkspaceSettingsPath,
   getWorkspacePath,
   workspacesHubPath,
 } from "@/features/workspaces/routes";
@@ -19,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { getWorkspaceBillingOverview } from "@/features/billing/queries";
+import { WorkspaceCheckoutProvider } from "@/features/billing/components/workspace-checkout-provider";
 import { finalizeScheduledWorkspaceDeletionIfDue } from "@/features/workspaces/mutations";
 
 type WorkspacePageProps = {
@@ -58,14 +58,13 @@ export default async function WorkspacePage(props: WorkspacePageProps) {
   if (finalizedDeletion.deleted) {
     redirect(workspacesHubPath);
   }
-  const isOwner = overview.memberRole === "owner";
   const avatarSrc = resolveUserAvatarSrc({
     avatarStoragePath: profile?.avatarStoragePath,
     profileUpdatedAt: profile?.updatedAt,
     oauthImage: session.user.image ?? null,
   });
 
-  return (
+  const content = (
     <>
       <ThemePreferenceSync
         themePreference={themePreference}
@@ -121,5 +120,15 @@ export default async function WorkspacePage(props: WorkspacePageProps) {
         </main>
       </div>
     </>
+  );
+
+  if (!billingOverview) {
+    return content;
+  }
+
+  return (
+    <WorkspaceCheckoutProvider billing={billingOverview}>
+      {content}
+    </WorkspaceCheckoutProvider>
   );
 }
