@@ -24,7 +24,6 @@ export default function BusinessFormsLoading() {
               <CardHeader className="gap-3">
                 <div className="flex min-w-0 items-start justify-between gap-3">
                   <div className="flex w-0 min-w-0 flex-1 items-start gap-3">
-                    <Skeleton className="size-12 shrink-0 rounded-xl" />
                     <div className="w-0 min-w-0 flex-1 space-y-2">
                       <Skeleton className="h-6 w-44 max-w-full rounded-md" />
                       <Skeleton className="h-4 w-52 max-w-full rounded-md" />

@@ -59,7 +59,7 @@ describe('lib/plans/plans', () => {
     it('business plan has correct label and description', () => {
       expect(planMeta.business.label).toBe('Business');
       expect(planMeta.business.description).toBe('For teams that need collaboration, roles, and the highest limits.');
-      expect(planMeta.business.ctaLabel).toBe('Contact us for Business');
+      expect(planMeta.business.ctaLabel).toBe('Upgrade to Business');
       expect(planMeta.business.highlighted).toBe(false);
     });
   });
@@ -84,7 +84,7 @@ describe('lib/plans/plans', () => {
     });
 
     it('pro has cta to upgrade to business', () => {
-      expect(getUpgradeCtaLabel('pro')).toBe('Contact us for Business');
+      expect(getUpgradeCtaLabel('pro')).toBe('Upgrade to Business');
     });
 
     it('business says highest plan', () => {
