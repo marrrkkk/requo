@@ -50,7 +50,7 @@ export const planMeta: Record<WorkspacePlan, PlanMeta> = {
   business: {
     label: "Business",
     description: "For teams that need collaboration, roles, and the highest limits.",
-    ctaLabel: "Contact us for Business",
+    ctaLabel: "Upgrade to Business",
     highlighted: false,
   },
 };

@@ -54,6 +54,8 @@ const envSchema = z.object({
   DEMO_QUOTE_PUBLIC_TOKEN: emptyToUndefined(z.string().trim().min(1)),
   DEMO_EXPIRED_QUOTE_PUBLIC_TOKEN: emptyToUndefined(z.string().trim().min(1)),
   DEMO_VOIDED_QUOTE_PUBLIC_TOKEN: emptyToUndefined(z.string().trim().min(1)),
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: emptyToUndefined(z.string().min(1)),
+  VAPID_PRIVATE_KEY: emptyToUndefined(z.string().min(1)),
 });
 
 export const env = envSchema.parse(process.env);
@@ -63,6 +65,7 @@ export const publicEnv = {
   NEXT_PUBLIC_SUPABASE_ANON_KEY: env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
   NEXT_PUBLIC_PADDLE_ENVIRONMENT: env.NEXT_PUBLIC_PADDLE_ENVIRONMENT,
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
 };
 
 export const isResendConfigured = Boolean(
@@ -79,5 +82,8 @@ export const isPayMongoConfigured = Boolean(
 );
 export const isPaddleConfigured = Boolean(
   env.PADDLE_API_KEY && env.PADDLE_PRO_PRICE_ID,
+);
+export const isPushConfigured = Boolean(
+  env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY,
 );
 
