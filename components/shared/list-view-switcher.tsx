@@ -1,5 +1,9 @@
-import Link from "next/link";
+"use client";
 
+import { useMemo } from "react";
+import { useRouter } from "next/navigation";
+
+import { Combobox } from "@/components/ui/combobox";
 import { cn } from "@/lib/utils";
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
@@ -46,43 +50,46 @@ export function ListViewSwitcher({
   paramName = "view",
   className,
 }: ListViewSwitcherProps) {
+  const router = useRouter();
+  const comboboxOptions = useMemo(
+    () =>
+      options.map((option) => ({
+        ...option,
+        searchText: `${option.label} ${option.value}`,
+      })),
+    [options],
+  );
+
+  function getViewHref(nextValue: string) {
+    const params = buildSearchParams(searchParams);
+
+    if (nextValue === defaultValue) {
+      params.delete(paramName);
+    } else {
+      params.set(paramName, nextValue);
+    }
+
+    params.delete("page");
+
+    return params.size ? `${pathname}?${params.toString()}` : pathname;
+  }
+
   return (
-    <div
-      className={cn(
-        "inline-flex w-full flex-wrap gap-1 rounded-lg border border-border/80 bg-[var(--table-header-bg)] p-1 sm:w-auto",
-        className,
-      )}
-    >
-      {options.map((option) => {
-        const params = buildSearchParams(searchParams);
+    <div className={cn("w-full sm:w-auto", className)}>
+      <Combobox
+        buttonClassName="w-full min-w-0 sm:min-w-[10.5rem]"
+        id={`list-view-switcher-${paramName}`}
+        onValueChange={(nextValue) => {
+          if (nextValue === currentValue) {
+            return;
+          }
 
-        if (option.value === defaultValue) {
-          params.delete(paramName);
-        } else {
-          params.set(paramName, option.value);
-        }
-
-        params.delete("page");
-
-        const href = params.size ? `${pathname}?${params.toString()}` : pathname;
-        const isActive = option.value === currentValue;
-
-        return (
-          <Link
-            className={cn(
-              "inline-flex min-h-9 flex-1 items-center justify-center rounded-md border px-3 py-1.5 text-sm font-medium transition-colors sm:flex-none",
-              isActive
-                ? "border-border/80 bg-[var(--control-bg)] text-foreground shadow-[var(--control-shadow)]"
-                : "border-transparent text-foreground/65 hover:text-foreground",
-            )}
-            href={href}
-            key={option.value}
-            prefetch={true}
-          >
-            {option.label}
-          </Link>
-        );
-      })}
+          router.push(getViewHref(nextValue), { scroll: false });
+        }}
+        options={comboboxOptions}
+        placeholder="Choose a view"
+        value={currentValue}
+      />
     </div>
   );
 }

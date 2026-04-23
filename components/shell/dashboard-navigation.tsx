@@ -23,6 +23,7 @@ import {
   getBusinessInquiriesPath,
   getBusinessKnowledgeCompatibilityPath,
   getBusinessMembersPath,
+  getBusinessNewInquiryPath,
   getBusinessQuotesPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
@@ -238,6 +239,18 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
 
   if (pathname === inquiriesPath) {
     return withDashboardHome(slug, [{ label: "Requests" }]);
+  }
+
+  if (pathname === getBusinessNewInquiryPath(slug)) {
+    return withDashboardHome(slug, [
+      {
+        label: "Requests",
+        href: inquiriesPath,
+      },
+      {
+        label: "New request",
+      },
+    ]);
   }
 
   if (pathname.startsWith(`${inquiriesPath}/`)) {

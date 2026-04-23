@@ -36,6 +36,7 @@ import { getAccountProfilePath } from "@/features/account/routes";
 import {
   getBusinessAnalyticsPath,
   getBusinessInquiriesExportPath,
+  getBusinessNewInquiryPath,
   getBusinessQuotesExportPath,
   getBusinessQuotesPath,
   getBusinessSettingsPath,
@@ -139,6 +140,14 @@ export function CommandMenu({ businessSlug, role, workspaceSlug }: CommandMenuPr
               <CommandEmpty>No matching actions.</CommandEmpty>
 
               <CommandGroup heading="Create">
+                <CommandItem
+                  onSelect={() =>
+                    runCommand(() => router.push(getBusinessNewInquiryPath(businessSlug)))
+                  }
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  <span>New request</span>
+                </CommandItem>
                 <CommandItem
                   onSelect={() =>
                     runCommand(() => router.push(`${getBusinessQuotesPath(businessSlug)}/new`))

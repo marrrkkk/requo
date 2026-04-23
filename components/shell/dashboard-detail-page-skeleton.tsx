@@ -111,6 +111,63 @@ export function DashboardQuoteEditorSkeleton() {
   );
 }
 
+export function DashboardInquiryEditorSkeleton() {
+  return (
+    <DashboardPage>
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-4 w-24 rounded-md" />
+        <Skeleton className="h-11 w-full max-w-lg rounded-2xl" />
+        <Skeleton className="h-4 w-full max-w-2xl rounded-md" />
+      </div>
+
+      <div className="dashboard-detail-layout items-start xl:grid-cols-[minmax(0,1.08fr)_0.92fr]">
+        <DashboardSidebarStack className="min-w-0">
+          <SectionSkeleton
+            action={
+              <>
+                <Skeleton className="h-9 w-24 rounded-full" />
+                <Skeleton className="h-9 w-28 rounded-full" />
+              </>
+            }
+            titleWidth="w-32"
+            descriptionWidth="w-64"
+          >
+            <FieldStack />
+          </SectionSkeleton>
+
+          <SectionSkeleton titleWidth="w-32" descriptionWidth="w-48">
+            <TwoFieldGrid />
+            <FieldStack />
+          </SectionSkeleton>
+
+          <SectionSkeleton titleWidth="w-32" descriptionWidth="w-64">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <FieldStack />
+              <FieldStack />
+              <FieldStack />
+              <FieldStack area />
+            </div>
+          </SectionSkeleton>
+
+          <SectionSkeleton titleWidth="w-28" descriptionWidth="w-52">
+            <FieldStack />
+          </SectionSkeleton>
+
+          <SectionSkeleton titleWidth="w-24" descriptionWidth="w-60">
+            <ContentPanel lines={2} labelWidth="w-24" />
+            <div className="dashboard-actions justify-between">
+              <Skeleton className="h-4 w-64 rounded-md" />
+              <Skeleton className="h-11 w-full rounded-xl sm:w-40" />
+            </div>
+          </SectionSkeleton>
+        </DashboardSidebarStack>
+
+        <InquiryPreviewSkeleton className="xl:sticky xl:top-[5.5rem] xl:self-start" />
+      </div>
+    </DashboardPage>
+  );
+}
+
 function InquiryDetailSkeleton() {
   return (
     <DashboardDetailLayout className="xl:grid-cols-[1.45fr_0.95fr]">
@@ -243,13 +300,13 @@ function SectionSkeleton({
   );
 }
 
-function InfoTileSkeleton() {
+function InfoTileSkeleton({ compact = false }: { compact?: boolean } = {}) {
   return (
     <div className="info-tile">
       <div className="flex flex-col gap-2">
         <Skeleton className="h-3 w-20 rounded-md" />
         <Skeleton className="h-5 w-full rounded-md" />
-        <Skeleton className="h-4 w-24 rounded-md" />
+        {!compact ? <Skeleton className="h-4 w-24 rounded-md" /> : null}
       </div>
     </div>
   );
@@ -385,6 +442,43 @@ function QuotePreviewSkeleton({ className }: { className?: string }) {
               <Skeleton className="h-4 w-20 rounded-md" />
             </div>
           ))}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function InquiryPreviewSkeleton({ className }: { className?: string }) {
+  return (
+    <article className={cn("section-panel overflow-hidden p-5 sm:p-6", className)}>
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4 border-b border-border/80 pb-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-4 w-28 rounded-md" />
+              <Skeleton className="h-10 w-52 rounded-xl" />
+              <Skeleton className="h-4 w-36 rounded-md" />
+            </div>
+            <ContentPanel lines={2} labelWidth="w-20" />
+          </div>
+          <div className="dashboard-detail-header-meta">
+            <Skeleton className="h-9 w-28 rounded-full" />
+            <Skeleton className="h-9 w-28 rounded-full" />
+          </div>
+        </div>
+
+        <DashboardStatsGrid className="xl:!grid-cols-2">
+          <InfoTileSkeleton compact />
+          <InfoTileSkeleton compact />
+          <InfoTileSkeleton compact />
+          <InfoTileSkeleton compact />
+        </DashboardStatsGrid>
+
+        <ContentPanel lines={4} labelWidth="w-24" />
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <InfoTileSkeleton />
+          <InfoTileSkeleton />
         </div>
       </div>
     </article>
