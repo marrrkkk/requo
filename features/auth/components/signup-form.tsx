@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useState, useTransition } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { authClient } from "@/lib/auth/client";
 import { getAuthPathWithNext, getSafeAuthRedirectPath } from "@/lib/auth/redirects";
@@ -37,6 +37,7 @@ export function SignupForm({
   socialProviders = [],
 }: SignupFormProps) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const nextPath = getSafeAuthRedirectPath(searchParams.get("next"), onboardingPath);
   const loginHref = getAuthPathWithNext("/login", nextPath);
   const [state, setState] = useState<AuthFormState>({});
@@ -78,9 +79,7 @@ export function SignupForm({
       }
 
       form.reset();
-      setState({
-        success: "Check your inbox to verify your email before signing in.",
-      });
+      router.push(`/check-email?email=${encodeURIComponent(validationResult.data.email)}`);
     });
   }
 
