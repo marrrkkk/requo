@@ -9,7 +9,6 @@ import {
 } from "@/lib/google-calendar/client";
 import { db } from "@/lib/db/client";
 import { googleCalendarConnections } from "@/lib/db/schema";
-import { encryptValue } from "@/lib/security/encryption";
 
 const GOOGLE_CALENDAR_OAUTH_STATE_COOKIE = "gcal-oauth-state";
 
@@ -73,10 +72,8 @@ export async function GET(request: Request) {
         userId: user.id,
         googleAccountId: userInfo.sub,
         googleEmail: userInfo.email,
-        accessToken: null,
-        accessTokenEncrypted: encryptValue(tokens.access_token),
-        refreshToken: null,
-        refreshTokenEncrypted: encryptValue(tokens.refresh_token),
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
         accessTokenExpiresAt: expiresAt,
         scope: tokens.scope,
         createdAt: now,
@@ -87,10 +84,8 @@ export async function GET(request: Request) {
         set: {
           googleAccountId: userInfo.sub,
           googleEmail: userInfo.email,
-          accessToken: null,
-          accessTokenEncrypted: encryptValue(tokens.access_token),
-          refreshToken: null,
-          refreshTokenEncrypted: encryptValue(tokens.refresh_token),
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
           accessTokenExpiresAt: expiresAt,
           scope: tokens.scope,
           updatedAt: now,

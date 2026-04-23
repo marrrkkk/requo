@@ -16,8 +16,9 @@ export async function POST() {
   if (connection) {
     // Best-effort revocation
     await revokeGoogleToken(connection.refreshToken);
-    await removeCalendarConnection(user.id);
   }
+
+  await removeCalendarConnection(user.id);
 
   return Response.json({ ok: true });
 }
