@@ -22,8 +22,8 @@ import {
   Shield,
   Check,
   X,
+  ArrowUpRight,
 } from "lucide-react";
-import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,6 @@ import { cancelSubscriptionAction } from "@/features/billing/actions";
 import type { WorkspaceBillingOverview, CancelActionState } from "@/features/billing/types";
 import { planMeta, getUsageLimit, planFeatures, hasFeatureAccess, planFeatureLabels } from "@/lib/plans";
 import { getPlanPriceLabel, getCurrencySymbol } from "@/lib/billing/plans";
-import { getWorkspaceSettingsPath } from "@/features/workspaces/routes";
 import { cn } from "@/lib/utils";
 
 type BillingStatusCardProps = {
@@ -92,6 +91,16 @@ export function BillingStatusCard({
     subscription && subscription.status === "pending";
   const hasSubscription = hasActiveSubscription || hasPendingSubscription;
   const isOverviewVariant = variant === "overview";
+
+  // Clear stale QR cache when the server confirms no pending subscription.
+  // This handles the page-reload case where a webhook (payment.expired /
+  // payment.failed) updated the status but the sessionStorage cache wasn't
+  // cleared (e.g. user closed the tab or realtime was disconnected).
+  useEffect(() => {
+    if (!hasPendingSubscription) {
+      clearCachedPendingQr(workspaceId);
+    }
+  }, [hasPendingSubscription, workspaceId]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -148,23 +157,24 @@ export function BillingStatusCard({
             </CardContent>
           </>
         )}
-        <CardFooter className="flex-wrap gap-2.5">
-          {isFreePlan ? (
+        {currentPlan !== "business" ? (
+          <CardFooter className="flex-wrap gap-2.5">
             <UpgradeButton
               currentPlan={currentPlan}
               defaultCurrency={defaultCurrency}
               region={region}
               workspaceId={workspaceId}
               workspaceSlug={workspaceSlug}
-            />
-          ) : (
-            <Button variant="default" asChild>
-              <Link href={`${getWorkspaceSettingsPath(workspaceSlug)}#billing-details`}>
-                Manage plan
-              </Link>
-            </Button>
-          )}
-        </CardFooter>
+            >
+              {variant === "full" ? (
+                <>
+                  <ArrowUpRight data-icon="inline-start" />
+                  Change plan
+                </>
+              ) : undefined}
+            </UpgradeButton>
+          </CardFooter>
+        ) : null}
       </Card>
 
       {/* Plan Features */}
@@ -174,7 +184,7 @@ export function BillingStatusCard({
           <CardTitle className="text-lg">Plan features</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          <div className="grid grid-cols-1 gap-x-6 gap-y-2.5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-2.5 sm:grid-cols-3">
             {planFeatures.map((feature) => {
               const hasAccess = hasFeatureAccess(currentPlan, feature);
               return (

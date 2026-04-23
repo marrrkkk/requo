@@ -10,8 +10,9 @@ import { ArrowUpRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { CheckoutDialog } from "@/features/billing/components/checkout-dialog";
+import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
 import type { WorkspacePlan } from "@/lib/plans/plans";
-import type { BillingCurrency, BillingRegion } from "@/lib/billing/types";
+import type { BillingCurrency, BillingRegion, PaidPlan } from "@/lib/billing/types";
 import { cn } from "@/lib/utils";
 
 type UpgradeButtonProps = {
@@ -39,7 +40,9 @@ export function UpgradeButton({
   className,
   children,
 }: UpgradeButtonProps) {
-  const [open, setOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<PaidPlan | null>(null);
 
   if (currentPlan === "business") {
     return null; // Already on highest plan
@@ -49,7 +52,7 @@ export function UpgradeButton({
     <>
       <Button
         className={cn(className)}
-        onClick={() => setOpen(true)}
+        onClick={() => setSheetOpen(true)}
         size={size}
         variant={variant}
       >
@@ -60,16 +63,31 @@ export function UpgradeButton({
           </>
         )}
       </Button>
-      <CheckoutDialog
-        currentPlan={currentPlan}
+      <PlanSelectionSheet
         defaultCurrency={defaultCurrency}
-        onOpenChange={setOpen}
-        open={open}
+        currentPlan={currentPlan}
+        onOpenChange={setSheetOpen}
+        onSelectPlan={(plan) => {
+          setSelectedPlan(plan);
+          setSheetOpen(false);
+          setCheckoutOpen(true);
+        }}
+        open={sheetOpen}
         region={region}
         targetPlan={targetPlan}
-        workspaceId={workspaceId}
-        workspaceSlug={workspaceSlug}
       />
+      {selectedPlan ? (
+        <CheckoutDialog
+          currentPlan={currentPlan}
+          defaultCurrency={defaultCurrency}
+          onOpenChange={setCheckoutOpen}
+          open={checkoutOpen}
+          plan={selectedPlan}
+          region={region}
+          workspaceId={workspaceId}
+          workspaceSlug={workspaceSlug}
+        />
+      ) : null}
     </>
   );
 }

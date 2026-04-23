@@ -3,6 +3,7 @@ import type {
   BillingCurrency,
   BillingProvider,
   BillingRegion,
+  PaidPlan,
   SubscriptionStatus,
 } from "@/lib/billing/types";
 
@@ -31,6 +32,7 @@ export type CheckoutDialogProps = {
   workspaceId: string;
   workspaceSlug: string;
   currentPlan: WorkspacePlan;
+  plan: PaidPlan;
   region: BillingRegion;
   defaultCurrency: BillingCurrency;
 };
@@ -59,6 +61,20 @@ export type PendingQrPhData = {
   currency: "PHP";
   plan: string;
 };
+
+export type CancelPendingQrCheckoutResult =
+  | {
+      ok: true;
+      outcome: "canceled" | "already_canceled";
+    }
+  | {
+      ok: true;
+      outcome: "already_paid";
+    }
+  | {
+      ok: false;
+      error: string;
+    };
 
 /** Cancel action state. */
 export type CancelActionState = {

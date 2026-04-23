@@ -1,16 +1,5 @@
 "use client";
 
-/**
- * Checkout dialog for selecting a plan and payment method.
- *
- * - Monthly / Yearly interval toggle with savings badge
- * - Plan cards with feature highlights and localized pricing
- * - Payment method selection (QR Ph for PHP, Card/PayPal/etc. for USD)
- * - Order summary before CTA
- * - QR Ph inline flow (renders QR code, persists across refreshes)
- * - Paddle inline checkout for Card, PayPal, Apple Pay, Google Pay
- */
-
 import {
   useActionState,
   useCallback,
@@ -19,104 +8,137 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
-import { QrCode, Check, Zap, Crown, ShoppingCart, Wallet } from "lucide-react";
+import {
+  AlertCircle,
+  Check,
+  Crown,
+  QrCode,
+  ShoppingCart,
+  Wallet,
+  Zap,
+} from "lucide-react";
 import QRCode from "react-qr-code";
 
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogBody,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import {
-  createCheckoutAction,
+  cancelPendingQrCheckoutAction,
   cleanupExpiredPendingAction,
+  createCheckoutAction,
 } from "@/features/billing/actions";
-import { usePaddle, PaddleProvider } from "@/features/billing/components/paddle-provider";
-import type { CheckoutActionState, PendingQrPhData } from "@/features/billing/types";
-import type { WorkspacePlan } from "@/lib/plans/plans";
-import type { BillingCurrency, BillingInterval, BillingRegion, PaidPlan } from "@/lib/billing/types";
 import {
-  getPlanPriceLabel,
-  getPlanPrice,
+  CardAndMoreBrandMarks,
+  QrPhBrandMark,
+} from "@/features/billing/components/payment-method-brands";
+import {
+  PaddleProvider,
+  usePaddle,
+} from "@/features/billing/components/paddle-provider";
+import type {
+  CheckoutActionState,
+  CheckoutDialogProps,
+  PendingQrPhData,
+} from "@/features/billing/types";
+import {
   formatPrice,
   getMonthlyEquivalentLabel,
+  getPlanPrice,
+  getPlanPriceLabel,
   getYearlySavingsPercent,
 } from "@/lib/billing/plans";
+import type {
+  BillingCurrency,
+  BillingInterval,
+  PaidPlan,
+} from "@/lib/billing/types";
 import { planMeta } from "@/lib/plans";
+import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
 
-type CheckoutDialogProps = {
+type ControlledCheckoutDialogProps = CheckoutDialogProps & {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  workspaceId: string;
-  workspaceSlug: string;
-  currentPlan: WorkspacePlan;
-  targetPlan?: PaidPlan;
-  region: BillingRegion;
-  defaultCurrency: BillingCurrency;
 };
 
-export function CheckoutDialog(props: CheckoutDialogProps) {
-  const clientToken = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
-  const environment = (process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT ?? "sandbox") as
-    | "sandbox"
-    | "production";
+type PaymentMethod = "qrph" | "card";
+type CheckoutView = "selection" | "qr" | "paddle" | "processing";
 
-  if (!clientToken) {
-    return <CheckoutDialogInner {...props} />;
-  }
+type WorkspaceSubscriptionRealtimeRow = {
+  plan?: string | null;
+  status?: string | null;
+};
 
-  return (
-    <PaddleProvider clientToken={clientToken} environment={environment}>
-      <CheckoutDialogInner {...props} />
-    </PaddleProvider>
-  );
-}
-
-/* ── Plan feature highlights for the checkout cards ──────────────────────── */
+type PaymentAttemptRealtimeRow = {
+  provider_payment_id?: string | null;
+  status?: string | null;
+};
 
 const planHighlightsShort: Record<PaidPlan, string[]> = {
   pro: [
-    "Unlimited inquiries & quotes",
+    "Unlimited inquiries and quotes",
     "Multiple inquiry forms",
-    "AI assistant & knowledge",
-    "Data exports & branding",
+    "AI assistant and knowledge",
+    "Data exports and branding",
   ],
   business: [
     "Everything in Pro",
-    "Team members & roles",
+    "Team members and roles",
     "Priority support",
     "Unlimited businesses",
   ],
 };
 
-/* ── Paddle inline container ID ──────────────────────────────────────────── */
-
 const PADDLE_FRAME_TARGET = "requo-paddle-checkout";
-
-/* ── SessionStorage cache for pending QR data ────────────────────────────── */
-
 const PENDING_QR_KEY = "requo:pending-qrph";
+const PROCESSING_RELOAD_DELAY_MS = 1200;
+const isDevelopment = process.env.NODE_ENV === "development";
 
-function getCachedPendingQr(workspaceId: string): PendingQrPhData | null {
+function getCachedPendingQr(
+  workspaceId: string,
+  plan: PaidPlan,
+): PendingQrPhData | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
   try {
-    const raw = sessionStorage.getItem(`${PENDING_QR_KEY}:${workspaceId}`);
-    if (!raw) return null;
-    const data = JSON.parse(raw) as PendingQrPhData;
-    if (new Date(data.expiresAt) <= new Date()) {
-      sessionStorage.removeItem(`${PENDING_QR_KEY}:${workspaceId}`);
-      // Flag for automatic server-side pending status cleanup
-      sessionStorage.setItem(`${PENDING_QR_KEY}:expired:${workspaceId}`, "1");
+    const raw = window.sessionStorage.getItem(`${PENDING_QR_KEY}:${workspaceId}`);
+
+    if (!raw) {
       return null;
     }
+
+    const data = JSON.parse(raw) as PendingQrPhData;
+
+    if (data.plan !== plan) {
+      return null;
+    }
+
+    if (new Date(data.expiresAt) <= new Date()) {
+      window.sessionStorage.removeItem(`${PENDING_QR_KEY}:${workspaceId}`);
+      window.sessionStorage.setItem(
+        `${PENDING_QR_KEY}:expired:${workspaceId}`,
+        "1",
+      );
+      return null;
+    }
+
     return data;
   } catch {
     return null;
@@ -124,230 +146,671 @@ function getCachedPendingQr(workspaceId: string): PendingQrPhData | null {
 }
 
 function setCachedPendingQr(workspaceId: string, data: PendingQrPhData): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
   try {
-    sessionStorage.setItem(
+    window.sessionStorage.setItem(
       `${PENDING_QR_KEY}:${workspaceId}`,
       JSON.stringify(data),
     );
   } catch {
-    /* storage full or unavailable */
+    // Ignore unavailable or full storage.
   }
 }
 
 export function clearCachedPendingQr(workspaceId: string): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
   try {
-    sessionStorage.removeItem(`${PENDING_QR_KEY}:${workspaceId}`);
+    window.sessionStorage.removeItem(`${PENDING_QR_KEY}:${workspaceId}`);
   } catch {
-    /* ignore */
+    // Ignore unavailable storage.
   }
 }
 
-/* ── Main dialog inner ───────────────────────────────────────────────────── */
+async function fetchRealtimeToken() {
+  const response = await fetch("/api/business/notifications/realtime-token", {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return (await response.json()) as {
+    expiresAt: string;
+    token: string;
+  };
+}
+
+export function CheckoutDialog(props: ControlledCheckoutDialogProps) {
+  const clientToken = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
+  const environment = (process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT ?? "sandbox") as
+    | "sandbox"
+    | "production";
+
+  const dialog = (
+    <CheckoutDialogInner
+      key={`${props.workspaceId}:${props.plan}:${props.open ? "open" : "closed"}`}
+      {...props}
+    />
+  );
+
+  if (!clientToken) {
+    return dialog;
+  }
+
+  return (
+    <PaddleProvider clientToken={clientToken} environment={environment}>
+      {dialog}
+    </PaddleProvider>
+  );
+}
 
 function CheckoutDialogInner({
-  open,
   onOpenChange,
-  workspaceId,
-  currentPlan,
-  targetPlan,
+  open,
+  plan,
   region,
-}: CheckoutDialogProps) {
-  // ── Initialize from sessionStorage cache (instant, no server call) ───────
-  const cachedQr = getCachedPendingQr(workspaceId);
-
-  const [selectedPlan, setSelectedPlan] = useState<PaidPlan>(
-    () => cachedQr?.plan as PaidPlan ?? targetPlan ?? (currentPlan === "pro" ? "business" : "pro"),
-  );
+  workspaceId,
+}: ControlledCheckoutDialogProps) {
+  const router = useRouter();
+  const paddle = usePaddle();
+  const initialPendingQr = getCachedPendingQr(workspaceId, plan);
   const [interval, setInterval] = useState<BillingInterval>("monthly");
-  const isPH = region === "PH";
-  const [paymentMethod, setPaymentMethod] = useState<"qrph" | "card">(
-    () => cachedQr ? "qrph" : isPH ? "qrph" : "card",
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(() =>
+    initialPendingQr ? "qrph" : region === "PH" ? "qrph" : "card",
   );
-  const [processingUpgrade, setProcessingUpgrade] = useState(false);
+  const [view, setView] = useState<CheckoutView>(
+    initialPendingQr ? "qr" : "selection",
+  );
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [pendingQr, setPendingQr] = useState<PendingQrPhData | null>(
+    initialPendingQr,
+  );
+  const [activePaddleTransactionId, setActivePaddleTransactionId] = useState<
+    string | null
+  >(null);
+  const [completedPaddleTransactionId, setCompletedPaddleTransactionId] =
+    useState<string | null>(null);
+  const [isCancelingQr, setIsCancelingQr] = useState(false);
   const [state, formAction, isPending] = useActionState(
     createCheckoutAction,
     {} as CheckoutActionState,
   );
-  const paddle = usePaddle();
-  const router = useRouter();
-  const handledTxnRef = useRef<string | null>(null);
-
-  // ── Pending QR — derived from sessionStorage cache, no state needed ──────
-  const pendingQr = cachedQr;
-
-  // ── Auto-cleanup expired pending subscription ────────────────────────────
+  const handledTransactionIdRef = useRef<string | null>(null);
+  const qrCancelInFlightRef = useRef(false);
+  const reloadTimerRef = useRef<number | null>(null);
   const cleanupFiredRef = useRef(false);
-  useEffect(() => {
-    if (cleanupFiredRef.current) return;
-    const expiredKey = `${PENDING_QR_KEY}:expired:${workspaceId}`;
-    try {
-      if (sessionStorage.getItem(expiredKey)) {
-        sessionStorage.removeItem(expiredKey);
-        cleanupFiredRef.current = true;
-        // Fire-and-forget: clear the pending subscription status on the server
-        cleanupExpiredPendingAction(workspaceId).catch(() => {});
-      }
-    } catch { /* ignore */ }
-  }, [workspaceId]);
-
-  // ── Paddle inline state ──────────────────────────────────────────────────
-  const [showPaddleInline, setShowPaddleInline] = useState(false);
-  const paddleInlineOpenedRef = useRef<string | null>(null);
-
-  // QR Ph → always PHP. Card → always USD (Paddle doesn't support PHP).
-  const currency: BillingCurrency = paymentMethod === "qrph" ? "PHP" : "USD";
-
-  // QRPh is a one-time payment for the selected period, not an auto-renewing subscription.
-  // We force monthly here to simplify the mental model — you pay for 1 month of access.
-  const effectiveInterval: BillingInterval = paymentMethod === "qrph" ? "monthly" : interval;
+  const isPH = region === "PH";
   const isQrPh = paymentMethod === "qrph";
+  const currency: BillingCurrency = isQrPh ? "PHP" : "USD";
+  const effectiveInterval: BillingInterval = isQrPh ? "monthly" : interval;
+  const totalPrice = getPlanPrice(plan, currency, effectiveInterval);
+  const savingsPercent = getYearlySavingsPercent(plan, currency);
+  const PlanIcon = plan === "pro" ? Zap : Crown;
 
-  // ── Persist fresh QR from checkout action into sessionStorage ─────────────
-  useEffect(() => {
-    if (state.qrData) {
-      setCachedPendingQr(workspaceId, {
-        qrCodeData: state.qrData.qrCodeData,
-        paymentIntentId: state.qrData.paymentIntentId,
-        expiresAt: state.qrData.expiresAt,
-        amount: state.qrData.amount,
-        currency: "PHP",
-        plan: selectedPlan,
-      });
+  const scheduleReload = useCallback(() => {
+    if (typeof window === "undefined" || reloadTimerRef.current) {
+      return;
     }
-  }, [state.qrData, workspaceId, selectedPlan]);
 
-  // Reset ephemeral UI state when dialog closes (keep cache alive)
+    reloadTimerRef.current = window.setTimeout(() => {
+      window.location.reload();
+    }, PROCESSING_RELOAD_DELAY_MS);
+  }, []);
+
+  const handleCheckoutSuccess = useCallback(() => {
+    clearCachedPendingQr(workspaceId);
+    setPendingQr(null);
+    setCheckoutError(null);
+    setIsCancelingQr(false);
+    setView("processing");
+    scheduleReload();
+  }, [scheduleReload, workspaceId]);
+
+  const handleQrFailure = useCallback(
+    (message: string) => {
+      if (qrCancelInFlightRef.current) {
+        return;
+      }
+
+      clearCachedPendingQr(workspaceId);
+      setPendingQr(null);
+      setIsCancelingQr(false);
+      setCheckoutError(message);
+      setView("selection");
+    },
+    [workspaceId],
+  );
+
+  const handlePaddleFailure = useCallback((message: string) => {
+    setActivePaddleTransactionId(null);
+    setCompletedPaddleTransactionId(null);
+    setCheckoutError(message);
+    setView("selection");
+  }, []);
+
   useEffect(() => {
-    if (!open) {
-      setShowPaddleInline(false);
-      paddleInlineOpenedRef.current = null;
-    }
-  }, [open]);
+    return () => {
+      if (reloadTimerRef.current) {
+        clearTimeout(reloadTimerRef.current);
+      }
+    };
+  }, []);
 
-  // ── Handle Paddle inline checkout ────────────────────────────────────────
+  useEffect(() => {
+    if (!state.qrData) {
+      return;
+    }
+
+    const nextPendingQr: PendingQrPhData = {
+      amount: state.qrData.amount,
+      currency: "PHP",
+      expiresAt: state.qrData.expiresAt,
+      paymentIntentId: state.qrData.paymentIntentId,
+      plan,
+      qrCodeData: state.qrData.qrCodeData,
+    };
+
+    setCachedPendingQr(workspaceId, nextPendingQr);
+
+    queueMicrotask(() => {
+      setPendingQr(nextPendingQr);
+      setCheckoutError(null);
+      setIsCancelingQr(false);
+      setView("qr");
+    });
+  }, [plan, state.qrData, workspaceId]);
+
+  useEffect(() => {
+    if (!state.error) {
+      return;
+    }
+
+    queueMicrotask(() => {
+      setCheckoutError(state.error!);
+      setIsCancelingQr(false);
+      setView("selection");
+    });
+  }, [state.error]);
+
   useEffect(() => {
     if (
-      state.paddleTransactionId &&
-      paddle.isReady &&
-      handledTxnRef.current !== state.paddleTransactionId
+      !state.paddleTransactionId ||
+      !paddle.isReady ||
+      handledTransactionIdRef.current === state.paddleTransactionId
     ) {
-      handledTxnRef.current = state.paddleTransactionId;
-      setShowPaddleInline(true);
-
-      // Small delay to ensure the container div is rendered
-      requestAnimationFrame(() => {
-        paddle.openCheckout(
-          state.paddleTransactionId!,
-          () => {
-            setProcessingUpgrade(true);
-            setTimeout(() => {
-              router.refresh();
-              onOpenChange(false);
-              setProcessingUpgrade(false);
-            }, 3000);
-          },
-          {
-            displayMode: "inline",
-            frameTarget: PADDLE_FRAME_TARGET,
-            frameInitialHeight: "450",
-            frameStyle:
-              "width: 100%; min-width: 312px; background-color: transparent; border: none; border-radius: 12px;",
-          },
-        );
-      });
+      return;
     }
-  }, [state.paddleTransactionId, paddle, onOpenChange, router]);
 
-  // Derive QR display from action result or cached pending QR
-  const showQrCode = (state.qrData && isQrPh) || pendingQr;
-  const activeQrData = state.qrData ?? (pendingQr
-    ? {
-        qrCodeData: pendingQr.qrCodeData,
-        paymentIntentId: pendingQr.paymentIntentId,
-        expiresAt: pendingQr.expiresAt,
-        amount: pendingQr.amount,
-        currency: "PHP" as const,
+    const transactionId = state.paddleTransactionId;
+
+    handledTransactionIdRef.current = transactionId;
+    queueMicrotask(() => {
+      setCheckoutError(null);
+      setActivePaddleTransactionId(transactionId);
+      setCompletedPaddleTransactionId(null);
+      setView("paddle");
+    });
+
+    requestAnimationFrame(() => {
+      paddle.openCheckout(
+        transactionId,
+        {
+          onClose: () => {
+            setActivePaddleTransactionId(null);
+            setView("selection");
+          },
+          onComplete: () => {
+            setCompletedPaddleTransactionId(transactionId);
+            setView("processing");
+          },
+          onError: (message) => {
+            setActivePaddleTransactionId(null);
+            setCompletedPaddleTransactionId(null);
+            setCheckoutError(message);
+            setView("selection");
+          },
+          onPaymentFailed: (message) => {
+            paddle.closeCheckout();
+            setActivePaddleTransactionId(null);
+            setCompletedPaddleTransactionId(null);
+            setCheckoutError(message);
+            setView("selection");
+          },
+        },
+        {
+          displayMode: "inline",
+          frameInitialHeight: "450",
+          frameStyle:
+            "width: 100%; min-width: 312px; background-color: transparent; border: none; border-radius: 12px;",
+          frameTarget: PADDLE_FRAME_TARGET,
+        },
+      );
+    });
+  }, [paddle, state.paddleTransactionId]);
+
+  useEffect(() => {
+    if (cleanupFiredRef.current) {
+      return;
+    }
+
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const expiredKey = `${PENDING_QR_KEY}:expired:${workspaceId}`;
+
+    if (!window.sessionStorage.getItem(expiredKey)) {
+      return;
+    }
+
+    window.sessionStorage.removeItem(expiredKey);
+    cleanupFiredRef.current = true;
+    void cleanupExpiredPendingAction(workspaceId);
+  }, [workspaceId]);
+
+  useEffect(() => {
+    const shouldMonitorQr = open && Boolean(pendingQr) && view === "qr";
+    const shouldMonitorPaddle = open && Boolean(completedPaddleTransactionId);
+
+    if (!shouldMonitorQr && !shouldMonitorPaddle) {
+      return;
+    }
+
+    let isActive = true;
+    const supabase = createSupabaseBrowserClient();
+    let refreshTimerId: number | null = null;
+    let subscriptionChannel:
+      | Awaited<ReturnType<typeof supabase.channel>>
+      | null = null;
+    let paymentAttemptsChannel:
+      | Awaited<ReturnType<typeof supabase.channel>>
+      | null = null;
+
+    function clearRefreshTimer() {
+      if (refreshTimerId) {
+        clearTimeout(refreshTimerId);
+        refreshTimerId = null;
       }
-    : null);
+    }
 
-  const savingsPercent = getYearlySavingsPercent(selectedPlan, currency);
-  const totalPrice = getPlanPrice(selectedPlan, currency, effectiveInterval);
+    function scheduleRefresh(expiresAt: string) {
+      clearRefreshTimer();
+      const refreshInMs = Math.max(
+        new Date(expiresAt).getTime() - Date.now() - 60_000,
+        30_000,
+      );
 
-  // ── Handle dialog close — close Paddle inline if open ────────────────────
+      refreshTimerId = window.setTimeout(() => {
+        void refreshRealtimeAuth();
+      }, refreshInMs);
+    }
+
+    async function refreshRealtimeAuth() {
+      const nextToken = await fetchRealtimeToken();
+
+      if (!nextToken || !isActive) {
+        return;
+      }
+
+      await supabase.realtime.setAuth(nextToken.token);
+      scheduleRefresh(nextToken.expiresAt);
+    }
+
+    function handleSubscriptionRow(row: WorkspaceSubscriptionRealtimeRow) {
+      const status = row.status;
+      const rowPlan = row.plan;
+
+      if (status === "active" && rowPlan === plan) {
+        handleCheckoutSuccess();
+        return;
+      }
+
+      if (!shouldMonitorQr) {
+        return;
+      }
+
+      if (
+        status === "expired" ||
+        status === "incomplete" ||
+        status === "canceled" ||
+        status === "free"
+      ) {
+        const message =
+          status === "expired"
+            ? "This QR Ph payment expired. Generate a new QR code to try again."
+            : "QR Ph payment failed. Please try again.";
+
+        handleQrFailure(message);
+      }
+    }
+
+    function handlePaymentAttemptRow(row: PaymentAttemptRealtimeRow) {
+      if (
+        !shouldMonitorPaddle ||
+        row.provider_payment_id !== completedPaddleTransactionId
+      ) {
+        return;
+      }
+
+      if (row.status === "failed") {
+        handlePaddleFailure("Payment failed. Please try again.");
+      }
+    }
+
+    async function checkSubscriptionStatus() {
+      const { data: subscriptionData } = await supabase
+        .from("workspace_subscriptions")
+        .select("plan, status")
+        .eq("workspace_id", workspaceId)
+        .maybeSingle();
+
+      if (subscriptionData && isActive) {
+        handleSubscriptionRow(subscriptionData);
+      }
+    }
+
+    async function checkPaymentAttemptStatus() {
+      if (!shouldMonitorPaddle || !completedPaddleTransactionId) {
+        return;
+      }
+
+      const { data: paymentAttempts } = await supabase
+        .from("payment_attempts")
+        .select("provider_payment_id, status")
+        .eq("provider_payment_id", completedPaddleTransactionId)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      const latestAttempt = paymentAttempts?.[0];
+
+      if (latestAttempt && isActive) {
+        handlePaymentAttemptRow(latestAttempt);
+      }
+    }
+
+    async function connectRealtime() {
+      const tokenData = await fetchRealtimeToken();
+
+      if (!tokenData || !isActive) {
+        return;
+      }
+
+      await supabase.realtime.setAuth(tokenData.token);
+
+      subscriptionChannel = supabase
+        .channel(`workspace-subscription:${workspaceId}:${plan}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            filter: `workspace_id=eq.${workspaceId}`,
+            schema: "public",
+            table: "workspace_subscriptions",
+          },
+          (payload) => {
+            handleSubscriptionRow(
+              payload.new as WorkspaceSubscriptionRealtimeRow,
+            );
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            filter: `workspace_id=eq.${workspaceId}`,
+            schema: "public",
+            table: "workspace_subscriptions",
+          },
+          (payload) => {
+            handleSubscriptionRow(
+              payload.new as WorkspaceSubscriptionRealtimeRow,
+            );
+          },
+        )
+        .subscribe(async (status) => {
+          if (status === "SUBSCRIBED" && isActive) {
+            await checkSubscriptionStatus();
+          }
+        });
+
+      if (shouldMonitorPaddle && completedPaddleTransactionId) {
+        paymentAttemptsChannel = supabase
+          .channel(`payment-attempt:${completedPaddleTransactionId}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              filter: `provider_payment_id=eq.${completedPaddleTransactionId}`,
+              schema: "public",
+              table: "payment_attempts",
+            },
+            (payload) => {
+              handlePaymentAttemptRow(payload.new as PaymentAttemptRealtimeRow);
+            },
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "UPDATE",
+              filter: `provider_payment_id=eq.${completedPaddleTransactionId}`,
+              schema: "public",
+              table: "payment_attempts",
+            },
+            (payload) => {
+              handlePaymentAttemptRow(payload.new as PaymentAttemptRealtimeRow);
+            },
+          )
+          .subscribe(async (status) => {
+            if (status === "SUBSCRIBED" && isActive) {
+              await checkPaymentAttemptStatus();
+            }
+          });
+      }
+
+      scheduleRefresh(tokenData.expiresAt);
+    }
+
+    void connectRealtime();
+
+    return () => {
+      isActive = false;
+      clearRefreshTimer();
+
+      if (subscriptionChannel) {
+        void supabase.removeChannel(subscriptionChannel);
+      }
+
+      if (paymentAttemptsChannel) {
+        void supabase.removeChannel(paymentAttemptsChannel);
+      }
+    };
+  }, [
+    completedPaddleTransactionId,
+    handleCheckoutSuccess,
+    handlePaddleFailure,
+    handleQrFailure,
+    open,
+    pendingQr,
+    plan,
+    view,
+    workspaceId,
+  ]);
+
+  const handleQrClose = useCallback(async () => {
+    if (!pendingQr || qrCancelInFlightRef.current) {
+      return;
+    }
+
+    qrCancelInFlightRef.current = true;
+    setIsCancelingQr(true);
+    setCheckoutError(null);
+
+    const result = await cancelPendingQrCheckoutAction(
+      workspaceId,
+      pendingQr.paymentIntentId,
+    );
+
+    if (!result.ok) {
+      qrCancelInFlightRef.current = false;
+      setIsCancelingQr(false);
+      setCheckoutError(result.error);
+      return;
+    }
+
+    if (result.outcome === "already_paid") {
+      qrCancelInFlightRef.current = false;
+      handleCheckoutSuccess();
+      return;
+    }
+
+    clearCachedPendingQr(workspaceId);
+    qrCancelInFlightRef.current = false;
+    setPendingQr(null);
+    setIsCancelingQr(false);
+    onOpenChange(false);
+    router.refresh();
+  }, [handleCheckoutSuccess, onOpenChange, pendingQr, router, workspaceId]);
+
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
-      if (!nextOpen && showPaddleInline) {
+      if (nextOpen) {
+        onOpenChange(true);
+        return;
+      }
+
+      if (isPending || view === "processing") {
+        return;
+      }
+
+      if (pendingQr) {
+        void handleQrClose();
+        return;
+      }
+
+      if (view === "paddle" || activePaddleTransactionId) {
         paddle.closeCheckout();
       }
-      onOpenChange(nextOpen);
+
+      onOpenChange(false);
     },
-    [onOpenChange, showPaddleInline, paddle],
+    [
+      activePaddleTransactionId,
+      handleQrClose,
+      isPending,
+      onOpenChange,
+      paddle,
+      pendingQr,
+      view,
+    ],
   );
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-lg gap-0 overflow-hidden p-0">
-        {/* Header */}
+      <DialogContent
+        className="max-w-lg gap-0 overflow-hidden p-0"
+        showCloseButton={view !== "processing"}
+      >
         <DialogHeader className="px-6 pt-6 pb-0">
-          <DialogTitle className="text-xl px-2">
-            {processingUpgrade
-              ? "Processing your upgrade"
-              : showPaddleInline
+          <DialogTitle className="px-2 text-xl">
+            {view === "processing"
+              ? "Processing your payment"
+              : view === "paddle"
                 ? "Complete your payment"
-                : showQrCode
+                : view === "qr"
                   ? "Scan to pay"
-                  : "Upgrade your workspace"}
+                  : `Upgrade to ${planMeta[plan].label}`}
           </DialogTitle>
           <DialogDescription className="px-2">
-            {processingUpgrade
-              ? "Hang tight — we're activating your subscription."
-              : showPaddleInline
-                ? "Choose your preferred payment method below."
-                : showQrCode
-                  ? "Scan the QR code with your banking app to complete payment."
-                  : "Choose a plan and billing cycle to unlock premium features."}
+            {view === "processing"
+              ? "We are confirming your payment and activating your workspace."
+              : view === "paddle"
+                ? "Finish the payment in the inline checkout below."
+                : view === "qr"
+                  ? "Scan the QR code with your banking app. Closing this dialog will stop the pending QR checkout."
+                  : "Choose how you want to pay for this plan upgrade."}
           </DialogDescription>
         </DialogHeader>
 
-        {processingUpgrade ? (
+        {view === "processing" ? (
           <DialogBody className="flex flex-col items-center gap-4 py-10">
-            <Spinner className="size-8" aria-hidden="true" />
-            <p className="text-sm text-muted-foreground">
-              Your workspace is being upgraded to {planMeta[selectedPlan].label}...
+            <Spinner aria-hidden="true" className="size-8" />
+            <p className="text-center text-sm text-muted-foreground">
+              Activating {planMeta[plan].label} for this workspace.
             </p>
           </DialogBody>
-        ) : showPaddleInline ? (
-          <DialogBody className="p-0 overflow-y-auto">
-            {/* Order summary above Paddle frame */}
-            <div className="flex items-center justify-between px-6 py-4 text-sm border-b border-border/40">
+        ) : view === "paddle" && activePaddleTransactionId ? (
+          <DialogBody className="overflow-y-auto p-0">
+            <div className="flex items-center justify-between border-b border-border/40 px-6 py-4 text-sm">
               <span className="text-muted-foreground">
-                {planMeta[selectedPlan].label} plan
+                {planMeta[plan].label} plan
                 <span className="ml-1 text-xs">
                   ({effectiveInterval === "monthly" ? "monthly" : "yearly"})
                 </span>
               </span>
               <span className="font-medium text-foreground">
-                {getPlanPriceLabel(selectedPlan, currency, effectiveInterval)}
+                {getPlanPriceLabel(plan, currency, effectiveInterval)}
               </span>
             </div>
-            {/* Paddle inline checkout container */}
             <div className="px-4 py-4">
               <div className={PADDLE_FRAME_TARGET} />
             </div>
           </DialogBody>
-        ) : showQrCode && activeQrData ? (
-          <DialogBody className="pb-6">
+        ) : view === "qr" && pendingQr ? (
+          <DialogBody className="overflow-y-auto pb-6">
             <QrPhPaymentView
-              qrData={activeQrData}
-              plan={selectedPlan}
-              onClose={() => handleOpenChange(false)}
+              error={checkoutError}
+              isCanceling={isCancelingQr}
+              onClose={() => {
+                void handleQrClose();
+              }}
+              plan={plan}
+              qrData={pendingQr}
             />
           </DialogBody>
         ) : (
           <>
-            <DialogBody className="bg-muted/10 p-0 overflow-y-auto">
+            <DialogBody className="overflow-y-auto bg-muted/10 p-0">
               <div className="flex flex-col gap-6 px-6 py-6">
-                {/* Interval toggle (Card only) */}
+                <div className="soft-panel grid gap-4 rounded-2xl px-4 py-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background">
+                      <PlanIcon
+                        className={cn(
+                          "size-4",
+                          plan === "pro"
+                            ? "fill-current text-primary"
+                            : "text-foreground",
+                        )}
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground">
+                          {planMeta[plan].label}
+                        </p>
+                        <Badge variant="outline">Selected plan</Badge>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {planMeta[plan].description}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    {planHighlightsShort[plan].map((feature) => (
+                      <p className="text-sm text-muted-foreground" key={feature}>
+                        {feature}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+
                 {!isQrPh ? (
                   <div className="flex items-center justify-center">
                     <div className="inline-flex rounded-full border border-border/70 bg-muted/40 p-1">
@@ -375,8 +838,8 @@ function CheckoutDialogInner({
                       >
                         Yearly
                         <Badge
+                          className="border-primary/20 bg-primary/10 px-1.5 py-0 text-[10px] text-primary"
                           variant="secondary"
-                          className="border-primary/20 bg-primary/10 px-1.5 py-0 text-[10px] text-primary dark:border-primary/25 dark:bg-primary/15"
                         >
                           -{savingsPercent}%
                         </Badge>
@@ -385,71 +848,6 @@ function CheckoutDialogInner({
                   </div>
                 ) : null}
 
-                {/* Plan selection */}
-                <div className="flex flex-col gap-2.5">
-                  <p className="meta-label">Select plan</p>
-                  <div className="grid gap-2.5 sm:grid-cols-2">
-                    {(["pro", "business"] as const)
-                      .filter((p) => p !== currentPlan)
-                      .map((plan) => {
-                        const isSelected = selectedPlan === plan;
-                        const PlanIcon = plan === "pro" ? Zap : Crown;
-
-                        return (
-                          <button
-                            className={cn(
-                              "flex flex-col gap-3 rounded-xl border p-4 text-left transition-all",
-                              isSelected
-                                ? "border-primary/40 bg-accent/30 shadow-[0_0_0_1px_hsl(var(--primary)/0.12)]"
-                                : "border-border/60 bg-card/60 hover:border-border hover:bg-accent/10",
-                            )}
-                            key={plan}
-                            onClick={() => setSelectedPlan(plan)}
-                            type="button"
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2">
-                                <PlanIcon className={cn("size-4", plan === "pro" ? "fill-current text-primary" : "text-violet-500")} />
-                                <p className="text-sm font-semibold text-foreground">
-                                  {planMeta[plan].label}
-                                </p>
-                              </div>
-                              {isSelected ? (
-                                <div className="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
-                                  <Check className="size-3" />
-                                </div>
-                              ) : (
-                                <div className="size-5 rounded-full border-2 border-border/70" />
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-                                {getPlanPriceLabel(plan, currency, effectiveInterval).replace(effectiveInterval === "monthly" ? "/mo" : "/yr", "")}
-                                <span className="text-sm font-normal text-muted-foreground">
-                                  {effectiveInterval === "monthly" ? "/mo" : "/yr"}
-                                </span>
-                              </p>
-                              {effectiveInterval === "yearly" ? (
-                                <p className="mt-0.5 text-xs text-muted-foreground">
-                                  {getMonthlyEquivalentLabel(plan, currency)} billed yearly
-                                </p>
-                              ) : null}
-                            </div>
-                            <ul className="flex flex-col gap-1.5 pt-1">
-                              {planHighlightsShort[plan].map((feature) => (
-                                <li className="flex items-start gap-2 text-xs leading-5 text-muted-foreground" key={feature}>
-                                  <Check className="mt-0.5 size-3 shrink-0 text-primary" />
-                                  <span>{feature}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </button>
-                        );
-                      })}
-                  </div>
-                </div>
-
-                {/* Payment method */}
                 <div className="flex flex-col gap-2.5">
                   <p className="meta-label">Payment method</p>
                   <div className={cn("grid gap-2", isPH && "sm:grid-cols-2")}>
@@ -464,12 +862,11 @@ function CheckoutDialogInner({
                         onClick={() => setPaymentMethod("qrph")}
                         type="button"
                       >
-                        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background shadow-xs">
-                          <QrCode className="size-4 text-foreground" />
-                        </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-foreground">QR Ph</p>
-                          <p className="text-xs text-muted-foreground">GCash, Maya</p>
+                          <QrPhBrandMark />
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Generate a QR code and pay from a banking app.
+                          </p>
                         </div>
                         {paymentMethod === "qrph" ? (
                           <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
@@ -490,15 +887,24 @@ function CheckoutDialogInner({
                       onClick={() => setPaymentMethod("card")}
                       type="button"
                     >
-                      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background shadow-xs">
-                        <Wallet className="size-4 text-foreground" />
-                      </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground">Card, PayPal & more</p>
-                        <p className="text-xs text-muted-foreground">
-                          Visa, Mastercard, PayPal, Apple Pay, Google Pay
-                          {isPH ? " · Billed in USD" : ""}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <div className="flex size-8 items-center justify-center rounded-lg border border-border/70 bg-background">
+                            <Wallet className="size-4 text-foreground" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-foreground">
+                              Cards and more
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Card, PayPal, and Google Pay
+                              {isPH ? " billed in USD" : ""}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          <CardAndMoreBrandMarks />
+                        </div>
                       </div>
                       {paymentMethod === "card" ? (
                         <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
@@ -510,8 +916,17 @@ function CheckoutDialogInner({
                     </button>
                   </div>
                   {isQrPh ? (
-                    <p className="mt-1 px-1 text-xs text-muted-foreground">
-                      QRPh is a one-time payment for 1 month of access. We will email you when it&apos;s time to renew.
+                    <p className="px-1 text-xs text-muted-foreground">
+                      QR Ph is a one-time payment for one month of access.
+                    </p>
+                  ) : effectiveInterval === "yearly" ? (
+                    <p className="px-1 text-xs text-muted-foreground">
+                      {getMonthlyEquivalentLabel(plan, currency)} billed yearly.
+                    </p>
+                  ) : null}
+                  {paymentMethod === "card" && isPH ? (
+                    <p className="px-1 text-xs text-muted-foreground">
+                      Cards and more are billed in USD through Paddle.
                     </p>
                   ) : null}
                 </div>
@@ -519,25 +934,24 @@ function CheckoutDialogInner({
             </DialogBody>
             <Separator className="bg-border/40" />
             <DialogFooter className="bg-card px-6 py-6 sm:px-6 sm:py-6">
-              <div className="flex flex-col gap-4 w-full">
-                {/* Order summary */}
+              <div className="flex w-full flex-col gap-4">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">
-                    {planMeta[selectedPlan].label} plan
+                    {planMeta[plan].label} plan
                     <span className="ml-1 text-xs">
-                      ({isQrPh ? "one-time payment" : effectiveInterval === "monthly" ? "monthly" : "yearly"})
+                      ({isQrPh ? "one-time payment" : effectiveInterval})
                     </span>
                   </span>
                   <span className="font-medium text-foreground">
-                    {getPlanPriceLabel(selectedPlan, currency, effectiveInterval)}
+                    {getPlanPriceLabel(plan, currency, effectiveInterval)}
                   </span>
                 </div>
-                {effectiveInterval === "yearly" && !isQrPh ? (
+                {!isQrPh && effectiveInterval === "yearly" ? (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">You save</span>
-                    <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                    <span className="font-medium text-foreground">
                       {formatPrice(
-                        getPlanPrice(selectedPlan, currency, "monthly") * 12 - totalPrice,
+                        getPlanPrice(plan, currency, "monthly") * 12 - totalPrice,
                         currency,
                       )}
                       /yr
@@ -553,47 +967,40 @@ function CheckoutDialogInner({
                   </span>
                 </div>
 
-                {/* Error */}
-                {state.error ? (
-                  <p className="mt-1 text-sm text-destructive">{state.error}</p>
+                {checkoutError ? (
+                  <Alert variant="destructive">
+                    <AlertCircle />
+                    <AlertTitle>Payment issue</AlertTitle>
+                    <AlertDescription>{checkoutError}</AlertDescription>
+                  </Alert>
                 ) : null}
 
-                {/* Submit */}
                 <form action={formAction} className="mt-2">
                   <input name="workspaceId" type="hidden" value={workspaceId} />
-                  <input name="plan" type="hidden" value={selectedPlan} />
+                  <input name="plan" type="hidden" value={plan} />
                   <input name="currency" type="hidden" value={currency} />
-                  <input name="interval" type="hidden" value={effectiveInterval} />
-                  <Button
-                    className="w-full"
-                    disabled={isPending}
-                    size="lg"
-                    type="submit"
-                  >
+                  <input
+                    name="interval"
+                    type="hidden"
+                    value={effectiveInterval}
+                  />
+                  <Button className="w-full" disabled={isPending} size="lg" type="submit">
                     {isPending ? (
                       <>
                         <Spinner aria-hidden="true" />
-                        Processing...
+                        Preparing checkout...
                       </>
                     ) : (
                       <>
-                        <ShoppingCart className="size-4" data-icon="inline-start" />
-                        {isQrPh ? "Pay with QR Ph" : "Continue to checkout"}
+                        <ShoppingCart data-icon="inline-start" />
+                        {isQrPh ? "Upgrade with QR Ph" : `Upgrade to ${planMeta[plan].label}`}
                         <span className="ml-1 opacity-70">
-                          • {formatPrice(totalPrice, currency)}
+                          - {formatPrice(totalPrice, currency)}
                         </span>
                       </>
                     )}
                   </Button>
                 </form>
-
-                {/* Paddle loading notice */}
-                {state.paddleTransactionId && !showPaddleInline ? (
-                  <p className="text-center text-sm text-muted-foreground">
-                    <Spinner className="mr-1.5 inline-block" aria-hidden="true" />
-                    Preparing checkout...
-                  </p>
-                ) : null}
               </div>
             </DialogFooter>
           </>
@@ -603,42 +1010,40 @@ function CheckoutDialogInner({
   );
 }
 
-/* ── QR Ph payment sub-view ───────────────────────────────────────────────── */
-
 function QrPhPaymentView({
-  qrData,
-  plan,
+  error,
+  isCanceling,
   onClose,
+  plan,
+  qrData,
 }: {
-  qrData: NonNullable<CheckoutActionState["qrData"]>;
-  plan: PaidPlan;
+  error: string | null;
+  isCanceling: boolean;
   onClose: () => void;
+  plan: PaidPlan;
+  qrData: PendingQrPhData;
 }) {
   return (
     <div className="grid gap-5 pt-4 pb-2">
       <div className="mx-auto flex flex-col items-center gap-4">
         <div className="rounded-xl border border-border/70 bg-white p-4 shadow-sm">
-          <QRCode
-            value={qrData.qrCodeData}
-            size={200}
-            level="M"
-          />
+          <QRCode level="M" size={200} value={qrData.qrCodeData} />
         </div>
         <div className="text-center">
           <p className="text-sm font-medium text-foreground">
-            {formatPrice(qrData.amount, "PHP")} — {planMeta[plan].label}
+            {formatPrice(qrData.amount, "PHP")} - {planMeta[plan].label}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Scan with GCash, Maya, or any QR Ph-supported app
+            Scan with GCash, Maya, or any QR Ph supported app.
           </p>
         </div>
       </div>
 
-      {qrData.qrCodeData.startsWith("https://") ? (
+      {isDevelopment && qrData.qrCodeData.startsWith("https://") ? (
         <div className="flex justify-center">
-          <Button asChild variant="secondary" size="sm" className="mt-2 text-xs h-8">
-            <a href={qrData.qrCodeData} target="_blank" rel="noreferrer">
-              Open Test Payment Page (Dev Only)
+          <Button asChild className="h-8 text-xs" size="sm" variant="secondary">
+            <a href={qrData.qrCodeData} rel="noreferrer" target="_blank">
+              Open test payment page
             </a>
           </Button>
         </div>
@@ -648,23 +1053,47 @@ function QrPhPaymentView({
         <div className="grid divide-y divide-border/60">
           <div className="flex items-center justify-between px-4 py-3">
             <span className="text-muted-foreground">Status</span>
-            <Badge variant="outline" className="bg-background">Awaiting payment</Badge>
+            <Badge className="bg-background" variant="outline">
+              Awaiting payment
+            </Badge>
           </div>
           <div className="flex items-center justify-between px-4 py-3">
             <span className="text-muted-foreground">Expires</span>
             <span className="font-medium text-foreground">
-              {new Date(qrData.expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+              {new Date(qrData.expiresAt).toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit",
+              })}
             </span>
           </div>
         </div>
       </div>
 
       <p className="text-center text-xs leading-relaxed text-muted-foreground">
-        This is a one-time payment for 1 month of access. Your workspace will be upgraded automatically once payment is confirmed.
+        This workspace will upgrade automatically once the payment webhook is
+        confirmed.
       </p>
 
-      <Button onClick={onClose} variant="outline" className="w-full">
-        Close
+      {error ? (
+        <Alert variant="destructive">
+          <AlertCircle />
+          <AlertTitle>Payment issue</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <Button className="w-full" onClick={onClose} type="button" variant="outline">
+        {isCanceling ? (
+          <>
+            <Spinner aria-hidden="true" />
+            Stopping pending checkout...
+          </>
+        ) : (
+          <>
+            <QrCode data-icon="inline-start" />
+            Stop pending checkout
+          </>
+        )}
       </Button>
     </div>
   );

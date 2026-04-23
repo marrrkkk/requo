@@ -104,6 +104,16 @@ type PayMongoAttachResponse = {
   };
 };
 
+type CancelPaymentIntentResult =
+  | {
+      ok: true;
+      status: "active" | "canceled" | "expired" | "failed";
+    }
+  | {
+      ok: false;
+      message: string;
+    };
+
 /**
  * Creates a QRPh checkout flow:
  *   1. Create Payment Intent
@@ -226,6 +236,65 @@ export async function getPaymentIntent(
     return response.data;
   } catch {
     return null;
+  }
+}
+
+function mapPaymentIntentResolutionStatus(
+  paymongoStatus: string,
+): "pending" | "active" | "canceled" | "expired" | "failed" {
+  if (paymongoStatus === "cancelled") {
+    return "canceled";
+  }
+
+  return mapPayMongoStatus(paymongoStatus);
+}
+
+export async function cancelPaymentIntent(
+  paymentIntentId: string,
+): Promise<CancelPaymentIntentResult> {
+  try {
+    const response = await paymongoRequest<PayMongoPaymentIntentResponse>(
+      "POST",
+      `/payment_intents/${paymentIntentId}/cancel`,
+      {
+        data: {
+          attributes: {},
+        },
+      },
+    );
+
+    const status = mapPaymentIntentResolutionStatus(
+      response.data.attributes.status,
+    );
+
+    if (status === "pending") {
+      return {
+        ok: false,
+        message: "PayMongo did not confirm the cancellation yet.",
+      };
+    }
+
+    return { ok: true, status };
+  } catch (error) {
+    const currentIntent = await getPaymentIntent(paymentIntentId);
+
+    if (currentIntent) {
+      const status = mapPaymentIntentResolutionStatus(
+        currentIntent.attributes.status,
+      );
+
+      if (status !== "pending") {
+        return { ok: true, status };
+      }
+    }
+
+    return {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Failed to cancel the QR Ph payment.",
+    };
   }
 }
 

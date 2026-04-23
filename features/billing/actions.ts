@@ -9,7 +9,12 @@ import { isPayMongoConfigured, isPaddleConfigured } from "@/lib/env";
 import { getProviderForCurrency } from "@/lib/billing/region";
 import { createPendingSubscription, getWorkspaceSubscription } from "@/lib/billing/subscription-service";
 import { recordPaymentAttempt } from "@/lib/billing/webhook-processor";
-import type { CheckoutActionState, CancelActionState, PendingQrPhData } from "@/features/billing/types";
+import type {
+  CancelActionState,
+  CancelPendingQrCheckoutResult,
+  CheckoutActionState,
+  PendingQrPhData,
+} from "@/features/billing/types";
 import type { BillingCurrency, BillingInterval, PaidPlan } from "@/lib/billing/types";
 import { getWorkspacePath } from "@/features/workspaces/routes";
 
@@ -378,4 +383,118 @@ export async function cleanupExpiredPendingAction(
     "@/lib/billing/subscription-service"
   );
   await expireSubscription(workspaceId);
+}
+
+/**
+ * Cancels an active QRPh checkout when the user closes the checkout modal.
+ */
+export async function cancelPendingQrCheckoutAction(
+  workspaceId: string,
+  paymentIntentId: string,
+): Promise<CancelPendingQrCheckoutResult> {
+  const user = await requireUser();
+
+  if (!workspaceId || !paymentIntentId) {
+    return {
+      ok: false,
+      error: "Missing checkout details.",
+    };
+  }
+
+  const workspace = await getWorkspaceContextForUser(user.id, workspaceId);
+
+  if (!workspace) {
+    return {
+      ok: false,
+      error: "Workspace not found.",
+    };
+  }
+
+  if (workspace.memberRole !== "owner") {
+    return {
+      ok: false,
+      error: "Only workspace owners can manage billing.",
+    };
+  }
+
+  const subscription = await getWorkspaceSubscription(workspaceId);
+
+  if (
+    !subscription ||
+    subscription.status !== "pending" ||
+    subscription.billingProvider !== "paymongo"
+  ) {
+    return {
+      ok: true,
+      outcome: "already_canceled",
+    };
+  }
+
+  const { db } = await import("@/lib/db/client");
+  const { paymentAttempts } = await import("@/lib/db/schema/subscriptions");
+  const { and, eq } = await import("drizzle-orm");
+
+  const [attempt] = await db
+    .select({ id: paymentAttempts.id })
+    .from(paymentAttempts)
+    .where(
+      and(
+        eq(paymentAttempts.workspaceId, workspaceId),
+        eq(paymentAttempts.provider, "paymongo"),
+        eq(paymentAttempts.providerPaymentId, paymentIntentId),
+        eq(paymentAttempts.status, "pending"),
+      ),
+    )
+    .limit(1);
+
+  if (!attempt) {
+    return {
+      ok: true,
+      outcome: "already_canceled",
+    };
+  }
+
+  const { cancelPaymentIntent } = await import(
+    "@/lib/billing/providers/paymongo"
+  );
+  const result = await cancelPaymentIntent(paymentIntentId);
+
+  if (result.ok && result.status === "active") {
+    revalidatePath(getWorkspacePath(workspace.slug));
+
+    return {
+      ok: true,
+      outcome: "already_paid",
+    };
+  }
+
+  const { updateSubscriptionStatus } = await import(
+    "@/lib/billing/subscription-service"
+  );
+  const { updatePaymentAttemptStatus } = await import(
+    "@/lib/billing/webhook-processor"
+  );
+
+  await Promise.all([
+    updatePaymentAttemptStatus(paymentIntentId, "expired"),
+    updateSubscriptionStatus(workspaceId, "incomplete"),
+  ]);
+
+  if (!result.ok) {
+    console.error(
+      "[Billing] Failed to cancel PayMongo payment intent. Falling back to local checkout cleanup.",
+      {
+        error: result.message,
+        paymentIntentId,
+        workspaceId,
+      },
+    );
+  }
+
+  revalidatePath(getWorkspacePath(workspace.slug));
+
+  return {
+    ok: true,
+    outcome: "canceled",
+  };
 }
