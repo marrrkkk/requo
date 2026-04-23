@@ -6,9 +6,6 @@ import { ChevronDown, Download, FileImage, FileText } from "lucide-react";
 import {
   Popover,
   PopoverContent,
-  PopoverDescription,
-  PopoverHeader,
-  PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
@@ -33,56 +30,28 @@ export function QuoteExportPopover({
           <ChevronDown className="opacity-60" data-icon="inline-end" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-72 rounded-xl p-3">
-        <PopoverHeader className="gap-1 px-1">
-          <PopoverTitle>Export quote</PopoverTitle>
-          <PopoverDescription>
-            Download the customer-facing quote in the format you need.
-          </PopoverDescription>
-        </PopoverHeader>
+      <PopoverContent align="end" className="w-40 rounded-xl p-1.5">
 
-        <div className="grid gap-2">
-          <Button
-            asChild
-            className="h-auto w-full justify-start px-3 py-3"
-            size="sm"
-            variant="ghost"
+        <div className="grid gap-0.5">
+          <a
+            aria-label="Export PDF"
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-[var(--control-accent-bg)] hover:text-foreground"
+            href={pdfHref}
+            onClick={() => setOpen(false)}
           >
-            <a
-              aria-label="Export PDF"
-              href={pdfHref}
-              onClick={() => setOpen(false)}
-            >
-              <FileText className="mt-0.5" />
-              <span className="flex flex-col items-start gap-0.5 text-left">
-                <span className="text-sm font-medium text-foreground">PDF</span>
-                <span className="text-xs text-muted-foreground">
-                  Best for sharing and printing.
-                </span>
-              </span>
-            </a>
-          </Button>
+            <FileText className="size-4" />
+            PDF
+          </a>
 
-          <Button
-            asChild
-            className="h-auto w-full justify-start px-3 py-3"
-            size="sm"
-            variant="ghost"
+          <a
+            aria-label="Export PNG"
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-[var(--control-accent-bg)] hover:text-foreground"
+            href={pngHref}
+            onClick={() => setOpen(false)}
           >
-            <a
-              aria-label="Export PNG"
-              href={pngHref}
-              onClick={() => setOpen(false)}
-            >
-              <FileImage className="mt-0.5" />
-              <span className="flex flex-col items-start gap-0.5 text-left">
-                <span className="text-sm font-medium text-foreground">PNG</span>
-                <span className="text-xs text-muted-foreground">
-                  Best for quick previews and image sharing.
-                </span>
-              </span>
-            </a>
-          </Button>
+            <FileImage className="size-4" />
+            PNG
+          </a>
         </div>
       </PopoverContent>
     </Popover>

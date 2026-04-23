@@ -367,8 +367,8 @@ function TranscriptMessage({
           {isUser
             ? message.label
             : message.isError
-              ? "Assistant error"
-              : "Requo assistant"}
+              ? "Requo AI error"
+              : "Requo AI"}
         </span>
 
         <div
@@ -498,7 +498,7 @@ export function InquiryAiPanel({ inquiryId, userName }: InquiryAiPanelProps) {
       {
         id: createMessageId(),
         role: "assistant",
-        label: isError ? "Assistant error" : "Requo assistant",
+        label: isError ? "Requo AI error" : "Requo AI",
         content,
         isError,
         title: isError ? "Check that request" : undefined,
@@ -532,7 +532,7 @@ export function InquiryAiPanel({ inquiryId, userName }: InquiryAiPanelProps) {
       {
         id: assistantMessageId,
         role: "assistant",
-        label: "Requo assistant",
+        label: "Requo AI",
         content: "",
         pending: true,
       },
@@ -790,7 +790,7 @@ export function InquiryAiPanel({ inquiryId, userName }: InquiryAiPanelProps) {
       <Popover onOpenChange={setIsOpen} open={isOpen}>
         <PopoverTrigger asChild>
           <Button
-            aria-label={isOpen ? "Close Requo assistant" : "Open Requo assistant"}
+            aria-label={isOpen ? "Close Requo AI" : "Open Requo AI"}
             className="size-14 rounded-full border-border/70 bg-[var(--surface-elevated-bg)] p-0 shadow-[var(--surface-shadow-lg)]"
             data-testid="inquiry-ai-launcher"
             size="icon-lg"
@@ -805,14 +805,14 @@ export function InquiryAiPanel({ inquiryId, userName }: InquiryAiPanelProps) {
               className="size-[2.15rem] object-contain"
             />
             <span className="sr-only">
-              {isOpen ? "Close Requo assistant" : "Open Requo assistant"}
+              {isOpen ? "Close Requo AI" : "Open Requo AI"}
             </span>
           </Button>
         </PopoverTrigger>
 
         <PopoverContent
           align="end"
-          className="overlay-surface h-[min(calc(100vh-6rem),42rem)] w-[min(calc(100vw-1rem),27rem)] gap-0 overflow-hidden rounded-[1.5rem] border p-0 text-foreground"
+          className="overlay-surface h-[calc(100vh-12rem)] w-[min(calc(100vw-1rem),27rem)] gap-0 overflow-hidden rounded-[1.5rem] border p-0 text-foreground"
           collisionPadding={8}
           data-testid="inquiry-ai-dialog"
           onOpenAutoFocus={(event) => event.preventDefault()}
@@ -820,34 +820,22 @@ export function InquiryAiPanel({ inquiryId, userName }: InquiryAiPanelProps) {
           sideOffset={18}
         >
           <div className="flex h-full min-h-0 flex-col">
-            <div className="surface-card-footer flex items-start justify-between gap-3 border-b border-border/70 px-4 py-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-background/84 shadow-[var(--surface-shadow-sm)]">
-                  <Image
-                    src="/logo.svg"
-                    alt=""
-                    width={28}
-                    height={28}
-                    className="size-7 object-contain"
-                  />
-                </div>
-
-                <div className="min-w-0 flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <BrandWordmark className="text-[1.08rem]" />
-                    <span className="inline-flex items-center gap-1 text-[0.66rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                      <span className="size-1.5 rounded-full bg-primary" />
-                      Internal
-                    </span>
-                  </div>
-                  <p className="text-xs leading-5 text-muted-foreground">
-                    Ask about this inquiry, draft a reply, or rewrite rough text.
-                  </p>
-                </div>
+            <div className="surface-card-footer flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <Image
+                  src="/logo.svg"
+                  alt=""
+                  width={24}
+                  height={24}
+                  className="size-6 object-contain"
+                />
+                <h2 className="font-heading text-base font-semibold text-primary">
+                  Requo AI
+                </h2>
               </div>
 
               <Button
-                aria-label="Close Requo assistant"
+                aria-label="Close Requo AI"
                 onClick={() => setIsOpen(false)}
                 size="icon-sm"
                 type="button"
@@ -873,19 +861,25 @@ export function InquiryAiPanel({ inquiryId, userName }: InquiryAiPanelProps) {
                       />
                     ))
                   ) : (
-                    <div className="flex min-h-[17rem] items-end">
-                      <div className="soft-panel max-w-[20rem] rounded-[1.35rem] px-4 py-4 shadow-none">
-                        <div className="flex flex-col gap-3">
-                          <span className="meta-label">Requo assistant</span>
-                          <h3 className="font-heading text-lg font-semibold text-foreground">
-                            Start with a quick ask
-                          </h3>
-                          <p className="text-sm leading-6 text-muted-foreground">
-                            Use the preset buttons below to draft the first reply,
-                            summarize the inquiry, suggest follow-up questions, or
-                            outline quote line items. For a custom ask, type your
-                            request and send it like a chat.
-                          </p>
+                    <div className="flex min-h-[17rem] flex-col justify-end gap-6">
+                      <div className="flex w-full justify-end">
+                        <div className="flex max-w-[92%] flex-col items-end gap-2">
+                          {presetActions.map((preset) => {
+                            return (
+                              <button
+                                className="rounded-[1.25rem] border border-primary/40 bg-background px-4 py-2.5 text-sm text-primary shadow-sm transition-colors hover:bg-primary/5 disabled:opacity-50"
+                                disabled={isPending}
+                                key={preset.intent}
+                                onClick={() => {
+                                  void runIntent(preset.intent);
+                                }}
+                                title={preset.description}
+                                type="button"
+                              >
+                                {preset.label}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
@@ -896,74 +890,37 @@ export function InquiryAiPanel({ inquiryId, userName }: InquiryAiPanelProps) {
               </ScrollArea>
             </div>
 
-            <div className="border-t border-border/70 px-4 py-4">
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-wrap gap-2">
-                  {presetActions.map((preset) => {
-                    const Icon = preset.icon;
+            <div className="border-t border-border/70 px-3 py-3">
+              <form className="relative" onSubmit={handleCustomSubmit}>
+                <Textarea
+                  className="min-h-[2.75rem] max-h-[6rem] resize-none py-2.5 pr-12 shadow-[var(--control-shadow)]"
+                  disabled={isPending}
+                  maxLength={6000}
+                  onChange={(event) => setComposerValue(event.currentTarget.value)}
+                  onKeyDown={handleComposerKeyDown}
+                  placeholder="Ask about this inquiry, or paste rough text to rewrite..."
+                  rows={1}
+                  value={composerValue}
+                />
 
-                    return (
-                      <Button
-                        className="rounded-full"
-                        disabled={isPending}
-                        key={preset.intent}
-                        onClick={() => {
-                          void runIntent(preset.intent);
-                        }}
-                        size="sm"
-                        title={preset.description}
-                        type="button"
-                        variant="outline"
-                      >
-                        <Icon data-icon="inline-start" />
-                        {preset.label}
-                      </Button>
-                    );
-                  })}
+                <div className="absolute bottom-1 right-1">
+                  <Button
+                    className="size-9 rounded-[0.45rem]"
+                    disabled={isPending || !composerValue.trim()}
+                    size="icon"
+                    type="submit"
+                  >
+                    {isPending ? (
+                      <Spinner aria-hidden="true" />
+                    ) : (
+                      <SendHorizontal />
+                    )}
+                    <span className="sr-only">Send</span>
+                  </Button>
                 </div>
-
-                <form className="flex flex-col gap-3" onSubmit={handleCustomSubmit}>
-                  <Textarea
-                    className="max-h-44 min-h-24"
-                    disabled={isPending}
-                    maxLength={6000}
-                    onChange={(event) => setComposerValue(event.currentTarget.value)}
-                    onKeyDown={handleComposerKeyDown}
-                    placeholder="Ask about this inquiry, or paste rough text and use Rewrite draft."
-                    rows={4}
-                    value={composerValue}
-                  />
-
-                  <div className="flex items-end justify-between gap-3">
-                    <p className="max-w-[14rem] text-xs leading-5 text-muted-foreground">
-                      Press Ctrl/Cmd + Enter to send.
-                    </p>
-
-                    <Button
-                      disabled={isPending || !composerValue.trim()}
-                      type="submit"
-                    >
-                      {isPending ? (
-                        <>
-                          <Spinner aria-hidden="true" data-icon="inline-start" />
-                          Sending...
-                        </>
-                      ) : (
-                        <>
-                          <SendHorizontal data-icon="inline-start" />
-                          Send
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </form>
-              </div>
+              </form>
             </div>
 
-            <div className="surface-card-footer flex flex-wrap items-center justify-between gap-2 border-t border-border/70 px-4 py-3 text-[0.72rem] text-muted-foreground">
-              <span>Internal assistant only</span>
-              <span>No customer-facing sending</span>
-            </div>
           </div>
         </PopoverContent>
       </Popover>

@@ -157,41 +157,53 @@ export async function submitPublicInquiryAction(
         getBusinessMessagingSettings(business.id),
       ]);
 
-      if (!businessSettings?.notifyOnNewInquiry || !recipients.length) {
-        return;
+      if (businessSettings?.notifyOnNewInquiry && recipients.length) {
+        try {
+          await sendPublicInquiryNotificationEmail({
+            inquiryId: createdInquiry.inquiryId,
+            recipients,
+            businessName: businessSettings.name,
+            dashboardUrl: new URL(
+              getBusinessInquiryPath(slug, createdInquiry.inquiryId),
+              env.BETTER_AUTH_URL,
+            ).toString(),
+            customerName: validationResult.data.customerName,
+            customerEmail: validationResult.data.customerEmail ?? undefined,
+            customerContactMethod: validationResult.data.customerContactMethod,
+            customerContactHandle: validationResult.data.customerContactHandle,
+            inquiryFormName: business.form.name,
+            serviceCategory: validationResult.data.serviceCategory,
+            deadline: validationResult.data.requestedDeadline,
+            budget: validationResult.data.budgetText,
+            details: validationResult.data.details,
+            attachmentName: createdInquiry.attachmentName,
+            additionalFields: getAdditionalInquirySubmittedFields(
+              validationResult.data.submittedFieldSnapshot,
+            ).map((field) => ({
+              label: field.label,
+              value: field.displayValue,
+            })),
+          });
+        } catch (error) {
+          console.error(
+            "The public inquiry was saved but the owner notification email failed to send.",
+            error,
+          );
+        }
       }
 
-      try {
-        await sendPublicInquiryNotificationEmail({
-          inquiryId: createdInquiry.inquiryId,
-          recipients,
-          businessName: businessSettings.name,
-          dashboardUrl: new URL(
-            getBusinessInquiryPath(slug, createdInquiry.inquiryId),
-            env.BETTER_AUTH_URL,
-          ).toString(),
-          customerName: validationResult.data.customerName,
-          customerEmail: validationResult.data.customerEmail ?? undefined,
-          customerContactMethod: validationResult.data.customerContactMethod,
-          customerContactHandle: validationResult.data.customerContactHandle,
-          inquiryFormName: business.form.name,
-          serviceCategory: validationResult.data.serviceCategory,
-          deadline: validationResult.data.requestedDeadline,
-          budget: validationResult.data.budgetText,
-          details: validationResult.data.details,
-          attachmentName: createdInquiry.attachmentName,
-          additionalFields: getAdditionalInquirySubmittedFields(
-            validationResult.data.submittedFieldSnapshot,
-          ).map((field) => ({
-            label: field.label,
-            value: field.displayValue,
-          })),
-        });
-      } catch (error) {
-        console.error(
-          "The public inquiry was saved but the owner notification email failed to send.",
-          error,
-        );
+      // Push notification
+      if (businessSettings?.notifyPushOnNewInquiry) {
+        try {
+          const { sendPushToBusinessSubscribers } = await import("@/lib/push/send");
+          await sendPushToBusinessSubscribers(business.id, {
+            title: "New inquiry received",
+            body: `${validationResult.data.customerName} submitted an inquiry.`,
+            url: getBusinessInquiryPath(slug, createdInquiry.inquiryId),
+          });
+        } catch (error) {
+          console.error("Push notification failed for new inquiry.", error);
+        }
       }
     });
 

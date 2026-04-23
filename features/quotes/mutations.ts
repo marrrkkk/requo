@@ -1100,6 +1100,7 @@ export async function respondToPublicQuoteByToken({
         postAcceptanceStatus: quotes.postAcceptanceStatus,
         notifyOnQuoteResponse: businesses.notifyOnQuoteResponse,
         notifyInAppOnQuoteResponse: businesses.notifyInAppOnQuoteResponse,
+        notifyPushOnQuoteResponse: businesses.notifyPushOnQuoteResponse,
       })
       .from(quotes)
       .innerJoin(businesses, eq(quotes.businessId, businesses.id))
@@ -1226,6 +1227,7 @@ export async function respondToPublicQuoteByToken({
       customerEmail: existingQuote.customerEmail,
       customerResponseMessage: message?.trim() || null,
       notifyOnQuoteResponse: existingQuote.notifyOnQuoteResponse,
+      notifyPushOnQuoteResponse: existingQuote.notifyPushOnQuoteResponse,
       publicToken: resolveStoredQuotePublicToken(existingQuote),
       quoteNumber: existingQuote.quoteNumber,
       status: nextStatus,
