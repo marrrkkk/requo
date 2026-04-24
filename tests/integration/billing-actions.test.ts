@@ -266,7 +266,7 @@ describe("billing actions", () => {
     expect(createPendingSubscriptionMock).not.toHaveBeenCalled();
   });
 
-  it("reuses an existing pending Paddle transaction instead of creating a new one", async () => {
+  it("creates a fresh Paddle transaction instead of resuming pending card checkout", async () => {
     dbSelectLimitMock.mockResolvedValue([
       {
         plan: "pro",
@@ -293,8 +293,15 @@ describe("billing actions", () => {
 
     const result = await createCheckoutAction({}, formData);
 
-    expect(result).toEqual({ paddleTransactionId: "txn_existing" });
-    expect(createPaddleTransactionMock).not.toHaveBeenCalled();
+    expect(result).toEqual({ paddleTransactionId: "txn_123" });
+    expect(getPaddleTransactionMock).not.toHaveBeenCalled();
+    expect(createPaddleTransactionMock).toHaveBeenCalledWith({
+      plan: "pro",
+      workspaceId: "workspace_123",
+      userEmail: "owner@example.com",
+      userName: "Owner Example",
+      interval: "monthly",
+    });
   });
 
   it("returns the current subscription and payment attempt status for checkout sync", async () => {
