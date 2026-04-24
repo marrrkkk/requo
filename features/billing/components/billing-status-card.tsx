@@ -15,8 +15,8 @@ import {
   Clock,
   CircleMinus,
   CircleDashed,
-  Zap,
-  Crown,
+  Briefcase,
+  Building2,
   CalendarDays,
   Receipt,
   Shield,
@@ -385,7 +385,7 @@ export function BillingStatusCard({
               {(["free", "pro", "business"] as const).map((plan) => {
                 const isCurrent = plan === currentPlan;
                 const meta = planMeta[plan];
-                const PlanIcon = plan === "pro" ? Zap : plan === "business" ? Crown : null;
+                const PlanIcon = plan === "pro" ? Briefcase : plan === "business" ? Building2 : null;
 
                 return (
                   <div
@@ -403,7 +403,7 @@ export function BillingStatusCard({
                       </Badge>
                     ) : null}
                     <div className="flex items-center gap-2">
-                      {PlanIcon ? <PlanIcon className={cn("size-4", plan === "pro" ? "fill-current text-primary" : "text-violet-500")} /> : null}
+                      {PlanIcon ? <PlanIcon className={cn("size-4", plan === "pro" ? "text-primary" : "text-violet-500")} /> : null}
                       <p className="text-sm font-semibold text-foreground">{meta.label}</p>
                     </div>
                     <p className="font-heading text-xl font-semibold tracking-tight text-foreground">

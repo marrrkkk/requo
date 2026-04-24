@@ -11,11 +11,11 @@ import { useRouter } from "next/navigation";
 import {
   AlertCircle,
   Check,
-  Crown,
+  Briefcase,
+  Building2,
   QrCode,
   ShoppingCart,
   Wallet,
-  Zap,
 } from "lucide-react";
 import QRCode from "react-qr-code";
 
@@ -24,6 +24,16 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -81,6 +91,9 @@ type ControlledCheckoutDialogProps = CheckoutDialogProps & {
   pendingCheckout?: PersistedPendingCheckout | null;
   checkoutError?: string | null;
   onCheckoutErrorChange?: (error: string | null) => void;
+  onPaddleTransactionChange?: (
+    checkout: { plan: PaidPlan; transactionId: string } | null,
+  ) => void;
 };
 
 type PaymentMethod = "qrph" | "card";
@@ -148,6 +161,7 @@ function CheckoutDialogInner({
   workspaceId,
   checkoutError,
   onCheckoutErrorChange,
+  onPaddleTransactionChange,
   pendingCheckout,
 }: ControlledCheckoutDialogProps) {
   const router = useRouter();
@@ -157,22 +171,10 @@ function CheckoutDialogInner({
       ? pendingCheckout
       : getCachedPendingCheckoutForPlan(workspaceId, plan);
   const initialPendingQr = toPendingQrData(initialPendingCheckout);
-  const initialPaddleTransactionId =
-    initialPendingCheckout?.provider === "paddle"
-      ? initialPendingCheckout.transactionId
-      : null;
-  const [interval, setInterval] = useState<BillingInterval>(
-    initialPendingCheckout?.provider === "paddle"
-      ? initialPendingCheckout.interval
-      : "monthly",
-  );
+  const [interval, setInterval] = useState<BillingInterval>("monthly");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(() => {
     if (initialPendingCheckout?.provider === "paymongo") {
       return "qrph";
-    }
-
-    if (initialPendingCheckout?.provider === "paddle") {
-      return "card";
     }
 
     return region === "PH" ? "qrph" : "card";
@@ -180,10 +182,6 @@ function CheckoutDialogInner({
   const [view, setView] = useState<CheckoutView>(() => {
     if (initialPendingCheckout?.provider === "paymongo") {
       return "qr";
-    }
-
-    if (initialPendingCheckout?.provider === "paddle") {
-      return "paddle";
     }
 
     return "selection";
@@ -196,10 +194,11 @@ function CheckoutDialogInner({
   );
   const [activePaddleTransactionId, setActivePaddleTransactionId] = useState<
     string | null
-  >(initialPaddleTransactionId);
+  >(null);
   const [isAwaitingPaddleConfirmation, setIsAwaitingPaddleConfirmation] =
     useState(false);
   const [isCancelingQr, setIsCancelingQr] = useState(false);
+  const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
   const [state, formAction, isPending] = useActionState(
     createCheckoutAction,
     {} as CheckoutActionState,
@@ -211,7 +210,7 @@ function CheckoutDialogInner({
   const effectiveInterval: BillingInterval = isQrPh ? "monthly" : interval;
   const totalPrice = getPlanPrice(plan, currency, effectiveInterval);
   const savingsPercent = getYearlySavingsPercent(plan, currency);
-  const PlanIcon = plan === "pro" ? Zap : Crown;
+  const PlanIcon = plan === "pro" ? Briefcase : Building2;
 
   const updateCheckoutError = useCallback(
     (message: string | null) => {
@@ -228,29 +227,20 @@ function CheckoutDialogInner({
     queueMicrotask(() => {
       if (!matchingPendingCheckout) {
         setPendingQr(null);
-        setActivePaddleTransactionId(null);
-        setIsAwaitingPaddleConfirmation(false);
         setIsCancelingQr(false);
-        setView("selection");
         return;
       }
 
       if (matchingPendingCheckout.provider === "paymongo") {
         setPendingQr(toPendingQrData(matchingPendingCheckout));
         setActivePaddleTransactionId(null);
+        onPaddleTransactionChange?.(null);
         setIsAwaitingPaddleConfirmation(false);
         setPaymentMethod("qrph");
         setView("qr");
-        return;
       }
-
-      setPendingQr(null);
-      setActivePaddleTransactionId(matchingPendingCheckout.transactionId);
-      setInterval(matchingPendingCheckout.interval);
-      setPaymentMethod("card");
-      setView("paddle");
     });
-  }, [pendingCheckout, plan]);
+  }, [onPaddleTransactionChange, pendingCheckout, plan]);
 
   useEffect(() => {
     if (!open) {
@@ -277,12 +267,19 @@ function CheckoutDialogInner({
     queueMicrotask(() => {
       setPendingQr(toPendingQrData(nextPendingCheckout));
       setActivePaddleTransactionId(null);
+      onPaddleTransactionChange?.(null);
       setIsAwaitingPaddleConfirmation(false);
       updateCheckoutError(null);
       setIsCancelingQr(false);
       setView("qr");
     });
-  }, [plan, state.qrData, updateCheckoutError, workspaceId]);
+  }, [
+    onPaddleTransactionChange,
+    plan,
+    state.qrData,
+    updateCheckoutError,
+    workspaceId,
+  ]);
 
   useEffect(() => {
     if (!state.paddleTransactionId) {
@@ -291,28 +288,19 @@ function CheckoutDialogInner({
 
     const transactionId = state.paddleTransactionId;
 
-    setCachedPendingCheckout(workspaceId, {
-      amount: totalPrice,
-      currency: "USD",
-      interval: effectiveInterval,
-      plan,
-      provider: "paddle",
-      transactionId,
-    });
     queueMicrotask(() => {
       setPendingQr(null);
       setActivePaddleTransactionId(transactionId);
+      onPaddleTransactionChange?.({ plan, transactionId });
       setIsAwaitingPaddleConfirmation(false);
       updateCheckoutError(null);
       setView("paddle");
     });
   }, [
-    effectiveInterval,
+    onPaddleTransactionChange,
     plan,
     state.paddleTransactionId,
-    totalPrice,
     updateCheckoutError,
-    workspaceId,
   ]);
 
   useEffect(() => {
@@ -355,13 +343,15 @@ function CheckoutDialogInner({
             updateCheckoutError(null);
             setView("paddle");
           },
-          onError: (message) => {
+          onError: () => {
             setIsAwaitingPaddleConfirmation(false);
-            setView("selection");
-            updateCheckoutError(message);
+            updateCheckoutError(null);
+            setView("paddle");
           },
           onPaymentFailed: () => {
             setIsAwaitingPaddleConfirmation(false);
+            updateCheckoutError(null);
+            setView("paddle");
           },
         },
         {
@@ -416,6 +406,30 @@ function CheckoutDialogInner({
     router.refresh();
   }, [onOpenChange, pendingQr, router, updateCheckoutError, workspaceId]);
 
+  const resetPaddleCheckout = useCallback(() => {
+    if (activePaddleTransactionId) {
+      paddle.closeCheckout();
+    }
+
+    openedPaddleTransactionRef.current = null;
+    setActivePaddleTransactionId(null);
+    onPaddleTransactionChange?.(null);
+    setIsAwaitingPaddleConfirmation(false);
+    setView("selection");
+    updateCheckoutError(null);
+  }, [
+    activePaddleTransactionId,
+    onPaddleTransactionChange,
+    paddle,
+    updateCheckoutError,
+  ]);
+
+  const confirmPaddleCheckoutClose = useCallback(() => {
+    setIsCloseConfirmOpen(false);
+    resetPaddleCheckout();
+    onOpenChange(false);
+  }, [onOpenChange, resetPaddleCheckout]);
+
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
       if (nextOpen) {
@@ -427,20 +441,32 @@ function CheckoutDialogInner({
         return;
       }
 
-      if (view === "paddle" && activePaddleTransactionId) {
-        paddle.closeCheckout();
+      if (
+        view === "paddle" &&
+        activePaddleTransactionId &&
+        !isAwaitingPaddleConfirmation
+      ) {
+        setIsCloseConfirmOpen(true);
+        return;
       }
 
       onOpenChange(false);
     },
-    [activePaddleTransactionId, isPending, onOpenChange, paddle, view],
+    [
+      activePaddleTransactionId,
+      isAwaitingPaddleConfirmation,
+      isPending,
+      onOpenChange,
+      view,
+    ],
   );
 
   const resolvedCheckoutError = checkoutError ?? localCheckoutError;
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-lg gap-0 overflow-hidden p-0">
+    <>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="max-w-lg gap-0 overflow-hidden p-0">
         <DialogHeader className="px-6 pt-6 pb-0">
           <DialogTitle className="px-2 text-xl">
             {view === "paddle"
@@ -522,7 +548,7 @@ function CheckoutDialogInner({
                         className={cn(
                           "size-4",
                           plan === "pro"
-                            ? "fill-current text-primary"
+                            ? "text-primary"
                             : "text-foreground",
                         )}
                       />
@@ -754,8 +780,39 @@ function CheckoutDialogInner({
             </DialogFooter>
           </>
         )}
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      <AlertDialog
+        open={open && isCloseConfirmOpen}
+        onOpenChange={setIsCloseConfirmOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Close card checkout?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Closing now will reset the Paddle card form. You can start a new
+              checkout when you are ready.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel asChild>
+              <Button type="button" variant="outline">
+                Keep checkout open
+              </Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button
+                onClick={confirmPaddleCheckoutClose}
+                type="button"
+                variant="destructive"
+              >
+                Close and reset
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 

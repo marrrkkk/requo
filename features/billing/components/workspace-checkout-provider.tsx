@@ -10,13 +10,17 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
+import { Briefcase, Building2, Check, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogBody,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -41,7 +45,25 @@ import type {
 } from "@/features/billing/types";
 import { planMeta } from "@/lib/plans";
 import type { PaidPlan } from "@/lib/billing/types";
+import { cn } from "@/lib/utils";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+
+const planUpgradeHighlights: Record<PaidPlan, string[]> = {
+  pro: [
+    "Unlimited inquiries and quotes",
+    "Multiple inquiry forms",
+    "AI assistant and knowledge base",
+    "Data exports and custom branding",
+    "Multiple businesses per workspace",
+  ],
+  business: [
+    "Everything in Pro, plus",
+    "Team members and roles",
+    "Priority support",
+    "Unlimited businesses",
+    "Highest limits across the board",
+  ],
+};
 
 type WorkspaceCheckoutContextValue = {
   currentPlan: WorkspaceBillingOverview["currentPlan"];
@@ -70,6 +92,11 @@ type ProcessingState = {
   plan: PaidPlan;
 };
 
+type ActivePaddleCheckout = {
+  plan: PaidPlan;
+  transactionId: string;
+};
+
 const WorkspaceCheckoutContext =
   createContext<WorkspaceCheckoutContextValue | null>(null);
 const PROCESSING_REFRESH_DELAY_MS = 1000;
@@ -88,29 +115,17 @@ async function fetchRealtimeToken() {
     token: string;
   };
 }
-
 function normalizePendingCheckout(
   checkout: PendingCheckoutState,
 ): PersistedPendingCheckout {
-  if (checkout.provider === "paymongo") {
-    return {
-      amount: checkout.amount,
-      currency: "PHP",
-      expiresAt: checkout.expiresAt,
-      paymentIntentId: checkout.paymentIntentId,
-      plan: checkout.plan,
-      provider: "paymongo",
-      qrCodeData: checkout.qrCodeData,
-    };
-  }
-
   return {
     amount: checkout.amount,
-    currency: "USD",
-    interval: checkout.interval,
+    currency: "PHP",
+    expiresAt: checkout.expiresAt,
+    paymentIntentId: checkout.paymentIntentId,
     plan: checkout.plan,
-    provider: "paddle",
-    transactionId: checkout.transactionId,
+    provider: "paymongo",
+    qrCodeData: checkout.qrCodeData,
   };
 }
 
@@ -118,13 +133,9 @@ function getPendingCheckoutFailureMessage(
   checkout: PersistedPendingCheckout,
   status?: string | null,
 ) {
-  if (checkout.provider === "paymongo") {
-    return status === "expired"
-      ? "This QR Ph payment expired. Generate a new QR code to try again."
-      : "QR Ph payment failed. Please try again.";
-  }
-
-  return "Payment failed. Please try again.";
+  return status === "expired"
+    ? "This QR Ph payment expired. Generate a new QR code to try again."
+    : "QR Ph payment failed. Please try again.";
 }
 
 export function useWorkspaceCheckout() {
@@ -138,6 +149,7 @@ export function WorkspaceCheckoutProvider({
   billing: WorkspaceBillingOverview;
   children: ReactNode;
 }) {
+  const router = useRouter();
   const workspaceId = billing.workspaceId;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -145,13 +157,17 @@ export function WorkspaceCheckoutProvider({
   const [targetPlan, setTargetPlan] = useState<PaidPlan | undefined>(undefined);
   const [pendingCheckout, setPendingCheckout] =
     useState<PersistedPendingCheckout | null>(null);
+  const [activePaddleCheckout, setActivePaddleCheckout] =
+    useState<ActivePaddleCheckout | null>(null);
   const [processingState, setProcessingState] = useState<ProcessingState | null>(
     null,
   );
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [successPlan, setSuccessPlan] = useState<PaidPlan | null>(null);
   const refreshQueuedRef = useRef(false);
   const localExpiryHandledRef = useRef<string | null>(null);
   const pendingCheckoutVersionRef = useRef(0);
+  const checkoutKeyRef = useRef(0);
 
   const openPlanSelection = useCallback((nextTargetPlan?: PaidPlan) => {
     setCheckoutError(null);
@@ -160,6 +176,7 @@ export function WorkspaceCheckoutProvider({
   }, []);
 
   const openCheckout = useCallback((plan: PaidPlan) => {
+    checkoutKeyRef.current += 1;
     setCheckoutError(null);
     setSheetOpen(false);
     setSelectedPlan(plan);
@@ -171,6 +188,7 @@ export function WorkspaceCheckoutProvider({
       return;
     }
 
+    checkoutKeyRef.current += 1;
     setCheckoutError(null);
     setSelectedPlan(pendingCheckout.plan);
     setCheckoutOpen(true);
@@ -184,9 +202,9 @@ export function WorkspaceCheckoutProvider({
     refreshQueuedRef.current = true;
 
     window.setTimeout(() => {
-      window.location.reload();
+      router.refresh();
     }, PROCESSING_REFRESH_DELAY_MS);
-  }, []);
+  }, [router]);
 
   const handleCheckoutFailure = useCallback(
     (message: string, failedCheckout: PersistedPendingCheckout | null) => {
@@ -296,11 +314,13 @@ export function WorkspaceCheckoutProvider({
 
     clearCachedPendingCheckout(workspaceId);
     refreshQueuedRef.current = false;
+    const upgradedPlan = processingState.plan;
     queueMicrotask(() => {
       setProcessingState(null);
       setCheckoutOpen(false);
       setCheckoutError(null);
       setSelectedPlan(null);
+      setSuccessPlan(upgradedPlan);
     });
   }, [
     billing.currentPlan,
@@ -310,7 +330,9 @@ export function WorkspaceCheckoutProvider({
   ]);
 
   useEffect(() => {
-    const shouldMonitorRealtime = Boolean(pendingCheckout || processingState);
+    const shouldMonitorRealtime = Boolean(
+      pendingCheckout || activePaddleCheckout || processingState,
+    );
 
     if (!shouldMonitorRealtime) {
       return;
@@ -318,6 +340,9 @@ export function WorkspaceCheckoutProvider({
 
     let isActive = true;
     const supabase = createSupabaseBrowserClient();
+    // Unique suffix prevents collisions when the effect re-runs before the
+    // previous cleanup's `removeChannel` fully completes (async race).
+    const channelSuffix = Date.now();
     let refreshTimerId: number | null = null;
     let subscriptionChannel:
       | Awaited<ReturnType<typeof supabase.channel>>
@@ -327,12 +352,15 @@ export function WorkspaceCheckoutProvider({
       | null = null;
     let isSyncingCheckoutStatus = false;
 
-    const planToTrack = pendingCheckout?.plan ?? processingState?.plan ?? null;
-    const trackedPaymentAttemptId = pendingCheckout
-      ? pendingCheckout.provider === "paymongo"
-        ? pendingCheckout.paymentIntentId
-        : pendingCheckout.transactionId
-      : null;
+    const planToTrack =
+      pendingCheckout?.plan ??
+      activePaddleCheckout?.plan ??
+      processingState?.plan ??
+      null;
+    const trackedPaymentAttemptId =
+      pendingCheckout?.paymentIntentId ??
+      activePaddleCheckout?.transactionId ??
+      null;
 
     function clearRefreshTimer() {
       if (refreshTimerId) {
@@ -402,7 +430,6 @@ export function WorkspaceCheckoutProvider({
       }
 
       if (
-        pendingCheckout.provider === "paymongo" &&
         (status === "expired" ||
           status === "incomplete" ||
           status === "canceled" ||
@@ -416,7 +443,7 @@ export function WorkspaceCheckoutProvider({
     }
 
     function handlePaymentAttemptRow(row: PaymentAttemptRealtimeRow) {
-      if (!pendingCheckout || !trackedPaymentAttemptId) {
+      if (!trackedPaymentAttemptId) {
         return;
       }
 
@@ -425,13 +452,21 @@ export function WorkspaceCheckoutProvider({
       }
 
       if (row.status === "succeeded") {
-        if (pendingCheckout.provider === "paymongo") {
+        if (pendingCheckout) {
           beginProcessing(pendingCheckout.plan, true);
           clearCachedPendingCheckout(workspaceId);
           return;
         }
 
-        beginProcessing(pendingCheckout.plan, true);
+        if (activePaddleCheckout) {
+          beginProcessing(activePaddleCheckout.plan, true);
+          setActivePaddleCheckout(null);
+        }
+
+        return;
+      }
+
+      if (!pendingCheckout) {
         return;
       }
 
@@ -486,7 +521,7 @@ export function WorkspaceCheckoutProvider({
       await syncCheckoutStatus();
 
       subscriptionChannel = supabase
-        .channel(`workspace-subscription:${workspaceId}:${planToTrack ?? "any"}`)
+        .channel(`workspace-subscription:${workspaceId}:${planToTrack ?? "any"}:${channelSuffix}`)
         .on(
           "postgres_changes",
           {
@@ -515,7 +550,7 @@ export function WorkspaceCheckoutProvider({
 
       if (trackedPaymentAttemptId) {
         paymentAttemptsChannel = supabase
-          .channel(`payment-attempt:${workspaceId}:${trackedPaymentAttemptId}`)
+          .channel(`payment-attempt:${workspaceId}:${trackedPaymentAttemptId}:${channelSuffix}`)
           .on(
             "postgres_changes",
             {
@@ -561,6 +596,7 @@ export function WorkspaceCheckoutProvider({
       }
     };
   }, [
+    activePaddleCheckout,
     billing.currentPlan,
     handleCheckoutFailure,
     pendingCheckout,
@@ -608,11 +644,13 @@ export function WorkspaceCheckoutProvider({
       />
       {selectedPlan ? (
         <CheckoutDialog
+          key={checkoutKeyRef.current}
           checkoutError={checkoutError}
           currentPlan={billing.currentPlan}
           defaultCurrency={billing.defaultCurrency}
           onCheckoutErrorChange={setCheckoutError}
           onOpenChange={setCheckoutOpen}
+          onPaddleTransactionChange={setActivePaddleCheckout}
           open={checkoutOpen}
           pendingCheckout={pendingCheckout}
           plan={selectedPlan}
@@ -643,6 +681,103 @@ export function WorkspaceCheckoutProvider({
           </DialogBody>
         </DialogContent>
       </Dialog>
+      {successPlan ? (
+        <UpgradeSuccessDialog
+          onClose={() => setSuccessPlan(null)}
+          plan={successPlan}
+        />
+      ) : null}
     </WorkspaceCheckoutContext.Provider>
+  );
+}
+/* ── Upgrade success celebration dialog ──────────────────────────────────── */
+
+function UpgradeSuccessDialog({
+  onClose,
+  plan,
+}: {
+  onClose: () => void;
+  plan: PaidPlan;
+}) {
+  const PlanIcon = plan === "pro" ? Briefcase : Building2;
+  const highlights = planUpgradeHighlights[plan];
+
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-md gap-0 overflow-hidden p-0">
+        {/* Gradient header */}
+        <div
+          className={cn(
+            "relative flex flex-col items-center gap-4 px-6 pt-10 pb-6",
+            plan === "pro"
+              ? "bg-gradient-to-b from-primary/10 via-primary/5 to-transparent"
+              : "bg-gradient-to-b from-violet-500/10 via-violet-500/5 to-transparent",
+          )}
+        >
+          <div
+            className={cn(
+              "flex size-14 items-center justify-center rounded-2xl border shadow-sm",
+              plan === "pro"
+                ? "border-primary/20 bg-primary/10 text-primary"
+                : "border-violet-500/20 bg-violet-500/10 text-violet-600 dark:text-violet-400",
+            )}
+          >
+            <PlanIcon className={cn("size-6", plan === "pro" && "text-primary")} />
+          </div>
+          <Sparkles
+            aria-hidden="true"
+            className={cn(
+              "absolute top-4 right-8 size-4 opacity-40",
+              plan === "pro" ? "text-primary" : "text-violet-500",
+            )}
+          />
+          <Sparkles
+            aria-hidden="true"
+            className={cn(
+              "absolute top-8 left-10 size-3 opacity-30",
+              plan === "pro" ? "text-primary" : "text-violet-500",
+            )}
+          />
+          <DialogHeader className="items-center gap-1 p-0">
+            <DialogTitle className="text-center text-xl">
+              Welcome to {planMeta[plan].label}
+            </DialogTitle>
+            <DialogDescription className="text-center text-balance">
+              Your workspace has been upgraded. All {planMeta[plan].label} features are now unlocked.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+
+        {/* Feature list */}
+        <DialogBody className="px-6 pt-2 pb-2">
+          <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
+            <p className="meta-label mb-2.5">What&apos;s included</p>
+            <ul className="flex flex-col gap-2">
+              {highlights.map((feature) => (
+                <li className="flex items-center gap-2.5 text-sm text-foreground" key={feature}>
+                  <div
+                    className={cn(
+                      "flex size-5 shrink-0 items-center justify-center rounded-full",
+                      plan === "pro"
+                        ? "bg-primary/10 text-primary"
+                        : "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+                    )}
+                  >
+                    <Check className="size-3" />
+                  </div>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </DialogBody>
+
+        <DialogFooter className="px-6 pt-4 pb-6 sm:px-6">
+          <Button className="w-full" onClick={onClose} size="lg">
+            Get started
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

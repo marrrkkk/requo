@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Crown, XIcon, Zap } from "lucide-react";
+import { ArrowUpRight, Briefcase, Building2, XIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -95,7 +95,7 @@ export function PlanSelectionSheet({
             {paidPlans.map((plan) => {
               const isCurrentPlan = currentPlan === plan;
               const isPreferredPlan = preferredPlan === plan && !isCurrentPlan;
-              const PlanIcon = plan === "pro" ? Zap : Crown;
+              const PlanIcon = plan === "pro" ? Briefcase : Building2;
 
               return (
                 <Card
@@ -114,7 +114,7 @@ export function PlanSelectionSheet({
                             className={cn(
                               "size-4",
                               plan === "pro"
-                                ? "fill-current text-primary"
+                                ? "text-primary"
                                 : "text-foreground",
                             )}
                           />
