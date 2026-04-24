@@ -1,6 +1,6 @@
 "use client";
 
-import { Crown, Lock, ArrowUpRight, Zap } from "lucide-react";
+import { ArrowUpRight, Briefcase, Building2, Lock } from "lucide-react";
 
 import type { WorkspacePlan, PlanFeature } from "@/lib/plans";
 import {
@@ -78,10 +78,10 @@ export function PlanBadge({
       className={cn(planBadgeStyles[plan], className)}
     >
       {showIcon && plan === "pro" ? (
-        <Zap className="size-3 fill-current" />
+        <Briefcase className="size-3" />
       ) : null}
       {showIcon && plan === "business" ? (
-        <Crown className="size-3" />
+        <Building2 className="size-3" />
       ) : null}
       {planMeta[plan].label}
     </Badge>
