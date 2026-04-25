@@ -29,6 +29,14 @@ const envSchema = z.object({
   RESEND_API_KEY: emptyToUndefined(z.string().min(1)),
   RESEND_FROM_EMAIL: emptyToUndefined(z.email()),
   RESEND_REPLY_TO_EMAIL: emptyToUndefined(z.email()),
+  GROQ_API_KEY: emptyToUndefined(z.string().min(1)),
+  GROQ_DEFAULT_MODEL: emptyToUndefined(z.string().min(1)).default(
+    "llama-3.3-70b-versatile",
+  ),
+  GEMINI_API_KEY: emptyToUndefined(z.string().min(1)),
+  GEMINI_DEFAULT_MODEL: emptyToUndefined(z.string().min(1)).default(
+    "gemini-2.0-flash",
+  ),
   OPENROUTER_API_KEY: emptyToUndefined(z.string().min(1)),
   OPENROUTER_DEFAULT_MODEL: emptyToUndefined(z.string().min(1)).default(
     "openai/gpt-5-mini",
@@ -71,6 +79,8 @@ export const isResendConfigured = Boolean(
   env.RESEND_API_KEY && env.RESEND_FROM_EMAIL,
 );
 
+export const isGroqConfigured = Boolean(env.GROQ_API_KEY);
+export const isGeminiConfigured = Boolean(env.GEMINI_API_KEY);
 export const isOpenRouterConfigured = Boolean(env.OPENROUTER_API_KEY);
 export const isSupabaseRealtimeConfigured = Boolean(env.SUPABASE_JWT_SECRET);
 export const isGoogleCalendarConfigured = Boolean(
