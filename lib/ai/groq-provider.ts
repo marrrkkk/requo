@@ -54,7 +54,7 @@ export const groqProvider: AiProvider = {
 
     try {
       const response = await client.chat.completions.create({
-        model: request.model || env.GROQ_DEFAULT_MODEL,
+        model: request.model,
         messages: request.messages,
         temperature: request.temperature,
         max_completion_tokens: request.maxOutputTokens,
@@ -65,7 +65,7 @@ export const groqProvider: AiProvider = {
 
       return {
         provider: "groq",
-        model: response.model || request.model || env.GROQ_DEFAULT_MODEL,
+        model: response.model || request.model,
         text,
         usage: response.usage
           ? {
@@ -92,7 +92,7 @@ export const groqProvider: AiProvider = {
 
     try {
       const stream = await client.chat.completions.create({
-        model: request.model || env.GROQ_DEFAULT_MODEL,
+        model: request.model,
         messages: request.messages,
         temperature: request.temperature,
         max_completion_tokens: request.maxOutputTokens,
@@ -112,7 +112,7 @@ export const groqProvider: AiProvider = {
 
       return {
         provider: "groq",
-        model: request.model || env.GROQ_DEFAULT_MODEL,
+        model: request.model,
         stream: chunks(),
       };
     } catch (error) {

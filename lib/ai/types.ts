@@ -12,6 +12,16 @@ import "server-only";
 /** Identifiers for each supported AI provider. */
 export type AiProviderName = "groq" | "gemini" | "openrouter";
 
+/**
+ * Quality tier controls which models are preferred within each provider.
+ *
+ * - "balanced" — default order, good quality/speed tradeoff.
+ * - "cheap"    — prefer fast/high-volume models first.
+ * - "best"     — prefer strongest models first.
+ * - "coding"   — prefer coding-capable models.
+ */
+export type AiQualityTier = "balanced" | "cheap" | "best" | "coding";
+
 /** Normalized chat message shape sent to every provider. */
 export type AiChatMessage = {
   role: "system" | "user" | "assistant";
@@ -24,6 +34,7 @@ export type AiCompletionRequest = {
   messages: AiChatMessage[];
   temperature: number;
   maxOutputTokens: number;
+  qualityTier?: AiQualityTier;
 };
 
 /** Normalized response returned by every provider. */

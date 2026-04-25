@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getConfiguredProviders } from "@/lib/ai/config";
+import { getConfiguredProviders, getModelsForProvider } from "@/lib/ai/config";
 import {
   AiProviderError,
   getSanitizedErrorInfo,
@@ -13,21 +13,31 @@ import type {
 } from "@/lib/ai/types";
 
 // ---------------------------------------------------------------------------
-// AI Provider Fallback Router
+// AI Provider + Model Fallback Router
 //
-// Attempts providers in order: Groq → Gemini → OpenRouter.
-// Only providers with valid API keys are attempted.
+// Two-level fallback: providers (Groq → Gemini → OpenRouter), then models
+// within each provider. The quality tier (balanced / cheap / best / coding)
+// selects which model list each provider uses.
+//
+// Loop logic:
+//   for each provider in [groq, gemini, openrouter]:
+//     for each model in provider.models[qualityTier]:
+//       try request
+//       if success → return normalised response
+//       if retryable error → continue to next model/provider
+//       if non-retryable error → stop immediately
 //
 // Fallback rules:
-// - Retryable errors (429, 5xx, timeout, network) → try next provider.
+// - Retryable errors (408, 409, 429, 5xx, timeout, network) → next model.
 // - Non-retryable errors (400, 401, 403, 404, 422) → stop immediately.
 // - Respects Retry-After header but caps waiting to MAX_RETRY_AFTER_MS.
-// - Logs which provider was used and sanitized error info for failures.
+// - Logs which provider/model was used and sanitised error info on failure.
 //
 // Adding a new provider:
 //   1. Implement the AiProvider interface in a new file.
-//   2. Add it to the ALL_PROVIDERS array in config.ts.
-//   3. Done — the router will include it automatically.
+//   2. Add it to ALL_PROVIDERS in config.ts.
+//   3. Add model lists to PROVIDER_MODELS in config.ts.
+//   4. Done — the router picks it up automatically.
 // ---------------------------------------------------------------------------
 
 const MAX_RETRY_AFTER_MS = 5_000;
@@ -39,10 +49,11 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Generate a completion using the provider fallback chain.
+ * Generate a completion using the provider + model fallback chain.
  *
- * Tries each configured provider in order. Falls back to the next provider
- * only for retryable errors. Non-retryable errors stop the chain immediately.
+ * Tries each model within each configured provider. Falls back to the next
+ * model (or next provider) only for retryable errors. Non-retryable errors
+ * stop the chain immediately.
  */
 export async function generateWithFallback(
   request: AiCompletionRequest,
@@ -55,52 +66,64 @@ export async function generateWithFallback(
     );
   }
 
+  const tier = request.qualityTier ?? "balanced";
   let lastError: unknown;
 
-  for (let i = 0; i < providers.length; i += 1) {
-    const provider = providers[i];
+  for (const provider of providers) {
+    const models = getModelsForProvider(provider.name, tier);
 
-    try {
-      const response = await provider.generateCompletion(request);
+    for (let m = 0; m < models.length; m += 1) {
+      const model = models[m];
 
-      console.info(
-        `[ai-router] Completion succeeded with provider="${response.provider}" model="${response.model}"`,
-      );
-
-      return response;
-    } catch (error) {
-      lastError = error;
-
-      const errorInfo = getSanitizedErrorInfo(error);
-      const isLast = i === providers.length - 1;
-
-      console.warn(
-        `[ai-router] Provider "${provider.name}" failed: status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable} message="${errorInfo.message}"`,
-      );
-
-      // Non-retryable error → stop immediately, do not try other providers
-      if (!isRetryableError(error)) {
-        console.warn(
-          `[ai-router] Non-retryable error from "${provider.name}", stopping fallback chain.`,
-        );
-        break;
-      }
-
-      // If there is a Retry-After delay and we have more providers, honour
-      // it (capped) before trying the next provider
-      if (!isLast && error instanceof AiProviderError && error.retryAfterMs) {
-        const waitMs = Math.min(error.retryAfterMs, MAX_RETRY_AFTER_MS);
+      try {
+        const response = await provider.generateCompletion({
+          ...request,
+          model,
+        });
 
         console.info(
-          `[ai-router] Waiting ${waitMs}ms (Retry-After) before trying next provider.`,
+          `[ai-router] Completion succeeded: provider="${response.provider}" model="${response.model}"`,
         );
 
-        await sleep(waitMs);
+        return response;
+      } catch (error) {
+        lastError = error;
+
+        const errorInfo = getSanitizedErrorInfo(error);
+
+        console.warn(
+          `[ai-router] Failed: provider="${provider.name}" model="${model}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable} message="${errorInfo.message}"`,
+        );
+
+        // Non-retryable → stop the entire chain
+        if (!isRetryableError(error)) {
+          console.warn(
+            `[ai-router] Non-retryable error, stopping fallback chain.`,
+          );
+          throw error instanceof AiProviderError
+            ? error
+            : new Error(
+                error instanceof Error
+                  ? error.message
+                  : "All AI providers failed.",
+              );
+        }
+
+        // Honour Retry-After (capped) before trying the next model/provider
+        if (error instanceof AiProviderError && error.retryAfterMs) {
+          const waitMs = Math.min(error.retryAfterMs, MAX_RETRY_AFTER_MS);
+
+          console.info(
+            `[ai-router] Waiting ${waitMs}ms (Retry-After) before next attempt.`,
+          );
+
+          await sleep(waitMs);
+        }
       }
     }
   }
 
-  // All providers failed or a non-retryable error was hit
+  // All providers and models exhausted
   if (lastError instanceof AiProviderError) {
     throw lastError;
   }
@@ -113,11 +136,11 @@ export async function generateWithFallback(
 }
 
 /**
- * Start a streaming completion using the provider fallback chain.
+ * Start a streaming completion using the provider + model fallback chain.
  *
  * The fallback applies to the initial connection phase. Once a provider
  * starts streaming successfully, we commit to it. If the connection itself
- * fails with a retryable error, we fall back to the next provider.
+ * fails with a retryable error, we try the next model/provider.
  */
 export async function streamWithFallback(
   request: AiCompletionRequest,
@@ -130,44 +153,57 @@ export async function streamWithFallback(
     );
   }
 
+  const tier = request.qualityTier ?? "balanced";
   let lastError: unknown;
 
-  for (let i = 0; i < providers.length; i += 1) {
-    const provider = providers[i];
+  for (const provider of providers) {
+    const models = getModelsForProvider(provider.name, tier);
 
-    try {
-      const streamResponse = await provider.generateStream(request);
+    for (let m = 0; m < models.length; m += 1) {
+      const model = models[m];
 
-      console.info(
-        `[ai-router] Stream started with provider="${streamResponse.provider}" model="${streamResponse.model}"`,
-      );
-
-      return streamResponse;
-    } catch (error) {
-      lastError = error;
-
-      const errorInfo = getSanitizedErrorInfo(error);
-      const isLast = i === providers.length - 1;
-
-      console.warn(
-        `[ai-router] Provider "${provider.name}" stream failed: status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable} message="${errorInfo.message}"`,
-      );
-
-      if (!isRetryableError(error)) {
-        console.warn(
-          `[ai-router] Non-retryable stream error from "${provider.name}", stopping fallback chain.`,
-        );
-        break;
-      }
-
-      if (!isLast && error instanceof AiProviderError && error.retryAfterMs) {
-        const waitMs = Math.min(error.retryAfterMs, MAX_RETRY_AFTER_MS);
+      try {
+        const streamResponse = await provider.generateStream({
+          ...request,
+          model,
+        });
 
         console.info(
-          `[ai-router] Waiting ${waitMs}ms (Retry-After) before trying next provider.`,
+          `[ai-router] Stream started: provider="${streamResponse.provider}" model="${streamResponse.model}"`,
         );
 
-        await sleep(waitMs);
+        return streamResponse;
+      } catch (error) {
+        lastError = error;
+
+        const errorInfo = getSanitizedErrorInfo(error);
+
+        console.warn(
+          `[ai-router] Stream failed: provider="${provider.name}" model="${model}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable} message="${errorInfo.message}"`,
+        );
+
+        if (!isRetryableError(error)) {
+          console.warn(
+            `[ai-router] Non-retryable stream error, stopping fallback chain.`,
+          );
+          throw error instanceof AiProviderError
+            ? error
+            : new Error(
+                error instanceof Error
+                  ? error.message
+                  : "All AI providers failed.",
+              );
+        }
+
+        if (error instanceof AiProviderError && error.retryAfterMs) {
+          const waitMs = Math.min(error.retryAfterMs, MAX_RETRY_AFTER_MS);
+
+          console.info(
+            `[ai-router] Waiting ${waitMs}ms (Retry-After) before next attempt.`,
+          );
+
+          await sleep(waitMs);
+        }
       }
     }
   }

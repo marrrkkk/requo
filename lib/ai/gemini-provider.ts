@@ -47,7 +47,7 @@ export const geminiProvider: AiProvider = {
       throw wrapProviderError("gemini", new Error("Gemini is not configured."));
     }
 
-    const model = request.model || env.GEMINI_DEFAULT_MODEL;
+    const model = request.model;
 
     // Build contents from messages. Gemini uses `contents` instead of
     // `messages`. System instructions are passed separately.
@@ -106,7 +106,7 @@ export const geminiProvider: AiProvider = {
       throw wrapProviderError("gemini", new Error("Gemini is not configured."));
     }
 
-    const model = request.model || env.GEMINI_DEFAULT_MODEL;
+    const model = request.model;
 
     const systemInstruction = request.messages
       .filter((m) => m.role === "system")

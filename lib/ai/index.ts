@@ -1,5 +1,5 @@
 export { generateWithFallback, streamWithFallback } from "./router";
-export { isAiConfigured } from "./config";
+export { isAiConfigured, getModelsForProvider } from "./config";
 export { AiProviderError, isRetryableError } from "./errors";
 export type {
   AiCompletionRequest,
@@ -8,4 +8,5 @@ export type {
   AiStreamChunk,
   AiProviderName,
   AiChatMessage,
+  AiQualityTier,
 } from "./types";

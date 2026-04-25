@@ -1,7 +1,7 @@
 import "server-only";
 
-import { env, isOpenRouterConfigured } from "@/lib/env";
-import { getOpenRouterClient, defaultOpenRouterModel } from "@/lib/openrouter/client";
+import { isOpenRouterConfigured } from "@/lib/env";
+import { getOpenRouterClient } from "@/lib/openrouter/client";
 import { wrapProviderError } from "@/lib/ai/errors";
 import type {
   AiCompletionRequest,
@@ -44,7 +44,7 @@ export const openrouterProvider: AiProvider = {
       );
     }
 
-    const model = request.model || defaultOpenRouterModel;
+    const model = request.model;
 
     try {
       const response = await client.chat.send(
@@ -96,7 +96,7 @@ export const openrouterProvider: AiProvider = {
       );
     }
 
-    const model = request.model || defaultOpenRouterModel;
+    const model = request.model;
 
     try {
       const stream = await client.chat.send(
