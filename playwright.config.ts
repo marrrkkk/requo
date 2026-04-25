@@ -28,6 +28,8 @@ export default defineConfig({
       DISABLE_TRANSACTIONAL_EMAILS: "1",
       NEXT_PUBLIC_BETTER_AUTH_URL: `${baseURL}/api/auth`,
       OPENROUTER_API_KEY: "",
+      GROQ_API_KEY: "",
+      GEMINI_API_KEY: "",
       RESEND_API_KEY: "",
       RESEND_FROM_EMAIL: "",
       RESEND_REPLY_TO_EMAIL: "",
