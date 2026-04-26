@@ -236,7 +236,7 @@ describe('features/inquiries/actions', () => {
       const archiveFn = archiveInquiryAction.bind(null, testInquiry.id);
       const archiveResult = await archiveFn({}, new FormData());
 
-      expect(archiveResult).toEqual({ success: 'Request archived.' });
+      expect(archiveResult).toEqual({ success: 'Inquiry archived.' });
 
       const workflowFormData = new FormData();
       workflowFormData.set("status", "quoted");
@@ -245,13 +245,13 @@ describe('features/inquiries/actions', () => {
       const lockedResult = await changeStatusFn({}, workflowFormData);
 
       expect(lockedResult).toEqual({
-        error: 'Unarchive this request before updating its workflow status.',
+        error: 'Unarchive this inquiry before updating its workflow status.',
       });
 
       const restoreFn = unarchiveInquiryAction.bind(null, testInquiry.id);
       const restoreResult = await restoreFn({}, new FormData());
 
-      expect(restoreResult).toEqual({ success: 'Request restored to active.' });
+      expect(restoreResult).toEqual({ success: 'Inquiry restored to active.' });
 
       const [restoredInquiry] = await testDb.select().from(inquiries).where(eq(inquiries.id, testInquiry.id));
       expect(restoredInquiry.archivedAt).toBeNull();
@@ -264,7 +264,7 @@ describe('features/inquiries/actions', () => {
       const trashFn = trashInquiryAction.bind(null, testInquiry.id);
       const trashResult = await trashFn({}, new FormData());
 
-      expect(trashResult).toEqual({ success: 'Request moved to trash.' });
+      expect(trashResult).toEqual({ success: 'Inquiry moved to trash.' });
 
       const [trashedInquiry] = await testDb.select().from(inquiries).where(eq(inquiries.id, testInquiry.id));
       expect(trashedInquiry.deletedAt).not.toBeNull();
@@ -272,7 +272,7 @@ describe('features/inquiries/actions', () => {
       const restoreFn = restoreInquiryFromTrashAction.bind(null, testInquiry.id);
       const restoreResult = await restoreFn({}, new FormData());
 
-      expect(restoreResult).toEqual({ success: 'Request restored from trash.' });
+      expect(restoreResult).toEqual({ success: 'Inquiry restored from trash.' });
 
       const [restoredInquiry] = await testDb.select().from(inquiries).where(eq(inquiries.id, testInquiry.id));
       expect(restoredInquiry.deletedAt).toBeNull();
