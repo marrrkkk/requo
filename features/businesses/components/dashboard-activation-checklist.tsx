@@ -49,7 +49,7 @@ export function DashboardActivationChecklist({
       title: publicInquiryEnabled ? "Inquiry form is live" : "Publish inquiry form",
       detail: publicInquiryEnabled
         ? "You can preview it now or copy the public link to share it."
-        : "Publish your inquiry form so customers can start sending requests.",
+        : "Publish your inquiry form so customers can start sending inquiries.",
       complete: publicInquiryEnabled,
       href: getBusinessInquiryFormsPath(businessSlug),
     },
@@ -59,7 +59,7 @@ export function DashboardActivationChecklist({
       detail:
         totalInquiries > 0
           ? `${totalInquiries} ${totalInquiries === 1 ? "inquiry is" : "inquiries are"} already in the inbox.`
-          : "Send yourself a test request or share the public link with customers.",
+          : "Send yourself a test inquiry or share the public link with customers.",
       complete: totalInquiries > 0,
       href: inquiriesPath,
     },

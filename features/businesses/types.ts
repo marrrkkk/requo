@@ -46,7 +46,6 @@ export type BusinessOverviewCounts = {
   overdueInquiries: number;
   expiringSoonQuotes: number;
   newInquiries: number;
-  followUpDueQuotes: number;
   recentAcceptedQuotes: number;
 };
 
@@ -54,7 +53,6 @@ export type BusinessOverviewData = {
   overdueInquiries: BusinessOverviewInquiryActionItem[];
   expiringSoonQuotes: BusinessOverviewQuoteActionItem[];
   newInquiries: BusinessOverviewInquiryActionItem[];
-  followUpDueQuotes: BusinessOverviewQuoteActionItem[];
   recentAcceptedQuotes: BusinessOverviewQuoteActionItem[];
   counts: BusinessOverviewCounts;
 };

@@ -449,7 +449,7 @@ export function BusinessInquiryFormsManager({
           <CardHeader>
             <CardTitle>No active forms</CardTitle>
             <CardDescription>
-              Create an inquiry form to publish a page for incoming requests.
+              Create an inquiry form to publish a page for incoming inquiries.
             </CardDescription>
           </CardHeader>
           <CardContent>

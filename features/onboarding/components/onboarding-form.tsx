@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { CheckCircle2, GripVertical, PencilLine, Sparkles } from "lucide-react";
+import { CheckCircle2, GripVertical, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { BrandMark } from "@/components/shared/brand-mark";
@@ -135,10 +135,10 @@ const onboardingSteps = [
   {
     id: "review" as const,
     label: "Review",
-    description: "Preview the first version before you finish setup.",
-    title: "Review your inquiry page",
+    description: "Preview the first version. You can customize it after setup.",
+    title: "Preview your inquiry page",
     body:
-      "Check the generated intake flow, then finish setup and move straight into the dashboard.",
+      "Check the generated intake flow, then finish setup and move straight into the dashboard. Edit labels, required fields, and form order later in Forms.",
     fields: [] as const satisfies readonly OnboardingFieldName[],
   },
 ] satisfies ReadonlyArray<{
@@ -902,8 +902,8 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
                     <div className="min-w-0">
                       <CardTitle>What customers will see</CardTitle>
                       <CardDescription>
-                        Edit field labels, toggle required, and drag to
-                        reorder before you finish.
+                        This starter version is ready to use. Fine-tune fields
+                        after setup from Forms.
                       </CardDescription>
                     </div>
                     <Button
@@ -1253,26 +1253,10 @@ type ReviewFieldCardProps = {
 
 function ReviewFieldCard({
   field,
-  editingFieldId,
-  editingFieldValue,
-  onStartEdit,
-  onEditChange,
-  onSaveEdit,
-  onCancelEdit,
-  onToggleRequired,
 }: ReviewFieldCardProps) {
   return (
     <div className={cn("flex flex-col gap-1.5", field.isWide && "sm:col-span-2")}>
-      <ReviewFieldLabel
-        editingFieldId={editingFieldId}
-        editingFieldValue={editingFieldValue}
-        field={field}
-        onCancelEdit={onCancelEdit}
-        onEditChange={onEditChange}
-        onSaveEdit={onSaveEdit}
-        onStartEdit={onStartEdit}
-        onToggleRequired={onToggleRequired}
-      />
+      <ReviewFieldLabel field={field} />
       <div className="pointer-events-none rounded-lg border border-input/60 bg-muted/30 px-3 py-2">
         <span className="text-sm text-muted-foreground/50">
           {field.placeholder || field.label}
@@ -1284,19 +1268,9 @@ function ReviewFieldCard({
 
 function SortableReviewFieldCard({
   field,
-  editingFieldId,
-  editingFieldValue,
-  onStartEdit,
-  onEditChange,
-  onSaveEdit,
-  onCancelEdit,
-  onToggleRequired,
 }: ReviewFieldCardProps) {
   const {
-    attributes,
-    listeners,
     setNodeRef,
-    setActivatorNodeRef,
     transform,
     transition,
     isDragging,
@@ -1318,30 +1292,17 @@ function SortableReviewFieldCard({
       ref={setNodeRef}
       style={style}
     >
-      <button
-        aria-label={`Reorder ${field.label}`}
-        className="mt-1 shrink-0 cursor-grab touch-none self-start text-muted-foreground/50 transition-colors hover:text-muted-foreground active:cursor-grabbing"
-        ref={setActivatorNodeRef}
-        type="button"
-        {...attributes}
-        {...listeners}
+      <span
+        aria-hidden="true"
+        className="mt-1 shrink-0 self-start text-muted-foreground/35"
       >
         <GripVertical className="size-4" />
-      </button>
+      </span>
       <div className={cn(
         "flex min-w-0 flex-1 flex-col gap-1.5 rounded-lg p-2 transition-shadow",
         isDragging && "bg-background shadow-lg ring-2 ring-primary/20",
       )}>
-        <ReviewFieldLabel
-          editingFieldId={editingFieldId}
-          editingFieldValue={editingFieldValue}
-          field={field}
-          onCancelEdit={onCancelEdit}
-          onEditChange={onEditChange}
-          onSaveEdit={onSaveEdit}
-          onStartEdit={onStartEdit}
-          onToggleRequired={onToggleRequired}
-        />
+        <ReviewFieldLabel field={field} />
         <div className="pointer-events-none rounded-lg border border-input/60 bg-muted/30 px-3 py-2">
           <span className="text-sm text-muted-foreground/50">
             {field.placeholder || field.label}
@@ -1354,77 +1315,16 @@ function SortableReviewFieldCard({
 
 function ReviewFieldLabel({
   field,
-  editingFieldId,
-  editingFieldValue,
-  onStartEdit,
-  onEditChange,
-  onSaveEdit,
-  onCancelEdit,
-  onToggleRequired,
-}: ReviewFieldCardProps) {
-  const isEditing = editingFieldId === field.id;
-
+}: Pick<ReviewFieldCardProps, "field">) {
   return (
     <div className="flex min-w-0 items-center gap-1.5">
-      {isEditing ? (
-        <input
-          autoFocus
-          className="min-w-0 flex-1 border-0 bg-transparent px-0 py-0 text-sm font-medium text-foreground outline-none focus:ring-0"
-          maxLength={80}
-          onBlur={() => onSaveEdit(field.id)}
-          onChange={(event) => onEditChange(event.currentTarget.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              onSaveEdit(field.id);
-            }
-
-            if (event.key === "Escape") {
-              event.preventDefault();
-              onCancelEdit();
-            }
-          }}
-          value={editingFieldValue}
-        />
-      ) : (
-        <>
-          <span className="truncate text-sm font-medium text-foreground">
-            {field.label}
-          </span>
-          <button
-            aria-label={`Edit ${field.label}`}
-            className="shrink-0 text-muted-foreground/40 transition-colors hover:text-muted-foreground"
-            onClick={() => onStartEdit(field.id, field.label)}
-            type="button"
-          >
-            <PencilLine className="size-3" />
-          </button>
-        </>
-      )}
+      <span className="truncate text-sm font-medium text-foreground">
+        {field.label}
+      </span>
       <span className="ml-auto shrink-0">
-        {field.isRequiredLocked ? (
-          !field.required ? (
-            <span className="text-xs font-medium text-muted-foreground">
-              Optional
-            </span>
-          ) : null
-        ) : (
-          <button
-            className="text-xs font-medium transition-colors"
-            onClick={() => onToggleRequired(field.id)}
-            type="button"
-          >
-            <span
-              className={cn(
-                field.required
-                  ? "text-muted-foreground/50 hover:text-muted-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {field.required ? "Required" : "Optional"}
-            </span>
-          </button>
-        )}
+        <span className="text-xs font-medium text-muted-foreground">
+          {field.required ? "Required" : "Optional"}
+        </span>
       </span>
     </div>
   );

@@ -11,6 +11,7 @@ import {
   isNull,
   lt,
   lte,
+  or,
   sql,
 } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
@@ -332,26 +333,28 @@ export async function getBusinessAnalyticsData(
     db
       .select({
         quotesSent:
-          sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.sentAt} is not null)`,
+          sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.sentAt} is not null and ${quotes.sentAt} >= ${summaryStart})`,
         quotesViewed:
-          sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.publicViewedAt} is not null)`,
+          sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.publicViewedAt} is not null and ${quotes.publicViewedAt} >= ${summaryStart})`,
         quotesAccepted:
-          sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'accepted')`,
+          sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'accepted' and ${quotes.acceptedAt} is not null and ${quotes.acceptedAt} >= ${summaryStart})`,
         quotesRejected:
-          sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'rejected')`,
+          sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'rejected' and ${quotes.customerRespondedAt} is not null and ${quotes.customerRespondedAt} >= ${summaryStart})`,
         avgTimeSentToDecisionHours:
-          sql<number | null>`avg(extract(epoch from (${quotes.customerRespondedAt} - ${quotes.sentAt})) / 3600) filter (where ${quotes.customerRespondedAt} is not null and ${quotes.sentAt} is not null)`,
+          sql<number | null>`avg(extract(epoch from (${quotes.customerRespondedAt} - ${quotes.sentAt})) / 3600) filter (where ${quotes.customerRespondedAt} is not null and ${quotes.sentAt} is not null and ${quotes.customerRespondedAt} >= ${summaryStart})`,
       })
       .from(quotes)
-      .innerJoin(inquiries, eq(quotes.inquiryId, inquiries.id))
       .where(
         and(
           eq(quotes.businessId, businessId),
           getNonDeletedQuoteCondition(),
-          eq(quotes.status, "accepted"),
-          eq(inquiries.businessId, businessId),
-          getNonDeletedInquiryCondition(),
-          gte(inquiries.submittedAt, summaryStart),
+          or(
+            gte(quotes.createdAt, summaryStart),
+            gte(quotes.sentAt, summaryStart),
+            gte(quotes.publicViewedAt, summaryStart),
+            gte(quotes.acceptedAt, summaryStart),
+            gte(quotes.customerRespondedAt, summaryStart),
+          ),
         ),
       ),
   ]);

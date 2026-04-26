@@ -1146,7 +1146,7 @@ export function BusinessInquiryPageForm({
                   </p>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
                     Add cards if you want to highlight what customers should send,
-                    what files help most, or how the owner reviews new requests.
+                    what files help most, or how the owner reviews new inquiries.
                   </p>
                 </div>
               )}

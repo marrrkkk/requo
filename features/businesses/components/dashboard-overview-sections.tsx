@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   ArrowRight,
   BarChart3,
+  BellRing,
   CheckCircle2,
   FileText,
   Inbox,
@@ -21,6 +22,7 @@ import { formatAnalyticsPercent } from "@/features/analytics/utils";
 import { DashboardActivationChecklist } from "@/features/businesses/components/dashboard-activation-checklist";
 import {
   getBusinessAnalyticsPath,
+  getBusinessFollowUpsPath,
   getBusinessInquiriesPath,
   getBusinessInquiryFormsPath,
   getBusinessInquiryPath,
@@ -34,6 +36,11 @@ import type {
   BusinessOverviewInquiryActionItem,
   BusinessOverviewQuoteActionItem,
 } from "@/features/businesses/types";
+import type {
+  FollowUpOverviewData,
+  FollowUpView,
+} from "@/features/follow-ups/types";
+import { formatFollowUpDate } from "@/features/follow-ups/utils";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import type { InquiryStatus } from "@/features/inquiries/types";
 import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
@@ -47,6 +54,7 @@ const overviewQueueMaxItems = 4;
 
 type DashboardOverviewSummaryPromise = Promise<BusinessDashboardSummaryData>;
 type DashboardOverviewDataPromise = Promise<BusinessOverviewData>;
+type FollowUpOverviewDataPromise = Promise<FollowUpOverviewData>;
 
 type DashboardOverviewChecklistSectionProps = {
   businessName: string;
@@ -109,11 +117,125 @@ export async function DashboardOverviewStatsSection({
         value={overview.counts.newInquiries}
       />
       <OverviewActionStat
-        label="Follow up due"
-        note="Sent 3+ days ago"
-        value={overview.counts.followUpDueQuotes}
+        label="Recent wins"
+        note="Last 14 days"
+        value={overview.counts.recentAcceptedQuotes}
       />
     </div>
+  );
+}
+
+type DashboardNeedsAttentionSectionProps = {
+  businessSlug: string;
+  overviewPromise: DashboardOverviewDataPromise;
+  followUpOverviewPromise: FollowUpOverviewDataPromise;
+};
+
+type NeedsAttentionItem = {
+  href: string;
+  key: string;
+  label: string;
+  title: string;
+  description: string;
+  meta: string;
+  tone: "urgent" | "normal" | "positive";
+};
+
+export async function DashboardNeedsAttentionSection({
+  businessSlug,
+  overviewPromise,
+  followUpOverviewPromise,
+}: DashboardNeedsAttentionSectionProps) {
+  const [overview, followUpOverview] = await Promise.all([
+    overviewPromise,
+    followUpOverviewPromise,
+  ]);
+  const items: NeedsAttentionItem[] = [
+    ...followUpOverview.overdue.map((followUp) =>
+      createFollowUpAttentionItem(businessSlug, followUp, "Overdue follow-up", "urgent"),
+    ),
+    ...followUpOverview.dueToday.map((followUp) =>
+      createFollowUpAttentionItem(businessSlug, followUp, "Due today", "normal"),
+    ),
+    ...overview.overdueInquiries.map((inquiry) => ({
+      href: getBusinessInquiryPath(businessSlug, inquiry.id),
+      key: `overdue-inquiry:${inquiry.id}`,
+      label: "Overdue inquiry",
+      title: inquiry.customerName,
+      description: inquiry.serviceCategory,
+      meta: `Submitted ${formatQuoteDate(inquiry.submittedAt)}`,
+      tone: "urgent" as const,
+    })),
+    ...overview.expiringSoonQuotes.map((quote) => ({
+      href: getBusinessQuotePath(businessSlug, quote.id),
+      key: `expiring-quote:${quote.id}`,
+      label: "Quote expiring",
+      title: quote.title,
+      description: quote.customerName,
+      meta: `Expires ${formatQuoteDate(quote.validUntil)}`,
+      tone: "urgent" as const,
+    })),
+    ...overview.newInquiries.map((inquiry) => ({
+      href: getBusinessInquiryPath(businessSlug, inquiry.id),
+      key: `new-inquiry:${inquiry.id}`,
+      label: "New inquiry",
+      title: inquiry.customerName,
+      description: inquiry.serviceCategory,
+      meta: `Submitted ${formatQuoteDate(inquiry.submittedAt)}`,
+      tone: "normal" as const,
+    })),
+    ...overview.recentAcceptedQuotes.map((quote) => ({
+      href: getBusinessQuotePath(businessSlug, quote.id),
+      key: `accepted-quote:${quote.id}`,
+      label: "Accepted quote",
+      title: quote.title,
+      description: quote.customerName,
+      meta: `Accepted ${formatQuoteDate(quote.acceptedAt ?? quote.updatedAt)}`,
+      tone: "positive" as const,
+    })),
+  ].slice(0, 6);
+  const attentionCount =
+    followUpOverview.counts.overdue +
+    followUpOverview.counts.dueToday +
+    overview.counts.overdueInquiries +
+    overview.counts.expiringSoonQuotes +
+    overview.counts.newInquiries;
+
+  return (
+    <DashboardSection
+      action={
+        <Button asChild size="sm" variant="ghost">
+          <Link href={getBusinessFollowUpsPath(businessSlug)} prefetch={true}>
+            Open follow-ups
+            <ArrowRight data-icon="inline-end" />
+          </Link>
+        </Button>
+      }
+      description="The shortest list of customers and quotes that need action before they go cold."
+      title="Needs attention today"
+    >
+      {items.length ? (
+        <div className="grid gap-3 lg:grid-cols-2">
+          {items.map((item) => (
+            <NeedsAttentionRow item={item} key={item.key} />
+          ))}
+        </div>
+      ) : (
+        <DashboardEmptyState
+          className="px-5 py-10 sm:px-6"
+          description="No overdue follow-ups, due-today follow-ups, overdue inquiries, or expiring quotes need action right now."
+          icon={BellRing}
+          title="Nothing urgent right now"
+          variant="flat"
+        />
+      )}
+
+      <p className="mt-4 text-xs text-muted-foreground">
+        {attentionCount
+          ? `${attentionCount} active item${attentionCount === 1 ? "" : "s"} need attention.`
+          : "You can still review upcoming follow-ups below."}
+      </p>
+    </DashboardSection>
   );
 }
 
@@ -174,7 +296,7 @@ export async function DashboardOverviewQueuesSection({
           ) : (
             <DashboardEmptyState
               className="h-full px-5 py-12 sm:px-6"
-              description="Requests with a passed deadline show up here."
+              description="Inquiries with a passed deadline show up here."
               icon={Inbox}
               title="No overdue inquiries"
               variant="flat"
@@ -259,46 +381,6 @@ export async function DashboardOverviewQueuesSection({
           )}
         </OverviewQueueCard>
 
-        <OverviewQueueCard
-          action={
-            <Button asChild size="sm" variant="ghost">
-              <Link href={getBusinessQuotesPath(businessSlug)} prefetch={true}>
-                View follow-up
-                <ArrowRight data-icon="inline-end" />
-              </Link>
-            </Button>
-          }
-          count={overview.counts.followUpDueQuotes}
-          title="Follow up due"
-        >
-          {overview.followUpDueQuotes.length ? (
-            <div className="flex flex-col divide-y divide-border/70">
-              {overview.followUpDueQuotes.map((quote) => (
-                <OverviewQuoteRow
-                  key={quote.id}
-                  meta={
-                    quote.sentAt
-                      ? [
-                          `Sent ${formatQuoteDate(quote.sentAt)}`,
-                          `Expires ${formatQuoteDate(quote.validUntil)}`,
-                        ].join(" | ")
-                      : `Expires ${formatQuoteDate(quote.validUntil)}`
-                  }
-                  quote={quote}
-                  businessSlug={businessSlug}
-                />
-              ))}
-            </div>
-          ) : (
-            <DashboardEmptyState
-              className="px-5 py-12 sm:px-6"
-              description="There are no sent quotes waiting at least 3 days for a response right now."
-              icon={FileText}
-              title="No follow-up due"
-              variant="flat"
-            />
-          )}
-        </OverviewQueueCard>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
@@ -440,11 +522,38 @@ export function DashboardOverviewStatsFallback() {
   );
 }
 
+export function DashboardNeedsAttentionFallback() {
+  return (
+    <DashboardSection
+      action={<Skeleton className="h-9 w-32 rounded-lg" />}
+      description={
+        <Skeleton className="h-4 w-full max-w-xl rounded-md" />
+      }
+      title="Needs attention today"
+    >
+      <div className="grid gap-3 lg:grid-cols-2">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div className="soft-panel px-4 py-4 shadow-none" key={index}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <Skeleton className="h-4 w-24 rounded-md" />
+                <Skeleton className="h-5 w-40 rounded-md" />
+                <Skeleton className="h-4 w-full max-w-xs rounded-md" />
+              </div>
+              <Skeleton className="size-4 rounded-full" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </DashboardSection>
+  );
+}
+
 export function DashboardOverviewQueuesFallback() {
   return (
     <>
       <div className="grid gap-5 xl:grid-cols-2">
-        {Array.from({ length: 4 }).map((_, index) => (
+        {Array.from({ length: 3 }).map((_, index) => (
           <OverviewQueueCardSkeleton key={index} />
         ))}
       </div>
@@ -609,6 +718,54 @@ function OverviewQueueCardSkeleton() {
   );
 }
 
+function createFollowUpAttentionItem(
+  businessSlug: string,
+  followUp: FollowUpView,
+  label: string,
+  tone: NeedsAttentionItem["tone"],
+): NeedsAttentionItem {
+  return {
+    href:
+      followUp.related.kind === "quote"
+        ? getBusinessQuotePath(businessSlug, followUp.related.id)
+        : getBusinessInquiryPath(businessSlug, followUp.related.id),
+    key: `follow-up:${followUp.id}`,
+    label,
+    title: followUp.title,
+    description: `${followUp.customerName} - ${followUp.reason}`,
+    meta: `Due ${formatFollowUpDate(followUp.dueAt)}`,
+    tone,
+  };
+}
+
+function NeedsAttentionRow({ item }: { item: NeedsAttentionItem }) {
+  return (
+    <Link
+      className="group soft-panel block px-4 py-4 shadow-none transition-colors hover:bg-accent/22"
+      href={item.href}
+      prefetch={true}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <Badge
+            variant={item.tone === "urgent" ? "secondary" : "outline"}
+          >
+            {item.label}
+          </Badge>
+          <p className="mt-3 truncate text-sm font-semibold text-foreground">
+            {item.title}
+          </p>
+          <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
+            {item.description}
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">{item.meta}</p>
+        </div>
+        <ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+      </div>
+    </Link>
+  );
+}
+
 function getBusinessInquiriesStatusPath(
   businessSlug: string,
   status: InquiryStatus,
@@ -676,6 +833,8 @@ function OverviewQuoteRow({
   meta: string;
   businessSlug: string;
 }) {
+  const reminders = quote.reminders.filter((reminder) => reminder !== "follow_up_due");
+
   return (
     <Link
       className="group block px-5 py-4 transition-colors hover:bg-accent/22 sm:px-6"
@@ -697,9 +856,9 @@ function OverviewQuoteRow({
               <p className="mt-1 truncate text-sm text-muted-foreground">
                 {quote.customerName}
               </p>
-              {quote.reminders.length || quote.postAcceptanceStatus !== "none" ? (
+              {reminders.length || quote.postAcceptanceStatus !== "none" ? (
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {quote.reminders.map((reminder) => (
+                  {reminders.map((reminder) => (
                     <QuoteReminderBadge key={reminder} kind={reminder} />
                   ))}
                   {quote.postAcceptanceStatus !== "none" ? (

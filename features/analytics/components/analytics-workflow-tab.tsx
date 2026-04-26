@@ -141,7 +141,7 @@ export function AnalyticsWorkflowTab({
         <CardHeader className="gap-2">
           <CardTitle>Operational alerts</CardTitle>
           <CardDescription>
-            Requests and quotes that may need attention based on response time thresholds.
+            Inquiries and quotes that may need attention based on response time thresholds.
           </CardDescription>
         </CardHeader>
         <CardContent>

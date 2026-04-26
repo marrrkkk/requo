@@ -55,6 +55,10 @@ export function getBusinessQuotesPath(slug: string) {
   return `${getBusinessDashboardPath(slug)}/quotes`;
 }
 
+export function getBusinessFollowUpsPath(slug: string) {
+  return `${getBusinessDashboardPath(slug)}/follow-ups`;
+}
+
 export function getBusinessNewQuotePath(
   slug: string,
   inquiryId?: string | null,

@@ -31,6 +31,7 @@ const paidPlans: PaidPlan[] = ["pro", "business"];
 const planHighlights: Record<PaidPlan, string[]> = {
   pro: [
     "Unlimited inquiries and quotes",
+    "Follow-up reminders and quote tracking",
     "Multiple inquiry forms",
     "AI assistant and knowledge",
   ],
