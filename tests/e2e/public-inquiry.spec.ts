@@ -43,14 +43,9 @@ test("public inquiry page accepts a new submission @smoke", async ({ page }) => 
 
   await page.locator("#inquiry-customerName:visible").fill("Taylor Nguyen");
   await page
-    .locator("#inquiry-customerEmail:visible")
+    .locator("#inquiry-contactHandle:visible")
     .fill(`taylor+${Date.now()}@example.com`);
-  await page
-    .locator("#inquiry-customerPhone:visible")
-    .fill("+1 415 555 0199");
-  await page
-    .locator("#inquiry-serviceCategory:visible")
-    .fill("Window graphics");
+  await page.locator("#inquiry-serviceCategory:visible").fill("Window graphics");
   await page.locator("#inquiry-budgetText:visible").fill("Around $1,500");
   await page
     .locator("#inquiry-details:visible")

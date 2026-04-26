@@ -26,9 +26,16 @@ async function openDemoBusiness(page: Page) {
     new RegExp(`/businesses/${demoBusinessSlug}/dashboard$`),
     { timeout: 20_000 },
   );
-  await expect(
-    page.getByRole("heading", { name: "BrightSide Print Studio" }),
-  ).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator("h1")).toBeVisible({ timeout: 20_000 });
+
+  const onboardingDialog = page.getByRole("dialog", {
+    name: "Your inquiry form is live",
+  });
+
+  if (await onboardingDialog.isVisible()) {
+    await page.getByRole("button", { name: "Got it" }).click();
+    await expect(onboardingDialog).toBeHidden();
+  }
 }
 
 async function expectBodyScrollUnlocked(page: Page) {

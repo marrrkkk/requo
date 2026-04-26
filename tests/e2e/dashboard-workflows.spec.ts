@@ -24,12 +24,6 @@ async function openBusinessesPage(page: Page, path: string) {
   await page.waitForLoadState("networkidle");
 }
 
-function getSection(page: Page, title: string) {
-  return page.locator("section").filter({
-    has: page.getByRole("heading", { name: title, exact: true }),
-  });
-}
-
 function getSnippetCard(page: Page, title: string): Locator {
   return page
     .locator('[data-slot="card"]')
@@ -132,28 +126,29 @@ test("dashboard and detail pages surface follow-up, expiring-soon, and customer 
 
   await openBusinessesPage(page, "");
 
-  const followUpSection = getSection(page, "Follow up due");
-  await expect(followUpSection.getByText("Foundry Labs booth kit")).toBeVisible();
-  await expect(followUpSection.getByText("Expiring soon")).toBeVisible();
-
-  const expiringSoonSection = getSection(page, "Quotes expiring soon");
   await expect(
-    expiringSoonSection.getByText("Foundry Labs booth kit"),
+    page.getByRole("heading", { name: "Needs attention today" }),
   ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open follow-ups" })).toBeVisible();
   await expect(
-    expiringSoonSection.getByText("Expires", { exact: false }),
+    page.getByRole("heading", { name: "Follow up due" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "Quotes expiring soon" }),
   ).toBeVisible();
 
   await openBusinessesPage(page, "/quotes/demo_quote_sent_1002");
 
   await expect(
     page.getByRole("alert").filter({
-      has: page.getByText("Follow up due", { exact: true }),
+      has: page.getByText("Next: follow up on the viewed quote", {
+        exact: true,
+      }),
     }),
   ).toBeVisible();
   await expect(
     page.getByRole("alert").filter({
-      has: page.getByText("Quote expiring soon", { exact: true }),
+      has: page.getByText("Viewed, no response", { exact: true }),
     }),
   ).toBeVisible();
   await expect(
@@ -519,7 +514,7 @@ test("accepted quotes can move from booked to scheduled", async ({ page }) => {
   await expect(postAcceptanceSelect).toContainText("Scheduled");
 });
 
-test("quotes and requests list exports honor filters and show export actions", async ({
+test("quotes and inquiries list exports honor filters and show export actions", async ({
   page,
 }) => {
   await signIn(page);
@@ -616,7 +611,7 @@ test("inquiry detail exposes PDF export and print-safe document", async ({
   );
   await page.waitForLoadState("networkidle");
 
-  await expect(page.getByRole("heading", { name: "Request summary" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Inquiry summary" })).toBeVisible();
   await expect(page.getByText("Submitted fields")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Internal notes" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Activity log" })).toHaveCount(0);

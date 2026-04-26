@@ -539,6 +539,12 @@ describe("features/analytics/queries", () => {
     expect(data.summary.formConversionRate).toBeCloseTo(0.8);
     expect(data.summary.responseRate).toBeCloseTo(0.75);
     expect(data.summary.avgFirstResponseHours).toBe(14);
+    expect(data.summary.quotesSent).toBe(3);
+    expect(data.summary.quotesViewed).toBe(3);
+    expect(data.summary.quotesAccepted).toBe(1);
+    expect(data.summary.quotesRejected).toBe(1);
+    expect(data.summary.quoteAcceptanceRate).toBeCloseTo(1 / 3);
+    expect(data.summary.avgTimeSentToDecisionHours).toBe(72);
     expect(data.funnel).toEqual({
       uniqueVisitors: 5,
       inquirySubmissions: 4,
