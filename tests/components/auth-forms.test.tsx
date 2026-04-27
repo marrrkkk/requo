@@ -13,6 +13,7 @@ const {
   signInSocialMock,
   signUpEmailMock,
   requestPasswordResetMock,
+  routerPushMock,
   toastErrorMock,
   toastSuccessMock,
 } = vi.hoisted(() => ({
@@ -22,12 +23,16 @@ const {
   signInSocialMock: vi.fn(),
   signUpEmailMock: vi.fn(),
   requestPasswordResetMock: vi.fn(),
+  routerPushMock: vi.fn(),
   toastErrorMock: vi.fn(),
   toastSuccessMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => searchParamsMock(),
+  useRouter: () => ({
+    push: routerPushMock,
+  }),
 }));
 
 vi.mock("@/lib/auth/client", () => ({
@@ -76,6 +81,7 @@ describe("auth forms", () => {
     signInSocialMock.mockResolvedValue({ error: null });
     signUpEmailMock.mockResolvedValue({ error: null });
     requestPasswordResetMock.mockResolvedValue({ error: null });
+    routerPushMock.mockReset();
     toastErrorMock.mockReset();
     toastSuccessMock.mockReset();
   });
@@ -137,11 +143,11 @@ describe("auth forms", () => {
       }),
     );
     await waitFor(() =>
-      expect(toastSuccessMock).toHaveBeenCalledWith(
-        "Check your inbox to verify your email before signing in.",
-        { description: "Request received." },
+      expect(routerPushMock).toHaveBeenCalledWith(
+        "/check-email?email=alicia%40example.com",
       ),
     );
+    expect(toastSuccessMock).not.toHaveBeenCalled();
     await waitFor(() =>
       expect(screen.getByLabelText("Full name")).toHaveValue(""),
     );
