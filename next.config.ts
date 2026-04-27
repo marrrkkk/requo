@@ -28,6 +28,14 @@ const apiNoIndexHeaders = [
   { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
 ] satisfies Array<{ key: string; value: string }>;
 
+const agentDiscoveryHeaders = [
+  {
+    key: "Link",
+    value:
+      '</.well-known/api-catalog>; rel="api-catalog", </.well-known/agent-skills/index.json>; rel="agent-skills", </.well-known/mcp/server-card.json>; rel="mcp-server-card"',
+  },
+] satisfies Array<{ key: string; value: string }>;
+
 const nextConfig: NextConfig = {
   cacheComponents: true,
   experimental: {
@@ -41,6 +49,10 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      {
+        source: "/",
+        headers: agentDiscoveryHeaders,
+      },
       {
         source: "/:path*",
         headers: baselineSecurityHeaders,

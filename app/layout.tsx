@@ -11,6 +11,7 @@ import {
   ReloadLoadingOverlay,
 } from "@/components/shared/reload-loading-overlay";
 import { RouteProgressBar } from "@/components/shared/route-progress-bar";
+import { WebMCPProvider } from "@/components/shared/webmcp-provider";
 import { StructuredData } from "@/components/seo/structured-data";
 import { Toaster } from "@/components/ui/sonner";
 import { getThemeInitScript } from "@/features/theme/init-script";
@@ -129,6 +130,7 @@ export default function RootLayout({
           >
             <Suspense fallback={null}>
               <RouteProgressBar />
+              <WebMCPProvider />
             </Suspense>
             <TooltipProvider>{children}</TooltipProvider>
             <Toaster />

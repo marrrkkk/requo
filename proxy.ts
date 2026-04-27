@@ -7,6 +7,13 @@ import {
 } from "@/features/businesses/routes";
 
 export function proxy(request: NextRequest) {
+  if (
+    request.nextUrl.pathname === "/" &&
+    request.headers.get("accept")?.includes("text/markdown")
+  ) {
+    return NextResponse.rewrite(new URL("/api/public/markdown", request.url));
+  }
+
   const businessSlug = getBusinessDashboardSlugFromPathname(
     request.nextUrl.pathname,
   );
@@ -30,5 +37,9 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/businesses/:slug/dashboard/:path*", "/businesses/:slug/preview/:path*"],
+  matcher: [
+    "/",
+    "/businesses/:slug/dashboard/:path*",
+    "/businesses/:slug/preview/:path*",
+  ],
 };
