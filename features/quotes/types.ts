@@ -16,6 +16,9 @@ export const quotePostAcceptanceStatuses = [
   "none",
   "booked",
   "scheduled",
+  "in_progress",
+  "completed",
+  "canceled",
 ] as const;
 export const quoteDeliveryMethods = ["requo", "manual"] as const;
 export const quoteSendChannels = [
@@ -176,12 +179,17 @@ export type DashboardQuoteDetail = {
   publicViewedAt: Date | null;
   customerRespondedAt: Date | null;
   customerResponseMessage: string | null;
+  completedAt: Date | null;
+  canceledAt: Date | null;
+  cancellationReason: string | null;
+  cancellationNote: string | null;
   createdAt: Date;
   updatedAt: Date;
   items: DashboardQuoteItem[];
   activities: DashboardQuoteActivity[];
   linkedInquiry: QuoteLinkedInquirySummary | null;
   reminders: QuoteReminderKind[];
+  checklistItems: PostWinChecklistItem[];
 };
 
 export type QuoteSendPayload = {
@@ -310,6 +318,31 @@ export type QuotePostAcceptanceActionState = {
   fieldErrors?: Partial<
     Record<"postAcceptanceStatus", string[] | undefined>
   >;
+};
+
+export type QuoteCancellationActionState = {
+  error?: string;
+  success?: string;
+  fieldErrors?: Partial<
+    Record<"cancellationReason" | "cancellationNote", string[] | undefined>
+  >;
+};
+
+export type QuoteCompletionActionState = {
+  error?: string;
+  success?: string;
+};
+
+export type PostWinChecklistItem = {
+  id: string;
+  label: string;
+  completedAt: Date | null;
+  position: number;
+};
+
+export type PostWinChecklistActionState = {
+  error?: string;
+  success?: string;
 };
 
 export type QuoteSendActionState = {

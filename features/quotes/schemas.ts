@@ -260,6 +260,31 @@ export const quotePostAcceptanceStatusChangeSchema = z.object({
   }),
 });
 
+export const quoteCancellationReasons = [
+  "customer_changed_mind",
+  "price_too_high",
+  "schedule_conflict",
+  "scope_changed",
+  "no_deposit_payment",
+  "duplicate_mistake",
+  "business_unavailable",
+  "other",
+] as const;
+
+export const quoteCancellationSchema = z.object({
+  cancellationReason: z.enum(quoteCancellationReasons, {
+    error: () => "Choose a cancellation reason.",
+  }),
+  cancellationNote: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .trim()
+      .max(1200, "Cancellation notes must be 1,200 characters or fewer.")
+      .optional(),
+  ),
+});
+
 export const publicQuoteResponseSchema = z.object({
   response: z.enum(["accepted", "rejected"], {
     error: () => "Choose whether to accept or decline this quote.",
