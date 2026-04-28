@@ -55,6 +55,7 @@ type FollowUpRow = {
   title: string;
   reason: string;
   channel: FollowUpView["channel"];
+  category: string;
   dueAt: Date;
   completedAt: Date | null;
   skippedAt: Date | null;
@@ -115,6 +116,7 @@ function mapFollowUpRow(row: FollowUpRow): FollowUpView {
     createdByUserId: row.createdByUserId,
     title: row.title,
     reason: row.reason,
+    category: (row.category === "post_win" ? "post_win" : "sales") as FollowUpView["category"],
     channel: row.channel,
     dueAt: row.dueAt,
     completedAt: row.completedAt,
@@ -173,6 +175,7 @@ function getFollowUpSelection() {
     createdByUserId: followUps.createdByUserId,
     title: followUps.title,
     reason: followUps.reason,
+    category: followUps.category,
     channel: followUps.channel,
     dueAt: followUps.dueAt,
     completedAt: followUps.completedAt,

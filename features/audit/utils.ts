@@ -55,10 +55,13 @@ export function formatAuditEventDetails(item: WorkspaceAuditLogItem) {
     case "quote.created":
     case "quote.sent":
     case "quote.voided":
-    case "quote.draft_deleted": {
+    case "quote.draft_deleted":
+    case "quote.canceled_after_acceptance":
+    case "quote.work_completed": {
       const quoteNumber = getStringValue(metadata, "quoteNumber");
       const title = getStringValue(metadata, "title");
-      return [quoteNumber, title].filter(Boolean).join(" - ") || "Quote record";
+      const customerName = getStringValue(metadata, "customerName");
+      return [quoteNumber, title ?? customerName].filter(Boolean).join(" - ") || "Quote record";
     }
     case "business.created":
     case "business.archived":

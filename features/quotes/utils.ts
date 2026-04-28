@@ -76,6 +76,9 @@ export const quotePostAcceptanceStatusLabels: Record<
   none: "None yet",
   booked: "Booked",
   scheduled: "Scheduled",
+  in_progress: "In progress",
+  completed: "Completed",
+  canceled: "Canceled",
 };
 
 export const quotePostAcceptanceStatusClassNames: Record<
@@ -87,6 +90,12 @@ export const quotePostAcceptanceStatusClassNames: Record<
     "border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/12 dark:text-emerald-200",
   scheduled:
     "border-amber-200/80 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/12 dark:text-amber-200",
+  in_progress:
+    "border-blue-200/80 bg-blue-50 text-blue-700 dark:border-blue-500/25 dark:bg-blue-500/12 dark:text-blue-200",
+  completed:
+    "border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/12 dark:text-emerald-200",
+  canceled:
+    "border-red-200/80 bg-red-50 text-red-700 dark:border-red-500/25 dark:bg-red-500/12 dark:text-red-200",
 };
 
 export const quoteReminderLabels: Record<QuoteReminderKind, string> = {
