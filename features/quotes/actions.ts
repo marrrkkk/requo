@@ -31,12 +31,16 @@ import {
 } from "@/lib/resend/client";
 import {
   archiveQuoteForBusiness,
+  cancelAcceptedQuoteForBusiness,
+  completeAcceptedQuoteForBusiness,
+  createPostWinChecklistItem,
   createQuoteForBusiness,
   deleteDraftQuoteForBusiness,
   logQuoteSendEvent,
   markQuoteSentForBusiness,
   respondToPublicQuoteByToken,
   restoreArchivedQuoteForBusiness,
+  togglePostWinChecklistItem,
   updateQuotePostAcceptanceStatusForBusiness,
   updateQuoteForBusiness,
   voidQuoteForBusiness,
@@ -44,6 +48,7 @@ import {
 import { getQuoteSendPayloadForBusiness } from "@/features/quotes/queries";
 import {
   publicQuoteResponseSchema,
+  quoteCancellationSchema,
   quoteEditorSchema,
   quotePostAcceptanceStatusChangeSchema,
 } from "@/features/quotes/schemas";
@@ -52,9 +57,12 @@ import {
 } from "@/features/businesses/routes";
 import type {
   PublicQuoteResponseActionState,
+  QuoteCancellationActionState,
+  QuoteCompletionActionState,
   QuoteDeliveryMethod,
   QuoteEditorActionState,
   QuotePostAcceptanceActionState,
+  PostWinChecklistActionState,
   QuoteRecordActionState,
   QuoteSendActionState,
 } from "@/features/quotes/types";
@@ -909,6 +917,241 @@ export async function respondToPublicQuoteAction(
 
     return {
       error: "We couldn't save that response right now. Please try again.",
+    };
+  }
+}
+
+export async function cancelAcceptedQuoteAction(
+  quoteId: string,
+  prevState: QuoteCancellationActionState,
+  formData: FormData,
+): Promise<QuoteCancellationActionState> {
+  void prevState;
+
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+  const validationResult = quoteCancellationSchema.safeParse({
+    cancellationReason: formData.get("cancellationReason"),
+    cancellationNote: formData.get("cancellationNote"),
+  });
+
+  if (!validationResult.success) {
+    return getValidationActionState(
+      validationResult.error,
+      "Check the highlighted fields and try again.",
+    );
+  }
+
+  try {
+    const result = await cancelAcceptedQuoteForBusiness({
+      businessId: businessContext.business.id,
+      quoteId,
+      actorUserId: user.id,
+      cancellationReason: validationResult.data.cancellationReason,
+      cancellationNote: validationResult.data.cancellationNote,
+    });
+
+    if (!result) {
+      return {
+        error: "That quote could not be found.",
+      };
+    }
+
+    updateCacheTags(
+      getQuoteMutationCacheTags(
+        businessContext.business.id,
+        quoteId,
+        result.inquiryId,
+      ),
+    );
+
+    if (!result.updated) {
+      if (result.reason === "already_canceled") {
+        return { success: "This quote has already been canceled." };
+      }
+      if (result.reason === "already_completed") {
+        return { error: "Completed work cannot be canceled." };
+      }
+      return {
+        error: "Only accepted quotes can be canceled.",
+      };
+    }
+
+    return {
+      success: `Quote ${result.quoteNumber} canceled.`,
+    };
+  } catch (error) {
+    console.error("Failed to cancel accepted quote.", error);
+
+    return {
+      error: "We couldn't cancel that quote right now.",
+    };
+  }
+}
+
+export async function completeAcceptedQuoteAction(
+  quoteId: string,
+  prevState: QuoteCompletionActionState,
+  _formData: FormData,
+): Promise<QuoteCompletionActionState> {
+  void prevState;
+  void _formData;
+
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+
+  try {
+    const result = await completeAcceptedQuoteForBusiness({
+      businessId: businessContext.business.id,
+      quoteId,
+      actorUserId: user.id,
+    });
+
+    if (!result) {
+      return {
+        error: "That quote could not be found.",
+      };
+    }
+
+    updateCacheTags(
+      getQuoteMutationCacheTags(
+        businessContext.business.id,
+        quoteId,
+        result.inquiryId,
+      ),
+    );
+
+    if (!result.updated) {
+      if (result.reason === "already_completed") {
+        return { success: "This work is already marked completed." };
+      }
+      if (result.reason === "already_canceled") {
+        return { error: "Canceled quotes cannot be completed." };
+      }
+      return {
+        error: "Only accepted quotes can be marked completed.",
+      };
+    }
+
+    return {
+      success: `Work completed for quote ${result.quoteNumber}.`,
+    };
+  } catch (error) {
+    console.error("Failed to complete accepted quote.", error);
+
+    return {
+      error: "We couldn't mark that work as completed right now.",
+    };
+  }
+}
+
+export async function togglePostWinChecklistItemAction(
+  quoteId: string,
+  checklistItemId: string,
+): Promise<PostWinChecklistActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+
+  try {
+    const result = await togglePostWinChecklistItem({
+      businessId: businessContext.business.id,
+      quoteId,
+      checklistItemId,
+      actorUserId: user.id,
+    });
+
+    if (!result) {
+      return {
+        error: "That checklist item could not be found.",
+      };
+    }
+
+    updateCacheTags(
+      getQuoteMutationCacheTags(businessContext.business.id, quoteId),
+    );
+
+    return {
+      success: result.isCompleted
+        ? `"${result.label}" checked off.`
+        : `"${result.label}" unchecked.`,
+    };
+  } catch (error) {
+    console.error("Failed to toggle checklist item.", error);
+
+    return {
+      error: "We couldn't update that checklist item right now.",
+    };
+  }
+}
+
+export async function createPostWinChecklistItemAction(
+  quoteId: string,
+  label: string,
+): Promise<PostWinChecklistActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+  const trimmedLabel = label?.trim();
+
+  if (!trimmedLabel || trimmedLabel.length > 200) {
+    return {
+      error: "Checklist item must be between 1 and 200 characters.",
+    };
+  }
+
+  try {
+    const result = await createPostWinChecklistItem({
+      businessId: businessContext.business.id,
+      quoteId,
+      actorUserId: user.id,
+      label: trimmedLabel,
+    });
+
+    if (!result) {
+      return {
+        error: "Items can only be added to accepted quotes.",
+      };
+    }
+
+    updateCacheTags(
+      getQuoteMutationCacheTags(businessContext.business.id, quoteId),
+    );
+
+    return {
+      success: `"${result.label}" added to checklist.`,
+    };
+  } catch (error) {
+    console.error("Failed to create checklist item.", error);
+
+    return {
+      error: "We couldn't add that checklist item right now.",
     };
   }
 }
