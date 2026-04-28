@@ -145,6 +145,7 @@ The demo seed also creates two additional sample businesses, three inquiry forms
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_JWT_SECRET`
 - `APP_TOKEN_HASH_SECRET`
+- `ADMIN_EMAILS`
 
 ### Database tooling
 
