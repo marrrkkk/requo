@@ -44,11 +44,13 @@ function createEmptyBusinessOverviewData(): BusinessOverviewData {
     expiringSoonQuotes: [],
     newInquiries: [],
     recentAcceptedQuotes: [],
+    draftQuotes: [],
     counts: {
       overdueInquiries: 0,
       expiringSoonQuotes: 0,
       newInquiries: 0,
       recentAcceptedQuotes: 0,
+      draftQuotes: 0,
     },
   };
 }
@@ -106,6 +108,7 @@ async function getCachedBusinessOverviewData(
     expiringSoonQuotes,
     newInquiries,
     recentAcceptedQuotes,
+    draftQuotes,
   ] = await Promise.all([
     db
       .select({
@@ -217,10 +220,41 @@ async function getCachedBusinessOverviewData(
           getOperationalQuoteCondition(),
           eq(quotes.status, "accepted"),
           isNotNull(quotes.acceptedAt),
-          gte(quotes.acceptedAt, recentAcceptedCutoff),
+          sql`${quotes.postAcceptanceStatus} not in ('completed', 'canceled')`,
         ),
       )
       .orderBy(desc(quotes.acceptedAt), desc(quotes.createdAt))
+      .limit(overviewQueueItemLimit),
+    db
+      .select({
+        id: quotes.id,
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+        title: quotes.title,
+        customerName: quotes.customerName,
+        customerEmail: quotes.customerEmail,
+        customerContactMethod: quotes.customerContactMethod,
+        customerContactHandle: quotes.customerContactHandle,
+        currency: quotes.currency,
+        totalInCents: quotes.totalInCents,
+        status: getEffectiveQuoteStatus,
+        postAcceptanceStatus: quotes.postAcceptanceStatus,
+        validUntil: quotes.validUntil,
+        sentAt: quotes.sentAt,
+        acceptedAt: quotes.acceptedAt,
+        customerRespondedAt: quotes.customerRespondedAt,
+        updatedAt: quotes.updatedAt,
+        totalCount,
+      })
+      .from(quotes)
+      .where(
+        and(
+          eq(quotes.businessId, businessId),
+          getOperationalQuoteCondition(),
+          eq(getEffectiveQuoteStatus, "draft")
+        ),
+      )
+      .orderBy(desc(quotes.updatedAt), desc(quotes.createdAt))
       .limit(overviewQueueItemLimit),
   ]);
 
@@ -261,11 +295,13 @@ async function getCachedBusinessOverviewData(
     expiringSoonQuotes: expiringSoonQuotes.map(withQuoteReminders),
     newInquiries: newInquiries.map(stripTotalCount),
     recentAcceptedQuotes: recentAcceptedQuotes.map(withQuoteReminders),
+    draftQuotes: draftQuotes.map(withQuoteReminders),
     counts: {
       overdueInquiries: Number(overdueInquiries[0]?.totalCount ?? 0),
       expiringSoonQuotes: Number(expiringSoonQuotes[0]?.totalCount ?? 0),
       newInquiries: Number(newInquiries[0]?.totalCount ?? 0),
       recentAcceptedQuotes: Number(recentAcceptedQuotes[0]?.totalCount ?? 0),
+      draftQuotes: Number(draftQuotes[0]?.totalCount ?? 0),
     },
   };
 }
