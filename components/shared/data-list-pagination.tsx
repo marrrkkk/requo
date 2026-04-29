@@ -27,6 +27,7 @@ type DataListPaginationProps = {
   cachedPages?: number[];
   currentPage: number;
   onCachedPageNavigate?: (page: number) => void;
+  pageSize?: number;
   pathname: string;
   searchParams: SearchParamsRecord;
   totalItems: number;
@@ -83,6 +84,7 @@ export function DataListPagination({
   cachedPages = [],
   currentPage,
   onCachedPageNavigate,
+  pageSize = 10,
   pathname,
   searchParams,
   totalItems,
@@ -172,8 +174,8 @@ export function DataListPagination({
     return null;
   }
 
-  const firstItemIndex = (currentPage - 1) * 10 + 1;
-  const lastItemIndex = Math.min(currentPage * 10, totalItems);
+  const firstItemIndex = (currentPage - 1) * pageSize + 1;
+  const lastItemIndex = Math.min(currentPage * pageSize, totalItems);
   const activePendingPage = isPending ? pendingPage : null;
   const showLoadingState =
     isPending &&
