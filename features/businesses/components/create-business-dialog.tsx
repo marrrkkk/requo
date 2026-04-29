@@ -18,7 +18,6 @@ import { PlanSelectionSheet } from "@/features/billing/components/plan-selection
 import { useWorkspaceCheckout } from "@/features/billing/components/workspace-checkout-provider";
 import { CreateBusinessForm } from "@/features/businesses/components/create-business-form";
 import type { CreateBusinessActionState } from "@/features/businesses/types";
-import type { WorkspaceListItem } from "@/features/workspaces/types";
 import type { WorkspacePlan } from "@/lib/plans/plans";
 import type { BillingCurrency, BillingRegion, PaidPlan } from "@/lib/billing/types";
 
@@ -27,7 +26,7 @@ type CreateBusinessDialogProps = {
     state: CreateBusinessActionState,
     formData: FormData,
   ) => Promise<CreateBusinessActionState>;
-  workspaces: WorkspaceListItem[];
+  workspaceId: string;
   isLocked?: boolean;
   billingProps?: {
     workspaceId: string;
@@ -40,7 +39,7 @@ type CreateBusinessDialogProps = {
 
 export function CreateBusinessDialog({
   action,
-  workspaces,
+  workspaceId,
   isLocked,
   billingProps,
 }: CreateBusinessDialogProps) {
@@ -147,7 +146,7 @@ export function CreateBusinessDialog({
         </DialogHeader>
         <CreateBusinessForm
           action={action}
-          workspaces={workspaces}
+          workspaceId={workspaceId}
         />
       </DialogContent>
     </Dialog>

@@ -27,7 +27,6 @@ import {
   starterTemplateOptions,
 } from "@/features/businesses/starter-templates";
 import type { CreateBusinessActionState } from "@/features/businesses/types";
-import type { WorkspaceListItem } from "@/features/workspaces/types";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 
@@ -36,14 +35,14 @@ type CreateBusinessFormProps = {
     state: CreateBusinessActionState,
     formData: FormData,
   ) => Promise<CreateBusinessActionState>;
-  workspaces: WorkspaceListItem[];
+  workspaceId: string;
 };
 
 const initialState: CreateBusinessActionState = {};
 
 export function CreateBusinessForm({
   action,
-  workspaces,
+  workspaceId,
 }: CreateBusinessFormProps) {
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
@@ -53,11 +52,9 @@ export function CreateBusinessForm({
     "general_project_services",
   );
   const [defaultCurrency, setDefaultCurrency] = useState("USD");
-  const [workspaceId, setWorkspaceId] = useState(workspaces[0]?.id || "");
   const nameError = state.fieldErrors?.name?.[0];
   const businessTypeError = state.fieldErrors?.businessType?.[0];
   const defaultCurrencyError = state.fieldErrors?.defaultCurrency?.[0];
-  const workspaceIdError = state.fieldErrors?.workspaceId?.[0];
   const selectedCurrency = getBusinessCurrencyOption(defaultCurrency);
 
   return (
@@ -71,26 +68,6 @@ export function CreateBusinessForm({
 
         <DialogBody className="overflow-y-auto">
           <FieldGroup>
-            {workspaces.length > 1 ? (
-              <Field data-invalid={Boolean(workspaceIdError) || undefined}>
-                <FieldLabel htmlFor="business-workspace-id">Workspace</FieldLabel>
-                <FieldContent>
-                  <Combobox
-                    aria-invalid={Boolean(workspaceIdError) || undefined}
-                    disabled={isPending}
-                    id="business-workspace-id"
-                    onValueChange={(val) => setWorkspaceId(val)}
-                    options={workspaces.map((w) => ({ value: w.id, label: w.name }))}
-                    placeholder="Choose workspace"
-                    searchPlaceholder="Search workspace"
-                    value={workspaceId}
-                  />
-                  <FieldError
-                    errors={workspaceIdError ? [{ message: workspaceIdError }] : undefined}
-                  />
-                </FieldContent>
-              </Field>
-            ) : null}
 
             <Field data-invalid={Boolean(nameError) || undefined}>
               <FieldLabel htmlFor="business-name">Business name</FieldLabel>
