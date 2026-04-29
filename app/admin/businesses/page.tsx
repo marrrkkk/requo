@@ -1,13 +1,11 @@
 import Link from "next/link";
 
-import {
-  DashboardPage,
-  DashboardSection,
-} from "@/components/shared/dashboard-layout";
+import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -18,7 +16,6 @@ import {
   AdminPagination,
   AdminSearchForm,
   AdminStatusBadge,
-  buildAdminPageHref,
   formatDateTime,
   formatNumber,
 } from "@/features/admin/components/admin-common";
@@ -42,75 +39,81 @@ export default async function AdminBusinessesPage({
     <DashboardPage>
       <PageHeader
         description="Search businesses by business name, business ID, workspace, slug, or owner email."
-        eyebrow="Internal admin"
         title="Businesses"
       />
 
-      <DashboardSection title="Search businesses">
-        <AdminSearchForm
-          action="/admin/businesses"
-          defaultValue={filters.q}
-          placeholder="Search by business, ID, workspace, or owner"
-        />
-      </DashboardSection>
+      <AdminSearchForm
+        action="/admin/businesses"
+        defaultValue={filters.q}
+        description="Search businesses by business name, business ID, workspace, slug, or owner email."
+        placeholder="Search by business, ID, workspace, or owner"
+        resultLabel={`${formatNumber(page.pageInfo.totalCount)} businesses`}
+      />
 
-      <DashboardSection
-        description="Newest matching businesses first."
-        title="Businesses"
-      >
+      <div className="flex flex-col gap-5">
         <AdminDataTable empty={page.items.length === 0}>
-          <Table>
+          <Table className="min-w-[82rem] table-fixed">
+            <TableCaption className="sr-only">
+              Newest matching businesses appear first.
+            </TableCaption>
             <TableHeader>
               <TableRow>
-                <TableHead>Business</TableHead>
-                <TableHead>Workspace</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>Inquiries</TableHead>
-                <TableHead>Quotes</TableHead>
-                <TableHead>Follow-ups</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
+                <TableHead className="w-[18rem]">Business</TableHead>
+                <TableHead className="w-[16rem]">Workspace</TableHead>
+                <TableHead className="w-[18rem]">Owner</TableHead>
+                <TableHead className="w-[8rem]">Inquiries</TableHead>
+                <TableHead className="w-[8rem]">Quotes</TableHead>
+                <TableHead className="w-[8rem]">Follow-ups</TableHead>
+                <TableHead className="w-[10rem]">Status</TableHead>
+                <TableHead className="w-[10rem]">Created</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {page.items.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell>
+                  <TableCell className="w-[18rem]">
                     <Link
-                      className="flex min-w-0 flex-col gap-1 underline-offset-4 hover:underline"
+                      className="table-meta-stack max-w-full"
                       href={`/admin/businesses/${item.id}`}
+                      prefetch={true}
                     >
-                      <span className="font-medium text-foreground">
-                        {item.name}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {item.slug}
-                      </span>
+                      <span className="table-link">{item.name}</span>
+                      <span className="table-supporting-text">{item.slug}</span>
                     </Link>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="w-[16rem]">
                     <Link
-                      className="underline-offset-4 hover:underline"
+                      className="table-emphasis block max-w-full hover:text-primary hover:underline"
                       href={`/admin/workspaces/${item.workspaceId}`}
+                      prefetch={true}
                     >
                       {item.workspaceName}
                     </Link>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="w-[18rem]">
                     <Link
-                      className="underline-offset-4 hover:underline"
+                      className="table-emphasis block max-w-full hover:text-primary hover:underline"
                       href={`/admin/users/${item.ownerUserId}`}
+                      prefetch={true}
                     >
                       {item.ownerEmail}
                     </Link>
                   </TableCell>
-                  <TableCell>{formatNumber(item.inquiryCount)}</TableCell>
-                  <TableCell>{formatNumber(item.quoteCount)}</TableCell>
-                  <TableCell>{formatNumber(item.followUpCount)}</TableCell>
-                  <TableCell>
+                  <TableCell className="w-[8rem]">
+                    {formatNumber(item.inquiryCount)}
+                  </TableCell>
+                  <TableCell className="w-[8rem]">
+                    {formatNumber(item.quoteCount)}
+                  </TableCell>
+                  <TableCell className="w-[8rem]">
+                    {formatNumber(item.followUpCount)}
+                  </TableCell>
+                  <TableCell className="w-[10rem]">
                     <AdminStatusBadge status={item.status} />
                   </TableCell>
-                  <TableCell>{formatDateTime(item.createdAt)}</TableCell>
+                  <TableCell className="w-[10rem] text-muted-foreground">
+                    {formatDateTime(item.createdAt)}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -118,16 +121,11 @@ export default async function AdminBusinessesPage({
         </AdminDataTable>
 
         <AdminPagination
-          hrefForPage={(nextPage) =>
-            buildAdminPageHref(
-              "/admin/businesses",
-              resolvedSearchParams,
-              nextPage,
-            )
-          }
           pageInfo={page.pageInfo}
+          pathname="/admin/businesses"
+          searchParams={resolvedSearchParams}
         />
-      </DashboardSection>
+      </div>
     </DashboardPage>
   );
 }

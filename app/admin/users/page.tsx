@@ -1,13 +1,11 @@
 import Link from "next/link";
 
-import {
-  DashboardPage,
-  DashboardSection,
-} from "@/components/shared/dashboard-layout";
+import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -17,7 +15,6 @@ import {
   AdminDataTable,
   AdminPagination,
   AdminSearchForm,
-  buildAdminPageHref,
   formatDateTime,
   formatNumber,
 } from "@/features/admin/components/admin-common";
@@ -41,58 +38,60 @@ export default async function AdminUsersPage({
     <DashboardPage>
       <PageHeader
         description="Find user accounts by email, name, or user ID and inspect their related workspace access."
-        eyebrow="Internal admin"
         title="Users"
       />
 
-      <DashboardSection title="Search users">
-        <AdminSearchForm
-          action="/admin/users"
-          defaultValue={filters.q}
-          placeholder="Search by email, name, or user ID"
-        />
-      </DashboardSection>
+      <AdminSearchForm
+        action="/admin/users"
+        defaultValue={filters.q}
+        description="Search user accounts by email, name, or user ID."
+        placeholder="Search by email, name, or user ID"
+        resultLabel={`${formatNumber(page.pageInfo.totalCount)} users`}
+      />
 
-      <DashboardSection
-        description="Newest matching users first."
-        title="User accounts"
-      >
+      <div className="flex flex-col gap-5">
         <AdminDataTable empty={page.items.length === 0}>
-          <Table>
+          <Table className="min-w-[64rem] table-fixed">
+            <TableCaption className="sr-only">
+              Newest matching users appear first.
+            </TableCaption>
             <TableHeader>
               <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Last active</TableHead>
-                <TableHead>Workspaces</TableHead>
-                <TableHead>Owned plans</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead className="w-[18rem]">User</TableHead>
+                <TableHead className="w-[10rem]">Created</TableHead>
+                <TableHead className="w-[10rem]">Last active</TableHead>
+                <TableHead className="w-[8rem]">Workspaces</TableHead>
+                <TableHead className="w-[14rem]">Owned plans</TableHead>
+                <TableHead className="w-[8rem]">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {page.items.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell>
+                  <TableCell className="w-[18rem]">
                     <Link
-                      className="flex min-w-0 flex-col gap-1 underline-offset-4 hover:underline"
+                      className="table-meta-stack max-w-full"
                       href={`/admin/users/${item.id}`}
+                      prefetch={true}
                     >
-                      <span className="font-medium text-foreground">
-                        {item.name}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {item.email}
-                      </span>
+                      <span className="table-link">{item.name}</span>
+                      <span className="table-supporting-text">{item.email}</span>
                     </Link>
                   </TableCell>
-                  <TableCell>{formatDateTime(item.createdAt)}</TableCell>
-                  <TableCell>{formatDateTime(item.lastActiveAt)}</TableCell>
-                  <TableCell>{formatNumber(item.workspaceCount)}</TableCell>
-                  <TableCell>
+                  <TableCell className="w-[10rem] text-muted-foreground">
+                    {formatDateTime(item.createdAt)}
+                  </TableCell>
+                  <TableCell className="w-[10rem] text-muted-foreground">
+                    {formatDateTime(item.lastActiveAt)}
+                  </TableCell>
+                  <TableCell className="w-[8rem]">
+                    {formatNumber(item.workspaceCount)}
+                  </TableCell>
+                  <TableCell className="w-[14rem] text-muted-foreground">
                     Free {item.planSummary.free} / Pro {item.planSummary.pro} /
                     Business {item.planSummary.business}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="w-[8rem]">
                     {item.emailVerified ? "Verified" : "Unverified"}
                   </TableCell>
                 </TableRow>
@@ -102,12 +101,11 @@ export default async function AdminUsersPage({
         </AdminDataTable>
 
         <AdminPagination
-          hrefForPage={(nextPage) =>
-            buildAdminPageHref("/admin/users", resolvedSearchParams, nextPage)
-          }
           pageInfo={page.pageInfo}
+          pathname="/admin/users"
+          searchParams={resolvedSearchParams}
         />
-      </DashboardSection>
+      </div>
     </DashboardPage>
   );
 }
