@@ -20,7 +20,6 @@ export default async function AdminSystemPage() {
     <DashboardPage>
       <PageHeader
         description="Operational checks without exposing secrets or raw environment values."
-        eyebrow="Internal admin"
         title="System"
       />
 

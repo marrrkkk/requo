@@ -61,7 +61,6 @@ export default async function AdminUserDetailPage({
     <DashboardPage>
       <PageHeader
         description="Read-only account support view with related workspace, business, session, and audit context."
-        eyebrow="User detail"
         title={detail.account.email}
       />
 

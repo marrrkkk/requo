@@ -60,7 +60,6 @@ export default async function AdminSubscriptionDetailPage({
           </Button>
         }
         description="Read-only billing support view. Subscription mutations stay with the billing provider and subscription service."
-        eyebrow="Subscription detail"
         title={detail.workspace.name}
       />
 

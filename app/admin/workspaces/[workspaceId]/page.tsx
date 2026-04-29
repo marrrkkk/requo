@@ -70,7 +70,6 @@ export default async function AdminWorkspaceDetailPage({
           </>
         }
         description="Read-only workspace support view with members, businesses, billing state, usage, and audit context."
-        eyebrow="Workspace detail"
         title={detail.workspace.name}
       />
 

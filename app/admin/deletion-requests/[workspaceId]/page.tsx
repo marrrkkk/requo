@@ -58,7 +58,6 @@ export default async function AdminDeletionRequestDetailPage({
           </Button>
         }
         description="Review the scheduled deletion, related workspace state, billing state, and safe admin actions."
-        eyebrow="Deletion request"
         title={detail.workspace.name}
       />
 

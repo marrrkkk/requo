@@ -62,7 +62,6 @@ export default async function AdminBusinessDetailPage({
           </Button>
         }
         description="Read-only business support view with workspace, members, workflow usage, and audit context."
-        eyebrow="Business detail"
         title={detail.business.name}
       />
 
