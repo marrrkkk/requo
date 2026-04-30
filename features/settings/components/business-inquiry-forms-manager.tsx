@@ -10,6 +10,7 @@ import {
   Download,
   FileArchive,
   ArchiveRestore,
+  Check,
   Link2,
   PencilLine,
   Plus,
@@ -299,16 +300,39 @@ export function BusinessInquiryFormsManager({
                 Create form
               </Button>
               <Dialog open={isUpgradeDialogOpen} onOpenChange={setIsUpgradeDialogOpen}>
-                <DialogContent className="sm:max-w-sm">
+                <DialogContent className="sm:max-w-md">
                   <DialogHeader>
-                    <DialogTitle>Upgrade to create more forms</DialogTitle>
+                    <DialogTitle>Unlock unlimited forms</DialogTitle>
                     <DialogDescription>
-                      The Free plan includes one inquiry form. Upgrade to Pro to add forms for
-                      more services and audiences.
+                      You&apos;ve reached the limit of your Free plan. Upgrade to Pro to create specialized forms for different services, events, or audiences.
                     </DialogDescription>
                   </DialogHeader>
+                  <DialogBody className="pt-2">
+                    <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
+                      <p className="meta-label mb-2.5">Pro plan includes</p>
+                      <ul className="flex flex-col gap-2">
+                        {[
+                          "Unlimited inquiry forms",
+                          "Custom branding and colors",
+                          "AI-powered quote drafting",
+                          "Multiple businesses per workspace",
+                        ].map((feature) => (
+                          <li
+                            className="flex items-center gap-2.5 text-sm text-foreground"
+                            key={feature}
+                          >
+                            <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                              <Check className="size-3" />
+                            </div>
+                            {feature}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </DialogBody>
                   <DialogFooter>
                     <Button
+                      className="w-full sm:w-auto"
                       onClick={() => setIsUpgradeDialogOpen(false)}
                       type="button"
                       variant="outline"
@@ -316,6 +340,7 @@ export function BusinessInquiryFormsManager({
                       Cancel
                     </Button>
                     <Button
+                      className="w-full sm:w-auto"
                       onClick={() => {
                         setIsUpgradeDialogOpen(false);
                         if (useSharedCheckout && workspaceCheckout) {
@@ -333,7 +358,7 @@ export function BusinessInquiryFormsManager({
                       type="button"
                     >
                       <ArrowUpRight data-icon="inline-start" />
-                      Upgrade
+                      Upgrade to Pro
                     </Button>
                   </DialogFooter>
                 </DialogContent>
