@@ -377,7 +377,7 @@ describe("quote actions", () => {
       title: "Foundry Labs booth kit",
       response: "rejected",
       dashboardUrl:
-        "https://requo.test/businesses/brightside-print-studio/dashboard/quotes/quote_123",
+        "https://requo.test/businesses/brightside-print-studio/quotes/quote_123",
       businessId: "business_123",
     });
   });

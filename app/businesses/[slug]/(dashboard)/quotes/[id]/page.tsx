@@ -17,6 +17,16 @@ import {
 } from "@/components/shared/dashboard-layout";
 import { InfoTile } from "@/components/shared/info-tile";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 import {
   archiveQuoteAction,
@@ -41,7 +51,6 @@ import {
   inquiryContactMethodLabels,
   type InquiryContactMethod,
 } from "@/features/inquiries/form-config";
-import { QuoteActivityPanel } from "@/features/quotes/components/quote-activity-panel";
 import { getCustomerHistoryForBusiness } from "@/features/customers/queries";
 import { CopyQuoteLinkButton } from "@/features/quotes/components/copy-quote-link-button";
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";
@@ -58,6 +67,7 @@ import { getFollowUpsForQuote } from "@/features/follow-ups/queries";
 import { getQuoteLibraryForBusiness } from "@/features/quotes/quote-library-queries";
 import { getQuoteDetailForBusiness } from "@/features/quotes/queries";
 import { quoteRouteParamsSchema } from "@/features/quotes/schemas";
+import type { DashboardQuoteActivity } from "@/features/quotes/types";
 import {
   formatQuoteDate,
   formatQuoteDateTime,
@@ -365,16 +375,26 @@ export default async function QuoteDetailPage({
                 Print
               </Link>
             </Button>
-            <SendQuoteDialog
-              sendAction={sendAction}
-              logEventAction={logEventAction}
-              createFollowUpAction={createFollowUpAction}
-              quote={quote}
-              customerQuoteUrl={customerQuoteUrl}
-              businessName={businessContext.business.name}
-              isRequoEmailAvailable={isEmailConfigured && quote.customerContactMethod === "email" && !!quote.customerEmail}
-              pdfExportHref={getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")}
-            />
+            {quote.status === "draft" ? (
+              <SendQuoteDialog
+                sendAction={sendAction}
+                logEventAction={logEventAction}
+                createFollowUpAction={createFollowUpAction}
+                quote={quote}
+                customerQuoteUrl={customerQuoteUrl}
+                businessName={businessContext.business.name}
+                isRequoEmailAvailable={
+                  isEmailConfigured &&
+                  quote.customerContactMethod === "email" &&
+                  !!quote.customerEmail
+                }
+                pdfExportHref={getBusinessQuoteExportPath(
+                  businessSlug,
+                  quote.id,
+                  "pdf",
+                )}
+              />
+            ) : null}
           </div>
         }
       />
@@ -405,8 +425,8 @@ export default async function QuoteDetailPage({
           <DashboardDetailLayout className="xl:grid-cols-[1.25fr_0.75fr]">
             <DashboardSidebarStack>
               {linkedInquirySection}
-              <QuoteActivityPanel activities={quote.activities} />
-              <CustomerHistoryPanel
+              <QuoteActivitySheetSection activities={quote.activities} />
+              <CustomerHistorySheetSection
                 history={customerHistory}
                 businessSlug={businessSlug}
               />
@@ -511,8 +531,8 @@ export default async function QuoteDetailPage({
             />
 
             {linkedInquirySection}
-            <QuoteActivityPanel activities={quote.activities} />
-            <CustomerHistoryPanel
+            <QuoteActivitySheetSection activities={quote.activities} />
+            <CustomerHistorySheetSection
               history={customerHistory}
               businessSlug={businessSlug}
             />
@@ -686,7 +706,7 @@ export default async function QuoteDetailPage({
             />
 
             {quote.status === "accepted" ? (
-              <QuotePostWinPanel
+              <QuotePostWinSheetSection
                 key={quote.postAcceptanceStatus}
                 quoteId={quote.id}
                 quoteNumber={quote.quoteNumber}
@@ -733,6 +753,181 @@ export default async function QuoteDetailPage({
         userName={session.user.name || "You"}
       />
     </DashboardPage>
+  );
+}
+
+function QuoteActivitySheetSection({
+  activities,
+}: {
+  activities: DashboardQuoteActivity[];
+}) {
+  const latestActivity = activities[0];
+
+  return (
+    <DashboardSection
+      contentClassName="flex flex-col gap-4"
+      description="Quote events and owner actions."
+      title="Activity log"
+    >
+      {latestActivity ? (
+        <>
+          <DashboardDetailFeed>
+            <DashboardDetailFeedItem
+              meta={
+                <>
+                  <span>{latestActivity.actorName ?? "Requo"}</span>
+                  <span aria-hidden="true">|</span>
+                  <span>{formatQuoteDateTime(latestActivity.createdAt)}</span>
+                </>
+              }
+              title={latestActivity.summary}
+            />
+          </DashboardDetailFeed>
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button className="w-full" type="button" variant="outline">
+                View all activity
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="w-full sm:max-w-xl">
+              <SheetHeader>
+                <SheetTitle>Quote activity</SheetTitle>
+                <SheetDescription>
+                  Full timeline of events and owner actions for this quote.
+                </SheetDescription>
+              </SheetHeader>
+              <SheetBody className="min-h-0 flex-1">
+                <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
+                  <DashboardDetailFeed>
+                    {activities.map((activity) => (
+                      <DashboardDetailFeedItem
+                        key={activity.id}
+                        meta={
+                          <>
+                            <span>{activity.actorName ?? "Requo"}</span>
+                            <span aria-hidden="true">|</span>
+                            <span>{formatQuoteDateTime(activity.createdAt)}</span>
+                          </>
+                        }
+                        title={activity.summary}
+                      />
+                    ))}
+                  </DashboardDetailFeed>
+                </ScrollArea>
+              </SheetBody>
+            </SheetContent>
+          </Sheet>
+        </>
+      ) : (
+        <DashboardEmptyState
+          description="Send the quote or change its status to start the timeline for this quote."
+          title="No quote activity yet"
+          variant="section"
+        />
+      )}
+    </DashboardSection>
+  );
+}
+
+function CustomerHistorySheetSection({
+  businessSlug,
+  history,
+}: Parameters<typeof CustomerHistoryPanel>[0]) {
+  return (
+    <DashboardSection
+      contentClassName="flex flex-col gap-4"
+      description="Past records for this customer email inside the current business."
+      title="Customer history"
+    >
+      {history ? (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <InfoTile label="Past inquiries" value={`${history.inquiryCount}`} />
+            <InfoTile label="Past quotes" value={`${history.quoteCount}`} />
+          </div>
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button className="w-full" type="button" variant="outline">
+                View customer history
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="w-full sm:max-w-xl">
+              <SheetHeader>
+                <SheetTitle>Customer history</SheetTitle>
+                <SheetDescription>
+                  Past inquiries and quotes for this customer.
+                </SheetDescription>
+              </SheetHeader>
+              <SheetBody className="min-h-0 flex-1">
+                <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
+                  <CustomerHistoryPanel
+                    businessSlug={businessSlug}
+                    history={history}
+                  />
+                </ScrollArea>
+              </SheetBody>
+            </SheetContent>
+          </Sheet>
+        </>
+      ) : (
+        <DashboardEmptyState
+          description="No prior inquiries or quotes were found for this customer."
+          title="No customer history"
+          variant="section"
+        />
+      )}
+    </DashboardSection>
+  );
+}
+
+function QuotePostWinSheetSection(props: Parameters<typeof QuotePostWinPanel>[0]) {
+  const completedCount = props.checklistItems.filter(
+    (item) => item.completedAt,
+  ).length;
+  const totalItems = props.checklistItems.length;
+
+  return (
+    <DashboardSection
+      contentClassName="flex flex-col gap-4"
+      description="Post-acceptance next steps."
+      title="Post-win"
+    >
+      <div className="grid gap-3 sm:grid-cols-2">
+        <InfoTile
+          label="Accepted total"
+          value={formatQuoteMoney(props.totalInCents, props.currency)}
+        />
+        <InfoTile
+          label="Checklist"
+          value={
+            totalItems ? `${completedCount}/${totalItems} complete` : "No items"
+          }
+        />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <QuotePostAcceptanceStatusBadge status={props.postAcceptanceStatus} />
+      </div>
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button className="w-full" type="button" variant="outline">
+            Open post-win actions
+          </Button>
+        </SheetTrigger>
+        <SheetContent className="w-full sm:max-w-xl">
+          <SheetHeader>
+            <SheetTitle>Post-win next steps</SheetTitle>
+            <SheetDescription>
+              Manage checklist items, completion, and accepted-work cancellation.
+            </SheetDescription>
+          </SheetHeader>
+          <SheetBody className="min-h-0 flex-1">
+            <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
+              <QuotePostWinPanel {...props} />
+            </ScrollArea>
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
+    </DashboardSection>
   );
 }
 

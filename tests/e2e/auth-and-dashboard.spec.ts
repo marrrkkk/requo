@@ -68,7 +68,7 @@ test("legacy account profile route redirects into business settings profile", as
   await page.goto("/account/profile");
 
   await expect(page).toHaveURL(
-    new RegExp(`/businesses/${demoBusinessSlug}/dashboard/settings/profile$`),
+    new RegExp(`/businesses/${demoBusinessSlug}/settings/profile$`),
     { timeout: 20_000 },
   );
   await expect(page.locator("h1").filter({ hasText: "Profile" })).toBeVisible();
@@ -87,7 +87,7 @@ test("dashboard user menu opens the new profile settings page", async ({
   await page.getByRole("menuitem", { name: "Your profile" }).click();
 
   await expect(page).toHaveURL(
-    new RegExp(`/businesses/${demoBusinessSlug}/dashboard/settings/profile$`),
+    new RegExp(`/businesses/${demoBusinessSlug}/settings/profile$`),
     { timeout: 20_000 },
   );
   await expect(page.getByText("Owner profile")).toBeVisible();
@@ -100,8 +100,8 @@ test("dashboard inquiry queue actions open filtered inquiry views", async ({
   await signIn(page);
   await openDemoBusiness(page);
 
-  const overdueHref = `/businesses/${demoBusinessSlug}/dashboard/inquiries?status=overdue`;
-  const newHref = `/businesses/${demoBusinessSlug}/dashboard/inquiries?status=new`;
+  const overdueHref = `/businesses/${demoBusinessSlug}/inquiries?status=overdue`;
+  const newHref = `/businesses/${demoBusinessSlug}/inquiries?status=new`;
 
   const overdueLink = page.getByRole("link", { name: "All overdue" });
   await expect(overdueLink).toHaveAttribute("href", overdueHref);
@@ -125,7 +125,7 @@ test("dashboard shows a branded not-found state for unknown records", async ({
 }) => {
   await signIn(page);
 
-  await page.goto(`/businesses/${demoBusinessSlug}/dashboard/inquiries/does-not-exist`);
+  await page.goto(`/businesses/${demoBusinessSlug}/inquiries/does-not-exist`);
 
   await expect(
     page.getByText("That dashboard record could not be found."),
@@ -176,7 +176,7 @@ test("sending a draft quote shows a safe delivery error when email is unavailabl
   await signIn(page);
 
   await page.goto(
-    `/businesses/${demoBusinessSlug}/dashboard/quotes/demo_quote_draft_1001`,
+    `/businesses/${demoBusinessSlug}/quotes/demo_quote_draft_1001`,
   );
   await page.waitForLoadState("networkidle");
 

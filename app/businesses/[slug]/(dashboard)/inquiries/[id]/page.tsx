@@ -20,7 +20,6 @@ import {
   DashboardPage,
   DashboardSection,
   DashboardSidebarStack,
-  DashboardStatsGrid,
 } from "@/components/shared/dashboard-layout";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -70,6 +69,8 @@ import {
 } from "@/features/inquiries/utils";
 import {
   inquirySources,
+  type DashboardInquiryDetail,
+  type InquiryNoteActionState,
   type InquiryWorkflowStatus,
 } from "@/features/inquiries/types";
 import { formatQuoteMoney } from "@/features/quotes/utils";
@@ -281,127 +282,112 @@ export default async function InquiryDetailPage({
             </div>
 
             {customFields.length ? (
-              <div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {customFields.map((field) => (
-                    <InfoTile
-                      key={field.id}
-                      label={field.label}
-                      value={field.displayValue}
-                    />
-                  ))}
-                </div>
-              </div>
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button className="w-full sm:w-fit" type="button" variant="outline">
+                    View additional details
+                  </Button>
+                </SheetTrigger>
+                <SheetContent className="w-full sm:max-w-xl">
+                  <SheetHeader>
+                    <SheetTitle>Additional details</SheetTitle>
+                    <SheetDescription>
+                      Custom fields submitted with this inquiry.
+                    </SheetDescription>
+                  </SheetHeader>
+                  <SheetBody className="min-h-0 flex-1">
+                    <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {customFields.map((field) => (
+                          <InfoTile
+                            key={field.id}
+                            label={field.label}
+                            value={field.displayValue}
+                          />
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </SheetBody>
+                </SheetContent>
+              </Sheet>
             ) : null}
           </DashboardSection>
 
-          <DashboardSection
-            description="Files included with the inquiry."
-            title="Attachments"
-          >
-            {inquiry.attachments.length ? (
-              <DashboardDetailFeed>
-                {inquiry.attachments.map((attachment) => (
-                  <DashboardDetailFeedItem
-                    key={attachment.id}
-                    action={
-                      <Button asChild size="sm" variant="outline">
-                        <a
-                          href={`/api/inquiries/${inquiry.id}/attachments/${attachment.id}`}
-                        >
-                          Download
-                        </a>
-                      </Button>
-                    }
-                    meta={
-                      <>
-                        <span>{formatFileSize(attachment.fileSize)}</span>
-                        <span aria-hidden="true">|</span>
-                        <span>{attachment.contentType}</span>
-                        <span aria-hidden="true">|</span>
-                        <span>{formatInquiryDateTime(attachment.createdAt)}</span>
-                      </>
-                    }
-                    title={attachment.fileName}
-                  />
-                ))}
-              </DashboardDetailFeed>
-            ) : (
-              <DashboardEmptyState
-                description="Ask the customer to send reference files if more context is needed for pricing or scope."
-                icon={FileText}
-                title="No attachments"
-                variant="section"
-              />
-            )}
-          </DashboardSection>
+          {inquiry.attachments.length ? (
+            <DashboardSection
+              contentClassName="flex flex-col gap-4"
+              description="Files included with the inquiry."
+              title="Attachments"
+            >
+              <div className="soft-panel px-4 py-4 shadow-none">
+                <p className="text-sm font-medium text-foreground">
+                  {inquiry.attachments.length} file
+                  {inquiry.attachments.length === 1 ? "" : "s"} attached
+                </p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Open the attachment list when you need the customer files.
+                </p>
+              </div>
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button className="w-full sm:w-fit" type="button" variant="outline">
+                    <FileText data-icon="inline-start" />
+                    View attachments
+                  </Button>
+                </SheetTrigger>
+                <SheetContent className="w-full sm:max-w-xl">
+                  <SheetHeader>
+                    <SheetTitle>Attachments</SheetTitle>
+                    <SheetDescription>
+                      Files included with this inquiry.
+                    </SheetDescription>
+                  </SheetHeader>
+                  <SheetBody className="min-h-0 flex-1">
+                    <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
+                      <DashboardDetailFeed>
+                        {inquiry.attachments.map((attachment) => (
+                          <DashboardDetailFeedItem
+                            key={attachment.id}
+                            action={
+                              <Button asChild size="sm" variant="outline">
+                                <a
+                                  href={`/api/inquiries/${inquiry.id}/attachments/${attachment.id}`}
+                                >
+                                  Download
+                                </a>
+                              </Button>
+                            }
+                            meta={
+                              <>
+                                <span>{formatFileSize(attachment.fileSize)}</span>
+                                <span aria-hidden="true">|</span>
+                                <span>{attachment.contentType}</span>
+                                <span aria-hidden="true">|</span>
+                                <span>
+                                  {formatInquiryDateTime(attachment.createdAt)}
+                                </span>
+                              </>
+                            }
+                            title={attachment.fileName}
+                          />
+                        ))}
+                      </DashboardDetailFeed>
+                    </ScrollArea>
+                  </SheetBody>
+                </SheetContent>
+              </Sheet>
+            </DashboardSection>
+          ) : null}
 
           <div className="dashboard-detail-support-grid">
-            <DashboardSection
-              contentClassName="flex flex-col gap-5"
-              description="Private business notes and follow-up context."
-              title="Internal notes"
-            >
-              <InquiryNoteForm action={noteAction} embedded />
-              {inquiry.notes.length ? (
-                <div className="flex flex-col gap-3">
-                  <DashboardDetailFeed>
-                    {inquiry.notes.slice(0, 1).map((note) => (
-                      <DashboardDetailFeedItem
-                        key={note.id}
-                        meta={formatInquiryDateTime(note.createdAt)}
-                        title={note.authorName ?? "Business owner"}
-                      >
-                        <p className="whitespace-pre-wrap">{note.body}</p>
-                      </DashboardDetailFeedItem>
-                    ))}
-                  </DashboardDetailFeed>
+            <InquiryNotesSheetSection
+              inquiry={inquiry}
+              noteAction={noteAction}
+            />
 
-                  {inquiry.notes.length > 1 && (
-                    <Sheet>
-                      <SheetTrigger asChild>
-                        <Button className="w-full" type="button" variant="outline">
-                          View all notes
-                        </Button>
-                      </SheetTrigger>
-                      <SheetContent className="w-full sm:max-w-md">
-                        <SheetHeader>
-                          <SheetTitle>Internal notes</SheetTitle>
-                          <SheetDescription>
-                            All private notes for this inquiry.
-                          </SheetDescription>
-                        </SheetHeader>
-                        <SheetBody className="min-h-0 flex-1 gap-5">
-                          <ScrollArea className="h-[calc(100vh-10rem)] pr-4">
-                            <DashboardDetailFeed>
-                              {inquiry.notes.map((note) => (
-                                <DashboardDetailFeedItem
-                                  key={note.id}
-                                  meta={formatInquiryDateTime(note.createdAt)}
-                                  title={note.authorName ?? "Business owner"}
-                                >
-                                  <p className="whitespace-pre-wrap">{note.body}</p>
-                                </DashboardDetailFeedItem>
-                              ))}
-                            </DashboardDetailFeed>
-                          </ScrollArea>
-                        </SheetBody>
-                      </SheetContent>
-                    </Sheet>
-                  )}
-                </div>
-              ) : (
-                <DashboardEmptyState
-                  description="Use the note form above to capture follow-up context, decisions, or customer details."
-                  title="No internal notes yet"
-                  variant="section"
-                />
-              )}
-            </DashboardSection>
-
-            <CustomerHistoryPanel
-              history={customerHistory}
+            <CustomerHistorySheetSection
               businessSlug={businessSlug}
+              history={customerHistory}
             />
 
             <DashboardSection
@@ -645,6 +631,129 @@ export default async function InquiryDetailPage({
         userName={session.user.name || "You"}
       />
     </DashboardPage>
+  );
+}
+
+function InquiryNotesSheetSection({
+  inquiry,
+  noteAction,
+}: {
+  inquiry: DashboardInquiryDetail;
+  noteAction: (
+    state: InquiryNoteActionState,
+    formData: FormData,
+  ) => Promise<InquiryNoteActionState>;
+}) {
+  const latestNote = inquiry.notes[0];
+
+  return (
+    <DashboardSection
+      contentClassName="flex flex-col gap-4"
+      description="Private business notes and follow-up context."
+      title="Internal notes"
+    >
+      {latestNote ? (
+        <DashboardDetailFeed>
+          <DashboardDetailFeedItem
+            meta={formatInquiryDateTime(latestNote.createdAt)}
+            title={latestNote.authorName ?? "Business owner"}
+          >
+            <p className="whitespace-pre-wrap">{latestNote.body}</p>
+          </DashboardDetailFeedItem>
+        </DashboardDetailFeed>
+      ) : (
+        <DashboardEmptyState
+          description="Add notes only when you need private context for follow-up."
+          title="No internal notes yet"
+          variant="section"
+        />
+      )}
+
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button className="w-full" type="button" variant="outline">
+            Add or view notes
+          </Button>
+        </SheetTrigger>
+        <SheetContent className="w-full sm:max-w-xl">
+          <SheetHeader>
+            <SheetTitle>Internal notes</SheetTitle>
+            <SheetDescription>
+              Add private context and review all notes for this inquiry.
+            </SheetDescription>
+          </SheetHeader>
+          <SheetBody className="min-h-0 flex-1 gap-5">
+            <InquiryNoteForm action={noteAction} embedded />
+            {inquiry.notes.length ? (
+              <ScrollArea className="h-[calc(100vh-22rem)] pr-4">
+                <DashboardDetailFeed>
+                  {inquiry.notes.map((note) => (
+                    <DashboardDetailFeedItem
+                      key={note.id}
+                      meta={formatInquiryDateTime(note.createdAt)}
+                      title={note.authorName ?? "Business owner"}
+                    >
+                      <p className="whitespace-pre-wrap">{note.body}</p>
+                    </DashboardDetailFeedItem>
+                  ))}
+                </DashboardDetailFeed>
+              </ScrollArea>
+            ) : null}
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
+    </DashboardSection>
+  );
+}
+
+function CustomerHistorySheetSection({
+  businessSlug,
+  history,
+}: Parameters<typeof CustomerHistoryPanel>[0]) {
+  return (
+    <DashboardSection
+      contentClassName="flex flex-col gap-4"
+      description="Past records for this customer email inside the current business."
+      title="Customer history"
+    >
+      {history ? (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <InfoTile label="Past inquiries" value={`${history.inquiryCount}`} />
+            <InfoTile label="Past quotes" value={`${history.quoteCount}`} />
+          </div>
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button className="w-full" type="button" variant="outline">
+                View customer history
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="w-full sm:max-w-xl">
+              <SheetHeader>
+                <SheetTitle>Customer history</SheetTitle>
+                <SheetDescription>
+                  Past inquiries and quotes for this customer.
+                </SheetDescription>
+              </SheetHeader>
+              <SheetBody className="min-h-0 flex-1">
+                <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
+                  <CustomerHistoryPanel
+                    businessSlug={businessSlug}
+                    history={history}
+                  />
+                </ScrollArea>
+              </SheetBody>
+            </SheetContent>
+          </Sheet>
+        </>
+      ) : (
+        <DashboardEmptyState
+          description="No prior inquiries or quotes were found for this customer."
+          title="No customer history"
+          variant="section"
+        />
+      )}
+    </DashboardSection>
   );
 }
 

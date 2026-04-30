@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 declare global {
   interface Navigator {
     modelContext?: {
-      provideContext: (context: any) => void;
+      provideContext: (context: unknown) => void;
     };
   }
 }

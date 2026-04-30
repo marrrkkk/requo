@@ -20,7 +20,7 @@ async function signIn(page: Page) {
 }
 
 async function openBusinessesPage(page: Page, path: string) {
-  await page.goto(`/businesses/${demoBusinessSlug}/dashboard${path}`);
+  await page.goto(`/businesses/${demoBusinessSlug}${path}`);
   await page.waitForLoadState("networkidle");
 }
 
@@ -124,7 +124,7 @@ test("dashboard and detail pages surface follow-up, expiring-soon, and customer 
 }) => {
   await signIn(page);
 
-  await openBusinessesPage(page, "");
+  await openBusinessesPage(page, "/dashboard");
 
   await expect(
     page.getByRole("heading", { name: "Needs attention today" }),
@@ -188,7 +188,7 @@ test("owner can open the quote editor from an inquiry and create a linked draft 
 
   await expect(page).toHaveURL(
     new RegExp(
-      `/businesses/${demoBusinessSlug}/dashboard/quotes/new\\?inquiryId=demo_inquiry_quoted_booth_kit$`,
+      `/businesses/${demoBusinessSlug}/quotes/new\\?inquiryId=demo_inquiry_quoted_booth_kit$`,
     ),
     { timeout: 20_000 },
   );
@@ -203,7 +203,7 @@ test("owner can open the quote editor from an inquiry and create a linked draft 
 
   await expect(
     page,
-  ).toHaveURL(new RegExp(`/businesses/${demoBusinessSlug}/dashboard/quotes/.+$`), {
+  ).toHaveURL(new RegExp(`/businesses/${demoBusinessSlug}/quotes/.+$`), {
     timeout: 20_000,
   });
   await expect(page.getByLabel("Quote title")).toHaveValue(/\S+/);
