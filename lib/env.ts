@@ -19,6 +19,8 @@ const envSchema = z.object({
   ADMIN_EMAILS: emptyToUndefined(z.string().min(1)),
   VERCEL_URL: emptyToUndefined(z.string().min(1)),
 
+  GOOGLE_CLIENT_ID: emptyToUndefined(z.string().min(1)),
+  GOOGLE_CLIENT_SECRET: emptyToUndefined(z.string().min(1)),
   MICROSOFT_CLIENT_ID: emptyToUndefined(z.string().min(1)),
   MICROSOFT_CLIENT_SECRET: emptyToUndefined(z.string().min(1)),
   MICROSOFT_TENANT_ID: emptyToUndefined(z.string().min(1)).default("common"),

@@ -103,7 +103,14 @@ export const auth = betterAuth({
     storeIdentifier: "hashed",
   },
   socialProviders: {
-
+    ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+      ? {
+          google: {
+            clientId: env.GOOGLE_CLIENT_ID,
+            clientSecret: env.GOOGLE_CLIENT_SECRET,
+          },
+        }
+      : {}),
     ...(env.MICROSOFT_CLIENT_ID && env.MICROSOFT_CLIENT_SECRET
       ? {
           microsoft: {
@@ -116,7 +123,7 @@ export const auth = betterAuth({
   },
   account: {
     accountLinking: {
-      trustedProviders: ["microsoft"],
+      trustedProviders: ["google", "microsoft"],
     },
     // OAuth + `verification.storeIdentifier: "hashed"` can break DB+signed-cookie state checks (surfacing as `state_mismatch`).
     storeStateStrategy: "cookie",
