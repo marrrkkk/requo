@@ -62,6 +62,13 @@ type ConversationMessagesSnapshot = {
   hasMore: boolean;
 };
 
+type EntityConversationSnapshot = {
+  conversation: AiConversation;
+  messages: ChatMessage[];
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
 type CopyState = "idle" | "copied" | "error";
 
 type ChatMessage = {
@@ -774,6 +781,7 @@ export function DashboardChatHistoryList({
 export function AIChatPanel({
   businessSlug,
   cachedDashboardConversations,
+  entityCache,
   entityId,
   messagesCache,
   surface,
@@ -781,12 +789,15 @@ export function AIChatPanel({
   userName,
   onClose,
   onDashboardConversationsChange,
+  onEntityCacheUpdate,
   onMessagesCacheUpdate,
 }: AIChatPopoverProps & {
   cachedDashboardConversations?: AiConversationSummary[] | null;
+  entityCache?: Map<string, EntityConversationSnapshot>;
   messagesCache?: Map<string, ConversationMessagesSnapshot>;
   onClose: () => void;
   onDashboardConversationsChange?: (conversations: AiConversationSummary[]) => void;
+  onEntityCacheUpdate?: (key: string, snapshot: EntityConversationSnapshot) => void;
   onMessagesCacheUpdate?: (conversationId: string, snapshot: ConversationMessagesSnapshot) => void;
 }) {
   const isDashboard = surface === "dashboard";
@@ -809,6 +820,11 @@ export function AIChatPanel({
   >(cachedDashboardConversations ?? []);
   const [isHistoryLoading, setIsHistoryLoading] = useState(isDashboard && !hasCachedList);
   const [copyState, setCopyState] = useTimedCopyState();
+
+  // Sync history panel visibility when switching surfaces
+  useEffect(() => {
+    setHistoryOpen(isDashboard);
+  }, [isDashboard]);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const shouldScrollToBottomRef = useRef(false);
   const loadingOlderRef = useRef(false);
@@ -866,9 +882,25 @@ export function AIChatPanel({
     return () => controller.abort();
   }, [isDashboard, hasCachedList, businessSlug, entityId, reloadKey, onDashboardConversationsChange]);
 
-  // Inquiry/Quote: fetch conversation + messages in parallel
+  // Inquiry/Quote: restore from cache or fetch conversation + messages
   useEffect(() => {
     if (isDashboard) {
+      return;
+    }
+
+    const entityCacheKey = `${surface}:${entityId}`;
+    const cached = entityCache?.get(entityCacheKey);
+
+    if (cached && reloadKey === 0) {
+      setConversation(cached.conversation);
+      setMessages(cached.messages);
+      setNextCursor(cached.nextCursor);
+      setHasMore(cached.hasMore);
+      setIsHydrating(false);
+      setHydrateError(null);
+      setPaginationError(null);
+      setComposerValue("");
+      shouldScrollToBottomRef.current = true;
       return;
     }
 
@@ -895,14 +927,21 @@ export function AIChatPanel({
           signal: controller.signal,
         });
 
-        setMessages(
-          page.messages.map((message) =>
-            mapAiMessageToChatMessage(message, userName),
-          ),
+        const loadedMessages = page.messages.map((message) =>
+          mapAiMessageToChatMessage(message, userName),
         );
+
+        setMessages(loadedMessages);
         setNextCursor(page.nextCursor);
         setHasMore(page.hasMore);
         shouldScrollToBottomRef.current = true;
+
+        onEntityCacheUpdate?.(entityCacheKey, {
+          conversation: nextConversation,
+          messages: loadedMessages,
+          nextCursor: page.nextCursor,
+          hasMore: page.hasMore,
+        });
       })
       .catch((error) => {
         if (controller.signal.aborted) {
@@ -924,7 +963,7 @@ export function AIChatPanel({
       });
 
     return () => controller.abort();
-  }, [isDashboard, businessSlug, entityId, reloadKey, surface, userName]);
+  }, [isDashboard, businessSlug, entityId, reloadKey, surface, userName, entityCache, onEntityCacheUpdate]);
 
   useLayoutEffect(() => {
     const el = scrollContainerRef.current;
@@ -1472,6 +1511,18 @@ export function AIChatPanel({
             hasMore,
           });
 
+          // Also update entity cache so navigation back is instant
+          if (!isDashboard) {
+            const entityCacheKey = `${surface}:${entityId}`;
+
+            onEntityCacheUpdate?.(entityCacheKey, {
+              conversation,
+              messages: currentMessages,
+              nextCursor,
+              hasMore,
+            });
+          }
+
           return currentMessages;
         });
       }
@@ -1485,13 +1536,7 @@ export function AIChatPanel({
         ? "Ask for quote wording, terms, notes, or follow-up..."
         : "Ask about this business's inquiries, quotes, and follow-ups...";
 
-  const panelTitle =
-    title ??
-    (surface === "inquiry"
-      ? "Inquiry Assistant"
-      : surface === "quote"
-        ? "Quote Assistant"
-        : "Dashboard Assistant");
+  const panelTitle = title ?? "Requo AI";
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -1654,13 +1699,10 @@ export function AIChatPopover(props: AIChatPopoverProps) {
   const [messagesCache] = useState(
     () => new Map<string, ConversationMessagesSnapshot>(),
   );
-  const title =
-    props.title ??
-    (props.surface === "inquiry"
-      ? "Inquiry Assistant"
-      : props.surface === "quote"
-        ? "Quote Assistant"
-        : "Dashboard Assistant");
+  const [entityCache] = useState(
+    () => new Map<string, EntityConversationSnapshot>(),
+  );
+  const title = props.title ?? "Requo AI";
 
   // Pre-fetch dashboard conversation list on mount (persists across open/close)
   useEffect(() => {
@@ -1705,6 +1747,13 @@ export function AIChatPopover(props: AIChatPopoverProps) {
     messagesCache.set(conversationId, snapshot);
   }
 
+  function handleEntityCacheUpdate(
+    key: string,
+    snapshot: EntityConversationSnapshot,
+  ) {
+    entityCache.set(key, snapshot);
+  }
+
   return (
     <div className="fixed bottom-4 right-4 z-40 sm:bottom-5 sm:right-5">
       <Popover onOpenChange={setIsOpen} open={isOpen}>
@@ -1742,9 +1791,11 @@ export function AIChatPopover(props: AIChatPopoverProps) {
           <AIChatPanel
             {...props}
             cachedDashboardConversations={cachedConversations}
+            entityCache={entityCache}
             messagesCache={messagesCache}
             onClose={() => setIsOpen(false)}
             onDashboardConversationsChange={setCachedConversations}
+            onEntityCacheUpdate={handleEntityCacheUpdate}
             onMessagesCacheUpdate={handleMessagesCacheUpdate}
           />
         </PopoverContent>

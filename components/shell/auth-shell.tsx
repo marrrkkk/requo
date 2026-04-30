@@ -18,7 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 
 type AuthShellProps = {
-  badge: string;
+  badge?: string;
   title: string;
   description?: string;
   children: ReactNode;
@@ -46,10 +46,13 @@ export function AuthShell({
 
   if (layout === "signup") {
     return (
-      <div className="auth-page xl:overflow-hidden xl:py-0">
+      <div className="auth-page xl:overflow-hidden xl:py-0 relative">
+        <div className="absolute left-6 top-6 z-10 sm:left-8 sm:top-8 xl:left-10 xl:top-10">
+          <BrandMark subtitle={null} />
+        </div>
         <div className="mx-auto flex w-full max-w-[76rem] flex-col gap-10 px-5 py-10 sm:px-6 xl:grid xl:h-screen xl:grid-cols-[1fr_auto_1fr] xl:items-center xl:gap-16 xl:px-8 xl:py-0">
           <div className="flex w-full justify-center xl:justify-end">
-            <AuthFormPlain badge={badge} title={title} description={description}>
+            <AuthFormPlain badge={badge} title={title} description={description} hideBrandMark>
               {children}
             </AuthFormPlain>
           </div>
@@ -120,7 +123,7 @@ function AuthFormCard({
       <CardHeader className="gap-4 border-b border-border/70 bg-background/34 pb-6">
         <BrandMark subtitle={null} />
         <div className="flex flex-col gap-2.5">
-          <span className="eyebrow">{badge}</span>
+          {badge ? <span className="eyebrow">{badge}</span> : null}
           <CardTitle className="text-[1.95rem] sm:text-[2.35rem]">{title}</CardTitle>
           {description ? (
             <CardDescription className="max-w-md text-sm leading-7">
@@ -139,13 +142,14 @@ function AuthFormPlain({
   title,
   description,
   children,
-}: Pick<AuthShellProps, "badge" | "title" | "description" | "children">) {
+  hideBrandMark,
+}: Pick<AuthShellProps, "badge" | "title" | "description" | "children"> & { hideBrandMark?: boolean }) {
   return (
-    <div className="flex w-full max-w-[26rem] flex-col gap-8">
+    <div className="flex w-full max-w-[26rem] flex-col gap-8 pt-12 xl:pt-0">
       <div className="flex flex-col gap-6">
-        <BrandMark subtitle={null} />
+        {!hideBrandMark && <BrandMark subtitle={null} />}
         <div className="flex flex-col gap-2.5">
-          <span className="eyebrow">{badge}</span>
+          {badge ? <span className="eyebrow">{badge}</span> : null}
           <h1 className="font-heading text-[1.95rem] font-semibold tracking-tight sm:text-[2.35rem]">
             {title}
           </h1>
@@ -174,26 +178,37 @@ function SignupBenefits() {
           </p>
         </div>
         
-        <div className="grid gap-8">
+        <div className="grid gap-8 mt-2">
           {[
             {
+              icon: MessageSquareText,
               title: "Capture every inquiry",
               description: "Use clean public forms to collect exactly what you need before quoting."
             },
             {
+              icon: ReceiptText,
               title: "Send quotes faster",
               description: "Keep the job details open right next to your pricing and line items."
             },
             {
+              icon: Sparkles,
               title: "Never miss a follow-up",
               description: "Know immediately when a quote is viewed, accepted, or needs a nudge."
             }
-          ].map((benefit, i) => (
-            <div key={i} className="flex flex-col gap-1.5">
-              <h3 className="text-base font-semibold text-foreground">{benefit.title}</h3>
-              <p className="text-sm leading-6 text-muted-foreground">{benefit.description}</p>
-            </div>
-          ))}
+          ].map((benefit, i) => {
+            const Icon = benefit.icon;
+            return (
+              <div key={i} className="flex items-start gap-5">
+                <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <h3 className="text-base font-medium text-foreground">{benefit.title}</h3>
+                  <p className="text-sm leading-6 text-muted-foreground">{benefit.description}</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
