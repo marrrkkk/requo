@@ -12,7 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { getWorkspaceBillingOverview } from "@/features/billing/queries";
 import { getBusinessMembersSettingsForBusiness } from "@/features/business-members/queries";
-import { getBusinessOwnerPageContext } from "@/app/businesses/[slug]/(dashboard)/settings/_lib/page-context";
+import { getBusinessOwnerPageContext } from "@/app/businesses/[slug]/(main)/settings/_lib/page-context";
 import { hasFeatureAccess } from "@/lib/plans";
 import { businessMemberRoleMeta, canManageBusinessMembers } from "@/lib/business-members";
 import { createWorkspaceMemberInviteAction } from "@/features/workspace-members/actions";
