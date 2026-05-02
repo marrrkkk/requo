@@ -42,6 +42,11 @@ import {
   formatRelativeNotificationTime,
   isNotificationUnread,
 } from "@/features/notifications/utils";
+import {
+  getBusinessDashboardPath,
+  getBusinessInquiryPath,
+  getBusinessQuotePath,
+} from "@/features/businesses/routes";
 import { cn } from "@/lib/utils";
 
 type DashboardNotificationBellProps = {
@@ -65,6 +70,10 @@ type RealtimeNotificationStateRow = {
   last_read_at: string | null;
 };
 
+type RealtimeInquiryRow = {
+  id: string;
+};
+
 export function DashboardNotificationBell({
   businessId,
   businessSlug,
@@ -76,10 +85,10 @@ export function DashboardNotificationBell({
     null,
   );
   const refreshTimerRef = useRef<number | null>(null);
+  const routeRefreshTimerRef = useRef<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isLoadingMore, startLoadMore] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
-  const [shouldConnectRealtime, setShouldConnectRealtime] = useState(false);
   const [view, setView] = useState({
     ...initialView,
     hasMore: initialView.hasMore ?? false,
@@ -129,37 +138,6 @@ export function DashboardNotificationBell({
   }
 
   useEffect(() => {
-    if (shouldConnectRealtime) {
-      return;
-    }
-
-    const connectWhenIdle = () => {
-      setShouldConnectRealtime(true);
-    };
-
-    if (isOpen) {
-      connectWhenIdle();
-      return;
-    }
-
-    if (typeof window.requestIdleCallback === "function") {
-      const idleCallbackId = window.requestIdleCallback(connectWhenIdle, {
-        timeout: 8_000,
-      });
-
-      return () => window.cancelIdleCallback(idleCallbackId);
-    }
-
-    const timeoutId = globalThis.setTimeout(connectWhenIdle, 4_000);
-
-    return () => globalThis.clearTimeout(timeoutId);
-  }, [isOpen, shouldConnectRealtime]);
-
-  useEffect(() => {
-    if (!shouldConnectRealtime) {
-      return;
-    }
-
     let isActive = true;
     const supabase =
       supabaseRef.current ?? createSupabaseBrowserClient();
@@ -171,12 +149,33 @@ export function DashboardNotificationBell({
     let stateChannel:
       | Awaited<ReturnType<typeof supabase.channel>>
       | null = null;
+    let inquiryChannel:
+      | Awaited<ReturnType<typeof supabase.channel>>
+      | null = null;
 
     function clearRefreshTimer() {
       if (refreshTimerRef.current) {
         window.clearTimeout(refreshTimerRef.current);
         refreshTimerRef.current = null;
       }
+    }
+
+    function clearRouteRefreshTimer() {
+      if (routeRefreshTimerRef.current) {
+        window.clearTimeout(routeRefreshTimerRef.current);
+        routeRefreshTimerRef.current = null;
+      }
+    }
+
+    function scheduleRouteRefresh() {
+      if (routeRefreshTimerRef.current) {
+        return;
+      }
+
+      routeRefreshTimerRef.current = window.setTimeout(() => {
+        routeRefreshTimerRef.current = null;
+        router.refresh();
+      }, 120);
     }
 
     function scheduleRefresh(expiresAt: string) {
@@ -243,10 +242,10 @@ export function DashboardNotificationBell({
             title: row.title,
             summary: row.summary,
             href: row.quote_id
-              ? `/businesses/${businessSlug}/dashboard/quotes/${row.quote_id}`
+              ? getBusinessQuotePath(businessSlug, row.quote_id)
               : row.inquiry_id
-                ? `/businesses/${businessSlug}/dashboard/inquiries/${row.inquiry_id}`
-                : `/businesses/${businessSlug}/dashboard`,
+                ? getBusinessInquiryPath(businessSlug, row.inquiry_id)
+                : getBusinessDashboardPath(businessSlug),
             createdAt: row.created_at,
             unread,
           };
@@ -258,6 +257,8 @@ export function DashboardNotificationBell({
             hasMore: currentView.hasMore,
           };
         });
+
+        scheduleRouteRefresh();
       };
 
       const handleRealtimeState = (row: RealtimeNotificationStateRow) => {
@@ -312,6 +313,26 @@ export function DashboardNotificationBell({
         )
         .subscribe();
 
+      inquiryChannel = supabase
+        .channel(`business-inquiries:${businessId}:${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            filter: `business_id=eq.${businessId}`,
+            schema: "public",
+            table: "inquiries",
+          },
+          (payload) => {
+            const row = payload.new as RealtimeInquiryRow;
+
+            if (row.id) {
+              scheduleRouteRefresh();
+            }
+          },
+        )
+        .subscribe();
+
       scheduleRefresh(nextToken.expiresAt);
     }
 
@@ -320,6 +341,7 @@ export function DashboardNotificationBell({
     return () => {
       isActive = false;
       clearRefreshTimer();
+      clearRouteRefreshTimer();
 
       if (notificationChannel) {
         void supabase.removeChannel(notificationChannel);
@@ -328,8 +350,12 @@ export function DashboardNotificationBell({
       if (stateChannel) {
         void supabase.removeChannel(stateChannel);
       }
+
+      if (inquiryChannel) {
+        void supabase.removeChannel(inquiryChannel);
+      }
     };
-  }, [businessId, businessSlug, shouldConnectRealtime, userId]);
+  }, [businessId, businessSlug, router, userId]);
 
   const loadOlderNotifications = useCallback(() => {
     if (!view.hasMore || loadMoreInFlightRef.current || isLoadingMore) {
