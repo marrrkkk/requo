@@ -358,6 +358,20 @@
       "when": 1777527590499,
       "tag": "0050_drop_google_calendar",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1777527700000,
+      "tag": "0053_realtime_inquiries_notifications_repair",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1777689600000,
+      "tag": "0054_profile_company_size",
+      "breakpoints": true
     }
   ]
 }
