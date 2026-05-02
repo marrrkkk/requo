@@ -31,44 +31,40 @@ export const whyPoints: readonly {
 }[] = [
   {
     icon: Upload,
-    title: "The inquiry stays complete",
+    title: "Details split fast",
     description:
-      "Keep the customer's details, files, timing, and scope tied to the same job instead of scattered across messages.",
+      "A lead starts in email, phone, DMs, or a form. Scope, files, timing, and budget end up in different places.",
   },
   {
     icon: FileText,
-    title: "The quote keeps the same context",
+    title: "Quotes slow down",
     description:
-      "Review the inquiry, write the quote, and keep the job story in view while you price the work.",
+      "Before pricing, you rebuild the job story. That delay gives ready customers time to cool off.",
   },
   {
     icon: Inbox,
-    title: "The next follow-up stays visible",
+    title: "Follow-up gets missed",
     description:
-      "Know what still needs review, what has been quoted, and which lead needs the next nudge.",
+      "After sending, viewed and undecided quotes need a next step. Memory is not a good system.",
   },
 ] as const;
 
 export const workflowSteps = [
   {
-    title: "Capture the inquiry",
-    description:
-      "Collect a new inquiry from your public page or add the lead yourself when it comes in elsewhere.",
+    title: "Capture",
+    description: "Keep details in one place.",
   },
   {
-    title: "Review the fit",
-    description:
-      "Check scope, files, timing, and anything you need before you spend time pricing the work.",
+    title: "Review",
+    description: "See what is missing fast.",
   },
   {
-    title: "Send the quote",
-    description:
-      "Prepare a clear quote with the inquiry details, notes, and attachments still attached.",
+    title: "Quote",
+    description: "Build and send a clear quote.",
   },
   {
     title: "Follow up",
-    description:
-      "Track the response and keep the next follow-up visible after the quote goes out.",
+    description: "Keep the next step visible.",
   },
 ] as const;
 

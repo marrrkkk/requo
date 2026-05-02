@@ -22,10 +22,7 @@ import {
   WorkflowStep,
 } from "@/components/marketing/marketing-parts";
 import { BrandMark } from "@/components/shared/brand-mark";
-import {
-  PublicHeroSurface,
-  PublicPageShell,
-} from "@/components/shared/public-page-shell";
+import { PublicPageShell } from "@/components/shared/public-page-shell";
 import {
   Accordion,
   AccordionContent,
@@ -88,17 +85,16 @@ export function MarketingHero() {
         </nav>
       }
     >
-      <PublicHeroSurface className="surface-grid overflow-hidden px-5 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-20 xl:px-10 xl:py-24">
+      <section className="surface-grid relative overflow-hidden border-b border-border/70 px-5 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-20 xl:px-10 xl:py-24">
         <div className="flex flex-col gap-12 lg:gap-14">
           <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-6 text-center">
             <div className="flex flex-col items-center gap-4">
               <h1 className="max-w-4xl font-heading text-4xl font-semibold leading-[0.94] tracking-tight text-balance sm:text-6xl xl:text-[4.15rem]">
-                Turn inquiries into quotes without the mess.
+                Quote software for service businesses.
               </h1>
               <p className="max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg">
-                Requo helps service businesses collect new inquiries, send clear
-                quotes, and keep follow-up visible from the first message to
-                the customer&apos;s reply.
+                Capture the inquiry, build a clear quote, send the link, and
+                keep follow-up visible without chasing notes across tabs.
               </p>
             </div>
 
@@ -115,47 +111,39 @@ export function MarketingHero() {
             </div>
 
             <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-              Built for owner-led service businesses handling custom work,
-              inquiries, estimates, and follow-up.
+              Made for custom work: home services, shops, studios, and local
+              service teams.
             </p>
           </div>
 
           <MarketingShowcase />
         </div>
-      </PublicHeroSurface>
+      </section>
 
       <section
-        className="mx-auto mt-20 grid w-full max-w-6xl gap-12 sm:mt-24 xl:mt-28 xl:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)] xl:items-start xl:gap-14"
+        className="mx-auto mt-20 w-full max-w-6xl sm:mt-24 xl:mt-28"
         id="why-requo"
       >
-        <InViewReveal className="flex flex-col gap-4">
-          <p className="eyebrow">Why Requo</p>
-          <h2 className="max-w-2xl font-heading text-3xl font-semibold tracking-tight text-balance sm:text-5xl">
-            Most leads get scattered before the quote goes out.
+        <InViewReveal className="mx-auto flex max-w-3xl flex-col items-center gap-4 text-center">
+          <p className="eyebrow self-center">Why Requo</p>
+          <h2 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-5xl">
+            Quotes stall when inquiry details live everywhere.
           </h2>
-          <p className="max-w-xl text-sm leading-8 text-muted-foreground sm:text-lg">
-            The inquiry comes in, notes start piling up, the quote gets drafted
-            somewhere else, and follow-up depends on memory. Requo keeps that
-            middle part together.
+          <p className="text-sm leading-8 text-muted-foreground sm:text-lg">
+            New leads are not the hard part. The hard part is turning each one
+            into a clear quote before context slips and follow-up gets missed.
           </p>
         </InViewReveal>
 
-        <InViewReveal className="soft-panel overflow-hidden" delay={80}>
-          <div className="border-b border-border/70 px-5 py-4 sm:px-6">
-            <p className="meta-label">What stays connected</p>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              One inquiry. One quote. One next step to keep moving.
-            </p>
-          </div>
-
-          <div className="divide-y divide-border/70">
+        <InViewReveal className="mt-10 border-y border-border/70" delay={80}>
+          <div className="grid divide-y divide-border/70 lg:grid-cols-3 lg:divide-x lg:divide-y-0">
             {whyPoints.map((item, index) => (
               <InViewReveal
-                className="flex gap-4 px-5 py-5 sm:px-6 sm:py-6"
+                className="flex gap-4 px-1 py-6 sm:px-5 sm:py-7"
                 delay={140 + index * 45}
                 key={item.title}
               >
-                <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border/80 bg-background text-primary shadow-[var(--surface-shadow-sm)]">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border/80 bg-background text-primary">
                   <item.icon className="size-[1.125rem]" />
                 </div>
                 <div className="min-w-0">
@@ -170,33 +158,50 @@ export function MarketingHero() {
             ))}
           </div>
         </InViewReveal>
+
+        <InViewReveal
+          className="mx-auto mt-8 grid max-w-5xl gap-5 border-y border-border/70 py-6 md:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] md:items-center"
+          delay={180}
+        >
+          <div>
+            <p className="meta-label">Problem solved</p>
+            <h3 className="mt-3 max-w-md font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+              Requo closes the gap between new lead and sent quote.
+            </h3>
+          </div>
+          <p className="text-sm leading-8 text-muted-foreground sm:text-base">
+            Keep the inquiry, quote, share link, viewed status, and next
+            follow-up in one workflow. Less chasing. Faster replies. Cleaner
+            decisions.
+          </p>
+        </InViewReveal>
       </section>
 
       <section
-        className="section-panel mx-auto mt-20 w-full max-w-6xl overflow-hidden sm:mt-24 xl:mt-28"
+        className="mx-auto mt-20 w-full max-w-6xl sm:mt-24 xl:mt-28"
         id="workflow"
       >
-        <InViewReveal className="mx-auto flex max-w-3xl flex-col items-center gap-4 border-b border-border/70 px-5 py-8 text-center sm:px-6 sm:py-10">
-          <p className="eyebrow">How it works</p>
-          <h2 className="max-w-3xl font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-            A simple flow from new inquiry to sent quote.
-          </h2>
-          <p className="max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
-            Requo follows the steps most service businesses already use. It
-            just keeps them in one place.
-          </p>
-        </InViewReveal>
+        <div className="grid gap-10 xl:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] xl:gap-12">
+          <InViewReveal className="xl:sticky xl:top-24 xl:self-start">
+            <div className="flex max-w-sm flex-col gap-4">
+              <p className="eyebrow">How it works</p>
+              <h2 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-5xl xl:text-4xl">
+                Four steps from lead to quote.
+              </h2>
+            </div>
+          </InViewReveal>
 
-        <div className="grid gap-4 px-5 py-5 sm:px-6 sm:py-6 lg:grid-cols-2 xl:grid-cols-4">
-          {workflowSteps.map((step, index) => (
-            <InViewReveal key={step.title} delay={120 + index * 45}>
-              <WorkflowStep
-                description={step.description}
-                index={index + 1}
-                title={step.title}
-              />
-            </InViewReveal>
-          ))}
+          <div className="border-y border-border/70">
+            {workflowSteps.map((step, index) => (
+              <InViewReveal key={step.title} delay={120 + index * 45}>
+                <WorkflowStep
+                  description={step.description}
+                  index={index + 1}
+                  title={step.title}
+                />
+              </InViewReveal>
+            ))}
+          </div>
         </div>
       </section>
 

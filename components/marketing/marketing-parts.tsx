@@ -75,20 +75,22 @@ export function WorkflowStep({
   description: string;
 }) {
   return (
-    <div className="marketing-step h-full flex-col gap-5">
-      <div className="flex items-center gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-[0_10px_18px_-16px_rgba(0,128,96,0.45)]">
+    <article className="grid gap-4 border-t border-border/70 py-5 sm:gap-5 sm:py-6 lg:grid-cols-[4.5rem_minmax(0,1fr)] lg:items-start">
+      <div className="flex items-center gap-3 lg:flex-col lg:items-start lg:gap-2">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-[var(--control-primary-shadow)]">
           {index}
         </div>
-        <div className="min-w-0">
-          <p className="meta-label">Step {index}</p>
-          <h3 className="mt-1 text-base font-semibold tracking-tight text-foreground">
-            {title}
-          </h3>
-        </div>
+        <p className="meta-label">Step {index}</p>
       </div>
-      <p className="text-sm leading-7 text-muted-foreground">{description}</p>
-    </div>
+      <div className="min-w-0">
+        <h3 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+          {title}
+        </h3>
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
+          {description}
+        </p>
+      </div>
+    </article>
   );
 }
 
