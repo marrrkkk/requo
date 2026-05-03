@@ -69,24 +69,28 @@ export function WorkflowStep({
   index,
   title,
   description,
+  icon: Icon,
 }: {
   index: number;
   title: string;
   description: string;
+  icon: React.ElementType;
 }) {
   return (
-    <article className="grid gap-4 border-t border-border/70 py-5 sm:gap-5 sm:py-6 lg:grid-cols-[4.5rem_minmax(0,1fr)] lg:items-start">
-      <div className="flex items-center gap-3 lg:flex-col lg:items-start lg:gap-2">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground shadow-[var(--control-primary-shadow)]">
-          {index}
+    <article className="relative flex h-full flex-col gap-5 rounded-2xl border border-border/70 bg-background/50 p-6 shadow-sm transition-colors hover:bg-background/80 lg:p-8">
+      <div className="flex items-center justify-between">
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Icon className="size-6" />
         </div>
-        <p className="meta-label">Step {index}</p>
+        <p className="font-heading text-4xl font-bold text-muted-foreground/20">
+          0{index}
+        </p>
       </div>
-      <div className="min-w-0">
-        <h3 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+      <div className="mt-2 min-w-0 flex-1">
+        <h3 className="font-heading text-xl font-semibold tracking-tight text-foreground">
           {title}
         </h3>
-        <p className="mt-3 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
+        <p className="mt-3 text-sm leading-7 text-muted-foreground">
           {description}
         </p>
       </div>

@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { FileText, Inbox, Upload } from "lucide-react";
+import { FileText, Inbox, Upload, Search, FileSignature, Send } from "lucide-react";
 
 export const navItems = [
   { pathname: "/", hash: "why-requo", label: "Why Requo" },
@@ -49,22 +49,30 @@ export const whyPoints: readonly {
   },
 ] as const;
 
-export const workflowSteps = [
+export const workflowSteps: readonly {
+  title: string;
+  description: string;
+  icon: LucideIcon;
+}[] = [
   {
     title: "Capture",
     description: "Keep details in one place.",
+    icon: Inbox,
   },
   {
     title: "Review",
     description: "See what is missing fast.",
+    icon: Search,
   },
   {
     title: "Quote",
     description: "Build and send a clear quote.",
+    icon: FileSignature,
   },
   {
     title: "Follow up",
     description: "Keep the next step visible.",
+    icon: Send,
   },
 ] as const;
 

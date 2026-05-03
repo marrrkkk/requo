@@ -178,24 +178,23 @@ export function MarketingHero() {
       </section>
 
       <section
-        className="mx-auto mt-20 w-full max-w-6xl sm:mt-24 xl:mt-28"
+        className="mx-auto mt-20 w-full max-w-6xl px-5 sm:mt-24 sm:px-6 lg:px-8 xl:mt-28 xl:px-0"
         id="workflow"
       >
-        <div className="grid gap-10 xl:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] xl:gap-12">
-          <InViewReveal className="xl:sticky xl:top-24 xl:self-start">
-            <div className="flex max-w-sm flex-col gap-4">
-              <p className="eyebrow">How it works</p>
-              <h2 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-5xl xl:text-4xl">
-                Four steps from lead to quote.
-              </h2>
-            </div>
+        <div className="flex flex-col gap-12 sm:gap-16">
+          <InViewReveal className="mx-auto flex max-w-2xl flex-col items-center text-center">
+            <p className="eyebrow">How it works</p>
+            <h2 className="mt-4 font-heading text-3xl font-semibold tracking-tight text-balance sm:text-5xl">
+              Four steps from lead to quote.
+            </h2>
           </InViewReveal>
 
-          <div className="border-y border-border/70">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
             {workflowSteps.map((step, index) => (
-              <InViewReveal key={step.title} delay={120 + index * 45}>
+              <InViewReveal className="h-full" key={step.title} delay={120 + index * 45}>
                 <WorkflowStep
                   description={step.description}
+                  icon={step.icon}
                   index={index + 1}
                   title={step.title}
                 />
