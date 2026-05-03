@@ -512,10 +512,12 @@ async function createUser(name: string, email: string): Promise<string> {
       userId,
       fullName: name,
       onboardingCompletedAt: new Date(),
+      dashboardTourCompletedAt: new Date(),
+      formEditorTourCompletedAt: new Date(),
     })
     .onConflictDoUpdate({
       target: profiles.userId,
-      set: { fullName: name, onboardingCompletedAt: new Date(), updatedAt: new Date() },
+      set: { fullName: name, onboardingCompletedAt: new Date(), dashboardTourCompletedAt: new Date(), formEditorTourCompletedAt: new Date(), updatedAt: new Date() },
     });
 
   return userId;

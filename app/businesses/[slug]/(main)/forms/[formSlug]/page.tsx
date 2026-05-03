@@ -21,6 +21,9 @@ import {
 } from "@/features/businesses/routes";
 import { canManageBusinessAdministration } from "@/lib/business-members";
 import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
+import { FormEditorTour } from "@/features/onboarding/components/form-editor-tour";
+import { getAccountProfileForUser } from "@/features/account/queries";
+import { requireSession } from "@/lib/auth/session";
 import { getBusinessOperationalPageContext } from "../../settings/_lib/page-context";
 
 export default async function BusinessFormPage({
@@ -28,12 +31,15 @@ export default async function BusinessFormPage({
 }: {
   params: Promise<{ formSlug: string }>;
 }) {
+  const session = await requireSession();
   const { businessContext } = await getBusinessOperationalPageContext();
   const { formSlug } = await params;
   const settings = await getBusinessInquiryFormEditorForBusiness(
     businessContext.business.id,
     formSlug,
   );
+  const profile = await getAccountProfileForUser(session.user.id);
+  const showTour = Boolean(profile && !profile.formEditorTourCompletedAt);
 
   if (!settings) {
     notFound();
@@ -88,6 +94,7 @@ export default async function BusinessFormPage({
         archiveAction={archiveBusinessInquiryFormFromDetailAction}
         deleteAction={deleteBusinessInquiryFormAction}
       />
+      <FormEditorTour show={showTour} />
     </>
   );
 }

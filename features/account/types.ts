@@ -5,6 +5,8 @@ export type AccountProfileRecord = {
   avatarStoragePath: string | null;
   avatarContentType: string | null;
   onboardingCompletedAt: Date | null;
+  dashboardTourCompletedAt: Date | null;
+  formEditorTourCompletedAt: Date | null;
   updatedAt: Date;
 };
 

@@ -175,6 +175,13 @@ export function BusinessInquiryFormEditorTabs({
                     ? "border-border/80 bg-[var(--control-bg)] text-primary shadow-[var(--control-shadow)] after:absolute after:inset-x-0 after:bottom-[-5px] after:h-0.5 after:bg-primary"
                     : "border-transparent text-foreground/65 hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground",
                 )}
+                data-tour={
+                  section.id === "fields"
+                    ? "form-builder"
+                    : section.id === "page"
+                      ? "public-page"
+                      : "form-settings"
+                }
                 key={section.id}
                 onClick={() => handleSectionChange(section.id)}
                 type="button"
@@ -236,7 +243,17 @@ export function BusinessInquiryFormEditorTabs({
           aria-hidden={activeSection !== "publishing"}
           className={activeSection === "publishing" ? "block" : "hidden"}
         >
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-start">
+          <section className="flex flex-col gap-6 sm:gap-8">
+            <div className="space-y-2.5 sm:px-2">
+              <h2 className="font-heading text-[1.65rem] font-semibold tracking-tight text-foreground">
+                Publishing
+              </h2>
+              <p className="text-base leading-6 text-muted-foreground">
+                Manage presets, defaults, and the live status of your form.
+              </p>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-start">
             <div className="min-w-0">
               <div className="grid gap-4">
                 <BusinessInquiryFormManageCard
@@ -266,6 +283,7 @@ export function BusinessInquiryFormEditorTabs({
               />
             </div>
           </div>
+          </section>
         </div>
       </div>
 

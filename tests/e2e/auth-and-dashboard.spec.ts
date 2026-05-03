@@ -28,13 +28,12 @@ async function openDemoBusiness(page: Page) {
   );
   await expect(page.locator("h1")).toBeVisible({ timeout: 20_000 });
 
-  const onboardingDialog = page.getByRole("dialog", {
-    name: "Your inquiry form is live",
-  });
+  // Dismiss the onboarding tour if it appears
+  const tourSkipButton = page.getByRole("button", { name: "Skip tour" });
 
-  if (await onboardingDialog.isVisible()) {
-    await page.getByRole("button", { name: "Got it" }).click();
-    await expect(onboardingDialog).toBeHidden();
+  if (await tourSkipButton.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await tourSkipButton.click();
+    await expect(tourSkipButton).toBeHidden();
   }
 }
 

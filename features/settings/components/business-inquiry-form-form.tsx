@@ -744,12 +744,12 @@ export function BusinessInquiryFormForm({
         <input name="businessType" type="hidden" value={settings.businessType} />
         <input name="inquiryFormConfig" type="hidden" value={serializedConfig} />
 
-        <section className="flex flex-col gap-5">
-          <div className="flex flex-col gap-2">
-            <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+        <section className="flex flex-col gap-6 sm:gap-8">
+          <div className="space-y-2.5 sm:px-2">
+            <h2 className="font-heading text-[1.65rem] font-semibold tracking-tight text-foreground">
               Fields
             </h2>
-            <p className="text-sm leading-6 text-muted-foreground">
+            <p className="text-base leading-6 text-muted-foreground">
               Edit the same contact and project layout customers see on the public inquiry form.
             </p>
           </div>

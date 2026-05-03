@@ -36,6 +36,8 @@ export default async function AccountProfilePage() {
         avatarStoragePath: profile?.avatarStoragePath ?? null,
         avatarContentType: profile?.avatarContentType ?? null,
         onboardingCompletedAt: profile?.onboardingCompletedAt ?? null,
+        dashboardTourCompletedAt: profile?.dashboardTourCompletedAt ?? null,
+        formEditorTourCompletedAt: profile?.formEditorTourCompletedAt ?? null,
         updatedAt: profile?.updatedAt ?? new Date(),
         email: user.user.email,
         avatarSrc,

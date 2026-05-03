@@ -49,6 +49,12 @@ export const profiles = pgTable("profiles", {
   onboardingCompletedAt: timestamp("onboarding_completed_at", {
     withTimezone: true,
   }),
+  dashboardTourCompletedAt: timestamp("dashboard_tour_completed_at", {
+    withTimezone: true,
+  }),
+  formEditorTourCompletedAt: timestamp("form_editor_tour_completed_at", {
+    withTimezone: true,
+  }),
   themePreference: profileThemePreferenceEnum("theme_preference")
     .notNull()
     .default("system"),

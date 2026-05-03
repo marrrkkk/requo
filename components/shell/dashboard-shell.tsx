@@ -283,7 +283,7 @@ function DashboardNavigationItem({
   const { isMobile, setOpenMobile } = useSidebar();
 
   return (
-    <SidebarMenuItem>
+    <SidebarMenuItem data-tour={`nav-${item.label.toLowerCase().replace(/[\s-]+/g, "-")}`}>
       <SidebarMenuButton
         asChild
         className="min-h-9 rounded-lg border border-transparent px-3 py-1.5 data-[active=true]:border-sidebar-primary/12 data-[active=true]:bg-sidebar-primary/12 data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] dark:data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
@@ -493,6 +493,7 @@ function BusinessSwitcher({
       <DropdownMenuTrigger asChild>
         <button
           className="group/business-switcher w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] transition-[background-color,border-color,box-shadow,transform] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-background data-[state=open]:bg-background data-[state=open]:shadow-[var(--control-shadow-hover)] dark:border-white/8 dark:bg-card/90 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-accent dark:data-[state=open]:bg-accent"
+          data-tour="business-switcher"
           type="button"
         >
           <div className="flex items-start gap-3.5">

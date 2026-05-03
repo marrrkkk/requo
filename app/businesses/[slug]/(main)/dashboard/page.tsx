@@ -34,8 +34,8 @@ import {
   getBusinessInquiriesPath,
   getBusinessNewQuotePath,
 } from "@/features/businesses/routes";
-import { OnboardingWelcomeDialog } from "@/features/onboarding/components/onboarding-welcome-dialog";
-import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
+import { DashboardTour } from "@/features/onboarding/components/dashboard-tour";
+import { getAccountProfileForUser } from "@/features/account/queries";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
 import { redirect } from "next/navigation";
@@ -68,6 +68,8 @@ export default async function DashboardOverviewPage({
   const followUpOverviewPromise = getFollowUpOverviewForBusiness(
     businessContext.business.id,
   );
+  const profile = await getAccountProfileForUser(session.user.id);
+  const showTour = Boolean(profile && !profile.dashboardTourCompletedAt);
 
   return (
     <DashboardPage className="gap-5 xl:gap-6">
@@ -141,11 +143,7 @@ export default async function DashboardOverviewPage({
         />
       </Suspense>
 
-      <OnboardingWelcomeDialog
-        businessName={businessContext.business.name}
-        businessSlug={businessSlug}
-        publicInquiryUrl={getBusinessPublicInquiryUrl(businessSlug)}
-      />
+      <DashboardTour show={showTour} />
     </DashboardPage>
   );
 }

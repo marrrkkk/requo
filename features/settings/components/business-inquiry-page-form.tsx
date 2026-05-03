@@ -678,14 +678,14 @@ export function BusinessInquiryPageForm({
       />
       <input name="cards" type="hidden" value={JSON.stringify(cards)} />
 
-      <div className="flex flex-col gap-8 sm:gap-10">
-        <section className="space-y-5">
+      <div className="flex flex-col gap-12 sm:gap-16">
+        <section className="space-y-6 sm:space-y-8">
           <SectionIntro
             description="Edit the public inquiry page."
             title="Page"
           />
 
-          <div className="rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
+          <div className="rounded-[2.25rem] border border-border/75 bg-muted/20 px-6 py-7 sm:p-8">
             <div className="space-y-2">
               <p className="meta-label">Page setup</p>
               <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
@@ -696,7 +696,7 @@ export function BusinessInquiryPageForm({
               </p>
             </div>
 
-            <div className="mt-5 grid gap-4">
+            <div className="mt-8 grid gap-6">
               <DetailsPanel
                 description="Name your form and set its public link."
                 eyebrow="Identity"
@@ -964,13 +964,13 @@ export function BusinessInquiryPageForm({
           </div>
         </section>
 
-        <section className="space-y-5">
+        <section className="space-y-6 sm:space-y-8">
           <SectionIntro
             description="Choose how the page is arranged."
             title="Layout"
           />
 
-          <div className="rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
+          <div className="rounded-[2.25rem] border border-border/75 bg-muted/20 px-6 py-7 sm:p-8">
             <div className="space-y-2">
               <p className="meta-label">Template</p>
               <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
@@ -981,7 +981,7 @@ export function BusinessInquiryPageForm({
               </p>
             </div>
 
-            <div className="mt-5 grid gap-3 xl:grid-cols-3">
+            <div className="mt-8 grid gap-4 xl:grid-cols-3">
               {(
                 Object.keys(inquiryPageTemplateMeta) as InquiryPageTemplate[]
               ).map((templateId) => {
@@ -1083,7 +1083,7 @@ export function BusinessInquiryPageForm({
         </section>
 
         {template !== "no_supporting_cards" ? (
-          <section className="space-y-4">
+          <section className="space-y-6 sm:space-y-8">
             <SectionIntro
               description="Add the short prompts shown beside the inquiry form."
               title="Supporting cards"
@@ -1158,13 +1158,13 @@ export function BusinessInquiryPageForm({
           </section>
         ) : null}
 
-        <section className="space-y-4">
+        <section className="space-y-6 sm:space-y-8">
           <SectionIntro
             description="Add an optional image to the page."
             title="Showcase image"
           />
 
-          <div className="flex flex-col gap-6 rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
+          <div className="flex flex-col gap-8 rounded-[2.25rem] border border-border/75 bg-muted/20 px-6 py-7 sm:p-8">
             <SectionVisibilityToggle
               checked={showShowcaseImage}
               description="Keep the image settings saved, but hide the showcase image on the public page when this is off."
@@ -1308,13 +1308,13 @@ export function BusinessInquiryPageForm({
           </div>
         </section>
 
-        <section className="space-y-4">
+        <section className="space-y-6 sm:space-y-8">
           <SectionIntro
             description="Shown in the public form area when at least one detail is filled in."
             title="Business contact"
           />
 
-          <div className="flex flex-col gap-6 rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
+          <div className="flex flex-col gap-8 rounded-[2.25rem] border border-border/75 bg-muted/20 px-6 py-7 sm:p-8">
             <SectionVisibilityToggle
               checked={showBusinessContact}
               description="Keep the contact details saved, but hide the business contact block on the public form when this is off."
@@ -1640,11 +1640,11 @@ function SectionIntro({
   title: string;
 }) {
   return (
-    <div className="space-y-2">
-      <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
+    <div className="space-y-2.5 sm:px-2">
+      <h2 className="font-heading text-[1.65rem] font-semibold tracking-tight text-foreground">
         {title}
       </h2>
-      <p className="text-sm leading-6 text-muted-foreground">{description}</p>
+      <p className="text-base leading-6 text-muted-foreground">{description}</p>
     </div>
   );
 }
@@ -1663,9 +1663,9 @@ function SectionVisibilityToggle({
   onCheckedChange: (nextValue: boolean) => void;
 }) {
   return (
-    <label className="soft-panel flex flex-col gap-4 px-4 py-4 shadow-none sm:flex-row sm:items-center sm:justify-between sm:px-5">
-      <div className="min-w-0 space-y-1">
-        <p className="text-sm font-medium text-foreground">{label}</p>
+    <label className="soft-panel flex flex-col gap-5 px-5 py-5 shadow-none sm:flex-row sm:items-center sm:justify-between sm:p-7">
+      <div className="min-w-0 space-y-1.5">
+        <p className="text-[0.95rem] font-semibold text-foreground">{label}</p>
         <p className="text-sm leading-6 text-muted-foreground">{description}</p>
       </div>
       <Switch
@@ -1689,16 +1689,16 @@ function DetailsPanel({
   title: string;
 }) {
   return (
-    <div className="soft-panel px-4 py-4 shadow-none sm:px-5">
-      <div className="space-y-1">
+    <div className="soft-panel px-5 py-6 shadow-none sm:p-8">
+      <div className="space-y-1.5">
         <p className="meta-label">{eyebrow}</p>
-        <p className="text-[0.95rem] font-semibold tracking-tight text-foreground">
+        <p className="font-heading text-lg font-semibold tracking-tight text-foreground">
           {title}
         </p>
         <p className="text-sm leading-6 text-muted-foreground">{description}</p>
       </div>
 
-      <div className="mt-5">{children}</div>
+      <div className="mt-7">{children}</div>
     </div>
   );
 }
@@ -1834,17 +1834,17 @@ function BuilderSection({
   title: string;
 }) {
   return (
-    <div className="rounded-[1.5rem] border border-dashed border-border/70 bg-muted/15 p-3.5 sm:rounded-[1.75rem] sm:p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+    <div className="rounded-[1.75rem] border border-dashed border-border/70 bg-muted/15 p-4 sm:rounded-[2rem] sm:p-7">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1.5">
+          <p className="meta-label">
             {title}
           </p>
         </div>
         {action ? <div className="w-full shrink-0 sm:w-auto">{action}</div> : null}
       </div>
 
-      <div className="mt-4 space-y-4">{children}</div>
+      <div className="mt-6 space-y-5">{children}</div>
     </div>
   );
 }
