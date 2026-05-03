@@ -103,27 +103,27 @@ export async function DashboardOverviewStatsSection({
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       <OverviewActionStat
         label="Overdue inquiries"
-        note="Past deadline"
+        tooltip="Past deadline"
         value={overview.counts.overdueInquiries}
       />
       <OverviewActionStat
         label="Expiring soon"
-        note="Next 7 days"
+        tooltip="Next 7 days"
         value={overview.counts.expiringSoonQuotes}
       />
       <OverviewActionStat
         label="New inquiries"
-        note="Last 48h"
+        tooltip="Last 48h"
         value={overview.counts.newInquiries}
       />
       <OverviewActionStat
         label="Draft quotes"
-        note="Not sent yet"
+        tooltip="Not sent yet"
         value={overview.counts.draftQuotes}
       />
       <OverviewActionStat
         label="Needs next step"
-        note="Accepted work"
+        tooltip="Accepted work"
         value={overview.counts.recentAcceptedQuotes}
       />
     </div>
@@ -553,9 +553,9 @@ export function DashboardOverviewStatsFallback() {
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       {Array.from({ length: 5 }).map((_, index) => (
         <div className="soft-panel px-4 py-4" key={index}>
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5">
             <Skeleton className="h-3 w-20 rounded-md" />
-            <Skeleton className="h-3 w-16 rounded-md" />
+            <Skeleton className="size-4 rounded-full" />
           </div>
           <Skeleton className="mt-2 h-8 w-12 rounded-md" />
         </div>
@@ -634,17 +634,17 @@ export function DashboardOverviewQueuesFallback() {
 function OverviewActionStat({
   label,
   value,
-  note,
+  tooltip,
 }: {
   label: string;
   value: number;
-  note: string;
+  tooltip: string;
 }) {
   return (
     <div className="soft-panel px-4 py-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-1.5">
         <p className="meta-label">{label}</p>
-        <span className="text-xs font-medium text-muted-foreground">{note}</span>
+        <HelpTooltip content={tooltip} label={label} />
       </div>
       <p
         className={cn(
