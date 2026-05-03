@@ -365,7 +365,7 @@ export default async function QuoteDetailPage({
           </>
         }
         actions={
-          <div className="flex flex-nowrap items-center gap-2.5">
+          <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center [&_[data-slot=button]]:w-full sm:[&_[data-slot=button]]:w-auto">
 
             <QuoteExportPopover
               pdfHref={getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")}
@@ -547,7 +547,7 @@ export default async function QuoteDetailPage({
 
           <DashboardSidebarStack>
             <DashboardSection
-              contentClassName="!grid !grid-cols-2 gap-3"
+              contentClassName="grid gap-3 sm:grid-cols-2"
               description="Totals, deadline, and response milestones."
               title="Quote brief"
             >

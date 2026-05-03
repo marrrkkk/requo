@@ -69,7 +69,7 @@ export function QuoteListCards({
                       </div>
                     ) : null}
                   </div>
-                  <div className="shrink-0 space-y-2">
+                  <div className="flex shrink-0 flex-col gap-2">
                     <QuoteStatusBadge status={quote.status} />
                     {quote.archivedAt ? (
                       <QuoteRecordStateBadge state="archived" />

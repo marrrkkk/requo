@@ -55,7 +55,7 @@ export function QuotePreview({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex flex-col gap-1">
               <span className="meta-label">{metaLabel}</span>
-              <h2 className="font-heading text-3xl font-semibold tracking-tight text-balance">
+              <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
                 <TruncatedTextWithTooltip text={title} lines={2} />
               </h2>
               <TruncatedTextWithTooltip

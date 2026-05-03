@@ -201,7 +201,7 @@ export default async function InquiryDetailPage({
           </>
         }
         actions={
-          <div className="flex flex-nowrap items-center gap-2.5">
+          <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center [&_[data-slot=button]]:w-full sm:[&_[data-slot=button]]:w-auto">
             <InquiryExportPopover
               pdfHref={getBusinessInquiryExportPath(
                 businessSlug,
@@ -544,7 +544,7 @@ export default async function InquiryDetailPage({
                     <Link
                       href={getBusinessNewQuotePath(businessSlug, inquiry.id)}
                     >
-                    <ReceiptText data-icon="inline-start" />
+                      <ReceiptText data-icon="inline-start" />
                       Generate quote
                     </Link>
                   </Button>
@@ -560,7 +560,7 @@ export default async function InquiryDetailPage({
                     {inquiry.relatedQuote.quoteNumber ?? inquiry.relatedQuote.id}
                   </DashboardMetaPill>
                 </div>
-                <div className="!grid !grid-cols-2 gap-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   <InfoTile
                     label="Total"
                     value={formatQuoteMoney(

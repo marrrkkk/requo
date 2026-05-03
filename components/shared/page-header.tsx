@@ -27,7 +27,7 @@ export function PageHeader({
       <div className="min-w-0 max-w-3xl flex-1">
         <div className="flex flex-col gap-3">
           {eyebrow ? <span className="meta-label">{eyebrow}</span> : null}
-          <h1 className="font-heading text-[2rem] font-semibold leading-tight tracking-tight text-balance sm:text-[2.3rem]">
+          <h1 className="font-heading text-[1.65rem] font-semibold leading-tight tracking-tight text-balance sm:text-[2rem] lg:text-[2.3rem]">
             {title}
           </h1>
           {description ? (

@@ -33,7 +33,7 @@ export function QuoteListTable({
   businessSlug,
 }: QuoteListTableProps) {
   return (
-    <DashboardTableContainer>
+    <DashboardTableContainer className="hidden xl:block">
       <Table className="min-w-[54rem] table-fixed 2xl:min-w-[64rem]">
         <TableCaption className="sr-only">Newest quotes appear first.</TableCaption>
         <TableHeader>

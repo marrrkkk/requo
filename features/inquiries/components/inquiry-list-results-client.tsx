@@ -7,7 +7,6 @@ import { InquiryListCards } from "@/features/inquiries/components/inquiry-list-c
 import { InquiryListTable } from "@/features/inquiries/components/inquiry-list-table";
 import { getBusinessInquiriesPath } from "@/features/businesses/routes";
 import type { DashboardInquiryListItem } from "@/features/inquiries/types";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
 const EMPTY_PAGE_CACHE: Record<number, DashboardInquiryListItem[]> = {};
@@ -37,7 +36,6 @@ export function InquiryListResultsClient({
   totalItems,
   totalPages,
 }: InquiryListResultsClientProps) {
-  const isMobile = useIsMobile();
   const effectiveCachedPages = useMemo(
     () => normalizePageCache(cachedPages),
     [cachedPages],
@@ -61,11 +59,8 @@ export function InquiryListResultsClient({
 
   return (
     <>
-      {isMobile ? (
-        <InquiryListCards inquiries={inquiries} businessSlug={businessSlug} />
-      ) : (
-        <InquiryListTable inquiries={inquiries} businessSlug={businessSlug} />
-      )}
+      <InquiryListCards inquiries={inquiries} businessSlug={businessSlug} />
+      <InquiryListTable inquiries={inquiries} businessSlug={businessSlug} />
       <DataListPagination
         cachedPages={cachedPageNumbers}
         currentPage={displayPage}

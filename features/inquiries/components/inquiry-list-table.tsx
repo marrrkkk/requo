@@ -29,7 +29,7 @@ export function InquiryListTable({
   businessSlug,
 }: InquiryListTableProps) {
   return (
-    <DashboardTableContainer>
+    <DashboardTableContainer className="hidden xl:block">
       <Table className="min-w-[57rem] table-fixed">
         <TableCaption className="sr-only">Newest inquiries appear first.</TableCaption>
         <TableHeader>

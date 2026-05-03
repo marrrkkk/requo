@@ -830,7 +830,7 @@ html[data-reload-loading="true"] [data-reload-loading-overlay] {
   }
 
   .dashboard-detail-feed-meta {
-    @apply flex flex-wrap items-center gap-2 text-xs leading-5 text-muted-foreground;
+    @apply flex flex-wrap items-center gap-2 text-[0.8rem] leading-5 text-muted-foreground sm:text-xs;
   }
 
   .dashboard-detail-feed-body {
@@ -853,7 +853,7 @@ html[data-reload-loading="true"] [data-reload-loading-overlay] {
   }
 
   .dashboard-table-shell {
-    @apply hidden overflow-hidden rounded-xl border border-border/85 xl:block;
+    @apply overflow-hidden rounded-xl border border-border/85;
     background: var(--surface-elevated-bg);
     border-color: var(--surface-stroke);
     box-shadow: var(--surface-shadow-lg);
@@ -904,7 +904,7 @@ html[data-reload-loading="true"] [data-reload-loading-overlay] {
   }
 
   .data-list-card-footer {
-    @apply flex flex-col gap-3 border-t border-border/65 px-6 py-4 sm:flex-row sm:items-center sm:justify-between;
+    @apply flex flex-col gap-3 border-t border-border/65 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6;
     background: var(--surface-footer-bg);
   }
 
@@ -936,11 +936,11 @@ html[data-reload-loading="true"] [data-reload-loading-overlay] {
   }
 
   .dashboard-topbar-inner {
-    @apply mx-auto w-full max-w-[92rem] px-4 py-3.5 sm:px-6 xl:px-8;
+    @apply mx-auto w-full max-w-[92rem] px-3 py-2.5 sm:px-6 sm:py-3.5 xl:px-8;
   }
 
   .dashboard-main {
-    @apply flex flex-1 flex-col px-4 py-6 sm:px-6 sm:py-7 xl:px-8 xl:py-8;
+    @apply flex flex-1 flex-col px-3 py-5 sm:px-6 sm:py-7 xl:px-8 xl:py-8;
   }
 
   .public-page {

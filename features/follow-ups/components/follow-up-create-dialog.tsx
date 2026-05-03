@@ -117,7 +117,7 @@ export function FollowUpCreateDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <form action={formAction}>
-          <div className="px-6 pb-6">
+          <div className="px-4 pb-4 sm:px-6 sm:pb-6">
             <FieldGroup>
               <Field data-invalid={Boolean(state.fieldErrors?.title?.[0])}>
                 <FieldLabel htmlFor="follow-up-title">Title</FieldLabel>

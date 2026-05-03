@@ -43,7 +43,7 @@ export function InquiryListCards({
                     {inquiry.customerEmail ?? ""}
                   </CardDescription>
                 </div>
-                <div className="shrink-0 space-y-2">
+                <div className="flex shrink-0 flex-col gap-2">
                   <InquiryStatusBadge status={inquiry.status} />
                   {inquiry.recordState !== "active" ? (
                     <InquiryRecordStateBadge state={inquiry.recordState} />

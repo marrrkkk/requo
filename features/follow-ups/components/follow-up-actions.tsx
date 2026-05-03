@@ -127,7 +127,7 @@ function FollowUpRescheduleDialog({
           </DialogDescription>
         </DialogHeader>
         <form action={formAction}>
-          <div className="px-6 pb-6">
+          <div className="px-4 pb-4 sm:px-6 sm:pb-6">
             <Field data-invalid={Boolean(state.fieldErrors?.dueDate?.[0])}>
               <FieldLabel htmlFor="follow-up-reschedule-date">Due date</FieldLabel>
               <FieldContent>
