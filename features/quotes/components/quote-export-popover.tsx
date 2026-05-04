@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, Download, FileImage, FileText } from "lucide-react";
 
+import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
 import {
   Popover,
   PopoverContent,
@@ -11,15 +12,31 @@ import {
 import { Button } from "@/components/ui/button";
 
 type QuoteExportPopoverProps = {
+  canExport: boolean;
   pdfHref: string;
   pngHref: string;
 };
 
 export function QuoteExportPopover({
+  canExport,
   pdfHref,
   pngHref,
 }: QuoteExportPopoverProps) {
   const [open, setOpen] = useState(false);
+
+  if (!canExport) {
+    return (
+      <ProFeatureNoticeButton
+        noticeDescription="Upgrade to Pro to export quote records as PDF, PNG, or CSV."
+        noticeTitle="Export is a Pro feature."
+        variant="outline"
+      >
+        <Download data-icon="inline-start" />
+        Export
+        <ChevronDown className="opacity-60" data-icon="inline-end" />
+      </ProFeatureNoticeButton>
+    );
+  }
 
   return (
     <Popover onOpenChange={setOpen} open={open}>
@@ -30,8 +47,10 @@ export function QuoteExportPopover({
           <ChevronDown className="opacity-60" data-icon="inline-end" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-40 rounded-xl p-1.5">
-
+      <PopoverContent
+        align="end"
+        className="w-40 rounded-xl p-1.5"
+      >
         <div className="grid gap-0.5">
           <a
             aria-label="Export PDF"

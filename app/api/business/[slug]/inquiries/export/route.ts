@@ -7,6 +7,7 @@ import { inquiryListFiltersSchema } from "@/features/inquiries/schemas";
 import { buildCsv, formatDateForExportFileName } from "@/lib/csv";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 import { buildContentDisposition } from "@/lib/files";
+import { hasFeatureAccess } from "@/lib/plans";
 
 const routeParamsSchema = z.object({
   slug: z.string().trim().min(1).max(120),
@@ -33,6 +34,18 @@ export async function GET(
 
   if (!requestContext) {
     return Response.json({ error: "Not found." }, { status: 404 });
+  }
+
+  if (
+    !hasFeatureAccess(
+      requestContext.businessContext.business.workspacePlan,
+      "exports",
+    )
+  ) {
+    return Response.json(
+      { error: "Upgrade to Pro to export inquiry data." },
+      { status: 403 },
+    );
   }
 
   const parsedFilters = inquiryListFiltersSchema.safeParse(

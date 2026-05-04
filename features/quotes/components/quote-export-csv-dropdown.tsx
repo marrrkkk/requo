@@ -1,8 +1,9 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { ChevronDown, Download } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -25,12 +26,14 @@ const statusOptions: QuoteStatusFilterValue[] = [...quoteStatusFilterValues];
 
 type QuoteExportCsvDropdownProps = {
   businessSlug: string;
+  canExport: boolean;
   filters: QuoteListFilters;
   resultCount: number;
 };
 
 export function QuoteExportCsvDropdown({
   businessSlug,
+  canExport,
   filters,
   resultCount,
 }: QuoteExportCsvDropdownProps) {
@@ -69,12 +72,27 @@ export function QuoteExportCsvDropdown({
     }`;
   }, [businessSlug, from, query, sort, status, to, view]);
 
+  if (!canExport) {
+    return (
+      <ProFeatureNoticeButton
+        noticeDescription="Upgrade to Pro to export quote records for reporting, handoff, and backup workflows."
+        noticeTitle="CSV export is a Pro feature."
+        variant="outline"
+      >
+        <Download data-icon="inline-start" />
+        Export CSV
+        <ChevronDown className="opacity-60" data-icon="inline-end" />
+      </ProFeatureNoticeButton>
+    );
+  }
+
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button disabled={resultCount === 0} variant="outline">
           <Download data-icon="inline-start" />
           Export CSV
+          <ChevronDown className="opacity-60" data-icon="inline-end" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
