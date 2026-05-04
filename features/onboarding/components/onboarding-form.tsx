@@ -389,7 +389,7 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
               <h1 className="font-heading text-[2rem] font-semibold tracking-tight text-foreground sm:text-[2.35rem]">
                 {currentStepMeta.title}
               </h1>
-              <p className="mt-2 text-sm leading-7 text-muted-foreground sm:text-[0.96rem]">
+              <p className="mt-2 text-sm leading-normal sm:leading-7 text-muted-foreground sm:text-[0.96rem]">
                 {currentStepMeta.body}
               </p>
             </div>

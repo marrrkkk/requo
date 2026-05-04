@@ -17,6 +17,7 @@ import {
   quoteLibraryEntryIdSchema,
   quoteLibraryEntrySchema,
 } from "@/features/quotes/quote-library-schemas";
+import { hasFeatureAccess } from "@/lib/plans";
 import type {
   QuoteLibraryActionState,
   QuoteLibraryDeleteActionState,
@@ -56,6 +57,14 @@ export async function createQuoteLibraryEntryAction(
     };
   }
 
+  const { user, businessContext } = ownerAccess;
+
+  if (!hasFeatureAccess(businessContext.business.workspacePlan, "quoteLibrary")) {
+    return {
+      error: "Upgrade to Pro to save pricing library entries.",
+    };
+  }
+
   const validationResult = quoteLibraryEntrySchema.safeParse({
     kind: formData.get("kind"),
     name: formData.get("name"),
@@ -70,8 +79,6 @@ export async function createQuoteLibraryEntryAction(
       mapQuoteLibraryFieldErrors,
     );
   }
-
-  const { user, businessContext } = ownerAccess;
 
   try {
     await createQuoteLibraryEntryForBusiness({
@@ -120,6 +127,14 @@ export async function updateQuoteLibraryEntryAction(
     };
   }
 
+  const { user, businessContext } = ownerAccess;
+
+  if (!hasFeatureAccess(businessContext.business.workspacePlan, "quoteLibrary")) {
+    return {
+      error: "Upgrade to Pro to update pricing library entries.",
+    };
+  }
+
   const validationResult = quoteLibraryEntrySchema.safeParse({
     kind: formData.get("kind"),
     name: formData.get("name"),
@@ -134,8 +149,6 @@ export async function updateQuoteLibraryEntryAction(
       mapQuoteLibraryFieldErrors,
     );
   }
-
-  const { user, businessContext } = ownerAccess;
 
   try {
     const result = await updateQuoteLibraryEntryForBusiness({
@@ -192,6 +205,12 @@ export async function deleteQuoteLibraryEntryAction(
   }
 
   const { user, businessContext } = ownerAccess;
+
+  if (!hasFeatureAccess(businessContext.business.workspacePlan, "quoteLibrary")) {
+    return {
+      error: "Upgrade to Pro to delete pricing library entries.",
+    };
+  }
 
   try {
     const result = await deleteQuoteLibraryEntryForBusiness({

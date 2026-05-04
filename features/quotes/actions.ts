@@ -19,7 +19,7 @@ import {
   getWorkspaceBusinessActionContext,
 } from "@/lib/db/business-access";
 import { env, isEmailConfigured } from "@/lib/env";
-import { getUsageLimit } from "@/lib/plans";
+import { getUsageLimit, hasFeatureAccess } from "@/lib/plans";
 import { checkUsageAllowance } from "@/lib/plans/usage";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
 import {
@@ -558,7 +558,12 @@ export async function sendQuoteAction(
         notes: quote.notes,
         emailSignature: businessSettings.defaultEmailSignature,
         items: quote.items,
-        templateOverrides: businessSettings.quoteEmailTemplate,
+        templateOverrides: hasFeatureAccess(
+          businessContext.business.workspacePlan,
+          "emailTemplates",
+        )
+          ? businessSettings.quoteEmailTemplate
+          : null,
         replyToEmail: businessSettings.contactEmail ?? ownerEmails[0],
         workspaceId: businessContext.business.workspaceId,
         businessId: businessContext.business.id,
@@ -615,7 +620,10 @@ export async function sendQuoteAction(
     }
 
     // Push notification for quote sent
-    if (businessSettings.notifyPushOnQuoteSent) {
+    if (
+      businessSettings.notifyPushOnQuoteSent &&
+      hasFeatureAccess(businessContext.business.workspacePlan, "pushNotifications")
+    ) {
       after(async () => {
         try {
           const { sendPushToBusinessSubscribers } = await import("@/lib/push/send");
@@ -886,7 +894,10 @@ export async function respondToPublicQuoteAction(
     }
 
     // Push notification for quote response
-    if (result.notifyPushOnQuoteResponse) {
+    if (
+      result.notifyPushOnQuoteResponse &&
+      hasFeatureAccess(result.businessPlan, "pushNotifications")
+    ) {
       after(async () => {
         try {
           const { sendPushToBusinessSubscribers } = await import("@/lib/push/send");

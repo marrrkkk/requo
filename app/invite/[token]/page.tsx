@@ -50,7 +50,7 @@ export default async function WorkspaceMemberInvitePage({
         layout="centered"
         title="Invite unavailable"
       >
-        <div className="flex flex-col gap-4 text-sm leading-7 text-muted-foreground">
+        <div className="flex flex-col gap-4 text-sm leading-normal sm:leading-7 text-muted-foreground">
           <p>This invite link is missing, expired, or has already been used.</p>
           <Button asChild>
             <Link href="/login">Sign in</Link>
@@ -82,7 +82,7 @@ export default async function WorkspaceMemberInvitePage({
             <Badge variant="outline">{invite.email}</Badge>
           </div>
 
-          <p className="text-sm leading-7 text-muted-foreground">
+          <p className="text-sm leading-normal sm:leading-7 text-muted-foreground">
             {invite.inviter.name} invited you to join this workspace and
             collaborate on inquiries, quotes, and follow-up.
           </p>
@@ -109,7 +109,7 @@ export default async function WorkspaceMemberInvitePage({
         title="Use the invited email"
       >
         <div className="flex flex-col gap-5">
-          <div className="flex flex-col gap-2 text-sm leading-7 text-muted-foreground">
+          <div className="flex flex-col gap-2 text-sm leading-normal sm:leading-7 text-muted-foreground">
             <p>Signed in as {currentUser.email}</p>
             <p>This invite was sent to {invite.email}.</p>
           </div>
@@ -148,7 +148,7 @@ export default async function WorkspaceMemberInvitePage({
           <Badge variant="outline">{invite.email}</Badge>
         </div>
 
-        <p className="text-sm leading-7 text-muted-foreground">
+        <p className="text-sm leading-normal sm:leading-7 text-muted-foreground">
           {invite.inviter.name} invited you to join this workspace and
           collaborate on inquiries, quotes, and follow-up.
         </p>

@@ -220,9 +220,11 @@ export type PublicQuoteView = {
   quoteNumber: string;
   title: string;
   businessName: string;
+  businessSlug: string;
   businessPlan: BusinessPlan;
   businessShortDescription: string | null;
   businessContactEmail: string | null;
+  businessLogoStoragePath: string | null;
   customerName: string;
   customerEmail: string | null;
   customerContactMethod: string;

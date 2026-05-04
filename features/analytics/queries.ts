@@ -549,7 +549,7 @@ export async function getBusinessAnalyticsData(
           uniqueVisitors: sql<number>`count(distinct ${formViewsInPrior.visitorHash})`,
         })
         .from(formViewsInPrior)
-        .where(lt(formViewsInPrior.occurredAt, summaryStart)),
+        .where(lt(formViewsInPrior.occurredAt, sql`${summaryStart.toISOString()}::timestamp`)),
       db
         .select({
           inquirySubmissions: sql<number>`count(distinct ${inquiries.id})`,

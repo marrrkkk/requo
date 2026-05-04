@@ -5,7 +5,7 @@ import { updateTag } from "next/cache";
 import { getUserSafeErrorMessage, getValidationActionState } from "@/lib/action-state";
 import { getBusinessMemoryCacheTags, uniqueCacheTags } from "@/lib/cache/business-tags";
 import { getOperationalBusinessActionContext } from "@/lib/db/business-access";
-import { getUsageLimit } from "@/lib/plans";
+import { getUsageLimit, hasFeatureAccess } from "@/lib/plans";
 import {
   createMemoryForBusiness,
   deleteMemoryForBusiness,
@@ -41,6 +41,11 @@ export async function createMemoryAction(
 
   const { user, businessContext } = ownerAccess;
   const workspacePlan = businessContext.business.workspacePlan;
+
+  if (!hasFeatureAccess(workspacePlan, "knowledgeBase")) {
+    return { error: "Upgrade to Pro to save knowledge for the AI assistant." };
+  }
+
   const memoryLimit = getUsageLimit(workspacePlan, "memoriesPerBusiness");
 
   if (memoryLimit !== null) {
@@ -98,6 +103,11 @@ export async function updateMemoryAction(
   }
 
   const { user, businessContext } = ownerAccess;
+
+  if (!hasFeatureAccess(businessContext.business.workspacePlan, "knowledgeBase")) {
+    return { error: "Upgrade to Pro to update knowledge." };
+  }
+
   const validationResult = memorySchema.safeParse({
     title: formData.get("title"),
     content: formData.get("content"),
@@ -150,6 +160,10 @@ export async function deleteMemoryAction(
   }
 
   const { user, businessContext } = ownerAccess;
+
+  if (!hasFeatureAccess(businessContext.business.workspacePlan, "knowledgeBase")) {
+    return { error: "Upgrade to Pro to delete knowledge." };
+  }
 
   try {
     const result = await deleteMemoryForBusiness({

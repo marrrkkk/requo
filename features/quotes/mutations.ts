@@ -12,6 +12,7 @@ import {
   quoteItems,
   quotes,
   businesses,
+  workspaces,
 } from "@/lib/db/schema";
 import type { QuoteEditorInput } from "@/features/quotes/schemas";
 import type { QuoteDeliveryMethod, QuoteStatus } from "@/features/quotes/types";
@@ -1134,6 +1135,7 @@ export async function respondToPublicQuoteByToken({
         businessId: quotes.businessId,
         businessSlug: businesses.slug,
         businessName: businesses.name,
+        businessPlan: workspaces.plan,
         inquiryId: quotes.inquiryId,
         quoteNumber: quotes.quoteNumber,
         title: quotes.title,
@@ -1150,6 +1152,7 @@ export async function respondToPublicQuoteByToken({
       })
       .from(quotes)
       .innerJoin(businesses, eq(quotes.businessId, businesses.id))
+      .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
       .where(and(getQuotePublicTokenLookupCondition(token), isNull(quotes.deletedAt)))
       .limit(1);
 
@@ -1290,6 +1293,7 @@ export async function respondToPublicQuoteByToken({
       inquiryId: existingQuote.inquiryId,
       quoteId: existingQuote.id,
       businessSlug: existingQuote.businessSlug,
+      businessPlan: existingQuote.businessPlan,
       businessName: existingQuote.businessName,
       customerName: existingQuote.customerName,
       customerEmail: existingQuote.customerEmail,

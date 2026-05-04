@@ -156,6 +156,7 @@ export async function completeOnboardingForUser({
       starterTemplateBusinessType,
       shortDescription: null,
       inquiryFormConfigOverride,
+      workspacePlan: "free",
       activitySource: "onboarding",
       activitySummary: "Business created during onboarding.",
       now,

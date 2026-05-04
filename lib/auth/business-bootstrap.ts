@@ -196,6 +196,7 @@ export async function bootstrapBusinessForUser(
       const defaultInquiryForm = createInquiryFormPreset({
         businessType: "general_project_services",
         businessName,
+        plan: options?.plan ?? "free",
       });
 
       await tx.insert(businesses).values({
@@ -211,6 +212,7 @@ export async function bootstrapBusinessForUser(
         inquiryPageConfig: createInquiryPageConfigDefaults({
           businessName,
           businessType: "general_project_services",
+          plan: options?.plan ?? "free",
         }),
         createdAt: now,
         updatedAt: now,
