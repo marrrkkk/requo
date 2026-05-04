@@ -71,7 +71,7 @@ type EntityConversationSnapshot = {
 
 type CopyState = "idle" | "copied" | "error";
 
-type ChatMessage = {
+export type ChatMessage = {
   id: string;
   role: AiMessage["role"];
   label: string;
@@ -300,6 +300,7 @@ function getDashboardConversationsEndpoint(input: {
     businessSlug: input.businessSlug,
     surface: "dashboard",
     entityId: input.entityId,
+    limit: "50",
   });
 
   return `/api/ai/conversations?${searchParams.toString()}`;
@@ -472,6 +473,97 @@ function formatConversationTime(value: string | null) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function createChatPreview(value: string, limit = 120) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  return normalized.length <= limit
+    ? normalized
+    : `${normalized.slice(0, limit - 3).trimEnd()}...`;
+}
+
+function createDashboardChatTitle(message: string) {
+  const normalized = message.replace(/\s+/g, " ").trim();
+
+  if (!normalized) {
+    return "New dashboard chat";
+  }
+
+  const words = normalized.split(" ").slice(0, 8).join(" ");
+  const title = words.length > 64 ? `${words.slice(0, 61).trimEnd()}...` : words;
+
+  return title || "New dashboard chat";
+}
+
+function getConversationSortTime(conversation: AiConversationSummary) {
+  const value = conversation.lastMessageAt ?? conversation.createdAt;
+  const timestamp = Date.parse(value);
+
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+export function getEntityConversationCacheKey(
+  surface: AiSurface,
+  entityId: string,
+) {
+  return `${surface}:${entityId}`;
+}
+
+export function createDashboardConversationSummary({
+  conversation,
+  messages,
+}: {
+  conversation: AiConversation;
+  messages: ChatMessage[];
+}): AiConversationSummary {
+  const latestMessage = [...messages]
+    .reverse()
+    .find((message) => message.createdAt || message.updatedAt);
+  const latestMessageWithContent = [...messages]
+    .reverse()
+    .find((message) => message.content.trim());
+  const firstUserMessage = messages.find(
+    (message) => message.role === "user" && message.content.trim(),
+  );
+  const shouldUseClientTitle =
+    conversation.surface === "dashboard" &&
+    firstUserMessage &&
+    (!conversation.title || conversation.title === "New dashboard chat");
+
+  return {
+    ...conversation,
+    title: shouldUseClientTitle
+      ? createDashboardChatTitle(firstUserMessage.content)
+      : conversation.title,
+    lastMessageAt:
+      latestMessage?.updatedAt ??
+      latestMessage?.createdAt ??
+      conversation.lastMessageAt,
+    lastMessagePreview: latestMessageWithContent
+      ? createChatPreview(latestMessageWithContent.content)
+      : null,
+  };
+}
+
+export function mergeDashboardConversationSummary(
+  conversations: AiConversationSummary[],
+  summary: AiConversationSummary,
+) {
+  return [
+    summary,
+    ...conversations.filter((conversation) => conversation.id !== summary.id),
+  ]
+    .sort(
+      (a, b) =>
+        getConversationSortTime(b) - getConversationSortTime(a) ||
+        b.id.localeCompare(a.id),
+    )
+    .slice(0, 50);
 }
 
 function TranscriptMessage({
@@ -779,6 +871,7 @@ export function DashboardChatHistoryList({
 }
 
 export function AIChatPanel({
+  activeDashboardConversation,
   businessSlug,
   cachedDashboardConversations,
   entityCache,
@@ -788,50 +881,179 @@ export function AIChatPanel({
   title,
   userName,
   onClose,
+  onActiveDashboardConversationChange,
   onDashboardConversationsChange,
   onEntityCacheUpdate,
   onMessagesCacheUpdate,
 }: AIChatPopoverProps & {
+  activeDashboardConversation?: AiConversation | null;
   cachedDashboardConversations?: AiConversationSummary[] | null;
   entityCache?: Map<string, EntityConversationSnapshot>;
   messagesCache?: Map<string, ConversationMessagesSnapshot>;
   onClose: () => void;
+  onActiveDashboardConversationChange?: (conversation: AiConversation) => void;
   onDashboardConversationsChange?: (conversations: AiConversationSummary[]) => void;
   onEntityCacheUpdate?: (key: string, snapshot: EntityConversationSnapshot) => void;
   onMessagesCacheUpdate?: (conversationId: string, snapshot: ConversationMessagesSnapshot) => void;
 }) {
   const isDashboard = surface === "dashboard";
   const hasCachedList = isDashboard && cachedDashboardConversations != null;
-  const [conversation, setConversation] = useState<AiConversation | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const entityCacheKey = getEntityConversationCacheKey(surface, entityId);
+  const initialEntitySnapshot = !isDashboard
+    ? entityCache?.get(entityCacheKey)
+    : undefined;
+  const initialDashboardMessages =
+    isDashboard && activeDashboardConversation
+      ? messagesCache?.get(activeDashboardConversation.id)
+      : undefined;
+  const [conversation, setConversation] = useState<AiConversation | null>(() =>
+    isDashboard
+      ? (activeDashboardConversation ?? null)
+      : (initialEntitySnapshot?.conversation ?? null),
+  );
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    () => initialDashboardMessages?.messages ?? initialEntitySnapshot?.messages ?? [],
+  );
   const [composerValue, setComposerValue] = useState("");
   const [isPending, setIsPending] = useState(false);
-  const [isHydrating, setIsHydrating] = useState(!isDashboard);
+  const [isHydrating, setIsHydrating] = useState(() =>
+    isDashboard
+      ? Boolean(activeDashboardConversation && !initialDashboardMessages)
+      : !initialEntitySnapshot,
+  );
   const [hydrateError, setHydrateError] = useState<string | null>(null);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [paginationError, setPaginationError] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(
+    () => initialDashboardMessages?.hasMore ?? initialEntitySnapshot?.hasMore ?? false,
+  );
+  const [nextCursor, setNextCursor] = useState<string | null>(
+    () => initialDashboardMessages?.nextCursor ?? initialEntitySnapshot?.nextCursor ?? null,
+  );
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
-  const [historyOpen, setHistoryOpen] = useState(isDashboard);
+  const [historyOpen, setHistoryOpen] = useState(
+    () => isDashboard && !activeDashboardConversation,
+  );
   const [historyConversations, setHistoryConversations] = useState<
     AiConversationSummary[]
   >(cachedDashboardConversations ?? []);
   const [isHistoryLoading, setIsHistoryLoading] = useState(isDashboard && !hasCachedList);
   const [copyState, setCopyState] = useTimedCopyState();
-
-  // Sync history panel visibility when switching surfaces
-  useEffect(() => {
-    setHistoryOpen(isDashboard);
-  }, [isDashboard]);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const shouldScrollToBottomRef = useRef(false);
   const loadingOlderRef = useRef(false);
+  const loadingDashboardConversationIdRef = useRef<string | null>(null);
   const prependSnapshotRef = useRef<{
     scrollHeight: number;
     scrollTop: number;
   } | null>(null);
+
+  function syncDashboardConversations(conversations: AiConversationSummary[]) {
+    setHistoryConversations(conversations);
+    onDashboardConversationsChange?.(conversations);
+  }
+
+  function upsertDashboardConversationSummary(summary: AiConversationSummary) {
+    syncDashboardConversations(
+      mergeDashboardConversationSummary(historyConversations, summary),
+    );
+  }
+
+  // Details routes should always show their dedicated entity conversation.
+  useEffect(() => {
+    setHistoryOpen(isDashboard && !activeDashboardConversation);
+  }, [isDashboard, activeDashboardConversation]);
+
+  useEffect(() => {
+    if (!isDashboard || cachedDashboardConversations == null) {
+      return;
+    }
+
+    setHistoryConversations(cachedDashboardConversations);
+    setIsHistoryLoading(false);
+  }, [isDashboard, cachedDashboardConversations]);
+
+  useEffect(() => {
+    if (!isDashboard || !activeDashboardConversation) {
+      return;
+    }
+
+    setConversation(activeDashboardConversation);
+    setHistoryOpen(false);
+    setHydrateError(null);
+    setPaginationError(null);
+
+    if (
+      loadingDashboardConversationIdRef.current === activeDashboardConversation.id
+    ) {
+      return;
+    }
+
+    const cached = messagesCache?.get(activeDashboardConversation.id);
+
+    if (cached && reloadKey === 0) {
+      setMessages(cached.messages);
+      setNextCursor(cached.nextCursor);
+      setHasMore(cached.hasMore);
+      setIsHydrating(false);
+      shouldScrollToBottomRef.current = true;
+      return;
+    }
+
+    const controller = new AbortController();
+
+    setIsHydrating(true);
+    setMessages([]);
+    setNextCursor(null);
+    setHasMore(false);
+
+    fetchMessagePage({
+      conversationId: activeDashboardConversation.id,
+      signal: controller.signal,
+    })
+      .then((page) => {
+        const loadedMessages = page.messages.map((message) =>
+          mapAiMessageToChatMessage(message, userName),
+        );
+
+        setMessages(loadedMessages);
+        setNextCursor(page.nextCursor);
+        setHasMore(page.hasMore);
+        shouldScrollToBottomRef.current = true;
+
+        onMessagesCacheUpdate?.(activeDashboardConversation.id, {
+          messages: loadedMessages,
+          nextCursor: page.nextCursor,
+          hasMore: page.hasMore,
+        });
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setHydrateError(
+          error instanceof Error
+            ? error.message
+            : "Saved assistant messages could not be loaded.",
+        );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setIsHydrating(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [
+    isDashboard,
+    activeDashboardConversation,
+    messagesCache,
+    onMessagesCacheUpdate,
+    reloadKey,
+    userName,
+  ]);
 
   // Dashboard: fetch conversation list on mount only if not already cached
   useEffect(() => {
@@ -841,7 +1063,9 @@ export function AIChatPanel({
 
     const controller = new AbortController();
 
-    setHistoryOpen(true);
+    if (!activeDashboardConversation) {
+      setHistoryOpen(true);
+    }
     setIsHistoryLoading(true);
 
     fetch(getDashboardConversationsEndpoint({ businessSlug, entityId }), {
@@ -880,7 +1104,15 @@ export function AIChatPanel({
       });
 
     return () => controller.abort();
-  }, [isDashboard, hasCachedList, businessSlug, entityId, reloadKey, onDashboardConversationsChange]);
+  }, [
+    isDashboard,
+    activeDashboardConversation,
+    hasCachedList,
+    businessSlug,
+    entityId,
+    reloadKey,
+    onDashboardConversationsChange,
+  ]);
 
   // Inquiry/Quote: restore from cache or fetch conversation + messages
   useEffect(() => {
@@ -888,7 +1120,6 @@ export function AIChatPanel({
       return;
     }
 
-    const entityCacheKey = `${surface}:${entityId}`;
     const cached = entityCache?.get(entityCacheKey);
 
     if (cached && reloadKey === 0) {
@@ -963,7 +1194,17 @@ export function AIChatPanel({
       });
 
     return () => controller.abort();
-  }, [isDashboard, businessSlug, entityId, reloadKey, surface, userName, entityCache, onEntityCacheUpdate]);
+  }, [
+    isDashboard,
+    businessSlug,
+    entityCache,
+    entityCacheKey,
+    entityId,
+    reloadKey,
+    surface,
+    userName,
+    onEntityCacheUpdate,
+  ]);
 
   useLayoutEffect(() => {
     const el = scrollContainerRef.current;
@@ -1057,15 +1298,29 @@ export function AIChatPanel({
     setPaginationError(null);
     setComposerValue("");
 
+    if (nextConversation.surface === "dashboard") {
+      onActiveDashboardConversationChange?.(nextConversation);
+      loadingDashboardConversationIdRef.current = nextConversation.id;
+    }
+
     // Use cached messages if available
     const cached = messagesCache?.get(nextConversation.id);
 
     if (cached) {
+      loadingDashboardConversationIdRef.current = null;
       setMessages(cached.messages);
       setNextCursor(cached.nextCursor);
       setHasMore(cached.hasMore);
       setIsHydrating(false);
       shouldScrollToBottomRef.current = true;
+      if (nextConversation.surface === "dashboard") {
+        upsertDashboardConversationSummary(
+          createDashboardConversationSummary({
+            conversation: nextConversation,
+            messages: cached.messages,
+          }),
+        );
+      }
       return;
     }
 
@@ -1092,6 +1347,15 @@ export function AIChatPanel({
         nextCursor: page.nextCursor,
         hasMore: page.hasMore,
       });
+
+      if (nextConversation.surface === "dashboard") {
+        upsertDashboardConversationSummary(
+          createDashboardConversationSummary({
+            conversation: nextConversation,
+            messages: loadedMessages,
+          }),
+        );
+      }
     } catch (error) {
       setHydrateError(
         error instanceof Error
@@ -1099,6 +1363,7 @@ export function AIChatPanel({
           : "Saved assistant messages could not be loaded.",
       );
     } finally {
+      loadingDashboardConversationIdRef.current = null;
       setIsHydrating(false);
     }
   }
@@ -1187,7 +1452,8 @@ export function AIChatPanel({
     setHistoryOpen(true);
 
     // Reuse cached list unless explicitly refreshing
-    if (!forceRefresh && historyConversations.length > 0) {
+    if (!forceRefresh && cachedDashboardConversations != null) {
+      setHistoryConversations(cachedDashboardConversations);
       return;
     }
 
@@ -1216,8 +1482,7 @@ export function AIChatPanel({
         conversations: AiConversationSummary[];
       };
 
-      setHistoryConversations(payload.conversations);
-      onDashboardConversationsChange?.(payload.conversations);
+      syncDashboardConversations(payload.conversations);
     } catch (error) {
       console.error("Failed to load dashboard AI history.", error);
       setHistoryConversations([]);
@@ -1260,7 +1525,27 @@ export function AIChatPanel({
       };
 
       setComposerValue("");
-      await loadMessagesForConversation(payload.conversation);
+      setConversation(payload.conversation);
+      setHistoryOpen(false);
+      setMessages([]);
+      setNextCursor(null);
+      setHasMore(false);
+      setHydrateError(null);
+      setPaginationError(null);
+      setIsHydrating(false);
+      shouldScrollToBottomRef.current = true;
+      onActiveDashboardConversationChange?.(payload.conversation);
+      onMessagesCacheUpdate?.(payload.conversation.id, {
+        messages: [],
+        nextCursor: null,
+        hasMore: false,
+      });
+      upsertDashboardConversationSummary(
+        createDashboardConversationSummary({
+          conversation: payload.conversation,
+          messages: [],
+        }),
+      );
     } catch (error) {
       appendAssistantNote(
         error instanceof Error
@@ -1289,6 +1574,7 @@ export function AIChatPanel({
     let assistantMessageId = createMessageId();
     let renderedContent = "";
     let terminalEvent: AssistantTerminalEvent | null = null;
+    let currentConversation = conversation;
 
     prepareIncomingMessageScroll(true);
     setMessages((currentMessages) => [
@@ -1430,7 +1716,11 @@ export function AIChatPanel({
       await consumeStream(response, (event) => {
         switch (event.type) {
           case "conversation":
+            currentConversation = event.conversation;
             setConversation(event.conversation);
+            if (event.conversation.surface === "dashboard") {
+              onActiveDashboardConversationChange?.(event.conversation);
+            }
             break;
           case "messages":
             replacePersistedMessages(event);
@@ -1503,20 +1793,29 @@ export function AIChatPanel({
       setIsPending(false);
 
       // Update message cache after streaming completes
-      if (conversation) {
+      if (currentConversation) {
         setMessages((currentMessages) => {
-          onMessagesCacheUpdate?.(conversation.id, {
+          onMessagesCacheUpdate?.(currentConversation.id, {
             messages: currentMessages,
             nextCursor,
             hasMore,
           });
 
+          if (currentConversation.surface === "dashboard") {
+            queueMicrotask(() =>
+              upsertDashboardConversationSummary(
+                createDashboardConversationSummary({
+                  conversation: currentConversation,
+                  messages: currentMessages,
+                }),
+              ),
+            );
+          }
+
           // Also update entity cache so navigation back is instant
           if (!isDashboard) {
-            const entityCacheKey = `${surface}:${entityId}`;
-
             onEntityCacheUpdate?.(entityCacheKey, {
-              conversation,
+              conversation: currentConversation,
               messages: currentMessages,
               nextCursor,
               hasMore,
@@ -1571,7 +1870,7 @@ export function AIChatPanel({
               <Button
                 aria-label="History"
                 disabled={isPending}
-                onClick={() => void loadDashboardHistory(true)}
+                onClick={() => void loadDashboardHistory()}
                 size="icon-sm"
                 type="button"
                 variant="ghost"
@@ -1696,6 +1995,8 @@ export function AIChatPopover(props: AIChatPopoverProps) {
   const [cachedConversations, setCachedConversations] = useState<
     AiConversationSummary[] | null
   >(null);
+  const [activeDashboardConversation, setActiveDashboardConversation] =
+    useState<AiConversation | null>(null);
   const [messagesCache] = useState(
     () => new Map<string, ConversationMessagesSnapshot>(),
   );
@@ -1731,7 +2032,20 @@ export function AIChatPopover(props: AIChatPopoverProps) {
           conversations: AiConversationSummary[];
         };
 
-        setCachedConversations(payload.conversations);
+        setCachedConversations((currentConversations) => {
+          if (!currentConversations?.length) {
+            return payload.conversations;
+          }
+
+          return currentConversations.reduce(
+            (mergedConversations, conversation) =>
+              mergeDashboardConversationSummary(
+                mergedConversations,
+                conversation,
+              ),
+            payload.conversations,
+          );
+        });
       })
       .catch(() => {
         // Silently fail — the panel will fetch on mount if cache is null
@@ -1793,9 +2107,13 @@ export function AIChatPopover(props: AIChatPopoverProps) {
         >
           <AIChatPanel
             {...props}
+            activeDashboardConversation={
+              isDashboard ? activeDashboardConversation : null
+            }
             cachedDashboardConversations={cachedConversations}
             entityCache={entityCache}
             messagesCache={messagesCache}
+            onActiveDashboardConversationChange={setActiveDashboardConversation}
             onClose={() => setIsOpen(false)}
             onDashboardConversationsChange={setCachedConversations}
             onEntityCacheUpdate={handleEntityCacheUpdate}
