@@ -1,6 +1,3 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Clock, PanelsTopLeft } from "lucide-react";
@@ -14,40 +11,32 @@ import {
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
 import {
   formatRelativeTime,
-  getRecentBusinesses,
   type RecentBusiness,
 } from "@/features/businesses/recently-opened";
 import { businessTypeMeta } from "@/features/inquiries/business-types";
-import type { BusinessType } from "@/features/inquiries/business-types";
 
 type RecentlyOpenedBusinessesProps = {
-  userId: string;
+  businesses: RecentBusiness[];
 };
 
 export function RecentlyOpenedBusinesses({
-  userId,
+  businesses,
 }: RecentlyOpenedBusinessesProps) {
-  const [recents, setRecents] = useState<RecentBusiness[]>([]);
-
-  useEffect(() => {
-    setRecents(getRecentBusinesses(userId));
-  }, [userId]);
-
-  if (recents.length === 0) {
+  if (businesses.length === 0) {
     return null;
   }
 
   return (
-    <section className="space-y-3">
+    <section className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <Clock className="size-3.5 text-muted-foreground" />
         <p className="meta-label">Recently opened</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {recents.map((business, index) => {
+        {businesses.map((business, index) => {
           const businessPath = getBusinessDashboardPath(business.slug);
-          const typeMeta = businessTypeMeta[business.businessType as BusinessType];
+          const typeMeta = businessTypeMeta[business.businessType];
 
           return (
             <Link
@@ -85,8 +74,7 @@ export function RecentlyOpenedBusinesses({
                   </div>
                 </CardHeader>
 
-                <CardContent className="space-y-2.5 pt-0">
-
+                <CardContent className="flex flex-col gap-2.5 pt-0">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Badge className="max-w-full" variant="outline">
                       {business.defaultCurrency}

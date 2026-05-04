@@ -87,14 +87,7 @@ export default async function BusinessDashboardLayout({
   const shell = (
     <>
       <RecentBusinessTracker
-        userId={session.user.id}
         businessSlug={businessContext.business.slug}
-        businessName={businessContext.business.name}
-        logoStoragePath={businessContext.business.logoStoragePath}
-        defaultCurrency={businessContext.business.defaultCurrency}
-        workspaceSlug={businessContext.business.workspaceSlug}
-        workspaceName={billing?.workspaceName ?? businessContext.business.workspaceSlug}
-        businessType={businessContext.business.businessType}
       />
       <DashboardShell
         themePreference={themePreference}

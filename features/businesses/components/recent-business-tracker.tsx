@@ -1,44 +1,23 @@
 "use client";
 
 import { useEffect } from "react";
-import { recordBusinessOpen } from "@/features/businesses/recently-opened";
+
+import { recordRecentlyOpenedBusinessAction } from "@/features/businesses/actions";
 
 type RecentBusinessTrackerProps = {
-  userId: string;
   businessSlug: string;
-  businessName: string;
-  logoStoragePath: string | null;
-  defaultCurrency: string;
-  workspaceSlug: string;
-  workspaceName: string;
-  businessType: string;
 };
 
 /**
- * Invisible component that records a business visit in localStorage.
+ * Invisible component that records a business visit for the signed-in account.
  * Mount once inside the dashboard layout so every business open is tracked.
  */
 export function RecentBusinessTracker({
-  userId,
   businessSlug,
-  businessName,
-  logoStoragePath,
-  defaultCurrency,
-  workspaceSlug,
-  workspaceName,
-  businessType,
 }: RecentBusinessTrackerProps) {
   useEffect(() => {
-    recordBusinessOpen(userId, {
-      slug: businessSlug,
-      name: businessName,
-      logoStoragePath,
-      defaultCurrency,
-      workspaceSlug,
-      workspaceName,
-      businessType,
-    });
-  }, [userId, businessSlug, businessName, logoStoragePath, defaultCurrency, workspaceSlug, workspaceName, businessType]);
+    void recordRecentlyOpenedBusinessAction(businessSlug);
+  }, [businessSlug]);
 
   return null;
 }
