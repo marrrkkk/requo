@@ -32,6 +32,7 @@ import {
 import type { AiChatStreamEvent } from "@/features/ai/types";
 import type { AiProviderName } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth/session";
+import { hasFeatureAccess } from "@/lib/plans";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
 
 const encoder = new TextEncoder();
@@ -92,6 +93,13 @@ export async function getAiConversationRouteResponse(request: Request) {
     return Response.json({ error: "Not found." }, { status: 404 });
   }
 
+  if (!hasFeatureAccess(access.businessContext.business.workspacePlan, "aiAssistant")) {
+    return Response.json(
+      { error: "Upgrade to Pro to use the AI assistant." },
+      { status: 403 },
+    );
+  }
+
   const conversation =
     access.surface === "dashboard"
       ? await getOrCreateLatestDashboardConversation({
@@ -141,6 +149,13 @@ export async function listAiConversationsRouteResponse(request: Request) {
 
   if (!access) {
     return Response.json({ error: "Not found." }, { status: 404 });
+  }
+
+  if (!hasFeatureAccess(access.businessContext.business.workspacePlan, "aiAssistant")) {
+    return Response.json(
+      { error: "Upgrade to Pro to use the AI assistant." },
+      { status: 403 },
+    );
   }
 
   const conversations = await listDashboardConversations({
@@ -195,6 +210,13 @@ export async function createAiConversationRouteResponse(request: Request) {
     return Response.json({ error: "Not found." }, { status: 404 });
   }
 
+  if (!hasFeatureAccess(access.businessContext.business.workspacePlan, "aiAssistant")) {
+    return Response.json(
+      { error: "Upgrade to Pro to use the AI assistant." },
+      { status: 403 },
+    );
+  }
+
   const conversation = await createDashboardConversation({
     userId: user.id,
     workspaceId: access.workspaceId,
@@ -231,6 +253,13 @@ export async function getAiMessagesRouteResponse({
 
   if (!authorization) {
     return Response.json({ error: "Not found." }, { status: 404 });
+  }
+
+  if (!hasFeatureAccess(authorization.businessPlan, "aiAssistant")) {
+    return Response.json(
+      { error: "Upgrade to Pro to use the AI assistant." },
+      { status: 403 },
+    );
   }
 
   const parsedQuery = aiConversationMessagesQuerySchema.safeParse(
@@ -303,6 +332,13 @@ export async function createAiChatRouteResponse(request: Request) {
 
   if (!access) {
     return Response.json({ error: "Not found." }, { status: 404 });
+  }
+
+  if (!hasFeatureAccess(access.businessContext.business.workspacePlan, "aiAssistant")) {
+    return Response.json(
+      { error: "Upgrade to Pro to use the AI assistant." },
+      { status: 403 },
+    );
   }
 
   if (

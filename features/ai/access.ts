@@ -12,7 +12,9 @@ import {
   businesses,
   inquiries,
   quotes,
+  workspaces,
 } from "@/lib/db/schema";
+import type { WorkspacePlan } from "@/lib/plans";
 
 export type AiSurfaceAccess = {
   userId: string;
@@ -27,6 +29,7 @@ export type AiAuthorizedConversation = {
   conversation: AiConversation;
   businessId: string | null;
   businessSlug: string | null;
+  businessPlan: WorkspacePlan;
 };
 
 export async function resolveAiSurfaceAccess({
@@ -145,9 +148,11 @@ export async function getAuthorizedAiConversation({
       .select({
         businessId: businesses.id,
         businessSlug: businesses.slug,
+        businessPlan: workspaces.plan,
       })
       .from(businesses)
       .innerJoin(businessMembers, eq(businesses.id, businessMembers.businessId))
+      .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
       .where(
         and(
           conversation.entityId === "global"
@@ -155,6 +160,7 @@ export async function getAuthorizedAiConversation({
             : eq(businesses.id, conversation.entityId),
           eq(businessMembers.userId, userId),
           isNull(businesses.deletedAt),
+          isNull(workspaces.deletedAt),
         ),
       )
       .limit(1);
@@ -164,6 +170,7 @@ export async function getAuthorizedAiConversation({
           conversation,
           businessId: membership.businessId,
           businessSlug: membership.businessSlug,
+          businessPlan: membership.businessPlan,
         }
       : null;
   }
@@ -173,16 +180,19 @@ export async function getAuthorizedAiConversation({
       .select({
         businessId: businesses.id,
         businessSlug: businesses.slug,
+        businessPlan: workspaces.plan,
       })
       .from(inquiries)
       .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
       .innerJoin(businessMembers, eq(businesses.id, businessMembers.businessId))
+      .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
       .where(
         and(
           eq(inquiries.id, conversation.entityId),
           eq(businesses.workspaceId, conversation.workspaceId),
           eq(businessMembers.userId, userId),
           isNull(businesses.deletedAt),
+          isNull(workspaces.deletedAt),
         ),
       )
       .limit(1);
@@ -192,6 +202,7 @@ export async function getAuthorizedAiConversation({
           conversation,
           businessId: row.businessId,
           businessSlug: row.businessSlug,
+          businessPlan: row.businessPlan,
         }
       : null;
   }
@@ -200,16 +211,19 @@ export async function getAuthorizedAiConversation({
     .select({
       businessId: businesses.id,
       businessSlug: businesses.slug,
+      businessPlan: workspaces.plan,
     })
     .from(quotes)
     .innerJoin(businesses, eq(quotes.businessId, businesses.id))
     .innerJoin(businessMembers, eq(businesses.id, businessMembers.businessId))
+    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .where(
       and(
         eq(quotes.id, conversation.entityId),
         eq(businesses.workspaceId, conversation.workspaceId),
         eq(businessMembers.userId, userId),
         isNull(businesses.deletedAt),
+        isNull(workspaces.deletedAt),
       ),
     )
     .limit(1);
@@ -219,6 +233,7 @@ export async function getAuthorizedAiConversation({
         conversation,
         businessId: row.businessId,
         businessSlug: row.businessSlug,
+        businessPlan: row.businessPlan,
       }
     : null;
 }

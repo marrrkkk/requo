@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { createInquiryAssistantRouteResponse } from "@/features/ai/route-handlers";
 import { getBusinessActionContext } from "@/lib/db/business-access";
+import { hasFeatureAccess } from "@/lib/plans";
 
 export const preferredRegion = "syd1";
 
@@ -29,6 +30,18 @@ export async function POST(
 
   if (!actionContext.ok) {
     return Response.json({ error: actionContext.error }, { status: 403 });
+  }
+
+  if (
+    !hasFeatureAccess(
+      actionContext.businessContext.business.workspacePlan,
+      "aiAssistant",
+    )
+  ) {
+    return Response.json(
+      { error: "Upgrade to Pro to use the AI assistant." },
+      { status: 403 },
+    );
   }
 
   return createInquiryAssistantRouteResponse({

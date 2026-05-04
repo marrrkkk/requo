@@ -6,6 +6,7 @@ import { getInquiryAssistantContextForBusiness } from "@/features/ai/queries";
 import { aiAssistantRequestSchema } from "@/features/ai/schemas";
 import { generateInquiryAssistantResult } from "@/features/ai/service";
 import { getWorkspaceBusinessActionContext } from "@/lib/db/business-access";
+import { hasFeatureAccess } from "@/lib/plans";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
 
 export async function generateInquiryAssistantAction(
@@ -23,6 +24,14 @@ export async function generateInquiryAssistantAction(
   }
 
   const { businessContext } = ownerAccess;
+
+  if (!hasFeatureAccess(businessContext.business.workspacePlan, "aiAssistant")) {
+    return {
+      ...prevState,
+      error: "Upgrade to Pro to use the AI assistant.",
+    };
+  }
+
   const isAllowed = await assertPublicActionRateLimit({
     action: "business-inquiry-ai",
     limit: 10,

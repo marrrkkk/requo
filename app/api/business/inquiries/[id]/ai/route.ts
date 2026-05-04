@@ -1,6 +1,7 @@
 import { createInquiryAssistantRouteResponse } from "@/features/ai/route-handlers";
 import { inquiryRouteParamsSchema } from "@/features/inquiries/schemas";
 import { getWorkspaceBusinessActionContext } from "@/lib/db/business-access";
+import { hasFeatureAccess } from "@/lib/plans";
 
 export const preferredRegion = "syd1";
 
@@ -18,6 +19,18 @@ export async function POST(
 
   if (!ownerAccess.ok) {
     return Response.json({ error: ownerAccess.error }, { status: 403 });
+  }
+
+  if (
+    !hasFeatureAccess(
+      ownerAccess.businessContext.business.workspacePlan,
+      "aiAssistant",
+    )
+  ) {
+    return Response.json(
+      { error: "Upgrade to Pro to use the AI assistant." },
+      { status: 403 },
+    );
   }
 
   return createInquiryAssistantRouteResponse({

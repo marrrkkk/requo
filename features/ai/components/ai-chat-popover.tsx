@@ -44,6 +44,8 @@ import {
   mergeChronologicalMessages,
 } from "@/features/ai/components/inquiry-ai-panel-utils";
 import { cn } from "@/lib/utils";
+import { LockedFeaturePage } from "@/components/shared/paywall";
+import { hasFeatureAccess, type WorkspacePlan } from "@/lib/plans";
 
 const messagePageSize = 30;
 const topLoadThreshold = 96;
@@ -54,6 +56,7 @@ type AIChatPopoverProps = {
   surface: AiSurface;
   userName: string;
   title?: string;
+  workspacePlan: WorkspacePlan;
 };
 
 type ConversationMessagesSnapshot = {
@@ -629,13 +632,13 @@ function TranscriptMessage({
               ) : null}
 
               {isUser ? (
-                <p className="whitespace-pre-wrap text-sm leading-7 text-primary-foreground">
+                <p className="whitespace-pre-wrap text-sm leading-normal sm:leading-7 text-primary-foreground">
                   {message.content}
                 </p>
               ) : (
                 <div
                   className={cn(
-                    "ai-prose text-sm leading-7",
+                    "ai-prose text-sm leading-normal sm:leading-7",
                     message.isError ? "text-destructive" : "text-foreground",
                   )}
                 >
@@ -1992,6 +1995,7 @@ export function AIChatPanel({
 export function AIChatPopover(props: AIChatPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
   const isDashboard = props.surface === "dashboard";
+  const hasAccess = hasFeatureAccess(props.workspacePlan, "aiAssistant");
   const [cachedConversations, setCachedConversations] = useState<
     AiConversationSummary[] | null
   >(null);
@@ -2007,7 +2011,7 @@ export function AIChatPopover(props: AIChatPopoverProps) {
 
   // Pre-fetch dashboard conversation list on mount (persists across open/close)
   useEffect(() => {
-    if (!isDashboard) {
+    if (!isDashboard || !hasAccess) {
       return;
     }
 
@@ -2052,7 +2056,7 @@ export function AIChatPopover(props: AIChatPopoverProps) {
       });
 
     return () => controller.abort();
-  }, [isDashboard, props.businessSlug, props.entityId]);
+  }, [isDashboard, props.businessSlug, props.entityId, hasAccess]);
 
   function handleMessagesCacheUpdate(
     conversationId: string,
@@ -2105,20 +2109,48 @@ export function AIChatPopover(props: AIChatPopoverProps) {
           side="top"
           sideOffset={18}
         >
-          <AIChatPanel
-            {...props}
-            activeDashboardConversation={
-              isDashboard ? activeDashboardConversation : null
-            }
-            cachedDashboardConversations={cachedConversations}
-            entityCache={entityCache}
-            messagesCache={messagesCache}
-            onActiveDashboardConversationChange={setActiveDashboardConversation}
-            onClose={() => setIsOpen(false)}
-            onDashboardConversationsChange={setCachedConversations}
-            onEntityCacheUpdate={handleEntityCacheUpdate}
-            onMessagesCacheUpdate={handleMessagesCacheUpdate}
-          />
+                    {hasAccess ? (
+            <AIChatPanel
+              {...props}
+              activeDashboardConversation={
+                isDashboard ? activeDashboardConversation : null
+              }
+              cachedDashboardConversations={cachedConversations}
+              entityCache={entityCache}
+              messagesCache={messagesCache}
+              onActiveDashboardConversationChange={setActiveDashboardConversation}
+              onClose={() => setIsOpen(false)}
+              onDashboardConversationsChange={setCachedConversations}
+              onEntityCacheUpdate={handleEntityCacheUpdate}
+              onMessagesCacheUpdate={handleMessagesCacheUpdate}
+            />
+          ) : (
+            <div className="flex h-full flex-col">
+              <div className="flex shrink-0 items-center justify-between border-b border-border/70 bg-[var(--surface-sunken-bg)] px-4 py-3">
+                <h3 className="font-heading text-sm font-semibold tracking-tight text-foreground">
+                  {title}
+                </h3>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button
+                    aria-label="Close panel"
+                    className="size-7 rounded-[0.4rem] [&_svg]:size-3.5"
+                    onClick={() => setIsOpen(false)}
+                    size="icon"
+                    variant="ghost"
+                  >
+                    <X />
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-1 flex-col justify-center p-4">
+                <LockedFeaturePage
+                  className="border-none shadow-none px-4 py-8"
+                  feature="aiAssistant"
+                  plan={props.workspacePlan}
+                />
+              </div>
+            </div>
+          )}
         </PopoverContent>
       </Popover>
     </div>
