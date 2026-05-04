@@ -23,6 +23,7 @@ export type BusinessSettingsView = {
   id: string;
   workspaceId: string;
   workspaceSlug: string;
+  plan: WorkspacePlan;
   name: string;
   slug: string;
   recordState: BusinessRecordState;
@@ -39,10 +40,6 @@ export type BusinessSettingsView = {
   quoteEmailTemplate: QuoteEmailTemplateConfig | null;
   defaultQuoteValidityDays: number;
   aiTonePreference: BusinessAiTonePreference;
-  notifyOnNewInquiry: boolean;
-  notifyOnQuoteSent: boolean;
-  notifyOnQuoteResponse: boolean;
-  notifyOnMemberInviteResponse: boolean;
   notifyInAppOnNewInquiry: boolean;
   notifyInAppOnQuoteSent: boolean;
   notifyInAppOnQuoteResponse: boolean;
@@ -51,9 +48,7 @@ export type BusinessSettingsView = {
   notifyPushOnQuoteSent: boolean;
   notifyPushOnQuoteResponse: boolean;
   notifyPushOnMemberInviteResponse: boolean;
-  notifyOnFollowUpReminder: boolean;
   notifyInAppOnFollowUpReminder: boolean;
-  notifyOnQuoteExpiring: boolean;
   notifyInAppOnQuoteExpiring: boolean;
   defaultCurrency: string;
   updatedAt: Date;
@@ -81,10 +76,6 @@ export type BusinessSettingsActionState = {
 };
 
 export type BusinessNotificationSettingsFieldName =
-  | "notifyOnNewInquiry"
-  | "notifyOnQuoteSent"
-  | "notifyOnQuoteResponse"
-  | "notifyOnMemberInviteResponse"
   | "notifyInAppOnNewInquiry"
   | "notifyInAppOnQuoteSent"
   | "notifyInAppOnQuoteResponse"
@@ -93,9 +84,7 @@ export type BusinessNotificationSettingsFieldName =
   | "notifyPushOnQuoteSent"
   | "notifyPushOnQuoteResponse"
   | "notifyPushOnMemberInviteResponse"
-  | "notifyOnFollowUpReminder"
   | "notifyInAppOnFollowUpReminder"
-  | "notifyOnQuoteExpiring"
   | "notifyInAppOnQuoteExpiring";
 
 export type BusinessNotificationSettingsFieldErrors = Partial<
@@ -167,6 +156,7 @@ export type BusinessInquiryPageSettingsView = {
   id: string;
   name: string;
   slug: string;
+  plan: WorkspacePlan;
   shortDescription: string | null;
   logoStoragePath: string | null;
   formId: string;

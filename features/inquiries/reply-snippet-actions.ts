@@ -17,6 +17,7 @@ import {
   replySnippetIdSchema,
   replySnippetSchema,
 } from "@/features/inquiries/reply-snippet-schemas";
+import { hasFeatureAccess } from "@/lib/plans";
 import type {
   ReplySnippetActionState,
   ReplySnippetDeleteActionState,
@@ -45,6 +46,14 @@ export async function createReplySnippetAction(
     };
   }
 
+  const { user, businessContext } = ownerAccess;
+
+  if (!hasFeatureAccess(businessContext.business.workspacePlan, "replySnippets")) {
+    return {
+      error: "Upgrade to Pro to save reply snippets.",
+    };
+  }
+
   const validationResult = replySnippetSchema.safeParse({
     title: formData.get("title"),
     body: formData.get("body"),
@@ -56,8 +65,6 @@ export async function createReplySnippetAction(
       "Check the snippet and try again.",
     );
   }
-
-  const { user, businessContext } = ownerAccess;
 
   try {
     await createReplySnippetForBusiness({
@@ -105,6 +112,14 @@ export async function updateReplySnippetAction(
     };
   }
 
+  const { user, businessContext } = ownerAccess;
+
+  if (!hasFeatureAccess(businessContext.business.workspacePlan, "replySnippets")) {
+    return {
+      error: "Upgrade to Pro to update reply snippets.",
+    };
+  }
+
   const validationResult = replySnippetSchema.safeParse({
     title: formData.get("title"),
     body: formData.get("body"),
@@ -116,8 +131,6 @@ export async function updateReplySnippetAction(
       "Check the snippet and try again.",
     );
   }
-
-  const { user, businessContext } = ownerAccess;
 
   try {
     const result = await updateReplySnippetForBusiness({
@@ -174,6 +187,12 @@ export async function deleteReplySnippetAction(
   }
 
   const { user, businessContext } = ownerAccess;
+
+  if (!hasFeatureAccess(businessContext.business.workspacePlan, "replySnippets")) {
+    return {
+      error: "Upgrade to Pro to delete reply snippets.",
+    };
+  }
 
   try {
     const result = await deleteReplySnippetForBusiness({

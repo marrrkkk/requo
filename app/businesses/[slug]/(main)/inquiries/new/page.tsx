@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { createManualInquiryAction } from "@/features/inquiries/actions";
 import { ManualInquiryEditor } from "@/features/inquiries/components/manual-inquiry-editor";
+import { getPublicInquiryAttachmentHelpText } from "@/features/inquiries/plan-rules";
 import { getInquiryEditorFormsForBusiness } from "@/features/inquiries/queries";
 import {
   getBusinessFormsPath,
@@ -48,6 +49,9 @@ export default async function NewInquiryPage({
     (requestedFormSlug &&
       inquiryForms.find((form) => form.slug === requestedFormSlug)?.slug) ??
     inquiryForms[0]?.slug;
+  const uploadHelpText = getPublicInquiryAttachmentHelpText(
+    businessContext.business.workspacePlan,
+  );
 
   return (
     <DashboardPage>
@@ -63,6 +67,7 @@ export default async function NewInquiryPage({
           businessName={businessContext.business.name}
           forms={inquiryForms}
           initialFormSlug={initialFormSlug}
+          uploadHelpText={uploadHelpText}
         />
       ) : (
         <DashboardEmptyState

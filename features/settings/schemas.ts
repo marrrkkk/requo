@@ -231,10 +231,6 @@ export const businessGeneralSettingsSchema = z.object({
 });
 
 export const businessNotificationSettingsSchema = z.object({
-  notifyOnNewInquiry: z.boolean(),
-  notifyOnQuoteSent: z.boolean(),
-  notifyOnQuoteResponse: z.boolean(),
-  notifyOnMemberInviteResponse: z.boolean(),
   notifyInAppOnNewInquiry: z.boolean(),
   notifyInAppOnQuoteSent: z.boolean(),
   notifyInAppOnQuoteResponse: z.boolean(),
@@ -243,9 +239,7 @@ export const businessNotificationSettingsSchema = z.object({
   notifyPushOnQuoteSent: z.boolean(),
   notifyPushOnQuoteResponse: z.boolean(),
   notifyPushOnMemberInviteResponse: z.boolean(),
-  notifyOnFollowUpReminder: z.boolean(),
   notifyInAppOnFollowUpReminder: z.boolean(),
-  notifyOnQuoteExpiring: z.boolean(),
   notifyInAppOnQuoteExpiring: z.boolean(),
 });
 

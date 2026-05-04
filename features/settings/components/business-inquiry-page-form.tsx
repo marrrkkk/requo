@@ -37,6 +37,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { FloatingFormActions } from "@/components/shared/floating-form-actions";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
@@ -95,6 +96,7 @@ import type {
   BusinessInquiryPagePreviewDraft,
   BusinessInquiryPageSettingsView,
 } from "@/features/settings/types";
+import { isInquiryPageCustomizationLocked } from "@/features/inquiries/plan-rules";
 import { publicSlugMaxLength, publicSlugPattern } from "@/lib/slugs";
 import { cn } from "@/lib/utils";
 
@@ -114,10 +116,19 @@ type BusinessInquiryPageFormProps = {
 const initialState: BusinessInquiryPageActionState = {};
 const inquiryPageCardsDndContextId = "business-inquiry-page-cards-dnd";
 const inquiryPageCardsSortableContextId = "business-inquiry-page-cards-sortable";
+const inquiryPageCustomizationNoticeTitle = "This is a Pro feature.";
+const inquiryPageCustomizationNoticeDescription =
+  "Upgrade to Pro to customize public inquiry page layouts, supporting cards, and showcase images.";
 const inquiryPageSortableTransition = {
   duration: 160,
   easing: "cubic-bezier(0.25, 1, 0.5, 1)",
 } as const;
+
+function showInquiryPageCustomizationNotice() {
+  toast.info(inquiryPageCustomizationNoticeTitle, {
+    description: inquiryPageCustomizationNoticeDescription,
+  });
+}
 
 export function BusinessInquiryPageForm({
   action,
@@ -133,19 +144,24 @@ export function BusinessInquiryPageForm({
     action,
     initialState,
   );
+  const pageCustomizationLocked = isInquiryPageCustomizationLocked(
+    settings.plan,
+  );
   const [formName, setFormName] = useState(settings.formName);
   const [formSlug, setFormSlug] = useState(settings.formSlug);
   const [businessType, setBusinessType] = useState<BusinessType>(
     settings.businessType,
   );
   const [template, setTemplate] = useState<InquiryPageTemplate>(
-    settings.inquiryPageConfig.template,
+    pageCustomizationLocked
+      ? "no_supporting_cards"
+      : settings.inquiryPageConfig.template,
   );
   const [showSupportingCards, setShowSupportingCards] = useState(
-    settings.inquiryPageConfig.showSupportingCards,
+    pageCustomizationLocked ? false : settings.inquiryPageConfig.showSupportingCards,
   );
   const [showShowcaseImage, setShowShowcaseImage] = useState(
-    settings.inquiryPageConfig.showShowcaseImage,
+    pageCustomizationLocked ? false : settings.inquiryPageConfig.showShowcaseImage,
   );
   const [showBusinessContact, setShowBusinessContact] = useState(
     settings.inquiryPageConfig.showBusinessContact,
@@ -258,6 +274,15 @@ export function BusinessInquiryPageForm({
   const showcaseImageCropZoomError = getFieldError(fieldErrors, "showcaseImageCropZoom");
   const cardsError = getFieldError(fieldErrors, "cards");
   const starterTemplate = getStarterTemplateDefinition(businessType);
+  const effectiveTemplate = pageCustomizationLocked
+    ? "no_supporting_cards"
+    : template;
+  const effectiveShowSupportingCards = pageCustomizationLocked
+    ? false
+    : showSupportingCards;
+  const effectiveShowShowcaseImage = pageCustomizationLocked
+    ? false
+    : showShowcaseImage;
   const initialCardsSerialized = useMemo(
     () => JSON.stringify(settings.inquiryPageConfig.cards),
     [settings.inquiryPageConfig.cards],
@@ -266,9 +291,12 @@ export function BusinessInquiryPageForm({
     formName !== settings.formName ||
     formSlug !== settings.formSlug ||
     businessType !== settings.businessType ||
-    template !== settings.inquiryPageConfig.template ||
-    showSupportingCards !== settings.inquiryPageConfig.showSupportingCards ||
-    showShowcaseImage !== settings.inquiryPageConfig.showShowcaseImage ||
+    (!pageCustomizationLocked &&
+      template !== settings.inquiryPageConfig.template) ||
+    (!pageCustomizationLocked &&
+      showSupportingCards !== settings.inquiryPageConfig.showSupportingCards) ||
+    (!pageCustomizationLocked &&
+      showShowcaseImage !== settings.inquiryPageConfig.showShowcaseImage) ||
     showBusinessContact !== settings.inquiryPageConfig.showBusinessContact ||
     eyebrow !== (settings.inquiryPageConfig.eyebrow ?? "") ||
     brandTagline !== (settings.inquiryPageConfig.brandTagline ?? "") ||
@@ -288,20 +316,25 @@ export function BusinessInquiryPageForm({
       (settings.inquiryPageConfig.businessContact?.socialLinks?.twitterX ?? "") ||
     businessLinkedinUrl !==
       (settings.inquiryPageConfig.businessContact?.socialLinks?.linkedin ?? "") ||
-    showcaseImageUrl !== (settings.inquiryPageConfig.showcaseImage?.url ?? "") ||
-    showcaseImageFrame !==
-      (settings.inquiryPageConfig.showcaseImage?.frame ?? "landscape") ||
-    showcaseImageSize !==
-      (settings.inquiryPageConfig.showcaseImage?.size ?? "standard") ||
-    JSON.stringify(showcaseImageCrop) !==
-      JSON.stringify(
-        settings.inquiryPageConfig.showcaseImage?.crop ?? {
-          x: 0,
-          y: 0,
-          zoom: 1,
-        },
-      ) ||
-    JSON.stringify(cards) !== initialCardsSerialized;
+    (!pageCustomizationLocked &&
+      showcaseImageUrl !==
+        (settings.inquiryPageConfig.showcaseImage?.url ?? "")) ||
+    (!pageCustomizationLocked &&
+      showcaseImageFrame !==
+        (settings.inquiryPageConfig.showcaseImage?.frame ?? "landscape")) ||
+    (!pageCustomizationLocked &&
+      showcaseImageSize !==
+        (settings.inquiryPageConfig.showcaseImage?.size ?? "standard")) ||
+    (!pageCustomizationLocked &&
+      JSON.stringify(showcaseImageCrop) !==
+        JSON.stringify(
+          settings.inquiryPageConfig.showcaseImage?.crop ?? {
+            x: 0,
+            y: 0,
+            zoom: 1,
+          },
+        )) ||
+    (!pageCustomizationLocked && JSON.stringify(cards) !== initialCardsSerialized);
   const hasUnsavedChanges = hasControlledChanges;
   const [shouldRenderFloatingActions, setShouldRenderFloatingActions] = useState(false);
   const [floatingActionsState, setFloatingActionsState] = useState<"open" | "closed">(
@@ -411,9 +444,9 @@ export function BusinessInquiryPageForm({
 
   const draftInquiryPageConfig = useMemo(
     () => ({
-      template,
-      showSupportingCards,
-      showShowcaseImage,
+      template: effectiveTemplate,
+      showSupportingCards: effectiveShowSupportingCards,
+      showShowcaseImage: effectiveShowShowcaseImage,
       showBusinessContact,
       cards,
       eyebrow: normalizeOptionalTextDraft(eyebrow),
@@ -437,18 +470,18 @@ export function BusinessInquiryPageForm({
       cards,
       description,
       draftBusinessContact,
+      effectiveShowShowcaseImage,
+      effectiveShowSupportingCards,
+      effectiveTemplate,
       eyebrow,
       formDescription,
       formTitle,
       headline,
       showBusinessContact,
-      showShowcaseImage,
-      showSupportingCards,
       showcaseImageCrop,
       showcaseImageFrame,
       showcaseImageSize,
       showcaseImageUrl,
-      template,
     ],
   );
 
@@ -573,9 +606,21 @@ export function BusinessInquiryPageForm({
     setFormName(settings.formName);
     setFormSlug(settings.formSlug);
     setBusinessType(settings.businessType);
-    setTemplate(settings.inquiryPageConfig.template);
-    setShowSupportingCards(settings.inquiryPageConfig.showSupportingCards);
-    setShowShowcaseImage(settings.inquiryPageConfig.showShowcaseImage);
+    setTemplate(
+      pageCustomizationLocked
+        ? "no_supporting_cards"
+        : settings.inquiryPageConfig.template,
+    );
+    setShowSupportingCards(
+      pageCustomizationLocked
+        ? false
+        : settings.inquiryPageConfig.showSupportingCards,
+    );
+    setShowShowcaseImage(
+      pageCustomizationLocked
+        ? false
+        : settings.inquiryPageConfig.showShowcaseImage,
+    );
     setShowBusinessContact(settings.inquiryPageConfig.showBusinessContact);
     setCards(settings.inquiryPageConfig.cards);
     setEyebrow(settings.inquiryPageConfig.eyebrow ?? "");
@@ -634,16 +679,16 @@ export function BusinessInquiryPageForm({
         type="hidden"
         value={String(settings.publicInquiryEnabled)}
       />
-      <input name="template" type="hidden" value={template} />
+      <input name="template" type="hidden" value={effectiveTemplate} />
       <input
         name="showSupportingCards"
         type="hidden"
-        value={String(showSupportingCards)}
+        value={String(effectiveShowSupportingCards)}
       />
       <input
         name="showShowcaseImage"
         type="hidden"
-        value={String(showShowcaseImage)}
+        value={String(effectiveShowShowcaseImage)}
       />
       <input
         name="showBusinessContact"
@@ -981,12 +1026,16 @@ export function BusinessInquiryPageForm({
               </p>
             </div>
 
+            {pageCustomizationLocked ? (
+              <LockedSettingNotice message="Free forms use the no supporting cards layout. Upgrade to Pro to choose another layout." />
+            ) : null}
+
             <div className="mt-8 grid gap-4 xl:grid-cols-3">
               {(
                 Object.keys(inquiryPageTemplateMeta) as InquiryPageTemplate[]
               ).map((templateId) => {
                 const templateMeta = inquiryPageTemplateMeta[templateId];
-                const isSelected = template === templateId;
+                const isSelected = effectiveTemplate === templateId;
 
                 return (
                   <button
@@ -998,18 +1047,35 @@ export function BusinessInquiryPageForm({
                         : "hover:bg-accent/30",
                     )}
                     disabled={isPending}
-                    onClick={() => setTemplate(templateId)}
+                    onClick={() => {
+                      if (
+                        pageCustomizationLocked &&
+                        templateId !== "no_supporting_cards"
+                      ) {
+                        showInquiryPageCustomizationNotice();
+                        return;
+                      }
+
+                      setTemplate(templateId);
+                    }}
                     type="button"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-sm font-semibold tracking-tight text-foreground">
                         {templateMeta.label}
                       </p>
-                      {isSelected ? (
-                        <span className="dashboard-meta-pill min-h-0 px-3 py-1">
-                          Selected
-                        </span>
-                      ) : null}
+                      <span className="flex items-center gap-2">
+                        {pageCustomizationLocked && templateId !== "no_supporting_cards" ? (
+                          <span className="dashboard-meta-pill min-h-0 px-3 py-1">
+                            Pro
+                          </span>
+                        ) : null}
+                        {isSelected ? (
+                          <span className="dashboard-meta-pill min-h-0 px-3 py-1">
+                            Selected
+                          </span>
+                        ) : null}
+                      </span>
                     </div>
                     <div className="grid flex-1 gap-2">
                       <TemplateMiniPreview template={templateId} />
@@ -1082,7 +1148,7 @@ export function BusinessInquiryPageForm({
           </div>
         </section>
 
-        {template !== "no_supporting_cards" ? (
+        {pageCustomizationLocked || effectiveTemplate !== "no_supporting_cards" ? (
           <section className="space-y-6 sm:space-y-8">
             <SectionIntro
               description="Add the short prompts shown beside the inquiry form."
@@ -1093,8 +1159,14 @@ export function BusinessInquiryPageForm({
               action={
                 <Button
                   className="w-full sm:w-auto"
-                  disabled={isPending || hasReachedCardLimit}
-                  onClick={addCard}
+                  disabled={
+                    isPending || (!pageCustomizationLocked && hasReachedCardLimit)
+                  }
+                  onClick={
+                    pageCustomizationLocked
+                      ? showInquiryPageCustomizationNotice
+                      : addCard
+                  }
                   type="button"
                   variant="outline"
                 >
@@ -1104,10 +1176,14 @@ export function BusinessInquiryPageForm({
               }
               title="Cards"
             >
+              {pageCustomizationLocked ? (
+                <LockedSettingNotice message="Supporting cards are visible here so you can see what Pro unlocks, but they are not shown on Free public forms." />
+              ) : null}
+
               <SectionVisibilityToggle
-                checked={showSupportingCards}
+                checked={effectiveShowSupportingCards}
                 description="Keep the cards saved, but hide them from the public page when this is off."
-                disabled={isPending}
+                disabled={isPending || pageCustomizationLocked}
                 label="Show supporting cards"
                 onCheckedChange={setShowSupportingCards}
               />
@@ -1129,7 +1205,7 @@ export function BusinessInquiryPageForm({
                         <SortableInquiryPageCard
                           card={card}
                           index={index}
-                          isPending={isPending}
+                          isPending={isPending || pageCustomizationLocked}
                           key={card.id}
                           prefersReducedMotion={prefersReducedMotion}
                           onRemove={removeCard}
@@ -1165,10 +1241,14 @@ export function BusinessInquiryPageForm({
           />
 
           <div className="flex flex-col gap-8 rounded-[2.25rem] border border-border/75 bg-muted/20 px-6 py-7 sm:p-8">
+            {pageCustomizationLocked ? (
+              <LockedSettingNotice message="Showcase images are saved for later, but Free public forms do not display them." />
+            ) : null}
+
             <SectionVisibilityToggle
-              checked={showShowcaseImage}
+              checked={effectiveShowShowcaseImage}
               description="Keep the image settings saved, but hide the showcase image on the public page when this is off."
-              disabled={isPending}
+              disabled={isPending || pageCustomizationLocked}
               label="Show showcase image"
               onCheckedChange={setShowShowcaseImage}
             />
@@ -1182,7 +1262,7 @@ export function BusinessInquiryPageForm({
                   <FieldContent>
                     <Input
                       aria-invalid={Boolean(showcaseImageUrlError) || undefined}
-                      disabled={isPending}
+                      disabled={isPending || pageCustomizationLocked}
                       id="inquiry-page-showcase-image-url"
                       maxLength={2000}
                       name="showcaseImageUrlInput"
@@ -1225,7 +1305,14 @@ export function BusinessInquiryPageForm({
                               key={frame}
                               label={option.label}
                               selectedLabel="Selected"
-                              onClick={() => setShowcaseImageFrame(frame)}
+                              onClick={() => {
+                                if (pageCustomizationLocked) {
+                                  showInquiryPageCustomizationNotice();
+                                  return;
+                                }
+
+                                setShowcaseImageFrame(frame);
+                              }}
                             />
                           );
                         })}
@@ -1258,7 +1345,14 @@ export function BusinessInquiryPageForm({
                               key={size}
                               label={option.label}
                               selectedLabel="Selected"
-                              onClick={() => setShowcaseImageSize(size)}
+                              onClick={() => {
+                                if (pageCustomizationLocked) {
+                                  showInquiryPageCustomizationNotice();
+                                  return;
+                                }
+
+                                setShowcaseImageSize(size);
+                              }}
                             />
                           );
                         })}
@@ -1278,7 +1372,11 @@ export function BusinessInquiryPageForm({
               <ShowcaseImageEditorPreview
                 crop={showcaseImageCrop}
                 frame={showcaseImageFrame}
-                onCrop={() => void handleOpenCropDialog()}
+                onCrop={
+                  pageCustomizationLocked
+                    ? showInquiryPageCustomizationNotice
+                    : () => void handleOpenCropDialog()
+                }
                 size={showcaseImageSize}
                 url={showcaseImageUrl}
               />
@@ -1649,6 +1747,17 @@ function SectionIntro({
   );
 }
 
+function LockedSettingNotice({ message }: { message: string }) {
+  return (
+    <div className="mt-5 flex items-start gap-3 rounded-xl border border-border/70 bg-background/75 px-4 py-3 text-sm text-muted-foreground">
+      <div className="min-w-0">
+        <p className="font-medium text-foreground">Pro feature</p>
+        <p className="mt-1 leading-6">{message}</p>
+      </div>
+    </div>
+  );
+}
+
 function SectionVisibilityToggle({
   checked,
   description,
@@ -1767,7 +1876,7 @@ function ShowcaseImageEditorPreview({
 }: {
   crop: InquiryPageShowcaseImageCrop;
   frame: InquiryPageShowcaseImageFrame;
-  onCrop: () => void;
+  onCrop?: () => void;
   size: InquiryPageShowcaseImageSize;
   url: string;
 }) {
@@ -1789,6 +1898,7 @@ function ShowcaseImageEditorPreview({
         {trimmedUrl ? (
           <Button
             className="w-full sm:w-auto"
+            disabled={!onCrop}
             onClick={onCrop}
             size="sm"
             type="button"

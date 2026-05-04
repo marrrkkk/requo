@@ -51,6 +51,7 @@ type ManualInquiryEditorProps = {
   businessName: string;
   forms: InquiryEditorForm[];
   initialFormSlug: string;
+  uploadHelpText: string;
 };
 
 type ProjectFieldValue = string | string[];
@@ -68,6 +69,7 @@ export function ManualInquiryEditor({
   businessName,
   forms,
   initialFormSlug,
+  uploadHelpText,
 }: ManualInquiryEditorProps) {
   const [selectedFormSlug, setSelectedFormSlug] = useState(initialFormSlug);
   const [customerName, setCustomerName] = useState("");
@@ -385,7 +387,9 @@ export function ManualInquiryEditor({
                   <p className="text-sm text-muted-foreground">
                     Selected: {selectedFileName}
                   </p>
-                ) : null}
+                ) : (
+                  <FieldDescription>{uploadHelpText}</FieldDescription>
+                )}
                 <FieldError
                   errors={
                     getFieldMessage("attachment")
@@ -919,7 +923,7 @@ function ManualInquiryPreview({
           <p className="meta-label">
             {detailsField?.label ?? "Inquiry details"}
           </p>
-          <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground">
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-normal sm:leading-7 text-foreground">
             {details !== "Not provided"
               ? details
               : "Add the main scope, context, and anything needed before quoting or following up."}

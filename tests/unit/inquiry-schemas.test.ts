@@ -120,6 +120,45 @@ describe("inquiry validation schemas", () => {
     );
   });
 
+  it("applies plan-specific public inquiry attachment size limits", () => {
+    const attachmentField = baseConfig.projectFields.find(
+      (field) => field.kind === "system" && field.key === "attachment",
+    );
+    const attachment = new File(
+      [new Uint8Array(6 * 1024 * 1024)],
+      "floor-plan.pdf",
+      {
+        type: "application/pdf",
+      },
+    );
+    const freeFormData = validFormData();
+    const proFormData = validFormData();
+
+    expect(attachmentField).toBeDefined();
+    freeFormData.set(getInquiryFormFieldInputName(attachmentField!), attachment);
+    proFormData.set(getInquiryFormFieldInputName(attachmentField!), attachment);
+
+    const freeResult = validatePublicInquirySubmission(
+      baseConfig,
+      freeFormData,
+      {
+        plan: "free",
+      },
+    );
+    const proResult = validatePublicInquirySubmission(baseConfig, proFormData, {
+      plan: "pro",
+    });
+
+    expect(expectInvalidSubmission(freeResult).issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: "Upload a file that is 5 MB or smaller.",
+        }),
+      ]),
+    );
+    expectValidSubmission(proResult);
+  });
+
   it("keeps manual quick inquiry validation focused on actionable intake fields", () => {
     const quickConfig = createManualQuickInquiryFormConfig(baseConfig);
 

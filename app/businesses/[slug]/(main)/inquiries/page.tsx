@@ -21,6 +21,7 @@ import {
 import { workspacesHubPath } from "@/features/workspaces/routes";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
+import { hasFeatureAccess } from "@/lib/plans";
 
 type InquiriesPageProps = {
   params: Promise<{ slug: string }>;
@@ -130,6 +131,10 @@ export default async function InquiriesPage({
     businessContext.business.id,
   );
   const businessSlug = businessContext.business.slug;
+  const canExport = hasFeatureAccess(
+    businessContext.business.workspacePlan,
+    "exports",
+  );
   const hasNonViewFilters = Boolean(
     baseFilters.q ||
       baseFilters.status !== "all" ||
@@ -158,6 +163,7 @@ export default async function InquiriesPage({
       <Suspense fallback={<InquiryListControlsFallback />}>
         <InquiryListControlsSection
           businessSlug={businessSlug}
+          canExport={canExport}
           filters={filters}
           formOptionsPromise={inquiryFormOptionsPromise}
           searchParams={resolvedSearchParams}

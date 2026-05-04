@@ -109,9 +109,12 @@ import type {
   BusinessInquiryFormPreviewDraft,
   BusinessInquiryFormSettingsView,
 } from "@/features/settings/types";
+import {
+  getInquiryCustomFieldLimit,
+  getPublicInquiryAttachmentHelpText,
+} from "@/features/inquiries/plan-rules";
 import { cn } from "@/lib/utils";
 
-const MAX_CUSTOM_PROJECT_FIELDS = 12;
 const MAX_CUSTOM_FIELD_OPTIONS = 12;
 const inquiryProjectFieldsDndContextId = "business-inquiry-project-fields-dnd";
 const inquiryProjectFieldsSortableContextId =
@@ -680,7 +683,10 @@ export function BusinessInquiryFormForm({
     () => activeProjectFields.filter((field) => field.kind === "custom").length,
     [activeProjectFields],
   );
-  const hasReachedCustomFieldLimit = customProjectFieldCount >= MAX_CUSTOM_PROJECT_FIELDS;
+  const customFieldLimit = getInquiryCustomFieldLimit(settings.plan);
+  const hasReachedCustomFieldLimit =
+    customProjectFieldCount >= customFieldLimit;
+  const attachmentHelpText = getPublicInquiryAttachmentHelpText(settings.plan);
   const isFieldInteractionLocked = isSavePending || exitingProjectFieldIds.length > 0;
   const projectFieldSensors = useSensors(
     useSensor(PointerSensor, {
@@ -899,7 +905,8 @@ export function BusinessInquiryFormForm({
                     <Alert>
                       <AlertTitle>Custom field limit reached</AlertTitle>
                       <AlertDescription>
-                        You can add up to {MAX_CUSTOM_PROJECT_FIELDS} custom fields.
+                        Your current plan supports {customFieldLimit} custom
+                        fields per form.
                       </AlertDescription>
                     </Alert>
                   ) : editableProjectFields.length <= 2 ? (
@@ -911,6 +918,7 @@ export function BusinessInquiryFormForm({
 
                 {attachmentField ? (
                   <AttachmentFieldSection
+                    helpText={attachmentHelpText}
                     field={attachmentField}
                     isPending={isFieldInteractionLocked}
                     onUpdate={updateProjectField}
@@ -1496,10 +1504,12 @@ function OptionSummaryButton({
 
 function AttachmentFieldSection({
   field,
+  helpText,
   isPending,
   onUpdate,
 }: {
   field: InquiryFormSystemFieldDefinition;
+  helpText: string;
   isPending: boolean;
   onUpdate: (fieldId: string, patch: Partial<InquiryFormFieldDefinition>) => void;
 }) {
@@ -1557,6 +1567,9 @@ function AttachmentFieldSection({
           </FieldTitle>
           <FieldContent>
             <Input disabled={isPending || isHidden} id="inquiry-attachment-preview" type="file" />
+            <p className="text-xs leading-5 text-muted-foreground">
+              {helpText}
+            </p>
           </FieldContent>
         </Field>
       </FieldGroup>

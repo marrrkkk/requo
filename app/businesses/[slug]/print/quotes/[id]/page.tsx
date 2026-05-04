@@ -6,6 +6,7 @@ import { getQuoteDetailForBusiness } from "@/features/quotes/queries";
 import { quoteRouteParamsSchema } from "@/features/quotes/schemas";
 import { getBusinessQuotePath } from "@/features/businesses/routes";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
+import { hasFeatureAccess } from "@/lib/plans";
 
 type QuotePrintPageProps = {
   params: Promise<{
@@ -27,6 +28,15 @@ export default async function QuotePrintPage({
   });
 
   if (!parsedParams.success || !requestContext) {
+    notFound();
+  }
+
+  if (
+    !hasFeatureAccess(
+      requestContext.businessContext.business.workspacePlan,
+      "exports",
+    )
+  ) {
     notFound();
   }
 

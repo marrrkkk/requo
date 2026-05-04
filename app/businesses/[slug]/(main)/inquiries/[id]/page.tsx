@@ -21,6 +21,7 @@ import {
   DashboardSection,
   DashboardSidebarStack,
 } from "@/components/shared/dashboard-layout";
+import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -85,6 +86,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
+import { hasFeatureAccess } from "@/lib/plans";
 
 const InquiryAiPanel = dynamic(
   () =>
@@ -151,14 +153,24 @@ export default async function InquiryDetailPage({
   const customFields = getCustomSubmittedFields(
     inquiry.submittedFieldSnapshot,
   );
+  const canViewCustomerHistory = hasFeatureAccess(
+    businessContext.business.workspacePlan,
+    "customerHistory",
+  );
+  const canExportData = hasFeatureAccess(
+    businessContext.business.workspacePlan,
+    "exports",
+  );
   const [customerHistory, followUps] = await Promise.all([
-    getCustomerHistoryForBusiness({
-      businessId: businessContext.business.id,
-      customerEmail: inquiry.customerEmail,
-      customerContactHandle: inquiry.customerContactHandle,
-      excludeInquiryId: inquiry.id,
-      excludeQuoteId: inquiry.relatedQuote?.id ?? null,
-    }),
+    canViewCustomerHistory
+      ? getCustomerHistoryForBusiness({
+          businessId: businessContext.business.id,
+          customerEmail: inquiry.customerEmail,
+          customerContactHandle: inquiry.customerContactHandle,
+          excludeInquiryId: inquiry.id,
+          excludeQuoteId: inquiry.relatedQuote?.id ?? null,
+        })
+      : Promise.resolve(null),
     getFollowUpsForInquiry({
       businessId: businessContext.business.id,
       inquiryId: inquiry.id,
@@ -203,6 +215,7 @@ export default async function InquiryDetailPage({
         actions={
           <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center [&_[data-slot=button]]:w-full sm:[&_[data-slot=button]]:w-auto">
             <InquiryExportPopover
+              canExport={canExportData}
               pdfHref={getBusinessInquiryExportPath(
                 businessSlug,
                 inquiry.id,
@@ -214,17 +227,28 @@ export default async function InquiryDetailPage({
                 "png",
               )}
             />
-            <Button asChild variant="outline">
-              <Link
-                href={getBusinessInquiryPrintPath(businessSlug, inquiry.id)}
-                prefetch={false}
-                rel="noopener noreferrer"
-                target="_blank"
+            {canExportData ? (
+              <Button asChild variant="outline">
+                <Link
+                  href={getBusinessInquiryPrintPath(businessSlug, inquiry.id)}
+                  prefetch={false}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  <Printer data-icon="inline-start" />
+                  Print
+                </Link>
+              </Button>
+            ) : (
+              <ProFeatureNoticeButton
+                noticeDescription="Upgrade to Pro to print inquiry records."
+                noticeTitle="Print is a Pro feature."
+                variant="outline"
               >
                 <Printer data-icon="inline-start" />
                 Print
-              </Link>
-            </Button>
+              </ProFeatureNoticeButton>
+            )}
             {canGenerateQuote ? (
               <Button asChild>
                 <Link href={getBusinessNewQuotePath(businessSlug, inquiry.id)}>
@@ -269,7 +293,7 @@ export default async function InquiryDetailPage({
                 {systemFieldDefaultLabels.serviceCategory}
               </p>
               <TruncatedTextWithTooltip
-                className="mt-3 text-sm leading-7 text-foreground"
+                className="mt-3 text-sm leading-normal sm:leading-7 text-foreground"
                 lines={3}
                 text={inquiry.serviceCategory}
               />
@@ -280,7 +304,7 @@ export default async function InquiryDetailPage({
                 {systemFieldDefaultLabels.details}
               </p>
               <TruncatedTextWithTooltip
-                className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground"
+                className="mt-3 whitespace-pre-wrap text-sm leading-normal sm:leading-7 text-foreground"
                 lines={6}
                 text={inquiry.details}
               />
@@ -293,7 +317,10 @@ export default async function InquiryDetailPage({
                     View additional details
                   </Button>
                 </SheetTrigger>
-                <SheetContent className="w-full sm:max-w-xl">
+                <SheetContent
+                  className="w-full data-[side=right]:sm:max-w-2xl data-[side=right]:lg:max-w-3xl data-[side=right]:xl:max-w-4xl"
+                  motionPreset="sidebar"
+                >
                   <SheetHeader>
                     <SheetTitle>Additional details</SheetTitle>
                     <SheetDescription>
@@ -302,11 +329,11 @@ export default async function InquiryDetailPage({
                   </SheetHeader>
                   <SheetBody className="min-h-0 flex-1">
                     <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
-                      <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="grid gap-3 xl:grid-cols-2">
                         {customFields.map((field) => (
                           <InfoTile
                             key={field.id}
-                            label={field.label}
+                            label={<span className="break-words">{field.label}</span>}
                             value={field.displayValue}
                           />
                         ))}
@@ -396,6 +423,7 @@ export default async function InquiryDetailPage({
             <CustomerHistorySheetSection
               businessSlug={businessSlug}
               history={customerHistory}
+              locked={!canViewCustomerHistory}
             />
 
             <DashboardSection
@@ -637,6 +665,7 @@ export default async function InquiryDetailPage({
         businessSlug={businessSlug}
         inquiryId={inquiry.id}
         userName={session.user.name || "You"}
+        workspacePlan={businessContext.business.workspacePlan}
       />
     </DashboardPage>
   );
@@ -725,14 +754,21 @@ function InquiryNotesSheetSection({
 function CustomerHistorySheetSection({
   businessSlug,
   history,
-}: Parameters<typeof CustomerHistoryPanel>[0]) {
+  locked = false,
+}: Parameters<typeof CustomerHistoryPanel>[0] & { locked?: boolean }) {
   return (
     <DashboardSection
       contentClassName="flex flex-col gap-4"
       description="Past records for this customer email inside the current business."
       title="Customer history"
     >
-      {history ? (
+      {locked ? (
+        <DashboardEmptyState
+          description="Upgrade to Pro to review prior inquiries and quotes for this customer."
+          title="Customer history is a Pro feature"
+          variant="section"
+        />
+      ) : history ? (
         <>
           <div className="grid gap-3 sm:grid-cols-2">
             <InfoTile label="Past inquiries" value={`${history.inquiryCount}`} />

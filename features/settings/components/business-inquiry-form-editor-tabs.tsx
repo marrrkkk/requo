@@ -10,9 +10,9 @@ import {
 
 import { DashboardSidebarStack } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createPublicInquiryPreviewBusiness } from "@/features/inquiries/preview-business";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
-import { cn } from "@/lib/utils";
 
 import type {
   BusinessInquiryFormEditorView,
@@ -158,23 +158,25 @@ export function BusinessInquiryFormEditorTabs({
     setActiveSectionOverride(nextSection);
   }
 
+  function handleTabChange(nextSection: string) {
+    if (isEditorSection(nextSection)) {
+      handleSectionChange(nextSection);
+    }
+  }
+
   return (
-    <div className="flex flex-col gap-4">
+    <Tabs
+      className="flex flex-col gap-4"
+      onValueChange={handleTabChange}
+      value={activeSection}
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-1">
+        <TabsList>
           {editorSections.map((section) => {
             const Icon = section.icon;
-            const isActive = activeSection === section.id;
 
             return (
-              <button
-                aria-current={isActive ? "page" : undefined}
-                className={cn(
-                  "relative inline-flex shrink-0 items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-all",
-                  isActive
-                    ? "border-border/80 bg-[var(--control-bg)] text-primary shadow-[var(--control-shadow)] after:absolute after:inset-x-0 after:bottom-[-5px] after:h-0.5 after:bg-primary"
-                    : "border-transparent text-foreground/65 hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground",
-                )}
+              <TabsTrigger
                 data-tour={
                   section.id === "fields"
                     ? "form-builder"
@@ -183,15 +185,14 @@ export function BusinessInquiryFormEditorTabs({
                       : "form-settings"
                 }
                 key={section.id}
-                onClick={() => handleSectionChange(section.id)}
-                type="button"
+                value={section.id}
               >
                 <Icon className="size-4" />
                 {section.label}
-              </button>
+              </TabsTrigger>
             );
           })}
-        </div>
+        </TabsList>
 
         <Button asChild className="w-full sm:w-auto" type="button">
           <Link
@@ -206,11 +207,12 @@ export function BusinessInquiryFormEditorTabs({
         </Button>
       </div>
 
-      {/* Separator matching the line tabs indicator offset */}
-      <div className="-mt-1 border-b border-border/50" />
-
       <div className="min-w-0">
-        <div aria-hidden={activeSection !== "fields"} className={activeSection === "fields" ? "block" : "hidden"}>
+        <TabsContent
+          className={activeSection === "fields" ? undefined : "hidden"}
+          forceMount
+          value="fields"
+        >
           <DashboardSidebarStack>
             <BusinessInquiryFormForm
               key={`${settings.updatedAt.getTime()}-${settings.formId}-form`}
@@ -222,9 +224,13 @@ export function BusinessInquiryFormEditorTabs({
               settings={settings}
             />
           </DashboardSidebarStack>
-        </div>
+        </TabsContent>
 
-        <div aria-hidden={activeSection !== "page"} className={activeSection === "page" ? "block" : "hidden"}>
+        <TabsContent
+          className={activeSection === "page" ? undefined : "hidden"}
+          forceMount
+          value="page"
+        >
           <DashboardSidebarStack>
             <BusinessInquiryPageForm
               key={`${settings.updatedAt.getTime()}-${settings.formId}-page`}
@@ -237,14 +243,15 @@ export function BusinessInquiryFormEditorTabs({
               settings={settings}
             />
           </DashboardSidebarStack>
-        </div>
+        </TabsContent>
 
-        <div
-          aria-hidden={activeSection !== "publishing"}
-          className={activeSection === "publishing" ? "block" : "hidden"}
+        <TabsContent
+          className={activeSection === "publishing" ? undefined : "hidden"}
+          forceMount
+          value="publishing"
         >
           <section className="flex flex-col gap-6 sm:gap-8">
-            <div className="space-y-2.5 sm:px-2">
+            <div className="flex flex-col gap-2.5 sm:px-2">
               <h2 className="font-heading text-[1.65rem] font-semibold tracking-tight text-foreground">
                 Publishing
               </h2>
@@ -254,37 +261,37 @@ export function BusinessInquiryFormEditorTabs({
             </div>
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-start">
-            <div className="min-w-0">
-              <div className="grid gap-4">
-                <BusinessInquiryFormManageCard
-                  duplicateAction={duplicateAction}
+              <div className="min-w-0">
+                <div className="grid gap-4">
+                  <BusinessInquiryFormManageCard
+                    duplicateAction={duplicateAction}
+                    formId={settings.formId}
+                    isDefault={settings.isDefault}
+                    isPublicInquiryEnabled={settings.publicInquiryEnabled}
+                    setDefaultAction={setDefaultAction}
+                    togglePublicAction={togglePublicAction}
+                  />
+                  <BusinessInquiryFormPresetCard
+                    action={applyPresetAction}
+                    businessType={pageDraft.businessType}
+                    formId={settings.formId}
+                  />
+                </div>
+              </div>
+              <div className="min-w-0">
+                <BusinessInquiryFormDangerZone
+                  activeFormCount={settings.activeFormCount}
+                  archiveAction={archiveAction}
+                  deleteAction={deleteAction}
                   formId={settings.formId}
+                  inquiryListHref={inquiryListHref}
                   isDefault={settings.isDefault}
-                  isPublicInquiryEnabled={settings.publicInquiryEnabled}
-                  setDefaultAction={setDefaultAction}
-                  togglePublicAction={togglePublicAction}
-                />
-                <BusinessInquiryFormPresetCard
-                  action={applyPresetAction}
-                  businessType={pageDraft.businessType}
-                  formId={settings.formId}
+                  submittedInquiryCount={settings.submittedInquiryCount}
                 />
               </div>
             </div>
-            <div className="min-w-0">
-              <BusinessInquiryFormDangerZone
-                activeFormCount={settings.activeFormCount}
-                archiveAction={archiveAction}
-                deleteAction={deleteAction}
-                formId={settings.formId}
-                inquiryListHref={inquiryListHref}
-                isDefault={settings.isDefault}
-                submittedInquiryCount={settings.submittedInquiryCount}
-              />
-            </div>
-          </div>
           </section>
-        </div>
+        </TabsContent>
       </div>
 
       <BusinessInquiryPreviewOverlay
@@ -293,7 +300,7 @@ export function BusinessInquiryFormEditorTabs({
         open={isPreviewOpen}
         openFormHref={isPublicLive ? publicInquiryHref : previewHref}
       />
-    </div>
+    </Tabs>
   );
 }
 

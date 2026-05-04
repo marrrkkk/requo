@@ -6,6 +6,8 @@ import {
   normalizeBusinessType,
   type BusinessType,
 } from "@/features/inquiries/business-types";
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
+import type { WorkspacePlan } from "@/lib/plans/plans";
 
 function emptyToUndefined(value: unknown) {
   if (value == null) {
@@ -372,6 +374,7 @@ type InquiryPageConfigDefaultsInput = {
   legacyInquiryHeadline?: string | null;
   businessType?: BusinessType;
   template?: InquiryPageTemplate;
+  plan?: WorkspacePlan;
 };
 
 function createDefaultInquiryPageCards(
@@ -473,18 +476,22 @@ export function createInquiryPageConfigDefaults(
     businessName,
     legacyInquiryHeadline,
     businessType = "general_project_services",
+    plan,
     template,
   } = input;
   const resolvedBusinessType = normalizeBusinessType(businessType);
   const starterTemplateBusinessType =
     getStarterTemplateBusinessType(resolvedBusinessType);
-  const resolvedTemplate =
-    template ??
-    (starterTemplateBusinessType === "creative_marketing_services"
+  const defaultTemplate =
+    starterTemplateBusinessType === "creative_marketing_services"
       ? "showcase"
       : starterTemplateBusinessType === "consulting_professional_services"
         ? "no_supporting_cards"
-        : "split");
+        : "split";
+  const resolvedTemplate =
+    plan && !hasFeatureAccess(plan, "inquiryPageCustomization")
+      ? "no_supporting_cards"
+      : (template ?? defaultTemplate);
 
   let eyebrow = "Inquiry";
   let headline = `Tell ${businessName} what you need help with.`;
@@ -533,7 +540,7 @@ export function createInquiryPageConfigDefaults(
 
   return {
     template: resolvedTemplate,
-    showSupportingCards: true,
+    showSupportingCards: resolvedTemplate !== "no_supporting_cards",
     showShowcaseImage: false,
     showBusinessContact: true,
     eyebrow,

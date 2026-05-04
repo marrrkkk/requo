@@ -40,6 +40,7 @@ import {
   type InquiryFormSystemFieldDefinition,
 } from "@/features/inquiries/form-config";
 import { publicInquiryAttachmentAccept } from "@/features/inquiries/schemas";
+import { getPublicInquiryAttachmentHelpText } from "@/features/inquiries/plan-rules";
 import type {
   PublicInquiryFormState,
   PublicInquiryBusiness,
@@ -149,6 +150,7 @@ export function PublicInquiryForm({
   const [canSubmit, setCanSubmit] = useState(false);
   const [contactMethod, setContactMethod] = useState<InquiryContactMethod>("email");
   const inquiryFormConfig = business.inquiryFormConfig;
+  const attachmentHelpText = getPublicInquiryAttachmentHelpText(business.plan);
   const customerNameField = inquiryFormConfig.contactFields.customerName;
   const preferredContactField = inquiryFormConfig.contactFields.preferredContact;
   const attachmentField = useMemo<InquiryFormSystemFieldDefinition | null>(
@@ -342,6 +344,7 @@ export function PublicInquiryForm({
                 error={getFieldMessage("attachment")}
                 field={attachmentField}
                 isPending={isPending}
+                helpText={attachmentHelpText}
                 onSelectFileName={setSelectedFileName}
                 selectedFileName={selectedFileName}
               />
@@ -760,12 +763,14 @@ function ProjectBooleanSelectInput({
 function AttachmentField({
   error,
   field,
+  helpText,
   isPending,
   selectedFileName,
   onSelectFileName,
 }: {
   error?: string;
   field: InquiryFormSystemFieldDefinition;
+  helpText: string;
   isPending: boolean;
   selectedFileName: string | null;
   onSelectFileName: (fileName: string | null) => void;
@@ -786,6 +791,7 @@ function AttachmentField({
           }
           type="file"
         />
+        <p className="text-xs text-muted-foreground">{helpText}</p>
         {selectedFileName ? (
           <p className="text-sm text-muted-foreground">Selected: {selectedFileName}</p>
         ) : null}

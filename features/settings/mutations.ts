@@ -558,10 +558,6 @@ export async function updateBusinessNotificationSettings({
     await tx
       .update(businesses)
       .set({
-        notifyOnNewInquiry: values.notifyOnNewInquiry,
-        notifyOnQuoteSent: values.notifyOnQuoteSent,
-        notifyOnQuoteResponse: values.notifyOnQuoteResponse,
-        notifyOnMemberInviteResponse: values.notifyOnMemberInviteResponse,
         notifyInAppOnNewInquiry: values.notifyInAppOnNewInquiry,
         notifyInAppOnQuoteSent: values.notifyInAppOnQuoteSent,
         notifyInAppOnQuoteResponse: values.notifyInAppOnQuoteResponse,
@@ -570,9 +566,7 @@ export async function updateBusinessNotificationSettings({
         notifyPushOnQuoteSent: values.notifyPushOnQuoteSent,
         notifyPushOnQuoteResponse: values.notifyPushOnQuoteResponse,
         notifyPushOnMemberInviteResponse: values.notifyPushOnMemberInviteResponse,
-        notifyOnFollowUpReminder: values.notifyOnFollowUpReminder,
         notifyInAppOnFollowUpReminder: values.notifyInAppOnFollowUpReminder,
-        notifyOnQuoteExpiring: values.notifyOnQuoteExpiring,
         notifyInAppOnQuoteExpiring: values.notifyInAppOnQuoteExpiring,
         updatedAt: now,
       })
@@ -585,10 +579,6 @@ export async function updateBusinessNotificationSettings({
       type: "business.notification_settings_updated",
       summary: "Notification settings updated.",
       metadata: {
-        notifyOnNewInquiry: values.notifyOnNewInquiry,
-        notifyOnQuoteSent: values.notifyOnQuoteSent,
-        notifyOnQuoteResponse: values.notifyOnQuoteResponse,
-        notifyOnMemberInviteResponse: values.notifyOnMemberInviteResponse,
         notifyInAppOnNewInquiry: values.notifyInAppOnNewInquiry,
         notifyInAppOnQuoteSent: values.notifyInAppOnQuoteSent,
         notifyInAppOnQuoteResponse: values.notifyInAppOnQuoteResponse,
@@ -597,9 +587,7 @@ export async function updateBusinessNotificationSettings({
         notifyPushOnQuoteSent: values.notifyPushOnQuoteSent,
         notifyPushOnQuoteResponse: values.notifyPushOnQuoteResponse,
         notifyPushOnMemberInviteResponse: values.notifyPushOnMemberInviteResponse,
-        notifyOnFollowUpReminder: values.notifyOnFollowUpReminder,
         notifyInAppOnFollowUpReminder: values.notifyInAppOnFollowUpReminder,
-        notifyOnQuoteExpiring: values.notifyOnQuoteExpiring,
         notifyInAppOnQuoteExpiring: values.notifyInAppOnQuoteExpiring,
       },
       createdAt: now,
