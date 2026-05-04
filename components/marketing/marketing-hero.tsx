@@ -8,8 +8,6 @@ import {
   getMarketingNavKey,
   landingFeatureItems,
   navItems,
-  workflowSteps,
-  whyPoints,
 } from "@/components/marketing/marketing-data";
 import { InViewReveal } from "@/components/marketing/in-view-reveal";
 import { MarketingShowcase } from "@/components/marketing/marketing-showcase";
@@ -19,7 +17,6 @@ import {
 } from "@/components/marketing/public-header-actions";
 import {
   MarketingFeatureRow,
-  WorkflowStep,
 } from "@/components/marketing/marketing-parts";
 import { BrandMark } from "@/components/shared/brand-mark";
 import { PublicPageShell } from "@/components/shared/public-page-shell";
@@ -89,29 +86,31 @@ export function MarketingHero() {
   ];
 
   return (
-    <PublicPageShell
-      brandSubtitle={null}
-      className="pb-28 lg:pb-40"
-      headerAction={
-        <Suspense fallback={<PublicHeaderActionsFallback />}>
-          <PublicHeaderActions />
-        </Suspense>
-      }
-      headerClassName="sticky top-0 z-40 rounded-none border-x-0 border-t-0 bg-background/92 px-0 py-4 shadow-none backdrop-blur-xl supports-backdrop-filter:bg-background/88 md:px-0"
-      headerNav={
-        <nav className="public-page-header-nav">
-          {navItems.map((item) => (
-            <Link
-              className="public-page-header-link transition-none"
-              href={getMarketingNavHref(item)}
-              key={getMarketingNavKey(item)}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      }
-    >
+    <div className="overflow-x-clip">
+      <PublicPageShell
+        brandSubtitle={null}
+        className="pb-28 lg:pb-40"
+        headerRevealOnScroll
+        headerAction={
+          <Suspense fallback={<PublicHeaderActionsFallback />}>
+            <PublicHeaderActions />
+          </Suspense>
+        }
+        headerClassName="bg-background/92 py-3 shadow-none backdrop-blur-xl supports-backdrop-filter:bg-background/88 sm:py-3.5"
+        headerNav={
+          <nav className="public-page-header-nav">
+            {navItems.map((item) => (
+              <Link
+                className="public-page-header-link transition-none"
+                href={getMarketingNavHref(item)}
+                key={getMarketingNavKey(item)}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        }
+      >
       <section className="surface-grid relative overflow-hidden border-b border-border/70 px-5 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-20 xl:px-10 xl:py-24">
         <div className="flex flex-col gap-12 lg:gap-14">
           <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-6 text-center">
@@ -421,6 +420,7 @@ export function MarketingHero() {
           </div>
         </footer>
       </InViewReveal>
-    </PublicPageShell>
+      </PublicPageShell>
+    </div>
   );
 }
