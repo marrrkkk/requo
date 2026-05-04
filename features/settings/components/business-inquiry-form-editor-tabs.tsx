@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
-import { ArrowUpRight, FileText, FormInput, Settings2 } from "lucide-react";
+import {
+  ArrowUpRight,
+  ChevronsUpDown,
+  FileText,
+  FormInput,
+  Settings2,
+} from "lucide-react";
 import {
   useSearchParams,
   type ReadonlyURLSearchParams,
@@ -10,9 +16,21 @@ import {
 
 import { DashboardSidebarStack } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createPublicInquiryPreviewBusiness } from "@/features/inquiries/preview-business";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
+import { cn } from "@/lib/utils";
 
 import type {
   BusinessInquiryFormEditorView,
@@ -171,7 +189,14 @@ export function BusinessInquiryFormEditorTabs({
       value={activeSection}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <TabsList>
+        {/* Mobile: combobox dropdown */}
+        <FormEditorMobileSelect
+          activeSection={activeSection}
+          onSectionChange={handleSectionChange}
+        />
+
+        {/* Desktop: horizontal tabs */}
+        <TabsList className="hidden sm:inline-flex">
           {editorSections.map((section) => {
             const Icon = section.icon;
 
@@ -365,3 +390,74 @@ function createPreviewSnapshot({
     inquiryPageConfig: previewInquiryPageConfig,
   });
 }
+
+function FormEditorMobileSelect({
+  activeSection,
+  onSectionChange,
+}: {
+  activeSection: BusinessInquiryFormEditorSection;
+  onSectionChange: (section: BusinessInquiryFormEditorSection) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const activeSectionData = editorSections.find((s) => s.id === activeSection) ?? editorSections[0];
+  const ActiveIcon = activeSectionData.icon;
+
+  return (
+    <div className="sm:hidden">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between"
+          >
+            <span className="flex items-center gap-2">
+              <ActiveIcon className="size-4 shrink-0 text-muted-foreground" />
+              <span className="truncate">{activeSectionData.label}</span>
+            </span>
+            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          className="overlay-surface w-[var(--radix-popover-trigger-width)] p-0"
+        >
+          <Command>
+            <CommandList>
+              <CommandGroup>
+                {editorSections.map((section) => {
+                  const Icon = section.icon;
+                  const isActive = section.id === activeSection;
+
+                  return (
+                    <CommandItem
+                      key={section.id}
+                      onSelect={() => {
+                        onSectionChange(section.id);
+                        setOpen(false);
+                      }}
+                      className={cn(isActive && "font-medium text-primary")}
+                      value={section.label}
+                    >
+                      <Icon
+                        className={cn(
+                          "size-4 shrink-0",
+                          isActive
+                            ? "text-primary"
+                            : "text-muted-foreground",
+                        )}
+                      />
+                      {section.label}
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
