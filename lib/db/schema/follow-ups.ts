@@ -51,6 +51,7 @@ export const followUps = pgTable(
     }),
     title: text("title").notNull(),
     reason: text("reason").notNull(),
+    category: text("category").notNull().default("sales"),
     channel: followUpChannelEnum("channel").notNull().default("email"),
     dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
     completedAt: timestamp("completed_at", { withTimezone: true }),

@@ -39,8 +39,10 @@ export function LoginForm({
   socialProviders = [],
 }: LoginFormProps) {
   const searchParams = useSearchParams();
-  const nextPath = getSafeAuthRedirectPath(searchParams.get("next"), "/workspaces");
-  const signupHref = getAuthPathWithNext("/signup", nextPath);
+  const rawNext = searchParams.get("next");
+  const nextPath = getSafeAuthRedirectPath(rawNext, "/workspaces");
+  // Only forward ?next when it's a genuine non-default redirect
+  const signupHref = getAuthPathWithNext("/signup", rawNext && nextPath !== "/workspaces" ? nextPath : null);
   const [state, setState] = useState<AuthFormState>({});
   const [isPending, startTransition] = useTransition();
 
@@ -94,7 +96,7 @@ export function LoginForm({
       const result = await authClient.signIn.social({
         provider,
         callbackURL: nextPath,
-        newUserCallbackURL: nextPath,
+        newUserCallbackURL: "/onboarding",
       });
 
       if (result.error) {

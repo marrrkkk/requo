@@ -26,4 +26,5 @@ export {
   getUsageLimit,
   isUsageLimited,
   usageLimitLabels,
+  formatUsageLimitValue,
 } from "./usage-limits";

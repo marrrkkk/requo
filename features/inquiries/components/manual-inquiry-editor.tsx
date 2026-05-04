@@ -51,6 +51,7 @@ type ManualInquiryEditorProps = {
   businessName: string;
   forms: InquiryEditorForm[];
   initialFormSlug: string;
+  uploadHelpText: string;
 };
 
 type ProjectFieldValue = string | string[];
@@ -68,6 +69,7 @@ export function ManualInquiryEditor({
   businessName,
   forms,
   initialFormSlug,
+  uploadHelpText,
 }: ManualInquiryEditorProps) {
   const [selectedFormSlug, setSelectedFormSlug] = useState(initialFormSlug);
   const [customerName, setCustomerName] = useState("");
@@ -175,8 +177,8 @@ export function ManualInquiryEditor({
             </>
           }
           contentClassName="flex flex-col gap-5"
-          description="Choose the inquiry form this quick-add should belong to. Only the essentials are required here."
-          title="Quick-add setup"
+          description="Choose the intake form this manual inquiry should follow."
+          title="Intake setup"
         >
           <Field data-invalid={Boolean(getFieldMessage("formSlug")) || undefined}>
             <FieldLabel htmlFor="manual-inquiry-form">Inquiry form</FieldLabel>
@@ -208,7 +210,7 @@ export function ManualInquiryEditor({
 
         <DashboardSection
           contentClassName="flex flex-col gap-5"
-          description="Add the customer details you already have."
+          description="Add the customer's name and best way to reply."
           title={selectedForm.inquiryFormConfig.groupLabels.contact}
         >
           <FieldGroup>
@@ -320,8 +322,8 @@ export function ManualInquiryEditor({
 
         <DashboardSection
           contentClassName="flex flex-col gap-5"
-          description="Add enough context to decide the next step or start a quote. Detailed form customization stays in Forms."
-          title="Inquiry basics"
+          description="Capture the request clearly enough to reply, quote, or follow up."
+          title="Request details"
         >
           <FieldGroup>
             <div className="grid gap-5 sm:grid-cols-2">
@@ -385,7 +387,9 @@ export function ManualInquiryEditor({
                   <p className="text-sm text-muted-foreground">
                     Selected: {selectedFileName}
                   </p>
-                ) : null}
+                ) : (
+                  <FieldDescription>{uploadHelpText}</FieldDescription>
+                )}
                 <FieldError
                   errors={
                     getFieldMessage("attachment")
@@ -919,7 +923,7 @@ function ManualInquiryPreview({
           <p className="meta-label">
             {detailsField?.label ?? "Inquiry details"}
           </p>
-          <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground">
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-normal sm:leading-7 text-foreground">
             {details !== "Not provided"
               ? details
               : "Add the main scope, context, and anything needed before quoting or following up."}

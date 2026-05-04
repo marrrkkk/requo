@@ -1,32 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import {
-  closestCenter,
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { CheckCircle2, GripVertical, Sparkles } from "lucide-react";
+import { CheckCircle2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { BrandMark } from "@/components/shared/brand-mark";
 import { CountryCombobox } from "@/components/shared/country-combobox";
 import { FormActions } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -52,7 +34,6 @@ import {
   getBusinessCurrencyOption,
 } from "@/features/businesses/locale";
 import {
-  getStarterTemplateDefinition,
   starterTemplateSelectionDescription,
 } from "@/features/businesses/starter-templates";
 import {
@@ -60,28 +41,24 @@ import {
   businessTypeOptions,
   type BusinessType,
 } from "@/features/inquiries/business-types";
-import {
-  inquiryContactFieldKeys,
-  type InquiryContactFieldKey,
-  type InquiryFormConfig,
-  type InquiryFormFieldDefinition,
-} from "@/features/inquiries/form-config";
 import { cn } from "@/lib/utils";
-import { OnboardingPreviewDialog } from "@/features/onboarding/components/onboarding-preview-dialog";
 import {
   createEmptyOnboardingDraft,
-  createOnboardingPreviewBusiness,
   getRecommendedStarterTemplateForBusinessType,
   onboardingSessionStorageKey,
   resolveOnboardingCurrencyChange,
   type OnboardingDraft,
 } from "@/features/onboarding/helpers";
+import { OnboardingStepper } from "@/features/onboarding/components/onboarding-stepper";
 import {
+  companySizeOptions,
+  jobTitleOptions,
   onboardingBusinessContextSchema,
+  onboardingOwnerProfileSchema,
   onboardingTemplateSchema,
   onboardingWorkspaceSchema,
+  referralSourceOptions,
 } from "@/features/onboarding/schemas";
-import { OnboardingStepper } from "@/features/onboarding/components/onboarding-stepper";
 import type {
   OnboardingActionState,
   OnboardingFieldName,
@@ -95,9 +72,21 @@ type OnboardingFormProps = {
   ) => Promise<OnboardingActionState>;
 };
 
-type OnboardingStepId = "workspace" | "business" | "template" | "review";
+type OnboardingStepId = "profile" | "workspace" | "business" | "template";
 
 const onboardingSteps = [
+  {
+    id: "profile" as const,
+    label: "Profile",
+    description: "Your role, company size, and source.",
+    title: "A few details first",
+    body: "Tell us your role, company size, and how you found Requo.",
+    fields: [
+      "jobTitle",
+      "companySize",
+      "referralSource",
+    ] as const satisfies readonly OnboardingFieldName[],
+  },
   {
     id: "workspace" as const,
     label: "Workspace",
@@ -132,15 +121,6 @@ const onboardingSteps = [
       "starterTemplateBusinessType",
     ] as const satisfies readonly OnboardingFieldName[],
   },
-  {
-    id: "review" as const,
-    label: "Review",
-    description: "Preview the first version. You can customize it after setup.",
-    title: "Preview your inquiry page",
-    body:
-      "Check the generated intake flow, then finish setup and move straight into the dashboard. Edit labels, required fields, and form order later in Forms.",
-    fields: [] as const satisfies readonly OnboardingFieldName[],
-  },
 ] satisfies ReadonlyArray<{
   id: OnboardingStepId;
   label: string;
@@ -170,100 +150,17 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
     Partial<Record<OnboardingFieldName, string>>
   >({});
   const [isDraftHydrated, setIsDraftHydrated] = useState(false);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [reviewFormConfig, setReviewFormConfig] = useState<InquiryFormConfig | null>(null);
-  const [editingReviewFieldId, setEditingReviewFieldId] = useState<string | null>(null);
-  const [editingReviewFieldValue, setEditingReviewFieldValue] = useState("");
   const currentStepMeta = onboardingSteps[currentStep];
+  const currentStepId = currentStepMeta.id;
   const recommendedTemplate = useMemo(
     () => getRecommendedStarterTemplateForBusinessType(draft.businessType),
     [draft.businessType],
   );
-  const selectedTemplate =
-    draft.starterTemplateBusinessType || recommendedTemplate;
-  const selectedTemplateMeta = getStarterTemplateDefinition(selectedTemplate);
   const selectedBusinessTypeMeta = draft.businessType
     ? businessTypeMeta[draft.businessType]
     : null;
   const selectedCountry = getBusinessCountryOption(draft.countryCode);
   const selectedCurrency = getBusinessCurrencyOption(draft.defaultCurrency);
-  const previewBusiness = useMemo(
-    () => createOnboardingPreviewBusiness(draft),
-    [draft],
-  );
-  const effectivePreviewBusiness = useMemo(() => {
-    if (!reviewFormConfig) return previewBusiness;
-    return {
-      ...previewBusiness,
-      inquiryFormConfig: reviewFormConfig,
-    };
-  }, [previewBusiness, reviewFormConfig]);
-  const hasReviewChanges = reviewFormConfig !== null;
-  const previewFieldItems = useMemo(
-    () => getPreviewFieldItems(previewBusiness.inquiryFormConfig),
-    [previewBusiness.inquiryFormConfig],
-  );
-  const effectiveReviewConfig = useMemo(
-    () =>
-      currentStep === 3
-        ? (reviewFormConfig ?? previewBusiness.inquiryFormConfig)
-        : null,
-    [currentStep, reviewFormConfig, previewBusiness.inquiryFormConfig],
-  );
-  const reviewContactFieldItems = useMemo(() => {
-    if (!effectiveReviewConfig) return [];
-    return (
-      Object.entries(effectiveReviewConfig.contactFields) as Array<
-        [
-          InquiryContactFieldKey,
-          (typeof effectiveReviewConfig.contactFields)[InquiryContactFieldKey],
-        ]
-      >
-    )
-      .filter(([, field]) => field.enabled)
-      .map(([key, field]) => ({
-        id: key,
-        label: field.label,
-        required: field.required,
-        isRequiredLocked: key === "customerName" || key === "preferredContact",
-        isWide: false,
-        placeholder: field.placeholder || "",
-      }));
-  }, [effectiveReviewConfig]);
-  const reviewProjectFieldItems = useMemo(() => {
-    if (!effectiveReviewConfig) return [];
-    return effectiveReviewConfig.projectFields
-      .filter((field) => field.kind === "custom" || field.enabled)
-      .map((field) => {
-        const isWide =
-          (field.kind === "system" && field.key === "details") ||
-          (field.kind === "custom" &&
-            (field.fieldType === "long_text" ||
-              field.fieldType === "multi_select"));
-        return {
-          id: field.kind === "system" ? field.key : field.id,
-          label: field.label,
-          required: field.required,
-          isRequiredLocked:
-            field.kind === "system" &&
-            (field.key === "serviceCategory" ||
-              field.key === "details" ||
-              field.key === "attachment"),
-          isWide,
-          placeholder: field.placeholder || "",
-        };
-      });
-  }, [effectiveReviewConfig]);
-  const reviewFieldSensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
-  const serializedReviewConfig = useMemo(
-    () => (effectiveReviewConfig ? JSON.stringify(effectiveReviewConfig) : ""),
-    [effectiveReviewConfig],
-  );
 
   useEffect(() => {
     try {
@@ -415,10 +312,6 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
 
   function getFirstInvalidStepIndex() {
     for (const [index, step] of onboardingSteps.entries()) {
-      if (step.fields.length === 0) {
-        continue;
-      }
-
       if (!validateFields(step.fields)) {
         return index;
       }
@@ -445,127 +338,6 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
     }
 
     setCurrentStep(nextStep);
-  }
-
-  // Reset review customizations when template changes
-  useEffect(() => {
-    setReviewFormConfig(null);
-    setEditingReviewFieldId(null);
-  }, [selectedTemplate]);
-
-  function handleStartReviewFieldEdit(fieldId: string, currentLabel: string) {
-    setEditingReviewFieldId(fieldId);
-    setEditingReviewFieldValue(currentLabel);
-  }
-
-  function handleCancelReviewFieldEdit() {
-    setEditingReviewFieldId(null);
-    setEditingReviewFieldValue("");
-  }
-
-  function handleSaveReviewFieldEdit(
-    fieldId: string,
-    group: "contact" | "project",
-  ) {
-    const trimmed = editingReviewFieldValue.trim();
-
-    if (!trimmed) {
-      handleCancelReviewFieldEdit();
-      return;
-    }
-
-    setReviewFormConfig((prev) => {
-      const config = prev ?? previewBusiness.inquiryFormConfig;
-
-      if (group === "contact") {
-        const contactKey = fieldId as InquiryContactFieldKey;
-
-        return {
-          ...config,
-          contactFields: {
-            ...config.contactFields,
-            [contactKey]: {
-              ...config.contactFields[contactKey],
-              label: trimmed,
-            },
-          },
-        };
-      }
-
-      return {
-        ...config,
-        projectFields: config.projectFields.map((f) => {
-          const id = f.kind === "system" ? f.key : f.id;
-          return id === fieldId ? { ...f, label: trimmed } : f;
-        }),
-      };
-    });
-
-    setEditingReviewFieldId(null);
-    setEditingReviewFieldValue("");
-  }
-
-  function handleToggleReviewFieldRequired(
-    fieldId: string,
-    group: "contact" | "project",
-  ) {
-    setReviewFormConfig((prev) => {
-      const config = prev ?? previewBusiness.inquiryFormConfig;
-
-      if (group === "contact") {
-        const contactKey = fieldId as InquiryContactFieldKey;
-        const current = config.contactFields[contactKey];
-
-        return {
-          ...config,
-          contactFields: {
-            ...config.contactFields,
-            [contactKey]: { ...current, required: !current.required },
-          },
-        };
-      }
-
-      return {
-        ...config,
-        projectFields: config.projectFields.map((f) => {
-          const id = f.kind === "system" ? f.key : f.id;
-          return id === fieldId
-            ? ({ ...f, required: !f.required } as typeof f)
-            : f;
-        }),
-      };
-    });
-  }
-
-  function handleReviewProjectFieldDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-
-    if (!over || active.id === over.id) {
-      return;
-    }
-
-    setReviewFormConfig((prev) => {
-      const config = prev ?? previewBusiness.inquiryFormConfig;
-      const activeIndex = config.projectFields.findIndex(
-        (f) => (f.kind === "system" ? f.key : f.id) === String(active.id),
-      );
-      const overIndex = config.projectFields.findIndex(
-        (f) => (f.kind === "system" ? f.key : f.id) === String(over.id),
-      );
-
-      if (activeIndex < 0 || overIndex < 0) {
-        return config;
-      }
-
-      return {
-        ...config,
-        projectFields: arrayMove(
-          config.projectFields,
-          activeIndex,
-          overIndex,
-        ),
-      };
-    });
   }
 
   return (
@@ -602,20 +374,22 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
           type="hidden"
           value={draft.starterTemplateBusinessType}
         />
+        <input name="jobTitle" type="hidden" value={draft.jobTitle} />
+        <input name="companySize" type="hidden" value={draft.companySize} />
         <input
-          name="inquiryFormConfigOverride"
+          name="referralSource"
           type="hidden"
-          value={serializedReviewConfig}
+          value={draft.referralSource}
         />
 
-        <div className="section-panel flex flex-col gap-8 px-5 py-5 sm:px-6 sm:py-6">
-          <div className="flex flex-col gap-3">
+        <div className="section-panel flex w-full flex-col gap-6 px-5 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-col items-center gap-3 text-center">
             <p className="meta-label">Onboarding</p>
-            <div className="min-w-0">
+            <div className="min-w-0 max-w-2xl">
               <h1 className="font-heading text-[2rem] font-semibold tracking-tight text-foreground sm:text-[2.35rem]">
                 {currentStepMeta.title}
               </h1>
-              <p className="mt-2 max-w-3xl text-sm leading-7 text-muted-foreground sm:text-[0.96rem]">
+              <p className="mt-2 text-sm leading-normal sm:leading-7 text-muted-foreground sm:text-[0.96rem]">
                 {currentStepMeta.body}
               </p>
             </div>
@@ -628,14 +402,105 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
           />
 
           {state.error ? (
-            <Alert>
+            <Alert className="mx-auto w-full max-w-3xl">
               <AlertTitle>Setup hit a problem</AlertTitle>
               <AlertDescription>{state.error}</AlertDescription>
             </Alert>
           ) : null}
 
           <div className="min-w-0">
-            {currentStep === 0 ? (
+            {currentStepId === "profile" ? (
+              <div className="mx-auto w-full max-w-2xl">
+                <Card className="border-border/75 bg-card/97">
+                  <CardHeader>
+                    <CardTitle>Business profile</CardTitle>
+                    <CardDescription>
+                      A few details so we can tailor your starting setup.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <FieldGroup>
+                      <Field
+                        data-invalid={Boolean(fieldErrors.jobTitle) || undefined}
+                      >
+                        <FieldLabel htmlFor="onboarding-job-title">
+                          Role
+                        </FieldLabel>
+                        <FieldContent>
+                          <Combobox
+                            aria-invalid={
+                              Boolean(fieldErrors.jobTitle) || undefined
+                            }
+                            autoFocus={isDraftHydrated}
+                            buttonClassName={onboardingComboboxButtonClassName}
+                            disabled={isPending}
+                            id="onboarding-job-title"
+                            onValueChange={(value) => updateField("jobTitle", value)}
+                            options={jobTitleOptions}
+                            placeholder="Choose your role"
+                            searchPlaceholder="Search roles"
+                            searchable
+                            value={draft.jobTitle}
+                          />
+                        </FieldContent>
+                      </Field>
+
+                      <Field
+                        data-invalid={Boolean(fieldErrors.companySize) || undefined}
+                      >
+                        <FieldLabel htmlFor="onboarding-company-size">
+                          Company size
+                        </FieldLabel>
+                        <FieldContent>
+                          <Combobox
+                            aria-invalid={
+                              Boolean(fieldErrors.companySize) || undefined
+                            }
+                            buttonClassName={onboardingComboboxButtonClassName}
+                            disabled={isPending}
+                            id="onboarding-company-size"
+                            onValueChange={(value) =>
+                              updateField("companySize", value)
+                            }
+                            options={companySizeOptions}
+                            placeholder="Choose your company size"
+                            value={draft.companySize}
+                          />
+                        </FieldContent>
+                      </Field>
+
+                      <Field
+                        data-invalid={Boolean(fieldErrors.referralSource) || undefined}
+                      >
+                        <FieldLabel htmlFor="onboarding-referral-source">
+                          Where did you find us?
+                        </FieldLabel>
+                        <FieldContent>
+                          <Combobox
+                            aria-invalid={
+                              Boolean(fieldErrors.referralSource) || undefined
+                            }
+                            buttonClassName={onboardingComboboxButtonClassName}
+                            disabled={isPending}
+                            id="onboarding-referral-source"
+                            onValueChange={(value) =>
+                              updateField("referralSource", value)
+                            }
+                            options={referralSourceOptions}
+                            placeholder="Choose a source"
+                            searchPlaceholder="Search sources"
+                            searchable
+                            value={draft.referralSource}
+                          />
+                        </FieldContent>
+                      </Field>
+                    </FieldGroup>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : null}
+
+            {currentStepId === "workspace" ? (
               <Card className="border-border/75 bg-card/97">
                 <CardHeader>
                   <CardTitle>Workspace details</CardTitle>
@@ -682,7 +547,7 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
               </Card>
             ) : null}
 
-            {currentStep === 1 ? (
+            {currentStepId === "business" ? (
               <Card className="border-border/75 bg-card/97">
                 <CardHeader>
                   <CardTitle>Business context</CardTitle>
@@ -833,7 +698,7 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
               </Card>
             ) : null}
 
-            {currentStep === 2 ? (
+            {currentStepId === "template" ? (
               <div className="flex flex-col gap-5">
                 <Alert>
                   <Sparkles data-icon="inline-start" />
@@ -874,166 +739,7 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
                 </Card>
               </div>
             ) : null}
-
-            {currentStep === 3 ? (
-              <div className="flex flex-col gap-5">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <SummaryCard
-                    description="Top-level workspace"
-                    title="Workspace"
-                    value={draft.workspaceName || "Untitled workspace"}
-                  />
-                  <SummaryCard
-                    description={
-                      selectedBusinessTypeMeta?.label ?? "Business category"
-                    }
-                    title="Business"
-                    value={draft.businessName || "Untitled business"}
-                  />
-                  <SummaryCard
-                    description="Starter template"
-                    title="Template"
-                    value={selectedTemplateMeta.label}
-                  />
-                </div>
-
-                <Card className="border-border/75 bg-card/97">
-                  <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <CardTitle>What customers will see</CardTitle>
-                      <CardDescription>
-                        This starter version is ready to use. Fine-tune fields
-                        after setup from Forms.
-                      </CardDescription>
-                    </div>
-                    <Button
-                      className="w-full sm:w-auto"
-                      onClick={() => setIsPreviewOpen(true)}
-                      type="button"
-                      variant="outline"
-                    >
-                      Open full preview
-                    </Button>
-                  </CardHeader>
-                  <CardContent className="flex flex-col gap-5">
-                    <div className="rounded-xl border border-border/70 bg-muted/20 px-4 py-4">
-                      <p className="meta-label">Inquiry page</p>
-                      <p className="mt-2 font-heading text-xl font-semibold tracking-tight text-foreground">
-                        {previewBusiness.inquiryPageConfig.headline}
-                      </p>
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        {previewBusiness.inquiryPageConfig.description}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-semibold text-foreground">
-                          Contact fields
-                        </p>
-                        <Badge variant="secondary">
-                          {reviewContactFieldItems.length} fields
-                        </Badge>
-                      </div>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        {reviewContactFieldItems.map((field) => (
-                          <ReviewFieldCard
-                            editingFieldId={editingReviewFieldId}
-                            editingFieldValue={editingReviewFieldValue}
-                            field={field}
-                            key={field.id}
-                            onCancelEdit={handleCancelReviewFieldEdit}
-                            onEditChange={setEditingReviewFieldValue}
-                            onSaveEdit={(id) =>
-                              handleSaveReviewFieldEdit(id, "contact")
-                            }
-                            onStartEdit={handleStartReviewFieldEdit}
-                            onToggleRequired={(id) =>
-                              handleToggleReviewFieldRequired(id, "contact")
-                            }
-                          />
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm font-semibold text-foreground">
-                          Inquiry fields
-                        </p>
-                        <Badge variant="secondary">
-                          {reviewProjectFieldItems.length} fields
-                        </Badge>
-                      </div>
-                      <DndContext
-                        collisionDetection={closestCenter}
-                        id="onboarding-review-project-fields-dnd"
-                        onDragEnd={handleReviewProjectFieldDragEnd}
-                        sensors={reviewFieldSensors}
-                      >
-                        <SortableContext
-                          items={reviewProjectFieldItems.map((f) => f.id)}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          <div className="grid gap-4 sm:grid-cols-2">
-                            {reviewProjectFieldItems.map((field) => (
-                              <SortableReviewFieldCard
-                                editingFieldId={editingReviewFieldId}
-                                editingFieldValue={editingReviewFieldValue}
-                                field={field}
-                                key={field.id}
-                                onCancelEdit={handleCancelReviewFieldEdit}
-                                onEditChange={setEditingReviewFieldValue}
-                                onSaveEdit={(id) =>
-                                  handleSaveReviewFieldEdit(id, "project")
-                                }
-                                onStartEdit={handleStartReviewFieldEdit}
-                                onToggleRequired={(id) =>
-                                  handleToggleReviewFieldRequired(id, "project")
-                                }
-                              />
-                            ))}
-                          </div>
-                        </SortableContext>
-                      </DndContext>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            ) : null}
           </div>
-
-          {currentStep === 3 && hasReviewChanges ? (
-            <div className="fixed inset-x-0 bottom-4 z-40 flex justify-center px-4">
-              <div
-                className="soft-panel flex w-full max-w-2xl items-center justify-between gap-3 border-border/80 bg-background/95 px-4 py-3 shadow-xl backdrop-blur motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:zoom-in-95 motion-safe:duration-200"
-              >
-                <p className="text-sm text-muted-foreground">
-                  You&apos;ve customized the inquiry form.
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    onClick={() => {
-                      setReviewFormConfig(null);
-                      setEditingReviewFieldId(null);
-                    }}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    Discard
-                  </Button>
-                  <Button
-                    onClick={() => setIsPreviewOpen(true)}
-                    size="sm"
-                    type="button"
-                  >
-                    Open preview
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ) : null}
 
           <FormActions
             align={currentStep === 0 ? "end" : "between"}
@@ -1080,35 +786,7 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
       {isPending && currentStep === lastOnboardingStepIndex ? (
         <SetupLoadingOverlay />
       ) : null}
-
-      <OnboardingPreviewDialog
-        business={effectivePreviewBusiness}
-        onOpenChange={setIsPreviewOpen}
-        open={isPreviewOpen}
-      />
     </>
-  );
-}
-
-function SummaryCard({
-  title,
-  description,
-  value,
-}: {
-  title: string;
-  description: string;
-  value: string;
-}) {
-  return (
-    <Card className="border-border/75 bg-card/97">
-      <CardHeader className="gap-2">
-        <CardDescription>{title}</CardDescription>
-        <CardTitle className="text-base">{value}</CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <p className="text-sm leading-6 text-muted-foreground">{description}</p>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -1155,38 +833,26 @@ function getFieldValidationError(
         );
       return result.success ? undefined : result.error.issues[0]?.message;
     }
+    case "jobTitle": {
+      const result = onboardingOwnerProfileSchema.shape.jobTitle.safeParse(
+        draft.jobTitle,
+      );
+      return result.success ? undefined : result.error.issues[0]?.message;
+    }
+    case "companySize": {
+      const result = onboardingOwnerProfileSchema.shape.companySize.safeParse(
+        draft.companySize,
+      );
+      return result.success ? undefined : result.error.issues[0]?.message;
+    }
+    case "referralSource": {
+      const result =
+        onboardingOwnerProfileSchema.shape.referralSource.safeParse(
+          draft.referralSource,
+        );
+      return result.success ? undefined : result.error.issues[0]?.message;
+    }
   }
-}
-
-function getPreviewFieldItems(inquiryFormConfig: InquiryFormConfig) {
-  const contactFields = (
-    Object.entries(inquiryFormConfig.contactFields) as Array<
-      [
-        InquiryContactFieldKey,
-        (typeof inquiryFormConfig.contactFields)[InquiryContactFieldKey],
-      ]
-    >
-  )
-    .filter(([, field]) => field.enabled)
-    .map(([key, field]) => ({
-      id: key,
-      label: field.label,
-      required: field.required,
-    }));
-
-  const projectFields = inquiryFormConfig.projectFields
-    .filter((field) => isPreviewFieldVisible(field))
-    .map((field) => ({
-      id: field.kind === "system" ? field.key : field.id,
-      label: field.label,
-      required: field.required,
-    }));
-
-  return [...contactFields, ...projectFields];
-}
-
-function isPreviewFieldVisible(field: InquiryFormFieldDefinition) {
-  return field.kind === "custom" || field.enabled;
 }
 
 function sanitizeDraft(
@@ -1212,6 +878,11 @@ function sanitizeDraft(
     countryCode: typeof value.countryCode === "string" ? value.countryCode : "",
     defaultCurrency:
       typeof value.defaultCurrency === "string" ? value.defaultCurrency : "",
+    jobTitle: typeof value.jobTitle === "string" ? value.jobTitle : "",
+    companySize:
+      typeof value.companySize === "string" ? value.companySize : "",
+    referralSource:
+      typeof value.referralSource === "string" ? value.referralSource : "",
   };
 }
 
@@ -1229,105 +900,6 @@ function mapServerFieldErrors(
 
 function clampStepIndex(value: number, maxStepIndex: number) {
   return Math.min(Math.max(value, 0), maxStepIndex);
-}
-
-type ReviewFieldItemData = {
-  id: string;
-  label: string;
-  required: boolean;
-  isRequiredLocked: boolean;
-  isWide: boolean;
-  placeholder: string;
-};
-
-type ReviewFieldCardProps = {
-  field: ReviewFieldItemData;
-  editingFieldId: string | null;
-  editingFieldValue: string;
-  onStartEdit: (id: string, label: string) => void;
-  onEditChange: (value: string) => void;
-  onSaveEdit: (id: string) => void;
-  onCancelEdit: () => void;
-  onToggleRequired: (id: string) => void;
-};
-
-function ReviewFieldCard({
-  field,
-}: ReviewFieldCardProps) {
-  return (
-    <div className={cn("flex flex-col gap-1.5", field.isWide && "sm:col-span-2")}>
-      <ReviewFieldLabel field={field} />
-      <div className="pointer-events-none rounded-lg border border-input/60 bg-muted/30 px-3 py-2">
-        <span className="text-sm text-muted-foreground/50">
-          {field.placeholder || field.label}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function SortableReviewFieldCard({
-  field,
-}: ReviewFieldCardProps) {
-  const {
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: field.id });
-
-  const style: CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    willChange: isDragging ? "transform" : undefined,
-  };
-
-  return (
-    <div
-      className={cn(
-        "flex gap-2",
-        field.isWide && "sm:col-span-2",
-        isDragging && "relative z-10",
-      )}
-      ref={setNodeRef}
-      style={style}
-    >
-      <span
-        aria-hidden="true"
-        className="mt-1 shrink-0 self-start text-muted-foreground/35"
-      >
-        <GripVertical className="size-4" />
-      </span>
-      <div className={cn(
-        "flex min-w-0 flex-1 flex-col gap-1.5 rounded-lg p-2 transition-shadow",
-        isDragging && "bg-background shadow-lg ring-2 ring-primary/20",
-      )}>
-        <ReviewFieldLabel field={field} />
-        <div className="pointer-events-none rounded-lg border border-input/60 bg-muted/30 px-3 py-2">
-          <span className="text-sm text-muted-foreground/50">
-            {field.placeholder || field.label}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ReviewFieldLabel({
-  field,
-}: Pick<ReviewFieldCardProps, "field">) {
-  return (
-    <div className="flex min-w-0 items-center gap-1.5">
-      <span className="truncate text-sm font-medium text-foreground">
-        {field.label}
-      </span>
-      <span className="ml-auto shrink-0">
-        <span className="text-xs font-medium text-muted-foreground">
-          {field.required ? "Required" : "Optional"}
-        </span>
-      </span>
-    </div>
-  );
 }
 
 const setupLoadingSteps = [

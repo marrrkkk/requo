@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { ArrowRight, X } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import {
   getMarketingNavHref,
@@ -18,27 +18,86 @@ type MarketingMobileNavProps = {
   isAuthenticated: boolean;
 };
 
+const MOBILE_NAV_EXIT_DURATION_MS = 320;
+
+type ScrollLockStyles = {
+  bodyOverflow: string;
+  bodyOverscrollBehavior: string;
+  rootOverflow: string;
+  rootOverscrollBehavior: string;
+};
+
 export function MarketingMobileNav({
   isAuthenticated,
 }: MarketingMobileNavProps) {
   const [open, setOpen] = useState(false);
-  const present = useOverlayPresence(open);
+  const [menuRenderKey, setMenuRenderKey] = useState(0);
+  const toggleButtonRef = useRef<HTMLButtonElement>(null);
+  const scrollLockStylesRef = useRef<ScrollLockStyles | null>(null);
+  const present = useOverlayPresence(open, MOBILE_NAV_EXIT_DURATION_MS);
 
   const closeMenu = useCallback(() => {
     setOpen(false);
   }, []);
 
-  useEffect(() => {
+  const toggleMenu = useCallback(() => {
     if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
+      closeMenu();
+      return;
     }
 
-    return () => {
-      document.body.style.overflow = "";
+    setMenuRenderKey((currentKey) => currentKey + 1);
+    setOpen(true);
+  }, [closeMenu, open]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+
+    const restoreScrollLock = () => {
+      const previousStyles = scrollLockStylesRef.current;
+
+      if (!previousStyles) return;
+
+      body.style.overflow = previousStyles.bodyOverflow;
+      body.style.overscrollBehavior = previousStyles.bodyOverscrollBehavior;
+      root.style.overflow = previousStyles.rootOverflow;
+      root.style.overscrollBehavior = previousStyles.rootOverscrollBehavior;
+      delete body.dataset.marketingMobileNavPresent;
+      scrollLockStylesRef.current = null;
     };
-  }, [open]);
+
+    if (present) {
+      scrollLockStylesRef.current ??= {
+        bodyOverflow: body.style.overflow,
+        bodyOverscrollBehavior: body.style.overscrollBehavior,
+        rootOverflow: root.style.overflow,
+        rootOverscrollBehavior: root.style.overscrollBehavior,
+      };
+
+      body.style.overflow = "hidden";
+      body.style.overscrollBehavior = "none";
+      root.style.overflow = "hidden";
+      root.style.overscrollBehavior = "none";
+      body.dataset.marketingMobileNavPresent = "true";
+    } else {
+      restoreScrollLock();
+    }
+
+    return restoreScrollLock;
+  }, [present]);
+
+  useEffect(() => {
+    if (!open || !present) return;
+
+    const frameId = window.requestAnimationFrame(() => {
+      toggleButtonRef.current?.focus();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [open, present]);
 
   useEffect(() => {
     if (!open) return;
@@ -76,20 +135,10 @@ export function MarketingMobileNav({
       aria-hidden={!open}
       aria-modal="true"
       className="mobile-nav-overlay lg:hidden"
-      data-open={open}
+      data-state={open ? "open" : "closed"}
+      key={menuRenderKey}
       role="dialog"
     >
-      <div className="mobile-nav-header">
-        <button
-          aria-label="Close navigation"
-          className="mobile-nav-close"
-          onClick={closeMenu}
-          type="button"
-        >
-          <X className="size-5" />
-        </button>
-      </div>
-
       <nav className="mobile-nav-body">
         {navItems.map((item, index) => (
           <Link
@@ -142,7 +191,8 @@ export function MarketingMobileNav({
         aria-expanded={open}
         className="mobile-nav-toggle lg:hidden"
         data-open={open}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={toggleMenu}
+        ref={toggleButtonRef}
         type="button"
       >
         <span className="mobile-nav-toggle-bars" data-open={open}>

@@ -47,7 +47,7 @@ keeping the core experience focused on this workflow rather than generic configu
 - Starter defaults for inquiry fields, reply snippets, and quote notes that stay editable later
 - Knowledge and FAQ management for business-specific reference material
 - AI-assisted response drafting through Groq, Gemini, and OpenRouter fallback routing
-- Transactional email flows through Resend
+- Transactional email flows through Resend, with Mailtrap and Brevo fallback
 - Subscription billing with PayMongo (QRPh for Philippines) and Paddle (cards for international)
 - Analytics and notification foundations for operational visibility
 
@@ -61,7 +61,7 @@ keeping the core experience focused on this workflow rather than generic configu
 - Better Auth for authentication and sessions
 - Drizzle ORM with PostgreSQL
 - Supabase for storage and realtime-backed notification plumbing
-- Resend for transactional email
+- Resend, Mailtrap, and Brevo for transactional email fallback
 - Groq, Gemini, and OpenRouter for AI-assisted drafting
 - PayMongo for QRPh payments (Philippines)
 - Paddle for card/global payments
@@ -145,6 +145,7 @@ The demo seed also creates two additional sample businesses, three inquiry forms
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_JWT_SECRET`
 - `APP_TOKEN_HASH_SECRET`
+- `ADMIN_EMAILS`
 
 ### Database tooling
 
@@ -158,7 +159,15 @@ The demo seed also creates two additional sample businesses, three inquiry forms
 - `MICROSOFT_CLIENT_SECRET`
 - `MICROSOFT_TENANT_ID`
 - `RESEND_API_KEY`
-- `RESEND_FROM_EMAIL`
+- `MAILTRAP_API_TOKEN`
+- `BREVO_API_KEY`
+- `EMAIL_DOMAIN`
+- `EMAIL_FROM_DEFAULT`
+- `EMAIL_FROM_NOTIFICATIONS`
+- `EMAIL_FROM_SYSTEM`
+- `EMAIL_FROM_QUOTES`
+- `EMAIL_FROM_SUPPORT`
+- `RESEND_FROM_EMAIL` (legacy fallback)
 - `RESEND_REPLY_TO_EMAIL`
 - `GROQ_API_KEY`
 - `GEMINI_API_KEY`

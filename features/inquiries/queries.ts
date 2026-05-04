@@ -40,6 +40,10 @@ import {
   getNormalizedInquirySubmittedFieldSnapshot,
 } from "@/features/inquiries/form-config";
 import { getNormalizedInquiryPageConfig } from "@/features/inquiries/page-config";
+import {
+  resolveInquiryFormConfigForPlan,
+  resolveInquiryPageConfigForPlan,
+} from "@/features/inquiries/plan-rules";
 import { normalizeBusinessType } from "@/features/inquiries/business-types";
 import {
   getBusinessInquiryDetailCacheTags,
@@ -151,6 +155,22 @@ async function getInquiryBusinessBySlug({
 
   const formBusinessType = normalizeBusinessType(business.formBusinessType);
 
+  const inquiryFormConfig = getNormalizedInquiryFormConfig(
+    business.inquiryFormConfig,
+    {
+      businessType: formBusinessType,
+    },
+  );
+  const inquiryPageConfig = getNormalizedInquiryPageConfig(
+    business.inquiryPageConfig,
+    {
+      businessName: business.name,
+      businessShortDescription: business.shortDescription,
+      legacyInquiryHeadline: business.inquiryHeadline,
+      businessType: formBusinessType,
+    },
+  );
+
   return {
     id: business.id,
     name: business.name,
@@ -169,15 +189,14 @@ async function getInquiryBusinessBySlug({
       isDefault: business.formIsDefault,
       publicInquiryEnabled: business.publicInquiryEnabled,
     },
-    inquiryFormConfig: getNormalizedInquiryFormConfig(business.inquiryFormConfig, {
-      businessType: formBusinessType,
-    }),
-    inquiryPageConfig: getNormalizedInquiryPageConfig(business.inquiryPageConfig, {
-      businessName: business.name,
-      businessShortDescription: business.shortDescription,
-      legacyInquiryHeadline: business.inquiryHeadline,
-      businessType: formBusinessType,
-    }),
+    inquiryFormConfig: resolveInquiryFormConfigForPlan(
+      inquiryFormConfig,
+      business.plan,
+    ),
+    inquiryPageConfig: resolveInquiryPageConfigForPlan(
+      inquiryPageConfig,
+      business.plan,
+    ),
   };
 }
 
@@ -316,6 +335,22 @@ async function getInquiryBusinessByFormSlug({
 
   const formBusinessType = normalizeBusinessType(business.formBusinessType);
 
+  const inquiryFormConfig = getNormalizedInquiryFormConfig(
+    business.inquiryFormConfig,
+    {
+      businessType: formBusinessType,
+    },
+  );
+  const inquiryPageConfig = getNormalizedInquiryPageConfig(
+    business.inquiryPageConfig,
+    {
+      businessName: business.name,
+      businessShortDescription: business.shortDescription,
+      legacyInquiryHeadline: business.inquiryHeadline,
+      businessType: formBusinessType,
+    },
+  );
+
   return {
     id: business.id,
     name: business.name,
@@ -334,15 +369,14 @@ async function getInquiryBusinessByFormSlug({
       isDefault: business.formIsDefault,
       publicInquiryEnabled: business.publicInquiryEnabled,
     },
-    inquiryFormConfig: getNormalizedInquiryFormConfig(business.inquiryFormConfig, {
-      businessType: formBusinessType,
-    }),
-    inquiryPageConfig: getNormalizedInquiryPageConfig(business.inquiryPageConfig, {
-      businessName: business.name,
-      businessShortDescription: business.shortDescription,
-      legacyInquiryHeadline: business.inquiryHeadline,
-      businessType: formBusinessType,
-    }),
+    inquiryFormConfig: resolveInquiryFormConfigForPlan(
+      inquiryFormConfig,
+      business.plan,
+    ),
+    inquiryPageConfig: resolveInquiryPageConfigForPlan(
+      inquiryPageConfig,
+      business.plan,
+    ),
   };
 }
 
@@ -824,8 +858,11 @@ export async function getInquiryEditorFormsForBusiness(
       isDefault: businessInquiryForms.isDefault,
       publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
       inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
+      plan: workspaces.plan,
     })
     .from(businessInquiryForms)
+    .innerJoin(businesses, eq(businessInquiryForms.businessId, businesses.id))
+    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .where(
       and(
         eq(businessInquiryForms.businessId, businessId),
@@ -844,9 +881,12 @@ export async function getInquiryEditorFormsForBusiness(
       businessType,
       isDefault: form.isDefault,
       publicInquiryEnabled: form.publicInquiryEnabled,
-      inquiryFormConfig: getNormalizedInquiryFormConfig(form.inquiryFormConfig, {
-        businessType,
-      }),
+      inquiryFormConfig: resolveInquiryFormConfigForPlan(
+        getNormalizedInquiryFormConfig(form.inquiryFormConfig, {
+          businessType,
+        }),
+        form.plan,
+      ),
     } satisfies InquiryEditorForm;
   });
 }
@@ -875,8 +915,11 @@ export async function getInquiryEditorFormForBusiness({
       isDefault: businessInquiryForms.isDefault,
       publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
       inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
+      plan: workspaces.plan,
     })
     .from(businessInquiryForms)
+    .innerJoin(businesses, eq(businessInquiryForms.businessId, businesses.id))
+    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .where(
       and(
         eq(businessInquiryForms.businessId, businessId),
@@ -899,9 +942,12 @@ export async function getInquiryEditorFormForBusiness({
     businessType,
     isDefault: form.isDefault,
     publicInquiryEnabled: form.publicInquiryEnabled,
-    inquiryFormConfig: getNormalizedInquiryFormConfig(form.inquiryFormConfig, {
-      businessType,
-    }),
+    inquiryFormConfig: resolveInquiryFormConfigForPlan(
+      getNormalizedInquiryFormConfig(form.inquiryFormConfig, {
+        businessType,
+      }),
+      form.plan,
+    ),
   } satisfies InquiryEditorForm;
 }
 

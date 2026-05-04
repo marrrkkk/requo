@@ -39,7 +39,7 @@ export function LegalDocumentPage({
       <section className="section-panel mx-auto w-full max-w-4xl overflow-hidden">
         <div className="border-b border-border/70 px-5 py-6 sm:px-8 sm:py-8">
           <p className="meta-label">Effective date</p>
-          <p className="mt-3 text-sm leading-7 text-muted-foreground">
+          <p className="mt-3 text-sm leading-normal sm:leading-7 text-muted-foreground">
             {legalConfig.effectiveDate}
           </p>
           <h1 className="mt-5 font-heading text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
@@ -92,12 +92,12 @@ export function LegalSubheading({ children }: { children: ReactNode }) {
 }
 
 export function LegalParagraph({ children }: { children: ReactNode }) {
-  return <p className="text-sm leading-7 text-muted-foreground sm:text-[0.98rem]">{children}</p>;
+  return <p className="text-sm leading-normal sm:leading-7 text-muted-foreground sm:text-[0.98rem]">{children}</p>;
 }
 
 export function LegalList({ items }: { items: ReactNode[] }) {
   return (
-    <ul className="grid gap-2 pl-5 text-sm leading-7 text-muted-foreground sm:text-[0.98rem]">
+    <ul className="grid gap-2 pl-5 text-sm leading-normal sm:leading-7 text-muted-foreground sm:text-[0.98rem]">
       {items.map((item, index) => (
         <li className="list-disc" key={index}>
           {item}

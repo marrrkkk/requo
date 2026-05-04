@@ -126,7 +126,7 @@ function SheetContent({
   const { open, present } = useSheetStateContext("SheetContent")
   const isClosing = !open && present
   const baseClasses =
-    "overlay-surface modal-layer-content fixed flex flex-col gap-0 border bg-clip-padding text-sm text-popover-foreground data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:rounded-t-xl data-[side=bottom]:border-t data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-[92vw] data-[side=left]:border-r data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-[92vw] data-[side=right]:border-l data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:rounded-b-xl data-[side=top]:border-b data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm"
+    "overlay-surface modal-layer-content fixed flex max-h-[100dvh] flex-col gap-0 overflow-hidden border bg-clip-padding text-sm text-popover-foreground data-[side=bottom]:inset-x-0 data-[side=bottom]:bottom-0 data-[side=bottom]:h-auto data-[side=bottom]:max-h-[calc(100dvh-1rem)] data-[side=bottom]:rounded-t-xl data-[side=bottom]:border-t data-[side=left]:inset-y-0 data-[side=left]:left-0 data-[side=left]:h-full data-[side=left]:w-[92vw] data-[side=left]:max-w-[calc(100vw-0.75rem)] data-[side=left]:border-r data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-[92vw] data-[side=right]:max-w-[calc(100vw-0.75rem)] data-[side=right]:border-l data-[side=top]:inset-x-0 data-[side=top]:top-0 data-[side=top]:h-auto data-[side=top]:max-h-[calc(100dvh-1rem)] data-[side=top]:rounded-b-xl data-[side=top]:border-b data-[side=left]:sm:max-w-sm data-[side=right]:sm:max-w-sm"
 
   const motionClasses =
     motionPreset === "sidebar"
@@ -165,7 +165,7 @@ function SheetContent({
           <SheetPrimitive.Close data-slot="sheet-close" asChild>
             <Button
               variant="ghost"
-              className="absolute top-4 right-4 sm:top-5 sm:right-5"
+              className="absolute top-3 right-3 sm:top-5 sm:right-5"
               size="icon-sm"
             >
               <XIcon

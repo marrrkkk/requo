@@ -23,6 +23,7 @@ import {
   activityLogs,
   followUps,
   inquiries,
+  postWinChecklistItems,
   quoteItems,
   quotes,
   user,
@@ -407,6 +408,10 @@ async function getCachedQuoteDetailForBusiness({
       postAcceptanceStatus: quotes.postAcceptanceStatus,
       sentAt: quotes.sentAt,
       acceptedAt: quotes.acceptedAt,
+      completedAt: quotes.completedAt,
+      canceledAt: quotes.canceledAt,
+      cancellationReason: quotes.cancellationReason,
+      cancellationNote: quotes.cancellationNote,
       publicViewedAt: quotes.publicViewedAt,
       customerRespondedAt: quotes.customerRespondedAt,
       customerResponseMessage: quotes.customerResponseMessage,
@@ -436,7 +441,7 @@ async function getCachedQuoteDetailForBusiness({
     return null;
   }
 
-  const [items, activities] = await Promise.all([
+  const [items, activities, checklistItems] = await Promise.all([
     db
       .select({
         id: quoteItems.id,
@@ -471,6 +476,21 @@ async function getCachedQuoteDetailForBusiness({
         ),
       )
       .orderBy(desc(activityLogs.createdAt)),
+    db
+      .select({
+        id: postWinChecklistItems.id,
+        label: postWinChecklistItems.label,
+        completedAt: postWinChecklistItems.completedAt,
+        position: postWinChecklistItems.position,
+      })
+      .from(postWinChecklistItems)
+      .where(
+        and(
+          eq(postWinChecklistItems.businessId, businessId),
+          eq(postWinChecklistItems.quoteId, quoteId),
+        ),
+      )
+      .orderBy(asc(postWinChecklistItems.position)),
   ]);
 
   return {
@@ -496,6 +516,10 @@ async function getCachedQuoteDetailForBusiness({
     postAcceptanceStatus: quote.postAcceptanceStatus,
     sentAt: quote.sentAt,
     acceptedAt: quote.acceptedAt,
+    completedAt: quote.completedAt,
+    canceledAt: quote.canceledAt,
+    cancellationReason: quote.cancellationReason,
+    cancellationNote: quote.cancellationNote,
     publicViewedAt: quote.publicViewedAt,
     customerRespondedAt: quote.customerRespondedAt,
     customerResponseMessage: quote.customerResponseMessage,
@@ -521,6 +545,7 @@ async function getCachedQuoteDetailForBusiness({
       customerRespondedAt: quote.customerRespondedAt,
       validUntil: quote.validUntil,
     }),
+    checklistItems,
   };
 }
 
@@ -631,9 +656,11 @@ export async function getPublicQuoteByToken(
       quoteNumber: quotes.quoteNumber,
       title: quotes.title,
       businessName: businesses.name,
+      businessSlug: businesses.slug,
       businessPlan: workspaces.plan,
       businessShortDescription: businesses.shortDescription,
       businessContactEmail: businesses.contactEmail,
+      businessLogoStoragePath: businesses.logoStoragePath,
       customerName: quotes.customerName,
       customerEmail: quotes.customerEmail,
       customerContactMethod: quotes.customerContactMethod,
@@ -687,8 +714,10 @@ export async function getPublicQuoteByToken(
     businessId: quote.businessId,
     businessContactEmail: quote.businessContactEmail,
     businessName: quote.businessName,
+    businessSlug: quote.businessSlug,
     businessPlan: quote.businessPlan,
     businessShortDescription: quote.businessShortDescription,
+    businessLogoStoragePath: quote.businessLogoStoragePath,
     currency: quote.currency,
     customerEmail: quote.customerEmail,
     customerContactMethod: quote.customerContactMethod,

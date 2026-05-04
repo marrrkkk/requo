@@ -4,7 +4,10 @@ export type OnboardingFieldName =
   | "businessType"
   | "countryCode"
   | "defaultCurrency"
-  | "starterTemplateBusinessType";
+  | "starterTemplateBusinessType"
+  | "jobTitle"
+  | "companySize"
+  | "referralSource";
 
 export type OnboardingActionState = {
   error?: string;

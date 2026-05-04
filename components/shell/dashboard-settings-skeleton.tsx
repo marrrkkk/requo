@@ -19,7 +19,7 @@ export function DashboardSettingsIndexSkeleton() {
 
 /**
  * Settings route skeletons render only the main column; `settings/layout.tsx`
- * already provides `DashboardPage`, the sidebar, and spacing.
+ * already provides `DashboardPage`, the tabs, and spacing.
  */
 function DashboardSettingsShellSkeleton({
   children,
@@ -211,8 +211,6 @@ export function DashboardSettingsInquiryDetailSkeleton() {
           </div>
           <Skeleton className="h-10 w-full rounded-lg sm:ml-auto sm:w-36" />
         </div>
-
-        <div className="-mt-1 border-b border-border/50" />
 
         <div className="min-w-0 space-y-6">
           <section className="space-y-4">

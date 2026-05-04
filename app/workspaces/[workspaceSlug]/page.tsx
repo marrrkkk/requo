@@ -6,7 +6,7 @@ import { BrandMark } from "@/components/shared/brand-mark";
 import { AccountUserMenu } from "@/features/account/components/account-user-menu";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
-import { getWorkspaceOverviewBySlug, getWorkspaceListForUser } from "@/features/workspaces/queries";
+import { getWorkspaceOverviewBySlug } from "@/features/workspaces/queries";
 import { WorkspaceOverviewContent } from "@/features/workspaces/components/workspace-overview";
 import { createBusinessAction } from "@/features/businesses/actions";
 import {
@@ -39,10 +39,9 @@ export default async function WorkspacePage(props: WorkspacePageProps) {
       ? searchParams.view
       : "active";
 
-  const [overview, themePreference, workspaceList, profile] = await Promise.all([
+  const [overview, themePreference, profile] = await Promise.all([
     getWorkspaceOverviewBySlug(session.user.id, params.workspaceSlug, businessView),
     getThemePreferenceForUser(session.user.id),
-    getWorkspaceListForUser(session.user.id),
     getAccountProfileForUser(session.user.id),
   ]);
 
@@ -105,16 +104,15 @@ export default async function WorkspacePage(props: WorkspacePageProps) {
               <h1 className="font-heading text-[2rem] font-semibold tracking-tight text-foreground sm:text-[2.35rem]">
                 {overview.name}
               </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-[0.96rem]">
+              <p className="mt-2 max-w-2xl text-sm leading-normal sm:leading-7 text-muted-foreground sm:text-[0.96rem]">
                 Manage businesses, team members, and billing for this workspace.
               </p>
             </div>
             
             <WorkspaceOverviewContent
-              overview={overview}
-              workspaceList={workspaceList}
               billingOverview={billingOverview!}
               createBusinessAction={createBusinessAction}
+              overview={overview}
             />
           </div>
         </main>

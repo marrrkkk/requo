@@ -277,7 +277,7 @@ export function SendQuoteDialog({
                   </Badge>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="grid gap-3 text-sm sm:grid-cols-2">
                   <div>
                     <p className="meta-label">Total</p>
                     <p className="mt-0.5 font-medium text-foreground">
@@ -291,13 +291,13 @@ export function SendQuoteDialog({
                     </p>
                   </div>
                   <div>
-                    <p className="meta-label">Contact</p>
-                    <p className="mt-0.5 text-foreground capitalize">
-                      {quote.customerContactMethod}
+                    <p className="meta-label">Channel</p>
+                    <p className="mt-0.5 text-foreground">
+                      {quoteSendChannelLabels[detectedChannel]}
                     </p>
                   </div>
                   <div>
-                    <p className="meta-label">Handle</p>
+                    <p className="meta-label">Send to</p>
                     <p className="mt-0.5 truncate text-foreground">
                       {quote.customerContactHandle}
                     </p>
@@ -474,7 +474,7 @@ export function SendQuoteDialog({
 
             {/* --- Mark as Sent footer --- */}
             <DialogFooter className="flex-col gap-3 sm:flex-col">
-              <div className="flex items-center gap-2">
+              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
                 <span className="text-sm text-muted-foreground">Via</span>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

@@ -27,6 +27,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
   loadMoreBusinessNotificationsAction,
@@ -42,6 +51,11 @@ import {
   formatRelativeNotificationTime,
   isNotificationUnread,
 } from "@/features/notifications/utils";
+import {
+  getBusinessDashboardPath,
+  getBusinessInquiryPath,
+  getBusinessQuotePath,
+} from "@/features/businesses/routes";
 import { cn } from "@/lib/utils";
 
 type DashboardNotificationBellProps = {
@@ -65,21 +79,26 @@ type RealtimeNotificationStateRow = {
   last_read_at: string | null;
 };
 
+type RealtimeInquiryRow = {
+  id: string;
+};
+
 export function DashboardNotificationBell({
   businessId,
   businessSlug,
   initialView,
   userId,
 }: DashboardNotificationBellProps) {
+  const isMobile = useIsMobile();
   const router = useRouter();
   const supabaseRef = useRef<ReturnType<typeof createSupabaseBrowserClient> | null>(
     null,
   );
   const refreshTimerRef = useRef<number | null>(null);
+  const routeRefreshTimerRef = useRef<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isLoadingMore, startLoadMore] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
-  const [shouldConnectRealtime, setShouldConnectRealtime] = useState(false);
   const [view, setView] = useState({
     ...initialView,
     hasMore: initialView.hasMore ?? false,
@@ -129,37 +148,6 @@ export function DashboardNotificationBell({
   }
 
   useEffect(() => {
-    if (shouldConnectRealtime) {
-      return;
-    }
-
-    const connectWhenIdle = () => {
-      setShouldConnectRealtime(true);
-    };
-
-    if (isOpen) {
-      connectWhenIdle();
-      return;
-    }
-
-    if (typeof window.requestIdleCallback === "function") {
-      const idleCallbackId = window.requestIdleCallback(connectWhenIdle, {
-        timeout: 8_000,
-      });
-
-      return () => window.cancelIdleCallback(idleCallbackId);
-    }
-
-    const timeoutId = globalThis.setTimeout(connectWhenIdle, 4_000);
-
-    return () => globalThis.clearTimeout(timeoutId);
-  }, [isOpen, shouldConnectRealtime]);
-
-  useEffect(() => {
-    if (!shouldConnectRealtime) {
-      return;
-    }
-
     let isActive = true;
     const supabase =
       supabaseRef.current ?? createSupabaseBrowserClient();
@@ -171,12 +159,33 @@ export function DashboardNotificationBell({
     let stateChannel:
       | Awaited<ReturnType<typeof supabase.channel>>
       | null = null;
+    let inquiryChannel:
+      | Awaited<ReturnType<typeof supabase.channel>>
+      | null = null;
 
     function clearRefreshTimer() {
       if (refreshTimerRef.current) {
         window.clearTimeout(refreshTimerRef.current);
         refreshTimerRef.current = null;
       }
+    }
+
+    function clearRouteRefreshTimer() {
+      if (routeRefreshTimerRef.current) {
+        window.clearTimeout(routeRefreshTimerRef.current);
+        routeRefreshTimerRef.current = null;
+      }
+    }
+
+    function scheduleRouteRefresh() {
+      if (routeRefreshTimerRef.current) {
+        return;
+      }
+
+      routeRefreshTimerRef.current = window.setTimeout(() => {
+        routeRefreshTimerRef.current = null;
+        router.refresh();
+      }, 120);
     }
 
     function scheduleRefresh(expiresAt: string) {
@@ -243,10 +252,10 @@ export function DashboardNotificationBell({
             title: row.title,
             summary: row.summary,
             href: row.quote_id
-              ? `/businesses/${businessSlug}/dashboard/quotes/${row.quote_id}`
+              ? getBusinessQuotePath(businessSlug, row.quote_id)
               : row.inquiry_id
-                ? `/businesses/${businessSlug}/dashboard/inquiries/${row.inquiry_id}`
-                : `/businesses/${businessSlug}/dashboard`,
+                ? getBusinessInquiryPath(businessSlug, row.inquiry_id)
+                : getBusinessDashboardPath(businessSlug),
             createdAt: row.created_at,
             unread,
           };
@@ -258,6 +267,8 @@ export function DashboardNotificationBell({
             hasMore: currentView.hasMore,
           };
         });
+
+        scheduleRouteRefresh();
       };
 
       const handleRealtimeState = (row: RealtimeNotificationStateRow) => {
@@ -312,6 +323,26 @@ export function DashboardNotificationBell({
         )
         .subscribe();
 
+      inquiryChannel = supabase
+        .channel(`business-inquiries:${businessId}:${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            filter: `business_id=eq.${businessId}`,
+            schema: "public",
+            table: "inquiries",
+          },
+          (payload) => {
+            const row = payload.new as RealtimeInquiryRow;
+
+            if (row.id) {
+              scheduleRouteRefresh();
+            }
+          },
+        )
+        .subscribe();
+
       scheduleRefresh(nextToken.expiresAt);
     }
 
@@ -320,6 +351,7 @@ export function DashboardNotificationBell({
     return () => {
       isActive = false;
       clearRefreshTimer();
+      clearRouteRefreshTimer();
 
       if (notificationChannel) {
         void supabase.removeChannel(notificationChannel);
@@ -328,8 +360,12 @@ export function DashboardNotificationBell({
       if (stateChannel) {
         void supabase.removeChannel(stateChannel);
       }
+
+      if (inquiryChannel) {
+        void supabase.removeChannel(inquiryChannel);
+      }
     };
-  }, [businessId, businessSlug, shouldConnectRealtime, userId]);
+  }, [businessId, businessSlug, router, userId]);
 
   const loadOlderNotifications = useCallback(() => {
     if (!view.hasMore || loadMoreInFlightRef.current || isLoadingMore) {
@@ -446,132 +482,159 @@ export function DashboardNotificationBell({
     router.push(item.href);
   }
 
-  return (
-    <Popover modal={false} onOpenChange={setIsOpen} open={isOpen}>
-      <PopoverTrigger asChild>
+  const trigger = (
+    <Button
+      aria-label={
+        view.unreadCount
+          ? `${view.unreadCount} unread notifications`
+          : "Notifications"
+      }
+      className="relative"
+      size="icon-sm"
+      type="button"
+      variant="ghost"
+    >
+      <Bell className="size-4.5" />
+      {view.unreadCount ? (
+        <span className="absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-foreground px-1.5 py-0.5 text-[0.65rem] font-semibold leading-none text-background shadow-sm">
+          {view.unreadCount > 99 ? "99+" : view.unreadCount}
+        </span>
+      ) : null}
+    </Button>
+  );
+
+  const notificationContent = (
+    <>
+      <div className="flex items-center justify-between gap-3 px-4 py-4">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground">Notifications</p>
+          <p className="text-xs text-muted-foreground">
+            {view.unreadCount
+              ? `${view.unreadCount} unread in this business`
+              : "You're all caught up"}
+          </p>
+        </div>
         <Button
-          aria-label={
-            view.unreadCount
-              ? `${view.unreadCount} unread notifications`
-              : "Notifications"
-          }
-          className="relative"
-          size="icon-sm"
+          disabled={!view.unreadCount || isPending}
+          onClick={markAllRead}
+          size="sm"
           type="button"
           variant="ghost"
         >
-          <Bell className="size-4.5" />
-          {view.unreadCount ? (
-            <span className="absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-foreground px-1.5 py-0.5 text-[0.65rem] font-semibold leading-none text-background shadow-sm">
-              {view.unreadCount > 99 ? "99+" : view.unreadCount}
-            </span>
-          ) : null}
+          <CheckCheck data-icon="inline-start" />
+          Mark all read
         </Button>
-      </PopoverTrigger>
+      </div>
+      <Separator />
+      <div
+        ref={scrollViewportRef}
+        className="max-h-[min(26rem,calc(100dvh-11rem))] overflow-y-auto overscroll-contain sm:max-h-[26rem]"
+        onScroll={handleNotificationScroll}
+      >
+        {view.items.length ? (
+          <div className="flex flex-col p-2">
+            {view.items.map((item) => {
+              const Icon = getNotificationIcon(item.type);
+
+              return (
+                <button
+                  className={cn(
+                    "flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-accent/45",
+                    item.unread ? "bg-accent/20" : "bg-transparent",
+                  )}
+                  key={item.id}
+                  onClick={() => openNotification(item)}
+                  type="button"
+                >
+                  <div
+                    className={cn(
+                      "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-background text-muted-foreground",
+                      item.unread && "border-primary/15 bg-primary/8 text-primary",
+                    )}
+                  >
+                    <Icon className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                      <p
+                        className={cn(
+                          "min-w-0 break-words text-sm leading-5 text-foreground",
+                          item.unread ? "font-semibold" : "font-medium",
+                        )}
+                      >
+                        {item.title}
+                      </p>
+                      <span
+                        className="shrink-0 text-[0.72rem] font-medium text-muted-foreground"
+                        title={formatNotificationDateTime(item.createdAt)}
+                      >
+                        {formatRelativeNotificationTime(item.createdAt)}
+                      </span>
+                    </div>
+                    <p className="mt-1 break-words text-sm leading-5 text-muted-foreground">
+                      {item.summary}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+            {view.hasMore ? (
+              <div className="flex justify-center py-3">
+                {isLoadingMore ? (
+                  <span className="text-xs text-muted-foreground">Loading…</span>
+                ) : (
+                  <span className="sr-only">Scroll for more</span>
+                )}
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="p-4">
+            <Empty className="min-h-56 border-none bg-transparent p-6 shadow-none">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Inbox />
+                </EmptyMedia>
+                <EmptyTitle>No notifications yet</EmptyTitle>
+                <EmptyDescription>
+                  New inquiries, quote responses, and follow-up activity will appear here.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          </div>
+        )}
+      </div>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <Sheet open={isOpen} onOpenChange={setIsOpen}>
+        <SheetTrigger asChild>{trigger}</SheetTrigger>
+        <SheetContent
+          className="h-[min(34rem,calc(100dvh-0.75rem))] rounded-t-2xl"
+          side="bottom"
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>Notifications</SheetTitle>
+          </SheetHeader>
+          <SheetBody className="gap-0 p-0">
+            {notificationContent}
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Popover modal={false} onOpenChange={setIsOpen} open={isOpen}>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <PopoverContent
         align="end"
         className="overlay-surface w-[min(25rem,calc(100vw-1.5rem))] rounded-2xl p-0"
         sideOffset={10}
       >
-        <div className="flex items-center justify-between gap-3 px-4 py-4">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground">Notifications</p>
-            <p className="text-xs text-muted-foreground">
-              {view.unreadCount
-                ? `${view.unreadCount} unread in this business`
-                : "You're all caught up"}
-            </p>
-          </div>
-          <Button
-            disabled={!view.unreadCount || isPending}
-            onClick={markAllRead}
-            size="sm"
-            type="button"
-            variant="ghost"
-          >
-            <CheckCheck data-icon="inline-start" />
-            Mark all read
-          </Button>
-        </div>
-        <Separator />
-        <div
-          ref={scrollViewportRef}
-          className="max-h-[26rem] overflow-y-auto"
-          onScroll={handleNotificationScroll}
-        >
-          {view.items.length ? (
-            <div className="flex flex-col p-2">
-              {view.items.map((item) => {
-                const Icon = getNotificationIcon(item.type);
-
-                return (
-                  <button
-                    className={cn(
-                      "flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-accent/45",
-                      item.unread ? "bg-accent/20" : "bg-transparent",
-                    )}
-                    key={item.id}
-                    onClick={() => openNotification(item)}
-                    type="button"
-                  >
-                    <div
-                      className={cn(
-                        "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-background text-muted-foreground",
-                        item.unread && "border-primary/15 bg-primary/8 text-primary",
-                      )}
-                    >
-                      <Icon className="size-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <p
-                          className={cn(
-                            "text-sm leading-5 text-foreground",
-                            item.unread ? "font-semibold" : "font-medium",
-                          )}
-                        >
-                          {item.title}
-                        </p>
-                        <span
-                          className="shrink-0 text-[0.7rem] font-medium text-muted-foreground"
-                          title={formatNotificationDateTime(item.createdAt)}
-                        >
-                          {formatRelativeNotificationTime(item.createdAt)}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-sm leading-5 text-muted-foreground">
-                        {item.summary}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-              {view.hasMore ? (
-                <div className="flex justify-center py-3">
-                  {isLoadingMore ? (
-                    <span className="text-xs text-muted-foreground">Loading…</span>
-                  ) : (
-                    <span className="sr-only">Scroll for more</span>
-                  )}
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <div className="p-4">
-              <Empty className="min-h-56 border-none bg-transparent p-6 shadow-none">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <Inbox />
-                  </EmptyMedia>
-                  <EmptyTitle>No notifications yet</EmptyTitle>
-                  <EmptyDescription>
-                    New inquiries, quote responses, and follow-up activity will appear here.
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            </div>
-          )}
-        </div>
+        {notificationContent}
       </PopoverContent>
     </Popover>
   );

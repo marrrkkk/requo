@@ -136,7 +136,7 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "overlay-surface modal-layer-content fixed top-1/2 left-1/2 flex max-h-[calc(100vh-2rem)] w-[calc(100vw-1rem)] max-w-3xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border text-popover-foreground duration-200 fill-mode-forwards data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 sm:w-[calc(100vw-2rem)]",
+          "overlay-surface modal-layer-content fixed bottom-2 left-1/2 top-auto flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-3xl -translate-x-1/2 translate-y-0 flex-col overflow-y-auto rounded-2xl border text-popover-foreground duration-200 fill-mode-forwards data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 sm:bottom-auto sm:top-1/2 sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)] sm:-translate-y-1/2 sm:overflow-hidden",
           isClosing && "pointer-events-none",
           className
         )}
@@ -148,7 +148,7 @@ function DialogContent({
         {children}
         {showCloseButton ? (
           <DialogPrimitive.Close data-slot="dialog-close" asChild>
-            <Button className="absolute top-4 right-4 sm:top-5 sm:right-5" size="icon-sm" variant="ghost">
+            <Button className="absolute top-3 right-3 sm:top-5 sm:right-5" size="icon-sm" variant="ghost">
               <XIcon />
               <span className="sr-only">Close</span>
             </Button>

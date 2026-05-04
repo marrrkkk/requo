@@ -146,8 +146,6 @@ async function hasPublicMaximusSchema(client: SqlClient) {
     (await tableExists(client, "business_members")) &&
     (await tableExists(client, "business_member_invites")) &&
     (await tableExists(client, "business_inquiry_forms")) &&
-    (await tableExists(client, "calendar_events")) &&
-    (await tableExists(client, "google_calendar_connections")) &&
     (await tableExists(client, "business_memories")) &&
     (await tableExists(client, "business_notifications")) &&
     (await tableExists(client, "business_notification_states")) &&

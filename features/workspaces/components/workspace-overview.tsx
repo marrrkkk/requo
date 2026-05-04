@@ -20,19 +20,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
-import { getWorkspacePath, getWorkspaceSettingsPath } from "@/features/workspaces/routes";
+import { getWorkspaceSettingsPath } from "@/features/workspaces/routes";
 import { businessTypeMeta } from "@/features/inquiries/business-types";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { CreateBusinessDialog } from "@/features/businesses/components/create-business-dialog";
-import type { WorkspaceOverview, WorkspaceListItem } from "@/features/workspaces/types";
+import type { WorkspaceOverview } from "@/features/workspaces/types";
 import type { CreateBusinessActionState } from "@/features/businesses/types";
 import type { WorkspaceBillingOverview } from "@/features/billing/types";
 
 
 type WorkspaceOverviewContentProps = {
   overview: WorkspaceOverview;
-  workspaceList: WorkspaceListItem[];
   billingOverview: WorkspaceBillingOverview;
   createBusinessAction: (
     state: CreateBusinessActionState,
@@ -42,7 +41,6 @@ type WorkspaceOverviewContentProps = {
 
 export function WorkspaceOverviewContent({
   overview,
-  workspaceList,
   billingOverview,
   createBusinessAction,
 }: WorkspaceOverviewContentProps) {
@@ -63,7 +61,7 @@ export function WorkspaceOverviewContent({
               <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
                 <CreateBusinessDialog
                   action={createBusinessAction}
-                  workspaces={workspaceList}
+                  workspaceId={overview.id}
                   isLocked={overview.businesses.length > 0 && overview.plan === "free"}
                   billingProps={
                     overview.businesses.length > 0 && overview.plan === "free"
@@ -94,32 +92,32 @@ export function WorkspaceOverviewContent({
                   const businessPath = getBusinessDashboardPath(business.slug);
 
                   return (
-                    <Card className="border-border/80 bg-card/98" key={business.id}>
+                    <Card className="flex flex-col border-border/80 bg-card/50 transition-colors hover:border-border hover:bg-card/80" key={business.id}>
                       <CardHeader className="gap-3">
-                        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
+                        <div className="flex items-start justify-between gap-4">
                           <div className="flex min-w-0 items-start gap-3">
-                            <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-background/90 text-sm font-semibold tracking-[0.16em] text-foreground">
+                            <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-background/90 text-[0.7rem] font-semibold tracking-[0.16em] text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] dark:border-white/8 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                               {business.logoStoragePath ? (
                                 <Image
                                   alt={`${business.name} logo`}
                                   className="h-full w-full object-cover"
-                                  height={48}
+                                  height={40}
                                   src={`/api/business/${business.slug}/logo`}
                                   unoptimized
-                                  width={48}
+                                  width={40}
                                 />
                               ) : (
                                 getInitials(business.name)
                               )}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <CardTitle className="max-w-full">
+                              <CardTitle className="max-w-full text-base">
                                 <TruncatedTextWithTooltip
                                   className="w-full"
                                   text={business.name}
                                 />
                               </CardTitle>
-                              <CardDescription className="mt-1 max-w-full">
+                              <CardDescription className="mt-0.5 max-w-full">
                                 <TruncatedTextWithTooltip
                                   className="w-full"
                                   text={`/${business.slug}`}
@@ -129,7 +127,7 @@ export function WorkspaceOverviewContent({
                           </div>
                         </div>
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent className="flex flex-1 flex-col justify-between space-y-4">
                         <div className="flex flex-wrap gap-2">
                           <Badge variant="outline">
                             {business.defaultCurrency}

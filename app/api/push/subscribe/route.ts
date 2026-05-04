@@ -4,8 +4,8 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
 import { pushSubscriptions } from "@/lib/db/schema/push-subscriptions";
-import { businessMembers } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { businessMembers, businesses, workspaces } from "@/lib/db/schema";
+import { eq, and, isNull } from "drizzle-orm";
 import { isPushConfigured } from "@/lib/env";
 
 const subscribeSchema = z.object({
@@ -55,14 +55,20 @@ export async function POST(request: Request) {
 
   const { businessId, subscription } = result.data;
 
-  // Verify the user is a member of this business
+  // Verify the user is a member of this business.
   const [membership] = await db
-    .select({ id: businessMembers.id })
+    .select({
+      id: businessMembers.id,
+    })
     .from(businessMembers)
+    .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
+    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .where(
       and(
         eq(businessMembers.businessId, businessId),
         eq(businessMembers.userId, user.id),
+        isNull(businesses.deletedAt),
+        isNull(workspaces.deletedAt),
       ),
     )
     .limit(1);

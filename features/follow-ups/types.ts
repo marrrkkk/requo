@@ -16,6 +16,7 @@ export const followUpChannels = [
   "instagram",
   "other",
 ] as const;
+export const followUpCategories = ["sales", "post_win"] as const;
 
 export type FollowUpStatus = (typeof followUpStatuses)[number];
 export type FollowUpStatusFilterValue =
@@ -23,6 +24,7 @@ export type FollowUpStatusFilterValue =
 export type FollowUpDueFilterValue = (typeof followUpDueFilterValues)[number];
 export type FollowUpSortValue = (typeof followUpSortValues)[number];
 export type FollowUpChannel = (typeof followUpChannels)[number];
+export type FollowUpCategory = (typeof followUpCategories)[number];
 
 export type FollowUpRelatedKind = "inquiry" | "quote";
 export type FollowUpDueBucket = "overdue" | "today" | "upcoming" | "done";
@@ -47,6 +49,7 @@ export type FollowUpView = {
   createdByUserId: string | null;
   title: string;
   reason: string;
+  category: FollowUpCategory;
   channel: FollowUpChannel;
   dueAt: Date;
   completedAt: Date | null;

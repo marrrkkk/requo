@@ -18,7 +18,7 @@ import { planMeta } from "@/lib/plans";
 import { getYearlySavingsPercent, getMonthlyEquivalentLabel, getPlanPriceLabel } from "@/lib/billing/plans";
 import type { BillingCurrency, BillingInterval } from "@/lib/billing/types";
 import type { WorkspacePlan } from "@/lib/plans/plans";
-import { getUsageLimit } from "@/lib/plans";
+import { formatUsageLimitValue, getUsageLimit } from "@/lib/plans";
 
 const planHighlights: Record<WorkspacePlan, string[]> = {
   free: [
@@ -26,6 +26,11 @@ const planHighlights: Record<WorkspacePlan, string[]> = {
     `${getUsageLimit("free", "quotesPerMonth")} quotes per month`,
     "Public inquiry pages",
     "Quote workflow",
+    `${getUsageLimit("free", "customFieldsPerForm")} custom fields per form`,
+    `${formatUsageLimitValue(
+      "publicInquiryAttachmentMaxBytes",
+      getUsageLimit("free", "publicInquiryAttachmentMaxBytes"),
+    )} uploads`,
     "Dashboard & overview analytics",
     "Activity log",
   ],
@@ -34,14 +39,22 @@ const planHighlights: Record<WorkspacePlan, string[]> = {
     "Conversion & workflow analytics",
     "Multiple inquiry forms",
     "Inquiry page customization",
+    `${formatUsageLimitValue(
+      "publicInquiryAttachmentMaxBytes",
+      getUsageLimit("pro", "publicInquiryAttachmentMaxBytes"),
+    )} uploads`,
     "AI assistant & knowledge",
-    "Saved replies & quote library",
-    "Data exports & branding",
+    "Saved replies, email templates & quote library",
+    "Data exports & advanced branding",
     "Multiple businesses",
   ],
   business: [
     "Everything in Pro",
     "Team members & roles",
+    `${formatUsageLimitValue(
+      "publicInquiryAttachmentMaxBytes",
+      getUsageLimit("business", "publicInquiryAttachmentMaxBytes"),
+    )} uploads`,
     "Priority support",
   ],
 };

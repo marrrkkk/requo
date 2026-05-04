@@ -29,7 +29,7 @@ export function DashboardListResultsSkeleton({
 
   return (
     <>
-      <DashboardTableContainer>
+      <DashboardTableContainer className="hidden xl:block">
         <div className="overflow-hidden rounded-[1.1rem] border border-border/60 bg-background/70">
           <div className={`grid gap-4 border-b border-border/60 px-5 py-3 ${tableColumns}`}>
             {Array.from({ length: 5 }).map((_, index) => (

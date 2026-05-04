@@ -1,8 +1,9 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { ChevronDown, Download } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -25,12 +26,14 @@ const statusOptions: QuoteStatusFilterValue[] = [...quoteStatusFilterValues];
 
 type QuoteExportCsvDropdownProps = {
   businessSlug: string;
+  canExport: boolean;
   filters: QuoteListFilters;
   resultCount: number;
 };
 
 export function QuoteExportCsvDropdown({
   businessSlug,
+  canExport,
   filters,
   resultCount,
 }: QuoteExportCsvDropdownProps) {
@@ -69,18 +72,36 @@ export function QuoteExportCsvDropdown({
     }`;
   }, [businessSlug, from, query, sort, status, to, view]);
 
+  if (!canExport) {
+    return (
+      <ProFeatureNoticeButton
+        noticeDescription="Upgrade to Pro to export quote records for reporting, handoff, and backup workflows."
+        noticeTitle="CSV export is a Pro feature."
+        variant="outline"
+      >
+        <Download data-icon="inline-start" />
+        Export CSV
+        <ChevronDown className="opacity-60" data-icon="inline-end" />
+      </ProFeatureNoticeButton>
+    );
+  }
+
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button disabled={resultCount === 0} variant="outline">
           <Download data-icon="inline-start" />
           Export CSV
+          <ChevronDown className="opacity-60" data-icon="inline-end" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[22rem] min-w-[22rem] p-0">
-        <div className="space-y-0.5 border-b border-border/70 px-3 py-2.5">
+      <DropdownMenuContent
+        align="end"
+        className="w-[min(22rem,calc(100vw-1rem))] min-w-0 p-0"
+      >
+        <div className="flex flex-col gap-0.5 border-b border-border/70 px-3 py-2.5">
           <h2 className="text-sm font-medium">Export quotes CSV</h2>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm leading-5 text-muted-foreground">
             Choose filters and date range for this export.
           </p>
         </div>
@@ -90,7 +111,6 @@ export function QuoteExportCsvDropdown({
             <FieldLabel htmlFor="quote-export-q">Search</FieldLabel>
             <FieldContent>
               <Input
-                className="h-8 text-xs"
                 id="quote-export-q"
                 value={query}
                 onChange={(event) => setQuery(event.currentTarget.value)}
@@ -138,7 +158,6 @@ export function QuoteExportCsvDropdown({
               <FieldLabel htmlFor="quote-export-from">From</FieldLabel>
               <FieldContent>
                 <DatePicker
-                  buttonClassName="h-8 px-2.5 text-xs"
                   id="quote-export-from"
                   onChange={setFrom}
                   placeholder="Pick date"
@@ -150,7 +169,6 @@ export function QuoteExportCsvDropdown({
               <FieldLabel htmlFor="quote-export-to">To</FieldLabel>
               <FieldContent>
                 <DatePicker
-                  buttonClassName="h-8 px-2.5 text-xs"
                   id="quote-export-to"
                   onChange={setTo}
                   placeholder="Pick date"
@@ -162,7 +180,12 @@ export function QuoteExportCsvDropdown({
         </div>
 
         <div className="flex justify-end border-t border-border/70 px-3 py-2.5">
-          <Button asChild disabled={resultCount === 0} size="sm">
+          <Button
+            asChild
+            className="w-full sm:w-auto"
+            disabled={resultCount === 0}
+            size="sm"
+          >
             <a href={exportHref}>Download CSV</a>
           </Button>
         </div>

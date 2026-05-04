@@ -1,3 +1,10 @@
+import {
+  emailBrand,
+  renderDetailsCard,
+  renderEmailLayout,
+  renderNoteCard,
+} from "./shared";
+
 type PublicInquiryNotificationTemplateInput = {
   businessName: string;
   dashboardUrl: string;
@@ -16,15 +23,6 @@ type PublicInquiryNotificationTemplateInput = {
     value: string;
   }>;
 };
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 
 function buildOptionalLine(label: string, value?: string | null) {
   if (!value) {
@@ -74,61 +72,42 @@ export function renderPublicInquiryNotificationEmail({
     `Open in Requo: ${dashboardUrl}`,
   ].filter(Boolean);
 
-  const escapedDetails = escapeHtml(details).replace(/\n/g, "<br />");
-
-  const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #172033;">
-      <h1 style="font-size: 24px; margin-bottom: 16px;">New inquiry for ${escapeHtml(businessName)}</h1>
-      <p style="margin: 0 0 18px;">A customer submitted a new inquiry through your Requo public page.</p>
-      <div style="border: 1px solid #d9deeb; border-radius: 16px; background: #ffffff; padding: 18px; margin-bottom: 18px;">
-        <p style="margin: 0 0 8px;"><strong>Customer:</strong> ${escapeHtml(customerName)}</p>
-        <p style="margin: 0 0 8px;"><strong>Form:</strong> ${escapeHtml(inquiryFormName)}</p>
-        ${customerEmail ? `<p style="margin: 0 0 8px;"><strong>Email:</strong> ${escapeHtml(customerEmail)}</p>` : ""}
-        <p style="margin: 0 0 8px;"><strong>Contact method:</strong> ${escapeHtml(customerContactMethod)}</p>
-        <p style="margin: 0 0 8px;"><strong>Contact:</strong> ${escapeHtml(customerContactHandle)}</p>
-        <p style="margin: 0 0 8px;"><strong>Service/category:</strong> ${escapeHtml(serviceCategory)}</p>
-        ${
-          deadline
-            ? `<p style="margin: 0 0 8px;"><strong>Deadline:</strong> ${escapeHtml(deadline)}</p>`
-            : ""
-        }
-        ${
-          budget
-            ? `<p style="margin: 0 0 8px;"><strong>Budget:</strong> ${escapeHtml(budget)}</p>`
-            : ""
-        }
-        ${
-          attachmentName
-            ? `<p style="margin: 0;"><strong>Attachment:</strong> ${escapeHtml(attachmentName)}</p>`
-            : ""
-        }
-      </div>
+  const html = renderEmailLayout({
+    label: "Inquiry",
+    title: `New inquiry for ${businessName}`,
+    preheader: `${customerName} submitted a new inquiry through Requo.`,
+    footerContext: businessName,
+    cta: {
+      href: dashboardUrl,
+      label: "View inquiry",
+    },
+    children: `
+      <p style="margin: 0; color: ${emailBrand.foregroundColor}; font-size: 15px; line-height: 24px;">A customer submitted a new inquiry through your Requo public page.</p>
+      ${renderDetailsCard("Inquiry details", [
+        { label: "Form", value: inquiryFormName },
+        { label: "Customer", value: customerName },
+        { label: "Email", value: customerEmail },
+        { label: "Contact method", value: customerContactMethod },
+        { label: "Contact", value: customerContactHandle },
+        { label: "Service/category", value: serviceCategory },
+        { label: "Deadline", value: deadline },
+        { label: "Budget", value: budget },
+        { label: "Attachment", value: attachmentName },
+      ])}
       ${
         additionalFields.length
-          ? `
-      <div style="border: 1px solid #d9deeb; border-radius: 16px; background: #ffffff; padding: 18px; margin-bottom: 18px;">
-        <p style="margin: 0 0 10px;"><strong>Additional details</strong></p>
-        ${additionalFields
-          .map(
-            (field) =>
-              `<p style="margin: 0 0 8px;"><strong>${escapeHtml(field.label)}:</strong> ${escapeHtml(field.value)}</p>`,
-          )
-          .join("")}
-      </div>
-      `
+          ? renderDetailsCard(
+              "Additional details",
+              additionalFields.map((field) => ({
+                label: field.label,
+                value: field.value,
+              })),
+            )
           : ""
       }
-      <div style="border: 1px solid #d9deeb; border-radius: 16px; background: #f7f9fc; padding: 18px; margin-bottom: 18px;">
-        <p style="margin: 0 0 10px;"><strong>Message/details</strong></p>
-        <p style="margin: 0;">${escapedDetails}</p>
-      </div>
-      <p style="margin: 0;">
-        <a href="${dashboardUrl}" style="display: inline-block; padding: 12px 18px; border-radius: 12px; background: #2d4ea0; color: #ffffff; text-decoration: none; font-weight: 600;">
-          Open in Requo
-        </a>
-      </p>
-    </div>
-  `;
+      ${renderNoteCard("Message/details", details)}
+    `,
+  });
 
   return {
     subject,

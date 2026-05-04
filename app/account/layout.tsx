@@ -91,10 +91,8 @@ async function AccountSettingsShell({
               eyebrow="User settings"
               title="Your account"
             />
-            <div className="grid min-w-0 items-start gap-4 lg:gap-5 xl:grid-cols-[15rem_minmax(0,1fr)] xl:gap-4">
-              <div className="xl:sticky xl:top-24 xl:self-start">
-                <AccountSettingsNav groups={navigationGroups} />
-              </div>
+            <div className="flex min-w-0 flex-col gap-6">
+              <AccountSettingsNav groups={navigationGroups} />
               <div className="min-w-0">
                 <div className="flex flex-col gap-6 pb-24 sm:gap-7 xl:pb-28">
                   {children}
@@ -127,13 +125,10 @@ function AccountShellFallback() {
             <Skeleton className="h-11 w-56 rounded-xl" />
             <Skeleton className="h-4 w-full max-w-2xl rounded-md" />
           </div>
-          <div className="grid min-w-0 items-start gap-4 lg:gap-5 xl:grid-cols-[15rem_minmax(0,1fr)] xl:gap-4">
-            <div className="hidden xl:sticky xl:top-24 xl:block xl:self-start">
-              <div className="flex flex-col gap-2 pr-3">
-                <Skeleton className="h-4 w-20 rounded-md" />
-                <Skeleton className="h-10 w-full rounded-xl" />
-                <Skeleton className="h-10 w-full rounded-xl" />
-              </div>
+          <div className="flex min-w-0 flex-col gap-6">
+            <div className="flex gap-1">
+              <Skeleton className="h-9 w-28 rounded-md" />
+              <Skeleton className="h-9 w-28 rounded-md" />
             </div>
             <div className="min-w-0">
               <div className="flex flex-col gap-6 pb-24 sm:gap-7 xl:pb-28">

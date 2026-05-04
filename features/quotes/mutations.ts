@@ -6,10 +6,13 @@ import { writeAuditLog } from "@/features/audit/mutations";
 import { db } from "@/lib/db/client";
 import {
   activityLogs,
+  followUps,
   inquiries,
+  postWinChecklistItems,
   quoteItems,
   quotes,
   businesses,
+  workspaces,
 } from "@/lib/db/schema";
 import type { QuoteEditorInput } from "@/features/quotes/schemas";
 import type { QuoteDeliveryMethod, QuoteStatus } from "@/features/quotes/types";
@@ -1132,6 +1135,7 @@ export async function respondToPublicQuoteByToken({
         businessId: quotes.businessId,
         businessSlug: businesses.slug,
         businessName: businesses.name,
+        businessPlan: workspaces.plan,
         inquiryId: quotes.inquiryId,
         quoteNumber: quotes.quoteNumber,
         title: quotes.title,
@@ -1148,6 +1152,7 @@ export async function respondToPublicQuoteByToken({
       })
       .from(quotes)
       .innerJoin(businesses, eq(quotes.businessId, businesses.id))
+      .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
       .where(and(getQuotePublicTokenLookupCondition(token), isNull(quotes.deletedAt)))
       .limit(1);
 
@@ -1177,6 +1182,19 @@ export async function respondToPublicQuoteByToken({
     }
 
     if (existingQuote.status !== "sent") {
+      /* Idempotency: if the quote is already accepted, return gracefully. */
+      if (existingQuote.status === "accepted") {
+        return {
+          updated: false,
+          businessId: existingQuote.businessId,
+          inquiryId: existingQuote.inquiryId,
+          quoteId: existingQuote.id,
+          businessSlug: existingQuote.businessSlug,
+          quoteNumber: existingQuote.quoteNumber,
+          status: "accepted" as const,
+        };
+      }
+
       return {
         updated: false,
         businessId: existingQuote.businessId,
@@ -1209,6 +1227,15 @@ export async function respondToPublicQuoteByToken({
         tx,
         existingQuote.businessId,
         existingQuote.inquiryId,
+        now,
+      );
+
+      await onQuoteAccepted(
+        tx,
+        existingQuote.businessId,
+        existingQuote.id,
+        existingQuote.inquiryId,
+        existingQuote.quoteNumber,
         now,
       );
     }
@@ -1266,6 +1293,7 @@ export async function respondToPublicQuoteByToken({
       inquiryId: existingQuote.inquiryId,
       quoteId: existingQuote.id,
       businessSlug: existingQuote.businessSlug,
+      businessPlan: existingQuote.businessPlan,
       businessName: existingQuote.businessName,
       customerName: existingQuote.customerName,
       customerEmail: existingQuote.customerEmail,
@@ -1281,11 +1309,138 @@ export async function respondToPublicQuoteByToken({
   });
 }
 
+const defaultPostWinChecklistLabels = [
+  "Contact customer",
+  "Confirm schedule",
+  "Request deposit/payment",
+  "Prepare work details",
+  "Mark work completed",
+];
+
+async function maybeCreatePostWinChecklist(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  businessId: string,
+  quoteId: string,
+  now: Date,
+) {
+  const [existing] = await tx
+    .select({ id: postWinChecklistItems.id })
+    .from(postWinChecklistItems)
+    .where(eq(postWinChecklistItems.quoteId, quoteId))
+    .limit(1);
+
+  if (existing) {
+    return false;
+  }
+
+  await tx.insert(postWinChecklistItems).values(
+    defaultPostWinChecklistLabels.map((label, index) => ({
+      id: createId("pwc"),
+      businessId,
+      quoteId,
+      label,
+      position: index,
+      createdAt: now,
+      updatedAt: now,
+    })),
+  );
+
+  return true;
+}
+
+async function maybeSkipSalesFollowUps(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  businessId: string,
+  quoteId: string,
+  now: Date,
+) {
+  const pendingSalesFollowUps = await tx
+    .select({ id: followUps.id, title: followUps.title })
+    .from(followUps)
+    .where(
+      and(
+        eq(followUps.businessId, businessId),
+        eq(followUps.quoteId, quoteId),
+        eq(followUps.status, "pending"),
+        eq(followUps.category, "sales"),
+      ),
+    );
+
+  if (!pendingSalesFollowUps.length) {
+    return 0;
+  }
+
+  await tx
+    .update(followUps)
+    .set({
+      status: "skipped",
+      skippedAt: now,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(followUps.businessId, businessId),
+        eq(followUps.quoteId, quoteId),
+        eq(followUps.status, "pending"),
+        eq(followUps.category, "sales"),
+      ),
+    );
+
+  return pendingSalesFollowUps.length;
+}
+
+export async function onQuoteAccepted(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  businessId: string,
+  quoteId: string,
+  inquiryId: string | null,
+  quoteNumber: string,
+  now: Date,
+) {
+  const checklistCreated = await maybeCreatePostWinChecklist(
+    tx,
+    businessId,
+    quoteId,
+    now,
+  );
+
+  if (checklistCreated) {
+    await insertQuoteActivity(tx, {
+      businessId,
+      inquiryId,
+      quoteId,
+      type: "quote.post_win_checklist_created",
+      summary: `Post-win checklist created for quote ${quoteNumber}.`,
+      metadata: { quoteNumber },
+      now,
+    });
+  }
+
+  const skippedCount = await maybeSkipSalesFollowUps(
+    tx,
+    businessId,
+    quoteId,
+    now,
+  );
+
+  if (skippedCount > 0) {
+    await insertQuoteActivity(tx, {
+      businessId,
+      inquiryId,
+      quoteId,
+      type: "follow_up.auto_skipped_on_acceptance",
+      summary: `${skippedCount} sales follow-up${skippedCount > 1 ? "s" : ""} skipped after customer accepted.`,
+      metadata: { quoteNumber, skippedCount },
+      now,
+    });
+  }
+}
+
 type UpdateQuotePostAcceptanceStatusForBusinessInput = {
   businessId: string;
   quoteId: string;
   actorUserId: string;
-  postAcceptanceStatus: "none" | "booked" | "scheduled";
+  postAcceptanceStatus: "none" | "booked" | "scheduled" | "in_progress" | "completed" | "canceled";
 };
 
 export async function updateQuotePostAcceptanceStatusForBusiness({
@@ -1367,5 +1522,438 @@ export async function updateQuotePostAcceptanceStatusForBusiness({
       quoteNumber: existingQuote.quoteNumber,
       postAcceptanceStatus,
     } as const;
+  });
+}
+
+type CancelAcceptedQuoteForBusinessInput = {
+  businessId: string;
+  quoteId: string;
+  actorUserId: string;
+  cancellationReason: string;
+  cancellationNote?: string;
+};
+
+export async function cancelAcceptedQuoteForBusiness({
+  businessId,
+  quoteId,
+  actorUserId,
+  cancellationReason,
+  cancellationNote,
+}: CancelAcceptedQuoteForBusinessInput) {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [existingQuote] = await tx
+      .select({
+        id: quotes.id,
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+        status: quotes.status,
+        postAcceptanceStatus: quotes.postAcceptanceStatus,
+        deletedAt: quotes.deletedAt,
+        workspaceId: businesses.workspaceId,
+        title: quotes.title,
+        customerName: quotes.customerName,
+        totalInCents: quotes.totalInCents,
+        currency: quotes.currency,
+      })
+      .from(quotes)
+      .innerJoin(businesses, eq(quotes.businessId, businesses.id))
+      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
+      .limit(1);
+
+    if (!existingQuote || existingQuote.deletedAt) {
+      return null;
+    }
+
+    if (existingQuote.status !== "accepted") {
+      return {
+        updated: false,
+        locked: true,
+        reason: "not_accepted",
+        quoteNumber: existingQuote.quoteNumber,
+      } as const;
+    }
+
+    if (existingQuote.postAcceptanceStatus === "completed") {
+      return {
+        updated: false,
+        locked: true,
+        reason: "already_completed",
+        quoteNumber: existingQuote.quoteNumber,
+      } as const;
+    }
+
+    if (existingQuote.postAcceptanceStatus === "canceled") {
+      return {
+        updated: false,
+        locked: false,
+        reason: "already_canceled",
+        quoteNumber: existingQuote.quoteNumber,
+      } as const;
+    }
+
+    /* Quote status stays 'accepted' — postAcceptanceStatus tracks cancellation. */
+    await tx
+      .update(quotes)
+      .set({
+        postAcceptanceStatus: "canceled",
+        canceledAt: now,
+        canceledBy: actorUserId,
+        cancellationReason,
+        cancellationNote: cancellationNote?.trim() || null,
+        updatedAt: now,
+      })
+      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)));
+
+    /* Move inquiry to lost. */
+    if (existingQuote.inquiryId) {
+      await tx
+        .update(inquiries)
+        .set({
+          status: "lost",
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(inquiries.id, existingQuote.inquiryId),
+            eq(inquiries.businessId, businessId),
+            eq(inquiries.status, "won"),
+            isNull(inquiries.deletedAt),
+          ),
+        );
+    }
+
+    /* Skip pending post-win follow-ups. */
+    await tx
+      .update(followUps)
+      .set({
+        status: "skipped",
+        skippedAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(followUps.businessId, businessId),
+          eq(followUps.quoteId, quoteId),
+          eq(followUps.status, "pending"),
+          eq(followUps.category, "post_win"),
+        ),
+      );
+
+    await insertQuoteActivity(tx, {
+      businessId,
+      inquiryId: existingQuote.inquiryId,
+      quoteId,
+      actorUserId,
+      type: "quote.canceled_after_acceptance",
+      summary: `Accepted quote ${existingQuote.quoteNumber} canceled: ${cancellationReason.replace(/_/g, " ")}.`,
+      metadata: {
+        quoteNumber: existingQuote.quoteNumber,
+        cancellationReason,
+        cancellationNote: cancellationNote?.trim() || null,
+      },
+      now,
+    });
+
+    await writeAuditLog(tx, {
+      workspaceId: existingQuote.workspaceId,
+      businessId,
+      actorUserId,
+      entityType: "quote",
+      entityId: quoteId,
+      action: "quote.canceled_after_acceptance",
+      metadata: {
+        quoteNumber: existingQuote.quoteNumber,
+        title: existingQuote.title,
+        customerName: existingQuote.customerName,
+        cancellationReason,
+      },
+      createdAt: now,
+    });
+
+    return {
+      updated: true,
+      locked: false,
+      inquiryId: existingQuote.inquiryId,
+      quoteNumber: existingQuote.quoteNumber,
+      postAcceptanceStatus: "canceled" as const,
+    };
+  });
+}
+
+type CompleteAcceptedQuoteForBusinessInput = {
+  businessId: string;
+  quoteId: string;
+  actorUserId: string;
+};
+
+export async function completeAcceptedQuoteForBusiness({
+  businessId,
+  quoteId,
+  actorUserId,
+}: CompleteAcceptedQuoteForBusinessInput) {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [existingQuote] = await tx
+      .select({
+        id: quotes.id,
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+        status: quotes.status,
+        postAcceptanceStatus: quotes.postAcceptanceStatus,
+        deletedAt: quotes.deletedAt,
+        workspaceId: businesses.workspaceId,
+        title: quotes.title,
+        customerName: quotes.customerName,
+        totalInCents: quotes.totalInCents,
+        currency: quotes.currency,
+      })
+      .from(quotes)
+      .innerJoin(businesses, eq(quotes.businessId, businesses.id))
+      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
+      .limit(1);
+
+    if (!existingQuote || existingQuote.deletedAt) {
+      return null;
+    }
+
+    if (existingQuote.status !== "accepted") {
+      return {
+        updated: false,
+        locked: true,
+        reason: "not_accepted",
+        quoteNumber: existingQuote.quoteNumber,
+      } as const;
+    }
+
+    if (existingQuote.postAcceptanceStatus === "canceled") {
+      return {
+        updated: false,
+        locked: true,
+        reason: "already_canceled",
+        quoteNumber: existingQuote.quoteNumber,
+      } as const;
+    }
+
+    if (existingQuote.postAcceptanceStatus === "completed") {
+      return {
+        updated: false,
+        locked: false,
+        reason: "already_completed",
+        quoteNumber: existingQuote.quoteNumber,
+      } as const;
+    }
+
+    await tx
+      .update(quotes)
+      .set({
+        postAcceptanceStatus: "completed",
+        completedAt: now,
+        completedBy: actorUserId,
+        updatedAt: now,
+      })
+      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)));
+
+    /* Complete pending post-win follow-ups. */
+    await tx
+      .update(followUps)
+      .set({
+        status: "completed",
+        completedAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(followUps.businessId, businessId),
+          eq(followUps.quoteId, quoteId),
+          eq(followUps.status, "pending"),
+          eq(followUps.category, "post_win"),
+        ),
+      );
+
+    await insertQuoteActivity(tx, {
+      businessId,
+      inquiryId: existingQuote.inquiryId,
+      quoteId,
+      actorUserId,
+      type: "quote.work_completed",
+      summary: `Work completed for quote ${existingQuote.quoteNumber}.`,
+      metadata: {
+        quoteNumber: existingQuote.quoteNumber,
+      },
+      now,
+    });
+
+    await writeAuditLog(tx, {
+      workspaceId: existingQuote.workspaceId,
+      businessId,
+      actorUserId,
+      entityType: "quote",
+      entityId: quoteId,
+      action: "quote.work_completed",
+      metadata: {
+        quoteNumber: existingQuote.quoteNumber,
+        title: existingQuote.title,
+        customerName: existingQuote.customerName,
+      },
+      createdAt: now,
+    });
+
+    return {
+      updated: true,
+      locked: false,
+      inquiryId: existingQuote.inquiryId,
+      quoteNumber: existingQuote.quoteNumber,
+      postAcceptanceStatus: "completed" as const,
+    };
+  });
+}
+
+type TogglePostWinChecklistItemInput = {
+  businessId: string;
+  quoteId: string;
+  checklistItemId: string;
+  actorUserId: string;
+};
+
+export async function togglePostWinChecklistItem({
+  businessId,
+  quoteId,
+  checklistItemId,
+  actorUserId,
+}: TogglePostWinChecklistItemInput) {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [item] = await tx
+      .select({
+        id: postWinChecklistItems.id,
+        label: postWinChecklistItems.label,
+        completedAt: postWinChecklistItems.completedAt,
+      })
+      .from(postWinChecklistItems)
+      .where(
+        and(
+          eq(postWinChecklistItems.id, checklistItemId),
+          eq(postWinChecklistItems.quoteId, quoteId),
+          eq(postWinChecklistItems.businessId, businessId),
+        ),
+      )
+      .limit(1);
+
+    if (!item) {
+      return null;
+    }
+
+    const isCompleting = !item.completedAt;
+
+    await tx
+      .update(postWinChecklistItems)
+      .set({
+        completedAt: isCompleting ? now : null,
+        updatedAt: now,
+      })
+      .where(eq(postWinChecklistItems.id, checklistItemId));
+
+    const [quote] = await tx
+      .select({
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+      })
+      .from(quotes)
+      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
+      .limit(1);
+
+    if (quote) {
+      await insertQuoteActivity(tx, {
+        businessId,
+        inquiryId: quote.inquiryId,
+        quoteId,
+        actorUserId,
+        type: isCompleting
+          ? "quote.post_win_checklist_item_completed"
+          : "quote.post_win_checklist_item_unchecked",
+        summary: isCompleting
+          ? `Checklist item completed: ${item.label}.`
+          : `Checklist item unchecked: ${item.label}.`,
+        metadata: {
+          checklistItemId,
+          label: item.label,
+          quoteNumber: quote.quoteNumber,
+        },
+        now,
+      });
+    }
+
+    return {
+      toggled: true,
+      isCompleted: isCompleting,
+      checklistItemId,
+      label: item.label,
+    };
+  });
+}
+
+type CreatePostWinChecklistItemInput = {
+  businessId: string;
+  quoteId: string;
+  actorUserId: string;
+  label: string;
+};
+
+export async function createPostWinChecklistItem({
+  businessId,
+  quoteId,
+  actorUserId: _actorUserId,
+  label,
+}: CreatePostWinChecklistItemInput) {
+  const now = new Date();
+  const itemId = createId("pwc");
+
+  return db.transaction(async (tx) => {
+    const [quote] = await tx
+      .select({
+        id: quotes.id,
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+        status: quotes.status,
+        deletedAt: quotes.deletedAt,
+      })
+      .from(quotes)
+      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
+      .limit(1);
+
+    if (!quote || quote.deletedAt || quote.status !== "accepted") {
+      return null;
+    }
+
+    /* Find the next available position. */
+    const [maxPos] = await tx
+      .select({
+        maxPosition: sql<number>`coalesce(max(${postWinChecklistItems.position}), -1)`,
+      })
+      .from(postWinChecklistItems)
+      .where(eq(postWinChecklistItems.quoteId, quoteId));
+
+    const nextPosition = (maxPos?.maxPosition ?? -1) + 1;
+
+    await tx.insert(postWinChecklistItems).values({
+      id: itemId,
+      businessId,
+      quoteId,
+      label: label.trim(),
+      position: nextPosition,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      created: true,
+      checklistItemId: itemId,
+      label: label.trim(),
+      position: nextPosition,
+    };
   });
 }

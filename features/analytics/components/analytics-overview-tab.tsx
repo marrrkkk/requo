@@ -27,14 +27,27 @@ import { AnalyticsMetricCard } from "@/features/analytics/components/analytics-m
 import { AnalyticsStatusBreakdown } from "@/features/analytics/components/analytics-status-breakdown";
 import { AnalyticsTrendOverview } from "@/features/analytics/components/analytics-trend-overview";
 import type { BusinessAnalyticsData } from "@/features/analytics/types";
-import { formatAnalyticsDuration } from "@/features/analytics/utils";
-import { formatAnalyticsPercent } from "@/features/analytics/utils";
+import {
+  computeDelta,
+  computeDurationDelta,
+  formatAnalyticsDuration,
+  formatAnalyticsPercent,
+  formatCountDelta,
+  formatDurationDelta,
+} from "@/features/analytics/utils";
 
 export function AnalyticsOverviewTab({
   data,
 }: {
   data: BusinessAnalyticsData;
 }) {
+  const formViewsDelta = computeDelta(data.summary.formViews, data.priorPeriod.formViews);
+  const inquiryDelta = computeDelta(data.summary.inquirySubmissions, data.priorPeriod.inquirySubmissions);
+  const responseTimeDelta = computeDurationDelta(data.summary.avgFirstResponseHours, data.priorPeriod.avgFirstResponseHours);
+  const quotesSentDelta = computeDelta(data.summary.quotesSent, data.priorPeriod.quotesSent);
+  const acceptedDelta = computeDelta(data.summary.quotesAccepted, data.priorPeriod.quotesAccepted);
+  const quoteTimeDelta = computeDurationDelta(data.summary.avgTimeToFirstQuoteHours, data.priorPeriod.avgTimeToFirstQuoteHours);
+
   return (
     <div className="flex flex-col gap-6">
       <DashboardStatsGrid>
@@ -44,6 +57,10 @@ export function AnalyticsOverviewTab({
           value={`${data.summary.formViews}`}
           description={`${data.summary.uniqueVisitors} unique visitors in the last 30 days`}
           tooltip="How many times your public inquiry forms were opened in the last 30 days."
+          delta={{
+            label: `${formatCountDelta(formViewsDelta)} vs prior 30 days`,
+            direction: formViewsDelta.direction,
+          }}
         />
         <AnalyticsMetricCard
           icon={Inbox}
@@ -51,6 +68,10 @@ export function AnalyticsOverviewTab({
           value={`${data.summary.inquirySubmissions}`}
           description="New inquiries captured in the last 30 days"
           tooltip="How many inquiries were submitted through your forms in the last 30 days."
+          delta={{
+            label: `${formatCountDelta(inquiryDelta)} vs prior 30 days`,
+            direction: inquiryDelta.direction,
+          }}
         />
         <AnalyticsMetricCard
           icon={MessagesSquare}
@@ -66,6 +87,11 @@ export function AnalyticsOverviewTab({
           emptyLabel="No data"
           description={`${formatAnalyticsPercent(data.summary.responseRate)} response rate`}
           tooltip="Average time to the first owner or staff action on a new inquiry in the last 30 days."
+          delta={responseTimeDelta ? {
+            label: `${formatDurationDelta(responseTimeDelta)} vs prior 30 days`,
+            direction: responseTimeDelta.direction,
+            inverted: true,
+          } : null}
         />
       </DashboardStatsGrid>
 
@@ -83,6 +109,10 @@ export function AnalyticsOverviewTab({
           value={`${data.summary.quotesSent}`}
           description={`${data.summary.quotesViewed} viewed by customers`}
           tooltip="Quotes linked to the recent inquiry pipeline that were sent to customers."
+          delta={{
+            label: `${formatCountDelta(quotesSentDelta)} vs prior 30 days`,
+            direction: quotesSentDelta.direction,
+          }}
         />
         <AnalyticsMetricCard
           icon={CheckCircle2}
@@ -90,6 +120,10 @@ export function AnalyticsOverviewTab({
           value={`${data.summary.quotesAccepted}`}
           description={`${data.summary.quotesRejected} rejected in the same window`}
           tooltip="Accepted and rejected quote outcomes linked to the recent inquiry pipeline."
+          delta={{
+            label: `${formatCountDelta(acceptedDelta)} vs prior 30 days`,
+            direction: acceptedDelta.direction,
+          }}
         />
         <AnalyticsDurationCard
           icon={Clock3}
@@ -98,6 +132,11 @@ export function AnalyticsOverviewTab({
           emptyLabel="No data"
           description="Time from inquiry submission to first quote"
           tooltip="Average time between receiving an inquiry and creating the first quote linked to it."
+          delta={quoteTimeDelta ? {
+            label: `${formatDurationDelta(quoteTimeDelta)} vs prior 30 days`,
+            direction: quoteTimeDelta.direction,
+            inverted: true,
+          } : null}
         />
       </DashboardStatsGrid>
 

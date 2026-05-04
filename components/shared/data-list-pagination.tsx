@@ -27,6 +27,7 @@ type DataListPaginationProps = {
   cachedPages?: number[];
   currentPage: number;
   onCachedPageNavigate?: (page: number) => void;
+  pageSize?: number;
   pathname: string;
   searchParams: SearchParamsRecord;
   totalItems: number;
@@ -83,6 +84,7 @@ export function DataListPagination({
   cachedPages = [],
   currentPage,
   onCachedPageNavigate,
+  pageSize = 10,
   pathname,
   searchParams,
   totalItems,
@@ -172,8 +174,8 @@ export function DataListPagination({
     return null;
   }
 
-  const firstItemIndex = (currentPage - 1) * 10 + 1;
-  const lastItemIndex = Math.min(currentPage * 10, totalItems);
+  const firstItemIndex = (currentPage - 1) * pageSize + 1;
+  const lastItemIndex = Math.min(currentPage * pageSize, totalItems);
   const activePendingPage = isPending ? pendingPage : null;
   const showLoadingState =
     isPending &&
@@ -193,7 +195,7 @@ export function DataListPagination({
         ) : null}
       </div>
       <Pagination className="mx-0 w-auto justify-start sm:justify-end">
-        <PaginationContent>
+        <PaginationContent className="flex-wrap gap-1">
           <PaginationItem>
             <PaginationLink
               asChild
@@ -210,18 +212,18 @@ export function DataListPagination({
                 scroll={false}
               >
                 <ChevronLeftIcon data-icon="inline-start" />
-                Previous
+                <span className="hidden sm:inline">Previous</span>
               </Link>
             </PaginationLink>
           </PaginationItem>
 
           {pageItems.map((item, index) =>
             item === "ellipsis" ? (
-              <PaginationItem key={`ellipsis-${index}`}>
+              <PaginationItem className="hidden sm:list-item" key={`ellipsis-${index}`}>
                 <PaginationEllipsis />
               </PaginationItem>
             ) : (
-              <PaginationItem key={item}>
+              <PaginationItem className="hidden sm:list-item" key={item}>
                 <PaginationLink
                   asChild
                   href={getPageHref(item)}
@@ -257,7 +259,7 @@ export function DataListPagination({
                 onMouseEnter={() => router.prefetch(getPageHref(currentPage + 1))}
                 scroll={false}
               >
-                Next
+                <span className="hidden sm:inline">Next</span>
                 <ChevronRightIcon data-icon="inline-end" />
               </Link>
             </PaginationLink>

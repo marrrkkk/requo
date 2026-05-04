@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUpRight, PlusCircle } from "lucide-react";
+import { ArrowUpRight, PlusCircle, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -18,7 +19,6 @@ import { PlanSelectionSheet } from "@/features/billing/components/plan-selection
 import { useWorkspaceCheckout } from "@/features/billing/components/workspace-checkout-provider";
 import { CreateBusinessForm } from "@/features/businesses/components/create-business-form";
 import type { CreateBusinessActionState } from "@/features/businesses/types";
-import type { WorkspaceListItem } from "@/features/workspaces/types";
 import type { WorkspacePlan } from "@/lib/plans/plans";
 import type { BillingCurrency, BillingRegion, PaidPlan } from "@/lib/billing/types";
 
@@ -27,7 +27,7 @@ type CreateBusinessDialogProps = {
     state: CreateBusinessActionState,
     formData: FormData,
   ) => Promise<CreateBusinessActionState>;
-  workspaces: WorkspaceListItem[];
+  workspaceId: string;
   isLocked?: boolean;
   billingProps?: {
     workspaceId: string;
@@ -40,7 +40,7 @@ type CreateBusinessDialogProps = {
 
 export function CreateBusinessDialog({
   action,
-  workspaces,
+  workspaceId,
   isLocked,
   billingProps,
 }: CreateBusinessDialogProps) {
@@ -64,38 +64,62 @@ export function CreateBusinessDialog({
         </Button>
 
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="sm:max-w-sm">
+            <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Upgrade to add more businesses</DialogTitle>
+              <DialogTitle>Unlock unlimited businesses</DialogTitle>
               <DialogDescription>
-                The Free plan supports one business per workspace. Upgrade to Pro to manage up to 10 businesses, or Business for unlimited.
+                You&apos;ve reached the limit of your Free plan. Upgrade to Pro to manage up to 10 businesses, or Business for unlimited.
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  setOpen(false);
-                  if (useSharedCheckout && workspaceCheckout) {
-                    if (workspaceCheckout.pendingCheckout) {
-                      workspaceCheckout.continueCheckout();
+              <DialogBody className="pt-2">
+                <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
+                  <p className="meta-label mb-2.5">Pro plan includes</p>
+                  <ul className="flex flex-col gap-2">
+                    {[
+                      "Up to 10 businesses per workspace",
+                      "Unlimited inquiry forms",
+                      "Custom branding and colors",
+                      "AI-powered quote drafting",
+                    ].map((feature) => (
+                      <li
+                        className="flex items-center gap-2.5 text-sm text-foreground"
+                        key={feature}
+                      >
+                        <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                          <Check className="size-3" />
+                        </div>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </DialogBody>
+              <DialogFooter>
+                <Button className="w-full sm:w-auto" variant="outline" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  className="w-full sm:w-auto"
+                  onClick={() => {
+                    setOpen(false);
+                    if (useSharedCheckout && workspaceCheckout) {
+                      if (workspaceCheckout.pendingCheckout) {
+                        workspaceCheckout.continueCheckout();
+                        return;
+                      }
+
+                      workspaceCheckout.openPlanSelection();
                       return;
                     }
 
-                    workspaceCheckout.openPlanSelection();
-                    return;
-                  }
-
-                  setPlanSheetOpen(true);
-                }}
-              >
-                <ArrowUpRight data-icon="inline-start" />
-                Upgrade
-              </Button>
-            </DialogFooter>
-          </DialogContent>
+                    setPlanSheetOpen(true);
+                  }}
+                >
+                  <ArrowUpRight data-icon="inline-start" />
+                  Upgrade to Pro
+                </Button>
+              </DialogFooter>
+            </DialogContent>
         </Dialog>
 
         {!useSharedCheckout ? (
@@ -147,7 +171,7 @@ export function CreateBusinessDialog({
         </DialogHeader>
         <CreateBusinessForm
           action={action}
-          workspaces={workspaces}
+          workspaceId={workspaceId}
         />
       </DialogContent>
     </Dialog>

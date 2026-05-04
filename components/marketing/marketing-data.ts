@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { FileText, Inbox, Upload } from "lucide-react";
+import { FileText, Inbox, Upload, Search, FileSignature, Send } from "lucide-react";
 
 export const navItems = [
   { pathname: "/", hash: "why-requo", label: "Why Requo" },
@@ -31,44 +31,48 @@ export const whyPoints: readonly {
 }[] = [
   {
     icon: Upload,
-    title: "The inquiry stays complete",
+    title: "Details split fast",
     description:
-      "Keep the customer's details, files, timing, and scope tied to the same job instead of scattered across messages.",
+      "A lead starts in email, phone, DMs, or a form. Scope, files, timing, and budget end up in different places.",
   },
   {
     icon: FileText,
-    title: "The quote keeps the same context",
+    title: "Quotes slow down",
     description:
-      "Review the inquiry, write the quote, and keep the job story in view while you price the work.",
+      "Before pricing, you rebuild the job story. That delay gives ready customers time to cool off.",
   },
   {
     icon: Inbox,
-    title: "The next follow-up stays visible",
+    title: "Follow-up gets missed",
     description:
-      "Know what still needs review, what has been quoted, and which lead needs the next nudge.",
+      "After sending, viewed and undecided quotes need a next step. Memory is not a good system.",
   },
 ] as const;
 
-export const workflowSteps = [
+export const workflowSteps: readonly {
+  title: string;
+  description: string;
+  icon: LucideIcon;
+}[] = [
   {
-    title: "Capture the inquiry",
-    description:
-      "Collect a new inquiry from your public page or add the lead yourself when it comes in elsewhere.",
+    title: "Capture",
+    description: "Keep details in one place.",
+    icon: Inbox,
   },
   {
-    title: "Review the fit",
-    description:
-      "Check scope, files, timing, and anything you need before you spend time pricing the work.",
+    title: "Review",
+    description: "See what is missing fast.",
+    icon: Search,
   },
   {
-    title: "Send the quote",
-    description:
-      "Prepare a clear quote with the inquiry details, notes, and attachments still attached.",
+    title: "Quote",
+    description: "Build and send a clear quote.",
+    icon: FileSignature,
   },
   {
     title: "Follow up",
-    description:
-      "Track the response and keep the next follow-up visible after the quote goes out.",
+    description: "Keep the next step visible.",
+    icon: Send,
   },
 ] as const;
 
@@ -125,28 +129,48 @@ export const landingFeatureItems: readonly {
 
 export const faqItems = [
   {
-    question: "What if most inquiries still come from Facebook, email, or phone?",
+    question: "What if most of my inquiries come from Facebook, Instagram, WhatsApp, email, or phone?",
     answer:
-      "You can still use Requo. Add inquiries manually or send customers to your public form when you need a cleaner intake.",
+      "That is exactly why Requo exists. You can add inquiries from any channel, keep customer details in one place, create a quote, then share the quote link back through the same channel.",
   },
   {
     question: "Can I use Requo if every job is priced differently?",
     answer:
-      "Yes. Requo is built for custom work. You can quote with your own line items, pricing, notes, and scope for each job.",
+      "Yes. Requo is built for custom service work. You can create quotes with custom line items, notes, totals, expiry dates, and customer-specific details.",
+  },
+  {
+    question: "Do I need to send quotes by email?",
+    answer:
+      "No. Requo gives you a quote link you can send through email, WhatsApp, Messenger, Instagram, SMS, or any channel you already use.",
   },
   {
     question: "What happens after I send a quote?",
     answer:
-      "You can keep the quote, customer response, and follow-up in the same workflow so the next step does not get lost.",
+      "You can track whether the quote was viewed, accepted, rejected, or still needs a follow-up. Requo helps keep the next step visible so quotes do not get forgotten.",
   },
   {
-    question: "Can my team work from the same job details?",
+    question: "What happens after a customer accepts a quote?",
     answer:
-      "Yes. Notes, activity, quote details, and customer history stay in one place so the next person can pick up the job with context.",
+      "The inquiry can be marked as won, and you can move into post-win next steps like contacting the customer, scheduling the work, requesting a deposit, or marking the work completed.",
   },
   {
-    question: "Do I need to rebuild my whole process before using it?",
+    question: "Can my team work from the same inquiry and quote details?",
     answer:
-      "No. Start with your next inquiry, send your next quote, and adjust the setup as you go.",
+      "Yes, depending on your plan. Teams can work from the same workspace or business so everyone sees the same inquiries, quotes, statuses, and follow-ups.",
+  },
+  {
+    question: "Do I need to rebuild my whole process before using Requo?",
+    answer:
+      "No. Requo is meant to fit around how you already get customers. Start by capturing inquiries, creating quotes, sharing quote links, and tracking follow-ups.",
+  },
+  {
+    question: "Is Requo a full CRM or project management tool?",
+    answer:
+      "No. Requo is focused on the inquiry-to-quote workflow: capturing requests, creating quotes, sharing links, tracking responses, and managing follow-ups. It stays lighter than a full CRM.",
+  },
+  {
+    question: "Is Requo free to start?",
+    answer:
+      "Yes. You can start free, test the workflow, and upgrade when you need higher limits, more features, or team access.",
   },
 ] as const;

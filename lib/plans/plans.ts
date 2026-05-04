@@ -37,19 +37,22 @@ export type PlanMeta = {
 export const planMeta: Record<WorkspacePlan, PlanMeta> = {
   free: {
     label: "Free",
-    description: "For solo owners getting organized — one workspace, one business.",
+    description:
+      "For solo owners running the core inquiry-to-quote workflow for one business.",
     ctaLabel: "Get started free",
     highlighted: false,
   },
   pro: {
     label: "Pro",
-    description: "For operators who need premium tools and multiple businesses in one workspace.",
+    description:
+      "For operators who need advanced intake, exports, AI, and multiple businesses.",
     ctaLabel: "Upgrade to Pro",
     highlighted: true,
   },
   business: {
     label: "Business",
-    description: "For teams that need collaboration, roles, and the highest limits.",
+    description:
+      "For teams that need member roles, shared workspace access, and the highest limits.",
     ctaLabel: "Upgrade to Business",
     highlighted: false,
   },

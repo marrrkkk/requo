@@ -32,6 +32,7 @@ type QuoteListResultsData = {
 
 type QuoteListControlsSectionProps = {
   businessSlug: string;
+  canExport: boolean;
   filters: QuoteListFiltersValue;
   searchParams: SearchParamsRecord;
   totalItemsPromise: Promise<number>;
@@ -39,6 +40,7 @@ type QuoteListControlsSectionProps = {
 
 export async function QuoteListControlsSection({
   businessSlug,
+  canExport,
   filters,
   searchParams,
   totalItemsPromise,
@@ -62,6 +64,7 @@ export async function QuoteListControlsSection({
         <div className="dashboard-actions w-full [&>*]:w-full sm:[&>*]:w-auto xl:w-auto xl:justify-end">
           <QuoteExportCsvDropdown
             businessSlug={businessSlug}
+            canExport={canExport}
             filters={filters}
             resultCount={totalItems}
           />

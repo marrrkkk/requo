@@ -14,6 +14,7 @@ import {
 import { createInquiryPageConfigDefaults } from "@/features/inquiries/page-config";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { db } from "@/lib/db/client";
+import type { WorkspacePlan } from "@/lib/plans/plans";
 import {
   activityLogs,
   businessInquiryForms,
@@ -38,6 +39,7 @@ type CreateBusinessForUserInput = {
   countryCode?: string | null;
   shortDescription?: string | null;
   inquiryFormConfigOverride?: InquiryFormConfig;
+  workspacePlan?: WorkspacePlan;
   activitySource?: string;
   activitySummary?: string;
 };
@@ -87,6 +89,7 @@ export async function createBusinessRecordForUser({
   countryCode = null,
   shortDescription,
   inquiryFormConfigOverride,
+  workspacePlan = "free",
   activitySource = "business-hub",
   activitySummary = "Business created.",
   now = new Date(),
@@ -106,6 +109,7 @@ export async function createBusinessRecordForUser({
   const defaultInquiryForm = createInquiryFormPreset({
     businessType: starterTemplateBusinessType,
     businessName: trimmedName,
+    plan: workspacePlan,
   });
   const resolvedFormConfig =
     inquiryFormConfigOverride ??
@@ -124,6 +128,7 @@ export async function createBusinessRecordForUser({
         inquiryPageConfig: createInquiryPageConfigDefaults({
           businessName: trimmedName,
           businessType: starterTemplateBusinessType,
+          plan: workspacePlan,
         }),
         defaultQuoteNotes: starterTemplate.defaultQuoteNotes,
         defaultQuoteValidityDays: starterTemplate.defaultQuoteValidityDays,
@@ -216,6 +221,7 @@ export async function createBusinessForUser({
   shortDescription,
   activitySource,
   activitySummary,
+  workspacePlan,
 }: CreateBusinessForUserInput) {
   await ensureProfileForUser(user);
 
@@ -232,6 +238,7 @@ export async function createBusinessForUser({
       shortDescription,
       activitySource,
       activitySummary,
+      workspacePlan,
     }),
   );
 }

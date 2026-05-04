@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 vi.mock("@/lib/db/client", async () => {
   const { testDb: mockedDb } = await import("./db");
@@ -283,7 +283,12 @@ describe("features/quotes/mutations workflow", () => {
     const [activity] = await testDb
       .select()
       .from(activityLogs)
-      .where(eq(activityLogs.type, "quote.post_acceptance_updated"))
+      .where(
+        and(
+          eq(activityLogs.type, "quote.post_acceptance_updated"),
+          eq(activityLogs.businessId, ids.businessId)
+        )
+      )
       .limit(1);
 
     expect(activity).toEqual(

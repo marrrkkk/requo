@@ -239,7 +239,7 @@ const termsSections: LegalDocumentSection[] = [
             `${legalConfig.hostingProvider}, for hosting and application delivery.`,
             `${legalConfig.storageProvider}, for database, storage, and related backend infrastructure.`,
             "Resend, for transactional email delivery.",
-            "OpenRouter, for AI request routing when AI features are used.",
+            "Groq, Gemini, and OpenRouter, for AI request routing when AI features are used.",
             "Google or Microsoft, for optional social sign-in when those sign-in methods are enabled.",
           ]}
         />
@@ -260,9 +260,9 @@ const termsSections: LegalDocumentSection[] = [
         <LegalParagraph>
           Requo includes AI-assisted drafting features intended for internal use
           by authorized business workspace users. These features may send
-          prompts and related business workspace content through OpenRouter and,
-          depending on configuration, to the model provider used through
-          OpenRouter to generate drafts, summaries, and suggestions.
+          prompts and related business workspace content through Groq, Gemini, or OpenRouter and,
+          depending on configuration, to the model provider used
+          to generate drafts, summaries, and suggestions.
         </LegalParagraph>
         <LegalParagraph>
           AI outputs are provided for convenience only. They can be incomplete,

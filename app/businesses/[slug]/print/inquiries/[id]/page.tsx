@@ -6,6 +6,7 @@ import { getInquiryDetailForBusiness } from "@/features/inquiries/queries";
 import { inquiryRouteParamsSchema } from "@/features/inquiries/schemas";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
+import { hasFeatureAccess } from "@/lib/plans";
 
 type InquiryPrintPageProps = {
   params: Promise<{
@@ -27,6 +28,15 @@ export default async function InquiryPrintPage({
   });
 
   if (!parsedParams.success || !requestContext) {
+    notFound();
+  }
+
+  if (
+    !hasFeatureAccess(
+      requestContext.businessContext.business.workspacePlan,
+      "exports",
+    )
+  ) {
     notFound();
   }
 

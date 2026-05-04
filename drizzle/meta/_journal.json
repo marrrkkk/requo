@@ -337,6 +337,53 @@
       "when": 1776993600000,
       "tag": "0049_drop_ai_pending_actions",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1777362029572,
+      "tag": "0051_admin_audit_logs",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1777449600000,
+      "tag": "0052_email_outbox_fallback",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1777527590499,
+      "tag": "0050_drop_google_calendar",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1777527700000,
+      "tag": "0053_realtime_inquiries_notifications_repair",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1777689600000,
+      "tag": "0054_profile_company_size",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "when": 1777776000000,
+      "tag": "0055_dashboard_tour_completed",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "when": 1777862400000,
+      "tag": "0056_form_editor_tour_completed",
+      "breakpoints": true
     }
   ]
 }

@@ -43,7 +43,7 @@ export function getWorkspaceSettingsNavigation(
         },
         {
           href: getWorkspaceSettingsPath(workspaceSlug, "audit-log"),
-          label: "Audit Log",
+          label: "Audit",
           icon: "audit",
         },
       ],

@@ -2,6 +2,37 @@ import type { LucideIcon } from "lucide-react";
 
 import { HelpTooltip } from "@/components/shared/help-tooltip";
 import { Card, CardContent } from "@/components/ui/card";
+import type { PeriodDeltaDirection } from "@/features/analytics/types";
+
+type DurationDelta = {
+  label: string;
+  direction: PeriodDeltaDirection;
+  inverted?: boolean;
+};
+
+function DeltaBadge({ label, direction, inverted }: DurationDelta) {
+  if (direction === "flat") {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+        — {label}
+      </span>
+    );
+  }
+
+  const isPositive = inverted
+    ? direction === "down"
+    : direction === "up";
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-xs font-medium ${
+        isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"
+      }`}
+    >
+      {direction === "up" ? "▲" : "▼"} {label}
+    </span>
+  );
+}
 
 export function AnalyticsDurationCard({
   title,
@@ -10,6 +41,7 @@ export function AnalyticsDurationCard({
   description,
   tooltip,
   icon: Icon,
+  delta,
 }: {
   title: string;
   value: string | null;
@@ -17,6 +49,7 @@ export function AnalyticsDurationCard({
   description?: string;
   tooltip?: string;
   icon: LucideIcon;
+  delta?: DurationDelta | null;
 }) {
   const displayValue = value ?? (emptyLabel || "—");
 
@@ -34,6 +67,11 @@ export function AnalyticsDurationCard({
             <p className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
               {displayValue}
             </p>
+            {delta ? (
+              <div className="mt-1.5">
+                <DeltaBadge {...delta} />
+              </div>
+            ) : null}
             {description ? (
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 {description}

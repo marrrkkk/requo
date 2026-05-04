@@ -142,6 +142,7 @@ export function DashboardShell({
     businessContext.role,
   );
   const business = businessContext.business;
+  const currentPageLabel = breadcrumbs.at(-1)?.label ?? business.name;
 
   return (
     <SidebarProvider
@@ -208,12 +209,20 @@ export function DashboardShell({
       <SidebarInset className="min-h-svh min-w-0">
         <header className="dashboard-topbar">
           <div className="dashboard-topbar-inner">
-            <div className="flex min-h-11 min-w-0 flex-wrap items-center gap-3 md:flex-nowrap">
-              <SidebarTrigger className="shrink-0" />
+            <div className="flex min-h-11 min-w-0 items-center gap-2.5 md:gap-3">
+              <SidebarTrigger className="size-10 shrink-0" />
               <span
                 aria-hidden="true"
                 className="hidden h-4 w-px shrink-0 self-center bg-border md:block"
               />
+              <div className="min-w-0 flex-1 md:hidden">
+                <p className="truncate font-heading text-base font-semibold tracking-tight text-foreground">
+                  {currentPageLabel}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {business.name}
+                </p>
+              </div>
               <div className="hidden min-w-0 flex-1 md:block">
                 <Breadcrumb>
                   <BreadcrumbList>
@@ -240,7 +249,7 @@ export function DashboardShell({
                   </BreadcrumbList>
                 </Breadcrumb>
               </div>
-              <div className="flex min-w-0 flex-1 items-center justify-end gap-2 md:min-w-0 md:flex-initial md:justify-start">
+              <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 md:min-w-0 md:flex-initial md:justify-start">
                 <div className="hidden md:block">
                   <CommandMenu
                     businessSlug={business.slug}
@@ -248,7 +257,9 @@ export function DashboardShell({
                     workspaceSlug={business.workspaceSlug}
                   />
                 </div>
-                {upgradeSlot}
+                <div className="hidden min-[390px]:contents sm:contents">
+                  {upgradeSlot}
+                </div>
                 {notificationSlot}
               </div>
             </div>
@@ -264,6 +275,7 @@ export function DashboardShell({
           businessId={business.id}
           businessSlug={business.slug}
           userName={user.name || "You"}
+          workspacePlan={business.workspacePlan}
         />
       </SidebarInset>
     </SidebarProvider>
@@ -283,10 +295,12 @@ function DashboardNavigationItem({
   const { isMobile, setOpenMobile } = useSidebar();
 
   return (
-    <SidebarMenuItem>
+    <SidebarMenuItem
+      data-tour={`nav-${item.label.toLowerCase().replace(/[\s-]+/g, "-")}`}
+    >
       <SidebarMenuButton
         asChild
-        className="min-h-9 rounded-lg border border-transparent px-3 py-1.5 data-[active=true]:border-sidebar-primary/12 data-[active=true]:bg-sidebar-primary/12 data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] dark:data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+        className="min-h-10 rounded-lg border border-transparent px-3 py-2 data-[active=true]:border-sidebar-primary/12 data-[active=true]:bg-sidebar-primary/12 data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] dark:data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
         isActive={isActive}
         tooltip={item.label}
       >
@@ -384,7 +398,10 @@ function DashboardUserMenu({
               <ChevronsUpDown className="ml-auto text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-data-[collapsible=icon]:hidden group-data-[state=open]/menu-button:rotate-180" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-56 w-56 rounded-xl">
+          <DropdownMenuContent
+            align="end"
+            className="w-[min(16rem,calc(100vw-2rem))] rounded-xl"
+          >
             <DropdownMenuLabel className="px-2 py-2.5">
               <div className="flex items-center gap-3">
                 <Avatar className="rounded-lg">
@@ -486,13 +503,21 @@ function BusinessSwitcher({
   currentBusiness: DashboardShellProps["businessContext"];
   memberships: DashboardShellProps["businessMemberships"];
 }) {
+  const { isMobile, setOpenMobile } = useSidebar();
   const business = currentBusiness.business;
+
+  function closeMobileSidebar() {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
           className="group/business-switcher w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] transition-[background-color,border-color,box-shadow,transform] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-background data-[state=open]:bg-background data-[state=open]:shadow-[var(--control-shadow-hover)] dark:border-white/8 dark:bg-card/90 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-accent dark:data-[state=open]:bg-accent"
+          data-tour="business-switcher"
           type="button"
         >
           <div className="flex items-start gap-3.5">
@@ -536,7 +561,10 @@ function BusinessSwitcher({
           </div>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-72 rounded-xl">
+      <DropdownMenuContent
+        align="start"
+        className="w-[min(18rem,calc(100vw-2rem))] rounded-xl"
+      >
         <DropdownMenuLabel className="px-2 py-2.5">
           Switch business
         </DropdownMenuLabel>
@@ -551,6 +579,7 @@ function BusinessSwitcher({
                 <Link
                   href={getBusinessDashboardPath(membership.business.slug)}
                   prefetch={true}
+                  onClick={closeMobileSidebar}
                 >
                   <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background text-[0.72rem] font-semibold tracking-[0.14em] text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] dark:border-white/8 dark:bg-card dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_1px_rgba(0,0,0,0.18)]">
                     {getInitials(membership.business.name)}
@@ -574,7 +603,11 @@ function BusinessSwitcher({
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href={workspacesHubPath} prefetch={true}>
+          <Link
+            href={workspacesHubPath}
+            onClick={closeMobileSidebar}
+            prefetch={true}
+          >
             <PanelsTopLeft data-icon="inline-start" />
             Manage workspaces
           </Link>

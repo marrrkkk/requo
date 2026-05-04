@@ -7,7 +7,6 @@ import { QuoteListCards } from "@/features/quotes/components/quote-list-cards";
 import { QuoteListTable } from "@/features/quotes/components/quote-list-table";
 import { getBusinessQuotesPath } from "@/features/businesses/routes";
 import type { DashboardQuoteListItem } from "@/features/quotes/types";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
 const EMPTY_PAGE_CACHE: Record<number, DashboardQuoteListItem[]> = {};
@@ -37,7 +36,6 @@ export function QuoteListResultsClient({
   totalItems,
   totalPages,
 }: QuoteListResultsClientProps) {
-  const isMobile = useIsMobile();
   const effectiveCachedPages = useMemo(
     () => normalizePageCache(cachedPages),
     [cachedPages],
@@ -61,17 +59,8 @@ export function QuoteListResultsClient({
 
   return (
     <>
-      {isMobile ? (
-        <QuoteListCards
-          quotes={quotes}
-          businessSlug={businessSlug}
-        />
-      ) : (
-        <QuoteListTable
-          quotes={quotes}
-          businessSlug={businessSlug}
-        />
-      )}
+      <QuoteListCards quotes={quotes} businessSlug={businessSlug} />
+      <QuoteListTable quotes={quotes} businessSlug={businessSlug} />
       <DataListPagination
         cachedPages={cachedPageNumbers}
         currentPage={displayPage}

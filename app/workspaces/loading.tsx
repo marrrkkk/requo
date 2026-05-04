@@ -24,27 +24,32 @@ export default function WorkspacesLoading() {
 
         <div className="w-full space-y-6">
           <section className="space-y-4">
+            <Skeleton className="h-5 w-48 rounded-md" />
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton className="h-24 rounded-lg" key={index} />
+              ))}
+            </div>
+          </section>
+
+          <section className="space-y-4">
             <div className="flex items-center justify-between gap-3">
               <Skeleton className="h-5 w-24 rounded-md" />
-              <Skeleton className="h-9 w-36 rounded-md" />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 3 }).map((_, index) => (
-                <Card className="border-border/80 bg-card/98" key={index}>
-                  <CardHeader className="gap-3">
-                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
-                      <div className="flex min-w-0 items-start gap-3">
-                        <Skeleton className="size-12 shrink-0 rounded-xl" />
-                        <div className="min-w-0 flex-1 space-y-2 mt-1">
-                          <Skeleton className="h-5 w-32 rounded-md" />
-                          <Skeleton className="h-4 w-20 rounded-md" />
-                        </div>
+                <Card className="flex flex-col border-border/80 bg-card/98" key={index}>
+                  <CardHeader className="gap-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1 space-y-2 mt-1">
+                        <Skeleton className="h-6 w-32 rounded-md" />
+                        <Skeleton className="h-4 w-20 rounded-md" />
                       </div>
                       <Skeleton className="h-6 w-14 rounded-full" />
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="flex flex-1 flex-col justify-between space-y-5">
                     <div className="flex flex-wrap gap-2">
                       <Skeleton className="h-6 w-24 rounded-full" />
                       <Skeleton className="h-6 w-16 rounded-full" />

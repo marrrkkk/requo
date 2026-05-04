@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 
-import { resolveAuthorizedCalendarEventTarget } from "@/features/calendar/queries";
+
 import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
 import { getWorkspaceOverviewBySlug } from "@/features/workspaces/queries";
 import {
@@ -307,32 +307,5 @@ describe("security authorization boundaries", () => {
     expect(strangerView).toBeNull();
   });
 
-  it("rejects calendar event targets outside the authorized business", async () => {
-    const authorizedTarget = await resolveAuthorizedCalendarEventTarget({
-      businessId,
-      inquiryId,
-      quoteId,
-      userId: ownerUserId,
-    });
-    const wrongMemberTarget = await resolveAuthorizedCalendarEventTarget({
-      businessId,
-      inquiryId,
-      quoteId,
-      userId: strangerUserId,
-    });
-    const wrongInquiryTarget = await resolveAuthorizedCalendarEventTarget({
-      businessId,
-      inquiryId: otherInquiryId,
-      quoteId,
-      userId: ownerUserId,
-    });
 
-    expect(authorizedTarget).toEqual({
-      businessId,
-      inquiryId,
-      quoteId,
-    });
-    expect(wrongMemberTarget).toBeNull();
-    expect(wrongInquiryTarget).toBeNull();
-  });
 });

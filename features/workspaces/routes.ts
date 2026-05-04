@@ -20,3 +20,7 @@ export function getWorkspaceSettingsPath(
 export function getWorkspaceMembersPath(slug: string) {
   return getWorkspaceSettingsPath(slug, "members");
 }
+
+export function getWorkspaceAuditLogExportPath(slug: string) {
+  return `/api/workspaces/${slug}/audit-log/export`;
+}

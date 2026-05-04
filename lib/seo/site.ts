@@ -4,7 +4,7 @@ export const siteName = "Requo";
 export const siteTagline =
   "Manage inquiries, send quotes, and follow up in one place.";
 export const siteDescription =
-  "Requo helps service businesses collect inquiries, send quotes, track quote status, and follow up without juggling separate tools.";
+  "Requo is quote software for service businesses. Capture inquiries, send quotes, track status, and follow up from one workspace.";
 const defaultSocialImagePath = "/opengraph-image";
 
 type PageMetadataOptions = {

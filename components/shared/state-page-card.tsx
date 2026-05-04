@@ -39,7 +39,7 @@ export function StatePageCard({
             <span className="eyebrow">{eyebrow}</span>
             <CardTitle className="text-3xl sm:text-[2.15rem]">{title}</CardTitle>
             {description ? (
-              <CardDescription className="max-w-xl text-sm leading-7">
+              <CardDescription className="max-w-xl text-sm leading-normal sm:leading-7">
                 {description}
               </CardDescription>
             ) : null}

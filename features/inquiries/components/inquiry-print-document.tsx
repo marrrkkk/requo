@@ -3,7 +3,12 @@ import { AtSign, Mail } from "lucide-react";
 import { InfoTile } from "@/components/shared/info-tile";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getAdditionalInquirySubmittedFields } from "@/features/inquiries/form-config";
+import {
+  getCustomSubmittedFields,
+  inquiryContactMethodLabels,
+  systemFieldDefaultLabels,
+  type InquiryContactMethod,
+} from "@/features/inquiries/form-config";
 import type { DashboardInquiryDetail } from "@/features/inquiries/types";
 import {
   formatFileSize,
@@ -23,10 +28,12 @@ export function InquiryPrintDocument({
   businessCurrency,
   inquiry,
 }: InquiryPrintDocumentProps) {
-  const additionalFields = getAdditionalInquirySubmittedFields(
+  const customFields = getCustomSubmittedFields(
     inquiry.submittedFieldSnapshot,
   );
   const details = inquiry.details.trim();
+  const customerContactEmail = getCustomerContactEmail(inquiry);
+  const showPreferredContact = shouldShowPreferredContactTile(inquiry);
 
   return (
     <div
@@ -56,15 +63,20 @@ export function InquiryPrintDocument({
 
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <InfoTile
+              className={showPreferredContact ? undefined : "sm:col-span-2"}
               icon={Mail}
               label="Email"
-              value={inquiry.customerEmail ?? "Not provided"}
+              value={customerContactEmail ?? "Not provided"}
+              valueClassName="break-all"
             />
-            <InfoTile
-              icon={AtSign}
-              label={`Contact (${inquiry.customerContactMethod})`}
-              value={inquiry.customerContactHandle}
-            />
+            {showPreferredContact ? (
+              <InfoTile
+                icon={AtSign}
+                label={getContactMethodLabel(inquiry.customerContactMethod)}
+                value={inquiry.customerContactHandle}
+                valueClassName="break-all"
+              />
+            ) : null}
             <InfoTile
               label="Received"
               value={formatInquiryDateTime(inquiry.submittedAt)}
@@ -83,17 +95,21 @@ export function InquiryPrintDocument({
               </p>
             </CardHeader>
             <CardContent className="grid gap-2 sm:grid-cols-2">
-              <InfoTile label="Category" value={inquiry.serviceCategory} />
+              <InfoTile
+                label={systemFieldDefaultLabels.serviceCategory}
+                value={inquiry.serviceCategory}
+              />
               <InfoTile label="Form" value={inquiry.inquiryFormName} />
               <InfoTile
-                label="Budget"
+                label={systemFieldDefaultLabels.budgetText}
                 value={formatInquiryBudget(inquiry.budgetText)}
               />
               <InfoTile
-                label="Deadline"
+                label={systemFieldDefaultLabels.requestedDeadline}
                 value={inquiry.requestedDeadline ?? "Not provided"}
               />
-              {inquiry.subject ? (
+              {inquiry.subject &&
+              inquiry.subject !== inquiry.serviceCategory ? (
                 <InfoTile
                   className="sm:col-span-2"
                   label="Subject"
@@ -105,7 +121,7 @@ export function InquiryPrintDocument({
 
           <Card className="gap-0 print:rounded-none print:border-0 print:bg-transparent print:shadow-none">
             <CardHeader className="gap-1 pb-2">
-              <CardTitle>Message</CardTitle>
+              <CardTitle>{systemFieldDefaultLabels.details}</CardTitle>
               <p className="text-sm text-muted-foreground">
                 Customer-provided details only.
               </p>
@@ -117,24 +133,18 @@ export function InquiryPrintDocument({
             </CardContent>
           </Card>
 
-          {additionalFields.length ? (
-            <Card className="gap-0 print:rounded-none print:border-0 print:bg-transparent print:shadow-none">
-              <CardHeader className="gap-1 pb-2">
-                <CardTitle>Submitted fields</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Custom fields included with the form response.
-                </p>
-              </CardHeader>
-              <CardContent className="grid gap-2 sm:grid-cols-2">
-                {additionalFields.map((field) => (
+          {customFields.length ? (
+            <section>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {customFields.map((field) => (
                   <InfoTile
                     key={field.id}
                     label={field.label}
                     value={field.displayValue}
                   />
                 ))}
-              </CardContent>
-            </Card>
+              </div>
+            </section>
           ) : null}
         </div>
 
@@ -218,5 +228,43 @@ export function InquiryPrintDocument({
         </div>
       </div>
     </div>
+  );
+}
+
+function getContactMethodLabel(method: string) {
+  const normalized = method.trim().toLowerCase();
+
+  if (normalized in inquiryContactMethodLabels) {
+    return inquiryContactMethodLabels[normalized as InquiryContactMethod];
+  }
+
+  return method.trim() || "Contact details";
+}
+
+function getCustomerContactEmail(contact: {
+  customerEmail: string | null;
+  customerContactMethod: string;
+  customerContactHandle: string;
+}) {
+  const savedEmail = contact.customerEmail?.trim();
+
+  if (savedEmail) {
+    return savedEmail;
+  }
+
+  if (contact.customerContactMethod.trim().toLowerCase() === "email") {
+    return contact.customerContactHandle.trim() || null;
+  }
+
+  return null;
+}
+
+function shouldShowPreferredContactTile(contact: {
+  customerContactMethod: string;
+  customerContactHandle: string;
+}) {
+  return (
+    contact.customerContactHandle.trim().length > 0 &&
+    contact.customerContactMethod.trim().toLowerCase() !== "email"
   );
 }

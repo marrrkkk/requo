@@ -1,12 +1,17 @@
 import {
   AlertTriangle,
+  Ban,
+  CalendarCheck,
   CheckCircle2,
+  CircleCheck,
   Clock,
   Hourglass,
   Inbox,
   Eye,
   FileText,
+  ListChecks,
   MessagesSquare,
+  SkipForward,
   Timer,
 } from "lucide-react";
 
@@ -36,6 +41,9 @@ export function AnalyticsWorkflowTab({
 }: {
   data: WorkflowAnalyticsData;
 }) {
+  const fu = data.followUpSummary;
+  const hasFollowUpData = fu.created > 0;
+
   return (
     <div className="flex flex-col gap-6">
       <DashboardStatsGrid className="sm:grid-cols-2 xl:grid-cols-4">
@@ -137,32 +145,116 @@ export function AnalyticsWorkflowTab({
         </DashboardSidebarStack>
       </DashboardDetailLayout>
 
-      <Card className="gap-0 bg-background/72">
-        <CardHeader className="gap-2">
-          <CardTitle>Operational alerts</CardTitle>
-          <CardDescription>
-            Inquiries and quotes that may need attention based on response time thresholds.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <AnalyticsMetricCard
-              icon={Inbox}
-              title="Stale inquiries"
-              value={`${data.alerts.staleInquiryCount}`}
-              description="No response for 48+ hours"
-              tooltip="Open inquiries that still have no owner or staff response after 48 hours."
-            />
-            <AnalyticsMetricCard
-              icon={AlertTriangle}
-              title="Pending quotes 7d+"
-              value={`${data.alerts.pendingQuotesOverSevenDays}`}
-              description="Sent over 7 days ago, no response"
-              tooltip="Quotes you sent that the customer hasn't responded to in over a week."
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card className="gap-0 bg-background/72">
+          <CardHeader className="gap-2">
+            <CardTitle>Operational alerts</CardTitle>
+            <CardDescription>
+              Inquiries and quotes that may need attention based on response time thresholds.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <AnalyticsMetricCard
+                icon={Inbox}
+                title="Stale inquiries"
+                value={`${data.alerts.staleInquiryCount}`}
+                description="No response for 48+ hours"
+                tooltip="Open inquiries that still have no owner or staff response after 48 hours."
+              />
+              <AnalyticsMetricCard
+                icon={AlertTriangle}
+                title="Pending quotes 7d+"
+                value={`${data.alerts.pendingQuotesOverSevenDays}`}
+                description="Sent over 7 days ago, no response"
+                tooltip="Quotes you sent that the customer hasn't responded to in over a week."
+              />
+              <AnalyticsMetricCard
+                icon={CircleCheck}
+                title="Completed"
+                value={`${data.summary.quotesCompleted}`}
+                description="Accepted quotes with fulfilled work"
+                tooltip="Accepted quotes where the work was marked completed."
+              />
+              <AnalyticsMetricCard
+                icon={Ban}
+                title="Canceled after acceptance"
+                value={`${data.summary.quotesCanceledAfterAcceptance}`}
+                description="Customer backed out after accepting"
+                tooltip="Accepted quotes that were later canceled by the customer or business."
+              />
+              {data.summary.acceptedNeedingNextStepCount > 0 ? (
+                <AnalyticsMetricCard
+                  icon={ListChecks}
+                  title="Needs next step"
+                  value={`${data.summary.acceptedNeedingNextStepCount}`}
+                  description="Accepted quotes not yet completed or canceled"
+                  tooltip="Accepted quotes that still need scheduling, a deposit, or other follow-through."
+                />
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="gap-0 bg-background/72">
+          <CardHeader className="gap-2">
+            <CardTitle>Follow-up activity</CardTitle>
+            <CardDescription>
+              {hasFollowUpData
+                ? "Follow-up discipline over the last 30 days."
+                : "Follow-up stats will appear once you start creating follow-ups."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {hasFollowUpData ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <AnalyticsMetricCard
+                  icon={CalendarCheck}
+                  title="Completion rate"
+                  value={formatAnalyticsPercent(fu.completionRate)}
+                  description={`${fu.completed} completed of ${fu.created} created`}
+                  tooltip="Percentage of follow-ups created in the last 30 days that were completed."
+                />
+                <AnalyticsDurationCard
+                  icon={Timer}
+                  title="Avg time to complete"
+                  value={fu.avgDaysToComplete !== null ? `${fu.avgDaysToComplete}d` : null}
+                  emptyLabel="No data"
+                  description="Average days from creation to completion"
+                  tooltip="How long it takes on average to complete a follow-up after creating it."
+                />
+                {fu.overdue > 0 ? (
+                  <AnalyticsMetricCard
+                    icon={AlertTriangle}
+                    title="Overdue"
+                    value={`${fu.overdue}`}
+                    description="Pending follow-ups past their due date"
+                    tooltip="Follow-ups that are still pending and past their scheduled due date."
+                  />
+                ) : null}
+                {fu.skipped > 0 ? (
+                  <AnalyticsMetricCard
+                    icon={SkipForward}
+                    title="Skipped"
+                    value={`${fu.skipped}`}
+                    description="Follow-ups marked as skipped"
+                    tooltip="Follow-ups that were intentionally skipped rather than completed."
+                  />
+                ) : null}
+              </div>
+            ) : (
+              <div className="soft-panel border-dashed bg-muted/15 p-4 text-sm text-muted-foreground shadow-none">
+                <div className="flex items-center gap-2">
+                  <CalendarCheck className="size-4" />
+                  <span>
+                    Create follow-ups on inquiries or quotes to track your outreach here.
+                  </span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

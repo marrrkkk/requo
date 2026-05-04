@@ -26,7 +26,7 @@ export const quoteStatusEnum = pgEnum("quote_status", [
 
 export const quotePostAcceptanceStatusEnum = pgEnum(
   "quote_post_acceptance_status",
-  ["none", "booked", "scheduled"],
+  ["none", "booked", "scheduled", "in_progress", "completed", "canceled"],
 );
 
 export const quotes = pgTable(
@@ -78,6 +78,16 @@ export const quotes = pgTable(
     voidedBy: text("voided_by").references(() => user.id, {
       onDelete: "set null",
     }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    completedBy: text("completed_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    canceledAt: timestamp("canceled_at", { withTimezone: true }),
+    canceledBy: text("canceled_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    cancellationReason: text("cancellation_reason"),
+    cancellationNote: text("cancellation_note"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -106,6 +116,11 @@ export const quotes = pgTable(
       table.businessId,
       table.quoteNumber,
     ),
+    index("quotes_accepted_post_win_idx")
+      .on(table.businessId, table.postAcceptanceStatus)
+      .where(
+        sql`${table.status} = 'accepted' and ${table.deletedAt} is null and ${table.archivedAt} is null`,
+      ),
     check(
       "quotes_totals_valid",
       sql`${table.subtotalInCents} >= 0 and ${table.discountInCents} >= 0 and ${table.totalInCents} >= 0 and ${table.subtotalInCents} >= ${table.discountInCents} and ${table.totalInCents} = ${table.subtotalInCents} - ${table.discountInCents}`,

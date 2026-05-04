@@ -210,6 +210,8 @@ export async function createWorkspaceMemberInviteAction(
         inviterName: user.name,
         workspaceRole: result.workspaceRole,
         inviteUrl,
+        workspaceId: workspace.id,
+        userId: user.id,
       });
     } catch (error) {
       console.error("Failed to send workspace member invite email.", error);

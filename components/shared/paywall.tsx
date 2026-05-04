@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Briefcase, Building2, Lock } from "lucide-react";
+import { ArrowUpRight, Briefcase, Building2 } from "lucide-react";
 
 import type { WorkspacePlan, PlanFeature } from "@/lib/plans";
 import {
@@ -11,7 +11,6 @@ import {
   planFeatureDescriptions,
   getUpgradeCtaLabel,
 } from "@/lib/plans";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -23,6 +22,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import type { BillingCurrency, BillingRegion } from "@/lib/billing/types";
+import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
+
 type UpgradeActionProps = {
   workspaceId: string;
   workspaceSlug: string;
@@ -31,7 +32,6 @@ type UpgradeActionProps = {
   defaultCurrency: BillingCurrency;
   ctaLabel?: string;
 };
-
 
 /*──────────────────────────────────────────────────────────────────────────────
  * UpgradeBadge — small inline badge that shows the required plan.
@@ -125,14 +125,11 @@ export function LockedFeatureCard({
       )}
     >
       <CardHeader className="gap-3 pb-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/50 text-muted-foreground">
-            <Lock className="size-4" />
-          </div>
-          {requiredPlan ? (
+        {requiredPlan ? (
+          <div className="flex justify-end">
             <Badge variant="secondary">{planMeta[requiredPlan].label}</Badge>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
         <div>
           <CardTitle>{displayTitle}</CardTitle>
           <CardDescription className="mt-1.5">
@@ -154,10 +151,19 @@ export function LockedFeatureCard({
             {upgradeAction.ctaLabel ?? getUpgradeCtaLabel(plan)}
           </UpgradeButton>
         ) : (
-          <Button variant="outline" size="sm" disabled className="pointer-events-none">
+          <ProFeatureNoticeButton
+            noticeDescription={displayDescription}
+            noticeTitle={
+              requiredPlan
+                ? `${displayTitle} requires ${planMeta[requiredPlan].label}.`
+                : "This is a Pro feature."
+            }
+            size="sm"
+            variant="outline"
+          >
             <ArrowUpRight data-icon="inline-start" />
             {getUpgradeCtaLabel(plan)}
-          </Button>
+          </ProFeatureNoticeButton>
         )}
       </CardContent>
     </Card>
@@ -202,9 +208,6 @@ export function LockedFeatureOverlay({
       </div>
       <div className="absolute inset-0 flex items-center justify-center p-6">
         <div className="flex max-w-sm flex-col items-center gap-4 rounded-xl border border-border/80 bg-card/95 px-6 py-6 text-center shadow-sm backdrop-blur-sm">
-          <div className="flex size-10 items-center justify-center rounded-lg border border-border/70 bg-muted/50 text-muted-foreground">
-            <Lock className="size-4" />
-          </div>
           <div className="flex flex-col gap-1.5">
             <p className="text-sm font-semibold text-foreground">
               {displayTitle}
@@ -314,9 +317,6 @@ export function LockedFeaturePage({
       )}
     >
       <div className="flex max-w-md flex-col items-center gap-4">
-        <div className="flex size-11 items-center justify-center rounded-lg border border-border/75 bg-muted/50 text-muted-foreground">
-          <Lock className="size-4" />
-        </div>
         <div className="flex flex-col gap-1.5">
           <p className="font-heading text-lg font-semibold tracking-tight text-foreground">
             {displayTitle}
@@ -339,10 +339,15 @@ export function LockedFeaturePage({
               {upgradeAction.ctaLabel ?? planMeta[requiredPlan].ctaLabel}
             </UpgradeButton>
           ) : (
-            <Button variant="outline" size="sm" disabled className="pointer-events-none">
+            <ProFeatureNoticeButton
+              noticeDescription={displayDescription}
+              noticeTitle={`${displayTitle} requires ${planMeta[requiredPlan].label}.`}
+              size="sm"
+              variant="outline"
+            >
               <ArrowUpRight data-icon="inline-start" />
               {planMeta[requiredPlan].ctaLabel}
-            </Button>
+            </ProFeatureNoticeButton>
           )
         ) : null}
       </div>

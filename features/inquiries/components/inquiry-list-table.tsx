@@ -11,11 +11,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import {
-  formatFollowUpDate,
-  getFollowUpDueBucket,
-} from "@/features/follow-ups/utils";
 import type { DashboardInquiryListItem } from "@/features/inquiries/types";
 import {
   formatInquiryDate,
@@ -34,14 +29,14 @@ export function InquiryListTable({
   businessSlug,
 }: InquiryListTableProps) {
   return (
-    <DashboardTableContainer>
+    <DashboardTableContainer className="hidden xl:block">
       <Table className="min-w-[57rem] table-fixed">
         <TableCaption className="sr-only">Newest inquiries appear first.</TableCaption>
         <TableHeader>
           <TableRow>
             <TableHead className="w-[17rem]">Customer</TableHead>
             <TableHead className="w-[13rem]">Form</TableHead>
-            <TableHead className="w-[13rem]">Category</TableHead>
+            <TableHead className="w-[13rem]">Service</TableHead>
             <TableHead className="w-[8rem]">Created</TableHead>
             <TableHead className="w-[8.75rem]">Status</TableHead>
           </TableRow>
@@ -103,7 +98,6 @@ export function InquiryListTable({
                     {inquiry.recordState !== "active" ? (
                       <InquiryRecordStateBadge state={inquiry.recordState} />
                     ) : null}
-                    <InquiryFollowUpBadge inquiry={inquiry} />
                   </Link>
                 </TableCell>
               </TableRow>
@@ -113,31 +107,4 @@ export function InquiryListTable({
       </Table>
     </DashboardTableContainer>
   );
-}
-
-function InquiryFollowUpBadge({
-  inquiry,
-}: {
-  inquiry: DashboardInquiryListItem;
-}) {
-  if (inquiry.pendingFollowUpCount > 0 && inquiry.nextFollowUpDueAt) {
-    const dueBucket = getFollowUpDueBucket({
-      status: "pending",
-      dueAt: inquiry.nextFollowUpDueAt,
-    });
-    const label =
-      dueBucket === "overdue"
-        ? "Follow-up overdue"
-        : dueBucket === "today"
-          ? "Follow-up today"
-          : `Follow-up ${formatFollowUpDate(inquiry.nextFollowUpDueAt)}`;
-
-    return <Badge variant="secondary">{label}</Badge>;
-  }
-
-  if (inquiry.status === "new" || inquiry.status === "waiting") {
-    return <Badge variant="outline">No follow-up</Badge>;
-  }
-
-  return null;
 }

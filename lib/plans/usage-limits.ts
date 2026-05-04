@@ -4,8 +4,8 @@
  * Limits are defined per workspace plan. A `null` limit means unlimited.
  * Usage enforcement uses the helpers in `./usage.ts`.
  *
- * Usage is counted at the workspace level — aggregated across all businesses
- * in the workspace.
+ * Usage is counted at the workspace level and aggregated across all businesses
+ * in the workspace where applicable.
  */
 
 import type { WorkspacePlan } from "@/lib/plans/plans";
@@ -19,6 +19,8 @@ export const usageLimitKeys = [
   "membersPerWorkspace",
   "liveFormsPerWorkspace",
   "memoriesPerBusiness",
+  "customFieldsPerForm",
+  "publicInquiryAttachmentMaxBytes",
 ] as const;
 
 export type UsageLimitKey = (typeof usageLimitKeys)[number];
@@ -35,6 +37,8 @@ const planUsageLimits: Record<WorkspacePlan, PlanUsageLimits> = {
     membersPerWorkspace: 1,
     liveFormsPerWorkspace: 1,
     memoriesPerBusiness: 0,
+    customFieldsPerForm: 4,
+    publicInquiryAttachmentMaxBytes: 5 * 1024 * 1024,
   },
   pro: {
     inquiriesPerMonth: null,
@@ -45,6 +49,8 @@ const planUsageLimits: Record<WorkspacePlan, PlanUsageLimits> = {
     membersPerWorkspace: 1,
     liveFormsPerWorkspace: null,
     memoriesPerBusiness: 10,
+    customFieldsPerForm: 12,
+    publicInquiryAttachmentMaxBytes: 25 * 1024 * 1024,
   },
   business: {
     inquiriesPerMonth: null,
@@ -55,6 +61,8 @@ const planUsageLimits: Record<WorkspacePlan, PlanUsageLimits> = {
     membersPerWorkspace: 25,
     liveFormsPerWorkspace: null,
     memoriesPerBusiness: 30,
+    customFieldsPerForm: 24,
+    publicInquiryAttachmentMaxBytes: 50 * 1024 * 1024,
   },
 };
 
@@ -88,4 +96,22 @@ export const usageLimitLabels: Record<UsageLimitKey, string> = {
   membersPerWorkspace: "Members per workspace",
   liveFormsPerWorkspace: "Live inquiry forms",
   memoriesPerBusiness: "Knowledge items per business",
+  customFieldsPerForm: "Custom fields per form",
+  publicInquiryAttachmentMaxBytes: "Public inquiry upload size",
 };
+
+export function formatUsageLimitValue(
+  key: UsageLimitKey,
+  value: number | null,
+): string {
+  if (value === null) {
+    return "Unlimited";
+  }
+
+  if (key === "publicInquiryAttachmentMaxBytes") {
+    const megabytes = value / (1024 * 1024);
+    return `${Number.isInteger(megabytes) ? megabytes : megabytes.toFixed(1)} MB`;
+  }
+
+  return `${value}`;
+}

@@ -233,7 +233,7 @@ function BusinessInquirySpotlight({
           {business.name}
         </p>
         {brandTagline ? (
-          <p className="text-sm leading-7 text-muted-foreground">{brandTagline}</p>
+          <p className="text-sm leading-normal sm:leading-7 text-muted-foreground">{brandTagline}</p>
         ) : null}
       </div>
     </div>
@@ -305,7 +305,7 @@ function InquiryIntro({
           {config.headline}
         </h1>
         {config.description ? (
-          <p className="max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg">
+          <p className="max-w-2xl text-base leading-normal sm:leading-8 text-muted-foreground sm:text-lg">
             {config.description}
           </p>
         ) : null}

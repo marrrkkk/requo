@@ -96,6 +96,19 @@ function cloneQuoteEditorValues(values: QuoteEditorValues): QuoteEditorValues {
   };
 }
 
+function normalizeQuoteEditorValues(values: QuoteEditorValues): QuoteEditorValues {
+  const clonedValues = cloneQuoteEditorValues(values);
+
+  return {
+    ...clonedValues,
+    customerEmail: getEffectiveCustomerEmail({
+      customerEmail: clonedValues.customerEmail ?? "",
+      customerContactMethod: clonedValues.customerContactMethod,
+      customerContactHandle: clonedValues.customerContactHandle,
+    }),
+  };
+}
+
 function areQuoteEditorValuesEqual(
   left: QuoteEditorValues,
   right: QuoteEditorValues,
@@ -189,10 +202,10 @@ export function QuoteEditor({
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [hasLoadedLibrary, setHasLoadedLibrary] = useState(false);
   const [savedValues, setSavedValues] = useState(() =>
-    cloneQuoteEditorValues(initialValues),
+    normalizeQuoteEditorValues(initialValues),
   );
   const submittedValuesRef = useRef<QuoteEditorValues>(
-    cloneQuoteEditorValues(initialValues),
+    normalizeQuoteEditorValues(initialValues),
   );
   const visibleItems = useMemo(() => getVisibleEditorItems(items), [items]);
   const deferredVisibleItems = useDeferredValue(visibleItems);
@@ -220,7 +233,11 @@ export function QuoteEditor({
     () => ({
       title,
       customerName,
-      customerEmail,
+      customerEmail: getEffectiveCustomerEmail({
+        customerEmail,
+        customerContactMethod,
+        customerContactHandle,
+      }),
       customerContactMethod,
       customerContactHandle,
       notes,
@@ -231,6 +248,7 @@ export function QuoteEditor({
     }),
     [customerEmail, customerContactMethod, customerContactHandle, customerName, discount, discountType, notes, title, validUntil, visibleItems],
   );
+  const effectiveCustomerEmail = currentValues.customerEmail;
   const hasUnsavedChanges =
     showFloatingUnsavedChanges &&
     !areQuoteEditorValuesEqual(currentValues, savedValues);
@@ -425,6 +443,7 @@ export function QuoteEditor({
       }}
     >
       <input name="items" type="hidden" value={JSON.stringify(serializedItems)} />
+      <input name="customerEmail" type="hidden" value={effectiveCustomerEmail ?? ""} />
 
       <DashboardSidebarStack className="min-w-0">
         <DashboardSection
@@ -439,13 +458,16 @@ export function QuoteEditor({
             </>
           }
           contentClassName="flex flex-col gap-5"
-          title="Quote details"
+          description="Set the customer, quote title, validity date, and customer-facing notes."
+          title="Customer and quote details"
         >
           {linkedInquiry ? (
             <InfoTile
               label="Linked inquiry"
               value={linkedInquiry.serviceCategory}
-              description={linkedInquiry.customerEmail}
+              description={
+                linkedInquiry.customerEmail ?? linkedInquiry.customerContactHandle
+              }
             />
           ) : null}
 
@@ -511,7 +533,7 @@ export function QuoteEditor({
                 }
               >
                 <FieldLabel htmlFor="quote-customer-contact-method">
-                  Preferred contact
+                  Preferred channel
                 </FieldLabel>
                 <FieldContent>
                   <input type="hidden" name="customerContactMethod" value={customerContactMethod} />
@@ -546,7 +568,7 @@ export function QuoteEditor({
                 }
               >
                 <FieldLabel htmlFor="quote-customer-contact-handle">
-                  {customerContactMethod === "email" ? "Email address" : "Contact details"}
+                  {getQuoteContactHandleLabel(customerContactMethod)}
                 </FieldLabel>
                 <FieldContent>
                   <Input
@@ -722,6 +744,7 @@ export function QuoteEditor({
             </>
           }
           contentClassName="flex flex-col gap-5"
+          description="Add priced rows. The preview and totals update while you edit."
           title="Line items"
         >
           <div className="flex flex-col gap-4">
@@ -873,7 +896,7 @@ export function QuoteEditor({
             )
           }
           footerClassName="w-full sm:justify-between"
-          title="Summary"
+          title="Totals"
         >
           <div className="soft-panel flex flex-col gap-4 px-4 py-4 shadow-none">
             <span className="text-sm font-medium text-foreground">Totals</span>
@@ -924,7 +947,7 @@ export function QuoteEditor({
         quoteNumber={quoteNumber ?? "Assigned after save"}
         title={title || "Untitled quote"}
         customerName={customerName || "Customer name"}
-        customerEmail={customerEmail || "customer@example.com"}
+        customerEmail={effectiveCustomerEmail}
         currency={currency}
         validUntil={validUntil}
         notes={notes}
@@ -955,4 +978,32 @@ function TotalsRow({
       </span>
     </div>
   );
+}
+
+function getEffectiveCustomerEmail({
+  customerEmail,
+  customerContactMethod,
+  customerContactHandle,
+}: {
+  customerEmail: string;
+  customerContactMethod: string;
+  customerContactHandle: string;
+}) {
+  const contactHandle = customerContactHandle.trim();
+
+  if (customerContactMethod.trim().toLowerCase() === "email") {
+    return contactHandle || null;
+  }
+
+  return customerEmail.trim() || null;
+}
+
+function getQuoteContactHandleLabel(method: string) {
+  const normalized = method.trim().toLowerCase();
+
+  if (normalized in inquiryContactMethodLabels) {
+    return inquiryContactMethodLabels[normalized as InquiryContactMethod];
+  }
+
+  return "Contact details";
 }

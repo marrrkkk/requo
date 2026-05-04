@@ -378,10 +378,17 @@ export async function listDashboardConversations({
 
   const conversationIds = conversations.map((conversation) => conversation.id);
   const recentMessages = await db
-    .select()
+    .selectDistinctOn([aiMessages.conversationId], {
+      conversationId: aiMessages.conversationId,
+      content: aiMessages.content,
+    })
     .from(aiMessages)
     .where(inArray(aiMessages.conversationId, conversationIds))
-    .orderBy(desc(aiMessages.createdAt), desc(aiMessages.id));
+    .orderBy(
+      aiMessages.conversationId,
+      desc(aiMessages.createdAt),
+      desc(aiMessages.id),
+    );
   const previewByConversationId = new Map<string, string | null>();
 
   for (const message of recentMessages) {

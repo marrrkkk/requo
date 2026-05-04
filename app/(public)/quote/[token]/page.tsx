@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 
+import { getCurrentUser } from "@/lib/auth/session";
 import {
   PublicHeroSurface,
   PublicPageShell,
@@ -11,6 +12,7 @@ import { MadeWithRequo } from "@/components/shared/made-with-requo";
 import { PublicQuoteViewTracker } from "@/features/analytics/components/public-page-analytics-tracker";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 import { PublicQuoteInteractiveColumn } from "@/features/quotes/components/public-quote-interactive-column";
 import { QuotePreview } from "@/features/quotes/components/quote-preview";
 import { respondToPublicQuoteAction } from "@/features/quotes/actions";
@@ -40,29 +42,31 @@ export default async function PublicQuotePage({
     notFound();
   }
 
+  const user = await getCurrentUser();
+  const isCreator = !!user;
+
   const respondAction = respondToPublicQuoteAction.bind(null, quote.token);
 
   return (
     <>
       <PublicPageShell
         headerAction={
-          <Button asChild variant="ghost">
-            <Link href="/">
-              <ArrowLeft data-icon="inline-start" />
-              Back to Requo
-            </Link>
-          </Button>
+          isCreator ? (
+            <Button asChild variant="ghost">
+              <Link href="/">
+                <ArrowLeft data-icon="inline-start" />
+                Back to Requo
+              </Link>
+            </Button>
+          ) : undefined
         }
       >
-        <PublicHeroSurface className="lg:py-12">
-          <div className="grid gap-10 xl:grid-cols-[minmax(0,0.84fr)_minmax(24rem,1.16fr)] xl:items-start">
-            <PublicQuoteInteractiveColumn
-              quote={quote}
-              respondAction={respondAction}
-            />
-
+        <PublicHeroSurface className="lg:py-12 flex justify-center">
+          <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-8">
             <QuotePreview
               businessName={quote.businessName}
+              businessLogoStoragePath={quote.businessLogoStoragePath}
+              businessSlug={quote.businessSlug}
               quoteNumber={quote.quoteNumber}
               title={quote.title}
               customerName={quote.customerName}
@@ -74,8 +78,16 @@ export default async function PublicQuotePage({
               subtotalInCents={quote.subtotalInCents}
               discountInCents={quote.discountInCents}
               totalInCents={quote.totalInCents}
-              className="xl:sticky xl:top-6 xl:self-start"
+              className="w-full"
+              variant="bare"
             />
+
+            <div className="w-full">
+              <PublicQuoteInteractiveColumn
+                quote={quote}
+                respondAction={respondAction}
+              />
+            </div>
           </div>
         </PublicHeroSurface>
 

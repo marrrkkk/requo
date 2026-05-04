@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type { LandingFeatureId } from "@/components/marketing/marketing-data";
 import {
   Card,
@@ -46,13 +49,13 @@ export function MarketingFeatureRow({
             <h3 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
               {title}
             </h3>
-            <p className="text-sm leading-7 text-muted-foreground sm:text-base">
+            <p className="text-sm leading-normal sm:leading-7 text-muted-foreground sm:text-base">
               {description}
             </p>
           </div>
         </div>
 
-        <div className={cn("min-w-0", reverse && "lg:order-1")}>
+        <div className={cn("min-w-0 px-[var(--page-gutter)] lg:px-0", reverse && "lg:order-1")}>
           <MarketingFeaturePreview
             description={previewDescription}
             featureId={featureId}
@@ -69,26 +72,32 @@ export function WorkflowStep({
   index,
   title,
   description,
+  icon: Icon,
 }: {
   index: number;
   title: string;
   description: string;
+  icon: React.ElementType;
 }) {
   return (
-    <div className="marketing-step h-full flex-col gap-5">
-      <div className="flex items-center gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-[0_10px_18px_-16px_rgba(0,128,96,0.45)]">
-          {index}
+    <article className="relative flex h-full flex-col gap-5 rounded-2xl border border-border/70 bg-background/50 p-6 shadow-sm transition-colors hover:bg-background/80 lg:p-8">
+      <div className="flex items-center justify-between">
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Icon className="size-6" />
         </div>
-        <div className="min-w-0">
-          <p className="meta-label">Step {index}</p>
-          <h3 className="mt-1 text-base font-semibold tracking-tight text-foreground">
-            {title}
-          </h3>
-        </div>
+        <p className="font-heading text-4xl font-bold text-muted-foreground/20">
+          0{index}
+        </p>
       </div>
-      <p className="text-sm leading-7 text-muted-foreground">{description}</p>
-    </div>
+      <div className="mt-2 min-w-0 flex-1">
+        <h3 className="font-heading text-xl font-semibold tracking-tight text-foreground">
+          {title}
+        </h3>
+        <p className="mt-3 text-sm leading-normal sm:leading-7 text-muted-foreground">
+          {description}
+        </p>
+      </div>
+    </article>
   );
 }
 
@@ -113,11 +122,7 @@ function MarketingFeaturePreview({
       )}
       size="sm"
     >
-      <CardHeader className="gap-3 border-b border-border/70 bg-background/90 px-5 py-4 sm:px-6">
-        <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-          <p className="meta-label">Placeholder preview</p>
-          <span className="font-medium">Landscape mockup</span>
-        </div>
+      <CardHeader className="border-b border-border/70 bg-background/90 px-5 py-4 sm:px-6">
         <div className="flex flex-col gap-1.5">
           <CardTitle>{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
@@ -136,11 +141,15 @@ function MarketingFeaturePreview({
 function QuotePreviewMock() {
   return (
     <div className="grid gap-3">
-      <div className="grid gap-3 sm:grid-cols-3">
-        {["Draft ready", "Valid 7 days", "Customer link"].map((label) => (
-          <div className="info-tile px-3.5 py-3 shadow-none" key={label}>
-            <p className="meta-label">{label}</p>
-            <div className="mt-3 h-2 rounded-full bg-border/70" />
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+        {[
+          { label: "Status", value: "Ready to send" },
+          { label: "Valid for", value: "30 days" },
+          { label: "Amount", value: "$4,250.00" },
+        ].map((stat) => (
+          <div className="info-tile px-3.5 py-3 shadow-none" key={stat.label}>
+            <p className="meta-label">{stat.label}</p>
+            <p className="mt-1 text-sm font-medium text-foreground">{stat.value}</p>
           </div>
         ))}
       </div>
@@ -148,25 +157,27 @@ function QuotePreviewMock() {
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(16rem,0.65fr)]">
         <div className="rounded-xl border border-border/75 bg-background/95 p-4 shadow-[var(--surface-shadow-sm)]">
           <div className="flex items-start justify-between gap-4 border-b border-border/70 pb-4">
-            <div className="flex flex-col gap-2">
-              <p className="meta-label">Quote builder</p>
-              <div className="h-4 w-48 rounded-full bg-foreground/10" />
-              <div className="h-3 w-32 rounded-full bg-border/70" />
+            <div className="flex flex-col gap-1">
+              <p className="meta-label">Quote details</p>
+              <p className="text-sm font-medium text-foreground">Complete Kitchen Remodel</p>
+              <p className="text-xs text-muted-foreground">Sarah Jenkins • 123 Main St</p>
             </div>
-            <p className="text-xs font-medium text-muted-foreground">
-              Quote #1042
-            </p>
+            <p className="text-xs font-medium text-muted-foreground">Quote #1042</p>
           </div>
 
           <div className="mt-4 grid gap-3">
-            {[1, 2, 3].map((row) => (
+            {[
+              { desc: "Custom Cabinets & Hardware", qty: "1", price: "$2,400.00" },
+              { desc: "Countertop Installation", qty: "1", price: "$1,200.00" },
+              { desc: "Labor & Demo", qty: "40h", price: "$650.00" },
+            ].map((row, i) => (
               <div
-                className="soft-panel grid gap-3 px-3 py-3 shadow-none sm:grid-cols-[minmax(0,1fr)_5rem_7rem]"
-                key={row}
+                className="soft-panel grid cursor-pointer grid-cols-[minmax(0,1fr)_auto_auto] gap-2 px-3 py-3 shadow-none transition-colors hover:border-primary/40 sm:grid-cols-[minmax(0,1fr)_4rem_5rem] sm:gap-3"
+                key={i}
               >
-                <div className="h-3 rounded-full bg-foreground/10" />
-                <div className="h-3 rounded-full bg-border/70" />
-                <div className="h-3 rounded-full bg-border/70" />
+                <span className="text-xs font-medium text-foreground">{row.desc}</span>
+                <span className="text-xs text-muted-foreground">{row.qty}</span>
+                <span className="text-right text-xs font-medium text-foreground">{row.price}</span>
               </div>
             ))}
           </div>
@@ -176,20 +187,16 @@ function QuotePreviewMock() {
           <div className="soft-panel px-4 py-4 shadow-none">
             <p className="meta-label">Totals</p>
             <div className="mt-4 flex flex-col gap-3">
-              <PreviewMetric label="Subtotal" valueWidth="w-20" />
-              <PreviewMetric label="Discount" valueWidth="w-14" />
-              <PreviewMetric label="Total" valueWidth="w-20" />
+              <PreviewMetric label="Subtotal" value="$4,250.00" />
+              <PreviewMetric label="Discount" value="-$0.00" />
+              <div className="mt-1 border-t border-border/50 pt-3">
+                <PreviewMetric isTotal label="Total" value="$4,250.00" />
+              </div>
             </div>
           </div>
-          <div className="soft-panel px-4 py-4 shadow-none">
-            <p className="meta-label">Customer view</p>
-            <div className="mt-3 h-24 rounded-lg border border-border/70 bg-background/90 p-3">
-              <div className="h-3 w-24 rounded-full bg-foreground/10" />
-              <div className="mt-3 h-2 w-full rounded-full bg-border/70" />
-              <div className="mt-2 h-2 w-5/6 rounded-full bg-border/70" />
-              <div className="mt-4 h-8 w-28 rounded-lg bg-accent/75" />
-            </div>
-          </div>
+          <button className="flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 shadow-sm">
+            Send quote
+          </button>
         </div>
       </div>
     </div>
@@ -200,38 +207,45 @@ function FormsPreviewMock() {
   return (
     <div className="grid gap-3 lg:grid-cols-[16rem_minmax(0,1fr)]">
       <div className="soft-panel flex flex-col gap-3 px-4 py-4 shadow-none">
-        <p className="meta-label">Form setup</p>
-        {["Project type", "Budget", "Deadline", "Attachments"].map((label) => (
-          <div
-            className="rounded-lg border border-border/70 bg-background/85 px-3 py-3"
-            key={label}
-          >
-            <div className="h-3 w-24 rounded-full bg-foreground/10" />
-            <p className="mt-2 text-xs text-muted-foreground">{label}</p>
+        <p className="meta-label">Fields</p>
+        {[
+          { label: "Project type", type: "Multiple choice" },
+          { label: "Budget", type: "Currency" },
+          { label: "Deadline", type: "Date picker" },
+          { label: "Attachments", type: "File upload" },
+        ].map((field) => (
+          <div className="cursor-grab rounded-lg border border-border/70 bg-background/85 px-3 py-2.5 transition-colors hover:border-primary/40" key={field.label}>
+            <p className="text-xs font-medium text-foreground">{field.label}</p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">{field.type}</p>
           </div>
         ))}
       </div>
 
-      <div className="rounded-xl border border-border/75 bg-background/95 p-4 shadow-[var(--surface-shadow-sm)]">
-        <div className="flex items-center justify-between gap-3 border-b border-border/70 pb-4">
+      <div className="rounded-xl border border-border/75 bg-background p-4 shadow-[var(--surface-shadow-sm)]">
+        <div className="mb-6 flex items-center justify-between border-b border-border/70 pb-4">
           <div>
-            <p className="meta-label">Public inquiry page</p>
-            <div className="mt-2 h-4 w-44 rounded-full bg-foreground/10" />
+            <p className="text-lg font-semibold text-foreground">Project Inquiry</p>
+            <p className="mt-1 text-sm text-muted-foreground">We typically reply within 24 hours.</p>
           </div>
-          <p className="text-xs font-medium text-muted-foreground">
-            Public page preview
-          </p>
+          <div className="flex items-center gap-1.5 rounded-full border border-border/70 bg-background/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
+            <div className="size-1.5 rounded-full bg-emerald-500" />
+            Live
+          </div>
         </div>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          {["Your name", "Project details", "Needed by", "Reference files"].map(
-            (field) => (
-              <div className="grid gap-2" key={field}>
-                <p className="text-xs font-medium text-foreground">{field}</p>
-                <div className="h-11 rounded-lg border border-border/70 bg-background/90" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          {["Your name", "Project details", "Needed by", "Reference files"].map((field) => (
+            <div className="grid gap-1.5" key={field}>
+              <p className="text-xs font-medium text-foreground">{field}</p>
+              <div className="flex h-9 cursor-text items-center rounded-md border border-border/70 bg-background/50 px-3 transition-colors hover:border-primary/50">
+                <span className="text-[11px] text-muted-foreground/40">Enter {field.toLowerCase()}...</span>
               </div>
-            ),
-          )}
+            </div>
+          ))}
+        </div>
+        <div className="mt-6">
+          <button className="flex h-9 items-center justify-center rounded-md bg-primary px-4 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90">
+            Submit inquiry
+          </button>
         </div>
       </div>
     </div>
@@ -239,12 +253,34 @@ function FormsPreviewMock() {
 }
 
 function AnalyticsPreviewMock() {
+  const [range, setRange] = useState<"30d" | "12m">("30d");
+  const data = range === "30d" ? [28, 42, 34, 51, 46, 62, 58] : [12, 18, 24, 32, 28, 40, 36, 45, 50, 48, 65, 70];
+  const labels = range === "30d" ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] : ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
   return (
     <div className="grid gap-3">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <PreviewStatCard label="Inquiries" value="42" />
-        <PreviewStatCard label="Quotes sent" value="18" />
-        <PreviewStatCard label="Won rate" value="34%" />
+      <div className="flex items-center justify-between">
+         <p className="meta-label pl-1">Performance</p>
+         <div className="flex items-center gap-1 rounded-lg border border-border/70 bg-background/50 p-1 shadow-sm">
+          <button
+            className={cn("rounded-md px-2.5 py-1 text-[10px] font-medium transition-colors", range === "30d" ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+            onClick={() => setRange("30d")}
+          >
+            30 Days
+          </button>
+          <button
+            className={cn("rounded-md px-2.5 py-1 text-[10px] font-medium transition-colors", range === "12m" ? "bg-muted text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+            onClick={() => setRange("12m")}
+          >
+            12 Months
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+        <PreviewStatCard label="Inquiries" value={range === "30d" ? "42" : "315"} />
+        <PreviewStatCard label="Quotes sent" value={range === "30d" ? "18" : "142"} />
+        <PreviewStatCard label="Won rate" value={range === "30d" ? "34%" : "38%"} />
       </div>
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(16rem,0.65fr)]">
@@ -252,21 +288,20 @@ function AnalyticsPreviewMock() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="meta-label">Pipeline trend</p>
-              <div className="mt-2 h-4 w-36 rounded-full bg-foreground/10" />
+              <p className="mt-1 text-sm font-medium text-foreground">Revenue by stage</p>
             </div>
-            <p className="text-xs font-medium text-muted-foreground">
-              Last 30 days
-            </p>
           </div>
 
-          <div className="mt-6 flex h-40 items-end gap-3">
-            {[28, 42, 34, 51, 46, 62, 58].map((height, index) => (
-              <div className="flex flex-1 flex-col justify-end gap-2" key={index}>
+          <div className="mt-6 flex h-40 items-end gap-1.5 transition-all duration-300 sm:gap-3">
+            {data.map((height, index) => (
+              <div className="group flex flex-1 cursor-crosshair flex-col justify-end gap-2" key={index}>
                 <div
-                  className="rounded-t-lg bg-accent"
-                  style={{ height: `${height * 2}px` }}
+                  className="rounded-t-sm bg-primary/20 transition-all duration-500 group-hover:bg-primary/50"
+                  style={{ height: `${height * 1.5}px` }}
                 />
-                <div className="h-2 rounded-full bg-border/70" />
+                <p className="text-center text-[9px] text-muted-foreground">
+                  {labels[index]}
+                </p>
               </div>
             ))}
           </div>
@@ -276,26 +311,9 @@ function AnalyticsPreviewMock() {
           <div className="soft-panel px-4 py-4 shadow-none">
             <p className="meta-label">Stage breakdown</p>
             <div className="mt-4 flex flex-col gap-3">
-              <PreviewMetric label="Waiting review" valueWidth="w-10" />
-              <PreviewMetric label="Quoted" valueWidth="w-16" />
-              <PreviewMetric label="Follow-up due" valueWidth="w-12" />
-            </div>
-          </div>
-          <div className="soft-panel px-4 py-4 shadow-none">
-            <p className="meta-label">Signals</p>
-            <div className="mt-3 grid gap-2">
-              {[
-                "New inquiries up 12%",
-                "Quote responses this week",
-                "2 leads need follow-up",
-              ].map((label) => (
-                <div
-                  className="rounded-lg border border-border/70 bg-background/90 px-3 py-3 text-xs text-muted-foreground"
-                  key={label}
-                >
-                  {label}
-                </div>
-              ))}
+              <PreviewMetric label="Waiting review" value={range === "30d" ? "12 leads" : "45 leads"} />
+              <PreviewMetric label="Quoted" value={range === "30d" ? "5 quotes" : "28 quotes"} />
+              <PreviewMetric label="Follow-up due" value={range === "30d" ? "3 alerts" : "12 alerts"} />
             </div>
           </div>
         </div>
@@ -311,34 +329,48 @@ function CollaborationPreviewMock() {
         <div className="flex items-center justify-between gap-3 border-b border-border/70 pb-4">
           <div>
             <p className="meta-label">Shared activity</p>
-            <div className="mt-2 h-4 w-40 rounded-full bg-foreground/10" />
+            <p className="mt-1 text-sm font-medium text-foreground">Project Timeline</p>
           </div>
-          <p className="text-xs font-medium text-muted-foreground">
-            3 teammates
-          </p>
+          <div className="flex -space-x-2">
+            {[1, 2, 3].map((i) => (
+              <div className="flex size-6 items-center justify-center rounded-full border-2 border-background bg-muted text-[8px] font-medium text-muted-foreground" key={i}>
+                {["A", "M", "Y"][i - 1]}
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="mt-4 grid gap-3">
           {[
-            "Quoted and shared customer link",
-            "Added note about install timing",
-            "Marked follow-up due Friday",
-          ].map((label, index) => (
+            { name: "Ava", action: "shared the quote link", time: "2h ago" },
+            { name: "Mark", action: "added an internal note", time: "4h ago" },
+            { name: "You", action: "marked follow-up for Friday", time: "1d ago" },
+          ].map((item) => (
             <div
-              className="soft-panel flex items-start gap-3 px-3 py-3 shadow-none"
-              key={label}
+              className="soft-panel flex cursor-pointer items-start gap-3 px-3 py-3 shadow-none transition-colors hover:border-primary/40"
+              key={item.action}
             >
-              <div className="mt-0.5 size-8 shrink-0 rounded-full bg-accent" />
-              <div className="min-w-0">
+              <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-medium text-primary">
+                {item.name[0]}
+              </div>
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground">
-                  {index === 0 ? "Ava" : index === 1 ? "Mark" : "You"}
+                  {item.name} <span className="font-normal text-muted-foreground">{item.action}</span>
                 </p>
-                <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                  {label}
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {item.time}
                 </p>
               </div>
             </div>
           ))}
+        </div>
+        <div className="mt-4 border-t border-border/70 pt-3">
+          <div className="flex items-center gap-3">
+             <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground">Y</div>
+             <div className="flex h-9 flex-1 cursor-text items-center rounded-md border border-border/70 bg-background/50 px-3 transition-colors hover:border-primary/50">
+               <span className="text-[11px] text-muted-foreground/40">Add an internal note...</span>
+             </div>
+          </div>
         </div>
       </div>
 
@@ -346,33 +378,38 @@ function CollaborationPreviewMock() {
         <div className="soft-panel px-4 py-4 shadow-none">
           <p className="meta-label">Team access</p>
           <div className="mt-4 grid gap-2">
-            {["Owner", "Ops", "Estimator"].map((role) => (
+            {[
+              { role: "Owner", access: "Full access" },
+              { role: "Ops", access: "Can edit" },
+              { role: "Estimator", access: "Quotes only" },
+            ].map((item) => (
               <div
-                className="flex items-center justify-between rounded-lg border border-border/70 bg-background/90 px-3 py-3"
-                key={role}
+                className="flex cursor-pointer items-center justify-between rounded-lg border border-border/70 bg-background/90 px-3 py-2.5 transition-colors hover:border-primary/40"
+                key={item.role}
               >
-                <div className="flex items-center gap-3">
-                  <div className="size-8 rounded-full bg-accent" />
-                  <span className="text-sm font-medium text-foreground">
-                    {role}
+                <div className="flex items-center gap-2.5">
+                  <div className="flex size-6 items-center justify-center rounded-md bg-muted text-[10px] font-medium text-muted-foreground">
+                    {item.role[0]}
+                  </div>
+                  <span className="text-xs font-medium text-foreground">
+                    {item.role}
                   </span>
                 </div>
-                <div className="h-2 w-14 rounded-full bg-border/70" />
+                <span className="text-[10px] font-medium text-primary">{item.access} ▾</span>
               </div>
             ))}
           </div>
         </div>
-
         <div className="soft-panel px-4 py-4 shadow-none">
           <p className="meta-label">Customer history</p>
           <div className="mt-3 grid gap-2">
             {[
-              "2 past quotes",
+              "2 past quotes won",
               "Last reply 4 days ago",
               "Install notes saved",
             ].map((label) => (
               <div
-                className="rounded-lg border border-border/70 bg-background/90 px-3 py-3 text-xs text-muted-foreground"
+                className="rounded-lg border border-border/70 bg-background/90 px-3 py-2.5 text-xs text-muted-foreground"
                 key={label}
               >
                 {label}
@@ -387,15 +424,17 @@ function CollaborationPreviewMock() {
 
 function PreviewMetric({
   label,
-  valueWidth,
+  value,
+  isTotal = false,
 }: {
   label: string;
-  valueWidth: string;
+  value: string;
+  isTotal?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <div className={cn("h-3 rounded-full bg-foreground/10", valueWidth)} />
+      <span className={cn("text-xs", isTotal ? "font-medium text-foreground" : "text-muted-foreground")}>{label}</span>
+      <span className={cn("text-xs", isTotal ? "font-semibold text-foreground" : "font-medium text-foreground")}>{value}</span>
     </div>
   );
 }

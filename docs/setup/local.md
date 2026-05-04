@@ -29,7 +29,15 @@ Optional but commonly needed:
 - `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
 - `VAPID_PRIVATE_KEY`
 - `RESEND_API_KEY`
-- `RESEND_FROM_EMAIL`
+- `MAILTRAP_API_TOKEN`
+- `BREVO_API_KEY`
+- `EMAIL_DOMAIN`
+- `EMAIL_FROM_DEFAULT`
+- `EMAIL_FROM_NOTIFICATIONS`
+- `EMAIL_FROM_SYSTEM`
+- `EMAIL_FROM_QUOTES`
+- `EMAIL_FROM_SUPPORT`
+- `RESEND_FROM_EMAIL` (legacy fallback)
 - `RESEND_REPLY_TO_EMAIL`
 - `GROQ_API_KEY`
 - `GEMINI_API_KEY`
@@ -84,14 +92,18 @@ Where to get it in Supabase:
 4. Use that string as `DATABASE_URL`.
 5. Copy it again and change only the port from `6543` to `5432` for `DATABASE_MIGRATION_URL`.
 
-### Resend
+### Email Delivery
 
-- Leave `RESEND_API_KEY` blank if you do not need live email locally.
-- Set `RESEND_FROM_EMAIL` to an address on a domain you verified in Resend.
-- Do not use consumer mailbox domains such as `gmail.com`, `outlook.com`, `hotmail.com`, `yahoo.com`, or `icloud.com` for `RESEND_FROM_EMAIL`.
+- Fallback order is Resend, then Mailtrap, then Brevo.
+- Leave all email API keys blank if you do not need live email locally.
+- Set `EMAIL_DOMAIN=test.requo.app` or your verified sending domain.
+- Configure branded senders with `EMAIL_FROM_DEFAULT`, `EMAIL_FROM_NOTIFICATIONS`, `EMAIL_FROM_SYSTEM`, `EMAIL_FROM_QUOTES`, and `EMAIL_FROM_SUPPORT`.
+- Do not use consumer mailbox domains such as `gmail.com`, `outlook.com`, `hotmail.com`, `yahoo.com`, or `icloud.com` for senders.
 - Keep your normal inbox in `RESEND_REPLY_TO_EMAIL` if you want customer replies to go there.
-- Password reset and inquiry notification emails will be skipped when Resend is not configured.
-- Quote sending intentionally returns an error when Resend is not configured, because the action is explicit and user-facing.
+- Verify the sending domain in every provider you enable: Resend, Mailtrap, and Brevo.
+- DNS setup is outside the app. Expect SPF, DKIM, and DMARC records from each provider before production sending.
+- Password reset and inquiry notification emails are skipped when no email provider is configured.
+- Quote sending intentionally returns an error when no email provider is configured, because the action is explicit and user-facing.
 
 ### AI Providers
 
@@ -159,9 +171,9 @@ npm run test:e2e:smoke
 
 ## Notes for Local Testing
 
-- The Playwright suite starts its own local server, sets `BETTER_AUTH_URL` to `127.0.0.1`, and disables live Resend and AI provider calls.
+- The Playwright suite starts its own local server, sets `BETTER_AUTH_URL` to `127.0.0.1`, and disables live email and AI provider calls.
 - The E2E suite uses the seeded demo business and fixed public quote tokens.
-- The current automated suite does not cover live storage uploads, live Resend delivery, or live AI generation.
+- The current automated suite does not cover live storage uploads, live email delivery, or live AI generation.
 - If port `3000` is already occupied, run Playwright with another port, for example `$env:PORT='3100'; npm run test:e2e:smoke` in PowerShell.
 
 ### Canonical Dashboard Routes

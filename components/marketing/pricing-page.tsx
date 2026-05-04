@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
-import { Suspense } from "react";
+import { Fragment, Suspense } from "react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
 import {
@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import {
+  formatUsageLimitValue,
   getUsageLimit,
   planFeatureLabels,
 } from "@/lib/plans";
@@ -38,105 +39,180 @@ type PricingFeatureRow = {
   business: string | boolean;
 };
 
-const pricingFeatures: PricingFeatureRow[] = [
-  { label: "Inquiry capture", free: true, pro: true, business: true },
-  { label: "Quote workflow", free: true, pro: true, business: true },
-  { label: "Follow-up reminders", free: true, pro: true, business: true },
-  { label: "Viewed, accepted, and rejected quote tracking", free: true, pro: true, business: true },
-  { label: "Public inquiry pages", free: true, pro: true, business: true },
-  { label: "Public quote pages", free: true, pro: true, business: true },
-  { label: "Dashboard & overview", free: true, pro: true, business: true },
-  { label: "Activity log", free: true, pro: true, business: true },
-  { label: "Overview analytics", free: true, pro: true, business: true },
+type PricingFeatureCategory = {
+  category: string;
+  features: PricingFeatureRow[];
+};
+
+const pricingCategories: PricingFeatureCategory[] = [
   {
-    label: planFeatureLabels.analyticsConversion,
-    free: false,
-    pro: true,
-    business: true,
+    category: "Core Workflow",
+    features: [
+      { label: "Inquiry capture", free: true, pro: true, business: true },
+      { label: "Quote workflow", free: true, pro: true, business: true },
+      { label: "Follow-up reminders", free: true, pro: true, business: true },
+      { label: "Viewed, accepted, and rejected quote tracking", free: true, pro: true, business: true },
+    ],
   },
   {
-    label: planFeatureLabels.analyticsWorkflow,
-    free: false,
-    pro: true,
-    business: true,
+    category: "Usage Limits",
+    features: [
+      {
+        label: "Inquiries per month",
+        free: `${getUsageLimit("free", "inquiriesPerMonth")}`,
+        pro: "Unlimited",
+        business: "Unlimited",
+      },
+      {
+        label: "Quotes per month",
+        free: `${getUsageLimit("free", "quotesPerMonth")}`,
+        pro: "Unlimited",
+        business: "Unlimited",
+      },
+      {
+        label: "Custom fields per form",
+        free: `${getUsageLimit("free", "customFieldsPerForm")}`,
+        pro: `${getUsageLimit("pro", "customFieldsPerForm")}`,
+        business: `${getUsageLimit("business", "customFieldsPerForm")}`,
+      },
+      {
+        label: "Public inquiry upload size",
+        free: formatUsageLimitValue(
+          "publicInquiryAttachmentMaxBytes",
+          getUsageLimit("free", "publicInquiryAttachmentMaxBytes"),
+        ),
+        pro: formatUsageLimitValue(
+          "publicInquiryAttachmentMaxBytes",
+          getUsageLimit("pro", "publicInquiryAttachmentMaxBytes"),
+        ),
+        business: formatUsageLimitValue(
+          "publicInquiryAttachmentMaxBytes",
+          getUsageLimit("business", "publicInquiryAttachmentMaxBytes"),
+        ),
+      },
+    ],
   },
   {
-    label: "Inquiries per month",
-    free: `${getUsageLimit("free", "inquiriesPerMonth")}`,
-    pro: "Unlimited",
-    business: "Unlimited",
+    category: "Workspace & Team",
+    features: [
+      {
+        label: planFeatureLabels.multiBusiness,
+        free: false,
+        pro: true,
+        business: true,
+      },
+      {
+        label: planFeatureLabels.members,
+        free: false,
+        pro: false,
+        business: true,
+      },
+    ],
   },
   {
-    label: "Quotes per month",
-    free: `${getUsageLimit("free", "quotesPerMonth")}`,
-    pro: "Unlimited",
-    business: "Unlimited",
+    category: "Customer Experience",
+    features: [
+      { label: "Public inquiry pages", free: true, pro: true, business: true },
+      { label: "Public quote pages", free: true, pro: true, business: true },
+      { label: "Logo and business/form name", free: true, pro: true, business: true },
+      {
+        label: planFeatureLabels.branding,
+        free: false,
+        pro: true,
+        business: true,
+      },
+      {
+        label: planFeatureLabels.inquiryPageCustomization,
+        free: false,
+        pro: true,
+        business: true,
+      },
+      {
+        label: planFeatureLabels.attachments,
+        free: true,
+        pro: true,
+        business: true,
+      },
+    ],
   },
   {
-    label: planFeatureLabels.multipleForms,
-    free: false,
-    pro: true,
-    business: true,
+    category: "Productivity",
+    features: [
+      {
+        label: planFeatureLabels.multipleForms,
+        free: false,
+        pro: true,
+        business: true,
+      },
+      {
+        label: planFeatureLabels.replySnippets,
+        free: false,
+        pro: true,
+        business: true,
+      },
+      {
+        label: planFeatureLabels.emailTemplates,
+        free: false,
+        pro: true,
+        business: true,
+      },
+      {
+        label: planFeatureLabels.quoteLibrary,
+        free: false,
+        pro: true,
+        business: true,
+      },
+      {
+        label: planFeatureLabels.knowledgeBase,
+        free: false,
+        pro: true,
+        business: true,
+      },
+      {
+        label: planFeatureLabels.aiAssistant,
+        free: false,
+        pro: true,
+        business: true,
+      },
+      {
+        label: planFeatureLabels.customerHistory,
+        free: false,
+        pro: true,
+        business: true,
+      },
+      {
+        label: planFeatureLabels.pushNotifications,
+        free: false,
+        pro: true,
+        business: true,
+      },
+    ],
   },
   {
-    label: planFeatureLabels.inquiryPageCustomization,
-    free: false,
-    pro: true,
-    business: true,
-  },
-  {
-    label: planFeatureLabels.attachments,
-    free: false,
-    pro: true,
-    business: true,
-  },
-  {
-    label: planFeatureLabels.replySnippets,
-    free: false,
-    pro: true,
-    business: true,
-  },
-  {
-    label: planFeatureLabels.quoteLibrary,
-    free: false,
-    pro: true,
-    business: true,
-  },
-  {
-    label: planFeatureLabels.knowledgeBase,
-    free: false,
-    pro: true,
-    business: true,
-  },
-  {
-    label: planFeatureLabels.aiAssistant,
-    free: false,
-    pro: true,
-    business: true,
-  },
-  {
-    label: planFeatureLabels.exports,
-    free: false,
-    pro: true,
-    business: true,
-  },
-  {
-    label: planFeatureLabels.branding,
-    free: false,
-    pro: true,
-    business: true,
-  },
-  {
-    label: planFeatureLabels.multiBusiness,
-    free: false,
-    pro: true,
-    business: true,
-  },
-  {
-    label: planFeatureLabels.members,
-    free: false,
-    pro: false,
-    business: true,
+    category: "Insights & Analytics",
+    features: [
+      { label: "Dashboard & overview", free: true, pro: true, business: true },
+      { label: "Activity log", free: true, pro: true, business: true },
+      { label: "Overview analytics", free: true, pro: true, business: true },
+      {
+        label: planFeatureLabels.analyticsConversion,
+        free: false,
+        pro: true,
+        business: true,
+      },
+      {
+        label: planFeatureLabels.analyticsWorkflow,
+        free: false,
+        pro: true,
+        business: true,
+      },
+      {
+        label: planFeatureLabels.exports,
+        free: false,
+        pro: true,
+        business: true,
+      },
+    ],
   },
 ];
 
@@ -181,7 +257,7 @@ export function PricingPage({ currency }: { currency: BillingCurrency }) {
             <h1 className="max-w-3xl font-heading text-4xl font-semibold leading-[0.94] tracking-tight text-balance sm:text-5xl xl:text-[3.5rem]">
               Run the full inquiry-to-quote workflow from day one.
             </h1>
-            <p className="max-w-2xl text-base leading-8 text-muted-foreground sm:text-lg">
+            <p className="max-w-2xl text-base leading-normal sm:leading-8 text-muted-foreground sm:text-lg">
               Capture inquiries, create quotes, share them with customers,
               follow up on time, and track outcomes. Start free, then upgrade
               when you need more capacity and workflow tools.
@@ -194,7 +270,7 @@ export function PricingPage({ currency }: { currency: BillingCurrency }) {
       <PricingIntervalToggle currency={currency} />
 
       {/* Feature comparison table */}
-      <section className="section-panel mx-auto max-w-6xl overflow-hidden">
+      <section className="section-panel mx-auto w-full max-w-[76rem] overflow-hidden">
         <div className="flex flex-col gap-3 border-b border-border/70 px-5 py-5 sm:px-6 sm:py-6">
           <Badge className="w-fit" variant="outline">
             Compare plans
@@ -223,13 +299,27 @@ export function PricingPage({ currency }: { currency: BillingCurrency }) {
               </tr>
             </thead>
             <tbody>
-              {pricingFeatures.map((row) => (
-                <tr className="border-b border-border/30 last:border-b-0" key={row.label}>
-                  <td className="px-5 py-3 text-foreground sm:px-6">{row.label}</td>
-                  <PricingCell value={row.free} />
-                  <PricingCell value={row.pro} highlighted />
-                  <PricingCell value={row.business} />
-                </tr>
+              {pricingCategories.map((category) => (
+                <Fragment key={category.category}>
+                  {/* Category Header Row */}
+                  <tr className="border-y border-border/50 bg-muted/30 first:border-t-0">
+                    <th
+                      colSpan={4}
+                      className="px-5 py-3 text-left text-sm font-semibold text-foreground sm:px-6"
+                    >
+                      {category.category}
+                    </th>
+                  </tr>
+                  {/* Feature Rows */}
+                  {category.features.map((row) => (
+                    <tr className="border-b border-border/30 last:border-b-0" key={row.label}>
+                      <td className="px-5 py-3 text-foreground sm:px-6">{row.label}</td>
+                      <PricingCell value={row.free} />
+                      <PricingCell value={row.pro} highlighted />
+                      <PricingCell value={row.business} />
+                    </tr>
+                  ))}
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -237,13 +327,13 @@ export function PricingPage({ currency }: { currency: BillingCurrency }) {
       </section>
 
       {/* CTA */}
-      <section className="hero-panel mx-auto mt-8 max-w-6xl overflow-hidden lg:mt-12">
+      <section className="hero-panel mx-auto mt-8 w-full max-w-[76rem] overflow-hidden lg:mt-12">
         <div className="flex flex-col gap-6 px-5 py-6 sm:px-6 sm:py-7 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex max-w-2xl flex-col gap-3">
             <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
               Ready to stop losing inquiries?
             </h2>
-            <p className="text-sm leading-7 text-muted-foreground sm:text-base">
+            <p className="text-sm leading-normal sm:leading-7 text-muted-foreground sm:text-base">
               Start with the Free plan today. Upgrade to Pro or Business when
               you need unlimited inquiries, quote capacity, and advanced tools.
             </p>

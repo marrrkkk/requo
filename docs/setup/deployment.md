@@ -3,7 +3,7 @@
 ## Summary
 
 Requo deploys as a Next.js app with a Postgres database, Supabase storage credentials,
-Better Auth secrets, Resend for transactional email, AI provider keys, and optional billing providers.
+Better Auth secrets, transactional email providers, AI provider keys, and optional billing providers.
 
 The deployed product is aimed at owner-led service businesses that need to capture
 inquiries, turn them into quotes, share or send quotes, follow up, and track quote
@@ -31,7 +31,15 @@ views plus customer responses from one place.
 - `NEXT_PUBLIC_BETTER_AUTH_URL`
 - `VERCEL_URL`
 - `RESEND_API_KEY`
-- `RESEND_FROM_EMAIL`
+- `MAILTRAP_API_TOKEN`
+- `BREVO_API_KEY`
+- `EMAIL_DOMAIN`
+- `EMAIL_FROM_DEFAULT`
+- `EMAIL_FROM_NOTIFICATIONS`
+- `EMAIL_FROM_SYSTEM`
+- `EMAIL_FROM_QUOTES`
+- `EMAIL_FROM_SUPPORT`
+- `RESEND_FROM_EMAIL` (legacy fallback)
 - `RESEND_REPLY_TO_EMAIL`
 - `GROQ_API_KEY`
 - `GEMINI_API_KEY`
@@ -74,15 +82,18 @@ DATABASE_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<region>.pool
 DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<region>.pooler.supabase.com:5432/postgres
 ```
 
-## Resend Checklist
+## Email Delivery Checklist
 
-- Create a Resend API key.
-- Verify the sender domain or sender address.
-- Set `RESEND_FROM_EMAIL` to a plain email address on a domain you verified in Resend.
-- Do not use personal mailbox domains such as `gmail.com`, `outlook.com`, `hotmail.com`, `yahoo.com`, or `icloud.com` for `RESEND_FROM_EMAIL`.
+- Configure providers in fallback order: Resend, Mailtrap, then Brevo.
+- Create API keys for each provider you want to enable: `RESEND_API_KEY`, `MAILTRAP_API_TOKEN`, and `BREVO_API_KEY`.
+- Set `EMAIL_DOMAIN` to the verified sending domain. For this Requo environment, use `test.requo.app`.
+- Configure senders centrally with `EMAIL_FROM_DEFAULT`, `EMAIL_FROM_NOTIFICATIONS`, `EMAIL_FROM_SYSTEM`, `EMAIL_FROM_QUOTES`, and `EMAIL_FROM_SUPPORT`.
+- Do not use personal mailbox domains such as `gmail.com`, `outlook.com`, `hotmail.com`, `yahoo.com`, or `icloud.com` for sender addresses.
 - Set `RESEND_REPLY_TO_EMAIL` to the reply target mailbox if customer replies should go to a different inbox.
-- Expect password reset and inquiry notification email flows to be best-effort when Resend is absent.
-- Expect quote sending to fail clearly when Resend is absent.
+- Verify the sending domain in Resend, Mailtrap, and Brevo before relying on that provider in production.
+- Publish the SPF, DKIM, and DMARC DNS records required by the providers you enable. Provider-specific domain verification is handled outside code.
+- Expect password reset and inquiry notification email flows to be best-effort when email providers are absent.
+- Expect quote sending to fail clearly when no email provider is configured.
 
 ## AI Provider Checklist
 
@@ -119,7 +130,7 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 2. Set Better Auth envs and deploy the app at the intended public origin.
 3. Run `npm run db:migrate`.
 4. Configure Supabase storage credentials and verify upload-backed flows.
-5. Configure Resend and verify forgot-password plus quote-send flows.
+5. Configure email providers and verify forgot-password plus quote-send flows.
 6. Configure at least one AI provider and verify the inquiry assistant.
 7. Configure PayMongo/Paddle if checkout is part of the deployment.
 8. Run the baseline health checks and smoke-test dashboard login, non-member denial, public inquiry submission, quote send/share, and public quote response.
@@ -127,5 +138,5 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 ## Current Operational Gaps
 
 - Live provider behavior is not covered by the default automated suite.
-- There is no deployment-specific observability layer yet for Resend, AI provider, PayMongo, or Paddle failures.
+- There is no deployment-specific observability layer yet for email, AI provider, PayMongo, or Paddle failures.
 - SQL RLS helpers and policies exist, but the app does not currently inject `app.current_user_id` into the Postgres session, so database-session RLS is not the main enforcement path for runtime queries yet.

@@ -13,6 +13,8 @@ import { getWorkspaceBillingOverview } from "@/features/billing/queries";
 import { hasFeatureAccess } from "@/lib/plans";
 import type { WorkspacePlan } from "@/lib/plans/plans";
 
+import { getBusinessAnalyticsPath } from "@/features/businesses/routes";
+
 type AnalyticsTabPanelProps = {
   activeTab: AnalyticsSectionId;
   businessId: string;
@@ -30,7 +32,7 @@ export async function AnalyticsTabPanel({
   plan,
   workspaceId,
 }: AnalyticsTabPanelProps) {
-  const pathname = `/businesses/${businessSlug}/dashboard/analytics`;
+  const pathname = getBusinessAnalyticsPath(businessSlug);
   let content: React.ReactNode;
 
   if (activeTab === analyticsSections.overview.id) {

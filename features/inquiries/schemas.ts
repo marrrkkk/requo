@@ -13,13 +13,19 @@ import {
 } from "@/features/inquiries/form-config";
 import { isAcceptedFileType } from "@/lib/files";
 import {
+  getPublicInquiryAttachmentHelpText,
+  getPublicInquiryAttachmentMaxBytes,
+} from "@/features/inquiries/plan-rules";
+import type { WorkspacePlan } from "@/lib/plans/plans";
+import {
   inquiryRecordViews,
   inquiryStatusFilterValues,
   inquiryWorkflowStatuses,
 } from "@/features/inquiries/types";
 
 export const publicInquiryAttachmentBucket = "inquiry-attachments";
-export const publicInquiryMaxAttachmentSize = 5 * 1024 * 1024;
+export const publicInquiryMaxAttachmentSize =
+  getPublicInquiryAttachmentMaxBytes("free");
 export const publicInquiryAllowedExtensions = [
   ".pdf",
   ".doc",
@@ -55,7 +61,7 @@ export const publicInquiryAttachmentAccept = [
   ...publicInquiryAllowedMimeTypes,
 ].join(",");
 export const publicInquiryAttachmentLabel =
-  "PDF, DOC, DOCX, JPG, PNG, WEBP, or TXT up to 5 MB";
+  getPublicInquiryAttachmentHelpText("free");
 
 function emptyToUndefined(value: unknown) {
   if (value == null) {
@@ -118,34 +124,43 @@ function isValidDateInput(value: string) {
   );
 }
 
-const publicInquiryAttachmentSchema = z.preprocess(
-  (value) => {
-    if (!(value instanceof File)) {
-      return undefined;
-    }
+function createPublicInquiryAttachmentSchema(maxSizeBytes: number) {
+  const maxSizeLabel = getPublicInquiryAttachmentHelpTextForBytes(maxSizeBytes);
 
-    if (value.size === 0 || value.name.trim() === "") {
-      return undefined;
-    }
+  return z.preprocess(
+    (value) => {
+      if (!(value instanceof File)) {
+        return undefined;
+      }
 
-    return value;
-  },
-  z
-    .instanceof(File)
-    .refine(
-      (file) => file.size <= publicInquiryMaxAttachmentSize,
-      "Upload a file that is 5 MB or smaller.",
-    )
-    .refine(
-      (file) =>
-        isAcceptedFileType(file, {
-          allowedExtensions: publicInquiryAllowedExtensions,
-          allowedMimeTypes: publicInquiryAllowedMimeTypes,
-        }),
-      "Upload a PDF, common document file, or image.",
-    )
-    .optional(),
-);
+      if (value.size === 0 || value.name.trim() === "") {
+        return undefined;
+      }
+
+      return value;
+    },
+    z
+      .instanceof(File)
+      .refine(
+        (file) => file.size <= maxSizeBytes,
+        `Upload a file that is ${maxSizeLabel} or smaller.`,
+      )
+      .refine(
+        (file) =>
+          isAcceptedFileType(file, {
+            allowedExtensions: publicInquiryAllowedExtensions,
+            allowedMimeTypes: publicInquiryAllowedMimeTypes,
+          }),
+        "Upload a PDF, common document file, or image.",
+      )
+      .optional(),
+  );
+}
+
+function getPublicInquiryAttachmentHelpTextForBytes(maxSizeBytes: number) {
+  const megabytes = maxSizeBytes / (1024 * 1024);
+  return `${Number.isInteger(megabytes) ? megabytes : megabytes.toFixed(1)} MB`;
+}
 
 export type PublicInquirySubmissionInput = {
   customerName: string;
@@ -398,8 +413,33 @@ function createCustomFieldSchema(field: InquiryFormCustomFieldDefinition) {
   }
 }
 
-function createPublicInquirySubmissionSchema(config: InquiryFormConfig) {
+type PublicInquiryValidationOptions = {
+  maxAttachmentSizeBytes?: number;
+  plan?: WorkspacePlan;
+};
+
+function resolveAttachmentMaxSizeBytes(
+  options?: PublicInquiryValidationOptions,
+) {
+  if (typeof options?.maxAttachmentSizeBytes === "number") {
+    return options.maxAttachmentSizeBytes;
+  }
+
+  if (options?.plan) {
+    return getPublicInquiryAttachmentMaxBytes(options.plan);
+  }
+
+  return publicInquiryMaxAttachmentSize;
+}
+
+function createPublicInquirySubmissionSchema(
+  config: InquiryFormConfig,
+  options?: PublicInquiryValidationOptions,
+) {
   const shape: Record<string, z.ZodTypeAny> = {};
+  const attachmentSchema = createPublicInquiryAttachmentSchema(
+    resolveAttachmentMaxSizeBytes(options),
+  );
 
   if (config.contactFields.customerName.enabled) {
     shape.customerName = createRequiredTextSchema({
@@ -453,7 +493,7 @@ function createPublicInquirySubmissionSchema(config: InquiryFormConfig) {
         });
         break;
       case "attachment":
-        shape[inputName] = publicInquiryAttachmentSchema;
+        shape[inputName] = attachmentSchema;
         break;
     }
   }
@@ -521,6 +561,7 @@ function buildSubmittedFieldSnapshot(
       label: field.label,
       value,
       displayValue: getInquirySubmittedFieldValueDisplay(value),
+      fieldKind: "contact",
     });
   }
 
@@ -536,6 +577,7 @@ function buildSubmittedFieldSnapshot(
       label: field.label,
       value,
       displayValue: getInquirySubmittedFieldValueDisplay(value),
+      fieldKind: field.kind === "system" ? "system" : "custom",
     });
   }
 
@@ -549,8 +591,9 @@ function buildSubmittedFieldSnapshot(
 export function validatePublicInquirySubmission(
   config: InquiryFormConfig,
   formData: FormData,
+  options?: PublicInquiryValidationOptions,
 ) {
-  const schema = createPublicInquirySubmissionSchema(config);
+  const schema = createPublicInquirySubmissionSchema(config, options);
   const candidate: Record<string, unknown> = {};
 
   if (config.contactFields.customerName.enabled) {
@@ -651,10 +694,12 @@ export function createManualQuickInquiryFormConfig(
 export function validateManualQuickInquirySubmission(
   config: InquiryFormConfig,
   formData: FormData,
+  options?: PublicInquiryValidationOptions,
 ) {
   return validatePublicInquirySubmission(
     createManualQuickInquiryFormConfig(config),
     formData,
+    options,
   );
 }
 

@@ -7,10 +7,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  formatFollowUpDate,
-  getFollowUpDueBucket,
-} from "@/features/follow-ups/utils";
 import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
 import { QuoteRecordStateBadge } from "@/features/quotes/components/quote-record-state-badge";
 import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
@@ -57,7 +53,6 @@ export function QuoteListCards({
                     </CardDescription>
                     {reminders.length ||
                     quote.postAcceptanceStatus !== "none" ||
-                    quote.pendingFollowUpCount > 0 ||
                     isViewedWithoutResponse(quote) ? (
                       <div className="mt-2 flex flex-wrap gap-2">
                         {reminders.map((reminder) => (
@@ -68,14 +63,13 @@ export function QuoteListCards({
                             status={quote.postAcceptanceStatus}
                           />
                         ) : null}
-                        <QuoteFollowUpBadge quote={quote} />
                         {isViewedWithoutResponse(quote) ? (
                           <Badge variant="secondary">Viewed, no response</Badge>
                         ) : null}
                       </div>
                     ) : null}
                   </div>
-                  <div className="shrink-0 space-y-2">
+                  <div className="flex shrink-0 flex-col gap-2">
                     <QuoteStatusBadge status={quote.status} />
                     {quote.archivedAt ? (
                       <QuoteRecordStateBadge state="archived" />
@@ -123,33 +117,6 @@ function isViewedWithoutResponse(quote: DashboardQuoteListItem) {
   return Boolean(
     quote.status === "sent" &&
       quote.publicViewedAt &&
-      !quote.customerRespondedAt,
+    !quote.customerRespondedAt,
   );
-}
-
-function QuoteFollowUpBadge({
-  quote,
-}: {
-  quote: DashboardQuoteListItem;
-}) {
-  if (quote.pendingFollowUpCount > 0 && quote.nextFollowUpDueAt) {
-    const dueBucket = getFollowUpDueBucket({
-      status: "pending",
-      dueAt: quote.nextFollowUpDueAt,
-    });
-    const label =
-      dueBucket === "overdue"
-        ? "Follow-up overdue"
-        : dueBucket === "today"
-          ? "Follow-up today"
-          : `Follow-up ${formatFollowUpDate(quote.nextFollowUpDueAt)}`;
-
-    return <Badge variant="secondary">{label}</Badge>;
-  }
-
-  if (quote.status === "sent" && !quote.customerRespondedAt) {
-    return <Badge variant="outline">No follow-up</Badge>;
-  }
-
-  return null;
 }

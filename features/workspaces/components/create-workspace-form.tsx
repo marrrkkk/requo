@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import { DialogBody, DialogFooter } from "@/components/ui/dialog";
@@ -18,15 +18,24 @@ import type { CreateWorkspaceActionState } from "@/features/workspaces/types";
 
 const initialState: CreateWorkspaceActionState = {};
 
-export function CreateWorkspaceForm() {
+export function CreateWorkspaceForm({ onSuccess }: { onSuccess?: () => void }) {
   const [state, action, isPending] = useActionState(
     createWorkspaceAction,
     initialState,
   );
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (state.success) {
+      formRef.current?.reset();
+      onSuccess?.();
+    }
+  }, [state.success, onSuccess]);
+
   const nameError = state.fieldErrors?.name?.[0];
 
   return (
-    <form action={action} className="flex min-h-0 flex-1 flex-col">
+    <form ref={formRef} action={action} className="flex min-h-0 flex-1 flex-col">
       <DialogBody className="overflow-y-auto">
         <FieldGroup>
           <Field data-invalid={Boolean(nameError) || undefined}>

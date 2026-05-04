@@ -1,4 +1,4 @@
-import { Resend } from "resend";
+import { createHash } from "node:crypto";
 
 import type { QuoteEmailTemplateConfig } from "@/features/settings/email-templates";
 import { renderBusinessMemberInviteEmail } from "@/emails/templates/business-member-invite";
@@ -9,29 +9,16 @@ import { renderPublicInquiryNotificationEmail } from "@/emails/templates/public-
 import { renderQuoteEmail } from "@/emails/templates/quote-email";
 import { renderQuoteResponseOwnerNotificationEmail } from "@/emails/templates/quote-response-owner-notification";
 import { renderQuoteSentOwnerNotificationEmail } from "@/emails/templates/quote-sent-owner-notification";
-import { env, isResendConfigured } from "@/lib/env";
+import {
+  EmailSendError,
+} from "@/lib/email/errors";
+import { getDefaultReplyToEmail, getEmailSender, normalizeEmailAddress } from "@/lib/email/senders";
+import { getEmailSenderConfigurationError } from "@/lib/email/senders";
+import { sendEmailWithFallback } from "@/lib/email/send-email";
+import type { EmailType, SendEmailInput } from "@/lib/email/types";
+import { isEmailConfigured } from "@/lib/env";
 import type { BusinessMemberAssignableRole } from "@/lib/business-members";
 import type { WorkspaceMemberAssignableRole } from "@/features/workspace-members/types";
-
-const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
-const consumerMailboxProviderDomains = new Set([
-  "gmail.com",
-  "googlemail.com",
-  "hotmail.com",
-  "outlook.com",
-  "live.com",
-  "msn.com",
-  "yahoo.com",
-  "ymail.com",
-  "rocketmail.com",
-  "icloud.com",
-  "me.com",
-  "mac.com",
-  "aol.com",
-  "protonmail.com",
-  "proton.me",
-  "pm.me",
-]);
 
 type SendPasswordResetEmailInput = {
   userId: string;
@@ -57,6 +44,9 @@ type SendBusinessMemberInviteEmailInput = {
   inviterName: string;
   role: BusinessMemberAssignableRole;
   inviteUrl: string;
+  workspaceId?: string | null;
+  businessId?: string | null;
+  userId?: string | null;
 };
 
 type SendPublicInquiryNotificationEmailInput = {
@@ -78,6 +68,8 @@ type SendPublicInquiryNotificationEmailInput = {
     label: string;
     value: string;
   }>;
+  workspaceId?: string | null;
+  businessId?: string | null;
 };
 
 type SendQuoteEmailInput = {
@@ -106,6 +98,9 @@ type SendQuoteEmailInput = {
   }>;
   templateOverrides?: QuoteEmailTemplateConfig | null;
   replyToEmail?: string;
+  workspaceId?: string | null;
+  businessId?: string | null;
+  userId?: string | null;
 };
 
 type SendQuoteSentOwnerNotificationEmailInput = {
@@ -121,6 +116,8 @@ type SendQuoteSentOwnerNotificationEmailInput = {
   title: string;
   dashboardUrl: string;
   publicQuoteUrl: string;
+  workspaceId?: string | null;
+  businessId?: string | null;
 };
 
 type SendQuoteResponseOwnerNotificationEmailInput = {
@@ -137,32 +134,59 @@ type SendQuoteResponseOwnerNotificationEmailInput = {
   title: string;
   response: "accepted" | "rejected";
   dashboardUrl: string;
+  workspaceId?: string | null;
+  businessId?: string | null;
 };
 
-function getEmailDomain(email: string) {
-  const atIndex = email.lastIndexOf("@");
+type SendWorkspaceMemberInviteEmailInput = {
+  inviteId: string;
+  token: string;
+  email: string;
+  workspaceName: string;
+  inviterName: string;
+  workspaceRole: WorkspaceMemberAssignableRole;
+  inviteUrl: string;
+  workspaceId?: string | null;
+  userId?: string | null;
+};
 
-  return atIndex >= 0 ? email.slice(atIndex + 1).toLowerCase() : "";
+function hashIdempotencyPart(value: string) {
+  return createHash("sha256").update(value).digest("hex").slice(0, 32);
+}
+
+function getRecipientKey(email: string) {
+  return normalizeEmailAddress(email) ?? email.trim().toLowerCase();
+}
+
+function getRecipientSetKey(recipients: string[]) {
+  return hashIdempotencyPart(
+    recipients.map(getRecipientKey).sort((a, b) => a.localeCompare(b)).join(","),
+  );
+}
+
+function getFallbackReplyTo(preferred?: string) {
+  return preferred ?? getDefaultReplyToEmail();
+}
+
+function getConfigurationError(emailType: EmailType) {
+  return getEmailSenderConfigurationError(emailType);
+}
+
+function logDeliverySkipped(reason: string, emailType: EmailType) {
+  console.warn(reason, { emailType });
+}
+
+async function sendBrandedEmail(input: SendEmailInput) {
+  await sendEmailWithFallback({
+    ...input,
+    from: input.from ?? getEmailSender(input.emailType ?? "notification"),
+  });
 }
 
 export function getResendFromEmailConfigurationError(
-  fromEmail = env.RESEND_FROM_EMAIL,
+  fromEmail = getEmailSender("quote"),
 ) {
-  if (!fromEmail) {
-    return "Set RESEND_FROM_EMAIL to an address on a domain verified in Resend before sending quote emails.";
-  }
-
-  const domain = getEmailDomain(fromEmail);
-
-  if (!domain) {
-    return "Set RESEND_FROM_EMAIL to an address on a domain verified in Resend before sending quote emails.";
-  }
-
-  if (consumerMailboxProviderDomains.has(domain)) {
-    return `RESEND_FROM_EMAIL cannot use ${domain}. Use an address on a domain verified in Resend, and keep your normal inbox in RESEND_REPLY_TO_EMAIL instead.`;
-  }
-
-  return null;
+  return getEmailSenderConfigurationError("quote", fromEmail);
 }
 
 export function getResendSendFailureMessage(error: unknown) {
@@ -171,10 +195,25 @@ export function getResendSendFailureMessage(error: unknown) {
   }
 
   if (error.message.includes("domain is not verified")) {
-    return "RESEND_FROM_EMAIL must use an address on a domain verified in Resend. Personal mailbox addresses belong in RESEND_REPLY_TO_EMAIL instead.";
+    return "Email sender must use an address on a verified sending domain. Personal mailbox addresses belong in the reply-to setting instead.";
   }
 
-  return null;
+  if (!(error instanceof EmailSendError)) {
+    return null;
+  }
+
+  switch (error.code) {
+    case "email_not_configured":
+      return "Quote email delivery is unavailable right now. Configure email and try again.";
+    case "email_delivery_unknown":
+      return "We couldn't confirm whether the email was accepted. Check provider logs before retrying.";
+    case "email_send_in_progress":
+      return "That email is already being sent. Wait a moment before trying again.";
+    case "email_delivery_rejected":
+      return error.message;
+    default:
+      return null;
+  }
 }
 
 export async function sendPasswordResetEmail({
@@ -184,18 +223,20 @@ export async function sendPasswordResetEmail({
   url,
   token,
 }: SendPasswordResetEmailInput) {
-  if (!resend || !isResendConfigured || !env.RESEND_FROM_EMAIL) {
-    console.warn(
-      "Resend is not configured yet. Password reset email delivery was skipped.",
+  if (!isEmailConfigured) {
+    logDeliverySkipped(
+      "Email is not configured yet. Password reset email delivery was skipped.",
+      "auth",
     );
     return;
   }
 
-  const senderConfigurationError = getResendFromEmailConfigurationError();
+  const senderConfigurationError = getConfigurationError("auth");
 
   if (senderConfigurationError) {
-    console.warn(
-      `Resend sender is misconfigured. Password reset email delivery was skipped. ${senderConfigurationError}`,
+    logDeliverySkipped(
+      `Email sender is misconfigured. Password reset email delivery was skipped. ${senderConfigurationError}`,
+      "auth",
     );
     return;
   }
@@ -205,23 +246,24 @@ export async function sendPasswordResetEmail({
     resetUrl: url,
   });
 
-  const { error } = await resend.emails.send(
-    {
-      from: env.RESEND_FROM_EMAIL,
-      to: [email],
-      replyTo: env.RESEND_REPLY_TO_EMAIL ? [env.RESEND_REPLY_TO_EMAIL] : undefined,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
+  await sendBrandedEmail({
+    emailType: "auth",
+    to: email,
+    replyTo: getFallbackReplyTo(),
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+    idempotencyKey: `auth:password-reset:${userId}:${hashIdempotencyPart(token)}`,
+    userId,
+    metadata: {
+      userId,
+      authEvent: "password_reset",
     },
-    {
-      idempotencyKey: `password-reset/${userId}/${token}`,
+    tags: {
+      type: "auth",
+      event: "password_reset",
     },
-  );
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  });
 }
 
 export async function sendVerificationEmail({
@@ -231,11 +273,11 @@ export async function sendVerificationEmail({
   token,
   url,
 }: SendVerificationEmailInput) {
-  if (!resend || !isResendConfigured || !env.RESEND_FROM_EMAIL) {
+  if (!isEmailConfigured) {
     throw new Error("Email verification delivery is not configured yet.");
   }
 
-  const senderConfigurationError = getResendFromEmailConfigurationError();
+  const senderConfigurationError = getConfigurationError("auth");
 
   if (senderConfigurationError) {
     throw new Error(senderConfigurationError);
@@ -246,23 +288,24 @@ export async function sendVerificationEmail({
     verificationUrl: url,
   });
 
-  const { error } = await resend.emails.send(
-    {
-      from: env.RESEND_FROM_EMAIL,
-      to: [email],
-      replyTo: env.RESEND_REPLY_TO_EMAIL ? [env.RESEND_REPLY_TO_EMAIL] : undefined,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
+  await sendBrandedEmail({
+    emailType: "auth",
+    to: email,
+    replyTo: getFallbackReplyTo(),
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+    idempotencyKey: `auth:email-verification:${userId}:${hashIdempotencyPart(token)}`,
+    userId,
+    metadata: {
+      userId,
+      authEvent: "email_verification",
     },
-    {
-      idempotencyKey: `email-verification/${userId}/${token}`,
+    tags: {
+      type: "auth",
+      event: "email_verification",
     },
-  );
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  });
 }
 
 export async function sendBusinessMemberInviteEmail({
@@ -273,19 +316,24 @@ export async function sendBusinessMemberInviteEmail({
   inviterName,
   role,
   inviteUrl,
+  workspaceId,
+  businessId,
+  userId,
 }: SendBusinessMemberInviteEmailInput) {
-  if (!resend || !isResendConfigured || !env.RESEND_FROM_EMAIL) {
-    console.warn(
-      "Resend is not configured yet. Business member invite delivery was skipped.",
+  if (!isEmailConfigured) {
+    logDeliverySkipped(
+      "Email is not configured yet. Business member invite delivery was skipped.",
+      "system",
     );
     return false;
   }
 
-  const senderConfigurationError = getResendFromEmailConfigurationError();
+  const senderConfigurationError = getConfigurationError("system");
 
   if (senderConfigurationError) {
-    console.warn(
-      `Resend sender is misconfigured. Business member invite delivery was skipped. ${senderConfigurationError}`,
+    logDeliverySkipped(
+      `Email sender is misconfigured. Business member invite delivery was skipped. ${senderConfigurationError}`,
+      "system",
     );
     return false;
   }
@@ -297,36 +345,31 @@ export async function sendBusinessMemberInviteEmail({
     inviteUrl,
   });
 
-  const { error } = await resend.emails.send(
-    {
-      from: env.RESEND_FROM_EMAIL,
-      to: [email],
-      replyTo: env.RESEND_REPLY_TO_EMAIL ? [env.RESEND_REPLY_TO_EMAIL] : undefined,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
+  await sendBrandedEmail({
+    emailType: "system",
+    to: email,
+    replyTo: getFallbackReplyTo(),
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+    idempotencyKey: `business-member-invite:${inviteId}:${hashIdempotencyPart(token)}:${getRecipientKey(email)}`,
+    workspaceId,
+    businessId,
+    userId,
+    metadata: {
+      inviteId,
+      workspaceId,
+      businessId,
+      role,
     },
-    {
-      idempotencyKey: `business-member-invite/${inviteId}/${token}`,
+    tags: {
+      type: "system",
+      event: "business_member_invite",
     },
-  );
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  });
 
   return true;
 }
-
-type SendWorkspaceMemberInviteEmailInput = {
-  inviteId: string;
-  token: string;
-  email: string;
-  workspaceName: string;
-  inviterName: string;
-  workspaceRole: WorkspaceMemberAssignableRole;
-  inviteUrl: string;
-};
 
 export async function sendWorkspaceMemberInviteEmail({
   inviteId,
@@ -336,19 +379,23 @@ export async function sendWorkspaceMemberInviteEmail({
   inviterName,
   workspaceRole,
   inviteUrl,
+  workspaceId,
+  userId,
 }: SendWorkspaceMemberInviteEmailInput) {
-  if (!resend || !isResendConfigured || !env.RESEND_FROM_EMAIL) {
-    console.warn(
-      "Resend is not configured yet. Workspace member invite delivery was skipped.",
+  if (!isEmailConfigured) {
+    logDeliverySkipped(
+      "Email is not configured yet. Workspace member invite delivery was skipped.",
+      "system",
     );
     return false;
   }
 
-  const senderConfigurationError = getResendFromEmailConfigurationError();
+  const senderConfigurationError = getConfigurationError("system");
 
   if (senderConfigurationError) {
-    console.warn(
-      `Resend sender is misconfigured. Workspace member invite delivery was skipped. ${senderConfigurationError}`,
+    logDeliverySkipped(
+      `Email sender is misconfigured. Workspace member invite delivery was skipped. ${senderConfigurationError}`,
+      "system",
     );
     return false;
   }
@@ -360,23 +407,26 @@ export async function sendWorkspaceMemberInviteEmail({
     inviteUrl,
   });
 
-  const { error } = await resend.emails.send(
-    {
-      from: env.RESEND_FROM_EMAIL,
-      to: [email],
-      replyTo: env.RESEND_REPLY_TO_EMAIL ? [env.RESEND_REPLY_TO_EMAIL] : undefined,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
+  await sendBrandedEmail({
+    emailType: "system",
+    to: email,
+    replyTo: getFallbackReplyTo(),
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+    idempotencyKey: `workspace-member-invite:${inviteId}:${hashIdempotencyPart(token)}:${getRecipientKey(email)}`,
+    workspaceId,
+    userId,
+    metadata: {
+      inviteId,
+      workspaceId,
+      workspaceRole,
     },
-    {
-      idempotencyKey: `workspace-member-invite/${inviteId}/${token}`,
+    tags: {
+      type: "system",
+      event: "workspace_member_invite",
     },
-  );
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  });
 
   return true;
 }
@@ -397,23 +447,27 @@ export async function sendPublicInquiryNotificationEmail({
   details,
   attachmentName,
   additionalFields,
+  workspaceId,
+  businessId,
 }: SendPublicInquiryNotificationEmailInput) {
   if (!recipients.length) {
     return;
   }
 
-  if (!resend || !isResendConfigured || !env.RESEND_FROM_EMAIL) {
-    console.warn(
-      "Resend is not configured yet. Inquiry notification email delivery was skipped.",
+  if (!isEmailConfigured) {
+    logDeliverySkipped(
+      "Email is not configured yet. Inquiry notification email delivery was skipped.",
+      "inquiry",
     );
     return;
   }
 
-  const senderConfigurationError = getResendFromEmailConfigurationError();
+  const senderConfigurationError = getConfigurationError("inquiry");
 
   if (senderConfigurationError) {
-    console.warn(
-      `Resend sender is misconfigured. Inquiry notification email delivery was skipped. ${senderConfigurationError}`,
+    logDeliverySkipped(
+      `Email sender is misconfigured. Inquiry notification email delivery was skipped. ${senderConfigurationError}`,
+      "inquiry",
     );
     return;
   }
@@ -434,23 +488,27 @@ export async function sendPublicInquiryNotificationEmail({
     additionalFields,
   });
 
-  const { error } = await resend.emails.send(
-    {
-      from: env.RESEND_FROM_EMAIL,
-      to: recipients,
-      replyTo: env.RESEND_REPLY_TO_EMAIL ? [env.RESEND_REPLY_TO_EMAIL] : undefined,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
+  await sendBrandedEmail({
+    emailType: "inquiry",
+    to: recipients,
+    replyTo: getFallbackReplyTo(),
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+    idempotencyKey: `inquiry:${inquiryId}:notification:${getRecipientSetKey(recipients)}`,
+    workspaceId,
+    businessId,
+    metadata: {
+      inquiryId,
+      workspaceId,
+      businessId,
+      inquiryFormName,
     },
-    {
-      idempotencyKey: `public-inquiry/${inquiryId}`,
+    tags: {
+      type: "inquiry",
+      event: "public_inquiry_notification",
     },
-  );
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  });
 }
 
 export async function sendQuoteEmail({
@@ -472,16 +530,19 @@ export async function sendQuoteEmail({
   items,
   templateOverrides,
   replyToEmail,
+  workspaceId,
+  businessId,
+  userId,
 }: SendQuoteEmailInput) {
   if (!customerEmail) {
     return;
   }
 
-  if (!resend || !isResendConfigured || !env.RESEND_FROM_EMAIL) {
+  if (!isEmailConfigured) {
     throw new Error("Quote delivery email is not configured yet.");
   }
 
-  const senderConfigurationError = getResendFromEmailConfigurationError();
+  const senderConfigurationError = getConfigurationError("quote");
 
   if (senderConfigurationError) {
     throw new Error(senderConfigurationError);
@@ -504,27 +565,29 @@ export async function sendQuoteEmail({
     templateOverrides,
   });
 
-  const { error } = await resend.emails.send(
-    {
-      from: env.RESEND_FROM_EMAIL,
-      to: [customerEmail],
-      replyTo: replyToEmail
-        ? [replyToEmail]
-        : env.RESEND_REPLY_TO_EMAIL
-          ? [env.RESEND_REPLY_TO_EMAIL]
-          : undefined,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
+  await sendBrandedEmail({
+    emailType: "quote",
+    to: customerEmail,
+    replyTo: getFallbackReplyTo(replyToEmail),
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+    idempotencyKey: `quote:${quoteId}:sent:${getRecipientKey(customerEmail)}`,
+    workspaceId,
+    businessId,
+    userId,
+    metadata: {
+      quoteId,
+      quoteNumber,
+      workspaceId,
+      businessId,
+      updatedAt: updatedAt.toISOString(),
     },
-    {
-      idempotencyKey: `quote-send/${quoteId}/${updatedAt.getTime()}`,
+    tags: {
+      type: "quote",
+      event: "quote_sent",
     },
-  );
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  });
 }
 
 export async function sendQuoteSentOwnerNotificationEmail({
@@ -538,23 +601,27 @@ export async function sendQuoteSentOwnerNotificationEmail({
   title,
   dashboardUrl,
   publicQuoteUrl,
+  workspaceId,
+  businessId,
 }: SendQuoteSentOwnerNotificationEmailInput) {
   if (!recipients.length) {
     return;
   }
 
-  if (!resend || !isResendConfigured || !env.RESEND_FROM_EMAIL) {
-    console.warn(
-      "Resend is not configured yet. Quote owner notification email delivery was skipped.",
+  if (!isEmailConfigured) {
+    logDeliverySkipped(
+      "Email is not configured yet. Quote owner notification email delivery was skipped.",
+      "quote",
     );
     return;
   }
 
-  const senderConfigurationError = getResendFromEmailConfigurationError();
+  const senderConfigurationError = getConfigurationError("quote");
 
   if (senderConfigurationError) {
-    console.warn(
-      `Resend sender is misconfigured. Quote owner notification email delivery was skipped. ${senderConfigurationError}`,
+    logDeliverySkipped(
+      `Email sender is misconfigured. Quote owner notification email delivery was skipped. ${senderConfigurationError}`,
+      "quote",
     );
     return;
   }
@@ -569,23 +636,28 @@ export async function sendQuoteSentOwnerNotificationEmail({
     publicQuoteUrl,
   });
 
-  const { error } = await resend.emails.send(
-    {
-      from: env.RESEND_FROM_EMAIL,
-      to: recipients,
-      replyTo: env.RESEND_REPLY_TO_EMAIL ? [env.RESEND_REPLY_TO_EMAIL] : undefined,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
+  await sendBrandedEmail({
+    emailType: "quote",
+    to: recipients,
+    replyTo: getFallbackReplyTo(),
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+    idempotencyKey: `quote:${quoteId}:sent-owner-notification:${getRecipientSetKey(recipients)}`,
+    workspaceId,
+    businessId,
+    metadata: {
+      quoteId,
+      quoteNumber,
+      workspaceId,
+      businessId,
+      updatedAt: updatedAt.toISOString(),
     },
-    {
-      idempotencyKey: `quote-owner-notify/${quoteId}/${updatedAt.getTime()}`,
+    tags: {
+      type: "quote",
+      event: "quote_sent_owner_notification",
     },
-  );
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  });
 }
 
 export async function sendQuoteResponseOwnerNotificationEmail({
@@ -600,23 +672,27 @@ export async function sendQuoteResponseOwnerNotificationEmail({
   title,
   response,
   dashboardUrl,
+  workspaceId,
+  businessId,
 }: SendQuoteResponseOwnerNotificationEmailInput) {
   if (!recipients.length) {
     return;
   }
 
-  if (!resend || !isResendConfigured || !env.RESEND_FROM_EMAIL) {
-    console.warn(
-      "Resend is not configured yet. Quote response owner notification email delivery was skipped.",
+  if (!isEmailConfigured) {
+    logDeliverySkipped(
+      "Email is not configured yet. Quote response owner notification email delivery was skipped.",
+      "quote",
     );
     return;
   }
 
-  const senderConfigurationError = getResendFromEmailConfigurationError();
+  const senderConfigurationError = getConfigurationError("quote");
 
   if (senderConfigurationError) {
-    console.warn(
-      `Resend sender is misconfigured. Quote response owner notification email delivery was skipped. ${senderConfigurationError}`,
+    logDeliverySkipped(
+      `Email sender is misconfigured. Quote response owner notification email delivery was skipped. ${senderConfigurationError}`,
+      "quote",
     );
     return;
   }
@@ -632,21 +708,27 @@ export async function sendQuoteResponseOwnerNotificationEmail({
     dashboardUrl,
   });
 
-  const { error } = await resend.emails.send(
-    {
-      from: env.RESEND_FROM_EMAIL,
-      to: recipients,
-      replyTo: env.RESEND_REPLY_TO_EMAIL ? [env.RESEND_REPLY_TO_EMAIL] : undefined,
-      subject: template.subject,
-      html: template.html,
-      text: template.text,
+  await sendBrandedEmail({
+    emailType: "quote",
+    to: recipients,
+    replyTo: getFallbackReplyTo(),
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+    idempotencyKey: `quote:${quoteId}:response:${response}:${getRecipientSetKey(recipients)}`,
+    workspaceId,
+    businessId,
+    metadata: {
+      quoteId,
+      quoteNumber,
+      response,
+      workspaceId,
+      businessId,
+      updatedAt: updatedAt.toISOString(),
     },
-    {
-      idempotencyKey: `quote-response-owner-notify/${quoteId}/${updatedAt.getTime()}/${response}`,
+    tags: {
+      type: "quote",
+      event: "quote_response_owner_notification",
     },
-  );
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  });
 }

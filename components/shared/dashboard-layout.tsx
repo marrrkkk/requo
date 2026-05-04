@@ -17,7 +17,26 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { cn } from "@/lib/utils";
+
+function getPlainTextNode(value: ReactNode) {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    const textParts = value.map((item) =>
+      typeof item === "string" || typeof item === "number" ? String(item) : null,
+    );
+
+    if (textParts.every((item) => item !== null)) {
+      return textParts.join("");
+    }
+  }
+
+  return null;
+}
 
 type DashboardPageProps = {
   children: ReactNode;
@@ -84,18 +103,29 @@ export function DashboardDetailHeader({
   actions,
   className,
 }: DashboardDetailHeaderProps) {
+  const plainTitle = getPlainTextNode(title);
+  const plainDescription = description ? getPlainTextNode(description) : null;
+
   return (
     <div className={cn("dashboard-detail-header", className)}>
       <div className="dashboard-detail-header-copy">
         <div className="flex flex-col gap-3">
           {eyebrow ? <span className="meta-label">{eyebrow}</span> : null}
           <div className="flex flex-col gap-3">
-            <h1 className="font-heading text-[2rem] font-semibold leading-tight tracking-tight text-balance sm:text-[2.3rem]">
-              {title}
+            <h1 className="font-heading text-[1.65rem] font-semibold leading-tight tracking-tight text-balance sm:text-[2rem] lg:text-[2.3rem]">
+              {plainTitle ? (
+                <TruncatedTextWithTooltip text={plainTitle} lines={2} />
+              ) : (
+                title
+              )}
             </h1>
             {description ? (
-              <p className="max-w-2xl text-sm leading-7 text-muted-foreground sm:text-[0.96rem]">
-                {description}
+              <p className="max-w-2xl text-sm leading-normal sm:leading-7 text-muted-foreground sm:text-[0.96rem]">
+                {plainDescription ? (
+                  <TruncatedTextWithTooltip text={plainDescription} lines={2} />
+                ) : (
+                  description
+                )}
               </p>
             ) : null}
           </div>
@@ -146,7 +176,17 @@ export function DashboardMetaPill({
   children,
   className,
 }: DashboardMetaPillProps) {
-  return <span className={cn("dashboard-meta-pill", className)}>{children}</span>;
+  const plainChildren = getPlainTextNode(children);
+
+  return (
+    <span className={cn("dashboard-meta-pill min-w-0", className)}>
+      {plainChildren ? (
+        <TruncatedTextWithTooltip text={plainChildren} />
+      ) : (
+        children
+      )}
+    </span>
+  );
 }
 
 type DashboardSectionProps = {
@@ -276,6 +316,7 @@ export function DashboardDetailFeedItem({
   bodyClassName,
 }: DashboardDetailFeedItemProps) {
   const hasHeading = Boolean(avatar || title || meta || action);
+  const plainTitle = title ? getPlainTextNode(title) : null;
 
   return (
     <div className={cn("dashboard-detail-feed-item", className)}>
@@ -285,7 +326,11 @@ export function DashboardDetailFeedItem({
           <div className="min-w-0 flex-1">
             {title ? (
               <div className={cn("text-sm font-semibold text-foreground", titleClassName)}>
-                {title}
+                {plainTitle ? (
+                  <TruncatedTextWithTooltip text={plainTitle} />
+                ) : (
+                  title
+                )}
               </div>
             ) : null}
             {meta ? (

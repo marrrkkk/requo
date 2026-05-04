@@ -2,6 +2,7 @@ import "server-only";
 
 import webPush from "web-push";
 
+import { getEmailSender, parseEmailAddress } from "@/lib/email/senders";
 import { env, isPushConfigured } from "@/lib/env";
 
 /**
@@ -14,8 +15,12 @@ export function getVapidDetails() {
     return null;
   }
 
+  const senderEmail =
+    parseEmailAddress(getEmailSender("system"))?.email ??
+    `notifications@${env.EMAIL_DOMAIN}`;
+
   return {
-    subject: `mailto:${env.RESEND_FROM_EMAIL ?? "noreply@requo.io"}`,
+    subject: `mailto:${senderEmail}`,
     publicKey: env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
     privateKey: env.VAPID_PRIVATE_KEY!,
   };

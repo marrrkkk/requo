@@ -13,7 +13,7 @@ import {
 export const metadata: Metadata = createPageMetadata({
   description: siteDescription,
   pathname: "/",
-  title: "Service business software for inquiries, quotes, and follow-up",
+  title: "Quote software for service businesses",
 });
 
 export default function MarketingPage() {

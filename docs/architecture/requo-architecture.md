@@ -161,7 +161,7 @@ Feature responsibilities:
 ## Provider Boundaries
 
 - Supabase: storage, uploads or downloads, and realtime-backed notification plumbing.
-- Resend: transactional email only.
+- Email: transactional delivery is centralized in `lib/email`, with Resend first and Mailtrap/Brevo fallback for retryable provider failures.
 - AI providers: Groq, Gemini, and OpenRouter are routed server-side through `lib/ai`.
 - Better Auth: sessions, password flows, and user lifecycle hooks.
 - PayMongo: QRPh payment intents for Philippines/PHP checkout.

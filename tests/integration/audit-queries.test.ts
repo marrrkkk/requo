@@ -8,6 +8,7 @@ vi.mock("@/lib/db/client", async () => {
 });
 
 import {
+  getWorkspaceAuditLogExportRowsBySlug,
   getWorkspaceAuditLogFiltersBySlug,
   getWorkspaceAuditLogPageBySlug,
 } from "@/features/audit/queries";
@@ -301,5 +302,61 @@ describe("features/audit/queries", () => {
     expect(memberPage).toBeNull();
     expect(memberFilters).toBeNull();
     expect(outsiderPage).toBeNull();
+  });
+
+  it("returns owner-only audit export rows for all matching logs", async () => {
+    const rows = await getWorkspaceAuditLogExportRowsBySlug(
+      ownerId,
+      workspaceSlug,
+      {
+        actor: null,
+        business: null,
+        action: null,
+        entity: null,
+        from: null,
+        to: null,
+        page: 1,
+      },
+    );
+    const quoteRows = await getWorkspaceAuditLogExportRowsBySlug(
+      ownerId,
+      workspaceSlug,
+      {
+        actor: null,
+        business: null,
+        action: null,
+        entity: "quote",
+        from: null,
+        to: null,
+        page: 1,
+      },
+    );
+    const memberRows = await getWorkspaceAuditLogExportRowsBySlug(
+      memberId,
+      workspaceSlug,
+      {
+        actor: null,
+        business: null,
+        action: null,
+        entity: null,
+        from: null,
+        to: null,
+        page: 1,
+      },
+    );
+
+    expect(rows).not.toBeNull();
+    expect(rows).toHaveLength(4);
+    expect(rows?.map((row) => row.createdAt.getTime())).toEqual(
+      [...(rows ?? [])]
+        .map((row) => row.createdAt.getTime())
+        .sort((left, right) => right - left),
+    );
+    expect(quoteRows).toHaveLength(1);
+    expect(quoteRows?.[0]).toMatchObject({
+      action: "quote.sent",
+      entityType: "quote",
+    });
+    expect(memberRows).toBeNull();
   });
 });

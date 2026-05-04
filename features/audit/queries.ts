@@ -243,3 +243,66 @@ export async function getWorkspaceAuditLogFiltersBySlug(
     entities: auditEntityOptions,
   };
 }
+
+export async function getWorkspaceAuditLogExportRowsBySlug(
+  userId: string,
+  workspaceSlug: string,
+  filters: AuditLogFilters,
+): Promise<WorkspaceAuditLogItem[] | null> {
+  const [workspace] = await db
+    .select({
+      id: workspaces.id,
+      memberRole: workspaceMembers.role,
+    })
+    .from(workspaceMembers)
+    .innerJoin(workspaces, eq(workspaceMembers.workspaceId, workspaces.id))
+    .where(
+      and(
+        eq(workspaceMembers.userId, userId),
+        eq(workspaces.slug, workspaceSlug),
+        isNull(workspaces.deletedAt),
+      ),
+    )
+    .limit(1);
+
+  if (!workspace || workspace.memberRole !== "owner") {
+    return null;
+  }
+
+  const fromDate = filters.from ? getDayStart(filters.from) : null;
+  const toDate = filters.to ? getDayEnd(filters.to) : null;
+  const where = and(
+    eq(auditLogs.workspaceId, workspace.id),
+    filters.actor ? eq(auditLogs.actorUserId, filters.actor) : undefined,
+    filters.business ? eq(auditLogs.businessId, filters.business) : undefined,
+    filters.action ? eq(auditLogs.action, filters.action) : undefined,
+    filters.entity ? eq(auditLogs.entityType, filters.entity) : undefined,
+    fromDate ? gte(auditLogs.createdAt, fromDate) : undefined,
+    toDate ? lte(auditLogs.createdAt, toDate) : undefined,
+  );
+
+  const rows = await db
+    .select({
+      id: auditLogs.id,
+      workspaceId: auditLogs.workspaceId,
+      businessId: auditLogs.businessId,
+      businessName: businesses.name,
+      businessSlug: businesses.slug,
+      actorUserId: auditLogs.actorUserId,
+      actorName: sql<string | null>`coalesce(${user.name}, ${auditLogs.metadata}->>'actorName')`,
+      actorEmail: sql<string | null>`coalesce(${user.email}, ${auditLogs.metadata}->>'actorEmail')`,
+      entityType: auditLogs.entityType,
+      entityId: auditLogs.entityId,
+      action: auditLogs.action,
+      metadata: auditLogs.metadata,
+      source: auditLogs.source,
+      createdAt: auditLogs.createdAt,
+    })
+    .from(auditLogs)
+    .leftJoin(user, eq(auditLogs.actorUserId, user.id))
+    .leftJoin(businesses, eq(auditLogs.businessId, businesses.id))
+    .where(where)
+    .orderBy(desc(auditLogs.createdAt));
+
+  return rows as WorkspaceAuditLogItem[];
+}

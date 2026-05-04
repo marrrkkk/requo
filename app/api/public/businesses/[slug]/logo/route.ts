@@ -41,7 +41,7 @@ export async function GET(
 
   return new Response(data, {
     headers: {
-      "cache-control": "public, max-age=300, stale-while-revalidate=60",
+      "cache-control": "public, max-age=86400, stale-while-revalidate=3600",
       "content-disposition": buildContentDisposition(
         asset.logoStoragePath.split("/").pop() ?? "business-logo",
         "inline",

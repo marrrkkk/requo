@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidateTag, updateTag } from "next/cache";
+import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
@@ -16,6 +16,7 @@ import {
   getWorkspaceBusinessActionContext,
 } from "@/lib/db/business-access";
 import { env } from "@/lib/env";
+import { hasFeatureAccess } from "@/lib/plans";
 import { getWorkspacePlanByBusinessId } from "@/lib/plans/queries";
 import { checkUsageAllowance } from "@/lib/plans/usage";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
@@ -53,6 +54,10 @@ import type {
   PublicInquiryFormState,
 } from "@/features/inquiries/types";
 import { getInquiryStatusLabel } from "@/features/inquiries/utils";
+import {
+  getPublicInquiryAttachmentMaxBytes,
+  resolveInquiryFormConfigForPlan,
+} from "@/features/inquiries/plan-rules";
 
 function getTextValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -63,12 +68,6 @@ function getTextValue(formData: FormData, key: string) {
 function updateCacheTags(tags: string[]) {
   for (const tag of uniqueCacheTags(tags)) {
     updateTag(tag);
-  }
-}
-
-function revalidateCacheTags(tags: string[]) {
-  for (const tag of uniqueCacheTags(tags)) {
-    revalidateTag(tag, "max");
   }
 }
 
@@ -119,9 +118,17 @@ export async function submitPublicInquiryAction(
     };
   }
 
-  const validationResult = validatePublicInquirySubmission(
+  const effectiveFormConfig = resolveInquiryFormConfigForPlan(
     business.inquiryFormConfig,
+    workspacePlan,
+  );
+  const validationResult = validatePublicInquirySubmission(
+    effectiveFormConfig,
     formData,
+    {
+      maxAttachmentSizeBytes:
+        getPublicInquiryAttachmentMaxBytes(workspacePlan),
+    },
   );
 
   if (!validationResult.success) {
@@ -147,8 +154,8 @@ export async function submitPublicInquiryAction(
       submission: validationResult.data,
     });
 
-    revalidateCacheTags([
-      ...getBusinessInquiryListCacheTags(business.id),
+    updateCacheTags([
+      ...getInquiryMutationCacheTags(business.id, createdInquiry.inquiryId),
       ...getBusinessInquiryFormsCacheTags(business.id),
     ]);
 
@@ -184,6 +191,8 @@ export async function submitPublicInquiryAction(
               label: field.label,
               value: field.displayValue,
             })),
+            workspaceId,
+            businessId: business.id,
           });
         } catch (error) {
           console.error(
@@ -194,7 +203,10 @@ export async function submitPublicInquiryAction(
       }
 
       // Push notification
-      if (businessSettings?.notifyPushOnNewInquiry) {
+      if (
+        businessSettings?.notifyPushOnNewInquiry &&
+        hasFeatureAccess(workspacePlan, "pushNotifications")
+      ) {
         try {
           const { sendPushToBusinessSubscribers } = await import("@/lib/push/send");
           await sendPushToBusinessSubscribers(business.id, {
@@ -271,9 +283,18 @@ export async function createManualInquiryAction(
     };
   }
 
-  const validationResult = validateManualQuickInquirySubmission(
+  const effectiveFormConfig = resolveInquiryFormConfigForPlan(
     selectedForm.inquiryFormConfig,
+    businessContext.business.workspacePlan,
+  );
+  const validationResult = validateManualQuickInquirySubmission(
+    effectiveFormConfig,
     formData,
+    {
+      maxAttachmentSizeBytes: getPublicInquiryAttachmentMaxBytes(
+        businessContext.business.workspacePlan,
+      ),
+    },
   );
 
   if (!validationResult.success) {

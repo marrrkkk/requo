@@ -23,11 +23,11 @@ export function getBusinessDashboardPath(slug: string) {
 }
 
 export function getBusinessAnalyticsPath(slug: string) {
-  return `${getBusinessDashboardPath(slug)}/analytics`;
+  return `${getBusinessPath(slug)}/analytics`;
 }
 
 export function getBusinessInquiriesPath(slug: string) {
-  return `${getBusinessDashboardPath(slug)}/inquiries`;
+  return `${getBusinessPath(slug)}/inquiries`;
 }
 
 export function getBusinessNewInquiryPath(
@@ -52,11 +52,11 @@ export function getBusinessInquiryPath(slug: string, inquiryId: string) {
 }
 
 export function getBusinessQuotesPath(slug: string) {
-  return `${getBusinessDashboardPath(slug)}/quotes`;
+  return `${getBusinessPath(slug)}/quotes`;
 }
 
 export function getBusinessFollowUpsPath(slug: string) {
-  return `${getBusinessDashboardPath(slug)}/follow-ups`;
+  return `${getBusinessPath(slug)}/follow-ups`;
 }
 
 export function getBusinessNewQuotePath(
@@ -144,7 +144,7 @@ export function getBusinessSettingsPath(
   slug: string,
   section?: BusinessSettingsSection,
 ) {
-  const basePath = `${getBusinessDashboardPath(slug)}/settings`;
+  const basePath = `${getBusinessPath(slug)}/settings`;
 
   return section ? `${basePath}/${section}` : basePath;
 }
@@ -154,11 +154,11 @@ export function getBusinessMemberInvitePath(token: string) {
 }
 
 export function getBusinessFormsPath(slug: string) {
-  return `${getBusinessDashboardPath(slug)}/forms`;
+  return `${getBusinessPath(slug)}/forms`;
 }
 
 export function getBusinessMembersPath(slug: string) {
-  return `${getBusinessDashboardPath(slug)}/members`;
+  return `${getBusinessPath(slug)}/members`;
 }
 
 export function getBusinessFormPath(slug: string, formSlug: string) {
@@ -191,7 +191,7 @@ export function getBusinessInquiryFormPreviewPath(
 }
 
 export function getBusinessKnowledgeCompatibilityPath(slug: string) {
-  return `${getBusinessDashboardPath(slug)}/knowledge`;
+  return `${getBusinessPath(slug)}/knowledge`;
 }
 
 export function getBusinessDashboardSlugFromPathname(pathname: string) {

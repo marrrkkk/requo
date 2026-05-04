@@ -18,6 +18,18 @@ describe("features/inquiries/page-config", () => {
       expect(result.showShowcaseImage).toBe(false);
       expect(result.showBusinessContact).toBe(true);
     });
+
+    it("defaults free plans to the no supporting cards layout", () => {
+      const result = createInquiryPageConfigDefaults({
+        businessName: "Northline",
+        plan: "free",
+        template: "showcase",
+      });
+
+      expect(result.template).toBe("no_supporting_cards");
+      expect(result.showSupportingCards).toBe(false);
+      expect(result.showShowcaseImage).toBe(false);
+    });
   });
 
   describe("createInquiryPageBusinessContact", () => {

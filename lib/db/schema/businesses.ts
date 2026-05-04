@@ -42,10 +42,17 @@ export const profiles = pgTable("profiles", {
   fullName: text("full_name").notNull(),
   phone: text("phone"),
   jobTitle: text("job_title"),
+  companySize: text("company_size"),
   referralSource: text("referral_source"),
   avatarStoragePath: text("avatar_storage_path"),
   avatarContentType: text("avatar_content_type"),
   onboardingCompletedAt: timestamp("onboarding_completed_at", {
+    withTimezone: true,
+  }),
+  dashboardTourCompletedAt: timestamp("dashboard_tour_completed_at", {
+    withTimezone: true,
+  }),
+  formEditorTourCompletedAt: timestamp("form_editor_tour_completed_at", {
     withTimezone: true,
   }),
   themePreference: profileThemePreferenceEnum("theme_preference")

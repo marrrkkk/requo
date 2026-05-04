@@ -30,7 +30,7 @@ test("owner can save a pricing block and insert it into a new quote", async ({
 
   const entryName = `Rush install ${Date.now()}`;
   const lineItemDescription = "Rush installation fee";
-  const businessBasePath = `/businesses/${demoBusinessSlug}/dashboard`;
+  const businessBasePath = `/businesses/${demoBusinessSlug}`;
 
   await signIn(page);
 
@@ -79,7 +79,7 @@ test("owner can save a pricing block and insert it into a new quote", async ({
 
   await expect(
     page,
-  ).toHaveURL(new RegExp(`/businesses/${demoBusinessSlug}/dashboard/quotes/.+$`), {
+  ).toHaveURL(new RegExp(`/businesses/${demoBusinessSlug}/quotes/.+$`), {
     timeout: 20_000,
   });
   await expect(

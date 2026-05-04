@@ -1,5 +1,17 @@
 import { BellRing } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+
 import {
   DashboardDetailFeed,
   DashboardDetailFeedItem,
@@ -107,7 +119,7 @@ export function FollowUpPanel({
         <div className="flex flex-col gap-3">
           <p className="meta-label">Follow-up history</p>
           <DashboardDetailFeed>
-            {history.slice(0, 5).map((followUp) => (
+            {history.slice(0, 1).map((followUp) => (
               <DashboardDetailFeedItem
                 key={followUp.id}
                 action={<FollowUpStatusBadge status={followUp.status} />}
@@ -124,6 +136,46 @@ export function FollowUpPanel({
               </DashboardDetailFeedItem>
             ))}
           </DashboardDetailFeed>
+
+          {history.length > 1 && (
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button className="w-full" type="button" variant="outline">
+                  View all follow-ups
+                </Button>
+              </SheetTrigger>
+              <SheetContent className="w-full sm:max-w-md">
+                <SheetHeader>
+                  <SheetTitle>Follow-up history</SheetTitle>
+                  <SheetDescription>
+                    All past follow-ups for this record.
+                  </SheetDescription>
+                </SheetHeader>
+                <SheetBody className="min-h-0 flex-1 gap-5">
+                  <ScrollArea className="h-[calc(100vh-10rem)] pr-4">
+                    <DashboardDetailFeed>
+                      {history.map((followUp) => (
+                        <DashboardDetailFeedItem
+                          key={followUp.id}
+                          action={<FollowUpStatusBadge status={followUp.status} />}
+                          meta={
+                            <>
+                              <span>Due {formatFollowUpDate(followUp.dueAt)}</span>
+                              <span aria-hidden="true">|</span>
+                              <span>{followUp.related.label}</span>
+                            </>
+                          }
+                          title={followUp.title}
+                        >
+                          <p>{followUp.reason}</p>
+                        </DashboardDetailFeedItem>
+                      ))}
+                    </DashboardDetailFeed>
+                  </ScrollArea>
+                </SheetBody>
+              </SheetContent>
+            </Sheet>
+          )}
         </div>
       ) : null}
     </DashboardSection>

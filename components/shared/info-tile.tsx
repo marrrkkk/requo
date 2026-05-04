@@ -1,7 +1,26 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { cn } from "@/lib/utils";
+
+function getPlainTextNode(value: ReactNode) {
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    const textParts = value.map((item) =>
+      typeof item === "string" || typeof item === "number" ? String(item) : null,
+    );
+
+    if (textParts.every((item) => item !== null)) {
+      return textParts.join("");
+    }
+  }
+
+  return null;
+}
 
 type InfoTileProps = {
   label: ReactNode;
@@ -20,6 +39,9 @@ export function InfoTile({
   className,
   valueClassName,
 }: InfoTileProps) {
+  const plainLabel = getPlainTextNode(label);
+  const plainValue = getPlainTextNode(value);
+
   return (
     <div className={cn("info-tile", className)}>
       <div className="flex items-start gap-3.5">
@@ -29,14 +51,24 @@ export function InfoTile({
           </div>
         ) : null}
         <div className="min-w-0 flex-1">
-          <p className="meta-label">{label}</p>
+          <div className="meta-label">
+            {plainLabel ? (
+              <TruncatedTextWithTooltip text={plainLabel} />
+            ) : (
+              label
+            )}
+          </div>
           <div
             className={cn(
               "mt-2 text-base font-semibold leading-snug tracking-tight text-foreground",
               valueClassName,
             )}
           >
-            {value}
+            {plainValue ? (
+              <TruncatedTextWithTooltip text={plainValue} />
+            ) : (
+              value
+            )}
           </div>
           {description ? (
             <div className="mt-1.5 text-sm leading-6 text-muted-foreground">

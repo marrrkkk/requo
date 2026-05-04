@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { Fragment, useTransition } from "react";
 import { MonitorCog, MoonStar, Sun } from "lucide-react";
 
 import { useTheme } from "@/components/theme-provider";
@@ -25,6 +25,7 @@ import {
   themeUserStorageKey,
   type ThemePreference,
 } from "@/features/theme/types";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 const themePreferenceIcons = {
@@ -80,6 +81,20 @@ export function AppearanceMenuSubmenu({
 }: {
   userId: string;
 }) {
+  const isMobile = useIsMobile();
+
+  if (isMobile) {
+    return (
+      <Fragment>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="px-2 py-2.5">
+          Appearance
+        </DropdownMenuLabel>
+        <AppearanceMenuRadioGroup userId={userId} />
+      </Fragment>
+    );
+  }
+
   return (
     <DropdownMenuSub>
       <DropdownMenuSubTrigger>

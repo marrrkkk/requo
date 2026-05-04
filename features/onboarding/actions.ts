@@ -46,6 +46,9 @@ export async function completeOnboardingAction(
     countryCode: formData.get("countryCode"),
     defaultCurrency: formData.get("defaultCurrency"),
     starterTemplateBusinessType: formData.get("starterTemplateBusinessType"),
+    jobTitle: formData.get("jobTitle"),
+    companySize: formData.get("companySize"),
+    referralSource: formData.get("referralSource"),
   });
 
   if (!validationResult.success) {
@@ -64,6 +67,9 @@ export async function completeOnboardingAction(
   try {
     const business = await completeOnboardingForUser({
       user,
+      jobTitle: validationResult.data.jobTitle,
+      companySize: validationResult.data.companySize,
+      referralSource: validationResult.data.referralSource,
       workspaceName: validationResult.data.workspaceName,
       businessName: validationResult.data.businessName,
       businessType: validationResult.data.businessType,
@@ -91,4 +97,3 @@ export async function completeOnboardingAction(
     error: "We couldn't finish setting up your workspace right now.",
   };
 }
-

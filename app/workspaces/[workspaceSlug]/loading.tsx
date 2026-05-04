@@ -51,19 +51,19 @@ export default function WorkspaceLoading() {
                 <div className="space-y-4">
                   <div className="grid gap-4 lg:grid-cols-2">
                     {Array.from({ length: 2 }).map((_, index) => (
-                      <Card className="border-border/80 bg-card/98" key={index}>
+                      <Card className="flex flex-col border-border/80 bg-card/50" key={index}>
                         <CardHeader className="gap-3">
-                          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
+                          <div className="flex items-start justify-between gap-4">
                             <div className="flex min-w-0 items-start gap-3">
-                              <Skeleton className="size-12 shrink-0 rounded-xl" />
-                              <div className="mt-1 min-w-0 flex-1 space-y-2">
+                              <Skeleton className="size-10 shrink-0 rounded-xl" />
+                              <div className="min-w-0 flex-1 space-y-2 mt-0.5">
                                 <Skeleton className="h-5 w-32 rounded-md" />
                                 <Skeleton className="h-4 w-20 rounded-md" />
                               </div>
                             </div>
                           </div>
                         </CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardContent className="flex flex-1 flex-col justify-between space-y-4">
                           <div className="flex flex-wrap gap-2">
                             <Skeleton className="h-6 w-12 rounded-full" />
                             <Skeleton className="h-6 w-24 sm:w-32 rounded-full" />

@@ -2,10 +2,7 @@
 import { useEffect, useRef } from "react";
 import { CheckCircle2, CircleSlash } from "lucide-react";
 
-import {
-  FormNote,
-  FormSection,
-} from "@/components/shared/form-layout";
+
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { getFieldError } from "@/lib/action-state";
 import { Button } from "@/components/ui/button";
@@ -61,32 +58,19 @@ export function PublicQuoteResponseForm({
 
   return (
     <form action={formAction} className="form-stack">
-      <FormNote>
-        <p className="text-sm font-medium text-foreground">
-          Respond to this quote
-        </p>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Accept the quote if everything looks right, or decline it and leave a
-          short note so the business owner knows what to adjust.
-        </p>
-      </FormNote>
-
-      <FormSection
-        description="Optional, but helpful if you want anything clarified or adjusted."
-        title="Message"
-      >
+      <div className="flex flex-col gap-4">
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor="public-quote-message">
-              Message for the business
+              Message for the business (optional)
             </FieldLabel>
             <FieldContent>
               <Textarea
                 id="public-quote-message"
                 maxLength={1200}
                 name="message"
-                rows={4}
-                placeholder="Optional note about your decision or any next steps."
+                rows={3}
+                placeholder="Add a note about your decision or any next steps..."
                 aria-invalid={Boolean(messageError) || undefined}
                 disabled={isPending}
               />
@@ -96,7 +80,7 @@ export function PublicQuoteResponseForm({
             </FieldContent>
           </Field>
         </FieldGroup>
-      </FormSection>
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Button

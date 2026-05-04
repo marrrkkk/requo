@@ -38,6 +38,7 @@ type InquiryFormOption = {
 
 type InquiryListControlsSectionProps = {
   businessSlug: string;
+  canExport: boolean;
   filters: InquiryListFilters;
   searchParams: SearchParamsRecord;
   totalItemsPromise: Promise<number>;
@@ -46,6 +47,7 @@ type InquiryListControlsSectionProps = {
 
 export async function InquiryListControlsSection({
   businessSlug,
+  canExport,
   filters,
   searchParams,
   totalItemsPromise,
@@ -84,6 +86,7 @@ export async function InquiryListControlsSection({
         <div className="dashboard-actions w-full [&>*]:w-full sm:[&>*]:w-auto xl:w-auto xl:justify-end">
           <InquiryExportCsvDropdown
             businessSlug={businessSlug}
+            canExport={canExport}
             filters={filters}
             formOptions={formOptions}
             resultCount={totalItems}

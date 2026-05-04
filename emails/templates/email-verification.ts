@@ -1,3 +1,5 @@
+import { emailBrand, escapeHtml, renderEmailLayout } from "./shared";
+
 type EmailVerificationTemplateInput = {
   name: string;
   verificationUrl: string;
@@ -17,19 +19,21 @@ ${verificationUrl}
 
 If you did not create this account, you can ignore this email.`;
 
-  const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #172033;">
-      <h1 style="font-size: 24px; margin-bottom: 16px;">Verify your Requo email</h1>
-      <p>Hi ${name},</p>
-      <p>Verify your email to finish setting up your Requo account.</p>
-      <p>
-        <a href="${verificationUrl}" style="display: inline-block; padding: 12px 18px; border-radius: 12px; background: #2d4ea0; color: #ffffff; text-decoration: none; font-weight: 600;">
-          Verify email
-        </a>
-      </p>
-      <p>If you did not create this account, you can ignore this email.</p>
-    </div>
-  `;
+  const html = renderEmailLayout({
+    label: "Account",
+    title: "Verify your Requo email",
+    preheader: "Confirm your email address to finish setting up Requo.",
+    footerContext: emailBrand.appName,
+    cta: {
+      href: verificationUrl,
+      label: "Verify email",
+    },
+    children: `
+      <p style="margin: 0 0 14px; color: ${emailBrand.foregroundColor}; font-size: 15px; line-height: 24px;">Hi ${escapeHtml(name)},</p>
+      <p style="margin: 0; color: ${emailBrand.foregroundColor}; font-size: 15px; line-height: 24px;">Verify your email to finish setting up your Requo account.</p>
+      <p style="margin: 18px 0 0; color: ${emailBrand.mutedTextColor}; font-size: 13px; line-height: 20px;">If you did not create this account, you can ignore this email.</p>
+    `,
+  });
 
   return {
     html,

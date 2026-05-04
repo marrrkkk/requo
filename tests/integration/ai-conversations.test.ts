@@ -257,6 +257,13 @@ describe("features/ai/conversations", () => {
       conversationId: firstConversation.id,
       content: "Summarize open inquiries.",
     });
+    await sleep(5);
+    await createAiMessageForConversation({
+      conversationId: firstConversation.id,
+      role: "assistant",
+      content: "Two inquiries need follow-up today.",
+      status: "completed",
+    });
 
     const latestByActivity = await getOrCreateLatestDashboardConversation({
       userId,
@@ -274,6 +281,10 @@ describe("features/ai/conversations", () => {
     expect(dashboardHistory.map((conversation) => conversation.id)).toEqual(
       expect.arrayContaining([firstConversation.id, secondConversation.id]),
     );
+    expect(
+      dashboardHistory.find((conversation) => conversation.id === firstConversation.id)
+        ?.lastMessagePreview,
+    ).toBe("Two inquiries need follow-up today.");
     expect(dashboardHistory.map((conversation) => conversation.id)).not.toContain(
       otherBusinessConversation.id,
     );

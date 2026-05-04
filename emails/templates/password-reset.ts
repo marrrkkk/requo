@@ -1,3 +1,5 @@
+import { emailBrand, escapeHtml, renderEmailLayout } from "./shared";
+
 type PasswordResetTemplateInput = {
   name: string;
   resetUrl: string;
@@ -17,19 +19,21 @@ ${resetUrl}
 
 If you did not request this, you can ignore this email.`;
 
-  const html = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #172033;">
-      <h1 style="font-size: 24px; margin-bottom: 16px;">Reset your Requo password</h1>
-      <p>Hi ${name},</p>
-      <p>We received a request to reset your Requo password.</p>
-      <p>
-        <a href="${resetUrl}" style="display: inline-block; padding: 12px 18px; border-radius: 12px; background: #2d4ea0; color: #ffffff; text-decoration: none; font-weight: 600;">
-          Reset password
-        </a>
-      </p>
-      <p>If you did not request this, you can ignore this email.</p>
-    </div>
-  `;
+  const html = renderEmailLayout({
+    label: "Account",
+    title: "Reset your Requo password",
+    preheader: "Use this secure link to reset your Requo password.",
+    footerContext: emailBrand.appName,
+    cta: {
+      href: resetUrl,
+      label: "Reset password",
+    },
+    children: `
+      <p style="margin: 0 0 14px; color: ${emailBrand.foregroundColor}; font-size: 15px; line-height: 24px;">Hi ${escapeHtml(name)},</p>
+      <p style="margin: 0; color: ${emailBrand.foregroundColor}; font-size: 15px; line-height: 24px;">We received a request to reset your Requo password. This link is private and should only be used by you.</p>
+      <p style="margin: 18px 0 0; color: ${emailBrand.mutedTextColor}; font-size: 13px; line-height: 20px;">If you did not request this, you can ignore this email.</p>
+    `,
+  });
 
   return {
     subject,

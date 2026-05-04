@@ -17,6 +17,9 @@ function createDraft(
     starterTemplateBusinessType: "creative_marketing_services",
     countryCode: "US",
     defaultCurrency: "USD",
+    jobTitle: "Owner",
+    companySize: "2-5 people",
+    referralSource: "Google Search",
     ...overrides,
   };
 }

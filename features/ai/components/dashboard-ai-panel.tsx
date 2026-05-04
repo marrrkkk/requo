@@ -1,35 +1,75 @@
 "use client";
 
+import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 
 import { AIChatPopover } from "@/features/ai/components/ai-chat-popover";
+import type { AiSurface } from "@/features/ai/types";
+
+import type { WorkspacePlan } from "@/lib/plans";
 
 type DashboardAiPanelProps = {
   businessId: string;
   businessSlug: string;
   userName: string;
+  workspacePlan: WorkspacePlan;
 };
 
+/**
+ * Matches entity detail routes like:
+ * /dashboard/inquiries/inq_abc123
+ * /dashboard/quotes/quo_abc123
+ * Does NOT match /dashboard/inquiries/new or list pages.
+ */
 const entityDetailPattern =
-  /\/dashboard\/(?:inquiries|quotes)\/(?!new(?:\/|$))[^/]+\/?$/;
+  /\/dashboard\/(inquiries|quotes)\/(?!new(?:\/|$))([^/]+)\/?$/;
+
+type AiContext = {
+  surface: AiSurface;
+  entityId: string;
+};
+
+function resolveAiContext(pathname: string): AiContext {
+  const match = entityDetailPattern.exec(pathname);
+
+  if (!match) {
+    return {
+      surface: "dashboard",
+      entityId: "global",
+    };
+  }
+
+  const [, entityType, entityId] = match;
+
+  if (entityType === "inquiries") {
+    return {
+      surface: "inquiry",
+      entityId: entityId!,
+    };
+  }
+
+  return {
+    surface: "quote",
+    entityId: entityId!,
+  };
+}
 
 export function DashboardAiPanel({
   businessSlug,
   userName,
+  workspacePlan,
 }: DashboardAiPanelProps) {
   const pathname = usePathname();
-
-  if (entityDetailPattern.test(pathname)) {
-    return null;
-  }
+  const context = useMemo(() => resolveAiContext(pathname), [pathname]);
 
   return (
     <AIChatPopover
       businessSlug={businessSlug}
-      entityId="global"
-      surface="dashboard"
-      title="Dashboard Assistant"
+      entityId={context.entityId}
+      surface={context.surface}
+      title="Requo AI"
       userName={userName}
+      workspacePlan={workspacePlan}
     />
   );
 }

@@ -1,6 +1,10 @@
 import type { BusinessType } from "@/features/inquiries/business-types";
 import type { InquiryFormConfig } from "@/features/inquiries/form-config";
 import type { InquiryPageConfig } from "@/features/inquiries/page-config";
+import {
+  resolveInquiryFormConfigForPlan,
+  resolveInquiryPageConfigForPlan,
+} from "@/features/inquiries/plan-rules";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
 import type { WorkspacePlan } from "@/lib/plans/plans";
 
@@ -52,7 +56,13 @@ export function createPublicInquiryPreviewBusiness({
       isDefault: form.isDefault ?? true,
       publicInquiryEnabled: form.publicInquiryEnabled ?? true,
     },
-    inquiryFormConfig,
-    inquiryPageConfig,
+    inquiryFormConfig: resolveInquiryFormConfigForPlan(
+      inquiryFormConfig,
+      plan,
+    ),
+    inquiryPageConfig: resolveInquiryPageConfigForPlan(
+      inquiryPageConfig,
+      plan,
+    ),
   };
 }

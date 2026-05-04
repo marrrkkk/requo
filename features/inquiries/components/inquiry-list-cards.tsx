@@ -6,11 +6,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  formatFollowUpDate,
-  getFollowUpDueBucket,
-} from "@/features/follow-ups/utils";
 import type { DashboardInquiryListItem } from "@/features/inquiries/types";
 import {
   formatInquiryDate,
@@ -48,12 +43,11 @@ export function InquiryListCards({
                     {inquiry.customerEmail ?? ""}
                   </CardDescription>
                 </div>
-                <div className="shrink-0 space-y-2">
+                <div className="flex shrink-0 flex-col gap-2">
                   <InquiryStatusBadge status={inquiry.status} />
                   {inquiry.recordState !== "active" ? (
                     <InquiryRecordStateBadge state={inquiry.recordState} />
                   ) : null}
-                  <InquiryFollowUpBadge inquiry={inquiry} />
                 </div>
               </div>
             </CardHeader>
@@ -88,31 +82,4 @@ export function InquiryListCards({
       ))}
     </div>
   );
-}
-
-function InquiryFollowUpBadge({
-  inquiry,
-}: {
-  inquiry: DashboardInquiryListItem;
-}) {
-  if (inquiry.pendingFollowUpCount > 0 && inquiry.nextFollowUpDueAt) {
-    const dueBucket = getFollowUpDueBucket({
-      status: "pending",
-      dueAt: inquiry.nextFollowUpDueAt,
-    });
-    const label =
-      dueBucket === "overdue"
-        ? "Follow-up overdue"
-        : dueBucket === "today"
-          ? "Follow-up today"
-          : `Follow-up ${formatFollowUpDate(inquiry.nextFollowUpDueAt)}`;
-
-    return <Badge variant="secondary">{label}</Badge>;
-  }
-
-  if (inquiry.status === "new" || inquiry.status === "waiting") {
-    return <Badge variant="outline">No follow-up</Badge>;
-  }
-
-  return null;
 }

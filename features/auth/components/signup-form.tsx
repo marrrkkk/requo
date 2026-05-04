@@ -38,8 +38,10 @@ export function SignupForm({
 }: SignupFormProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const nextPath = getSafeAuthRedirectPath(searchParams.get("next"), onboardingPath);
-  const loginHref = getAuthPathWithNext("/login", nextPath);
+  const rawNext = searchParams.get("next");
+  const nextPath = getSafeAuthRedirectPath(rawNext, onboardingPath);
+  // Only forward ?next when it's a genuine non-default redirect
+  const loginHref = getAuthPathWithNext("/login", rawNext && nextPath !== onboardingPath ? nextPath : null);
   const [state, setState] = useState<AuthFormState>({});
   const [isPending, startTransition] = useTransition();
 
@@ -89,7 +91,8 @@ export function SignupForm({
     startTransition(async () => {
       const result = await authClient.signIn.social({
         provider,
-        callbackURL: nextPath,
+        // Existing users land on workspaces; brand-new users land on onboarding (nextPath default)
+        callbackURL: "/workspaces",
         newUserCallbackURL: nextPath,
       });
 

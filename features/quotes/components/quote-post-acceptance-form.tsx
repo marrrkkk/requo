@@ -30,7 +30,7 @@ type QuotePostAcceptanceFormProps = {
 
 const initialState: QuotePostAcceptanceActionState = {};
 const quotePostAcceptanceOptions = (
-  ["none", "booked", "scheduled"] as const
+  ["none", "booked", "scheduled", "in_progress"] as const
 ).map((value) => ({
   label: getQuotePostAcceptanceStatusLabel(value),
   value,

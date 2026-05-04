@@ -1,72 +1,36 @@
-"use client";
+"use client"
 
-import { Toaster as Sonner, type ToasterProps } from "sonner";
+import { useTheme } from "@/components/theme-provider"
+import { Toaster as Sonner } from "sonner"
 
-import { useTheme } from "@/components/theme-provider";
-import { cn } from "@/lib/utils";
+type ToasterProps = React.ComponentProps<typeof Sonner>
 
-export function Toaster({ className, toastOptions, ...props }: ToasterProps) {
-  const { resolvedTheme } = useTheme();
+const Toaster = ({ ...props }: ToasterProps) => {
+  const { resolvedTheme } = useTheme()
 
   return (
     <Sonner
-      className={cn("toaster toast-layer group", className)}
-      closeButton
-      expand={false}
-      position="top-right"
-      theme={resolvedTheme}
+      theme={resolvedTheme as ToasterProps["theme"]}
+      className="toaster group"
       toastOptions={{
-        ...toastOptions,
         classNames: {
-          toast: cn(
-            "group toast relative flex w-full items-start gap-4 overflow-hidden surface-card p-5 sm:p-5.5",
-            "before:pointer-events-none before:absolute before:inset-y-4 before:left-0 before:w-[3px] before:rounded-full before:bg-border/65 before:content-['']",
-            "data-[type=success]:border-primary/18 data-[type=success]:before:bg-primary/82",
-            "data-[type=error]:border-destructive/22 data-[type=error]:before:bg-destructive/85",
-            "data-[type=loading]:before:bg-primary/58",
-            toastOptions?.classNames?.toast,
-          ),
-          content: cn(
-            "flex min-w-0 flex-1 flex-col gap-1 pt-0.5",
-            toastOptions?.classNames?.content,
-          ),
-          title: cn(
-            "font-heading text-[0.94rem] font-semibold tracking-tight text-foreground",
-            toastOptions?.classNames?.title,
-          ),
-          description: cn(
-            "text-sm leading-5 text-balance text-muted-foreground",
-            toastOptions?.classNames?.description,
-          ),
-          icon: cn(
-            "mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/75 bg-secondary/72 text-muted-foreground shadow-[var(--control-shadow)] [&_svg]:size-[1.05rem]",
-            "group-data-[type=success]:border-primary/18 group-data-[type=success]:bg-primary/10 group-data-[type=success]:text-primary",
-            "group-data-[type=error]:border-destructive/18 group-data-[type=error]:bg-destructive/10 group-data-[type=error]:text-destructive",
-            "group-data-[type=loading]:border-primary/14 group-data-[type=loading]:bg-primary/8 group-data-[type=loading]:text-primary",
-            toastOptions?.classNames?.icon,
-          ),
-          loader: cn("text-primary", toastOptions?.classNames?.loader),
-          success: cn(toastOptions?.classNames?.success),
-          error: cn(toastOptions?.classNames?.error),
-          default: cn(toastOptions?.classNames?.default),
-          loading: cn(toastOptions?.classNames?.loading),
-          info: cn(toastOptions?.classNames?.info),
-          warning: cn(toastOptions?.classNames?.warning),
-          actionButton: cn(
-            "control-surface rounded-xl px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent hover:text-foreground",
-            toastOptions?.classNames?.actionButton,
-          ),
-          cancelButton: cn(
-            "rounded-xl bg-muted/82 px-3.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-            toastOptions?.classNames?.cancelButton,
-          ),
-          closeButton: cn(
-            "control-surface rounded-full bg-background/86 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-            toastOptions?.classNames?.closeButton,
-          ),
+          toast:
+            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
+          description: "group-[.toast]:text-muted-foreground",
+          actionButton:
+            "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
+          cancelButton:
+            "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
+          error: "group-[.toaster]:!bg-[color-mix(in_oklab,var(--color-destructive)_10%,var(--color-background))] group-[.toaster]:!text-destructive group-[.toaster]:!border-destructive",
+          success: "group-[.toaster]:!bg-[color-mix(in_oklab,var(--color-primary)_10%,var(--color-background))] group-[.toaster]:!text-primary group-[.toaster]:!border-primary",
+          warning: "group-[.toaster]:!bg-[color-mix(in_oklab,var(--color-amber-500)_10%,var(--color-background))] group-[.toaster]:!text-amber-600 dark:group-[.toaster]:!text-amber-500 group-[.toaster]:!border-amber-600 dark:group-[.toaster]:!border-amber-500",
+          info: "group-[.toaster]:!bg-[color-mix(in_oklab,var(--color-sky-500)_10%,var(--color-background))] group-[.toaster]:!text-sky-600 dark:group-[.toaster]:!text-sky-500 group-[.toaster]:!border-sky-600 dark:group-[.toaster]:!border-sky-500",
         },
       }}
       {...props}
     />
-  );
+  )
 }
+
+export { Toaster }
+

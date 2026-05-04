@@ -100,25 +100,30 @@ export async function DashboardOverviewStatsSection({
   const overview = await overviewPromise;
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       <OverviewActionStat
-        label="Overdue"
-        note="Past deadline"
+        label="Overdue inquiries"
+        tooltip="Past deadline"
         value={overview.counts.overdueInquiries}
       />
       <OverviewActionStat
         label="Expiring soon"
-        note="Next 7 days"
+        tooltip="Next 7 days"
         value={overview.counts.expiringSoonQuotes}
       />
       <OverviewActionStat
-        label="New"
-        note="Last 48h"
+        label="New inquiries"
+        tooltip="Last 48h"
         value={overview.counts.newInquiries}
       />
       <OverviewActionStat
-        label="Recent wins"
-        note="Last 14 days"
+        label="Draft quotes"
+        tooltip="Not sent yet"
+        value={overview.counts.draftQuotes}
+      />
+      <OverviewActionStat
+        label="Needs next step"
+        tooltip="Accepted work"
         value={overview.counts.recentAcceptedQuotes}
       />
     </div>
@@ -187,7 +192,7 @@ export async function DashboardNeedsAttentionSection({
     ...overview.recentAcceptedQuotes.map((quote) => ({
       href: getBusinessQuotePath(businessSlug, quote.id),
       key: `accepted-quote:${quote.id}`,
-      label: "Accepted quote",
+      label: "Accepted — next step",
       title: quote.title,
       description: quote.customerName,
       meta: `Accepted ${formatQuoteDate(quote.acceptedAt ?? quote.updatedAt)}`,
@@ -278,7 +283,7 @@ export async function DashboardOverviewQueuesSection({
             </Button>
           }
           count={overview.counts.overdueInquiries}
-          title="Overdue"
+          title="Overdue inquiries"
         >
           {overview.overdueInquiries.length ? (
             <OverviewQueueList
@@ -348,7 +353,7 @@ export async function DashboardOverviewQueuesSection({
             </Button>
           }
           count={overview.counts.newInquiries}
-          title="New"
+          title="New inquiries"
         >
           {overview.newInquiries.length ? (
             <OverviewQueueList
@@ -381,6 +386,43 @@ export async function DashboardOverviewQueuesSection({
           )}
         </OverviewQueueCard>
 
+        <OverviewQueueCard
+          action={
+            <Button asChild size="sm" variant="ghost">
+              <Link
+                href={`${getBusinessQuotesPath(businessSlug)}?status=draft`}
+                prefetch={true}
+              >
+                All drafts
+                <ArrowRight data-icon="inline-end" />
+              </Link>
+            </Button>
+          }
+          count={overview.counts.draftQuotes}
+          title="Draft quotes"
+        >
+          {overview.draftQuotes.length ? (
+            <div className="flex flex-col divide-y divide-border/70">
+              {overview.draftQuotes.map((quote) => (
+                <OverviewQuoteRow
+                  key={quote.id}
+                  meta={`Updated ${formatQuoteDate(quote.updatedAt)}`}
+                  quote={quote}
+                  businessSlug={businessSlug}
+                />
+              ))}
+            </div>
+          ) : (
+            <DashboardEmptyState
+              className="px-5 py-12 sm:px-6"
+              description="Quotes that you haven't sent to the customer yet."
+              icon={FileText}
+              title="No drafts"
+              variant="flat"
+            />
+          )}
+        </OverviewQueueCard>
+
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
@@ -397,7 +439,7 @@ export async function DashboardOverviewQueuesSection({
             </Button>
           }
           count={overview.counts.recentAcceptedQuotes}
-          title="Recently accepted"
+          title="Accepted — next step"
         >
           {overview.recentAcceptedQuotes.length ? (
             <div className="flex flex-col divide-y divide-border/70">
@@ -413,9 +455,9 @@ export async function DashboardOverviewQueuesSection({
           ) : (
             <DashboardEmptyState
               className="px-5 py-12 sm:px-6"
-              description="Accepted work from the last 14 days will show up here."
+              description="Accepted quotes that still need scheduling, deposit, or follow-up show up here."
               icon={CheckCircle2}
-              title="No recent wins"
+              title="All caught up"
               variant="flat"
             />
           )}
@@ -508,12 +550,12 @@ export function DashboardOverviewChecklistFallback() {
 
 export function DashboardOverviewStatsFallback() {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {Array.from({ length: 4 }).map((_, index) => (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      {Array.from({ length: 5 }).map((_, index) => (
         <div className="soft-panel px-4 py-4" key={index}>
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5">
             <Skeleton className="h-3 w-20 rounded-md" />
-            <Skeleton className="h-3 w-16 rounded-md" />
+            <Skeleton className="size-4 rounded-full" />
           </div>
           <Skeleton className="mt-2 h-8 w-12 rounded-md" />
         </div>
@@ -592,17 +634,17 @@ export function DashboardOverviewQueuesFallback() {
 function OverviewActionStat({
   label,
   value,
-  note,
+  tooltip,
 }: {
   label: string;
   value: number;
-  note: string;
+  tooltip: string;
 }) {
   return (
     <div className="soft-panel px-4 py-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-1.5">
         <p className="meta-label">{label}</p>
-        <span className="text-xs font-medium text-muted-foreground">{note}</span>
+        <HelpTooltip content={tooltip} label={label} />
       </div>
       <p
         className={cn(

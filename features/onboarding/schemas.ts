@@ -15,22 +15,62 @@ import {
   type BusinessType,
 } from "@/features/inquiries/business-types";
 
-export const jobTitleOptions = [
-  { value: "Owner", label: "Owner" },
-  { value: "Founder", label: "Founder" },
-  { value: "Co-founder", label: "Co-founder" },
-  { value: "CEO", label: "CEO" },
-  { value: "Director", label: "Director" },
-  { value: "Manager", label: "Manager" },
-  { value: "Operations Manager", label: "Operations Manager" },
-  { value: "Project Manager", label: "Project Manager" },
-  { value: "Account Manager", label: "Account Manager" },
-  { value: "Sales Manager", label: "Sales Manager" },
-  { value: "Admin", label: "Admin" },
-  { value: "Freelancer", label: "Freelancer" },
-  { value: "Consultant", label: "Consultant" },
-  { value: "Other", label: "Other" },
-];
+export const jobTitleValues = [
+  "Owner",
+  "Founder",
+  "Co-founder",
+  "CEO",
+  "Director",
+  "Manager",
+  "Operations Manager",
+  "Project Manager",
+  "Account Manager",
+  "Sales Manager",
+  "Admin",
+  "Freelancer",
+  "Consultant",
+  "Other",
+] as const;
+
+export const jobTitleOptions = jobTitleValues.map((value) => ({
+  value,
+  label: value,
+}));
+
+export const companySizeValues = [
+  "Just me",
+  "2-5 people",
+  "6-10 people",
+  "11-25 people",
+  "26-50 people",
+  "51+ people",
+] as const;
+
+export const companySizeOptions = companySizeValues.map((value) => ({
+  value,
+  label: value,
+}));
+
+export const referralSourceValues = [
+  "Google Search",
+  "Product Hunt",
+  "YouTube",
+  "LinkedIn",
+  "X / Twitter",
+  "Reddit",
+  "Facebook",
+  "Instagram",
+  "TikTok",
+  "Friend or colleague",
+  "Community",
+  "Newsletter or blog",
+  "Other",
+] as const;
+
+export const referralSourceOptions = referralSourceValues.map((value) => ({
+  value,
+  label: value,
+}));
 
 export const onboardingWorkspaceSchema = z.object({
   workspaceName: z
@@ -65,10 +105,23 @@ export const onboardingTemplateSchema = z.object({
   starterTemplateBusinessType: z.enum(starterTemplateBusinessTypes),
 });
 
+export const onboardingOwnerProfileSchema = z.object({
+  jobTitle: z.enum(jobTitleValues, {
+    message: "Choose your role.",
+  }),
+  companySize: z.enum(companySizeValues, {
+    message: "Choose your company size.",
+  }),
+  referralSource: z.enum(referralSourceValues, {
+    message: "Choose where you found Requo.",
+  }),
+});
+
 export const completeOnboardingSchema = z.object({
   ...onboardingWorkspaceSchema.shape,
   ...onboardingBusinessContextSchema.shape,
   ...onboardingTemplateSchema.shape,
+  ...onboardingOwnerProfileSchema.shape,
 });
 
 export type OnboardingBusinessType = BusinessType;

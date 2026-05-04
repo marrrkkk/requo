@@ -5,7 +5,6 @@ import {
   Bell,
   ChevronDown,
   Inbox,
-  Mail,
   MessageSquare,
   Send,
   Smartphone,
@@ -31,16 +30,15 @@ import type {
 
 /* ── Channel definitions ─────────────────────────────────────────────────── */
 
-type Channel = "email" | "inApp" | "push";
+type Channel = "inApp" | "push";
 
 const channelMeta: Record<Channel, { label: string; icon: React.ElementType }> =
   {
     push: { label: "Push", icon: Smartphone },
-    email: { label: "Email", icon: Mail },
     inApp: { label: "In-app", icon: Bell },
   };
 
-const channelOrder: Channel[] = ["push", "email", "inApp"];
+const channelOrder: Channel[] = ["push", "inApp"];
 
 /* ── Notification event config ──────────────────────────────────────────── */
 
@@ -50,7 +48,6 @@ type NotificationEventConfig = {
   description: string;
   icon: React.ElementType;
   channels: {
-    email?: string;
     inApp?: string;
     push?: string;
   };
@@ -71,7 +68,6 @@ const notificationGroups: NotificationGroup[] = [
         description: "A customer submits an inquiry form.",
         icon: Inbox,
         channels: {
-          email: "notifyOnNewInquiry",
           inApp: "notifyInAppOnNewInquiry",
           push: "notifyPushOnNewInquiry",
         },
@@ -82,7 +78,6 @@ const notificationGroups: NotificationGroup[] = [
         description: "An inquiry hasn't had a response in a while.",
         icon: Timer,
         channels: {
-          email: "notifyOnFollowUpReminder",
           inApp: "notifyInAppOnFollowUpReminder",
         },
       },
@@ -97,7 +92,6 @@ const notificationGroups: NotificationGroup[] = [
         description: "A quote is sent to a customer.",
         icon: Send,
         channels: {
-          email: "notifyOnQuoteSent",
           inApp: "notifyInAppOnQuoteSent",
           push: "notifyPushOnQuoteSent",
         },
@@ -108,7 +102,6 @@ const notificationGroups: NotificationGroup[] = [
         description: "A customer accepts or declines a quote.",
         icon: MessageSquare,
         channels: {
-          email: "notifyOnQuoteResponse",
           inApp: "notifyInAppOnQuoteResponse",
           push: "notifyPushOnQuoteResponse",
         },
@@ -119,7 +112,6 @@ const notificationGroups: NotificationGroup[] = [
         description: "A sent quote is about to expire.",
         icon: Timer,
         channels: {
-          email: "notifyOnQuoteExpiring",
           inApp: "notifyInAppOnQuoteExpiring",
         },
       },
@@ -134,7 +126,6 @@ const notificationGroups: NotificationGroup[] = [
         description: "A team member accepts or declines an invite.",
         icon: UserCheck,
         channels: {
-          email: "notifyOnMemberInviteResponse",
           inApp: "notifyInAppOnMemberInviteResponse",
           push: "notifyPushOnMemberInviteResponse",
         },
@@ -146,10 +137,6 @@ const notificationGroups: NotificationGroup[] = [
 /* ── All field keys ──────────────────────────────────────────────────────── */
 
 type NotificationFieldKey =
-  | "notifyOnNewInquiry"
-  | "notifyOnQuoteSent"
-  | "notifyOnQuoteResponse"
-  | "notifyOnMemberInviteResponse"
   | "notifyInAppOnNewInquiry"
   | "notifyInAppOnQuoteSent"
   | "notifyInAppOnQuoteResponse"
@@ -158,16 +145,10 @@ type NotificationFieldKey =
   | "notifyPushOnQuoteSent"
   | "notifyPushOnQuoteResponse"
   | "notifyPushOnMemberInviteResponse"
-  | "notifyOnFollowUpReminder"
   | "notifyInAppOnFollowUpReminder"
-  | "notifyOnQuoteExpiring"
   | "notifyInAppOnQuoteExpiring";
 
 const allFieldKeys: NotificationFieldKey[] = [
-  "notifyOnNewInquiry",
-  "notifyOnQuoteSent",
-  "notifyOnQuoteResponse",
-  "notifyOnMemberInviteResponse",
   "notifyInAppOnNewInquiry",
   "notifyInAppOnQuoteSent",
   "notifyInAppOnQuoteResponse",
@@ -176,9 +157,7 @@ const allFieldKeys: NotificationFieldKey[] = [
   "notifyPushOnQuoteSent",
   "notifyPushOnQuoteResponse",
   "notifyPushOnMemberInviteResponse",
-  "notifyOnFollowUpReminder",
   "notifyInAppOnFollowUpReminder",
-  "notifyOnQuoteExpiring",
   "notifyInAppOnQuoteExpiring",
 ];
 

@@ -37,7 +37,7 @@ export function OnboardingPreviewDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="h-[100dvh] max-h-[100dvh] w-screen max-w-none rounded-none border-0 bg-background p-0 shadow-none sm:w-screen"
+        className="inset-0 h-[100dvh] max-h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 rounded-none border-0 bg-background p-0 shadow-none sm:inset-0 sm:w-screen sm:translate-x-0 sm:translate-y-0"
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">Inquiry page preview</DialogTitle>

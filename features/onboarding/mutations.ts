@@ -20,6 +20,9 @@ type CompleteOnboardingForUserInput = {
     name: string;
     email: string;
   };
+  jobTitle: string;
+  companySize: string;
+  referralSource: string;
   workspaceName: string;
   businessName: string;
   businessType: BusinessType;
@@ -35,6 +38,9 @@ function createId(prefix: string) {
 
 export async function completeOnboardingForUser({
   user,
+  jobTitle,
+  companySize,
+  referralSource,
   workspaceName,
   businessName,
   businessType,
@@ -51,6 +57,9 @@ export async function completeOnboardingForUser({
     await tx
       .update(profiles)
       .set({
+        jobTitle,
+        companySize,
+        referralSource,
         onboardingCompletedAt: now,
         updatedAt: now,
       })
@@ -147,6 +156,7 @@ export async function completeOnboardingForUser({
       starterTemplateBusinessType,
       shortDescription: null,
       inquiryFormConfigOverride,
+      workspacePlan: "free",
       activitySource: "onboarding",
       activitySummary: "Business created during onboarding.",
       now,

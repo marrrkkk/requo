@@ -38,12 +38,37 @@ export const inquiryCustomFieldTypes = [
 
 export type InquiryCustomFieldType = (typeof inquiryCustomFieldTypes)[number];
 
+export const inquiryFieldKinds = ["contact", "system", "custom"] as const;
+export type InquiryFieldKind = (typeof inquiryFieldKinds)[number];
+
 export const inquiryContactFieldKeys = [
   "customerName",
   "preferredContact",
 ] as const;
 
 export type InquiryContactFieldKey = (typeof inquiryContactFieldKeys)[number];
+
+/**
+ * Fixed labels for contact fields in inquiry detail display.
+ * These labels are used on the dashboard/detail side and cannot be renamed.
+ * The form-facing labels (e.g. "Your name") remain editable for public form UX.
+ */
+export const contactFieldFixedLabels: Record<InquiryContactFieldKey, string> = {
+  customerName: "Name",
+  preferredContact: "Preferred Contact Method",
+};
+
+/**
+ * Default labels for system (default inquiry) fields.
+ * Used as fallback when no snapshot label is available.
+ */
+export const systemFieldDefaultLabels: Record<InquiryProjectSystemFieldKey, string> = {
+  serviceCategory: "Service",
+  requestedDeadline: "Deadline",
+  budgetText: "Budget",
+  details: "Message",
+  attachment: "Attachment",
+};
 
 export const inquiryContactMethods = [
   "email",
@@ -143,6 +168,8 @@ export type InquirySubmittedFieldSnapshotField = {
   label: string;
   value: string | string[] | boolean | null;
   displayValue: string;
+  /** Added for field grouping in inquiry detail display. Optional for backward compat with old snapshots. */
+  fieldKind?: InquiryFieldKind;
 };
 
 export type InquirySubmittedFieldSnapshot = {
@@ -246,6 +273,7 @@ export const inquirySubmittedFieldSnapshotFieldSchema = z.object({
   label: z.string().trim().min(1).max(120),
   value: z.union([z.string(), z.array(z.string()), z.boolean(), z.null()]),
   displayValue: z.string().trim().min(1).max(2000),
+  fieldKind: z.enum(inquiryFieldKinds).optional(),
 });
 
 export const inquirySubmittedFieldSnapshotSchema = z.object({
@@ -714,22 +742,123 @@ export function getInquirySubmittedFieldValueDisplay(
   return "Not provided";
 }
 
+
+function resolveFieldKind(field: InquirySubmittedFieldSnapshotField): InquiryFieldKind {
+  if (field.fieldKind) {
+    return field.fieldKind;
+  }
+
+  if ((inquiryContactFieldKeys as readonly string[]).includes(field.id)) {
+    return "contact";
+  }
+
+  if ((inquiryProjectSystemFieldKeys as readonly string[]).includes(field.id)) {
+    return "system";
+  }
+
+  return "custom";
+}
+
+/**
+ * @deprecated Use `getCustomSubmittedFields()` instead.
+ */
 export function getAdditionalInquirySubmittedFields(
+  snapshot: InquirySubmittedFieldSnapshot | null | undefined,
+) {
+  return getCustomSubmittedFields(snapshot);
+}
+
+/** Contact fields from the submitted snapshot. */
+export function getContactSubmittedFields(
   snapshot: InquirySubmittedFieldSnapshot | null | undefined,
 ) {
   if (!snapshot) {
     return [];
   }
 
-  const primaryFieldIds = new Set([
-    "customerName",
-    "preferredContact",
-    "serviceCategory",
-    "requestedDeadline",
-    "budgetText",
-    "details",
-    "attachment",
-  ]);
+  return snapshot.fields.filter((field) => resolveFieldKind(field) === "contact");
+}
 
-  return snapshot.fields.filter((field) => !primaryFieldIds.has(field.id));
+/**
+ * Summary-level system fields (category, budget, deadline).
+ * Excludes details and attachment which are displayed in their own sections.
+ */
+const summaryFieldIds = new Set<string>(["serviceCategory", "requestedDeadline", "budgetText"]);
+
+export function getSummarySubmittedFields(
+  snapshot: InquirySubmittedFieldSnapshot | null | undefined,
+) {
+  if (!snapshot) {
+    return [];
+  }
+
+  return snapshot.fields.filter(
+    (field) => resolveFieldKind(field) === "system" && summaryFieldIds.has(field.id),
+  );
+}
+
+/**
+ * Detail-level system fields (details/message, and any other system fields not in summary).
+ * Excludes attachment which is displayed in its own section.
+ */
+export function getDetailSubmittedFields(
+  snapshot: InquirySubmittedFieldSnapshot | null | undefined,
+) {
+  if (!snapshot) {
+    return [];
+  }
+
+  return snapshot.fields.filter(
+    (field) =>
+      resolveFieldKind(field) === "system" &&
+      !summaryFieldIds.has(field.id) &&
+      field.id !== "attachment",
+  );
+}
+
+/** Custom fields from the submitted snapshot. Displayed under "Additional Details". */
+export function getCustomSubmittedFields(
+  snapshot: InquirySubmittedFieldSnapshot | null | undefined,
+) {
+  if (!snapshot) {
+    return [];
+  }
+
+  return snapshot.fields.filter((field) => resolveFieldKind(field) === "custom");
+}
+
+/**
+ * Returns the best display label for a submitted field.
+ * Fallback chain: snapshot label → current field label → default label → humanized key.
+ */
+export function getFieldDisplayLabel(
+  snapshotField: InquirySubmittedFieldSnapshotField | undefined,
+  fieldKey: string,
+  currentLabel?: string,
+) {
+  if (snapshotField?.label) {
+    return snapshotField.label;
+  }
+
+  if (currentLabel) {
+    return currentLabel;
+  }
+
+  const systemDefault = systemFieldDefaultLabels[fieldKey as InquiryProjectSystemFieldKey];
+
+  if (systemDefault) {
+    return systemDefault;
+  }
+
+  const contactDefault = contactFieldFixedLabels[fieldKey as InquiryContactFieldKey];
+
+  if (contactDefault) {
+    return contactDefault;
+  }
+
+  // Humanize: "budgetText" → "Budget Text", "service-address" → "Service Address"
+  return fieldKey
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[-_]/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }

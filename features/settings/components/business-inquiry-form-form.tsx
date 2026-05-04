@@ -12,11 +12,10 @@ import {
 import {
   SortableContext,
   arrayMove,
+  rectSortingStrategy,
   sortableKeyboardCoordinates,
   useSortable,
-  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import {
   useCallback,
   useEffect,
@@ -26,7 +25,6 @@ import {
   useState,
   type CSSProperties,
   type MutableRefObject,
-  type ReactNode,
 } from "react";
 import {
   AlignLeft,
@@ -37,19 +35,28 @@ import {
   Hash,
   ListChecks,
   MoreHorizontal,
-  Plus,
   PencilLine,
+  Plus,
   ToggleLeft,
   Trash2,
   Type,
 } from "lucide-react";
 
 import { FloatingFormActions } from "@/components/shared/floating-form-actions";
+import { FormSection } from "@/components/shared/form-layout";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Combobox } from "@/components/ui/combobox";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogBody,
@@ -72,12 +79,21 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FieldError } from "@/components/ui/field";
+import {
+  Field,
+  FieldContent,
+  FieldError,
+  FieldGroup,
+  FieldTitle,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   inquiryCustomFieldTypeMeta,
   inquiryContactFieldKeys,
+  inquiryContactMethodLabels,
+  inquiryContactMethods,
+  getInquiryFormFieldInputName,
   type InquiryContactFieldConfig,
   type InquiryContactFieldKey,
   type InquiryFormCustomFieldDefinition,
@@ -93,9 +109,12 @@ import type {
   BusinessInquiryFormPreviewDraft,
   BusinessInquiryFormSettingsView,
 } from "@/features/settings/types";
+import {
+  getInquiryCustomFieldLimit,
+  getPublicInquiryAttachmentHelpText,
+} from "@/features/inquiries/plan-rules";
 import { cn } from "@/lib/utils";
 
-const MAX_CUSTOM_PROJECT_FIELDS = 12;
 const MAX_CUSTOM_FIELD_OPTIONS = 12;
 const inquiryProjectFieldsDndContextId = "business-inquiry-project-fields-dnd";
 const inquiryProjectFieldsSortableContextId =
@@ -104,6 +123,10 @@ const inquirySortableTransition = {
   duration: 160,
   easing: "cubic-bezier(0.25, 1, 0.5, 1)",
 } as const;
+const contactMethodOptions = inquiryContactMethods.map((method) => ({
+  label: inquiryContactMethodLabels[method],
+  value: method,
+}));
 
 type BusinessInquiryFormFormProps = {
   saveAction: (
@@ -178,6 +201,21 @@ export function BusinessInquiryFormForm({
             (field) => !exitingProjectFieldIds.includes(getFieldId(field)),
           ),
     [exitingProjectFieldIds, projectFields],
+  );
+  const editableProjectFields = useMemo(
+    () =>
+      projectFields.filter(
+        (field) => !(field.kind === "system" && field.key === "attachment"),
+      ),
+    [projectFields],
+  );
+  const attachmentField = useMemo(
+    () =>
+      projectFields.find(
+        (field): field is InquiryFormSystemFieldDefinition =>
+          field.kind === "system" && field.key === "attachment",
+      ) ?? null,
+    [projectFields],
   );
   const serializedConfig = JSON.stringify({
     version: 1,
@@ -390,6 +428,7 @@ export function BusinessInquiryFormForm({
     fieldId: string,
     patch: Partial<InquiryFormFieldDefinition>,
   ) {
+    skipNextProjectFieldLayoutAnimationRef.current = true;
     setProjectFields((currentFields) =>
       currentFields.map((field) =>
         getFieldId(field) === fieldId ? ({ ...field, ...patch } as InquiryFormFieldDefinition) : field,
@@ -397,9 +436,28 @@ export function BusinessInquiryFormForm({
     );
   }
 
+  function updateContactField(
+    contactKey: InquiryContactFieldKey,
+    patch: Partial<InquiryContactFieldConfig>,
+  ) {
+    setContactFields((currentFields) => ({
+      ...currentFields,
+      [contactKey]: {
+        ...currentFields[contactKey],
+        ...patch,
+      },
+    }));
+  }
+
   function moveProjectField(fieldId: string, direction: "up" | "down") {
     setProjectFields((currentFields) => {
-      const index = currentFields.findIndex((field) => getFieldId(field) === fieldId);
+      const editableFieldIds = currentFields
+        .filter(
+          (field) =>
+            !(field.kind === "system" && field.key === "attachment"),
+        )
+        .map((field) => getFieldId(field));
+      const index = editableFieldIds.findIndex((currentId) => currentId === fieldId);
 
       if (index < 0) {
         return currentFields;
@@ -407,15 +465,22 @@ export function BusinessInquiryFormForm({
 
       const nextIndex = direction === "up" ? index - 1 : index + 1;
 
-      if (nextIndex < 0 || nextIndex >= currentFields.length) {
+      if (nextIndex < 0 || nextIndex >= editableFieldIds.length) {
         return currentFields;
       }
 
-      const nextFields = [...currentFields];
-      const [movedField] = nextFields.splice(index, 1);
-      nextFields.splice(nextIndex, 0, movedField);
+      const activeIndex = currentFields.findIndex(
+        (field) => getFieldId(field) === fieldId,
+      );
+      const overIndex = currentFields.findIndex(
+        (field) => getFieldId(field) === editableFieldIds[nextIndex],
+      );
 
-      return nextFields;
+      if (activeIndex < 0 || overIndex < 0) {
+        return currentFields;
+      }
+
+      return arrayMove(currentFields, activeIndex, overIndex);
     });
   }
 
@@ -480,6 +545,7 @@ export function BusinessInquiryFormForm({
     fieldId: string,
     fieldType: InquiryCustomFieldType,
   ) {
+    skipNextProjectFieldLayoutAnimationRef.current = true;
     setProjectFields((currentFields) =>
       currentFields.map((field) => {
         if (getFieldId(field) !== fieldId || field.kind !== "custom") {
@@ -509,6 +575,7 @@ export function BusinessInquiryFormForm({
     optionId: string,
     patch: Partial<InquiryFieldOption>,
   ) {
+    skipNextProjectFieldLayoutAnimationRef.current = true;
     setProjectFields((currentFields) =>
       currentFields.map((field) => {
         if (
@@ -530,6 +597,7 @@ export function BusinessInquiryFormForm({
   }
 
   function addCustomFieldOption(fieldId: string) {
+    skipNextProjectFieldLayoutAnimationRef.current = true;
     setProjectFields((currentFields) =>
       currentFields.map((field) => {
         if (
@@ -549,6 +617,7 @@ export function BusinessInquiryFormForm({
   }
 
   function removeCustomFieldOption(fieldId: string, optionId: string) {
+    skipNextProjectFieldLayoutAnimationRef.current = true;
     setProjectFields((currentFields) =>
       currentFields.map((field) => {
         if (
@@ -614,7 +683,10 @@ export function BusinessInquiryFormForm({
     () => activeProjectFields.filter((field) => field.kind === "custom").length,
     [activeProjectFields],
   );
-  const hasReachedCustomFieldLimit = customProjectFieldCount >= MAX_CUSTOM_PROJECT_FIELDS;
+  const customFieldLimit = getInquiryCustomFieldLimit(settings.plan);
+  const hasReachedCustomFieldLimit =
+    customProjectFieldCount >= customFieldLimit;
+  const attachmentHelpText = getPublicInquiryAttachmentHelpText(settings.plan);
   const isFieldInteractionLocked = isSavePending || exitingProjectFieldIds.length > 0;
   const projectFieldSensors = useSensors(
     useSensor(PointerSensor, {
@@ -678,170 +750,187 @@ export function BusinessInquiryFormForm({
         <input name="businessType" type="hidden" value={settings.businessType} />
         <input name="inquiryFormConfig" type="hidden" value={serializedConfig} />
 
-        <div className="flex flex-col gap-8 sm:gap-10">
-          <section className="space-y-5">
-            <div className="space-y-2">
-              <h2 className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-                Fields
-              </h2>
-              <p className="text-sm leading-6 text-muted-foreground">
-                Edit the contact and project fields shown in the public inquiry form.
-              </p>
-            </div>
+        <section className="flex flex-col gap-6 sm:gap-8">
+          <div className="space-y-2.5 sm:px-2">
+            <h2 className="font-heading text-[1.65rem] font-semibold tracking-tight text-foreground">
+              Fields
+            </h2>
+            <p className="text-base leading-6 text-muted-foreground">
+              Edit the same contact and project layout customers see on the public inquiry form.
+            </p>
+          </div>
 
-            {businessTypeError ? (
-              <FieldError errors={[{ message: businessTypeError }]} />
-            ) : null}
+          {businessTypeError ? (
+            <FieldError errors={[{ message: businessTypeError }]} />
+          ) : null}
 
-            {configError ? (
-              <FieldError errors={[{ message: configError }]} />
-            ) : null}
+          {configError ? (
+            <FieldError errors={[{ message: configError }]} />
+          ) : null}
 
-            <InquiryFieldSection
-              countLabel={`${inquiryContactFieldKeys.length} fields`}
-              helperText="Name and email stay shown and required."
-              title="Contact fields"
-            >
-              <div className="grid gap-4 sm:grid-cols-2">
-                {inquiryContactFieldKeys.map((contactKey) => (
-                  <ContactFieldCard
-                    contactKey={contactKey}
-                    field={contactFields[contactKey]}
-                    key={contactKey}
-                  />
-                ))}
-              </div>
-            </InquiryFieldSection>
-          </section>
-
-          <section className="space-y-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex flex-col gap-2">
-                {isEditingProjectGroupLabel ? (
-                  <Input
-                    autoFocus
-                    className="h-auto w-full border-0 bg-transparent px-0 py-0 font-heading text-2xl leading-tight font-semibold tracking-tight text-foreground shadow-none md:text-2xl sm:w-auto sm:min-w-[16rem] focus-visible:border-0 focus-visible:bg-transparent focus-visible:ring-0"
-                    maxLength={40}
-                    onBlur={saveProjectGroupLabel}
-                    onChange={(event) =>
-                      setProjectGroupLabelDraft(event.currentTarget.value)
-                    }
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        saveProjectGroupLabel();
-                      }
-
-                      if (event.key === "Escape") {
-                        event.preventDefault();
-                        cancelProjectGroupLabelEdit();
-                      }
-                    }}
-                    value={projectGroupLabelDraft}
-                  />
-                ) : (
-                  <h2
-                    className="cursor-text font-heading text-2xl font-semibold tracking-tight text-foreground"
-                    onClick={startEditingProjectGroupLabel}
-                  >
-                    {groupLabels.project}
-                  </h2>
-                )}
+          <Card className="gap-0 border-border/75 bg-card/96">
+            <CardHeader className="gap-2 pb-5">
+              <CardTitle className="text-2xl">
+                {settings.inquiryPageConfig.formTitle}
+              </CardTitle>
+              {settings.inquiryPageConfig.formDescription ? (
                 <p className="text-sm leading-6 text-muted-foreground">
-                  Manage the fields shown in {groupLabels.project}.
-                </p>
-              </div>
-            </div>
-
-            <InquiryFieldSection
-              action={
-                <Button
-                  className="w-full sm:w-auto"
-                  disabled={isFieldInteractionLocked || hasReachedCustomFieldLimit}
-                  onClick={() => setAddFieldDialogOpen(true)}
-                  type="button"
-                  variant="outline"
-                >
-                  <Plus data-icon="inline-start" />
-                  Add field
-                </Button>
-              }
-              countLabel={`${customProjectFieldCount}/${MAX_CUSTOM_PROJECT_FIELDS} custom`}
-              helperText="Service/category and details stay shown and required."
-              title="Field library"
-            >
-              <DndContext
-                collisionDetection={closestCenter}
-                id={inquiryProjectFieldsDndContextId}
-                onDragCancel={handleProjectFieldDragCancel}
-                onDragEnd={handleProjectFieldDragEnd}
-                onDragStart={handleProjectFieldDragStart}
-                sensors={projectFieldSensors}
-              >
-                <SortableContext
-                  id={inquiryProjectFieldsSortableContextId}
-                  items={projectFields.map((field) => getFieldId(field))}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {projectFields.map((field, index) => {
-                      const fieldId = getFieldId(field);
-
-                      return (
-                        <ProjectFieldCard
-                          cardRef={(node) => {
-                            if (node) {
-                              projectFieldCardRefs.current.set(fieldId, node);
-                              return;
-                            }
-
-                            projectFieldCardRefs.current.delete(fieldId);
-                          }}
-                          field={field}
-                          index={index}
-                          inputRef={(node) => {
-                            if (node) {
-                              projectFieldLabelInputRefs.current.set(fieldId, node);
-                              return;
-                            }
-
-                            projectFieldLabelInputRefs.current.delete(fieldId);
-                          }}
-                          isEntering={enteringProjectFieldIds.includes(fieldId)}
-                          isExiting={exitingProjectFieldIds.includes(fieldId)}
-                          isPending={isFieldInteractionLocked}
-                          key={fieldId}
-                          onChangeCustomType={changeCustomFieldType}
-                          onEditOptions={setOptionsEditFieldId}
-                          onMove={moveProjectField}
-                          onRemove={removeProjectField}
-                          onUpdate={updateProjectField}
-                          totalFields={projectFields.length}
-                        />
-                      );
-                    })}
-                  </div>
-                </SortableContext>
-              </DndContext>
-
-              {hasReachedCustomFieldLimit ? (
-                <Alert>
-                  <AlertTitle>Custom field limit reached</AlertTitle>
-                  <AlertDescription>
-                    You can add up to {MAX_CUSTOM_PROJECT_FIELDS} custom fields.
-                  </AlertDescription>
-                </Alert>
-              ) : activeProjectFields.length <= 2 ? (
-                <p className="text-xs leading-5 text-muted-foreground">
-                  Add fields for location, quantity, or preferences.
+                  {settings.inquiryPageConfig.formDescription}
                 </p>
               ) : null}
-            </InquiryFieldSection>
-          </section>
-        </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="form-stack">
+                <FormSection title={groupLabels.contact}>
+                  <FieldGroup>
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      {inquiryContactFieldKeys.map((contactKey) => (
+                        <ContactFieldCard
+                          contactKey={contactKey}
+                          field={contactFields[contactKey]}
+                          isPending={isFieldInteractionLocked}
+                          key={contactKey}
+                          onUpdate={updateContactField}
+                        />
+                      ))}
+                      <ContactHandlePreviewField />
+                    </div>
+                  </FieldGroup>
+                </FormSection>
+
+                <FormSection
+                  action={
+                    <Button
+                      className="w-full sm:w-auto"
+                      disabled={isFieldInteractionLocked || hasReachedCustomFieldLimit}
+                      onClick={() => setAddFieldDialogOpen(true)}
+                      type="button"
+                      variant="outline"
+                    >
+                      <Plus data-icon="inline-start" />
+                      Add field
+                    </Button>
+                  }
+                  title={
+                    isEditingProjectGroupLabel ? (
+                      <input
+                        autoFocus
+                        className="h-auto w-full bg-transparent px-0 py-0 text-[0.95rem] font-semibold tracking-tight text-foreground outline-none sm:w-auto sm:min-w-[14rem]"
+                        maxLength={40}
+                        onBlur={saveProjectGroupLabel}
+                        onChange={(event) =>
+                          setProjectGroupLabelDraft(event.currentTarget.value)
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            saveProjectGroupLabel();
+                          }
+
+                          if (event.key === "Escape") {
+                            event.preventDefault();
+                            cancelProjectGroupLabelEdit();
+                          }
+                        }}
+                        value={projectGroupLabelDraft}
+                      />
+                    ) : (
+                      <button
+                        className="text-left outline-none transition-colors hover:text-foreground focus-visible:text-foreground"
+                        onClick={startEditingProjectGroupLabel}
+                        type="button"
+                      >
+                        {groupLabels.project}
+                      </button>
+                    )
+                  }
+                >
+                  <FieldGroup>
+                    <DndContext
+                      collisionDetection={closestCenter}
+                      id={inquiryProjectFieldsDndContextId}
+                      onDragCancel={handleProjectFieldDragCancel}
+                      onDragEnd={handleProjectFieldDragEnd}
+                      onDragStart={handleProjectFieldDragStart}
+                      sensors={projectFieldSensors}
+                    >
+                      <SortableContext
+                        id={inquiryProjectFieldsSortableContextId}
+                        items={editableProjectFields.map((field) => getFieldId(field))}
+                        strategy={rectSortingStrategy}
+                      >
+                        <div className="grid gap-5 sm:grid-cols-2">
+                          {editableProjectFields.map((field, index) => {
+                            const fieldId = getFieldId(field);
+
+                            return (
+                              <ProjectFieldCard
+                                cardRef={(node) => {
+                                  if (node) {
+                                    projectFieldCardRefs.current.set(fieldId, node);
+                                    return;
+                                  }
+
+                                  projectFieldCardRefs.current.delete(fieldId);
+                                }}
+                                field={field}
+                                index={index}
+                                inputRef={(node) => {
+                                  if (node) {
+                                    projectFieldLabelInputRefs.current.set(fieldId, node);
+                                    return;
+                                  }
+
+                                  projectFieldLabelInputRefs.current.delete(fieldId);
+                                }}
+                                isEntering={enteringProjectFieldIds.includes(fieldId)}
+                                isExiting={exitingProjectFieldIds.includes(fieldId)}
+                                isPending={isFieldInteractionLocked}
+                                key={fieldId}
+                                onChangeCustomType={changeCustomFieldType}
+                                onEditOptions={setOptionsEditFieldId}
+                                onMove={moveProjectField}
+                                onRemove={removeProjectField}
+                                onUpdate={updateProjectField}
+                                totalFields={editableProjectFields.length}
+                              />
+                            );
+                          })}
+                        </div>
+                      </SortableContext>
+                    </DndContext>
+                  </FieldGroup>
+
+                  {hasReachedCustomFieldLimit ? (
+                    <Alert>
+                      <AlertTitle>Custom field limit reached</AlertTitle>
+                      <AlertDescription>
+                        Your current plan supports {customFieldLimit} custom
+                        fields per form.
+                      </AlertDescription>
+                    </Alert>
+                  ) : editableProjectFields.length <= 2 ? (
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      Add fields for location, quantity, or preferences.
+                    </p>
+                  ) : null}
+                </FormSection>
+
+                {attachmentField ? (
+                  <AttachmentFieldSection
+                    helpText={attachmentHelpText}
+                    field={attachmentField}
+                    isPending={isFieldInteractionLocked}
+                    onUpdate={updateProjectField}
+                  />
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
 
         <FloatingFormActions
-          className="max-w-3xl"
+          className="max-w-4xl"
           disableSubmit={exitingProjectFieldIds.length > 0}
           extraAction={
             <Button
@@ -889,62 +978,100 @@ export function BusinessInquiryFormForm({
   );
 }
 
-function InquiryFieldSection({
-  action,
-  children,
-  countLabel,
-  helperText,
-  title,
-}: {
-  action?: ReactNode;
-  children: ReactNode;
-  countLabel: string;
-  helperText?: string;
-  title: string;
-}) {
-  return (
-    <div className="rounded-[1.5rem] border border-dashed border-border/70 bg-muted/15 p-3.5 sm:rounded-[1.75rem] sm:p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-            {title}
-          </p>
-          <p className="text-xs text-muted-foreground">{countLabel}</p>
-        </div>
-        {action ? <div className="w-full shrink-0 sm:w-auto">{action}</div> : null}
-      </div>
-
-      <div className="mt-4 space-y-3">{children}</div>
-
-      {helperText ? (
-        <p className="mt-4 text-xs leading-5 text-muted-foreground">{helperText}</p>
-      ) : null}
-    </div>
-  );
-}
-
 function ContactFieldCard({
   contactKey,
   field,
+  isPending,
+  onUpdate,
 }: {
   contactKey: InquiryContactFieldKey;
   field: InquiryContactFieldConfig;
+  isPending: boolean;
+  onUpdate: (
+    contactKey: InquiryContactFieldKey,
+    patch: Partial<InquiryContactFieldConfig>,
+  ) => void;
 }) {
+  const fieldId =
+    contactKey === "customerName" ? "inquiry-customerName" : "inquiry-contactMethod";
+
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex min-w-0 items-center justify-between gap-1.5">
-        <span className="truncate text-sm font-medium text-foreground">
+    <Field>
+      <FieldTitle className="w-full min-w-0 justify-between gap-2">
+        <span
+          className="min-w-0 flex-1 truncate text-sm font-medium text-foreground"
+        >
           {field.label}
         </span>
-        <Badge variant={field.required ? "secondary" : "outline"}>
-          {field.required ? "Required" : "Optional"}
-        </Badge>
-      </div>
-      <div className="flex h-10 w-full items-center rounded-md border border-input bg-transparent px-3 py-2 text-base text-muted-foreground opacity-50 md:text-sm">
-        {field.placeholder}
-      </div>
-    </div>
+        <span className="flex shrink-0 items-center gap-1.5">
+          <Badge variant="outline">Contact field</Badge>
+          <Badge className="shrink-0" variant={field.required ? "secondary" : "outline"}>
+            {field.required ? "Required" : "Optional"}
+          </Badge>
+        </span>
+      </FieldTitle>
+      <FieldContent>
+        {contactKey === "preferredContact" ? (
+          <Combobox
+            disabled={isPending}
+            id={fieldId}
+            onValueChange={() => undefined}
+            options={contactMethodOptions}
+            placeholder={field.placeholder ?? "Choose how to reach you"}
+            value=""
+          />
+        ) : (
+          <Input
+            autoComplete="name"
+            className="text-muted-foreground"
+            disabled={isPending}
+            id={fieldId}
+            maxLength={120}
+            minLength={2}
+            onChange={(event) =>
+              onUpdate(contactKey, { placeholder: event.currentTarget.value })
+            }
+            placeholder="e.g. Alicia Cruz"
+            value={field.placeholder ?? ""}
+          />
+        )}
+      </FieldContent>
+      <p className="text-xs leading-5 text-muted-foreground">
+        Used by Requo for customer contact details. This label cannot be changed.
+      </p>
+    </Field>
   );
+}
+
+function ContactHandlePreviewField() {
+  return (
+    <Field className="sm:col-span-2">
+      <FieldTitle>
+        <span className="inline-flex items-center gap-2">
+          <span>{inquiryContactMethodLabels.email}</span>
+          <Badge variant="secondary">Required</Badge>
+        </span>
+      </FieldTitle>
+      <FieldContent>
+        <Input
+          id="inquiry-contactHandle-preview"
+          inputMode="email"
+          placeholder="you@example.com"
+          readOnly
+          type="email"
+        />
+      </FieldContent>
+    </Field>
+  );
+}
+
+function getContactFieldFallbackLabel(contactKey: InquiryContactFieldKey) {
+  switch (contactKey) {
+    case "customerName":
+      return "Your name";
+    case "preferredContact":
+      return "Preferred contact method";
+  }
 }
 
 function ProjectFieldCard({
@@ -991,6 +1118,7 @@ function ProjectFieldCard({
     transition: inquirySortableTransition,
   });
   const isSystem = field.kind === "system";
+  const isHiddenSystemField = isSystem && !field.enabled;
   const isLockedRequired =
     isSystem && (field.key === "serviceCategory" || field.key === "details");
   const canToggleEnabled = isSystem && !isLockedRequired;
@@ -1006,10 +1134,11 @@ function ProjectFieldCard({
   const fieldIsWide = isWideField(field);
   const title =
     field.label || (isSystem ? getSystemFieldTitle(field) : "New field");
-  const [isEditingLabel, setIsEditingLabel] = useState(false);
-  const [labelDraft, setLabelDraft] = useState(field.label);
+  const inputId = `editor-${getInquiryFormFieldInputName(field)}`;
   const sortableStyle = {
-    transform: CSS.Transform.toString(transform),
+    transform: transform
+      ? `translate3d(${Math.round(transform.x)}px, ${Math.round(transform.y)}px, 0)`
+      : undefined,
     transition,
     willChange: isDragging ? "transform" : undefined,
   } satisfies CSSProperties;
@@ -1020,26 +1149,6 @@ function ProjectFieldCard({
     },
     [cardRef, setNodeRef],
   );
-
-  function startEditingLabel() {
-    setLabelDraft(field.label);
-    setIsEditingLabel(true);
-  }
-
-  function saveLabel() {
-    const trimmed = labelDraft.trim();
-
-    if (trimmed) {
-      onUpdate(fieldId, { label: trimmed });
-    }
-
-    setIsEditingLabel(false);
-  }
-
-  function cancelLabel() {
-    setLabelDraft(field.label);
-    setIsEditingLabel(false);
-  }
 
   return (
     <div
@@ -1062,10 +1171,10 @@ function ProjectFieldCard({
       >
         <GripVertical className="size-4" />
       </button>
+
       <div
         className={cn(
           "flex min-w-0 flex-1 flex-col gap-1.5 rounded-lg p-2 transition-shadow motion-reduce:animate-none",
-          isDragging && "bg-background shadow-lg ring-2 ring-primary/20",
           isEntering &&
             "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200",
           isExiting &&
@@ -1073,42 +1182,50 @@ function ProjectFieldCard({
         )}
       >
         <div className="flex min-w-0 items-center gap-1.5">
-          {isEditingLabel ? (
+          <div className="group flex min-w-0 flex-1 items-center gap-1.5">
             <input
-              autoFocus
-              className="min-w-0 flex-1 border-0 bg-transparent px-0 py-0 text-sm font-medium text-foreground outline-none focus:ring-0"
-              maxLength={80}
-              onBlur={saveLabel}
-              onChange={(event) => setLabelDraft(event.currentTarget.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  saveLabel();
-                }
+                aria-label={`${title} label`}
+                className="min-w-0 flex-1 bg-transparent px-0 py-0 text-sm font-medium text-foreground outline-none"
+                disabled={isPending}
+                maxLength={80}
+                onBlur={(event) => {
+                  const trimmed = event.currentTarget.value.trim();
 
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  cancelLabel();
+                  if (!trimmed) {
+                    onUpdate(fieldId, { label: title });
+                    return;
+                  }
+
+                  if (trimmed !== field.label) {
+                    onUpdate(fieldId, { label: trimmed });
+                  }
+                }}
+                onChange={(event) =>
+                  onUpdate(fieldId, { label: event.currentTarget.value })
                 }
-              }}
-              ref={inputRef}
-              value={labelDraft}
-            />
-          ) : (
-            <button
-              className="group flex min-w-0 items-center gap-1.5 text-left outline-none transition-colors hover:text-foreground focus-visible:text-foreground"
-              onClick={startEditingLabel}
-              type="button"
-            >
-              <span className="truncate text-sm font-medium text-foreground">
-                {title}
-              </span>
-              <PencilLine className="size-3.5 shrink-0 text-muted-foreground opacity-60 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
-            </button>
-          )}
+                ref={inputRef}
+                value={field.label}
+              />
+            <PencilLine className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-focus-within:opacity-70 group-hover:opacity-70" />
+          </div>
           <span className="ml-auto flex shrink-0 items-center gap-1">
-            <Badge variant={field.required ? "secondary" : "outline"}>
-              {field.required ? "Required" : "Optional"}
+            <Badge
+              variant={
+                isHiddenSystemField
+                  ? "outline"
+                  : field.required
+                    ? "secondary"
+                    : "outline"
+              }
+            >
+              {isHiddenSystemField
+                ? "Hidden"
+                : field.required
+                  ? "Required"
+                  : "Optional"}
+            </Badge>
+            <Badge variant="outline">
+              {isSystem ? "Default field" : "Custom field"}
             </Badge>
             <FieldCardMenu
               deleteDisabled={isSystem || isPending}
@@ -1160,44 +1277,303 @@ function ProjectFieldCard({
             />
           </span>
         </div>
-        {isTextareaPlaceholder(field) ? (
-          <Textarea
-            disabled={
-              isPending || (field.kind === "system" && !field.enabled)
-            }
-            maxLength={160}
-            onChange={(event) =>
-              onUpdate(fieldId, { placeholder: event.currentTarget.value })
-            }
-            placeholder={title}
-            rows={3}
-            value={field.placeholder ?? ""}
-          />
-        ) : (
-          <Input
-            disabled={
-              isPending || (field.kind === "system" && !field.enabled)
-            }
-            maxLength={160}
-            onChange={(event) =>
-              onUpdate(fieldId, { placeholder: event.currentTarget.value })
-            }
-            placeholder={title}
-            value={field.placeholder ?? ""}
-          />
-        )}
-        {hasSelectableOptions ? (
-          <button
-            className="flex items-center gap-1.5 self-start rounded-md px-1 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-            onClick={() => onEditOptions(fieldId)}
-            type="button"
-          >
-            <ListChecks className="size-3" />
-            {optionCount} {optionCount === 1 ? "option" : "options"}
-          </button>
-        ) : null}
+        <ProjectFieldEditorControl
+          field={field}
+          inputId={inputId}
+          isPending={isPending}
+          onEditOptions={() => onEditOptions(fieldId)}
+          onUpdate={(patch) => onUpdate(fieldId, patch)}
+        />
       </div>
     </div>
+  );
+}
+
+function ProjectFieldEditorControl({
+  field,
+  inputId,
+  isPending,
+  onEditOptions,
+  onUpdate,
+}: {
+  field: InquiryFormFieldDefinition;
+  inputId: string;
+  isPending: boolean;
+  onEditOptions: () => void;
+  onUpdate: (patch: Partial<InquiryFormFieldDefinition>) => void;
+}) {
+  const disabled = isPending || (field.kind === "system" && !field.enabled);
+  const placeholder = field.placeholder ?? "";
+
+  if (field.kind === "system") {
+    if (field.key === "requestedDeadline") {
+      return (
+        <DatePicker
+          disabled={disabled}
+          id={inputId}
+          onChange={() => undefined}
+          value=""
+        />
+      );
+    }
+
+    if (field.key === "details") {
+      return (
+        <Textarea
+          className="text-muted-foreground"
+          disabled={disabled}
+          id={inputId}
+          maxLength={160}
+          onChange={(event) =>
+            onUpdate({ placeholder: event.currentTarget.value })
+          }
+          placeholder={field.label}
+          rows={7}
+          value={placeholder}
+        />
+      );
+    }
+
+    return (
+      <Input
+        className="text-muted-foreground"
+        disabled={disabled}
+        id={inputId}
+        maxLength={160}
+        onChange={(event) =>
+          onUpdate({ placeholder: event.currentTarget.value })
+        }
+        placeholder={field.label}
+        value={placeholder}
+      />
+    );
+  }
+
+  switch (field.fieldType) {
+    case "long_text":
+      return (
+        <Textarea
+          className="text-muted-foreground"
+          disabled={disabled}
+          id={inputId}
+          maxLength={160}
+          onChange={(event) =>
+            onUpdate({ placeholder: event.currentTarget.value })
+          }
+          placeholder={field.label}
+          rows={5}
+          value={placeholder}
+        />
+      );
+    case "select":
+      return (
+        <div className="flex flex-col gap-2">
+          <Combobox
+            disabled={disabled}
+            id={inputId}
+            onValueChange={() => undefined}
+            options={(field.options ?? []).map((option) => ({
+              label: option.label || "Untitled option",
+              searchText: `${option.label} ${option.value}`,
+              value: option.value || option.id,
+            }))}
+            placeholder={field.placeholder ?? "Select an option"}
+            value=""
+          />
+          <OptionSummaryButton
+            disabled={isPending}
+            field={field}
+            onClick={onEditOptions}
+          />
+        </div>
+      );
+    case "multi_select":
+      return (
+        <div className="flex flex-col gap-2">
+          <div className="grid gap-2 sm:grid-cols-2">
+            {(field.options ?? []).map((option) => {
+              const optionId = `${inputId}-${option.id}`;
+
+              return (
+                <label
+                  className="soft-panel flex items-center gap-3 px-3 py-3 shadow-none"
+                  htmlFor={optionId}
+                  key={option.id}
+                >
+                  <input
+                    className="size-4 rounded border border-input/95"
+                    disabled={disabled}
+                    id={optionId}
+                    onClick={(event) => event.preventDefault()}
+                    type="checkbox"
+                    value={option.value}
+                  />
+                  <span className="text-sm text-foreground">
+                    {option.label || "Untitled option"}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <OptionSummaryButton
+            disabled={isPending}
+            field={field}
+            onClick={onEditOptions}
+          />
+        </div>
+      );
+    case "number":
+      return (
+        <Input
+          className="text-muted-foreground"
+          disabled={disabled}
+          id={inputId}
+          inputMode="decimal"
+          maxLength={160}
+          onChange={(event) =>
+            onUpdate({ placeholder: event.currentTarget.value })
+          }
+          placeholder={field.label}
+          value={placeholder}
+        />
+      );
+    case "date":
+      return (
+        <DatePicker
+          disabled={disabled}
+          id={inputId}
+          onChange={() => undefined}
+          value=""
+        />
+      );
+    case "boolean":
+      return (
+        <Combobox
+          disabled={disabled}
+          id={inputId}
+          onValueChange={() => undefined}
+          options={[
+            { label: "Yes", searchText: "Yes true", value: "true" },
+            { label: "No", searchText: "No false", value: "false" },
+          ]}
+          placeholder={field.placeholder ?? "Choose an option"}
+          value=""
+        />
+      );
+    case "short_text":
+    default:
+      return (
+        <Input
+          className="text-muted-foreground"
+          disabled={disabled}
+          id={inputId}
+          maxLength={160}
+          onChange={(event) =>
+            onUpdate({ placeholder: event.currentTarget.value })
+          }
+          placeholder={field.label}
+          value={placeholder}
+        />
+      );
+  }
+}
+
+function OptionSummaryButton({
+  disabled,
+  field,
+  onClick,
+}: {
+  disabled: boolean;
+  field: InquiryFormCustomFieldDefinition;
+  onClick: () => void;
+}) {
+  const optionCount = field.options?.length ?? 0;
+
+  return (
+    <button
+      className="flex items-center gap-1.5 self-start rounded-md px-1 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+      disabled={disabled}
+      onClick={onClick}
+      type="button"
+    >
+      <ListChecks className="size-3" />
+      {optionCount} {optionCount === 1 ? "option" : "options"}
+    </button>
+  );
+}
+
+function AttachmentFieldSection({
+  field,
+  helpText,
+  isPending,
+  onUpdate,
+}: {
+  field: InquiryFormSystemFieldDefinition;
+  helpText: string;
+  isPending: boolean;
+  onUpdate: (fieldId: string, patch: Partial<InquiryFormFieldDefinition>) => void;
+}) {
+  const fieldId = getFieldId(field);
+  const title = field.label || getSystemFieldTitle(field);
+  const isHidden = !field.enabled;
+
+  return (
+    <FormSection title={title}>
+      <FieldGroup>
+        <Field data-disabled={isHidden || undefined}>
+          <FieldTitle className="w-full min-w-0 justify-between gap-2">
+            <input
+              aria-label={`${title} label`}
+              className="h-auto min-w-0 flex-1 bg-transparent px-0 py-0 text-sm font-medium text-foreground outline-none"
+              disabled={isPending}
+              maxLength={80}
+              onBlur={(event) => {
+                const trimmed = event.currentTarget.value.trim();
+
+                if (!trimmed) {
+                  onUpdate(fieldId, { label: title });
+                  return;
+                }
+
+                if (trimmed !== field.label) {
+                  onUpdate(fieldId, { label: trimmed });
+                }
+              }}
+              onChange={(event) =>
+                onUpdate(fieldId, { label: event.currentTarget.value })
+              }
+              value={field.label}
+            />
+            <span className="ml-auto flex shrink-0 items-center gap-1">
+              <Badge variant="outline">{isHidden ? "Hidden" : "Optional"}</Badge>
+              <FieldCardMenu
+                deleteDisabled
+                hasSelectableOptions={false}
+                moveDownDisabled
+                moveUpDisabled
+                optionCount={0}
+                requiredChecked={false}
+                requiredDisabled
+                showChecked={field.enabled}
+                showDisabled={isPending}
+                title={title}
+                typeDisabled
+                typeLabel={getFieldTypeLabel(field)}
+                onShowChange={(enabled) =>
+                  onUpdate(fieldId, { enabled, required: false })
+                }
+              />
+            </span>
+          </FieldTitle>
+          <FieldContent>
+            <Input disabled={isPending || isHidden} id="inquiry-attachment-preview" type="file" />
+            <p className="text-xs leading-5 text-muted-foreground">
+              {helpText}
+            </p>
+          </FieldContent>
+        </Field>
+      </FieldGroup>
+    </FormSection>
   );
 }
 
@@ -1485,13 +1861,6 @@ function isWideField(field: InquiryFormFieldDefinition) {
   );
 }
 
-function isTextareaPlaceholder(field: InquiryFormFieldDefinition) {
-  return (
-    (field.kind === "system" && field.key === "details") ||
-    (field.kind === "custom" && field.fieldType === "long_text")
-  );
-}
-
 function getFieldId(field: InquiryFormFieldDefinition) {
   return field.kind === "system" ? field.key : field.id;
 }
@@ -1518,14 +1887,6 @@ function scheduleProjectFieldTimeout(
 }
 
 
-
-function getProjectFieldStateLabel(field: InquiryFormFieldDefinition) {
-  if (field.kind === "system" && !field.enabled) {
-    return "Hidden from the form.";
-  }
-
-  return field.required ? "Required in the form." : "Shown in the form.";
-}
 
 function getFieldTypeLabel(field: InquiryFormFieldDefinition) {
   return field.kind === "system"

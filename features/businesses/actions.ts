@@ -151,6 +151,7 @@ export async function createBusinessAction(
       defaultCurrency: validationResult.data.defaultCurrency,
       name: validationResult.data.name,
       businessType: validationResult.data.businessType,
+      workspacePlan: workspace.plan as WorkspacePlan,
     });
 
     dashboardPath = getBusinessDashboardPath(business.slug);

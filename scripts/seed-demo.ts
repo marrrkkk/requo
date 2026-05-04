@@ -451,8 +451,7 @@ async function resetDatabase() {
     "business_memories",
     "quote_library_entries",
     "quote_library_entry_items",
-    "google_calendar_connections",
-    "calendar_events",
+
     "public_action_events",
   ];
   const resetTableArray = tablesToReset
@@ -513,10 +512,12 @@ async function createUser(name: string, email: string): Promise<string> {
       userId,
       fullName: name,
       onboardingCompletedAt: new Date(),
+      dashboardTourCompletedAt: new Date(),
+      formEditorTourCompletedAt: new Date(),
     })
     .onConflictDoUpdate({
       target: profiles.userId,
-      set: { fullName: name, onboardingCompletedAt: new Date(), updatedAt: new Date() },
+      set: { fullName: name, onboardingCompletedAt: new Date(), dashboardTourCompletedAt: new Date(), formEditorTourCompletedAt: new Date(), updatedAt: new Date() },
     });
 
   return userId;

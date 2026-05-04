@@ -33,6 +33,8 @@ export const getAccountProfileForUser = cache(async (
       avatarStoragePath: profiles.avatarStoragePath,
       avatarContentType: profiles.avatarContentType,
       onboardingCompletedAt: profiles.onboardingCompletedAt,
+      dashboardTourCompletedAt: profiles.dashboardTourCompletedAt,
+      formEditorTourCompletedAt: profiles.formEditorTourCompletedAt,
       updatedAt: profiles.updatedAt,
     })
     .from(profiles)

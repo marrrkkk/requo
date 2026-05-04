@@ -44,7 +44,8 @@ import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import { cancelSubscriptionAction } from "@/features/billing/actions";
 import { clearCachedPendingCheckout, clearCachedPendingQrCheckout } from "@/features/billing/pending-checkout";
 import type { WorkspaceBillingOverview, CancelActionState } from "@/features/billing/types";
-import { planMeta, getUsageLimit, planFeatures, hasFeatureAccess, planFeatureLabels } from "@/lib/plans";
+import { planMeta, getUsageLimit, planFeatures, hasFeatureAccess, planFeatureLabels, formatUsageLimitValue } from "@/lib/plans";
+import type { UsageLimitKey } from "@/lib/plans";
 import { getPlanPriceLabel, getCurrencySymbol } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 
@@ -205,10 +206,12 @@ export function BillingStatusCard({
           <div className="my-1 border-t border-border/40" />
 
           <div className="flex flex-col gap-2">
-            <PlanLimit label="Inquiries limit" value={getUsageLimit(currentPlan, "inquiriesPerMonth")} />
-            <PlanLimit label="Quotes limit" value={getUsageLimit(currentPlan, "quotesPerMonth")} />
-            <PlanLimit label="Businesses limit" value={getUsageLimit(currentPlan, "businessesPerWorkspace")} />
-            <PlanLimit label="Members limit" value={getUsageLimit(currentPlan, "membersPerWorkspace")} />
+            <PlanLimit label="Inquiries limit" limitKey="inquiriesPerMonth" value={getUsageLimit(currentPlan, "inquiriesPerMonth")} />
+            <PlanLimit label="Quotes limit" limitKey="quotesPerMonth" value={getUsageLimit(currentPlan, "quotesPerMonth")} />
+            <PlanLimit label="Businesses limit" limitKey="businessesPerWorkspace" value={getUsageLimit(currentPlan, "businessesPerWorkspace")} />
+            <PlanLimit label="Members limit" limitKey="membersPerWorkspace" value={getUsageLimit(currentPlan, "membersPerWorkspace")} />
+            <PlanLimit label="Custom fields" limitKey="customFieldsPerForm" value={getUsageLimit(currentPlan, "customFieldsPerForm")} />
+            <PlanLimit label="Upload size" limitKey="publicInquiryAttachmentMaxBytes" value={getUsageLimit(currentPlan, "publicInquiryAttachmentMaxBytes")} />
           </div>
         </CardContent>
       </Card>
@@ -419,10 +422,12 @@ export function BillingStatusCard({
                     </p>
                     {/* Key limits */}
                     <div className="mt-auto flex flex-col gap-1.5 pt-2">
-                      <PlanLimit label="Inquiries" value={getUsageLimit(plan, "inquiriesPerMonth")} />
-                      <PlanLimit label="Quotes" value={getUsageLimit(plan, "quotesPerMonth")} />
-                      <PlanLimit label="Businesses" value={getUsageLimit(plan, "businessesPerWorkspace")} />
-                      <PlanLimit label="Members" value={getUsageLimit(plan, "membersPerWorkspace")} />
+                      <PlanLimit label="Inquiries" limitKey="inquiriesPerMonth" value={getUsageLimit(plan, "inquiriesPerMonth")} />
+                      <PlanLimit label="Quotes" limitKey="quotesPerMonth" value={getUsageLimit(plan, "quotesPerMonth")} />
+                      <PlanLimit label="Businesses" limitKey="businessesPerWorkspace" value={getUsageLimit(plan, "businessesPerWorkspace")} />
+                      <PlanLimit label="Members" limitKey="membersPerWorkspace" value={getUsageLimit(plan, "membersPerWorkspace")} />
+                      <PlanLimit label="Fields" limitKey="customFieldsPerForm" value={getUsageLimit(plan, "customFieldsPerForm")} />
+                      <PlanLimit label="Uploads" limitKey="publicInquiryAttachmentMaxBytes" value={getUsageLimit(plan, "publicInquiryAttachmentMaxBytes")} />
                     </div>
                   </div>
                 );
@@ -470,12 +475,20 @@ function UsageMeter({
 
 /* ── Plan limit row ──────────────────────────────────────────────────────── */
 
-function PlanLimit({ label, value }: { label: string; value: number | null }) {
+function PlanLimit({
+  label,
+  limitKey,
+  value,
+}: {
+  label: string;
+  limitKey: UsageLimitKey;
+  value: number | null;
+}) {
   return (
     <div className="flex items-center justify-between gap-2 text-xs">
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium text-foreground">
-        {value === null ? "Unlimited" : value}
+        {formatUsageLimitValue(limitKey, value)}
       </span>
     </div>
   );

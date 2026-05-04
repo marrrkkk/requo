@@ -207,8 +207,8 @@ const privacySections: LegalDocumentSection[] = [
         <LegalSectionHeading>8. AI Features</LegalSectionHeading>
         <LegalParagraph>
           If an authorized user uses AI-powered features in the Service, certain
-          inputs may be processed through OpenRouter and, depending on
-          configuration, by the model provider used through OpenRouter to
+          inputs may be processed through Groq, Gemini, or OpenRouter and, depending on
+          configuration, by the model provider used to
           generate drafts, summaries, or suggestions.
         </LegalParagraph>
         <LegalParagraph>
@@ -285,7 +285,7 @@ const privacySections: LegalDocumentSection[] = [
             `${legalConfig.hostingProvider}, for hosting and application delivery.`,
             `${legalConfig.storageProvider}, for database, storage, and related backend infrastructure.`,
             "Resend, for transactional email delivery.",
-            "OpenRouter, for AI request routing when AI features are used.",
+            "Groq, Gemini, and OpenRouter, for AI request routing when AI features are used.",
             "Google or Microsoft, for optional social sign-in when those sign-in methods are enabled.",
           ]}
         />
