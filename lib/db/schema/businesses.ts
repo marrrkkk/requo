@@ -214,6 +214,38 @@ export const businessMembers = pgTable(
   ],
 );
 
+export const userRecentBusinesses = pgTable(
+  "user_recent_businesses",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    businessId: text("business_id")
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    lastOpenedAt: timestamp("last_opened_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("user_recent_businesses_user_business_unique").on(
+      table.userId,
+      table.businessId,
+    ),
+    index("user_recent_businesses_user_recent_idx").on(
+      table.userId,
+      table.lastOpenedAt,
+    ),
+    index("user_recent_businesses_business_id_idx").on(table.businessId),
+  ],
+);
+
 export const businessMemberInvites = pgTable(
   "business_member_invites",
   {
