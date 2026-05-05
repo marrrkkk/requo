@@ -137,6 +137,11 @@ export default async function QuoteDetailPage({
     notFound();
   }
   const businessSlug = businessContext.business.slug;
+  // Follow-ups only need businessId + quoteId — start alongside the detail fetch.
+  const followUpsPromise = getFollowUpsForQuote({
+    businessId: businessContext.business.id,
+    quoteId: parsedParams.data.id,
+  });
   const [quote, pricingLibrary] = await Promise.all([
     getQuoteDetailForBusiness({
       businessId: businessContext.business.id,
@@ -177,10 +182,7 @@ export default async function QuoteDetailPage({
       excludeInquiryId: quote.inquiryId,
       excludeQuoteId: quote.id,
     }),
-    getFollowUpsForQuote({
-      businessId: businessContext.business.id,
-      quoteId: quote.id,
-    }),
+    followUpsPromise,
   ]);
 
 

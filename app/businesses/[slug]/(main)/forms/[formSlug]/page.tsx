@@ -31,14 +31,19 @@ export default async function BusinessFormPage({
 }: {
   params: Promise<{ formSlug: string }>;
 }) {
-  const session = await requireSession();
-  const { businessContext } = await getBusinessOperationalPageContext();
-  const { formSlug } = await params;
-  const settings = await getBusinessInquiryFormEditorForBusiness(
-    businessContext.business.id,
-    formSlug,
-  );
-  const profile = await getAccountProfileForUser(session.user.id);
+  const [session, { businessContext }, { formSlug }] = await Promise.all([
+    requireSession(),
+    getBusinessOperationalPageContext(),
+    params,
+  ]);
+  // Settings and profile are independent — fetch in parallel.
+  const [settings, profile] = await Promise.all([
+    getBusinessInquiryFormEditorForBusiness(
+      businessContext.business.id,
+      formSlug,
+    ),
+    getAccountProfileForUser(session.user.id),
+  ]);
   const showTour = Boolean(profile && !profile.formEditorTourCompletedAt);
 
   if (!settings) {

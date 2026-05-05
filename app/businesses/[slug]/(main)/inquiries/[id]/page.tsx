@@ -134,6 +134,11 @@ export default async function InquiryDetailPage({
     notFound();
   }
   const businessSlug = businessContext.business.slug;
+  // Follow-ups only need businessId + inquiryId — start alongside the detail fetch.
+  const followUpsPromise = getFollowUpsForInquiry({
+    businessId: businessContext.business.id,
+    inquiryId: parsedParams.data.id,
+  });
   const inquiry = await getInquiryDetailForBusiness({
     businessId: businessContext.business.id,
     inquiryId: parsedParams.data.id,
@@ -171,10 +176,7 @@ export default async function InquiryDetailPage({
           excludeQuoteId: inquiry.relatedQuote?.id ?? null,
         })
       : Promise.resolve(null),
-    getFollowUpsForInquiry({
-      businessId: businessContext.business.id,
-      inquiryId: inquiry.id,
-    }),
+    followUpsPromise,
   ]);
 
   const canGenerateQuote = inquiry.recordState !== "trash";
