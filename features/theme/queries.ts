@@ -1,14 +1,24 @@
 import "server-only";
 
 import { eq } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
 
 import type { ThemePreference } from "@/features/theme/types";
+import {
+  getUserThemeCacheTags,
+  userShellCacheLife,
+} from "@/lib/cache/shell-tags";
 import { db } from "@/lib/db/client";
 import { profiles } from "@/lib/db/schema";
 
 export async function getThemePreferenceForUser(
   userId: string,
 ): Promise<ThemePreference> {
+  "use cache";
+
+  cacheLife(userShellCacheLife);
+  cacheTag(...getUserThemeCacheTags(userId));
+
   try {
     const [profile] = await db
       .select({

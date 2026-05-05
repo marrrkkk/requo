@@ -1,6 +1,7 @@
 import "server-only";
 
 import { desc, eq } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
 import { headers } from "next/headers";
 
 import { db } from "@/lib/db/client";
@@ -8,9 +9,62 @@ import { workspaces } from "@/lib/db/schema/workspaces";
 import { paymentAttempts } from "@/lib/db/schema/subscriptions";
 import { getWorkspaceSubscription } from "@/lib/billing/subscription-service";
 import { getBillingRegion, getDefaultCurrency } from "@/lib/billing/region";
+import {
+  getWorkspaceBillingCacheTags,
+  billingShellCacheLife,
+} from "@/lib/cache/shell-tags";
 import type { WorkspaceBillingOverview } from "@/features/billing/types";
 import type { WorkspacePlan } from "@/lib/plans/plans";
 import type { BillingRegion } from "@/lib/billing/types";
+
+/**
+ * Cached workspace + subscription data (no dynamic APIs like headers()).
+ */
+async function getCachedWorkspaceBillingData(workspaceId: string) {
+  "use cache";
+
+  cacheLife(billingShellCacheLife);
+  cacheTag(...getWorkspaceBillingCacheTags(workspaceId));
+
+  const [workspaceRows, subscription] = await Promise.all([
+    db
+      .select({
+        id: workspaces.id,
+        name: workspaces.name,
+        slug: workspaces.slug,
+        plan: workspaces.plan,
+      })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId))
+      .limit(1),
+    getWorkspaceSubscription(workspaceId),
+  ]);
+
+  const workspace = workspaceRows[0];
+
+  if (!workspace) {
+    return null;
+  }
+
+  return {
+    workspaceId: workspace.id,
+    workspaceName: workspace.name,
+    workspaceSlug: workspace.slug,
+    currentPlan: workspace.plan as WorkspacePlan,
+    subscription: subscription
+      ? {
+          status: subscription.status,
+          plan: subscription.plan,
+          provider: subscription.billingProvider,
+          currency: subscription.billingCurrency,
+          currentPeriodStart: subscription.currentPeriodStart,
+          currentPeriodEnd: subscription.currentPeriodEnd,
+          canceledAt: subscription.canceledAt,
+          providerSubscriptionId: subscription.providerSubscriptionId,
+        }
+      : null,
+  };
+}
 
 /**
  * Returns a full billing overview for the workspace billing UI.
@@ -19,23 +73,12 @@ export async function getWorkspaceBillingOverview(
   workspaceId: string,
 ): Promise<WorkspaceBillingOverview | null> {
   try {
-    const [workspaceRows, subscription, requestHeaders] = await Promise.all([
-      db
-        .select({
-          id: workspaces.id,
-          name: workspaces.name,
-          slug: workspaces.slug,
-          plan: workspaces.plan,
-        })
-        .from(workspaces)
-        .where(eq(workspaces.id, workspaceId))
-        .limit(1),
-      getWorkspaceSubscription(workspaceId),
+    const [billingData, requestHeaders] = await Promise.all([
+      getCachedWorkspaceBillingData(workspaceId),
       headers(),
     ]);
-    const workspace = workspaceRows[0];
 
-    if (!workspace) {
+    if (!billingData) {
       return null;
     }
 
@@ -43,22 +86,7 @@ export async function getWorkspaceBillingOverview(
     const defaultCurrency = getDefaultCurrency(region);
 
     return {
-      workspaceId: workspace.id,
-      workspaceName: workspace.name,
-      workspaceSlug: workspace.slug,
-      currentPlan: workspace.plan as WorkspacePlan,
-      subscription: subscription
-        ? {
-            status: subscription.status,
-            plan: subscription.plan,
-            provider: subscription.billingProvider,
-            currency: subscription.billingCurrency,
-            currentPeriodStart: subscription.currentPeriodStart,
-            currentPeriodEnd: subscription.currentPeriodEnd,
-            canceledAt: subscription.canceledAt,
-            providerSubscriptionId: subscription.providerSubscriptionId,
-          }
-        : null,
+      ...billingData,
       region,
       defaultCurrency,
     };

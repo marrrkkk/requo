@@ -1,6 +1,7 @@
 import "server-only";
 
 import { and, count, eq, inArray, isNull } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
 import { cache } from "react";
 
 import type {
@@ -12,6 +13,10 @@ import {
   getWorkspaceDeletionEffectiveAt,
   requiresWorkspaceSubscriptionCancellation,
 } from "@/features/workspaces/deletion";
+import {
+  getUserProfileCacheTags,
+  userShellCacheLife,
+} from "@/lib/cache/shell-tags";
 import { db } from "@/lib/db/client";
 import {
   account,
@@ -22,9 +27,14 @@ import {
   workspaces,
 } from "@/lib/db/schema";
 
-export const getAccountProfileForUser = cache(async (
+async function getCachedAccountProfile(
   userId: string,
-): Promise<AccountProfileRecord | null> => {
+): Promise<AccountProfileRecord | null> {
+  "use cache";
+
+  cacheLife(userShellCacheLife);
+  cacheTag(...getUserProfileCacheTags(userId));
+
   const [profile] = await db
     .select({
       fullName: profiles.fullName,
@@ -42,6 +52,12 @@ export const getAccountProfileForUser = cache(async (
     .limit(1);
 
   return profile ?? null;
+}
+
+export const getAccountProfileForUser = cache(async (
+  userId: string,
+): Promise<AccountProfileRecord | null> => {
+  return getCachedAccountProfile(userId);
 });
 
 export const getAccountSecurityForUser = cache(async (

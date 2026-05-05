@@ -8,10 +8,15 @@ import "server-only";
  */
 
 import { and, asc, eq, isNull } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
 import { cache } from "react";
 
 import type { WorkspacePlan } from "@/lib/plans/plans";
 import type { WorkspaceMemberRole } from "@/lib/db/schema/workspaces";
+import {
+  getUserMembershipsCacheTags,
+  membershipShellCacheLife,
+} from "@/lib/cache/shell-tags";
 import { db } from "@/lib/db/client";
 import {
   workspaceMembers,
@@ -33,7 +38,12 @@ export type WorkspaceContext = {
 /**
  * Returns all workspaces a user belongs to, with membership info.
  */
-export const getWorkspacesForUser = cache(async (userId: string) => {
+async function getCachedWorkspacesForUser(userId: string) {
+  "use cache";
+
+  cacheLife(membershipShellCacheLife);
+  cacheTag(...getUserMembershipsCacheTags(userId));
+
   const rows = await db
     .select({
       workspaceId: workspaces.id,
@@ -64,60 +74,77 @@ export const getWorkspacesForUser = cache(async (userId: string) => {
     membershipId: row.membershipId,
     memberRole: row.memberRole,
   })) satisfies WorkspaceContext[];
+}
+
+export const getWorkspacesForUser = cache(async (userId: string) => {
+  return getCachedWorkspacesForUser(userId);
 });
 
 /**
  * Returns workspace context for a specific workspace + user combination.
  * Provide either workspaceId or workspaceSlug (slug is used when ID is not available, e.g. from URL params).
  */
+async function getCachedWorkspaceContextForUser(
+  userId: string,
+  workspaceId?: string,
+  workspaceSlug?: string,
+) {
+  "use cache";
+
+  cacheLife(membershipShellCacheLife);
+  cacheTag(...getUserMembershipsCacheTags(userId));
+
+  if (!workspaceId && !workspaceSlug) {
+    return null;
+  }
+
+  const condition = workspaceId
+    ? eq(workspaces.id, workspaceId)
+    : eq(workspaces.slug, workspaceSlug!);
+
+  const [row] = await db
+    .select({
+      workspaceId: workspaces.id,
+      workspaceName: workspaces.name,
+      workspaceSlug: workspaces.slug,
+      workspacePlan: workspaces.plan,
+      ownerUserId: workspaces.ownerUserId,
+      scheduledDeletionAt: workspaces.scheduledDeletionAt,
+      deletedAt: workspaces.deletedAt,
+      membershipId: workspaceMembers.id,
+      memberRole: workspaceMembers.role,
+    })
+    .from(workspaceMembers)
+    .innerJoin(workspaces, eq(workspaceMembers.workspaceId, workspaces.id))
+    .where(
+      and(
+        eq(workspaceMembers.userId, userId),
+        condition,
+        isNull(workspaces.deletedAt),
+      ),
+    )
+    .limit(1);
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.workspaceId,
+    name: row.workspaceName,
+    slug: row.workspaceSlug,
+    plan: row.workspacePlan as WorkspacePlan,
+    ownerUserId: row.ownerUserId,
+    scheduledDeletionAt: row.scheduledDeletionAt,
+    deletedAt: row.deletedAt,
+    membershipId: row.membershipId,
+    memberRole: row.memberRole,
+  } satisfies WorkspaceContext;
+}
+
 export const getWorkspaceContextForUser = cache(
   async (userId: string, workspaceId?: string, workspaceSlug?: string) => {
-    if (!workspaceId && !workspaceSlug) {
-      return null;
-    }
-
-    const condition = workspaceId
-      ? eq(workspaces.id, workspaceId)
-      : eq(workspaces.slug, workspaceSlug!);
-
-    const [row] = await db
-      .select({
-        workspaceId: workspaces.id,
-        workspaceName: workspaces.name,
-        workspaceSlug: workspaces.slug,
-        workspacePlan: workspaces.plan,
-        ownerUserId: workspaces.ownerUserId,
-        scheduledDeletionAt: workspaces.scheduledDeletionAt,
-        deletedAt: workspaces.deletedAt,
-        membershipId: workspaceMembers.id,
-        memberRole: workspaceMembers.role,
-      })
-      .from(workspaceMembers)
-      .innerJoin(workspaces, eq(workspaceMembers.workspaceId, workspaces.id))
-      .where(
-        and(
-          eq(workspaceMembers.userId, userId),
-          condition,
-          isNull(workspaces.deletedAt),
-        ),
-      )
-      .limit(1);
-
-    if (!row) {
-      return null;
-    }
-
-    return {
-      id: row.workspaceId,
-      name: row.workspaceName,
-      slug: row.workspaceSlug,
-      plan: row.workspacePlan as WorkspacePlan,
-      ownerUserId: row.ownerUserId,
-      scheduledDeletionAt: row.scheduledDeletionAt,
-      deletedAt: row.deletedAt,
-      membershipId: row.membershipId,
-      memberRole: row.memberRole,
-    } satisfies WorkspaceContext;
+    return getCachedWorkspaceContextForUser(userId, workspaceId, workspaceSlug);
   },
 );
 
