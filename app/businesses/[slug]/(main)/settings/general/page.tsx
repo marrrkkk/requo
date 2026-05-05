@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/shared/page-header";
-import { PlanBadge } from "@/components/shared/paywall";
 import {
   updateBusinessSettingsAction,
 } from "@/features/settings/actions";
@@ -35,7 +34,6 @@ export default async function BusinessGeneralSettingsPage() {
         eyebrow="Business"
         title="Business profile"
         description="Business details, branding, and regional defaults."
-        actions={<PlanBadge plan={businessContext.business.workspacePlan} />}
       />
 
       <BusinessSettingsForm
