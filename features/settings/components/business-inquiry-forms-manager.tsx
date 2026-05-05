@@ -455,13 +455,14 @@ export function BusinessInquiryFormsManager({
                       </Button>
                     )}
 
-                    <Button asChild type="button" variant="outline">
+                    <Button asChild type="button" variant="outline" className="px-3 sm:px-4">
                       <Link
                         href={getBusinessInquiryFormEditorPath(settings.slug, form.slug)}
                         prefetch={true}
                       >
-                        <PencilLine data-icon="inline-start" />
-                        Edit
+                        <PencilLine className="size-4 sm:-ml-1 sm:mr-2" />
+                        <span className="hidden sm:inline">Edit</span>
+                        <span className="sr-only">Edit</span>
                       </Link>
                     </Button>
                   </div>
@@ -589,9 +590,10 @@ function FormShareDialog({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" type="button">
-          <Link2 data-icon="inline-start" />
-          Share
+        <Button variant="outline" type="button" className="px-3 sm:px-4">
+          <Link2 className="size-4 sm:-ml-1 sm:mr-2" />
+          <span className="hidden sm:inline">Share</span>
+          <span className="sr-only">Share</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">

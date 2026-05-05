@@ -145,7 +145,7 @@ function AnalyticsMobileSelect({
   onSelect: (value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [focusValue, setFocusValue] = useState(activeItem.label);
+  const [focusValue, setFocusValue] = useState<string>(activeItem.label);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const ActiveIcon = activeItem.icon;
 

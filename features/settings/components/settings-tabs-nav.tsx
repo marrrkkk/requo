@@ -136,7 +136,7 @@ function SettingsMobileSelect<TIcon extends string>({
   onSelect: (href: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [focusValue, setFocusValue] = useState(activeItem.label);
+  const [focusValue, setFocusValue] = useState<string>(activeItem.label);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   React.useEffect(() => {
