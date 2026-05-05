@@ -8,13 +8,24 @@ import {
   TrendingUp,
 } from "lucide-react";
 
+import dynamic from "next/dynamic";
+
 import { DashboardStatsGrid } from "@/components/shared/dashboard-layout";
-import { AnalyticsConversionTrend } from "@/features/analytics/components/analytics-conversion-trend";
 import { AnalyticsFormPerformanceTable } from "@/features/analytics/components/analytics-form-performance-table";
 import { AnalyticsFunnelCard } from "@/features/analytics/components/analytics-funnel-card";
 import { AnalyticsMetricCard } from "@/features/analytics/components/analytics-metric-card";
-import { AnalyticsRevenueTrend } from "@/features/analytics/components/analytics-revenue-trend";
 import { AnalyticsValueCard } from "@/features/analytics/components/analytics-value-card";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const AnalyticsConversionTrend = dynamic(
+  () => import("@/features/analytics/components/analytics-conversion-trend").then((m) => m.AnalyticsConversionTrend),
+  { ssr: false, loading: () => <Skeleton className="h-[362px] w-full rounded-xl" /> }
+);
+
+const AnalyticsRevenueTrend = dynamic(
+  () => import("@/features/analytics/components/analytics-revenue-trend").then((m) => m.AnalyticsRevenueTrend),
+  { ssr: false, loading: () => <Skeleton className="h-[362px] w-full rounded-xl" /> }
+);
 import type { ConversionAnalyticsData } from "@/features/analytics/types";
 import {
   formatAnalyticsMoney,

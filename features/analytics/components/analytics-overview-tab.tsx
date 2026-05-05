@@ -24,8 +24,15 @@ import {
 import { AnalyticsDurationCard } from "@/features/analytics/components/analytics-duration-card";
 import { AnalyticsFunnelCard } from "@/features/analytics/components/analytics-funnel-card";
 import { AnalyticsMetricCard } from "@/features/analytics/components/analytics-metric-card";
+import dynamic from "next/dynamic";
+
+import { Skeleton } from "@/components/ui/skeleton";
 import { AnalyticsStatusBreakdown } from "@/features/analytics/components/analytics-status-breakdown";
-import { AnalyticsTrendOverview } from "@/features/analytics/components/analytics-trend-overview";
+
+const AnalyticsTrendOverview = dynamic(
+  () => import("@/features/analytics/components/analytics-trend-overview").then((m) => m.AnalyticsTrendOverview),
+  { ssr: false, loading: () => <Skeleton className="h-[362px] w-full rounded-xl" /> }
+);
 import type { BusinessAnalyticsData } from "@/features/analytics/types";
 import {
   computeDelta,
