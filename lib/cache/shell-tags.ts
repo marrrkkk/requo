@@ -41,7 +41,7 @@ function getUserScopeTag(userId: string) {
   return `user:${userId}`;
 }
 
-function getWorkspaceScopeTag(workspaceId: string) {
+export function getWorkspaceScopeTag(workspaceId: string) {
   return `workspace:${workspaceId}`;
 }
 

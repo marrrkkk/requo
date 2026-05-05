@@ -28,6 +28,8 @@ vi.mock("@/lib/auth/session", () => ({
 }));
 
 vi.mock("next/cache", () => ({
+  cacheLife: vi.fn(),
+  cacheTag: vi.fn(),
   revalidatePath: revalidatePathMock,
   updateTag: updateTagMock,
 }));

@@ -14,9 +14,11 @@ import { cache } from "react";
 import type { WorkspacePlan } from "@/lib/plans/plans";
 import type { WorkspaceMemberRole } from "@/lib/db/schema/workspaces";
 import {
+  getWorkspaceScopeTag,
   getUserMembershipsCacheTags,
   membershipShellCacheLife,
 } from "@/lib/cache/shell-tags";
+import { uniqueCacheTags } from "@/lib/cache/business-tags";
 import { db } from "@/lib/db/client";
 import {
   workspaceMembers,
@@ -62,6 +64,14 @@ async function getCachedWorkspacesForUser(userId: string) {
       and(eq(workspaceMembers.userId, userId), isNull(workspaces.deletedAt)),
     )
     .orderBy(asc(workspaces.name), asc(workspaces.createdAt));
+
+  const workspaceTags = uniqueCacheTags(
+    rows.map((row) => getWorkspaceScopeTag(row.workspaceId)),
+  );
+
+  if (workspaceTags.length > 0) {
+    cacheTag(...workspaceTags);
+  }
 
   return rows.map((row) => ({
     id: row.workspaceId,
@@ -128,6 +138,8 @@ async function getCachedWorkspaceContextForUser(
   if (!row) {
     return null;
   }
+
+  cacheTag(getWorkspaceScopeTag(row.workspaceId));
 
   return {
     id: row.workspaceId,

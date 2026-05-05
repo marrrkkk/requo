@@ -13,7 +13,11 @@ import {
   Check,
   Briefcase,
   Building2,
+  Clock3,
+  CreditCard,
   QrCode,
+  ReceiptText,
+  ShieldCheck,
   ShoppingCart,
 } from "lucide-react";
 import QRCode from "react-qr-code";
@@ -46,6 +50,7 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   cancelPendingQrCheckoutAction,
   createCheckoutAction,
@@ -93,6 +98,7 @@ type ControlledCheckoutDialogProps = CheckoutDialogProps & {
   onPaddleTransactionChange?: (
     checkout: { plan: PaidPlan; transactionId: string } | null,
   ) => void;
+  onPaymentProcessingStart?: (plan: PaidPlan) => void;
 };
 
 type PaymentMethod = "qrph" | "card";
@@ -101,9 +107,9 @@ type CheckoutView = "selection" | "qr" | "paddle";
 const planHighlightsShort: Record<PaidPlan, string[]> = {
   pro: [
     "Unlimited inquiries and quotes",
+    "Follow-up reminders and quote tracking",
     "Multiple inquiry forms",
     "AI assistant and knowledge",
-    "Data exports and branding",
   ],
   business: [
     "Everything in Pro",
@@ -160,6 +166,7 @@ function CheckoutDialogInner({
   workspaceId,
   checkoutError,
   onCheckoutErrorChange,
+  onPaymentProcessingStart,
   onPaddleTransactionChange,
   pendingCheckout,
 }: ControlledCheckoutDialogProps) {
@@ -338,9 +345,9 @@ function CheckoutDialogInner({
             onOpenChange(false);
           },
           onComplete: () => {
-            setIsAwaitingPaddleConfirmation(true);
             updateCheckoutError(null);
-            setView("paddle");
+            setIsAwaitingPaddleConfirmation(false);
+            onPaymentProcessingStart?.(plan);
           },
           onError: () => {
             setIsAwaitingPaddleConfirmation(false);
@@ -366,7 +373,9 @@ function CheckoutDialogInner({
     activePaddleTransactionId,
     isAwaitingPaddleConfirmation,
     onOpenChange,
+    onPaymentProcessingStart,
     paddle,
+    plan,
     open,
     updateCheckoutError,
   ]);
@@ -465,40 +474,27 @@ function CheckoutDialogInner({
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-lg gap-0 overflow-hidden p-0">
-        <DialogHeader className="px-6 pt-6 pb-0">
-          <DialogTitle className="px-2 text-xl">
-            {view === "paddle"
-              ? "Complete your payment"
-              : view === "qr"
-                ? "Scan to pay"
-                : `Upgrade to ${planMeta[plan].label}`}
-          </DialogTitle>
-          <DialogDescription className="px-2">
-            {view === "paddle"
-              ? "Finish the payment in the inline checkout below."
-              : view === "qr"
-                ? "Scan the QR code with your banking app. You can close this dialog and continue from the same QR code later."
-                : "Choose how you want to pay for this plan upgrade."}
-          </DialogDescription>
-        </DialogHeader>
+        <DialogContent className="max-w-2xl gap-0 overflow-hidden p-0">
+          <DialogHeader className="border-b border-border/60 px-6 py-5">
+            <DialogTitle className="text-xl">
+              {view === "paddle"
+                ? "Complete your payment"
+                : view === "qr"
+                  ? "Scan to pay"
+                  : `Upgrade to ${planMeta[plan].label}`}
+            </DialogTitle>
+            <DialogDescription>
+              {view === "paddle"
+                ? "Finish the secure checkout below."
+                : view === "qr"
+                  ? "Scan the QR code with your banking app. You can return to the same QR code while it is active."
+                  : "Choose a payment method and confirm the workspace upgrade."}
+            </DialogDescription>
+          </DialogHeader>
 
-        {view === "paddle" ? (
+          {view === "paddle" ? (
           <DialogBody className="overflow-y-auto p-0">
-            {isAwaitingPaddleConfirmation ? (
-              <div className="flex flex-col items-center gap-4 px-6 py-10">
-                <Spinner aria-hidden="true" className="size-8" />
-                <div className="space-y-1 text-center">
-                  <p className="text-sm font-medium text-foreground">
-                    Waiting for payment confirmation
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    We&apos;ll update this workspace as soon as Paddle confirms
-                    the payment.
-                  </p>
-                </div>
-              </div>
-            ) : activePaddleTransactionId ? (
+            {activePaddleTransactionId ? (
               <>
                 <div className="flex items-center justify-between border-b border-border/40 px-6 py-4 text-sm">
                   <span className="text-muted-foreground">
@@ -539,10 +535,10 @@ function CheckoutDialogInner({
         ) : (
           <>
             <DialogBody className="overflow-y-auto bg-muted/10 p-0">
-              <div className="flex flex-col gap-6 px-6 py-6">
-                <div className="soft-panel grid gap-4 rounded-2xl px-4 py-4">
+              <div className="grid md:grid-cols-[0.9fr_1.1fr]">
+                <div className="flex flex-col gap-5 border-b border-border/60 px-6 py-6 md:border-r md:border-b-0">
                   <div className="flex items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background">
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background">
                       <PlanIcon
                         className={cn(
                           "size-4",
@@ -553,141 +549,143 @@ function CheckoutDialogInner({
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-heading text-lg font-semibold text-foreground">
                           {planMeta[plan].label}
                         </p>
                         <Badge variant="outline">Selected plan</Badge>
                       </div>
-                      <p className="mt-1 text-sm text-muted-foreground">
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
                         {planMeta[plan].description}
                       </p>
                     </div>
                   </div>
-                  <div className="grid gap-2">
+                  <div className="grid gap-2.5">
                     {planHighlightsShort[plan].map((feature) => (
-                      <p className="text-sm text-muted-foreground" key={feature}>
-                        {feature}
-                      </p>
+                      <div
+                        className="flex items-center gap-2.5 text-sm text-muted-foreground"
+                        key={feature}
+                      >
+                        <Check className="size-4 shrink-0 text-primary" />
+                        <span>{feature}</span>
+                      </div>
                     ))}
+                  </div>
+                  <div className="soft-panel grid gap-3 rounded-xl px-4 py-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <ReceiptText className="size-4" />
+                      <span>Due today</span>
+                    </div>
+                    <div className="flex items-end justify-between gap-3">
+                      <span className="text-sm text-muted-foreground">
+                        {isQrPh ? "One-time QR Ph payment" : effectiveInterval}
+                      </span>
+                      <span className="font-heading text-2xl font-semibold text-foreground">
+                        {formatPrice(totalPrice, currency)}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {!isQrPh ? (
-                  <div className="flex items-center justify-center">
-                    <div className="inline-flex rounded-full border border-border/70 bg-muted/40 p-1">
-                      <button
-                        className={cn(
-                          "relative rounded-full px-4 py-1.5 text-sm font-medium transition-all",
-                          effectiveInterval === "monthly"
-                            ? "bg-background text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground",
-                        )}
-                        onClick={() => {
-                          setInterval("monthly");
+                <div className="flex flex-col gap-5 px-6 py-6">
+                  {!isQrPh ? (
+                    <div className="flex flex-col gap-2.5">
+                      <p className="meta-label">Billing cycle</p>
+                      <Tabs
+                        onValueChange={(value) => {
+                          setInterval(
+                            value === "yearly" ? "yearly" : "monthly",
+                          );
                           updateCheckoutError(null);
                         }}
-                        type="button"
+                        value={effectiveInterval}
                       >
-                        Monthly
-                      </button>
-                      <button
-                        className={cn(
-                          "relative flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-all",
-                          effectiveInterval === "yearly"
-                            ? "bg-background text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground",
-                        )}
-                        onClick={() => {
-                          setInterval("yearly");
-                          updateCheckoutError(null);
-                        }}
-                        type="button"
-                      >
-                        Yearly
-                        <Badge
-                          className="border-primary/20 bg-primary/10 px-1.5 py-0 text-[10px] text-primary"
-                          variant="secondary"
-                        >
-                          -{savingsPercent}%
-                        </Badge>
-                      </button>
+                        <TabsList className="w-full">
+                          <TabsTrigger className="flex-1" value="monthly">
+                            Monthly
+                          </TabsTrigger>
+                          <TabsTrigger className="flex-1" value="yearly">
+                            Yearly
+                            <Badge variant="secondary">-{savingsPercent}%</Badge>
+                          </TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                      {effectiveInterval === "yearly" ? (
+                        <p className="text-xs leading-5 text-muted-foreground">
+                          {getMonthlyEquivalentLabel(plan, currency)} billed yearly.
+                        </p>
+                      ) : null}
                     </div>
-                  </div>
-                ) : null}
-
-                <div className="flex flex-col gap-2.5">
-                  <p className="meta-label">Payment method</p>
-                  <div className={cn("grid gap-2", isPH && "sm:grid-cols-2")}>
-                    {isPH ? (
-                      <button
-                        className={cn(
-                          "flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all",
-                          paymentMethod === "qrph"
-                            ? "border-primary/40 bg-accent/30 shadow-[0_0_0_1px_hsl(var(--primary)/0.12)]"
-                            : "border-border/60 bg-card/60 hover:border-border hover:bg-accent/10",
-                        )}
-                        onClick={() => {
-                          setPaymentMethod("qrph");
-                          updateCheckoutError(null);
-                        }}
-                        type="button"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <QrPhBrandMark />
-                        </div>
-                        {paymentMethod === "qrph" ? (
-                          <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
-                            <Check className="size-3" />
-                          </div>
-                        ) : (
-                          <div className="size-5 shrink-0 rounded-full border-2 border-border/70" />
-                        )}
-                      </button>
-                    ) : null}
-                    <button
-                      className={cn(
-                        "flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all",
-                        paymentMethod === "card"
-                          ? "border-primary/40 bg-accent/30 shadow-[0_0_0_1px_hsl(var(--primary)/0.12)]"
-                          : "border-border/60 bg-card/60 hover:border-border hover:bg-accent/10",
-                      )}
-                      onClick={() => {
-                        setPaymentMethod("card");
-                        updateCheckoutError(null);
-                      }}
-                      type="button"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground">
-                          Card, PayPal, and more
-                        </p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">
-                          {isPH ? "Billed in USD via Paddle" : "Visa, Mastercard, PayPal, Google Pay"}
-                        </p>
-                        <div className="mt-2.5">
-                          <CardAndMoreBrandMarks />
-                        </div>
-                      </div>
-                      {paymentMethod === "card" ? (
-                        <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
-                          <Check className="size-3" />
-                        </div>
-                      ) : (
-                        <div className="size-5 shrink-0 rounded-full border-2 border-border/70" />
-                      )}
-                    </button>
-                  </div>
-                  {isQrPh ? (
-                    <p className="px-1 text-xs text-muted-foreground">
-                      QR Ph is a one-time payment for one month of access.
-                    </p>
-                  ) : effectiveInterval === "yearly" ? (
-                    <p className="px-1 text-xs text-muted-foreground">
-                      {getMonthlyEquivalentLabel(plan, currency)} billed yearly.
-                    </p>
                   ) : null}
 
+                  <div className="flex flex-col gap-2.5">
+                    <p className="meta-label">Payment method</p>
+                    <div className={cn("grid gap-3", isPH && "sm:grid-cols-2")}>
+                      {isPH ? (
+                        <button
+                          aria-pressed={paymentMethod === "qrph"}
+                          className={cn(
+                            "flex min-h-28 items-start gap-3 rounded-xl border bg-card/70 p-4 text-left transition-all hover:border-border hover:bg-accent/10 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring",
+                            paymentMethod === "qrph" &&
+                              "border-primary/50 bg-accent/30 shadow-[var(--control-shadow)]",
+                          )}
+                          onClick={() => {
+                            setPaymentMethod("qrph");
+                            updateCheckoutError(null);
+                          }}
+                          type="button"
+                        >
+                          <QrCode className="mt-0.5 size-4 shrink-0 text-primary" />
+                          <div className="min-w-0 flex-1">
+                            <QrPhBrandMark />
+                            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                              PHP one-time payment through GCash, Maya, or a QR Ph app.
+                            </p>
+                          </div>
+                          {paymentMethod === "qrph" ? (
+                            <Check className="size-4 shrink-0 text-primary" />
+                          ) : null}
+                        </button>
+                      ) : null}
+                      <button
+                        aria-pressed={paymentMethod === "card"}
+                        className={cn(
+                          "flex min-h-28 items-start gap-3 rounded-xl border bg-card/70 p-4 text-left transition-all hover:border-border hover:bg-accent/10 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1 focus-visible:outline-ring",
+                          paymentMethod === "card" &&
+                            "border-primary/50 bg-accent/30 shadow-[var(--control-shadow)]",
+                        )}
+                        onClick={() => {
+                          setPaymentMethod("card");
+                          updateCheckoutError(null);
+                        }}
+                        type="button"
+                      >
+                        <CreditCard className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground">
+                            Card, PayPal, and more
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            {isPH
+                              ? "Billed in USD through Paddle."
+                              : "Visa, Mastercard, PayPal, and Google Pay."}
+                          </p>
+                          <div className="mt-3">
+                            <CardAndMoreBrandMarks />
+                          </div>
+                        </div>
+                        {paymentMethod === "card" ? (
+                          <Check className="size-4 shrink-0 text-primary" />
+                        ) : null}
+                      </button>
+                    </div>
+                    {isQrPh ? (
+                      <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-background/70 px-3 py-2.5 text-xs leading-5 text-muted-foreground">
+                        <Clock3 className="mt-0.5 size-4 shrink-0" />
+                        <span>QR Ph codes stay active for 30 minutes.</span>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </DialogBody>
@@ -814,16 +812,22 @@ function QrPhPaymentView({
   qrData: PendingQrPhData;
 }) {
   return (
-    <div className="grid gap-5 pt-4 pb-2">
-      <div className="mx-auto flex flex-col items-center gap-4">
-        <div className="rounded-xl border border-border/70 bg-white p-4 shadow-sm">
-          <QRCode level="M" size={200} value={qrData.qrCodeData} />
+    <div className="grid gap-5 pt-2 pb-2">
+      <div className="soft-panel grid gap-5 rounded-xl px-4 py-4 sm:grid-cols-[auto_1fr] sm:items-center">
+        <div className="mx-auto rounded-xl border border-border/70 bg-white p-4 shadow-sm sm:mx-0">
+          <QRCode level="M" size={208} value={qrData.qrCodeData} />
         </div>
-        <div className="text-center">
-          <p className="text-sm font-medium text-foreground">
-            {formatPrice(qrData.amount, "PHP")} - {planMeta[plan].label}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
+        <div className="grid gap-4 text-center sm:text-left">
+          <div>
+            <p className="meta-label">QR Ph checkout</p>
+            <p className="mt-1 font-heading text-2xl font-semibold text-foreground">
+              {formatPrice(qrData.amount, "PHP")}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {planMeta[plan].label} workspace access
+            </p>
+          </div>
+          <p className="text-sm leading-6 text-muted-foreground">
             Scan with GCash, Maya, or any QR Ph supported app.
           </p>
         </div>
@@ -839,30 +843,37 @@ function QrPhPaymentView({
         </div>
       ) : null}
 
-      <div className="soft-panel overflow-hidden rounded-xl px-0 py-0 text-sm">
-        <div className="grid divide-y divide-border/60">
-          <div className="flex items-center justify-between px-4 py-3">
-            <span className="text-muted-foreground">Status</span>
-            <Badge className="bg-background" variant="outline">
-              Awaiting payment
-            </Badge>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-border/60 bg-card/70 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Clock3 className="size-4" />
+            <span>Status</span>
           </div>
-          <div className="flex items-center justify-between px-4 py-3">
-            <span className="text-muted-foreground">Expires</span>
-            <span className="font-medium text-foreground">
-              {new Date(qrData.expiresAt).toLocaleTimeString([], {
-                hour: "numeric",
-                minute: "2-digit",
-              })}
-            </span>
+          <Badge className="mt-2" variant="outline">
+            Awaiting payment
+          </Badge>
+        </div>
+        <div className="rounded-xl border border-border/60 bg-card/70 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <ReceiptText className="size-4" />
+            <span>Expires</span>
           </div>
+          <p className="mt-2 text-sm font-medium text-foreground">
+            {new Date(qrData.expiresAt).toLocaleTimeString([], {
+              hour: "numeric",
+              minute: "2-digit",
+            })}
+          </p>
         </div>
       </div>
 
-      <p className="text-center text-xs leading-relaxed text-muted-foreground">
-        This workspace will upgrade automatically once the payment webhook is
-        confirmed.
-      </p>
+      <Alert>
+        <ShieldCheck />
+        <AlertTitle>Automatic activation</AlertTitle>
+        <AlertDescription>
+          The workspace will upgrade once PayMongo confirms the payment.
+        </AlertDescription>
+      </Alert>
 
       {error ? (
         <Alert variant="destructive">

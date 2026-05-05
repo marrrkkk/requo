@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
 import {
   mapPaddleStatus,
@@ -18,6 +18,14 @@ import {
 } from "@/lib/billing/subscription-service";
 import { writeSubscriptionTransitionAuditLogs } from "@/features/audit/subscription";
 import { finalizeScheduledWorkspaceDeletionIfDue } from "@/features/workspaces/mutations";
+
+function runAfterResponse(task: () => Promise<unknown> | unknown) {
+  try {
+    after(task);
+  } catch {
+    void task();
+  }
+}
 
 async function getPaddleAttempt(providerPaymentId: string) {
   const { db } = await import("@/lib/db/client");
@@ -71,7 +79,7 @@ export async function POST(request: Request) {
   const data = payload.data as Record<string, unknown> | undefined;
   const customData = data?.custom_data as Record<string, string> | undefined;
   const transactionId = data?.id as string | undefined;
-  const matchedAttempt = transactionId
+  const matchedAttempt = eventType.startsWith("transaction.") && transactionId
     ? await getPaddleAttempt(transactionId)
     : null;
   const workspaceId = customData?.workspace_id ?? matchedAttempt?.workspaceId;
@@ -130,13 +138,15 @@ export async function POST(request: Request) {
           workspaceId,
         });
 
-        await writeSubscriptionTransitionAuditLogs({
-          workspaceId,
-          previousSubscription,
-          nextSubscription,
-          source: "webhook",
-          providerEventId: eventId,
-        });
+        runAfterResponse(() =>
+          writeSubscriptionTransitionAuditLogs({
+            workspaceId,
+            previousSubscription,
+            nextSubscription,
+            source: "webhook",
+            providerEventId: eventId,
+          }),
+        );
         break;
       }
 
@@ -160,13 +170,15 @@ export async function POST(request: Request) {
           providerSubscriptionId: subscriptionId,
         });
 
-        await writeSubscriptionTransitionAuditLogs({
-          workspaceId,
-          previousSubscription,
-          nextSubscription,
-          source: "webhook",
-          providerEventId: eventId,
-        });
+        runAfterResponse(() =>
+          writeSubscriptionTransitionAuditLogs({
+            workspaceId,
+            previousSubscription,
+            nextSubscription,
+            source: "webhook",
+            providerEventId: eventId,
+          }),
+        );
         break;
       }
 
@@ -187,13 +199,15 @@ export async function POST(request: Request) {
           currentPeriodEnd: endsAt,
         });
 
-        await writeSubscriptionTransitionAuditLogs({
-          workspaceId,
-          previousSubscription,
-          nextSubscription,
-          source: "webhook",
-          providerEventId: eventId,
-        });
+        runAfterResponse(() =>
+          writeSubscriptionTransitionAuditLogs({
+            workspaceId,
+            previousSubscription,
+            nextSubscription,
+            source: "webhook",
+            providerEventId: eventId,
+          }),
+        );
         break;
       }
 
@@ -276,7 +290,7 @@ export async function POST(request: Request) {
     }
 
     if (workspaceId) {
-      await finalizeScheduledWorkspaceDeletionIfDue(workspaceId);
+      runAfterResponse(() => finalizeScheduledWorkspaceDeletionIfDue(workspaceId));
     }
 
     await markEventProcessed(storedEventId);

@@ -3,6 +3,7 @@ import type { SubscriptionStatus } from '@/lib/billing/types';
 
 // Mock "server-only" so the module can be imported in test env
 vi.mock('server-only', () => ({}));
+vi.mock('next/cache', () => ({ revalidateTag: vi.fn() }));
 
 // Mock db module — we only test the pure resolveEffectivePlanFromSubscription function
 vi.mock('@/lib/db/client', () => ({ db: {} }));

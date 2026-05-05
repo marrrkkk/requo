@@ -83,6 +83,7 @@ export type CancelPendingQrCheckoutResult =
 
 export type CheckoutStatusSnapshot = {
   subscription: {
+    effectivePlan: WorkspacePlan;
     plan: string;
     status: SubscriptionStatus;
   } | null;

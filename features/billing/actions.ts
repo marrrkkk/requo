@@ -8,7 +8,11 @@ import { getWorkspaceContextForUser } from "@/lib/db/workspace-access";
 import { isPayMongoConfigured, isPaddleConfigured } from "@/lib/env";
 import { getPlanPrice } from "@/lib/billing/plans";
 import { getProviderForCurrency } from "@/lib/billing/region";
-import { createPendingSubscription, getWorkspaceSubscription } from "@/lib/billing/subscription-service";
+import {
+  createPendingSubscription,
+  getWorkspaceSubscription,
+  resolveEffectivePlanFromSubscription,
+} from "@/lib/billing/subscription-service";
 import { recordPaymentAttempt } from "@/lib/billing/webhook-processor";
 import type {
   CancelActionState,
@@ -472,6 +476,7 @@ export async function getCheckoutStatusAction(
   return {
     subscription: subscription
       ? {
+          effectivePlan: resolveEffectivePlanFromSubscription(subscription),
           plan: subscription.plan,
           status: subscription.status,
         }

@@ -6,10 +6,12 @@ import { cookies } from "next/headers";
 import { cache } from "react";
 
 import {
+  getWorkspaceScopeTag,
   getUserBusinessContextCacheTags,
   getUserMembershipsCacheTags,
   membershipShellCacheLife,
 } from "@/lib/cache/shell-tags";
+import { uniqueCacheTags } from "@/lib/cache/business-tags";
 
 import type {
   BusinessRecordState,
@@ -162,6 +164,16 @@ async function getCachedBusinessMemberships(
       asc(businesses.createdAt),
     );
 
+  const workspaceTags = uniqueCacheTags(
+    memberships.map((membership) =>
+      getWorkspaceScopeTag(membership.workspaceId),
+    ),
+  );
+
+  if (workspaceTags.length > 0) {
+    cacheTag(...workspaceTags);
+  }
+
   return memberships.map((membership) => ({
     membershipId: membership.membershipId,
     role: membership.role,
@@ -243,6 +255,8 @@ async function getCachedBusinessContextForMembershipSlug(
   if (!context) {
     return null;
   }
+
+  cacheTag(getWorkspaceScopeTag(context.workspaceId));
 
   return {
     membershipId: context.membershipId,

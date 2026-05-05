@@ -14,6 +14,11 @@ vi.mock("@/lib/db/client", async () => {
   return { db: mockedDb };
 });
 
+vi.mock("next/cache", () => ({
+  cacheLife: vi.fn(),
+  cacheTag: vi.fn(),
+}));
+
 vi.mock("next/headers", () => ({
   cookies: vi.fn(async () => ({
     get: vi.fn(() => ({ value: "test-workflow-access-business" })),

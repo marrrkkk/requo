@@ -9,9 +9,11 @@ import "server-only";
  */
 
 import { eq } from "drizzle-orm";
+import { revalidateTag } from "next/cache";
 
 import { db } from "@/lib/db/client";
 import { workspaces } from "@/lib/db/schema/workspaces";
+import { getWorkspaceBillingCacheTags } from "@/lib/cache/shell-tags";
 import {
   workspaceSubscriptions,
   type BillingCurrency,
@@ -273,9 +275,7 @@ export async function cancelSubscription(
 export async function expireSubscription(
   workspaceId: string,
 ): Promise<SubscriptionRow | null> {
-  const result = await updateSubscriptionStatus(workspaceId, "expired");
-  await syncWorkspacePlanColumn(workspaceId, "free");
-  return result;
+  return updateSubscriptionStatus(workspaceId, "expired");
 }
 
 /* ── Sync helper ───────────────────────────────────────────────────────────── */
@@ -292,4 +292,8 @@ async function syncWorkspacePlanColumn(
     .update(workspaces)
     .set({ plan, updatedAt: new Date() })
     .where(eq(workspaces.id, workspaceId));
+
+  for (const tag of getWorkspaceBillingCacheTags(workspaceId)) {
+    revalidateTag(tag, { expire: 0 });
+  }
 }

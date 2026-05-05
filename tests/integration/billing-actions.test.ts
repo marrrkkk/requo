@@ -67,6 +67,13 @@ vi.mock("@/lib/billing/subscription-service", () => ({
   createPendingSubscription: createPendingSubscriptionMock,
   getWorkspaceSubscription: getWorkspaceSubscriptionMock,
   cancelSubscription: cancelSubscriptionMock,
+  resolveEffectivePlanFromSubscription: (subscription: {
+    plan: string;
+    status: string;
+  }) =>
+    subscription.status === "active" || subscription.status === "past_due"
+      ? subscription.plan
+      : "free",
   updateSubscriptionStatus: updateSubscriptionStatusMock,
 }));
 
@@ -320,6 +327,7 @@ describe("billing actions", () => {
 
     expect(result).toEqual({
       subscription: {
+        effectivePlan: "pro",
         plan: "pro",
         status: "active",
       },

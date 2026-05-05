@@ -78,6 +78,7 @@ type WorkspaceCheckoutContextValue = {
 };
 
 type WorkspaceSubscriptionRealtimeRow = {
+  effectivePlan?: string | null;
   plan?: string | null;
   status?: string | null;
 };
@@ -99,7 +100,10 @@ type ActivePaddleCheckout = {
 
 const WorkspaceCheckoutContext =
   createContext<WorkspaceCheckoutContextValue | null>(null);
-const PROCESSING_REFRESH_DELAY_MS = 1000;
+const CHECKOUT_STATUS_POLL_INTERVAL_MS = 2500;
+const PROCESSING_REFRESH_DELAY_MS = 250;
+const PROCESSING_REFRESH_RETRY_MS = 3000;
+const PROCESSING_FALLBACK_MS = 15000;
 
 async function fetchRealtimeToken() {
   const response = await fetch("/api/business/notifications/realtime-token", {
@@ -168,6 +172,8 @@ export function WorkspaceCheckoutProvider({
   const localExpiryHandledRef = useRef<string | null>(null);
   const pendingCheckoutVersionRef = useRef(0);
   const checkoutKeyRef = useRef(0);
+  const activationFallbackTimerRef = useRef<number | null>(null);
+  const confirmedActivationPlanRef = useRef<PaidPlan | null>(null);
 
   const openPlanSelection = useCallback((nextTargetPlan?: PaidPlan) => {
     setCheckoutError(null);
@@ -194,6 +200,13 @@ export function WorkspaceCheckoutProvider({
     setCheckoutOpen(true);
   }, [pendingCheckout]);
 
+  const beginCheckoutProcessing = useCallback((plan: PaidPlan) => {
+    setCheckoutError(null);
+    setCheckoutOpen(false);
+    setSelectedPlan(plan);
+    setProcessingState({ awaitingActivation: true, plan });
+  }, []);
+
   const queueRefresh = useCallback(() => {
     if (refreshQueuedRef.current) {
       return;
@@ -203,11 +216,51 @@ export function WorkspaceCheckoutProvider({
 
     window.setTimeout(() => {
       router.refresh();
+      window.setTimeout(() => {
+        refreshQueuedRef.current = false;
+      }, PROCESSING_REFRESH_RETRY_MS);
     }, PROCESSING_REFRESH_DELAY_MS);
   }, [router]);
 
+  const clearActivationFallback = useCallback(() => {
+    if (activationFallbackTimerRef.current) {
+      window.clearTimeout(activationFallbackTimerRef.current);
+      activationFallbackTimerRef.current = null;
+    }
+
+    confirmedActivationPlanRef.current = null;
+  }, []);
+
+  const scheduleActivationFallback = useCallback(
+    (plan: PaidPlan) => {
+      confirmedActivationPlanRef.current = plan;
+
+      if (activationFallbackTimerRef.current) {
+        return;
+      }
+
+      activationFallbackTimerRef.current = window.setTimeout(() => {
+        activationFallbackTimerRef.current = null;
+
+        if (confirmedActivationPlanRef.current !== plan) {
+          return;
+        }
+
+        refreshQueuedRef.current = false;
+        setProcessingState(null);
+        setCheckoutOpen(false);
+        setCheckoutError(null);
+        setSelectedPlan(null);
+        setSuccessPlan(plan);
+        router.refresh();
+      }, PROCESSING_FALLBACK_MS);
+    },
+    [router],
+  );
+
   const handleCheckoutFailure = useCallback(
     (message: string, failedCheckout: PersistedPendingCheckout | null) => {
+      clearActivationFallback();
       clearCachedPendingCheckout(workspaceId);
       setProcessingState(null);
       setSelectedPlan(failedCheckout?.plan ?? selectedPlan);
@@ -217,8 +270,12 @@ export function WorkspaceCheckoutProvider({
         toast.error(message);
       }
     },
-    [checkoutOpen, selectedPlan, workspaceId],
+    [checkoutOpen, clearActivationFallback, selectedPlan, workspaceId],
   );
+
+  useEffect(() => {
+    return clearActivationFallback;
+  }, [clearActivationFallback]);
 
   useEffect(() => {
     const initialCachedCheckout = getCachedPendingCheckout(workspaceId);
@@ -313,6 +370,7 @@ export function WorkspaceCheckoutProvider({
     }
 
     clearCachedPendingCheckout(workspaceId);
+    clearActivationFallback();
     refreshQueuedRef.current = false;
     const upgradedPlan = processingState.plan;
     queueMicrotask(() => {
@@ -325,6 +383,7 @@ export function WorkspaceCheckoutProvider({
   }, [
     billing.currentPlan,
     billing.subscription?.status,
+    clearActivationFallback,
     processingState,
     workspaceId,
   ]);
@@ -344,6 +403,7 @@ export function WorkspaceCheckoutProvider({
     // previous cleanup's `removeChannel` fully completes (async race).
     const channelSuffix = Date.now();
     let refreshTimerId: number | null = null;
+    let statusPollTimerId: number | null = null;
     let subscriptionChannel:
       | Awaited<ReturnType<typeof supabase.channel>>
       | null = null;
@@ -366,6 +426,13 @@ export function WorkspaceCheckoutProvider({
       if (refreshTimerId) {
         window.clearTimeout(refreshTimerId);
         refreshTimerId = null;
+      }
+    }
+
+    function clearStatusPollTimer() {
+      if (statusPollTimerId) {
+        window.clearInterval(statusPollTimerId);
+        statusPollTimerId = null;
       }
     }
 
@@ -412,15 +479,17 @@ export function WorkspaceCheckoutProvider({
 
     function handleSubscriptionRow(row: WorkspaceSubscriptionRealtimeRow) {
       const status = row.status;
+      const effectivePlan = row.effectivePlan;
       const rowPlan = row.plan;
 
       if (
         planToTrack &&
-        rowPlan === planToTrack &&
+        (rowPlan === planToTrack || effectivePlan === planToTrack) &&
         (status === "active" || status === "past_due")
       ) {
         beginProcessing(planToTrack, false);
         clearCachedPendingCheckout(workspaceId);
+        scheduleActivationFallback(planToTrack);
         queueRefresh();
         return;
       }
@@ -510,6 +579,11 @@ export function WorkspaceCheckoutProvider({
       }
     }
 
+    void syncCheckoutStatus();
+    statusPollTimerId = window.setInterval(() => {
+      void syncCheckoutStatus();
+    }, CHECKOUT_STATUS_POLL_INTERVAL_MS);
+
     async function connectRealtime() {
       const tokenData = await fetchRealtimeToken();
 
@@ -518,7 +592,6 @@ export function WorkspaceCheckoutProvider({
       }
 
       await supabase.realtime.setAuth(tokenData.token);
-      await syncCheckoutStatus();
 
       subscriptionChannel = supabase
         .channel(`workspace-subscription:${workspaceId}:${planToTrack ?? "any"}:${channelSuffix}`)
@@ -586,6 +659,7 @@ export function WorkspaceCheckoutProvider({
     return () => {
       isActive = false;
       clearRefreshTimer();
+      clearStatusPollTimer();
 
       if (subscriptionChannel) {
         void supabase.removeChannel(subscriptionChannel);
@@ -602,6 +676,7 @@ export function WorkspaceCheckoutProvider({
     pendingCheckout,
     processingState,
     queueRefresh,
+    scheduleActivationFallback,
     workspaceId,
   ]);
 
@@ -650,6 +725,7 @@ export function WorkspaceCheckoutProvider({
           defaultCurrency={billing.defaultCurrency}
           onCheckoutErrorChange={setCheckoutError}
           onOpenChange={setCheckoutOpen}
+          onPaymentProcessingStart={beginCheckoutProcessing}
           onPaddleTransactionChange={setActivePaddleCheckout}
           open={checkoutOpen}
           pendingCheckout={pendingCheckout}
