@@ -2,6 +2,7 @@
 
 export const workspacesHubPath = "/workspaces";
 
+
 export type WorkspaceSettingsSection = "general" | "billing" | "audit-log" | "members";
 
 export function getWorkspacePath(slug: string) {
@@ -14,7 +15,7 @@ export function getWorkspaceSettingsPath(
 ) {
   const basePath = `${getWorkspacePath(slug)}/settings`;
 
-  return section && section !== "general" ? `${basePath}/${section}` : basePath;
+  return section ? `${basePath}/${section}` : basePath;
 }
 
 export function getWorkspaceMembersPath(slug: string) {
