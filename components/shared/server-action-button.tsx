@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -73,6 +73,9 @@ export function ServerActionButton<State extends ServerActionState>({
     {} as Awaited<State>,
   );
 
+  // Fire side-effects on success. The action's isPending has already
+  // reset by the time this runs, so the button shows its idle label
+  // while the background refresh streams in fresh data.
   useEffect(() => {
     if (!state.success) {
       return;
@@ -125,16 +128,21 @@ export function ServerActionConfirmDialog<State extends ServerActionState>({
   triggerVariant = "outline",
 }: ServerActionConfirmDialogProps<State>) {
   const router = useProgressRouter();
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     {} as Awaited<State>,
   );
 
+  // Close dialog and fire side-effects on success.
+  // Schedule dialog close outside the synchronous effect to avoid
+  // cascading render warnings.
   useEffect(() => {
     if (!state.success) {
       return;
     }
 
+    queueMicrotask(() => setDialogOpen(false));
     onSuccess?.();
 
     if (redirectHref) {
@@ -148,7 +156,7 @@ export function ServerActionConfirmDialog<State extends ServerActionState>({
   }, [onSuccess, redirectHref, refreshOnSuccess, router, state.success]);
 
   return (
-    <Dialog>
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogTrigger asChild>
         <Button disabled={disabled} type="button" variant={triggerVariant}>
           {Icon ? <Icon data-icon="inline-start" /> : null}

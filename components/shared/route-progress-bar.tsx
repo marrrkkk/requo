@@ -245,10 +245,11 @@ export function RouteProgressBar() {
     }
 
     function handleDocumentPointerDown(event: PointerEvent) {
-      if (
-        event.pointerType === "mouse" &&
-        !isPrimaryNavigationClick(event as unknown as MouseEvent)
-      ) {
+      if (event.pointerType !== "mouse") {
+        return;
+      }
+
+      if (!isPrimaryNavigationClick(event as unknown as MouseEvent)) {
         return;
       }
 

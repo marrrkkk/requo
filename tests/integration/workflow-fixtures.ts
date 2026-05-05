@@ -15,6 +15,7 @@ import {
   quoteItems,
   quotes,
   user,
+  userRecentBusinesses,
   workspaceMembers,
   workspaces,
 } from "@/lib/db/schema";
@@ -101,6 +102,9 @@ export async function cleanupWorkflowFixture(prefix: string) {
   await testDb
     .delete(activityLogs)
     .where(inArray(activityLogs.businessId, businessIds));
+  await testDb
+    .delete(userRecentBusinesses)
+    .where(inArray(userRecentBusinesses.businessId, businessIds));
   await testDb
     .delete(auditLogs)
     .where(inArray(auditLogs.workspaceId, workspaceIds));

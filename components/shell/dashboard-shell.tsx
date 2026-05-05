@@ -254,6 +254,7 @@ export function DashboardShell({
                   <CommandMenu
                     businessSlug={business.slug}
                     role={businessContext.role}
+                    workspacePlan={business.workspacePlan}
                     workspaceSlug={business.workspaceSlug}
                   />
                 </div>

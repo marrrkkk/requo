@@ -24,3 +24,12 @@ export const createBusinessSchema = z.object({
     ),
   workspaceId: z.string().trim().min(1, "Please select a temporary workspace."),
 });
+
+export const recentlyOpenedBusinessSchema = z.object({
+  businessSlug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(120)
+    .regex(/^[a-z0-9-]+$/),
+});

@@ -23,18 +23,43 @@ export default function WorkspacesLoading() {
         </div>
 
         <div className="w-full space-y-6">
-          <section className="space-y-4">
-            <Skeleton className="h-5 w-48 rounded-md" />
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Skeleton className="size-3.5 rounded-sm" />
+              <Skeleton className="h-4 w-32 rounded-md" />
+            </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 3 }).map((_, index) => (
-                <Skeleton className="h-24 rounded-lg" key={index} />
+                <Card className="border-border/60 bg-card/80" key={index}>
+                  <CardHeader className="gap-0 pb-3">
+                    <div className="flex items-start gap-3">
+                      <Skeleton className="size-10 rounded-xl" />
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <Skeleton className="h-[1.05rem] w-32 rounded-md" />
+                        <Skeleton className="h-3 w-24 rounded-md" />
+                      </div>
+                      <Skeleton className="mt-0.5 size-4 rounded-sm" />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2.5 pt-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Skeleton className="h-5 w-12 rounded-full" />
+                      <Skeleton className="h-5 w-20 rounded-full" />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Skeleton className="size-3 rounded-sm" />
+                      <Skeleton className="h-3 w-24 rounded-md" />
+                      <Skeleton className="ml-auto h-3 w-16 rounded-md" />
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           </section>
 
           <section className="space-y-4">
             <div className="flex items-center justify-between gap-3">
-              <Skeleton className="h-5 w-24 rounded-md" />
+              <Skeleton className="h-4 w-32 rounded-md" />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -42,7 +67,7 @@ export default function WorkspacesLoading() {
                 <Card className="flex flex-col border-border/80 bg-card/98" key={index}>
                   <CardHeader className="gap-4">
                     <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0 flex-1 space-y-2 mt-1">
+                      <div className="min-w-0 flex-1 space-y-2">
                         <Skeleton className="h-6 w-32 rounded-md" />
                         <Skeleton className="h-4 w-20 rounded-md" />
                       </div>
@@ -54,7 +79,7 @@ export default function WorkspacesLoading() {
                       <Skeleton className="h-6 w-24 rounded-full" />
                       <Skeleton className="h-6 w-16 rounded-full" />
                     </div>
-                    <Skeleton className="h-10 w-full sm:w-36 rounded-md" />
+                    <Skeleton className="h-10 w-full rounded-md sm:w-36" />
                   </CardContent>
                 </Card>
               ))}

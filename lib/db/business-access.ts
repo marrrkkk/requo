@@ -1,8 +1,15 @@
 import "server-only";
 
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
 import { cookies } from "next/headers";
 import { cache } from "react";
+
+import {
+  getUserBusinessContextCacheTags,
+  getUserMembershipsCacheTags,
+  membershipShellCacheLife,
+} from "@/lib/cache/shell-tags";
 
 import type {
   BusinessRecordState,
@@ -103,10 +110,15 @@ function getBusinessRoleSortExpression() {
   end`;
 }
 
-export const getBusinessMembershipsForUser = cache(async (
+async function getCachedBusinessMemberships(
   userId: string,
   view: BusinessRecordView | "all" = "active",
-) => {
+) {
+  "use cache";
+
+  cacheLife(membershipShellCacheLife);
+  cacheTag(...getUserMembershipsCacheTags(userId));
+
   const publicInquiryEnabledSelection = sql<boolean>`coalesce((
     select ${businessInquiryForms.publicInquiryEnabled}
     from ${businessInquiryForms}
@@ -169,13 +181,25 @@ export const getBusinessMembershipsForUser = cache(async (
       deletedAt: membership.deletedAt,
     },
   })) satisfies BusinessContext[];
+}
+
+export const getBusinessMembershipsForUser = cache(async (
+  userId: string,
+  view: BusinessRecordView | "all" = "active",
+) => {
+  return getCachedBusinessMemberships(userId, view);
 });
 
-export const getBusinessContextForMembershipSlug = cache(async (
+async function getCachedBusinessContextForMembershipSlug(
   userId: string,
   businessSlug: string,
   includeInactive = true,
-) => {
+) {
+  "use cache";
+
+  cacheLife(membershipShellCacheLife);
+  cacheTag(...getUserBusinessContextCacheTags(userId, businessSlug));
+
   const publicInquiryEnabledSelection = sql<boolean>`coalesce((
     select ${businessInquiryForms.publicInquiryEnabled}
     from ${businessInquiryForms}
@@ -239,6 +263,14 @@ export const getBusinessContextForMembershipSlug = cache(async (
       deletedAt: context.deletedAt,
     },
   } satisfies BusinessContext;
+}
+
+export const getBusinessContextForMembershipSlug = cache(async (
+  userId: string,
+  businessSlug: string,
+  includeInactive = true,
+) => {
+  return getCachedBusinessContextForMembershipSlug(userId, businessSlug, includeInactive);
 });
 
 const getActiveBusinessSlug = cache(async () => {

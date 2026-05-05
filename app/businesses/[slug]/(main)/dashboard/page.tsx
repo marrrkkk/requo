@@ -68,7 +68,9 @@ export default async function DashboardOverviewPage({
   const followUpOverviewPromise = getFollowUpOverviewForBusiness(
     businessContext.business.id,
   );
-  const profile = await getAccountProfileForUser(session.user.id);
+  // Profile is cached — start it in parallel, only needed for tour-check.
+  const profilePromise = getAccountProfileForUser(session.user.id);
+  const profile = await profilePromise;
   const showTour = Boolean(profile && !profile.dashboardTourCompletedAt);
 
   return (

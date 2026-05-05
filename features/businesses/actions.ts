@@ -26,7 +26,11 @@ import {
   trashBusiness,
   unarchiveBusiness,
 } from "@/features/businesses/mutations";
-import { createBusinessSchema } from "@/features/businesses/schemas";
+import { recordRecentlyOpenedBusiness } from "@/features/businesses/recently-opened";
+import {
+  createBusinessSchema,
+  recentlyOpenedBusinessSchema,
+} from "@/features/businesses/schemas";
 import {
   activeBusinessSlugCookieName,
   getBusinessDashboardPath,
@@ -83,6 +87,41 @@ async function clearActiveBusinessCookieIfNeeded(businessSlug: string) {
 
   if (cookieStore.get(activeBusinessSlugCookieName)?.value === businessSlug) {
     cookieStore.delete(activeBusinessSlugCookieName);
+  }
+}
+
+export async function recordRecentlyOpenedBusinessAction(
+  businessSlug: string,
+): Promise<{ ok: boolean }> {
+  const validationResult = recentlyOpenedBusinessSchema.safeParse({
+    businessSlug,
+  });
+
+  if (!validationResult.success) {
+    return { ok: false };
+  }
+
+  const access = await getBusinessActionContext({
+    businessSlug: validationResult.data.businessSlug,
+    minimumRole: "staff",
+  });
+
+  if (!access.ok) {
+    return { ok: false };
+  }
+
+  try {
+    await recordRecentlyOpenedBusiness({
+      businessId: access.businessContext.business.id,
+      userId: access.user.id,
+    });
+    revalidatePath(workspacesHubPath);
+
+    return { ok: true };
+  } catch (error) {
+    console.error("Failed to record recently opened business.", error);
+
+    return { ok: false };
   }
 }
 

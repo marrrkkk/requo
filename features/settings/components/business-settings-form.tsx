@@ -259,28 +259,35 @@ export function BusinessSettingsForm({
           value={draftValues.aiTonePreference}
         />
 
-        <Card className="gap-0 border-border/75 bg-card/97">
-          <CardHeader className="gap-2.5 pb-6">
-            <CardTitle>Business profile</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="flex min-w-0 flex-col gap-5">
-                <BusinessLogoField
-                  businessName={businessNamePreview}
-                  disabled={isPending}
-                  fieldError={state.fieldErrors?.logo?.[0]}
-                  initialPreviewUrl={logoPreviewUrl}
-                  onPendingChange={setHasPendingLogo}
-                  onRemoveLogoChange={setRemoveLogo}
-                  removeLogo={removeLogo}
-                  resetSignal={logoResetSignal}
-                  showRemoveToggle={Boolean(settings.logoStoragePath)}
-                />
-                <div className="flex min-w-0 flex-col gap-5">
-                  <FormSection
-                    className="soft-panel px-5 py-5 shadow-none sm:px-6"
-                    title="Identity & contact"
-                  >
+        <section className="section-panel p-5 sm:p-6">
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-2">
+              <h2 className="font-heading text-lg font-semibold leading-tight tracking-tight text-foreground">
+                Business profile
+              </h2>
+              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                The customer-facing details used on inquiry pages, quotes, and email replies.
+              </p>
+            </div>
+
+            <div className="grid gap-7 xl:grid-cols-[14rem_minmax(0,1fr)] xl:gap-8">
+              <BusinessLogoField
+                businessName={businessNamePreview}
+                disabled={isPending}
+                fieldError={state.fieldErrors?.logo?.[0]}
+                initialPreviewUrl={logoPreviewUrl}
+                onPendingChange={setHasPendingLogo}
+                onRemoveLogoChange={setRemoveLogo}
+                removeLogo={removeLogo}
+                resetSignal={logoResetSignal}
+                showRemoveToggle={Boolean(settings.logoStoragePath)}
+              />
+
+              <div className="flex min-w-0 flex-col gap-7">
+                <FormSection
+                  description="Use the same name and reply address customers recognize."
+                  title="Identity & contact"
+                >
                     <FieldGroup>
                       <Field data-invalid={Boolean(state.fieldErrors?.name) || undefined}>
                         <FieldLabel htmlFor="settings-name">Business name</FieldLabel>
@@ -382,13 +389,13 @@ export function BusinessSettingsForm({
                         </Field>
                       </div>
                     </FieldGroup>
-                  </FormSection>
+                </FormSection>
 
-                  <div className="flex min-w-0 flex-col gap-5">
-                    <FormSection
-                      className="soft-panel px-5 py-5 shadow-none sm:px-6"
-                      title="Business summary"
-                    >
+                <FormSection
+                  className="border-t border-border/70 pt-6"
+                  description="Keep this short so public inquiry pages stay easy to scan."
+                  title="Business summary"
+                >
                       <Field
                         data-invalid={Boolean(state.fieldErrors?.shortDescription) || undefined}
                       >
@@ -420,12 +427,13 @@ export function BusinessSettingsForm({
                           />
                         </FieldContent>
                       </Field>
-                    </FormSection>
+                </FormSection>
 
-                    <FormSection
-                      className="soft-panel px-5 py-5 shadow-none sm:px-6"
-                      title="Regional defaults"
-                    >
+                <FormSection
+                  className="border-t border-border/70 pt-6"
+                  description="Used for quote amounts, public forms, and saved customer-facing defaults."
+                  title="Regional defaults"
+                >
                       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                         <Field data-invalid={Boolean(countryCodeError) || undefined}>
                           <FieldLabel htmlFor="settings-country-code">Country</FieldLabel>
@@ -486,12 +494,11 @@ export function BusinessSettingsForm({
                           </FieldContent>
                         </Field>
                       </div>
-                    </FormSection>
-                  </div>
-                </div>
+                </FormSection>
               </div>
-          </CardContent>
-        </Card>
+            </div>
+          </div>
+        </section>
 
         <Card className="gap-0 border-border/75 bg-card/97">
           <CardHeader className="gap-2.5 pb-6">
@@ -792,128 +799,120 @@ function BusinessLogoField({
 
   return (
     <>
-      <div>
-        <div className="soft-panel flex flex-col gap-5 p-5 shadow-none sm:p-6">
-          <div className="flex flex-col gap-2">
-            <p className="meta-label">Logo</p>
-            <h2 className="text-lg font-semibold tracking-tight text-foreground">
-              Business logo
-            </h2>
-          </div>
-
-          <div className="rounded-xl border border-border/75 bg-background/80 px-5 py-5">
-            <div className="flex flex-col items-center gap-4 text-center">
-              <div className="group relative">
-                <input
-                  ref={inputRef}
-                  accept={businessLogoAccept}
-                  className="sr-only"
-                  disabled={disabled}
-                  id="settings-logo"
-                  name="logo"
-                  onChange={handleLogoSelection}
-                  type="file"
+      <div className="flex min-w-0 flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center xl:flex-col xl:items-start">
+          <div className="group relative shrink-0">
+            <input
+              ref={inputRef}
+              accept={businessLogoAccept}
+              className="sr-only"
+              disabled={disabled}
+              id="settings-logo"
+              name="logo"
+              onChange={handleLogoSelection}
+              type="file"
+            />
+            <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/75 bg-muted/35 xl:size-28">
+              {currentPreviewUrl ? (
+                <Image
+                  alt={`${businessName} logo`}
+                  className="h-full w-full object-cover"
+                  height={112}
+                  src={currentPreviewUrl}
+                  unoptimized
+                  width={112}
                 />
-                <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-[1.6rem] border border-border/75 bg-background/92 shadow-[0_10px_28px_rgba(15,23,42,0.08)] transition-transform duration-150 group-hover:scale-[1.01] xl:size-28">
-                  {currentPreviewUrl ? (
-                    <Image
-                      alt={`${businessName} logo`}
-                      className="h-full w-full object-cover"
-                      height={112}
-                      src={currentPreviewUrl}
-                      unoptimized
-                      width={112}
-                    />
-                  ) : (
-                    <span className="text-lg font-semibold uppercase tracking-[0.18em] text-foreground">
-                      {getInitials(businessName)}
-                    </span>
-                  )}
-                </div>
-                <label
-                  className={cn(
-                    "absolute inset-0 flex cursor-pointer items-end justify-end rounded-[1.6rem] focus-within:outline-none",
-                    disabled && "pointer-events-none cursor-default opacity-60",
-                  )}
-                  htmlFor="settings-logo"
-                  onKeyDown={(event) => {
-                    if (
-                      disabled ||
-                      (event.key !== "Enter" && event.key !== " ")
-                    ) {
-                      return;
-                    }
+              ) : (
+                <span className="text-lg font-semibold uppercase text-foreground">
+                  {getInitials(businessName)}
+                </span>
+              )}
+            </div>
+            <label
+              className={cn(
+                "absolute inset-0 flex cursor-pointer items-end justify-end rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/15",
+                disabled && "pointer-events-none cursor-default opacity-60",
+              )}
+              htmlFor="settings-logo"
+              onKeyDown={(event) => {
+                if (
+                  disabled ||
+                  (event.key !== "Enter" && event.key !== " ")
+                ) {
+                  return;
+                }
 
-                    event.preventDefault();
-                    inputRef.current?.click();
-                  }}
-                  role="button"
-                  tabIndex={disabled ? -1 : 0}
+                event.preventDefault();
+                inputRef.current?.click();
+              }}
+              role="button"
+              tabIndex={disabled ? -1 : 0}
+            >
+              <span className="absolute inset-0 rounded-xl bg-foreground/0 transition-colors duration-150 sm:group-hover:bg-foreground/10 sm:group-focus-within:bg-foreground/10" />
+              <span className="relative m-1.5 inline-flex size-9 items-center justify-center rounded-full border border-border/80 bg-background/95 text-foreground shadow-[var(--surface-shadow-sm)] transition-[transform,opacity] duration-150 opacity-100 sm:translate-y-1 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:group-focus-within:translate-y-0 sm:group-focus-within:opacity-100">
+                <Camera aria-hidden="true" className="size-4" />
+                <span className="sr-only">
+                  {currentPreviewUrl ? "Update logo" : "Upload logo"}
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <p className="meta-label">Logo</p>
+            <h3 className="text-[0.95rem] font-semibold tracking-tight text-foreground">
+              Business logo
+            </h3>
+            <p className="text-sm leading-6 text-muted-foreground">
+              Appears on public inquiry pages and quote previews.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 text-sm">
+          {previewUrl ? (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between xl:flex-col xl:items-start">
+              <div className="min-w-0">
+                <p className="font-medium text-foreground">Cropped logo ready</p>
+                <p className="text-muted-foreground">Uploads after save.</p>
+              </div>
+              <Button
+                disabled={disabled}
+                onClick={clearPendingLogo}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                Clear
+              </Button>
+            </div>
+          ) : null}
+          {showRemoveToggle && !previewUrl ? (
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  aria-pressed={removeLogo}
+                  disabled={disabled}
+                  onClick={() => onRemoveLogoChange(!removeLogo)}
+                  size="sm"
+                  type="button"
+                  variant="outline"
                 >
-                  <span className="absolute inset-0 rounded-[1.6rem] bg-foreground/0 transition-colors duration-150 sm:group-hover:bg-foreground/10 sm:group-focus-within:bg-foreground/10" />
-                  <span className="relative mr-1.5 mb-1.5 inline-flex size-10 items-center justify-center rounded-full border border-border/80 bg-background/94 text-foreground shadow-[0_8px_20px_rgba(15,23,42,0.14)] transition-[transform,opacity] duration-150 opacity-100 sm:translate-y-1 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:group-focus-within:translate-y-0 sm:group-focus-within:opacity-100">
-                    <Camera className="size-4" />
-                    <span className="sr-only">
-                      {currentPreviewUrl ? "Update logo" : "Upload logo"}
-                    </span>
-                  </span>
-                </label>
+                  {removeLogo ? "Keep logo" : "Remove logo"}
+                </Button>
               </div>
-
-              <div className="min-w-0 max-w-full">
-                <p className="text-base font-semibold tracking-tight text-foreground">
-                  {businessName}
+              {removeLogo ? (
+                <p className="text-muted-foreground">
+                  Falls back to initials after save.
                 </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-border/70 pt-5">
-            <div className="flex flex-col gap-3">
-              {previewUrl ? (
-                <div className="soft-panel flex flex-col gap-3 px-4 py-3 text-sm shadow-none sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="font-medium text-foreground">Cropped logo ready</p>
-                    <p className="text-muted-foreground">Uploads after save.</p>
-                  </div>
-                  <Button
-                    disabled={disabled}
-                    onClick={clearPendingLogo}
-                    type="button"
-                    variant="outline"
-                  >
-                    Clear
-                  </Button>
-                </div>
-              ) : null}
-              {showRemoveToggle && !previewUrl ? (
-                <div className="flex flex-col gap-1 text-sm">
-                  <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                    <Button
-                      aria-pressed={removeLogo}
-                      disabled={disabled}
-                      onClick={() => onRemoveLogoChange(!removeLogo)}
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                    >
-                      {removeLogo ? "Keep logo" : "Remove logo"}
-                    </Button>
-                  </div>
-                  {removeLogo ? (
-                    <p className="text-muted-foreground">
-                      Falls back to initials after save.
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-              {localError || fieldError ? (
-                <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-                  {localError || fieldError}
-                </div>
               ) : null}
             </div>
-          </div>
+          ) : null}
+          {localError || fieldError ? (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-destructive">
+              {localError || fieldError}
+            </div>
+          ) : null}
         </div>
       </div>
 

@@ -247,3 +247,31 @@ export async function getWorkspaceMemberInviteByToken(
     currentWorkspaceMembershipRole: membership[0]?.role ?? null,
   };
 }
+
+/**
+ * Returns non-owner workspace members eligible for ownership transfer.
+ * Lightweight query used by the transfer panel on the settings page.
+ */
+export async function getEligibleOwnershipTransferTargets(
+  workspaceId: string,
+  currentOwnerUserId: string,
+) {
+  const rows = await db
+    .select({
+      membershipId: workspaceMembers.id,
+      name: user.name,
+      email: user.email,
+      role: workspaceMembers.role,
+    })
+    .from(workspaceMembers)
+    .innerJoin(user, eq(workspaceMembers.userId, user.id))
+    .where(
+      and(
+        eq(workspaceMembers.workspaceId, workspaceId),
+        sql`${workspaceMembers.userId} != ${currentOwnerUserId}`,
+      ),
+    )
+    .orderBy(getMemberRoleSortExpression(), asc(user.name));
+
+  return rows;
+}

@@ -111,3 +111,8 @@ export type CreateWorkspaceActionState = {
   success?: string;
   fieldErrors?: Partial<Record<"name", string[] | undefined>>;
 };
+
+export type WorkspaceOwnershipTransferActionState = {
+  error?: string;
+  success?: string;
+};

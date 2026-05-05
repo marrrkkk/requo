@@ -21,6 +21,7 @@ import { AccountUserMenu } from "@/features/account/components/account-user-menu
 import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { onboardingPath } from "@/features/onboarding/routes";
 import { RecentlyOpenedBusinesses } from "@/features/businesses/components/recently-opened-businesses";
+import { getRecentlyOpenedBusinessesForUser } from "@/features/businesses/recently-opened";
 
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
@@ -30,11 +31,18 @@ import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 export default async function WorkspacesPage() {
   const session = await requireSession();
 
-  const [themePreference, workspaceList, profile, memberships] = await Promise.all([
+  const [
+    themePreference,
+    workspaceList,
+    profile,
+    memberships,
+    recentlyOpenedBusinesses,
+  ] = await Promise.all([
     getThemePreferenceForUser(session.user.id),
     getWorkspaceListForUser(session.user.id),
     getAccountProfileForUser(session.user.id),
     getBusinessMembershipsForUser(session.user.id),
+    getRecentlyOpenedBusinessesForUser(session.user.id),
   ]);
 
   if (
@@ -87,7 +95,7 @@ export default async function WorkspacesPage() {
           </div>
 
           <div className="w-full space-y-6">
-            <RecentlyOpenedBusinesses userId={session.user.id} />
+            <RecentlyOpenedBusinesses businesses={recentlyOpenedBusinesses} />
 
             <section className="space-y-4">
               <div className="flex items-center justify-between gap-3">

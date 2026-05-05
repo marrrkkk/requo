@@ -2,6 +2,7 @@
 
 import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 
 import { getValidationActionState } from "@/lib/action-state";
 import {
@@ -144,49 +145,36 @@ export async function updateBusinessSettingsAction(
       };
     }
 
-    revalidatePath(getBusinessDashboardPath(result.previousSlug), "layout");
-    revalidatePath(getBusinessDashboardPath(result.nextSlug), "layout");
-    revalidatePath(getBusinessSettingsPath(result.previousSlug));
-    revalidatePath(getBusinessSettingsPath(result.nextSlug));
-    revalidatePath(getBusinessSettingsPath(result.previousSlug, "general"));
-    revalidatePath(getBusinessSettingsPath(result.nextSlug, "general"));
-    revalidatePath(getBusinessSettingsPath(result.previousSlug, "members"));
-    revalidatePath(getBusinessSettingsPath(result.nextSlug, "members"));
-    revalidatePath(getBusinessSettingsPath(result.previousSlug, "notifications"));
-    revalidatePath(getBusinessSettingsPath(result.nextSlug, "notifications"));
-    revalidatePath(getBusinessSettingsPath(result.previousSlug, "security"));
-    revalidatePath(getBusinessSettingsPath(result.nextSlug, "security"));
-    revalidatePath(getBusinessSettingsPath(result.previousSlug, "replies"));
-    revalidatePath(getBusinessSettingsPath(result.nextSlug, "replies"));
-    revalidatePath(getBusinessSettingsPath(result.previousSlug, "quote"));
-    revalidatePath(getBusinessSettingsPath(result.nextSlug, "quote"));
-    revalidatePath(getBusinessSettingsPath(result.previousSlug, "pricing"));
-    revalidatePath(getBusinessSettingsPath(result.nextSlug, "pricing"));
-    revalidatePath(getBusinessSettingsPath(result.previousSlug, "knowledge"));
-    revalidatePath(getBusinessSettingsPath(result.nextSlug, "knowledge"));
-    revalidatePath(getBusinessFormsPath(result.previousSlug));
-    revalidatePath(getBusinessFormsPath(result.nextSlug));
-    revalidatePath(`/inquire/${result.previousSlug}`);
-    revalidatePath(`/inquire/${result.nextSlug}`);
-    revalidateBusinessDefaultInquiryPaths(result.previousSlug);
-    revalidateBusinessDefaultInquiryPaths(result.nextSlug);
+    // Invalidate dashboard-scoped cache tags — fast, no per-path overhead.
+    updateCacheTags(getBusinessSettingsCacheTags(businessContext.business.id));
 
-    const inquiryFormsSettings = await getBusinessInquiryFormsSettingsForBusiness(
-      businessContext.business.id,
-    );
-
-    if (inquiryFormsSettings) {
-      for (const form of inquiryFormsSettings.forms) {
-        revalidateBusinessInquiryFormPaths(result.previousSlug, form.slug);
-        revalidateBusinessInquiryFormPaths(result.nextSlug, form.slug);
-      }
-    }
-
+    // Slug change requires layout-level revalidation for the new routes.
     if (result.previousSlug !== result.nextSlug) {
+      revalidatePath(getBusinessDashboardPath(result.previousSlug), "layout");
+      revalidatePath(getBusinessDashboardPath(result.nextSlug), "layout");
       nextSettingsPath = getBusinessSettingsPath(result.nextSlug, "general");
     }
 
-    updateCacheTags(getBusinessSettingsCacheTags(businessContext.business.id));
+    // Defer public-path revalidation — these are rarely visited immediately
+    // after saving settings and should not block the action response.
+    after(async () => {
+      revalidatePath(`/inquire/${result.previousSlug}`);
+      revalidatePath(`/inquire/${result.nextSlug}`);
+      revalidateBusinessDefaultInquiryPaths(result.previousSlug);
+      revalidateBusinessDefaultInquiryPaths(result.nextSlug);
+
+      const inquiryFormsSettings =
+        await getBusinessInquiryFormsSettingsForBusiness(
+          businessContext.business.id,
+        );
+
+      if (inquiryFormsSettings) {
+        for (const form of inquiryFormsSettings.forms) {
+          revalidateBusinessInquiryFormPaths(result.previousSlug, form.slug);
+          revalidateBusinessInquiryFormPaths(result.nextSlug, form.slug);
+        }
+      }
+    });
   } catch (error) {
     console.error("Failed to update business settings.", error);
 
@@ -466,8 +454,11 @@ export async function updateBusinessInquiryPageAction(
       ]),
     );
 
-    revalidateBusinessInquiryFormPaths(result.nextSlug, result.nextFormSlug);
-    revalidateBusinessDefaultInquiryPaths(result.nextSlug);
+    // Defer public-path revalidation — updateTag handles dashboard cache.
+    after(() => {
+      revalidateBusinessInquiryFormPaths(result.nextSlug, result.nextFormSlug);
+      revalidateBusinessDefaultInquiryPaths(result.nextSlug);
+    });
 
     if (result.previousFormSlug !== result.nextFormSlug) {
       revalidateBusinessInquiryFormPaths(result.nextSlug, result.previousFormSlug);
@@ -550,10 +541,11 @@ export async function updateBusinessInquiryFormAction(
       ]),
     );
 
-    // Always revalidate public + dashboard paths so changes
-    // like group label edits reflect on the live form.
-    revalidateBusinessInquiryFormPaths(result.nextSlug, result.nextFormSlug);
-    revalidateBusinessDefaultInquiryPaths(result.nextSlug);
+    // Defer public-path revalidation — updateTag handles dashboard cache.
+    after(() => {
+      revalidateBusinessInquiryFormPaths(result.nextSlug, result.nextFormSlug);
+      revalidateBusinessDefaultInquiryPaths(result.nextSlug);
+    });
 
     if (result.previousFormSlug !== result.nextFormSlug) {
       revalidateBusinessInquiryFormPaths(result.nextSlug, result.previousFormSlug);
@@ -689,7 +681,9 @@ export async function createBusinessInquiryFormAction(
         ),
       ]),
     );
-    revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+    after(() => {
+      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+    });
     editorPath = getBusinessInquiryFormEditorPath(
       result.businessSlug,
       result.formSlug,
@@ -762,7 +756,9 @@ export async function duplicateBusinessInquiryFormAction(
         ),
       ]),
     );
-    revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+    after(() => {
+      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+    });
     editorPath = getBusinessInquiryFormEditorPath(
       result.businessSlug,
       result.formSlug,
@@ -827,8 +823,10 @@ export async function setDefaultBusinessInquiryFormAction(
         ),
       ]),
     );
-    revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
-    revalidateBusinessDefaultInquiryPaths(result.businessSlug);
+    after(() => {
+      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+      revalidateBusinessDefaultInquiryPaths(result.businessSlug);
+    });
 
     return {
       success: "Default inquiry form updated.",
@@ -897,7 +895,9 @@ export async function archiveBusinessInquiryFormAction(
         ),
       ]),
     );
-    revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+    after(() => {
+      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+    });
 
     return {
       success: "Inquiry form archived.",
@@ -968,7 +968,9 @@ export async function archiveBusinessInquiryFormFromDetailAction(
         ),
       ]),
     );
-    revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+    after(() => {
+      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+    });
 
     return {
       success: "Inquiry form archived.",
@@ -1045,7 +1047,9 @@ export async function deleteBusinessInquiryFormAction(
         ),
       ]),
     );
-    revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+    after(() => {
+      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+    });
 
     return {
       success: "Inquiry form deleted.",
@@ -1105,8 +1109,10 @@ export async function toggleBusinessInquiryFormPublicAction(
         ),
       ]),
     );
-    revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
-    revalidateBusinessDefaultInquiryPaths(result.businessSlug);
+    after(() => {
+      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+      revalidateBusinessDefaultInquiryPaths(result.businessSlug);
+    });
 
     return {
       success: publicInquiryEnabled
@@ -1165,7 +1171,9 @@ export async function unarchiveBusinessInquiryFormAction(
         ),
       ]),
     );
-    revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+    after(() => {
+      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+    });
 
     return {
       success: "Inquiry form restored.",

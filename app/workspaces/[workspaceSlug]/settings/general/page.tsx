@@ -5,8 +5,12 @@ import { WorkspaceSettingsForm } from "@/features/workspaces/components/workspac
 import {
   cancelWorkspaceDeletionAction,
   requestWorkspaceDeletionAction,
+  transferWorkspaceOwnershipAction,
 } from "@/features/workspaces/actions";
 import { WorkspaceDeletionPanel } from "@/features/workspaces/components/workspace-deletion-panel";
+import { WorkspaceOwnershipTransferPanel } from "@/features/workspaces/components/workspace-ownership-transfer-panel";
+import { getEligibleOwnershipTransferTargets } from "@/features/workspace-members/queries";
+import { workspacesHubPath } from "@/features/workspaces/routes";
 import { getWorkspaceOwnerPageContext } from "../_lib/page-context";
 
 type WorkspaceSettingsGeneralPageProps = {
@@ -18,10 +22,10 @@ export default async function WorkspaceSettingsGeneralPage({
 }: WorkspaceSettingsGeneralPageProps) {
   const { workspaceSlug } = await params;
   const { user, workspace } = await getWorkspaceOwnerPageContext(workspaceSlug);
-  const deletionPreflight = await getWorkspaceDeletionPreflightBySlug(
-    user.id,
-    workspace.slug,
-  );
+  const [deletionPreflight, eligibleMembers] = await Promise.all([
+    getWorkspaceDeletionPreflightBySlug(user.id, workspace.slug),
+    getEligibleOwnershipTransferTargets(workspace.id, user.id),
+  ]);
 
   if (!deletionPreflight) {
     return null;
@@ -30,6 +34,15 @@ export default async function WorkspaceSettingsGeneralPage({
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <WorkspaceSettingsForm workspace={workspace} />
+      <WorkspaceOwnershipTransferPanel
+        transferAction={transferWorkspaceOwnershipAction.bind(
+          null,
+          workspace.id,
+          workspace.slug,
+        )}
+        eligibleMembers={eligibleMembers}
+        redirectHref={workspacesHubPath}
+      />
       <WorkspaceDeletionPanel
         cancelDeletionAction={cancelWorkspaceDeletionAction.bind(
           null,

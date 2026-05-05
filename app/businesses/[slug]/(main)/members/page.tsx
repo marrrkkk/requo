@@ -64,10 +64,17 @@ export default async function BusinessMembersPage({
     );
   }
 
-  const view = await getBusinessMembersSettingsForBusiness(
-    businessContext.business.id,
-    user.id,
-  );
+  // Members view and workspace context are independent — fetch in parallel.
+  const [view, workspaceContext] = await Promise.all([
+    getBusinessMembersSettingsForBusiness(
+      businessContext.business.id,
+      user.id,
+    ),
+    getWorkspaceContextForUser(
+      user.id,
+      businessContext.business.workspaceId,
+    ),
+  ]);
 
   if (!view) {
     notFound();
@@ -76,10 +83,6 @@ export default async function BusinessMembersPage({
   // Determine if the current user can invite into this business:
   // - workspace owner/admin can always invite
   // - business owner/manager can invite (scoped to this business)
-  const workspaceContext = await getWorkspaceContextForUser(
-    user.id,
-    businessContext.business.workspaceId,
-  );
   const isWorkspaceAdmin =
     workspaceContext?.memberRole === "owner" ||
     workspaceContext?.memberRole === "admin";

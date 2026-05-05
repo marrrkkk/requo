@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import {
   DashboardEmptyState,
@@ -29,14 +32,21 @@ import {
 } from "@/features/audit/utils";
 
 type WorkspaceAuditLogTableProps = {
-  buildPageHref: (page: number) => string;
   page: WorkspaceAuditLogPage;
 };
 
 export function WorkspaceAuditLogTable({
-  buildPageHref,
   page,
 }: WorkspaceAuditLogTableProps) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const buildPageHref = (pageNumber: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", String(pageNumber));
+    return `${pathname}?${params.toString()}`;
+  };
+
   if (!page.items.length) {
     return (
       <DashboardEmptyState

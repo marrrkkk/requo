@@ -22,33 +22,6 @@ type WorkspaceAuditLogPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-function buildAuditPageHref(
-  workspaceSlug: string,
-  searchParams: Record<string, string | string[] | undefined>,
-  page: number,
-) {
-  const params = new URLSearchParams();
-
-  for (const [key, value] of Object.entries(searchParams)) {
-    if (key === "page" || value === undefined) {
-      continue;
-    }
-
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        params.append(key, item);
-      }
-      continue;
-    }
-
-    params.set(key, value);
-  }
-
-  params.set("page", String(page));
-
-  return `${getWorkspaceSettingsPath(workspaceSlug, "audit-log")}?${params.toString()}`;
-}
-
 function buildAuditExportHref(
   workspaceSlug: string,
   searchParams: Record<string, string | string[] | undefined>,
@@ -131,12 +104,7 @@ export default async function WorkspaceAuditLogPage({
         options={filterOptions}
       />
 
-      <WorkspaceAuditLogTable
-        buildPageHref={(nextPage) =>
-          buildAuditPageHref(workspace.slug, resolvedSearchParams, nextPage)
-        }
-        page={page}
-      />
+      <WorkspaceAuditLogTable page={page} />
     </div>
   );
 }

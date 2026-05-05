@@ -21,19 +21,10 @@ export function PublicRouteSkeleton({
 
   return (
     <PublicPageShell headerAction={<Skeleton className="h-10 w-36 rounded-lg" />}>
-      <PublicHeroSurface className="lg:py-12">
-        <div className="grid gap-10 xl:grid-cols-[minmax(0,0.84fr)_minmax(24rem,1.16fr)] xl:items-start">
-          <div className="flex flex-col gap-5">
-            <div className="flex flex-col gap-3">
-              <Skeleton className="h-4 w-28 rounded-md" />
-              <Skeleton className="h-12 w-full max-w-xl rounded-xl" />
-              <Skeleton className="h-20 w-full max-w-2xl rounded-xl" />
-            </div>
-
-            <QuoteRouteLeadSkeleton />
-          </div>
-
+      <PublicHeroSurface className="lg:py-12 flex justify-center">
+        <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-8">
           <QuotePreviewSkeleton />
+          <QuoteInteractiveColumnSkeleton />
         </div>
       </PublicHeroSurface>
     </PublicPageShell>
@@ -102,50 +93,6 @@ function InquiryRouteSkeleton({ previewMode }: { previewMode: boolean }) {
   );
 }
 
-function QuoteRouteLeadSkeleton() {
-  return (
-    <>
-      <Card className="gap-0 bg-background/92">
-        <CardHeader className="gap-3 pb-5">
-          <Skeleton className="h-8 w-40 rounded-lg" />
-          <Skeleton className="h-4 w-full max-w-xs rounded-md" />
-        </CardHeader>
-        <CardContent className="grid gap-4 pt-0 sm:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div className="info-tile shadow-none" key={index}>
-              <div className="flex flex-col gap-2">
-                <Skeleton className="h-3 w-20 rounded-md" />
-                <Skeleton className="h-5 w-24 rounded-md" />
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      <Card className="gap-0 bg-background/92">
-        <CardHeader className="gap-3 pb-5">
-          <Skeleton className="h-8 w-44 rounded-lg" />
-          <Skeleton className="h-4 w-full max-w-sm rounded-md" />
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4 pt-0">
-          <Skeleton className="h-32 w-full rounded-2xl" />
-          <Skeleton className="h-28 w-full rounded-2xl" />
-        </CardContent>
-      </Card>
-
-      <Card className="gap-0 bg-background/92">
-        <CardHeader className="gap-3 pb-5">
-          <Skeleton className="h-8 w-40 rounded-lg" />
-          <Skeleton className="h-4 w-full max-w-sm rounded-md" />
-        </CardHeader>
-        <CardContent className="pt-0">
-          <Skeleton className="h-11 w-full rounded-xl sm:w-44" />
-        </CardContent>
-      </Card>
-    </>
-  );
-}
-
 function InquiryFormSkeleton({ className }: { className?: string }) {
   return (
     <Card className={cn("gap-0 border-border/75 bg-card/96", className)}>
@@ -168,7 +115,7 @@ function InquiryFormSkeleton({ className }: { className?: string }) {
 
 function QuotePreviewSkeleton() {
   return (
-    <article className="section-panel overflow-hidden p-5 sm:p-6 xl:sticky xl:top-6 xl:self-start">
+    <article className="section-panel overflow-hidden p-5 sm:p-6 w-full">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-4 border-b border-border/80 pb-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -228,5 +175,33 @@ function QuotePreviewSkeleton() {
         </div>
       </div>
     </article>
+  );
+}
+
+function QuoteInteractiveColumnSkeleton() {
+  return (
+    <div className="flex w-full flex-col gap-6">
+      <Card className="gap-0 bg-background/94 w-full">
+        <CardHeader className="gap-2 pb-5">
+          <Skeleton className="h-7 w-40 rounded-lg" />
+          <Skeleton className="h-5 w-full max-w-md rounded-md" />
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4 pt-0">
+          <div className="flex flex-col gap-3">
+            <Skeleton className="h-11 w-full rounded-xl" />
+            <Skeleton className="h-11 w-full rounded-xl" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="gap-0 bg-background/94 w-full">
+        <CardHeader className="pb-4">
+          <Skeleton className="h-6 w-56 rounded-lg" />
+        </CardHeader>
+        <CardContent className="pt-0">
+          <Skeleton className="h-11 w-full rounded-xl sm:w-48" />
+        </CardContent>
+      </Card>
+    </div>
   );
 }
