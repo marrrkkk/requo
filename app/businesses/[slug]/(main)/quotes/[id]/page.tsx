@@ -16,6 +16,7 @@ import {
   DashboardSidebarStack,
 } from "@/components/shared/dashboard-layout";
 import { InfoTile } from "@/components/shared/info-tile";
+import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -282,6 +283,10 @@ export default async function QuoteDetailPage({
   const quotePreferredContactLabel = getContactMethodLabel(
     quote.customerContactMethod,
   );
+  const canExportData = hasFeatureAccess(
+    businessContext.business.workspacePlan,
+    "exports",
+  );
 
   const linkedInquirySection = (
     <DashboardSection
@@ -370,21 +375,32 @@ export default async function QuoteDetailPage({
           <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center [&_[data-slot=button]]:w-full sm:[&_[data-slot=button]]:w-auto">
 
             <QuoteExportPopover
-              canExport={hasFeatureAccess(businessContext.business.workspacePlan, "exports")}
+              canExport={canExportData}
               pdfHref={getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")}
               pngHref={getBusinessQuoteExportPath(businessSlug, quote.id, "png")}
             />
-            <Button asChild variant="outline">
-              <Link
-                href={getBusinessQuotePrintPath(businessSlug, quote.id)}
-                prefetch={false}
-                rel="noopener noreferrer"
-                target="_blank"
+            {canExportData ? (
+              <Button asChild variant="outline">
+                <Link
+                  href={getBusinessQuotePrintPath(businessSlug, quote.id)}
+                  prefetch={false}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  <Printer data-icon="inline-start" />
+                  Print
+                </Link>
+              </Button>
+            ) : (
+              <ProFeatureNoticeButton
+                noticeDescription="Upgrade to Pro to print quote records."
+                noticeTitle="Print is a Pro feature."
+                variant="outline"
               >
                 <Printer data-icon="inline-start" />
                 Print
-              </Link>
-            </Button>
+              </ProFeatureNoticeButton>
+            )}
             {quote.status === "draft" ? (
               <SendQuoteDialog
                 sendAction={sendAction}
@@ -398,11 +414,12 @@ export default async function QuoteDetailPage({
                   quote.customerContactMethod === "email" &&
                   !!quote.customerEmail
                 }
-                pdfExportHref={getBusinessQuoteExportPath(
-                  businessSlug,
-                  quote.id,
-                  "pdf",
-                )}
+                pdfExportHref={
+                  canExportData
+                    ? getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")
+                    : undefined
+                }
+                pdfExportLocked={!canExportData}
               />
             ) : null}
           </div>
@@ -456,7 +473,12 @@ export default async function QuoteDetailPage({
                   customerQuoteUrl={customerQuoteUrl}
                   businessName={businessContext.business.name}
                   isRequoEmailAvailable={isEmailConfigured && quote.customerContactMethod === "email" && !!quote.customerEmail}
-                  pdfExportHref={getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")}
+                  pdfExportHref={
+                    canExportData
+                      ? getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")
+                      : undefined
+                  }
+                  pdfExportLocked={!canExportData}
                 />
               </DashboardSection>
 

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -98,6 +99,7 @@ type SendQuoteDialogProps = {
   businessName: string;
   isRequoEmailAvailable: boolean;
   pdfExportHref?: string;
+  pdfExportLocked?: boolean;
   disabled?: boolean;
 };
 
@@ -114,6 +116,7 @@ export function SendQuoteDialog({
   businessName,
   isRequoEmailAvailable,
   pdfExportHref,
+  pdfExportLocked = false,
   disabled = false,
 }: SendQuoteDialogProps) {
   const [open, setOpen] = useState(false);
@@ -460,6 +463,16 @@ export function SendQuoteDialog({
                       Download PDF
                     </a>
                   </Button>
+                ) : pdfExportLocked ? (
+                  <ProFeatureNoticeButton
+                    noticeDescription="Upgrade to Pro to download quote PDFs before sending."
+                    noticeTitle="PDF export is a Pro feature."
+                    size="sm"
+                    variant="ghost"
+                  >
+                    <ExternalLink data-icon="inline-start" className="size-3.5" />
+                    Download PDF
+                  </ProFeatureNoticeButton>
                 ) : null}
               </div>
 

@@ -46,6 +46,7 @@ import { workspacesHubPath, getWorkspacePath, getWorkspaceSettingsPath } from "@
 import { clearPersistedThemePreference } from "@/features/theme/persistence";
 import { themeUserStorageKey } from "@/features/theme/types";
 import { authClient } from "@/lib/auth/client";
+import { hasFeatureAccess, type WorkspacePlan } from "@/lib/plans";
 import {
   canManageBusinessAdministration,
   canManageOperationalBusinessSettings,
@@ -56,16 +57,27 @@ import {
 type CommandMenuProps = {
   businessSlug: string;
   role: BusinessMemberRole;
+  workspacePlan: WorkspacePlan;
   workspaceSlug: string;
 };
 
-export function CommandMenu({ businessSlug, role, workspaceSlug }: CommandMenuProps) {
+const exportNoticeTitle = "Export is a Pro feature.";
+const exportNoticeDescription =
+  "Upgrade to Pro to download quote and inquiry CSV exports.";
+
+export function CommandMenu({
+  businessSlug,
+  role,
+  workspacePlan,
+  workspaceSlug,
+}: CommandMenuProps) {
   const [open, setOpen] = React.useState(false);
   const router = useRouter();
 
   const canOperate = canManageOperationalBusinessSettings(role);
   const canSeeAnalytics = canViewBusinessAnalytics(role);
   const isBusinessOwner = canManageBusinessAdministration(role);
+  const canExport = hasFeatureAccess(workspacePlan, "exports");
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -92,6 +104,12 @@ export function CommandMenu({ businessSlug, role, workspaceSlug }: CommandMenuPr
       () => toast.success("Public inquiry link copied"),
       () => toast.error("Could not copy link"),
     );
+  }
+
+  function showExportNotice() {
+    toast.info(exportNoticeTitle, {
+      description: exportNoticeDescription,
+    });
   }
 
   async function handleSignOut() {
@@ -164,22 +182,42 @@ export function CommandMenu({ businessSlug, role, workspaceSlug }: CommandMenuPr
                 <CommandItem
                   onSelect={() =>
                     runCommand(() => {
+                      if (!canExport) {
+                        showExportNotice();
+                        return;
+                      }
+
                       window.location.assign(getBusinessQuotesExportPath(businessSlug));
                     })
                   }
                 >
                   <Download className="mr-2 h-4 w-4" />
                   <span>Download quotes (CSV)</span>
+                  {!canExport ? (
+                    <span className="ml-auto rounded-md border border-border/70 px-1.5 py-0.5 text-[0.68rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                      Pro
+                    </span>
+                  ) : null}
                 </CommandItem>
                 <CommandItem
                   onSelect={() =>
                     runCommand(() => {
+                      if (!canExport) {
+                        showExportNotice();
+                        return;
+                      }
+
                       window.location.assign(getBusinessInquiriesExportPath(businessSlug));
                     })
                   }
                 >
                   <Download className="mr-2 h-4 w-4" />
                   <span>Download inquiries (CSV)</span>
+                  {!canExport ? (
+                    <span className="ml-auto rounded-md border border-border/70 px-1.5 py-0.5 text-[0.68rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                      Pro
+                    </span>
+                  ) : null}
                 </CommandItem>
               </CommandGroup>
 
