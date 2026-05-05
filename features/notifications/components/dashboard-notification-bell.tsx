@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
+import { useProgressRouter } from "@/hooks/use-progress-router";
+
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -91,6 +93,7 @@ export function DashboardNotificationBell({
 }: DashboardNotificationBellProps) {
   const isMobile = useIsMobile();
   const router = useRouter();
+  const progressRouter = useProgressRouter();
   const supabaseRef = useRef<ReturnType<typeof createSupabaseBrowserClient> | null>(
     null,
   );
@@ -479,7 +482,7 @@ export function DashboardNotificationBell({
       });
     }
 
-    router.push(item.href);
+    progressRouter.push(item.href);
   }
 
   const trigger = (

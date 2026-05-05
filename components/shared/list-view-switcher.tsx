@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useProgressRouter } from "@/hooks/use-progress-router";
 
 import { Combobox } from "@/components/ui/combobox";
 import { cn } from "@/lib/utils";
@@ -50,7 +50,7 @@ export function ListViewSwitcher({
   paramName = "view",
   className,
 }: ListViewSwitcherProps) {
-  const router = useRouter();
+  const router = useProgressRouter();
   const comboboxOptions = useMemo(
     () =>
       options.map((option) => ({

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useProgressRouter } from "@/hooks/use-progress-router";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import {
   useCallback,
@@ -90,7 +90,7 @@ export function DataListPagination({
   totalItems,
   totalPages,
 }: DataListPaginationProps) {
-  const router = useRouter();
+  const router = useProgressRouter();
   const [isPending, startTransition] = useTransition();
   const [pendingPage, setPendingPage] = useState<number | null>(null);
 
