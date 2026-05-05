@@ -29,6 +29,7 @@ export const auditActionLabels = {
   "workspace.deletion_scheduled": "Workspace deletion scheduled",
   "workspace.deletion_canceled": "Workspace deletion canceled",
   "workspace.deleted": "Workspace deleted",
+  "workspace.ownership_transferred": "Workspace ownership transferred",
   "subscription.checkout_succeeded": "Subscription checkout succeeded",
   "subscription.plan_changed": "Plan changed",
   "subscription.cancellation_requested": "Subscription cancellation requested",

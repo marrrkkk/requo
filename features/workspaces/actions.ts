@@ -12,6 +12,7 @@ import {
   renameWorkspace,
   createWorkspace,
   requestWorkspaceDeletion,
+  transferWorkspaceOwnership,
 } from "@/features/workspaces/mutations";
 import {
   getWorkspacePath,
@@ -22,6 +23,7 @@ import type {
   WorkspaceSettingsActionState,
   CreateWorkspaceActionState,
   WorkspaceDeletionActionState,
+  WorkspaceOwnershipTransferActionState,
 } from "@/features/workspaces/types";
 
 export async function renameWorkspaceAction(
@@ -190,4 +192,69 @@ export async function cancelWorkspaceDeletionAction(
   return {
     success: "Workspace deletion schedule cancelled.",
   };
+}
+
+export async function transferWorkspaceOwnershipAction(
+  workspaceId: string,
+  workspaceSlug: string,
+  prev: WorkspaceOwnershipTransferActionState,
+  formData: FormData,
+): Promise<WorkspaceOwnershipTransferActionState> {
+  void prev;
+  const targetMembershipId = formData.get("targetMembershipId");
+
+  if (typeof targetMembershipId !== "string" || !targetMembershipId.trim()) {
+    return { error: "Select a member to transfer ownership to." };
+  }
+
+  const user = await requireUser();
+  const workspace = await getWorkspaceContextForUser(user.id, workspaceId);
+
+  if (!workspace) {
+    return { error: "Workspace not found." };
+  }
+
+  if (workspace.memberRole !== "owner") {
+    return { error: "Only the workspace owner can transfer ownership." };
+  }
+
+  try {
+    const result = await transferWorkspaceOwnership({
+      workspaceId: workspace.id,
+      actorUserId: user.id,
+      actorUserName: user.name,
+      targetMembershipId: targetMembershipId.trim(),
+    });
+
+    if (!result.ok) {
+      if (result.reason === "self-transfer") {
+        return { error: "You already own this workspace." };
+      }
+
+      if (result.reason === "pending-deletion") {
+        return {
+          error:
+            "Cancel the scheduled workspace deletion before transferring ownership.",
+        };
+      }
+
+      if (result.reason === "target-not-member") {
+        return { error: "That member could not be found in this workspace." };
+      }
+
+      return { error: "We couldn't transfer ownership right now." };
+    }
+
+    revalidatePath(workspacesHubPath);
+    revalidatePath(getWorkspacePath(workspaceSlug));
+    revalidatePath(getWorkspaceSettingsPath(workspaceSlug));
+
+    return {
+      success: `Ownership transferred to ${result.newOwnerName}.`,
+    };
+  } catch (error) {
+    console.error("Failed to transfer workspace ownership.", error);
+
+    return { error: "We couldn't transfer ownership right now." };
+  }
 }

@@ -83,6 +83,11 @@ export function formatAuditEventDetails(item: WorkspaceAuditLogItem) {
       const scheduledDeletionAt = getStringValue(metadata, "scheduledDeletionAt");
       return [workspaceName, scheduledDeletionAt].filter(Boolean).join(" - ");
     }
+    case "workspace.ownership_transferred": {
+      const newOwnerName = getStringValue(metadata, "newOwnerName");
+      const newOwnerEmail = getStringValue(metadata, "newOwnerEmail");
+      return [newOwnerName ?? newOwnerEmail, "is the new owner"].filter(Boolean).join(" ");
+    }
     case "member.invited": {
       const email = getStringValue(metadata, "targetEmail");
       const role = getStringValue(metadata, "role");

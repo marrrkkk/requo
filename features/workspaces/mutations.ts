@@ -1,6 +1,6 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod/v4";
 
 import { writeAuditLog } from "@/features/audit/mutations";
@@ -10,7 +10,7 @@ import {
 } from "@/features/workspaces/deletion";
 import { getWorkspaceSubscription } from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
-import { workspaces, workspaceMembers } from "@/lib/db/schema";
+import { user, workspaces, workspaceMembers } from "@/lib/db/schema";
 import { slugifyPublicName, appendRandomSlugSuffix } from "@/lib/slugs";
 
 function createId(prefix: string) {
@@ -439,4 +439,138 @@ export async function finalizeScheduledWorkspaceDeletionIfDue(workspaceId: strin
   });
 
   return { deleted: true };
+}
+
+/* ─── Transfer workspace ownership ─── */
+
+type TransferOwnershipResult =
+  | {
+      ok: true;
+      previousOwnerEmail: string;
+      newOwnerEmail: string;
+      newOwnerName: string;
+    }
+  | {
+      ok: false;
+      reason:
+        | "not-found"
+        | "self-transfer"
+        | "target-not-member"
+        | "pending-deletion";
+    };
+
+export async function transferWorkspaceOwnership({
+  workspaceId,
+  actorUserId,
+  actorUserName,
+  targetMembershipId,
+}: {
+  workspaceId: string;
+  actorUserId: string;
+  actorUserName: string;
+  targetMembershipId: string;
+}): Promise<TransferOwnershipResult> {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    // Verify workspace exists and is not deleted/scheduled for deletion
+    const [workspace] = await tx
+      .select({
+        id: workspaces.id,
+        ownerUserId: workspaces.ownerUserId,
+        scheduledDeletionAt: workspaces.scheduledDeletionAt,
+        deletedAt: workspaces.deletedAt,
+      })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId))
+      .limit(1);
+
+    if (!workspace || workspace.deletedAt) {
+      return { ok: false, reason: "not-found" };
+    }
+
+    if (workspace.scheduledDeletionAt) {
+      return { ok: false, reason: "pending-deletion" };
+    }
+
+    // Look up the target member
+    const [target] = await tx
+      .select({
+        membershipId: workspaceMembers.id,
+        userId: workspaceMembers.userId,
+        role: workspaceMembers.role,
+        email: user.email,
+        name: user.name,
+      })
+      .from(workspaceMembers)
+      .innerJoin(user, eq(workspaceMembers.userId, user.id))
+      .where(
+        and(
+          eq(workspaceMembers.workspaceId, workspaceId),
+          eq(workspaceMembers.id, targetMembershipId),
+        ),
+      )
+      .limit(1);
+
+    if (!target) {
+      return { ok: false, reason: "target-not-member" };
+    }
+
+    if (target.userId === actorUserId) {
+      return { ok: false, reason: "self-transfer" };
+    }
+
+    // Look up current owner email for audit
+    const [currentOwner] = await tx
+      .select({ email: user.email })
+      .from(user)
+      .where(eq(user.id, actorUserId))
+      .limit(1);
+
+    // 1. Update workspaces.ownerUserId
+    await tx
+      .update(workspaces)
+      .set({ ownerUserId: target.userId, updatedAt: now })
+      .where(eq(workspaces.id, workspaceId));
+
+    // 2. Demote current owner → admin
+    await tx
+      .update(workspaceMembers)
+      .set({ role: "admin", updatedAt: now })
+      .where(
+        and(
+          eq(workspaceMembers.workspaceId, workspaceId),
+          eq(workspaceMembers.userId, actorUserId),
+        ),
+      );
+
+    // 3. Promote target → owner
+    await tx
+      .update(workspaceMembers)
+      .set({ role: "owner", updatedAt: now })
+      .where(eq(workspaceMembers.id, target.membershipId));
+
+    await writeAuditLog(tx, {
+      workspaceId,
+      actorUserId,
+      actorName: actorUserName,
+      entityType: "workspace",
+      entityId: workspaceId,
+      action: "workspace.ownership_transferred",
+      metadata: {
+        previousOwnerEmail: currentOwner?.email ?? actorUserId,
+        newOwnerEmail: target.email,
+        newOwnerName: target.name,
+        newOwnerMembershipId: target.membershipId,
+      },
+      createdAt: now,
+    });
+
+    return {
+      ok: true,
+      previousOwnerEmail: currentOwner?.email ?? actorUserId,
+      newOwnerEmail: target.email,
+      newOwnerName: target.name,
+    };
+  });
 }
