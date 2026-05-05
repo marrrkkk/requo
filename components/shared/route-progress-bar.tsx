@@ -23,7 +23,7 @@ const SHOW_DELAY_MS = 180;
 const INCREMENT_INTERVAL_MS = 140;
 const COMPLETE_DELAY_MS = 160;
 const RESET_DELAY_MS = 260;
-const STALL_TIMEOUT_MS = 12000;
+const STALL_TIMEOUT_MS = 8000;
 const MIN_VISIBLE_MS = 160;
 const INITIAL_PROGRESS = 16;
 const MAX_PROGRESS = 90;
@@ -65,7 +65,7 @@ export function RouteProgressBar() {
 
   const activeRouteRef = useRef<string | null>(null);
   const currentRouteRef = useRef(routeKey);
-  const warmRoutesRef = useRef<Set<string>>(new Set([routeKey]));
+
   const intervalRef = useRef<number | null>(null);
   const showDelayRef = useRef<number | null>(null);
   const completeRef = useRef<number | null>(null);
@@ -195,10 +195,6 @@ export function RouteProgressBar() {
         return;
       }
 
-      if (!options?.force && warmRoutesRef.current.has(nextRoute)) {
-        return;
-      }
-
       beginNavigation(nextRoute);
     },
     [beginNavigation],
@@ -206,7 +202,6 @@ export function RouteProgressBar() {
 
   useEffect(() => {
     currentRouteRef.current = routeKey;
-    warmRoutesRef.current.add(routeKey);
 
     if (activeRouteRef.current === null) {
       return;
