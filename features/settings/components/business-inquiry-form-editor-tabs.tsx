@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import {
   ArrowUpRight,
-  ChevronsUpDown,
   FileText,
   FormInput,
   Settings2,
@@ -16,21 +15,11 @@ import {
 
 import { DashboardSidebarStack } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";
-import {
-  Command,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+import { MobileTabsCombobox } from "@/components/shared/mobile-tabs-combobox";
 import { createPublicInquiryPreviewBusiness } from "@/features/inquiries/preview-business";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
-import { cn } from "@/lib/utils";
 
 import type {
   BusinessInquiryFormEditorView,
@@ -190,9 +179,10 @@ export function BusinessInquiryFormEditorTabs({
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/* Mobile: combobox dropdown */}
-        <FormEditorMobileSelect
-          activeSection={activeSection}
-          onSectionChange={handleSectionChange}
+        <MobileTabsCombobox
+          groups={[{ items: editorSections.map(s => ({ label: s.label, value: s.id, icon: s.icon })) }]}
+          activeValue={activeSection}
+          onValueChange={(val) => handleSectionChange(val as BusinessInquiryFormEditorSection)}
         />
 
         {/* Desktop: horizontal tabs */}
@@ -391,73 +381,5 @@ function createPreviewSnapshot({
   });
 }
 
-function FormEditorMobileSelect({
-  activeSection,
-  onSectionChange,
-}: {
-  activeSection: BusinessInquiryFormEditorSection;
-  onSectionChange: (section: BusinessInquiryFormEditorSection) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const activeSectionData = editorSections.find((s) => s.id === activeSection) ?? editorSections[0];
-  const ActiveIcon = activeSectionData.icon;
 
-  return (
-    <div className="sm:hidden">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className="w-full justify-between"
-          >
-            <span className="flex items-center gap-2">
-              <ActiveIcon className="size-4 shrink-0 text-muted-foreground" />
-              <span className="truncate">{activeSectionData.label}</span>
-            </span>
-            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="start"
-          className="overlay-surface w-[var(--radix-popover-trigger-width)] p-0"
-        >
-          <Command>
-            <CommandList>
-              <CommandGroup>
-                {editorSections.map((section) => {
-                  const Icon = section.icon;
-                  const isActive = section.id === activeSection;
-
-                  return (
-                    <CommandItem
-                      key={section.id}
-                      onSelect={() => {
-                        onSectionChange(section.id);
-                        setOpen(false);
-                      }}
-                      className={cn(isActive && "font-medium text-primary")}
-                      value={section.label}
-                    >
-                      <Icon
-                        className={cn(
-                          "size-4 shrink-0",
-                          isActive
-                            ? "text-primary"
-                            : "text-muted-foreground",
-                        )}
-                      />
-                      {section.label}
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
-}
 

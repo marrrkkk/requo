@@ -1,25 +1,12 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
-import { ChevronsUpDown } from "lucide-react";
 import { usePathname } from "next/navigation";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo } from "react";
 
-import { Button } from "@/components/ui/button";
-import {
-  Command,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { MobileTabsCombobox } from "@/components/shared/mobile-tabs-combobox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useProgressRouter } from "@/hooks/use-progress-router";
-import { cn } from "@/lib/utils";
 
 type SettingsTabsNavItem<TIcon extends string> = {
   href: string;
@@ -76,17 +63,20 @@ export function SettingsTabsNav<TIcon extends string>({
     return null;
   }
 
-  const ActiveIcon = icons[activeItem.icon] as LucideIcon;
-
   return (
     <nav aria-label={ariaLabel} className="min-w-0 w-full">
       {/* Mobile: combobox dropdown */}
-      <SettingsMobileSelect
-        activeItem={activeItem}
-        ActiveIcon={ActiveIcon}
-        groups={groups}
-        icons={icons}
-        onSelect={handleTabChange}
+      <MobileTabsCombobox
+        groups={groups.map(group => ({
+          label: group.label,
+          items: group.items.map(item => ({
+            label: item.label,
+            value: item.href,
+            icon: icons[item.icon],
+          })),
+        }))}
+        activeValue={activeItem.href}
+        onValueChange={handleTabChange}
       />
 
       {/* Desktop: horizontal tabs */}
@@ -122,87 +112,4 @@ export function SettingsTabsNav<TIcon extends string>({
   );
 }
 
-function SettingsMobileSelect<TIcon extends string>({
-  activeItem,
-  ActiveIcon,
-  groups,
-  icons,
-  onSelect,
-}: {
-  activeItem: SettingsTabsNavItem<TIcon>;
-  ActiveIcon: LucideIcon;
-  groups: SettingsTabsNavGroup<TIcon>[];
-  icons: Record<TIcon, LucideIcon>;
-  onSelect: (href: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [focusValue, setFocusValue] = useState<string>(activeItem.label);
-  const triggerRef = useRef<HTMLButtonElement>(null);
 
-  React.useEffect(() => {
-    if (open) {
-      setFocusValue(activeItem.label);
-    }
-  }, [open, activeItem.label]);
-
-  return (
-    <div className="sm:hidden">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            ref={triggerRef}
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className="w-full justify-between"
-          >
-            <span className="flex items-center gap-2">
-              <ActiveIcon className="size-4 shrink-0 text-muted-foreground" />
-              <span className="truncate">{activeItem.label}</span>
-            </span>
-            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="start"
-          className="overlay-surface w-[var(--radix-popover-trigger-width)] p-0"
-        >
-          <Command value={focusValue} onValueChange={setFocusValue}>
-            <CommandList>
-              {groups.map((group) => (
-                <CommandGroup heading={group.label} key={group.label}>
-                  {group.items.map((item) => {
-                    const Icon = icons[item.icon] as LucideIcon;
-                    const isActive = item.href === activeItem.href;
-
-                    return (
-                      <CommandItem
-                        key={item.href}
-                        onSelect={() => {
-                          onSelect(item.href);
-                          setOpen(false);
-                        }}
-                        className={cn(isActive && "font-medium text-primary data-[selected=true]:text-primary")}
-                        value={item.label}
-                      >
-                        <Icon
-                          className={cn(
-                            "size-4 shrink-0",
-                            isActive
-                              ? "text-primary"
-                              : "text-muted-foreground",
-                          )}
-                        />
-                        {item.label}
-                      </CommandItem>
-                    );
-                  })}
-                </CommandGroup>
-              ))}
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
-}

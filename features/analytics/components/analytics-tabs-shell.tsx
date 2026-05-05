@@ -1,25 +1,13 @@
 "use client";
 
-import React, { useState, useTransition, useRef, type ReactNode } from "react";
+import React, { useState, useTransition, type ReactNode } from "react";
 import {
   BarChart3,
   GitCompareArrows,
   Timer,
-  ChevronsUpDown,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import {
-  Command,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { MobileTabsCombobox } from "@/components/shared/mobile-tabs-combobox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { analyticsSections, type AnalyticsSectionId } from "@/features/analytics/config";
 import { AnalyticsTabContentFallback } from "@/features/analytics/components/analytics-tab-content-fallback";
@@ -106,9 +94,10 @@ export function AnalyticsTabsShell({
       onValueChange={handleValueChange}
       value={displayedTab}
     >
-      <AnalyticsMobileSelect
-        activeItem={activeTabItem}
-        onSelect={handleValueChange}
+      <MobileTabsCombobox
+        groups={[{ items: analyticsTabItems.map(t => ({ label: t.label, value: t.id, icon: t.icon })) }]}
+        activeValue={activeTabItem.id}
+        onValueChange={handleValueChange}
       />
 
       <div className="hidden sm:block">
@@ -137,78 +126,4 @@ export function AnalyticsTabsShell({
   );
 }
 
-function AnalyticsMobileSelect({
-  activeItem,
-  onSelect,
-}: {
-  activeItem: typeof analyticsTabItems[number];
-  onSelect: (value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [focusValue, setFocusValue] = useState<string>(activeItem.label);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const ActiveIcon = activeItem.icon;
 
-  React.useEffect(() => {
-    if (open) {
-      setFocusValue(activeItem.label);
-    }
-  }, [open, activeItem.label]);
-
-  return (
-    <div className="sm:hidden">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            ref={triggerRef}
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className="w-full justify-between"
-          >
-            <span className="flex items-center gap-2">
-              <ActiveIcon className="size-4 shrink-0 text-muted-foreground" />
-              <span className="truncate">{activeItem.label}</span>
-            </span>
-            <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="start"
-          className="overlay-surface w-[var(--radix-popover-trigger-width)] p-0"
-        >
-          <Command value={focusValue} onValueChange={setFocusValue}>
-            <CommandList>
-              <CommandGroup>
-                {analyticsTabItems.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = tab.id === activeItem.id;
-
-                  return (
-                    <CommandItem
-                      key={tab.id}
-                      onSelect={() => {
-                        onSelect(tab.id);
-                        setOpen(false);
-                      }}
-                      className={cn(isActive && "font-medium text-primary data-[selected=true]:text-primary")}
-                      value={tab.label}
-                    >
-                      <Icon
-                        className={cn(
-                          "size-4 shrink-0",
-                          isActive ? "text-primary" : "text-muted-foreground",
-                        )}
-                      />
-                      {tab.label}
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
-}
