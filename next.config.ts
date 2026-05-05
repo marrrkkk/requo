@@ -46,6 +46,7 @@ const nextConfig: NextConfig = {
       dynamic: 86400,
       static: 86400,
     },
+    inlineCss: true,
   },
   async headers() {
     return [
