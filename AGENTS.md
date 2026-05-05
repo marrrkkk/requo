@@ -120,6 +120,17 @@ Do not add:
 - Plan access is resolved through `getEffectivePlan()` in the subscription service, which checks subscription status, cancellation dates, and grace periods.
 - Do not bypass the subscription service or write directly to `workspace_subscriptions`.
 
+### Performance & Caching
+
+- **Two-layer caching pattern.** High-frequency queries use `React.cache()` for within-request deduplication AND a `"use cache"` inner function for cross-request caching. Keep both layers — they serve different purposes.
+- **Shell-level queries** (`getThemePreferenceForUser`, `getAccountProfileForUser`, `getBusinessMembershipsForUser`, `getBusinessContextForMembershipSlug`, `getWorkspacesForUser`, `getWorkspaceContextForUser`) are cached with `"use cache"` + `cacheTag` via `lib/cache/shell-tags.ts`. When adding new shell-level queries, follow the same pattern: inner `"use cache"` function + `React.cache()` wrapper.
+- **Cache tags** use the scoping helpers in `lib/cache/shell-tags.ts` (user-scoped) and `lib/cache/business-tags.ts` (business-scoped). New cached queries should use the appropriate existing tag helpers. Add `revalidateTag()` calls in mutation actions that change cached data.
+- **Parallelize independent data fetches.** Use `Promise.all` to run queries that do not depend on each other. Common pattern: start independent queries before an `await` and collect them later. Only chain `await` when a subsequent query needs results from a prior one.
+- **Stream non-blocking data via Suspense.** Layout-level data that is not required for the shell (e.g., billing, upgrade buttons) should be rendered inside `<Suspense>` as async server components. Only session and auth-gate data should block shell render.
+- **Do not add blocking awaits in layouts** for data that only a specific page needs. Push page-specific data into the page component itself.
+- **Dev timing.** Use `timed()` or `devTiming()` from `lib/dev/server-timing.ts` to measure server-side latency in development. These helpers are no-ops in production.
+- **Do not use `next/dynamic` for server components.** Reserve `next/dynamic` for client-only interactive components like AI panels and command menus that should not increase initial bundle size.
+
 ## Testing Priorities
 
 - Test behavior and product risk, not implementation details.
