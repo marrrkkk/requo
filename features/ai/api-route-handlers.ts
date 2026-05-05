@@ -424,17 +424,19 @@ export async function createAiChatRouteResponse(request: Request) {
       }
 
       try {
-        const historyMessages = await getRecentCompletedAiMessages({
-          conversationId: authorizedConversation.id,
-          userId: user.id,
-          limit: 20,
-        });
-
-        const surfaceContext = await buildAiSurfaceContext({
-          surface: parsedBody.data.surface,
-          entityId: parsedBody.data.entityId,
-          businessId: authorizedBusinessId,
-        });
+        // History and surface context are independent — fetch in parallel.
+        const [historyMessages, surfaceContext] = await Promise.all([
+          getRecentCompletedAiMessages({
+            conversationId: authorizedConversation.id,
+            userId: user.id,
+            limit: 20,
+          }),
+          buildAiSurfaceContext({
+            surface: parsedBody.data.surface,
+            entityId: parsedBody.data.entityId,
+            businessId: authorizedBusinessId,
+          }),
+        ]);
 
         if (!surfaceContext) {
           const message = "The assistant context could not be loaded.";
