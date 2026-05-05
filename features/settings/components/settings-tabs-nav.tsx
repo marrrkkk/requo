@@ -3,7 +3,7 @@
 import type { LucideIcon } from "lucide-react";
 import { ChevronsUpDown } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -136,7 +136,14 @@ function SettingsMobileSelect<TIcon extends string>({
   onSelect: (href: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [focusValue, setFocusValue] = useState(activeItem.label);
   const triggerRef = useRef<HTMLButtonElement>(null);
+
+  React.useEffect(() => {
+    if (open) {
+      setFocusValue(activeItem.label);
+    }
+  }, [open, activeItem.label]);
 
   return (
     <div className="sm:hidden">
@@ -160,7 +167,7 @@ function SettingsMobileSelect<TIcon extends string>({
           align="start"
           className="overlay-surface w-[var(--radix-popover-trigger-width)] p-0"
         >
-          <Command>
+          <Command value={focusValue} onValueChange={setFocusValue}>
             <CommandList>
               {groups.map((group) => (
                 <CommandGroup heading={group.label} key={group.label}>
@@ -175,7 +182,7 @@ function SettingsMobileSelect<TIcon extends string>({
                           onSelect(item.href);
                           setOpen(false);
                         }}
-                        className={cn(isActive && "font-medium text-primary")}
+                        className={cn(isActive && "font-medium text-primary data-[selected=true]:text-primary")}
                         value={item.label}
                       >
                         <Icon

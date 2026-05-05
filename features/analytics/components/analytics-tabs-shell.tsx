@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, type ReactNode } from "react";
+import React, { useState, useTransition, useRef, type ReactNode } from "react";
 import {
   BarChart3,
   GitCompareArrows,
@@ -145,8 +145,15 @@ function AnalyticsMobileSelect({
   onSelect: (value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [focusValue, setFocusValue] = useState(activeItem.label);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const ActiveIcon = activeItem.icon;
+
+  React.useEffect(() => {
+    if (open) {
+      setFocusValue(activeItem.label);
+    }
+  }, [open, activeItem.label]);
 
   return (
     <div className="sm:hidden">
@@ -170,7 +177,7 @@ function AnalyticsMobileSelect({
           align="start"
           className="overlay-surface w-[var(--radix-popover-trigger-width)] p-0"
         >
-          <Command>
+          <Command value={focusValue} onValueChange={setFocusValue}>
             <CommandList>
               <CommandGroup>
                 {analyticsTabItems.map((tab) => {
@@ -184,7 +191,7 @@ function AnalyticsMobileSelect({
                         onSelect(tab.id);
                         setOpen(false);
                       }}
-                      className={cn(isActive && "font-medium text-primary")}
+                      className={cn(isActive && "font-medium text-primary data-[selected=true]:text-primary")}
                       value={tab.label}
                     >
                       <Icon
