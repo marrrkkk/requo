@@ -79,6 +79,7 @@ import {
 import {
   getBusinessDashboardPath,
 } from "@/features/businesses/routes";
+import { useWorkspaceCheckout } from "@/features/billing/components/workspace-checkout-provider";
 import {
   workspacesHubPath,
   getWorkspacePath,
@@ -136,12 +137,44 @@ export function DashboardShell({
   upgradeSlot,
 }: DashboardShellProps) {
   const pathname = usePathname();
+  const workspaceCheckout = useWorkspaceCheckout();
+  const liveWorkspacePlan =
+    workspaceCheckout?.workspaceId === businessContext.business.workspaceId
+      ? workspaceCheckout.currentPlan
+      : null;
+  const business =
+    liveWorkspacePlan &&
+    liveWorkspacePlan !== businessContext.business.workspacePlan
+      ? {
+          ...businessContext.business,
+          workspacePlan: liveWorkspacePlan,
+        }
+      : businessContext.business;
+  const shellBusinessContext =
+    business === businessContext.business
+      ? businessContext
+      : {
+          ...businessContext,
+          business,
+        };
+  const shellBusinessMemberships = liveWorkspacePlan
+    ? businessMemberships.map((membership) =>
+        membership.business.workspaceId === business.workspaceId
+          ? {
+              ...membership,
+              business: {
+                ...membership.business,
+                workspacePlan: liveWorkspacePlan,
+              },
+            }
+          : membership,
+      )
+    : businessMemberships;
   const breadcrumbs = getDashboardBreadcrumbs(pathname);
   const dashboardNavigation = getDashboardNavigation(
-    businessContext.business.slug,
+    business.slug,
     businessContext.role,
   );
-  const business = businessContext.business;
   const currentPageLabel = breadcrumbs.at(-1)?.label ?? business.name;
 
   return (
@@ -165,14 +198,14 @@ export function DashboardShell({
               collapseLabel
               className="min-w-0 px-2 py-1.5"
               subtitle={null}
-              href={getBusinessDashboardPath(businessContext.business.slug)}
+              href={getBusinessDashboardPath(business.slug)}
             />
           </div>
           <SidebarSeparator />
           <div className="px-3 py-3 group-data-[collapsible=icon]:hidden">
             <BusinessSwitcher
-              currentBusiness={businessContext}
-              memberships={businessMemberships}
+              currentBusiness={shellBusinessContext}
+              memberships={shellBusinessMemberships}
             />
           </div>
         </SidebarHeader>

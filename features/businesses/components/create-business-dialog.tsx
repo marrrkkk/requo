@@ -54,8 +54,15 @@ export function CreateBusinessDialog({
       billingProps &&
       workspaceCheckout.workspaceId === billingProps.workspaceId,
   );
+  const effectiveCurrentPlan =
+    useSharedCheckout && workspaceCheckout
+      ? workspaceCheckout.currentPlan
+      : billingProps?.currentPlan;
+  const isEffectivelyLocked = Boolean(
+    isLocked && billingProps && effectiveCurrentPlan === "free",
+  );
 
-  if (isLocked && billingProps) {
+  if (isEffectivelyLocked && billingProps) {
     return (
       <>
         <Button onClick={() => setOpen(true)}>
@@ -125,7 +132,7 @@ export function CreateBusinessDialog({
         {!useSharedCheckout ? (
           <>
             <PlanSelectionSheet
-              currentPlan={billingProps.currentPlan}
+              currentPlan={effectiveCurrentPlan ?? billingProps.currentPlan}
               defaultCurrency={billingProps.defaultCurrency}
               onOpenChange={setPlanSheetOpen}
               onSelectPlan={(plan) => {
@@ -138,7 +145,7 @@ export function CreateBusinessDialog({
             />
             {selectedPlan ? (
               <CheckoutDialog
-                currentPlan={billingProps.currentPlan}
+                currentPlan={effectiveCurrentPlan ?? billingProps.currentPlan}
                 defaultCurrency={billingProps.defaultCurrency}
                 onOpenChange={setCheckoutOpen}
                 open={checkoutOpen}

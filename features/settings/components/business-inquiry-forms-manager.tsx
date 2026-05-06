@@ -121,17 +121,22 @@ export function BusinessInquiryFormsManager({
     unarchiveAction,
     initialState,
   );
-  const nameError = createState.fieldErrors?.name?.[0];
-  const businessTypeError = createState.fieldErrors?.businessType?.[0];
-  const activeForms = settings.forms.filter((form) => !form.archivedAt);
-  const archivedForms = settings.forms.filter((form) => form.archivedAt);
-  const canCreateAdditionalForms =
-    hasFeatureAccess(workspacePlan, "multipleForms") || activeForms.length === 0;
   const useSharedCheckout = Boolean(
     workspaceCheckout &&
       billingProps &&
       workspaceCheckout.workspaceId === billingProps.workspaceId,
   );
+  const effectiveWorkspacePlan =
+    useSharedCheckout && workspaceCheckout
+      ? workspaceCheckout.currentPlan
+      : workspacePlan;
+  const nameError = createState.fieldErrors?.name?.[0];
+  const businessTypeError = createState.fieldErrors?.businessType?.[0];
+  const activeForms = settings.forms.filter((form) => !form.archivedAt);
+  const archivedForms = settings.forms.filter((form) => form.archivedAt);
+  const canCreateAdditionalForms =
+    hasFeatureAccess(effectiveWorkspacePlan, "multipleForms") ||
+    activeForms.length === 0;
 
   return (
     <TooltipProvider>
