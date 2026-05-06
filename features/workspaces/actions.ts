@@ -85,7 +85,7 @@ export async function createWorkspaceAction(
   revalidatePath(workspacesHubPath);
 
   if (result.workspace) {
-    // redirect(getWorkspacePath(result.workspace.slug));
+    redirect(getWorkspacePath(result.workspace.slug));
   }
 
   return { success: "Workspace created." };
