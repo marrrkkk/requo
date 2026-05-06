@@ -31,6 +31,7 @@ export type WorkspaceBillingOverview = {
 /** Props for the checkout dialog. */
 export type CheckoutDialogProps = {
   workspaceId: string;
+  workspaceName?: string;
   workspaceSlug: string;
   currentPlan: WorkspacePlan;
   plan: PaidPlan;

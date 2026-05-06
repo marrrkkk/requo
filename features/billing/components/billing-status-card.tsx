@@ -40,6 +40,7 @@ import { Alert } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { PlanBadge } from "@/components/shared/paywall";
+import { useWorkspaceCheckout } from "@/features/billing/components/workspace-checkout-provider";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import { cancelSubscriptionAction } from "@/features/billing/actions";
 import { clearCachedPendingCheckout, clearCachedPendingQrCheckout } from "@/features/billing/pending-checkout";
@@ -68,8 +69,13 @@ export function BillingStatusCard({
   freePlanUsage,
   variant = "full",
 }: BillingStatusCardProps) {
-  const { subscription, currentPlan, workspaceId, workspaceSlug, region, defaultCurrency } =
+  const { subscription, currentPlan: billingCurrentPlan, workspaceId, workspaceSlug, region, defaultCurrency } =
     billing;
+  const workspaceCheckout = useWorkspaceCheckout();
+  const currentPlan =
+    workspaceCheckout?.workspaceId === workspaceId
+      ? workspaceCheckout.currentPlan
+      : billingCurrentPlan;
   const [cancelState, cancelAction, isCanceling] = useActionState(
     cancelSubscriptionAction,
     {} as CancelActionState,

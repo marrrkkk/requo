@@ -45,8 +45,12 @@ export function UpgradeButton({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PaidPlan | null>(null);
+  const effectiveCurrentPlan =
+    workspaceCheckout?.workspaceId === workspaceId
+      ? workspaceCheckout.currentPlan
+      : currentPlan;
 
-  if (currentPlan === "business") {
+  if (effectiveCurrentPlan === "business") {
     return null; // Already on highest plan
   }
 
@@ -73,7 +77,9 @@ export function UpgradeButton({
           children ?? (
             <>
               <ArrowUpRight data-icon="inline-start" />
-              {currentPlan === "free" ? "Upgrade to Pro" : "Upgrade to Business"}
+              {effectiveCurrentPlan === "free"
+                ? "Upgrade to Pro"
+                : "Upgrade to Business"}
             </>
           )
         )}
@@ -92,13 +98,15 @@ export function UpgradeButton({
         {children ?? (
           <>
             <ArrowUpRight data-icon="inline-start" />
-            {currentPlan === "free" ? "Upgrade to Pro" : "Upgrade to Business"}
+            {effectiveCurrentPlan === "free"
+              ? "Upgrade to Pro"
+              : "Upgrade to Business"}
           </>
         )}
       </Button>
       <PlanSelectionSheet
         defaultCurrency={defaultCurrency}
-        currentPlan={currentPlan}
+        currentPlan={effectiveCurrentPlan}
         onOpenChange={setSheetOpen}
         onSelectPlan={(plan) => {
           setSelectedPlan(plan);
@@ -111,7 +119,7 @@ export function UpgradeButton({
       />
       {selectedPlan ? (
         <CheckoutDialog
-          currentPlan={currentPlan}
+          currentPlan={effectiveCurrentPlan}
           defaultCurrency={defaultCurrency}
           onOpenChange={setCheckoutOpen}
           open={checkoutOpen}
