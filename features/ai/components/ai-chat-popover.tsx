@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import {
+  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -510,11 +511,54 @@ function getConversationSortTime(conversation: AiConversationSummary) {
   return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
+export function shouldSkipDashboardConversationHydration({
+  currentConversationId,
+  hasLocalMessages,
+  isStreaming,
+  nextConversationId,
+}: {
+  currentConversationId: string | null;
+  hasLocalMessages: boolean;
+  isStreaming: boolean;
+  nextConversationId: string;
+}) {
+  return (
+    currentConversationId === nextConversationId &&
+    (hasLocalMessages || isStreaming)
+  );
+}
+
 export function getEntityConversationCacheKey(
   surface: AiSurface,
   entityId: string,
 ) {
   return `${surface}:${entityId}`;
+}
+
+export function shouldWarmupEntityConversation(options: {
+  surface: AiSurface;
+  cacheHasSnapshot: boolean;
+  hasAccess: boolean;
+}) {
+  return (
+    options.hasAccess &&
+    options.surface !== "dashboard" &&
+    !options.cacheHasSnapshot
+  );
+}
+
+export function shouldWarmupDashboardMessages(options: {
+  surface: AiSurface;
+  hasAccess: boolean;
+  activeConversationId: string | null;
+  cacheHasMessages: boolean;
+}) {
+  return (
+    options.hasAccess &&
+    options.surface === "dashboard" &&
+    Boolean(options.activeConversationId) &&
+    !options.cacheHasMessages
+  );
 }
 
 export function createDashboardConversationSummary({
@@ -705,6 +749,7 @@ export function ChatMessageList({
   isHydrating,
   isLoadingOlder,
   paginationError,
+  loadingLabel,
   onCopy,
   onReload,
 }: {
@@ -715,6 +760,7 @@ export function ChatMessageList({
   isHydrating: boolean;
   isLoadingOlder: boolean;
   paginationError: string | null;
+  loadingLabel?: string;
   onCopy: (message: ChatMessage) => void;
   onReload: () => void;
 }) {
@@ -753,7 +799,7 @@ export function ChatMessageList({
     return (
       <div className="flex min-h-[17rem] flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
         <Spinner aria-hidden="true" />
-        Loading saved assistant history...
+        {loadingLabel ?? "Loading saved assistant history..."}
       </div>
     );
   }
@@ -943,14 +989,21 @@ export function AIChatPanel({
   >(cachedDashboardConversations ?? []);
   const [isHistoryLoading, setIsHistoryLoading] = useState(isDashboard && !hasCachedList);
   const [copyState, setCopyState] = useTimedCopyState();
+  const [isCreatingChat, setIsCreatingChat] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const shouldScrollToBottomRef = useRef(false);
   const loadingOlderRef = useRef(false);
   const loadingDashboardConversationIdRef = useRef<string | null>(null);
+  const streamingConversationIdRef = useRef<string | null>(null);
   const prependSnapshotRef = useRef<{
     scrollHeight: number;
     scrollTop: number;
   } | null>(null);
+  const activeConversationIdRef = useRef(conversation?.id ?? null);
+  const hasLocalMessagesRef = useRef(messages.length > 0);
+
+  activeConversationIdRef.current = conversation?.id ?? null;
+  hasLocalMessagesRef.current = messages.length > 0;
 
   function syncDashboardConversations(conversations: AiConversationSummary[]) {
     setHistoryConversations(conversations);
@@ -986,6 +1039,18 @@ export function AIChatPanel({
     setHistoryOpen(false);
     setHydrateError(null);
     setPaginationError(null);
+
+    if (
+      shouldSkipDashboardConversationHydration({
+        currentConversationId: activeConversationIdRef.current,
+        hasLocalMessages: hasLocalMessagesRef.current,
+        isStreaming:
+          streamingConversationIdRef.current === activeDashboardConversation.id,
+        nextConversationId: activeDashboardConversation.id,
+      })
+    ) {
+      return;
+    }
 
     if (
       loadingDashboardConversationIdRef.current === activeDashboardConversation.id
@@ -1495,11 +1560,11 @@ export function AIChatPanel({
   }
 
   async function createNewDashboardChat() {
-    if (surface !== "dashboard" || isPending) {
+    if (surface !== "dashboard" || isPending || isCreatingChat) {
       return;
     }
 
-    setIsPending(true);
+    setIsCreatingChat(true);
 
     try {
       const response = await fetch("/api/ai/conversations", {
@@ -1557,7 +1622,7 @@ export function AIChatPanel({
         true,
       );
     } finally {
-      setIsPending(false);
+      setIsCreatingChat(false);
     }
   }
 
@@ -1579,6 +1644,7 @@ export function AIChatPanel({
     let terminalEvent: AssistantTerminalEvent | null = null;
     let currentConversation = conversation;
 
+    streamingConversationIdRef.current = conversation.id;
     prepareIncomingMessageScroll(true);
     setMessages((currentMessages) => [
       ...currentMessages,
@@ -1721,7 +1787,10 @@ export function AIChatPanel({
           case "conversation":
             currentConversation = event.conversation;
             setConversation(event.conversation);
-            if (event.conversation.surface === "dashboard") {
+            if (
+              event.conversation.surface === "dashboard" &&
+              activeDashboardConversation?.id !== event.conversation.id
+            ) {
               onActiveDashboardConversationChange?.(event.conversation);
             }
             break;
@@ -1794,6 +1863,7 @@ export function AIChatPanel({
       });
     } finally {
       setIsPending(false);
+      streamingConversationIdRef.current = null;
 
       // Update message cache after streaming completes
       if (currentConversation) {
@@ -1861,7 +1931,7 @@ export function AIChatPanel({
             <>
               <Button
                 aria-label="New chat"
-                disabled={isPending}
+                disabled={isPending || isCreatingChat}
                 onClick={() => void createNewDashboardChat()}
                 size="icon-sm"
                 type="button"
@@ -1872,7 +1942,7 @@ export function AIChatPanel({
               </Button>
               <Button
                 aria-label="History"
-                disabled={isPending}
+                disabled={isPending || isCreatingChat}
                 onClick={() => void loadDashboardHistory()}
                 size="icon-sm"
                 type="button"
@@ -1917,8 +1987,13 @@ export function AIChatPanel({
                   copyState={copyState}
                   hasMore={hasMore}
                   hydrateError={hydrateError}
-                  isHydrating={isHydrating}
+                  isHydrating={isHydrating || isCreatingChat}
                   isLoadingOlder={isLoadingOlder}
+                  loadingLabel={
+                    isCreatingChat
+                      ? "Creating a new chat..."
+                      : "Loading saved assistant history..."
+                  }
                   messages={messages}
                   onCopy={(targetMessage) =>
                     copyText(
@@ -1931,7 +2006,10 @@ export function AIChatPanel({
                   paginationError={paginationError}
                 />
 
-                {!messages.length && !isHydrating && !hydrateError ? (
+                {!messages.length &&
+                !isHydrating &&
+                !hydrateError &&
+                !isCreatingChat ? (
                   <div className="flex min-h-[17rem] flex-col justify-end gap-6">
                     <p className="rounded-2xl border border-border/70 bg-secondary/60 px-4 py-3 text-sm leading-6 text-muted-foreground">
                       No assistant messages yet. Ask a question or use a quick action.
@@ -1940,7 +2018,7 @@ export function AIChatPanel({
                       <div className="flex max-w-[92%] flex-col items-end gap-2">
                         {quickActions[surface].map((action) => (
                           <Button
-                            disabled={isPending || !conversation}
+                            disabled={isPending || isCreatingChat || !conversation}
                             key={action.label}
                             onClick={() => {
                               void runMessage(action.prompt);
@@ -1977,7 +2055,7 @@ export function AIChatPanel({
 
           <div className="border-t border-border/70 px-3 py-3">
             <ChatInput
-              disabled={isPending || !conversation}
+              disabled={isPending || isCreatingChat || !conversation}
               onChange={setComposerValue}
               onSubmit={() => {
                 void runMessage(composerValue);
@@ -2008,12 +2086,20 @@ export function AIChatPopover(props: AIChatPopoverProps) {
     () => new Map<string, EntityConversationSnapshot>(),
   );
   const title = props.title ?? "Requo AI";
+  const dashboardListWarmupStartedRef = useRef(false);
+  const entityWarmupInFlightRef = useRef(new Map<string, Promise<void>>());
+  const messagesWarmupInFlightRef = useRef(new Map<string, Promise<void>>());
+  const entityCacheKey = getEntityConversationCacheKey(props.surface, props.entityId);
 
   // Pre-fetch dashboard conversation list on mount (persists across open/close)
   useEffect(() => {
     if (!isDashboard || !hasAccess) {
       return;
     }
+    if (dashboardListWarmupStartedRef.current) {
+      return;
+    }
+    dashboardListWarmupStartedRef.current = true;
 
     const controller = new AbortController();
 
@@ -2058,6 +2144,127 @@ export function AIChatPopover(props: AIChatPopoverProps) {
     return () => controller.abort();
   }, [isDashboard, props.businessSlug, props.entityId, hasAccess]);
 
+  const warmupEntityConversation = useCallback(() => {
+    if (
+      !shouldWarmupEntityConversation({
+        surface: props.surface,
+        cacheHasSnapshot: entityCache.has(entityCacheKey),
+        hasAccess,
+      })
+    ) {
+      return;
+    }
+
+    if (entityWarmupInFlightRef.current.has(entityCacheKey)) {
+      return;
+    }
+
+    const request = (async () => {
+      try {
+        const { conversation } = await fetchConversation({
+          businessSlug: props.businessSlug,
+          surface: props.surface,
+          entityId: props.entityId,
+        });
+        const page = await fetchMessagePage({ conversationId: conversation.id });
+        const messages = page.messages.map((message) =>
+          mapAiMessageToChatMessage(message, props.userName),
+        );
+
+        entityCache.set(entityCacheKey, {
+          conversation,
+          messages,
+          nextCursor: page.nextCursor,
+          hasMore: page.hasMore,
+        });
+        messagesCache.set(conversation.id, {
+          messages,
+          nextCursor: page.nextCursor,
+          hasMore: page.hasMore,
+        });
+      } catch {
+        // Let panel fallback to normal load path.
+      } finally {
+        entityWarmupInFlightRef.current.delete(entityCacheKey);
+      }
+    })();
+
+    entityWarmupInFlightRef.current.set(entityCacheKey, request);
+  }, [
+    entityCache,
+    entityCacheKey,
+    hasAccess,
+    messagesCache,
+    props.businessSlug,
+    props.entityId,
+    props.surface,
+    props.userName,
+  ]);
+
+  const warmupDashboardActiveConversation = useCallback(() => {
+    const activeConversationId = activeDashboardConversation?.id ?? null;
+
+    if (
+      !shouldWarmupDashboardMessages({
+        surface: props.surface,
+        hasAccess,
+        activeConversationId,
+        cacheHasMessages: activeConversationId
+          ? messagesCache.has(activeConversationId)
+          : false,
+      }) ||
+      !activeConversationId
+    ) {
+      return;
+    }
+
+    if (messagesWarmupInFlightRef.current.has(activeConversationId)) {
+      return;
+    }
+
+    const request = (async () => {
+      try {
+        const page = await fetchMessagePage({ conversationId: activeConversationId });
+        const messages = page.messages.map((message) =>
+          mapAiMessageToChatMessage(message, props.userName),
+        );
+
+        messagesCache.set(activeConversationId, {
+          messages,
+          nextCursor: page.nextCursor,
+          hasMore: page.hasMore,
+        });
+      } catch {
+        // Let panel fallback to normal load path.
+      } finally {
+        messagesWarmupInFlightRef.current.delete(activeConversationId);
+      }
+    })();
+
+    messagesWarmupInFlightRef.current.set(activeConversationId, request);
+  }, [
+    activeDashboardConversation,
+    hasAccess,
+    messagesCache,
+    props.surface,
+    props.userName,
+  ]);
+
+  const warmupOnOpenIntent = useCallback(() => {
+    if (!hasAccess) {
+      return;
+    }
+
+    warmupEntityConversation();
+    warmupDashboardActiveConversation();
+  }, [hasAccess, warmupDashboardActiveConversation, warmupEntityConversation]);
+
+  useEffect(() => {
+    if (isOpen) {
+      warmupOnOpenIntent();
+    }
+  }, [isOpen, warmupOnOpenIntent]);
+
   function handleMessagesCacheUpdate(
     conversationId: string,
     snapshot: ConversationMessagesSnapshot,
@@ -2083,6 +2290,8 @@ export function AIChatPopover(props: AIChatPopoverProps) {
             aria-label={isOpen ? `Close ${title}` : `Open ${title}`}
             className="size-14 rounded-full border-border/70 bg-[var(--surface-elevated-bg)] p-0 shadow-[var(--surface-shadow-lg)]"
             data-testid={`${props.surface}-ai-launcher`}
+            onFocus={warmupOnOpenIntent}
+            onMouseEnter={warmupOnOpenIntent}
             size="icon-lg"
             type="button"
             variant="outline"

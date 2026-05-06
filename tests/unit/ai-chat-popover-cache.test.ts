@@ -4,6 +4,9 @@ import {
   createDashboardConversationSummary,
   getEntityConversationCacheKey,
   mergeDashboardConversationSummary,
+  shouldWarmupDashboardMessages,
+  shouldWarmupEntityConversation,
+  shouldSkipDashboardConversationHydration,
   type ChatMessage,
 } from "@/features/ai/components/ai-chat-popover";
 import type { AiConversation, AiConversationSummary } from "@/features/ai/types";
@@ -102,5 +105,98 @@ describe("AI chat popover cache helpers", () => {
       "aic_old",
     ]);
     expect(merged[0]?.lastMessagePreview).toBe("Latest answer");
+  });
+
+  it("does not rehydrate the active dashboard conversation while local messages exist", () => {
+    expect(
+      shouldSkipDashboardConversationHydration({
+        currentConversationId: "aic_active",
+        hasLocalMessages: true,
+        isStreaming: false,
+        nextConversationId: "aic_active",
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldSkipDashboardConversationHydration({
+        currentConversationId: "aic_active",
+        hasLocalMessages: false,
+        isStreaming: true,
+        nextConversationId: "aic_active",
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldSkipDashboardConversationHydration({
+        currentConversationId: "aic_previous",
+        hasLocalMessages: true,
+        isStreaming: true,
+        nextConversationId: "aic_active",
+      }),
+    ).toBe(false);
+  });
+
+  it("only warms inquiry/quote conversations when cache is empty", () => {
+    expect(
+      shouldWarmupEntityConversation({
+        surface: "inquiry",
+        cacheHasSnapshot: false,
+        hasAccess: true,
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldWarmupEntityConversation({
+        surface: "quote",
+        cacheHasSnapshot: true,
+        hasAccess: true,
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldWarmupEntityConversation({
+        surface: "dashboard",
+        cacheHasSnapshot: false,
+        hasAccess: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("only warms active dashboard messages with access and missing cache", () => {
+    expect(
+      shouldWarmupDashboardMessages({
+        surface: "dashboard",
+        hasAccess: true,
+        activeConversationId: "aic_1",
+        cacheHasMessages: false,
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldWarmupDashboardMessages({
+        surface: "dashboard",
+        hasAccess: true,
+        activeConversationId: "aic_1",
+        cacheHasMessages: true,
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldWarmupDashboardMessages({
+        surface: "dashboard",
+        hasAccess: true,
+        activeConversationId: null,
+        cacheHasMessages: false,
+      }),
+    ).toBe(false);
+
+    expect(
+      shouldWarmupDashboardMessages({
+        surface: "inquiry",
+        hasAccess: true,
+        activeConversationId: "aic_1",
+        cacheHasMessages: false,
+      }),
+    ).toBe(false);
   });
 });
