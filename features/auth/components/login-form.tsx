@@ -44,6 +44,7 @@ export function LoginForm({
   // Only forward ?next when it's a genuine non-default redirect
   const signupHref = getAuthPathWithNext("/signup", rawNext && nextPath !== "/workspaces" ? nextPath : null);
   const [state, setState] = useState<AuthFormState>({});
+  const [loadingAction, setLoadingAction] = useState<"email" | SocialAuthProvider | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const resetMessage =
@@ -68,6 +69,7 @@ export function LoginForm({
     }
 
     setState({});
+    setLoadingAction("email");
 
     startTransition(async () => {
       const result = await authClient.signIn.email({
@@ -76,6 +78,7 @@ export function LoginForm({
       });
 
       if (result.error) {
+        setLoadingAction(null);
         setState({
           error: getAuthErrorMessage(
             result.error,
@@ -91,6 +94,7 @@ export function LoginForm({
 
   function handleSocialSignIn(provider: SocialAuthProvider) {
     setState({});
+    setLoadingAction(provider);
 
     startTransition(async () => {
       const result = await authClient.signIn.social({
@@ -100,6 +104,7 @@ export function LoginForm({
       });
 
       if (result.error) {
+        setLoadingAction(null);
         setState({
           error: getAuthErrorMessage(
             result.error,
@@ -129,6 +134,7 @@ export function LoginForm({
 
       <SocialAuthButtons
         disabled={isPending}
+        loadingProvider={isPending && loadingAction !== "email" ? (loadingAction as SocialAuthProvider) : null}
         onProviderClick={handleSocialSignIn}
         providers={socialProviders}
       />
@@ -185,7 +191,7 @@ export function LoginForm({
 
       <FormActions className="items-stretch sm:items-stretch">
         <Button className="w-full" disabled={isPending} type="submit" size="lg">
-          {isPending ? (
+          {isPending && loadingAction === "email" ? (
             <>
               <Spinner data-icon="inline-start" aria-hidden="true" />
               Signing in...

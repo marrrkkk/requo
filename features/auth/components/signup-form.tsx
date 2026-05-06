@@ -43,6 +43,7 @@ export function SignupForm({
   // Only forward ?next when it's a genuine non-default redirect
   const loginHref = getAuthPathWithNext("/login", rawNext && nextPath !== onboardingPath ? nextPath : null);
   const [state, setState] = useState<AuthFormState>({});
+  const [loadingAction, setLoadingAction] = useState<"email" | SocialAuthProvider | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -62,6 +63,7 @@ export function SignupForm({
     }
 
     setState({});
+    setLoadingAction("email");
     const verificationCallback = `/login?verified=success&next=${encodeURIComponent(nextPath)}`;
 
     startTransition(async () => {
@@ -71,6 +73,7 @@ export function SignupForm({
       });
 
       if (result.error) {
+        setLoadingAction(null);
         setState({
           error: getAuthErrorMessage(
             result.error,
@@ -87,6 +90,7 @@ export function SignupForm({
 
   function handleSocialSignIn(provider: SocialAuthProvider) {
     setState({});
+    setLoadingAction(provider);
 
     startTransition(async () => {
       const result = await authClient.signIn.social({
@@ -97,6 +101,7 @@ export function SignupForm({
       });
 
       if (result.error) {
+        setLoadingAction(null);
         setState({
           error: getAuthErrorMessage(
             result.error,
@@ -117,6 +122,7 @@ export function SignupForm({
 
       <SocialAuthButtons
         disabled={isPending}
+        loadingProvider={isPending && loadingAction !== "email" ? (loadingAction as SocialAuthProvider) : null}
         onProviderClick={handleSocialSignIn}
         providers={socialProviders}
       />
@@ -183,7 +189,7 @@ export function SignupForm({
 
       <FormActions className="items-stretch sm:items-stretch">
         <Button className="w-full" disabled={isPending} type="submit" size="lg">
-          {isPending ? (
+          {isPending && loadingAction === "email" ? (
             <>
               <Spinner data-icon="inline-start" aria-hidden="true" />
               Creating your account...

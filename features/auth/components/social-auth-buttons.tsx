@@ -3,6 +3,7 @@
 import type { ComponentType } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 export type SocialAuthProvider = "google" | "microsoft";
 
@@ -25,12 +26,14 @@ const socialProviderMeta: Record<
 
 type SocialAuthButtonsProps = {
   disabled: boolean;
+  loadingProvider?: SocialAuthProvider | null;
   providers: SocialAuthProvider[];
   onProviderClick: (provider: SocialAuthProvider) => void;
 };
 
 export function SocialAuthButtons({
   disabled,
+  loadingProvider,
   providers,
   onProviderClick,
 }: SocialAuthButtonsProps) {
@@ -54,7 +57,11 @@ export function SocialAuthButtons({
             type="button"
             variant="outline"
           >
-            <Icon className="size-4" />
+            {loadingProvider === provider ? (
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+            ) : (
+              <Icon className="size-4" />
+            )}
             Continue with {meta.label}
           </Button>
         );
