@@ -1,5 +1,6 @@
 import { after, NextResponse } from "next/server";
 
+import { getPlanPrice } from "@/lib/billing/plans";
 import { verifyPayMongoWebhookSignature } from "@/lib/billing/providers/paymongo";
 import {
   markEventProcessed,
@@ -12,6 +13,7 @@ import {
   getWorkspaceSubscription,
   updateSubscriptionStatus,
 } from "@/lib/billing/subscription-service";
+import type { BillingInterval } from "@/lib/billing/types";
 import { writeSubscriptionTransitionAuditLogs } from "@/features/audit/subscription";
 import { finalizeScheduledWorkspaceDeletionIfDue } from "@/features/workspaces/mutations";
 
@@ -30,6 +32,7 @@ async function getPaymongoAttempt(providerPaymentId: string) {
 
   const [attempt] = await db
     .select({
+      amount: paymentAttempts.amount,
       plan: paymentAttempts.plan,
       workspaceId: paymentAttempts.workspaceId,
     })
@@ -39,6 +42,37 @@ async function getPaymongoAttempt(providerPaymentId: string) {
     .limit(1);
 
   return attempt ?? null;
+}
+
+function inferPaymongoBillingInterval(
+  plan: string | undefined,
+  amount: number,
+  metadataInterval?: string | null,
+): BillingInterval {
+  if (metadataInterval === "yearly" || metadataInterval === "monthly") {
+    return metadataInterval;
+  }
+
+  if (
+    (plan === "pro" || plan === "business") &&
+    amount === getPlanPrice(plan, "PHP", "yearly")
+  ) {
+    return "yearly";
+  }
+
+  return "monthly";
+}
+
+function addBillingPeriod(start: Date, interval: BillingInterval) {
+  const end = new Date(start);
+
+  if (interval === "yearly") {
+    end.setFullYear(end.getFullYear() + 1);
+    return end;
+  }
+
+  end.setMonth(end.getMonth() + 1);
+  return end;
 }
 
 async function getLatestPendingPaymongoAttempt(workspaceId: string) {
@@ -162,8 +196,13 @@ export async function POST(request: Request) {
     if (eventType === "payment.paid" && workspaceId && plan) {
       const previousSubscription = await getWorkspaceSubscription(workspaceId);
       const amount = (paymentAttributes?.amount as number) ?? 0;
+      const billingInterval = inferPaymongoBillingInterval(
+        plan,
+        matchedAttempt?.amount ?? amount,
+        metadata?.interval,
+      );
       const now = new Date();
-      const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const periodEnd = addBillingPeriod(now, billingInterval);
       const latestPendingAttempt = paymentIntentId
         ? null
         : await getLatestPendingPaymongoAttempt(workspaceId);

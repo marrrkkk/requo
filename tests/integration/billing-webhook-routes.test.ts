@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   verifyPaddleWebhookSignatureMock,
@@ -96,6 +96,10 @@ import { POST as postPaddleWebhook } from "@/app/api/billing/paddle/webhook/rout
 import { POST as postPaymongoWebhook } from "@/app/api/billing/paymongo/webhook/route";
 
 describe("billing webhook routes", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     verifyPaddleWebhookSignatureMock.mockReturnValue(true);
@@ -344,6 +348,55 @@ describe("billing webhook routes", () => {
         plan: "pro",
         provider: "paymongo",
         providerCheckoutId: "pay_123",
+        workspaceId: "workspace_123",
+      }),
+    );
+  });
+
+  it("grants one year of access for a yearly PayMongo QRPh payment", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-06T00:00:00.000Z"));
+    dbSelectLimitMock.mockResolvedValueOnce([
+      {
+        amount: 299000,
+        plan: "pro",
+        workspaceId: "workspace_123",
+      },
+    ]);
+
+    const response = await postPaymongoWebhook(
+      new Request("http://localhost/api/billing/paymongo/webhook", {
+        method: "POST",
+        body: JSON.stringify({
+          data: {
+            id: "evt_paymongo_yearly",
+            attributes: {
+              type: "payment.paid",
+              data: {
+                id: "pay_yearly",
+                attributes: {
+                  amount: 299000,
+                  payment_intent_id: "pi_yearly",
+                },
+              },
+            },
+          },
+        }),
+        headers: {
+          "content-type": "application/json",
+          "paymongo-signature": "good-signature",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(activateSubscriptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentPeriodEnd: new Date("2027-05-06T00:00:00.000Z"),
+        currentPeriodStart: new Date("2026-05-06T00:00:00.000Z"),
+        plan: "pro",
+        provider: "paymongo",
+        providerCheckoutId: "pay_yearly",
         workspaceId: "workspace_123",
       }),
     );

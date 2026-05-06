@@ -147,6 +147,7 @@ export async function createQrPhCheckout(params: {
                 params.description ??
                 `Requo ${params.plan === "pro" ? "Pro" : "Business"} plan — ${periodLabel}`,
               metadata: {
+                interval,
                 workspace_id: params.workspaceId,
                 plan: params.plan,
               },
