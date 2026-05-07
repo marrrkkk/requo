@@ -1,14 +1,14 @@
 /**
  * Central usage-limit definitions for the Requo pricing system.
  *
- * Limits are defined per workspace plan. A `null` limit means unlimited.
+ * Limits are defined per business plan. A `null` limit means unlimited.
  * Usage enforcement uses the helpers in `./usage.ts`.
  *
- * Usage is counted at the workspace level except business creation, which is
+ * Usage is counted at the business scope except business creation, which is
  * capped globally across businesses owned by the account.
  */
 
-import type { WorkspacePlan } from "@/lib/plans/plans";
+import type { BusinessPlan } from "@/lib/plans/plans";
 
 export const usageLimitKeys = [
   "inquiriesPerMonth",
@@ -18,6 +18,9 @@ export const usageLimitKeys = [
   "businessesPerWorkspace",
   "membersPerWorkspace",
   "liveFormsPerWorkspace",
+  "businessesPerPlan",
+  "membersPerBusiness",
+  "liveFormsPerBusiness",
   "memoriesPerBusiness",
   "customFieldsPerForm",
   "publicInquiryAttachmentMaxBytes",
@@ -27,7 +30,7 @@ export type UsageLimitKey = (typeof usageLimitKeys)[number];
 
 type PlanUsageLimits = Record<UsageLimitKey, number | null>;
 
-const planUsageLimits: Record<WorkspacePlan, PlanUsageLimits> = {
+const planUsageLimits: Record<BusinessPlan, PlanUsageLimits> = {
   free: {
     inquiriesPerMonth: 100,
     quotesPerMonth: 50,
@@ -36,6 +39,9 @@ const planUsageLimits: Record<WorkspacePlan, PlanUsageLimits> = {
     businessesPerWorkspace: 1,
     membersPerWorkspace: 1,
     liveFormsPerWorkspace: 1,
+    businessesPerPlan: 1,
+    membersPerBusiness: 1,
+    liveFormsPerBusiness: 1,
     memoriesPerBusiness: 0,
     customFieldsPerForm: 4,
     publicInquiryAttachmentMaxBytes: 5 * 1024 * 1024,
@@ -48,6 +54,9 @@ const planUsageLimits: Record<WorkspacePlan, PlanUsageLimits> = {
     businessesPerWorkspace: 10,
     membersPerWorkspace: 1,
     liveFormsPerWorkspace: null,
+    businessesPerPlan: 10,
+    membersPerBusiness: 1,
+    liveFormsPerBusiness: null,
     memoriesPerBusiness: 10,
     customFieldsPerForm: 12,
     publicInquiryAttachmentMaxBytes: 25 * 1024 * 1024,
@@ -60,6 +69,9 @@ const planUsageLimits: Record<WorkspacePlan, PlanUsageLimits> = {
     businessesPerWorkspace: null,
     membersPerWorkspace: 25,
     liveFormsPerWorkspace: null,
+    businessesPerPlan: null,
+    membersPerBusiness: 25,
+    liveFormsPerBusiness: null,
     memoriesPerBusiness: 30,
     customFieldsPerForm: 24,
     publicInquiryAttachmentMaxBytes: 50 * 1024 * 1024,
@@ -70,7 +82,7 @@ const planUsageLimits: Record<WorkspacePlan, PlanUsageLimits> = {
  * Returns the usage limit for a plan and key, or `null` if unlimited.
  */
 export function getUsageLimit(
-  plan: WorkspacePlan,
+  plan: BusinessPlan,
   key: UsageLimitKey,
 ): number | null {
   return planUsageLimits[plan][key];
@@ -80,7 +92,7 @@ export function getUsageLimit(
  * Returns `true` if the plan has a finite limit for the given key.
  */
 export function isUsageLimited(
-  plan: WorkspacePlan,
+  plan: BusinessPlan,
   key: UsageLimitKey,
 ): boolean {
   return planUsageLimits[plan][key] !== null;
@@ -92,9 +104,12 @@ export const usageLimitLabels: Record<UsageLimitKey, string> = {
   quotesPerMonth: "Quotes per month",
   requoQuoteEmailsPerDay: "Requo quote sends per day",
   requoQuoteEmailsPerMonth: "Requo quote sends per month",
-  businessesPerWorkspace: "Businesses across workspaces",
-  membersPerWorkspace: "Members per workspace",
+  businessesPerWorkspace: "Businesses across businesses",
+  membersPerWorkspace: "Members per business",
   liveFormsPerWorkspace: "Live inquiry forms",
+  businessesPerPlan: "Businesses per plan",
+  membersPerBusiness: "Members per business",
+  liveFormsPerBusiness: "Live inquiry forms",
   memoriesPerBusiness: "Knowledge items per business",
   customFieldsPerForm: "Custom fields per form",
   publicInquiryAttachmentMaxBytes: "Public inquiry upload size",

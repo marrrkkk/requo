@@ -18,19 +18,14 @@ export type PendingPaymongoCheckout = {
 export type PersistedPendingCheckout = PendingPaymongoCheckout;
 
 const PENDING_CHECKOUT_KEY = "requo:pending-checkout";
-const PENDING_QR_LEGACY_KEY = "requo:pending-qrph";
 const PENDING_CHECKOUT_CHANGE_EVENT = "requo:pending-checkout:change";
 
 type PendingCheckoutChangeDetail = {
-  businessId: string;
+  userId: string;
 };
 
-function getPendingCheckoutStorageKey(businessId: string) {
-  return `${PENDING_CHECKOUT_KEY}:${businessId}`;
-}
-
-function getLegacyPendingQrStorageKey(businessId: string) {
-  return `${PENDING_QR_LEGACY_KEY}:${businessId}`;
+function getPendingCheckoutStorageKey(userId: string) {
+  return `${PENDING_CHECKOUT_KEY}:${userId}`;
 }
 
 function isPaidPlan(value: unknown): value is PaidPlan {
@@ -63,73 +58,20 @@ function isPersistedPendingCheckout(
   return isPendingPaymongoCheckout(value);
 }
 
-function dispatchPendingCheckoutChange(businessId: string) {
+function dispatchPendingCheckoutChange(userId: string) {
   if (typeof window === "undefined") {
     return;
   }
 
   window.dispatchEvent(
     new CustomEvent<PendingCheckoutChangeDetail>(PENDING_CHECKOUT_CHANGE_EVENT, {
-      detail: { businessId },
+      detail: { userId },
     }),
   );
 }
 
-function migrateLegacyPendingQr(
-  businessId: string,
-): PendingPaymongoCheckout | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const raw = window.sessionStorage.getItem(
-      getLegacyPendingQrStorageKey(businessId),
-    );
-
-    if (!raw) {
-      return null;
-    }
-
-    const data = JSON.parse(raw) as Record<string, unknown>;
-
-    if (
-      !isPaidPlan(data.plan) ||
-      typeof data.amount !== "number" ||
-      data.currency !== "PHP" ||
-      typeof data.expiresAt !== "string" ||
-      typeof data.paymentIntentId !== "string" ||
-      typeof data.qrCodeData !== "string"
-    ) {
-      window.sessionStorage.removeItem(getLegacyPendingQrStorageKey(businessId));
-      return null;
-    }
-
-    const migrated: PendingPaymongoCheckout = {
-      amount: data.amount,
-      currency: "PHP",
-      expiresAt: data.expiresAt,
-      paymentIntentId: data.paymentIntentId,
-      plan: data.plan,
-      provider: "paymongo",
-      qrCodeData: data.qrCodeData,
-    };
-
-    window.sessionStorage.setItem(
-      getPendingCheckoutStorageKey(businessId),
-      JSON.stringify(migrated),
-    );
-    window.sessionStorage.removeItem(getLegacyPendingQrStorageKey(businessId));
-    dispatchPendingCheckoutChange(businessId);
-
-    return migrated;
-  } catch {
-    return null;
-  }
-}
-
 export function getCachedPendingCheckout(
-  businessId: string,
+  userId: string,
 ): PersistedPendingCheckout | null {
   if (typeof window === "undefined") {
     return null;
@@ -137,17 +79,17 @@ export function getCachedPendingCheckout(
 
   try {
     const raw = window.sessionStorage.getItem(
-      getPendingCheckoutStorageKey(businessId),
+      getPendingCheckoutStorageKey(userId),
     );
 
     if (!raw) {
-      return migrateLegacyPendingQr(businessId);
+      return null;
     }
 
     const data = JSON.parse(raw) as unknown;
 
     if (!isPersistedPendingCheckout(data)) {
-      window.sessionStorage.removeItem(getPendingCheckoutStorageKey(businessId));
+      window.sessionStorage.removeItem(getPendingCheckoutStorageKey(userId));
       return null;
     }
 
@@ -158,10 +100,10 @@ export function getCachedPendingCheckout(
 }
 
 export function getCachedPendingCheckoutForPlan(
-  businessId: string,
+  userId: string,
   plan: PaidPlan,
 ): PersistedPendingCheckout | null {
-  const pendingCheckout = getCachedPendingCheckout(businessId);
+  const pendingCheckout = getCachedPendingCheckout(userId);
 
   if (!pendingCheckout || pendingCheckout.plan !== plan) {
     return null;
@@ -171,7 +113,7 @@ export function getCachedPendingCheckoutForPlan(
 }
 
 export function setCachedPendingCheckout(
-  businessId: string,
+  userId: string,
   checkout: PersistedPendingCheckout,
 ): void {
   if (typeof window === "undefined") {
@@ -180,17 +122,17 @@ export function setCachedPendingCheckout(
 
   try {
     window.sessionStorage.setItem(
-      getPendingCheckoutStorageKey(businessId),
+      getPendingCheckoutStorageKey(userId),
       JSON.stringify(checkout),
     );
-    dispatchPendingCheckoutChange(businessId);
+    dispatchPendingCheckoutChange(userId);
   } catch {
     // Ignore unavailable or full storage.
   }
 }
 
 export function clearCachedPendingCheckout(
-  businessId: string,
+  userId: string,
   provider?: BillingProvider,
 ): void {
   if (typeof window === "undefined") {
@@ -199,27 +141,26 @@ export function clearCachedPendingCheckout(
 
   try {
     if (provider) {
-      const existing = getCachedPendingCheckout(businessId);
+      const existing = getCachedPendingCheckout(userId);
 
       if (!existing || existing.provider !== provider) {
         return;
       }
     }
 
-    window.sessionStorage.removeItem(getPendingCheckoutStorageKey(businessId));
-    window.sessionStorage.removeItem(getLegacyPendingQrStorageKey(businessId));
-    dispatchPendingCheckoutChange(businessId);
+    window.sessionStorage.removeItem(getPendingCheckoutStorageKey(userId));
+    dispatchPendingCheckoutChange(userId);
   } catch {
     // Ignore unavailable storage.
   }
 }
 
-export function clearCachedPendingQrCheckout(businessId: string): void {
-  clearCachedPendingCheckout(businessId, "paymongo");
+export function clearCachedPendingQrCheckout(userId: string): void {
+  clearCachedPendingCheckout(userId, "paymongo");
 }
 
 export function subscribeToPendingCheckout(
-  businessId: string,
+  userId: string,
   callback: (checkout: PersistedPendingCheckout | null) => void,
 ): () => void {
   if (typeof window === "undefined") {
@@ -227,7 +168,7 @@ export function subscribeToPendingCheckout(
   }
 
   const handleChange = () => {
-    callback(getCachedPendingCheckout(businessId));
+    callback(getCachedPendingCheckout(userId));
   };
 
   const handleStorage = (event: StorageEvent) => {
@@ -238,8 +179,7 @@ export function subscribeToPendingCheckout(
     const key = event.key;
     if (
       key !== null &&
-      key !== getPendingCheckoutStorageKey(businessId) &&
-      key !== getLegacyPendingQrStorageKey(businessId)
+      key !== getPendingCheckoutStorageKey(userId)
     ) {
       return;
     }
@@ -250,7 +190,7 @@ export function subscribeToPendingCheckout(
   const handleCustomEvent = (event: Event) => {
     const customEvent = event as CustomEvent<PendingCheckoutChangeDetail>;
 
-    if (customEvent.detail.businessId !== businessId) {
+    if (customEvent.detail.userId !== userId) {
       return;
     }
 

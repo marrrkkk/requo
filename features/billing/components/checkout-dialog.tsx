@@ -143,8 +143,9 @@ function CheckoutDialogInner({
   open,
   plan,
   region,
+  userId,
   businessId,
-  workspaceName,
+  businessName,
   checkoutError,
   interval: intervalProp,
   onChangePlan,
@@ -158,7 +159,7 @@ function CheckoutDialogInner({
   const initialPendingCheckout =
     pendingCheckout?.plan === plan
       ? pendingCheckout
-      : getCachedPendingCheckoutForPlan(businessId, plan);
+      : getCachedPendingCheckoutForPlan(userId, plan);
   const initialPendingQr = toPendingQrData(initialPendingCheckout);
   const [interval] = useState<BillingInterval>(intervalProp ?? "monthly");
   const [view, setView] = useState<CheckoutView>(() => {
@@ -249,7 +250,7 @@ function CheckoutDialogInner({
       qrCodeData: state.qrData.qrCodeData,
     };
 
-    setCachedPendingCheckout(businessId, nextPendingCheckout);
+    setCachedPendingCheckout(userId, nextPendingCheckout);
     queueMicrotask(() => {
       setPendingQr(toPendingQrData(nextPendingCheckout));
       setActivePaddleTransactionId(null);
@@ -265,7 +266,7 @@ function CheckoutDialogInner({
     plan,
     state.qrData,
     updateCheckoutError,
-    businessId,
+    userId,
   ]);
 
   useEffect(() => {
@@ -389,7 +390,7 @@ function CheckoutDialogInner({
     updateCheckoutError(null);
 
     const result = await cancelPendingQrCheckoutAction(
-      businessId,
+      userId,
       pendingQr.paymentIntentId,
     );
 
@@ -406,13 +407,13 @@ function CheckoutDialogInner({
       return;
     }
 
-    clearCachedPendingCheckout(businessId, "paymongo");
+    clearCachedPendingCheckout(userId, "paymongo");
     setPendingQr(null);
     setIsCancelingQr(false);
     setView("selection");
     onOpenChange(false);
     router.refresh();
-  }, [onOpenChange, pendingQr, router, updateCheckoutError, businessId]);
+  }, [onOpenChange, pendingQr, router, updateCheckoutError, userId]);
 
   const resetPaddleCheckout = useCallback(() => {
     if (activePaddleTransactionId) {
@@ -528,13 +529,13 @@ function CheckoutDialogInner({
                       {planMeta[plan].label} Plan ({intervalLabel})
                     </DialogTitle>
                     <DialogDescription className="mt-1">
-                      {workspaceName ? (
+                      {businessName ? (
                         <span className="inline-flex max-w-full items-center gap-2">
                           <Layers className="size-3.5 shrink-0" />
-                          <span className="truncate">{workspaceName}</span>
+                          <span className="truncate">{businessName}</span>
                         </span>
                       ) : (
-                        "Complete your workspace upgrade."
+                        "Complete your business upgrade."
                       )}
                     </DialogDescription>
                   </div>
@@ -739,7 +740,7 @@ function QrPhPaymentView({
               {formatPrice(qrData.amount, "PHP")}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {planMeta[plan].label} workspace access
+              {planMeta[plan].label} business access
             </p>
           </div>
           <p className="text-sm leading-6 text-muted-foreground">
@@ -786,7 +787,7 @@ function QrPhPaymentView({
         <ShieldCheck />
         <AlertTitle>Automatic activation</AlertTitle>
         <AlertDescription>
-          The workspace will upgrade once PayMongo confirms the payment.
+          Your account will upgrade once PayMongo confirms the payment.
         </AlertDescription>
       </Alert>
 

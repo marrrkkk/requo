@@ -1,69 +1,60 @@
 import "server-only";
 
 /**
- * Core subscription operations. All business plan state mutations go
- * through this module so the logic stays centralized.
+ * Core subscription operations for account-level billing.
  *
- * The business `plan` column is kept in sync as a denormalized read
- * cache. The authoritative state lives in `business_subscriptions`.
+ * Subscriptions are owned by user accounts, not individual businesses.
+ * All businesses owned by a user inherit the account plan.
+ *
+ * The business `plan` column is kept in sync as a denormalized read cache.
+ * The authoritative state lives in `account_subscriptions`.
  */
 
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { revalidateTag } from "next/cache";
 
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema/businesses";
-import { getBusinessBillingCacheTags } from "@/lib/cache/shell-tags";
+import { getBusinessBillingCacheTags, getUserBillingCacheTags } from "@/lib/cache/shell-tags";
 import {
-  businessSubscriptions,
+  accountSubscriptions,
   type BillingCurrency,
   type BillingProvider,
   type SubscriptionStatus,
 } from "@/lib/db/schema/subscriptions";
 import type { BusinessPlan } from "@/lib/plans/plans";
 
-type SubscriptionRow = typeof businessSubscriptions.$inferSelect;
+type SubscriptionRow = typeof accountSubscriptions.$inferSelect;
 
 /* ── Read ──────────────────────────────────────────────────────────────────── */
 
 /**
- * Returns the subscription row for a business, or `null` if no
- * subscription exists (business is implicitly free).
+ * Returns the subscription row for a user account, or `null` if no
+ * subscription exists (user is implicitly free).
  */
-export async function getBusinessSubscription(
-  businessId: string,
+export async function getAccountSubscription(
+  userId: string,
 ): Promise<SubscriptionRow | null> {
   const [row] = await db
     .select()
-    .from(businessSubscriptions)
-    .where(eq(businessSubscriptions.businessId, businessId))
+    .from(accountSubscriptions)
+    .where(eq(accountSubscriptions.userId, userId))
     .limit(1);
 
   return row ?? null;
 }
 
-/** @deprecated Use `getBusinessSubscription` instead. */
-export const getWorkspaceSubscription = getBusinessSubscription;
-
 /**
- * Resolves the effective plan from the subscription state.
- * Falls back to the `businesses.plan` column for backward compatibility
- * with existing free businesses that don't have a subscription row.
+ * Resolves the effective plan for a user account.
+ * This is the plan that all businesses owned by the user inherit.
  */
-export async function getEffectivePlan(
-  businessId: string,
+export async function getEffectivePlanForUser(
+  userId: string,
 ): Promise<BusinessPlan> {
-  const subscription = await getBusinessSubscription(businessId);
+  const subscription = await getAccountSubscription(userId);
 
   if (!subscription) {
-    // No subscription row → read from business.plan (backward compat)
-    const [biz] = await db
-      .select({ plan: businesses.plan })
-      .from(businesses)
-      .where(eq(businesses.id, businessId))
-      .limit(1);
-
-    return (biz?.plan as BusinessPlan) ?? "free";
+    return "free";
   }
 
   return resolveEffectivePlanFromSubscription(subscription);
@@ -103,6 +94,47 @@ export function resolveEffectivePlanFromSubscription(
   }
 }
 
+/* ── Deprecated adapters ──────────────────────────────────────────────────── */
+
+/**
+ * @deprecated Adapter: resolves user from business, then gets account subscription.
+ * Use `getAccountSubscription(userId)` directly in new code.
+ */
+export async function getBusinessSubscription(
+  businessId: string,
+): Promise<SubscriptionRow | null> {
+  const [biz] = await db
+    .select({ ownerUserId: businesses.ownerUserId })
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
+  if (!biz) return null;
+
+  return getAccountSubscription(biz.ownerUserId);
+}
+
+/** @deprecated Use `getAccountSubscription` instead. */
+export const getWorkspaceSubscription = getBusinessSubscription;
+
+/**
+ * @deprecated Adapter: resolves user from business, then gets effective plan.
+ * Use `getEffectivePlanForUser(userId)` directly in new code.
+ */
+export async function getEffectivePlan(
+  businessId: string,
+): Promise<BusinessPlan> {
+  const [biz] = await db
+    .select({ ownerUserId: businesses.ownerUserId, plan: businesses.plan })
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
+  if (!biz) return "free";
+
+  return getEffectivePlanForUser(biz.ownerUserId);
+}
+
 /* ── Write ─────────────────────────────────────────────────────────────────── */
 
 function generateId(prefix: string): string {
@@ -110,7 +142,7 @@ function generateId(prefix: string): string {
 }
 
 type ActivateSubscriptionParams = {
-  businessId: string;
+  userId: string;
   plan: BusinessPlan;
   provider: BillingProvider;
   currency: BillingCurrency;
@@ -123,20 +155,20 @@ type ActivateSubscriptionParams = {
 };
 
 /**
- * Creates or updates a business subscription to an active state.
- * Also syncs the business `plan` column.
+ * Creates or updates an account subscription to an active state.
+ * Also syncs the `plan` column on ALL businesses owned by the user.
  */
 export async function activateSubscription(
   params: ActivateSubscriptionParams,
 ): Promise<SubscriptionRow> {
   const now = new Date();
-  const existing = await getBusinessSubscription(params.businessId);
+  const existing = await getAccountSubscription(params.userId);
 
   let subscription: SubscriptionRow;
 
   if (existing) {
     const [updated] = await db
-      .update(businessSubscriptions)
+      .update(accountSubscriptions)
       .set({
         status: params.status ?? "active",
         plan: params.plan,
@@ -152,16 +184,16 @@ export async function activateSubscription(
         canceledAt: null,
         updatedAt: now,
       })
-      .where(eq(businessSubscriptions.id, existing.id))
+      .where(eq(accountSubscriptions.id, existing.id))
       .returning();
 
     subscription = updated!;
   } else {
     const [created] = await db
-      .insert(businessSubscriptions)
+      .insert(accountSubscriptions)
       .values({
         id: generateId("sub"),
-        businessId: params.businessId,
+        userId: params.userId,
         status: params.status ?? "active",
         plan: params.plan,
         billingProvider: params.provider,
@@ -175,7 +207,7 @@ export async function activateSubscription(
         updatedAt: now,
       })
       .onConflictDoUpdate({
-        target: businessSubscriptions.businessId,
+        target: accountSubscriptions.userId,
         set: {
           status: params.status ?? "active",
           plan: params.plan,
@@ -201,7 +233,7 @@ export async function activateSubscription(
     effectiveStatus === "active" || effectiveStatus === "past_due"
       ? params.plan
       : "free";
-  await syncBusinessPlanColumn(params.businessId, planToSync);
+  await syncOwnerBusinessPlans(params.userId, planToSync);
 
   return subscription;
 }
@@ -219,7 +251,7 @@ export async function createPendingSubscription(
  * Updates a subscription status from a provider event.
  */
 export async function updateSubscriptionStatus(
-  businessId: string,
+  userId: string,
   status: SubscriptionStatus,
   updates?: {
     providerSubscriptionId?: string | null;
@@ -229,14 +261,14 @@ export async function updateSubscriptionStatus(
     canceledAt?: Date | null;
   },
 ): Promise<SubscriptionRow | null> {
-  const existing = await getBusinessSubscription(businessId);
+  const existing = await getAccountSubscription(userId);
 
   if (!existing) {
     return null;
   }
 
   const [updated] = await db
-    .update(businessSubscriptions)
+    .update(accountSubscriptions)
     .set({
       status,
       providerSubscriptionId:
@@ -250,53 +282,82 @@ export async function updateSubscriptionStatus(
       canceledAt: updates?.canceledAt ?? existing.canceledAt,
       updatedAt: new Date(),
     })
-    .where(eq(businessSubscriptions.id, existing.id))
+    .where(eq(accountSubscriptions.id, existing.id))
     .returning();
 
   // Sync business plan column
   const effectivePlan = resolveEffectivePlanFromSubscription(updated!);
-  await syncBusinessPlanColumn(businessId, effectivePlan);
+  await syncOwnerBusinessPlans(userId, effectivePlan);
 
   return updated!;
 }
 
 /**
- * Marks a subscription as canceled. The business keeps paid access
+ * Marks a subscription as canceled. The user keeps paid access
  * until `currentPeriodEnd`.
  */
 export async function cancelSubscription(
-  businessId: string,
+  userId: string,
 ): Promise<SubscriptionRow | null> {
-  return updateSubscriptionStatus(businessId, "canceled", {
+  return updateSubscriptionStatus(userId, "canceled", {
     canceledAt: new Date(),
   });
 }
 
 /**
- * Marks a subscription as expired and downgrades the business to free.
+ * Marks a subscription as expired and downgrades all businesses to free.
  */
 export async function expireSubscription(
-  businessId: string,
+  userId: string,
 ): Promise<SubscriptionRow | null> {
-  return updateSubscriptionStatus(businessId, "expired");
+  return updateSubscriptionStatus(userId, "expired");
 }
 
 /* ── Sync helper ───────────────────────────────────────────────────────────── */
 
 /**
- * Keeps the business `plan` column in sync with the subscription state.
- * This column is used as a denormalized read cache by `lib/plans/queries.ts`.
+ * Keeps the `plan` column on ALL businesses owned by the user in sync
+ * with the account subscription state. This column is used as a
+ * denormalized read cache by `lib/plans/queries.ts`.
  */
-async function syncBusinessPlanColumn(
-  businessId: string,
+async function syncOwnerBusinessPlans(
+  userId: string,
   plan: BusinessPlan,
 ): Promise<void> {
+  // Get all active businesses owned by this user
+  const ownedBusinesses = await db
+    .select({ id: businesses.id })
+    .from(businesses)
+    .where(
+      and(
+        eq(businesses.ownerUserId, userId),
+        isNull(businesses.deletedAt),
+      ),
+    );
+
+  if (ownedBusinesses.length === 0) return;
+
+  const now = new Date();
+
+  // Bulk update all owned businesses
   await db
     .update(businesses)
-    .set({ plan, updatedAt: new Date() })
-    .where(eq(businesses.id, businessId));
+    .set({ plan, updatedAt: now })
+    .where(
+      and(
+        eq(businesses.ownerUserId, userId),
+        isNull(businesses.deletedAt),
+      ),
+    );
 
-  for (const tag of getBusinessBillingCacheTags(businessId)) {
+  // Revalidate cache for user billing and each business
+  for (const tag of getUserBillingCacheTags(userId)) {
     revalidateTag(tag, { expire: 0 });
+  }
+
+  for (const biz of ownedBusinesses) {
+    for (const tag of getBusinessBillingCacheTags(biz.id)) {
+      revalidateTag(tag, { expire: 0 });
+    }
   }
 }

@@ -9,8 +9,10 @@ import type {
   SubscriptionStatus,
 } from "@/lib/billing/types";
 
-/** Billing overview for the workspace billing UI. */
-export type WorkspaceBillingOverview = {
+/** Billing overview for the account billing UI. */
+export type AccountBillingOverview = {
+  userId: string;
+  /** Current business context (for display and navigation). */
   businessId: string;
   businessName: string;
   businessSlug: string;
@@ -29,10 +31,14 @@ export type WorkspaceBillingOverview = {
   defaultCurrency: BillingCurrency;
 };
 
+/** @deprecated Use `AccountBillingOverview` instead. */
+export type WorkspaceBillingOverview = AccountBillingOverview;
+
 /** Props for the checkout dialog. */
 export type CheckoutDialogProps = {
+  userId: string;
   businessId: string;
-  workspaceName?: string;
+  businessName?: string;
   businessSlug: string;
   currentPlan: plan;
   plan: PaidPlan;

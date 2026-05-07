@@ -26,6 +26,7 @@ import type { BillingCurrency, BillingRegion } from "@/lib/billing/types";
 import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
 
 type UpgradeActionProps = {
+  userId: string;
   businessId: string;
   businessSlug: string;
   currentPlan: plan;
@@ -53,7 +54,7 @@ export function UpgradeBadge({
 }
 
 /*──────────────────────────────────────────────────────────────────────────────
- * PlanBadge — shows the current workspace plan as a visually distinct badge.
+ * PlanBadge — shows the current business plan as a visually distinct badge.
  *────────────────────────────────────────────────────────────────────────────*/
 
 const planBadgeStyles: Record<plan, string> = {
@@ -145,6 +146,7 @@ export function LockedFeatureCard({
             defaultCurrency={upgradeAction.defaultCurrency}
             region={upgradeAction.region}
             size="sm"
+            userId={upgradeAction.userId}
             businessId={upgradeAction.businessId}
             businessSlug={upgradeAction.businessSlug}
           >
@@ -275,7 +277,7 @@ export function UsageLimitBanner({
       </div>
       {isAtLimit ? (
         <p className="text-xs leading-relaxed text-muted-foreground">
-          You&apos;ve reached this workspace&apos;s plan limit.{" "}
+          You&apos;ve reached this business plan limit.{" "}
           {getUpgradeCtaLabel(plan)} for unlimited usage.
         </p>
       ) : null}
@@ -333,6 +335,7 @@ export function LockedFeaturePage({
               defaultCurrency={upgradeAction.defaultCurrency}
               region={upgradeAction.region}
               size="sm"
+              userId={upgradeAction.userId}
               businessId={upgradeAction.businessId}
               businessSlug={upgradeAction.businessSlug}
             >

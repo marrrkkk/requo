@@ -1,19 +1,13 @@
 /**
  * Central plan definitions for the Requo pricing system.
  *
- * Plans are attached to businesses (not workspaces or users). This module is
+ * Plans are attached to businesses (not users). This module is
  * the single source of truth for plan identifiers, labels, and metadata.
  */
 
 export const businessPlans = ["free", "pro", "business"] as const;
 
 export type BusinessPlan = (typeof businessPlans)[number];
-
-/** @deprecated Use `BusinessPlan` instead. */
-export type WorkspacePlan = BusinessPlan;
-
-/** @deprecated Use `businessPlans` instead. */
-export const workspacePlans = businessPlans;
 
 export function isBusinessPlan(value: unknown): value is BusinessPlan {
   return (
@@ -22,8 +16,6 @@ export function isBusinessPlan(value: unknown): value is BusinessPlan {
   );
 }
 
-/** @deprecated Use `isBusinessPlan` instead. */
-export const isWorkspacePlan = isBusinessPlan;
 
 export type PlanMeta = {
   label: string;

@@ -2,7 +2,7 @@
 
 /**
  * Upgrade button that opens the checkout dialog.
- * Used in paywall components, workspace overview, and pricing pages.
+ * Used in paywall components, business overview, and pricing pages.
  */
 
 import { useState } from "react";
@@ -11,12 +11,13 @@ import { ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CheckoutDialog } from "@/features/billing/components/checkout-dialog";
 import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
-import { useWorkspaceCheckout } from "@/features/billing/components/workspace-checkout-provider";
+import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import type { BillingCurrency, BillingInterval, BillingRegion, PaidPlan } from "@/lib/billing/types";
 import { cn } from "@/lib/utils";
 
 type UpgradeButtonProps = {
+  userId: string;
   businessId: string;
   businessSlug: string;
   currentPlan: plan;
@@ -30,6 +31,7 @@ type UpgradeButtonProps = {
 };
 
 export function UpgradeButton({
+  userId,
   businessId,
   businessSlug,
   currentPlan,
@@ -41,33 +43,33 @@ export function UpgradeButton({
   className,
   children,
 }: UpgradeButtonProps) {
-  const workspaceCheckout = useWorkspaceCheckout();
+  const businessCheckout = useBusinessCheckout();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PaidPlan | null>(null);
   const [selectedInterval, setSelectedInterval] = useState<BillingInterval>('monthly');
   const effectiveCurrentPlan =
-    workspaceCheckout?.businessId === businessId
-      ? workspaceCheckout.currentPlan
+    businessCheckout?.businessId === businessId
+      ? businessCheckout.currentPlan
       : currentPlan;
 
   if (effectiveCurrentPlan === "business") {
     return null; // Already on highest plan
   }
 
-  if (workspaceCheckout && workspaceCheckout.businessId === businessId) {
-    const hasPendingCheckout = Boolean(workspaceCheckout.pendingCheckout);
+  if (businessCheckout && businessCheckout.businessId === businessId) {
+    const hasPendingCheckout = Boolean(businessCheckout.pendingCheckout);
 
     return (
       <Button
         className={cn(className)}
         onClick={() => {
           if (hasPendingCheckout) {
-            workspaceCheckout.continueCheckout();
+            businessCheckout.continueCheckout();
             return;
           }
 
-          workspaceCheckout.openPlanSelection(targetPlan);
+          businessCheckout.openPlanSelection(targetPlan);
         }}
         size={size}
         variant={variant}
@@ -133,6 +135,7 @@ export function UpgradeButton({
           plan={selectedPlan}
           interval={selectedInterval}
           region={region}
+          userId={userId}
           businessId={businessId}
           businessSlug={businessSlug}
         />

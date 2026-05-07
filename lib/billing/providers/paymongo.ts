@@ -123,6 +123,7 @@ type CancelPaymentIntentResult =
  */
 export async function createQrPhCheckout(params: {
   plan: PaidPlan;
+  userId: string;
   businessId: string;
   description?: string;
   interval?: BillingInterval;
@@ -148,7 +149,8 @@ export async function createQrPhCheckout(params: {
                 `Requo ${params.plan === "pro" ? "Pro" : "Business"} plan — ${periodLabel}`,
               metadata: {
                 interval,
-                workspace_id: params.businessId,
+                user_id: params.userId,
+                business_id: params.businessId,
                 plan: params.plan,
               },
             },
@@ -185,7 +187,7 @@ export async function createQrPhCheckout(params: {
           attributes: {
             payment_method: paymentMethodId,
             client_key: clientKey,
-            return_url: `${env.BETTER_AUTH_URL}/workspaces`,
+            return_url: `${env.BETTER_AUTH_URL}/businesses`,
           },
         },
       },

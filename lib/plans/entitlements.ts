@@ -5,11 +5,10 @@
  * `hasFeatureAccess` and `getRequiredPlan`; feature code should not use raw
  * plan comparisons.
  *
- * Entitlements are evaluated at the workspace level. Businesses inherit
- * feature access from their workspace's plan.
+ * Entitlements are evaluated at the business level.
  */
 
-import type { WorkspacePlan } from "@/lib/plans/plans";
+import type { BusinessPlan } from "@/lib/plans/plans";
 
 export const planFeatures = [
   "analyticsConversion",
@@ -32,7 +31,7 @@ export const planFeatures = [
 
 export type PlanFeature = (typeof planFeatures)[number];
 
-const planEntitlements: Record<WorkspacePlan, ReadonlySet<PlanFeature>> = {
+const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
   free: new Set<PlanFeature>(["attachments", "pushNotifications"]),
   pro: new Set<PlanFeature>([
     "analyticsConversion",
@@ -72,10 +71,10 @@ const planEntitlements: Record<WorkspacePlan, ReadonlySet<PlanFeature>> = {
 };
 
 /**
- * Checks whether a workspace plan grants access to a given feature.
+ * Checks whether a business plan grants access to a given feature.
  */
 export function hasFeatureAccess(
-  plan: WorkspacePlan,
+  plan: BusinessPlan,
   feature: PlanFeature,
 ): boolean {
   return planEntitlements[plan].has(feature);
@@ -85,7 +84,7 @@ export function hasFeatureAccess(
  * Returns the minimum plan required to unlock a feature, or `null` if the
  * feature is available on all plans.
  */
-export function getRequiredPlan(feature: PlanFeature): WorkspacePlan | null {
+export function getRequiredPlan(feature: PlanFeature): BusinessPlan | null {
   if (planEntitlements.free.has(feature)) {
     return null;
   }

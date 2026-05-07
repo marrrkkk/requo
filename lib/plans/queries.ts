@@ -5,8 +5,7 @@ import "server-only";
  * BusinessContext (e.g., public inquiry submission where the business
  * is resolved from slug).
  *
- * Plans now live on the workspace, so these helpers look up through
- * the business → workspace relationship.
+ * Plans now live on businesses.
  */
 
 import { eq } from "drizzle-orm";
@@ -16,8 +15,7 @@ import { businesses } from "@/lib/db/schema";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 /**
- * Returns the workspace plan for a business by its ID, or `"free"` if not found.
- * Looks up through business → workspace → plan.
+ * Returns the business plan for a business by its ID, or `"free"` if not found.
  */
 export async function getplanByBusinessId(
   businessId: string,
@@ -38,9 +36,9 @@ export async function getplanByBusinessId(
 }
 
 /**
- * Returns the plan for a workspace by ID.
+ * Returns the plan for a business by ID.
  *
- * Derives the effective plan from `workspace_subscriptions` when a
+ * Derives the effective plan from `business_subscriptions` when a
  * subscription exists, falling back to `businesses.plan` for backward
  * compatibility with existing free businesses.
  */

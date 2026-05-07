@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Billing status card for workspace settings.
+ * Billing status card for business settings.
  * SaaS-style billing overview with current plan, subscription details,
  * payment method info, and action buttons.
  */
@@ -34,17 +34,17 @@ import { Alert } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { PlanBadge } from "@/components/shared/paywall";
-import { useWorkspaceCheckout } from "@/features/billing/components/workspace-checkout-provider";
+import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import { cancelSubscriptionAction } from "@/features/billing/actions";
 import { clearCachedPendingCheckout, clearCachedPendingQrCheckout } from "@/features/billing/pending-checkout";
-import type { WorkspaceBillingOverview, CancelActionState } from "@/features/billing/types";
+import type { AccountBillingOverview, CancelActionState } from "@/features/billing/types";
 import { planMeta, getUsageLimit } from "@/lib/plans";
 import { cn } from "@/lib/utils";
 
 type BillingStatusCardProps = {
-  billing: WorkspaceBillingOverview;
-  /** Free plan usage meters (workspace-wide). */
+  billing: AccountBillingOverview;
+  /** Free plan usage meters (business-wide). */
   freePlanUsage?: {
     inquiries: number;
     quotes: number;
@@ -58,12 +58,12 @@ export function BillingStatusCard({
   freePlanUsage,
   variant = "full",
 }: BillingStatusCardProps) {
-  const { subscription, currentPlan: billingCurrentPlan, businessId, businessSlug, region, defaultCurrency } =
+  const { subscription, currentPlan: billingCurrentPlan, userId, businessId, businessSlug, region, defaultCurrency } =
     billing;
-  const workspaceCheckout = useWorkspaceCheckout();
+  const businessCheckout = useBusinessCheckout();
   const currentPlan =
-    workspaceCheckout?.businessId === businessId
-      ? workspaceCheckout.currentPlan
+    businessCheckout?.businessId === businessId
+      ? businessCheckout.currentPlan
       : billingCurrentPlan;
   const [cancelState, cancelAction, isCanceling] = useActionState(
     cancelSubscriptionAction,
@@ -76,9 +76,9 @@ export function BillingStatusCard({
   const cancelSuccess = cancelState.success;
   useEffect(() => {
     if (cancelSuccess) {
-      clearCachedPendingCheckout(businessId);
+      clearCachedPendingCheckout(userId);
     }
-  }, [cancelSuccess, businessId]);
+  }, [cancelSuccess, userId]);
 
   const hasActiveSubscription =
     subscription &&
@@ -94,9 +94,9 @@ export function BillingStatusCard({
   // cleared (e.g. user closed the tab or realtime was disconnected).
   useEffect(() => {
     if (subscription?.provider !== "paymongo" || !hasPendingSubscription) {
-      clearCachedPendingQrCheckout(businessId);
+      clearCachedPendingQrCheckout(userId);
     }
-  }, [hasPendingSubscription, subscription?.provider, businessId]);
+  }, [hasPendingSubscription, subscription?.provider, userId]);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:justify-center">
@@ -160,6 +160,7 @@ export function BillingStatusCard({
               currentPlan={currentPlan}
               defaultCurrency={defaultCurrency}
               region={region}
+              userId={userId}
               businessId={businessId}
               businessSlug={businessSlug}
             >

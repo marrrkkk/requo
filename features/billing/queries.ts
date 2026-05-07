@@ -8,22 +8,23 @@ import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema/businesses";
 import { paymentAttempts } from "@/lib/db/schema/subscriptions";
 import {
-  getBusinessSubscription,
+  getAccountSubscription,
   resolveEffectivePlanFromSubscription,
 } from "@/lib/billing/subscription-service";
 import { getBillingRegion, getDefaultCurrency } from "@/lib/billing/region";
 import {
   getBusinessBillingCacheTags,
+  getUserBillingCacheTags,
   billingShellCacheLife,
 } from "@/lib/cache/shell-tags";
-import type { WorkspaceBillingOverview } from "@/features/billing/types";
+import type { AccountBillingOverview } from "@/features/billing/types";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import type { BillingRegion } from "@/lib/billing/types";
 
 /**
- * Cached business identity and fallback plan (no dynamic APIs like headers()).
+ * Cached business identity (no dynamic APIs like headers()).
  */
-async function getCachedBusinessBillingData(businessId: string) {
+async function getCachedBusinessData(businessId: string) {
   "use cache";
 
   cacheLife(billingShellCacheLife);
@@ -35,51 +36,44 @@ async function getCachedBusinessBillingData(businessId: string) {
       name: businesses.name,
       slug: businesses.slug,
       plan: businesses.plan,
+      ownerUserId: businesses.ownerUserId,
     })
     .from(businesses)
     .where(eq(businesses.id, businessId))
     .limit(1);
 
-  const biz = rows[0];
-
-  if (!biz) {
-    return null;
-  }
-
-  return {
-    businessId: biz.id,
-    businessName: biz.name,
-    businessSlug: biz.slug,
-    fallbackPlan: biz.plan as BusinessPlan,
-  };
+  return rows[0] ?? null;
 }
 
 /**
- * Returns a full billing overview for the business billing UI.
+ * Returns a full billing overview for the account billing UI.
+ * The subscription is resolved from the business owner's account.
  */
-export async function getBusinessBillingOverview(
+export async function getAccountBillingOverview(
   businessId: string,
-): Promise<WorkspaceBillingOverview | null> {
+): Promise<AccountBillingOverview | null> {
   try {
-    const [billingData, subscription, requestHeaders] = await Promise.all([
-      getCachedBusinessBillingData(businessId),
-      getBusinessSubscription(businessId),
+    const [businessData, requestHeaders] = await Promise.all([
+      getCachedBusinessData(businessId),
       headers(),
     ]);
 
-    if (!billingData) {
+    if (!businessData) {
       return null;
     }
 
+    const subscription = await getAccountSubscription(businessData.ownerUserId);
     const region = getBillingRegion(requestHeaders);
     const defaultCurrency = getDefaultCurrency(region);
-    const { fallbackPlan, ...businessBillingData } = billingData;
     const currentPlan = subscription
       ? resolveEffectivePlanFromSubscription(subscription)
-      : fallbackPlan;
+      : (businessData.plan as BusinessPlan);
 
     return {
-      ...businessBillingData,
+      userId: businessData.ownerUserId,
+      businessId: businessData.id,
+      businessName: businessData.name,
+      businessSlug: businessData.slug,
       currentPlan,
       region,
       defaultCurrency,
@@ -98,7 +92,7 @@ export async function getBusinessBillingOverview(
     };
   } catch (error) {
     console.error(
-      "Failed to load business billing overview.",
+      "Failed to load account billing overview.",
       { businessId },
       error,
     );
@@ -107,12 +101,25 @@ export async function getBusinessBillingOverview(
   }
 }
 
-/** @deprecated Use `getBusinessBillingOverview` instead. */
-export const getWorkspaceBillingOverview = getBusinessBillingOverview;
+/** @deprecated Use `getAccountBillingOverview` instead. */
+export const getBusinessBillingOverview = getAccountBillingOverview;
 
 /**
- * Returns payment history for a business.
+ * Returns payment history for a user account.
  */
+export async function getAccountPaymentHistory(
+  userId: string,
+  limit = 10,
+) {
+  return db
+    .select()
+    .from(paymentAttempts)
+    .where(eq(paymentAttempts.userId, userId))
+    .orderBy(desc(paymentAttempts.createdAt))
+    .limit(limit);
+}
+
+/** @deprecated Use `getAccountPaymentHistory` instead. */
 export async function getBusinessPaymentHistory(
   businessId: string,
   limit = 10,
@@ -124,9 +131,6 @@ export async function getBusinessPaymentHistory(
     .orderBy(desc(paymentAttempts.createdAt))
     .limit(limit);
 }
-
-/** @deprecated Use `getBusinessPaymentHistory` instead. */
-export const getWorkspacePaymentHistory = getBusinessPaymentHistory;
 
 /**
  * Detects the billing region for the current request.

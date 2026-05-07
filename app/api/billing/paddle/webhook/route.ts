@@ -12,7 +12,7 @@ import {
 } from "@/lib/billing/webhook-processor";
 import {
   activateSubscription,
-  getBusinessSubscription,
+  getAccountSubscription,
   expireSubscription,
   updateSubscriptionStatus,
 } from "@/lib/billing/subscription-service";
@@ -27,6 +27,34 @@ function runAfterResponse(task: () => Promise<unknown> | unknown) {
   }
 }
 
+/**
+ * Resolves the userId from custom_data or by looking up the business owner.
+ */
+async function resolveUserId(
+  customData: Record<string, string> | undefined,
+  businessId: string | undefined,
+): Promise<string | undefined> {
+  if (customData?.user_id) {
+    return customData.user_id;
+  }
+
+  if (businessId) {
+    const { db } = await import("@/lib/db/client");
+    const { businesses } = await import("@/lib/db/schema/businesses");
+    const { eq } = await import("drizzle-orm");
+
+    const [biz] = await db
+      .select({ ownerUserId: businesses.ownerUserId })
+      .from(businesses)
+      .where(eq(businesses.id, businessId))
+      .limit(1);
+
+    return biz?.ownerUserId;
+  }
+
+  return undefined;
+}
+
 async function getPaddleAttempt(providerPaymentId: string) {
   const { db } = await import("@/lib/db/client");
   const { paymentAttempts } = await import("@/lib/db/schema/subscriptions");
@@ -37,6 +65,7 @@ async function getPaddleAttempt(providerPaymentId: string) {
       amount: paymentAttempts.amount,
       currency: paymentAttempts.currency,
       plan: paymentAttempts.plan,
+      userId: paymentAttempts.userId,
       businessId: paymentAttempts.businessId,
     })
     .from(paymentAttempts)
@@ -82,7 +111,7 @@ export async function POST(request: Request) {
   const matchedAttempt = eventType.startsWith("transaction.") && transactionId
     ? await getPaddleAttempt(transactionId)
     : null;
-  const businessId = customData?.workspace_id ?? matchedAttempt?.businessId;
+  const businessId = customData?.business_id ?? matchedAttempt?.businessId ?? undefined;
   const plan = customData?.plan ?? matchedAttempt?.plan;
   const subscriptionId = data?.id as string | undefined;
   const paddleStatus = data?.status as string | undefined;
@@ -95,11 +124,17 @@ export async function POST(request: Request) {
     | null
     | undefined;
 
+  // Resolve userId from custom_data, matched attempt, or business owner
+  const userId =
+    matchedAttempt?.userId ??
+    await resolveUserId(customData, businessId);
+
   const { eventId: storedEventId, isNew } = await recordWebhookEvent({
     providerEventId: eventId,
     provider: "paddle",
     eventType,
     payload,
+    userId: userId ?? null,
     businessId: businessId ?? null,
   });
 
@@ -111,14 +146,14 @@ export async function POST(request: Request) {
     switch (eventType) {
       case "subscription.created":
       case "subscription.activated": {
-        if (!businessId || !plan || !subscriptionId) {
+        if (!userId || !plan || !subscriptionId) {
           console.warn("[Paddle Webhook] Missing subscription activation data.", {
             eventType,
           });
           break;
         }
 
-        const previousSubscription = await getBusinessSubscription(businessId);
+        const previousSubscription = await getAccountSubscription(userId);
         const periodStart = billingPeriod?.starts_at
           ? new Date(billingPeriod.starts_at)
           : new Date();
@@ -135,28 +170,30 @@ export async function POST(request: Request) {
           providerCustomerId: customerId ?? null,
           providerSubscriptionId: subscriptionId,
           status: mapPaddleStatus(paddleStatus ?? "active"),
-          businessId,
+          userId,
         });
 
-        runAfterResponse(() =>
-          writeSubscriptionTransitionAuditLogs({
-            businessId,
-            previousSubscription,
-            nextSubscription,
-            source: "webhook",
-            providerEventId: eventId,
-          }),
-        );
+        if (businessId) {
+          runAfterResponse(() =>
+            writeSubscriptionTransitionAuditLogs({
+              businessId,
+              previousSubscription,
+              nextSubscription,
+              source: "webhook",
+              providerEventId: eventId,
+            }),
+          );
+        }
         break;
       }
 
       case "subscription.updated": {
-        if (!businessId || !subscriptionId) {
+        if (!userId || !subscriptionId) {
           console.warn("[Paddle Webhook] Missing subscription update data.");
           break;
         }
 
-        const previousSubscription = await getBusinessSubscription(businessId);
+        const previousSubscription = await getAccountSubscription(userId);
         const periodEnd = billingPeriod?.ends_at
           ? new Date(billingPeriod.ends_at)
           : null;
@@ -164,73 +201,77 @@ export async function POST(request: Request) {
         const canceledAt =
           scheduledChange?.action === "cancel" ? new Date() : undefined;
 
-        const nextSubscription = await updateSubscriptionStatus(businessId, status, {
+        const nextSubscription = await updateSubscriptionStatus(userId, status, {
           ...(canceledAt ? { canceledAt } : {}),
           currentPeriodEnd: periodEnd,
           providerSubscriptionId: subscriptionId,
         });
 
-        runAfterResponse(() =>
-          writeSubscriptionTransitionAuditLogs({
-            businessId,
-            previousSubscription,
-            nextSubscription,
-            source: "webhook",
-            providerEventId: eventId,
-          }),
-        );
+        if (businessId) {
+          runAfterResponse(() =>
+            writeSubscriptionTransitionAuditLogs({
+              businessId,
+              previousSubscription,
+              nextSubscription,
+              source: "webhook",
+              providerEventId: eventId,
+            }),
+          );
+        }
         break;
       }
 
       case "subscription.canceled": {
-        if (!businessId) {
+        if (!userId) {
           break;
         }
 
-        const previousSubscription = await getBusinessSubscription(businessId);
+        const previousSubscription = await getAccountSubscription(userId);
         const endsAt = billingPeriod?.ends_at
           ? new Date(billingPeriod.ends_at)
           : scheduledChange?.effective_at
             ? new Date(scheduledChange.effective_at)
             : null;
 
-        const nextSubscription = await updateSubscriptionStatus(businessId, "canceled", {
+        const nextSubscription = await updateSubscriptionStatus(userId, "canceled", {
           canceledAt: new Date(),
           currentPeriodEnd: endsAt,
         });
 
-        runAfterResponse(() =>
-          writeSubscriptionTransitionAuditLogs({
-            businessId,
-            previousSubscription,
-            nextSubscription,
-            source: "webhook",
-            providerEventId: eventId,
-          }),
-        );
+        if (businessId) {
+          runAfterResponse(() =>
+            writeSubscriptionTransitionAuditLogs({
+              businessId,
+              previousSubscription,
+              nextSubscription,
+              source: "webhook",
+              providerEventId: eventId,
+            }),
+          );
+        }
         break;
       }
 
       case "subscription.expired": {
-        if (!businessId) {
+        if (!userId) {
           break;
         }
 
-        await expireSubscription(businessId);
+        await expireSubscription(userId);
         break;
       }
 
       case "subscription.past_due": {
-        if (!businessId) {
+        if (!userId) {
           break;
         }
 
-        await updateSubscriptionStatus(businessId, "past_due");
+        await updateSubscriptionStatus(userId, "past_due");
         break;
       }
 
       case "transaction.completed": {
-        if (!businessId || !plan || !transactionId) {
+        if (!userId || !plan || !transactionId) {
           break;
         }
 
@@ -256,6 +297,7 @@ export async function POST(request: Request) {
             provider: "paddle",
             providerPaymentId: transactionId,
             status: "succeeded",
+            userId,
             businessId,
           });
         }
@@ -263,7 +305,7 @@ export async function POST(request: Request) {
       }
 
       case "transaction.payment_failed": {
-        if (!businessId || !transactionId) {
+        if (!userId || !transactionId) {
           break;
         }
 
@@ -277,6 +319,7 @@ export async function POST(request: Request) {
             provider: "paddle",
             providerPaymentId: transactionId,
             status: "failed",
+            userId,
             businessId,
           });
         }
@@ -289,14 +332,11 @@ export async function POST(request: Request) {
         });
     }
 
-    if (businessId) {
-      runAfterResponse(() =>(businessId));
-    }
-
     await markEventProcessed(storedEventId);
   } catch {
     console.error("[Paddle Webhook] Processing error.", {
       eventType,
+      userId: userId ?? null,
       businessId: businessId ?? null,
     });
     return NextResponse.json({ error: "Processing failed" }, { status: 500 });

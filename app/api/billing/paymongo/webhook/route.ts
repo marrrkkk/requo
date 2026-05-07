@@ -10,7 +10,7 @@ import {
 } from "@/lib/billing/webhook-processor";
 import {
   activateSubscription,
-  getBusinessSubscription,
+  getAccountSubscription,
   updateSubscriptionStatus,
 } from "@/lib/billing/subscription-service";
 import type { BillingInterval } from "@/lib/billing/types";
@@ -25,6 +25,36 @@ function runAfterResponse(task: () => Promise<unknown> | unknown) {
   }
 }
 
+/**
+ * Resolves the userId from metadata or by looking up the business owner.
+ */
+async function resolveUserId(
+  metadata: Record<string, string> | undefined,
+  businessId: string | undefined,
+): Promise<string | undefined> {
+  // Prefer explicit user_id from metadata
+  if (metadata?.user_id) {
+    return metadata.user_id;
+  }
+
+  // Fall back to resolving from businessId (backward compat with in-flight payments)
+  if (businessId) {
+    const { db } = await import("@/lib/db/client");
+    const { businesses } = await import("@/lib/db/schema/businesses");
+    const { eq } = await import("drizzle-orm");
+
+    const [biz] = await db
+      .select({ ownerUserId: businesses.ownerUserId })
+      .from(businesses)
+      .where(eq(businesses.id, businessId))
+      .limit(1);
+
+    return biz?.ownerUserId;
+  }
+
+  return undefined;
+}
+
 async function getPaymongoAttempt(providerPaymentId: string) {
   const { db } = await import("@/lib/db/client");
   const { paymentAttempts } = await import("@/lib/db/schema/subscriptions");
@@ -34,6 +64,7 @@ async function getPaymongoAttempt(providerPaymentId: string) {
     .select({
       amount: paymentAttempts.amount,
       plan: paymentAttempts.plan,
+      userId: paymentAttempts.userId,
       businessId: paymentAttempts.businessId,
     })
     .from(paymentAttempts)
@@ -75,7 +106,7 @@ function addBillingPeriod(start: Date, interval: BillingInterval) {
   return end;
 }
 
-async function getLatestPendingPaymongoAttempt(businessId: string) {
+async function getLatestPendingPaymongoAttempt(userId: string) {
   const { db } = await import("@/lib/db/client");
   const { paymentAttempts } = await import("@/lib/db/schema/subscriptions");
   const { and, desc, eq } = await import("drizzle-orm");
@@ -88,7 +119,7 @@ async function getLatestPendingPaymongoAttempt(businessId: string) {
     .from(paymentAttempts)
     .where(
       and(
-        eq(paymentAttempts.businessId, businessId),
+        eq(paymentAttempts.userId, userId),
         eq(paymentAttempts.provider, "paymongo"),
         eq(paymentAttempts.status, "pending"),
       ),
@@ -100,7 +131,7 @@ async function getLatestPendingPaymongoAttempt(businessId: string) {
 }
 
 async function expireOtherPendingPaymongoAttempts(
-  businessId: string,
+  userId: string,
   excludeProviderPaymentId?: string | null,
 ) {
   const { db } = await import("@/lib/db/client");
@@ -108,7 +139,7 @@ async function expireOtherPendingPaymongoAttempts(
   const { and, eq, ne } = await import("drizzle-orm");
 
   const conditions = [
-    eq(paymentAttempts.businessId, businessId),
+    eq(paymentAttempts.userId, userId),
     eq(paymentAttempts.provider, "paymongo"),
     eq(paymentAttempts.status, "pending"),
   ];
@@ -177,14 +208,20 @@ export async function POST(request: Request) {
   const matchedAttempt = providerPaymentId
     ? await getPaymongoAttempt(providerPaymentId)
     : null;
-  const businessId = matchedAttempt?.businessId ?? metadata?.workspace_id;
+  const businessId = matchedAttempt?.businessId ?? metadata?.business_id;
   const plan = matchedAttempt?.plan ?? metadata?.plan;
+
+  // Resolve userId from metadata, matched attempt, or business owner
+  const userId =
+    matchedAttempt?.userId ??
+    await resolveUserId(metadata, businessId);
 
   const { eventId: storedEventId, isNew } = await recordWebhookEvent({
     providerEventId: eventId,
     provider: "paymongo",
     eventType,
     payload,
+    userId: userId ?? null,
     businessId: businessId ?? null,
   });
 
@@ -193,8 +230,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    if (eventType === "payment.paid" && businessId && plan) {
-      const previousSubscription = await getBusinessSubscription(businessId);
+    if (eventType === "payment.paid" && userId && plan) {
+      const previousSubscription = await getAccountSubscription(userId);
       const amount = (paymentAttributes?.amount as number) ?? 0;
       const billingInterval = inferPaymongoBillingInterval(
         plan,
@@ -205,7 +242,7 @@ export async function POST(request: Request) {
       const periodEnd = addBillingPeriod(now, billingInterval);
       const latestPendingAttempt = paymentIntentId
         ? null
-        : await getLatestPendingPaymongoAttempt(businessId);
+        : await getLatestPendingPaymongoAttempt(userId);
       const resolvedPaymentAttemptId =
         paymentIntentId ?? latestPendingAttempt?.providerPaymentId ?? paymentId;
 
@@ -223,13 +260,14 @@ export async function POST(request: Request) {
             provider: "paymongo",
             providerPaymentId: resolvedPaymentAttemptId,
             status: "succeeded",
+            userId,
             businessId,
           });
         }
       }
 
       await expireOtherPendingPaymongoAttempts(
-        businessId,
+        userId,
         resolvedPaymentAttemptId,
       );
 
@@ -241,22 +279,24 @@ export async function POST(request: Request) {
         provider: "paymongo",
         providerCheckoutId: paymentId,
         status: "active",
-        businessId,
+        userId,
       });
 
-      runAfterResponse(() =>
-        writeSubscriptionTransitionAuditLogs({
-          businessId,
-          previousSubscription,
-          nextSubscription,
-          source: "webhook",
-          providerEventId: eventId,
-        }),
-      );
-    } else if (eventType === "payment.failed" && businessId) {
+      if (businessId) {
+        runAfterResponse(() =>
+          writeSubscriptionTransitionAuditLogs({
+            businessId,
+            previousSubscription,
+            nextSubscription,
+            source: "webhook",
+            providerEventId: eventId,
+          }),
+        );
+      }
+    } else if (eventType === "payment.failed" && userId) {
       const latestPendingAttempt = providerPaymentId
         ? null
-        : await getLatestPendingPaymongoAttempt(businessId);
+        : await getLatestPendingPaymongoAttempt(userId);
       const resolvedPaymentAttemptId =
         providerPaymentId ?? latestPendingAttempt?.providerPaymentId ?? null;
 
@@ -274,20 +314,21 @@ export async function POST(request: Request) {
             provider: "paymongo",
             providerPaymentId: resolvedPaymentAttemptId,
             status: "failed",
+            userId,
             businessId,
           });
         }
       }
 
-      const subscription = await getBusinessSubscription(businessId);
+      const subscription = await getAccountSubscription(userId);
 
       if (subscription?.status === "pending") {
-        await updateSubscriptionStatus(businessId, "incomplete");
+        await updateSubscriptionStatus(userId, "incomplete");
       }
-    } else if (eventType === "qrph.expired" && businessId) {
+    } else if (eventType === "qrph.expired" && userId) {
       const latestPendingAttempt = providerPaymentId
         ? null
-        : await getLatestPendingPaymongoAttempt(businessId);
+        : await getLatestPendingPaymongoAttempt(userId);
       const resolvedPaymentAttemptId =
         providerPaymentId ?? latestPendingAttempt?.providerPaymentId ?? null;
 
@@ -305,26 +346,24 @@ export async function POST(request: Request) {
             provider: "paymongo",
             providerPaymentId: resolvedPaymentAttemptId,
             status: "expired",
+            userId,
             businessId,
           });
         }
       }
 
-      const subscription = await getBusinessSubscription(businessId);
+      const subscription = await getAccountSubscription(userId);
 
       if (subscription?.status === "pending") {
-        await updateSubscriptionStatus(businessId, "expired");
+        await updateSubscriptionStatus(userId, "expired");
       }
-    }
-
-    if (businessId) {
-      runAfterResponse(() =>(businessId));
     }
 
     await markEventProcessed(storedEventId);
   } catch {
     console.error("[PayMongo Webhook] Processing error.", {
       eventType,
+      userId: userId ?? null,
       businessId: businessId ?? null,
     });
     return NextResponse.json({ error: "Processing failed" }, { status: 500 });

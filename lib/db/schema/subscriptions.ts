@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { businesses } from "@/lib/db/schema/businesses";
+import { user } from "@/lib/db/schema/auth";
 
 /* ── Enums ────────────────────────────────────────────────────────────────── */
 
@@ -54,9 +55,55 @@ export const paymentAttemptStatusEnum = pgEnum("payment_attempt_status", [
   ...paymentAttemptStatuses,
 ]);
 
-/* ── business_subscriptions ──────────────────────────────────────────────── */
+/* ── account_subscriptions ──────────────────────────────────────────────── */
 
 /**
+ * One row per user account. The billing source of truth for subscription state.
+ * Users without a row are implicitly on the free plan.
+ * All businesses owned by the user inherit the plan from this subscription.
+ */
+export const accountSubscriptions = pgTable(
+  "account_subscriptions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    status: subscriptionStatusEnum("status").notNull().default("free"),
+    plan: text("plan").notNull(), // "pro" | "business"
+    billingProvider: billingProviderEnum("billing_provider").notNull(),
+    billingCurrency: billingCurrencyEnum("billing_currency").notNull(),
+    providerCustomerId: text("provider_customer_id"),
+    providerSubscriptionId: text("provider_subscription_id"),
+    providerCheckoutId: text("provider_checkout_id"),
+    currentPeriodStart: timestamp("current_period_start", {
+      withTimezone: true,
+    }),
+    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+    canceledAt: timestamp("canceled_at", { withTimezone: true }),
+    trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("account_subscriptions_user_id_unique").on(
+      table.userId,
+    ),
+    index("account_subscriptions_status_idx").on(table.status),
+    index("account_subscriptions_provider_subscription_id_idx").on(
+      table.providerSubscriptionId,
+    ),
+  ],
+);
+
+/* ── business_subscriptions (DEPRECATED) ─────────────────────────────────── */
+
+/**
+ * @deprecated Use `accountSubscriptions` instead. Kept for rollback safety.
  * One row per business. The billing source of truth for subscription state.
  * Businesses without a row are implicitly on the free plan.
  */
@@ -98,9 +145,6 @@ export const businessSubscriptions = pgTable(
   ],
 );
 
-/** @deprecated Use `businessSubscriptions` instead. */
-export const workspaceSubscriptions = businessSubscriptions;
-
 /* ── billing_events ───────────────────────────────────────────────────────── */
 
 /**
@@ -115,6 +159,9 @@ export const billingEvents = pgTable(
     providerEventId: text("provider_event_id").notNull(),
     provider: billingProviderEnum("provider").notNull(),
     eventType: text("event_type").notNull(),
+    userId: text("user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
     businessId: text("business_id").references(() => businesses.id, {
       onDelete: "set null",
     }),
@@ -128,6 +175,7 @@ export const billingEvents = pgTable(
     uniqueIndex("billing_events_provider_event_id_unique").on(
       table.providerEventId,
     ),
+    index("billing_events_user_id_idx").on(table.userId),
     index("billing_events_business_id_idx").on(table.businessId),
     index("billing_events_provider_idx").on(table.provider),
   ],
@@ -142,9 +190,11 @@ export const paymentAttempts = pgTable(
   "payment_attempts",
   {
     id: text("id").primaryKey(),
+    userId: text("user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
     businessId: text("business_id")
-      .notNull()
-      .references(() => businesses.id, { onDelete: "cascade" }),
+      .references(() => businesses.id, { onDelete: "set null" }),
     plan: text("plan").notNull(),
     provider: billingProviderEnum("provider").notNull(),
     providerPaymentId: text("provider_payment_id").notNull(),
@@ -156,6 +206,7 @@ export const paymentAttempts = pgTable(
       .defaultNow(),
   },
   (table) => [
+    index("payment_attempts_user_id_idx").on(table.userId),
     index("payment_attempts_business_id_idx").on(table.businessId),
     index("payment_attempts_provider_payment_id_idx").on(
       table.providerPaymentId,
