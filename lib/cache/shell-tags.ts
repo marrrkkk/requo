@@ -45,11 +45,6 @@ function getBusinessScopeTag(businessId: string) {
   return `business:${businessId}`;
 }
 
-/** @deprecated Use `getBusinessScopeTag` via `getBusinessBillingCacheTags`. */
-export function getWorkspaceScopeTag(workspaceOrBusinessId: string) {
-  return `business:${workspaceOrBusinessId}`;
-}
-
 export function getUserThemeCacheTags(userId: string) {
   const scopeTag = getUserScopeTag(userId);
 
@@ -87,5 +82,9 @@ export function getBusinessBillingCacheTags(businessId: string) {
   return uniqueCacheTags([scopeTag, `${scopeTag}:billing`]);
 }
 
-/** @deprecated Use `getBusinessBillingCacheTags` instead. */
-export const getWorkspaceBillingCacheTags = getBusinessBillingCacheTags;
+export function getUserBillingCacheTags(userId: string) {
+  const scopeTag = getUserScopeTag(userId);
+
+  return uniqueCacheTags([scopeTag, `${scopeTag}:billing`]);
+}
+

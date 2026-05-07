@@ -12,12 +12,11 @@ import {
 } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getWorkspaceBillingOverview } from "@/features/billing/queries";
+import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { getBusinessMembersSettingsForBusiness } from "@/features/business-members/queries";
 import { getBusinessOwnerPageContext } from "@/app/businesses/[slug]/(main)/settings/_lib/page-context";
 import { hasFeatureAccess } from "@/lib/plans";
 import { canManageBusinessMembers } from "@/lib/business-members";
-import { getBusinessContextForUser } from "@/lib/db/business-access";
 
 function getInitials(name: string) {
   return name
@@ -69,7 +68,7 @@ async function StreamedMemberPaywall({
 }: {
   businessContext: Awaited<ReturnType<typeof getBusinessOwnerPageContext>>["businessContext"];
 }) {
-  const billingOverview = await getWorkspaceBillingOverview(
+  const billingOverview = await getBusinessBillingOverview(
     businessContext.business.id,
   );
 
@@ -81,6 +80,7 @@ async function StreamedMemberPaywall({
       upgradeAction={
         billingOverview
           ? {
+              userId: billingOverview.userId,
               businessId: billingOverview.businessId,
               businessSlug: billingOverview.businessSlug,
               currentPlan: billingOverview.currentPlan,
@@ -101,17 +101,10 @@ async function StreamedMemberList({
   userId: string;
   businessContext: Awaited<ReturnType<typeof getBusinessOwnerPageContext>>["businessContext"];
 }) {
-  // Members view and workspace context are independent — fetch in parallel.
-  const [view, workspaceContext] = await Promise.all([
-    getBusinessMembersSettingsForBusiness(
-      businessContext.business.id,
-      userId,
-    ),
-    getBusinessContextForUser(
-      userId,
-      businessContext.business.id,
-    ),
-  ]);
+  const view = await getBusinessMembersSettingsForBusiness(
+    businessContext.business.id,
+    userId,
+  );
 
   if (!view) {
     notFound();

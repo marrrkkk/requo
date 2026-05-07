@@ -72,14 +72,6 @@ export const referralSourceOptions = referralSourceValues.map((value) => ({
   label: value,
 }));
 
-export const onboardingWorkspaceSchema = z.object({
-  workspaceName: z
-    .string()
-    .trim()
-    .min(2, "Enter a workspace name.")
-    .max(80, "Use 80 characters or fewer."),
-});
-
 export const onboardingBusinessContextSchema = z.object({
   businessName: z
     .string()
@@ -118,7 +110,6 @@ export const onboardingOwnerProfileSchema = z.object({
 });
 
 export const completeOnboardingSchema = z.object({
-  ...onboardingWorkspaceSchema.shape,
   ...onboardingBusinessContextSchema.shape,
   ...onboardingTemplateSchema.shape,
   ...onboardingOwnerProfileSchema.shape,

@@ -38,7 +38,7 @@ import { DashboardTour } from "@/features/onboarding/components/dashboard-tour";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
 import { redirect } from "next/navigation";
-import { workspacesHubPath } from "@/features/businesses/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 
 type DashboardOverviewPageProps = {
   params: Promise<{ slug: string }>;
@@ -54,7 +54,7 @@ export default async function DashboardOverviewPage({
   );
 
   if (!businessContext) {
-    redirect(workspacesHubPath);
+    redirect(businessesHubPath);
   }
 
   const businessSlug = businessContext.business.slug;

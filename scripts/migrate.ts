@@ -209,14 +209,14 @@ async function hasBillingSchema(client: SqlClient) {
   return (
     (await tableExists(client, "billing_events")) &&
     (await tableExists(client, "payment_attempts")) &&
-    (await tableExists(client, "workspace_subscriptions")) &&
+    (await tableExists(client, "business_subscriptions")) &&
     (await enumValueExists(client, "billing_currency", "USD")) &&
     (await enumValueExists(client, "billing_currency", "PHP")) &&
     (await enumValueExists(client, "billing_provider", "paymongo")) &&
     (hasLegacyLemonSqueezyProvider || hasPaddleProvider) &&
     (await enumValueExists(client, "payment_attempt_status", "pending")) &&
     (await enumValueExists(client, "subscription_status", "active")) &&
-    (await indexExists(client, "workspace_subscriptions_workspace_id_unique")) &&
+    (await indexExists(client, "business_subscriptions_business_id_unique")) &&
     (await hasDashboardPerformanceIndexes(client))
   );
 }
@@ -240,11 +240,11 @@ async function hasRequestQuoteRecordState(client: SqlClient) {
   return await columnExists(client, "inquiries", "archived_at");
 }
 
-async function hasSafeWorkspaceBusinessDeletion(client: SqlClient) {
+async function hasSafeBusinessDeletion(client: SqlClient) {
   return await columnExists(client, "businesses", "archived_at");
 }
 
-async function hasWorkspaceAuditLog(client: SqlClient) {
+async function hasBusinessAuditLog(client: SqlClient) {
   return await tableExists(client, "audit_logs");
 }
 
@@ -309,11 +309,11 @@ async function repairKnownMigrationDrift(client: SqlClient) {
     },
     {
       tag: "0035_safe_workspace_business_deletion",
-      matches: hasSafeWorkspaceBusinessDeletion,
+      matches: hasSafeBusinessDeletion,
     },
     {
       tag: "0036_workspace_audit_log",
-      matches: hasWorkspaceAuditLog,
+      matches: hasBusinessAuditLog,
     },
   ];
 

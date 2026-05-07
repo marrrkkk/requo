@@ -7,6 +7,7 @@ import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema";
 import { getUpgradePlan, planMeta, type BusinessPlan as plan } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
+import { getEffectivePlanForUser } from "@/lib/billing/subscription-service";
 
 type DatabaseClient =
   | typeof db
@@ -31,7 +32,7 @@ export function isBusinessQuotaExceededError(
 }
 
 export function getBusinessQuotaLimit(plan: plan) {
-  return getUsageLimit(plan, "businessesPerWorkspace");
+  return getUsageLimit(plan, "businessesPerPlan");
 }
 
 export async function getOwnedBusinessCountForUser(
@@ -45,7 +46,6 @@ export async function getOwnedBusinessCountForUser(
       and(
         eq(businesses.ownerUserId, ownerUserId),
         isNull(businesses.deletedAt),
-        isNull(businesses.deletedAt),
       ),
     );
 
@@ -54,25 +54,27 @@ export async function getOwnedBusinessCountForUser(
 
 export async function getBusinessQuotaForUser({
   ownerUserId,
-  plan,
+  plan: planOverride,
   client = db,
 }: {
   ownerUserId: string;
-  plan: plan;
+  /** Optional plan override. If not provided, resolves from account subscription. */
+  plan?: plan;
   client?: DatabaseClient;
 }): Promise<BusinessQuotaSnapshot> {
-  const [current, limit] = await Promise.all([
-    getOwnedBusinessCountForUser(ownerUserId, client),
-    Promise.resolve(getBusinessQuotaLimit(plan)),
-  ]);
+  // Resolve plan from account subscription if not explicitly provided
+  const effectivePlan = planOverride ?? await getEffectivePlanForUser(ownerUserId);
+  const limit = getBusinessQuotaLimit(effectivePlan);
+
+  const current = await getOwnedBusinessCountForUser(ownerUserId, client);
 
   return {
     ownerUserId,
-    plan,
+    plan: effectivePlan,
     current,
     limit,
     allowed: limit === null || current < limit,
-    upgradePlan: getUpgradePlan(plan),
+    upgradePlan: getUpgradePlan(effectivePlan),
   };
 }
 
@@ -86,10 +88,10 @@ export function getBusinessQuotaExceededMessage(
   const planLabel = planMeta[quota.plan].label;
   const businessLabel = quota.limit === 1 ? "business" : "businesses";
   const upgradeMessage = quota.upgradePlan
-    ? ` Upgrade this workspace to ${planMeta[quota.upgradePlan].label} to add more.`
+    ? ` Upgrade your account to ${planMeta[quota.upgradePlan].label} to add more.`
     : "";
 
-  return `Your ${planLabel} plan supports ${quota.limit} total ${businessLabel} across all businesses. You already have ${quota.current}.${upgradeMessage}`;
+  return `Your ${planLabel} plan supports ${quota.limit} total ${businessLabel}. You already have ${quota.current}.${upgradeMessage}`;
 }
 
 async function lockBusinessQuotaForUser(
@@ -108,7 +110,8 @@ export async function assertBusinessQuotaAvailableForUser({
 }: {
   tx: DatabaseClient;
   ownerUserId: string;
-  plan: plan;
+  /** Optional plan override. If not provided, resolves from account subscription. */
+  plan?: plan;
 }) {
   await lockBusinessQuotaForUser(tx, ownerUserId);
 

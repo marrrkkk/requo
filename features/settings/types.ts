@@ -29,7 +29,7 @@ export type BusinessSettingsView = {
   recordState: BusinessRecordState;
   archivedAt: Date | null;
   deletedAt: Date | null;
-  activeWorkspaceBusinessCount: number;
+  activeBusinessCount: number;
   countryCode: string | null;
   shortDescription: string | null;
   contactEmail: string | null;

@@ -72,7 +72,7 @@ import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import type { BillingCurrency, BillingInterval, BillingRegion, PaidPlan } from "@/lib/billing/types";
 import { CheckoutDialog } from "@/features/billing/components/checkout-dialog";
 import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
-import { useWorkspaceCheckout } from "@/features/billing/components/workspace-checkout-provider";
+import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 
 type BusinessInquiryFormsManagerProps = {
   settings: BusinessInquiryFormsSettingsView;
@@ -86,6 +86,7 @@ type BusinessInquiryFormsManagerProps = {
   ) => Promise<BusinessInquiryFormDangerActionState>;
   plan: plan;
   billingProps?: {
+    userId: string;
     businessId: string;
     businessSlug: string;
     currentPlan: plan;
@@ -103,7 +104,7 @@ export function BusinessInquiryFormsManager({
   plan,
   billingProps,
 }: BusinessInquiryFormsManagerProps) {
-  const workspaceCheckout = useWorkspaceCheckout();
+  const businessCheckout = useBusinessCheckout();
   const [createState, createFormAction, isCreatePending] = useActionStateWithSonner(
     createAction,
     initialState,
@@ -123,13 +124,13 @@ export function BusinessInquiryFormsManager({
     initialState,
   );
   const useSharedCheckout = Boolean(
-    workspaceCheckout &&
+    businessCheckout &&
       billingProps &&
-      workspaceCheckout.businessId === billingProps.businessId,
+      businessCheckout.businessId === billingProps.businessId,
   );
   const effectiveplan =
-    useSharedCheckout && workspaceCheckout
-      ? workspaceCheckout.currentPlan
+    useSharedCheckout && businessCheckout
+      ? businessCheckout.currentPlan
       : plan;
   const nameError = createState.fieldErrors?.name?.[0];
   const businessTypeError = createState.fieldErrors?.businessType?.[0];
@@ -321,7 +322,7 @@ export function BusinessInquiryFormsManager({
                           "Unlimited inquiry forms",
                           "Custom branding and colors",
                           "AI-powered quote drafting",
-                          "Multiple businesses per workspace",
+                          "Support for multiple businesses",
                         ].map((feature) => (
                           <li
                             className="flex items-center gap-2.5 text-sm text-foreground"
@@ -349,13 +350,13 @@ export function BusinessInquiryFormsManager({
                       className="w-full sm:w-auto"
                       onClick={() => {
                         setIsUpgradeDialogOpen(false);
-                        if (useSharedCheckout && workspaceCheckout) {
-                          if (workspaceCheckout.pendingCheckout) {
-                            workspaceCheckout.continueCheckout();
+                        if (useSharedCheckout && businessCheckout) {
+                          if (businessCheckout.pendingCheckout) {
+                            businessCheckout.continueCheckout();
                             return;
                           }
 
-                          workspaceCheckout.openPlanSelection("pro");
+                          businessCheckout.openPlanSelection("pro");
                           return;
                         }
 
@@ -393,6 +394,7 @@ export function BusinessInquiryFormsManager({
                       plan={selectedPlan}
                       interval={selectedInterval}
                       region={billingProps.region}
+                      userId={billingProps.userId}
                       businessId={billingProps.businessId}
                       businessSlug={billingProps.businessSlug}
                     />

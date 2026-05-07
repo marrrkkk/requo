@@ -1,5 +1,4 @@
 export type OnboardingFieldName =
-  | "workspaceName"
   | "businessName"
   | "businessType"
   | "countryCode"

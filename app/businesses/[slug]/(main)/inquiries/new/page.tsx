@@ -11,7 +11,7 @@ import { getInquiryEditorFormsForBusiness } from "@/features/inquiries/queries";
 import {
   getBusinessFormsPath,
 } from "@/features/businesses/routes";
-import { workspacesHubPath } from "@/features/businesses/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
 import Link from "next/link";
@@ -36,7 +36,7 @@ export default async function NewInquiryPage({
   );
 
   if (!businessContext) {
-    redirect(workspacesHubPath);
+    redirect(businessesHubPath);
   }
 
   const inquiryForms = await getInquiryEditorFormsForBusiness(

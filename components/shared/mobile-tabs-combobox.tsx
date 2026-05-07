@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { ChevronsUpDown } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -64,11 +64,7 @@ export function MobileTabsCombobox({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const ActiveIcon = activeItem?.icon;
 
-  useEffect(() => {
-    if (open && activeItem) {
-      setFocusValue(activeItem.label);
-    }
-  }, [open, activeItem]);
+
 
   if (!activeItem) {
     return null;
@@ -76,7 +72,12 @@ export function MobileTabsCombobox({
 
   return (
     <div className={cn("sm:hidden", className)}>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={(newOpen) => {
+        setOpen(newOpen);
+        if (newOpen && activeItem) {
+          setFocusValue(activeItem.label);
+        }
+      }}>
         <PopoverTrigger asChild>
           <Button
             ref={triggerRef}

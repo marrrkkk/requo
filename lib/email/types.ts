@@ -17,7 +17,6 @@ export type SendEmailInput = {
   metadata?: Record<string, unknown>;
   idempotencyKey?: string;
   emailType?: EmailType;
-  workspaceId?: string | null;
   businessId?: string | null;
   userId?: string | null;
 };

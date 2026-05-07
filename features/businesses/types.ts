@@ -105,5 +105,5 @@ export type BusinessLifecycleView = {
   recordState: BusinessRecordState;
   archivedAt: Date | null;
   deletedAt: Date | null;
-  activeWorkspaceBusinessCount: number;
+  activeBusinessCount: number;
 };

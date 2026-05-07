@@ -7,14 +7,14 @@ import { DashboardShell } from "@/components/shell/dashboard-shell";
 import { DashboardShellSkeleton } from "@/components/shell/dashboard-shell-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
-import { WorkspaceCheckoutProvider } from "@/features/billing/components/workspace-checkout-provider";
+import { BusinessCheckoutProvider } from "@/features/billing/components/business-checkout-provider";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
-import { getWorkspaceBillingOverview } from "@/features/billing/queries";
+import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { getBusinessNotificationBellView } from "@/features/notifications/queries";
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
-import { workspacesHubPath } from "@/features/businesses/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
 import {
   getBusinessContextForMembershipSlug,
@@ -37,7 +37,7 @@ export default async function BusinessDashboardLayout({
   );
 
   if (!businessContext) {
-    redirect(workspacesHubPath);
+    redirect(businessesHubPath);
   }
 
   // Stream entire shell: sidebar + topbar + children arrive as shell data resolves.
@@ -83,12 +83,12 @@ async function StreamedDashboardShell({
       getThemePreferenceForUser(userId),
       getBusinessMembershipsForUser(userId),
       getAccountProfileForUser(userId),
-      getWorkspaceBillingOverview(businessContext.business.id).catch(
+      getBusinessBillingOverview(businessContext.business.id).catch(
         () => null,
       ),
     ]);
 
-  // Filter to only show businesses in the current workspace
+  // Keep only the active business membership for this shell.
   const businessMemberships = allBusinessMemberships.filter(
     (membership) =>
       membership.business.id === businessContext.business.id,
@@ -121,6 +121,7 @@ async function StreamedDashboardShell({
           defaultCurrency={billing.defaultCurrency}
           region={billing.region}
           size="sm"
+          userId={billing.userId}
           businessId={billing.businessId}
           businessSlug={billing.businessSlug}
         />
@@ -153,9 +154,9 @@ async function StreamedDashboardShell({
   // Wrap with checkout context when billing data is available.
   if (billing) {
     return (
-      <WorkspaceCheckoutProvider billing={billing}>
+      <BusinessCheckoutProvider billing={billing}>
         {shellContent}
-      </WorkspaceCheckoutProvider>
+      </BusinessCheckoutProvider>
     );
   }
 

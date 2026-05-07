@@ -380,7 +380,7 @@ export async function trashBusinessAction(
 
       if (result.reason === "last-active") {
         return {
-          error: "Keep at least one active business in this workspace.",
+          error: "Keep at least one active business.",
         };
       }
 

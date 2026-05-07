@@ -121,7 +121,6 @@ export async function bootstrapBusinessForUser(
       await assertBusinessQuotaAvailableForUser({
         tx,
         ownerUserId: user.id,
-        plan,
       });
 
       const businessSlug = await getAvailableSlug(

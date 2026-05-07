@@ -301,7 +301,7 @@ export function CommandMenu({
 
           <DialogDescription className="sr-only">
 
-            Create records, export data, copy links, and open workspace tools.
+            Create records, export data, copy links, and open business tools.
 
           </DialogDescription>
 
@@ -529,7 +529,7 @@ export function CommandMenu({
 
 
 
-              <CommandGroup heading="Workspace">
+              <CommandGroup heading="Business">
 
                 <CommandItem
 
@@ -543,7 +543,7 @@ export function CommandMenu({
 
                   <BriefcaseBusiness className="mr-2 h-4 w-4" />
 
-                  <span>Open workspace</span>
+                  <span>Open business</span>
 
                 </CommandItem>
 
@@ -565,7 +565,7 @@ export function CommandMenu({
 
                     <BriefcaseBusiness className="mr-2 h-4 w-4" />
 
-                    <span>Workspace settings & billing</span>
+                    <span>Business settings & billing</span>
 
                   </CommandItem>
 
@@ -579,7 +579,7 @@ export function CommandMenu({
 
                   <PanelsTopLeft className="mr-2 h-4 w-4" />
 
-                  <span>All workspaces</span>
+                  <span>All businesses</span>
 
                 </CommandItem>
 

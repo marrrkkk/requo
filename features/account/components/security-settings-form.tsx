@@ -448,7 +448,7 @@ export function SecuritySettingsForm({
               </h2>
               <p className="text-sm text-muted-foreground">
                 {accountDeletionBlocked
-                  ? "Resolve workspace ownership or billing blockers before deleting this account."
+                  ? "Resolve business ownership or billing blockers before deleting this account."
                   : "Permanently remove this account after confirming the final details below."}
               </p>
             </div>
@@ -754,7 +754,7 @@ function formatDateTime(value: string) {
 
 function getDeleteDescription(security: AccountSecurityView) {
   if (!security.deletion.allowed) {
-    return "This account still owns a workspace, still carries billing responsibility, or is the last owner of a business. Resolve those relationships first.";
+    return "This account still owns a business, still carries billing responsibility, or is the last owner of a business. Resolve those relationships first.";
   }
 
   if (security.ownedBusinessCount <= 0) {

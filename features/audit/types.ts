@@ -2,7 +2,6 @@ export const auditEntityTypes = [
   "request",
   "quote",
   "business",
-  "workspace",
   "member",
   "subscription",
   "account",
@@ -25,11 +24,10 @@ export const auditActionLabels = {
   "business.archived": "Business archived",
   "business.trashed": "Business moved to trash",
   "business.restored": "Business restored",
-  "workspace.created": "Workspace created",
-  "workspace.deletion_scheduled": "Workspace deletion scheduled",
-  "workspace.deletion_canceled": "Workspace deletion canceled",
-  "workspace.deleted": "Workspace deleted",
-  "workspace.ownership_transferred": "Workspace ownership transferred",
+  "business.deletion_scheduled": "Business deletion scheduled",
+  "business.deletion_canceled": "Business deletion canceled",
+  "business.deleted": "Business deleted",
+  "business.ownership_transferred": "Business ownership transferred",
   "subscription.checkout_succeeded": "Subscription checkout succeeded",
   "subscription.plan_changed": "Plan changed",
   "subscription.cancellation_requested": "Subscription cancellation requested",
@@ -61,7 +59,7 @@ export type AuditLogFilters = {
   page: number;
 };
 
-export type WorkspaceAuditLogItem = {
+export type BusinessAuditLogItem = {
   id: string;
   businessId: string;
   businessName: string | null;
@@ -77,22 +75,22 @@ export type WorkspaceAuditLogItem = {
   createdAt: Date;
 };
 
-export type WorkspaceAuditLogPage = {
-  items: WorkspaceAuditLogItem[];
+export type BusinessAuditLogPage = {
+  items: BusinessAuditLogItem[];
   totalCount: number;
   page: number;
   pageCount: number;
   pageSize: number;
 };
 
-export type WorkspaceAuditLogFilterOption = {
+export type BusinessAuditLogFilterOption = {
   label: string;
   value: string;
 };
 
-export type WorkspaceAuditLogFiltersView = {
-  actors: WorkspaceAuditLogFilterOption[];
-  businesses: WorkspaceAuditLogFilterOption[];
+export type BusinessAuditLogFiltersView = {
+  actors: BusinessAuditLogFilterOption[];
+  businesses: BusinessAuditLogFilterOption[];
   actions: Array<{
     label: string;
     value: AuditAction;

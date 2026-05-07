@@ -19,7 +19,7 @@ export type RecentBusiness = {
   logoStoragePath: string | null;
   defaultCurrency: string;
   businessSlug: string;
-  workspaceName: string;
+  businessName: string;
   businessType: BusinessType;
   lastOpenedAt: Date;
 };
@@ -35,7 +35,7 @@ export async function getRecentlyOpenedBusinessesForUser(
       logoStoragePath: businesses.logoStoragePath,
       defaultCurrency: businesses.defaultCurrency,
       businessSlug: businesses.slug,
-      workspaceName: businesses.name,
+      businessName: businesses.name,
       businessType: businesses.businessType,
       lastOpenedAt: userRecentBusinesses.lastOpenedAt,
     })

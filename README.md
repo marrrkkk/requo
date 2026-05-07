@@ -245,7 +245,7 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 | `npm run db:migrate` | Apply Drizzle migrations |
 | `npm run db:push` | Push schema changes directly |
 | `npm run db:studio` | Open Drizzle Studio |
-| `npm run db:seed-demo` | Seed the demo workspace |
+| `npm run db:seed-demo` | Seed the demo business |
 
 ## Testing And CI
 
@@ -272,7 +272,7 @@ Deployment and CI responsibilities are intentionally split:
 
 - `app/` route groups, layouts, pages, and route handlers
 - `components/` shared UI primitives, shell UI, and marketing components
-- `features/` product slices such as account, AI, analytics, audit, auth, billing, businesses, business members, calendar, customers, follow-ups, inquiries, memory/knowledge, notifications, onboarding, quotes, settings, theme, workspace members, and workspaces
+- `features/` product slices such as account, AI, analytics, audit, auth, billing, businesses, business members, calendar, customers, follow-ups, inquiries, memory/knowledge, notifications, onboarding, quotes, settings, and theme
 - `lib/` auth, database, provider clients, env validation, and shared utilities
 - `emails/templates/` transactional email rendering
 - `docs/` setup and architecture documentation
@@ -285,12 +285,12 @@ Deployment and CI responsibilities are intentionally split:
 
 - `lib/billing/` billing domain types, plan pricing, region detection, subscription service, webhook processing, and provider clients (PayMongo, Paddle)
 - `lib/billing/providers/` PayMongo and Paddle REST clients with webhook signature verification
-- `lib/db/schema/subscriptions.ts` workspace_subscriptions, billing_events, and payment_attempts tables
+- `lib/db/schema/subscriptions.ts` business_subscriptions, billing_events, and payment_attempts tables
 - `features/billing/` checkout dialog, billing status card, upgrade button, server actions, and queries
 - `app/api/billing/` webhook route handlers for PayMongo and Paddle
 - `features/follow-ups/` follow-up creation, rescheduling, completion, skipping, and reminders
 - `features/analytics/` conversion/workflow analytics plus public inquiry and quote view tracking
-- `features/workspace-members/` and `features/business-members/` workspace and business role management
+- `features/business-members/` business role management
 
 ## Architecture Notes
 
@@ -303,8 +303,8 @@ Deployment and CI responsibilities are intentionally split:
 - AI drafting stays server-side and uses business context plus uploaded knowledge, with provider fallback ordered Groq -> Gemini -> OpenRouter
 - Marketing, onboarding, starter templates, and in-app copy are aligned around the inquiry -> quote -> share/send -> follow-up -> viewed/accepted/rejected workflow
 - Starter templates are opinionated defaults, not rigid vertical product modes
-- Subscriptions are workspace-scoped with PayMongo for QRPh and Paddle for cards
-- The `workspaces.plan` column is a denormalized read cache; the authoritative state lives in `workspace_subscriptions`
+- Subscriptions are business-scoped with PayMongo for QRPh and Paddle for cards
+- The `businesses.plan` column is a denormalized read cache; the authoritative state lives in `business_subscriptions`
 - Billing mutations go through `lib/billing/subscription-service.ts`; webhooks go through `lib/billing/webhook-processor.ts`
 - Opaque lookup tokens are hashed with `APP_TOKEN_HASH_SECRET` or `BETTER_AUTH_SECRET`
 - See [docs/setup/billing.md](./docs/setup/billing.md) for provider setup instructions

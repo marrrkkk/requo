@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import {
   getBusinessDashboardPath,
 } from "@/features/businesses/routes";
-import { workspacesHubPath } from "@/features/businesses/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import {
   getBusinessContextForMembershipSlug,
   hasOperationalBusinessAccess,
@@ -26,7 +26,7 @@ async function getScopedBusinessSettingsContext(businessSlug?: string | null) {
   );
 
   if (!businessContext) {
-    redirect(workspacesHubPath);
+    redirect(businessesHubPath);
   }
 
   return {

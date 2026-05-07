@@ -9,7 +9,7 @@ import {
   getConversionAnalyticsData,
   getWorkflowAnalyticsData,
 } from "@/features/analytics/queries";
-import { getWorkspaceBillingOverview } from "@/features/billing/queries";
+import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { hasFeatureAccess } from "@/lib/plans";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
@@ -43,7 +43,7 @@ export async function AnalyticsTabPanel({
 
       content = <AnalyticsConversionTab currency={currency} data={conversionData} />;
     } else {
-      const billingOverview = await getWorkspaceBillingOverview(businessId);
+      const billingOverview = await getBusinessBillingOverview(businessId);
 
       content = (
         <LockedFeatureCard
@@ -54,6 +54,7 @@ export async function AnalyticsTabPanel({
           upgradeAction={
             billingOverview
               ? {
+                  userId: billingOverview.userId,
                   businessId: billingOverview.businessId,
                     businessSlug: billingOverview.businessSlug,
                   currentPlan: billingOverview.currentPlan,
@@ -71,7 +72,7 @@ export async function AnalyticsTabPanel({
 
     content = <AnalyticsWorkflowTab data={workflowData} />;
   } else {
-    const billingOverview = await getWorkspaceBillingOverview(businessId);
+    const billingOverview = await getBusinessBillingOverview(businessId);
 
     content = (
       <LockedFeatureCard
@@ -82,6 +83,7 @@ export async function AnalyticsTabPanel({
         upgradeAction={
           billingOverview
             ? {
+                userId: billingOverview.userId,
                 businessId: billingOverview.businessId,
                     businessSlug: billingOverview.businessSlug,
                 currentPlan: billingOverview.currentPlan,

@@ -10,7 +10,7 @@ import {
   getBusinessDashboardPath,
   getBusinessInquiryFormPreviewPath,
 } from "@/features/businesses/routes";
-import { workspacesHubPath } from "@/features/businesses/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 
 export default async function BusinessInquiryPagePreviewRedirect({
   params,
@@ -24,7 +24,7 @@ export default async function BusinessInquiryPagePreviewRedirect({
   );
 
   if (!businessContext) {
-    redirect(workspacesHubPath);
+    redirect(businessesHubPath);
   }
 
   if (!hasOperationalBusinessAccess(businessContext.role)) {

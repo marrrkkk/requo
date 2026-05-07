@@ -97,7 +97,6 @@ export async function createBusinessRecordForUser({
   await assertBusinessQuotaAvailableForUser({
     tx,
     ownerUserId: user.id,
-    plan: plan,
   });
 
   const trimmedName = name.trim();

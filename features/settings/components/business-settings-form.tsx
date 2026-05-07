@@ -590,7 +590,7 @@ export function BusinessSettingsForm({
       </form>
 
       <BusinessDeleteZone
-        activeWorkspaceBusinessCount={settings.activeWorkspaceBusinessCount}
+        activeBusinessCount={settings.activeBusinessCount}
         archiveAction={archiveAction}
         archivedRedirectHref={`${getBusinessPath(settings.businessSlug)}?view=archived`}
         businessName={settings.name}

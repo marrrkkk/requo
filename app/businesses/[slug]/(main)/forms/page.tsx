@@ -7,14 +7,14 @@ import {
 } from "@/features/settings/actions";
 import { BusinessInquiryFormsManager } from "@/features/settings/components/business-inquiry-forms-manager";
 import { getBusinessInquiryFormsSettingsForBusiness } from "@/features/settings/queries";
-import { getWorkspaceBillingOverview } from "@/features/billing/queries";
+import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { getBusinessOperationalPageContext } from "../settings/_lib/page-context";
 
 export default async function BusinessFormsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();
   const [settings, billingOverview] = await Promise.all([
     getBusinessInquiryFormsSettingsForBusiness(businessContext.business.id),
-    getWorkspaceBillingOverview(businessContext.business.id),
+    getBusinessBillingOverview(businessContext.business.id),
   ]);
 
   if (!settings) {
@@ -36,6 +36,7 @@ export default async function BusinessFormsPage() {
         billingProps={
           billingOverview
             ? {
+                userId: billingOverview.userId,
                 businessId: billingOverview.businessId,
                 businessSlug: billingOverview.businessSlug,
                 currentPlan: billingOverview.currentPlan,

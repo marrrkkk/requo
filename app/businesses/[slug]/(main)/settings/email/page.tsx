@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { LockedFeaturePage } from "@/components/shared/paywall";
-import { getWorkspaceBillingOverview } from "@/features/billing/queries";
+import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { updateBusinessEmailTemplateSettingsAction } from "@/features/settings/actions";
 import { BusinessEmailTemplateForm } from "@/features/settings/components/business-email-template-form";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
@@ -13,7 +13,7 @@ export default async function BusinessEmailTemplateSettingsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();
 
   if (!hasFeatureAccess(businessContext.business.plan, "emailTemplates")) {
-    const billingOverview = await getWorkspaceBillingOverview(
+    const billingOverview = await getBusinessBillingOverview(
       businessContext.business.id,
     );
 
@@ -31,6 +31,7 @@ export default async function BusinessEmailTemplateSettingsPage() {
           upgradeAction={
             billingOverview
               ? {
+                  userId: billingOverview.userId,
                   businessId: billingOverview.businessId,
                   businessSlug: billingOverview.businessSlug,
                   currentPlan: billingOverview.currentPlan,

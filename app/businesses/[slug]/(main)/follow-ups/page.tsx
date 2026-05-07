@@ -16,7 +16,7 @@ import {
 import { followUpListFiltersSchema } from "@/features/follow-ups/schemas";
 import type { FollowUpListFilters } from "@/features/follow-ups/types";
 import { getBusinessFollowUpsPath } from "@/features/businesses/routes";
-import { workspacesHubPath } from "@/features/businesses/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
 
@@ -42,7 +42,7 @@ export default async function FollowUpsPage({
   );
 
   if (!businessContext) {
-    redirect(workspacesHubPath);
+    redirect(businessesHubPath);
   }
 
   const parsedFilters = followUpListFiltersSchema.safeParse(resolvedSearchParams);

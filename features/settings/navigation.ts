@@ -121,8 +121,8 @@ export function getBusinessSettingsNavigation(
 }
 
 /**
- * Returns the billing navigation group for workspace owners.
- * Billing is workspace-scoped but rendered within the business settings navigation.
+ * Returns the billing navigation group for business owners.
+ * Billing is rendered within the business settings navigation.
  */
 export function getWorkspaceSettingsNavigation(
   businessSlug: string,
@@ -134,7 +134,7 @@ export function getWorkspaceSettingsNavigation(
 
   return [
     {
-      label: "Workspace",
+      label: "Business",
       items: [
         {
           href: getBusinessSettingsPath(businessSlug, "billing"),

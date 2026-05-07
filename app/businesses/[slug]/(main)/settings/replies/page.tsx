@@ -8,7 +8,7 @@ import {
 } from "@/features/inquiries/reply-snippet-actions";
 import { getReplySnippetsForBusiness } from "@/features/inquiries/reply-snippet-queries";
 import { BusinessReplySnippetsManager } from "@/features/settings/components/business-reply-snippets-manager";
-import { getWorkspaceBillingOverview } from "@/features/billing/queries";
+import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { hasFeatureAccess } from "@/lib/plans";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
 
@@ -16,7 +16,7 @@ export default async function BusinessSavedRepliesPage() {
   const { businessContext } = await getBusinessOperationalPageContext();
 
   if (!hasFeatureAccess(businessContext.business.plan, "replySnippets")) {
-    const billingOverview = await getWorkspaceBillingOverview(
+    const billingOverview = await getBusinessBillingOverview(
       businessContext.business.id,
     );
 
@@ -34,6 +34,7 @@ export default async function BusinessSavedRepliesPage() {
           upgradeAction={
             billingOverview
               ? {
+                  userId: billingOverview.userId,
                   businessId: billingOverview.businessId,
                   businessSlug: billingOverview.businessSlug,
                   currentPlan: billingOverview.currentPlan,

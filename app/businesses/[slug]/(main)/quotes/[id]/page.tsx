@@ -86,7 +86,7 @@ import {
   getBusinessQuotePrintPath,
   getBusinessQuotesPath,
 } from "@/features/businesses/routes";
-import { workspacesHubPath } from "@/features/businesses/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import { env, isEmailConfigured } from "@/lib/env";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { requireSession } from "@/lib/auth/session";
@@ -129,7 +129,7 @@ export default async function QuoteDetailPage({
   );
 
   if (!businessContext) {
-    redirect(workspacesHubPath);
+    redirect(businessesHubPath);
   }
 
   const parsedParams = quoteRouteParamsSchema.safeParse(resolvedParams);

@@ -77,7 +77,7 @@ import {
   type InquiryWorkflowStatus,
 } from "@/features/inquiries/types";
 import { formatQuoteMoney } from "@/features/quotes/utils";
-import { workspacesHubPath } from "@/features/businesses/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import {
   getBusinessInquiryExportPath,
   getBusinessNewQuotePath,
@@ -126,7 +126,7 @@ export default async function InquiryDetailPage({
   );
 
   if (!businessContext) {
-    redirect(workspacesHubPath);
+    redirect(businessesHubPath);
   }
 
   const parsedParams = inquiryRouteParamsSchema.safeParse(resolvedParams);

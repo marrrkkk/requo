@@ -23,7 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { WorkspaceAuditLogPage } from "@/features/audit/types";
+import type { BusinessAuditLogPage } from "@/features/audit/types";
 import {
   formatAuditActionSummary,
   formatAuditActorLabel,
@@ -31,13 +31,13 @@ import {
   formatAuditTimestamp,
 } from "@/features/audit/utils";
 
-type WorkspaceAuditLogTableProps = {
-  page: WorkspaceAuditLogPage;
+type BusinessAuditLogTableProps = {
+  page: BusinessAuditLogPage;
 };
 
-export function WorkspaceAuditLogTable({
+export function BusinessAuditLogTable({
   page,
-}: WorkspaceAuditLogTableProps) {
+}: BusinessAuditLogTableProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -61,7 +61,7 @@ export function WorkspaceAuditLogTable({
   return (
     <DashboardSection
       description="Newest events first. This log records meaningful admin, lifecycle, billing, and security actions."
-      title="Workspace audit log"
+      title="Business audit log"
     >
       <TooltipProvider delayDuration={300}>
         <DashboardTableContainer>

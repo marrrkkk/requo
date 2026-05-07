@@ -8,7 +8,7 @@ import {
   updateQuoteLibraryEntryAction,
 } from "@/features/quotes/quote-library-actions";
 import { getQuoteLibraryForBusiness } from "@/features/quotes/quote-library-queries";
-import { getWorkspaceBillingOverview } from "@/features/billing/queries";
+import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 import { BusinessPricingLibraryManager } from "@/features/settings/components/business-pricing-library-manager";
 import { hasFeatureAccess } from "@/lib/plans";
@@ -18,7 +18,7 @@ export default async function BusinessPricingPage() {
   const { businessContext } = await getBusinessOperationalPageContext();
 
   if (!hasFeatureAccess(businessContext.business.plan, "quoteLibrary")) {
-    const billingOverview = await getWorkspaceBillingOverview(
+    const billingOverview = await getBusinessBillingOverview(
       businessContext.business.id,
     );
 
@@ -36,6 +36,7 @@ export default async function BusinessPricingPage() {
           upgradeAction={
             billingOverview
               ? {
+                  userId: billingOverview.userId,
                   businessId: billingOverview.businessId,
                   businessSlug: billingOverview.businessSlug,
                   currentPlan: billingOverview.currentPlan,

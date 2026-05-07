@@ -38,9 +38,9 @@ export function DashboardActivationChecklist({
 }: DashboardActivationChecklistProps) {
   const checklistItems = [
     {
-      id: "workspace",
-      title: "Workspace and business are ready",
-      detail: "Your first workspace and business are already set up.",
+      id: "business",
+      title: "Business is ready",
+      detail: "Your first business is already set up.",
       complete: true,
       href: getBusinessSettingsPath(businessSlug),
     },

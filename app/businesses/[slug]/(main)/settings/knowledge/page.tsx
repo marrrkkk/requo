@@ -7,7 +7,7 @@ import {
 } from "@/features/memory/actions";
 import { getMemoryDashboardData, getMemorySummaryForBusiness } from "@/features/memory/queries";
 import { BusinessMemoryManager } from "@/features/settings/components/business-memory-manager";
-import { getWorkspaceBillingOverview } from "@/features/billing/queries";
+import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { hasFeatureAccess } from "@/lib/plans";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
 
@@ -15,7 +15,7 @@ export default async function BusinessKnowledgePage() {
   const { businessContext } = await getBusinessOperationalPageContext();
 
   if (!hasFeatureAccess(businessContext.business.plan, "knowledgeBase")) {
-    const billingOverview = await getWorkspaceBillingOverview(
+    const billingOverview = await getBusinessBillingOverview(
       businessContext.business.id,
     );
 
@@ -33,6 +33,7 @@ export default async function BusinessKnowledgePage() {
           upgradeAction={
             billingOverview
               ? {
+                  userId: billingOverview.userId,
                   businessId: billingOverview.businessId,
                   businessSlug: billingOverview.businessSlug,
                   currentPlan: billingOverview.currentPlan,

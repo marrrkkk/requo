@@ -12,7 +12,7 @@ export const metadata: Metadata = createNoIndexMetadata({
 
 /**
  * TODO: Re-implement invite flow for business-only architecture.
- * The workspace member invite system was removed during the migration.
+ * The previous invite system was removed during the migration.
  * This page needs to be rebuilt with business-scoped invite logic.
  */
 export default async function BusinessMemberInvitePage() {

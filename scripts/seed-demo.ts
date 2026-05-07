@@ -49,8 +49,8 @@ const primaryDemoUser: SeedUserConfig = {
   name: env.DEMO_OWNER_NAME ?? "Morgan Lee",
   email: env.DEMO_OWNER_EMAIL ?? "demo@requo.local",
   plan: "business",
-  workspaceName: "BrightSide Workspace",
-  businessSlug: "brightside-workspace",
+  businessGroupName: "BrightSide",
+  businessSlug: "brightside",
   businesses: [
     {
       name: env.DEMO_BUSINESS_NAME ?? "BrightSide Print Studio",
@@ -84,7 +84,7 @@ type SeedUserConfig = {
   name: string;
   email: string;
   plan: plan;
-  workspaceName: string;
+  businessGroupName: string;
   businessSlug: string;
   businesses: SeedBusinessConfig[];
   teamMembers?: SeedTeamMember[];
@@ -115,7 +115,7 @@ const USERS: SeedUserConfig[] = [
     name: "Maria Santos",
     email: "free@requo.dev",
     plan: "free",
-    workspaceName: "Maria's Workspace",
+    businessGroupName: "Maria's",
     businessSlug: "maria-ws",
     businesses: [
       {
@@ -136,7 +136,7 @@ const USERS: SeedUserConfig[] = [
     name: "James Carter",
     email: "pro@requo.dev",
     plan: "pro",
-    workspaceName: "Carter Interiors",
+    businessGroupName: "Carter Interiors",
     businessSlug: "carter-interiors-ws",
     businesses: [
       {
@@ -157,7 +157,7 @@ const USERS: SeedUserConfig[] = [
     name: "Rafael Reyes",
     email: "business@requo.dev",
     plan: "business",
-    workspaceName: "Reyes Group",
+    businessGroupName: "Reyes Group",
     businessSlug: "reyes-group-ws",
     businesses: [
       {
@@ -428,8 +428,8 @@ async function resetDatabase() {
     "verification",
     "profiles",
     "businesses",
-    "workspace_members",
-    "workspace_subscriptions",
+    "business_members",
+    "business_subscriptions",
     "billing_events",
     "payment_attempts",
     "businesses",
@@ -919,10 +919,10 @@ async function seedStableSmokeFixtures(params: {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * Workspace + subscription creation
+ * Business + subscription creation
  * ═══════════════════════════════════════════════════════════════════════════ */
 
-async function createWorkspace(
+async function createBusinessRecord(
   config: SeedUserConfig,
   ownerId: string,
 ): Promise<string> {
@@ -931,7 +931,7 @@ async function createWorkspace(
 
   await db.insert(businesses).values({
     id: wsId,
-    name: config.workspaceName,
+    name: config.businessGroupName,
     slug: config.businessSlug,
     plan: config.plan,
     ownerUserId: ownerId,
@@ -1316,11 +1316,11 @@ async function main() {
     // Create user via Better Auth
     const userId = await createUser(userConfig.name, userConfig.email);
 
-    // Create workspace + subscription
-    const wsId = await createWorkspace(userConfig, userId);
-    console.log(`   Workspace: ${userConfig.workspaceName} (${userConfig.plan})`);
+    // Create business + subscription
+    const wsId = await createBusinessRecord(userConfig, userId);
+    console.log(`   Business: ${userConfig.businessGroupName} (${userConfig.plan})`);
 
-    // Create team members for this workspace
+    // Create team members for this business
     if (userConfig.teamMembers) {
       for (const tm of userConfig.teamMembers) {
         const tmId = await createUser(tm.name, tm.email);

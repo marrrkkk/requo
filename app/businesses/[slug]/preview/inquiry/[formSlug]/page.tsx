@@ -12,7 +12,7 @@ import {
   getBusinessDashboardPath,
   getBusinessInquiryPageEditorPath,
 } from "@/features/businesses/routes";
-import { workspacesHubPath } from "@/features/businesses/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 
 
 export default async function BusinessInquiryFormPreviewPage({
@@ -33,7 +33,7 @@ export default async function BusinessInquiryFormPreviewPage({
   ]);
 
   if (!businessContext) {
-    redirect(workspacesHubPath);
+    redirect(businessesHubPath);
   }
 
   if (!hasOperationalBusinessAccess(businessContext.role)) {

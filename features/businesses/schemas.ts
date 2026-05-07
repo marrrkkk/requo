@@ -22,7 +22,7 @@ export const createBusinessSchema = z.object({
       isSupportedBusinessCurrencyCode,
       "Choose a supported currency.",
     ),
-  businessId: z.string().trim().min(1, "Please select a temporary workspace."),
+  businessId: z.string().trim().min(1, "Please select a temporary business."),
 });
 
 export const recentlyOpenedBusinessSchema = z.object({

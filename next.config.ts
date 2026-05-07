@@ -67,10 +67,6 @@ const nextConfig: NextConfig = {
         headers: sensitiveNoStoreHeaders,
       },
       {
-        source: "/workspaces/:path*",
-        headers: sensitiveNoStoreHeaders,
-      },
-      {
         source: "/forgot-password",
         headers: sensitiveNoStoreHeaders,
       },

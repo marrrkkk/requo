@@ -5,7 +5,7 @@ import {
   activeBusinessSlugCookieName,
   getBusinessDashboardSlugFromPathname,
 } from "@/features/businesses/routes";
-// admin proxy-auth removed during workspace migration
+// admin proxy-auth removed during business migration
 
 function isAdminPath(pathname: string) {
   return pathname === "/admin" || pathname.startsWith("/admin/");

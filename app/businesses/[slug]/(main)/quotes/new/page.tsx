@@ -8,7 +8,7 @@ import { getQuoteLibraryForBusiness } from "@/features/quotes/quote-library-quer
 import { getInquiryQuotePrefillForBusiness } from "@/features/quotes/queries";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 import { inquiryRouteParamsSchema } from "@/features/inquiries/schemas";
-import { workspacesHubPath } from "@/features/businesses/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import {
   createQuoteEditorLineItem,
   getDefaultQuoteValidityDate,
@@ -37,7 +37,7 @@ export default async function NewQuotePage({
   );
 
   if (!businessContext) {
-    redirect(workspacesHubPath);
+    redirect(businessesHubPath);
   }
 
   const rawInquiryId = Array.isArray(rawSearchParams.inquiryId)

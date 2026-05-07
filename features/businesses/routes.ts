@@ -2,9 +2,6 @@ export const activeBusinessSlugCookieName = "requo-active-business";
 
 export const businessesHubPath = "/businesses";
 
-/** @deprecated Use `businessesHubPath` instead. */
-export const workspacesHubPath = businessesHubPath;
-
 export type BusinessSettingsSection =
   | "general"
   | "members"

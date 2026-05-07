@@ -12,13 +12,11 @@ The product direction is workflow-first:
 - follow up consistently
 - track public quote views and customer responses
 
-The subscription and billing model is workspace-based:
+The subscription and billing model is business-based:
 
-- A user belongs to one or more workspaces
-- A workspace is the top-level billing/subscription container
-- A workspace can contain one or more businesses
-- Plans and entitlements apply at the workspace level
-- Businesses inherit workspace entitlements
+- A user belongs to one or more businesses
+- A business is the top-level billing/subscription container
+- Plans and entitlements apply at the business level
 
 The app supports multiple service-business types through editable starter templates, but
 the architecture should continue to favor shared workflow features over vertical-specific
@@ -36,7 +34,6 @@ app/
   invite/
   onboarding/
   verify-email/
-  workspaces/
   api/
 
 components/
@@ -64,8 +61,6 @@ features/
   quotes/
   settings/
   theme/
-  workspace-members/
-  workspaces/
 
 lib/
   ai/
@@ -128,9 +123,9 @@ Feature responsibilities:
 - `features/account`: profile, security, and account-owned asset flows.
 - `features/ai`: AI router, prompts, message surfaces, and provider fallback behavior.
 - `features/analytics`: conversion analytics, workflow analytics, and public page view tracking.
-- `features/audit`: audit log writes and workspace audit queries.
+- `features/audit`: audit log writes and business audit queries.
 - `features/auth`: auth forms, validation, and client UX.
-- `features/billing`: checkout UI, billing status, upgrade/cancel actions, and workspace billing queries.
+- `features/billing`: checkout UI, billing status, upgrade/cancel actions, and business billing queries.
 - `features/businesses`: business creation, guided starter templates, hub queries, and business overview composition.
 - `features/business-members`: business role and invite flows.
 - `features/calendar`: calendar event target authorization and related scheduling helpers.
@@ -143,16 +138,14 @@ Feature responsibilities:
 - `features/quotes`: quote editor, calculations, manual/Requo delivery, status transitions, public quote pages, response tracking, and post-acceptance state.
 - `features/settings`: business identity, logo, notifications, public inquiry settings, inquiry page or form defaults, and other workflow settings.
 - `features/theme`: product theme concerns.
-- `features/workspace-members`: workspace-level member invitations and permissions.
-- `features/workspaces`: workspace overview, settings, billing entry points, and workspace-scoped queries.
 
 ## Auth, Data, And Security
 
 - Better Auth is the only auth system. Do not introduce Supabase Auth.
-- Better Auth creates authenticated users and server-side profiles. Onboarding creates the first workspace and business; later business creation adds to the existing workspace.
-- Workspaces own plans, entitlements, and usage limits. Businesses inherit these from their workspace.
-- `workspace_members` controls workspace-level access; `business_members` controls business-level roles.
-- Authenticated mutations should continue to use business-aware helpers such as `getWorkspaceBusinessActionContext`, `getOperationalBusinessActionContext`, and `getOwnerBusinessActionContext`.
+- Better Auth creates authenticated users and server-side profiles. Onboarding creates the first business.
+- Businesses own plans, entitlements, and usage limits.
+- `business_members` controls business-level roles.
+- Authenticated mutations should continue to use business-aware helpers such as `getBusinessActionContext`, `getOperationalBusinessActionContext`, and `getOwnerBusinessActionContext`.
 - Drizzle queries are the current enforcement layer for business ownership and membership.
 - SQL RLS helpers and policies exist in migrations, but the app does not currently set `app.current_user_id` on the database session, so runtime session-based RLS is not the primary app guard.
 - Supabase storage access should remain server-side for private assets, with business checks before reads or downloads.
@@ -169,9 +162,9 @@ Feature responsibilities:
 
 ## Billing Architecture
 
-- Subscriptions are workspace-scoped. Each workspace has at most one `workspace_subscriptions` row.
-- `workspaces.plan` is a denormalized read cache. `workspace_subscriptions` is authoritative.
-- `lib/billing/subscription-service.ts` is the single write path for subscription mutations and keeps `workspaces.plan` in sync.
+- Subscriptions are business-scoped. Each business has at most one `business_subscriptions` row.
+- `businesses.plan` is a denormalized read cache. `business_subscriptions` is authoritative.
+- `lib/billing/subscription-service.ts` is the single write path for subscription mutations and keeps `businesses.plan` in sync.
 - `lib/billing/webhook-processor.ts` records provider events in `billing_events` for idempotency.
 - PayMongo uses one-time QRPh payment intents and manual renewal. Paddle uses recurring card subscriptions.
 - Billing webhook routes live in `app/api/billing/paymongo/webhook/route.ts` and `app/api/billing/paddle/webhook/route.ts`.

@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 
 import type { QuoteEmailTemplateConfig } from "@/features/settings/email-templates";
 import { renderBusinessMemberInviteEmail } from "@/emails/templates/business-member-invite";
-import { renderWorkspaceMemberInviteEmail } from "@/emails/templates/workspace-member-invite";
 import { renderEmailVerificationEmail } from "@/emails/templates/email-verification";
 import { renderPasswordResetEmail } from "@/emails/templates/password-reset";
 import { renderPublicInquiryNotificationEmail } from "@/emails/templates/public-inquiry-notification";
@@ -18,7 +17,6 @@ import { sendEmailWithFallback } from "@/lib/email/send-email";
 import type { EmailType, SendEmailInput } from "@/lib/email/types";
 import { isEmailConfigured } from "@/lib/env";
 import type { BusinessMemberAssignableRole } from "@/lib/business-members";
-import type { BusinessMemberRole } from "@/lib/business-members";
 
 type SendPasswordResetEmailInput = {
   userId: string;
@@ -131,18 +129,6 @@ type SendQuoteResponseOwnerNotificationEmailInput = {
   response: "accepted" | "rejected";
   dashboardUrl: string;
   businessId?: string | null;
-};
-
-type SendWorkspaceMemberInviteEmailInput = {
-  inviteId: string;
-  token: string;
-  email: string;
-  workspaceName: string;
-  inviterName: string;
-  workspaceRole: BusinessMemberRole;
-  inviteUrl: string;
-  businessId?: string | null;
-  userId?: string | null;
 };
 
 function hashIdempotencyPart(value: string) {
@@ -357,66 +343,6 @@ export async function sendBusinessMemberInviteEmail({
     tags: {
       type: "system",
       event: "business_member_invite",
-    },
-  });
-
-  return true;
-}
-
-export async function sendWorkspaceMemberInviteEmail({
-  inviteId,
-  token,
-  email,
-  workspaceName,
-  inviterName,
-  workspaceRole,
-  inviteUrl,
-  businessId,
-  userId,
-}: SendWorkspaceMemberInviteEmailInput) {
-  if (!isEmailConfigured) {
-    logDeliverySkipped(
-      "Email is not configured yet. Workspace member invite delivery was skipped.",
-      "system",
-    );
-    return false;
-  }
-
-  const senderConfigurationError = getConfigurationError("system");
-
-  if (senderConfigurationError) {
-    logDeliverySkipped(
-      `Email sender is misconfigured. Workspace member invite delivery was skipped. ${senderConfigurationError}`,
-      "system",
-    );
-    return false;
-  }
-
-  const template = renderWorkspaceMemberInviteEmail({
-    workspaceName,
-    inviterName,
-    workspaceRole,
-    inviteUrl,
-  });
-
-  await sendBrandedEmail({
-    emailType: "system",
-    to: email,
-    replyTo: getFallbackReplyTo(),
-    subject: template.subject,
-    html: template.html,
-    text: template.text,
-    idempotencyKey: `workspace-member-invite:${inviteId}:${hashIdempotencyPart(token)}:${getRecipientKey(email)}`,
-    businessId,
-    userId,
-    metadata: {
-      inviteId,
-      businessId,
-      workspaceRole,
-    },
-    tags: {
-      type: "system",
-      event: "workspace_member_invite",
     },
   });
 

@@ -4,7 +4,7 @@ import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { analyticsSections } from "@/features/analytics/config";
 import { AnalyticsTabPanel } from "@/features/analytics/components/analytics-tab-panel";
-import { workspacesHubPath } from "@/features/businesses/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
 import {
   getBusinessContextForMembershipSlug,
@@ -49,7 +49,7 @@ export default async function AnalyticsPage({
   );
 
   if (!businessContext) {
-    redirect(workspacesHubPath);
+    redirect(businessesHubPath);
   }
 
   if (!hasOperationalBusinessAccess(businessContext.role)) {

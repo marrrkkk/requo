@@ -56,7 +56,6 @@ import {
   onboardingBusinessContextSchema,
   onboardingOwnerProfileSchema,
   onboardingTemplateSchema,
-  onboardingWorkspaceSchema,
   referralSourceOptions,
 } from "@/features/onboarding/schemas";
 import type {
@@ -72,7 +71,7 @@ type OnboardingFormProps = {
   ) => Promise<OnboardingActionState>;
 };
 
-type OnboardingStepId = "profile" | "workspace" | "business" | "template";
+type OnboardingStepId = "profile" | "business" | "template";
 
 const onboardingSteps = [
   {
@@ -86,15 +85,6 @@ const onboardingSteps = [
       "companySize",
       "referralSource",
     ] as const satisfies readonly OnboardingFieldName[],
-  },
-  {
-    id: "workspace" as const,
-    label: "Workspace",
-    description: "Name the workspace you'll use for your businesses.",
-    title: "Create your workspace",
-    body:
-      "Keep this simple. You can add more businesses inside the workspace later.",
-    fields: ["workspaceName"] as const satisfies readonly OnboardingFieldName[],
   },
   {
     id: "business" as const,
@@ -360,7 +350,6 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
           }
         }}
       >
-        <input name="workspaceName" type="hidden" value={draft.workspaceName} />
         <input name="businessName" type="hidden" value={draft.businessName} />
         <input name="businessType" type="hidden" value={draft.businessType} />
         <input name="countryCode" type="hidden" value={draft.countryCode} />
@@ -498,53 +487,6 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
                   </CardContent>
                 </Card>
               </div>
-            ) : null}
-
-            {currentStepId === "workspace" ? (
-              <Card className="border-border/75 bg-card/97">
-                <CardHeader>
-                  <CardTitle>Workspace details</CardTitle>
-                  <CardDescription>
-                    Use a simple name you&apos;ll recognize in the workspace hub.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <FieldGroup>
-                    <Field
-                      data-invalid={Boolean(fieldErrors.workspaceName) || undefined}
-                    >
-                      <FieldLabel htmlFor="onboarding-workspace-name">
-                        Workspace name
-                      </FieldLabel>
-                      <FieldContent>
-                        <Input
-                          aria-invalid={
-                            Boolean(fieldErrors.workspaceName) || undefined
-                          }
-                          autoFocus={isDraftHydrated}
-                          className={onboardingInputClassName}
-                          disabled={isPending}
-                          id="onboarding-workspace-name"
-                          maxLength={80}
-                          minLength={2}
-                          onChange={(event) =>
-                            updateField(
-                              "workspaceName",
-                              event.currentTarget.value,
-                            )
-                          }
-                          placeholder="Acme Studio"
-                          required
-                          value={draft.workspaceName}
-                        />
-                        <FieldDescription>
-                          This is the top-level workspace for your first business.
-                        </FieldDescription>
-                      </FieldContent>
-                    </Field>
-                  </FieldGroup>
-                </CardContent>
-              </Card>
             ) : null}
 
             {currentStepId === "business" ? (
@@ -795,12 +737,6 @@ function getFieldValidationError(
   draft: OnboardingDraft,
 ) {
   switch (field) {
-    case "workspaceName": {
-      const result = onboardingWorkspaceSchema.shape.workspaceName.safeParse(
-        draft.workspaceName,
-      );
-      return result.success ? undefined : result.error.issues[0]?.message;
-    }
     case "businessName": {
       const result = onboardingBusinessContextSchema.shape.businessName.safeParse(
         draft.businessName,
@@ -863,8 +799,6 @@ function sanitizeDraft(
   }
 
   return {
-    workspaceName:
-      typeof value.workspaceName === "string" ? value.workspaceName : "",
     businessName:
       typeof value.businessName === "string" ? value.businessName : "",
     businessType:
@@ -903,7 +837,7 @@ function clampStepIndex(value: number, maxStepIndex: number) {
 }
 
 const setupLoadingSteps = [
-  "Creating your workspace…",
+  "Creating your business…",
   "Setting up your business…",
   "Building your inquiry form…",
 ];

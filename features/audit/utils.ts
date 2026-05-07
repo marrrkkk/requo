@@ -4,7 +4,7 @@ import {
   getAuditActionLabel,
   getAuditEntityLabel,
 } from "@/features/audit/constants";
-import type { WorkspaceAuditLogItem } from "@/features/audit/types";
+import type { BusinessAuditLogItem } from "@/features/audit/types";
 
 function getStringValue(
   metadata: Record<string, unknown>,
@@ -21,7 +21,7 @@ function formatDateTime(value: Date) {
   }).format(value);
 }
 
-export function formatAuditActorLabel(item: WorkspaceAuditLogItem) {
+export function formatAuditActorLabel(item: BusinessAuditLogItem) {
   if (item.actorName?.trim()) {
     return item.actorName;
   }
@@ -41,7 +41,7 @@ export function formatAuditActorLabel(item: WorkspaceAuditLogItem) {
   return "Unknown";
 }
 
-export function formatAuditEventDetails(item: WorkspaceAuditLogItem) {
+export function formatAuditEventDetails(item: BusinessAuditLogItem) {
   const metadata = item.metadata;
 
   switch (item.action) {
@@ -73,17 +73,16 @@ export function formatAuditEventDetails(item: WorkspaceAuditLogItem) {
         .filter(Boolean)
         .join(" - ");
     }
-    case "workspace.created":
-    case "workspace.deleted": {
-      return getStringValue(metadata, "workspaceName") ?? "Workspace record";
+    case "business.deleted": {
+      return getStringValue(metadata, "businessName") ?? "Business record";
     }
-    case "workspace.deletion_scheduled":
-    case "workspace.deletion_canceled": {
-      const workspaceName = getStringValue(metadata, "workspaceName");
+    case "business.deletion_scheduled":
+    case "business.deletion_canceled": {
+      const businessName = getStringValue(metadata, "businessName");
       const scheduledDeletionAt = getStringValue(metadata, "scheduledDeletionAt");
-      return [workspaceName, scheduledDeletionAt].filter(Boolean).join(" - ");
+      return [businessName, scheduledDeletionAt].filter(Boolean).join(" - ");
     }
-    case "workspace.ownership_transferred": {
+    case "business.ownership_transferred": {
       const newOwnerName = getStringValue(metadata, "newOwnerName");
       const newOwnerEmail = getStringValue(metadata, "newOwnerEmail");
       return [newOwnerName ?? newOwnerEmail, "is the new owner"].filter(Boolean).join(" ");
@@ -130,11 +129,11 @@ export function formatAuditEventDetails(item: WorkspaceAuditLogItem) {
   }
 }
 
-export function formatAuditActionSummary(item: WorkspaceAuditLogItem) {
+export function formatAuditActionSummary(item: BusinessAuditLogItem) {
   return `${getAuditActionLabel(item.action)} - ${getAuditEntityLabel(item.entityType)}`;
 }
 
-export function formatAuditTimestamp(item: WorkspaceAuditLogItem) {
+export function formatAuditTimestamp(item: BusinessAuditLogItem) {
   return {
     absolute: formatDateTime(item.createdAt),
     relative: formatDistanceToNowStrict(item.createdAt, {

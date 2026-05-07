@@ -93,7 +93,7 @@ export async function completeOnboardingAction(
     console.error("Failed to complete onboarding.", error);
 
     return {
-      error: "We couldn't finish setting up your workspace right now.",
+      error: "We couldn't finish setting up your business right now.",
     };
   }
 
@@ -102,6 +102,6 @@ export async function completeOnboardingAction(
   }
 
   return {
-    error: "We couldn't finish setting up your workspace right now.",
+    error: "We couldn't finish setting up your business right now.",
   };
 }

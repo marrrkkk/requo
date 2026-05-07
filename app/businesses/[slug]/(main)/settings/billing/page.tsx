@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/shared/page-header";
 
 import { BillingStatusCard } from "@/features/billing/components/billing-status-card";
-import { getWorkspaceBillingOverview } from "@/features/billing/queries";
+import { getBusinessBillingOverview } from "@/features/billing/queries";
 import {
   getMonthlyInquiryCount,
   getMonthlyQuoteCount,
@@ -20,7 +20,7 @@ export default async function BillingSettingsPage() {
     requoQuoteEmailsThisMonth,
   ] =
     await Promise.all([
-      getWorkspaceBillingOverview(businessId),
+      getBusinessBillingOverview(businessId),
       getMonthlyInquiryCount(businessId),
       getMonthlyQuoteCount(businessId),
       getMonthlyRequoQuoteSendCount(businessId),
@@ -29,9 +29,9 @@ export default async function BillingSettingsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Workspace"
+        eyebrow="Business"
         title="Plan & billing"
-        description="Manage your workspace subscription, payment method, and billing details."
+        description="Manage your subscription, payment method, and billing details."
       />
 
       <div className="mx-auto w-full max-w-5xl">

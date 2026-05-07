@@ -7,7 +7,7 @@ import {
   getBusinessDashboardPath,
   getBusinessInquiriesPath,
 } from "@/features/businesses/routes";
-import { workspacesHubPath } from "@/features/businesses/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import { getCurrentBusinessRequestContext } from "@/lib/db/business-access";
 
 export default async function DashboardNotFound() {
@@ -15,10 +15,10 @@ export default async function DashboardNotFound() {
   const businessSlug = requestContext?.businessContext.business.slug;
   const inquiriesHref = businessSlug
     ? getBusinessInquiriesPath(businessSlug)
-    : workspacesHubPath;
+    : businessesHubPath;
   const overviewHref = businessSlug
     ? getBusinessDashboardPath(businessSlug)
-    : workspacesHubPath;
+    : businessesHubPath;
 
   return (
     <div className="flex min-h-[28rem] items-center justify-center">

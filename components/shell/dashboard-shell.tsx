@@ -160,11 +160,11 @@ import {
 
 } from "@/features/businesses/routes";
 
-import { useWorkspaceCheckout } from "@/features/billing/components/workspace-checkout-provider";
+import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 
 import {
 
-  workspacesHubPath,
+  businessesHubPath,
 
   getBusinessPath,
 
@@ -276,13 +276,13 @@ export function DashboardShell({
 
   const pathname = usePathname();
 
-  const workspaceCheckout = useWorkspaceCheckout();
+  const businessCheckout = useBusinessCheckout();
 
   const liveplan =
 
-    workspaceCheckout?.businessId === businessContext.business.id
+    businessCheckout?.businessId === businessContext.business.id
 
-      ? workspaceCheckout.currentPlan
+      ? businessCheckout.currentPlan
 
       : null;
 
@@ -1270,7 +1270,7 @@ function BusinessSwitcher({
 
           <Link
 
-            href={workspacesHubPath}
+            href={businessesHubPath}
 
             onClick={closeMobileSidebar}
 
@@ -1280,7 +1280,7 @@ function BusinessSwitcher({
 
             <PanelsTopLeft data-icon="inline-start" />
 
-            Manage workspaces
+            Manage businesses
 
           </Link>
 

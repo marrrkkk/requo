@@ -13,7 +13,6 @@ import type { PublicInquiryBusiness } from "@/features/inquiries/types";
 export const onboardingSessionStorageKey = "requo-onboarding-draft-v4";
 
 export type OnboardingDraft = {
-  workspaceName: string;
   businessName: string;
   businessType: BusinessType | "";
   starterTemplateBusinessType: StarterTemplateBusinessType | "";
@@ -26,7 +25,6 @@ export type OnboardingDraft = {
 
 export function createEmptyOnboardingDraft(): OnboardingDraft {
   return {
-    workspaceName: "",
     businessName: "",
     businessType: "",
     starterTemplateBusinessType: "",

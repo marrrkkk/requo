@@ -70,13 +70,7 @@ export async function getBusinessSettingsForBusiness(
       notifyOnQuoteExpiring: businesses.notifyOnQuoteExpiring,
       notifyInAppOnQuoteExpiring: businesses.notifyInAppOnQuoteExpiring,
       defaultCurrency: businesses.defaultCurrency,
-      activeWorkspaceBusinessCount: sql<number>`(
-        select count(*)::int
-        from ${businesses} as workspace_businesses
-        where workspace_businesses.workspace_id = ${businesses.id}
-          and workspace_businesses.archived_at is null
-          and workspace_businesses.deleted_at is null
-      )`,
+      activeBusinessCount: sql<number>`1`,
       updatedAt: businesses.updatedAt,
     })
     .from(businesses)

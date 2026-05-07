@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { CheckoutDialog } from "@/features/billing/components/checkout-dialog";
 import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
-import { useWorkspaceCheckout } from "@/features/billing/components/workspace-checkout-provider";
+import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 import { CreateBusinessForm } from "@/features/businesses/components/create-business-form";
 import type {
   BusinessQuotaSnapshot,
@@ -35,6 +35,7 @@ type CreateBusinessDialogProps = {
   isLocked?: boolean;
   businessQuota?: BusinessQuotaSnapshot;
   billingProps?: {
+    userId: string;
     businessId: string;
     businessSlug: string;
     currentPlan: plan;
@@ -50,20 +51,20 @@ export function CreateBusinessDialog({
   businessQuota,
   billingProps,
 }: CreateBusinessDialogProps) {
-  const workspaceCheckout = useWorkspaceCheckout();
+  const businessCheckout = useBusinessCheckout();
   const [open, setOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [planSheetOpen, setPlanSheetOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PaidPlan | null>(null);
   const [selectedInterval, setSelectedInterval] = useState<BillingInterval>("monthly");
   const useSharedCheckout = Boolean(
-    workspaceCheckout &&
+    businessCheckout &&
       billingProps &&
-      workspaceCheckout.businessId === billingProps.businessId,
+      businessCheckout.businessId === billingProps.businessId,
   );
   const effectiveCurrentPlan =
-    useSharedCheckout && workspaceCheckout
-      ? workspaceCheckout.currentPlan
+    useSharedCheckout && businessCheckout
+      ? businessCheckout.currentPlan
       : billingProps?.currentPlan;
   const quotaLocked = businessQuota ? !businessQuota.allowed : Boolean(isLocked);
   const lockedPlan =
@@ -77,10 +78,10 @@ export function CreateBusinessDialog({
       ? "unlimited businesses"
       : `${businessQuota?.limit ?? 1} total business${
           (businessQuota?.limit ?? 1) === 1 ? "" : "es"
-        } across all workspaces`;
+        } across all businesses`;
   const lockedDescription = businessQuota
-    ? `Your ${planMeta[lockedPlan].label} plan supports ${limitLabel}. Upgrade this workspace to add more.`
-    : "Upgrade this workspace to add more businesses.";
+    ? `Your ${planMeta[lockedPlan].label} plan supports ${limitLabel}. Upgrade this business to add more.`
+    : "Upgrade this business to add more businesses.";
   const upgradeFeatures =
     upgradePlan === "business"
       ? [
@@ -90,7 +91,7 @@ export function CreateBusinessDialog({
           "Priority support",
         ]
       : [
-          "Up to 10 total businesses across workspaces",
+          "Up to 10 total businesses across businesses",
           "Unlimited inquiry forms",
           "Custom branding and colors",
           "AI-powered quote drafting",
@@ -147,13 +148,13 @@ export function CreateBusinessDialog({
                     className="w-full sm:w-auto"
                     onClick={() => {
                       setOpen(false);
-                      if (useSharedCheckout && workspaceCheckout) {
-                        if (workspaceCheckout.pendingCheckout) {
-                          workspaceCheckout.continueCheckout();
+                      if (useSharedCheckout && businessCheckout) {
+                        if (businessCheckout.pendingCheckout) {
+                          businessCheckout.continueCheckout();
                           return;
                         }
 
-                        workspaceCheckout.openPlanSelection();
+                        businessCheckout.openPlanSelection();
                         return;
                       }
 
@@ -192,6 +193,7 @@ export function CreateBusinessDialog({
                 plan={selectedPlan}
                 interval={selectedInterval}
                 region={billingProps.region}
+                userId={billingProps.userId}
                 businessId={billingProps.businessId}
                 businessSlug={billingProps.businessSlug}
               />

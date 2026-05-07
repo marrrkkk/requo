@@ -8,7 +8,7 @@ const tourSteps: TourStep[] = [
     selector: '[data-tour="business-switcher"]',
     title: "Your business at a glance",
     description:
-      "This is your active business. Switch between businesses or manage your workspace from here.",
+      "This is your active business. Switch between businesses or manage settings from here.",
     side: "right",
   },
   {

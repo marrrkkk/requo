@@ -15,16 +15,16 @@ import {
 import {
   auditActionOptions,
   auditEntityOptions,
-  workspaceAuditPageSize,
+  businessAuditPageSize,
 } from "@/features/audit/constants";
 import type {
   AuditAction,
   AuditEntityType,
   AuditLogFilters,
-  WorkspaceAuditLogFilterOption,
-  WorkspaceAuditLogFiltersView,
-  WorkspaceAuditLogItem,
-  WorkspaceAuditLogPage,
+  BusinessAuditLogFilterOption,
+  BusinessAuditLogFiltersView,
+  BusinessAuditLogItem,
+  BusinessAuditLogPage,
 } from "@/features/audit/types";
 import { db } from "@/lib/db/client";
 import { auditLogs, businesses, businessMembers, user } from "@/lib/db/schema";
@@ -83,7 +83,7 @@ export async function getBusinessAuditLogPageBySlug(
   userId: string,
   businessSlug: string,
   filters: AuditLogFilters,
-): Promise<WorkspaceAuditLogPage | null> {
+): Promise<BusinessAuditLogPage | null> {
   const [membership] = await db
     .select({
       businessId: businesses.id,
@@ -111,7 +111,7 @@ export async function getBusinessAuditLogPageBySlug(
 
   const fromDate = filters.from ? getDayStart(filters.from) : null;
   const toDate = filters.to ? getDayEnd(filters.to) : null;
-  const offset = (filters.page - 1) * workspaceAuditPageSize;
+  const offset = (filters.page - 1) * businessAuditPageSize;
   const where = and(
     eq(auditLogs.businessId, membership.businessId),
     filters.actor ? eq(auditLogs.actorUserId, filters.actor) : undefined,
@@ -143,7 +143,7 @@ export async function getBusinessAuditLogPageBySlug(
       .leftJoin(businesses, eq(auditLogs.businessId, businesses.id))
       .where(where)
       .orderBy(desc(auditLogs.createdAt))
-      .limit(workspaceAuditPageSize)
+      .limit(businessAuditPageSize)
       .offset(offset),
     db
       .select({
@@ -154,24 +154,21 @@ export async function getBusinessAuditLogPageBySlug(
   ]);
 
   return {
-    items: items as WorkspaceAuditLogItem[],
+    items: items as BusinessAuditLogItem[],
     totalCount: Number(totalRows[0]?.value ?? 0),
     page: filters.page,
     pageCount: Math.max(
       1,
-      Math.ceil(Number(totalRows[0]?.value ?? 0) / workspaceAuditPageSize),
+      Math.ceil(Number(totalRows[0]?.value ?? 0) / businessAuditPageSize),
     ),
-    pageSize: workspaceAuditPageSize,
+    pageSize: businessAuditPageSize,
   };
 }
-
-/** @deprecated Use `getBusinessAuditLogPageBySlug` instead. */
-export const getWorkspaceAuditLogPageBySlug = getBusinessAuditLogPageBySlug;
 
 export async function getBusinessAuditLogFiltersBySlug(
   userId: string,
   businessSlug: string,
-): Promise<WorkspaceAuditLogFiltersView | null> {
+): Promise<BusinessAuditLogFiltersView | null> {
   const [membership] = await db
     .select({
       businessId: businesses.id,
@@ -221,7 +218,7 @@ export async function getBusinessAuditLogFiltersBySlug(
 
   return {
     actors: actorRows
-      .filter((row): row is WorkspaceAuditLogFilterOption => Boolean(row.value))
+      .filter((row): row is BusinessAuditLogFilterOption => Boolean(row.value))
       .map((row) => ({
         value: row.value!,
         label: row.label,
@@ -232,14 +229,12 @@ export async function getBusinessAuditLogFiltersBySlug(
   };
 }
 
-/** @deprecated Use `getBusinessAuditLogFiltersBySlug` instead. */
-export const getWorkspaceAuditLogFiltersBySlug = getBusinessAuditLogFiltersBySlug;
 
 export async function getBusinessAuditLogExportRowsBySlug(
   userId: string,
   businessSlug: string,
   filters: AuditLogFilters,
-): Promise<WorkspaceAuditLogItem[] | null> {
+): Promise<BusinessAuditLogItem[] | null> {
   const [membership] = await db
     .select({
       businessId: businesses.id,
@@ -293,8 +288,5 @@ export async function getBusinessAuditLogExportRowsBySlug(
     .where(where)
     .orderBy(desc(auditLogs.createdAt));
 
-  return rows as WorkspaceAuditLogItem[];
+  return rows as BusinessAuditLogItem[];
 }
-
-/** @deprecated Use `getBusinessAuditLogExportRowsBySlug` instead. */
-export const getWorkspaceAuditLogExportRowsBySlug = getBusinessAuditLogExportRowsBySlug;
