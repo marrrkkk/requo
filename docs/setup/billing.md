@@ -1,7 +1,6 @@
 # Billing Setup
 
-Requo billing is workspace-scoped. A workspace has one effective plan, and all
-businesses in that workspace inherit its entitlements and usage limits.
+Requo billing is business-scoped. A business has one effective plan.
 
 The app supports two providers:
 
@@ -24,11 +23,11 @@ Billing tables:
 
 | Table | Purpose |
 | --- | --- |
-| `workspace_subscriptions` | Authoritative subscription row for each workspace |
+| `business_subscriptions` | Authoritative subscription row for each business |
 | `billing_events` | Idempotent provider event log |
 | `payment_attempts` | Audit trail for checkout and webhook payment attempts |
 
-`workspaces.plan` is a denormalized read cache. Do not update it directly.
+`businesses.plan` is a denormalized read cache. Do not update it directly.
 Subscription writes must go through `lib/billing/subscription-service.ts`.
 
 ## Pricing
@@ -138,9 +137,9 @@ https://<your-ngrok-url>/api/billing/paddle/webhook
 - `transaction.completed`
 - `transaction.payment_failed`
 
-Paddle checkout creates transactions with `custom_data.workspace_id`,
+Paddle checkout creates transactions with `custom_data.business_id`,
 `custom_data.plan`, and `custom_data.interval`. Webhooks use that data to sync
-`workspace_subscriptions`.
+`business_subscriptions`.
 
 ## Local Testing Flow
 
@@ -181,12 +180,12 @@ dashboard delivery logs plus local server logs.
 ### Paddle subscription does not activate
 
 - Confirm price IDs match the selected plan and interval.
-- Confirm Paddle sends `custom_data.workspace_id` and `custom_data.plan`.
+- Confirm Paddle sends `custom_data.business_id` and `custom_data.plan`.
 - Verify `PADDLE_WEBHOOK_SECRET`.
-- Check `billing_events`, `payment_attempts`, and `workspace_subscriptions`.
+- Check `billing_events`, `payment_attempts`, and `business_subscriptions`.
 
-### Workspace plan is wrong
+### Business plan is wrong
 
-- Treat `workspace_subscriptions` as authoritative.
+- Treat `business_subscriptions` as authoritative.
 - Use `getEffectivePlan()` in `lib/billing/subscription-service.ts` to resolve access.
-- Do not patch `workspaces.plan` directly; fix the subscription row or replay the provider event.
+- Do not patch `businesses.plan` directly; fix the subscription row or replay the provider event.

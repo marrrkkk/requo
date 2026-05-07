@@ -143,7 +143,7 @@ Default demo values:
 - Demo expired quote token: `demoquote1005expiredtoken`
 - Demo voided quote token: `demoquote1006voidedtoken`
 
-The seed also adds two extra sample businesses, three inquiry forms per business, and several hundred inquiries and quotes while keeping the primary BrightSide demo workspace stable for local testing.
+The seed also adds two extra sample businesses, three inquiry forms per business, and several hundred inquiries and quotes while keeping the primary BrightSide demo business stable for local testing.
 
 The seed supports overriding these values through the `DEMO_*` env variables in `.env`.
 
@@ -193,7 +193,7 @@ Use one canonical route set in docs and tests:
   - Quote defaults: `/settings/quote`
   - Pricing library: `/settings/pricing`
   - Knowledge base: `/settings/knowledge`
-  - Billing: `/workspaces/<workspaceSlug>/settings/billing`
+  - Billing: `/businesses/<businessSlug>/settings/billing`
 
 ### Product Notes
 

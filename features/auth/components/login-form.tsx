@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 
 import { authClient } from "@/lib/auth/client";
 import { getAuthPathWithNext, getSafeAuthRedirectPath } from "@/lib/auth/redirects";
+import { businessesHubPath } from "@/features/businesses/routes";
 import {
   AuthEmailDivider,
   SocialAuthButtons,
@@ -40,9 +41,12 @@ export function LoginForm({
 }: LoginFormProps) {
   const searchParams = useSearchParams();
   const rawNext = searchParams.get("next");
-  const nextPath = getSafeAuthRedirectPath(rawNext, "/workspaces");
+  const nextPath = getSafeAuthRedirectPath(rawNext, businessesHubPath);
   // Only forward ?next when it's a genuine non-default redirect
-  const signupHref = getAuthPathWithNext("/signup", rawNext && nextPath !== "/workspaces" ? nextPath : null);
+  const signupHref = getAuthPathWithNext(
+    "/signup",
+    rawNext && nextPath !== businessesHubPath ? nextPath : null,
+  );
   const [state, setState] = useState<AuthFormState>({});
   const [loadingAction, setLoadingAction] = useState<"email" | SocialAuthProvider | null>(null);
   const [isPending, startTransition] = useTransition();

@@ -22,7 +22,7 @@ import { formatUsageLimitValue, getUsageLimit } from "@/lib/plans";
 
 const planHighlights: Record<plan, string[]> = {
   free: [
-    "1 total business across workspaces",
+    "1 total business",
     `${getUsageLimit("free", "inquiriesPerMonth")} inquiries per month`,
     `${getUsageLimit("free", "quotesPerMonth")} quotes per month`,
     "Public inquiry pages",
@@ -47,7 +47,7 @@ const planHighlights: Record<plan, string[]> = {
     "AI assistant & knowledge",
     "Saved replies, email templates & quote library",
     "Data exports & advanced branding",
-    "Up to 10 total businesses across workspaces",
+    "Up to 10 total businesses",
   ],
   business: [
     "Everything in Pro",

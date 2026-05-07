@@ -89,22 +89,22 @@ const termsSections: LegalDocumentSection[] = [
     ),
   },
   {
-    id: "workspaces",
-    title: "4. Business Workspaces, Multi-Business Access, And Invites",
+    id: "businesses",
+    title: "4. Businesses, Multi-Business Access, And Invites",
     content: (
       <>
         <LegalSectionHeading>
-          4. Business Workspaces, Multi-Business Access, And Invites
+          4. Businesses, Multi-Business Access, And Invites
         </LegalSectionHeading>
         <LegalParagraph>
-          Requo supports business workspaces, member invites, role-based access,
+          Requo supports businesses, member invites, role-based access,
           and multi-business switching. A user may belong to more than one
-          business workspace if invited or otherwise authorized.
+          business if invited or otherwise authorized.
         </LegalParagraph>
         <LegalParagraph>
-          If you create or administer a business workspace, you are responsible
+          If you create or administer a business, you are responsible
           for managing the people you invite, the permissions you grant, and the
-          content you or your team make available through that workspace.
+          content you or your team make available through that business.
         </LegalParagraph>
       </>
     ),
@@ -139,7 +139,7 @@ const termsSections: LegalDocumentSection[] = [
           items={[
             "Use the Service in violation of law, regulation, contractual restrictions, or the rights of others.",
             "Upload, submit, or transmit unlawful, infringing, abusive, fraudulent, defamatory, or harmful content.",
-            "Attempt to gain unauthorized access to the Service, another user's account, or another business workspace.",
+            "Attempt to gain unauthorized access to the Service, another user's account, or another business.",
             "Interfere with the operation, security, or integrity of the Service, including by introducing malware or abusive traffic.",
             "Use automated means to scrape, copy, or extract data from the Service except as expressly permitted by us.",
             "Use public inquiry pages or public quote links in a way that misrepresents identity, collects unrelated data, or circumvents the intended workflow of the Service.",
@@ -259,8 +259,8 @@ const termsSections: LegalDocumentSection[] = [
         <LegalSectionHeading>10. AI Features</LegalSectionHeading>
         <LegalParagraph>
           Requo includes AI-assisted drafting features intended for internal use
-          by authorized business workspace users. These features may send
-          prompts and related business workspace content through Groq, Gemini, or OpenRouter and,
+          by authorized business users. These features may send
+          prompts and related business content through Groq, Gemini, or OpenRouter and,
           depending on configuration, to the model provider used
           to generate drafts, summaries, and suggestions.
         </LegalParagraph>

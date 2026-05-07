@@ -156,7 +156,7 @@ export const faqItems = [
   {
     question: "Can my team work from the same inquiry and quote details?",
     answer:
-      "Yes, depending on your plan. Teams can work from the same workspace or business so everyone sees the same inquiries, quotes, statuses, and follow-ups.",
+      "Yes, depending on your plan. Teams can work from the same business so everyone sees the same inquiries, quotes, statuses, and follow-ups.",
   },
   {
     question: "Do I need to rebuild my whole process before using Requo?",

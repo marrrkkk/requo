@@ -19,7 +19,7 @@ const refundSections: LegalDocumentSection[] = [
           This Refund Policy explains the terms and conditions under which{" "}
           {legalConfig.companyName} (&quot;{legalConfig.companyName},&quot;
           &quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) provides refunds
-          for workspace subscriptions purchased through{" "}
+          for business subscriptions purchased through{" "}
           <a
             className="text-foreground underline-offset-4 hover:underline"
             href={legalConfig.domain}
@@ -30,7 +30,7 @@ const refundSections: LegalDocumentSection[] = [
         </LegalParagraph>
         <LegalParagraph>
           This policy applies to all subscription plans and payment methods
-          offered through the Service. By subscribing to a workspace plan, you
+          offered through the Service. By subscribing to a business plan, you
           agree to the terms outlined in this Refund Policy and our Terms of
           Service.
         </LegalParagraph>
@@ -45,7 +45,7 @@ const refundSections: LegalDocumentSection[] = [
         <LegalSectionHeading>2. Refund Eligibility</LegalSectionHeading>
         <LegalParagraph>
           {legalConfig.companyName} offers a 30-day money-back guarantee for
-          first-time subscribers to workspace plans.
+          first-time subscribers to business plans.
         </LegalParagraph>
         <LegalSubheading>Eligibility Requirements</LegalSubheading>
         <LegalList
@@ -83,7 +83,7 @@ const refundSections: LegalDocumentSection[] = [
         </LegalParagraph>
         <LegalList
           items={[
-            "Your workspace name or slug",
+            "Your business name or slug",
             "The email address associated with your account",
             "The date of your subscription payment",
             "A brief explanation of your reason for requesting a refund",
@@ -111,27 +111,27 @@ const refundSections: LegalDocumentSection[] = [
       <>
         <LegalSectionHeading>4. Subscription Cancellation</LegalSectionHeading>
         <LegalParagraph>
-          You may cancel your workspace subscription at any time through your
+          You may cancel your business subscription at any time through your
           account dashboard. Cancellation does not automatically result in a
           refund.
         </LegalParagraph>
         <LegalSubheading>Cancellation Process</LegalSubheading>
         <LegalList
           items={[
-            "Navigate to your workspace settings and select the billing or subscription section",
+            "Navigate to your business settings and select the billing or subscription section",
             "Follow the cancellation prompts to cancel your subscription",
             "You will receive a confirmation email once the cancellation is processed",
           ]}
         />
         <LegalSubheading>Access After Cancellation</LegalSubheading>
         <LegalParagraph>
-          When you cancel a subscription, your workspace will retain access to
+          When you cancel a subscription, your business will retain access to
           paid features until the end of the current billing period. No refunds
           are provided for the remaining time in the billing period after
           cancellation.
         </LegalParagraph>
         <LegalParagraph>
-          After the billing period expires, your workspace will revert to the
+          After the billing period expires, your business will revert to the
           free plan (if available) or lose access to paid features, depending on
           the plan structure at that time.
         </LegalParagraph>

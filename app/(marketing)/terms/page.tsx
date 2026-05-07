@@ -5,7 +5,7 @@ import { createPageMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createPageMetadata({
   description:
-    "Read the Requo Terms of Service covering public pages, workspaces, user content, AI-assisted features, and limits on liability.",
+    "Read the Requo Terms of Service covering public pages, businesses, user content, AI-assisted features, and limits on liability.",
   pathname: "/terms",
   title: "Terms of Service",
 });

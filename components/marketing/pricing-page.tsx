@@ -58,18 +58,18 @@ const pricingCategories: PricingFeatureCategory[] = [
     category: "Usage Limits",
     features: [
       {
-        label: "Businesses across workspaces",
+        label: "Businesses per plan",
         free: formatUsageLimitValue(
-          "businessesPerWorkspace",
-          getUsageLimit("free", "businessesPerWorkspace"),
+          "businessesPerPlan",
+          getUsageLimit("free", "businessesPerPlan"),
         ),
         pro: formatUsageLimitValue(
-          "businessesPerWorkspace",
-          getUsageLimit("pro", "businessesPerWorkspace"),
+          "businessesPerPlan",
+          getUsageLimit("pro", "businessesPerPlan"),
         ),
         business: formatUsageLimitValue(
-          "businessesPerWorkspace",
-          getUsageLimit("business", "businessesPerWorkspace"),
+          "businessesPerPlan",
+          getUsageLimit("business", "businessesPerPlan"),
         ),
       },
       {
@@ -108,7 +108,7 @@ const pricingCategories: PricingFeatureCategory[] = [
     ],
   },
   {
-    category: "Workspace & Team",
+    category: "Business & Team",
     features: [
       {
         label: planFeatureLabels.multiBusiness,

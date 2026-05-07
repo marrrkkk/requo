@@ -16,6 +16,7 @@ import { signupSchema } from "@/features/auth/schemas";
 import type { AuthFormState } from "@/features/auth/types";
 import { AuthFormFeedback } from "@/features/auth/components/auth-form-feedback";
 import { onboardingPath } from "@/features/onboarding/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import { FormActions } from "@/components/shared/form-layout";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -95,8 +96,8 @@ export function SignupForm({
     startTransition(async () => {
       const result = await authClient.signIn.social({
         provider,
-        // Existing users land on workspaces; brand-new users land on onboarding (nextPath default)
-        callbackURL: "/workspaces",
+        // Existing users land on businesses; brand-new users land on onboarding (nextPath default)
+        callbackURL: businessesHubPath,
         newUserCallbackURL: nextPath,
       });
 

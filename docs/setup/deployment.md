@@ -104,7 +104,7 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 
 ## Billing Checklist
 
-- Billing is workspace-scoped. `workspace_subscriptions` is authoritative and `workspaces.plan` is a read cache.
+- Billing is business-scoped. `business_subscriptions` is authoritative and `businesses.plan` is a read cache.
 - Configure PayMongo for QRPh/PHP checkout if serving Philippines payments:
   - `PAYMONGO_SECRET_KEY`
   - `PAYMONGO_PUBLIC_KEY`
