@@ -128,25 +128,6 @@ describe("features/analytics/queries", () => {
 
     await testDb.insert(businesses).values({
       id: businessId,
-      name: "Analytics Workspace",
-      slug: "analytics-workspace",
-      plan: "pro",
-      ownerUserId: userId,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await testDb.insert(businessMembers).values({
-      id: "test_analytics_workspace_member",
-      businessId,
-      userId,
-      role: "owner",
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await testDb.insert(businesses).values({
-      id: businessId,
       ownerUserId: userId,
       name: "Analytics Test Business",
       slug: "analytics-test-business",

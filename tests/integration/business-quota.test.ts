@@ -13,7 +13,7 @@ import {
   getBusinessQuotaForUser,
   getOwnedBusinessCountForUser,
 } from "@/features/businesses/quota";
-import { businesses, businessMembers, profiles, user } from "@/lib/db/schema";
+import { businesses, businessMembers, profiles, user, accountSubscriptions } from "@/lib/db/schema";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 import { closeTestDb, testDb } from "./db";
@@ -26,8 +26,8 @@ function slug(value: string) {
 }
 
 async function cleanup() {
-  await testDb.delete(businessMembers).where(like(businessMembers.businessId, `${prefix}%`));
-  await testDb.delete(businesses).where(like(businesses.id, `${prefix}%`));
+  await testDb.delete(businessMembers).where(like(businessMembers.userId, `${prefix}%`));
+  await testDb.delete(businesses).where(like(businesses.ownerUserId, `${prefix}%`));
   await testDb.delete(profiles).where(like(profiles.userId, `${prefix}%`));
   await testDb.delete(user).where(like(user.id, `${prefix}%`));
 }
@@ -174,11 +174,22 @@ describe("global business quota enforcement", () => {
     timezone: "America/New_York",
     
     
-    defaultCurrency: "USD",
+        defaultCurrency: "USD",
         createdAt: now,
         updatedAt: now,
       })),
     );
+
+    await testDb.insert(accountSubscriptions).values({
+      id: `${prefix}_sub`,
+      userId: ownerId,
+      status: "active",
+      plan: "business",
+      billingProvider: "paddle",
+      billingCurrency: "USD",
+      createdAt: now,
+      updatedAt: now,
+    });
 
     await expect(
       createBusinessForUser({ ...inputFor(ownerId, "Unlimited Business"), plan: "business" }),
@@ -189,6 +200,8 @@ describe("global business quota enforcement", () => {
     );
 
     await expect(getOwnedBusinessCountForUser(ownerId)).resolves.toBe(13);
+
+    await testDb.delete(accountSubscriptions).where(eq(accountSubscriptions.userId, ownerId));
   });
 
   it("serializes concurrent free business creation for the same owner", async () => {

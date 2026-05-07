@@ -11,7 +11,6 @@ function createDraft(
   overrides: Partial<OnboardingDraft> = {},
 ): OnboardingDraft {
   return {
-    workspaceName: "Northline Workspace",
     businessName: "Northline Studio",
     businessType: "web_it_services",
     starterTemplateBusinessType: "creative_marketing_services",

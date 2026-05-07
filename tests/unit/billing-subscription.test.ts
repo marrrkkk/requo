@@ -11,6 +11,7 @@ vi.mock('@/lib/db/schema/businesses', () => ({
   businesses: { id: 'id', plan: 'plan', updatedAt: 'updatedAt' },
 }));
 vi.mock('@/lib/db/schema/subscriptions', () => ({
+  accountSubscriptions: { userId: 'userId', id: 'id' },
   businessSubscriptions: { businessId: 'businessId', id: 'id' },
 }));
 
@@ -27,7 +28,7 @@ function mockSubscription(overrides: Partial<{
 }> = {}) {
   return {
     id: 'sub_test123',
-    businessId: 'ws_test123',
+    userId: 'user_test123',
     status: overrides.status ?? 'active',
     plan: overrides.plan ?? 'pro',
     billingProvider: 'paymongo' as const,

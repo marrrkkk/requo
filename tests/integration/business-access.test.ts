@@ -48,7 +48,7 @@ import {
   getBusinessContextForMembershipSlug,
 } from "@/lib/db/business-access";
 import { getBusinessContextForUser } from "@/lib/db/business-access";
-import { businessSubscriptions, businesses } from "@/lib/db/schema";
+import { accountSubscriptions, businesses } from "@/lib/db/schema";
 
 import { closeTestDb, testDb } from "./db";
 import {
@@ -60,7 +60,7 @@ import {
 const prefix = "test_workflow_access";
 let ids: WorkflowFixtureIds;
 
-describe("business and workspace access control", () => {
+describe("business access control", () => {
   beforeAll(async () => {
     ids = await createWorkflowFixture(prefix);
   }, 30_000);
@@ -177,15 +177,15 @@ describe("business and workspace access control", () => {
     }
   });
 
-  it("uses the authoritative subscription row when cached workspace plan lags", async () => {
+  it("uses the authoritative subscription row when cached business plan lags", async () => {
     await testDb
       .update(businesses)
       .set({ plan: "free", updatedAt: new Date() })
       .where(eq(businesses.id, ids.businessId));
 
-    await testDb.insert(businessSubscriptions).values({
+    await testDb.insert(accountSubscriptions).values({
       id: `${prefix}_subscription_active`,
-      businessId: ids.businessId,
+      userId: ids.ownerUserId,
       status: "active",
       plan: "business",
       billingProvider: "paddle",
@@ -197,16 +197,17 @@ describe("business and workspace access control", () => {
     });
 
     try {
-      const [businessContext, workspaceContext] = await Promise.all([
+      const [businessContext, secondaryBusinessContext] = await Promise.all([
         getBusinessContextForMembershipSlug(ids.ownerUserId, ids.businessSlug),
         getBusinessContextForUser(ids.ownerUserId, ids.businessId),
       ]);
 
       expect(businessContext?.business.plan).toBe("business");
+      expect(secondaryBusinessContext?.business.plan).toBe("business");
     } finally {
       await testDb
-        .delete(businessSubscriptions)
-        .where(eq(businessSubscriptions.businessId, ids.businessId));
+        .delete(accountSubscriptions)
+        .where(eq(accountSubscriptions.userId, ids.ownerUserId));
       await testDb
         .update(businesses)
         .set({ plan: "pro", updatedAt: new Date() })

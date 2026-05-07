@@ -39,6 +39,6 @@ describe("admin proxy guard", () => {
 
     const response = await proxy(new NextRequest("http://localhost/admin"));
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(404);
   });
 });

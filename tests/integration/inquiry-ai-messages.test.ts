@@ -99,46 +99,6 @@ describe("features/ai/messages", () => {
     await testDb.insert(businesses).values([
       {
         id: businessId,
-        name: "AI Messages Workspace",
-        slug: "ai-messages-workspace",
-        plan: "free",
-        ownerUserId,
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        id: otherBusinessId,
-        name: "AI Messages Other Workspace",
-        slug: "ai-messages-workspace-other",
-        plan: "free",
-        ownerUserId: otherUserId,
-        createdAt: now,
-        updatedAt: now,
-      },
-    ]);
-
-    await testDb.insert(businessMembers).values([
-      {
-        id: "test_ai_messages_workspace_member",
-        businessId,
-        userId: ownerUserId,
-        role: "owner",
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        id: "test_ai_messages_workspace_member_other",
-        businessId: otherBusinessId,
-        userId: otherUserId,
-        role: "owner",
-        createdAt: now,
-        updatedAt: now,
-      },
-    ]);
-
-    await testDb.insert(businesses).values([
-      {
-        id: businessId,
         ownerUserId,
         name: "AI Messages Business",
         slug: "ai-messages-business",

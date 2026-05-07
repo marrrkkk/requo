@@ -63,25 +63,6 @@ describe("features/follow-ups/mutations", () => {
 
     await testDb.insert(businesses).values({
       id: businessId,
-      name: "Follow Up Workspace",
-      slug: "follow-up-workspace",
-      plan: "free",
-      ownerUserId,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await testDb.insert(businessMembers).values({
-      id: "test_follow_up_workspace_member",
-      businessId,
-      userId: ownerUserId,
-      role: "owner",
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await testDb.insert(businesses).values({
-      id: businessId,
       ownerUserId,
       name: "Follow Up Business",
       slug: "follow-up-business",

@@ -4,13 +4,13 @@ import { hasFeatureAccess, getRequiredPlan } from "@/lib/plans/entitlements";
 import { getUpgradePlan, isBusinessPlan } from "@/lib/plans/plans";
 import { getUsageLimit, isUsageLimited } from "@/lib/plans/usage-limits";
 
-describe("workspace plan access", () => {
+describe("business plan access", () => {
   it("keeps owner-led free limits tight while preserving the upgrade path", () => {
     expect(isBusinessPlan("free")).toBe(true);
     expect(isBusinessPlan("enterprise")).toBe(false);
     expect(getUpgradePlan("free")).toBe("pro");
 
-    expect(getUsageLimit("free", "businessesPerWorkspace")).toBe(1);
+    expect(getUsageLimit("free", "businessesPerPlan")).toBe(1);
     expect(getUsageLimit("free", "inquiriesPerMonth")).toBe(100);
     expect(getUsageLimit("free", "quotesPerMonth")).toBe(50);
     expect(getUsageLimit("free", "requoQuoteEmailsPerDay")).toBe(3);
@@ -27,7 +27,7 @@ describe("workspace plan access", () => {
   it("unlocks core operator features on pro without enabling team roles", () => {
     expect(isUsageLimited("pro", "quotesPerMonth")).toBe(false);
     expect(isUsageLimited("pro", "requoQuoteEmailsPerDay")).toBe(false);
-    expect(getUsageLimit("pro", "businessesPerWorkspace")).toBe(10);
+    expect(getUsageLimit("pro", "businessesPerPlan")).toBe(10);
     expect(getUsageLimit("pro", "customFieldsPerForm")).toBe(12);
     expect(getUsageLimit("pro", "publicInquiryAttachmentMaxBytes")).toBe(
       25 * 1024 * 1024,
@@ -42,11 +42,11 @@ describe("workspace plan access", () => {
     expect(getRequiredPlan("members")).toBe("business");
   });
 
-  it("reserves workspace member collaboration for the business plan", () => {
+  it("reserves member collaboration for the business plan", () => {
     expect(getUpgradePlan("business")).toBeNull();
     expect(hasFeatureAccess("business", "members")).toBe(true);
-    expect(getUsageLimit("business", "businessesPerWorkspace")).toBeNull();
-    expect(getUsageLimit("business", "membersPerWorkspace")).toBe(25);
+    expect(getUsageLimit("business", "businessesPerPlan")).toBeNull();
+    expect(getUsageLimit("business", "membersPerBusiness")).toBe(25);
     expect(getUsageLimit("business", "customFieldsPerForm")).toBe(24);
     expect(getUsageLimit("business", "publicInquiryAttachmentMaxBytes")).toBe(
       50 * 1024 * 1024,

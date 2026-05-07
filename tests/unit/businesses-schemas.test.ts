@@ -8,7 +8,7 @@ describe('features/businesses/schemas', () => {
         name: 'My Cool Business',
         businessType: 'print_signage',
         defaultCurrency: 'usd',
-        businessId: 'workspace_1'
+        businessId: 'business_1'
       };
 
       const result = createBusinessSchema.safeParse(payload);
@@ -20,7 +20,7 @@ describe('features/businesses/schemas', () => {
         name: 'a',
         businessType: 'print_signage',
         defaultCurrency: 'USD',
-        businessId: 'workspace_1'
+        businessId: 'business_1'
       };
 
       const result = createBusinessSchema.safeParse(payload);
@@ -35,7 +35,7 @@ describe('features/businesses/schemas', () => {
         name: 'My Cool Business',
         businessType: 'print_signage',
         defaultCurrency: 'XYZ',
-        businessId: 'workspace_1'
+        businessId: 'business_1'
       };
 
       const result = createBusinessSchema.safeParse(payload);
@@ -50,7 +50,7 @@ describe('features/businesses/schemas', () => {
         name: 'My Cool Business',
         businessType: 'print_signage',
         defaultCurrency: 'php',
-        businessId: 'workspace_1'
+        businessId: 'business_1'
       };
 
       const result = createBusinessSchema.safeParse(payload);

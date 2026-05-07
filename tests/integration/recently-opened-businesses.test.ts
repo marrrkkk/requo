@@ -53,7 +53,7 @@ import {
   recordRecentlyOpenedBusiness,
 } from "@/features/businesses/recently-opened";
 import { userRecentBusinesses } from "@/lib/db/schema";
-import { workspacesHubPath } from "@/features/businesses/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 
 import { closeTestDb, testDb } from "./db";
 import {
@@ -142,7 +142,7 @@ describe("recently opened businesses", () => {
     expect(recents.map((business) => business.slug)).toEqual([
       ids.businessSlug,
     ]);
-    expect(revalidatePathMock).toHaveBeenCalledWith(workspacesHubPath);
+    expect(revalidatePathMock).toHaveBeenCalledWith(businessesHubPath);
 
     const rows = await testDb
       .select({

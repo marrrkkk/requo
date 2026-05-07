@@ -58,7 +58,7 @@ describe('features/inquiries/actions', () => {
     await testDb.delete(businessMembers).where(eq(businessMembers.id, 'test_bm_1'));
     await testDb.delete(businesses).where(eq(businesses.id, 'test_biz_w2'));
     await testDb.delete(businessMembers).where(eq(businessMembers.id, 'test_wm_2'));
-    await testDb.delete(businesses).where(eq(businesses.id, 'test_workspace_2'));
+    await testDb.delete(businesses).where(eq(businesses.id, 'test_business_2'));
     await testDb.delete(user).where(eq(user.id, 'test_user_w2'));
     await testDb.insert(user).values({
       id: 'test_user_w2',
@@ -70,9 +70,9 @@ describe('features/inquiries/actions', () => {
     });
 
     await testDb.insert(businesses).values({
-      id: 'test_workspace_2',
+      id: 'test_business_2',
       name: 'Action Workspace',
-      slug: 'action-workspace',
+      slug: 'action-business',
       plan: 'free',
       ownerUserId: 'test_user_w2',
       createdAt: new Date(),
@@ -81,7 +81,7 @@ describe('features/inquiries/actions', () => {
 
     await testDb.insert(businessMembers).values({
       id: 'test_wm_2',
-      businessId: 'test_workspace_2',
+      businessId: 'test_business_2',
       
       userId: 'test_user_w2',
       role: 'owner',
@@ -138,7 +138,7 @@ describe('features/inquiries/actions', () => {
     await testDb.delete(businessMembers).where(eq(businessMembers.id, 'test_bm_1'));
     await testDb.delete(businesses).where(eq(businesses.id, 'test_biz_w2'));
     await testDb.delete(businessMembers).where(eq(businessMembers.id, 'test_wm_2'));
-    await testDb.delete(businesses).where(eq(businesses.id, 'test_workspace_2'));
+    await testDb.delete(businesses).where(eq(businesses.id, 'test_business_2'));
     await testDb.delete(user).where(eq(user.id, 'test_user_w2'));
     await closeTestDb();
   });

@@ -201,8 +201,8 @@ describe("features/inquiries public and manual submissions", () => {
   it("keeps inquiry notes scoped to the owning business", async () => {
     const wrongBusinessNote = await addInquiryNoteForBusiness({
       inquiryId: ids.inquiryId,
-      businessId: ids.businessId,
-      authorUserId: ids.ownerUserId,
+      businessId: ids.otherBusinessId,
+      authorUserId: ids.outsiderUserId,
       body: "This should not attach across businesses.",
     });
 

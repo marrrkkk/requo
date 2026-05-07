@@ -34,9 +34,10 @@ function renderCheckoutDialog(
       open
       plan="pro"
       region="PH"
-      businessId="workspace_123"
-      workspaceName="Demo Workspace"
-      businessSlug="demo-workspace"
+      userId="user_123"
+      businessId="business_123"
+      businessName="Demo Workspace"
+      businessSlug="demo-business"
       {...props}
     />,
   );

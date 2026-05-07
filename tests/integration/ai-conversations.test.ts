@@ -83,25 +83,6 @@ describe("features/ai/conversations", () => {
       updatedAt: now,
     });
 
-    await testDb.insert(businesses).values({
-      id: businessId,
-      name: "AI Conversations Workspace",
-      slug: "ai-conversations-workspace",
-      plan: "free",
-      ownerUserId: userId,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await testDb.insert(businessMembers).values({
-      id: "test_ai_conversations_workspace_member",
-      businessId,
-      userId,
-      role: "owner",
-      createdAt: now,
-      updatedAt: now,
-    });
-
     await testDb.insert(businesses).values([
       {
         id: businessId,

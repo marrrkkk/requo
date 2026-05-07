@@ -9,10 +9,10 @@ const {
   recordPaymentAttemptMock,
   updatePaymentAttemptStatusMock,
   activateSubscriptionMock,
-  getBusinessSubscriptionMock,
+  getAccountSubscriptionMock,
   updateSubscriptionStatusMock,
   expireSubscriptionMock,
-  finalizeScheduledWorkspaceDeletionIfDueMock,
+  finalizeScheduledBusinessDeletionIfDueMock,
   dbSelectOrderByMock,
   dbSelectWhereMock,
   dbSelectFromMock,
@@ -30,10 +30,10 @@ const {
   recordPaymentAttemptMock: vi.fn(),
   updatePaymentAttemptStatusMock: vi.fn(),
   activateSubscriptionMock: vi.fn(),
-  getBusinessSubscriptionMock: vi.fn(),
+  getAccountSubscriptionMock: vi.fn(),
   updateSubscriptionStatusMock: vi.fn(),
   expireSubscriptionMock: vi.fn(),
-  finalizeScheduledWorkspaceDeletionIfDueMock: vi.fn(),
+  finalizeScheduledBusinessDeletionIfDueMock: vi.fn(),
   dbSelectOrderByMock: vi.fn(),
   dbSelectWhereMock: vi.fn(),
   dbSelectFromMock: vi.fn(),
@@ -63,13 +63,13 @@ vi.mock("@/lib/billing/webhook-processor", () => ({
 vi.mock("@/lib/billing/subscription-service", () => ({
   activateSubscription: activateSubscriptionMock,
   expireSubscription: expireSubscriptionMock,
-  getBusinessSubscription: getBusinessSubscriptionMock,
+  getAccountSubscription: getAccountSubscriptionMock,
   updateSubscriptionStatus: updateSubscriptionStatusMock,
 }));
 
 vi.mock("@/features/businesses/mutations", () => ({
-  finalizeScheduledWorkspaceDeletionIfDue:
-    finalizeScheduledWorkspaceDeletionIfDueMock,
+  finalizeScheduledBusinessDeletionIfDue:
+    finalizeScheduledBusinessDeletionIfDueMock,
 }));
 
 vi.mock("@/lib/db/client", () => ({
@@ -105,8 +105,8 @@ describe("billing webhook routes", () => {
     verifyPaddleWebhookSignatureMock.mockReturnValue(true);
     verifyPayMongoWebhookSignatureMock.mockReturnValue(true);
     mapPaddleStatusMock.mockReturnValue("active");
-    getBusinessSubscriptionMock.mockResolvedValue(null);
-    finalizeScheduledWorkspaceDeletionIfDueMock.mockResolvedValue({
+    getAccountSubscriptionMock.mockResolvedValue(null);
+    finalizeScheduledBusinessDeletionIfDueMock.mockResolvedValue({
       deleted: false,
     });
     recordWebhookEventMock.mockResolvedValue({
@@ -116,6 +116,7 @@ describe("billing webhook routes", () => {
     updatePaymentAttemptStatusMock.mockResolvedValue(true);
     dbSelectWhereMock.mockReturnValue({
       orderBy: dbSelectOrderByMock,
+      limit: dbSelectLimitMock,
     });
     dbSelectOrderByMock.mockReturnValue({
       limit: dbSelectLimitMock,
@@ -126,7 +127,7 @@ describe("billing webhook routes", () => {
     dbSelectMock.mockReturnValue({
       from: dbSelectFromMock,
     });
-    dbSelectLimitMock.mockResolvedValue([]);
+    dbSelectLimitMock.mockResolvedValue([{ ownerUserId: "user_123" }]);
     dbUpdateSetMock.mockReturnValue({
       where: dbUpdateWhereMock,
     });
@@ -169,7 +170,7 @@ describe("billing webhook routes", () => {
             status: "active",
             customer_id: "cus_123",
             custom_data: {
-              workspace_id: "workspace_123",
+              business_id: "business_123",
               plan: "pro",
             },
             current_billing_period: {
@@ -192,7 +193,8 @@ describe("billing webhook routes", () => {
       provider: "paddle",
       eventType: "subscription.created",
       payload: expect.any(Object),
-      businessId: "workspace_123",
+      businessId: "business_123",
+      userId: "user_123",
     });
     expect(activateSubscriptionMock).toHaveBeenCalledWith({
       currency: "USD",
@@ -203,7 +205,7 @@ describe("billing webhook routes", () => {
       providerCustomerId: "cus_123",
       providerSubscriptionId: "sub_123",
       status: "active",
-      businessId: "workspace_123",
+      userId: "user_123",
     });
     expect(markEventProcessedMock).toHaveBeenCalledWith("stored_evt_123");
   });
@@ -250,7 +252,7 @@ describe("billing webhook routes", () => {
             id: "txn_123",
             currency_code: "USD",
             custom_data: {
-              workspace_id: "workspace_123",
+              business_id: "business_123",
               plan: "pro",
             },
             details: {
@@ -285,7 +287,7 @@ describe("billing webhook routes", () => {
           data: {
             id: "txn_123",
             custom_data: {
-              workspace_id: "workspace_123",
+              business_id: "business_123",
               plan: "pro",
             },
           },
@@ -309,7 +311,8 @@ describe("billing webhook routes", () => {
     dbSelectLimitMock.mockResolvedValueOnce([
       {
         plan: "pro",
-        businessId: "workspace_123",
+        businessId: "business_123",
+        ownerUserId: "user_123",
       },
     ]);
 
@@ -348,7 +351,7 @@ describe("billing webhook routes", () => {
         plan: "pro",
         provider: "paymongo",
         providerCheckoutId: "pay_123",
-        businessId: "workspace_123",
+        userId: "user_123",
       }),
     );
   });
@@ -360,7 +363,9 @@ describe("billing webhook routes", () => {
       {
         amount: 299000,
         plan: "pro",
-        businessId: "workspace_123",
+        businessId: "business_123",
+        userId: "user_123",
+        ownerUserId: "user_123",
       },
     ]);
 
@@ -397,7 +402,7 @@ describe("billing webhook routes", () => {
         plan: "pro",
         provider: "paymongo",
         providerCheckoutId: "pay_yearly",
-        businessId: "workspace_123",
+        userId: "user_123",
       }),
     );
   });
@@ -406,10 +411,11 @@ describe("billing webhook routes", () => {
     dbSelectLimitMock.mockResolvedValueOnce([
       {
         plan: "pro",
-        businessId: "workspace_123",
+        businessId: "business_123",
+        ownerUserId: "user_123",
       },
     ]);
-    getBusinessSubscriptionMock.mockResolvedValue({
+    getAccountSubscriptionMock.mockResolvedValue({
       status: "pending",
     });
 
@@ -443,7 +449,7 @@ describe("billing webhook routes", () => {
       "expired",
     );
     expect(updateSubscriptionStatusMock).toHaveBeenCalledWith(
-      "workspace_123",
+      "user_123",
       "expired",
     );
   });

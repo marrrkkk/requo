@@ -7,7 +7,7 @@ const {
   dbSelectLimitMock,
   dbSelectMock,
   dbSelectWhereMock,
-  getBusinessSubscriptionMock,
+  getAccountSubscriptionMock,
   headersMock,
   resolveEffectivePlanFromSubscriptionMock,
 } = vi.hoisted(() => ({
@@ -17,7 +17,7 @@ const {
   dbSelectLimitMock: vi.fn(),
   dbSelectMock: vi.fn(),
   dbSelectWhereMock: vi.fn(),
-  getBusinessSubscriptionMock: vi.fn(),
+  getAccountSubscriptionMock: vi.fn(),
   headersMock: vi.fn(),
   resolveEffectivePlanFromSubscriptionMock: vi.fn(),
 }));
@@ -61,11 +61,11 @@ vi.mock("@/lib/db/schema/subscriptions", () => ({
 }));
 
 vi.mock("@/lib/billing/subscription-service", () => ({
-  getBusinessSubscription: getBusinessSubscriptionMock,
+  getAccountSubscription: getAccountSubscriptionMock,
   resolveEffectivePlanFromSubscription: resolveEffectivePlanFromSubscriptionMock,
 }));
 
-import { getWorkspaceBillingOverview } from "@/features/billing/queries";
+import { getBusinessBillingOverview } from "@/features/billing/queries";
 
 function mockSubscription(overrides: { plan?: string; status?: string } = {}) {
   return {
@@ -95,7 +95,8 @@ describe("features/billing/queries", () => {
     });
     dbSelectLimitMock.mockResolvedValue([
       {
-        id: "workspace_123",
+        id: "business_123",
+        ownerUserId: "user_123",
         name: "Acme Services",
         plan: "free",
         slug: "acme-services",
@@ -107,7 +108,7 @@ describe("features/billing/queries", () => {
         "x-vercel-ip-country": "US",
       }),
     );
-    getBusinessSubscriptionMock.mockResolvedValue(null);
+    getAccountSubscriptionMock.mockResolvedValue(null);
     resolveEffectivePlanFromSubscriptionMock.mockImplementation(
       (subscription: { plan: string; status: string }) =>
         subscription.status === "active" || subscription.status === "past_due"
@@ -117,11 +118,11 @@ describe("features/billing/queries", () => {
   });
 
   it("derives the current plan from the authoritative subscription row", async () => {
-    getBusinessSubscriptionMock.mockResolvedValue(
+    getAccountSubscriptionMock.mockResolvedValue(
       mockSubscription({ plan: "pro", status: "active" }),
     );
 
-    const overview = await getWorkspaceBillingOverview("workspace_123");
+    const overview = await getBusinessBillingOverview("business_123");
 
     expect(overview).toMatchObject({
       currentPlan: "pro",
@@ -133,8 +134,9 @@ describe("features/billing/queries", () => {
         provider: "paddle",
         status: "active",
       },
-      businessId: "workspace_123",
-      workspaceName: "Acme Services",
+      userId: "user_123",
+      businessId: "business_123",
+      businessName: "Acme Services",
       businessSlug: "acme-services",
     });
     expect(resolveEffectivePlanFromSubscriptionMock).toHaveBeenCalledWith(
@@ -145,13 +147,14 @@ describe("features/billing/queries", () => {
     );
   });
 
-  it("falls back to the workspace plan when no subscription row exists", async () => {
-    const overview = await getWorkspaceBillingOverview("workspace_123");
+  it("falls back to the business plan when no subscription row exists", async () => {
+    const overview = await getBusinessBillingOverview("business_123");
 
     expect(overview).toMatchObject({
       currentPlan: "free",
       subscription: null,
-      businessId: "workspace_123",
+      userId: "user_123",
+      businessId: "business_123",
     });
     expect(resolveEffectivePlanFromSubscriptionMock).not.toHaveBeenCalled();
   });

@@ -165,8 +165,8 @@ describe("features/quotes/mutations workflow", () => {
 
     const wrongBusinessSend = await markQuoteSentForBusiness({
       quoteId: created!.id,
-      businessId: ids.businessId,
-      actorUserId: ids.ownerUserId,
+      businessId: ids.otherBusinessId,
+      actorUserId: ids.outsiderUserId,
       sendMethod: "manual",
     });
 
