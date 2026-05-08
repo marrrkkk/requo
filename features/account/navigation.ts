@@ -1,9 +1,10 @@
 import {
   getAccountProfilePath,
   getAccountSecurityPath,
+  getAccountBillingPath,
 } from "@/features/account/routes";
 
-export type AccountSettingsNavigationIcon = "profile" | "security";
+export type AccountSettingsNavigationIcon = "profile" | "security" | "billing";
 
 export type AccountSettingsNavigationItem = {
   href: string;
@@ -30,6 +31,11 @@ export function getAccountSettingsNavigation(): AccountSettingsNavigationGroup[]
           href: getAccountSecurityPath(),
           label: "Security",
           icon: "security",
+        },
+        {
+          href: getAccountBillingPath(),
+          label: "Billing",
+          icon: "billing",
         },
       ],
     },

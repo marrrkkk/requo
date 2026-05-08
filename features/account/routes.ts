@@ -1,6 +1,6 @@
 export const accountPath = "/account";
 
-export type AccountSettingsSection = "profile" | "security";
+export type AccountSettingsSection = "profile" | "security" | "billing";
 
 export function getAccountSettingsPath(section?: AccountSettingsSection) {
   return section ? `${accountPath}/${section}` : accountPath;
@@ -12,6 +12,10 @@ export function getAccountProfilePath() {
 
 export function getAccountSecurityPath() {
   return getAccountSettingsPath("security");
+}
+
+export function getAccountBillingPath() {
+  return getAccountSettingsPath("billing");
 }
 
 /**
