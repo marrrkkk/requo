@@ -135,6 +135,7 @@ export async function createBusinessAction(
     name: formData.get("name"),
     businessType: formData.get("businessType"),
     defaultCurrency: formData.get("defaultCurrency"),
+    businessId: formData.get("businessId"),
   });
 
   if (!validationResult.success) {
@@ -146,7 +147,6 @@ export async function createBusinessAction(
 
   const businessAllowance = await getBusinessQuotaForUser({
     ownerUserId: user.id,
-    plan: "free" as plan,
   });
 
   if (!businessAllowance.allowed) {
@@ -160,11 +160,12 @@ export async function createBusinessAction(
   try {
     const business = await createBusinessForUser({
       user,
-      businessId: `biz_${crypto.randomUUID().replace(/-/g, "")}`,
+      businessId: validationResult.data.businessId.startsWith("biz_")
+        ? validationResult.data.businessId
+        : `biz_${validationResult.data.businessId.replace(/-/g, "")}`,
       defaultCurrency: validationResult.data.defaultCurrency,
       name: validationResult.data.name,
       businessType: validationResult.data.businessType,
-      plan: "free" as plan,
     });
 
     dashboardPath = getBusinessDashboardPath(business.slug);

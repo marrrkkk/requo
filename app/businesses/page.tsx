@@ -47,7 +47,6 @@ export default async function BusinessesPage() {
     getRecentlyOpenedBusinessesForUser(session.user.id),
     getBusinessQuotaForUser({
       ownerUserId: session.user.id,
-      plan: "free",
     }),
   ]);
 
@@ -149,13 +148,32 @@ export default async function BusinessesPage() {
                     </Card>
                   );
                 })}
-              </div>
 
-              <div className="pt-4">
                 <CreateBusinessDialog
                   action={createBusinessAction}
                   businessId={crypto.randomUUID()}
                   businessQuota={businessQuota}
+                  trigger={
+                    <Card
+                      role="button"
+                      className="group flex flex-col border-dashed border-border/80 bg-transparent transition-colors hover:border-border hover:bg-card/50 cursor-pointer"
+                    >
+                      <CardHeader className="gap-4">
+                        <div className="flex items-center gap-3 text-muted-foreground group-hover:text-foreground transition-colors">
+                          <PlusCircle className="size-5" />
+                          <CardTitle className="text-lg">New business</CardTitle>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="flex flex-1 flex-col justify-end space-y-5">
+                        <CardDescription className="max-w-full">
+                          Set up a new business with inquiry capture, quote defaults, and follow-up basics.
+                        </CardDescription>
+                        <Button className="w-full sm:w-auto" variant="secondary">
+                          Create business
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  }
                 />
               </div>
             </section>

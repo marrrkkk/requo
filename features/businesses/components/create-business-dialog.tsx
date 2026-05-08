@@ -32,6 +32,7 @@ type CreateBusinessDialogProps = {
     formData: FormData,
   ) => Promise<CreateBusinessActionState>;
   businessId: string;
+  trigger?: React.ReactNode;
   isLocked?: boolean;
   businessQuota?: BusinessQuotaSnapshot;
   billingProps?: {
@@ -47,6 +48,7 @@ type CreateBusinessDialogProps = {
 export function CreateBusinessDialog({
   action,
   businessId,
+  trigger,
   isLocked,
   businessQuota,
   billingProps,
@@ -97,13 +99,20 @@ export function CreateBusinessDialog({
           "AI-powered quote drafting",
         ];
 
+  const defaultTrigger = (
+    <Button>
+      <PlusCircle data-icon="inline-start" />
+      Create business
+    </Button>
+  );
+
   if (quotaLocked) {
     return (
       <>
-        <Button onClick={() => setOpen(true)}>
-          <PlusCircle data-icon="inline-start" />
-          Create business
-        </Button>
+        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+        <div onClick={() => setOpen(true)}>
+          {trigger ?? defaultTrigger}
+        </div>
 
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent className="sm:max-w-md">
@@ -207,10 +216,7 @@ export function CreateBusinessDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <PlusCircle data-icon="inline-start" />
-          Create business
-        </Button>
+        {trigger ?? defaultTrigger}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[32rem]">
         <DialogHeader>
