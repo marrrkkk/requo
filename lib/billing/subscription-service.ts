@@ -150,6 +150,7 @@ type ActivateSubscriptionParams = {
   providerCustomerId?: string | null;
   providerSubscriptionId?: string | null;
   providerCheckoutId?: string | null;
+  paymentMethod?: string | null;
   currentPeriodStart?: Date | null;
   currentPeriodEnd?: Date | null;
 };
@@ -179,6 +180,7 @@ export async function activateSubscription(
           params.providerSubscriptionId ?? existing.providerSubscriptionId,
         providerCheckoutId:
           params.providerCheckoutId ?? existing.providerCheckoutId,
+        paymentMethod: params.paymentMethod ?? existing.paymentMethod,
         currentPeriodStart: params.currentPeriodStart ?? now,
         currentPeriodEnd: params.currentPeriodEnd ?? null,
         canceledAt: null,
@@ -201,6 +203,7 @@ export async function activateSubscription(
         providerCustomerId: params.providerCustomerId ?? null,
         providerSubscriptionId: params.providerSubscriptionId ?? null,
         providerCheckoutId: params.providerCheckoutId ?? null,
+        paymentMethod: params.paymentMethod ?? null,
         currentPeriodStart: params.currentPeriodStart ?? now,
         currentPeriodEnd: params.currentPeriodEnd ?? null,
         createdAt: now,
@@ -216,6 +219,7 @@ export async function activateSubscription(
           providerCustomerId: params.providerCustomerId ?? null,
           providerSubscriptionId: params.providerSubscriptionId ?? null,
           providerCheckoutId: params.providerCheckoutId ?? null,
+          paymentMethod: params.paymentMethod ?? null,
           currentPeriodStart: params.currentPeriodStart ?? now,
           currentPeriodEnd: params.currentPeriodEnd ?? null,
           canceledAt: null,
@@ -256,6 +260,7 @@ export async function updateSubscriptionStatus(
   updates?: {
     providerSubscriptionId?: string | null;
     providerCustomerId?: string | null;
+    paymentMethod?: string | null;
     currentPeriodStart?: Date | null;
     currentPeriodEnd?: Date | null;
     canceledAt?: Date | null;
@@ -275,6 +280,7 @@ export async function updateSubscriptionStatus(
         updates?.providerSubscriptionId ?? existing.providerSubscriptionId,
       providerCustomerId:
         updates?.providerCustomerId ?? existing.providerCustomerId,
+      paymentMethod: updates?.paymentMethod ?? existing.paymentMethod,
       currentPeriodStart:
         updates?.currentPeriodStart ?? existing.currentPeriodStart,
       currentPeriodEnd:
@@ -290,6 +296,31 @@ export async function updateSubscriptionStatus(
   await syncOwnerBusinessPlans(userId, effectivePlan);
 
   return updated!;
+}
+
+/**
+ * Updates a subscription's payment method (e.g. from a transaction).
+ */
+export async function updateSubscriptionPaymentMethod(
+  userId: string,
+  paymentMethod: string,
+): Promise<boolean> {
+  const existing = await getAccountSubscription(userId);
+
+  if (!existing) {
+    return false;
+  }
+
+  const [updated] = await db
+    .update(accountSubscriptions)
+    .set({
+      paymentMethod,
+      updatedAt: new Date(),
+    })
+    .where(eq(accountSubscriptions.id, existing.id))
+    .returning({ id: accountSubscriptions.id });
+
+  return !!updated;
 }
 
 /**

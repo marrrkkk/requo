@@ -15,6 +15,7 @@ import {
   getAccountSubscription,
   expireSubscription,
   updateSubscriptionStatus,
+  updateSubscriptionPaymentMethod,
 } from "@/lib/billing/subscription-service";
 import { writeSubscriptionTransitionAuditLogs } from "@/features/audit/subscription";
 
@@ -301,6 +302,28 @@ export async function POST(request: Request) {
             businessId,
           });
         }
+
+        // Extract and update payment method
+        const payments = data?.payments as Array<Record<string, unknown>> | undefined;
+        let paymentMethod: string | null = null;
+        if (payments && payments.length > 0) {
+          const methodDetails = payments[0].method_details as Record<string, unknown> | undefined;
+          if (methodDetails) {
+            const type = methodDetails.type as string | undefined;
+            if (type === "card") {
+              const card = methodDetails.card as Record<string, string> | undefined;
+              paymentMethod = card?.type ?? "card";
+            } else {
+              paymentMethod = type ?? null;
+            }
+          }
+        }
+
+        const txnSubscriptionId = data?.subscription_id as string | undefined;
+        if (txnSubscriptionId && paymentMethod) {
+          await updateSubscriptionPaymentMethod(userId, paymentMethod);
+        }
+
         break;
       }
 

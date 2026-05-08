@@ -36,6 +36,7 @@ function mockSubscription(overrides: Partial<{
     providerCustomerId: null,
     providerSubscriptionId: null,
     providerCheckoutId: null,
+    paymentMethod: null,
     currentPeriodStart: new Date('2026-01-01'),
     currentPeriodEnd: overrides.currentPeriodEnd ?? new Date('2026-02-01'),
     canceledAt: overrides.canceledAt ?? null,

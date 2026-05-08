@@ -76,6 +76,7 @@ export const accountSubscriptions = pgTable(
     providerCustomerId: text("provider_customer_id"),
     providerSubscriptionId: text("provider_subscription_id"),
     providerCheckoutId: text("provider_checkout_id"),
+    paymentMethod: text("payment_method"),
     currentPeriodStart: timestamp("current_period_start", {
       withTimezone: true,
     }),

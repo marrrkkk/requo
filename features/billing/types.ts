@@ -22,6 +22,7 @@ export type AccountBillingOverview = {
     plan: string;
     provider: BillingProvider;
     currency: BillingCurrency;
+    paymentMethod?: string | null;
     currentPeriodStart: Date | null;
     currentPeriodEnd: Date | null;
     canceledAt: Date | null;
