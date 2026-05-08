@@ -1,6 +1,6 @@
 import "server-only";
 
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, and, inArray } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { headers } from "next/headers";
 
@@ -83,6 +83,7 @@ export async function getAccountBillingOverview(
             plan: subscription.plan,
             provider: subscription.billingProvider,
             currency: subscription.billingCurrency,
+            paymentMethod: subscription.paymentMethod,
             currentPeriodStart: subscription.currentPeriodStart,
             currentPeriodEnd: subscription.currentPeriodEnd,
             canceledAt: subscription.canceledAt,
@@ -114,7 +115,12 @@ export async function getAccountPaymentHistory(
   return db
     .select()
     .from(paymentAttempts)
-    .where(eq(paymentAttempts.userId, userId))
+    .where(
+      and(
+        eq(paymentAttempts.userId, userId),
+        inArray(paymentAttempts.status, ["succeeded", "failed"]),
+      ),
+    )
     .orderBy(desc(paymentAttempts.createdAt))
     .limit(limit);
 }
