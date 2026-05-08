@@ -285,7 +285,7 @@ Deployment and CI responsibilities are intentionally split:
 
 - `lib/billing/` billing domain types, plan pricing, region detection, subscription service, webhook processing, and provider clients (PayMongo, Paddle)
 - `lib/billing/providers/` PayMongo and Paddle REST clients with webhook signature verification
-- `lib/db/schema/subscriptions.ts` business_subscriptions, billing_events, and payment_attempts tables
+- `lib/db/schema/subscriptions.ts` account_subscriptions, billing_events, and payment_attempts tables
 - `features/billing/` checkout dialog, billing status card, upgrade button, server actions, and queries
 - `app/api/billing/` webhook route handlers for PayMongo and Paddle
 - `features/follow-ups/` follow-up creation, rescheduling, completion, skipping, and reminders
@@ -303,8 +303,8 @@ Deployment and CI responsibilities are intentionally split:
 - AI drafting stays server-side and uses business context plus uploaded knowledge, with provider fallback ordered Groq -> Gemini -> OpenRouter
 - Marketing, onboarding, starter templates, and in-app copy are aligned around the inquiry -> quote -> share/send -> follow-up -> viewed/accepted/rejected workflow
 - Starter templates are opinionated defaults, not rigid vertical product modes
-- Subscriptions are business-scoped with PayMongo for QRPh and Paddle for cards
-- The `businesses.plan` column is a denormalized read cache; the authoritative state lives in `business_subscriptions`
+- Subscriptions are account-scoped with PayMongo for QRPh and Paddle for cards; all businesses owned by a user inherit the plan from the user's account subscription
+- The `businesses.plan` column is a denormalized read cache; the authoritative state lives in `account_subscriptions`
 - Billing mutations go through `lib/billing/subscription-service.ts`; webhooks go through `lib/billing/webhook-processor.ts`
 - Opaque lookup tokens are hashed with `APP_TOKEN_HASH_SECRET` or `BETTER_AUTH_SECRET`
 - See [docs/setup/billing.md](./docs/setup/billing.md) for provider setup instructions

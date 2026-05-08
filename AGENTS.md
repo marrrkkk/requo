@@ -23,7 +23,7 @@ Requo is an owner-led SaaS app for service businesses that handle inbound inquir
 4. follow up consistently,
 5. track viewed, accepted, rejected, expired, and voided quote states.
 
-The app also handles public inquiry intake, public quote pages, business-scoped dashboards, manual and Requo email quote delivery, follow-up tasks, analytics, notifications, knowledge files, AI-assisted drafts, transactional email, workspace membership, and workspace-level subscription billing.
+The app also handles public inquiry intake, public quote pages, business-scoped dashboards, manual and Requo email quote delivery, follow-up tasks, analytics, notifications, knowledge files, AI-assisted drafts, transactional email, business membership, and account-level subscription billing.
 
 ## Product Direction
 
@@ -43,9 +43,9 @@ The app also handles public inquiry intake, public quote pages, business-scoped 
 - `lib/billing/` owns billing domain types, plan pricing, region detection, subscription service, webhook processing, and provider clients.
 - `features/billing/` owns checkout UI, billing status, server actions, and billing-related queries.
 - `features/follow-ups/` owns follow-up scheduling, reminders, and lifecycle mutations.
-- `features/workspaces/`, `features/workspace-members/`, and `features/business-members/` own workspace and business permission surfaces.
+- `features/business-members/` owns business permission surfaces.
 - `features/analytics/` owns conversion/workflow analytics and public view tracking.
-- `features/audit/` owns audit log writes and reads for sensitive workspace actions.
+- `features/audit/` owns audit log writes and reads for sensitive business actions.
 - `scripts/` owns migrations, seeders, and operational scripts.
 - `tests/unit/`, `tests/components/`, and `tests/integration/` own fast automated confidence for logic, UI, and server behavior.
 - `tests/e2e/` owns Playwright coverage for user flows.
@@ -111,19 +111,20 @@ Do not add:
 
 ### Billing Architecture
 
-- Subscriptions are workspace-scoped. Each workspace has at most one `workspace_subscriptions` row.
-- The `workspaces.plan` column is a denormalized read cache. The authoritative state lives in `workspace_subscriptions`.
-- `lib/billing/subscription-service.ts` is the single write path for all subscription mutations. It keeps `workspaces.plan` in sync.
+- Subscriptions are account-scoped. Each user account has at most one `account_subscriptions` row.
+- The `businesses.plan` column is a denormalized read cache. The authoritative state lives in `account_subscriptions`.
+- All businesses owned by a user inherit the plan from the user's account subscription.
+- `lib/billing/subscription-service.ts` is the single write path for all subscription mutations. It keeps `businesses.plan` in sync across all owned businesses.
 - `lib/billing/webhook-processor.ts` provides idempotent event deduplication using `billing_events`.
 - PayMongo handles QRPh (one-time payment intents, manual renewal). Paddle handles recurring card subscriptions.
 - Webhook routes live at `app/api/billing/paymongo/webhook/route.ts` and `app/api/billing/paddle/webhook/route.ts`.
 - Plan access is resolved through `getEffectivePlan()` in the subscription service, which checks subscription status, cancellation dates, and grace periods.
-- Do not bypass the subscription service or write directly to `workspace_subscriptions`.
+- Do not bypass the subscription service or write directly to `account_subscriptions`.
 
 ### Performance & Caching
 
 - **Two-layer caching pattern.** High-frequency queries use `React.cache()` for within-request deduplication AND a `"use cache"` inner function for cross-request caching. Keep both layers — they serve different purposes.
-- **Shell-level queries** (`getThemePreferenceForUser`, `getAccountProfileForUser`, `getBusinessMembershipsForUser`, `getBusinessContextForMembershipSlug`, `getWorkspacesForUser`, `getWorkspaceContextForUser`) are cached with `"use cache"` + `cacheTag` via `lib/cache/shell-tags.ts`. When adding new shell-level queries, follow the same pattern: inner `"use cache"` function + `React.cache()` wrapper.
+- **Shell-level queries** (`getThemePreferenceForUser`, `getAccountProfileForUser`, `getBusinessMembershipsForUser`, `getBusinessContextForMembershipSlug`) are cached with `"use cache"` + `cacheTag` via `lib/cache/shell-tags.ts`. When adding new shell-level queries, follow the same pattern: inner `"use cache"` function + `React.cache()` wrapper.
 - **Cache tags** use the scoping helpers in `lib/cache/shell-tags.ts` (user-scoped) and `lib/cache/business-tags.ts` (business-scoped). New cached queries should use the appropriate existing tag helpers. Add `revalidateTag()` calls in mutation actions that change cached data.
 - **Parallelize independent data fetches.** Use `Promise.all` to run queries that do not depend on each other. Common pattern: start independent queries before an `await` and collect them later. Only chain `await` when a subsequent query needs results from a prior one.
 - **Stream non-blocking data via Suspense.** Layout-level data that is not required for the shell (e.g., billing, upgrade buttons) should be rendered inside `<Suspense>` as async server components. Only session and auth-gate data should block shell render.
@@ -134,7 +135,7 @@ Do not add:
 ## Testing Priorities
 
 - Test behavior and product risk, not implementation details.
-- Backend permission tests are mandatory for business-scoped and workspace-scoped behavior.
+- Backend permission tests are mandatory for business-scoped behavior.
 - Keep schema tests focused on external input boundaries that protect inquiry creation, quote creation, public quote responses, billing, and critical route handlers.
 - Keep integration tests DB-backed for access control, workflow mutations, quote status transitions, public analytics, billing webhooks, and server actions.
 - Keep component tests only when they exercise meaningful user interaction or auth/payment state. Avoid shallow render tests and brittle snapshots.
