@@ -217,8 +217,6 @@ export function ProfileSettingsForm({
                           }}
                           options={jobTitleOptions}
                           placeholder="Choose your role"
-                          searchable
-                          searchPlaceholder="Search roles"
                           value={jobTitle}
                         />
                         <FieldError
@@ -508,7 +506,7 @@ function ProfileAvatarField({
             </div>
           </div>
 
-          <div className="rounded-3xl border border-border/75 bg-background/80 px-5 py-5">
+          <div>
             <div className="flex flex-col items-center gap-4 text-center">
               <div className="group relative">
                 <input

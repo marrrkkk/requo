@@ -427,8 +427,6 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
                             onValueChange={(value) => updateField("jobTitle", value)}
                             options={jobTitleOptions}
                             placeholder="Choose your role"
-                            searchPlaceholder="Search roles"
-                            searchable
                             value={draft.jobTitle}
                           />
                         </FieldContent>
