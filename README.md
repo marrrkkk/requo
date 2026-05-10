@@ -48,7 +48,7 @@ keeping the core experience focused on this workflow rather than generic configu
 - Knowledge and FAQ management for business-specific reference material
 - AI-assisted response drafting through Groq, Gemini, and OpenRouter fallback routing
 - Transactional email flows through Resend, with Mailtrap and Brevo fallback
-- Subscription billing with PayMongo (QRPh for Philippines) and Paddle (cards for international)
+- Subscription billing with Paddle inline checkout (USD)
 - Analytics and notification foundations for operational visibility
 
 ## Tech Stack
@@ -63,7 +63,6 @@ keeping the core experience focused on this workflow rather than generic configu
 - Supabase for storage and realtime-backed notification plumbing
 - Resend, Mailtrap, and Brevo for transactional email fallback
 - Groq, Gemini, and OpenRouter for AI-assisted drafting
-- PayMongo for QRPh payments (Philippines)
 - Paddle for card/global payments
 
 ## Getting Started
@@ -187,9 +186,6 @@ The demo seed also creates two additional sample businesses, three inquiry forms
 
 ### Billing providers
 
-- `PAYMONGO_SECRET_KEY`
-- `PAYMONGO_PUBLIC_KEY`
-- `PAYMONGO_WEBHOOK_SECRET`
 - `PADDLE_API_KEY`
 - `PADDLE_WEBHOOK_SECRET`
 - `PADDLE_PRO_PRICE_ID`
@@ -280,11 +276,11 @@ Deployment and CI responsibilities are intentionally split:
 
 ### Billing
 
-- `lib/billing/` billing domain types, plan pricing, region detection, subscription service, webhook processing, and provider clients (PayMongo, Paddle)
-- `lib/billing/providers/` PayMongo and Paddle REST clients with webhook signature verification
+- `lib/billing/` billing domain types, plan pricing, subscription service, webhook processing, and Paddle provider client
+- `lib/billing/providers/` Paddle REST client with webhook signature verification
 - `lib/db/schema/subscriptions.ts` account_subscriptions, billing_events, and payment_attempts tables
 - `features/billing/` checkout dialog, billing status card, upgrade button, server actions, and queries
-- `app/api/billing/` webhook route handlers for PayMongo and Paddle
+- `app/api/billing/` webhook route handler for Paddle
 - `features/follow-ups/` follow-up creation, rescheduling, completion, skipping, and reminders
 - `features/analytics/` conversion/workflow analytics plus public inquiry and quote view tracking
 - `features/business-members/` business role management
@@ -300,7 +296,7 @@ Deployment and CI responsibilities are intentionally split:
 - AI drafting stays server-side and uses business context plus uploaded knowledge, with provider fallback ordered Groq -> Gemini -> OpenRouter
 - Marketing, onboarding, starter templates, and in-app copy are aligned around the inquiry -> quote -> share/send -> follow-up -> viewed/accepted/rejected workflow
 - Starter templates are opinionated defaults, not rigid vertical product modes
-- Subscriptions are account-scoped with PayMongo for QRPh and Paddle for cards; all businesses owned by a user inherit the plan from the user's account subscription
+- Subscriptions are account-scoped with Paddle; all businesses owned by a user inherit the plan from the user's account subscription
 - The `businesses.plan` column is a denormalized read cache; the authoritative state lives in `account_subscriptions`
 - Billing mutations go through `lib/billing/subscription-service.ts`; webhooks go through `lib/billing/webhook-processor.ts`
 - Opaque lookup tokens are hashed with `APP_TOKEN_HASH_SECRET` or `BETTER_AUTH_SECRET`

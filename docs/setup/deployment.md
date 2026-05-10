@@ -44,7 +44,7 @@ views plus customer responses from one place.
 - `GROQ_API_KEY`
 - `GEMINI_API_KEY`
 - `OPENROUTER_API_KEY`
-- PayMongo and Paddle variables when checkout is enabled
+- Paddle billing variables when checkout is enabled
 
 ## Better Auth Checklist
 
@@ -105,10 +105,6 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 ## Billing Checklist
 
 - Billing is business-scoped. `business_subscriptions` is authoritative and `businesses.plan` is a read cache.
-- Configure PayMongo for QRPh/PHP checkout if serving Philippines payments:
-  - `PAYMONGO_SECRET_KEY`
-  - `PAYMONGO_PUBLIC_KEY`
-  - `PAYMONGO_WEBHOOK_SECRET`
 - Configure Paddle for recurring card/USD checkout:
   - `PADDLE_API_KEY`
   - `PADDLE_WEBHOOK_SECRET`
@@ -120,7 +116,6 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
   - `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN`
   - `NEXT_PUBLIC_PADDLE_ENVIRONMENT`
 - Point webhooks at:
-  - `/api/billing/paymongo/webhook`
   - `/api/billing/paddle/webhook`
 - Read `docs/setup/billing.md` before enabling live checkout.
 
@@ -132,11 +127,11 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 4. Configure Supabase storage credentials and verify upload-backed flows.
 5. Configure email providers and verify forgot-password plus quote-send flows.
 6. Configure at least one AI provider and verify the inquiry assistant.
-7. Configure PayMongo/Paddle if checkout is part of the deployment.
+7. Configure Paddle if checkout is part of the deployment.
 8. Run the baseline health checks and smoke-test dashboard login, non-member denial, public inquiry submission, quote send/share, and public quote response.
 
 ## Current Operational Gaps
 
 - Live provider behavior is not covered by the default automated suite.
-- There is no deployment-specific observability layer yet for email, AI provider, PayMongo, or Paddle failures.
+- There is no deployment-specific observability layer yet for email, AI provider, or Paddle failures.
 - SQL RLS helpers and policies exist, but the app does not currently inject `app.current_user_id` into the Postgres session, so database-session RLS is not the main enforcement path for runtime queries yet.

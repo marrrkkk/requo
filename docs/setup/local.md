@@ -42,7 +42,7 @@ Optional but commonly needed:
 - `GROQ_API_KEY`
 - `GEMINI_API_KEY`
 - `OPENROUTER_API_KEY`
-- PayMongo and Paddle variables from `docs/setup/billing.md` when testing checkout or webhooks
+- Paddle variables from `docs/setup/billing.md` when testing checkout or webhooks
 
 Generate Web Push VAPID keys with:
 

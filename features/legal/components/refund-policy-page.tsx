@@ -97,9 +97,8 @@ const refundSections: LegalDocumentSection[] = [
         </LegalParagraph>
         <LegalParagraph>
           Processing times may vary depending on the payment provider used for
-          the original transaction. QRPh payments processed through PayMongo may
-          have different processing timelines than card payments processed
-          through Paddle.
+          the original transaction and financial institution. Paddle-processed
+          card refunds may appear at different times depending on the bank.
         </LegalParagraph>
       </>
     ),
@@ -147,13 +146,12 @@ const refundSections: LegalDocumentSection[] = [
           5. Payment Provider Considerations
         </LegalSectionHeading>
         <LegalParagraph>
-          {legalConfig.companyName} uses multiple payment providers to support
-          different payment methods and regions:
+          {legalConfig.companyName} uses Paddle to process subscription
+          payments:
         </LegalParagraph>
         <LegalList
           items={[
-            "PayMongo: Processes QRPh payments for customers in the Philippines",
-            "Paddle: Processes card payments for global customers",
+            "Paddle: Processes card payments for subscriptions",
           ]}
         />
         <LegalSubheading>Provider-Specific Differences</LegalSubheading>
@@ -163,8 +161,7 @@ const refundSections: LegalDocumentSection[] = [
         </LegalParagraph>
         <LegalList
           items={[
-            "QRPh payments through PayMongo are processed as one-time payment intents and may require manual verification for refunds",
-            "Card payments through Paddle are processed as recurring subscriptions and typically have automated refund processing",
+            "Card payments through Paddle are processed as recurring subscriptions",
             "Currency conversion rates (if applicable) are determined by the payment provider and may differ from the original transaction rate",
           ]}
         />

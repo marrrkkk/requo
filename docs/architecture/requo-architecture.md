@@ -157,8 +157,7 @@ Feature responsibilities:
 - Email: transactional delivery is centralized in `lib/email`, with Resend first and Mailtrap/Brevo fallback for retryable provider failures.
 - AI providers: Groq, Gemini, and OpenRouter are routed server-side through `lib/ai`.
 - Better Auth: sessions, password flows, and user lifecycle hooks.
-- PayMongo: QRPh payment intents for Philippines/PHP checkout.
-- Paddle: recurring card subscriptions for global/USD checkout.
+- Paddle: recurring card subscriptions and inline checkout in USD.
 
 ## Billing Architecture
 
@@ -166,8 +165,8 @@ Feature responsibilities:
 - `businesses.plan` is a denormalized read cache. `business_subscriptions` is authoritative.
 - `lib/billing/subscription-service.ts` is the single write path for subscription mutations and keeps `businesses.plan` in sync.
 - `lib/billing/webhook-processor.ts` records provider events in `billing_events` for idempotency.
-- PayMongo uses one-time QRPh payment intents and manual renewal. Paddle uses recurring card subscriptions.
-- Billing webhook routes live in `app/api/billing/paymongo/webhook/route.ts` and `app/api/billing/paddle/webhook/route.ts`.
+- Paddle is the only billing provider and handles recurring card subscriptions.
+- Billing webhook route lives in `app/api/billing/paddle/webhook/route.ts`.
 
 ## Testing Architecture
 
