@@ -211,8 +211,8 @@ async function hasBillingSchema(client: SqlClient) {
     (await tableExists(client, "payment_attempts")) &&
     (await tableExists(client, "business_subscriptions")) &&
     (await enumValueExists(client, "billing_currency", "USD")) &&
-    (await enumValueExists(client, "billing_currency", "PHP")) &&
-    (await enumValueExists(client, "billing_provider", "paymongo")) &&
+    !(await enumValueExists(client, "billing_currency", "PHP")) &&
+    !(await enumValueExists(client, "billing_provider", "paymongo")) &&
     (hasLegacyLemonSqueezyProvider || hasPaddleProvider) &&
     (await enumValueExists(client, "payment_attempt_status", "pending")) &&
     (await enumValueExists(client, "subscription_status", "active")) &&
