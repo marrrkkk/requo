@@ -5,17 +5,11 @@ import type {
   PaidPlan,
 } from "@/lib/billing/types";
 
-export type PendingPaymongoCheckout = {
-  provider: "paymongo";
+export type PersistedPendingCheckout = {
+  provider: BillingProvider;
   plan: PaidPlan;
-  amount: number;
-  currency: "PHP";
-  expiresAt: string;
-  paymentIntentId: string;
-  qrCodeData: string;
+  providerPaymentId: string;
 };
-
-export type PersistedPendingCheckout = PendingPaymongoCheckout;
 
 const PENDING_CHECKOUT_KEY = "requo:pending-checkout";
 const PENDING_CHECKOUT_CHANGE_EVENT = "requo:pending-checkout:change";
@@ -32,9 +26,9 @@ function isPaidPlan(value: unknown): value is PaidPlan {
   return value === "pro" || value === "business";
 }
 
-function isPendingPaymongoCheckout(
+function isPersistedPendingCheckoutValue(
   value: unknown,
-): value is PendingPaymongoCheckout {
+): value is PersistedPendingCheckout {
   if (!value || typeof value !== "object") {
     return false;
   }
@@ -42,20 +36,10 @@ function isPendingPaymongoCheckout(
   const candidate = value as Record<string, unknown>;
 
   return (
-    candidate.provider === "paymongo" &&
+    candidate.provider === "paddle" &&
     isPaidPlan(candidate.plan) &&
-    typeof candidate.amount === "number" &&
-    candidate.currency === "PHP" &&
-    typeof candidate.expiresAt === "string" &&
-    typeof candidate.paymentIntentId === "string" &&
-    typeof candidate.qrCodeData === "string"
+    typeof candidate.providerPaymentId === "string"
   );
-}
-
-function isPersistedPendingCheckout(
-  value: unknown,
-): value is PersistedPendingCheckout {
-  return isPendingPaymongoCheckout(value);
 }
 
 function dispatchPendingCheckoutChange(userId: string) {
@@ -88,7 +72,7 @@ export function getCachedPendingCheckout(
 
     const data = JSON.parse(raw) as unknown;
 
-    if (!isPersistedPendingCheckout(data)) {
+    if (!isPersistedPendingCheckoutValue(data)) {
       window.sessionStorage.removeItem(getPendingCheckoutStorageKey(userId));
       return null;
     }
@@ -156,7 +140,7 @@ export function clearCachedPendingCheckout(
 }
 
 export function clearCachedPendingQrCheckout(userId: string): void {
-  clearCachedPendingCheckout(userId, "paymongo");
+  clearCachedPendingCheckout(userId);
 }
 
 export function subscribeToPendingCheckout(

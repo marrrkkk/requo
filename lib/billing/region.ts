@@ -19,24 +19,8 @@ import type {
  * Returns "PH" for Philippines, "INTL" for everywhere else.
  */
 export function getBillingRegion(headers: Headers): BillingRegion {
-  const vercelCountry = headers.get("x-vercel-ip-country");
-
-  if (vercelCountry) {
-    return vercelCountry.toUpperCase() === "PH" ? "PH" : "INTL";
-  }
-
-  const cfCountry = headers.get("cf-ipcountry");
-
-  if (cfCountry) {
-    return cfCountry.toUpperCase() === "PH" ? "PH" : "INTL";
-  }
-
-  // Force PH region in development so local testing works with PHP/PayMongo
-  if (process.env.NODE_ENV === "development") {
-    return "PH";
-  }
-
-  return "INTL";
+  void headers;
+  return "global";
 }
 
 /**
@@ -45,26 +29,26 @@ export function getBillingRegion(headers: Headers): BillingRegion {
 export function getBillingRegionFromCountry(
   countryCode: string | null | undefined,
 ): BillingRegion {
-  if (!countryCode) {
-    return "INTL";
-  }
-
-  return countryCode.toUpperCase() === "PH" ? "PH" : "INTL";
+  void countryCode;
+  return "global";
 }
 
 /** Maps a billing region to its default currency. */
 export function getDefaultCurrency(region: BillingRegion): BillingCurrency {
-  return region === "PH" ? "PHP" : "USD";
+  void region;
+  return "USD";
 }
 
 /** Maps a billing region to its default payment provider. */
 export function getDefaultProvider(region: BillingRegion): BillingProvider {
-  return region === "PH" ? "paymongo" : "paddle";
+  void region;
+  return "paddle";
 }
 
 /** Maps a billing currency to its corresponding provider. */
 export function getProviderForCurrency(
   currency: BillingCurrency,
 ): BillingProvider {
-  return currency === "PHP" ? "paymongo" : "paddle";
+  void currency;
+  return "paddle";
 }

@@ -14,7 +14,7 @@ import { user } from "@/lib/db/schema/auth";
 
 /* ── Enums ────────────────────────────────────────────────────────────────── */
 
-export const billingProviders = ["paymongo", "paddle"] as const;
+export const billingProviders = ["paddle"] as const;
 export type BillingProvider = (typeof billingProviders)[number];
 
 export const billingProviderEnum = pgEnum("billing_provider", [
@@ -36,7 +36,7 @@ export const subscriptionStatusEnum = pgEnum("subscription_status", [
   ...subscriptionStatuses,
 ]);
 
-export const billingCurrencies = ["PHP", "USD"] as const;
+export const billingCurrencies = ["USD"] as const;
 export type BillingCurrency = (typeof billingCurrencies)[number];
 
 export const billingCurrencyEnum = pgEnum("billing_currency", [

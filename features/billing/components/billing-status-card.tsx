@@ -10,7 +10,6 @@ import Image from "next/image";
 import { useActionState, useEffect, useState } from "react";
 import {
   CreditCard,
-  QrCode,
   CircleCheck,
   CircleAlert,
   Clock,
@@ -76,8 +75,7 @@ export function BillingStatusCard({
   const isFreePlan = currentPlan === "free";
   const cancelSuccess = cancelState.success;
 
-  const getPaymentMethodDisplay = (provider: string, method?: string | null) => {
-    if (provider === "paymongo") return "QR Ph";
+  const getPaymentMethodDisplay = (_provider: string, method?: string | null) => {
     if (!method) return "Visa, Mastercard, PayPal";
 
     switch (method.toLowerCase()) {
@@ -113,10 +111,10 @@ export function BillingStatusCard({
   );
 
   useEffect(() => {
-    if (subscription?.provider !== "paymongo" || !hasPendingSubscription) {
+    if (!hasPendingSubscription) {
       clearCachedPendingQrCheckout(userId);
     }
-  }, [hasPendingSubscription, subscription?.provider, userId]);
+  }, [hasPendingSubscription, userId]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -202,11 +200,7 @@ export function BillingStatusCard({
                 {subscription.provider ? (
                   <div className="flex items-center gap-4">
                     <div className="flex h-11 w-16 shrink-0 items-center justify-center rounded-lg border border-border/80 bg-background shadow-sm">
-                      {subscription.provider === "paymongo" ? (
-                        <QrCode className="size-5 text-muted-foreground" />
-                      ) : (
-                        <CreditCard className="size-5 text-muted-foreground" />
-                      )}
+                      <CreditCard className="size-5 text-muted-foreground" />
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-foreground">

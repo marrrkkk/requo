@@ -41,9 +41,6 @@ const envSchema = z.object({
   GROQ_API_KEY: emptyToUndefined(z.string().min(1)),
   GEMINI_API_KEY: emptyToUndefined(z.string().min(1)),
   OPENROUTER_API_KEY: emptyToUndefined(z.string().min(1)),
-  PAYMONGO_SECRET_KEY: emptyToUndefined(z.string().min(1)),
-  PAYMONGO_PUBLIC_KEY: emptyToUndefined(z.string().min(1)),
-  PAYMONGO_WEBHOOK_SECRET: emptyToUndefined(z.string().min(1)),
   PADDLE_API_KEY: emptyToUndefined(z.string().min(1)),
   PADDLE_WEBHOOK_SECRET: emptyToUndefined(z.string().min(1)),
   PADDLE_PRO_PRICE_ID: emptyToUndefined(z.string().min(1)),
@@ -105,9 +102,6 @@ export const isGeminiConfigured = Boolean(env.GEMINI_API_KEY);
 export const isOpenRouterConfigured = Boolean(env.OPENROUTER_API_KEY);
 export const isSupabaseRealtimeConfigured = Boolean(env.SUPABASE_JWT_SECRET);
 
-export const isPayMongoConfigured = Boolean(
-  env.PAYMONGO_SECRET_KEY && env.PAYMONGO_PUBLIC_KEY,
-);
 export const isPaddleConfigured = Boolean(
   env.PADDLE_API_KEY && env.PADDLE_PRO_PRICE_ID,
 );

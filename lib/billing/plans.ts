@@ -1,23 +1,20 @@
 /**
  * Plan pricing definitions for the billing system.
  *
- * Prices are intentional localized plan prices — not exchange-rate conversions.
- * PHP is shown to Philippines users, USD to everyone else.
- *
- * Yearly pricing gives ~2 months free (~17% discount).
+ * USD-only pricing.
  */
 
 import type { BillingCurrency, BillingInterval, PaidPlan, PlanPricing } from "@/lib/billing/types";
 
-/** Prices in smallest currency unit (centavos for PHP, cents for USD). */
+/** Prices in smallest currency unit (USD cents). */
 export const planPricing: Record<BillingInterval, Record<PaidPlan, PlanPricing>> = {
   monthly: {
-    pro: { PHP: 29900, USD: 499 },
-    business: { PHP: 59900, USD: 999 },
+    pro: { USD: 499 },
+    business: { USD: 999 },
   },
   yearly: {
-    pro: { PHP: 299000, USD: 4990 },
-    business: { PHP: 599000, USD: 9990 },
+    pro: { USD: 4990 },
+    business: { USD: 9990 },
   },
 };
 
@@ -35,12 +32,8 @@ export function formatPrice(
   amountInSmallestUnit: number,
   currency: BillingCurrency,
 ): string {
+  void currency;
   const decimal = amountInSmallestUnit / 100;
-
-  if (currency === "PHP") {
-    return `₱${decimal.toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-  }
-
   return `$${decimal.toFixed(2)}`;
 }
 
@@ -81,5 +74,6 @@ export function getYearlySavingsPercent(
 
 /** Returns the currency symbol for a billing currency. */
 export function getCurrencySymbol(currency: BillingCurrency): string {
-  return currency === "PHP" ? "₱" : "$";
+  void currency;
+  return "$";
 }

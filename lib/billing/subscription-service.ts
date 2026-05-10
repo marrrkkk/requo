@@ -303,7 +303,7 @@ export async function activateSubscription(
 }
 
 /**
- * Creates a pending subscription (e.g., QRPh payment awaiting scan).
+ * Creates a pending subscription while checkout confirmation is pending.
  */
 export async function createPendingSubscription(
   params: Omit<ActivateSubscriptionParams, "status">,

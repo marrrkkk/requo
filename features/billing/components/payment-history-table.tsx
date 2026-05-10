@@ -61,9 +61,7 @@ export function PaymentHistoryTable({ records }: PaymentHistoryTableProps) {
               <TableCell className="font-semibold text-foreground">
                 {formatCurrency(record.amount, record.currency)}
               </TableCell>
-              <TableCell className="text-muted-foreground">
-                {record.provider === "paymongo" ? "QR Ph" : "Card"}
-              </TableCell>
+              <TableCell className="text-muted-foreground">Card</TableCell>
               <TableCell>
                 <PaymentStatusBadge status={record.status} />
               </TableCell>

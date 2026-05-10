@@ -82,7 +82,7 @@ type RecordPaymentAttemptParams = {
   provider: BillingProvider;
   providerPaymentId: string;
   amount: number;
-  currency: "PHP" | "USD";
+  currency: "USD";
   status: "pending" | "succeeded" | "failed" | "expired";
 };
 

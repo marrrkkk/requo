@@ -146,7 +146,7 @@ describe("features/billing/queries", () => {
     expect(overview).toMatchObject({
       currentPlan: "pro",
       defaultCurrency: "USD",
-      region: "INTL",
+      region: "global",
       subscription: {
         currency: "USD",
         plan: "pro",

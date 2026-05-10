@@ -65,37 +65,13 @@ export type CheckoutActionState = {
   success?: string;
   checkoutUrl?: string;
   paddleTransactionId?: string;
-  qrData?: {
-    qrCodeData: string;
-    paymentIntentId: string;
-    expiresAt: string;
-    amount: number;
-    currency: "PHP";
-  };
 };
-
-/** Pending QRPh checkout data loaded from the server. */
-export type PendingQrPhData = {
-  qrCodeData: string;
-  paymentIntentId: string;
-  expiresAt: string;
-  amount: number;
-  currency: "PHP";
-  plan: PaidPlan;
-};
-
-export type PendingCheckoutState = {
-  provider: "paymongo";
-} & PendingQrPhData;
+export type PendingCheckoutState = null;
 
 export type CancelPendingQrCheckoutResult =
   | {
       ok: true;
-      outcome: "canceled" | "already_canceled";
-    }
-  | {
-      ok: true;
-      outcome: "already_paid";
+      outcome: "already_canceled";
     }
   | {
       ok: false;

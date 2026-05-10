@@ -279,7 +279,6 @@ export async function POST(request: Request) {
         const details = data?.details as Record<string, unknown> | undefined;
         const totals = details?.totals as Record<string, unknown> | undefined;
         const total = totals?.total as string | undefined;
-        const currencyCode = (data?.currency_code as string) ?? "USD";
         const updated = await updatePaymentAttemptStatus(
           transactionId,
           "succeeded",
@@ -290,10 +289,7 @@ export async function POST(request: Request) {
             amount: total
               ? Number.parseInt(total, 10)
               : matchedAttempt?.amount ?? 0,
-            currency:
-              currencyCode === "PHP"
-                ? "PHP"
-                : (matchedAttempt?.currency ?? "USD"),
+            currency: "USD",
             plan,
             provider: "paddle",
             providerPaymentId: transactionId,

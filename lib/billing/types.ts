@@ -14,14 +14,13 @@ export type {
   PaymentAttemptStatus,
 } from "@/lib/db/schema/subscriptions";
 
-export type BillingRegion = "PH" | "INTL";
+export type BillingRegion = "global";
 
 export type BillingInterval = "monthly" | "yearly";
 
 export type PaidPlan = Exclude<BusinessPlan, "free">;
 
 export type PlanPricing = {
-  PHP: number; // centavos
   USD: number; // cents
 };
 
@@ -29,14 +28,6 @@ export type CheckoutResult =
   | {
       type: "redirect";
       url: string;
-    }
-  | {
-      type: "qrph";
-      qrCodeData: string;
-      paymentIntentId: string;
-      expiresAt: string;
-      amount: number;
-      currency: "PHP";
     }
   | {
       type: "error";
