@@ -27,7 +27,7 @@
     "test:coverage": "vitest run tests/unit/ tests/components/ --coverage"
   },
   "dependencies": {
-    "@better-auth/drizzle-adapter": "^1.5.6",
+    "@better-auth/drizzle-adapter": "^1.6.10",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -38,7 +38,7 @@
     "@thesvg/react": "^2.1.3",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
-    "better-auth": "^1.5.6",
+    "better-auth": "^1.6.10",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -52,6 +52,7 @@
     "next": "16.2.3",
     "pdf-lib": "^1.17.1",
     "postgres": "^3.4.8",
+    "qrcode.react": "^4.2.0",
     "radix-ui": "^1.4.3",
     "react": "19.2.4",
     "react-day-picker": "^9.14.0",
