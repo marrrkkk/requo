@@ -86,14 +86,14 @@ test("manager can access operational settings but not members", async ({
 }) => {
   await signIn(page, demoManagerEmail, demoManagerPassword);
 
-  await page.goto(`/businesses/${demoBusinessSlug}/settings/replies`);
+  await page.goto(`/businesses/${demoBusinessSlug}/settings/knowledge`);
   await expect(page).toHaveURL(
-    new RegExp(`/businesses/${demoBusinessSlug}/settings/replies$`),
+    new RegExp(`/businesses/${demoBusinessSlug}/settings/knowledge$`),
     { timeout: 20_000 },
   );
   await expect(
     page.getByRole("heading", {
-      name: "Saved follow-up replies",
+      name: "Knowledge",
       level: 1,
     }),
   ).toBeVisible();
@@ -123,7 +123,7 @@ test("staff can access inquiry work but not forms or operational settings", asyn
     { timeout: 20_000 },
   );
 
-  await page.goto(`/businesses/${demoBusinessSlug}/settings/replies`);
+  await page.goto(`/businesses/${demoBusinessSlug}/settings/knowledge`);
   await expect(page).toHaveURL(
     new RegExp(`/businesses/${demoBusinessSlug}/dashboard$`),
     { timeout: 20_000 },

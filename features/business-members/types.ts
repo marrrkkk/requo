@@ -11,10 +11,22 @@ export type BusinessMemberView = {
   isCurrentUser: boolean;
 };
 
+export type BusinessMemberInviteView = {
+  inviteId: string;
+  email: string;
+  role: Exclude<BusinessMemberRole, "owner">;
+  token: string;
+  inviterName: string | null;
+  inviterEmail: string;
+  expiresAt: Date;
+  createdAt: Date;
+};
+
 export type BusinessMembersSettingsView = {
   businessId: string;
   businessName: string;
   businessSlug: string;
   currentUserId: string;
   members: BusinessMemberView[];
+  invites: BusinessMemberInviteView[];
 };

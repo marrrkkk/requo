@@ -1,6 +1,13 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { getBusinessMembersPath } from "@/features/businesses/routes";
+
+export const metadata: Metadata = {
+  title: "Members",
+};
+
+export const unstable_instant = { prefetch: 'static' as const };
 
 export default async function BusinessMembersSettingsPage({
   params,

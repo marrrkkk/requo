@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, gt, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
 import type { BusinessMembersSettingsView } from "@/features/business-members/types";
@@ -9,7 +9,8 @@ import {
   settingsBusinessCacheLife,
 } from "@/lib/cache/business-tags";
 import { db } from "@/lib/db/client";
-import { businessMembers, businesses, user } from "@/lib/db/schema";
+import { businessMemberInvites, businessMembers, businesses, user } from "@/lib/db/schema";
+import { hashOpaqueToken } from "@/lib/security/tokens";
 
 function getMemberRoleSortExpression() {
   return sql`case
@@ -28,7 +29,7 @@ export async function getBusinessMembersSettingsForBusiness(
   cacheLife(settingsBusinessCacheLife);
   cacheTag(...getBusinessMembersCacheTags(businessId));
 
-  const [businessRow, memberRows] = await Promise.all([
+  const [businessRow, memberRows, inviteRows] = await Promise.all([
     db
       .select({
         id: businesses.id,
@@ -57,6 +58,21 @@ export async function getBusinessMembersSettingsForBusiness(
         asc(user.email),
         asc(businessMembers.createdAt),
       ),
+    db
+      .select({
+        inviteId: businessMemberInvites.id,
+        email: businessMemberInvites.email,
+        role: businessMemberInvites.role,
+        token: businessMemberInvites.token,
+        expiresAt: businessMemberInvites.expiresAt,
+        createdAt: businessMemberInvites.createdAt,
+        inviterName: user.name,
+        inviterEmail: user.email,
+      })
+      .from(businessMemberInvites)
+      .innerJoin(user, eq(businessMemberInvites.inviterUserId, user.id))
+      .where(eq(businessMemberInvites.businessId, businessId))
+      .orderBy(asc(businessMemberInvites.createdAt)),
   ]);
 
   const business = businessRow[0];
@@ -80,5 +96,48 @@ export async function getBusinessMembersSettingsForBusiness(
       joinedAt: member.joinedAt,
       isCurrentUser: member.userId === currentUserId,
     })),
+    invites: inviteRows
+      .filter((invite) => typeof invite.token === "string" && invite.token.length > 0)
+      .filter((invite) => invite.role !== "owner")
+      .map((invite) => ({
+        inviteId: invite.inviteId,
+        email: invite.email,
+        role: invite.role === "manager" ? "manager" : "staff",
+        token: invite.token as string,
+        inviterName: invite.inviterName,
+        inviterEmail: invite.inviterEmail,
+        expiresAt: invite.expiresAt,
+        createdAt: invite.createdAt,
+      })),
   };
+}
+
+export async function getBusinessMemberInviteForToken(token: string) {
+  "use cache";
+
+  cacheLife(settingsBusinessCacheLife);
+
+  const tokenHash = hashOpaqueToken(token);
+
+  const rows = await db
+    .select({
+      inviteId: businessMemberInvites.id,
+      businessId: businessMemberInvites.businessId,
+      businessName: businesses.name,
+      businessSlug: businesses.slug,
+      email: businessMemberInvites.email,
+      role: businessMemberInvites.role,
+      expiresAt: businessMemberInvites.expiresAt,
+    })
+    .from(businessMemberInvites)
+    .innerJoin(businesses, eq(businessMemberInvites.businessId, businesses.id))
+    .where(
+      and(
+        eq(businessMemberInvites.tokenHash, tokenHash),
+        gt(businessMemberInvites.expiresAt, new Date()),
+      ),
+    )
+    .limit(1);
+
+  return rows[0] ?? null;
 }

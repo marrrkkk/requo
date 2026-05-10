@@ -1,30 +1,30 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { Users } from "lucide-react";
 
-import { DashboardEmptyState } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { LockedFeaturePage } from "@/components/shared/paywall";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { getBusinessMembersSettingsForBusiness } from "@/features/business-members/queries";
 import { getBusinessOwnerPageContext } from "@/app/businesses/[slug]/(main)/settings/_lib/page-context";
 import { hasFeatureAccess } from "@/lib/plans";
-import { canManageBusinessMembers } from "@/lib/business-members";
+import {
+  cancelBusinessMemberInviteAction,
+  createBusinessMemberInviteAction,
+  removeBusinessMemberAction,
+  updateBusinessMemberRoleAction,
+} from "@/features/business-members/actions";
+import {
+  BusinessMembersManager,
+  BusinessMembersManagerFallback,
+} from "@/features/business-members/components/business-members-manager";
 
-function getInitials(name: string) {
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-}
+export const metadata: Metadata = {
+  title: "Members",
+};
+
+export const unstable_instant = { prefetch: 'static' as const };
 
 export default async function BusinessMembersPage({
   params,
@@ -110,67 +110,14 @@ async function StreamedMemberList({
     notFound();
   }
 
-  // Business owner/manager can invite members
-  const canInvite = canManageBusinessMembers(businessContext.role);
-
   return (
-    <>
-      {/* TODO: Re-implement business member invite button */}
-
-      <div className="flex flex-col gap-4">
-        {view.members.length > 0 ? (
-          <div className="overflow-hidden rounded-2xl border border-border/70 bg-background/50 shadow-sm">
-            <div className="flex flex-col">
-              {view.members.map((member, i) => (
-                <div
-                  key={member.membershipId}
-                  className={i > 0 ? "border-t border-border/70" : undefined}
-                >
-                  <div className="flex items-center justify-between gap-4 px-4 py-3.5 transition-colors hover:bg-muted/30">
-                    <div className="flex items-center gap-4 min-w-0">
-                      <Avatar>
-                        {member.image ? (
-                          <AvatarImage alt={member.name} src={member.image} />
-                        ) : null}
-                        <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
-                      </Avatar>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold tracking-tight text-foreground">
-                            {member.name}
-                          </p>
-                          <Badge
-                            variant={
-                              member.role === "owner" ? "secondary" : "outline"
-                            }
-                          >
-                            {member.role === "owner" ? "Owner" : member.role === "manager" ? "Manager" : "Staff"}
-                          </Badge>
-                          {member.isCurrentUser ? (
-                            <Badge variant="outline">You</Badge>
-                          ) : null}
-                        </div>
-                        <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                          {member.email}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <DashboardEmptyState
-            description="No team members have been assigned to this business yet."
-            icon={Users}
-            title="No members yet"
-            variant="section"
-          />
-        )}
-      </div>
-    </>
+    <BusinessMembersManager
+      view={view}
+      cancelInviteAction={cancelBusinessMemberInviteAction}
+      createInviteAction={createBusinessMemberInviteAction}
+      removeMemberAction={removeBusinessMemberAction}
+      updateRoleAction={updateBusinessMemberRoleAction}
+    />
   );
 }
 
@@ -179,24 +126,7 @@ async function StreamedMemberList({
 /* -------------------------------------------------------------------------- */
 
 function MemberListFallback() {
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="overflow-hidden rounded-2xl border border-border/70 bg-background/50 shadow-sm">
-        {Array.from({ length: 2 }).map((_, i) => (
-          <div
-            key={i}
-            className={`flex animate-pulse items-center gap-4 px-4 py-3.5 ${i > 0 ? "border-t border-border/70" : ""}`}
-          >
-            <Skeleton className="size-10 shrink-0 rounded-full" />
-            <div className="flex-1">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="mt-1.5 h-3.5 w-48" />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  return <BusinessMembersManagerFallback />;
 }
 
 function MemberPaywallFallback() {
