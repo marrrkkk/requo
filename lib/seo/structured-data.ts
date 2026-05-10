@@ -30,6 +30,30 @@ type PublicInquiryWebPageStructuredDataOptions = {
   siteOrigin: string;
 };
 
+type FaqPageStructuredDataOptions = {
+  items: ReadonlyArray<{
+    question: string;
+    answer: string;
+  }>;
+};
+
+export function getFaqPageStructuredData({
+  items,
+}: FaqPageStructuredDataOptions) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: items.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
+  };
+}
+
 export function getOrganizationStructuredData({
   description,
   email,
