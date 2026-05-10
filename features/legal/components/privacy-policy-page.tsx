@@ -73,7 +73,7 @@ const privacySections: LegalDocumentSection[] = [
           items={[
             "Account information such as your name, email address, login credentials, profile details, and password-reset details.",
             "Business information such as business name, slug, logo, business profile details, team member email addresses for invites, and configuration settings for inquiry pages or forms.",
-            "Operational content you create inside the Service, including inquiries, notes, replies, quotes, quote line items, status changes, pricing entries, FAQs, reply snippets, notifications, and activity records.",
+            "Operational content you create inside the Service, including inquiries, notes, replies, quotes, quote line items, status changes, pricing entries, FAQs, notifications, and activity records.",
           ]}
         />
         <LegalSubheading>
@@ -286,7 +286,7 @@ const privacySections: LegalDocumentSection[] = [
             `${legalConfig.storageProvider}, for database, storage, and related backend infrastructure.`,
             "Resend, for transactional email delivery.",
             "Groq, Gemini, and OpenRouter, for AI request routing when AI features are used.",
-            "Google or Microsoft, for optional social sign-in when those sign-in methods are enabled.",
+            "Google, for optional OAuth sign-in when enabled, and transactional email providers for magic link sign-in when configured.",
           ]}
         />
         <LegalParagraph>

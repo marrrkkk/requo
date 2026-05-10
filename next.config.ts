@@ -37,8 +37,12 @@ const agentDiscoveryHeaders = [
 ] satisfies Array<{ key: string; value: string }>;
 
 const nextConfig: NextConfig = {
+  // Ensure preview bots get full metadata in the initial HTML (see Next.js streaming metadata).
+  htmlLimitedBots:
+    /facebookexternalhit|Facebot|LinkedInBot|Twitterbot|Pinterest|Slackbot|Discordbot|vkShare|redditbot|Applebot/i,
   cacheComponents: true,
   experimental: {
+    instantNavigationDevToolsToggle: true,
     serverActions: {
       bodySizeLimit: "7mb",
     },

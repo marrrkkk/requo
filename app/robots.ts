@@ -7,13 +7,19 @@ export default function robots(): MetadataRoute.Robots {
     host: getSiteOrigin(),
     rules: [
       {
-        allow: ["/", "/pricing", "/privacy", "/terms", "/refund-policy"],
+        allow: [
+          "/",
+          "/inquire",
+          "/pricing",
+          "/privacy",
+          "/terms",
+          "/refund-policy",
+        ],
         disallow: [
           "/account/",
           "/api/",
           "/businesses/",
           "/forgot-password",
-          "/inquire/",
           "/invite/",
           "/login",
           "/onboarding",

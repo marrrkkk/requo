@@ -29,7 +29,6 @@ import {
   profiles,
   quoteItems,
   quotes,
-  replySnippets,
   user,
       businessSubscriptions,
 } from "../lib/db/schema";
@@ -365,13 +364,6 @@ const QUOTE_ITEMS: Record<string, Array<{ desc: string; minPrice: number; maxPri
   ],
 };
 
-const REPLY_SNIPPETS = [
-  { title: "Request dimensions", body: "Could you share the exact dimensions or measurements needed? This will help us provide an accurate quote." },
-  { title: "Confirm timeline", body: "What's your ideal completion date? We want to make sure we can meet your schedule." },
-  { title: "Budget clarification", body: "Do you have a target budget range in mind? This helps us tailor the proposal to your needs." },
-  { title: "Thank you for inquiry", body: "Thanks for reaching out! We'll review your request and get back to you within 24 hours with a detailed proposal." },
-];
-
 const KNOWLEDGE_ITEMS = [
   { title: "Standard turnaround", content: "Our standard production turnaround is 5-7 business days from design approval. Rush orders can be completed in 2-3 business days at a 25% surcharge." },
   { title: "Payment terms", content: "We require a 50% deposit to begin production. The remaining balance is due upon completion before delivery. We accept bank transfer, GCash, and credit card payment." },
@@ -444,7 +436,6 @@ async function resetDatabase() {
     "activity_logs",
     "business_notifications",
     "business_notification_states",
-    "reply_snippets",
     "business_memories",
     "quote_library_entries",
     "quote_library_entry_items",
@@ -1028,18 +1019,6 @@ async function createBusiness(
     createdAt: daysAgo(180),
     updatedAt: now,
   });
-
-  // Seed reply snippets
-  for (const snippet of REPLY_SNIPPETS) {
-    await db.insert(replySnippets).values({
-      id: id("rsp"),
-      businessId: bizId,
-      title: snippet.title,
-      body: snippet.body,
-      createdAt: daysAgo(170),
-      updatedAt: daysAgo(170),
-    });
-  }
 
   // Seed knowledge memories
   for (let i = 0; i < KNOWLEDGE_ITEMS.length; i++) {

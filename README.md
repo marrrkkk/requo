@@ -44,7 +44,7 @@ keeping the core experience focused on this workflow rather than generic configu
 - Public quote pages with customer accept/reject responses and response messages
 - Manual quote sharing plus Requo email sending through transactional email
 - Follow-up scheduling and lifecycle tracking for inquiries and quotes
-- Starter defaults for inquiry fields, reply snippets, and quote notes that stay editable later
+- Starter defaults for inquiry fields and quote notes that stay editable later
 - Knowledge and FAQ management for business-specific reference material
 - AI-assisted response drafting through Groq, Gemini, and OpenRouter fallback routing
 - Transactional email flows through Resend, with Mailtrap and Brevo fallback
@@ -155,9 +155,6 @@ The demo seed also creates two additional sample businesses, three inquiry forms
 
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
-- `MICROSOFT_CLIENT_ID`
-- `MICROSOFT_CLIENT_SECRET`
-- `MICROSOFT_TENANT_ID`
 - `RESEND_API_KEY`
 - `MAILTRAP_API_TOKEN`
 - `BREVO_API_KEY`

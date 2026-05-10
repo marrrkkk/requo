@@ -10,7 +10,6 @@ export type BusinessSettingsNavigationIcon =
   | "general"
   | "members"
   | "notifications"
-  | "replies"
   | "knowledge"
   | "quote"
   | "email"
@@ -77,11 +76,6 @@ export function getBusinessSettingsNavigation(
       ? {
           label: "Responses",
           items: [
-            {
-              href: getBusinessSettingsPath(slug, "replies"),
-              label: "Replies",
-              icon: "replies" as const,
-            },
             {
               href: getBusinessSettingsPath(slug, "knowledge"),
               label: "Knowledge",

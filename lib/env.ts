@@ -21,9 +21,8 @@ const envSchema = z.object({
 
   GOOGLE_CLIENT_ID: emptyToUndefined(z.string().min(1)),
   GOOGLE_CLIENT_SECRET: emptyToUndefined(z.string().min(1)),
-  MICROSOFT_CLIENT_ID: emptyToUndefined(z.string().min(1)),
-  MICROSOFT_CLIENT_SECRET: emptyToUndefined(z.string().min(1)),
-  MICROSOFT_TENANT_ID: emptyToUndefined(z.string().min(1)).default("common"),
+  /** HTML tag verification value from Google Search Console (meta name="google-site-verification"). */
+  GOOGLE_SITE_VERIFICATION: emptyToUndefined(z.string().min(1)),
   NEXT_PUBLIC_SUPABASE_URL: z.url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),

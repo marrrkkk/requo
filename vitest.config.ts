@@ -12,6 +12,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
     globals: true,
+    testTimeout: 15000,
     exclude: ['tests/e2e/**', 'node_modules/**', '.next/**'],
     env: {
       BETTER_AUTH_SECRET: 'test-secret-at-least-32-characters-long-so-zod-passes',

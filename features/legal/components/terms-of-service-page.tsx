@@ -69,9 +69,10 @@ const termsSections: LegalDocumentSection[] = [
           confidential, and promptly update your information if it changes.
         </LegalParagraph>
         <LegalParagraph>
-          The Service currently supports email-and-password sign-in, password
-          reset, session management, account deletion, and optional Google or
-          Microsoft social sign-in when enabled.
+          The Service currently supports email-and-password sign-in, optional
+          email magic links (when transactional email is configured), password
+          reset, session management, account deletion, and optional Google OAuth
+          sign-in when enabled.
         </LegalParagraph>
         <LegalParagraph>
           You are responsible for all activity that occurs under your account to
@@ -240,7 +241,7 @@ const termsSections: LegalDocumentSection[] = [
             `${legalConfig.storageProvider}, for database, storage, and related backend infrastructure.`,
             "Resend, for transactional email delivery.",
             "Groq, Gemini, and OpenRouter, for AI request routing when AI features are used.",
-            "Google or Microsoft, for optional social sign-in when those sign-in methods are enabled.",
+            "Google, for optional OAuth sign-in when enabled; transactional email carries magic-link sign-in when configured.",
           ]}
         />
         <LegalParagraph>

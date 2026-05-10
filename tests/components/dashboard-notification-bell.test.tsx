@@ -118,7 +118,9 @@ describe("DashboardNotificationBell", () => {
     });
   });
 
-  it("subscribes on mount and refreshes the route when a notification arrives", async () => {
+  it("subscribes when opened and refreshes the route when a notification arrives", async () => {
+    const user = userEvent.setup();
+
     render(
       <DashboardNotificationBell
         businessId="biz_123"
@@ -132,6 +134,8 @@ describe("DashboardNotificationBell", () => {
         userId="user_123"
       />,
     );
+
+    await user.click(screen.getByRole("button", { name: "Notifications" }));
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
@@ -168,6 +172,8 @@ describe("DashboardNotificationBell", () => {
   });
 
   it("refreshes route when an inquiry insert arrives", async () => {
+    const user = userEvent.setup();
+
     render(
       <DashboardNotificationBell
         businessId="biz_123"
@@ -181,6 +187,8 @@ describe("DashboardNotificationBell", () => {
         userId="user_123"
       />,
     );
+
+    await user.click(screen.getByRole("button", { name: "Notifications" }));
 
     await waitFor(() => expect(inquiryInsertHandler).not.toBeNull());
 

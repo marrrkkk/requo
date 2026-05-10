@@ -24,15 +24,6 @@ async function openBusinessesPage(page: Page, path: string) {
   await page.waitForLoadState("networkidle");
 }
 
-function getSnippetCard(page: Page, title: string): Locator {
-  return page
-    .locator('[data-slot="card"]')
-    .filter({
-      has: page.locator('[data-slot="card-title"]').filter({ hasText: title }),
-    })
-    .last();
-}
-
 function getToggleCard(page: Page, label: string): Locator {
   return page.locator("label").filter({
     has: page.getByText(label, { exact: true }),
@@ -207,78 +198,6 @@ test("owner can open the quote editor from an inquiry and create a linked draft 
     timeout: 20_000,
   });
   await expect(page.getByLabel("Quote title")).toHaveValue(/\S+/);
-});
-
-test("owner can create, edit, insert, and delete a saved reply snippet", async ({
-  page,
-}) => {
-  test.setTimeout(90_000);
-
-  const initialTitle = `Delivery window ${Date.now()}`;
-  const updatedTitle = `${initialTitle} updated`;
-  const initialBody =
-    "Could you confirm whether this job needs delivery or local pickup?";
-  const updatedBody =
-    "Could you confirm the final delivery address, target date, and whether local pickup is still an option?";
-  const existingSnippetBody =
-    "Thanks for sending this over. To price it accurately, could you confirm the final dimensions, quantity, and whether installation should be included?";
-
-  await signIn(page);
-
-  await openBusinessesPage(page, "/settings/replies");
-
-  await page.locator("#reply-snippet-create-title").fill(initialTitle);
-  await page.locator("#reply-snippet-create-body").fill(initialBody);
-  await page.getByRole("button", { name: "Save reply snippet" }).click();
-
-  const snippetCard = getSnippetCard(page, initialTitle);
-  await expect(snippetCard).toBeVisible({ timeout: 20_000 });
-
-  await snippetCard.getByRole("button", { name: "Edit snippet" }).click();
-  await snippetCard.getByLabel("Title").fill(updatedTitle);
-  await snippetCard.getByLabel("Snippet").fill(updatedBody);
-  await snippetCard.getByRole("button", { name: "Save snippet" }).click();
-
-  const updatedSnippetCard = getSnippetCard(page, updatedTitle);
-  await expect(updatedSnippetCard).toBeVisible({ timeout: 20_000 });
-  await expect(updatedSnippetCard.getByText(updatedBody)).toBeVisible();
-
-  await openBusinessesPage(page, "/inquiries/demo_inquiry_new_storefront");
-
-  const updatedSnippetOption = page
-    .getByTestId("inquiry-reply-snippet-option")
-    .filter({ has: page.getByText(updatedTitle, { exact: true }) });
-  await expect(updatedSnippetOption).toBeVisible();
-
-  await updatedSnippetOption
-    .getByRole("button", { name: "Insert snippet" })
-    .click();
-
-  const replyDraft = page.getByPlaceholder(
-    "Reply-style outputs can be inserted here, then edited before you send them.",
-  );
-  await expect(replyDraft).toHaveValue(updatedBody);
-
-  await page
-    .getByTestId("inquiry-reply-snippet-option")
-    .filter({
-      has: page.getByText("Ask for missing dimensions", { exact: true }),
-    })
-    .getByRole("button", { name: "Insert snippet" })
-    .click();
-
-  await expect(replyDraft).toHaveValue(
-    `${updatedBody}\n\n${existingSnippetBody}`,
-  );
-
-  await openBusinessesPage(page, "/settings/replies");
-
-  const deletableSnippetCard = getSnippetCard(page, updatedTitle);
-  await deletableSnippetCard.getByRole("button", { name: "Delete" }).click();
-
-  await expect(getSnippetCard(page, updatedTitle)).toHaveCount(0, {
-    timeout: 60_000,
-  });
 });
 
 test("inquiry form preview reflects unsaved field and page edits in realtime", async ({

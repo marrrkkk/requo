@@ -55,6 +55,23 @@ function shouldIgnoreAnchorNavigation(anchor: HTMLAnchorElement) {
   );
 }
 
+/**
+ * Returns true when the event target sits inside a non-navigation interactive
+ * element. Buttons, dialogs, and overlay triggers (Radix portals, sheets,
+ * dropdowns) look like anchor clicks to the progress bar but never perform
+ * client-side navigation — starting the bar for them causes a stalled
+ * indicator that never completes.
+ */
+function isInsideNonNavigationInteractive(target: EventTarget | null) {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+
+  return target.closest(
+    'button, [role="button"], [role="dialog"], [role="alertdialog"], [data-radix-portal], [data-radix-popper-content-wrapper]',
+  ) !== null;
+}
+
 export function RouteProgressBar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -217,6 +234,10 @@ export function RouteProgressBar() {
 
   useEffect(() => {
     function getNextRouteFromAnchorEvent(eventTarget: EventTarget | null) {
+      if (isInsideNonNavigationInteractive(eventTarget)) {
+        return null;
+      }
+
       const anchor = getClosestAnchor(eventTarget);
 
       if (!anchor || shouldIgnoreAnchorNavigation(anchor)) {

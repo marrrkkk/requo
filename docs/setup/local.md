@@ -60,7 +60,7 @@ npx web-push generate-vapid-keys
 - If you switch between `localhost` and `127.0.0.1`, update the auth URL to match the browser origin.
 - Social sign-in is optional. Set provider credentials only for the providers you want to enable:
   - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
-  - `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, and optional `MICROSOFT_TENANT_ID`
+  - Passwordless email sign-in uses the magic link plugin; configure transactional email (Resend/Mailtrap/Brevo) so sign-in links can be delivered.
 - Provider callback URLs use `/api/auth/callback/<provider>`.
 
 ### Supabase
@@ -189,7 +189,6 @@ Use one canonical route set in docs and tests:
 - Settings sections:
   - General: `/settings/general`
   - Profile: `/settings/profile`
-  - Saved replies: `/settings/replies`
   - Quote defaults: `/settings/quote`
   - Pricing library: `/settings/pricing`
   - Knowledge base: `/settings/knowledge`

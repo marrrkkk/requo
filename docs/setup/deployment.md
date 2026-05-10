@@ -55,7 +55,7 @@ views plus customer responses from one place.
 - If you deploy on Vercel, `VERCEL_URL` can be used to allow preview-origin requests.
 - Add provider credentials only for the OAuth providers you want to expose:
   - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
-  - `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, and optional `MICROSOFT_TENANT_ID`
+  - Configure transactional email for optional magic-link sign-in.
 - Provider callback URLs use `/api/auth/callback/<provider>`.
 
 ## Supabase Checklist

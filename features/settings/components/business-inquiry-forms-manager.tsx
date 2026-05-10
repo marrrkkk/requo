@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import QRCode from "react-qr-code";
+import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
 import {
   ArrowUpRight,
@@ -558,11 +558,19 @@ function FormShareDialog({
     const svgElement = document.getElementById(`qr-svg-${formSlug}`);
     if (!svgElement) return;
 
-    const padding = 32;
-    const qrSize = 256;
-    const textSpace = 70;
-    const finalWidth = qrSize + padding * 2;
-    const finalHeight = qrSize + padding * 2 + textSpace;
+    // Dimensions for the premium custom frame
+    const qrSize = 320;
+    const paddingX = 48;
+    const paddingTop = 56;
+    const paddingBottom = 56;
+    const textHeaderHeight = 90;
+    const shadowMargin = 40; // Room for drop shadow and transparent border
+    
+    const cardWidth = qrSize + paddingX * 2;
+    const cardHeight = qrSize + paddingTop + textHeaderHeight + paddingBottom;
+    
+    const finalWidth = cardWidth + shadowMargin * 2;
+    const finalHeight = cardHeight + shadowMargin * 2;
 
     const svgData = new XMLSerializer().serializeToString(svgElement);
     const canvas = document.createElement("canvas");
@@ -572,26 +580,95 @@ function FormShareDialog({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // 1. Clear background for PNG transparency
+    ctx.clearRect(0, 0, finalWidth, finalHeight);
+
+    // 2. Draw the floating card with shadow
+    ctx.shadowColor = "rgba(0, 0, 0, 0.08)";
+    ctx.shadowBlur = 24;
+    ctx.shadowOffsetY = 8;
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, finalWidth, finalHeight);
+    
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(shadowMargin, shadowMargin, cardWidth, cardHeight, 32);
+    } else {
+      ctx.rect(shadowMargin, shadowMargin, cardWidth, cardHeight);
+    }
+    ctx.fill();
 
-    ctx.fillStyle = "#111827";
-    ctx.font = "bold 20px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    // Reset shadow for inner elements
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+
+    // 3. Draw a subtle inner border
+    ctx.strokeStyle = "#f3f4f6"; // Tailwind gray-100
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // 4. Draw text header
+    const centerX = finalWidth / 2;
+    const cardStartY = shadowMargin + paddingTop;
+
+    ctx.fillStyle = "#111827"; // gray-900
+    ctx.font = "bold 28px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(businessName, finalWidth / 2, padding + 20);
+    ctx.fillText(businessName, centerX, cardStartY + 20);
 
-    ctx.fillStyle = "#6B7280";
-    ctx.font = "500 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-    ctx.fillText(formName, finalWidth / 2, padding + 44);
+    ctx.fillStyle = "#6B7280"; // gray-500
+    ctx.font = "500 16px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    ctx.fillText(formName, centerX, cardStartY + 52);
 
     const img = new Image();
     img.onload = () => {
-      ctx.drawImage(img, padding, padding + textSpace, qrSize, qrSize);
-      const pngFile = canvas.toDataURL("image/png");
-      const downloadLink = document.createElement("a");
-      downloadLink.download = `${formName.toLowerCase().replace(/\s+/g, "-")}-qr.png`;
-      downloadLink.href = pngFile;
-      downloadLink.click();
+      const qrX = shadowMargin + paddingX;
+      const qrY = cardStartY + textHeaderHeight;
+      
+      // 5. Draw the QR code
+      ctx.drawImage(img, qrX, qrY, qrSize, qrSize);
+
+      // 6. Draw the center logo box
+      const logoBoxSize = 72; // Roughly 22% of 320
+      const logoX = qrX + (qrSize - logoBoxSize) / 2;
+      const logoY = qrY + (qrSize - logoBoxSize) / 2;
+
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      if (ctx.roundRect) {
+        ctx.roundRect(logoX, logoY, logoBoxSize, logoBoxSize, 16);
+      } else {
+        ctx.rect(logoX, logoY, logoBoxSize, logoBoxSize);
+      }
+      ctx.fill();
+      
+      // Add a tiny shadow to the inner Requo logo box to separate it from the QR blocks
+      ctx.shadowColor = "rgba(0, 0, 0, 0.06)";
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetY = 2;
+      ctx.fill();
+
+      // 7. Draw the Requo icon in the middle
+      const logoImg = new Image();
+      logoImg.onload = () => {
+        // Reset shadow for image
+        ctx.shadowColor = "transparent";
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+
+        const logoSize = 48;
+        const imgX = logoX + (logoBoxSize - logoSize) / 2;
+        const imgY = logoY + (logoBoxSize - logoSize) / 2;
+        ctx.drawImage(logoImg, imgX, imgY, logoSize, logoSize);
+
+        // Finalize download (no footer text)
+        const pngFile = canvas.toDataURL("image/png");
+        const downloadLink = document.createElement("a");
+        downloadLink.download = `${formName.toLowerCase().replace(/\s+/g, "-")}-qr.png`;
+        downloadLink.href = pngFile;
+        downloadLink.click();
+      };
+      logoImg.src = "/logo.svg";
     };
 
     img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
@@ -614,12 +691,18 @@ function FormShareDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="items-center gap-6">
-          <div className="rounded-xl border border-border/70 bg-white p-4">
-            <QRCode
+          <div className="relative mx-auto flex items-center justify-center rounded-xl border border-border/70 bg-white p-4">
+            <QRCodeSVG
               id={`qr-svg-${formSlug}`}
               value={url}
               size={200}
-              level="M"
+              level="H"
+              imageSettings={{
+                src: "/logo.svg",
+                height: 44,
+                width: 44,
+                excavate: true,
+              }}
             />
           </div>
           <div className="flex w-full items-center gap-2">

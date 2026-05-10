@@ -38,7 +38,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
   loadMoreBusinessNotificationsAction,
   markBusinessNotificationsReadAction,
@@ -85,6 +84,19 @@ type RealtimeInquiryRow = {
   id: string;
 };
 
+type SupabaseBrowserClient = ReturnType<
+  typeof import("@/lib/supabase/browser").createSupabaseBrowserClient
+>;
+type RealtimeChannel = ReturnType<SupabaseBrowserClient["channel"]>;
+type IdleWindow = Window &
+  typeof globalThis & {
+    cancelIdleCallback?: (handle: number) => void;
+    requestIdleCallback?: (
+      callback: IdleRequestCallback,
+      options?: IdleRequestOptions,
+    ) => number;
+  };
+
 export function DashboardNotificationBell({
   businessId,
   businessSlug,
@@ -94,14 +106,13 @@ export function DashboardNotificationBell({
   const isMobile = useIsMobile();
   const router = useRouter();
   const progressRouter = useProgressRouter();
-  const supabaseRef = useRef<ReturnType<typeof createSupabaseBrowserClient> | null>(
-    null,
-  );
+  const supabaseRef = useRef<SupabaseBrowserClient | null>(null);
   const refreshTimerRef = useRef<number | null>(null);
   const routeRefreshTimerRef = useRef<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isLoadingMore, startLoadMore] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
+  const [shouldConnectRealtime, setShouldConnectRealtime] = useState(false);
   const [view, setView] = useState({
     ...initialView,
     hasMore: initialView.hasMore ?? false,
@@ -151,20 +162,44 @@ export function DashboardNotificationBell({
   }
 
   useEffect(() => {
-    let isActive = true;
-    const supabase =
-      supabaseRef.current ?? createSupabaseBrowserClient();
+    if (shouldConnectRealtime) {
+      return;
+    }
 
-    supabaseRef.current = supabase;
-    let notificationChannel:
-      | Awaited<ReturnType<typeof supabase.channel>>
-      | null = null;
-    let stateChannel:
-      | Awaited<ReturnType<typeof supabase.channel>>
-      | null = null;
-    let inquiryChannel:
-      | Awaited<ReturnType<typeof supabase.channel>>
-      | null = null;
+    if (isOpen) {
+      setShouldConnectRealtime(true);
+      return;
+    }
+
+    const idleWindow = window as IdleWindow;
+    const connect = () => setShouldConnectRealtime(true);
+
+    if (idleWindow.requestIdleCallback) {
+      const idleId = idleWindow.requestIdleCallback(connect, {
+        timeout: 4000,
+      });
+
+      return () => {
+        idleWindow.cancelIdleCallback?.(idleId);
+      };
+    }
+
+    const timerId = window.setTimeout(connect, 1800);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [isOpen, shouldConnectRealtime]);
+
+  useEffect(() => {
+    if (!shouldConnectRealtime) {
+      return;
+    }
+
+    let isActive = true;
+    let notificationChannel: RealtimeChannel | null = null;
+    let stateChannel: RealtimeChannel | null = null;
+    let inquiryChannel: RealtimeChannel | null = null;
 
     function clearRefreshTimer() {
       if (refreshTimerRef.current) {
@@ -219,10 +254,29 @@ export function DashboardNotificationBell({
       };
     }
 
+    async function getSupabase() {
+      if (supabaseRef.current) {
+        return supabaseRef.current;
+      }
+
+      const { createSupabaseBrowserClient } = await import(
+        "@/lib/supabase/browser"
+      );
+      const nextClient = createSupabaseBrowserClient();
+      supabaseRef.current = nextClient;
+      return nextClient;
+    }
+
     async function refreshRealtimeAuth() {
       const nextToken = await fetchRealtimeToken();
 
       if (!nextToken || !isActive) {
+        return;
+      }
+
+      const supabase = await getSupabase();
+
+      if (!isActive) {
         return;
       }
 
@@ -234,6 +288,12 @@ export function DashboardNotificationBell({
       const nextToken = await fetchRealtimeToken();
 
       if (!nextToken || !isActive) {
+        return;
+      }
+
+      const supabase = await getSupabase();
+
+      if (!isActive) {
         return;
       }
 
@@ -355,20 +415,21 @@ export function DashboardNotificationBell({
       isActive = false;
       clearRefreshTimer();
       clearRouteRefreshTimer();
+      const supabase = supabaseRef.current;
 
-      if (notificationChannel) {
+      if (supabase && notificationChannel) {
         void supabase.removeChannel(notificationChannel);
       }
 
-      if (stateChannel) {
+      if (supabase && stateChannel) {
         void supabase.removeChannel(stateChannel);
       }
 
-      if (inquiryChannel) {
+      if (supabase && inquiryChannel) {
         void supabase.removeChannel(inquiryChannel);
       }
     };
-  }, [businessId, businessSlug, router, userId]);
+  }, [businessId, businessSlug, router, shouldConnectRealtime, userId]);
 
   const loadOlderNotifications = useCallback(() => {
     if (!view.hasMore || loadMoreInFlightRef.current || isLoadingMore) {

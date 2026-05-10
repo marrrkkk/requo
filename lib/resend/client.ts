@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { QuoteEmailTemplateConfig } from "@/features/settings/email-templates";
 import { renderBusinessMemberInviteEmail } from "@/emails/templates/business-member-invite";
 import { renderEmailVerificationEmail } from "@/emails/templates/email-verification";
+import { renderMagicLinkEmail } from "@/emails/templates/magic-link";
 import { renderPasswordResetEmail } from "@/emails/templates/password-reset";
 import { renderPublicInquiryNotificationEmail } from "@/emails/templates/public-inquiry-notification";
 import { renderQuoteEmail } from "@/emails/templates/quote-email";
@@ -32,6 +33,12 @@ type SendVerificationEmailInput = {
   name: string;
   token: string;
   url: string;
+};
+
+type SendMagicLinkEmailInput = {
+  email: string;
+  url: string;
+  token: string;
 };
 
 type SendBusinessMemberInviteEmailInput = {
@@ -195,6 +202,49 @@ export function getResendSendFailureMessage(error: unknown) {
     default:
       return null;
   }
+}
+
+export async function sendMagicLinkEmail({
+  email,
+  url,
+  token,
+}: SendMagicLinkEmailInput) {
+  if (!isEmailConfigured) {
+    logDeliverySkipped(
+      "Email is not configured yet. Magic link email delivery was skipped.",
+      "auth",
+    );
+    return;
+  }
+
+  const senderConfigurationError = getConfigurationError("auth");
+
+  if (senderConfigurationError) {
+    logDeliverySkipped(
+      `Email sender is misconfigured. Magic link email delivery was skipped. ${senderConfigurationError}`,
+      "auth",
+    );
+    return;
+  }
+
+  const template = renderMagicLinkEmail({ signInUrl: url });
+
+  await sendBrandedEmail({
+    emailType: "auth",
+    to: email,
+    replyTo: getFallbackReplyTo(),
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+    idempotencyKey: `auth:magic-link:${getRecipientKey(email)}:${hashIdempotencyPart(token)}`,
+    metadata: {
+      authEvent: "magic_link",
+    },
+    tags: {
+      type: "auth",
+      event: "magic_link",
+    },
+  });
 }
 
 export async function sendPasswordResetEmail({
