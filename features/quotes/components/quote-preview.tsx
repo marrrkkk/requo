@@ -28,6 +28,7 @@ type QuotePreviewProps = {
   businessLogoStoragePath?: string | null;
   businessSlug?: string;
   className?: string;
+  titleLevel?: 1 | 2;
   variant?: "default" | "bare";
 };
 
@@ -48,8 +49,11 @@ export function QuotePreview({
   businessLogoStoragePath,
   businessSlug,
   className,
+  titleLevel = 2,
   variant = "default",
 }: QuotePreviewProps) {
+  const TitleTag = titleLevel === 1 ? "h1" : "h2";
+
   return (
     <article
       className={cn(
@@ -77,9 +81,9 @@ export function QuotePreview({
                   <TruncatedTextWithTooltip text={businessName} />
                 </span>
               </div>
-              <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl mt-1">
+              <TitleTag className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl mt-1">
                 <TruncatedTextWithTooltip text={title} lines={2} />
-              </h2>
+              </TitleTag>
             </div>
             <div className="soft-panel w-full px-4 py-3 text-sm shadow-none sm:w-auto sm:min-w-52">
               <TruncatedTextWithTooltip

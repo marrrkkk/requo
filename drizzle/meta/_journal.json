@@ -403,6 +403,20 @@
       "when": 1778234067327,
       "tag": "0057_add_payment_method",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1778345400000,
+      "tag": "0059_business_locked_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1778450000000,
+      "tag": "0060_business_customer_contact_channel",
+      "breakpoints": true
     }
   ]
 }

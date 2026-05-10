@@ -12,7 +12,6 @@ import { MadeWithRequo } from "@/components/shared/made-with-requo";
 import { PublicQuoteViewTracker } from "@/features/analytics/components/public-page-analytics-tracker";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
 import { PublicQuoteInteractiveColumn } from "@/features/quotes/components/public-quote-interactive-column";
 import { QuotePreview } from "@/features/quotes/components/quote-preview";
 import { respondToPublicQuoteAction } from "@/features/quotes/actions";
@@ -20,10 +19,36 @@ import { getPublicQuoteByToken } from "@/features/quotes/queries";
 import { quotePublicRouteParamsSchema } from "@/features/quotes/schemas";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export const metadata: Metadata = createNoIndexMetadata({
+const quotePageFallbackMetadata = createNoIndexMetadata({
   absoluteTitle: "Customer quote",
   description: "Review and respond to a customer quote securely.",
 });
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}): Promise<Metadata> {
+  const parsedParams = quotePublicRouteParamsSchema.safeParse(await params);
+
+  if (!parsedParams.success) {
+    return quotePageFallbackMetadata;
+  }
+
+  const quote = await getPublicQuoteByToken(parsedParams.data.token);
+
+  if (!quote) {
+    return quotePageFallbackMetadata;
+  }
+
+  const primaryLabel =
+    quote.title.trim() || `Quote ${quote.quoteNumber}`.trim();
+
+  return createNoIndexMetadata({
+    absoluteTitle: `${primaryLabel} · ${quote.businessName}`,
+    description: `Review and respond to this quote from ${quote.businessName}.`,
+  });
+}
 
 export default async function PublicQuotePage({
   params,
@@ -79,6 +104,7 @@ export default async function PublicQuotePage({
               discountInCents={quote.discountInCents}
               totalInCents={quote.totalInCents}
               className="w-full"
+              titleLevel={1}
               variant="bare"
             />
 

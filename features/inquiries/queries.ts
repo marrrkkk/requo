@@ -45,6 +45,7 @@ import {
   resolveInquiryPageConfigForPlan,
 } from "@/features/inquiries/plan-rules";
 import { normalizeBusinessType } from "@/features/inquiries/business-types";
+import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import {
   getBusinessInquiryDetailCacheTags,
   getBusinessInquiryFormCacheTags,
@@ -142,7 +143,9 @@ async function getInquiryBusinessBySlug({
         eq(businesses.slug, slug),
         isNull(businesses.deletedAt),
         isNull(businesses.deletedAt),
-        includeDisabled ? undefined : isNull(businesses.archivedAt),
+        includeDisabled
+          ? undefined
+          : and(isNull(businesses.archivedAt), isNull(businesses.lockedAt)),
       ),
     )
     .limit(1);
@@ -321,7 +324,9 @@ async function getInquiryBusinessByFormSlug({
         eq(businesses.slug, businessSlug),
         isNull(businesses.deletedAt),
         isNull(businesses.deletedAt),
-        includeDisabled ? undefined : isNull(businesses.archivedAt),
+        includeDisabled
+          ? undefined
+          : and(isNull(businesses.archivedAt), isNull(businesses.lockedAt)),
       ),
     )
     .limit(1);
@@ -389,6 +394,7 @@ export async function getPublicBusinessLogoAssetBySlug(slug: string) {
         eq(businesses.slug, slug),
         isNull(businesses.deletedAt),
         isNull(businesses.archivedAt),
+        isNull(businesses.lockedAt),
         isNull(businesses.deletedAt),
       ),
     )
@@ -983,4 +989,52 @@ export async function getInquiryAttachmentForBusiness({
     .limit(1);
 
   return attachment ?? null;
+}
+
+export type PublicInquirySitemapEntry = {
+  lastModified: Date;
+  pathname: string;
+};
+
+/**
+ * Indexable public inquiry URLs for sitemap.xml (mirrors public page visibility).
+ */
+export async function listPublicInquirySitemapEntries(): Promise<
+  PublicInquirySitemapEntry[]
+> {
+  const rows = await db
+    .select({
+      businessSlug: businesses.slug,
+      formIsDefault: businessInquiryForms.isDefault,
+      formSlug: businessInquiryForms.slug,
+      businessUpdatedAt: businesses.updatedAt,
+      formUpdatedAt: businessInquiryForms.updatedAt,
+    })
+    .from(businesses)
+    .innerJoin(
+      businessInquiryForms,
+      and(
+        eq(businessInquiryForms.businessId, businesses.id),
+        eq(businessInquiryForms.publicInquiryEnabled, true),
+        isNull(businessInquiryForms.archivedAt),
+      ),
+    )
+    .where(
+      and(
+        isNull(businesses.deletedAt),
+        isNull(businesses.archivedAt),
+        isNull(businesses.lockedAt),
+      ),
+    );
+
+  return rows.map((row) => ({
+    lastModified:
+      row.formUpdatedAt.getTime() >= row.businessUpdatedAt.getTime()
+        ? row.formUpdatedAt
+        : row.businessUpdatedAt,
+    pathname: getBusinessPublicInquiryUrl(
+      row.businessSlug,
+      row.formIsDefault ? undefined : row.formSlug,
+    ),
+  }));
 }
