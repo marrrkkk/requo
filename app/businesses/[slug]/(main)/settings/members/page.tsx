@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: "Members",
 };
 
-export const unstable_instant = { prefetch: 'static' as const };
+export const unstable_instant = false;
 
 export default async function BusinessMembersSettingsPage({
   params,

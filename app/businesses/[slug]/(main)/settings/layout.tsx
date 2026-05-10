@@ -7,7 +7,7 @@ import { BusinessSettingsNav } from "@/features/settings/components/business-set
 import { getBusinessSettingsNavigation, getWorkspaceSettingsNavigation } from "@/features/settings/navigation";
 import { getBusinessSettingsPageContext } from "./_lib/page-context";
 
-export const unstable_instant = { prefetch: 'static' as const };
+export const unstable_instant = false;
 
 export default function BusinessSettingsLayout({
   children,
