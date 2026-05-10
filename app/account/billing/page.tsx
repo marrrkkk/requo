@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { connection } from "next/server";
 
 import { BillingStatusCard } from "@/features/billing/components/billing-status-card";
@@ -10,8 +11,19 @@ import {
   getMonthlyQuoteCount,
   getMonthlyRequoQuoteSendCount,
 } from "@/lib/plans/usage";
+import AccountBillingLoading from "./loading";
 
-export default async function AccountBillingPage() {
+export const unstable_instant = { prefetch: 'static' as const };
+
+export default function AccountBillingPage() {
+  return (
+    <Suspense fallback={<AccountBillingLoading />}>
+      <AccountBillingContent />
+    </Suspense>
+  );
+}
+
+async function AccountBillingContent() {
   await connection();
 
   const session = await requireSession();

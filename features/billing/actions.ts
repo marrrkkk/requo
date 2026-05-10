@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/auth/session";
 import { writeAuditLog } from "@/features/audit/mutations";
+import { enforceActiveBusinessLimitOnPlanChange, listLockCandidatesForDowngrade } from "@/features/businesses/plan-enforcement";
 import { getBusinessContextForUser } from "@/lib/db/business-access";
 import { isPayMongoConfigured, isPaddleConfigured } from "@/lib/env";
 import { getPlanPrice } from "@/lib/billing/plans";
@@ -344,10 +345,16 @@ export async function cancelSubscriptionAction(
   const user = await requireUser();
 
   const businessId = formData.get("businessId");
+  const keepBusinessId = formData.get("keepBusinessId");
 
   if (typeof businessId !== "string") {
     return { error: "Invalid input." };
   }
+
+  const selectedKeepBusinessId =
+    typeof keepBusinessId === "string" && keepBusinessId.length > 0
+      ? keepBusinessId
+      : null;
 
   // Verify business ownership
   const businessContext = await getBusinessContextForUser(user.id, businessId);
@@ -371,6 +378,28 @@ export async function cancelSubscriptionAction(
   }
 
   const isPending = subscription.status === "pending";
+  const downgradePreview = await listLockCandidatesForDowngrade({
+    ownerUserId: user.id,
+    targetPlan: "free",
+  });
+
+  if (downgradePreview.requiresSelection && !selectedKeepBusinessId) {
+    return {
+      error:
+        "Choose which business stays active on Free before you continue.",
+    };
+  }
+
+  if (
+    selectedKeepBusinessId &&
+    !downgradePreview.activeBusinesses.some(
+      (business) => business.id === selectedKeepBusinessId,
+    )
+  ) {
+    return {
+      error: "The selected business could not be used for downgrade.",
+    };
+  }
 
   // Cancel based on provider
   if (
@@ -423,6 +452,19 @@ export async function cancelSubscriptionAction(
     "@/lib/billing/subscription-service"
   );
   const updatedSubscription = await cancelSubscription(user.id);
+
+  const effectivePlanAfterCancel = updatedSubscription
+    ? resolveEffectivePlanFromSubscription(updatedSubscription)
+    : "free";
+
+  if (effectivePlanAfterCancel === "free") {
+    await enforceActiveBusinessLimitOnPlanChange({
+      ownerUserId: user.id,
+      newPlan: "free",
+      keepBusinessId: selectedKeepBusinessId,
+      actorUserId: user.id,
+    });
+  }
 
   if (updatedSubscription) {
     const { db } = await import("@/lib/db/client");

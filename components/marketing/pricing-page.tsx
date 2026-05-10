@@ -160,12 +160,6 @@ const pricingCategories: PricingFeatureCategory[] = [
         business: true,
       },
       {
-        label: planFeatureLabels.replySnippets,
-        free: false,
-        pro: true,
-        business: true,
-      },
-      {
         label: planFeatureLabels.emailTemplates,
         free: false,
         pro: true,

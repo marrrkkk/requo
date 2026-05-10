@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
@@ -44,6 +44,12 @@ function renderCheckoutDialog(
 }
 
 describe("CheckoutDialog", () => {
+  beforeEach(() => {
+    cancelPendingQrCheckoutActionMock.mockClear();
+    createCheckoutActionMock.mockClear();
+    refreshMock.mockClear();
+  });
+
   it("renders Paddle card checkout as the primary option before QRPh", () => {
     renderCheckoutDialog();
 
@@ -64,6 +70,23 @@ describe("CheckoutDialog", () => {
       screen.queryByRole("button", { name: /Pay with QRPh/i }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Pay with Card/i })).toBeVisible();
+  });
+
+  it("does not submit card checkout automatically outside the Philippines", async () => {
+    const requestSubmitSpy = vi
+      .spyOn(HTMLFormElement.prototype, "requestSubmit")
+      .mockImplementation(() => undefined);
+
+    try {
+      renderCheckoutDialog({ region: "INTL" });
+
+      await new Promise((resolve) => window.setTimeout(resolve, 25));
+
+      expect(requestSubmitSpy).not.toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: /Pay with Card/i })).toBeVisible();
+    } finally {
+      requestSubmitSpy.mockRestore();
+    }
   });
 
   it("closes checkout and calls the plan changer", async () => {

@@ -5,16 +5,17 @@ import { cacheLife, cacheTag } from "next/cache";
 import { headers } from "next/headers";
 
 import { db } from "@/lib/db/client";
+import { listLockCandidatesForDowngrade } from "@/features/businesses/plan-enforcement";
 import { businesses } from "@/lib/db/schema/businesses";
 import { paymentAttempts } from "@/lib/db/schema/subscriptions";
 import {
+  getCachedAccountSubscription,
   getAccountSubscription,
   resolveEffectivePlanFromSubscription,
 } from "@/lib/billing/subscription-service";
 import { getBillingRegion, getDefaultCurrency } from "@/lib/billing/region";
 import {
   getBusinessBillingCacheTags,
-  getUserBillingCacheTags,
   billingShellCacheLife,
 } from "@/lib/cache/shell-tags";
 import type { AccountBillingOverview } from "@/features/billing/types";
@@ -45,6 +46,81 @@ async function getCachedBusinessData(businessId: string) {
   return rows[0] ?? null;
 }
 
+function toBillingSubscriptionView(
+  subscription: Awaited<ReturnType<typeof getAccountSubscription>>,
+): AccountBillingOverview["subscription"] {
+  return subscription
+    ? {
+        status: subscription.status,
+        plan: subscription.plan,
+        provider: subscription.billingProvider,
+        currency: subscription.billingCurrency,
+        paymentMethod: subscription.paymentMethod,
+        currentPeriodStart: subscription.currentPeriodStart,
+        currentPeriodEnd: subscription.currentPeriodEnd,
+        canceledAt: subscription.canceledAt,
+        providerSubscriptionId: subscription.providerSubscriptionId,
+      }
+    : null;
+}
+
+function createEmptyDowngradePreview(): AccountBillingOverview["downgradePreview"] {
+  return {
+    targetPlan: "free",
+    activeBusinessLimit: null,
+    activeBusinesses: [],
+    requiresSelection: false,
+  };
+}
+
+/**
+ * Slim shell billing state for dashboard chrome and upgrade buttons.
+ * It intentionally skips downgrade preview queries used only by billing pages.
+ */
+export async function getBusinessBillingShellOverview(
+  businessId: string,
+): Promise<AccountBillingOverview | null> {
+  try {
+    const [businessData, requestHeaders] = await Promise.all([
+      getCachedBusinessData(businessId),
+      headers(),
+    ]);
+
+    if (!businessData) {
+      return null;
+    }
+
+    const subscription = await getCachedAccountSubscription(
+      businessData.ownerUserId,
+    );
+    const region = getBillingRegion(requestHeaders);
+    const defaultCurrency = getDefaultCurrency(region);
+    const currentPlan = subscription
+      ? resolveEffectivePlanFromSubscription(subscription)
+      : (businessData.plan as BusinessPlan);
+
+    return {
+      userId: businessData.ownerUserId,
+      businessId: businessData.id,
+      businessName: businessData.name,
+      businessSlug: businessData.slug,
+      currentPlan,
+      region,
+      defaultCurrency,
+      downgradePreview: createEmptyDowngradePreview(),
+      subscription: toBillingSubscriptionView(subscription),
+    };
+  } catch (error) {
+    console.error(
+      "Failed to load shell billing overview.",
+      { businessId },
+      error,
+    );
+
+    return null;
+  }
+}
+
 /**
  * Returns a full billing overview for the account billing UI.
  * The subscription is resolved from the business owner's account.
@@ -63,6 +139,10 @@ export async function getAccountBillingOverview(
     }
 
     const subscription = await getAccountSubscription(businessData.ownerUserId);
+    const downgradePreview = await listLockCandidatesForDowngrade({
+      ownerUserId: businessData.ownerUserId,
+      targetPlan: "free",
+    });
     const region = getBillingRegion(requestHeaders);
     const defaultCurrency = getDefaultCurrency(region);
     const currentPlan = subscription
@@ -77,19 +157,18 @@ export async function getAccountBillingOverview(
       currentPlan,
       region,
       defaultCurrency,
-      subscription: subscription
-        ? {
-            status: subscription.status,
-            plan: subscription.plan,
-            provider: subscription.billingProvider,
-            currency: subscription.billingCurrency,
-            paymentMethod: subscription.paymentMethod,
-            currentPeriodStart: subscription.currentPeriodStart,
-            currentPeriodEnd: subscription.currentPeriodEnd,
-            canceledAt: subscription.canceledAt,
-            providerSubscriptionId: subscription.providerSubscriptionId,
-          }
-        : null,
+      downgradePreview: {
+        targetPlan: "free",
+        activeBusinessLimit: downgradePreview.activeBusinessLimit,
+        activeBusinesses: downgradePreview.activeBusinesses.map((business) => ({
+          id: business.id,
+          name: business.name,
+          slug: business.slug,
+          lastOpenedAt: business.lastOpenedAt,
+        })),
+        requiresSelection: downgradePreview.requiresSelection,
+      },
+      subscription: toBillingSubscriptionView(subscription),
     };
   } catch (error) {
     console.error(

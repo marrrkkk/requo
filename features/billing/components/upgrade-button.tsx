@@ -5,16 +5,22 @@
  * Used in paywall components, business overview, and pricing pages.
  */
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import dynamic from "next/dynamic";
 import { ArrowUpRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { CheckoutDialog } from "@/features/billing/components/checkout-dialog";
-import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
+import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import type { BillingCurrency, BillingInterval, BillingRegion, PaidPlan } from "@/lib/billing/types";
 import { cn } from "@/lib/utils";
+
+const CheckoutDialog = dynamic(() =>
+  import("@/features/billing/components/checkout-dialog").then(
+    (module) => module.CheckoutDialog,
+  ),
+);
 
 type UpgradeButtonProps = {
   userId: string;
@@ -62,8 +68,10 @@ export function UpgradeButton({
 
     return (
       <Button
+        type="button"
         className={cn(className)}
-        onClick={() => {
+        onClick={(e) => {
+          e.preventDefault();
           if (hasPendingCheckout) {
             businessCheckout.continueCheckout();
             return;
@@ -93,8 +101,12 @@ export function UpgradeButton({
   return (
     <>
       <Button
+        type="button"
         className={cn(className)}
-        onClick={() => setSheetOpen(true)}
+        onClick={(e) => {
+          e.preventDefault();
+          setSheetOpen(true);
+        }}
         size={size}
         variant={variant}
       >
@@ -107,40 +119,43 @@ export function UpgradeButton({
           </>
         )}
       </Button>
-      <PlanSelectionSheet
-        defaultCurrency={defaultCurrency}
-        currentPlan={effectiveCurrentPlan}
-        onOpenChange={setSheetOpen}
-        onSelectPlan={(plan, interval) => {
-          setSelectedPlan(plan);
-          setSelectedInterval(interval);
-          setSheetOpen(false);
-          setCheckoutOpen(true);
-        }}
-        open={sheetOpen}
-        region={region}
-        targetPlan={targetPlan}
-      />
-      {selectedPlan ? (
-        <CheckoutDialog
-          currentPlan={effectiveCurrentPlan}
+      
+        <PlanSelectionSheet
           defaultCurrency={defaultCurrency}
-          onChangePlan={() => {
-            setCheckoutOpen(false);
-            setSelectedPlan(null);
-            setSheetOpen(true);
+          currentPlan={effectiveCurrentPlan}
+          onOpenChange={setSheetOpen}
+          onSelectPlan={(plan, interval) => {
+            setSelectedPlan(plan);
+            setSelectedInterval(interval);
+            setSheetOpen(false);
+            setCheckoutOpen(true);
           }}
-          onOpenChange={setCheckoutOpen}
-          open={checkoutOpen}
-          plan={selectedPlan}
-          interval={selectedInterval}
+          open={sheetOpen}
           region={region}
-          userId={userId}
-          businessId={businessId}
-          businessSlug={businessSlug}
+          targetPlan={targetPlan}
         />
+      
+      {selectedPlan ? (
+        <Suspense fallback={null}>
+          <CheckoutDialog
+            currentPlan={effectiveCurrentPlan}
+            defaultCurrency={defaultCurrency}
+            onChangePlan={() => {
+              setCheckoutOpen(false);
+              setSelectedPlan(null);
+              setSheetOpen(true);
+            }}
+            onOpenChange={setCheckoutOpen}
+            open={checkoutOpen}
+            plan={selectedPlan}
+            interval={selectedInterval}
+            region={region}
+            userId={userId}
+            businessId={businessId}
+            businessSlug={businessSlug}
+          />
+        </Suspense>
       ) : null}
     </>
   );
 }
-

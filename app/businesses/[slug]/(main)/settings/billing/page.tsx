@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { PageHeader } from "@/components/shared/page-header";
 
 import { BillingStatusCard } from "@/features/billing/components/billing-status-card";
@@ -9,6 +11,10 @@ import {
   getMonthlyRequoQuoteSendCount,
 } from "@/lib/plans/usage";
 import { getBusinessOwnerPageContext } from "../_lib/page-context";
+
+export const metadata: Metadata = {
+  title: "Billing",
+};
 
 export default async function BillingSettingsPage() {
   const { user, businessContext } = await getBusinessOwnerPageContext();

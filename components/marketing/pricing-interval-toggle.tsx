@@ -45,7 +45,7 @@ const planHighlights: Record<plan, string[]> = {
       getUsageLimit("pro", "publicInquiryAttachmentMaxBytes"),
     )} uploads`,
     "AI assistant & knowledge",
-    "Saved replies, email templates & quote library",
+    "Email templates & quote library",
     "Data exports & advanced branding",
     "Up to 10 total businesses",
   ],

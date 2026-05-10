@@ -7,7 +7,9 @@ const {
   dbSelectLimitMock,
   dbSelectMock,
   dbSelectWhereMock,
+  listLockCandidatesForDowngradeMock,
   getAccountSubscriptionMock,
+  getCachedAccountSubscriptionMock,
   headersMock,
   resolveEffectivePlanFromSubscriptionMock,
 } = vi.hoisted(() => ({
@@ -17,7 +19,9 @@ const {
   dbSelectLimitMock: vi.fn(),
   dbSelectMock: vi.fn(),
   dbSelectWhereMock: vi.fn(),
+  listLockCandidatesForDowngradeMock: vi.fn(),
   getAccountSubscriptionMock: vi.fn(),
+  getCachedAccountSubscriptionMock: vi.fn(),
   headersMock: vi.fn(),
   resolveEffectivePlanFromSubscriptionMock: vi.fn(),
 }));
@@ -25,8 +29,10 @@ const {
 vi.mock("server-only", () => ({}));
 
 vi.mock("drizzle-orm", () => ({
+  and: vi.fn(() => "and"),
   desc: vi.fn(() => "desc"),
   eq: vi.fn(() => "eq"),
+  inArray: vi.fn(() => "inArray"),
 }));
 
 vi.mock("next/cache", () => ({
@@ -57,12 +63,19 @@ vi.mock("@/lib/db/schema/subscriptions", () => ({
   paymentAttempts: {
     createdAt: "createdAt",
     businessId: "businessId",
+    status: "status",
+    userId: "userId",
   },
 }));
 
 vi.mock("@/lib/billing/subscription-service", () => ({
   getAccountSubscription: getAccountSubscriptionMock,
+  getCachedAccountSubscription: getCachedAccountSubscriptionMock,
   resolveEffectivePlanFromSubscription: resolveEffectivePlanFromSubscriptionMock,
+}));
+
+vi.mock("@/features/businesses/plan-enforcement", () => ({
+  listLockCandidatesForDowngrade: listLockCandidatesForDowngradeMock,
 }));
 
 import { getBusinessBillingOverview } from "@/features/billing/queries";
@@ -109,6 +122,12 @@ describe("features/billing/queries", () => {
       }),
     );
     getAccountSubscriptionMock.mockResolvedValue(null);
+    getCachedAccountSubscriptionMock.mockResolvedValue(null);
+    listLockCandidatesForDowngradeMock.mockResolvedValue({
+      activeBusinessLimit: null,
+      activeBusinesses: [],
+      requiresSelection: false,
+    });
     resolveEffectivePlanFromSubscriptionMock.mockImplementation(
       (subscription: { plan: string; status: string }) =>
         subscription.status === "active" || subscription.status === "past_due"

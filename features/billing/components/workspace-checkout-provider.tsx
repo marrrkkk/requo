@@ -2,6 +2,8 @@
 
 import {
   createContext,
+  Suspense,
+  startTransition,
   useCallback,
   useContext,
   useEffect,
@@ -10,7 +12,9 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import { dispatchRouteProgressComplete } from "@/lib/navigation/route-progress";
 import { Briefcase, Building2, Check, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
@@ -30,7 +34,6 @@ import {
   getCheckoutStatusAction,
   getPendingCheckoutAction,
 } from "@/features/billing/actions";
-import { CheckoutDialog } from "@/features/billing/components/checkout-dialog";
 import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
 import {
   clearCachedPendingCheckout,
@@ -47,7 +50,17 @@ import { planMeta } from "@/lib/plans";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
 import { cn } from "@/lib/utils";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+
+type SupabaseBrowserClient = ReturnType<
+  typeof import("@/lib/supabase/browser").createSupabaseBrowserClient
+>;
+type RealtimeChannel = ReturnType<SupabaseBrowserClient["channel"]>;
+
+const CheckoutDialog = dynamic(() =>
+  import("@/features/billing/components/checkout-dialog").then(
+    (module) => module.CheckoutDialog,
+  ),
+);
 
 const planUpgradeHighlights: Record<PaidPlan, string[]> = {
   pro: [
@@ -277,6 +290,7 @@ export function BusinessCheckoutProvider({
   const checkoutKeyRef = useRef(0);
   const activationFallbackTimerRef = useRef<number | null>(null);
   const confirmedActivationPlanRef = useRef<PaidPlan | null>(null);
+  const supabaseRef = useRef<SupabaseBrowserClient | null>(null);
 
   const openPlanSelection = useCallback((nextTargetPlan?: PaidPlan) => {
     setCheckoutError(null);
@@ -335,7 +349,10 @@ export function BusinessCheckoutProvider({
     refreshQueuedRef.current = true;
 
     window.setTimeout(() => {
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
+      dispatchRouteProgressComplete();
       window.setTimeout(() => {
         refreshQueuedRef.current = false;
       }, PROCESSING_REFRESH_RETRY_MS);
@@ -372,7 +389,10 @@ export function BusinessCheckoutProvider({
         setCheckoutError(null);
         setSelectedPlan(null);
         setSuccessPlan(plan);
-        router.refresh();
+        startTransition(() => {
+          router.refresh();
+        });
+        dispatchRouteProgressComplete();
       }, PROCESSING_FALLBACK_MS);
     },
     [router],
@@ -538,18 +558,13 @@ export function BusinessCheckoutProvider({
     }
 
     let isActive = true;
-    const supabase = createSupabaseBrowserClient();
     // Unique suffix prevents collisions when the effect re-runs before the
     // previous cleanup's `removeChannel` fully completes (async race).
     const channelSuffix = Date.now();
     let refreshTimerId: number | null = null;
     let statusPollTimerId: number | null = null;
-    let subscriptionChannel:
-      | Awaited<ReturnType<typeof supabase.channel>>
-      | null = null;
-    let paymentAttemptsChannel:
-      | Awaited<ReturnType<typeof supabase.channel>>
-      | null = null;
+    let subscriptionChannel: RealtimeChannel | null = null;
+    let paymentAttemptsChannel: RealtimeChannel | null = null;
     let isSyncingCheckoutStatus = false;
 
     const planToTrack =
@@ -589,10 +604,29 @@ export function BusinessCheckoutProvider({
       }, refreshInMs);
     }
 
+    async function getSupabase() {
+      if (supabaseRef.current) {
+        return supabaseRef.current;
+      }
+
+      const { createSupabaseBrowserClient } = await import(
+        "@/lib/supabase/browser"
+      );
+      const nextClient = createSupabaseBrowserClient();
+      supabaseRef.current = nextClient;
+      return nextClient;
+    }
+
     async function refreshRealtimeAuth() {
       const nextToken = await fetchRealtimeToken();
 
       if (!nextToken || !isActive) {
+        return;
+      }
+
+      const supabase = await getSupabase();
+
+      if (!isActive) {
         return;
       }
 
@@ -732,6 +766,12 @@ export function BusinessCheckoutProvider({
         return;
       }
 
+      const supabase = await getSupabase();
+
+      if (!isActive) {
+        return;
+      }
+
       await supabase.realtime.setAuth(tokenData.token);
 
       subscriptionChannel = supabase
@@ -801,12 +841,13 @@ export function BusinessCheckoutProvider({
       isActive = false;
       clearRefreshTimer();
       clearStatusPollTimer();
+      const supabase = supabaseRef.current;
 
-      if (subscriptionChannel) {
+      if (supabase && subscriptionChannel) {
         void supabase.removeChannel(subscriptionChannel);
       }
 
-      if (paymentAttemptsChannel) {
+      if (supabase && paymentAttemptsChannel) {
         void supabase.removeChannel(paymentAttemptsChannel);
       }
     };
@@ -853,36 +894,40 @@ export function BusinessCheckoutProvider({
   return (
     <BusinessCheckoutContext.Provider value={contextValue}>
       {children}
-      <PlanSelectionSheet
-        currentPlan={currentPlan}
-        defaultCurrency={billing.defaultCurrency}
-        onOpenChange={setSheetOpen}
-        onSelectPlan={openCheckout}
-        open={sheetOpen}
-        region={billing.region}
-        targetPlan={targetPlan}
-      />
-      {selectedPlan ? (
-        <CheckoutDialog
-          key={checkoutKeyRef.current}
-          checkoutError={checkoutError}
+      
+        <PlanSelectionSheet
           currentPlan={currentPlan}
           defaultCurrency={billing.defaultCurrency}
-          onCheckoutErrorChange={setCheckoutError}
-          onChangePlan={changeCheckoutPlan}
-          onOpenChange={setCheckoutOpen}
-          onPaymentProcessingStart={beginCheckoutProcessing}
-          onPaddleTransactionChange={setActivePaddleCheckout}
-          open={checkoutOpen}
-          pendingCheckout={pendingCheckout}
-          interval={selectedInterval}
-          plan={selectedPlan}
+          onOpenChange={setSheetOpen}
+          onSelectPlan={openCheckout}
+          open={sheetOpen}
           region={billing.region}
-          userId={billing.userId}
-          businessId={billing.businessId}
-          businessName={billing.businessName}
-          businessSlug={billing.businessSlug}
+          targetPlan={targetPlan}
         />
+      
+      {selectedPlan ? (
+        <Suspense fallback={null}>
+          <CheckoutDialog
+            key={checkoutKeyRef.current}
+            checkoutError={checkoutError}
+            currentPlan={currentPlan}
+            defaultCurrency={billing.defaultCurrency}
+            onCheckoutErrorChange={setCheckoutError}
+            onChangePlan={changeCheckoutPlan}
+            onOpenChange={setCheckoutOpen}
+            onPaymentProcessingStart={beginCheckoutProcessing}
+            onPaddleTransactionChange={setActivePaddleCheckout}
+            open={checkoutOpen}
+            pendingCheckout={pendingCheckout}
+            interval={selectedInterval}
+            plan={selectedPlan}
+            region={billing.region}
+            userId={billing.userId}
+            businessId={billing.businessId}
+            businessName={billing.businessName}
+            businessSlug={billing.businessSlug}
+          />
+        </Suspense>
       ) : null}
       <Dialog open={Boolean(processingState)} onOpenChange={() => {}}>
         <DialogContent className="max-w-sm gap-0" showCloseButton={false}>

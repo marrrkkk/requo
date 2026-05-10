@@ -2,13 +2,14 @@
 
 import {
   useActionState,
+  startTransition,
   useCallback,
   useEffect,
   useRef,
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import { dispatchRouteProgressComplete } from "@/lib/navigation/route-progress";
 import {
   AlertCircle,
   Briefcase,
@@ -190,7 +191,6 @@ function CheckoutDialogInner({
   );
   const openedPaddleTransactionRef = useRef<string | null>(null);
   const cardFormRef = useRef<HTMLFormElement>(null);
-  const autoStartedRef = useRef(false);
   const isPH = region === "PH";
   const cardCurrency: BillingCurrency = "USD";
   const qrCurrency: BillingCurrency = "PHP";
@@ -364,23 +364,6 @@ function CheckoutDialogInner({
     updateCheckoutError,
   ]);
 
-  // Auto-start card checkout when dialog opens (skip selection placeholder).
-  // Only for non-PH so QR option stays clickable for PH users.
-  useEffect(() => {
-    if (
-      open &&
-      view === "selection" &&
-      !autoStartedRef.current &&
-      !pendingQr &&
-      !isPH
-    ) {
-      autoStartedRef.current = true;
-      requestAnimationFrame(() => {
-        cardFormRef.current?.requestSubmit();
-      });
-    }
-  }, [open, view, pendingQr, isPH]);
-
   const handleQrCancel = useCallback(async () => {
     if (!pendingQr) {
       return;
@@ -403,7 +386,10 @@ function CheckoutDialogInner({
     if (result.outcome === "already_paid") {
       setIsCancelingQr(false);
       onOpenChange(false);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
+      dispatchRouteProgressComplete();
       return;
     }
 
@@ -412,7 +398,10 @@ function CheckoutDialogInner({
     setIsCancelingQr(false);
     setView("selection");
     onOpenChange(false);
-    router.refresh();
+    startTransition(() => {
+      router.refresh();
+    });
+    dispatchRouteProgressComplete();
   }, [onOpenChange, pendingQr, router, updateCheckoutError, userId]);
 
   const resetPaddleCheckout = useCallback(() => {

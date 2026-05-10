@@ -7,7 +7,7 @@
  */
 
 import Image from "next/image";
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import {
   CreditCard,
   QrCode,
@@ -21,13 +21,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
@@ -43,7 +37,6 @@ import type {
   CancelActionState,
 } from "@/features/billing/types";
 import { planMeta, getUsageLimit } from "@/lib/plans";
-import { cn } from "@/lib/utils";
 
 type BillingStatusCardProps = {
   billing: AccountBillingOverview;
@@ -68,6 +61,7 @@ export function BillingStatusCard({
     businessSlug,
     region,
     defaultCurrency,
+    downgradePreview,
   } = billing;
   const businessCheckout = useBusinessCheckout();
   const currentPlan =
@@ -114,6 +108,9 @@ export function BillingStatusCard({
   const hasPendingSubscription =
     subscription && subscription.status === "pending";
   const hasSubscription = hasActiveSubscription || hasPendingSubscription;
+  const [keepBusinessId, setKeepBusinessId] = useState(
+    downgradePreview.activeBusinesses[0]?.id ?? "",
+  );
 
   useEffect(() => {
     if (subscription?.provider !== "paymongo" || !hasPendingSubscription) {
@@ -266,7 +263,7 @@ export function BillingStatusCard({
                 <div>
                   <p className="text-sm font-medium">Subscription canceling</p>
                   <p className="mt-0.5 text-xs opacity-90">
-                    You'll keep full access until the end of the billing period.
+                    You&apos;ll keep full access until the end of the billing period.
                   </p>
                 </div>
               </Alert>
@@ -292,10 +289,53 @@ export function BillingStatusCard({
             hasSubscription &&
             variant === "full" ? (
               <div className="mt-auto pt-2">
+                {downgradePreview.requiresSelection ? (
+                  <div className="mb-4 rounded-xl border border-border/70 bg-muted/30 p-4">
+                    <p className="text-sm font-medium text-foreground">
+                      You&apos;re downgrading to Free.
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Free includes 1 active business. You currently have{" "}
+                      {downgradePreview.activeBusinesses.length} businesses.
+                      Choose which business to keep active. The other businesses
+                      will be locked but not deleted. You can unlock them anytime
+                      by upgrading again.
+                    </p>
+                    <fieldset className="mt-3 grid gap-2">
+                      {downgradePreview.activeBusinesses.map((business) => (
+                        <label
+                          key={business.id}
+                          className="flex items-center gap-2 rounded-lg border border-border/70 bg-background px-3 py-2 text-sm"
+                        >
+                          <input
+                            type="radio"
+                            name="keep-business-choice"
+                            value={business.id}
+                            checked={keepBusinessId === business.id}
+                            onChange={() => setKeepBusinessId(business.id)}
+                          />
+                          <span className="font-medium text-foreground">
+                            {business.name}
+                          </span>
+                        </label>
+                      ))}
+                    </fieldset>
+                  </div>
+                ) : null}
                 <form action={cancelAction} className="w-full">
                   <input name="businessId" type="hidden" value={businessId} />
+                  {keepBusinessId ? (
+                    <input
+                      name="keepBusinessId"
+                      type="hidden"
+                      value={keepBusinessId}
+                    />
+                  ) : null}
                   <Button
-                    disabled={isCanceling}
+                    disabled={
+                      isCanceling ||
+                      (downgradePreview.requiresSelection && !keepBusinessId)
+                    }
                     size="sm"
                     type="submit"
                     variant="outline"

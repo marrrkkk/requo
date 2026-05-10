@@ -19,7 +19,6 @@ export const planFeatures = [
   "emailTemplates",
   "customerHistory",
   "pushNotifications",
-  "replySnippets",
   "quoteLibrary",
   "knowledgeBase",
   "aiAssistant",
@@ -42,7 +41,6 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "emailTemplates",
     "customerHistory",
     "pushNotifications",
-    "replySnippets",
     "quoteLibrary",
     "knowledgeBase",
     "aiAssistant",
@@ -59,7 +57,6 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "emailTemplates",
     "customerHistory",
     "pushNotifications",
-    "replySnippets",
     "quoteLibrary",
     "knowledgeBase",
     "aiAssistant",
@@ -110,7 +107,6 @@ export const planFeatureLabels: Record<PlanFeature, string> = {
   emailTemplates: "Email templates",
   customerHistory: "Customer history",
   pushNotifications: "Push notifications",
-  replySnippets: "Saved replies",
   quoteLibrary: "Quote library",
   knowledgeBase: "Knowledge",
   aiAssistant: "AI assistant",
@@ -138,8 +134,6 @@ export const planFeatureDescriptions: Record<PlanFeature, string> = {
     "Review a customer's prior inquiries and quotes from inquiry and quote detail pages.",
   pushNotifications:
     "Receive browser push notifications for important inquiry and quote events.",
-  replySnippets:
-    "Save and reuse common responses to speed up replies.",
   quoteLibrary:
     "Build a library of reusable quote templates.",
   knowledgeBase:

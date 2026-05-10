@@ -85,6 +85,8 @@ export const businesses = pgTable(
       .default("general_project_services"),
     countryCode: text("country_code"),
     shortDescription: text("short_description"),
+    /** How inbound customers typically reach this business (onboarding insight). */
+    customerContactChannel: text("customer_contact_channel"),
     contactEmail: text("contact_email"),
     logoStoragePath: text("logo_storage_path"),
     logoContentType: text("logo_content_type"),
@@ -155,6 +157,11 @@ export const businesses = pgTable(
     archivedBy: text("archived_by").references(() => user.id, {
       onDelete: "set null",
     }),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    lockedBy: text("locked_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    lockedReason: text("locked_reason"),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     deletedBy: text("deleted_by").references(() => user.id, {
       onDelete: "set null",
@@ -177,6 +184,10 @@ export const businesses = pgTable(
     index("businesses_owner_archived_at_idx").on(
       table.ownerUserId,
       table.archivedAt,
+    ),
+    index("businesses_owner_locked_at_idx").on(
+      table.ownerUserId,
+      table.lockedAt,
     ),
     check("businesses_slug_format", sql`${table.slug} ~ '^[a-z0-9-]+$'`),
     check(

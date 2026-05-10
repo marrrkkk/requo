@@ -30,6 +30,17 @@ export type AccountBillingOverview = {
   } | null;
   region: BillingRegion;
   defaultCurrency: BillingCurrency;
+  downgradePreview: {
+    targetPlan: plan;
+    activeBusinessLimit: number | null;
+    activeBusinesses: Array<{
+      id: string;
+      name: string;
+      slug: string;
+      lastOpenedAt: Date | null;
+    }>;
+    requiresSelection: boolean;
+  };
 };
 
 /** @deprecated Use `AccountBillingOverview` instead. */

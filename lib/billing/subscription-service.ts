@@ -11,11 +11,16 @@ import "server-only";
  */
 
 import { and, eq, isNull } from "drizzle-orm";
-import { revalidateTag } from "next/cache";
+import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 
+import { enforceActiveBusinessLimitOnPlanChange } from "@/features/businesses/plan-enforcement";
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema/businesses";
-import { getBusinessBillingCacheTags, getUserBillingCacheTags } from "@/lib/cache/shell-tags";
+import {
+  billingShellCacheLife,
+  getBusinessBillingCacheTags,
+  getUserBillingCacheTags,
+} from "@/lib/cache/shell-tags";
 import {
   accountSubscriptions,
   type BillingCurrency,
@@ -45,12 +50,44 @@ export async function getAccountSubscription(
 }
 
 /**
+ * Cached read helper for request/render paths. Mutation and webhook paths
+ * should keep using `getAccountSubscription` for fresh pre-write reads.
+ */
+export async function getCachedAccountSubscription(
+  userId: string,
+): Promise<SubscriptionRow | null> {
+  "use cache";
+
+  cacheLife(billingShellCacheLife);
+  cacheTag(...getUserBillingCacheTags(userId));
+
+  return getAccountSubscription(userId);
+}
+
+/**
  * Resolves the effective plan for a user account.
  * This is the plan that all businesses owned by the user inherit.
  */
 export async function getEffectivePlanForUser(
   userId: string,
 ): Promise<BusinessPlan> {
+  const subscription = await getAccountSubscription(userId);
+
+  if (!subscription) {
+    return "free";
+  }
+
+  return resolveEffectivePlanFromSubscription(subscription);
+}
+
+export async function getCachedEffectivePlanForUser(
+  userId: string,
+): Promise<BusinessPlan> {
+  "use cache";
+
+  cacheLife(billingShellCacheLife);
+  cacheTag(...getUserBillingCacheTags(userId));
+
   const subscription = await getAccountSubscription(userId);
 
   if (!subscription) {
@@ -133,6 +170,25 @@ export async function getEffectivePlan(
   if (!biz) return "free";
 
   return getEffectivePlanForUser(biz.ownerUserId);
+}
+
+export async function getCachedEffectivePlan(
+  businessId: string,
+): Promise<BusinessPlan> {
+  "use cache";
+
+  cacheLife(billingShellCacheLife);
+  cacheTag(...getBusinessBillingCacheTags(businessId));
+
+  const [biz] = await db
+    .select({ ownerUserId: businesses.ownerUserId, plan: businesses.plan })
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
+  if (!biz) return "free";
+
+  return getCachedEffectivePlanForUser(biz.ownerUserId);
 }
 
 /* ── Write ─────────────────────────────────────────────────────────────────── */
@@ -238,6 +294,10 @@ export async function activateSubscription(
       ? params.plan
       : "free";
   await syncOwnerBusinessPlans(params.userId, planToSync);
+  await enforceActiveBusinessLimitOnPlanChange({
+    ownerUserId: params.userId,
+    newPlan: planToSync,
+  });
 
   return subscription;
 }
@@ -294,6 +354,10 @@ export async function updateSubscriptionStatus(
   // Sync business plan column
   const effectivePlan = resolveEffectivePlanFromSubscription(updated!);
   await syncOwnerBusinessPlans(userId, effectivePlan);
+  await enforceActiveBusinessLimitOnPlanChange({
+    ownerUserId: userId,
+    newPlan: effectivePlan,
+  });
 
   return updated!;
 }
