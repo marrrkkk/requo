@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatAnalyticsPercent } from "@/features/analytics/utils";
 import { DashboardActivationChecklist } from "@/features/businesses/components/dashboard-activation-checklist";
+import { WorkflowNextActionSummary } from "@/features/businesses/components/workflow-next-action";
 import {
   getBusinessAnalyticsPath,
   getBusinessFollowUpsPath,
@@ -30,6 +31,10 @@ import {
   getBusinessQuotePath,
   getBusinessQuotesPath,
 } from "@/features/businesses/routes";
+import {
+  getInquiryNextAction,
+  getQuoteNextAction,
+} from "@/features/businesses/workflow-next-actions";
 import type {
   BusinessDashboardSummaryData,
   BusinessOverviewData,
@@ -143,6 +148,7 @@ type NeedsAttentionItem = {
   title: string;
   description: string;
   meta: string;
+  actionLabel: string;
   tone: "urgent" | "normal" | "positive";
 };
 
@@ -169,6 +175,7 @@ export async function DashboardNeedsAttentionSection({
       title: inquiry.customerName,
       description: inquiry.serviceCategory,
       meta: `Submitted ${formatQuoteDate(inquiry.submittedAt)}`,
+      actionLabel: "Create quote",
       tone: "urgent" as const,
     })),
     ...overview.expiringSoonQuotes.map((quote) => ({
@@ -178,6 +185,7 @@ export async function DashboardNeedsAttentionSection({
       title: quote.title,
       description: quote.customerName,
       meta: `Expires ${formatQuoteDate(quote.validUntil)}`,
+      actionLabel: "Follow up before expiry",
       tone: "urgent" as const,
     })),
     ...overview.newInquiries.map((inquiry) => ({
@@ -187,6 +195,7 @@ export async function DashboardNeedsAttentionSection({
       title: inquiry.customerName,
       description: inquiry.serviceCategory,
       meta: `Submitted ${formatQuoteDate(inquiry.submittedAt)}`,
+      actionLabel: "Create quote",
       tone: "normal" as const,
     })),
     ...overview.recentAcceptedQuotes.map((quote) => ({
@@ -196,6 +205,7 @@ export async function DashboardNeedsAttentionSection({
       title: quote.title,
       description: quote.customerName,
       meta: `Accepted ${formatQuoteDate(quote.acceptedAt ?? quote.updatedAt)}`,
+      actionLabel: "Track next work step",
       tone: "positive" as const,
     })),
   ].slice(0, 6);
@@ -204,7 +214,8 @@ export async function DashboardNeedsAttentionSection({
     followUpOverview.counts.dueToday +
     overview.counts.overdueInquiries +
     overview.counts.expiringSoonQuotes +
-    overview.counts.newInquiries;
+    overview.counts.newInquiries +
+    overview.counts.recentAcceptedQuotes;
 
   return (
     <DashboardSection
@@ -776,6 +787,7 @@ function createFollowUpAttentionItem(
     title: followUp.title,
     description: `${followUp.customerName} - ${followUp.reason}`,
     meta: `Due ${formatFollowUpDate(followUp.dueAt)}`,
+    actionLabel: "Work follow-up",
     tone,
   };
 }
@@ -801,6 +813,9 @@ function NeedsAttentionRow({ item }: { item: NeedsAttentionItem }) {
             {item.description}
           </p>
           <p className="mt-2 text-xs text-muted-foreground">{item.meta}</p>
+          <p className="mt-2 text-xs font-medium text-foreground">
+            Next: {item.actionLabel}
+          </p>
         </div>
         <ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
       </div>
@@ -826,6 +841,11 @@ function OverviewInquiryRow({
   metaLabel: string;
   businessSlug: string;
 }) {
+  const nextAction = getInquiryNextAction({
+    businessSlug,
+    inquiry,
+  });
+
   return (
     <Link
       className="group block px-5 py-4 transition-colors hover:bg-accent/22 sm:px-6"
@@ -842,6 +862,12 @@ function OverviewInquiryRow({
               <p className="mt-1 truncate text-sm text-muted-foreground">
                 {inquiry.customerEmail}
               </p>
+              {nextAction ? (
+                <WorkflowNextActionSummary
+                  action={nextAction}
+                  className="mt-2"
+                />
+              ) : null}
             </div>
             <InquiryStatusBadge status={inquiry.status} />
           </div>
@@ -875,6 +901,10 @@ function OverviewQuoteRow({
   meta: string;
   businessSlug: string;
 }) {
+  const nextAction = getQuoteNextAction({
+    businessSlug,
+    quote,
+  });
   const reminders = quote.reminders.filter((reminder) => reminder !== "follow_up_due");
 
   return (
@@ -909,6 +939,12 @@ function OverviewQuoteRow({
                     />
                   ) : null}
                 </div>
+              ) : null}
+              {nextAction ? (
+                <WorkflowNextActionSummary
+                  action={nextAction}
+                  className="mt-2"
+                />
               ) : null}
             </div>
             <QuoteStatusBadge status={quote.status} />

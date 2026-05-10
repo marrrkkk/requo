@@ -16,6 +16,7 @@ import {
   DashboardSection,
   DashboardSidebarStack,
 } from "@/components/shared/dashboard-layout";
+import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
 import { InfoTile } from "@/components/shared/info-tile";
 import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
@@ -56,6 +57,7 @@ import {
 } from "@/features/inquiries/form-config";
 import { getCustomerHistoryForBusiness } from "@/features/customers/queries";
 import { CopyQuoteLinkButton } from "@/features/quotes/components/copy-quote-link-button";
+import { WorkflowNextActionCallout } from "@/features/businesses/components/workflow-next-action";
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";
 import { QuoteExportPopover } from "@/features/quotes/components/quote-export-popover";
 import { QuoteLifecycleActions } from "@/features/quotes/components/quote-lifecycle-actions";
@@ -68,6 +70,7 @@ import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-
 import { DismissibleQuoteAlert } from "@/features/quotes/components/dismissible-quote-alert";
 import { SendQuoteDialog } from "@/features/quotes/components/send-quote-dialog";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
+import { getQuoteNextAction } from "@/features/businesses/workflow-next-actions";
 import { getFollowUpsForQuote } from "@/features/follow-ups/queries";
 import { getQuoteLibraryForBusiness } from "@/features/quotes/quote-library-queries";
 import { getQuoteDetailForBusiness } from "@/features/quotes/queries";
@@ -119,9 +122,22 @@ type QuoteDetailPageProps = {
   params: Promise<{ slug: string; id: string }>;
 };
 
-export const unstable_instant = { prefetch: 'static' as const };
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
+};
 
-export default async function QuoteDetailPage({
+export default function QuoteDetailPage({
+  params,
+}: QuoteDetailPageProps) {
+  return (
+    <Suspense fallback={<DashboardDetailPageSkeleton variant="quote" />}>
+      <QuoteDetailContent params={params} />
+    </Suspense>
+  );
+}
+
+async function QuoteDetailContent({
   params,
 }: QuoteDetailPageProps) {
   const [session, resolvedParams] = await Promise.all([requireSession(), params]);
@@ -205,6 +221,12 @@ export default async function QuoteDetailPage({
   const hasPendingFollowUp = followUps.some(
     (followUp) => followUp.status === "pending",
   );
+  const nextFollowUpDueAt =
+    followUps
+      .filter((followUp) => followUp.status === "pending")
+      .slice()
+      .sort((left, right) => left.dueAt.getTime() - right.dueAt.getTime())[0]
+      ?.dueAt ?? null;
   const viewedWithoutResponse = Boolean(
     quote.status === "sent" &&
       quote.publicViewedAt &&
@@ -213,52 +235,16 @@ export default async function QuoteDetailPage({
   const visibleQuoteReminders = quote.reminders.filter(
     (reminder) => reminder !== "follow_up_due",
   );
-  const quoteNextAction =
-    isArchived
-      ? null
-      : quote.status === "draft"
-        ? {
-            title: "Next: send this quote",
-            description:
-              "Finish any edits, then share the customer quote page and set a follow-up reminder.",
-          }
-        : viewedWithoutResponse && !hasPendingFollowUp
-          ? {
-              title: "Next: follow up on the viewed quote",
-              description:
-                "The customer viewed this quote but has not accepted or rejected it. Set a follow-up reminder before it goes cold.",
-            }
-          : quote.status === "sent" && !hasPendingFollowUp
-            ? {
-                title: "Next: set a follow-up reminder",
-                description:
-                  "This quote is shared and waiting for a response. Schedule the next customer touchpoint.",
-              }
-            : quote.status === "sent"
-              ? {
-                  title: "Next: work the scheduled follow-up",
-                  description:
-                    "A follow-up is already planned. Keep the quote open until the customer responds.",
-                }
-              : quote.status === "accepted" && quote.postAcceptanceStatus === "completed"
-                ? {
-                    title: "Work completed",
-                    description:
-                      "This job has been fulfilled. The quote and work history are preserved.",
-                  }
-                : quote.status === "accepted" && quote.postAcceptanceStatus === "canceled"
-                  ? {
-                      title: "Canceled after acceptance",
-                      description:
-                        "This accepted quote was canceled. The quote record stays accepted for historical accuracy.",
-                    }
-                  : quote.status === "accepted"
-                    ? {
-                        title: "Next: schedule or book the work",
-                        description:
-                          "The customer accepted this quote. Track the handoff so the job does not stall.",
-                      }
-                    : null;
+  const quoteNextAction = getQuoteNextAction({
+    businessSlug,
+    quote: {
+      ...quote,
+      pendingFollowUpCount: followUps.filter(
+        (followUp) => followUp.status === "pending",
+      ).length,
+      nextFollowUpDueAt,
+    },
+  });
 
   const customerViewCopy =
     quote.status === "sent"
@@ -430,13 +416,7 @@ export default async function QuoteDetailPage({
         }
       />
 
-      {quoteNextAction ? (
-        <DismissibleQuoteAlert
-          id={`quote-${quote.id}-next-action`}
-          title={quoteNextAction.title}
-          description={quoteNextAction.description}
-        />
-      ) : null}
+      <WorkflowNextActionCallout action={quoteNextAction} />
 
       {quote.status === "draft" ? (
         <>
@@ -467,37 +447,41 @@ export default async function QuoteDetailPage({
             </DashboardSidebarStack>
 
             <DashboardSidebarStack>
-              <DashboardSection
-                description="Send the finished draft to your customer."
-                title="Send quote"
-              >
-                <SendQuoteDialog
-                  sendAction={sendAction}
-                  logEventAction={logEventAction}
-                  createFollowUpAction={createFollowUpAction}
-                  quote={quote}
-                  customerQuoteUrl={customerQuoteUrl}
-                  businessName={businessContext.business.name}
-                  isRequoEmailAvailable={isEmailConfigured && quote.customerContactMethod === "email" && !!quote.customerEmail}
-                  pdfExportHref={
-                    canExportData
-                      ? getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")
-                      : undefined
-                  }
-                  pdfExportLocked={!canExportData}
-                />
-              </DashboardSection>
+              <div id="send-quote">
+                <DashboardSection
+                  description="Send the finished draft to your customer."
+                  title="Send quote"
+                >
+                  <SendQuoteDialog
+                    sendAction={sendAction}
+                    logEventAction={logEventAction}
+                    createFollowUpAction={createFollowUpAction}
+                    quote={quote}
+                    customerQuoteUrl={customerQuoteUrl}
+                    businessName={businessContext.business.name}
+                    isRequoEmailAvailable={isEmailConfigured && quote.customerContactMethod === "email" && !!quote.customerEmail}
+                    pdfExportHref={
+                      canExportData
+                        ? getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")
+                        : undefined
+                    }
+                    pdfExportLocked={!canExportData}
+                  />
+                </DashboardSection>
+              </div>
 
-              <FollowUpPanel
-                businessSlug={businessSlug}
-                createAction={createFollowUpAction}
-                ctaDescription="Set a reminder to check back after sharing this quote."
-                defaultChannel={quote.customerContactMethod}
-                defaultReason="Follow up with the customer about this quote if they have not responded."
-                defaultTitle={`Follow up on quote ${quote.quoteNumber}`}
-                followUps={followUps}
-                sharedQuoteWithoutFollowUp={false}
-              />
+              <div id="follow-ups">
+                <FollowUpPanel
+                  businessSlug={businessSlug}
+                  createAction={createFollowUpAction}
+                  ctaDescription="Set a reminder to check back after sharing this quote."
+                  defaultChannel={quote.customerContactMethod}
+                  defaultReason="Follow up with the customer about this quote if they have not responded."
+                  defaultTitle={`Follow up on quote ${quote.quoteNumber}`}
+                  followUps={followUps}
+                  sharedQuoteWithoutFollowUp={false}
+                />
+              </div>
 
 
 
@@ -672,24 +656,26 @@ export default async function QuoteDetailPage({
               ) : null}
             </DashboardSection>
 
-            <FollowUpPanel
-              businessSlug={businessSlug}
-              createAction={createFollowUpAction}
-              ctaDescription={
-                viewedWithoutResponse
-                  ? "Set a reminder to follow up now that the customer has viewed this quote."
-                  : "Set a reminder to check back after sharing this quote."
-              }
-              defaultChannel={quote.customerContactMethod}
-              defaultReason={
-                viewedWithoutResponse
-                  ? "Follow up because the customer viewed this quote but has not responded."
-                  : "Follow up with the customer about this quote if they have not responded."
-              }
-              defaultTitle={`Follow up on quote ${quote.quoteNumber}`}
-              followUps={followUps}
-              sharedQuoteWithoutFollowUp={quote.status === "sent" && !hasPendingFollowUp}
-            />
+            <div id="follow-ups">
+              <FollowUpPanel
+                businessSlug={businessSlug}
+                createAction={createFollowUpAction}
+                ctaDescription={
+                  viewedWithoutResponse
+                    ? "Set a reminder to follow up now that the customer has viewed this quote."
+                    : "Set a reminder to check back after sharing this quote."
+                }
+                defaultChannel={quote.customerContactMethod}
+                defaultReason={
+                  viewedWithoutResponse
+                    ? "Follow up because the customer viewed this quote but has not responded."
+                    : "Follow up with the customer about this quote if they have not responded."
+                }
+                defaultTitle={`Follow up on quote ${quote.quoteNumber}`}
+                followUps={followUps}
+                sharedQuoteWithoutFollowUp={quote.status === "sent" && !hasPendingFollowUp}
+              />
+            </div>
 
 
 
@@ -702,26 +688,28 @@ export default async function QuoteDetailPage({
             ) : null}
 
             {quote.status === "accepted" ? (
-              <QuotePostWinSheetSection
-                key={quote.postAcceptanceStatus}
-                quoteId={quote.id}
-                quoteNumber={quote.quoteNumber}
-                customerName={quote.customerName}
-                totalInCents={quote.totalInCents}
-                currency={quote.currency}
-                acceptedAt={quote.acceptedAt}
-                completedAt={quote.completedAt}
-                canceledAt={quote.canceledAt}
-                cancellationReason={quote.cancellationReason}
-                cancellationNote={quote.cancellationNote}
-                postAcceptanceStatus={quote.postAcceptanceStatus}
-                checklistItems={quote.checklistItems}
-                postAcceptanceAction={postAcceptanceAction}
-                cancelAction={cancelAction}
-                completeAction={completeAction}
-                toggleChecklistItemAction={togglePostWinChecklistItemAction}
-                createChecklistItemAction={createPostWinChecklistItemAction}
-              />
+              <div id="post-acceptance">
+                <QuotePostWinSheetSection
+                  key={quote.postAcceptanceStatus}
+                  quoteId={quote.id}
+                  quoteNumber={quote.quoteNumber}
+                  customerName={quote.customerName}
+                  totalInCents={quote.totalInCents}
+                  currency={quote.currency}
+                  acceptedAt={quote.acceptedAt}
+                  completedAt={quote.completedAt}
+                  canceledAt={quote.canceledAt}
+                  cancellationReason={quote.cancellationReason}
+                  cancellationNote={quote.cancellationNote}
+                  postAcceptanceStatus={quote.postAcceptanceStatus}
+                  checklistItems={quote.checklistItems}
+                  postAcceptanceAction={postAcceptanceAction}
+                  cancelAction={cancelAction}
+                  completeAction={completeAction}
+                  toggleChecklistItemAction={togglePostWinChecklistItemAction}
+                  createChecklistItemAction={createPostWinChecklistItemAction}
+                />
+              </div>
             ) : null}
 
 

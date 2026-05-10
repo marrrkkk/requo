@@ -22,6 +22,7 @@ import {
   DashboardSection,
   DashboardSidebarStack,
 } from "@/components/shared/dashboard-layout";
+import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
 import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -37,6 +38,8 @@ import {
 } from "@/components/ui/sheet";
 import { InfoTile } from "@/components/shared/info-tile";
 import { CustomerHistoryPanel } from "@/features/customers/components/customer-history-panel";
+import { WorkflowNextActionCallout } from "@/features/businesses/components/workflow-next-action";
+import { getInquiryNextAction } from "@/features/businesses/workflow-next-actions";
 import { getCustomerHistoryForBusiness } from "@/features/customers/queries";
 import { createInquiryFollowUpAction } from "@/features/follow-ups/actions";
 import { FollowUpPanel } from "@/features/follow-ups/components/follow-up-panel";
@@ -116,9 +119,22 @@ type InquiryDetailPageProps = {
   params: Promise<{ slug: string; id: string }>;
 };
 
-export const unstable_instant = { prefetch: 'static' as const };
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
+};
 
-export default async function InquiryDetailPage({
+export default function InquiryDetailPage({
+  params,
+}: InquiryDetailPageProps) {
+  return (
+    <Suspense fallback={<DashboardDetailPageSkeleton variant="inquiry" />}>
+      <InquiryDetailContent params={params} />
+    </Suspense>
+  );
+}
+
+async function InquiryDetailContent({
   params,
 }: InquiryDetailPageProps) {
   const [session, resolvedParams] = await Promise.all([requireSession(), params]);
@@ -192,6 +208,10 @@ export default async function InquiryDetailPage({
   const preferredContactLabel = getContactMethodLabel(
     inquiry.customerContactMethod,
   );
+  const inquiryNextAction = getInquiryNextAction({
+    businessSlug,
+    inquiry,
+  });
 
   return (
     <DashboardPage className="pb-24">
@@ -263,6 +283,8 @@ export default async function InquiryDetailPage({
           </div>
         }
       />
+
+      <WorkflowNextActionCallout action={inquiryNextAction} />
 
       <DashboardDetailLayout className="xl:grid-cols-[1.45fr_0.95fr]">
         <DashboardSidebarStack>
@@ -545,17 +567,19 @@ export default async function InquiryDetailPage({
             ) : null}
           </DashboardSection>
 
-          <Suspense fallback={<FollowUpPanelFallback />}>
-            <StreamedFollowUpPanel
-              businessSlug={businessSlug}
-              createAction={createFollowUpAction}
-              ctaDescription="Set a reminder for the next customer touchpoint on this inquiry."
-              defaultChannel={inquiry.customerContactMethod}
-              defaultReason="Follow up with the customer to keep this inquiry moving."
-              defaultTitle={`Follow up with ${inquiry.customerName}`}
-              followUpsPromise={followUpsPromise}
-            />
-          </Suspense>
+          <div id="follow-ups">
+            <Suspense fallback={<FollowUpPanelFallback />}>
+              <StreamedFollowUpPanel
+                businessSlug={businessSlug}
+                createAction={createFollowUpAction}
+                ctaDescription="Set a reminder for the next customer touchpoint on this inquiry."
+                defaultChannel={inquiry.customerContactMethod}
+                defaultReason="Follow up with the customer to keep this inquiry moving."
+                defaultTitle={`Follow up with ${inquiry.customerName}`}
+                followUpsPromise={followUpsPromise}
+              />
+            </Suspense>
+          </div>
 
           <DashboardSection
             contentClassName="flex flex-col gap-4"

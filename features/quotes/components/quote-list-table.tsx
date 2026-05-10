@@ -12,6 +12,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { WorkflowNextActionSummary } from "@/features/businesses/components/workflow-next-action";
+import { getQuoteNextAction } from "@/features/businesses/workflow-next-actions";
 import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
 import { QuoteRecordStateBadge } from "@/features/quotes/components/quote-record-state-badge";
 import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
@@ -34,7 +36,7 @@ export function QuoteListTable({
 }: QuoteListTableProps) {
   return (
     <DashboardTableContainer className="hidden xl:block">
-      <Table className="min-w-[54rem] table-fixed 2xl:min-w-[64rem]">
+      <Table className="min-w-[66rem] table-fixed 2xl:min-w-[72rem]">
         <TableCaption className="sr-only">Newest quotes appear first.</TableCaption>
         <TableHeader>
           <TableRow>
@@ -43,11 +45,16 @@ export function QuoteListTable({
             <TableHead className="w-[8rem]">Valid until</TableHead>
             <TableHead className="w-[8rem]">Total</TableHead>
             <TableHead className="w-[9rem]">Status</TableHead>
+            <TableHead className="w-[12rem]">Next</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {quotes.map((quote) => {
             const quoteHref = getBusinessQuotePath(businessSlug, quote.id);
+            const nextAction = getQuoteNextAction({
+              businessSlug,
+              quote,
+            });
             const reminders = quote.reminders.filter(
               (reminder) => reminder !== "follow_up_due",
             );
@@ -134,6 +141,25 @@ export function QuoteListTable({
                     <QuoteStatusBadge status={quote.status} />
                     {quote.archivedAt ? <QuoteRecordStateBadge state="archived" /> : null}
                   </Link>
+                </TableCell>
+                <TableCell className="w-[12rem]">
+                  {nextAction ? (
+                    <Link
+                      className="inline-flex max-w-full"
+                      href={nextAction.href}
+                      prefetch={true}
+                    >
+                      <WorkflowNextActionSummary action={nextAction} />
+                    </Link>
+                  ) : (
+                    <Link
+                      className="text-sm text-muted-foreground transition-colors hover:text-primary group-hover/row:text-primary"
+                      href={quoteHref}
+                      prefetch={true}
+                    >
+                      Review
+                    </Link>
+                  )}
                 </TableCell>
               </TableRow>
             );
