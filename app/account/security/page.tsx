@@ -17,7 +17,7 @@ import type { AccountSessionView } from "@/features/account/types";
 import { requireSession } from "@/lib/auth/session";
 import { auth } from "@/lib/auth/server";
 
-export const unstable_instant = { prefetch: 'static' as const };
+export const unstable_instant = false;
 
 export default function AccountSecurityPage() {
   return (

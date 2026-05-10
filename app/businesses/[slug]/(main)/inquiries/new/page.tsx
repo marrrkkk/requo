@@ -21,7 +21,10 @@ type NewInquiryPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export const unstable_instant = { prefetch: 'static' as const };
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
+};
 
 export default async function NewInquiryPage({
   params,

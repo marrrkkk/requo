@@ -9,7 +9,7 @@ import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { requireSession } from "@/lib/auth/session";
 
-export const unstable_instant = { prefetch: 'static' as const };
+export const unstable_instant = false;
 
 export default function AccountProfilePage() {
   return (

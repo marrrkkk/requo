@@ -50,7 +50,10 @@ export const metadata: Metadata = {
   title: "Dashboard",
 };
 
-export const unstable_instant = { prefetch: 'static' as const };
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
+};
 
 export default function DashboardOverviewPage({
   params,

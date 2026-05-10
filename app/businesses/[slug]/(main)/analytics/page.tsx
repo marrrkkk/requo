@@ -25,7 +25,10 @@ const analyticsTabIds = [
 
 type AnalyticsTabId = (typeof analyticsTabIds)[number];
 
-export const unstable_instant = { prefetch: 'static' as const };
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
+};
 
 function getAnalyticsTab(
   value: string | string[] | undefined,

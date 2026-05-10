@@ -13,7 +13,7 @@ import {
 } from "@/lib/plans/usage";
 import AccountBillingLoading from "./loading";
 
-export const unstable_instant = { prefetch: 'static' as const };
+export const unstable_instant = false;
 
 export default function AccountBillingPage() {
   return (
