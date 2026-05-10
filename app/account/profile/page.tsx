@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import { connection } from "next/server";
 
+import { DashboardSettingsSkeleton } from "@/components/shell/dashboard-settings-skeleton";
 import { updateAccountProfileAction } from "@/features/account/actions";
 import { ProfileSettingsForm } from "@/features/account/components/profile-settings-form";
 import { getAccountProfileForUser } from "@/features/account/queries";
@@ -7,7 +9,17 @@ import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { requireSession } from "@/lib/auth/session";
 
-export default async function AccountProfilePage() {
+export const unstable_instant = { prefetch: 'static' as const };
+
+export default function AccountProfilePage() {
+  return (
+    <Suspense fallback={<DashboardSettingsSkeleton />}>
+      <AccountProfileContent />
+    </Suspense>
+  );
+}
+
+async function AccountProfileContent() {
   await connection();
 
   const user = await requireSession();

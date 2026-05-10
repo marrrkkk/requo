@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import { headers } from "next/headers";
 import { connection } from "next/server";
 
+import { DashboardSettingsSkeleton } from "@/components/shell/dashboard-settings-skeleton";
 import {
   changeAccountPasswordAction,
   deleteAccountAction,
@@ -15,7 +17,17 @@ import type { AccountSessionView } from "@/features/account/types";
 import { requireSession } from "@/lib/auth/session";
 import { auth } from "@/lib/auth/server";
 
-export default async function AccountSecurityPage() {
+export const unstable_instant = { prefetch: 'static' as const };
+
+export default function AccountSecurityPage() {
+  return (
+    <Suspense fallback={<DashboardSettingsSkeleton />}>
+      <AccountSecurityContent />
+    </Suspense>
+  );
+}
+
+async function AccountSecurityContent() {
   await connection();
 
   const session = await requireSession();

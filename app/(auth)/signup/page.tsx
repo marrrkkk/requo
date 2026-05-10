@@ -9,6 +9,7 @@ import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { onboardingPath } from "@/features/onboarding/routes";
 import { businessesHubPath } from "@/features/businesses/routes";
 import { getOptionalSession } from "@/lib/auth/session";
+import { isEmailConfigured } from "@/lib/env";
 import { createPageMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createPageMetadata({
@@ -18,13 +19,7 @@ export const metadata: Metadata = createPageMetadata({
   title: "Create account",
 });
 
-export default async function SignupPage({
-  searchParams,
-}: {
-  searchParams: Promise<{
-    next?: string | string[];
-  }>;
-}) {
+export default async function SignupPage() {
   // Server-side redirect for already-authenticated users — avoids client-side flash
   const session = await getOptionalSession();
   if (session) {
@@ -37,7 +32,7 @@ export default async function SignupPage({
     redirect(hasOnboarded ? businessesHubPath : onboardingPath);
   }
 
-  const socialProviders: SocialAuthProvider[] = ["google", "microsoft"];
+  const socialProviders: SocialAuthProvider[] = ["google"];
 
   return (
     <AuthShell
@@ -45,7 +40,10 @@ export default async function SignupPage({
       description="Start managing inquiries and quotes in one place."
       layout="signup"
     >
-      <SignupForm socialProviders={socialProviders} />
+      <SignupForm
+        magicLinkEnabled={isEmailConfigured}
+        socialProviders={socialProviders}
+      />
     </AuthShell>
   );
 }

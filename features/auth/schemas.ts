@@ -13,6 +13,9 @@ export const loginSchema = z.object({
     .max(128, "Use 128 characters or fewer."),
 });
 
+/** Email-only validation for requesting a Better Auth magic link. */
+export const magicLinkEmailSchema = loginSchema.pick({ email: true });
+
 export const signupSchema = z.object({
   name: z
     .string()
@@ -29,6 +32,12 @@ export const signupSchema = z.object({
     .string()
     .min(8, "Use at least 8 characters.")
     .max(128, "Use 128 characters or fewer."),
+});
+
+/** Name + email when requesting a magic link from the signup form. */
+export const magicLinkSignupRequestSchema = signupSchema.pick({
+  name: true,
+  email: true,
 });
 
 export const forgotPasswordSchema = z.object({

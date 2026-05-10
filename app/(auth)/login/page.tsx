@@ -10,6 +10,7 @@ import { getSafeAuthRedirectPath } from "@/lib/auth/redirects";
 import { getOptionalSession } from "@/lib/auth/session";
 import { onboardingPath } from "@/features/onboarding/routes";
 import { businessesHubPath } from "@/features/businesses/routes";
+import { isEmailConfigured } from "@/lib/env";
 import { createPageMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createPageMetadata({
@@ -41,7 +42,7 @@ export default async function LoginPage({
     redirect(hasOnboarded ? nextPath : onboardingPath);
   }
 
-  const socialProviders: SocialAuthProvider[] = ["google", "microsoft"];
+  const socialProviders: SocialAuthProvider[] = ["google"];
 
   return (
     <AuthShell
@@ -49,7 +50,10 @@ export default async function LoginPage({
       description="Sign in to your account to continue"
       layout="centered"
     >
-      <LoginForm socialProviders={socialProviders} />
+      <LoginForm
+        magicLinkEnabled={isEmailConfigured}
+        socialProviders={socialProviders}
+      />
     </AuthShell>
   );
 }

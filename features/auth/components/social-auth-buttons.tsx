@@ -5,7 +5,7 @@ import type { ComponentType } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 
-export type SocialAuthProvider = "google" | "microsoft";
+export type SocialAuthProvider = "google";
 
 const socialProviderMeta: Record<
   SocialAuthProvider,
@@ -17,10 +17,6 @@ const socialProviderMeta: Record<
   google: {
     label: "Google",
     icon: GoogleIcon,
-  },
-  microsoft: {
-    label: "Microsoft",
-    icon: MicrosoftIcon,
   },
 };
 
@@ -107,21 +103,6 @@ function GoogleIcon({ className }: { className?: string }) {
         d="M12 6.062c1.499 0 2.844.516 3.904 1.528l2.927-2.927C17.061 3.014 14.75 2 12 2A9.998 9.998 0 0 0 3.07 7.621l3.227 2.638C7.1 7.852 9.347 6.062 12 6.062Z"
         fill="#EA4335"
       />
-    </svg>
-  );
-}
-
-function MicrosoftIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={className}
-      viewBox="0 0 24 24"
-    >
-      <path d="M3 3h8.571v8.571H3z" fill="#F25022" />
-      <path d="M12.429 3H21v8.571h-8.571z" fill="#7FBA00" />
-      <path d="M3 12.429h8.571V21H3z" fill="#00A4EF" />
-      <path d="M12.429 12.429H21V21h-8.571z" fill="#FFB900" />
     </svg>
   );
 }
