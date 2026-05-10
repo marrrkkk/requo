@@ -52,6 +52,7 @@ import {
 import { OnboardingStepper } from "@/features/onboarding/components/onboarding-stepper";
 import {
   companySizeOptions,
+  customerContactChannelOptions,
   jobTitleOptions,
   onboardingBusinessContextSchema,
   onboardingOwnerProfileSchema,
@@ -98,6 +99,7 @@ const onboardingSteps = [
       "businessType",
       "countryCode",
       "defaultCurrency",
+      "customerContactChannel",
     ] as const satisfies readonly OnboardingFieldName[],
   },
   {
@@ -357,6 +359,11 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
           name="defaultCurrency"
           type="hidden"
           value={draft.defaultCurrency}
+        />
+        <input
+          name="customerContactChannel"
+          type="hidden"
+          value={draft.customerContactChannel}
         />
         <input
           name="starterTemplateBusinessType"
@@ -633,6 +640,37 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
                         </FieldContent>
                       </Field>
                     </div>
+
+                    <Field
+                      data-invalid={
+                        Boolean(fieldErrors.customerContactChannel) ||
+                        undefined
+                      }
+                    >
+                      <FieldLabel htmlFor="onboarding-customer-contact">
+                        How do customers usually contact you?
+                      </FieldLabel>
+                      <FieldContent>
+                        <Combobox
+                          aria-invalid={
+                            Boolean(fieldErrors.customerContactChannel) ||
+                            undefined
+                          }
+                          buttonClassName={onboardingComboboxButtonClassName}
+                          disabled={isPending}
+                          id="onboarding-customer-contact"
+                          onValueChange={(value) =>
+                            updateField("customerContactChannel", value)
+                          }
+                          options={customerContactChannelOptions}
+                          placeholder="Choose a contact channel"
+                          value={draft.customerContactChannel}
+                        />
+                        <FieldDescription>
+                          Helps tailor defaults for inquiry capture and reminders.
+                        </FieldDescription>
+                      </FieldContent>
+                    </Field>
                   </FieldGroup>
                 </CardContent>
               </Card>
@@ -760,6 +798,13 @@ function getFieldValidationError(
         );
       return result.success ? undefined : result.error.issues[0]?.message;
     }
+    case "customerContactChannel": {
+      const result =
+        onboardingBusinessContextSchema.shape.customerContactChannel.safeParse(
+          draft.customerContactChannel,
+        );
+      return result.success ? undefined : result.error.issues[0]?.message;
+    }
     case "starterTemplateBusinessType": {
       const result =
         onboardingTemplateSchema.shape.starterTemplateBusinessType.safeParse(
@@ -810,6 +855,10 @@ function sanitizeDraft(
     countryCode: typeof value.countryCode === "string" ? value.countryCode : "",
     defaultCurrency:
       typeof value.defaultCurrency === "string" ? value.defaultCurrency : "",
+    customerContactChannel:
+      typeof value.customerContactChannel === "string"
+        ? value.customerContactChannel
+        : "",
     jobTitle: typeof value.jobTitle === "string" ? value.jobTitle : "",
     companySize:
       typeof value.companySize === "string" ? value.companySize : "",

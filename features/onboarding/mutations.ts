@@ -27,6 +27,7 @@ type CompleteOnboardingForUserInput = {
   starterTemplateBusinessType: StarterTemplateBusinessType;
   countryCode: string;
   defaultCurrency: string;
+  customerContactChannel: string;
   inquiryFormConfigOverride?: InquiryFormConfig;
 };
 
@@ -44,6 +45,7 @@ export async function completeOnboardingForUser({
   starterTemplateBusinessType,
   countryCode,
   defaultCurrency,
+  customerContactChannel,
   inquiryFormConfigOverride,
 }: CompleteOnboardingForUserInput) {
   await ensureProfileForUser(user);
@@ -89,6 +91,7 @@ export async function completeOnboardingForUser({
       businessType,
       starterTemplateBusinessType,
       shortDescription: null,
+      customerContactChannel,
       inquiryFormConfigOverride,
       plan: currentPlan,
       activitySource: "onboarding",

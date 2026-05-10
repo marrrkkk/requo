@@ -1,14 +1,24 @@
 "use server";
 
+import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { getValidationActionState } from "@/lib/action-state";
 import { requireUser } from "@/lib/auth/session";
+import { uniqueCacheTags } from "@/lib/cache/business-tags";
+import {
+  getUserBusinessContextCacheTags,
+  getUserMembershipsCacheTags,
+  getUserProfileCacheTags,
+} from "@/lib/cache/shell-tags";
 import {
   getBusinessQuotaExceededMessage,
   isBusinessQuotaExceededError,
 } from "@/features/businesses/quota";
-import { getBusinessDashboardPath } from "@/features/businesses/routes";
+import {
+  businessesHubPath,
+  getBusinessDashboardPath,
+} from "@/features/businesses/routes";
 import {
   inquiryFormConfigSchema,
   type InquiryFormConfig,
@@ -36,6 +46,22 @@ function parseInquiryFormConfigOverride(
   }
 }
 
+function updateOnboardingCacheTags({
+  userId,
+  businessSlug,
+}: {
+  userId: string;
+  businessSlug: string;
+}) {
+  for (const tag of uniqueCacheTags([
+    ...getUserProfileCacheTags(userId),
+    ...getUserMembershipsCacheTags(userId),
+    ...getUserBusinessContextCacheTags(userId, businessSlug),
+  ])) {
+    updateTag(tag);
+  }
+}
+
 export async function completeOnboardingAction(
   prevState: OnboardingActionState = initialState,
   formData: FormData,
@@ -48,6 +74,7 @@ export async function completeOnboardingAction(
     businessType: formData.get("businessType"),
     countryCode: formData.get("countryCode"),
     defaultCurrency: formData.get("defaultCurrency"),
+    customerContactChannel: formData.get("customerContactChannel"),
     starterTemplateBusinessType: formData.get("starterTemplateBusinessType"),
     jobTitle: formData.get("jobTitle"),
     companySize: formData.get("companySize"),
@@ -77,11 +104,17 @@ export async function completeOnboardingAction(
       businessType: validationResult.data.businessType,
       countryCode: validationResult.data.countryCode,
       defaultCurrency: validationResult.data.defaultCurrency,
+      customerContactChannel: validationResult.data.customerContactChannel,
       starterTemplateBusinessType:
         validationResult.data.starterTemplateBusinessType,
       inquiryFormConfigOverride,
     });
 
+    updateOnboardingCacheTags({
+      userId: user.id,
+      businessSlug: business.slug,
+    });
+    revalidatePath(businessesHubPath);
     dashboardPath = getBusinessDashboardPath(business.slug);
   } catch (error) {
     if (isBusinessQuotaExceededError(error)) {

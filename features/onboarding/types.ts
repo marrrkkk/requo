@@ -3,6 +3,7 @@ export type OnboardingFieldName =
   | "businessType"
   | "countryCode"
   | "defaultCurrency"
+  | "customerContactChannel"
   | "starterTemplateBusinessType"
   | "jobTitle"
   | "companySize"

@@ -16,6 +16,7 @@ function createDraft(
     starterTemplateBusinessType: "creative_marketing_services",
     countryCode: "US",
     defaultCurrency: "USD",
+    customerContactChannel: "email",
     jobTitle: "Owner",
     companySize: "2-5 people",
     referralSource: "Google Search",
