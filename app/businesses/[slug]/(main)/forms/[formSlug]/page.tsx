@@ -27,6 +27,8 @@ import { getAccountProfileForUser } from "@/features/account/queries";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessOperationalPageContext } from "../../settings/_lib/page-context";
 
+export const unstable_instant = { prefetch: 'static' as const };
+
 export default async function BusinessFormPage({
   params,
 }: {

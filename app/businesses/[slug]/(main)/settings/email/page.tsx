@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/shared/page-header";
@@ -8,6 +9,10 @@ import { BusinessEmailTemplateForm } from "@/features/settings/components/busine
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 import { hasFeatureAccess } from "@/lib/plans";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
+
+export const metadata: Metadata = {
+  title: "Email",
+};
 
 export default async function BusinessEmailTemplateSettingsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();

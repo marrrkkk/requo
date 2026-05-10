@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/shared/page-header";
@@ -13,6 +14,10 @@ import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 import { BusinessPricingLibraryManager } from "@/features/settings/components/business-pricing-library-manager";
 import { hasFeatureAccess } from "@/lib/plans";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
+
+export const metadata: Metadata = {
+  title: "Pricing",
+};
 
 export default async function BusinessPricingPage() {
   const { businessContext } = await getBusinessOperationalPageContext();

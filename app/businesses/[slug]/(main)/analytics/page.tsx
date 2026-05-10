@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
@@ -23,6 +24,8 @@ const analyticsTabIds = [
 ] as const;
 
 type AnalyticsTabId = (typeof analyticsTabIds)[number];
+
+export const unstable_instant = { prefetch: 'static' as const };
 
 function getAnalyticsTab(
   value: string | string[] | undefined,
@@ -79,4 +82,21 @@ export default async function AnalyticsPage({
       />
     </DashboardPage>
   );
+}
+
+export async function generateMetadata({
+  searchParams,
+}: AnalyticsPageProps): Promise<Metadata> {
+  const resolvedSearchParams = await searchParams;
+  const activeTab = getAnalyticsTab(resolvedSearchParams.tab);
+  const tabLabel =
+    activeTab === analyticsSections.overview.id
+      ? analyticsSections.overview.label
+      : activeTab === analyticsSections.conversion.id
+        ? analyticsSections.conversion.label
+        : analyticsSections.workflow.label;
+
+  return {
+    title: `Analytics · ${tabLabel}`,
+  };
 }

@@ -14,6 +14,7 @@ import {
 } from "@/features/inquiries/form-config";
 import { createInquiryPageConfigDefaults } from "@/features/inquiries/page-config";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
+import { getEffectivePlanForUser } from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import {
@@ -21,7 +22,6 @@ import {
   businessInquiryForms,
   businessMembers,
   businesses,
-  replySnippets,
   } from "@/lib/db/schema";
 import { appendRandomSlugSuffix, slugifyPublicName } from "@/lib/slugs";
 
@@ -38,6 +38,7 @@ type CreateBusinessForUserInput = {
   starterTemplateBusinessType?: BusinessType;
   countryCode?: string | null;
   shortDescription?: string | null;
+  customerContactChannel?: string | null;
   inquiryFormConfigOverride?: InquiryFormConfig;
   plan?: plan;
   activitySource?: string;
@@ -88,6 +89,7 @@ export async function createBusinessRecordForUser({
   starterTemplateBusinessType = businessType,
   countryCode = null,
   shortDescription,
+  customerContactChannel = null,
   inquiryFormConfigOverride,
   plan = "free",
   activitySource = "business-hub",
@@ -97,10 +99,13 @@ export async function createBusinessRecordForUser({
   await assertBusinessQuotaAvailableForUser({
     tx,
     ownerUserId: user.id,
+    plan,
   });
 
   const trimmedName = name.trim();
   const normalizedShortDescription = shortDescription?.trim() || null;
+  const normalizedCustomerContactChannel =
+    customerContactChannel?.trim() || null;
   const starterTemplate = getStarterTemplateDefinition(
     starterTemplateBusinessType,
   );
@@ -127,6 +132,7 @@ export async function createBusinessRecordForUser({
     businessType,
     countryCode,
     shortDescription: normalizedShortDescription,
+    customerContactChannel: normalizedCustomerContactChannel,
     contactEmail: user.email,
     inquiryFormConfig: resolvedFormConfig,
     inquiryPageConfig: createInquiryPageConfigDefaults({
@@ -163,19 +169,6 @@ export async function createBusinessRecordForUser({
     createdAt: now,
     updatedAt: now,
   });
-
-  if (starterTemplate.replySnippets.length) {
-    await tx.insert(replySnippets).values(
-      starterTemplate.replySnippets.map((snippet) => ({
-        id: createId("rsn"),
-        businessId,
-        title: snippet.title,
-        body: snippet.body,
-        createdAt: now,
-        updatedAt: now,
-      })),
-    );
-  }
 
   await tx.insert(activityLogs).values({
     id: createId("act"),
@@ -227,6 +220,7 @@ export async function createBusinessForUser({
   plan,
 }: CreateBusinessForUserInput) {
   await ensureProfileForUser(user);
+  const resolvedPlan = plan ?? await getEffectivePlanForUser(user.id);
 
   return db.transaction(async (tx) =>
     createBusinessRecordForUser({
@@ -241,7 +235,7 @@ export async function createBusinessForUser({
       shortDescription,
       activitySource,
       activitySummary,
-      plan,
+      plan: resolvedPlan,
     }),
   );
 }

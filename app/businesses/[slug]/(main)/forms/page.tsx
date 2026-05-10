@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/shared/page-header";
@@ -9,6 +10,12 @@ import { BusinessInquiryFormsManager } from "@/features/settings/components/busi
 import { getBusinessInquiryFormsSettingsForBusiness } from "@/features/settings/queries";
 import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { getBusinessOperationalPageContext } from "../settings/_lib/page-context";
+
+export const metadata: Metadata = {
+  title: "Forms",
+};
+
+export const unstable_instant = { prefetch: 'static' as const };
 
 export default async function BusinessFormsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();

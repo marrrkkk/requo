@@ -116,6 +116,8 @@ type InquiryDetailPageProps = {
   params: Promise<{ slug: string; id: string }>;
 };
 
+export const unstable_instant = { prefetch: 'static' as const };
+
 export default async function InquiryDetailPage({
   params,
 }: InquiryDetailPageProps) {

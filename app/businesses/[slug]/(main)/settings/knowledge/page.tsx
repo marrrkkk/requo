@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { PageHeader } from "@/components/shared/page-header";
 import { LockedFeaturePage } from "@/components/shared/paywall";
 import {
@@ -10,6 +12,10 @@ import { BusinessMemoryManager } from "@/features/settings/components/business-m
 import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { hasFeatureAccess } from "@/lib/plans";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
+
+export const metadata: Metadata = {
+  title: "Knowledge",
+};
 
 export default async function BusinessKnowledgePage() {
   const { businessContext } = await getBusinessOperationalPageContext();

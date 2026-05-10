@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/shared/page-header";
@@ -5,6 +6,10 @@ import { updateBusinessQuoteSettingsAction } from "@/features/settings/actions";
 import { BusinessQuoteSettingsForm } from "@/features/settings/components/business-quote-settings-form";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
+
+export const metadata: Metadata = {
+  title: "Quotes",
+};
 
 export default async function BusinessQuoteSettingsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();

@@ -22,6 +22,8 @@ type NewQuotePageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+export const unstable_instant = { prefetch: 'static' as const };
+
 export default async function NewQuotePage({
   params,
   searchParams,

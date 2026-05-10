@@ -11,6 +11,8 @@ type KnowledgePageProps = {
   params: Promise<{ slug: string }>;
 };
 
+export const unstable_instant = { prefetch: 'static' as const };
+
 export default async function KnowledgePage({ params }: KnowledgePageProps) {
   const [session, { slug }] = await Promise.all([requireSession(), params]);
   const businessContext = await getBusinessContextForMembershipSlug(

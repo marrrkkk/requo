@@ -26,8 +26,6 @@ import {
 
   LogOut,
 
-  MessageSquare,
-
   PanelsTopLeft,
 
   Plug,
@@ -612,26 +610,6 @@ export function CommandMenu({
                       <FileText className="mr-2 h-4 w-4" />
 
                       <span>Quote defaults</span>
-
-                    </CommandItem>
-
-                    <CommandItem
-
-                      onSelect={() =>
-
-                        runCommand(() =>
-
-                          router.push(getBusinessSettingsPath(businessSlug, "replies")),
-
-                        )
-
-                      }
-
-                    >
-
-                      <MessageSquare className="mr-2 h-4 w-4" />
-
-                      <span>Saved replies</span>
 
                     </CommandItem>
 

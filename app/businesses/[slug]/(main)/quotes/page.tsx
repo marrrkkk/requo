@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
@@ -57,6 +58,12 @@ function getCachedPageWindow(currentPage: number, totalPages: number) {
 
   return Array.from(pages).sort((left, right) => left - right);
 }
+
+export const metadata: Metadata = {
+  title: "Quotes",
+};
+
+export const unstable_instant = { prefetch: 'static' as const };
 
 export default async function QuotesPage({
   params,

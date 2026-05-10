@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/shared/page-header";
@@ -13,6 +14,10 @@ import {
 import { BusinessSettingsForm } from "@/features/settings/components/business-settings-form";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 import { getBusinessOwnerPageContext } from "../_lib/page-context";
+
+export const metadata: Metadata = {
+  title: "Profile",
+};
 
 export default async function BusinessGeneralSettingsPage() {
   const { user, businessContext } = await getBusinessOwnerPageContext();

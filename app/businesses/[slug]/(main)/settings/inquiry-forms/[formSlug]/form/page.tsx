@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { getBusinessInquiryFormEditorPath } from "@/features/businesses/routes";
 import { getBusinessOperationalPageContext } from "../../../_lib/page-context";
+
+export const metadata: Metadata = {
+  title: "Form editor",
+};
 
 export default async function LegacyBusinessInquiryFormEditorRedirect({
   params,

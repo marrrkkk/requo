@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
@@ -26,6 +27,12 @@ type FollowUpsPageProps = {
 };
 
 const ITEMS_PER_PAGE = 10;
+
+export const metadata: Metadata = {
+  title: "Follow-ups",
+};
+
+export const unstable_instant = { prefetch: 'static' as const };
 
 export default async function FollowUpsPage({
   params,

@@ -31,6 +31,7 @@ import {
   ChevronsUpDown,
 
   LogOut,
+  Lock,
 
   PanelsTopLeft,
 
@@ -1251,6 +1252,13 @@ function BusinessSwitcher({
                     {membership.role}
 
                   </span>
+
+                  {membership.business.recordState === "locked" ? (
+                    <Badge variant="outline" className="gap-1">
+                      <Lock className="size-3" />
+                      Locked
+                    </Badge>
+                  ) : null}
 
                   {isCurrent ? <Check className="size-4 text-primary" /> : null}
 

@@ -8,7 +8,6 @@ export type BusinessSettingsSection =
   | "notifications"
   | "profile"
   | "security"
-  | "replies"
   | "quote"
   | "email"
   | "pricing"

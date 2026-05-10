@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { getDefaultBusinessInquiryFormForBusiness } from "@/features/settings/queries";
@@ -6,6 +7,10 @@ import {
   getBusinessInquiryPageEditorPath,
 } from "@/features/businesses/routes";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
+
+export const metadata: Metadata = {
+  title: "Inquiry page",
+};
 
 export default async function BusinessInquiryPageSettingsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();

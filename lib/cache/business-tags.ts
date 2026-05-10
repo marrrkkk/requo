@@ -132,17 +132,6 @@ export function getBusinessPricingCacheTags(businessId: string) {
   ]);
 }
 
-export function getBusinessReplySnippetsCacheTags(businessId: string) {
-  const scopeTag = getBusinessScopeTag(businessId);
-
-  return uniqueCacheTags([
-    scopeTag,
-    `${scopeTag}:settings`,
-    `${scopeTag}:inquiries`,
-    `${scopeTag}:reply-snippets`,
-  ]);
-}
-
 export function getBusinessMemoryCacheTags(businessId: string) {
   const scopeTag = getBusinessScopeTag(businessId);
 

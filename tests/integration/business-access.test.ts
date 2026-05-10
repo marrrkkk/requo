@@ -100,6 +100,7 @@ describe("business access control", () => {
     expect(outsiderContext).toEqual({
       ok: false,
       error: "Create a business first, then try again.",
+      reason: "business_required",
     });
   });
 
@@ -115,6 +116,7 @@ describe("business access control", () => {
     ).resolves.toEqual({
       ok: false,
       error: "Manager access is required for that action.",
+      reason: "insufficient_role",
     });
 
     authState.currentUserId = ids.managerUserId;
@@ -149,7 +151,45 @@ describe("business access control", () => {
     expect(activeOnlyContext).toEqual({
       ok: false,
       error: "Restore this business before doing that.",
+      reason: "business_not_active",
     });
+  });
+
+  it("returns a typed lock reason for locked businesses", async () => {
+    await testDb
+      .update(businesses)
+      .set({
+        lockedAt: new Date("2026-05-03T00:00:00.000Z"),
+        lockedBy: ids.ownerUserId,
+        lockedReason: "plan_downgrade",
+        updatedAt: new Date("2026-05-03T00:00:00.000Z"),
+      })
+      .where(eq(businesses.id, ids.businessId));
+
+    try {
+      const activeOnlyContext = await getBusinessActionContext({
+        businessSlug: ids.businessSlug,
+        minimumRole: "owner",
+        requireActiveBusiness: true,
+      });
+
+      expect(activeOnlyContext).toEqual({
+        ok: false,
+        error:
+          "This business is locked on your current plan. Upgrade to unlock operational actions.",
+        reason: "business_locked_by_plan",
+      });
+    } finally {
+      await testDb
+        .update(businesses)
+        .set({
+          lockedAt: null,
+          lockedBy: null,
+          lockedReason: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(businesses.id, ids.businessId));
+    }
   });
 
   it("scopes route-handler request context by the authenticated user's business membership", async () => {

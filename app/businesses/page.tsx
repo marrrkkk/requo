@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, CalendarClock, PlusCircle } from "lucide-react";
+import { ArrowRight, CalendarClock, Lock, PlusCircle } from "lucide-react";
 import crypto from "crypto";
 
 import { BrandMark } from "@/components/shared/brand-mark";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { CreateBusinessDialog } from "@/features/businesses/components/create-business-dialog";
 import { createBusinessAction } from "@/features/businesses/actions";
+import { unlockBusinessFromHubAction } from "@/features/businesses/actions";
 import { getBusinessDashboardPath, businessesHubPath } from "@/features/businesses/routes";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { AccountUserMenu } from "@/features/account/components/account-user-menu";
@@ -43,7 +44,7 @@ export default async function BusinessesPage() {
   ] = await Promise.all([
     getThemePreferenceForUser(session.user.id),
     getAccountProfileForUser(session.user.id),
-    getBusinessMembershipsForUser(session.user.id),
+    getBusinessMembershipsForUser(session.user.id, "all"),
     getRecentlyOpenedBusinessesForUser(session.user.id),
     getBusinessQuotaForUser({
       ownerUserId: session.user.id,
@@ -108,6 +109,7 @@ export default async function BusinessesPage() {
                 {memberships.map((membership) => {
                   const ws = membership.business;
                   const roleMeta = businessMemberRoleMeta[membership.role];
+                  const isLocked = ws.recordState === "locked";
                   return (
                     <Card
                       className="group flex flex-col border-border/80 bg-card/98 transition-colors hover:border-border hover:bg-card hover:shadow-sm"
@@ -137,13 +139,34 @@ export default async function BusinessesPage() {
                               Deletion scheduled
                             </Badge>
                           ) : null}
+                          {isLocked ? (
+                            <Badge className="gap-1" variant="outline">
+                              <Lock className="size-3.5" />
+                              Locked
+                            </Badge>
+                          ) : null}
                         </div>
-                        <Button asChild className="w-full sm:w-auto" variant="default">
-                          <Link href={getBusinessDashboardPath(ws.slug)} prefetch={true}>
-                            Open business
-                            <ArrowRight data-icon="inline-end" />
-                          </Link>
-                        </Button>
+                        <div className="flex w-full flex-wrap gap-2">
+                          <Button asChild className="w-full sm:w-auto" variant="default">
+                            <Link href={getBusinessDashboardPath(ws.slug)} prefetch={true}>
+                              {isLocked ? "Open read-only" : "Open business"}
+                              <ArrowRight data-icon="inline-end" />
+                            </Link>
+                          </Button>
+                          {isLocked ? (
+                            <form
+                              action={unlockBusinessFromHubAction.bind(
+                                null,
+                                ws.id,
+                                ws.slug,
+                              )}
+                            >
+                              <Button className="w-full sm:w-auto" type="submit" variant="outline">
+                                Unlock
+                              </Button>
+                            </form>
+                          ) : null}
+                        </div>
                       </CardContent>
                     </Card>
                   );

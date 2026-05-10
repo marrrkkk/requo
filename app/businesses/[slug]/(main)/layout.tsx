@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
@@ -8,10 +9,11 @@ import { DashboardShellSkeleton } from "@/components/shell/dashboard-shell-skele
 import { Skeleton } from "@/components/ui/skeleton";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import { BusinessCheckoutProvider } from "@/features/billing/components/business-checkout-provider";
+import { LockedBusinessSurface } from "@/features/businesses/components/locked-business-surface";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
-import { getBusinessBillingOverview } from "@/features/billing/queries";
+import { getBusinessBillingShellOverview } from "@/features/billing/queries";
 import { getBusinessNotificationBellView } from "@/features/notifications/queries";
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
 import { businessesHubPath } from "@/features/businesses/routes";
@@ -20,6 +22,9 @@ import {
   getBusinessContextForMembershipSlug,
   getBusinessMembershipsForUser,
 } from "@/lib/db/business-access";
+import { siteName } from "@/lib/seo/site";
+
+export const unstable_instant = false;
 
 /**
  * Auth gate: resolves session + business membership.
@@ -44,7 +49,7 @@ export default async function BusinessDashboardLayout({
   // This lets loading.tsx show the DashboardShellSkeleton immediately while
   // theme, memberships, profile, and billing load in the background.
   return (
-    <Suspense fallback={<DashboardShellSkeleton>{children}</DashboardShellSkeleton>}>
+    <Suspense fallback={<DashboardShellSkeleton />}>
       <StreamedDashboardShell
         userId={session.user.id}
         userEmail={session.user.email}
@@ -56,6 +61,27 @@ export default async function BusinessDashboardLayout({
       </StreamedDashboardShell>
     </Suspense>
   );
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const [session, { slug }] = await Promise.all([requireSession(), params]);
+  const businessContext = await getBusinessContextForMembershipSlug(
+    session.user.id,
+    slug,
+  );
+
+  const businessName = businessContext?.business?.name ?? "Business";
+
+  return {
+    title: {
+      default: businessName,
+      template: `%s · ${businessName} | ${siteName}`,
+    },
+  };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -81,17 +107,15 @@ async function StreamedDashboardShell({
   const [themePreference, allBusinessMemberships, profile, billing] =
     await Promise.all([
       getThemePreferenceForUser(userId),
-      getBusinessMembershipsForUser(userId),
+      getBusinessMembershipsForUser(userId, "all"),
       getAccountProfileForUser(userId),
-      getBusinessBillingOverview(businessContext.business.id).catch(
+      getBusinessBillingShellOverview(businessContext.business.id).catch(
         () => null,
       ),
     ]);
 
-  // Keep only the active business membership for this shell.
   const businessMemberships = allBusinessMemberships.filter(
-    (membership) =>
-      membership.business.id === businessContext.business.id,
+    (membership) => membership.business.recordState !== "trash",
   );
 
   const avatarSrc = resolveUserAvatarSrc({
@@ -128,6 +152,14 @@ async function StreamedDashboardShell({
       </div>
     ) : null;
 
+  const lockedBusinessBanner =
+    businessContext.business.recordState === "locked" && billing ? (
+      <LockedBusinessSurface
+        billing={billing}
+        businessContext={businessContext}
+      />
+    ) : null;
+
   const shellContent = (
     <>
       <RecentBusinessTracker
@@ -146,7 +178,10 @@ async function StreamedDashboardShell({
         notificationSlot={notificationSlot}
         upgradeSlot={upgradeSlot}
       >
-        {children}
+        <>
+          {lockedBusinessBanner}
+          {children}
+        </>
       </DashboardShell>
     </>
   );

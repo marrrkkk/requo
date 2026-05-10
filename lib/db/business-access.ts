@@ -10,7 +10,7 @@ import {
   getUserMembershipsCacheTags,
   membershipShellCacheLife,
 } from "@/lib/cache/shell-tags";
-import { getEffectivePlan } from "@/lib/billing/subscription-service";
+import { getCachedEffectivePlan } from "@/lib/billing/subscription-service";
 
 import type {
   BusinessRecordState,
@@ -59,9 +59,16 @@ export type BusinessContext = {
     publicInquiryEnabled: boolean;
     recordState: BusinessRecordState;
     archivedAt: Date | null;
+    lockedAt: Date | null;
     deletedAt: Date | null;
   };
 };
+
+export type BusinessActionBlockedReason =
+  | "business_required"
+  | "insufficient_role"
+  | "business_locked_by_plan"
+  | "business_not_active";
 
 export type BusinessActionContextResult =
   | {
@@ -72,6 +79,7 @@ export type BusinessActionContextResult =
   | {
       ok: false;
       error: string;
+      reason: BusinessActionBlockedReason;
     };
 
 export type BusinessMessagingSettings = {
@@ -140,6 +148,7 @@ async function getCachedBusinessMemberships(
       publicInquiryEnabled: publicInquiryEnabledSelection,
       recordState: getBusinessRecordState,
       archivedAt: businesses.archivedAt,
+      lockedAt: businesses.lockedAt,
       deletedAt: businesses.deletedAt,
     })
     .from(businessMembers)
@@ -170,6 +179,7 @@ async function getCachedBusinessMemberships(
       publicInquiryEnabled: membership.publicInquiryEnabled,
       recordState: membership.recordState,
       archivedAt: membership.archivedAt,
+      lockedAt: membership.lockedAt,
       deletedAt: membership.deletedAt,
     },
   })) satisfies BusinessContext[];
@@ -217,6 +227,7 @@ async function getCachedBusinessContextForMembershipSlug(
       publicInquiryEnabled: publicInquiryEnabledSelection,
       recordState: getBusinessRecordState,
       archivedAt: businesses.archivedAt,
+      lockedAt: businesses.lockedAt,
       deletedAt: businesses.deletedAt,
     })
     .from(businessMembers)
@@ -248,6 +259,7 @@ async function getCachedBusinessContextForMembershipSlug(
       publicInquiryEnabled: context.publicInquiryEnabled,
       recordState: context.recordState,
       archivedAt: context.archivedAt,
+      lockedAt: context.lockedAt,
       deletedAt: context.deletedAt,
     },
   } satisfies BusinessContext;
@@ -272,7 +284,7 @@ async function getEffectiveBusinessPlanMap(businessIds: string[]) {
   const entries = await Promise.all(
     uniqueBusinessIds.map(async (businessId) => {
       try {
-        return [businessId, await getEffectivePlan(businessId)] as const;
+        return [businessId, await getCachedEffectivePlan(businessId)] as const;
       } catch (error) {
         console.error(
           "Failed to resolve effective business plan.",
@@ -466,6 +478,7 @@ export async function getBusinessActionContext({
     return {
       ok: false,
       error: "Create a business first, then try again.",
+      reason: "business_required",
     };
   }
 
@@ -475,6 +488,7 @@ export async function getBusinessActionContext({
       error:
         unauthorizedMessage ??
         `${businessMemberRoleMeta[minimumRole].label} access is required for that action.`,
+      reason: "insufficient_role",
     };
   }
 
@@ -482,9 +496,19 @@ export async function getBusinessActionContext({
     requireActiveBusiness &&
     businessContext.business.recordState !== "active"
   ) {
+    if (businessContext.business.recordState === "locked") {
+      return {
+        ok: false,
+        error:
+          "This business is locked on your current plan. Upgrade to unlock operational actions.",
+        reason: "business_locked_by_plan",
+      };
+    }
+
     return {
       ok: false,
       error: "Restore this business before doing that.",
+      reason: "business_not_active",
     };
   }
 

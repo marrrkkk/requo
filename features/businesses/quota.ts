@@ -46,6 +46,8 @@ export async function getOwnedBusinessCountForUser(
       and(
         eq(businesses.ownerUserId, ownerUserId),
         isNull(businesses.deletedAt),
+        isNull(businesses.archivedAt),
+        isNull(businesses.lockedAt),
       ),
     );
 

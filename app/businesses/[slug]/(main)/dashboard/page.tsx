@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -39,12 +40,29 @@ import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
 import { redirect } from "next/navigation";
 import { businessesHubPath } from "@/features/businesses/routes";
+import BusinessDashboardLoading from "../loading";
 
 type DashboardOverviewPageProps = {
   params: Promise<{ slug: string }>;
 };
 
-export default async function DashboardOverviewPage({
+export const metadata: Metadata = {
+  title: "Dashboard",
+};
+
+export const unstable_instant = { prefetch: 'static' as const };
+
+export default function DashboardOverviewPage({
+  params,
+}: DashboardOverviewPageProps) {
+  return (
+    <Suspense fallback={<BusinessDashboardLoading />}>
+      <DashboardOverviewContent params={params} />
+    </Suspense>
+  );
+}
+
+async function DashboardOverviewContent({
   params,
 }: DashboardOverviewPageProps) {
   const [session, { slug }] = await Promise.all([requireSession(), params]);

@@ -119,6 +119,8 @@ type QuoteDetailPageProps = {
   params: Promise<{ slug: string; id: string }>;
 };
 
+export const unstable_instant = { prefetch: 'static' as const };
+
 export default async function QuoteDetailPage({
   params,
 }: QuoteDetailPageProps) {

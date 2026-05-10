@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/shared/page-header";
@@ -5,6 +6,10 @@ import { updateBusinessNotificationSettingsAction } from "@/features/settings/ac
 import { BusinessNotificationSettingsForm } from "@/features/settings/components/business-notification-settings-form";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
+
+export const metadata: Metadata = {
+  title: "Notifications",
+};
 
 export default async function BusinessNotificationSettingsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();
