@@ -20,8 +20,9 @@ async function signIn(page: Page) {
 }
 
 async function openBusinessesPage(page: Page, path: string) {
-  await page.goto(`/businesses/${demoBusinessSlug}${path}`);
-  await page.waitForLoadState("networkidle");
+  await page.goto(`/businesses/${demoBusinessSlug}${path}`, {
+    waitUntil: "domcontentloaded",
+  });
 }
 
 function getToggleCard(page: Page, label: string): Locator {
@@ -118,9 +119,11 @@ test("dashboard and detail pages surface follow-up, expiring-soon, and customer 
   await openBusinessesPage(page, "/dashboard");
 
   await expect(
-    page.getByRole("heading", { name: "Needs attention today" }),
+    page.getByText("Needs attention today", { exact: true }).first(),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open follow-ups" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Open follow-ups" }).first(),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Follow up due" }),
   ).toHaveCount(0);
@@ -131,21 +134,23 @@ test("dashboard and detail pages surface follow-up, expiring-soon, and customer 
   await openBusinessesPage(page, "/quotes/demo_quote_sent_1002");
 
   await expect(
-    page.getByRole("alert").filter({
-      has: page.getByText("Next: follow up on the viewed quote", {
+    page.getByRole("status").filter({
+      has: page.getByText("Follow up on viewed quote", {
         exact: true,
       }),
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("alert").filter({
-      has: page.getByText("Viewed, no response", { exact: true }),
-    }),
+    page.getByText(
+      "The customer viewed this quote but has not accepted or rejected it. Schedule the next customer touchpoint.",
+      { exact: true },
+    ),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Post-acceptance" }),
   ).toHaveCount(0);
 
+  await page.getByRole("button", { name: "View customer history" }).click();
   await expect(page.getByRole("link", { name: "Office signage" })).toBeVisible();
   await expect(
     page.getByRole("link", {
@@ -155,14 +160,18 @@ test("dashboard and detail pages surface follow-up, expiring-soon, and customer 
   await expect(
     page.getByRole("link", { name: "Q-1002 | Foundry Labs booth kit" }),
   ).toHaveCount(0);
+  await page.keyboard.press("Escape");
 
   await openBusinessesPage(page, "/inquiries/demo_inquiry_quoted_booth_kit");
 
-  await expect(page.getByRole("link", { name: "Office signage" })).toBeVisible();
   await expect(
-    page.getByRole("link", {
-      name: "Q-SMOKE-0998 | Foundry Labs rebrand signage package",
+    page.getByRole("status").filter({
+      has: page.getByText("Open related quote", { exact: true }),
     }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "View quote" })).toBeVisible();
+  await expect(
+    page.getByText("Customer history is a Pro feature", { exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "Event signage" })).toHaveCount(0);
 });
