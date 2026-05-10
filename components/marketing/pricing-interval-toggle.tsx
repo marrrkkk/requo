@@ -65,7 +65,7 @@ function getPlanCardConfig(currency: BillingCurrency, interval: BillingInterval)
   return [
     {
       plan: "free" as plan,
-      price: currency === "PHP" ? "₱0" : "$0",
+      price: "$0",
       pricePeriod: "forever",
       monthlyEquivalent: null,
       highlighted: false,

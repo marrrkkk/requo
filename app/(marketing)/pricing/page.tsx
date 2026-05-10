@@ -23,7 +23,7 @@ async function PricingRouteDynamic() {
 
 /**
  * Dynamic pricing page detects the visitor's region from request headers and
- * shows localized pricing (PHP for Philippines, USD everywhere else). Wrapped
+ * shows USD pricing for all users. Wrapped
  * in Suspense to allow PPR of the page shell.
  */
 export default function PricingRoute() {

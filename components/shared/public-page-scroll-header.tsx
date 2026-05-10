@@ -12,19 +12,21 @@ type PublicPageScrollHeaderProps = {
   threshold?: number;
 };
 
+type ScrollState = "top" | "visible" | "hidden";
+
 export function PublicPageScrollHeader({
   children,
   className,
   directionThreshold = 4,
   threshold = 32,
 }: PublicPageScrollHeaderProps) {
-  const [visible, setVisible] = useState(false);
+  const [state, setState] = useState<ScrollState>("top");
   const lastScrollYRef = useRef(0);
 
   useEffect(() => {
     let frameId = 0;
 
-    const updateVisibility = () => {
+    const updateState = () => {
       frameId = 0;
 
       const currentScrollY = Math.max(window.scrollY, 0);
@@ -34,21 +36,19 @@ export function PublicPageScrollHeader({
       lastScrollYRef.current = currentScrollY;
 
       if (currentScrollY <= threshold) {
-        setVisible(false);
+        setState((current) => (current === "top" ? current : "top"));
         return;
       }
 
       if (Math.abs(scrollDelta) < directionThreshold) return;
 
-      const nextVisible = scrollDelta < 0;
-      setVisible((currentVisible) =>
-        currentVisible === nextVisible ? currentVisible : nextVisible,
-      );
+      const nextState: ScrollState = scrollDelta < 0 ? "visible" : "hidden";
+      setState((current) => (current === nextState ? current : nextState));
     };
 
     const requestUpdate = () => {
       if (frameId) return;
-      frameId = window.requestAnimationFrame(updateVisibility);
+      frameId = window.requestAnimationFrame(updateState);
     };
 
     lastScrollYRef.current = Math.max(window.scrollY, 0);
@@ -69,7 +69,7 @@ export function PublicPageScrollHeader({
         "public-page-header public-page-scroll-header",
         className,
       )}
-      data-scroll-reveal={visible ? "visible" : "hidden"}
+      data-scroll-state={state}
     >
       {children}
     </header>
