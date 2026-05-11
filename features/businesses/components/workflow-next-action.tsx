@@ -1,8 +1,10 @@
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+"use client";
 
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { X } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type {
   WorkflowNextAction,
   WorkflowNextActionPriority,
@@ -18,14 +20,16 @@ export function WorkflowNextActionCallout({
   action,
   className,
 }: WorkflowNextActionCalloutProps) {
-  if (!action) {
+  const [isDismissed, setIsDismissed] = useState(false);
+
+  if (!action || isDismissed) {
     return null;
   }
 
   return (
     <div
       className={cn(
-        "alert-surface flex flex-col gap-4 rounded-xl border border-primary/12 px-4 py-4 text-sm text-foreground sm:flex-row sm:items-start sm:justify-between sm:px-5",
+        "alert-surface relative flex flex-col gap-1 rounded-xl border border-primary/12 px-4 py-4 pr-12 text-sm text-foreground sm:px-5 sm:pr-14",
         className,
       )}
       role="status"
@@ -44,11 +48,17 @@ export function WorkflowNextActionCallout({
           {action.description}
         </p>
       </div>
-      <Button asChild className="w-full sm:w-auto" size="sm">
-        <Link href={action.href} prefetch={true}>
-          {action.ctaLabel}
-          <ArrowRight data-icon="inline-end" />
-        </Link>
+
+      <Button
+        aria-label="Dismiss next action"
+        className="absolute right-2 top-2"
+        onClick={() => setIsDismissed(true)}
+        size="icon-sm"
+        type="button"
+        variant="ghost"
+      >
+        <X className="size-4" />
+        <span className="sr-only">Dismiss</span>
       </Button>
     </div>
   );

@@ -36,13 +36,10 @@ import {
   archiveQuoteAction,
   cancelAcceptedQuoteAction,
   completeAcceptedQuoteAction,
-  createPostWinChecklistItemAction,
   deleteDraftQuoteAction,
   logQuoteSendEventAction,
   restoreArchivedQuoteAction,
   sendQuoteAction,
-  togglePostWinChecklistItemAction,
-  updateQuotePostAcceptanceStatusAction,
   updateQuoteAction,
   voidQuoteAction,
 } from "@/features/quotes/actions";
@@ -63,7 +60,7 @@ import { QuoteExportPopover } from "@/features/quotes/components/quote-export-po
 import { QuoteLifecycleActions } from "@/features/quotes/components/quote-lifecycle-actions";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
-import { QuotePostWinPanel } from "@/features/quotes/components/quote-post-win-panel";
+import { QuotePostWinCard } from "@/features/quotes/components/quote-post-win-card";
 import { QuotePreview } from "@/features/quotes/components/quote-preview";
 import { QuoteRecordStateBadge } from "@/features/quotes/components/quote-record-state-badge";
 import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
@@ -79,7 +76,6 @@ import type { DashboardQuoteActivity } from "@/features/quotes/types";
 import {
   formatQuoteDate,
   formatQuoteDateTime,
-  formatQuoteMoney,
   getPublicQuoteUrl,
   getQuoteEditorInitialValuesFromDetail,
 } from "@/features/quotes/utils";
@@ -176,10 +172,6 @@ async function QuoteDetailContent({
   const updateAction = updateQuoteAction.bind(null, quote.id);
   const archiveAction = archiveQuoteAction.bind(null, quote.id);
   const deleteDraftAction = deleteDraftQuoteAction.bind(null, quote.id);
-  const postAcceptanceAction = updateQuotePostAcceptanceStatusAction.bind(
-    null,
-    quote.id,
-  );
   const cancelAction = cancelAcceptedQuoteAction.bind(null, quote.id);
   const completeAction = completeAcceptedQuoteAction.bind(null, quote.id);
   const restoreArchivedAction = restoreArchivedQuoteAction.bind(null, quote.id);
@@ -532,6 +524,22 @@ async function QuoteDetailContent({
           </DashboardSidebarStack>
 
           <DashboardSidebarStack>
+            {quote.status === "accepted" ? (
+              <div id="post-acceptance">
+                <QuotePostWinCard
+                  key={quote.postAcceptanceStatus}
+                  quoteNumber={quote.quoteNumber}
+                  postAcceptanceStatus={quote.postAcceptanceStatus}
+                  completedAt={quote.completedAt}
+                  canceledAt={quote.canceledAt}
+                  cancellationReason={quote.cancellationReason}
+                  cancellationNote={quote.cancellationNote}
+                  completeAction={completeAction}
+                  cancelAction={cancelAction}
+                />
+              </div>
+            ) : null}
+
             <DashboardSection
               contentClassName="grid gap-3 sm:grid-cols-2"
               description="Saved customer channel for sending and follow-up."
@@ -687,31 +695,6 @@ async function QuoteDetailContent({
               />
             ) : null}
 
-            {quote.status === "accepted" ? (
-              <div id="post-acceptance">
-                <QuotePostWinSheetSection
-                  key={quote.postAcceptanceStatus}
-                  quoteId={quote.id}
-                  quoteNumber={quote.quoteNumber}
-                  customerName={quote.customerName}
-                  totalInCents={quote.totalInCents}
-                  currency={quote.currency}
-                  acceptedAt={quote.acceptedAt}
-                  completedAt={quote.completedAt}
-                  canceledAt={quote.canceledAt}
-                  cancellationReason={quote.cancellationReason}
-                  cancellationNote={quote.cancellationNote}
-                  postAcceptanceStatus={quote.postAcceptanceStatus}
-                  checklistItems={quote.checklistItems}
-                  postAcceptanceAction={postAcceptanceAction}
-                  cancelAction={cancelAction}
-                  completeAction={completeAction}
-                  toggleChecklistItemAction={togglePostWinChecklistItemAction}
-                  createChecklistItemAction={createPostWinChecklistItemAction}
-                />
-              </div>
-            ) : null}
-
 
 
             <DashboardSection
@@ -861,57 +844,6 @@ function CustomerHistorySheetSection({
           variant="section"
         />
       )}
-    </DashboardSection>
-  );
-}
-
-function QuotePostWinSheetSection(props: Parameters<typeof QuotePostWinPanel>[0]) {
-  const completedCount = props.checklistItems.filter(
-    (item) => item.completedAt,
-  ).length;
-  const totalItems = props.checklistItems.length;
-
-  return (
-    <DashboardSection
-      contentClassName="flex flex-col gap-4"
-      description="Post-acceptance next steps."
-      title="Post-win"
-    >
-      <div className="grid gap-3 sm:grid-cols-2">
-        <InfoTile
-          label="Accepted total"
-          value={formatQuoteMoney(props.totalInCents, props.currency)}
-        />
-        <InfoTile
-          label="Checklist"
-          value={
-            totalItems ? `${completedCount}/${totalItems} complete` : "No items"
-          }
-        />
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <QuotePostAcceptanceStatusBadge status={props.postAcceptanceStatus} />
-      </div>
-      <Sheet>
-        <SheetTrigger asChild>
-          <Button className="w-full" type="button" variant="outline">
-            Open post-win actions
-          </Button>
-        </SheetTrigger>
-        <SheetContent className="w-full sm:max-w-xl">
-          <SheetHeader>
-            <SheetTitle>Post-win next steps</SheetTitle>
-            <SheetDescription>
-              Manage checklist items, completion, and accepted-work cancellation.
-            </SheetDescription>
-          </SheetHeader>
-          <SheetBody className="min-h-0 flex-1">
-            <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
-              <QuotePostWinPanel {...props} />
-            </ScrollArea>
-          </SheetBody>
-        </SheetContent>
-      </Sheet>
     </DashboardSection>
   );
 }
