@@ -1,6 +1,6 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { betterAuth } from "better-auth";
-import { magicLink } from "better-auth/plugins";
+import { admin, magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
@@ -178,6 +178,10 @@ export const auth = betterAuth({
     storage: "database",
     customRules: {
       "/get-session": false,
+      "/admin/confirm": {
+        max: 5,
+        window: 300,
+      },
       "/request-password-reset": {
         max: 5,
         window: 300,
@@ -216,6 +220,16 @@ export const auth = betterAuth({
 
         await sendMagicLinkEmail({ email, url, token });
       },
+    }),
+    admin({
+      // Env-driven ADMIN_EMAILS allow-list is the authoritative admin signal.
+      // We do not use role-based admin, so no roles qualify as admin.
+      adminRoles: [],
+      // 1 hour impersonation window.
+      impersonationSessionDuration: 60 * 60,
+      // Disallow admin-on-admin impersonation (default is already false;
+      // set explicitly to make the invariant visible in config).
+      allowImpersonatingAdmins: false,
     }),
   ],
   databaseHooks: {

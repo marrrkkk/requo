@@ -7,7 +7,7 @@ export const auditEntityTypes = [
   "account",
 ] as const;
 
-export const auditSources = ["app", "webhook", "system"] as const;
+export const auditSources = ["app", "webhook", "system", "admin"] as const;
 
 export const auditActionLabels = {
   "request.archived": "Inquiry archived",
@@ -41,6 +41,10 @@ export const auditActionLabels = {
   "member.invite_canceled": "Member invite canceled",
   "account.deletion_requested": "Account deletion requested",
   "account.deleted": "Account deleted",
+  "account.suspended": "Account suspended by support",
+  "account.unsuspended": "Account reinstated by support",
+  "account.sessions_revoked": "Account sessions revoked by support",
+  "account.email_force_verified": "Account email verified by support",
 } as const;
 
 export type AuditEntityType = (typeof auditEntityTypes)[number];

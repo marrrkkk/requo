@@ -424,6 +424,13 @@
       "when": 1778780000000,
       "tag": "0062_business_notification_reads",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1778446755424,
+      "tag": "0061_admin_console_user_ban_impersonation",
+      "breakpoints": true
     }
   ]
 }

@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { BrandMark } from "@/components/shared/brand-mark";
 import { PageHeader } from "@/components/shared/page-header";
+import { ImpersonationBanner } from "@/components/shell/impersonation-banner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AccountSettingsNav } from "@/features/account/components/account-settings-nav";
@@ -86,6 +87,9 @@ async function AccountSettingsShell({
 
         <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
           <DashboardPage>
+            <Suspense fallback={null}>
+              <ImpersonationBanner />
+            </Suspense>
             <PageHeader
               description="Manage your personal details, sign-in, sessions, and account safeguards."
               eyebrow="User settings"

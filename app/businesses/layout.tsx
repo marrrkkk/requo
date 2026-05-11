@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
+import { ImpersonationBanner } from "@/components/shell/impersonation-banner";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -13,5 +15,12 @@ export default function BusinessesLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <>
+      <Suspense fallback={null}>
+        <ImpersonationBanner />
+      </Suspense>
+      {children}
+    </>
+  );
 }

@@ -38,6 +38,10 @@ export function formatAuditActorLabel(item: BusinessAuditLogItem) {
     return "System";
   }
 
+  if (item.source === "admin") {
+    return "Requo support";
+  }
+
   return "Unknown";
 }
 
@@ -121,7 +125,11 @@ export function formatAuditEventDetails(item: BusinessAuditLogItem) {
         .join(" ");
     }
     case "account.deletion_requested":
-    case "account.deleted": {
+    case "account.deleted":
+    case "account.suspended":
+    case "account.unsuspended":
+    case "account.sessions_revoked":
+    case "account.email_force_verified": {
       return getStringValue(metadata, "accountEmail") ?? "Account record";
     }
     default:
