@@ -410,15 +410,18 @@ function buildBusinessSearchCondition(search: string) {
 async function listAdminBusinessesInner(
   filters: AdminBusinessesListFilters,
 ): Promise<AdminPaginatedResult<AdminBusinessRow>> {
-  const { page, pageSize, search } = filters;
+  const { page, pageSize, search, plan } = filters;
   const offset = toOffset(page, pageSize);
   const searchCondition = search
     ? buildBusinessSearchCondition(search)
     : undefined;
+  const planCondition = plan ? eq(businesses.plan, plan) : undefined;
 
-  const baseConditions = searchCondition
-    ? and(isNull(businesses.deletedAt), searchCondition)
-    : isNull(businesses.deletedAt);
+  const baseConditions = and(
+    isNull(businesses.deletedAt),
+    ...(searchCondition ? [searchCondition] : []),
+    ...(planCondition ? [planCondition] : []),
+  );
 
   const memberCountSql = sql<number>`(
     select count(*)::int

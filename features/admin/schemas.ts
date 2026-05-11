@@ -241,6 +241,12 @@ export const adminUsersListFiltersSchema = z.object({
 });
 
 export const adminBusinessesListFiltersSchema = z.object({
+  plan: z
+    .preprocess(
+      (value) => emptyToUndefined(firstString(value)),
+      businessPlanSchema.optional(),
+    )
+    .catch(undefined),
   ...searchQueryShape,
   ...paginationShape,
 });
