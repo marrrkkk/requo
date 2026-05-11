@@ -67,7 +67,6 @@ export async function POST(request: Request) {
         eq(businessMembers.businessId, businessId),
         eq(businessMembers.userId, user.id),
         isNull(businesses.deletedAt),
-        isNull(businesses.deletedAt),
       ),
     )
     .limit(1);
@@ -91,9 +90,12 @@ export async function POST(request: Request) {
         auth: subscription.keys.auth,
       })
       .onConflictDoUpdate({
-        target: [pushSubscriptions.userId, pushSubscriptions.endpoint],
+        target: [
+          pushSubscriptions.userId,
+          pushSubscriptions.businessId,
+          pushSubscriptions.endpoint,
+        ],
         set: {
-          businessId,
           p256dh: subscription.keys.p256dh,
           auth: subscription.keys.auth,
         },

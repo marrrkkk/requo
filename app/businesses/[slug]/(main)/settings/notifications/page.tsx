@@ -31,6 +31,7 @@ export default async function BusinessNotificationSettingsPage() {
 
       <BusinessNotificationSettingsForm
         action={updateBusinessNotificationSettingsAction}
+        businessId={settings.businessId}
         key={`business-notifications-${settings.updatedAt.getTime()}`}
         settings={settings}
       />

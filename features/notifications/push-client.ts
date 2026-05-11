@@ -30,6 +30,11 @@ export function isPushSupported(): boolean {
   );
 }
 
+/** Check if the app has a browser-visible VAPID public key. */
+export function isPushConfiguredForClient(): boolean {
+  return Boolean(publicEnv.NEXT_PUBLIC_VAPID_PUBLIC_KEY);
+}
+
 /** Get the current Notification permission state. */
 export function getPushPermission(): NotificationPermission | "unsupported" {
   if (!isPushSupported()) {
@@ -46,7 +51,8 @@ async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegistration
   }
 
   try {
-    return await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    return await navigator.serviceWorker.ready;
   } catch (error) {
     console.error("Service worker registration failed.", error);
     return null;
@@ -94,6 +100,13 @@ export async function subscribeToPush(): Promise<PushSubscription | null> {
   }
 
   try {
+    const existingSubscription =
+      await registration.pushManager.getSubscription();
+
+    if (existingSubscription) {
+      return existingSubscription;
+    }
+
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as BufferSource,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Bell,
   ChevronDown,
@@ -11,9 +11,11 @@ import {
   Timer,
   UserCheck,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { FormActions } from "@/components/shared/form-layout";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -23,6 +25,15 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { useProgressRouter } from "@/hooks/use-progress-router";
+import {
+  getExistingPushSubscription,
+  getPushPermission,
+  isPushConfiguredForClient,
+  isPushSupported,
+  removePushSubscription,
+  savePushSubscription,
+  subscribeToPush,
+} from "@/features/notifications/push-client";
 import type {
   BusinessNotificationSettingsActionState,
   BusinessSettingsView,
@@ -161,6 +172,27 @@ const allFieldKeys: NotificationFieldKey[] = [
   "notifyInAppOnQuoteExpiring",
 ];
 
+const pushFieldKeys = [
+  "notifyPushOnNewInquiry",
+  "notifyPushOnQuoteSent",
+  "notifyPushOnQuoteResponse",
+  "notifyPushOnMemberInviteResponse",
+] satisfies NotificationFieldKey[];
+
+type PushSetupState =
+  | "checking"
+  | "ready"
+  | "needs-enable"
+  | "unsupported"
+  | "blocked"
+  | "not-configured";
+
+function isPushFieldKey(
+  fieldKey: NotificationFieldKey,
+): fieldKey is (typeof pushFieldKeys)[number] {
+  return (pushFieldKeys as readonly NotificationFieldKey[]).includes(fieldKey);
+}
+
 /* ── Props ───────────────────────────────────────────────────────────────── */
 
 type BusinessNotificationSettingsFormProps = {
@@ -168,6 +200,7 @@ type BusinessNotificationSettingsFormProps = {
     state: BusinessNotificationSettingsActionState,
     formData: FormData,
   ) => Promise<BusinessNotificationSettingsActionState>;
+  businessId: string;
   settings: Pick<BusinessSettingsView, NotificationFieldKey>;
 };
 
@@ -177,6 +210,7 @@ const initialState: BusinessNotificationSettingsActionState = {};
 
 export function BusinessNotificationSettingsForm({
   action,
+  businessId,
   settings,
 }: BusinessNotificationSettingsFormProps) {
   const router = useProgressRouter();
@@ -194,10 +228,18 @@ export function BusinessNotificationSettingsForm({
       return initial;
     },
   );
+  const [pushSetupState, setPushSetupState] =
+    useState<PushSetupState>("checking");
+  const [pushEndpoint, setPushEndpoint] = useState<string | null>(null);
+  const [pendingPushField, setPendingPushField] =
+    useState<NotificationFieldKey | null>(null);
+  const [isEnablingBrowserPush, setIsEnablingBrowserPush] = useState(false);
 
   const hasUnsavedChanges = allFieldKeys.some(
     (key) => values[key] !== settings[key],
   );
+  const selectedPushCount = pushFieldKeys.filter((key) => values[key]).length;
+  const isPushBusy = Boolean(pendingPushField) || isEnablingBrowserPush;
 
   useEffect(() => {
     if (!state.success) {
@@ -207,7 +249,161 @@ export function BusinessNotificationSettingsForm({
     router.refresh();
   }, [router, state.success]);
 
-  function handleToggle(fieldKey: NotificationFieldKey, nextValue: boolean) {
+  const refreshPushSetupState = useCallback(async () => {
+    if (!isPushConfiguredForClient()) {
+      setPushSetupState("not-configured");
+      setPushEndpoint(null);
+      return;
+    }
+
+    if (!isPushSupported()) {
+      setPushSetupState("unsupported");
+      setPushEndpoint(null);
+      return;
+    }
+
+    const permission = getPushPermission();
+
+    if (permission === "denied") {
+      setPushSetupState("blocked");
+      setPushEndpoint(null);
+      return;
+    }
+
+    if (permission !== "granted") {
+      setPushSetupState("needs-enable");
+      setPushEndpoint(null);
+      return;
+    }
+
+    const subscription = await getExistingPushSubscription();
+
+    if (!subscription) {
+      setPushSetupState("needs-enable");
+      setPushEndpoint(null);
+      return;
+    }
+
+    if (selectedPushCount > 0) {
+      const saved = await savePushSubscription(subscription, businessId);
+
+      if (!saved) {
+        setPushSetupState("needs-enable");
+        setPushEndpoint(null);
+        return;
+      }
+    }
+
+    setPushEndpoint(subscription.endpoint);
+    setPushSetupState("ready");
+  }, [businessId, selectedPushCount]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function refresh() {
+      await refreshPushSetupState();
+
+      if (isCancelled) {
+        return;
+      }
+    }
+
+    void refresh();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [refreshPushSetupState]);
+
+  async function enablePushForBrowser(fieldKey?: NotificationFieldKey) {
+    if (!isPushConfiguredForClient()) {
+      setPushSetupState("not-configured");
+      toast.error("Push notifications are not configured for this environment.");
+      return false;
+    }
+
+    if (!isPushSupported()) {
+      setPushSetupState("unsupported");
+      toast.error("This browser does not support push notifications.");
+      return false;
+    }
+
+    if (getPushPermission() === "denied") {
+      setPushSetupState("blocked");
+      toast.error("Browser notifications are blocked. Allow them in browser settings first.");
+      return false;
+    }
+
+    setPendingPushField(fieldKey ?? null);
+    setIsEnablingBrowserPush(fieldKey ? false : true);
+
+    try {
+      const subscription = await subscribeToPush();
+
+      if (!subscription) {
+        setPushSetupState("needs-enable");
+        toast.error("Notification permission was not granted.");
+        return false;
+      }
+
+      const saved = await savePushSubscription(subscription, businessId);
+
+      if (!saved) {
+        setPushSetupState("needs-enable");
+        toast.error("We could not save this browser for push notifications.");
+        return false;
+      }
+
+      setPushEndpoint(subscription.endpoint);
+      setPushSetupState("ready");
+      toast.success("Push notifications are enabled for this browser.");
+      return true;
+    } finally {
+      setPendingPushField(null);
+      setIsEnablingBrowserPush(false);
+    }
+  }
+
+  async function removePushForBusiness(endpoint?: string | null) {
+    const existingEndpoint =
+      endpoint ?? pushEndpoint ?? (await getExistingPushSubscription())?.endpoint;
+
+    if (!existingEndpoint) {
+      return;
+    }
+
+    const removed = await removePushSubscription(existingEndpoint, businessId);
+
+    if (!removed) {
+      toast.error("We could not remove this browser from push notifications.");
+    }
+  }
+
+  async function handleToggle(
+    fieldKey: NotificationFieldKey,
+    nextValue: boolean,
+  ) {
+    if (isPushFieldKey(fieldKey) && nextValue) {
+      const enabled = await enablePushForBrowser(fieldKey);
+
+      if (!enabled) {
+        return;
+      }
+    }
+
+    if (isPushFieldKey(fieldKey) && !nextValue) {
+      const nextValues = { ...values, [fieldKey]: false };
+
+      setValues(nextValues);
+
+      if (!pushFieldKeys.some((key) => nextValues[key])) {
+        void removePushForBusiness();
+      }
+
+      return;
+    }
+
     setValues((prev) => ({ ...prev, [fieldKey]: nextValue }));
   }
 
@@ -231,6 +427,15 @@ export function BusinessNotificationSettingsForm({
         />
       ))}
 
+      <PushBrowserStatus
+        busy={isEnablingBrowserPush}
+        selectedPushCount={selectedPushCount}
+        setupState={pushSetupState}
+        onEnable={() => {
+          void enablePushForBrowser();
+        }}
+      />
+
       <div className="flex flex-col">
         {notificationGroups.map((group, groupIndex) => (
           <section key={group.label}>
@@ -248,7 +453,8 @@ export function BusinessNotificationSettingsForm({
                   key={event.id}
                   event={event}
                   values={values}
-                  disabled={isPending}
+                  disabled={isPending || isPushBusy}
+                  pendingField={pendingPushField}
                   onToggle={handleToggle}
                 />
               ))}
@@ -287,12 +493,14 @@ function NotificationEventRow({
   event,
   values,
   disabled,
+  pendingField,
   onToggle,
 }: {
   event: NotificationEventConfig;
   values: Record<NotificationFieldKey, boolean>;
   disabled: boolean;
-  onToggle: (key: NotificationFieldKey, value: boolean) => void;
+  pendingField: NotificationFieldKey | null;
+  onToggle: (key: NotificationFieldKey, value: boolean) => void | Promise<void>;
 }) {
   const availableChannels = channelOrder.filter(
     (ch) => event.channels[ch] !== undefined,
@@ -333,6 +541,9 @@ function NotificationEventRow({
             variant="ghost"
           >
             <span className="text-[0.8rem]">{summaryLabel}</span>
+            {pendingField && event.channels.push === pendingField ? (
+              <Spinner className="size-3.5" aria-hidden="true" />
+            ) : null}
             <ChevronDown className="size-3.5 opacity-60" />
           </Button>
         </PopoverTrigger>
@@ -368,4 +579,87 @@ function NotificationEventRow({
       </Popover>
     </div>
   );
+}
+
+function PushBrowserStatus({
+  busy,
+  selectedPushCount,
+  setupState,
+  onEnable,
+}: {
+  busy: boolean;
+  selectedPushCount: number;
+  setupState: PushSetupState;
+  onEnable: () => void;
+}) {
+  if (selectedPushCount === 0 || setupState === "ready") {
+    return null;
+  }
+
+  const statusContent = getPushStatusContent(setupState);
+  const canEnable = setupState === "needs-enable";
+
+  return (
+    <Alert role="status">
+      <Smartphone />
+      <AlertTitle>{statusContent.title}</AlertTitle>
+      <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <span>{statusContent.description}</span>
+        {canEnable ? (
+          <Button
+            className="w-fit"
+            disabled={busy}
+            onClick={onEnable}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            {busy ? (
+              <>
+                <Spinner data-icon="inline-start" aria-hidden="true" />
+                Enabling...
+              </>
+            ) : (
+              "Enable this browser"
+            )}
+          </Button>
+        ) : null}
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+function getPushStatusContent(setupState: PushSetupState) {
+  switch (setupState) {
+    case "blocked":
+      return {
+        title: "Push is blocked in this browser",
+        description:
+          "Allow notifications in your browser settings before enabling push here.",
+      };
+    case "not-configured":
+      return {
+        title: "Push delivery is not configured",
+        description:
+          "Add VAPID keys to this environment before saving push channels.",
+      };
+    case "unsupported":
+      return {
+        title: "Push is unavailable in this browser",
+        description:
+          "Use a browser with service worker and notification support for push alerts.",
+      };
+    case "checking":
+      return {
+        title: "Checking browser push",
+        description: "Confirming this browser can receive push notifications.",
+      };
+    case "needs-enable":
+    case "ready":
+      return {
+        title: "Enable push on this browser",
+        description:
+          "This browser needs notification permission before it can receive push alerts.",
+      };
+  }
 }
