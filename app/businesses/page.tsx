@@ -177,25 +177,24 @@ export default async function BusinessesPage() {
                   businessId={crypto.randomUUID()}
                   businessQuota={businessQuota}
                   trigger={
-                    <Card
-                      role="button"
-                      className="group flex flex-col border-dashed border-border/80 bg-transparent transition-colors hover:border-border hover:bg-card/50 cursor-pointer"
-                    >
-                      <CardHeader className="gap-4">
-                        <div className="flex items-center gap-3 text-muted-foreground group-hover:text-foreground transition-colors">
-                          <PlusCircle className="size-5" />
-                          <CardTitle className="text-lg">New business</CardTitle>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="flex flex-1 flex-col justify-end space-y-5">
-                        <CardDescription className="max-w-full">
-                          Set up a new business with inquiry capture, quote defaults, and follow-up basics.
-                        </CardDescription>
-                        <Button className="w-full sm:w-auto" variant="secondary">
-                          Create business
-                        </Button>
-                      </CardContent>
-                    </Card>
+                    <button className="h-full w-full text-left appearance-none rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                      <Card className="group h-full flex flex-col border-dashed border-border/80 bg-transparent transition-colors hover:border-border hover:bg-card/50 cursor-pointer">
+                        <CardHeader className="gap-4">
+                          <div className="flex items-center gap-3 text-muted-foreground group-hover:text-foreground transition-colors">
+                            <PlusCircle className="size-5" />
+                            <CardTitle className="text-lg">New business</CardTitle>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="flex flex-1 flex-col justify-end space-y-5">
+                          <CardDescription className="max-w-full">
+                            Set up a new business with inquiry capture, quote defaults, and follow-up basics.
+                          </CardDescription>
+                          <Button className="w-full sm:w-auto pointer-events-none" variant="secondary" tabIndex={-1} asChild>
+                            <div>Create business</div>
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    </button>
                   }
                 />
               </div>
