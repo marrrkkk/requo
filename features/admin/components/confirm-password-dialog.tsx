@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { issuePasswordConfirmTokenAction } from "@/features/admin/confirm";
+import { issuePasswordConfirmTokenAction } from "@/features/admin/confirm-actions";
 
 type ConfirmPasswordDialogProps = {
   open: boolean;
