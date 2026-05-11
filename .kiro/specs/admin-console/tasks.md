@@ -156,13 +156,13 @@ Incremental buildout of `/admin` behind an env-driven allow-list. Foundation fir
     - Grep-style test asserting admin mutations go through `subscription-service`
     - _Requirements: 7.3_
 
-- [ ] 9. Implement impersonation mutations and routes
+- [x] 9. Implement impersonation mutations and routes
   - [x] 9.1 Add impersonation actions to `features/admin/mutations.ts`
     - `startImpersonationAction(targetUserId, confirmToken)`: reject self-target; if an impersonation session is already active, call `auth.api.stopImpersonating()` first then `auth.api.impersonateUser({ userId })`
     - `stopImpersonationAction()`: no-op when not impersonating; otherwise call `auth.api.stopImpersonating()` and restore the admin session without prompting for a password
     - Audit both start and stop; include `impersonatedUserId` metadata for mutations performed while impersonating
     - _Requirements: 8.1, 8.3, 8.4, 8.5, 8.6, 10.3_
-  - [-] 9.2 Add route handlers `app/admin/users/[userId]/impersonate/route.ts` and `app/admin/stop-impersonating/route.ts`
+  - [x] 9.2 Add route handlers `app/admin/users/[userId]/impersonate/route.ts` and `app/admin/stop-impersonating/route.ts`
     - `POST` start: require admin + consume confirm token, call `startImpersonationAction`, redirect to `/businesses`
     - `POST` stop: call `stopImpersonationAction`, redirect to `/admin`
     - _Requirements: 8.1, 8.3_
@@ -173,20 +173,20 @@ Incremental buildout of `/admin` behind an env-driven allow-list. Foundation fir
     - **Property 16: Starting a new impersonation cleans up the previous one**
     - **Validates: Requirements 8.6**
 
-- [~] 10. Checkpoint — Ensure mutation tests pass
+- [x] 10. Checkpoint — Ensure mutation tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 11. Implement admin shell, navigation, and global impersonation banner
-  - [-] 11.1 Create admin layout and shell
+- [x] 11. Implement admin shell, navigation, and global impersonation banner
+  - [x] 11.1 Create admin layout and shell
     - `app/admin/layout.tsx` calls `requireAdminUser()`, renders `AdminShell` with `DashboardPage` + `PageHeader`
     - `app/admin/loading.tsx` provides a shared skeleton
     - Write a view audit entry on every render via `wrapAdminRouteWithViewLog`
     - _Requirements: 1.1, 1.2, 1.3, 1.6, 10.1_
-  - [-] 11.2 Create `AdminNav` in `features/admin/components/admin-nav.tsx`
+  - [x] 11.2 Create `AdminNav` in `features/admin/components/admin-nav.tsx`
     - Items: Dashboard, Users, Businesses, Subscriptions, Audit — sourced from `features/admin/navigation.ts`
     - Reuse conventions from `components/shell/dashboard-navigation.tsx`
     - _Requirements: 2.1, 3.1, 5.1, 6.1, 10.5_
-  - [ ] 11.3 Create `ImpersonationBanner` and mount it in authenticated layouts
+  - [x] 11.3 Create `ImpersonationBanner` and mount it in authenticated layouts
     - `components/shell/impersonation-banner.tsx` reads `session.impersonatedBy`; render an `Alert` with Stop Impersonating control; handle the "impersonated user deleted" race
     - Mount in existing authenticated layouts (`app/(workspaces)`, `app/account/layout.tsx`, `app/businesses/layout.tsx`, admin shell)
     - _Requirements: 8.2, 8.3_
@@ -201,23 +201,23 @@ Incremental buildout of `/admin` behind an env-driven allow-list. Foundation fir
     - Renders when `session.impersonatedBy` is set; absent otherwise
     - _Requirements: 8.2_
 
-- [ ] 12. Implement admin pages
-  - [~] 12.1 Dashboard page `app/admin/page.tsx`
+- [x] 12. Implement admin pages
+  - [x] 12.1 Dashboard page `app/admin/page.tsx`
     - Renders six tiles via `AdminDashboard`; each tile is a Suspense boundary with a per-tile retry placeholder if its count query fails
     - _Requirements: 2.1, 2.3, 2.4_
-  - [~] 12.2 Users list + detail
+  - [x] 12.2 Users list + detail
     - `app/admin/users/page.tsx` renders `AdminUsersTable` with search, pagination, and suspended badge
     - `app/admin/users/[userId]/page.tsx` renders `AdminUserDetail` + `AdminUserActions` (verify, revoke, suspend/unsuspend, delete, impersonate); gate each action through `ConfirmPasswordDialog`
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 8.1, 9.1_
-  - [~] 12.3 Businesses list + read-only detail
+  - [x] 12.3 Businesses list + read-only detail
     - `app/admin/businesses/page.tsx` renders `AdminBusinessesTable`
     - `app/admin/businesses/[businessId]/page.tsx` renders `AdminBusinessDetail` with no mutation affordances
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
-  - [~] 12.4 Subscriptions list + detail + override form
+  - [x] 12.4 Subscriptions list + detail + override form
     - `app/admin/subscriptions/page.tsx` renders `AdminSubscriptionsTable` with a status filter
     - `app/admin/subscriptions/[subscriptionId]/page.tsx` renders `AdminSubscriptionDetail` with recent `payment_attempts` and `billing_events`, plus `AdminSubscriptionOverrideForm` (plan override + force-cancel) gated by `ConfirmPasswordDialog`
     - _Requirements: 6.1, 6.2, 6.3, 7.1, 7.2, 7.3, 7.4, 9.1_
-  - [~] 12.5 Audit logs page `app/admin/audit-logs/page.tsx`
+  - [x] 12.5 Audit logs page `app/admin/audit-logs/page.tsx`
     - Paginated `AdminAuditTable` with filters for admin user, action, target type, target id; ordered `createdAt` desc
     - _Requirements: 10.5, 10.6_
   - [ ]* 12.6 Component test for `AdminDashboard` tiles and retry placeholder
@@ -240,7 +240,7 @@ Incremental buildout of `/admin` behind an env-driven allow-list. Foundation fir
     - Admin starts impersonation, banner appears in `/businesses`, Stop Impersonating returns to `/admin` without a password prompt
     - _Requirements: 1.2, 4.3, 4.7, 8.1, 8.2, 8.3, 9.1, 9.2, 9.4_
 
-- [~] 14. Final checkpoint — Ensure all tests pass
+- [x] 14. Final checkpoint — Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
