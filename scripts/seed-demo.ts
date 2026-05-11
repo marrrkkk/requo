@@ -19,6 +19,7 @@ import type { BusinessType } from "../features/inquiries/business-types";
 import { auth } from "../lib/auth/config";
 import { db, dbConnection } from "../lib/db/client";
 import {
+  accountSubscriptions,
   activityLogs,
   businessMembers,
   businesses,
@@ -30,7 +31,6 @@ import {
   quoteItems,
   quotes,
   user,
-      businessSubscriptions,
 } from "../lib/db/schema";
 import { env } from "../lib/env";
 import type { BusinessPlan as plan } from "../lib/plans/plans";
@@ -45,8 +45,8 @@ const demoStaffEmail = process.env.DEMO_STAFF_EMAIL ?? "staff@requo.local";
 const demoOutsiderEmail =
   process.env.DEMO_OUTSIDER_EMAIL ?? "outsider@requo.local";
 const primaryDemoUser: SeedUserConfig = {
-  name: env.DEMO_OWNER_NAME ?? "Morgan Lee",
-  email: env.DEMO_OWNER_EMAIL ?? "demo@requo.local",
+  name: env.DEMO_OWNER_NAME ?? "Mark Louie",
+  email: env.DEMO_OWNER_EMAIL ?? "marklouie.dev@gmail.com",
   plan: "business",
   businessGroupName: "BrightSide",
   businessSlug: "brightside",
@@ -421,12 +421,10 @@ async function resetDatabase() {
     "profiles",
     "businesses",
     "business_members",
-    "business_subscriptions",
+    "business_member_invites",
+    "account_subscriptions",
     "billing_events",
     "payment_attempts",
-    "businesses",
-    "business_members",
-    "business_member_invites",
     "business_inquiry_forms",
     "inquiries",
     "inquiry_attachments",
@@ -434,12 +432,18 @@ async function resetDatabase() {
     "quotes",
     "quote_items",
     "activity_logs",
+    "admin_audit_logs",
+    "audit_logs",
     "business_notifications",
     "business_notification_states",
+    "business_notification_reads",
     "business_memories",
     "quote_library_entries",
     "quote_library_entry_items",
-
+    "post_win_checklist_items",
+    "follow_ups",
+    "email_outbox",
+    "email_attempts",
     "public_action_events",
   ];
   const resetTableArray = tablesToReset
@@ -939,14 +943,20 @@ async function createBusinessRecord(
     updatedAt: now,
   });
 
-  // Create subscription row for paid plans
+  // Create account-scoped subscription row for paid plans. The seeder
+  // intentionally writes `account_subscriptions` directly rather than going
+  // through `subscription-service.ts` — the service calls `revalidateTag()`,
+  // which requires a Next.js request context and is unavailable from a
+  // standalone script. Plan sync across owned businesses is trivial here
+  // because each seeded owner gets exactly one `businesses` row and we
+  // already stamp the matching `plan` value on insert above.
   if (config.plan !== "free") {
     const periodStart = daysAgo(15);
     const periodEnd = addDays(periodStart, 30);
 
-    await db.insert(businessSubscriptions).values({
+    await db.insert(accountSubscriptions).values({
       id: id("sub"),
-      businessId: wsId,
+      userId: ownerId,
       status: "active",
       plan: config.plan,
       billingProvider: "paddle",
