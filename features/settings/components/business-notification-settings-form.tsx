@@ -241,13 +241,37 @@ export function BusinessNotificationSettingsForm({
   const selectedPushCount = pushFieldKeys.filter((key) => values[key]).length;
   const isPushBusy = Boolean(pendingPushField) || isEnablingBrowserPush;
 
+  const removePushForBusiness = useCallback(
+    async (endpoint?: string | null) => {
+      const existingEndpoint =
+        endpoint ??
+        pushEndpoint ??
+        (await getExistingPushSubscription())?.endpoint;
+
+      if (!existingEndpoint) {
+        return;
+      }
+
+      const removed = await removePushSubscription(existingEndpoint, businessId);
+
+      if (!removed) {
+        toast.error("We could not remove this browser from push notifications.");
+      }
+    },
+    [businessId, pushEndpoint],
+  );
+
   useEffect(() => {
     if (!state.success) {
       return;
     }
 
+    if (selectedPushCount === 0) {
+      void removePushForBusiness();
+    }
+
     router.refresh();
-  }, [router, state.success]);
+  }, [removePushForBusiness, router, selectedPushCount, state.success]);
 
   const refreshPushSetupState = useCallback(async () => {
     if (!isPushConfiguredForClient()) {
@@ -365,21 +389,6 @@ export function BusinessNotificationSettingsForm({
     }
   }
 
-  async function removePushForBusiness(endpoint?: string | null) {
-    const existingEndpoint =
-      endpoint ?? pushEndpoint ?? (await getExistingPushSubscription())?.endpoint;
-
-    if (!existingEndpoint) {
-      return;
-    }
-
-    const removed = await removePushSubscription(existingEndpoint, businessId);
-
-    if (!removed) {
-      toast.error("We could not remove this browser from push notifications.");
-    }
-  }
-
   async function handleToggle(
     fieldKey: NotificationFieldKey,
     nextValue: boolean,
@@ -396,11 +405,6 @@ export function BusinessNotificationSettingsForm({
       const nextValues = { ...values, [fieldKey]: false };
 
       setValues(nextValues);
-
-      if (!pushFieldKeys.some((key) => nextValues[key])) {
-        void removePushForBusiness();
-      }
-
       return;
     }
 

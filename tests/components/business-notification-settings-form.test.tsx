@@ -172,6 +172,7 @@ describe("BusinessNotificationSettingsForm", () => {
 
     await user.click(screen.getByRole("button", { name: "Push" }));
     await user.click(await screen.findByRole("switch", { name: "Push" }));
+    await user.click(screen.getByRole("button", { name: "Save notifications" }));
 
     await waitFor(() =>
       expect(removePushSubscriptionMock).toHaveBeenCalledWith(
