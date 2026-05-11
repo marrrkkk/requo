@@ -417,6 +417,13 @@
       "when": 1778450000000,
       "tag": "0060_business_customer_contact_channel",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1778780000000,
+      "tag": "0062_business_notification_reads",
+      "breakpoints": true
     }
   ]
 }

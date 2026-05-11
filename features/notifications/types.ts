@@ -58,3 +58,13 @@ export type BusinessNotificationActionResult =
       ok: false;
       error: string;
     };
+
+export type BusinessNotificationSingleReadResult =
+  | {
+      ok: true;
+      notificationId: string;
+    }
+  | {
+      ok: false;
+      error: string;
+    };

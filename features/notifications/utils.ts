@@ -46,7 +46,14 @@ export function toBusinessNotificationItem(
   businessSlug: string,
   notification: BusinessNotificationRecord,
   lastReadAt: Date | string | null,
+  individuallyReadIds?: ReadonlySet<string>,
 ): BusinessNotificationItem {
+  const coveredByWatermark = !isNotificationUnread(
+    notification.createdAt,
+    lastReadAt,
+  );
+  const individuallyRead = individuallyReadIds?.has(notification.id) ?? false;
+
   return {
     id: notification.id,
     type: notification.type,
@@ -54,7 +61,7 @@ export function toBusinessNotificationItem(
     summary: notification.summary,
     href: buildBusinessNotificationHref(businessSlug, notification),
     createdAt: notification.createdAt.toISOString(),
-    unread: isNotificationUnread(notification.createdAt, lastReadAt),
+    unread: !(coveredByWatermark || individuallyRead),
   };
 }
 
