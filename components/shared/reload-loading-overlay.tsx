@@ -16,7 +16,6 @@ export function ReloadLoadingOverlay() {
             alt="Requo"
             width={64}
             height={64}
-            priority
             className="size-16 object-contain"
           />
           <BrandWordmark size="hero" />

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 
 import { getValidationActionState } from "@/lib/action-state";
 import { requireUser } from "@/lib/auth/session";
+import { getEffectivePlanForUser } from "@/lib/billing/subscription-service";
 import {
   getBusinessAnalyticsCacheTags,
   getBusinessInquiryFormsCacheTags,
@@ -14,11 +15,15 @@ import {
   getBusinessOverviewCacheTags,
   getBusinessQuoteListCacheTags,
   getBusinessSettingsCacheTags,
+  getPublicBusinessProfileCacheTags,
   uniqueCacheTags,
 } from "@/lib/cache/business-tags";
 import { getBusinessActionContext } from "@/lib/db/business-access";
-import { getWorkspacesForUser } from "@/lib/db/workspace-access";
-import { checkUsageAllowance } from "@/lib/plans/usage";
+import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
+import {
+  getUserBusinessContextCacheTags,
+  getUserMembershipsCacheTags,
+} from "@/lib/cache/shell-tags";
 import {
   archiveBusiness,
   createBusinessForUser,
@@ -26,6 +31,12 @@ import {
   trashBusiness,
   unarchiveBusiness,
 } from "@/features/businesses/mutations";
+import { unlockBusinessIfAllowed } from "@/features/businesses/plan-enforcement";
+import {
+  getBusinessQuotaExceededMessage,
+  getBusinessQuotaForUser,
+  isBusinessQuotaExceededError,
+} from "@/features/businesses/quota";
 import { recordRecentlyOpenedBusiness } from "@/features/businesses/recently-opened";
 import {
   createBusinessSchema,
@@ -33,20 +44,17 @@ import {
 } from "@/features/businesses/schemas";
 import {
   activeBusinessSlugCookieName,
+  businessesHubPath,
   getBusinessDashboardPath,
   getBusinessFormsPath,
+  getBusinessPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
 import type {
   BusinessRecordActionState,
   CreateBusinessActionState,
 } from "@/features/businesses/types";
-import type { WorkspacePlan } from "@/lib/plans";
-import {
-  getWorkspacePath,
-  getWorkspaceSettingsPath,
-  workspacesHubPath,
-} from "@/features/workspaces/routes";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 const initialCreateState: CreateBusinessActionState = {};
 const initialBusinessRecordState: BusinessRecordActionState = {};
@@ -65,16 +73,35 @@ function updateBusinessCacheTags(businessId: string) {
   }
 }
 
+function updatePublicBusinessProfileCacheTags(businessSlug: string) {
+  for (const tag of getPublicBusinessProfileCacheTags(businessSlug)) {
+    updateTag(tag);
+  }
+}
+
+function updateUserBusinessMembershipCacheTags({
+  userId,
+  businessSlug,
+}: {
+  userId: string;
+  businessSlug: string;
+}) {
+  for (const tag of uniqueCacheTags([
+    ...getUserMembershipsCacheTags(userId),
+    ...getUserBusinessContextCacheTags(userId, businessSlug),
+  ])) {
+    updateTag(tag);
+  }
+}
+
 function revalidateBusinessLifecyclePaths({
   businessSlug,
-  workspaceSlug,
 }: {
   businessSlug: string;
-  workspaceSlug: string;
 }) {
-  revalidatePath(workspacesHubPath);
-  revalidatePath(getWorkspacePath(workspaceSlug));
-  revalidatePath(getWorkspaceSettingsPath(workspaceSlug));
+  revalidatePath(businessesHubPath);
+  revalidatePath(getBusinessPath(businessSlug));
+  revalidatePath(getBusinessSettingsPath(businessSlug));
   revalidatePath(getBusinessDashboardPath(businessSlug), "layout");
   revalidatePath(getBusinessSettingsPath(businessSlug));
   revalidatePath(getBusinessSettingsPath(businessSlug, "general"));
@@ -115,7 +142,7 @@ export async function recordRecentlyOpenedBusinessAction(
       businessId: access.businessContext.business.id,
       userId: access.user.id,
     });
-    revalidatePath(workspacesHubPath);
+    revalidatePath(businessesHubPath);
 
     return { ok: true };
   } catch (error) {
@@ -136,7 +163,7 @@ export async function createBusinessAction(
     name: formData.get("name"),
     businessType: formData.get("businessType"),
     defaultCurrency: formData.get("defaultCurrency"),
-    workspaceId: formData.get("workspaceId"),
+    businessId: formData.get("businessId"),
   });
 
   if (!validationResult.success) {
@@ -146,38 +173,13 @@ export async function createBusinessAction(
     );
   }
 
-  const userWorkspaces = await getWorkspacesForUser(user.id);
-  const workspace = userWorkspaces.find(
-    (item) => item.id === validationResult.data.workspaceId,
-  );
-
-  if (!workspace) {
-    return {
-      error: "Selected workspace not found. Please try again.",
-    };
-  }
-
-  if (workspace.deletedAt) {
-    return {
-      error: "That workspace has already been deleted.",
-    };
-  }
-
-  if (workspace.scheduledDeletionAt) {
-    return {
-      error: "This workspace is scheduled for deletion. Cancel the deletion schedule before adding another business.",
-    };
-  }
-
-  const businessAllowance = await checkUsageAllowance(
-    workspace.id,
-    workspace.plan as WorkspacePlan,
-    "businessesPerWorkspace",
-  );
+  const businessAllowance = await getBusinessQuotaForUser({
+    ownerUserId: user.id,
+  });
 
   if (!businessAllowance.allowed) {
     return {
-      error: `Your workspace's ${workspace.plan === "free" ? "Free" : "current"} plan supports ${businessAllowance.limit} business${businessAllowance.limit === 1 ? "" : "es"}. Upgrade your workspace to add more.`,
+      error: getBusinessQuotaExceededMessage(businessAllowance),
     };
   }
 
@@ -186,15 +188,32 @@ export async function createBusinessAction(
   try {
     const business = await createBusinessForUser({
       user,
-      workspaceId: workspace.id,
+      businessId: validationResult.data.businessId.startsWith("biz_")
+        ? validationResult.data.businessId
+        : `biz_${validationResult.data.businessId.replace(/-/g, "")}`,
       defaultCurrency: validationResult.data.defaultCurrency,
       name: validationResult.data.name,
       businessType: validationResult.data.businessType,
-      workspacePlan: workspace.plan as WorkspacePlan,
     });
 
+    updateUserBusinessMembershipCacheTags({
+      userId: user.id,
+      businessSlug: business.slug,
+    });
+    // Invalidate any cached null under this slug so the newly created
+    // public profile page starts serving fresh. Covers the edge case
+    // where `/businesses/<slug>` was visited before the business
+    // existed and the null was cached by the two-layer query.
+    updatePublicBusinessProfileCacheTags(business.slug);
+    revalidatePath(businessesHubPath);
     dashboardPath = getBusinessDashboardPath(business.slug);
   } catch (error) {
+    if (isBusinessQuotaExceededError(error)) {
+      return {
+        error: getBusinessQuotaExceededMessage(error.quota),
+      };
+    }
+
     console.error("Failed to create business.", error);
 
     return {
@@ -210,6 +229,7 @@ export async function createBusinessAction(
     error: "We couldn't create that business right now.",
   };
 }
+
 
 export async function archiveBusinessAction(
   businessId: string,
@@ -235,7 +255,6 @@ export async function archiveBusinessAction(
   return archiveScopedBusiness(
     ownerAccess.user.id,
     ownerAccess.businessContext.business.id,
-    businessId,
     businessSlug,
   );
 }
@@ -243,12 +262,11 @@ export async function archiveBusinessAction(
 async function archiveScopedBusiness(
   actorUserId: string,
   scopedBusinessId: string,
-  businessId: string,
   businessSlug: string,
 ): Promise<BusinessRecordActionState> {
   try {
     const result = await archiveBusiness({
-      businessId,
+      businessId: scopedBusinessId,
       actorUserId,
     });
 
@@ -272,9 +290,9 @@ async function archiveScopedBusiness(
 
     await clearActiveBusinessCookieIfNeeded(businessSlug);
     updateBusinessCacheTags(scopedBusinessId);
+    updatePublicBusinessProfileCacheTags(result.businessSlug);
     revalidateBusinessLifecyclePaths({
       businessSlug: result.businessSlug,
-      workspaceSlug: result.workspaceSlug,
     });
 
     return {
@@ -335,9 +353,9 @@ export async function unarchiveBusinessAction(
     }
 
     updateBusinessCacheTags(ownerAccess.businessContext.business.id);
+    updatePublicBusinessProfileCacheTags(result.businessSlug);
     revalidateBusinessLifecyclePaths({
       businessSlug: result.businessSlug,
-      workspaceSlug: result.workspaceSlug,
     });
 
     return {
@@ -403,7 +421,7 @@ export async function trashBusinessAction(
 
       if (result.reason === "last-active") {
         return {
-          error: "Keep at least one active business in this workspace.",
+          error: "Keep at least one active business.",
         };
       }
 
@@ -414,9 +432,9 @@ export async function trashBusinessAction(
 
     await clearActiveBusinessCookieIfNeeded(businessSlug);
     updateBusinessCacheTags(ownerAccess.businessContext.business.id);
+    updatePublicBusinessProfileCacheTags(result.businessSlug);
     revalidateBusinessLifecyclePaths({
       businessSlug: result.businessSlug,
-      workspaceSlug: result.workspaceSlug,
     });
 
     return {
@@ -471,9 +489,9 @@ export async function restoreBusinessAction(
     }
 
     updateBusinessCacheTags(ownerAccess.businessContext.business.id);
+    updatePublicBusinessProfileCacheTags(result.businessSlug);
     revalidateBusinessLifecyclePaths({
       businessSlug: result.businessSlug,
-      workspaceSlug: result.workspaceSlug,
     });
 
     return {
@@ -486,4 +504,71 @@ export async function restoreBusinessAction(
       error: "We couldn't restore the business right now.",
     };
   }
+}
+
+export async function unlockBusinessAction(
+  businessId: string,
+  businessSlug: string,
+  _formData: FormData,
+): Promise<BusinessRecordActionState> {
+  void _formData;
+
+  const ownerAccess = await getBusinessActionContext({
+    businessSlug,
+    minimumRole: "owner",
+    requireActiveBusiness: false,
+    unauthorizedMessage: "Only the business owner can do that.",
+  });
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  try {
+    const effectivePlan = await getEffectivePlanForUser(ownerAccess.user.id);
+    const result = await unlockBusinessIfAllowed({
+      businessId,
+      ownerUserId: ownerAccess.user.id,
+      actorUserId: ownerAccess.user.id,
+      targetPlan: effectivePlan,
+    });
+
+    if (!result.ok) {
+      if (result.reason === "active_business_limit_reached") {
+        return {
+          error: "You reached your active business limit. Upgrade to unlock more businesses.",
+        };
+      }
+
+      return {
+        error: "That business could not be unlocked.",
+      };
+    }
+
+    updateBusinessCacheTags(ownerAccess.businessContext.business.id);
+    updatePublicBusinessProfileCacheTags(businessSlug);
+    revalidateBusinessLifecyclePaths({
+      businessSlug,
+    });
+
+    return {
+      success: "Business unlocked.",
+    };
+  } catch (error) {
+    console.error("Failed to unlock business.", error);
+
+    return {
+      error: "We couldn't unlock this business right now.",
+    };
+  }
+}
+
+export async function unlockBusinessFromHubAction(
+  businessId: string,
+  businessSlug: string,
+  formData: FormData,
+): Promise<void> {
+  await unlockBusinessAction(businessId, businessSlug, formData);
 }

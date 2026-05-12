@@ -1,8 +1,9 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { BrandMark } from "@/components/shared/brand-mark";
 import { getAccountProfileForUser } from "@/features/account/queries";
-import { workspacesHubPath } from "@/features/workspaces/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import { completeOnboardingAction } from "@/features/onboarding/actions";
 import { OnboardingForm } from "@/features/onboarding/components/onboarding-form";
 import { AppearanceMenu } from "@/features/theme/components/appearance-menu";
@@ -11,6 +12,13 @@ import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
+import { timed } from "@/lib/dev/server-timing";
+import { createNoIndexMetadata } from "@/lib/seo/site";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  absoluteTitle: "Onboarding · Requo",
+  description: "Set up your first business to start capturing inquiries.",
+});
 
 export default async function OnboardingPage() {
   const session = await requireSession();
@@ -21,14 +29,17 @@ export default async function OnboardingPage() {
     email: session.user.email,
   });
 
-  const [themePreference, memberships, profile] = await Promise.all([
-    getThemePreferenceForUser(session.user.id),
-    getBusinessMembershipsForUser(session.user.id),
-    getAccountProfileForUser(session.user.id),
-  ]);
+  const [themePreference, memberships, profile] = await timed(
+    "onboarding.parallelShellFetches",
+    Promise.all([
+      getThemePreferenceForUser(session.user.id),
+      getBusinessMembershipsForUser(session.user.id),
+      getAccountProfileForUser(session.user.id),
+    ]),
+  );
 
   if (memberships.length > 0 || profile?.onboardingCompletedAt) {
-    redirect(workspacesHubPath);
+    redirect(businessesHubPath);
   }
 
   return (

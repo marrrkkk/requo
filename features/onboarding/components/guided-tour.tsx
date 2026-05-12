@@ -52,10 +52,10 @@ function SpotlightOverlay({ rect }: { rect: DOMRect | null }) {
           )`,
         }}
       />
-      {/* Highlight Box / Ring */}
+      {/* Highlight Box / Ring — pulses to draw attention */}
       <div
         aria-hidden
-        className="pointer-events-none fixed z-[9998] shadow-[0_0_0_2px_rgba(255,255,255,0.4),0_0_15px_rgba(255,255,255,0.2)] transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+        className="pointer-events-none fixed z-[9998] animate-[tour-spotlight-pulse_2s_ease-in-out_infinite] transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
         style={{
           top: rect.top - pad,
           left: rect.left - pad,
@@ -209,9 +209,11 @@ type GuidedTourProps = {
   show: boolean;
   steps: TourStep[];
   onComplete: () => Promise<void>;
+  /** localStorage key for client-side dismissal. When set, tour auto-hides if key exists. */
+  storageKey?: string;
 };
 
-export function GuidedTour({ show, steps, onComplete }: GuidedTourProps) {
+export function GuidedTour({ show, steps, onComplete, storageKey }: GuidedTourProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [active, setActive] = useState(false);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
@@ -225,9 +227,18 @@ export function GuidedTour({ show, steps, onComplete }: GuidedTourProps) {
     const mq = window.matchMedia("(min-width: 768px)");
     if (!mq.matches) return;
 
+    // Skip if already completed for this storageKey
+    if (storageKey) {
+      try {
+        if (localStorage.getItem(storageKey)) return;
+      } catch {
+        // localStorage unavailable — show tour anyway
+      }
+    }
+
     const timer = window.setTimeout(() => setActive(true), 800);
     return () => window.clearTimeout(timer);
-  }, [show]);
+  }, [show, storageKey]);
 
   useEffect(() => {
     if (!active) return;
@@ -271,6 +282,14 @@ export function GuidedTour({ show, steps, onComplete }: GuidedTourProps) {
 
   const completeTour = useCallback(() => {
     setActive(false);
+    // Persist dismissal in localStorage for per-business tracking
+    if (storageKey) {
+      try {
+        localStorage.setItem(storageKey, new Date().toISOString());
+      } catch {
+        // localStorage unavailable — tour won't persist but still dismisses
+      }
+    }
     startTransition(async () => {
       try {
         await onComplete();
@@ -278,7 +297,7 @@ export function GuidedTour({ show, steps, onComplete }: GuidedTourProps) {
         // Silently fail — tour still dismissed locally
       }
     });
-  }, [onComplete]);
+  }, [onComplete, storageKey]);
 
   const handleNext = useCallback(() => {
     if (currentStep < steps.length - 1) {

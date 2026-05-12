@@ -1,3 +1,4 @@
+import withBundleAnalyzer from "@next/bundle-analyzer";
 import type { NextConfig } from "next";
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -37,8 +38,25 @@ const agentDiscoveryHeaders = [
 ] satisfies Array<{ key: string; value: string }>;
 
 const nextConfig: NextConfig = {
+  // Ensure preview bots get full metadata in the initial HTML (see Next.js streaming metadata).
+  htmlLimitedBots:
+    /facebookexternalhit|Facebot|LinkedInBot|Twitterbot|Pinterest|Slackbot|Discordbot|vkShare|redditbot|Applebot/i,
   cacheComponents: true,
+  // Populate entries here only when `ANALYZE=true npm run build` shows a measurable
+  // bundle-size win for a specific package. Keep the block present and documented so
+  // future wins (e.g., barrel-heavy icon libraries) have a clear home.
+  // Example (only add after verifying the subpath pattern in node_modules):
+  //   "lucide-react": {
+  //     transform: "lucide-react/dist/esm/icons/{{kebabCase member}}",
+  //   },
+  modularizeImports: {},
+  images: {
+    // Only add hosts here when a new <Image src="https://..."> is introduced.
+    // All current images are local or generated via next/image routes.
+    remotePatterns: [],
+  },
   experimental: {
+    instantNavigationDevToolsToggle: true,
     serverActions: {
       bodySizeLimit: "7mb",
     },
@@ -64,10 +82,6 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/businesses/:path*",
-        headers: sensitiveNoStoreHeaders,
-      },
-      {
-        source: "/workspaces/:path*",
         headers: sensitiveNoStoreHeaders,
       },
       {
@@ -120,4 +134,6 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer({ enabled: process.env.ANALYZE === "true" })(
+  nextConfig,
+);

@@ -5,7 +5,7 @@ import {
   activeBusinessSlugCookieName,
   getBusinessDashboardSlugFromPathname,
 } from "@/features/businesses/routes";
-import { hasAdminProxyAccess } from "@/features/admin/proxy-auth";
+// admin proxy-auth removed during business migration
 
 function isAdminPath(pathname: string) {
   return pathname === "/admin" || pathname.startsWith("/admin/");
@@ -17,7 +17,7 @@ function adminNotFound() {
 
 export async function proxy(request: NextRequest) {
   if (isAdminPath(request.nextUrl.pathname)) {
-    const isAdmin = await hasAdminProxyAccess(request.headers);
+    const isAdmin = await false /* admin removed */ && (request.headers);
 
     if (!isAdmin) {
       return adminNotFound();

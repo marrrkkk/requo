@@ -1,8 +1,9 @@
 import { eq, sql } from "drizzle-orm";
 
-import type { WorkspacePlan } from "@/lib/plans/plans";
+import type { BusinessPlan } from "@/lib/plans/plans";
 
 import { writeAuditLog } from "@/features/audit/mutations";
+import { assertBusinessQuotaAvailableForUser } from "@/features/businesses/quota";
 import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
 import { createInquiryFormConfigDefaults } from "@/features/inquiries/form-config";
 import { createInquiryPageConfigDefaults } from "@/features/inquiries/page-config";
@@ -13,8 +14,6 @@ import {
   businessInquiryForms,
   businessMembers,
   businesses,
-  workspaceMembers,
-  workspaces,
 } from "@/lib/db/schema";
 import { appendRandomSlugSuffix, slugifyPublicName } from "@/lib/slugs";
 
@@ -24,18 +23,23 @@ type BootstrapUser = {
   email: string;
 };
 
+type DatabaseClient =
+  | typeof db
+  | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 function createId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
 }
 
 async function getAvailableSlug(
-  table: typeof businesses | typeof workspaces,
+  client: DatabaseClient,
+  table: typeof businesses,
   baseSlug: string,
 ) {
   let candidate = baseSlug;
 
   while (true) {
-    const existing = await db
+    const existing = await client
       .select({ id: table.id })
       .from(table)
       .where(eq(table.slug, candidate))
@@ -72,82 +76,15 @@ export async function ensureProfileForUser(user: BootstrapUser) {
   });
 }
 
-/**
- * Creates a workspace for a user if they don't already have one.
- * Returns the workspace ID.
- */
-async function ensureWorkspaceForUser(
-  user: BootstrapUser,
-  now: Date,
-  plan: WorkspacePlan = "free",
-) {
-  // Check if user already has a workspace
-  const [existingMembership] = await db
-    .select({
-      workspaceId: workspaceMembers.workspaceId,
-    })
-    .from(workspaceMembers)
-    .where(eq(workspaceMembers.userId, user.id))
-    .limit(1);
-
-  if (existingMembership) {
-    return existingMembership.workspaceId;
-  }
-
-  const workspaceBaseName = user.name.trim() || user.email.split("@")[0] || "My";
-  const workspaceName = `${workspaceBaseName}'s Workspace`;
-  const workspaceSlug = await getAvailableSlug(
-    workspaces,
-    slugifyPublicName(workspaceBaseName, { fallback: "workspace" }) + "-ws",
-  );
-  const workspaceId = createId("ws");
-
-  await db.insert(workspaces).values({
-    id: workspaceId,
-    name: workspaceName,
-    slug: workspaceSlug,
-    plan,
-    ownerUserId: user.id,
-    createdAt: now,
-    updatedAt: now,
-  });
-
-  await db.insert(workspaceMembers).values({
-    id: createId("wm"),
-    workspaceId,
-    userId: user.id,
-    role: "owner",
-    createdAt: now,
-    updatedAt: now,
-  });
-
-  await writeAuditLog(db, {
-    workspaceId,
-    actorUserId: user.id,
-    actorName: user.name,
-    actorEmail: user.email,
-    entityType: "workspace",
-    entityId: workspaceId,
-    action: "workspace.created",
-    metadata: {
-      workspaceName,
-      workspaceSlug,
-      source: "better-auth-signup",
-    },
-    createdAt: now,
-  });
-
-  return workspaceId;
-}
-
 export async function bootstrapBusinessForUser(
   user: BootstrapUser,
-  options?: { plan?: WorkspacePlan },
+  options?: { plan?: BusinessPlan },
 ) {
   const businessBaseName =
     user.name.trim() || user.email.split("@")[0] || "Requo";
   const businessName = `${businessBaseName}'s Business`;
   const now = new Date();
+  const plan = options?.plan ?? "free";
 
   await db.transaction(async (tx) => {
     const [existingProfile] = await tx
@@ -181,10 +118,13 @@ export async function bootstrapBusinessForUser(
       .limit(1);
 
     if (!existingMembership) {
-      // Ensure the user has a workspace
-      const workspaceId = await ensureWorkspaceForUser(user, now, options?.plan);
+      await assertBusinessQuotaAvailableForUser({
+        tx,
+        ownerUserId: user.id,
+      });
 
       const businessSlug = await getAvailableSlug(
+        tx,
         businesses,
         slugifyPublicName(businessBaseName, {
           fallback: "business",
@@ -196,14 +136,15 @@ export async function bootstrapBusinessForUser(
       const defaultInquiryForm = createInquiryFormPreset({
         businessType: "general_project_services",
         businessName,
-        plan: options?.plan ?? "free",
+        plan,
       });
 
       await tx.insert(businesses).values({
         id: businessId,
-        workspaceId,
+        ownerUserId: user.id,
         name: businessName,
         slug: businessSlug,
+        plan,
         businessType: "general_project_services",
         contactEmail: user.email,
         inquiryFormConfig: createInquiryFormConfigDefaults({
@@ -212,7 +153,7 @@ export async function bootstrapBusinessForUser(
         inquiryPageConfig: createInquiryPageConfigDefaults({
           businessName,
           businessType: "general_project_services",
-          plan: options?.plan ?? "free",
+          plan,
         }),
         createdAt: now,
         updatedAt: now,
@@ -252,6 +193,22 @@ export async function bootstrapBusinessForUser(
         },
         createdAt: now,
         updatedAt: now,
+      });
+
+      await writeAuditLog(tx, {
+        businessId,
+        actorUserId: user.id,
+        actorName: user.name,
+        actorEmail: user.email,
+        entityType: "business",
+        entityId: businessId,
+        action: "business.created",
+        metadata: {
+          businessName,
+          businessSlug,
+          source: "better-auth-signup",
+        },
+        createdAt: now,
       });
 
       return;

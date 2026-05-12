@@ -390,6 +390,61 @@
       "when": 1777948800000,
       "tag": "0057_user_recent_businesses",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "when": 1778112000000,
+      "tag": "0058_business_owner_quota",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1778234067327,
+      "tag": "0057_add_payment_method",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1778345400000,
+      "tag": "0059_business_locked_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1778450000000,
+      "tag": "0060_business_customer_contact_channel",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1778780000000,
+      "tag": "0062_business_notification_reads",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1778820000000,
+      "tag": "0063_admin_console_user_ban_and_session_impersonation",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1778900000000,
+      "tag": "0064_push_subscription_business_scope",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1778999999999,
+      "tag": "0065_paddle_refunds",
+      "breakpoints": true
     }
   ]
 }

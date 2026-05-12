@@ -1,8 +1,10 @@
+const businessId = "test_analytics_business";
+const otherBusinessId = "test_analytics_business_other";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 
 vi.mock("@/lib/db/client", async () => {
-  const { testDb: mockedDb } = await import("./db");
+  const { testDb: mockedDb } = await import("../support/db");
 
   return { db: mockedDb };
 });
@@ -27,15 +29,12 @@ import {
   inquiries,
   quotes,
   user,
-  workspaceMembers,
-  workspaces,
 } from "@/lib/db/schema";
 
-import { closeTestDb, testDb } from "./db";
+import { closeTestDb, testDb } from "@/tests/support/db";
 
 const userId = "test_analytics_user";
-const workspaceId = "test_analytics_workspace";
-const businessId = "test_analytics_business";
+;
 const primaryFormId = "test_analytics_form_primary";
 const secondaryFormId = "test_analytics_form_secondary";
 const inquiryIds = [
@@ -106,9 +105,9 @@ async function cleanupAnalyticsFixtures() {
     .where(eq(businessMembers.businessId, businessId));
   await testDb.delete(businesses).where(eq(businesses.id, businessId));
   await testDb
-    .delete(workspaceMembers)
-    .where(eq(workspaceMembers.workspaceId, workspaceId));
-  await testDb.delete(workspaces).where(eq(workspaces.id, workspaceId));
+    .delete(businessMembers)
+    .where(eq(businessMembers.businessId, businessId));
+  await testDb.delete(businesses).where(eq(businesses.id, businessId));
   await testDb.delete(user).where(eq(user.id, userId));
 }
 
@@ -127,28 +126,9 @@ describe("features/analytics/queries", () => {
       updatedAt: now,
     });
 
-    await testDb.insert(workspaces).values({
-      id: workspaceId,
-      name: "Analytics Workspace",
-      slug: "analytics-workspace",
-      plan: "pro",
-      ownerUserId: userId,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await testDb.insert(workspaceMembers).values({
-      id: "test_analytics_workspace_member",
-      workspaceId,
-      userId,
-      role: "owner",
-      createdAt: now,
-      updatedAt: now,
-    });
-
     await testDb.insert(businesses).values({
       id: businessId,
-      workspaceId,
+      ownerUserId: userId,
       name: "Analytics Test Business",
       slug: "analytics-test-business",
       businessType: "general_project_services",

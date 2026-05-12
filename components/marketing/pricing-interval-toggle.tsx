@@ -17,11 +17,12 @@ import { cn } from "@/lib/utils";
 import { planMeta } from "@/lib/plans";
 import { getYearlySavingsPercent, getMonthlyEquivalentLabel, getPlanPriceLabel } from "@/lib/billing/plans";
 import type { BillingCurrency, BillingInterval } from "@/lib/billing/types";
-import type { WorkspacePlan } from "@/lib/plans/plans";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import { formatUsageLimitValue, getUsageLimit } from "@/lib/plans";
 
-const planHighlights: Record<WorkspacePlan, string[]> = {
+const planHighlights: Record<plan, string[]> = {
   free: [
+    "1 total business",
     `${getUsageLimit("free", "inquiriesPerMonth")} inquiries per month`,
     `${getUsageLimit("free", "quotesPerMonth")} quotes per month`,
     "Public inquiry pages",
@@ -44,12 +45,13 @@ const planHighlights: Record<WorkspacePlan, string[]> = {
       getUsageLimit("pro", "publicInquiryAttachmentMaxBytes"),
     )} uploads`,
     "AI assistant & knowledge",
-    "Saved replies, email templates & quote library",
+    "Email templates & quote library",
     "Data exports & advanced branding",
-    "Multiple businesses",
+    "Up to 10 total businesses",
   ],
   business: [
     "Everything in Pro",
+    "Unlimited businesses",
     "Team members & roles",
     `${formatUsageLimitValue(
       "publicInquiryAttachmentMaxBytes",
@@ -62,8 +64,8 @@ const planHighlights: Record<WorkspacePlan, string[]> = {
 function getPlanCardConfig(currency: BillingCurrency, interval: BillingInterval) {
   return [
     {
-      plan: "free" as WorkspacePlan,
-      price: currency === "PHP" ? "₱0" : "$0",
+      plan: "free" as plan,
+      price: "$0",
       pricePeriod: "forever",
       monthlyEquivalent: null,
       highlighted: false,
@@ -71,7 +73,7 @@ function getPlanCardConfig(currency: BillingCurrency, interval: BillingInterval)
       includes: "Core workflow for a single business:",
     },
     {
-      plan: "pro" as WorkspacePlan,
+      plan: "pro" as plan,
       price: getPlanPriceLabel("pro", currency, interval).replace(interval === "monthly" ? "/mo" : "/yr", ""),
       pricePeriod: interval === "monthly" ? "month" : "year",
       monthlyEquivalent: interval === "yearly" ? getMonthlyEquivalentLabel("pro", currency) : null,
@@ -84,7 +86,7 @@ function getPlanCardConfig(currency: BillingCurrency, interval: BillingInterval)
       includes: "Everything in Free, plus:",
     },
     {
-      plan: "business" as WorkspacePlan,
+      plan: "business" as plan,
       price: getPlanPriceLabel("business", currency, interval).replace(interval === "monthly" ? "/mo" : "/yr", ""),
       pricePeriod: interval === "monthly" ? "month" : "year",
       monthlyEquivalent: interval === "yearly" ? getMonthlyEquivalentLabel("business", currency) : null,

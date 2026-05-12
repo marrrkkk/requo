@@ -9,8 +9,7 @@ import {
   businessMembers,
   businesses,
   userRecentBusinesses,
-  workspaces,
-} from "@/lib/db/schema";
+  } from "@/lib/db/schema";
 
 const MAX_RECENT_BUSINESSES = 6;
 
@@ -19,8 +18,8 @@ export type RecentBusiness = {
   name: string;
   logoStoragePath: string | null;
   defaultCurrency: string;
-  workspaceSlug: string;
-  workspaceName: string;
+  businessSlug: string;
+  businessName: string;
   businessType: BusinessType;
   lastOpenedAt: Date;
 };
@@ -35,8 +34,8 @@ export async function getRecentlyOpenedBusinessesForUser(
       name: businesses.name,
       logoStoragePath: businesses.logoStoragePath,
       defaultCurrency: businesses.defaultCurrency,
-      workspaceSlug: workspaces.slug,
-      workspaceName: workspaces.name,
+      businessSlug: businesses.slug,
+      businessName: businesses.name,
       businessType: businesses.businessType,
       lastOpenedAt: userRecentBusinesses.lastOpenedAt,
     })
@@ -45,7 +44,6 @@ export async function getRecentlyOpenedBusinessesForUser(
       businesses,
       eq(userRecentBusinesses.businessId, businesses.id),
     )
-    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .innerJoin(
       businessMembers,
       and(
@@ -56,7 +54,7 @@ export async function getRecentlyOpenedBusinessesForUser(
     .where(
       and(
         eq(userRecentBusinesses.userId, userId),
-        isNull(workspaces.deletedAt),
+        isNull(businesses.deletedAt),
         getNonDeletedBusinessCondition(),
       ),
     )

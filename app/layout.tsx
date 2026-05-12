@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { Suspense } from "react";
@@ -19,6 +19,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { getThemeInitScript } from "@/features/theme/init-script";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { legalConfig } from "@/features/legal/config";
+import { env } from "@/lib/env";
 import { themeCookieKey, themeStorageKey } from "@/features/theme/types";
 import {
   getOrganizationStructuredData,
@@ -35,17 +36,35 @@ import {
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+};
+
+const siteUrl = getSiteUrl();
 
 export const metadata: Metadata = {
   applicationName: siteName,
+  alternates: {
+    canonical: "/",
+  },
   description: siteDescription,
-  metadataBase: getSiteUrl(),
+  metadataBase: siteUrl,
   openGraph: {
     description: siteDescription,
     images: [
@@ -56,12 +75,21 @@ export const metadata: Metadata = {
         width: 1200,
       },
     ],
+    locale: "en_US",
     siteName,
     title: siteName,
     type: "website",
+    url: siteUrl.toString(),
   },
   robots: {
     follow: true,
+    googleBot: {
+      follow: true,
+      index: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
     index: true,
   },
   title: {
@@ -69,6 +97,7 @@ export const metadata: Metadata = {
     template: `%s | ${siteName}`,
   },
   icons: {
+    apple: "/logo.svg",
     icon: "/logo.svg",
     shortcut: "/logo.svg",
   },
@@ -78,6 +107,13 @@ export const metadata: Metadata = {
     images: ["/twitter-image"],
     title: siteName,
   },
+  ...(env.GOOGLE_SITE_VERIFICATION
+    ? {
+        verification: {
+          google: env.GOOGLE_SITE_VERIFICATION,
+        },
+      }
+    : {}),
 };
 
 export default function RootLayout({
@@ -90,12 +126,12 @@ export default function RootLayout({
     email: legalConfig.supportEmail,
     logoUrl: absoluteUrl("/logo.svg"),
     name: siteName,
-    url: getSiteUrl().toString(),
+    url: siteUrl.toString(),
   });
   const websiteStructuredData = getWebsiteStructuredData({
     description: siteDescription,
     name: siteName,
-    url: getSiteUrl().toString(),
+    url: siteUrl.toString(),
   });
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { Shield, User } from "lucide-react";
+import { Shield, User, CreditCard } from "lucide-react";
 
 import type {
   AccountSettingsNavigationGroup,
@@ -18,6 +18,7 @@ const navigationIcons: Record<
 > = {
   profile: User,
   security: Shield,
+  billing: CreditCard,
 };
 
 export function AccountSettingsNav({ groups }: AccountSettingsNavProps) {

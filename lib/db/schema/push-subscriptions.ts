@@ -31,8 +31,9 @@ export const pushSubscriptions = pgTable(
       .defaultNow(),
   },
   (table) => [
-    uniqueIndex("push_subscriptions_user_endpoint_unique").on(
+    uniqueIndex("push_subscriptions_user_business_endpoint_unique").on(
       table.userId,
+      table.businessId,
       table.endpoint,
     ),
     index("push_subscriptions_business_id_idx").on(table.businessId),

@@ -1,14 +1,26 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import {
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
-import { workspacesHubPath } from "@/features/workspaces/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
+import { createNoIndexMetadata } from "@/lib/seo/site";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  title: "Knowledge",
+  description: "Redirects to the business knowledge settings page.",
+});
 
 type KnowledgePageProps = {
   params: Promise<{ slug: string }>;
+};
+
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
 };
 
 export default async function KnowledgePage({ params }: KnowledgePageProps) {
@@ -19,7 +31,7 @@ export default async function KnowledgePage({ params }: KnowledgePageProps) {
   );
 
   if (!businessContext) {
-    redirect(workspacesHubPath);
+    redirect(businessesHubPath);
   }
 
   redirect(getBusinessSettingsPath(businessContext.business.slug, "knowledge"));

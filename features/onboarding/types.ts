@@ -1,9 +1,9 @@
 export type OnboardingFieldName =
-  | "workspaceName"
   | "businessName"
   | "businessType"
   | "countryCode"
   | "defaultCurrency"
+  | "customerContactChannel"
   | "starterTemplateBusinessType"
   | "jobTitle"
   | "companySize"

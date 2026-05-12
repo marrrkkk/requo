@@ -27,28 +27,6 @@ function BrandIconPill({
   );
 }
 
-export function QrPhBrandMark() {
-  return (
-    <div className="flex items-center gap-2.5">
-      <span className="inline-flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border/70 bg-background">
-        <Image
-          alt="QR Ph"
-          className="size-full object-contain"
-          height={32}
-          src="/qrph.svg"
-          width={32}
-        />
-      </span>
-      <div>
-        <p className="text-sm font-medium text-foreground">QR Ph</p>
-        <p className="text-xs text-muted-foreground">
-          GCash, Maya, and banking apps
-        </p>
-      </div>
-    </div>
-  );
-}
-
 export function CardAndMoreBrandMarks() {
   return (
     <div className="flex flex-wrap items-center gap-1.5">

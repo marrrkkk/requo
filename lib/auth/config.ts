@@ -1,5 +1,6 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { betterAuth } from "better-auth";
+import { admin, magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
@@ -7,6 +8,7 @@ import { db } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { env } from "@/lib/env";
 import {
+  sendMagicLinkEmail,
   sendPasswordResetEmail,
   sendVerificationEmail,
 } from "@/lib/resend/client";
@@ -111,19 +113,10 @@ export const auth = betterAuth({
           },
         }
       : {}),
-    ...(env.MICROSOFT_CLIENT_ID && env.MICROSOFT_CLIENT_SECRET
-      ? {
-          microsoft: {
-            clientId: env.MICROSOFT_CLIENT_ID,
-            clientSecret: env.MICROSOFT_CLIENT_SECRET,
-            tenantId: env.MICROSOFT_TENANT_ID,
-          },
-        }
-      : {}),
   },
   account: {
     accountLinking: {
-      trustedProviders: ["google", "microsoft"],
+      trustedProviders: ["google"],
     },
     // OAuth + `verification.storeIdentifier: "hashed"` can break DB+signed-cookie state checks (surfacing as `state_mismatch`).
     storeStateStrategy: "cookie",
@@ -146,7 +139,7 @@ export const auth = betterAuth({
         if (!preflight.allowed) {
           throw new Error(
             preflight.blockers[0]?.message ??
-              "Resolve your owned workspaces or business ownership before deleting this account.",
+              "Resolve your owned businesses or business ownership before deleting this account.",
           );
         }
 
@@ -185,6 +178,10 @@ export const auth = betterAuth({
     storage: "database",
     customRules: {
       "/get-session": false,
+      "/admin/confirm": {
+        max: 5,
+        window: 300,
+      },
       "/request-password-reset": {
         max: 5,
         window: 300,
@@ -201,9 +198,40 @@ export const auth = betterAuth({
         max: 5,
         window: 60,
       },
+      "/sign-in/magic-link": {
+        max: 5,
+        window: 60,
+      },
+      "/magic-link/verify": {
+        max: 15,
+        window: 60,
+      },
     },
   },
-  plugins: [nextCookies()],
+  plugins: [
+    nextCookies(),
+    magicLink({
+      expiresIn: 900,
+      storeToken: "hashed",
+      sendMagicLink: async ({ email, url, token }) => {
+        if (shouldSkipTransactionalAuthEmails) {
+          return;
+        }
+
+        await sendMagicLinkEmail({ email, url, token });
+      },
+    }),
+    admin({
+      // Env-driven ADMIN_EMAILS allow-list is the authoritative admin signal.
+      // We do not use role-based admin, so no roles qualify as admin.
+      adminRoles: [],
+      // 1 hour impersonation window.
+      impersonationSessionDuration: 60 * 60,
+      // Disallow admin-on-admin impersonation (default is already false;
+      // set explicitly to make the invariant visible in config).
+      allowImpersonatingAdmins: false,
+    }),
+  ],
   databaseHooks: {
     user: {
       create: {

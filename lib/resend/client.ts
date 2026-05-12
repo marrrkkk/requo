@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 
 import type { QuoteEmailTemplateConfig } from "@/features/settings/email-templates";
 import { renderBusinessMemberInviteEmail } from "@/emails/templates/business-member-invite";
-import { renderWorkspaceMemberInviteEmail } from "@/emails/templates/workspace-member-invite";
 import { renderEmailVerificationEmail } from "@/emails/templates/email-verification";
+import { renderMagicLinkEmail } from "@/emails/templates/magic-link";
 import { renderPasswordResetEmail } from "@/emails/templates/password-reset";
 import { renderPublicInquiryNotificationEmail } from "@/emails/templates/public-inquiry-notification";
 import { renderQuoteEmail } from "@/emails/templates/quote-email";
@@ -18,7 +18,6 @@ import { sendEmailWithFallback } from "@/lib/email/send-email";
 import type { EmailType, SendEmailInput } from "@/lib/email/types";
 import { isEmailConfigured } from "@/lib/env";
 import type { BusinessMemberAssignableRole } from "@/lib/business-members";
-import type { WorkspaceMemberAssignableRole } from "@/features/workspace-members/types";
 
 type SendPasswordResetEmailInput = {
   userId: string;
@@ -36,6 +35,12 @@ type SendVerificationEmailInput = {
   url: string;
 };
 
+type SendMagicLinkEmailInput = {
+  email: string;
+  url: string;
+  token: string;
+};
+
 type SendBusinessMemberInviteEmailInput = {
   inviteId: string;
   token: string;
@@ -44,7 +49,6 @@ type SendBusinessMemberInviteEmailInput = {
   inviterName: string;
   role: BusinessMemberAssignableRole;
   inviteUrl: string;
-  workspaceId?: string | null;
   businessId?: string | null;
   userId?: string | null;
 };
@@ -68,7 +72,6 @@ type SendPublicInquiryNotificationEmailInput = {
     label: string;
     value: string;
   }>;
-  workspaceId?: string | null;
   businessId?: string | null;
 };
 
@@ -98,7 +101,6 @@ type SendQuoteEmailInput = {
   }>;
   templateOverrides?: QuoteEmailTemplateConfig | null;
   replyToEmail?: string;
-  workspaceId?: string | null;
   businessId?: string | null;
   userId?: string | null;
 };
@@ -116,7 +118,6 @@ type SendQuoteSentOwnerNotificationEmailInput = {
   title: string;
   dashboardUrl: string;
   publicQuoteUrl: string;
-  workspaceId?: string | null;
   businessId?: string | null;
 };
 
@@ -134,20 +135,7 @@ type SendQuoteResponseOwnerNotificationEmailInput = {
   title: string;
   response: "accepted" | "rejected";
   dashboardUrl: string;
-  workspaceId?: string | null;
   businessId?: string | null;
-};
-
-type SendWorkspaceMemberInviteEmailInput = {
-  inviteId: string;
-  token: string;
-  email: string;
-  workspaceName: string;
-  inviterName: string;
-  workspaceRole: WorkspaceMemberAssignableRole;
-  inviteUrl: string;
-  workspaceId?: string | null;
-  userId?: string | null;
 };
 
 function hashIdempotencyPart(value: string) {
@@ -214,6 +202,49 @@ export function getResendSendFailureMessage(error: unknown) {
     default:
       return null;
   }
+}
+
+export async function sendMagicLinkEmail({
+  email,
+  url,
+  token,
+}: SendMagicLinkEmailInput) {
+  if (!isEmailConfigured) {
+    logDeliverySkipped(
+      "Email is not configured yet. Magic link email delivery was skipped.",
+      "auth",
+    );
+    return;
+  }
+
+  const senderConfigurationError = getConfigurationError("auth");
+
+  if (senderConfigurationError) {
+    logDeliverySkipped(
+      `Email sender is misconfigured. Magic link email delivery was skipped. ${senderConfigurationError}`,
+      "auth",
+    );
+    return;
+  }
+
+  const template = renderMagicLinkEmail({ signInUrl: url });
+
+  await sendBrandedEmail({
+    emailType: "auth",
+    to: email,
+    replyTo: getFallbackReplyTo(),
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+    idempotencyKey: `auth:magic-link:${getRecipientKey(email)}:${hashIdempotencyPart(token)}`,
+    metadata: {
+      authEvent: "magic_link",
+    },
+    tags: {
+      type: "auth",
+      event: "magic_link",
+    },
+  });
 }
 
 export async function sendPasswordResetEmail({
@@ -316,7 +347,6 @@ export async function sendBusinessMemberInviteEmail({
   inviterName,
   role,
   inviteUrl,
-  workspaceId,
   businessId,
   userId,
 }: SendBusinessMemberInviteEmailInput) {
@@ -353,78 +383,16 @@ export async function sendBusinessMemberInviteEmail({
     html: template.html,
     text: template.text,
     idempotencyKey: `business-member-invite:${inviteId}:${hashIdempotencyPart(token)}:${getRecipientKey(email)}`,
-    workspaceId,
     businessId,
     userId,
     metadata: {
       inviteId,
-      workspaceId,
       businessId,
       role,
     },
     tags: {
       type: "system",
       event: "business_member_invite",
-    },
-  });
-
-  return true;
-}
-
-export async function sendWorkspaceMemberInviteEmail({
-  inviteId,
-  token,
-  email,
-  workspaceName,
-  inviterName,
-  workspaceRole,
-  inviteUrl,
-  workspaceId,
-  userId,
-}: SendWorkspaceMemberInviteEmailInput) {
-  if (!isEmailConfigured) {
-    logDeliverySkipped(
-      "Email is not configured yet. Workspace member invite delivery was skipped.",
-      "system",
-    );
-    return false;
-  }
-
-  const senderConfigurationError = getConfigurationError("system");
-
-  if (senderConfigurationError) {
-    logDeliverySkipped(
-      `Email sender is misconfigured. Workspace member invite delivery was skipped. ${senderConfigurationError}`,
-      "system",
-    );
-    return false;
-  }
-
-  const template = renderWorkspaceMemberInviteEmail({
-    workspaceName,
-    inviterName,
-    workspaceRole,
-    inviteUrl,
-  });
-
-  await sendBrandedEmail({
-    emailType: "system",
-    to: email,
-    replyTo: getFallbackReplyTo(),
-    subject: template.subject,
-    html: template.html,
-    text: template.text,
-    idempotencyKey: `workspace-member-invite:${inviteId}:${hashIdempotencyPart(token)}:${getRecipientKey(email)}`,
-    workspaceId,
-    userId,
-    metadata: {
-      inviteId,
-      workspaceId,
-      workspaceRole,
-    },
-    tags: {
-      type: "system",
-      event: "workspace_member_invite",
     },
   });
 
@@ -447,7 +415,6 @@ export async function sendPublicInquiryNotificationEmail({
   details,
   attachmentName,
   additionalFields,
-  workspaceId,
   businessId,
 }: SendPublicInquiryNotificationEmailInput) {
   if (!recipients.length) {
@@ -496,11 +463,9 @@ export async function sendPublicInquiryNotificationEmail({
     html: template.html,
     text: template.text,
     idempotencyKey: `inquiry:${inquiryId}:notification:${getRecipientSetKey(recipients)}`,
-    workspaceId,
     businessId,
     metadata: {
       inquiryId,
-      workspaceId,
       businessId,
       inquiryFormName,
     },
@@ -530,7 +495,6 @@ export async function sendQuoteEmail({
   items,
   templateOverrides,
   replyToEmail,
-  workspaceId,
   businessId,
   userId,
 }: SendQuoteEmailInput) {
@@ -573,13 +537,11 @@ export async function sendQuoteEmail({
     html: template.html,
     text: template.text,
     idempotencyKey: `quote:${quoteId}:sent:${getRecipientKey(customerEmail)}`,
-    workspaceId,
     businessId,
     userId,
     metadata: {
       quoteId,
       quoteNumber,
-      workspaceId,
       businessId,
       updatedAt: updatedAt.toISOString(),
     },
@@ -601,7 +563,6 @@ export async function sendQuoteSentOwnerNotificationEmail({
   title,
   dashboardUrl,
   publicQuoteUrl,
-  workspaceId,
   businessId,
 }: SendQuoteSentOwnerNotificationEmailInput) {
   if (!recipients.length) {
@@ -644,12 +605,10 @@ export async function sendQuoteSentOwnerNotificationEmail({
     html: template.html,
     text: template.text,
     idempotencyKey: `quote:${quoteId}:sent-owner-notification:${getRecipientSetKey(recipients)}`,
-    workspaceId,
     businessId,
     metadata: {
       quoteId,
       quoteNumber,
-      workspaceId,
       businessId,
       updatedAt: updatedAt.toISOString(),
     },
@@ -672,7 +631,6 @@ export async function sendQuoteResponseOwnerNotificationEmail({
   title,
   response,
   dashboardUrl,
-  workspaceId,
   businessId,
 }: SendQuoteResponseOwnerNotificationEmailInput) {
   if (!recipients.length) {
@@ -716,13 +674,11 @@ export async function sendQuoteResponseOwnerNotificationEmail({
     html: template.html,
     text: template.text,
     idempotencyKey: `quote:${quoteId}:response:${response}:${getRecipientSetKey(recipients)}`,
-    workspaceId,
     businessId,
     metadata: {
       quoteId,
       quoteNumber,
       response,
-      workspaceId,
       businessId,
       updatedAt: updatedAt.toISOString(),
     },

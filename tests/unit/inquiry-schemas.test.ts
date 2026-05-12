@@ -94,6 +94,42 @@ describe("inquiry validation schemas", () => {
     );
   });
 
+  it("normalizes social contact links to canonical profile URLs", () => {
+    const facebookFormData = validFormData();
+    facebookFormData.set("customerContactMethod", "facebook");
+    facebookFormData.set(
+      "customerContactHandle",
+      "https://www.facebook.com/brightside.print/?ref=page",
+    );
+
+    const instagramFormData = validFormData();
+    instagramFormData.set("customerContactMethod", "instagram");
+    instagramFormData.set("customerContactHandle", "@brightside.print");
+
+    expect(
+      expectValidSubmission(
+        validatePublicInquirySubmission(baseConfig, facebookFormData),
+      ),
+    ).toEqual(
+      expect.objectContaining({
+        customerEmail: null,
+        customerContactMethod: "facebook",
+        customerContactHandle: "https://facebook.com/brightside.print",
+      }),
+    );
+    expect(
+      expectValidSubmission(
+        validatePublicInquirySubmission(baseConfig, instagramFormData),
+      ),
+    ).toEqual(
+      expect.objectContaining({
+        customerEmail: null,
+        customerContactMethod: "instagram",
+        customerContactHandle: "https://instagram.com/brightside.print",
+      }),
+    );
+  });
+
   it("rejects unsupported public inquiry attachments", () => {
     const attachmentField = baseConfig.projectFields.find(
       (field) => field.kind === "system" && field.key === "attachment",

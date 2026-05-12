@@ -3,24 +3,23 @@ import "server-only";
 /**
  * Server-side usage accounting for the Requo pricing system.
  *
- * Usage is counted at the workspace level — aggregated across all businesses
- * in the workspace. Derives monthly counts from existing inquiry/quote
- * timestamps. No dedicated usage table is needed.
+ * Usage is counted at the business level. Derives monthly counts from
+ * existing inquiry/quote timestamps. Business creation quota is enforced
+ * globally by `features/businesses/quota.ts`.
  */
 
-import { and, count, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, count, eq, gte, isNull, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import {
   activityLogs,
   businesses,
   businessInquiryForms,
+  businessMembers,
   inquiries,
   quotes,
-  workspaceMembers,
-  workspaces,
 } from "@/lib/db/schema";
-import type { WorkspacePlan } from "@/lib/plans/plans";
+import type { BusinessPlan } from "@/lib/plans/plans";
 import {
   getUsageLimit,
   type UsageLimitKey,
@@ -49,46 +48,19 @@ function getCurrentDayBounds() {
 }
 
 /**
- * Returns all business IDs belonging to a workspace.
- */
-async function getWorkspaceBusinessIds(
-  workspaceId: string,
-): Promise<string[]> {
-  const rows = await db
-    .select({ id: businesses.id })
-    .from(businesses)
-    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
-    .where(
-      and(
-        eq(businesses.workspaceId, workspaceId),
-        isNull(workspaces.deletedAt),
-        isNull(businesses.deletedAt),
-      ),
-    );
-
-  return rows.map((r) => r.id);
-}
-
-/**
- * Counts inquiries created in the current UTC month across all businesses
- * in a workspace.
+ * Counts inquiries created in the current UTC month for a business.
  */
 export async function getMonthlyInquiryCount(
-  workspaceId: string,
+  businessId: string,
 ): Promise<number> {
   const { start, end } = getCurrentMonthBounds();
-  const bizIds = await getWorkspaceBusinessIds(workspaceId);
-
-  if (bizIds.length === 0) {
-    return 0;
-  }
 
   const [row] = await db
     .select({ value: count() })
     .from(inquiries)
     .where(
       and(
-        inArray(inquiries.businessId, bizIds),
+        eq(inquiries.businessId, businessId),
         isNull(inquiries.deletedAt),
         gte(inquiries.createdAt, start),
         lt(inquiries.createdAt, end),
@@ -99,25 +71,19 @@ export async function getMonthlyInquiryCount(
 }
 
 /**
- * Counts quotes created in the current UTC month across all businesses
- * in a workspace.
+ * Counts quotes created in the current UTC month for a business.
  */
 export async function getMonthlyQuoteCount(
-  workspaceId: string,
+  businessId: string,
 ): Promise<number> {
   const { start, end } = getCurrentMonthBounds();
-  const bizIds = await getWorkspaceBusinessIds(workspaceId);
-
-  if (bizIds.length === 0) {
-    return 0;
-  }
 
   const [row] = await db
     .select({ value: count() })
     .from(quotes)
     .where(
       and(
-        inArray(quotes.businessId, bizIds),
+        eq(quotes.businessId, businessId),
         isNull(quotes.deletedAt),
         gte(quotes.createdAt, start),
         lt(quotes.createdAt, end),
@@ -127,8 +93,8 @@ export async function getMonthlyQuoteCount(
   return Number(row?.value ?? 0);
 }
 
-async function getWorkspaceQuoteSendCountByMethod(
-  workspaceId: string,
+async function getBusinessQuoteSendCountByMethod(
+  businessId: string,
   {
     end,
     method,
@@ -139,18 +105,12 @@ async function getWorkspaceQuoteSendCountByMethod(
     method: "requo";
   },
 ): Promise<number> {
-  const bizIds = await getWorkspaceBusinessIds(workspaceId);
-
-  if (bizIds.length === 0) {
-    return 0;
-  }
-
   const [row] = await db
     .select({ value: count() })
     .from(activityLogs)
     .where(
       and(
-        inArray(activityLogs.businessId, bizIds),
+        eq(activityLogs.businessId, businessId),
         eq(activityLogs.type, "quote.sent"),
         gte(activityLogs.createdAt, start),
         lt(activityLogs.createdAt, end),
@@ -162,35 +122,35 @@ async function getWorkspaceQuoteSendCountByMethod(
 }
 
 export async function getDailyRequoQuoteSendCount(
-  workspaceId: string,
+  businessId: string,
 ): Promise<number> {
-  return getWorkspaceQuoteSendCountByMethod(workspaceId, {
+  return getBusinessQuoteSendCountByMethod(businessId, {
     ...getCurrentDayBounds(),
     method: "requo",
   });
 }
 
 export async function getMonthlyRequoQuoteSendCount(
-  workspaceId: string,
+  businessId: string,
 ): Promise<number> {
-  return getWorkspaceQuoteSendCountByMethod(workspaceId, {
+  return getBusinessQuoteSendCountByMethod(businessId, {
     ...getCurrentMonthBounds(),
     method: "requo",
   });
 }
 
 /**
- * Counts the number of businesses in a workspace.
+ * Counts the number of businesses owned by a user.
  */
-export async function getWorkspaceBusinessCount(
-  workspaceId: string,
+export async function getUserBusinessCount(
+  ownerUserId: string,
 ): Promise<number> {
   const [row] = await db
     .select({ value: count() })
     .from(businesses)
     .where(
       and(
-        eq(businesses.workspaceId, workspaceId),
+        eq(businesses.ownerUserId, ownerUserId),
         isNull(businesses.deletedAt),
       ),
     );
@@ -199,38 +159,32 @@ export async function getWorkspaceBusinessCount(
 }
 
 /**
- * Counts the number of members in a workspace.
+ * Counts the number of members in a business.
  */
-export async function getWorkspaceMemberCount(
-  workspaceId: string,
+export async function getBusinessMemberCount(
+  businessId: string,
 ): Promise<number> {
   const [row] = await db
     .select({ value: count() })
-    .from(workspaceMembers)
-    .where(eq(workspaceMembers.workspaceId, workspaceId));
+    .from(businessMembers)
+    .where(eq(businessMembers.businessId, businessId));
 
   return Number(row?.value ?? 0);
 }
 
 /**
  * Counts the number of live (non-archived, public-enabled) inquiry forms
- * across all businesses in a workspace.
+ * for a business.
  */
-export async function getWorkspaceLiveFormsCount(
-  workspaceId: string,
+export async function getBusinessLiveFormsCount(
+  businessId: string,
 ): Promise<number> {
-  const bizIds = await getWorkspaceBusinessIds(workspaceId);
-
-  if (bizIds.length === 0) {
-    return 0;
-  }
-
   const [row] = await db
     .select({ value: count() })
     .from(businessInquiryForms)
     .where(
       and(
-        inArray(businessInquiryForms.businessId, bizIds),
+        eq(businessInquiryForms.businessId, businessId),
         eq(businessInquiryForms.publicInquiryEnabled, true),
         isNull(businessInquiryForms.archivedAt),
       ),
@@ -246,12 +200,12 @@ export type UsageAllowance = {
 };
 
 /**
- * Checks whether a workspace is allowed to create another item of the given
+ * Checks whether a business is allowed to create another item of the given
  * type. Returns current usage, limit, and whether the action is allowed.
  */
 export async function checkUsageAllowance(
-  workspaceId: string,
-  plan: WorkspacePlan,
+  businessId: string,
+  plan: BusinessPlan,
   key: UsageLimitKey,
 ): Promise<UsageAllowance> {
   const limit = getUsageLimit(plan, key);
@@ -264,25 +218,27 @@ export async function checkUsageAllowance(
 
   switch (key) {
     case "inquiriesPerMonth":
-      current = await getMonthlyInquiryCount(workspaceId);
+      current = await getMonthlyInquiryCount(businessId);
       break;
     case "quotesPerMonth":
-      current = await getMonthlyQuoteCount(workspaceId);
+      current = await getMonthlyQuoteCount(businessId);
       break;
     case "requoQuoteEmailsPerDay":
-      current = await getDailyRequoQuoteSendCount(workspaceId);
+      current = await getDailyRequoQuoteSendCount(businessId);
       break;
     case "requoQuoteEmailsPerMonth":
-      current = await getMonthlyRequoQuoteSendCount(workspaceId);
+      current = await getMonthlyRequoQuoteSendCount(businessId);
       break;
     case "businessesPerWorkspace":
-      current = await getWorkspaceBusinessCount(workspaceId);
+      // This is now per-user, but we still count at the business level
+      // The actual user-level check is in features/businesses/quota.ts
+      current = 0;
       break;
     case "membersPerWorkspace":
-      current = await getWorkspaceMemberCount(workspaceId);
+      current = await getBusinessMemberCount(businessId);
       break;
     case "liveFormsPerWorkspace":
-      current = await getWorkspaceLiveFormsCount(workspaceId);
+      current = await getBusinessLiveFormsCount(businessId);
       break;
     default:
       current = 0;

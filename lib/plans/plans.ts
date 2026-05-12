@@ -1,30 +1,21 @@
 /**
  * Central plan definitions for the Requo pricing system.
  *
- * Plans are attached to workspaces (not businesses or users). Plan changes are
- * currently made manually in the database. This module is the single source of
- * truth for plan identifiers, labels, and metadata.
+ * Plans are attached to businesses (not users). This module is
+ * the single source of truth for plan identifiers, labels, and metadata.
  */
 
-export const workspacePlans = ["free", "pro", "business"] as const;
+export const businessPlans = ["free", "pro", "business"] as const;
 
-export type WorkspacePlan = (typeof workspacePlans)[number];
+export type BusinessPlan = (typeof businessPlans)[number];
 
-/** @deprecated Use `WorkspacePlan` instead. */
-export type BusinessPlan = WorkspacePlan;
-
-/** @deprecated Use `workspacePlans` instead. */
-export const businessPlans = workspacePlans;
-
-export function isWorkspacePlan(value: unknown): value is WorkspacePlan {
+export function isBusinessPlan(value: unknown): value is BusinessPlan {
   return (
     typeof value === "string" &&
-    workspacePlans.includes(value as WorkspacePlan)
+    businessPlans.includes(value as BusinessPlan)
   );
 }
 
-/** @deprecated Use `isWorkspacePlan` instead. */
-export const isBusinessPlan = isWorkspacePlan;
 
 export type PlanMeta = {
   label: string;
@@ -34,7 +25,7 @@ export type PlanMeta = {
   highlighted: boolean;
 };
 
-export const planMeta: Record<WorkspacePlan, PlanMeta> = {
+export const planMeta: Record<BusinessPlan, PlanMeta> = {
   free: {
     label: "Free",
     description:
@@ -52,7 +43,7 @@ export const planMeta: Record<WorkspacePlan, PlanMeta> = {
   business: {
     label: "Business",
     description:
-      "For teams that need member roles, shared workspace access, and the highest limits.",
+      "For teams that need member roles, shared access, and the highest limits.",
     ctaLabel: "Upgrade to Business",
     highlighted: false,
   },
@@ -60,11 +51,11 @@ export const planMeta: Record<WorkspacePlan, PlanMeta> = {
 
 /**
  * Returns the minimum plan that upgrades from the current plan.
- * Returns `null` if the workspace is already on the highest plan.
+ * Returns `null` if the business is already on the highest plan.
  */
 export function getUpgradePlan(
-  currentPlan: WorkspacePlan,
-): WorkspacePlan | null {
+  currentPlan: BusinessPlan,
+): BusinessPlan | null {
   switch (currentPlan) {
     case "free":
       return "pro";
@@ -78,7 +69,7 @@ export function getUpgradePlan(
 /**
  * Returns the CTA label for upgrading from a given plan.
  */
-export function getUpgradeCtaLabel(currentPlan: WorkspacePlan): string {
+export function getUpgradeCtaLabel(currentPlan: BusinessPlan): string {
   const upgradePlan = getUpgradePlan(currentPlan);
 
   if (!upgradePlan) {

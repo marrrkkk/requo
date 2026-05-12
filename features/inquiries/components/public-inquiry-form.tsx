@@ -1,15 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useMemo, useRef, useState } from "react";
-import { ArrowRight, CircleCheckBig } from "lucide-react";
-
 import {
-  FormActions,
-  FormNote,
-  FormSection,
-} from "@/components/shared/form-layout";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type InputHTMLAttributes,
+} from "react";
+
+import { FormActions, FormSection } from "@/components/shared/form-layout";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Spinner } from "@/components/ui/spinner";
@@ -32,9 +31,11 @@ import { Input } from "@/components/ui/input";
 import { Combobox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  getInquiryContactHandleUrlPrefix,
   getInquiryFormFieldInputName,
   inquiryContactMethods,
   inquiryContactMethodLabels,
+  normalizeInquiryContactHandleEditableValue,
   type InquiryContactMethod,
   type InquiryFormFieldDefinition,
   type InquiryFormSystemFieldDefinition,
@@ -71,9 +72,9 @@ function getContactHandlePlaceholder(method: InquiryContactMethod) {
     case "phone":
       return "+63 912 345 6789";
     case "facebook":
-      return "https://facebook.com/yourpage";
+      return "yourpage";
     case "instagram":
-      return "@yourhandle";
+      return "yourhandle";
     case "whatsapp":
       return "+63 912 345 6789";
     case "other":
@@ -88,9 +89,6 @@ function getContactHandleInputType(method: InquiryContactMethod) {
     case "phone":
     case "whatsapp":
       return "tel";
-    case "facebook":
-    case "instagram":
-      return "url";
     default:
       return "text";
   }
@@ -103,9 +101,6 @@ function getContactHandleInputMode(method: InquiryContactMethod) {
     case "phone":
     case "whatsapp":
       return "tel" as const;
-    case "facebook":
-    case "instagram":
-      return "url" as const;
     default:
       return "text" as const;
   }
@@ -149,6 +144,7 @@ export function PublicInquiryForm({
   const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
   const [canSubmit, setCanSubmit] = useState(false);
   const [contactMethod, setContactMethod] = useState<InquiryContactMethod>("email");
+  const [contactHandle, setContactHandle] = useState("");
   const inquiryFormConfig = business.inquiryFormConfig;
   const attachmentHelpText = getPublicInquiryAttachmentHelpText(business.plan);
   const customerNameField = inquiryFormConfig.contactFields.customerName;
@@ -175,6 +171,7 @@ export function PublicInquiryForm({
     [inquiryFormConfig.projectFields],
   );
   const groupLabels = inquiryFormConfig.groupLabels;
+  const contactHandlePrefix = getInquiryContactHandleUrlPrefix(contactMethod);
 
   function getFieldMessage(fieldName: string) {
     return state.fieldErrors?.[fieldName]?.[0];
@@ -190,35 +187,12 @@ export function PublicInquiryForm({
     setCanSubmit(form ? form.checkValidity() : false);
   }, [previewMode]);
 
-  if (state.success) {
-    return (
-      <div className="flex flex-col gap-5">
-        <Alert>
-          <CircleCheckBig />
-          <AlertTitle>Inquiry received.</AlertTitle>
-          <AlertDescription>{state.success}</AlertDescription>
-        </Alert>
-
-        <FormNote className="p-5">
-          <div className="flex flex-col gap-3">
-            {state.inquiryId ? (
-              <p className="font-mono text-[0.72rem] uppercase tracking-[0.18em] text-muted-foreground">
-                Reference {state.inquiryId}
-              </p>
-            ) : null}
-          </div>
-        </FormNote>
-
-        <div className="flex flex-col gap-3 [&>*]:w-full sm:flex-row sm:flex-wrap sm:[&>*]:w-auto">
-          <Button asChild>
-            <Link href={`/inquire/${business.slug}`}>
-              Submit another inquiry
-              <ArrowRight data-icon="inline-end" />
-            </Link>
-          </Button>
-        </div>
-      </div>
-    );
+  function setNormalizedContactHandle(
+    method: InquiryContactMethod,
+    value: string,
+  ) {
+    setContactHandle(normalizeInquiryContactHandleEditableValue(method, value));
+    queueMicrotask(syncCanSubmit);
   }
 
   return (
@@ -281,8 +255,10 @@ export function PublicInquiryForm({
                     }
                     value={contactMethod}
                     onValueChange={(value) => {
-                      setContactMethod(value as InquiryContactMethod);
-                      syncCanSubmit();
+                      const nextMethod = value as InquiryContactMethod;
+                      setContactMethod(nextMethod);
+                      setContactHandle("");
+                      queueMicrotask(syncCanSubmit);
                     }}
                     aria-invalid={Boolean(getFieldMessage("customerContactMethod"))}
                   />
@@ -298,17 +274,48 @@ export function PublicInquiryForm({
                   <FieldLabelText label={inquiryContactMethodLabels[contactMethod]} required />
                 </FieldLabel>
                 <FieldContent>
-                  <Input
-                    disabled={isPending}
-                    id="inquiry-contactHandle"
-                    inputMode={getContactHandleInputMode(contactMethod)}
-                    key={contactMethod}
-                    maxLength={320}
-                    name="customerContactHandle"
-                    placeholder={getContactHandlePlaceholder(contactMethod)}
-                    required={preferredContactField.required}
-                    type={getContactHandleInputType(contactMethod)}
-                  />
+                  {contactHandlePrefix ? (
+                    <PrefixedContactHandleInput
+                      ariaInvalid={Boolean(getFieldMessage("customerContactHandle"))}
+                      disabled={isPending}
+                      id="inquiry-contactHandle"
+                      inputMode={getContactHandleInputMode(contactMethod)}
+                      maxLength={320}
+                      name="customerContactHandle"
+                      onBlur={() =>
+                        setNormalizedContactHandle(contactMethod, contactHandle)
+                      }
+                      onChange={setContactHandle}
+                      onPaste={(value) =>
+                        setNormalizedContactHandle(contactMethod, value)
+                      }
+                      placeholder={getContactHandlePlaceholder(contactMethod)}
+                      prefix={contactHandlePrefix}
+                      required={preferredContactField.required}
+                      value={contactHandle}
+                    />
+                  ) : (
+                    <Input
+                      disabled={isPending}
+                      id="inquiry-contactHandle"
+                      inputMode={getContactHandleInputMode(contactMethod)}
+                      maxLength={320}
+                      name="customerContactHandle"
+                      onBlur={(event) =>
+                        setNormalizedContactHandle(
+                          contactMethod,
+                          event.currentTarget.value,
+                        )
+                      }
+                      onChange={(event) =>
+                        setContactHandle(event.currentTarget.value)
+                      }
+                      placeholder={getContactHandlePlaceholder(contactMethod)}
+                      required={preferredContactField.required}
+                      type={getContactHandleInputType(contactMethod)}
+                      value={contactHandle}
+                    />
+                  )}
                   <FieldError errors={getFieldMessage("customerContactHandle") ? [{ message: getFieldMessage("customerContactHandle")! }] : undefined} />
                 </FieldContent>
               </Field>
@@ -411,6 +418,75 @@ export function PublicInquiryForm({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function PrefixedContactHandleInput({
+  ariaInvalid,
+  disabled,
+  id,
+  inputMode,
+  maxLength,
+  name,
+  onBlur,
+  onChange,
+  onPaste,
+  placeholder,
+  prefix,
+  required,
+  value,
+}: {
+  ariaInvalid: boolean;
+  disabled: boolean;
+  id: string;
+  inputMode: InputHTMLAttributes<HTMLInputElement>["inputMode"];
+  maxLength: number;
+  name: string;
+  onBlur: () => void;
+  onChange: (value: string) => void;
+  onPaste: (value: string) => void;
+  placeholder: string;
+  prefix: string;
+  required: boolean;
+  value: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "control-surface flex h-10 w-full min-w-0 overflow-hidden rounded-lg border border-input/95 transition-[border-color,background-color,box-shadow] focus-within:border-ring focus-within:bg-[var(--control-bg-strong)] focus-within:ring-4 focus-within:ring-ring/15",
+        ariaInvalid && "border-destructive ring-4 ring-destructive/10",
+        disabled && "pointer-events-none bg-muted/70 opacity-50 shadow-none",
+      )}
+    >
+      <span className="flex shrink-0 items-center border-r border-border/70 px-3 text-sm text-muted-foreground">
+        {prefix}
+      </span>
+      <input
+        aria-invalid={ariaInvalid || undefined}
+        className="min-w-0 flex-1 bg-transparent px-3 py-2 text-base outline-none placeholder:text-muted-foreground/90 md:text-sm"
+        disabled={disabled}
+        id={id}
+        inputMode={inputMode}
+        maxLength={maxLength}
+        name={name}
+        onBlur={onBlur}
+        onChange={(event) => onChange(event.currentTarget.value)}
+        onPaste={(event) => {
+          const pastedText = event.clipboardData.getData("text");
+
+          if (!pastedText) {
+            return;
+          }
+
+          event.preventDefault();
+          onPaste(pastedText);
+        }}
+        placeholder={placeholder}
+        required={required}
+        type="text"
+        value={value}
+      />
+    </div>
   );
 }
 

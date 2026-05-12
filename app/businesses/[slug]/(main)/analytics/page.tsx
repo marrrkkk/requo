@@ -1,15 +1,17 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { analyticsSections } from "@/features/analytics/config";
 import { AnalyticsTabPanel } from "@/features/analytics/components/analytics-tab-panel";
-import { workspacesHubPath } from "@/features/workspaces/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
 import {
   getBusinessContextForMembershipSlug,
   hasOperationalBusinessAccess,
 } from "@/lib/db/business-access";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 
 type AnalyticsPageProps = {
   params: Promise<{ slug: string }>;
@@ -23,6 +25,11 @@ const analyticsTabIds = [
 ] as const;
 
 type AnalyticsTabId = (typeof analyticsTabIds)[number];
+
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
+};
 
 function getAnalyticsTab(
   value: string | string[] | undefined,
@@ -49,7 +56,7 @@ export default async function AnalyticsPage({
   );
 
   if (!businessContext) {
-    redirect(workspacesHubPath);
+    redirect(businessesHubPath);
   }
 
   if (!hasOperationalBusinessAccess(businessContext.role)) {
@@ -59,7 +66,7 @@ export default async function AnalyticsPage({
   const activeTab = getAnalyticsTab(resolvedSearchParams.tab);
   const businessId = businessContext.business.id;
   const businessSlug = businessContext.business.slug;
-  const plan = businessContext.business.workspacePlan;
+  const plan = businessContext.business.plan;
   const currency = businessContext.business.defaultCurrency;
 
   return (
@@ -72,12 +79,29 @@ export default async function AnalyticsPage({
 
       <AnalyticsTabPanel
         activeTab={activeTab}
-        businessId={businessId}
+        businessId={businessContext.business.id}
         businessSlug={businessSlug}
         currency={currency}
         plan={plan}
-        workspaceId={businessContext.business.workspaceId}
       />
     </DashboardPage>
   );
+}
+
+export async function generateMetadata({
+  searchParams,
+}: AnalyticsPageProps): Promise<Metadata> {
+  const resolvedSearchParams = await searchParams;
+  const activeTab = getAnalyticsTab(resolvedSearchParams.tab);
+  const tabLabel =
+    activeTab === analyticsSections.overview.id
+      ? analyticsSections.overview.label
+      : activeTab === analyticsSections.conversion.id
+        ? analyticsSections.conversion.label
+        : analyticsSections.workflow.label;
+
+  return createNoIndexMetadata({
+    title: `Analytics · ${tabLabel}`,
+    description: "Conversion and workflow analytics for this business.",
+  });
 }

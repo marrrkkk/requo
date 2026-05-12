@@ -9,14 +9,12 @@ import {
   inquiries,
   inquiryMessages,
   user,
-  workspaceMembers,
-  workspaces,
 } from "@/lib/db/schema";
 
-import { closeTestDb, testDb } from "./db";
+import { closeTestDb, testDb } from "@/tests/support/db";
 
 vi.mock("@/lib/db/client", async () => {
-  const { testDb: mockedDb } = await import("./db");
+  const { testDb: mockedDb } = await import("../support/db");
 
   return { db: mockedDb };
 });
@@ -32,8 +30,6 @@ import {
 
 const ownerUserId = "test_ai_messages_owner";
 const otherUserId = "test_ai_messages_other";
-const workspaceId = "test_ai_messages_workspace";
-const otherWorkspaceId = "test_ai_messages_workspace_other";
 const businessId = "test_ai_messages_business";
 const otherBusinessId = "test_ai_messages_business_other";
 const formId = "test_ai_messages_form";
@@ -74,11 +70,11 @@ describe("features/ai/messages", () => {
       .delete(businesses)
       .where(inArray(businesses.id, [businessId, otherBusinessId]));
     await testDb
-      .delete(workspaceMembers)
-      .where(inArray(workspaceMembers.userId, [ownerUserId, otherUserId]));
+      .delete(businessMembers)
+      .where(inArray(businessMembers.userId, [ownerUserId, otherUserId]));
     await testDb
-      .delete(workspaces)
-      .where(inArray(workspaces.id, [workspaceId, otherWorkspaceId]));
+      .delete(businesses)
+      .where(inArray(businesses.id, [businessId, otherBusinessId]));
     await testDb.delete(user).where(inArray(user.id, [ownerUserId, otherUserId]));
 
     await testDb.insert(user).values([
@@ -100,50 +96,10 @@ describe("features/ai/messages", () => {
       },
     ]);
 
-    await testDb.insert(workspaces).values([
-      {
-        id: workspaceId,
-        name: "AI Messages Workspace",
-        slug: "ai-messages-workspace",
-        plan: "free",
-        ownerUserId,
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        id: otherWorkspaceId,
-        name: "AI Messages Other Workspace",
-        slug: "ai-messages-workspace-other",
-        plan: "free",
-        ownerUserId: otherUserId,
-        createdAt: now,
-        updatedAt: now,
-      },
-    ]);
-
-    await testDb.insert(workspaceMembers).values([
-      {
-        id: "test_ai_messages_workspace_member",
-        workspaceId,
-        userId: ownerUserId,
-        role: "owner",
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        id: "test_ai_messages_workspace_member_other",
-        workspaceId: otherWorkspaceId,
-        userId: otherUserId,
-        role: "owner",
-        createdAt: now,
-        updatedAt: now,
-      },
-    ]);
-
     await testDb.insert(businesses).values([
       {
         id: businessId,
-        workspaceId,
+        ownerUserId,
         name: "AI Messages Business",
         slug: "ai-messages-business",
         businessType: "general_project_services",
@@ -153,7 +109,7 @@ describe("features/ai/messages", () => {
       },
       {
         id: otherBusinessId,
-        workspaceId: otherWorkspaceId,
+        ownerUserId: otherUserId,
         name: "AI Messages Other Business",
         slug: "ai-messages-business-other",
         businessType: "general_project_services",
@@ -293,11 +249,11 @@ describe("features/ai/messages", () => {
       .delete(businesses)
       .where(inArray(businesses.id, [businessId, otherBusinessId]));
     await testDb
-      .delete(workspaceMembers)
-      .where(inArray(workspaceMembers.userId, [ownerUserId, otherUserId]));
+      .delete(businessMembers)
+      .where(inArray(businessMembers.userId, [ownerUserId, otherUserId]));
     await testDb
-      .delete(workspaces)
-      .where(inArray(workspaces.id, [workspaceId, otherWorkspaceId]));
+      .delete(businesses)
+      .where(inArray(businesses.id, [businessId, otherBusinessId]));
     await testDb.delete(user).where(inArray(user.id, [ownerUserId, otherUserId]));
     await closeTestDb();
   });

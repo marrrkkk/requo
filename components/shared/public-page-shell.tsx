@@ -41,16 +41,9 @@ export function PublicPageShell({
     <div className={cn("public-page", className)}>
       <div className="public-page-stack">
         {headerRevealOnScroll ? (
-          <>
-            {/* Static header: always visible in normal document flow */}
-            <header className={cn("public-page-header", headerClassName)}>
-              {headerContent}
-            </header>
-            {/* Fixed header: revealed on scroll-up after passing the static one */}
-            <PublicPageScrollHeader className={headerClassName}>
-              {headerContent}
-            </PublicPageScrollHeader>
-          </>
+          <PublicPageScrollHeader className={headerClassName}>
+            {headerContent}
+          </PublicPageScrollHeader>
         ) : (
           <header className={cn("public-page-header", headerClassName)}>
             {headerContent}

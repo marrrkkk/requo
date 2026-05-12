@@ -5,13 +5,12 @@ import {
   type AuditEntityType,
 } from "@/features/audit/types";
 
-export const workspaceAuditPageSize = 25;
+export const businessAuditPageSize = 25;
 
 export const auditEntityLabels: Record<AuditEntityType, string> = {
   request: "Request",
   quote: "Quote",
   business: "Business",
-  workspace: "Workspace",
   member: "Member",
   subscription: "Subscription",
   account: "Account",

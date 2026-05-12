@@ -8,7 +8,20 @@ export const socialImageSize = {
 export const socialImageContentType = "image/png";
 export const socialImageAlt = `${siteName} social preview`;
 
-export function SocialPreviewImage() {
+export type SocialPreviewImageProps = {
+  /** Header/brand title. Defaults to `siteName`. */
+  title?: string;
+  /** Short eyebrow-style line rendered as a pill. Defaults to `siteTagline`. */
+  subtitle?: string;
+  /** Supporting description paragraph. Defaults to `siteDescription`. */
+  body?: string;
+};
+
+export function SocialPreviewImage({
+  title = siteName,
+  subtitle = siteTagline,
+  body = siteDescription,
+}: SocialPreviewImageProps = {}) {
   return (
     <div
       style={{
@@ -77,7 +90,7 @@ export function SocialPreviewImage() {
               letterSpacing: "-0.05em",
             }}
           >
-            {siteName}
+            {title}
           </span>
         </div>
       </div>
@@ -103,7 +116,7 @@ export function SocialPreviewImage() {
             width: "fit-content",
           }}
         >
-          {siteTagline}
+          {subtitle}
         </div>
         <div
           style={{
@@ -122,7 +135,7 @@ export function SocialPreviewImage() {
             lineHeight: 1.45,
           }}
         >
-          {siteDescription}
+          {body}
         </div>
       </div>
     </div>

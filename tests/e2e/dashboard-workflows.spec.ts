@@ -20,17 +20,9 @@ async function signIn(page: Page) {
 }
 
 async function openBusinessesPage(page: Page, path: string) {
-  await page.goto(`/businesses/${demoBusinessSlug}${path}`);
-  await page.waitForLoadState("networkidle");
-}
-
-function getSnippetCard(page: Page, title: string): Locator {
-  return page
-    .locator('[data-slot="card"]')
-    .filter({
-      has: page.locator('[data-slot="card-title"]').filter({ hasText: title }),
-    })
-    .last();
+  await page.goto(`/businesses/${demoBusinessSlug}${path}`, {
+    waitUntil: "domcontentloaded",
+  });
 }
 
 function getToggleCard(page: Page, label: string): Locator {
@@ -127,9 +119,11 @@ test("dashboard and detail pages surface follow-up, expiring-soon, and customer 
   await openBusinessesPage(page, "/dashboard");
 
   await expect(
-    page.getByRole("heading", { name: "Needs attention today" }),
+    page.getByText("Needs attention today", { exact: true }).first(),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open follow-ups" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Open follow-ups" }).first(),
+  ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Follow up due" }),
   ).toHaveCount(0);
@@ -140,21 +134,23 @@ test("dashboard and detail pages surface follow-up, expiring-soon, and customer 
   await openBusinessesPage(page, "/quotes/demo_quote_sent_1002");
 
   await expect(
-    page.getByRole("alert").filter({
-      has: page.getByText("Next: follow up on the viewed quote", {
+    page.getByRole("status").filter({
+      has: page.getByText("Follow up on viewed quote", {
         exact: true,
       }),
     }),
   ).toBeVisible();
   await expect(
-    page.getByRole("alert").filter({
-      has: page.getByText("Viewed, no response", { exact: true }),
-    }),
+    page.getByText(
+      "The customer viewed this quote but has not accepted or rejected it. Schedule the next customer touchpoint.",
+      { exact: true },
+    ),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Post-acceptance" }),
   ).toHaveCount(0);
 
+  await page.getByRole("button", { name: "View customer history" }).click();
   await expect(page.getByRole("link", { name: "Office signage" })).toBeVisible();
   await expect(
     page.getByRole("link", {
@@ -164,14 +160,18 @@ test("dashboard and detail pages surface follow-up, expiring-soon, and customer 
   await expect(
     page.getByRole("link", { name: "Q-1002 | Foundry Labs booth kit" }),
   ).toHaveCount(0);
+  await page.keyboard.press("Escape");
 
   await openBusinessesPage(page, "/inquiries/demo_inquiry_quoted_booth_kit");
 
-  await expect(page.getByRole("link", { name: "Office signage" })).toBeVisible();
   await expect(
-    page.getByRole("link", {
-      name: "Q-SMOKE-0998 | Foundry Labs rebrand signage package",
+    page.getByRole("status").filter({
+      has: page.getByText("Open related quote", { exact: true }),
     }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "View quote" })).toBeVisible();
+  await expect(
+    page.getByText("Customer history is a Pro feature", { exact: true }),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "Event signage" })).toHaveCount(0);
 });
@@ -207,78 +207,6 @@ test("owner can open the quote editor from an inquiry and create a linked draft 
     timeout: 20_000,
   });
   await expect(page.getByLabel("Quote title")).toHaveValue(/\S+/);
-});
-
-test("owner can create, edit, insert, and delete a saved reply snippet", async ({
-  page,
-}) => {
-  test.setTimeout(90_000);
-
-  const initialTitle = `Delivery window ${Date.now()}`;
-  const updatedTitle = `${initialTitle} updated`;
-  const initialBody =
-    "Could you confirm whether this job needs delivery or local pickup?";
-  const updatedBody =
-    "Could you confirm the final delivery address, target date, and whether local pickup is still an option?";
-  const existingSnippetBody =
-    "Thanks for sending this over. To price it accurately, could you confirm the final dimensions, quantity, and whether installation should be included?";
-
-  await signIn(page);
-
-  await openBusinessesPage(page, "/settings/replies");
-
-  await page.locator("#reply-snippet-create-title").fill(initialTitle);
-  await page.locator("#reply-snippet-create-body").fill(initialBody);
-  await page.getByRole("button", { name: "Save reply snippet" }).click();
-
-  const snippetCard = getSnippetCard(page, initialTitle);
-  await expect(snippetCard).toBeVisible({ timeout: 20_000 });
-
-  await snippetCard.getByRole("button", { name: "Edit snippet" }).click();
-  await snippetCard.getByLabel("Title").fill(updatedTitle);
-  await snippetCard.getByLabel("Snippet").fill(updatedBody);
-  await snippetCard.getByRole("button", { name: "Save snippet" }).click();
-
-  const updatedSnippetCard = getSnippetCard(page, updatedTitle);
-  await expect(updatedSnippetCard).toBeVisible({ timeout: 20_000 });
-  await expect(updatedSnippetCard.getByText(updatedBody)).toBeVisible();
-
-  await openBusinessesPage(page, "/inquiries/demo_inquiry_new_storefront");
-
-  const updatedSnippetOption = page
-    .getByTestId("inquiry-reply-snippet-option")
-    .filter({ has: page.getByText(updatedTitle, { exact: true }) });
-  await expect(updatedSnippetOption).toBeVisible();
-
-  await updatedSnippetOption
-    .getByRole("button", { name: "Insert snippet" })
-    .click();
-
-  const replyDraft = page.getByPlaceholder(
-    "Reply-style outputs can be inserted here, then edited before you send them.",
-  );
-  await expect(replyDraft).toHaveValue(updatedBody);
-
-  await page
-    .getByTestId("inquiry-reply-snippet-option")
-    .filter({
-      has: page.getByText("Ask for missing dimensions", { exact: true }),
-    })
-    .getByRole("button", { name: "Insert snippet" })
-    .click();
-
-  await expect(replyDraft).toHaveValue(
-    `${updatedBody}\n\n${existingSnippetBody}`,
-  );
-
-  await openBusinessesPage(page, "/settings/replies");
-
-  const deletableSnippetCard = getSnippetCard(page, updatedTitle);
-  await deletableSnippetCard.getByRole("button", { name: "Delete" }).click();
-
-  await expect(getSnippetCard(page, updatedTitle)).toHaveCount(0, {
-    timeout: 60_000,
-  });
 });
 
 test("inquiry form preview reflects unsaved field and page edits in realtime", async ({

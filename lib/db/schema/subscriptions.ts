@@ -9,11 +9,12 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-import { workspaces } from "@/lib/db/schema/workspaces";
+import { businesses } from "@/lib/db/schema/businesses";
+import { user } from "@/lib/db/schema/auth";
 
 /* ── Enums ────────────────────────────────────────────────────────────────── */
 
-export const billingProviders = ["paymongo", "paddle"] as const;
+export const billingProviders = ["paddle"] as const;
 export type BillingProvider = (typeof billingProviders)[number];
 
 export const billingProviderEnum = pgEnum("billing_provider", [
@@ -35,7 +36,7 @@ export const subscriptionStatusEnum = pgEnum("subscription_status", [
   ...subscriptionStatuses,
 ]);
 
-export const billingCurrencies = ["PHP", "USD"] as const;
+export const billingCurrencies = ["USD"] as const;
 export type BillingCurrency = (typeof billingCurrencies)[number];
 
 export const billingCurrencyEnum = pgEnum("billing_currency", [
@@ -54,19 +55,76 @@ export const paymentAttemptStatusEnum = pgEnum("payment_attempt_status", [
   ...paymentAttemptStatuses,
 ]);
 
-/* ── workspace_subscriptions ──────────────────────────────────────────────── */
+export const refundStatuses = [
+  "pending_approval",
+  "approved",
+  "rejected",
+  "failed",
+] as const;
+export type RefundStatus = (typeof refundStatuses)[number];
+
+export const refundStatusEnum = pgEnum("refund_status", [...refundStatuses]);
+
+/* ── account_subscriptions ──────────────────────────────────────────────── */
 
 /**
- * One row per workspace. The billing source of truth for subscription state.
- * Workspaces without a row are implicitly on the free plan.
+ * One row per user account. The billing source of truth for subscription state.
+ * Users without a row are implicitly on the free plan.
+ * All businesses owned by the user inherit the plan from this subscription.
  */
-export const workspaceSubscriptions = pgTable(
-  "workspace_subscriptions",
+export const accountSubscriptions = pgTable(
+  "account_subscriptions",
   {
     id: text("id").primaryKey(),
-    workspaceId: text("workspace_id")
+    userId: text("user_id")
       .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
+      .references(() => user.id, { onDelete: "cascade" }),
+    status: subscriptionStatusEnum("status").notNull().default("free"),
+    plan: text("plan").notNull(), // "pro" | "business"
+    billingProvider: billingProviderEnum("billing_provider").notNull(),
+    billingCurrency: billingCurrencyEnum("billing_currency").notNull(),
+    providerCustomerId: text("provider_customer_id"),
+    providerSubscriptionId: text("provider_subscription_id"),
+    providerCheckoutId: text("provider_checkout_id"),
+    paymentMethod: text("payment_method"),
+    currentPeriodStart: timestamp("current_period_start", {
+      withTimezone: true,
+    }),
+    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+    canceledAt: timestamp("canceled_at", { withTimezone: true }),
+    trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("account_subscriptions_user_id_unique").on(
+      table.userId,
+    ),
+    index("account_subscriptions_status_idx").on(table.status),
+    index("account_subscriptions_provider_subscription_id_idx").on(
+      table.providerSubscriptionId,
+    ),
+  ],
+);
+
+/* ── business_subscriptions (DEPRECATED) ─────────────────────────────────── */
+
+/**
+ * @deprecated Use `accountSubscriptions` instead. Kept for rollback safety.
+ * One row per business. The billing source of truth for subscription state.
+ * Businesses without a row are implicitly on the free plan.
+ */
+export const businessSubscriptions = pgTable(
+  "business_subscriptions",
+  {
+    id: text("id").primaryKey(),
+    businessId: text("business_id")
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
     status: subscriptionStatusEnum("status").notNull().default("free"),
     plan: text("plan").notNull(), // "pro" | "business"
     billingProvider: billingProviderEnum("billing_provider").notNull(),
@@ -88,11 +146,11 @@ export const workspaceSubscriptions = pgTable(
       .defaultNow(),
   },
   (table) => [
-    uniqueIndex("workspace_subscriptions_workspace_id_unique").on(
-      table.workspaceId,
+    uniqueIndex("business_subscriptions_business_id_unique").on(
+      table.businessId,
     ),
-    index("workspace_subscriptions_status_idx").on(table.status),
-    index("workspace_subscriptions_provider_subscription_id_idx").on(
+    index("business_subscriptions_status_idx").on(table.status),
+    index("business_subscriptions_provider_subscription_id_idx").on(
       table.providerSubscriptionId,
     ),
   ],
@@ -112,7 +170,10 @@ export const billingEvents = pgTable(
     providerEventId: text("provider_event_id").notNull(),
     provider: billingProviderEnum("provider").notNull(),
     eventType: text("event_type").notNull(),
-    workspaceId: text("workspace_id").references(() => workspaces.id, {
+    userId: text("user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    businessId: text("business_id").references(() => businesses.id, {
       onDelete: "set null",
     }),
     payload: jsonb("payload").notNull(),
@@ -125,7 +186,8 @@ export const billingEvents = pgTable(
     uniqueIndex("billing_events_provider_event_id_unique").on(
       table.providerEventId,
     ),
-    index("billing_events_workspace_id_idx").on(table.workspaceId),
+    index("billing_events_user_id_idx").on(table.userId),
+    index("billing_events_business_id_idx").on(table.businessId),
     index("billing_events_provider_idx").on(table.provider),
   ],
 );
@@ -139,9 +201,11 @@ export const paymentAttempts = pgTable(
   "payment_attempts",
   {
     id: text("id").primaryKey(),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    businessId: text("business_id")
+      .references(() => businesses.id, { onDelete: "set null" }),
     plan: text("plan").notNull(),
     provider: billingProviderEnum("provider").notNull(),
     providerPaymentId: text("provider_payment_id").notNull(),
@@ -153,9 +217,63 @@ export const paymentAttempts = pgTable(
       .defaultNow(),
   },
   (table) => [
-    index("payment_attempts_workspace_id_idx").on(table.workspaceId),
+    index("payment_attempts_user_id_idx").on(table.userId),
+    index("payment_attempts_business_id_idx").on(table.businessId),
     index("payment_attempts_provider_payment_id_idx").on(
       table.providerPaymentId,
     ),
+  ],
+);
+
+/* ── refunds ─────────────────────────────────────────────────────────────── */
+
+/**
+ * Refund requests for completed payments.
+ *
+ * A refund is created when an owner requests a refund for a paid transaction.
+ * Status transitions through `pending_approval` → `approved` | `rejected`
+ * based on the provider's `adjustment.updated` webhook events.
+ *
+ * Duplicate refund requests for the same payment are prevented by
+ * application-level checks before inserting a new row.
+ */
+export const refunds = pgTable(
+  "refunds",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    paymentAttemptId: text("payment_attempt_id")
+      .notNull()
+      .references(() => paymentAttempts.id, { onDelete: "cascade" }),
+    subscriptionId: text("subscription_id").references(
+      () => accountSubscriptions.id,
+      { onDelete: "set null" },
+    ),
+    businessId: text("business_id").references(() => businesses.id, {
+      onDelete: "set null",
+    }),
+    provider: billingProviderEnum("provider").notNull(),
+    providerTransactionId: text("provider_transaction_id").notNull(),
+    providerAdjustmentId: text("provider_adjustment_id"),
+    status: refundStatusEnum("status").notNull().default("pending_approval"),
+    reason: text("reason"),
+    requestedByUserId: text("requested_by_user_id").references(
+      () => user.id,
+      { onDelete: "set null" },
+    ),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("refunds_user_id_idx").on(table.userId),
+    index("refunds_payment_attempt_id_idx").on(table.paymentAttemptId),
+    index("refunds_provider_adjustment_id_idx").on(table.providerAdjustmentId),
+    index("refunds_status_idx").on(table.status),
   ],
 );

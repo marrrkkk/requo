@@ -15,6 +15,8 @@ import type { DashboardInquiryListItem } from "@/features/inquiries/types";
 import {
   formatInquiryDate,
 } from "@/features/inquiries/utils";
+import { WorkflowNextActionSummary } from "@/features/businesses/components/workflow-next-action";
+import { getInquiryNextAction } from "@/features/businesses/workflow-next-actions";
 import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
@@ -30,7 +32,7 @@ export function InquiryListTable({
 }: InquiryListTableProps) {
   return (
     <DashboardTableContainer className="hidden xl:block">
-      <Table className="min-w-[57rem] table-fixed">
+      <Table className="min-w-[69rem] table-fixed">
         <TableCaption className="sr-only">Newest inquiries appear first.</TableCaption>
         <TableHeader>
           <TableRow>
@@ -39,11 +41,16 @@ export function InquiryListTable({
             <TableHead className="w-[13rem]">Service</TableHead>
             <TableHead className="w-[8rem]">Created</TableHead>
             <TableHead className="w-[8.75rem]">Status</TableHead>
+            <TableHead className="w-[11rem]">Next</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {inquiries.map((inquiry) => {
             const inquiryHref = getBusinessInquiryPath(businessSlug, inquiry.id);
+            const nextAction = getInquiryNextAction({
+              businessSlug,
+              inquiry,
+            });
 
             return (
               <TableRow className="group/row" key={inquiry.id}>
@@ -99,6 +106,25 @@ export function InquiryListTable({
                       <InquiryRecordStateBadge state={inquiry.recordState} />
                     ) : null}
                   </Link>
+                </TableCell>
+                <TableCell className="w-[11rem]">
+                  {nextAction ? (
+                    <Link
+                      className="inline-flex max-w-full"
+                      href={nextAction.href}
+                      prefetch={true}
+                    >
+                      <WorkflowNextActionSummary action={nextAction} />
+                    </Link>
+                  ) : (
+                    <Link
+                      className="text-sm text-muted-foreground transition-colors hover:text-primary group-hover/row:text-primary"
+                      href={inquiryHref}
+                      prefetch={true}
+                    >
+                      Review
+                    </Link>
+                  )}
                 </TableCell>
               </TableRow>
             );

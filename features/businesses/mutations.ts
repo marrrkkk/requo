@@ -5,6 +5,7 @@ import { and, count, eq, isNull } from "drizzle-orm";
 import { writeAuditLog } from "@/features/audit/mutations";
 import type { BusinessRecordState } from "@/features/businesses/lifecycle";
 import { getStarterTemplateDefinition } from "@/features/businesses/starter-templates";
+import { assertBusinessQuotaAvailableForUser } from "@/features/businesses/quota";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
 import {
@@ -13,16 +14,15 @@ import {
 } from "@/features/inquiries/form-config";
 import { createInquiryPageConfigDefaults } from "@/features/inquiries/page-config";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
+import { getEffectivePlanForUser } from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
-import type { WorkspacePlan } from "@/lib/plans/plans";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import {
   activityLogs,
   businessInquiryForms,
   businessMembers,
   businesses,
-  replySnippets,
-  workspaces,
-} from "@/lib/db/schema";
+  } from "@/lib/db/schema";
 import { appendRandomSlugSuffix, slugifyPublicName } from "@/lib/slugs";
 
 type CreateBusinessForUserInput = {
@@ -31,15 +31,16 @@ type CreateBusinessForUserInput = {
     name: string;
     email: string;
   };
-  workspaceId: string;
+  businessId: string;
   defaultCurrency: string;
   name: string;
   businessType: BusinessType;
   starterTemplateBusinessType?: BusinessType;
   countryCode?: string | null;
   shortDescription?: string | null;
+  customerContactChannel?: string | null;
   inquiryFormConfigOverride?: InquiryFormConfig;
-  workspacePlan?: WorkspacePlan;
+  plan?: plan;
   activitySource?: string;
   activitySummary?: string;
 };
@@ -80,7 +81,7 @@ type CreateBusinessRecordForUserInput = CreateBusinessForUserInput & {
 
 export async function createBusinessRecordForUser({
   tx,
-  workspaceId,
+  businessId,
   defaultCurrency,
   user,
   name,
@@ -88,14 +89,23 @@ export async function createBusinessRecordForUser({
   starterTemplateBusinessType = businessType,
   countryCode = null,
   shortDescription,
+  customerContactChannel = null,
   inquiryFormConfigOverride,
-  workspacePlan = "free",
+  plan = "free",
   activitySource = "business-hub",
   activitySummary = "Business created.",
   now = new Date(),
 }: CreateBusinessRecordForUserInput) {
+  await assertBusinessQuotaAvailableForUser({
+    tx,
+    ownerUserId: user.id,
+    plan,
+  });
+
   const trimmedName = name.trim();
   const normalizedShortDescription = shortDescription?.trim() || null;
+  const normalizedCustomerContactChannel =
+    customerContactChannel?.trim() || null;
   const starterTemplate = getStarterTemplateDefinition(
     starterTemplateBusinessType,
   );
@@ -105,11 +115,10 @@ export async function createBusinessRecordForUser({
       fallback: "business",
     }),
   );
-  const businessId = createId("biz");
   const defaultInquiryForm = createInquiryFormPreset({
     businessType: starterTemplateBusinessType,
     businessName: trimmedName,
-    plan: workspacePlan,
+    plan: plan,
   });
   const resolvedFormConfig =
     inquiryFormConfigOverride ??
@@ -117,23 +126,24 @@ export async function createBusinessRecordForUser({
 
   await tx.insert(businesses).values({
     id: businessId,
-    workspaceId,
+    ownerUserId: user.id,
     name: trimmedName,
     slug,
-        businessType,
-        countryCode,
-        shortDescription: normalizedShortDescription,
-        contactEmail: user.email,
-        inquiryFormConfig: resolvedFormConfig,
-        inquiryPageConfig: createInquiryPageConfigDefaults({
-          businessName: trimmedName,
-          businessType: starterTemplateBusinessType,
-          plan: workspacePlan,
-        }),
-        defaultQuoteNotes: starterTemplate.defaultQuoteNotes,
-        defaultQuoteValidityDays: starterTemplate.defaultQuoteValidityDays,
-        defaultCurrency,
-        createdAt: now,
+    businessType,
+    countryCode,
+    shortDescription: normalizedShortDescription,
+    customerContactChannel: normalizedCustomerContactChannel,
+    contactEmail: user.email,
+    inquiryFormConfig: resolvedFormConfig,
+    inquiryPageConfig: createInquiryPageConfigDefaults({
+      businessName: trimmedName,
+      businessType: starterTemplateBusinessType,
+      plan: plan,
+    }),
+    defaultQuoteNotes: starterTemplate.defaultQuoteNotes,
+    defaultQuoteValidityDays: starterTemplate.defaultQuoteValidityDays,
+    defaultCurrency,
+    createdAt: now,
     updatedAt: now,
   });
 
@@ -160,19 +170,6 @@ export async function createBusinessRecordForUser({
     updatedAt: now,
   });
 
-  if (starterTemplate.replySnippets.length) {
-    await tx.insert(replySnippets).values(
-      starterTemplate.replySnippets.map((snippet) => ({
-        id: createId("rsn"),
-        businessId,
-        title: snippet.title,
-        body: snippet.body,
-        createdAt: now,
-        updatedAt: now,
-      })),
-    );
-  }
-
   await tx.insert(activityLogs).values({
     id: createId("act"),
     businessId,
@@ -187,7 +184,6 @@ export async function createBusinessRecordForUser({
   });
 
   await writeAuditLog(tx, {
-    workspaceId,
     businessId,
     actorUserId: user.id,
     actorName: user.name,
@@ -211,7 +207,7 @@ export async function createBusinessRecordForUser({
 }
 
 export async function createBusinessForUser({
-  workspaceId,
+  businessId,
   defaultCurrency,
   user,
   name,
@@ -221,14 +217,15 @@ export async function createBusinessForUser({
   shortDescription,
   activitySource,
   activitySummary,
-  workspacePlan,
+  plan,
 }: CreateBusinessForUserInput) {
   await ensureProfileForUser(user);
+  const resolvedPlan = plan ?? await getEffectivePlanForUser(user.id);
 
   return db.transaction(async (tx) =>
     createBusinessRecordForUser({
       tx,
-      workspaceId,
+      businessId,
       defaultCurrency,
       user,
       name,
@@ -238,7 +235,7 @@ export async function createBusinessForUser({
       shortDescription,
       activitySource,
       activitySummary,
-      workspacePlan,
+      plan: resolvedPlan,
     }),
   );
 }
@@ -256,7 +253,6 @@ type BusinessLifecycleResult =
   | {
       ok: true;
       businessSlug: string;
-      workspaceSlug: string;
       nextState: BusinessRecordState;
     }
   | {
@@ -277,20 +273,19 @@ async function getBusinessLifecycleTarget(businessId: string) {
       id: businesses.id,
       name: businesses.name,
       slug: businesses.slug,
-      workspaceId: businesses.workspaceId,
-      workspaceSlug: workspaces.slug,
+      businessId: businesses.id,
+      businessSlug: businesses.slug,
       archivedAt: businesses.archivedAt,
       deletedAt: businesses.deletedAt,
     })
     .from(businesses)
-    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .where(eq(businesses.id, businessId))
     .limit(1);
 
   return business ?? null;
 }
 
-async function getActiveWorkspaceBusinessCount(workspaceId: string) {
+async function getActiveWorkspaceBusinessCount(businessId: string) {
   const [row] = await db
     .select({
       value: count(),
@@ -298,7 +293,7 @@ async function getActiveWorkspaceBusinessCount(workspaceId: string) {
     .from(businesses)
     .where(
       and(
-        eq(businesses.workspaceId, workspaceId),
+        eq(businesses.id, businessId),
         isNull(businesses.archivedAt),
         isNull(businesses.deletedAt),
       ),
@@ -360,7 +355,6 @@ export async function archiveBusiness({
     });
 
     await writeAuditLog(tx, {
-      workspaceId: business.workspaceId,
       businessId,
       actorUserId,
       entityType: "business",
@@ -377,7 +371,6 @@ export async function archiveBusiness({
   return {
     ok: true,
     businessSlug: business.slug,
-    workspaceSlug: business.workspaceSlug,
     nextState: "archived",
   };
 }
@@ -435,7 +428,6 @@ export async function unarchiveBusiness({
     });
 
     await writeAuditLog(tx, {
-      workspaceId: business.workspaceId,
       businessId,
       actorUserId,
       entityType: "business",
@@ -453,7 +445,6 @@ export async function unarchiveBusiness({
   return {
     ok: true,
     businessSlug: business.slug,
-    workspaceSlug: business.workspaceSlug,
     nextState: "active",
   };
 }
@@ -488,7 +479,7 @@ export async function trashBusiness({
 
   if (!business.archivedAt) {
     const activeBusinessCount = await getActiveWorkspaceBusinessCount(
-      business.workspaceId,
+      business.businessId,
     );
 
     if (activeBusinessCount <= 1) {
@@ -525,7 +516,6 @@ export async function trashBusiness({
     });
 
     await writeAuditLog(tx, {
-      workspaceId: business.workspaceId,
       businessId,
       actorUserId,
       entityType: "business",
@@ -542,7 +532,6 @@ export async function trashBusiness({
   return {
     ok: true,
     businessSlug: business.slug,
-    workspaceSlug: business.workspaceSlug,
     nextState: "trash",
   };
 }
@@ -595,7 +584,6 @@ export async function restoreBusiness({
     });
 
     await writeAuditLog(tx, {
-      workspaceId: business.workspaceId,
       businessId,
       actorUserId,
       entityType: "business",
@@ -613,7 +601,6 @@ export async function restoreBusiness({
   return {
     ok: true,
     businessSlug: business.slug,
-    workspaceSlug: business.workspaceSlug,
     nextState: "active",
   };
 }

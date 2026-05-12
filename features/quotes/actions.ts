@@ -138,8 +138,8 @@ export async function createQuoteAction(
   const { user, businessContext } = ownerAccess;
 
   const quoteAllowance = await checkUsageAllowance(
-    businessContext.business.workspaceId,
-    businessContext.business.workspacePlan,
+    businessContext.business.id,
+    businessContext.business.plan,
     "quotesPerMonth",
   );
 
@@ -480,17 +480,17 @@ export async function sendQuoteAction(
 
     if (
       deliveryMethod === "requo" &&
-      businessContext.business.workspacePlan === "free"
+      businessContext.business.plan === "free"
     ) {
       const [dailyAllowance, monthlyAllowance] = await Promise.all([
         checkUsageAllowance(
-          businessContext.business.workspaceId,
-          businessContext.business.workspacePlan,
+          businessContext.business.id,
+          businessContext.business.plan,
           "requoQuoteEmailsPerDay",
         ),
         checkUsageAllowance(
-          businessContext.business.workspaceId,
-          businessContext.business.workspacePlan,
+          businessContext.business.id,
+          businessContext.business.plan,
           "requoQuoteEmailsPerMonth",
         ),
       ]);
@@ -559,13 +559,12 @@ export async function sendQuoteAction(
         emailSignature: businessSettings.defaultEmailSignature,
         items: quote.items,
         templateOverrides: hasFeatureAccess(
-          businessContext.business.workspacePlan,
+          businessContext.business.plan,
           "emailTemplates",
         )
           ? businessSettings.quoteEmailTemplate
           : null,
         replyToEmail: businessSettings.contactEmail ?? ownerEmails[0],
-        workspaceId: businessContext.business.workspaceId,
         businessId: businessContext.business.id,
         userId: user.id,
       });
@@ -607,7 +606,6 @@ export async function sendQuoteAction(
               env.BETTER_AUTH_URL,
             ).toString(),
             publicQuoteUrl,
-            workspaceId: businessContext.business.workspaceId,
             businessId: businessContext.business.id,
           });
         } catch (error) {
@@ -622,7 +620,7 @@ export async function sendQuoteAction(
     // Push notification for quote sent
     if (
       businessSettings.notifyPushOnQuoteSent &&
-      hasFeatureAccess(businessContext.business.workspacePlan, "pushNotifications")
+      hasFeatureAccess(businessContext.business.plan, "pushNotifications")
     ) {
       after(async () => {
         try {

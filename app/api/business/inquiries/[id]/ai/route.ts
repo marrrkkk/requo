@@ -23,7 +23,7 @@ export async function POST(
 
   if (
     !hasFeatureAccess(
-      ownerAccess.businessContext.business.workspacePlan,
+      ownerAccess.businessContext.business.plan,
       "aiAssistant",
     )
   ) {

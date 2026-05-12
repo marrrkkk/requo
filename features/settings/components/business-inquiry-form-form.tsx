@@ -750,13 +750,13 @@ export function BusinessInquiryFormForm({
         <input name="businessType" type="hidden" value={settings.businessType} />
         <input name="inquiryFormConfig" type="hidden" value={serializedConfig} />
 
-        <section className="flex flex-col gap-6 sm:gap-8">
-          <div className="space-y-2.5 sm:px-2">
-            <h2 className="font-heading text-[1.65rem] font-semibold tracking-tight text-foreground">
+        <section className="flex flex-col gap-5 sm:gap-6">
+          <div className="flex flex-col gap-1.5 sm:px-2">
+            <h2 className="font-heading text-lg font-semibold tracking-tight text-foreground">
               Fields
             </h2>
-            <p className="text-base leading-6 text-muted-foreground">
-              Edit the same contact and project layout customers see on the public inquiry form.
+            <p className="text-sm leading-6 text-muted-foreground">
+              Drag to reorder. This preview mirrors what customers see on the public inquiry form.
             </p>
           </div>
 
@@ -1003,12 +1003,9 @@ function ContactFieldCard({
         >
           {field.label}
         </span>
-        <span className="flex shrink-0 items-center gap-1.5">
-          <Badge variant="outline">Contact field</Badge>
-          <Badge className="shrink-0" variant={field.required ? "secondary" : "outline"}>
-            {field.required ? "Required" : "Optional"}
-          </Badge>
-        </span>
+        <Badge className="shrink-0" variant={field.required ? "secondary" : "outline"}>
+          {field.required ? "Required" : "Optional"}
+        </Badge>
       </FieldTitle>
       <FieldContent>
         {contactKey === "preferredContact" ? (
@@ -1063,15 +1060,6 @@ function ContactHandlePreviewField() {
       </FieldContent>
     </Field>
   );
-}
-
-function getContactFieldFallbackLabel(contactKey: InquiryContactFieldKey) {
-  switch (contactKey) {
-    case "customerName":
-      return "Your name";
-    case "preferredContact":
-      return "Preferred contact method";
-  }
 }
 
 function ProjectFieldCard({
@@ -1223,9 +1211,6 @@ function ProjectFieldCard({
                 : field.required
                   ? "Required"
                   : "Optional"}
-            </Badge>
-            <Badge variant="outline">
-              {isSystem ? "Default field" : "Custom field"}
             </Badge>
             <FieldCardMenu
               deleteDisabled={isSystem || isPending}

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { PrintPageShell } from "@/components/shared/print-page-shell";
@@ -7,6 +8,12 @@ import { inquiryRouteParamsSchema } from "@/features/inquiries/schemas";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 import { hasFeatureAccess } from "@/lib/plans";
+import { createNoIndexMetadata } from "@/lib/seo/site";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  title: "Inquiry print",
+  description: "Print-friendly view of a single inquiry for business owners.",
+});
 
 type InquiryPrintPageProps = {
   params: Promise<{
@@ -33,7 +40,7 @@ export default async function InquiryPrintPage({
 
   if (
     !hasFeatureAccess(
-      requestContext.businessContext.business.workspacePlan,
+      requestContext.businessContext.business.plan,
       "exports",
     )
   ) {

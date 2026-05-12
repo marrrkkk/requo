@@ -59,7 +59,7 @@ export async function createQuoteLibraryEntryAction(
 
   const { user, businessContext } = ownerAccess;
 
-  if (!hasFeatureAccess(businessContext.business.workspacePlan, "quoteLibrary")) {
+  if (!hasFeatureAccess(businessContext.business.plan, "quoteLibrary")) {
     return {
       error: "Upgrade to Pro to save pricing library entries.",
     };
@@ -129,7 +129,7 @@ export async function updateQuoteLibraryEntryAction(
 
   const { user, businessContext } = ownerAccess;
 
-  if (!hasFeatureAccess(businessContext.business.workspacePlan, "quoteLibrary")) {
+  if (!hasFeatureAccess(businessContext.business.plan, "quoteLibrary")) {
     return {
       error: "Upgrade to Pro to update pricing library entries.",
     };
@@ -206,7 +206,7 @@ export async function deleteQuoteLibraryEntryAction(
 
   const { user, businessContext } = ownerAccess;
 
-  if (!hasFeatureAccess(businessContext.business.workspacePlan, "quoteLibrary")) {
+  if (!hasFeatureAccess(businessContext.business.plan, "quoteLibrary")) {
     return {
       error: "Upgrade to Pro to delete pricing library entries.",
     };

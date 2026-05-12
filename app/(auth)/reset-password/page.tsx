@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 
 import { AuthShell } from "@/components/shell/auth-shell";
 import { AuthenticatedPageRedirect } from "@/features/auth/components/authenticated-page-redirect";
+import { businessesHubPath } from "@/features/businesses/routes";
 import { ResetPasswordForm } from "@/features/auth/components/reset-password-form";
-import { createPageMetadata } from "@/lib/seo/site";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export const metadata: Metadata = createPageMetadata({
+export const metadata: Metadata = createNoIndexMetadata({
   description: "Set a new password for your Requo account.",
-  noIndex: true,
   title: "Choose a new password",
 });
 
@@ -18,7 +18,7 @@ export default function ResetPasswordPage() {
       title="Choose a new password"
       layout="centered"
     >
-      <AuthenticatedPageRedirect redirectTo="/workspaces" />
+      <AuthenticatedPageRedirect redirectTo={businessesHubPath} />
       <ResetPasswordForm />
     </AuthShell>
   );

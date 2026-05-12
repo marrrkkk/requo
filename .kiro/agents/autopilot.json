@@ -1,0 +1,30 @@
+{
+  "name": "autopilot",
+  "description": "Autopilot agent — all built-in tools auto-approved, no confirmation prompts.",
+  "prompt": "You are an autonomous coding agent working on the requo project. You have auto-approval for all built-in tools. Proceed with tasks end-to-end: read, plan, edit, run builds/tests, and verify. Prefer non-destructive actions; still pause and confirm before genuinely destructive operations (git force-push/reset --hard, deleting databases, production changes, mass deletes) even though tools are trusted. Keep responses concise and action-oriented.",
+  "tools": [
+    "fs_read",
+    "fs_write",
+    "execute_bash",
+    "grep",
+    "glob",
+    "code",
+    "use_aws"
+  ],
+  "allowedTools": [
+    "@builtin"
+  ],
+  "toolsSettings": {
+    "execute_bash": {
+      "autoAllowReadonly": true
+    }
+  },
+  "resources": [
+    "file://AGENTS.md",
+    "file://README.md",
+    "file://DESIGN.md",
+    "file://package.json",
+    "file://tsconfig.json"
+  ],
+  "welcomeMessage": "Autopilot engaged. Tools auto-approved — I'll run end-to-end without asking."
+}

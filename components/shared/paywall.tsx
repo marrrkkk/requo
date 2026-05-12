@@ -2,7 +2,8 @@
 
 import { ArrowUpRight, Briefcase, Building2 } from "lucide-react";
 
-import type { WorkspacePlan, PlanFeature } from "@/lib/plans";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
+import type { PlanFeature } from "@/lib/plans";
 import {
   hasFeatureAccess,
   getRequiredPlan,
@@ -25,9 +26,10 @@ import type { BillingCurrency, BillingRegion } from "@/lib/billing/types";
 import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
 
 type UpgradeActionProps = {
-  workspaceId: string;
-  workspaceSlug: string;
-  currentPlan: WorkspacePlan;
+  userId: string;
+  businessId: string;
+  businessSlug: string;
+  currentPlan: plan;
   region: BillingRegion;
   defaultCurrency: BillingCurrency;
   ctaLabel?: string;
@@ -41,7 +43,7 @@ export function UpgradeBadge({
   plan,
   className,
 }: {
-  plan: WorkspacePlan;
+  plan: plan;
   className?: string;
 }) {
   return (
@@ -52,10 +54,10 @@ export function UpgradeBadge({
 }
 
 /*──────────────────────────────────────────────────────────────────────────────
- * PlanBadge — shows the current workspace plan as a visually distinct badge.
+ * PlanBadge — shows the current business plan as a visually distinct badge.
  *────────────────────────────────────────────────────────────────────────────*/
 
-const planBadgeStyles: Record<WorkspacePlan, string> = {
+const planBadgeStyles: Record<plan, string> = {
   free: "",
   pro: "border-primary/20 bg-primary/10 text-primary dark:border-primary/25 dark:bg-primary/15",
   business:
@@ -67,7 +69,7 @@ export function PlanBadge({
   showIcon = true,
   className,
 }: {
-  plan: WorkspacePlan;
+  plan: plan;
   /** Show plan icon. Set false for compact contexts. */
   showIcon?: boolean;
   className?: string;
@@ -101,7 +103,7 @@ export function LockedFeatureCard({
   upgradeAction,
 }: {
   feature: PlanFeature;
-  plan: WorkspacePlan;
+  plan: plan;
   /** Override the default feature title. */
   title?: string;
   /** Override the default feature description. */
@@ -144,8 +146,9 @@ export function LockedFeatureCard({
             defaultCurrency={upgradeAction.defaultCurrency}
             region={upgradeAction.region}
             size="sm"
-            workspaceId={upgradeAction.workspaceId}
-            workspaceSlug={upgradeAction.workspaceSlug}
+            userId={upgradeAction.userId}
+            businessId={upgradeAction.businessId}
+            businessSlug={upgradeAction.businessSlug}
           >
             <ArrowUpRight data-icon="inline-start" />
             {upgradeAction.ctaLabel ?? getUpgradeCtaLabel(plan)}
@@ -184,7 +187,7 @@ export function LockedFeatureOverlay({
   className,
 }: {
   feature: PlanFeature;
-  plan: WorkspacePlan;
+  plan: plan;
   children: React.ReactNode;
   title?: string;
   description?: string;
@@ -239,7 +242,7 @@ export function UsageLimitBanner({
   label: string;
   current: number;
   limit: number;
-  plan: WorkspacePlan;
+  plan: plan;
   className?: string;
 }) {
   const percentage = Math.min(100, Math.round((current / limit) * 100));
@@ -274,7 +277,7 @@ export function UsageLimitBanner({
       </div>
       {isAtLimit ? (
         <p className="text-xs leading-relaxed text-muted-foreground">
-          You&apos;ve reached this workspace&apos;s plan limit.{" "}
+          You&apos;ve reached this business plan limit.{" "}
           {getUpgradeCtaLabel(plan)} for unlimited usage.
         </p>
       ) : null}
@@ -295,7 +298,7 @@ export function LockedFeaturePage({
   upgradeAction,
 }: {
   feature: PlanFeature;
-  plan: WorkspacePlan;
+  plan: plan;
   title?: string;
   description?: string;
   className?: string;
@@ -332,8 +335,9 @@ export function LockedFeaturePage({
               defaultCurrency={upgradeAction.defaultCurrency}
               region={upgradeAction.region}
               size="sm"
-              workspaceId={upgradeAction.workspaceId}
-              workspaceSlug={upgradeAction.workspaceSlug}
+              userId={upgradeAction.userId}
+              businessId={upgradeAction.businessId}
+              businessSlug={upgradeAction.businessSlug}
             >
               <ArrowUpRight data-icon="inline-start" />
               {upgradeAction.ctaLabel ?? planMeta[requiredPlan].ctaLabel}

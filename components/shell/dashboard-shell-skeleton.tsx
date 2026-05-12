@@ -1,15 +1,7 @@
-import type { ReactNode } from "react";
-
 import { DashboardPageSkeleton } from "@/components/shell/dashboard-page-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 
-type DashboardShellSkeletonProps = {
-  children?: ReactNode;
-};
-
-export function DashboardShellSkeleton({
-  children,
-}: DashboardShellSkeletonProps) {
+export function DashboardShellSkeleton() {
   return (
     <div className="group/sidebar-wrapper flex min-h-svh w-full bg-background">
       <div className="group peer hidden text-sidebar-foreground lg:block">
@@ -66,7 +58,7 @@ export function DashboardShellSkeleton({
         <div className="flex flex-1 flex-col">
           <div className="dashboard-main">
             <div className="dashboard-content">
-              {children ?? <DashboardPageSkeleton />}
+              <DashboardPageSkeleton />
             </div>
           </div>
         </div>

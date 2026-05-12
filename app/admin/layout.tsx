@@ -1,83 +1,105 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
-import { Skeleton } from "@/components/ui/skeleton";
+import { ImpersonationBanner } from "@/components/shell/impersonation-banner";
+import { requireAdminUser } from "@/features/admin/access";
+import {
+  wrapAdminRouteWithViewLog,
+  type AdminAuditContext,
+} from "@/features/admin/audit";
 import { AdminShell } from "@/features/admin/components/admin-shell";
-import { requireAdminOrNull } from "@/features/admin/auth";
+import type { AuthSession, AuthUser } from "@/lib/auth/session";
 import { createNoIndexMetadata } from "@/lib/seo/site";
+
+import AdminLoading from "./loading";
 
 export const metadata: Metadata = createNoIndexMetadata({
   absoluteTitle: "Requo admin",
-  description: "Private internal admin tools for Requo.",
+  description: "Internal operations surface for Requo administrators.",
 });
+export const preferredRegion = "syd1";
 
+/**
+ * Admin console root layout.
+ *
+ * Responsibilities (task 11.1):
+ *
+ * 1. Call `requireAdminUser()` (Req 1.1, 1.2, 1.3, 1.6) — denies
+ *    unauthenticated, unverified, and non-allow-listed callers by
+ *    triggering `notFound()` before any admin markup renders.
+ * 2. Render `AdminShell` (which owns `DashboardPage` + `PageHeader`)
+ *    with the impersonation banner mounted inside via `Suspense`.
+ * 3. Record a `view.dashboard` audit row on every render via
+ *    `wrapAdminRouteWithViewLog` (Req 10.1). The wrapper writes the
+ *    view entry best-effort in a `finally` block so a transient audit
+ *    failure never blocks a render. The per-page layer refines the
+ *    audit action (e.g. `view.users`) once the page component runs.
+ *
+ * The layout itself is a sync component that wraps the async work in
+ * `<Suspense>`. This lets `cacheComponents` stream the dynamic admin
+ * shell independently from the static root layout, matching the
+ * pattern used by `app/account/layout.tsx`.
+ */
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <Suspense fallback={<AdminLayoutFallback />}>
-      <AdminGuardedLayout>{children}</AdminGuardedLayout>
+    <Suspense fallback={<AdminLoading />}>
+      <AdminLayoutShell>{children}</AdminLayoutShell>
     </Suspense>
   );
 }
 
-function AdminLayoutFallback() {
-  return (
-    <div className="flex min-h-svh w-full bg-background">
-      {/* Sidebar skeleton */}
-      <div className="hidden w-64 shrink-0 border-r border-border/70 bg-sidebar lg:block">
-        <div className="flex h-[4.5rem] items-center gap-3 px-5">
-          <Skeleton className="size-10 rounded-xl" />
-          <div className="flex flex-col gap-1.5">
-            <Skeleton className="h-4 w-16 rounded-md" />
-            <Skeleton className="h-3 w-20 rounded-md" />
-          </div>
-        </div>
-        <div className="border-t border-sidebar-border px-5 pt-5">
-          <div className="flex flex-col gap-1.5">
-            {[60, 72, 55, 80, 48, 66, 90, 52].map((width, index) => (
-              <div
-                className="flex h-9 items-center gap-2 rounded-lg px-3"
-                key={index}
-              >
-                <Skeleton className="size-4 rounded-md" />
-                <Skeleton
-                  className="h-4 rounded-md"
-                  style={{ width: `${width}%` }}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+async function AdminLayoutShell({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { session, user } = await requireAdminUser();
+  const auditContext = buildAdminAuditContext(user, session);
 
-      {/* Main content skeleton */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="sticky top-0 z-30 border-b border-border/70 bg-background/90 backdrop-blur">
-          <div className="flex min-h-11 items-center gap-3 px-6 py-3.5">
-            <Skeleton className="size-8 rounded-md" />
-            <Skeleton className="h-4 w-24 rounded-md" />
-          </div>
-        </div>
-        <div className="flex flex-1 items-center justify-center p-8">
-          <p className="text-sm text-muted-foreground">
-            Loading internal tools...
-          </p>
-        </div>
-      </div>
-    </div>
+  const renderShell = wrapAdminRouteWithViewLog(
+    async (content: React.ReactNode) => (
+      <AdminShell
+        banner={
+          <Suspense fallback={null}>
+            <ImpersonationBanner />
+          </Suspense>
+        }
+      >
+        {content}
+      </AdminShell>
+    ),
+    auditContext,
+    {
+      action: "view.dashboard",
+      targetType: "dashboard",
+    },
   );
+
+  return renderShell(children);
 }
 
-async function AdminGuardedLayout({ children }: { children: React.ReactNode }) {
-  const admin = await requireAdminOrNull();
+/**
+ * Build the `AdminAuditContext` from a resolved admin session. When
+ * the session itself carries an `impersonatedBy` tag we still treat
+ * the allow-listed admin as the audit author and record the active
+ * (impersonated) user id in metadata (Req 10.3). In practice the
+ * admin layout is unreachable while impersonating — the access gate
+ * runs against the impersonated user — but wiring the field through
+ * keeps the audit shape consistent with every other admin write.
+ */
+function buildAdminAuditContext(
+  admin: AuthUser,
+  session: AuthSession,
+): AdminAuditContext {
+  const impersonatedBy = session.session?.impersonatedBy ?? null;
 
-  if (!admin) {
-    notFound();
-  }
-
-  return <AdminShell admin={admin}>{children}</AdminShell>;
+  return {
+    adminUserId: admin.id,
+    adminEmail: admin.email,
+    impersonatedUserId: impersonatedBy ? session.user.id : null,
+  };
 }

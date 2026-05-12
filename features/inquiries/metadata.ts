@@ -10,22 +10,39 @@ export function getPublicInquiryPagePath(business: PublicInquiryBusiness) {
     : getBusinessPublicInquiryUrl(business.slug, business.form.slug);
 }
 
+function truncateMetaDescription(text: string, maxLen: number) {
+  const normalized = text.trim();
+  if (normalized.length <= maxLen) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLen - 3).trimEnd()}...`;
+}
+
+export function getPublicInquiryPageTitle(business: PublicInquiryBusiness) {
+  return business.form.isDefault
+    ? `${business.name} — Request a quote`
+    : `${business.form.name} · ${business.name}`;
+}
+
+export function getPublicInquiryPageDescription(
+  business: PublicInquiryBusiness,
+) {
+  const rawDescription =
+    business.inquiryPageConfig.description?.trim() ||
+    business.shortDescription?.trim() ||
+    `Request a quote or send project details to ${business.name}.`;
+
+  return truncateMetaDescription(rawDescription, 160);
+}
+
 export function getPublicInquiryPageMetadata(
   business: PublicInquiryBusiness,
 ): Metadata {
-  const title = business.form.isDefault
-    ? `${business.name} inquiry form`
-    : `${business.form.name} | ${business.name}`;
-  const description =
-    business.inquiryPageConfig.description?.trim() ||
-    business.shortDescription?.trim() ||
-    `Send your project details to ${business.name}.`;
-
   return createPageMetadata({
-    absoluteTitle: title,
+    absoluteTitle: getPublicInquiryPageTitle(business),
     brandTitle: false,
-    description,
-    noIndex: true,
+    description: getPublicInquiryPageDescription(business),
     pathname: getPublicInquiryPagePath(business),
   });
 }

@@ -4,1000 +4,113 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { Briefcase, Building2, Check, Sparkles } from "lucide-react";
-import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Spinner } from "@/components/ui/spinner";
-import {
-  cleanupExpiredPendingAction,
-  getCheckoutStatusAction,
-  getPendingCheckoutAction,
-} from "@/features/billing/actions";
-import { CheckoutDialog } from "@/features/billing/components/checkout-dialog";
 import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
-import {
-  clearCachedPendingCheckout,
-  getCachedPendingCheckout,
-  setCachedPendingCheckout,
-  subscribeToPendingCheckout,
-  type PersistedPendingCheckout,
-} from "@/features/billing/pending-checkout";
-import type {
-  PendingCheckoutState,
-  WorkspaceBillingOverview,
-} from "@/features/billing/types";
-import { planMeta } from "@/lib/plans";
-import type { WorkspacePlan } from "@/lib/plans/plans";
+import type { AccountBillingOverview } from "@/features/billing/types";
 import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
-import { cn } from "@/lib/utils";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
-const planUpgradeHighlights: Record<PaidPlan, string[]> = {
-  pro: [
-    "Unlimited inquiries and quotes",
-    "Multiple inquiry forms",
-    "AI assistant and knowledge base",
-    "Data exports and custom branding",
-    "Multiple businesses per workspace",
-  ],
-  business: [
-    "Everything in Pro, plus",
-    "Team members and roles",
-    "Priority support",
-    "Unlimited businesses",
-    "Highest limits across the board",
-  ],
-};
+type PersistedPendingCheckout = null;
 
-type WorkspaceCheckoutContextValue = {
-  currentPlan: WorkspacePlan;
-  defaultCurrency: WorkspaceBillingOverview["defaultCurrency"];
-  pendingCheckout: PersistedPendingCheckout | null;
-  region: WorkspaceBillingOverview["region"];
-  workspaceId: string;
-  workspaceSlug: string;
+type BusinessCheckoutContextValue = {
+  currentPlan: plan;
+  defaultCurrency: AccountBillingOverview["defaultCurrency"];
+  pendingCheckout: PersistedPendingCheckout;
+  region: AccountBillingOverview["region"];
+  userId: string;
+  businessId: string;
+  businessSlug: string;
   openPlanSelection: (targetPlan?: PaidPlan) => void;
   openCheckout: (plan: PaidPlan, interval?: BillingInterval) => void;
   continueCheckout: () => void;
 };
 
-type WorkspaceSubscriptionRealtimeRow = {
-  effectivePlan?: string | null;
-  plan?: string | null;
-  status?: string | null;
-};
+const BusinessCheckoutContext =
+  createContext<BusinessCheckoutContextValue | null>(null);
 
-type PaymentAttemptRealtimeRow = {
-  provider_payment_id?: string | null;
-  status?: string | null;
-};
+function getDefaultUpgradePlan(currentPlan: plan): PaidPlan {
+  return currentPlan === "pro" ? "business" : "pro";
+}
 
-type ProcessingState = {
-  awaitingActivation: boolean;
-  plan: PaidPlan;
-};
-
-type ActivePaddleCheckout = {
-  plan: PaidPlan;
-  transactionId: string;
-};
-
-const WorkspaceCheckoutContext =
-  createContext<WorkspaceCheckoutContextValue | null>(null);
-const CHECKOUT_STATUS_POLL_INTERVAL_MS = 2500;
-const PROCESSING_REFRESH_DELAY_MS = 250;
-const PROCESSING_REFRESH_RETRY_MS = 3000;
-const PROCESSING_FALLBACK_MS = 15000;
-const PLAN_OVERRIDE_STORAGE_KEY = "requo.workspacePlanOverrides";
-const PLAN_OVERRIDE_TTL_MS = 10 * 60 * 1000;
-
-type PersistedPlanOverride = {
-  expiresAt: number;
-  plan: WorkspacePlan;
-};
-
-const planRank: Record<WorkspacePlan, number> = {
-  free: 0,
-  pro: 1,
-  business: 2,
-};
-
-async function fetchRealtimeToken() {
-  const response = await fetch("/api/business/notifications/realtime-token", {
-    cache: "no-store",
+function buildCheckoutHref(plan: PaidPlan, interval: BillingInterval = "monthly") {
+  const params = new URLSearchParams({
+    interval,
+    plan,
   });
-
-  if (!response.ok) {
-    return null;
-  }
-
-  return (await response.json()) as {
-    expiresAt: string;
-    token: string;
-  };
-}
-function normalizePendingCheckout(
-  checkout: PendingCheckoutState,
-): PersistedPendingCheckout {
-  return {
-    amount: checkout.amount,
-    currency: "PHP",
-    expiresAt: checkout.expiresAt,
-    paymentIntentId: checkout.paymentIntentId,
-    plan: checkout.plan,
-    provider: "paymongo",
-    qrCodeData: checkout.qrCodeData,
-  };
+  return `/account/billing/checkout?${params.toString()}`;
 }
 
-function getPendingCheckoutFailureMessage(
-  checkout: PersistedPendingCheckout,
-  status?: string | null,
-) {
-  return status === "expired"
-    ? "This QR Ph payment expired. Generate a new QR code to try again."
-    : "QR Ph payment failed. Please try again.";
+export function useBusinessCheckout() {
+  return useContext(BusinessCheckoutContext);
 }
 
-function isWorkspacePlan(value: unknown): value is WorkspacePlan {
-  return value === "free" || value === "pro" || value === "business";
-}
-
-function readPersistedPlanOverride(workspaceId: string) {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const rawValue = window.localStorage.getItem(PLAN_OVERRIDE_STORAGE_KEY);
-    const overrides = rawValue
-      ? (JSON.parse(rawValue) as Record<string, PersistedPlanOverride>)
-      : {};
-    const override = overrides[workspaceId];
-
-    if (!override || !isWorkspacePlan(override.plan)) {
-      return null;
-    }
-
-    if (override.expiresAt <= Date.now()) {
-      delete overrides[workspaceId];
-      window.localStorage.setItem(
-        PLAN_OVERRIDE_STORAGE_KEY,
-        JSON.stringify(overrides),
-      );
-      return null;
-    }
-
-    return override.plan;
-  } catch {
-    return null;
-  }
-}
-
-function persistPlanOverride(workspaceId: string, plan: WorkspacePlan) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    const rawValue = window.localStorage.getItem(PLAN_OVERRIDE_STORAGE_KEY);
-    const overrides = rawValue
-      ? (JSON.parse(rawValue) as Record<string, PersistedPlanOverride>)
-      : {};
-
-    overrides[workspaceId] = {
-      expiresAt: Date.now() + PLAN_OVERRIDE_TTL_MS,
-      plan,
-    };
-
-    window.localStorage.setItem(
-      PLAN_OVERRIDE_STORAGE_KEY,
-      JSON.stringify(overrides),
-    );
-  } catch {
-    // Ignore storage failures; the in-memory plan state still updates instantly.
-  }
-}
-
-function clearPersistedPlanOverride(workspaceId: string) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    const rawValue = window.localStorage.getItem(PLAN_OVERRIDE_STORAGE_KEY);
-    const overrides = rawValue
-      ? (JSON.parse(rawValue) as Record<string, PersistedPlanOverride>)
-      : {};
-
-    if (!overrides[workspaceId]) {
-      return;
-    }
-
-    delete overrides[workspaceId];
-    window.localStorage.setItem(
-      PLAN_OVERRIDE_STORAGE_KEY,
-      JSON.stringify(overrides),
-    );
-  } catch {
-    // Ignore storage failures; overrides are only a short-lived UX hint.
-  }
-}
-
-export function useWorkspaceCheckout() {
-  return useContext(WorkspaceCheckoutContext);
-}
-
-export function WorkspaceCheckoutProvider({
+export function BusinessCheckoutProvider({
   billing,
   children,
 }: {
-  billing: WorkspaceBillingOverview;
+  billing: AccountBillingOverview;
   children: ReactNode;
 }) {
   const router = useRouter();
-  const workspaceId = billing.workspaceId;
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<PaidPlan | null>(null);
-  const [selectedInterval, setSelectedInterval] = useState<BillingInterval>('monthly');
-  const [targetPlan, setTargetPlan] = useState<PaidPlan | undefined>(undefined);
-  const [pendingCheckout, setPendingCheckout] = useState<PersistedPendingCheckout | null>(null);
-  const [activePaddleCheckout, setActivePaddleCheckout] = useState<ActivePaddleCheckout | null>(null);
-  const [processingState, setProcessingState] = useState<ProcessingState | null>(
-    null,
-  );
-  const [currentPlan, setCurrentPlan] = useState<WorkspacePlan>(
-    billing.currentPlan,
-  );
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const [successPlan, setSuccessPlan] = useState<PaidPlan | null>(null);
-  const refreshQueuedRef = useRef(false);
-  const localExpiryHandledRef = useRef<string | null>(null);
-  const pendingCheckoutVersionRef = useRef(0);
-  const checkoutKeyRef = useRef(0);
-  const activationFallbackTimerRef = useRef<number | null>(null);
-  const confirmedActivationPlanRef = useRef<PaidPlan | null>(null);
-
-  const openPlanSelection = useCallback((nextTargetPlan?: PaidPlan) => {
-    setCheckoutError(null);
-    setTargetPlan(nextTargetPlan);
-    setSheetOpen(true);
-  }, []);
-
-  const openCheckout = useCallback((plan: PaidPlan, interval?: BillingInterval) => {
-    checkoutKeyRef.current += 1;
-    setCheckoutError(null);
-    setSheetOpen(false);
-    setSelectedPlan(plan);
-    setSelectedInterval(interval ?? "monthly");
-    setCheckoutOpen(true);
-  }, []);
-
-  const changeCheckoutPlan = useCallback(() => {
-    checkoutKeyRef.current += 1;
-    setCheckoutError(null);
-    setCheckoutOpen(false);
-    setSelectedPlan(null);
-    setSheetOpen(true);
-  }, []);
-
-  const continueCheckout = useCallback(() => {
-    if (!pendingCheckout) {
-      return;
-    }
-
-    checkoutKeyRef.current += 1;
-    setCheckoutError(null);
-    setSelectedPlan(pendingCheckout.plan);
-    setCheckoutOpen(true);
-  }, [pendingCheckout]);
-
-  const beginCheckoutProcessing = useCallback((plan: PaidPlan) => {
-    setCheckoutError(null);
-    setCheckoutOpen(false);
-    setSelectedPlan(plan);
-    setProcessingState({ awaitingActivation: true, plan });
-  }, []);
-
-  const confirmWorkspacePlan = useCallback(
-    (plan: WorkspacePlan) => {
-      setCurrentPlan(plan);
-      persistPlanOverride(workspaceId, plan);
-    },
-    [workspaceId],
+  const [isPlanSheetOpen, setIsPlanSheetOpen] = useState(false);
+  const [sheetTargetPlan, setSheetTargetPlan] = useState<PaidPlan | undefined>(
+    undefined,
   );
 
-  const queueRefresh = useCallback(() => {
-    if (refreshQueuedRef.current) {
-      return;
-    }
-
-    refreshQueuedRef.current = true;
-
-    window.setTimeout(() => {
-      router.refresh();
-      window.setTimeout(() => {
-        refreshQueuedRef.current = false;
-      }, PROCESSING_REFRESH_RETRY_MS);
-    }, PROCESSING_REFRESH_DELAY_MS);
-  }, [router]);
-
-  const clearActivationFallback = useCallback(() => {
-    if (activationFallbackTimerRef.current) {
-      window.clearTimeout(activationFallbackTimerRef.current);
-      activationFallbackTimerRef.current = null;
-    }
-
-    confirmedActivationPlanRef.current = null;
-  }, []);
-
-  const scheduleActivationFallback = useCallback(
-    (plan: PaidPlan) => {
-      confirmedActivationPlanRef.current = plan;
-
-      if (activationFallbackTimerRef.current) {
-        return;
-      }
-
-      activationFallbackTimerRef.current = window.setTimeout(() => {
-        activationFallbackTimerRef.current = null;
-
-        if (confirmedActivationPlanRef.current !== plan) {
-          return;
-        }
-
-        refreshQueuedRef.current = false;
-        setProcessingState(null);
-        setCheckoutOpen(false);
-        setCheckoutError(null);
-        setSelectedPlan(null);
-        setSuccessPlan(plan);
-        router.refresh();
-      }, PROCESSING_FALLBACK_MS);
+  const openCheckout = useCallback(
+    (plan: PaidPlan, interval: BillingInterval = "monthly") => {
+      router.push(buildCheckoutHref(plan, interval));
     },
     [router],
   );
 
-  const handleCheckoutFailure = useCallback(
-    (message: string, failedCheckout: PersistedPendingCheckout | null) => {
-      clearActivationFallback();
-      clearCachedPendingCheckout(workspaceId);
-      setProcessingState(null);
-      setSelectedPlan(failedCheckout?.plan ?? selectedPlan);
-      setCheckoutError(message);
-
-      if (!checkoutOpen) {
-        toast.error(message);
-      }
-    },
-    [checkoutOpen, clearActivationFallback, selectedPlan, workspaceId],
-  );
-
-  useEffect(() => {
-    return clearActivationFallback;
-  }, [clearActivationFallback]);
-
-  useEffect(() => {
-    const persistedPlan = readPersistedPlanOverride(workspaceId);
-
-    if (
-      persistedPlan &&
-      planRank[persistedPlan] > planRank[billing.currentPlan]
-    ) {
-      setCurrentPlan(persistedPlan);
-      return;
-    }
-
-    setCurrentPlan(billing.currentPlan);
-
-    if (persistedPlan) {
-      clearPersistedPlanOverride(workspaceId);
-    }
-  }, [billing.currentPlan, workspaceId]);
-
-  useEffect(() => {
-    const initialCachedCheckout = getCachedPendingCheckout(workspaceId);
-
-    if (initialCachedCheckout) {
-      pendingCheckoutVersionRef.current += 1;
-      setPendingCheckout(initialCachedCheckout);
-    }
-
-    return subscribeToPendingCheckout(workspaceId, (nextCheckout) => {
-      pendingCheckoutVersionRef.current += 1;
-      setPendingCheckout(nextCheckout);
-    });
-  }, [workspaceId]);
-
-  useEffect(() => {
-    let isActive = true;
-    const recoveryVersion = pendingCheckoutVersionRef.current;
-
-    async function recoverPendingCheckout() {
-      const recovered = await getPendingCheckoutAction(workspaceId);
-
-      if (!isActive) {
-        return;
-      }
-
-      if (pendingCheckoutVersionRef.current !== recoveryVersion) {
-        return;
-      }
-
-      if (!recovered) {
-        clearCachedPendingCheckout(workspaceId);
-        return;
-      }
-
-      const normalizedCheckout = normalizePendingCheckout(recovered);
-      setSelectedPlan((currentPlan) => currentPlan ?? normalizedCheckout.plan);
-      setCachedPendingCheckout(workspaceId, normalizedCheckout);
-    }
-
-    void recoverPendingCheckout();
-
-    return () => {
-      isActive = false;
-    };
-  }, [workspaceId]);
-
-  useEffect(() => {
-    if (!pendingCheckout || pendingCheckout.provider !== "paymongo") {
-      localExpiryHandledRef.current = null;
-      return;
-    }
-
-    const expiresInMs =
-      new Date(pendingCheckout.expiresAt).getTime() - Date.now();
-
-    const handleExpiry = () => {
-      if (localExpiryHandledRef.current === pendingCheckout.paymentIntentId) {
-        return;
-      }
-
-      localExpiryHandledRef.current = pendingCheckout.paymentIntentId;
-      handleCheckoutFailure(
-        "This QR Ph payment expired. Generate a new QR code to try again.",
-        pendingCheckout,
-      );
-      void cleanupExpiredPendingAction(workspaceId);
-    };
-
-    if (expiresInMs <= 0) {
-      handleExpiry();
-      return;
-    }
-
-    const timer = window.setTimeout(handleExpiry, expiresInMs);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [handleCheckoutFailure, pendingCheckout, workspaceId]);
-
-  useEffect(() => {
-    const activeStatus = billing.subscription?.status;
-    const activePlan = billing.currentPlan;
-
-    if (
-      !processingState ||
-      (activeStatus !== "active" && activeStatus !== "past_due") ||
-      activePlan !== processingState.plan
-    ) {
-      return;
-    }
-
-    clearCachedPendingCheckout(workspaceId);
-    clearActivationFallback();
-    refreshQueuedRef.current = false;
-    const upgradedPlan = processingState.plan;
-    confirmWorkspacePlan(upgradedPlan);
-    queueMicrotask(() => {
-      setProcessingState(null);
-      setCheckoutOpen(false);
-      setCheckoutError(null);
-      setSelectedPlan(null);
-      setSuccessPlan(upgradedPlan);
-    });
-  }, [
-    billing.currentPlan,
-    billing.subscription?.status,
-    clearActivationFallback,
-    confirmWorkspacePlan,
-    processingState,
-    workspaceId,
-  ]);
-
-  useEffect(() => {
-    const shouldMonitorRealtime = Boolean(
-      pendingCheckout || activePaddleCheckout || processingState,
-    );
-
-    if (!shouldMonitorRealtime) {
-      return;
-    }
-
-    let isActive = true;
-    const supabase = createSupabaseBrowserClient();
-    // Unique suffix prevents collisions when the effect re-runs before the
-    // previous cleanup's `removeChannel` fully completes (async race).
-    const channelSuffix = Date.now();
-    let refreshTimerId: number | null = null;
-    let statusPollTimerId: number | null = null;
-    let subscriptionChannel:
-      | Awaited<ReturnType<typeof supabase.channel>>
-      | null = null;
-    let paymentAttemptsChannel:
-      | Awaited<ReturnType<typeof supabase.channel>>
-      | null = null;
-    let isSyncingCheckoutStatus = false;
-
-    const planToTrack =
-      pendingCheckout?.plan ??
-      activePaddleCheckout?.plan ??
-      processingState?.plan ??
-      null;
-    const trackedPaymentAttemptId =
-      pendingCheckout?.paymentIntentId ??
-      activePaddleCheckout?.transactionId ??
-      null;
-
-    function clearRefreshTimer() {
-      if (refreshTimerId) {
-        window.clearTimeout(refreshTimerId);
-        refreshTimerId = null;
-      }
-    }
-
-    function clearStatusPollTimer() {
-      if (statusPollTimerId) {
-        window.clearInterval(statusPollTimerId);
-        statusPollTimerId = null;
-      }
-    }
-
-    function scheduleAuthRefresh(expiresAt: string) {
-      clearRefreshTimer();
-
-      const refreshInMs = Math.max(
-        new Date(expiresAt).getTime() - Date.now() - 60_000,
-        30_000,
-      );
-
-      refreshTimerId = window.setTimeout(() => {
-        void refreshRealtimeAuth();
-      }, refreshInMs);
-    }
-
-    async function refreshRealtimeAuth() {
-      const nextToken = await fetchRealtimeToken();
-
-      if (!nextToken || !isActive) {
-        return;
-      }
-
-      await supabase.realtime.setAuth(nextToken.token);
-      scheduleAuthRefresh(nextToken.expiresAt);
-    }
-
-    function beginProcessing(plan: PaidPlan, awaitingActivation: boolean) {
-      setCheckoutError(null);
-      setCheckoutOpen(false);
-      setSelectedPlan(plan);
-      setProcessingState((currentState) => {
-        if (
-          currentState &&
-          currentState.plan === plan &&
-          currentState.awaitingActivation === awaitingActivation
-        ) {
-          return currentState;
-        }
-
-        return { awaitingActivation, plan };
-      });
-    }
-
-    function handleSubscriptionRow(row: WorkspaceSubscriptionRealtimeRow) {
-      const status = row.status;
-      const effectivePlan = row.effectivePlan;
-      const rowPlan = row.plan;
-
-      if (
-        planToTrack &&
-        (rowPlan === planToTrack || effectivePlan === planToTrack) &&
-        (status === "active" || status === "past_due")
-      ) {
-        confirmWorkspacePlan(planToTrack);
-        beginProcessing(planToTrack, false);
-        clearCachedPendingCheckout(workspaceId);
-        scheduleActivationFallback(planToTrack);
-        queueRefresh();
-        return;
-      }
-
-      if (!pendingCheckout) {
-        return;
-      }
-
-      if (
-        (status === "expired" ||
-          status === "incomplete" ||
-          status === "canceled" ||
-          status === "free")
-      ) {
-        handleCheckoutFailure(
-          getPendingCheckoutFailureMessage(pendingCheckout, status),
-          pendingCheckout,
-        );
-      }
-    }
-
-    function handlePaymentAttemptRow(row: PaymentAttemptRealtimeRow) {
-      if (!trackedPaymentAttemptId) {
-        return;
-      }
-
-      if (row.provider_payment_id !== trackedPaymentAttemptId) {
-        return;
-      }
-
-      if (row.status === "succeeded") {
-        if (pendingCheckout) {
-          beginProcessing(pendingCheckout.plan, true);
-          clearCachedPendingCheckout(workspaceId);
-          return;
-        }
-
-        if (activePaddleCheckout) {
-          beginProcessing(activePaddleCheckout.plan, true);
-          setActivePaddleCheckout(null);
-        }
-
-        return;
-      }
-
-      if (!pendingCheckout) {
-        return;
-      }
-
-      if (row.status === "failed" || row.status === "expired") {
-        handleCheckoutFailure(
-          getPendingCheckoutFailureMessage(pendingCheckout, row.status),
-          pendingCheckout,
-        );
-      }
-    }
-
-    async function syncCheckoutStatus() {
-      if (isSyncingCheckoutStatus) {
-        return;
-      }
-
-      isSyncingCheckoutStatus = true;
-
-      try {
-        const snapshot = await getCheckoutStatusAction(
-          workspaceId,
-          trackedPaymentAttemptId,
-        );
-
-        if (!snapshot || !isActive) {
-          return;
-        }
-
-        if (snapshot.paymentAttempt) {
-          handlePaymentAttemptRow({
-            provider_payment_id: snapshot.paymentAttempt.providerPaymentId,
-            status: snapshot.paymentAttempt.status,
-          });
-        }
-
-        if (snapshot.subscription) {
-          handleSubscriptionRow(snapshot.subscription);
-        }
-      } finally {
-        isSyncingCheckoutStatus = false;
-      }
-    }
-
-    void syncCheckoutStatus();
-    statusPollTimerId = window.setInterval(() => {
-      void syncCheckoutStatus();
-    }, CHECKOUT_STATUS_POLL_INTERVAL_MS);
-
-    async function connectRealtime() {
-      const tokenData = await fetchRealtimeToken();
-
-      if (!tokenData || !isActive) {
-        return;
-      }
-
-      await supabase.realtime.setAuth(tokenData.token);
-
-      subscriptionChannel = supabase
-        .channel(`workspace-subscription:${workspaceId}:${planToTrack ?? "any"}:${channelSuffix}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            filter: `workspace_id=eq.${workspaceId}`,
-            schema: "public",
-            table: "workspace_subscriptions",
-          },
-          (payload) => {
-            handleSubscriptionRow(payload.new as WorkspaceSubscriptionRealtimeRow);
-          },
-        )
-        .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            filter: `workspace_id=eq.${workspaceId}`,
-            schema: "public",
-            table: "workspace_subscriptions",
-          },
-          (payload) => {
-            handleSubscriptionRow(payload.new as WorkspaceSubscriptionRealtimeRow);
-          },
-        )
-        .subscribe();
-
-      if (trackedPaymentAttemptId) {
-        paymentAttemptsChannel = supabase
-          .channel(`payment-attempt:${workspaceId}:${trackedPaymentAttemptId}:${channelSuffix}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "INSERT",
-              filter: `workspace_id=eq.${workspaceId}`,
-              schema: "public",
-              table: "payment_attempts",
-            },
-            (payload) => {
-              handlePaymentAttemptRow(payload.new as PaymentAttemptRealtimeRow);
-            },
-          )
-          .on(
-            "postgres_changes",
-            {
-              event: "UPDATE",
-              filter: `workspace_id=eq.${workspaceId}`,
-              schema: "public",
-              table: "payment_attempts",
-            },
-            (payload) => {
-              handlePaymentAttemptRow(payload.new as PaymentAttemptRealtimeRow);
-            },
-          )
-          .subscribe();
-      }
-
-      scheduleAuthRefresh(tokenData.expiresAt);
-    }
-
-    void connectRealtime();
-
-    return () => {
-      isActive = false;
-      clearRefreshTimer();
-      clearStatusPollTimer();
-
-      if (subscriptionChannel) {
-        void supabase.removeChannel(subscriptionChannel);
-      }
-
-      if (paymentAttemptsChannel) {
-        void supabase.removeChannel(paymentAttemptsChannel);
-      }
-    };
-  }, [
-    activePaddleCheckout,
-    billing.currentPlan,
-    confirmWorkspacePlan,
-    handleCheckoutFailure,
-    pendingCheckout,
-    processingState,
-    queueRefresh,
-    scheduleActivationFallback,
-    workspaceId,
-  ]);
-
-  const contextValue = useMemo<WorkspaceCheckoutContextValue>(
+  const openPlanSelection = useCallback((targetPlan?: PaidPlan) => {
+    setSheetTargetPlan(targetPlan);
+    setIsPlanSheetOpen(true);
+  }, []);
+
+  const continueCheckout = useCallback(() => {
+    openPlanSelection(getDefaultUpgradePlan(billing.currentPlan));
+  }, [billing.currentPlan, openPlanSelection]);
+
+  const value = useMemo<BusinessCheckoutContextValue>(
     () => ({
-      currentPlan,
+      businessId: billing.businessId,
+      businessSlug: billing.businessSlug,
+      continueCheckout,
+      currentPlan: billing.currentPlan,
       defaultCurrency: billing.defaultCurrency,
-      pendingCheckout,
+      openCheckout,
+      openPlanSelection,
+      pendingCheckout: null,
       region: billing.region,
-      workspaceId: billing.workspaceId,
-      workspaceSlug: billing.workspaceSlug,
-      openPlanSelection,
-      openCheckout,
-      continueCheckout,
+      userId: billing.userId,
     }),
-    [
-      currentPlan,
-      billing.defaultCurrency,
-      billing.region,
-      billing.workspaceId,
-      billing.workspaceSlug,
-      continueCheckout,
-      openCheckout,
-      openPlanSelection,
-      pendingCheckout,
-    ],
+    [billing, continueCheckout, openCheckout, openPlanSelection],
   );
 
   return (
-    <WorkspaceCheckoutContext.Provider value={contextValue}>
-      {children}
+    <>
+      <BusinessCheckoutContext.Provider value={value}>
+        {children}
+      </BusinessCheckoutContext.Provider>
       <PlanSelectionSheet
-        currentPlan={currentPlan}
+        currentPlan={billing.currentPlan}
         defaultCurrency={billing.defaultCurrency}
-        onOpenChange={setSheetOpen}
-        onSelectPlan={openCheckout}
-        open={sheetOpen}
+        onOpenChange={setIsPlanSheetOpen}
+        onSelectPlan={(plan, interval) => {
+          setIsPlanSheetOpen(false);
+          openCheckout(plan, interval);
+        }}
+        open={isPlanSheetOpen}
         region={billing.region}
-        targetPlan={targetPlan}
+        targetPlan={sheetTargetPlan}
       />
-      {selectedPlan ? (
-        <CheckoutDialog
-          key={checkoutKeyRef.current}
-          checkoutError={checkoutError}
-          currentPlan={currentPlan}
-          defaultCurrency={billing.defaultCurrency}
-          onCheckoutErrorChange={setCheckoutError}
-          onChangePlan={changeCheckoutPlan}
-          onOpenChange={setCheckoutOpen}
-          onPaymentProcessingStart={beginCheckoutProcessing}
-          onPaddleTransactionChange={setActivePaddleCheckout}
-          open={checkoutOpen}
-          pendingCheckout={pendingCheckout}
-          interval={selectedInterval}
-          plan={selectedPlan}
-          region={billing.region}
-          workspaceId={billing.workspaceId}
-          workspaceName={billing.workspaceName}
-          workspaceSlug={billing.workspaceSlug}
-        />
-      ) : null}
-      <Dialog open={Boolean(processingState)} onOpenChange={() => {}}>
-        <DialogContent className="max-w-sm gap-0" showCloseButton={false}>
-          <DialogHeader className="px-6 pt-6 pb-0 text-center">
-            <DialogTitle className="px-2 text-xl">
-              Processing your payment
-            </DialogTitle>
-            <DialogDescription className="px-2">
-              {processingState?.awaitingActivation
-                ? "We received your payment. We're activating your workspace now."
-                : `Refreshing ${planMeta[processingState?.plan ?? "pro"].label} access for this workspace.`}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogBody className="flex flex-col items-center gap-4 py-10">
-            <Spinner aria-hidden="true" className="size-8" />
-            <p className="text-center text-sm text-muted-foreground">
-              {processingState
-                ? `Applying ${planMeta[processingState.plan].label} across the workspace.`
-                : "Updating your subscription."}
-            </p>
-          </DialogBody>
-        </DialogContent>
-      </Dialog>
-      {successPlan ? (
-        <UpgradeSuccessDialog
-          onClose={() => setSuccessPlan(null)}
-          plan={successPlan}
-        />
-      ) : null}
-    </WorkspaceCheckoutContext.Provider>
+    </>
   );
 }
-/* ── Upgrade success celebration dialog ──────────────────────────────────── */
-
-function UpgradeSuccessDialog({
-  onClose,
-  plan,
-}: {
-  onClose: () => void;
-  plan: PaidPlan;
-}) {
-  const PlanIcon = plan === "pro" ? Briefcase : Building2;
-  const highlights = planUpgradeHighlights[plan];
-
-  return (
-    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-md gap-0 overflow-hidden p-0">
-        {/* Gradient header */}
-        <div
-          className={cn(
-            "relative flex flex-col items-center gap-4 px-6 pt-10 pb-6",
-            plan === "pro"
-              ? "bg-gradient-to-b from-primary/10 via-primary/5 to-transparent"
-              : "bg-gradient-to-b from-violet-500/10 via-violet-500/5 to-transparent",
-          )}
-        >
-          <div
-            className={cn(
-              "flex size-14 items-center justify-center rounded-2xl border shadow-sm",
-              plan === "pro"
-                ? "border-primary/20 bg-primary/10 text-primary"
-                : "border-violet-500/20 bg-violet-500/10 text-violet-600 dark:text-violet-400",
-            )}
-          >
-            <PlanIcon className={cn("size-6", plan === "pro" && "text-primary")} />
-          </div>
-          <Sparkles
-            aria-hidden="true"
-            className={cn(
-              "absolute top-4 right-8 size-4 opacity-40",
-              plan === "pro" ? "text-primary" : "text-violet-500",
-            )}
-          />
-          <Sparkles
-            aria-hidden="true"
-            className={cn(
-              "absolute top-8 left-10 size-3 opacity-30",
-              plan === "pro" ? "text-primary" : "text-violet-500",
-            )}
-          />
-          <DialogHeader className="items-center gap-1 p-0">
-            <DialogTitle className="text-center text-xl">
-              Welcome to {planMeta[plan].label}
-            </DialogTitle>
-            <DialogDescription className="text-center text-balance">
-              Your workspace has been upgraded. All {planMeta[plan].label} features are now unlocked.
-            </DialogDescription>
-          </DialogHeader>
-        </div>
-
-        {/* Feature list */}
-        <DialogBody className="px-6 pt-2 pb-2">
-          <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
-            <p className="meta-label mb-2.5">What&apos;s included</p>
-            <ul className="flex flex-col gap-2">
-              {highlights.map((feature) => (
-                <li className="flex items-center gap-2.5 text-sm text-foreground" key={feature}>
-                  <div
-                    className={cn(
-                      "flex size-5 shrink-0 items-center justify-center rounded-full",
-                      plan === "pro"
-                        ? "bg-primary/10 text-primary"
-                        : "bg-violet-500/10 text-violet-600 dark:text-violet-400",
-                    )}
-                  >
-                    <Check className="size-3" />
-                  </div>
-                  {feature}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </DialogBody>
-
-        <DialogFooter className="px-6 pt-4 pb-6 sm:px-6">
-          <Button className="w-full" onClick={onClose} size="lg">
-            Get started
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-

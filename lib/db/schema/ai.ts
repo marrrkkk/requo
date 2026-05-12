@@ -11,7 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { user } from "@/lib/db/schema/auth";
-import { workspaces } from "@/lib/db/schema/workspaces";
+import { businesses } from "@/lib/db/schema/businesses";
 
 export const aiConversationSurfaceEnum = pgEnum("ai_conversation_surface", [
   "inquiry",
@@ -38,9 +38,9 @@ export const aiConversations = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    workspaceId: text("workspace_id")
+    businessId: text("business_id")
       .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
+      .references(() => businesses.id, { onDelete: "cascade" }),
     surface: aiConversationSurfaceEnum("surface").notNull(),
     entityId: text("entity_id").notNull(),
     title: text("title"),
@@ -54,19 +54,19 @@ export const aiConversations = pgTable(
       .defaultNow(),
   },
   (table) => [
-    index("ai_conversations_user_workspace_idx").on(
+    index("ai_conversations_user_business_idx").on(
       table.userId,
-      table.workspaceId,
+      table.businessId,
     ),
     index("ai_conversations_surface_entity_idx").on(
       table.surface,
       table.entityId,
     ),
     index("ai_conversations_dashboard_recent_idx")
-      .on(table.userId, table.workspaceId, table.lastMessageAt)
+      .on(table.userId, table.businessId, table.lastMessageAt)
       .where(sql`${table.surface} = 'dashboard'`),
     uniqueIndex("ai_conversations_default_entity_unique")
-      .on(table.userId, table.workspaceId, table.surface, table.entityId)
+      .on(table.userId, table.businessId, table.surface, table.entityId)
       .where(sql`${table.surface} in ('inquiry', 'quote') and ${table.isDefault} = true`),
   ],
 );

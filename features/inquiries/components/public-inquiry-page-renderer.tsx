@@ -1,10 +1,10 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
 import { Facebook, Instagram, Linkedin, X } from "@thesvg/react";
-import { ArrowUpRight, Mail, Phone, Share2 } from "lucide-react";
+import { ArrowUpRight, CircleCheckBig, Mail, Phone, Share2 } from "lucide-react";
 
-import { PublicHeroSurface } from "@/components/shared/public-page-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { PublicInquiryForm } from "@/features/inquiries/components/public-inquiry-form";
 import { InquiryShowcaseImageSurface } from "@/features/inquiries/components/inquiry-showcase-image-surface";
 import {
@@ -18,6 +18,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { MadeWithRequo } from "@/components/shared/made-with-requo";
+import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 
 type PublicInquiryPageRendererProps = {
   business: PublicInquiryBusiness;
@@ -28,6 +29,7 @@ type PublicInquiryPageRendererProps = {
   headerAction?: ReactNode;
   beforeHero?: ReactNode;
   previewMode?: boolean;
+  submitted?: boolean;
 };
 
 export function PublicInquiryPageRenderer({
@@ -36,15 +38,20 @@ export function PublicInquiryPageRenderer({
   headerAction,
   beforeHero,
   previewMode = false,
+  submitted = false,
 }: PublicInquiryPageRendererProps) {
   const config = business.inquiryPageConfig;
+
+  if (submitted) {
+    return <PublicInquiryReceivedFeedback business={business} />;
+  }
 
   return (
     <div className="public-page">
       <div className="public-page-stack">
         {beforeHero}
 
-        <header className="public-page-header">
+        <header className="public-page-header max-sm:rounded-none max-sm:border-0 max-sm:px-1 max-sm:py-2 max-sm:shadow-none max-sm:before:opacity-0">
           <BusinessInquiryBrand business={business} />
           {headerAction ? (
             <div className="flex w-full flex-col gap-3 [&>*]:w-full sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end sm:[&>*]:w-auto">
@@ -90,15 +97,11 @@ function SplitInquiryTemplate({
   previewMode,
 }: Pick<PublicInquiryPageRendererProps, "business" | "action" | "previewMode">) {
   const config = business.inquiryPageConfig;
+  const isMobileCompact = config.mobileLayout === "compact";
 
   return (
-    <PublicHeroSurface className="lg:py-12">
+    <section className="w-full py-4 sm:py-6 lg:py-8">
       <div className="flex flex-col gap-6 xl:hidden">
-        <InquiryIntro business={business} />
-        {config.showSupportingCards ? (
-          <InquirySupportCards cards={config.cards} />
-        ) : null}
-        <InquiryShowcaseImage business={business} />
         <InquiryFormCard
           action={action}
           title={config.formTitle}
@@ -106,9 +109,18 @@ function SplitInquiryTemplate({
           previewMode={previewMode}
           business={business}
         />
+        {!isMobileCompact ? (
+          <>
+            <InquiryIntro business={business} variant="compact" />
+            {config.showSupportingCards ? (
+              <InquirySupportCards cards={config.cards} />
+            ) : null}
+            <InquiryShowcaseImage business={business} />
+          </>
+        ) : null}
       </div>
 
-      <div className="hidden gap-12 xl:grid xl:grid-cols-[minmax(0,0.96fr)_minmax(22rem,0.84fr)] xl:items-start">
+      <div className="hidden gap-12 xl:grid xl:grid-cols-[minmax(0,0.85fr)_minmax(28rem,1fr)] xl:items-start">
         <div className="flex min-w-0 flex-col gap-7">
           <InquiryIntro business={business} />
           {config.showSupportingCards ? (
@@ -126,7 +138,7 @@ function SplitInquiryTemplate({
           className="xl:sticky xl:top-6"
         />
       </div>
-    </PublicHeroSurface>
+    </section>
   );
 }
 
@@ -136,17 +148,12 @@ function NoSupportingCardsInquiryTemplate({
   previewMode,
 }: Pick<PublicInquiryPageRendererProps, "business" | "action" | "previewMode">) {
   const config = business.inquiryPageConfig;
+  const isMobileCompact = config.mobileLayout === "compact";
 
   return (
-    <PublicHeroSurface className="lg:py-12">
-      <div className="flex flex-col gap-10">
-        <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-4 text-center">
-          <InquiryIntro business={business} align="center" />
-        </div>
-
-        <InquiryShowcaseImage business={business} />
-
-        <div className="mx-auto w-full max-w-4xl">
+    <section className="w-full py-4 sm:py-6 lg:py-8">
+      <div className="flex flex-col gap-8 lg:gap-10">
+        <div className="flex flex-col gap-6 lg:hidden">
           <InquiryFormCard
             action={action}
             title={config.formTitle}
@@ -154,9 +161,35 @@ function NoSupportingCardsInquiryTemplate({
             previewMode={previewMode}
             business={business}
           />
+          {!isMobileCompact ? (
+            <>
+              <div className="flex flex-col items-center gap-4 text-center">
+                <InquiryIntro business={business} align="center" variant="compact" />
+              </div>
+              <InquiryShowcaseImage business={business} />
+            </>
+          ) : null}
+        </div>
+
+        <div className="hidden flex-col gap-10 lg:flex">
+          <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-4 text-center">
+            <InquiryIntro business={business} align="center" />
+          </div>
+
+          <InquiryShowcaseImage business={business} />
+
+          <div className="mx-auto w-full max-w-5xl">
+            <InquiryFormCard
+              action={action}
+              title={config.formTitle}
+              description={config.formDescription}
+              previewMode={previewMode}
+              business={business}
+            />
+          </div>
         </div>
       </div>
-    </PublicHeroSurface>
+    </section>
   );
 }
 
@@ -166,10 +199,11 @@ function ShowcaseInquiryTemplate({
   previewMode,
 }: Pick<PublicInquiryPageRendererProps, "business" | "action" | "previewMode">) {
   const config = business.inquiryPageConfig;
+  const isMobileCompact = config.mobileLayout === "compact";
 
   return (
-    <PublicHeroSurface className="lg:py-12">
-      <div className="grid gap-10 lg:grid-cols-[minmax(22rem,0.92fr)_minmax(0,1.08fr)]">
+    <section className="w-full py-4 sm:py-6 lg:py-8">
+      <div className="grid gap-10 lg:grid-cols-[minmax(28rem,1fr)_minmax(0,0.95fr)]">
         <InquiryFormCard
           action={action}
           title={config.formTitle}
@@ -179,8 +213,14 @@ function ShowcaseInquiryTemplate({
           className="lg:sticky lg:top-6"
         />
 
-        <div className="flex min-w-0 flex-col gap-7">
-          <div className="hero-panel">
+        <div className="flex min-w-0 flex-col gap-6 lg:gap-7">
+          {!isMobileCompact ? (
+            <div className="lg:hidden">
+              <InquiryIntro business={business} variant="compact" />
+            </div>
+          ) : null}
+
+          <div className="hero-panel hidden lg:block">
             <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[14rem_minmax(0,1fr)] lg:p-7">
               <BusinessInquirySpotlight business={business} />
               <InquiryIntro business={business} />
@@ -188,12 +228,16 @@ function ShowcaseInquiryTemplate({
           </div>
 
           {config.showSupportingCards ? (
-            <InquirySupportCards cards={config.cards} />
+            <div className={cn(isMobileCompact && "hidden lg:block")}>
+              <InquirySupportCards cards={config.cards} />
+            </div>
           ) : null}
-          <InquiryShowcaseImage business={business} />
+          <div className={cn(isMobileCompact && "hidden lg:block")}>
+            <InquiryShowcaseImage business={business} />
+          </div>
         </div>
       </div>
-    </PublicHeroSurface>
+    </section>
   );
 }
 
@@ -201,14 +245,14 @@ function BusinessInquiryBrand({ business }: { business: PublicInquiryBusiness })
   const brandTagline = getResolvedBrandTagline(business);
 
   return (
-    <div className="flex min-w-0 items-center gap-4">
+    <div className="flex min-w-0 items-center gap-3 sm:gap-4">
       <BusinessBrandBadge business={business} size="md" />
       <div className="min-w-0">
-        <p className="truncate font-heading text-lg font-semibold tracking-tight text-foreground">
+        <p className="truncate font-heading text-base font-semibold tracking-tight text-foreground sm:text-lg">
           {business.name}
         </p>
         {brandTagline ? (
-          <p className="mt-1 truncate text-sm text-muted-foreground">
+          <p className="mt-0.5 truncate text-xs leading-5 text-muted-foreground sm:mt-1 sm:text-sm sm:leading-normal">
             {brandTagline}
           </p>
         ) : null}
@@ -286,26 +330,46 @@ function getResolvedBrandTagline(business: PublicInquiryBusiness) {
 function InquiryIntro({
   business,
   align = "start",
+  variant = "hero",
 }: {
   business: PublicInquiryBusiness;
   align?: "start" | "center";
+  variant?: "hero" | "compact";
 }) {
   const config = business.inquiryPageConfig;
+  const eyebrow =
+    config.eyebrow?.trim() === "Service inquiry" ? undefined : config.eyebrow;
+  const isCompact = variant === "compact";
 
   return (
     <div
       className={cn(
-        "flex flex-col gap-4",
+        "flex flex-col",
+        isCompact ? "gap-2" : "gap-4",
         align === "center" && "items-center text-center",
       )}
     >
-      {config.eyebrow ? <span className="eyebrow">{config.eyebrow}</span> : null}
-      <div className="flex flex-col gap-4">
-        <h1 className="max-w-3xl font-heading text-4xl font-semibold leading-tight tracking-tight text-balance sm:text-5xl">
+      {!isCompact && eyebrow ? <span className="eyebrow">{eyebrow}</span> : null}
+      <div className={cn("flex flex-col", isCompact ? "gap-2" : "gap-4")}>
+        <h1
+          className={cn(
+            "max-w-3xl font-heading font-semibold leading-tight tracking-tight text-balance text-foreground",
+            isCompact
+              ? "text-lg sm:text-xl"
+              : "text-3xl sm:text-5xl",
+          )}
+        >
           {config.headline}
         </h1>
         {config.description ? (
-          <p className="max-w-2xl text-base leading-normal sm:leading-8 text-muted-foreground sm:text-lg">
+          <p
+            className={cn(
+              "max-w-2xl text-muted-foreground",
+              isCompact
+                ? "text-sm leading-6"
+                : "text-sm leading-6 sm:text-lg sm:leading-8",
+            )}
+          >
             {config.description}
           </p>
         ) : null}
@@ -324,7 +388,7 @@ function InquirySupportCards({
   }
 
   const gridClassName = cn(
-    "grid w-full items-stretch gap-4 sm:gap-5",
+    "grid w-full items-stretch gap-3 sm:gap-5",
   );
 
   return (
@@ -338,16 +402,16 @@ function InquirySupportCards({
             size="sm"
             className="w-full bg-background/94"
           >
-            <CardHeader className="px-5 py-4">
-              <div className="flex items-center gap-3.5">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-accent/85 text-accent-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
-                  <Icon className="size-4" />
+            <CardHeader className="px-3.5 py-3 sm:px-5 sm:py-4">
+              <div className="flex items-center gap-3 sm:gap-3.5">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent/85 text-accent-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] sm:size-9 sm:rounded-xl">
+                  <Icon className="size-3.5 sm:size-4" />
                 </div>
                 <div className="flex min-w-0 flex-1 flex-col justify-center">
-                  <CardTitle className="text-[1.02rem] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
+                  <CardTitle className="text-sm sm:text-[1.02rem] [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
                     {card.title}
                   </CardTitle>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
+                  <p className="mt-0.5 text-xs leading-5 text-muted-foreground sm:mt-1 sm:text-sm sm:leading-6 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden">
                     {card.description}
                   </p>
                 </div>
@@ -406,7 +470,7 @@ function InquiryFormCard({
   return (
     <Card className={cn("gap-0 border-border/75 bg-card/96", className)}>
       <CardHeader className="gap-2 pb-5">
-        <CardTitle className="text-2xl">{title}</CardTitle>
+        <CardTitle className="text-xl sm:text-2xl">{title}</CardTitle>
         {description ? (
           <p className="text-sm leading-6 text-muted-foreground">{description}</p>
         ) : null}
@@ -419,6 +483,38 @@ function InquiryFormCard({
         />
       </CardContent>
     </Card>
+  );
+}
+
+function PublicInquiryReceivedFeedback({
+  business,
+}: {
+  business: PublicInquiryBusiness;
+}) {
+  const formHref = getBusinessPublicInquiryUrl(
+    business.slug,
+    business.form.isDefault ? undefined : business.form.slug,
+  );
+
+  return (
+    <main className="public-page flex min-h-[calc(100svh-3rem)] items-center justify-center">
+      <section className="mx-auto flex w-full max-w-lg flex-col items-center gap-6 text-center">
+        <div className="flex size-14 items-center justify-center rounded-full border border-primary/15 bg-accent text-primary">
+          <CircleCheckBig className="size-6" aria-hidden="true" />
+        </div>
+        <div className="flex flex-col items-center gap-3">
+          <h1 className="font-heading text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-4xl">
+            Inquiry received.
+          </h1>
+          <p className="max-w-md text-sm leading-6 text-muted-foreground">
+            Thanks. Your inquiry has been sent to {business.name}.
+          </p>
+        </div>
+        <Button asChild size="lg">
+          <a href={formHref}>Submit another inquiry</a>
+        </Button>
+      </section>
+    </main>
   );
 }
 

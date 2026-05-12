@@ -1,57 +1,86 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { AuthShell } from "@/components/shell/auth-shell";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { LogoutButton } from "@/features/auth/components/logout-button";
-import {
-  acceptWorkspaceMemberInviteAction,
-  declineWorkspaceMemberInviteAction,
-} from "@/features/workspace-members/actions";
-import { WorkspaceMemberInviteAcceptForm } from "@/features/workspace-members/components/workspace-member-invite-accept-form";
-import { getWorkspaceMemberInviteByToken } from "@/features/workspace-members/queries";
-import { getWorkspaceMemberInvitePath } from "@/features/workspace-members/routes";
-import { workspaceMemberRoleMeta } from "@/features/workspace-members/types";
-import { getAuthPathWithNext } from "@/lib/auth/redirects";
-import { getCurrentUser } from "@/lib/auth/session";
 import { createNoIndexMetadata } from "@/lib/seo/site";
+import { getOptionalSession } from "@/lib/auth/session";
+import { timed } from "@/lib/dev/server-timing";
+import { getBusinessMemberInvitePath } from "@/features/businesses/routes";
+import { getBusinessMemberInviteForToken } from "@/features/business-members/queries";
+import { acceptBusinessMemberInviteAction } from "@/features/business-members/actions";
 
-export const unstable_instant = false;
-export const metadata: Metadata = createNoIndexMetadata({
-  absoluteTitle: "Workspace invite",
-  description: "Review a workspace access invite securely.",
+const inviteFallbackMetadata = createNoIndexMetadata({
+  absoluteTitle: "Business invite",
+  description: "Review a business access invite securely.",
 });
 
-function normalizeEmailAddress(email: string) {
-  return email.trim().toLowerCase();
-}
-
-export default async function WorkspaceMemberInvitePage({
+export async function generateMetadata({
   params,
 }: {
-  params: Promise<{
-    token: string;
-  }>;
-}) {
+  params: Promise<{ token: string }>;
+}): Promise<Metadata> {
   const { token } = await params;
-  const invitePath = getWorkspaceMemberInvitePath(token);
-  const [currentUser, invite] = await Promise.all([
-    getCurrentUser(),
-    getWorkspaceMemberInviteByToken(token),
-  ]);
-  const isExpired = invite ? invite.expiresAt <= new Date() : false;
+  const invite = await getBusinessMemberInviteForToken(token);
 
-  if (!invite || isExpired) {
+  if (!invite) {
+    return inviteFallbackMetadata;
+  }
+
+  return createNoIndexMetadata({
+    absoluteTitle: `Join ${invite.businessName}`,
+    description: `Accept your invite to access ${invite.businessName} on Requo.`,
+  });
+}
+
+export default function BusinessMemberInvitePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ error?: string | string[] }>;
+}) {
+  return (
+    <Suspense fallback={<BusinessMemberInviteFallback />}>
+      <BusinessMemberInviteContent
+        params={params}
+        searchParams={searchParams}
+      />
+    </Suspense>
+  );
+}
+
+async function BusinessMemberInviteContent({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ error?: string | string[] }>;
+}) {
+  const [{ token }, { error }] = await Promise.all([params, searchParams]);
+  // Kick off invite + session lookups in parallel — independent queries.
+  // Await both up front so a missing invite early-return doesn't leave the
+  // session promise dangling (which would surface as an unhandled rejection
+  // if it rejected).
+  const [invite, session] = await timed(
+    "invite.parallelInviteAndSession",
+    Promise.all([
+      getBusinessMemberInviteForToken(token),
+      getOptionalSession(),
+    ]),
+  );
+
+  if (!invite) {
     return (
       <AuthShell
         badge="Invite"
-        description="Ask the workspace owner for a fresh link if this one has expired."
+        description="This invite link is invalid or has expired."
         layout="centered"
-        title="Invite unavailable"
+        title="Invite not found"
       >
         <div className="flex flex-col gap-4 text-sm leading-normal sm:leading-7 text-muted-foreground">
-          <p>This invite link is missing, expired, or has already been used.</p>
+          <p>Ask the business owner to send a fresh invite link.</p>
           <Button asChild>
             <Link href="/login">Sign in</Link>
           </Button>
@@ -60,113 +89,96 @@ export default async function WorkspaceMemberInvitePage({
     );
   }
 
-  const loginHref = getAuthPathWithNext("/login", invitePath);
-  const signupHref = getAuthPathWithNext("/signup", invitePath);
-  const invitedEmail = normalizeEmailAddress(invite.email);
-  const inviteRoleMeta = workspaceMemberRoleMeta[invite.workspaceRole];
-  const signedInEmail = currentUser
-    ? normalizeEmailAddress(currentUser.email)
-    : null;
+  const isSignedIn = Boolean(session);
+  const inviteEmail = invite.email;
+  const inviteError = typeof error === "string" ? error : error?.[0];
 
-  if (!currentUser) {
+  if (!isSignedIn) {
     return (
       <AuthShell
         badge="Invite"
-        description={`You've been invited to join ${invite.workspace.name} as a ${inviteRoleMeta.label.toLowerCase()}.`}
+        description="Sign in to accept this business access invite."
         layout="centered"
-        title={`Join ${invite.workspace.name}`}
+        title={`Join ${invite.businessName}`}
       >
-        <div className="flex flex-col gap-5">
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">{inviteRoleMeta.label}</Badge>
-            <Badge variant="outline">{invite.email}</Badge>
-          </div>
-
-          <p className="text-sm leading-normal sm:leading-7 text-muted-foreground">
-            {invite.inviter.name} invited you to join this workspace and
-            collaborate on inquiries, quotes, and follow-up.
+        <div className="flex flex-col gap-4 text-sm leading-normal sm:leading-7 text-muted-foreground">
+          <p>
+            This invite was sent to <span className="font-medium text-foreground">{inviteEmail}</span>.
           </p>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Button asChild size="lg">
-              <Link href={loginHref}>Sign in</Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link href={signupHref}>Create account</Link>
-            </Button>
-          </div>
+          <Button asChild>
+            <Link href={`/login?next=${encodeURIComponent(getBusinessMemberInvitePath(token))}`}>
+              Sign in
+            </Link>
+          </Button>
         </div>
       </AuthShell>
     );
   }
 
-  if (signedInEmail !== invitedEmail) {
+  // Signed in, but invite belongs to another email.
+  if (session?.user?.email.toLowerCase() !== inviteEmail.toLowerCase()) {
     return (
       <AuthShell
         badge="Invite"
-        description="This invite is tied to a specific email address."
+        description="This invite was sent to a different email address."
         layout="centered"
-        title="Use the invited email"
+        title={`Join ${invite.businessName}`}
       >
-        <div className="flex flex-col gap-5">
-          <div className="flex flex-col gap-2 text-sm leading-normal sm:leading-7 text-muted-foreground">
-            <p>Signed in as {currentUser.email}</p>
-            <p>This invite was sent to {invite.email}.</p>
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <LogoutButton />
-            <Button asChild variant="outline">
-              <Link href={loginHref}>Sign in with another email</Link>
-            </Button>
-          </div>
+        <div className="flex flex-col gap-4 text-sm leading-normal sm:leading-7 text-muted-foreground">
+          <p>
+            Signed in as{" "}
+            <span className="font-medium text-foreground">{session?.user.email}</span>, but this invite is for{" "}
+            <span className="font-medium text-foreground">{inviteEmail}</span>.
+          </p>
+          <Button asChild variant="outline">
+            <Link href="/login">Use a different account</Link>
+          </Button>
         </div>
       </AuthShell>
     );
   }
-
-  const alreadyHasAccess = Boolean(invite.currentWorkspaceMembershipRole);
 
   return (
     <AuthShell
       badge="Invite"
-      description={
-        alreadyHasAccess
-          ? `You already have access to ${invite.workspace.name}.`
-          : `Accept access to ${invite.workspace.name} as a ${inviteRoleMeta.label.toLowerCase()}.`
-      }
+      description="Accept this invite to get access to the business dashboard."
       layout="centered"
-      title={
-        alreadyHasAccess
-          ? "Open workspace"
-          : `Join ${invite.workspace.name}`
-      }
+      title={`Join ${invite.businessName}`}
     >
-      <div className="flex flex-col gap-5">
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="secondary">{inviteRoleMeta.label}</Badge>
-          <Badge variant="outline">{invite.email}</Badge>
+      <div className="flex flex-col gap-4">
+        {inviteError ? (
+          <div className="rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            That invite could not be accepted. Please ask for a new link.
+          </div>
+        ) : null}
+
+        <div className="rounded-xl border border-border/70 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+          <p>
+            You&apos;re accepting access for <span className="font-medium text-foreground">{inviteEmail}</span>.
+          </p>
         </div>
 
-        <p className="text-sm leading-normal sm:leading-7 text-muted-foreground">
-          {invite.inviter.name} invited you to join this workspace and
-          collaborate on inquiries, quotes, and follow-up.
-        </p>
+        <form action={acceptBusinessMemberInviteAction.bind(null, token)}>
+          <Button className="w-full" size="lg" type="submit">
+            Accept invite
+          </Button>
+        </form>
+      </div>
+    </AuthShell>
+  );
+}
 
-        <WorkspaceMemberInviteAcceptForm
-          acceptAction={acceptWorkspaceMemberInviteAction.bind(
-            null,
-            invite.token,
-          )}
-          declineAction={
-            alreadyHasAccess
-              ? undefined
-              : declineWorkspaceMemberInviteAction.bind(null, invite.token)
-          }
-          submitLabel={
-            alreadyHasAccess ? "Open workspace" : "Accept invite"
-          }
-        />
+function BusinessMemberInviteFallback() {
+  return (
+    <AuthShell
+      badge="Invite"
+      description="Checking this business access invite."
+      layout="centered"
+      title="Loading invite"
+    >
+      <div className="flex flex-col gap-4">
+        <div className="h-4 w-52 rounded-md bg-muted" />
+        <div className="h-11 w-full rounded-lg bg-muted" />
       </div>
     </AuthShell>
   );

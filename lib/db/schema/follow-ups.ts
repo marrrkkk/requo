@@ -12,7 +12,6 @@ import { user } from "@/lib/db/schema/auth";
 import { businesses } from "@/lib/db/schema/businesses";
 import { inquiries } from "@/lib/db/schema/inquiries";
 import { quotes } from "@/lib/db/schema/quotes";
-import { workspaces } from "@/lib/db/schema/workspaces";
 
 export const followUpStatusEnum = pgEnum("follow_up_status", [
   "pending",
@@ -34,9 +33,6 @@ export const followUps = pgTable(
   "follow_ups",
   {
     id: text("id").primaryKey(),
-    workspaceId: text("workspace_id")
-      .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
     businessId: text("business_id")
       .notNull()
       .references(() => businesses.id, { onDelete: "cascade" }),
@@ -68,11 +64,6 @@ export const followUps = pgTable(
       .defaultNow(),
   },
   (table) => [
-    index("follow_ups_workspace_status_due_at_idx").on(
-      table.workspaceId,
-      table.status,
-      table.dueAt,
-    ),
     index("follow_ups_business_status_due_at_idx").on(
       table.businessId,
       table.status,

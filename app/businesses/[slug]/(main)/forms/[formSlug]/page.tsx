@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { PageHeader } from "@/components/shared/page-header";
 import {
@@ -24,7 +26,18 @@ import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
 import { FormEditorTour } from "@/features/onboarding/components/form-editor-tour";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { requireSession } from "@/lib/auth/session";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../../settings/_lib/page-context";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  title: "Form editor",
+  description: "Edit fields, public page, preview, and publishing for an inquiry form.",
+});
+
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
+};
 
 export default async function BusinessFormPage({
   params,
@@ -36,15 +49,10 @@ export default async function BusinessFormPage({
     getBusinessOperationalPageContext(),
     params,
   ]);
-  // Settings and profile are independent — fetch in parallel.
-  const [settings, profile] = await Promise.all([
-    getBusinessInquiryFormEditorForBusiness(
-      businessContext.business.id,
-      formSlug,
-    ),
-    getAccountProfileForUser(session.user.id),
-  ]);
-  const showTour = Boolean(profile && !profile.formEditorTourCompletedAt);
+  const settings = await getBusinessInquiryFormEditorForBusiness(
+    businessContext.business.id,
+    formSlug,
+  );
 
   if (!settings) {
     notFound();
@@ -99,7 +107,16 @@ export default async function BusinessFormPage({
         archiveAction={archiveBusinessInquiryFormFromDetailAction}
         deleteAction={deleteBusinessInquiryFormAction}
       />
-      <FormEditorTour show={showTour} />
+      <Suspense fallback={null}>
+        <FormEditorTourSection userId={session.user.id} />
+      </Suspense>
     </>
   );
+}
+
+async function FormEditorTourSection({ userId }: { userId: string }) {
+  const profile = await getAccountProfileForUser(userId);
+  const showTour = Boolean(profile && !profile.formEditorTourCompletedAt);
+
+  return <FormEditorTour show={showTour} />;
 }

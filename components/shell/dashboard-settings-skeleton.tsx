@@ -589,12 +589,8 @@ export function DashboardSettingsIntegrationSkeleton() {
   );
 }
 
-export function DashboardSettingsCollectionSkeleton({
-  variant = "replies",
-}: {
-  variant?: "knowledge" | "replies";
-}) {
-  const metricWidth = variant === "knowledge" ? "w-24" : "w-12";
+export function DashboardSettingsCollectionSkeleton() {
+  const metricWidth = "w-24";
 
   return (
     <DashboardSettingsShellSkeleton>

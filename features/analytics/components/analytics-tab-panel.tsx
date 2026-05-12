@@ -9,9 +9,9 @@ import {
   getConversionAnalyticsData,
   getWorkflowAnalyticsData,
 } from "@/features/analytics/queries";
-import { getWorkspaceBillingOverview } from "@/features/billing/queries";
+import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { hasFeatureAccess } from "@/lib/plans";
-import type { WorkspacePlan } from "@/lib/plans/plans";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 import { getBusinessAnalyticsPath } from "@/features/businesses/routes";
 
@@ -20,8 +20,7 @@ type AnalyticsTabPanelProps = {
   businessId: string;
   businessSlug: string;
   currency: string;
-  plan: WorkspacePlan;
-  workspaceId: string;
+  plan: plan;
 };
 
 export async function AnalyticsTabPanel({
@@ -30,7 +29,6 @@ export async function AnalyticsTabPanel({
   businessSlug,
   currency,
   plan,
-  workspaceId,
 }: AnalyticsTabPanelProps) {
   const pathname = getBusinessAnalyticsPath(businessSlug);
   let content: React.ReactNode;
@@ -45,7 +43,7 @@ export async function AnalyticsTabPanel({
 
       content = <AnalyticsConversionTab currency={currency} data={conversionData} />;
     } else {
-      const billingOverview = await getWorkspaceBillingOverview(workspaceId);
+      const billingOverview = await getBusinessBillingOverview(businessId);
 
       content = (
         <LockedFeatureCard
@@ -56,8 +54,9 @@ export async function AnalyticsTabPanel({
           upgradeAction={
             billingOverview
               ? {
-                  workspaceId: billingOverview.workspaceId,
-                  workspaceSlug: billingOverview.workspaceSlug,
+                  userId: billingOverview.userId,
+                  businessId: billingOverview.businessId,
+                    businessSlug: billingOverview.businessSlug,
                   currentPlan: billingOverview.currentPlan,
                   region: billingOverview.region,
                   defaultCurrency: billingOverview.defaultCurrency,
@@ -73,7 +72,7 @@ export async function AnalyticsTabPanel({
 
     content = <AnalyticsWorkflowTab data={workflowData} />;
   } else {
-    const billingOverview = await getWorkspaceBillingOverview(workspaceId);
+    const billingOverview = await getBusinessBillingOverview(businessId);
 
     content = (
       <LockedFeatureCard
@@ -84,8 +83,9 @@ export async function AnalyticsTabPanel({
         upgradeAction={
           billingOverview
             ? {
-                workspaceId: billingOverview.workspaceId,
-                workspaceSlug: billingOverview.workspaceSlug,
+                userId: billingOverview.userId,
+                businessId: billingOverview.businessId,
+                    businessSlug: billingOverview.businessSlug,
                 currentPlan: billingOverview.currentPlan,
                 region: billingOverview.region,
                 defaultCurrency: billingOverview.defaultCurrency,

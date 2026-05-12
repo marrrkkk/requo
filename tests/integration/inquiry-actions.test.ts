@@ -1,13 +1,11 @@
 import { describe, it, expect, afterAll, beforeAll, vi } from 'vitest';
-import { testDb, closeTestDb } from './db';
+import { testDb, closeTestDb } from '@/tests/support/db';
 import {
   businessInquiryForms,
   businessMembers,
   businesses,
   inquiries,
   user,
-  workspaceMembers,
-  workspaces,
 } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
@@ -59,8 +57,8 @@ describe('features/inquiries/actions', () => {
     await testDb.delete(businessInquiryForms).where(eq(businessInquiryForms.id, 'test_form_w2'));
     await testDb.delete(businessMembers).where(eq(businessMembers.id, 'test_bm_1'));
     await testDb.delete(businesses).where(eq(businesses.id, 'test_biz_w2'));
-    await testDb.delete(workspaceMembers).where(eq(workspaceMembers.id, 'test_wm_2'));
-    await testDb.delete(workspaces).where(eq(workspaces.id, 'test_workspace_2'));
+    await testDb.delete(businessMembers).where(eq(businessMembers.id, 'test_wm_2'));
+    await testDb.delete(businesses).where(eq(businesses.id, 'test_business_2'));
     await testDb.delete(user).where(eq(user.id, 'test_user_w2'));
     await testDb.insert(user).values({
       id: 'test_user_w2',
@@ -71,19 +69,20 @@ describe('features/inquiries/actions', () => {
       updatedAt: new Date()
     });
 
-    await testDb.insert(workspaces).values({
-      id: 'test_workspace_2',
+    await testDb.insert(businesses).values({
+      id: 'test_business_2',
       name: 'Action Workspace',
-      slug: 'action-workspace',
+      slug: 'action-business',
       plan: 'free',
       ownerUserId: 'test_user_w2',
       createdAt: new Date(),
       updatedAt: new Date()
     });
 
-    await testDb.insert(workspaceMembers).values({
+    await testDb.insert(businessMembers).values({
       id: 'test_wm_2',
-      workspaceId: 'test_workspace_2',
+      businessId: 'test_business_2',
+      
       userId: 'test_user_w2',
       role: 'owner',
       createdAt: new Date(),
@@ -92,7 +91,8 @@ describe('features/inquiries/actions', () => {
 
     await testDb.insert(businesses).values({
       id: 'test_biz_w2',
-      workspaceId: 'test_workspace_2',
+      
+      ownerUserId: 'test_user_w2',
       name: 'Action Business',
       slug: 'action-business',
       businessType: 'print_signage',
@@ -137,8 +137,8 @@ describe('features/inquiries/actions', () => {
     await testDb.delete(businessInquiryForms).where(eq(businessInquiryForms.id, 'test_form_w2'));
     await testDb.delete(businessMembers).where(eq(businessMembers.id, 'test_bm_1'));
     await testDb.delete(businesses).where(eq(businesses.id, 'test_biz_w2'));
-    await testDb.delete(workspaceMembers).where(eq(workspaceMembers.id, 'test_wm_2'));
-    await testDb.delete(workspaces).where(eq(workspaces.id, 'test_workspace_2'));
+    await testDb.delete(businessMembers).where(eq(businessMembers.id, 'test_wm_2'));
+    await testDb.delete(businesses).where(eq(businesses.id, 'test_business_2'));
     await testDb.delete(user).where(eq(user.id, 'test_user_w2'));
     await closeTestDb();
   });

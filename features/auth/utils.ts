@@ -49,6 +49,31 @@ export function getAuthErrorMessage(
   );
 }
 
+const magicLinkQueryErrorFallback =
+  "This sign-in link is invalid or has expired. Request a new one from the login page.";
+
+export function getMagicLinkQueryErrorMessage(
+  code: string | null | undefined,
+): string | null {
+  if (!code) {
+    return null;
+  }
+
+  switch (code) {
+    case "INVALID_TOKEN":
+    case "EXPIRED_TOKEN":
+    case "ATTEMPTS_EXCEEDED":
+      return magicLinkQueryErrorFallback;
+    case "new_user_signup_disabled":
+      return "Sign-in links can’t create new accounts from this page. Create an account first.";
+    case "failed_to_create_user":
+    case "failed_to_create_session":
+      return "We couldn’t complete sign-in. Try again or use another sign-in method.";
+    default:
+      return null;
+  }
+}
+
 export function getValidationState(
   error: z.ZodError,
   message = "Check the highlighted fields and try again.",

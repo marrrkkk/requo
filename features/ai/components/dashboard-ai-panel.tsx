@@ -6,13 +6,13 @@ import { usePathname } from "next/navigation";
 import { AIChatPopover } from "@/features/ai/components/ai-chat-popover";
 import type { AiSurface } from "@/features/ai/types";
 
-import type { WorkspacePlan } from "@/lib/plans";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 type DashboardAiPanelProps = {
   businessId: string;
   businessSlug: string;
   userName: string;
-  workspacePlan: WorkspacePlan;
+  plan: plan;
 };
 
 /**
@@ -57,7 +57,7 @@ function resolveAiContext(pathname: string): AiContext {
 export function DashboardAiPanel({
   businessSlug,
   userName,
-  workspacePlan,
+  plan,
 }: DashboardAiPanelProps) {
   const pathname = usePathname();
   const context = useMemo(() => resolveAiContext(pathname), [pathname]);
@@ -69,7 +69,7 @@ export function DashboardAiPanel({
       surface={context.surface}
       title="Requo AI"
       userName={userName}
-      workspacePlan={workspacePlan}
+      plan={plan}
     />
   );
 }

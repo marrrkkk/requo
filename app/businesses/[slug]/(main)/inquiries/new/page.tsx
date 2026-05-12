@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { FormInput } from "lucide-react";
 import { redirect } from "next/navigation";
 
@@ -11,14 +12,25 @@ import { getInquiryEditorFormsForBusiness } from "@/features/inquiries/queries";
 import {
   getBusinessFormsPath,
 } from "@/features/businesses/routes";
-import { workspacesHubPath } from "@/features/workspaces/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 import Link from "next/link";
 
 type NewInquiryPageProps = {
   params: Promise<{ slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export const metadata: Metadata = createNoIndexMetadata({
+  title: "New inquiry",
+  description: "Quick-add an inquiry captured outside of a public form.",
+});
+
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
 };
 
 export default async function NewInquiryPage({
@@ -36,7 +48,7 @@ export default async function NewInquiryPage({
   );
 
   if (!businessContext) {
-    redirect(workspacesHubPath);
+    redirect(businessesHubPath);
   }
 
   const inquiryForms = await getInquiryEditorFormsForBusiness(
@@ -50,7 +62,7 @@ export default async function NewInquiryPage({
       inquiryForms.find((form) => form.slug === requestedFormSlug)?.slug) ??
     inquiryForms[0]?.slug;
   const uploadHelpText = getPublicInquiryAttachmentHelpText(
-    businessContext.business.workspacePlan,
+    businessContext.business.plan,
   );
 
   return (

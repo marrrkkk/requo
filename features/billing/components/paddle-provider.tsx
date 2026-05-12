@@ -24,6 +24,7 @@ type PaddleCheckoutSettings = {
   theme?: "light" | "dark";
   locale?: string;
   successUrl?: string;
+  variant?: "one-page" | "multi-page";
 };
 
 type PaddleCheckoutEvent = {

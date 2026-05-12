@@ -15,7 +15,7 @@ type SubscriptionAuditSnapshot = {
 };
 
 type WriteSubscriptionTransitionAuditLogsInput = {
-  workspaceId: string;
+  businessId: string;
   previousSubscription: SubscriptionAuditSnapshot | null;
   nextSubscription: SubscriptionAuditSnapshot | null;
   source: AuditSource;
@@ -71,7 +71,7 @@ function shouldLogReactivated(
 }
 
 export async function writeSubscriptionTransitionAuditLogs({
-  workspaceId,
+  businessId,
   previousSubscription,
   nextSubscription,
   source,
@@ -81,7 +81,7 @@ export async function writeSubscriptionTransitionAuditLogs({
 
   if (shouldLogCheckoutSucceeded(previousSubscription, nextSubscription)) {
     await writeAuditLog(db, {
-      workspaceId,
+      businessId,
       entityType: "subscription",
       action: "subscription.checkout_succeeded",
       metadata: buildCommonMetadata(nextSubscription, providerEventId),
@@ -91,7 +91,7 @@ export async function writeSubscriptionTransitionAuditLogs({
 
   if (shouldLogReactivated(previousSubscription, nextSubscription)) {
     await writeAuditLog(db, {
-      workspaceId,
+      businessId,
       entityType: "subscription",
       action: "subscription.reactivated",
       metadata: buildCommonMetadata(nextSubscription, providerEventId),
@@ -105,7 +105,7 @@ export async function writeSubscriptionTransitionAuditLogs({
     previousSubscription.plan !== nextSubscription.plan
   ) {
     await writeAuditLog(db, {
-      workspaceId,
+      businessId,
       entityType: "subscription",
       action: "subscription.plan_changed",
       metadata: {
@@ -124,7 +124,7 @@ export async function writeSubscriptionTransitionAuditLogs({
     nextSubscription.status === "canceled"
   ) {
     await writeAuditLog(db, {
-      workspaceId,
+      businessId,
       entityType: "subscription",
       action: "subscription.canceled",
       metadata: buildCommonMetadata(nextSubscription, providerEventId),

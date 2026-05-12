@@ -52,11 +52,11 @@ import {
 import { OnboardingStepper } from "@/features/onboarding/components/onboarding-stepper";
 import {
   companySizeOptions,
+  customerContactChannelOptions,
   jobTitleOptions,
   onboardingBusinessContextSchema,
   onboardingOwnerProfileSchema,
   onboardingTemplateSchema,
-  onboardingWorkspaceSchema,
   referralSourceOptions,
 } from "@/features/onboarding/schemas";
 import type {
@@ -72,7 +72,7 @@ type OnboardingFormProps = {
   ) => Promise<OnboardingActionState>;
 };
 
-type OnboardingStepId = "profile" | "workspace" | "business" | "template";
+type OnboardingStepId = "profile" | "business" | "template";
 
 const onboardingSteps = [
   {
@@ -88,15 +88,6 @@ const onboardingSteps = [
     ] as const satisfies readonly OnboardingFieldName[],
   },
   {
-    id: "workspace" as const,
-    label: "Workspace",
-    description: "Name the workspace you'll use for your businesses.",
-    title: "Create your workspace",
-    body:
-      "Keep this simple. You can add more businesses inside the workspace later.",
-    fields: ["workspaceName"] as const satisfies readonly OnboardingFieldName[],
-  },
-  {
     id: "business" as const,
     label: "Business",
     description: "Add the core details for your first business.",
@@ -108,6 +99,7 @@ const onboardingSteps = [
       "businessType",
       "countryCode",
       "defaultCurrency",
+      "customerContactChannel",
     ] as const satisfies readonly OnboardingFieldName[],
   },
   {
@@ -360,7 +352,6 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
           }
         }}
       >
-        <input name="workspaceName" type="hidden" value={draft.workspaceName} />
         <input name="businessName" type="hidden" value={draft.businessName} />
         <input name="businessType" type="hidden" value={draft.businessType} />
         <input name="countryCode" type="hidden" value={draft.countryCode} />
@@ -368,6 +359,11 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
           name="defaultCurrency"
           type="hidden"
           value={draft.defaultCurrency}
+        />
+        <input
+          name="customerContactChannel"
+          type="hidden"
+          value={draft.customerContactChannel}
         />
         <input
           name="starterTemplateBusinessType"
@@ -438,8 +434,6 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
                             onValueChange={(value) => updateField("jobTitle", value)}
                             options={jobTitleOptions}
                             placeholder="Choose your role"
-                            searchPlaceholder="Search roles"
-                            searchable
                             value={draft.jobTitle}
                           />
                         </FieldContent>
@@ -498,53 +492,6 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
                   </CardContent>
                 </Card>
               </div>
-            ) : null}
-
-            {currentStepId === "workspace" ? (
-              <Card className="border-border/75 bg-card/97">
-                <CardHeader>
-                  <CardTitle>Workspace details</CardTitle>
-                  <CardDescription>
-                    Use a simple name you&apos;ll recognize in the workspace hub.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <FieldGroup>
-                    <Field
-                      data-invalid={Boolean(fieldErrors.workspaceName) || undefined}
-                    >
-                      <FieldLabel htmlFor="onboarding-workspace-name">
-                        Workspace name
-                      </FieldLabel>
-                      <FieldContent>
-                        <Input
-                          aria-invalid={
-                            Boolean(fieldErrors.workspaceName) || undefined
-                          }
-                          autoFocus={isDraftHydrated}
-                          className={onboardingInputClassName}
-                          disabled={isPending}
-                          id="onboarding-workspace-name"
-                          maxLength={80}
-                          minLength={2}
-                          onChange={(event) =>
-                            updateField(
-                              "workspaceName",
-                              event.currentTarget.value,
-                            )
-                          }
-                          placeholder="Acme Studio"
-                          required
-                          value={draft.workspaceName}
-                        />
-                        <FieldDescription>
-                          This is the top-level workspace for your first business.
-                        </FieldDescription>
-                      </FieldContent>
-                    </Field>
-                  </FieldGroup>
-                </CardContent>
-              </Card>
             ) : null}
 
             {currentStepId === "business" ? (
@@ -693,6 +640,37 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
                         </FieldContent>
                       </Field>
                     </div>
+
+                    <Field
+                      data-invalid={
+                        Boolean(fieldErrors.customerContactChannel) ||
+                        undefined
+                      }
+                    >
+                      <FieldLabel htmlFor="onboarding-customer-contact">
+                        How do customers usually contact you?
+                      </FieldLabel>
+                      <FieldContent>
+                        <Combobox
+                          aria-invalid={
+                            Boolean(fieldErrors.customerContactChannel) ||
+                            undefined
+                          }
+                          buttonClassName={onboardingComboboxButtonClassName}
+                          disabled={isPending}
+                          id="onboarding-customer-contact"
+                          onValueChange={(value) =>
+                            updateField("customerContactChannel", value)
+                          }
+                          options={customerContactChannelOptions}
+                          placeholder="Choose a contact channel"
+                          value={draft.customerContactChannel}
+                        />
+                        <FieldDescription>
+                          Helps tailor defaults for inquiry capture and reminders.
+                        </FieldDescription>
+                      </FieldContent>
+                    </Field>
                   </FieldGroup>
                 </CardContent>
               </Card>
@@ -795,12 +773,6 @@ function getFieldValidationError(
   draft: OnboardingDraft,
 ) {
   switch (field) {
-    case "workspaceName": {
-      const result = onboardingWorkspaceSchema.shape.workspaceName.safeParse(
-        draft.workspaceName,
-      );
-      return result.success ? undefined : result.error.issues[0]?.message;
-    }
     case "businessName": {
       const result = onboardingBusinessContextSchema.shape.businessName.safeParse(
         draft.businessName,
@@ -823,6 +795,13 @@ function getFieldValidationError(
       const result =
         onboardingBusinessContextSchema.shape.defaultCurrency.safeParse(
           draft.defaultCurrency,
+        );
+      return result.success ? undefined : result.error.issues[0]?.message;
+    }
+    case "customerContactChannel": {
+      const result =
+        onboardingBusinessContextSchema.shape.customerContactChannel.safeParse(
+          draft.customerContactChannel,
         );
       return result.success ? undefined : result.error.issues[0]?.message;
     }
@@ -863,8 +842,6 @@ function sanitizeDraft(
   }
 
   return {
-    workspaceName:
-      typeof value.workspaceName === "string" ? value.workspaceName : "",
     businessName:
       typeof value.businessName === "string" ? value.businessName : "",
     businessType:
@@ -878,6 +855,10 @@ function sanitizeDraft(
     countryCode: typeof value.countryCode === "string" ? value.countryCode : "",
     defaultCurrency:
       typeof value.defaultCurrency === "string" ? value.defaultCurrency : "",
+    customerContactChannel:
+      typeof value.customerContactChannel === "string"
+        ? value.customerContactChannel
+        : "",
     jobTitle: typeof value.jobTitle === "string" ? value.jobTitle : "",
     companySize:
       typeof value.companySize === "string" ? value.companySize : "",
@@ -903,7 +884,7 @@ function clampStepIndex(value: number, maxStepIndex: number) {
 }
 
 const setupLoadingSteps = [
-  "Creating your workspace…",
+  "Creating your business…",
   "Setting up your business…",
   "Building your inquiry form…",
 ];

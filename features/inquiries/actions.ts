@@ -17,7 +17,7 @@ import {
 } from "@/lib/db/business-access";
 import { env } from "@/lib/env";
 import { hasFeatureAccess } from "@/lib/plans";
-import { getWorkspacePlanByBusinessId } from "@/lib/plans/queries";
+import { getplanByBusinessId } from "@/lib/plans/queries";
 import { checkUsageAllowance } from "@/lib/plans/usage";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
 import { sendPublicInquiryNotificationEmail } from "@/lib/resend/client";
@@ -58,6 +58,7 @@ import {
   getPublicInquiryAttachmentMaxBytes,
   resolveInquiryFormConfigForPlan,
 } from "@/features/inquiries/plan-rules";
+import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 
 function getTextValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -78,6 +79,23 @@ function getInquiryMutationCacheTags(businessId: string, inquiryId: string) {
   ]);
 }
 
+const publicInquirySubmitRateLimit = {
+  limit: 4,
+  windowMs: 10 * 60 * 1000,
+} as const;
+
+function getSubmittedPublicInquiryUrl(business: {
+  slug: string;
+  form: { isDefault: boolean; slug: string };
+}) {
+  const pagePath = getBusinessPublicInquiryUrl(
+    business.slug,
+    business.form.isDefault ? undefined : business.form.slug,
+  );
+
+  return `${pagePath}?submitted=1`;
+}
+
 export async function submitPublicInquiryAction(
   slug: string,
   formSlug: string | null,
@@ -85,12 +103,6 @@ export async function submitPublicInquiryAction(
   formData: FormData,
 ): Promise<PublicInquiryFormState> {
   const honeypotValue = getTextValue(formData, "website")?.trim();
-
-  if (honeypotValue) {
-    return {
-      success: "Thanks. Your inquiry has been sent.",
-    };
-  }
 
   const business = formSlug
     ? await getPublicInquiryBusinessByFormSlug({
@@ -105,10 +117,26 @@ export async function submitPublicInquiryAction(
     };
   }
 
-  const { plan: workspacePlan, workspaceId } = await getWorkspacePlanByBusinessId(business.id);
+  if (honeypotValue) {
+    redirect(getSubmittedPublicInquiryUrl(business));
+  }
+
+  const allowed = await assertPublicActionRateLimit({
+    action: "public-inquiry-submit",
+    scope: `${business.id}:${business.form.id}`,
+    ...publicInquirySubmitRateLimit,
+  });
+
+  if (!allowed) {
+    return {
+      error: "Too many inquiry attempts. Please wait a few minutes before trying again.",
+    };
+  }
+
+  const { plan: plan, businessId } = await getplanByBusinessId(business.id);
   const inquiryAllowance = await checkUsageAllowance(
-    workspaceId,
-    workspacePlan,
+    businessId,
+    plan,
     "inquiriesPerMonth",
   );
 
@@ -120,32 +148,19 @@ export async function submitPublicInquiryAction(
 
   const effectiveFormConfig = resolveInquiryFormConfigForPlan(
     business.inquiryFormConfig,
-    workspacePlan,
+    plan,
   );
   const validationResult = validatePublicInquirySubmission(
     effectiveFormConfig,
     formData,
     {
       maxAttachmentSizeBytes:
-        getPublicInquiryAttachmentMaxBytes(workspacePlan),
+        getPublicInquiryAttachmentMaxBytes(plan),
     },
   );
 
   if (!validationResult.success) {
     return getValidationActionState(validationResult.error, "Check the highlighted fields and try again.");
-  }
-
-  const allowed = await assertPublicActionRateLimit({
-    action: "public-inquiry-submit",
-    scope: business.id,
-    limit: 6,
-    windowMs: 15 * 60 * 1000,
-  });
-
-  if (!allowed) {
-    return {
-      error: "We couldn't submit your inquiry right now. Please try again.",
-    };
   }
 
   try {
@@ -191,7 +206,6 @@ export async function submitPublicInquiryAction(
               label: field.label,
               value: field.displayValue,
             })),
-            workspaceId,
             businessId: business.id,
           });
         } catch (error) {
@@ -205,7 +219,7 @@ export async function submitPublicInquiryAction(
       // Push notification
       if (
         businessSettings?.notifyPushOnNewInquiry &&
-        hasFeatureAccess(workspacePlan, "pushNotifications")
+        hasFeatureAccess(plan, "pushNotifications")
       ) {
         try {
           const { sendPushToBusinessSubscribers } = await import("@/lib/push/send");
@@ -220,10 +234,6 @@ export async function submitPublicInquiryAction(
       }
     });
 
-    return {
-      success: "Thanks. Your inquiry has been sent.",
-      inquiryId: createdInquiry.inquiryId,
-    };
   } catch (error) {
     console.error("Failed to submit public inquiry.", error);
 
@@ -231,6 +241,8 @@ export async function submitPublicInquiryAction(
       error: "We couldn't submit your inquiry right now. Please try again.",
     };
   }
+
+  redirect(getSubmittedPublicInquiryUrl(business));
 }
 
 export async function createManualInquiryAction(
@@ -272,8 +284,8 @@ export async function createManualInquiryAction(
   }
 
   const inquiryAllowance = await checkUsageAllowance(
-    businessContext.business.workspaceId,
-    businessContext.business.workspacePlan,
+    businessContext.business.id,
+    businessContext.business.plan,
     "inquiriesPerMonth",
   );
 
@@ -285,14 +297,14 @@ export async function createManualInquiryAction(
 
   const effectiveFormConfig = resolveInquiryFormConfigForPlan(
     selectedForm.inquiryFormConfig,
-    businessContext.business.workspacePlan,
+    businessContext.business.plan,
   );
   const validationResult = validateManualQuickInquirySubmission(
     effectiveFormConfig,
     formData,
     {
       maxAttachmentSizeBytes: getPublicInquiryAttachmentMaxBytes(
-        businessContext.business.workspacePlan,
+        businessContext.business.plan,
       ),
     },
   );

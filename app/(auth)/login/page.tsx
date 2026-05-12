@@ -9,12 +9,12 @@ import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirects";
 import { getOptionalSession } from "@/lib/auth/session";
 import { onboardingPath } from "@/features/onboarding/routes";
-import { workspacesHubPath } from "@/features/workspaces/routes";
-import { createPageMetadata } from "@/lib/seo/site";
+import { businessesHubPath } from "@/features/businesses/routes";
+import { isEmailConfigured } from "@/lib/env";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export const metadata: Metadata = createPageMetadata({
+export const metadata: Metadata = createNoIndexMetadata({
   description: "Log in to Requo to manage inquiries, quotes, and follow-up.",
-  noIndex: true,
   title: "Log in",
 });
 
@@ -27,7 +27,7 @@ export default async function LoginPage({
 }) {
   const { next } = await searchParams;
   const rawNext = typeof next === "string" ? next : next?.[0];
-  const nextPath = getSafeAuthRedirectPath(rawNext, workspacesHubPath);
+  const nextPath = getSafeAuthRedirectPath(rawNext, businessesHubPath);
 
   // Server-side redirect for already-authenticated users — avoids client-side flash
   const session = await getOptionalSession();
@@ -41,7 +41,7 @@ export default async function LoginPage({
     redirect(hasOnboarded ? nextPath : onboardingPath);
   }
 
-  const socialProviders: SocialAuthProvider[] = ["google", "microsoft"];
+  const socialProviders: SocialAuthProvider[] = ["google"];
 
   return (
     <AuthShell
@@ -49,7 +49,10 @@ export default async function LoginPage({
       description="Sign in to your account to continue"
       layout="centered"
     >
-      <LoginForm socialProviders={socialProviders} />
+      <LoginForm
+        magicLinkEnabled={isEmailConfigured}
+        socialProviders={socialProviders}
+      />
     </AuthShell>
   );
 }

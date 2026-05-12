@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import type {
   AuditAction,
@@ -13,16 +13,13 @@ import {
   businesses,
   businessMembers,
   user,
-  workspaceMembers,
-  workspaces,
 } from "@/lib/db/schema";
 
 type DbClient = (typeof import("@/lib/db/client"))["db"];
 type AuditWriter = Pick<DbClient, "insert" | "select">;
 
 type WriteAuditLogInput = {
-  workspaceId: string;
-  businessId?: string | null;
+  businessId: string;
   actorUserId?: string | null;
   actorName?: string | null;
   actorEmail?: string | null;
@@ -34,7 +31,7 @@ type WriteAuditLogInput = {
   createdAt?: Date;
 };
 
-type AuditTargetWorkspace = {
+type AuditTargetBusiness = {
   id: string;
   name: string;
   slug: string;
@@ -79,8 +76,7 @@ export async function writeAuditLog(
 
   await writer.insert(auditLogs).values({
     id: createId("adt"),
-    workspaceId: input.workspaceId,
-    businessId: input.businessId ?? null,
+    businessId: input.businessId,
     actorUserId: input.actorUserId ?? null,
     entityType: input.entityType,
     entityId: input.entityId ?? null,
@@ -91,48 +87,28 @@ export async function writeAuditLog(
   });
 }
 
-export async function getAuditTargetWorkspacesForUser(
+export async function getAuditTargetBusinessesForUser(
   userId: string,
-): Promise<AuditTargetWorkspace[]> {
+): Promise<AuditTargetBusiness[]> {
   const { db } = await import("@/lib/db/client");
-  const [workspaceRows, businessWorkspaceRows] = await Promise.all([
-    db
-      .select({
-        id: workspaceMembers.workspaceId,
-        name: workspaces.name,
-        slug: workspaces.slug,
-      })
-      .from(workspaceMembers)
-      .innerJoin(
-        workspaces,
-        eq(workspaceMembers.workspaceId, workspaces.id),
-      )
-      .where(
-        and(
-          eq(workspaceMembers.userId, userId),
-          isNull(workspaces.deletedAt),
-        ),
+  const rows = await db
+    .select({
+      id: businesses.id,
+      name: businesses.name,
+      slug: businesses.slug,
+    })
+    .from(businessMembers)
+    .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
+    .where(
+      and(
+        eq(businessMembers.userId, userId),
+        isNull(businesses.deletedAt),
       ),
-    db
-      .select({
-        id: businesses.workspaceId,
-        name: workspaces.name,
-        slug: workspaces.slug,
-      })
-      .from(businessMembers)
-      .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
-      .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
-      .where(
-        and(
-          eq(businessMembers.userId, userId),
-          isNull(workspaces.deletedAt),
-        ),
-      ),
-  ]);
+    );
 
-  const deduped = new Map<string, AuditTargetWorkspace>();
+  const deduped = new Map<string, AuditTargetBusiness>();
 
-  for (const row of [...workspaceRows, ...businessWorkspaceRows]) {
+  for (const row of rows) {
     if (!deduped.has(row.id)) {
       deduped.set(row.id, {
         id: row.id,
@@ -147,25 +123,25 @@ export async function getAuditTargetWorkspacesForUser(
 
 export async function writeAccountAuditLogsForUser(
   userId: string,
-  input: Omit<WriteAuditLogInput, "workspaceId" | "entityType" | "entityId">,
+  input: Omit<WriteAuditLogInput, "businessId" | "entityType" | "entityId">,
 ) {
   const { db } = await import("@/lib/db/client");
-  const targetWorkspaces = await getAuditTargetWorkspacesForUser(userId);
+  const targetBusinesses = await getAuditTargetBusinessesForUser(userId);
 
-  if (!targetWorkspaces.length) {
+  if (!targetBusinesses.length) {
     return;
   }
 
-  for (const workspace of targetWorkspaces) {
+  for (const biz of targetBusinesses) {
     await writeAuditLog(db, {
-      workspaceId: workspace.id,
+      businessId: biz.id,
       actorUserId: input.actorUserId ?? userId,
       actorName: input.actorName,
       actorEmail: input.actorEmail,
       action: input.action,
       metadata: {
-        workspaceName: workspace.name,
-        workspaceSlug: workspace.slug,
+        businessName: biz.name,
+        businessSlug: biz.slug,
         ...(input.metadata ?? {}),
       },
       source: input.source,
@@ -176,40 +152,21 @@ export async function writeAccountAuditLogsForUser(
   }
 }
 
-export async function writeAuditLogsForWorkspaces(
-  workspaceIds: string[],
-  input: Omit<WriteAuditLogInput, "workspaceId">,
+export async function writeAuditLogsForBusinesses(
+  businessIds: string[],
+  input: Omit<WriteAuditLogInput, "businessId">,
 ) {
   const { db } = await import("@/lib/db/client");
-  const uniqueWorkspaceIds = Array.from(new Set(workspaceIds.filter(Boolean)));
+  const uniqueIds = Array.from(new Set(businessIds.filter(Boolean)));
 
-  if (!uniqueWorkspaceIds.length) {
+  if (!uniqueIds.length) {
     return;
   }
 
-  for (const workspaceId of uniqueWorkspaceIds) {
+  for (const businessId of uniqueIds) {
     await writeAuditLog(db, {
       ...input,
-      workspaceId,
+      businessId,
     });
   }
-}
-
-export async function getWorkspaceIdsForBusinesses(
-  businessIds: string[],
-) {
-  if (!businessIds.length) {
-    return new Map<string, string>();
-  }
-
-  const { db } = await import("@/lib/db/client");
-  const rows = await db
-    .select({
-      businessId: businesses.id,
-      workspaceId: businesses.workspaceId,
-    })
-    .from(businesses)
-    .where(inArray(businesses.id, businessIds));
-
-  return new Map(rows.map((row) => [row.businessId, row.workspaceId]));
 }

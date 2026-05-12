@@ -45,7 +45,6 @@ const followUpOverviewLimit = 4;
 
 type FollowUpRow = {
   id: string;
-  workspaceId: string;
   businessId: string;
   businessName: string;
   inquiryId: string | null;
@@ -108,7 +107,6 @@ function mapFollowUpRow(row: FollowUpRow): FollowUpView {
 
   return {
     id: row.id,
-    workspaceId: row.workspaceId,
     businessId: row.businessId,
     inquiryId: row.inquiryId,
     quoteId: row.quoteId,
@@ -166,7 +164,6 @@ function mapFollowUpRow(row: FollowUpRow): FollowUpView {
 function getFollowUpSelection() {
   return {
     id: followUps.id,
-    workspaceId: followUps.workspaceId,
     businessId: followUps.businessId,
     businessName: businesses.name,
     inquiryId: followUps.inquiryId,

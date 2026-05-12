@@ -1,20 +1,20 @@
 "use client";
 
 import { AIChatPopover } from "@/features/ai/components/ai-chat-popover";
-import type { WorkspacePlan } from "@/lib/plans";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 type InquiryAiPanelProps = {
   businessSlug: string;
   inquiryId: string;
   userName: string;
-  workspacePlan: WorkspacePlan;
+  plan: plan;
 };
 
 export function InquiryAiPanel({
   businessSlug,
   inquiryId,
   userName,
-  workspacePlan,
+  plan,
 }: InquiryAiPanelProps) {
   return (
     <AIChatPopover
@@ -23,7 +23,7 @@ export function InquiryAiPanel({
       surface="inquiry"
       title="Inquiry Assistant"
       userName={userName}
-      workspacePlan={workspacePlan}
+      plan={plan}
     />
   );
 }

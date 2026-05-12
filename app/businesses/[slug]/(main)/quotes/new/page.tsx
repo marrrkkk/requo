@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
@@ -8,7 +9,7 @@ import { getQuoteLibraryForBusiness } from "@/features/quotes/quote-library-quer
 import { getInquiryQuotePrefillForBusiness } from "@/features/quotes/queries";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 import { inquiryRouteParamsSchema } from "@/features/inquiries/schemas";
-import { workspacesHubPath } from "@/features/workspaces/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import {
   createQuoteEditorLineItem,
   getDefaultQuoteValidityDate,
@@ -16,10 +17,22 @@ import {
 } from "@/features/quotes/utils";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
+import { timed } from "@/lib/dev/server-timing";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 
 type NewQuotePageProps = {
   params: Promise<{ slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export const metadata: Metadata = createNoIndexMetadata({
+  title: "New quote",
+  description: "Draft a new quote for a customer, optionally linked to an inquiry.",
+});
+
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
 };
 
 export default async function NewQuotePage({
@@ -37,7 +50,7 @@ export default async function NewQuotePage({
   );
 
   if (!businessContext) {
-    redirect(workspacesHubPath);
+    redirect(businessesHubPath);
   }
 
   const rawInquiryId = Array.isArray(rawSearchParams.inquiryId)
@@ -47,16 +60,19 @@ export default async function NewQuotePage({
     id: rawInquiryId,
   });
   const inquiryId = parsedInquiryId.success ? parsedInquiryId.data.id : undefined;
-  const [businessSettings, inquiryPrefill, pricingLibrary] = await Promise.all([
-    getBusinessSettingsForBusiness(businessContext.business.id),
-    inquiryId
-      ? getInquiryQuotePrefillForBusiness({
-          businessId: businessContext.business.id,
-          inquiryId,
-        })
-      : Promise.resolve(null),
-    getQuoteLibraryForBusiness(businessContext.business.id),
-  ]);
+  const [businessSettings, inquiryPrefill, pricingLibrary] = await timed(
+    "newQuote.parallelSettingsInquiryPricingLibrary",
+    Promise.all([
+      getBusinessSettingsForBusiness(businessContext.business.id),
+      inquiryId
+        ? getInquiryQuotePrefillForBusiness({
+            businessId: businessContext.business.id,
+            inquiryId,
+          })
+        : Promise.resolve(null),
+      getQuoteLibraryForBusiness(businessContext.business.id),
+    ]),
+  );
 
   if (!businessSettings) {
     notFound();

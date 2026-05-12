@@ -25,7 +25,7 @@ async function signIn(page: Page, email: string, password: string) {
   await page.locator("#password").fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();
 
-  await expect(page).toHaveURL(/\/workspaces$/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/businesses$/, { timeout: 20_000 });
 }
 
 test("owner can invite a new member from business settings", async ({ page }) => {
@@ -86,14 +86,14 @@ test("manager can access operational settings but not members", async ({
 }) => {
   await signIn(page, demoManagerEmail, demoManagerPassword);
 
-  await page.goto(`/businesses/${demoBusinessSlug}/settings/replies`);
+  await page.goto(`/businesses/${demoBusinessSlug}/settings/knowledge`);
   await expect(page).toHaveURL(
-    new RegExp(`/businesses/${demoBusinessSlug}/settings/replies$`),
+    new RegExp(`/businesses/${demoBusinessSlug}/settings/knowledge$`),
     { timeout: 20_000 },
   );
   await expect(
     page.getByRole("heading", {
-      name: "Saved follow-up replies",
+      name: "Knowledge",
       level: 1,
     }),
   ).toBeVisible();
@@ -123,7 +123,7 @@ test("staff can access inquiry work but not forms or operational settings", asyn
     { timeout: 20_000 },
   );
 
-  await page.goto(`/businesses/${demoBusinessSlug}/settings/replies`);
+  await page.goto(`/businesses/${demoBusinessSlug}/settings/knowledge`);
   await expect(page).toHaveURL(
     new RegExp(`/businesses/${demoBusinessSlug}/dashboard$`),
     { timeout: 20_000 },
@@ -139,13 +139,13 @@ test("staff can access inquiry work but not forms or operational settings", asyn
 test("non-members cannot open another business dashboard @smoke", async ({ page }) => {
   await signIn(page, demoOutsiderEmail, demoOutsiderPassword);
   await expect(
-    page.getByRole("heading", { name: "Your workspaces" }),
+    page.getByRole("heading", { name: "Your businesses" }),
   ).toBeVisible();
 
   await page.goto(`/businesses/${demoBusinessSlug}/dashboard`);
-  await expect(page).toHaveURL(/\/workspaces$/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/businesses$/, { timeout: 20_000 });
   await expect(
-    page.getByRole("heading", { name: "Your workspaces" }),
+    page.getByRole("heading", { name: "Your businesses" }),
   ).toBeVisible();
 });
 

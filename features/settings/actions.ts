@@ -9,6 +9,7 @@ import {
   getBusinessInquiryFormCacheTags,
   getBusinessInquiryFormsCacheTags,
   getBusinessSettingsCacheTags,
+  getPublicBusinessProfileCacheTags,
   uniqueCacheTags,
 } from "@/lib/cache/business-tags";
 import {
@@ -148,6 +149,14 @@ export async function updateBusinessSettingsAction(
     // Invalidate dashboard-scoped cache tags — fast, no per-path overhead.
     updateCacheTags(getBusinessSettingsCacheTags(businessContext.business.id));
 
+    // Invalidate the public `/businesses/[slug]` profile cache keyed by
+    // slug. Cover both old and new slugs when the slug changed so a stale
+    // entry under the previous slug doesn't keep serving.
+    updateCacheTags(getPublicBusinessProfileCacheTags(result.previousSlug));
+    if (result.previousSlug !== result.nextSlug) {
+      updateCacheTags(getPublicBusinessProfileCacheTags(result.nextSlug));
+    }
+
     // Slug change requires layout-level revalidation for the new routes.
     if (result.previousSlug !== result.nextSlug) {
       revalidatePath(getBusinessDashboardPath(result.previousSlug), "layout");
@@ -256,6 +265,50 @@ export async function updateBusinessNotificationSettingsAction(
   return {
     success: "Notification settings saved.",
   };
+}
+
+export async function sendTestPushNotificationAction(): Promise<{
+  success?: string;
+  error?: string;
+}> {
+  const ownerAccess = await getOperationalBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+
+  try {
+    const { sendTestPushToUserForBusiness } = await import("@/lib/push/send");
+    const deliveredCount = await sendTestPushToUserForBusiness({
+      businessId: businessContext.business.id,
+      userId: user.id,
+      businessName: businessContext.business.name,
+    });
+
+    if (deliveredCount === 0) {
+      return {
+        error:
+          "No push-enabled browsers found. Enable push on this browser first.",
+      };
+    }
+
+    return {
+      success:
+        deliveredCount === 1
+          ? "Test notification sent. Check this browser."
+          : `Test notification sent to ${deliveredCount} browsers.`,
+    };
+  } catch (error) {
+    console.error("Failed to send test push notification.", error);
+
+    return {
+      error: "We couldn't send the test notification right now.",
+    };
+  }
 }
 
 export async function updateBusinessQuoteSettingsAction(

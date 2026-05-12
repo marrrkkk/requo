@@ -7,24 +7,18 @@ import type { SocialAuthProvider } from "@/features/auth/components/social-auth-
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { onboardingPath } from "@/features/onboarding/routes";
-import { workspacesHubPath } from "@/features/workspaces/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import { getOptionalSession } from "@/lib/auth/session";
-import { createPageMetadata } from "@/lib/seo/site";
+import { isEmailConfigured } from "@/lib/env";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export const metadata: Metadata = createPageMetadata({
+export const metadata: Metadata = createNoIndexMetadata({
   description:
     "Create a Requo account to manage inquiries, send quotes, and follow up in one place.",
-  noIndex: true,
   title: "Create account",
 });
 
-export default async function SignupPage({
-  searchParams,
-}: {
-  searchParams: Promise<{
-    next?: string | string[];
-  }>;
-}) {
+export default async function SignupPage() {
   // Server-side redirect for already-authenticated users — avoids client-side flash
   const session = await getOptionalSession();
   if (session) {
@@ -34,10 +28,10 @@ export default async function SignupPage({
     ]);
     const hasOnboarded =
       memberships.length > 0 || Boolean(profile?.onboardingCompletedAt);
-    redirect(hasOnboarded ? workspacesHubPath : onboardingPath);
+    redirect(hasOnboarded ? businessesHubPath : onboardingPath);
   }
 
-  const socialProviders: SocialAuthProvider[] = ["google", "microsoft"];
+  const socialProviders: SocialAuthProvider[] = ["google"];
 
   return (
     <AuthShell
@@ -45,7 +39,10 @@ export default async function SignupPage({
       description="Start managing inquiries and quotes in one place."
       layout="signup"
     >
-      <SignupForm socialProviders={socialProviders} />
+      <SignupForm
+        magicLinkEnabled={isEmailConfigured}
+        socialProviders={socialProviders}
+      />
     </AuthShell>
   );
 }

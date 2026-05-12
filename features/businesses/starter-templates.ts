@@ -18,11 +18,6 @@ const starterTemplateStatusSummary =
   "Uses the built-in lead stages: New, Waiting, Quoted, Won, and Lost.";
 const defaultStarterQuoteValidityDays = 14;
 
-type StarterReplySnippet = {
-  title: string;
-  body: string;
-};
-
 type StarterTemplateDefinition = {
   businessType: StarterTemplateBusinessType;
   label: string;
@@ -32,7 +27,6 @@ type StarterTemplateDefinition = {
   statusSummary: string;
   defaultQuoteNotes: string;
   defaultQuoteValidityDays: number;
-  replySnippets: readonly StarterReplySnippet[];
   matchesBusinessTypes: readonly BusinessType[];
 };
 
@@ -46,7 +40,7 @@ export const starterTemplateDefinitions: Record<
     description:
       "Best for agencies, studios, and creative service teams handling scoped projects and custom quotes.",
     helperText:
-      "Starts with project brief fields, reusable qualification replies, and quote notes for scoped creative work.",
+      "Starts with project brief fields and quote notes for scoped creative work.",
     recommendedFields: [
       "Project or service needed",
       "Deliverables",
@@ -56,18 +50,6 @@ export const starterTemplateDefinitions: Record<
     statusSummary: starterTemplateStatusSummary,
     defaultQuoteNotes: "",
     defaultQuoteValidityDays: defaultStarterQuoteValidityDays,
-    replySnippets: [
-      {
-        title: "Request the missing brief details",
-        body:
-          "Thanks for reaching out. Before I quote this properly, could you confirm the main goal, the deliverables you need, the target timeline, and any reference files or links I should review?",
-      },
-      {
-        title: "Follow up on a sent quote",
-        body:
-          "Checking in on the quote I sent over. If you want, I can walk you through the scope, timeline, or options and help you decide on the next step.",
-      },
-    ],
     matchesBusinessTypes: [
       "creative_marketing_services",
       "web_it_services",
@@ -80,7 +62,7 @@ export const starterTemplateDefinitions: Record<
     description:
       "Best for consultants, advisors, and professional service businesses that need to qualify before pricing.",
     helperText:
-      "Starts with discovery-focused fields, follow-up snippets, and quote notes for advisory engagements.",
+      "Starts with discovery-focused fields and quote notes for advisory engagements.",
     recommendedFields: [
       "Service needed",
       "Goal",
@@ -90,18 +72,6 @@ export const starterTemplateDefinitions: Record<
     statusSummary: starterTemplateStatusSummary,
     defaultQuoteNotes: "",
     defaultQuoteValidityDays: defaultStarterQuoteValidityDays,
-    replySnippets: [
-      {
-        title: "Clarify goals before quoting",
-        body:
-          "Thanks for the inquiry. To recommend the right scope, could you share the main problem you want to solve, the outcome you need, and any timing or stakeholder constraints I should account for?",
-      },
-      {
-        title: "Follow up after discovery quote",
-        body:
-          "Following up on the quote I sent over. If it helps, I can outline the recommended first step and answer any questions about scope, timing, or delivery.",
-      },
-    ],
     matchesBusinessTypes: ["consulting_professional_services"],
   },
   contractor_home_improvement: {
@@ -110,7 +80,7 @@ export const starterTemplateDefinitions: Record<
     description:
       "Best for contractors and service businesses that need site details, timing, and photos before pricing.",
     helperText:
-      "Starts with project and site fields, qualification snippets, and quote notes for on-site work.",
+      "Starts with project and site fields and quote notes for on-site work.",
     recommendedFields: [
       "Project or service needed",
       "Service location",
@@ -120,18 +90,6 @@ export const starterTemplateDefinitions: Record<
     statusSummary: starterTemplateStatusSummary,
     defaultQuoteNotes: "",
     defaultQuoteValidityDays: defaultStarterQuoteValidityDays,
-    replySnippets: [
-      {
-        title: "Request site details before quoting",
-        body:
-          "Thanks for sending this over. Before I price it properly, could you confirm the site address, the scope you want completed, your preferred timing, and upload any photos or plans that show the current condition?",
-      },
-      {
-        title: "Follow up after sending a project quote",
-        body:
-          "Checking in on the quote I sent over. If you want, I can review the scope, timeline, or any site assumptions before you decide on the next step.",
-      },
-    ],
     matchesBusinessTypes: [
       "contractor_home_improvement",
       "fabrication_custom_build",
@@ -154,18 +112,6 @@ export const starterTemplateDefinitions: Record<
     statusSummary: starterTemplateStatusSummary,
     defaultQuoteNotes: "",
     defaultQuoteValidityDays: defaultStarterQuoteValidityDays,
-    replySnippets: [
-      {
-        title: "Request the missing details",
-        body:
-          "Thanks for reaching out. Before I quote this properly, could you confirm the service you need, the preferred timing, and any files, photos, or notes that will help me review the scope?",
-      },
-      {
-        title: "Follow up on a pending quote",
-        body:
-          "Following up on the quote I sent over. Let me know if you want me to adjust the scope, answer questions, or confirm the best next step from here.",
-      },
-    ],
     matchesBusinessTypes: [
       "general_project_services",
       "print_signage",

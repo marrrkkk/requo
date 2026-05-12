@@ -42,16 +42,17 @@ Read these sources first when relevant:
   - Supabase for storage and realtime-backed notification plumbing
 - Resend for transactional email
 - Groq, Gemini, and OpenRouter through `lib/ai` for server-side AI drafting
-- PayMongo for QRPh payments and Paddle for card subscriptions
+- Paddle for card subscriptions (USD, merchant of record)
 
 ## Billing
 
-- Subscriptions are workspace-scoped.
-- `workspace_subscriptions` is authoritative; `workspaces.plan` is a denormalized read cache.
+- Subscriptions are account-scoped.
+- `account_subscriptions` is authoritative; `businesses.plan` is a denormalized read cache.
 - `lib/billing/subscription-service.ts` is the single write path for subscription mutations.
 - `lib/billing/webhook-processor.ts` records provider events in `billing_events` for idempotency.
-- PayMongo webhook route: `app/api/billing/paymongo/webhook/route.ts`.
+- `lib/billing/refunds.ts` is the single path for Paddle refund requests.
 - Paddle webhook route: `app/api/billing/paddle/webhook/route.ts`.
+- Refund request route: `app/api/billing/refund/route.ts`.
 
 ## Testing
 

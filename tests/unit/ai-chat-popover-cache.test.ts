@@ -17,7 +17,7 @@ function makeConversation(
   return {
     id: "aic_1",
     userId: "user_1",
-    workspaceId: "workspace_1",
+    businessId: "business_1",
     surface: "dashboard",
     entityId: "global",
     title: "New dashboard chat",

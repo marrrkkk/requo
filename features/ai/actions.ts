@@ -25,7 +25,7 @@ export async function generateInquiryAssistantAction(
 
   const { businessContext } = ownerAccess;
 
-  if (!hasFeatureAccess(businessContext.business.workspacePlan, "aiAssistant")) {
+  if (!hasFeatureAccess(businessContext.business.plan, "aiAssistant")) {
     return {
       ...prevState,
       error: "Upgrade to Pro to use the AI assistant.",

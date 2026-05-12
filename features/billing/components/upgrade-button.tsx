@@ -1,25 +1,24 @@
 "use client";
 
-/**
- * Upgrade button that opens the checkout dialog.
- * Used in paywall components, workspace overview, and pricing pages.
- */
-
-import { useState } from "react";
 import { ArrowUpRight } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-import { CheckoutDialog } from "@/features/billing/components/checkout-dialog";
-import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
-import { useWorkspaceCheckout } from "@/features/billing/components/workspace-checkout-provider";
-import type { WorkspacePlan } from "@/lib/plans/plans";
-import type { BillingCurrency, BillingInterval, BillingRegion, PaidPlan } from "@/lib/billing/types";
+import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
+import type {
+  BillingCurrency,
+  BillingInterval,
+  BillingRegion,
+  PaidPlan,
+} from "@/lib/billing/types";
 import { cn } from "@/lib/utils";
 
 type UpgradeButtonProps = {
-  workspaceId: string;
-  workspaceSlug: string;
-  currentPlan: WorkspacePlan;
+  userId: string;
+  businessId: string;
+  businessSlug: string;
+  currentPlan: plan;
   targetPlan?: "pro" | "business";
   region?: BillingRegion;
   defaultCurrency?: BillingCurrency;
@@ -27,117 +26,67 @@ type UpgradeButtonProps = {
   size?: "default" | "sm" | "lg";
   className?: string;
   children?: React.ReactNode;
+  interval?: BillingInterval;
 };
 
+function resolveTargetPlan(currentPlan: plan, targetPlan?: PaidPlan): PaidPlan {
+  if (targetPlan) {
+    return targetPlan;
+  }
+  return currentPlan === "pro" ? "business" : "pro";
+}
+
 export function UpgradeButton({
-  workspaceId,
-  workspaceSlug,
+  businessId,
   currentPlan,
   targetPlan,
-  region = "INTL",
-  defaultCurrency = "USD",
   variant = "default",
   size = "sm",
   className,
   children,
+  interval = "monthly",
 }: UpgradeButtonProps) {
-  const workspaceCheckout = useWorkspaceCheckout();
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<PaidPlan | null>(null);
-  const [selectedInterval, setSelectedInterval] = useState<BillingInterval>('monthly');
+  const router = useRouter();
+  const businessCheckout = useBusinessCheckout();
   const effectiveCurrentPlan =
-    workspaceCheckout?.workspaceId === workspaceId
-      ? workspaceCheckout.currentPlan
+    businessCheckout?.businessId === businessId
+      ? businessCheckout.currentPlan
       : currentPlan;
 
   if (effectiveCurrentPlan === "business") {
-    return null; // Already on highest plan
+    return null;
   }
 
-  if (workspaceCheckout && workspaceCheckout.workspaceId === workspaceId) {
-    const hasPendingCheckout = Boolean(workspaceCheckout.pendingCheckout);
-
-    return (
-      <Button
-        className={cn(className)}
-        onClick={() => {
-          if (hasPendingCheckout) {
-            workspaceCheckout.continueCheckout();
-            return;
-          }
-
-          workspaceCheckout.openPlanSelection(targetPlan);
-        }}
-        size={size}
-        variant={variant}
-      >
-        {hasPendingCheckout ? (
-          "Continue"
-        ) : (
-          children ?? (
-            <>
-              <ArrowUpRight data-icon="inline-start" />
-              {effectiveCurrentPlan === "free"
-                ? "Upgrade to Pro"
-                : "Upgrade to Business"}
-            </>
-          )
-        )}
-      </Button>
-    );
-  }
+  const nextPlan = resolveTargetPlan(effectiveCurrentPlan, targetPlan);
 
   return (
-    <>
-      <Button
-        className={cn(className)}
-        onClick={() => setSheetOpen(true)}
-        size={size}
-        variant={variant}
-      >
-        {children ?? (
-          <>
-            <ArrowUpRight data-icon="inline-start" />
-            {effectiveCurrentPlan === "free"
-              ? "Upgrade to Pro"
-              : "Upgrade to Business"}
-          </>
-        )}
-      </Button>
-      <PlanSelectionSheet
-        defaultCurrency={defaultCurrency}
-        currentPlan={effectiveCurrentPlan}
-        onOpenChange={setSheetOpen}
-        onSelectPlan={(plan, interval) => {
-          setSelectedPlan(plan);
-          setSelectedInterval(interval);
-          setSheetOpen(false);
-          setCheckoutOpen(true);
-        }}
-        open={sheetOpen}
-        region={region}
-        targetPlan={targetPlan}
-      />
-      {selectedPlan ? (
-        <CheckoutDialog
-          currentPlan={effectiveCurrentPlan}
-          defaultCurrency={defaultCurrency}
-          onChangePlan={() => {
-            setCheckoutOpen(false);
-            setSelectedPlan(null);
-            setSheetOpen(true);
-          }}
-          onOpenChange={setCheckoutOpen}
-          open={checkoutOpen}
-          plan={selectedPlan}
-          interval={selectedInterval}
-          region={region}
-          workspaceId={workspaceId}
-          workspaceSlug={workspaceSlug}
-        />
-      ) : null}
-    </>
+    <Button
+      type="button"
+      className={cn(className)}
+      onClick={(event) => {
+        event.preventDefault();
+        if (businessCheckout && businessCheckout.businessId === businessId) {
+          businessCheckout.openPlanSelection(nextPlan);
+          return;
+        }
+
+        const params = new URLSearchParams({
+          interval,
+          plan: nextPlan,
+        });
+        router.push(`/account/billing/checkout?${params.toString()}`);
+      }}
+      size={size}
+      variant={variant}
+    >
+      {children ?? (
+        <>
+          <ArrowUpRight data-icon="inline-start" />
+          {effectiveCurrentPlan === "free"
+            ? "Upgrade to Pro"
+            : "Upgrade to Business"}
+        </>
+      )}
+    </Button>
   );
 }
-

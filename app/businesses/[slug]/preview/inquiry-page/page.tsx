@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { getDefaultBusinessInquiryFormForBusiness } from "@/features/settings/queries";
@@ -10,7 +11,13 @@ import {
   getBusinessDashboardPath,
   getBusinessInquiryFormPreviewPath,
 } from "@/features/businesses/routes";
-import { workspacesHubPath } from "@/features/workspaces/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
+import { createNoIndexMetadata } from "@/lib/seo/site";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  title: "Inquiry page preview",
+  description: "Redirects to the current inquiry form preview.",
+});
 
 export default async function BusinessInquiryPagePreviewRedirect({
   params,
@@ -24,7 +31,7 @@ export default async function BusinessInquiryPagePreviewRedirect({
   );
 
   if (!businessContext) {
-    redirect(workspacesHubPath);
+    redirect(businessesHubPath);
   }
 
   if (!hasOperationalBusinessAccess(businessContext.role)) {

@@ -330,7 +330,7 @@ export async function deleteAccountAction(
     return {
       error:
         security.deletion.blockers[0]?.message ??
-        "Resolve your owned workspaces or business ownership before deleting this account.",
+        "Resolve your owned businesses or business ownership before deleting this account.",
     };
   }
 

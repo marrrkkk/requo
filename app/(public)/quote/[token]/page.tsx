@@ -12,18 +12,49 @@ import { MadeWithRequo } from "@/components/shared/made-with-requo";
 import { PublicQuoteViewTracker } from "@/features/analytics/components/public-page-analytics-tracker";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
 import { PublicQuoteInteractiveColumn } from "@/features/quotes/components/public-quote-interactive-column";
 import { QuotePreview } from "@/features/quotes/components/quote-preview";
 import { respondToPublicQuoteAction } from "@/features/quotes/actions";
+import {
+  getMissingPublicQuoteMetadata,
+  getPublicQuotePageMetadata,
+} from "@/features/quotes/metadata";
 import { getPublicQuoteByToken } from "@/features/quotes/queries";
 import { quotePublicRouteParamsSchema } from "@/features/quotes/schemas";
-import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export const metadata: Metadata = createNoIndexMetadata({
-  absoluteTitle: "Customer quote",
-  description: "Review and respond to a customer quote securely.",
-});
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}): Promise<Metadata> {
+  let rawToken: string | undefined;
+
+  try {
+    const { token } = await params;
+    rawToken = token;
+
+    const parsedParams = quotePublicRouteParamsSchema.safeParse({ token });
+
+    if (!parsedParams.success) {
+      return getMissingPublicQuoteMetadata(token);
+    }
+
+    const quote = await getPublicQuoteByToken(parsedParams.data.token);
+
+    if (!quote) {
+      return getMissingPublicQuoteMetadata(parsedParams.data.token);
+    }
+
+    return getPublicQuotePageMetadata({
+      businessName: quote.businessName,
+      quoteNumber: quote.quoteNumber,
+      title: quote.title,
+      token: parsedParams.data.token,
+    });
+  } catch {
+    return getMissingPublicQuoteMetadata(rawToken);
+  }
+}
 
 export default async function PublicQuotePage({
   params,
@@ -79,6 +110,7 @@ export default async function PublicQuotePage({
               discountInCents={quote.discountInCents}
               totalInCents={quote.totalInCents}
               className="w-full"
+              titleLevel={1}
               variant="bare"
             />
 

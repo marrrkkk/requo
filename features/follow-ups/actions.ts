@@ -108,7 +108,6 @@ async function createFollowUpActionForRecord({
 
   try {
     const result = await createFollowUpForBusiness({
-      workspaceId: businessContext.business.workspaceId,
       businessId: businessContext.business.id,
       inquiryId,
       quoteId,

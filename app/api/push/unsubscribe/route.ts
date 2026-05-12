@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { requireUser } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
+import { businessMembers, businesses } from "@/lib/db/schema";
 import { pushSubscriptions } from "@/lib/db/schema/push-subscriptions";
 
 const unsubscribeSchema = z.object({
@@ -35,11 +36,34 @@ export async function DELETE(request: Request) {
   }
 
   try {
+    const [membership] = await db
+      .select({
+        id: businessMembers.id,
+      })
+      .from(businessMembers)
+      .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
+      .where(
+        and(
+          eq(businessMembers.businessId, result.data.businessId),
+          eq(businessMembers.userId, user.id),
+          isNull(businesses.deletedAt),
+        ),
+      )
+      .limit(1);
+
+    if (!membership) {
+      return NextResponse.json(
+        { error: "Not a member of this business." },
+        { status: 403 },
+      );
+    }
+
     await db
       .delete(pushSubscriptions)
       .where(
         and(
           eq(pushSubscriptions.userId, user.id),
+          eq(pushSubscriptions.businessId, result.data.businessId),
           eq(pushSubscriptions.endpoint, result.data.endpoint),
         ),
       );

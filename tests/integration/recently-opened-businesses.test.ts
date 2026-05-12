@@ -14,7 +14,7 @@ vi.mock("react", () => ({
 }));
 
 vi.mock("@/lib/db/client", async () => {
-  const { testDb: mockedDb } = await import("./db");
+  const { testDb: mockedDb } = await import("../support/db");
 
   return { db: mockedDb };
 });
@@ -53,14 +53,14 @@ import {
   recordRecentlyOpenedBusiness,
 } from "@/features/businesses/recently-opened";
 import { userRecentBusinesses } from "@/lib/db/schema";
-import { workspacesHubPath } from "@/features/workspaces/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 
-import { closeTestDb, testDb } from "./db";
+import { closeTestDb, testDb } from "@/tests/support/db";
 import {
   cleanupWorkflowFixture,
   createWorkflowFixture,
   type WorkflowFixtureIds,
-} from "./workflow-fixtures";
+} from "@/tests/support/fixtures/workflow";
 
 const prefix = "test_recent_businesses";
 let ids: WorkflowFixtureIds;
@@ -142,7 +142,7 @@ describe("recently opened businesses", () => {
     expect(recents.map((business) => business.slug)).toEqual([
       ids.businessSlug,
     ]);
-    expect(revalidatePathMock).toHaveBeenCalledWith(workspacesHubPath);
+    expect(revalidatePathMock).toHaveBeenCalledWith(businessesHubPath);
 
     const rows = await testDb
       .select({

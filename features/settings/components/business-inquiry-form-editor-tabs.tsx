@@ -212,7 +212,6 @@ export function BusinessInquiryFormEditorTabs({
         <Button asChild className="w-full sm:w-auto" type="button">
           <Link
             href={isPublicLive ? publicInquiryHref : previewHref}
-            prefetch={false}
             rel="noreferrer"
             target="_blank"
           >
@@ -265,46 +264,41 @@ export function BusinessInquiryFormEditorTabs({
           forceMount
           value="publishing"
         >
-          <section className="flex flex-col gap-6 sm:gap-8">
-            <div className="flex flex-col gap-2.5 sm:px-2">
-              <h2 className="font-heading text-[1.65rem] font-semibold tracking-tight text-foreground">
+          <section className="flex flex-col gap-5 sm:gap-6">
+            <div className="flex flex-col gap-1.5 sm:px-2">
+              <h2 className="font-heading text-lg font-semibold tracking-tight text-foreground">
                 Publishing
               </h2>
-              <p className="text-base leading-6 text-muted-foreground">
-                Manage presets, defaults, and the live status of your form.
+              <p className="text-sm leading-6 text-muted-foreground">
+                Control who sees this form, reset it, or remove it when you&rsquo;re done.
               </p>
             </div>
 
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem] xl:items-start">
-              <div className="min-w-0">
-                <div className="grid gap-4">
-                  <BusinessInquiryFormManageCard
-                    duplicateAction={duplicateAction}
-                    formId={settings.formId}
-                    isDefault={settings.isDefault}
-                    isPublicInquiryEnabled={settings.publicInquiryEnabled}
-                    setDefaultAction={setDefaultAction}
-                    togglePublicAction={togglePublicAction}
-                  />
-                  <BusinessInquiryFormPresetCard
-                    action={applyPresetAction}
-                    businessType={pageDraft.businessType}
-                    formId={settings.formId}
-                  />
-                </div>
-              </div>
-              <div className="min-w-0">
-                <BusinessInquiryFormDangerZone
-                  activeFormCount={settings.activeFormCount}
-                  archiveAction={archiveAction}
-                  deleteAction={deleteAction}
-                  formId={settings.formId}
-                  inquiryListHref={inquiryListHref}
-                  isDefault={settings.isDefault}
-                  submittedInquiryCount={settings.submittedInquiryCount}
-                />
-              </div>
+            <div className="grid gap-4 md:grid-cols-2 md:items-start">
+              <BusinessInquiryFormManageCard
+                duplicateAction={duplicateAction}
+                formId={settings.formId}
+                isDefault={settings.isDefault}
+                isPublicInquiryEnabled={settings.publicInquiryEnabled}
+                setDefaultAction={setDefaultAction}
+                togglePublicAction={togglePublicAction}
+              />
+              <BusinessInquiryFormPresetCard
+                action={applyPresetAction}
+                businessType={pageDraft.businessType}
+                formId={settings.formId}
+              />
             </div>
+
+            <BusinessInquiryFormDangerZone
+              activeFormCount={settings.activeFormCount}
+              archiveAction={archiveAction}
+              deleteAction={deleteAction}
+              formId={settings.formId}
+              inquiryListHref={inquiryListHref}
+              isDefault={settings.isDefault}
+              submittedInquiryCount={settings.submittedInquiryCount}
+            />
           </section>
         </TabsContent>
       </div>

@@ -1,3 +1,5 @@
+import { encodeJsonLd } from "@/lib/seo/structured-data";
+
 type StructuredDataProps = {
   data: Record<string, unknown> | Array<Record<string, unknown>>;
   id: string;
@@ -9,7 +11,7 @@ export function StructuredData({ data, id }: StructuredDataProps) {
       id={id}
       type="application/ld+json"
       dangerouslySetInnerHTML={{
-        __html: JSON.stringify(data),
+        __html: encodeJsonLd(data),
       }}
     />
   );

@@ -21,7 +21,7 @@ type BusinessDeleteZoneProps = {
     state: BusinessRecordActionState,
     formData: FormData,
   ) => Promise<BusinessRecordActionState>;
-  activeWorkspaceBusinessCount: number;
+  activeBusinessCount: number;
   archivedRedirectHref: string;
   businessName: string;
   recordState: BusinessRecordState;
@@ -42,7 +42,7 @@ type BusinessDeleteZoneProps = {
 
 export function BusinessDeleteZone({
   archiveAction,
-  activeWorkspaceBusinessCount,
+  activeBusinessCount,
   archivedRedirectHref,
   businessName,
   recordState,
@@ -52,7 +52,7 @@ export function BusinessDeleteZone({
   unarchiveAction,
 }: BusinessDeleteZoneProps) {
   const isTrashDisabled =
-    recordState === "active" && activeWorkspaceBusinessCount <= 1;
+    recordState === "active" && activeBusinessCount <= 1;
 
   return (
     <Card className="gap-0 border-border/75 bg-card/97">
@@ -64,7 +64,7 @@ export function BusinessDeleteZone({
           <Alert>
             <AlertTitle>Business is in trash</AlertTitle>
             <AlertDescription>
-              {businessName} is hidden from active workspace views and public
+              {businessName} is hidden from active business views and public
               inquiry pages. Restore it to make it active again.
             </AlertDescription>
           </Alert>
@@ -73,7 +73,7 @@ export function BusinessDeleteZone({
             <AlertTitle>Business is archived</AlertTitle>
             <AlertDescription>
               Archived businesses stay preserved for history, but they are hidden
-              from normal active workspace views.
+              from normal active business views.
             </AlertDescription>
           </Alert>
         ) : (
@@ -81,7 +81,7 @@ export function BusinessDeleteZone({
             <AlertTitle>Clean up without losing history</AlertTitle>
             <AlertDescription>
               Archive is the safe default. Move a business to trash only when you
-              want it removed from normal workspace views.
+              want it removed from normal active business views.
             </AlertDescription>
           </Alert>
         )}
@@ -117,7 +117,7 @@ export function BusinessDeleteZone({
               action={trashAction}
               confirmLabel="Move business to trash"
               confirmPendingLabel="Moving..."
-              description="This hides the business from active workspace views and public intake, but the business can still be restored later."
+              description="This hides the business from active business views and public intake, but the business can still be restored later."
               disabled={isTrashDisabled}
               icon={Trash2}
               redirectHref={trashRedirectHref}
@@ -130,8 +130,7 @@ export function BusinessDeleteZone({
 
         {isTrashDisabled ? (
           <p className="text-sm text-muted-foreground">
-            Keep at least one active business in this workspace before moving this
-            one to trash.
+            Keep at least one active business before moving this one to trash.
           </p>
         ) : null}
       </CardContent>

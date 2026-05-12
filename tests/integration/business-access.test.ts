@@ -10,7 +10,7 @@ vi.mock("react", () => ({
 }));
 
 vi.mock("@/lib/db/client", async () => {
-  const { testDb: mockedDb } = await import("./db");
+  const { testDb: mockedDb } = await import("../support/db");
 
   return { db: mockedDb };
 });
@@ -47,20 +47,20 @@ import {
   getWorkspaceBusinessActionContext,
   getBusinessContextForMembershipSlug,
 } from "@/lib/db/business-access";
-import { getWorkspaceContextForUser } from "@/lib/db/workspace-access";
-import { workspaceSubscriptions, workspaces } from "@/lib/db/schema";
+import { getBusinessContextForUser } from "@/lib/db/business-access";
+import { accountSubscriptions, businesses } from "@/lib/db/schema";
 
-import { closeTestDb, testDb } from "./db";
+import { closeTestDb, testDb } from "@/tests/support/db";
 import {
   cleanupWorkflowFixture,
   createWorkflowFixture,
   type WorkflowFixtureIds,
-} from "./workflow-fixtures";
+} from "@/tests/support/fixtures/workflow";
 
 const prefix = "test_workflow_access";
 let ids: WorkflowFixtureIds;
 
-describe("business and workspace access control", () => {
+describe("business access control", () => {
   beforeAll(async () => {
     ids = await createWorkflowFixture(prefix);
   }, 30_000);
@@ -100,6 +100,7 @@ describe("business and workspace access control", () => {
     expect(outsiderContext).toEqual({
       ok: false,
       error: "Create a business first, then try again.",
+      reason: "business_required",
     });
   });
 
@@ -115,6 +116,7 @@ describe("business and workspace access control", () => {
     ).resolves.toEqual({
       ok: false,
       error: "Manager access is required for that action.",
+      reason: "insufficient_role",
     });
 
     authState.currentUserId = ids.managerUserId;
@@ -149,7 +151,45 @@ describe("business and workspace access control", () => {
     expect(activeOnlyContext).toEqual({
       ok: false,
       error: "Restore this business before doing that.",
+      reason: "business_not_active",
     });
+  });
+
+  it("returns a typed lock reason for locked businesses", async () => {
+    await testDb
+      .update(businesses)
+      .set({
+        lockedAt: new Date("2026-05-03T00:00:00.000Z"),
+        lockedBy: ids.ownerUserId,
+        lockedReason: "plan_downgrade",
+        updatedAt: new Date("2026-05-03T00:00:00.000Z"),
+      })
+      .where(eq(businesses.id, ids.businessId));
+
+    try {
+      const activeOnlyContext = await getBusinessActionContext({
+        businessSlug: ids.businessSlug,
+        minimumRole: "owner",
+        requireActiveBusiness: true,
+      });
+
+      expect(activeOnlyContext).toEqual({
+        ok: false,
+        error:
+          "This business is locked on your current plan. Upgrade to unlock operational actions.",
+        reason: "business_locked_by_plan",
+      });
+    } finally {
+      await testDb
+        .update(businesses)
+        .set({
+          lockedAt: null,
+          lockedBy: null,
+          lockedReason: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(businesses.id, ids.businessId));
+    }
   });
 
   it("scopes route-handler request context by the authenticated user's business membership", async () => {
@@ -177,15 +217,15 @@ describe("business and workspace access control", () => {
     }
   });
 
-  it("uses the authoritative subscription row when cached workspace plan lags", async () => {
+  it("uses the authoritative subscription row when cached business plan lags", async () => {
     await testDb
-      .update(workspaces)
+      .update(businesses)
       .set({ plan: "free", updatedAt: new Date() })
-      .where(eq(workspaces.id, ids.workspaceId));
+      .where(eq(businesses.id, ids.businessId));
 
-    await testDb.insert(workspaceSubscriptions).values({
+    await testDb.insert(accountSubscriptions).values({
       id: `${prefix}_subscription_active`,
-      workspaceId: ids.workspaceId,
+      userId: ids.ownerUserId,
       status: "active",
       plan: "business",
       billingProvider: "paddle",
@@ -197,21 +237,21 @@ describe("business and workspace access control", () => {
     });
 
     try {
-      const [businessContext, workspaceContext] = await Promise.all([
+      const [businessContext, secondaryBusinessContext] = await Promise.all([
         getBusinessContextForMembershipSlug(ids.ownerUserId, ids.businessSlug),
-        getWorkspaceContextForUser(ids.ownerUserId, ids.workspaceId),
+        getBusinessContextForUser(ids.ownerUserId, ids.businessId),
       ]);
 
-      expect(businessContext?.business.workspacePlan).toBe("business");
-      expect(workspaceContext?.plan).toBe("business");
+      expect(businessContext?.business.plan).toBe("business");
+      expect(secondaryBusinessContext?.business.plan).toBe("business");
     } finally {
       await testDb
-        .delete(workspaceSubscriptions)
-        .where(eq(workspaceSubscriptions.workspaceId, ids.workspaceId));
+        .delete(accountSubscriptions)
+        .where(eq(accountSubscriptions.userId, ids.ownerUserId));
       await testDb
-        .update(workspaces)
+        .update(businesses)
         .set({ plan: "pro", updatedAt: new Date() })
-        .where(eq(workspaces.id, ids.workspaceId));
+        .where(eq(businesses.id, ids.businessId));
     }
   });
 });

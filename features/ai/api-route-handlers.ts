@@ -93,7 +93,7 @@ export async function getAiConversationRouteResponse(request: Request) {
     return Response.json({ error: "Not found." }, { status: 404 });
   }
 
-  if (!hasFeatureAccess(access.businessContext.business.workspacePlan, "aiAssistant")) {
+  if (!hasFeatureAccess(access.businessContext.business.plan, "aiAssistant")) {
     return Response.json(
       { error: "Upgrade to Pro to use the AI assistant." },
       { status: 403 },
@@ -104,12 +104,12 @@ export async function getAiConversationRouteResponse(request: Request) {
     access.surface === "dashboard"
       ? await getOrCreateLatestDashboardConversation({
           userId: user.id,
-          workspaceId: access.workspaceId,
+          businessId: access.businessId,
           entityId: access.entityId,
         })
       : await getOrCreateDefaultEntityConversation({
           userId: user.id,
-          workspaceId: access.workspaceId,
+          businessId: access.businessId,
           surface: access.surface,
           entityId: access.entityId,
           title: access.title,
@@ -151,7 +151,7 @@ export async function listAiConversationsRouteResponse(request: Request) {
     return Response.json({ error: "Not found." }, { status: 404 });
   }
 
-  if (!hasFeatureAccess(access.businessContext.business.workspacePlan, "aiAssistant")) {
+  if (!hasFeatureAccess(access.businessContext.business.plan, "aiAssistant")) {
     return Response.json(
       { error: "Upgrade to Pro to use the AI assistant." },
       { status: 403 },
@@ -160,7 +160,7 @@ export async function listAiConversationsRouteResponse(request: Request) {
 
   const conversations = await listDashboardConversations({
     userId: user.id,
-    workspaceId: access.workspaceId,
+    businessId: access.businessId,
     entityId: access.entityId,
     limit: parsedQuery.data.limit,
   });
@@ -210,7 +210,7 @@ export async function createAiConversationRouteResponse(request: Request) {
     return Response.json({ error: "Not found." }, { status: 404 });
   }
 
-  if (!hasFeatureAccess(access.businessContext.business.workspacePlan, "aiAssistant")) {
+  if (!hasFeatureAccess(access.businessContext.business.plan, "aiAssistant")) {
     return Response.json(
       { error: "Upgrade to Pro to use the AI assistant." },
       { status: 403 },
@@ -219,7 +219,7 @@ export async function createAiConversationRouteResponse(request: Request) {
 
   const conversation = await createDashboardConversation({
     userId: user.id,
-    workspaceId: access.workspaceId,
+    businessId: access.businessId,
     entityId: access.entityId,
   });
 
@@ -334,7 +334,7 @@ export async function createAiChatRouteResponse(request: Request) {
     return Response.json({ error: "Not found." }, { status: 404 });
   }
 
-  if (!hasFeatureAccess(access.businessContext.business.workspacePlan, "aiAssistant")) {
+  if (!hasFeatureAccess(access.businessContext.business.plan, "aiAssistant")) {
     return Response.json(
       { error: "Upgrade to Pro to use the AI assistant." },
       { status: 403 },
@@ -345,7 +345,7 @@ export async function createAiChatRouteResponse(request: Request) {
     !authorization ||
     !conversationMatchesSurface({
       conversation: authorization.conversation,
-      workspaceId: access.workspaceId,
+      businessId: access.businessId,
       surface: parsedBody.data.surface,
       entityId: parsedBody.data.entityId,
     })

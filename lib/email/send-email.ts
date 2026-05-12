@@ -143,7 +143,6 @@ function normalizeSendEmailInput(input: SendEmailInput): NormalizedSendEmailInpu
     emailType,
     idempotencyKey: input.idempotencyKey.trim(),
     metadata: normalizeMetadata(input.metadata),
-    workspaceId: input.workspaceId ?? null,
     businessId: input.businessId ?? null,
     userId: input.userId ?? null,
   };
@@ -212,7 +211,6 @@ async function createOrClaimOutbox(input: NormalizedSendEmailInput) {
     .insert(emailOutbox)
     .values({
       id: createId("eml"),
-      workspaceId: input.workspaceId,
       businessId: input.businessId,
       userId: input.userId,
       type: input.emailType,
@@ -275,7 +273,6 @@ async function createOrClaimOutbox(input: NormalizedSendEmailInput) {
   const [claimed] = await db
     .update(emailOutbox)
     .set({
-      workspaceId: input.workspaceId,
       businessId: input.businessId,
       userId: input.userId,
       type: input.emailType,

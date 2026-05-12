@@ -8,7 +8,7 @@ const tourSteps: TourStep[] = [
     selector: '[data-tour="business-switcher"]',
     title: "Your business at a glance",
     description:
-      "This is your active business. Switch between businesses or manage your workspace from here.",
+      "This is your active business. Switch between businesses or manage settings from here.",
     side: "right",
   },
   {
@@ -34,12 +34,17 @@ const tourSteps: TourStep[] = [
   },
 ];
 
-export function DashboardTour({ show }: { show: boolean }) {
+/**
+ * Dashboard tour scoped per-business via localStorage.
+ * Shows automatically the first time a user opens any new business dashboard.
+ */
+export function DashboardTour({ businessId }: { businessId: string }) {
   return (
     <GuidedTour
       onComplete={completeDashboardTourAction}
-      show={show}
+      show
       steps={tourSteps}
+      storageKey={`requo:tour:dashboard:${businessId}`}
     />
   );
 }

@@ -28,8 +28,7 @@ import {
   quotes,
   user,
   businesses,
-  workspaces,
-} from "@/lib/db/schema";
+  } from "@/lib/db/schema";
 import {
   syncExpiredQuoteForPublicToken,
   syncExpiredQuotesForBusiness,
@@ -644,7 +643,7 @@ async function getCachedQuoteSendPayloadForBusiness({
   };
 }
 
-export async function getPublicQuoteByToken(
+async function getPublicQuoteByTokenImpl(
   token: string,
 ): Promise<PublicQuoteView | null> {
   scheduleExpiredQuoteSyncForPublicToken(token);
@@ -657,7 +656,7 @@ export async function getPublicQuoteByToken(
       title: quotes.title,
       businessName: businesses.name,
       businessSlug: businesses.slug,
-      businessPlan: workspaces.plan,
+      businessPlan: businesses.plan,
       businessShortDescription: businesses.shortDescription,
       businessContactEmail: businesses.contactEmail,
       businessLogoStoragePath: businesses.logoStoragePath,
@@ -680,12 +679,11 @@ export async function getPublicQuoteByToken(
     })
     .from(quotes)
     .innerJoin(businesses, eq(quotes.businessId, businesses.id))
-    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .where(
       and(
         getQuotePublicTokenLookupCondition(token),
         isNull(quotes.deletedAt),
-        isNull(workspaces.deletedAt),
+        isNull(businesses.deletedAt),
         isNull(businesses.deletedAt),
         isNull(businesses.archivedAt),
       ),
@@ -740,6 +738,8 @@ export async function getPublicQuoteByToken(
     items,
   };
 }
+
+export const getPublicQuoteByToken = cache(getPublicQuoteByTokenImpl);
 
 type GetInquiryQuotePrefillForBusinessInput = {
   businessId: string;

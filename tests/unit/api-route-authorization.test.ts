@@ -61,7 +61,7 @@ const businessContext = {
       name: "Authorized Business",
       slug: "authorized-business",
       defaultCurrency: "USD",
-      workspacePlan: "pro",
+      plan: "pro",
     },
   },
 };

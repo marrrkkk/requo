@@ -107,7 +107,7 @@ export function getDashboardNavigation(
           {
             href: getDefaultBusinessSettingsPath(slug, role),
             label: "Settings",
-            description: "Manage business setup, reusable responses, and quote defaults.",
+            description: "Manage business setup, knowledge, and quote defaults.",
             icon: Settings2,
           },
         ]
@@ -355,7 +355,6 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
       notifications: "Notifications",
       profile: "Your profile",
       inquiry: "Forms",
-      replies: "Saved replies",
       quote: "Quote defaults",
       pricing: "Pricing",
       knowledge: "Knowledge",

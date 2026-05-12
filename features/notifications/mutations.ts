@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import type { BusinessNotificationType } from "@/features/notifications/types";
 import { db } from "@/lib/db/client";
 import {
+  businessNotificationReads,
   businessNotificationStates,
   businessNotifications,
 } from "@/lib/db/schema";
@@ -107,4 +108,48 @@ export async function markBusinessNotificationsReadForUser({
   });
 
   return throughCreatedAt;
+}
+
+
+/**
+ * Record that a single notification was read by a user, without advancing the
+ * shared `last_read_at` watermark. Safe to call repeatedly for the same
+ * (notification, user) — uses an upsert on the unique constraint.
+ *
+ * Returns the notification's businessId and createdAt when the row exists,
+ * or null when the notification cannot be read (not found or not a member
+ * of its business). The caller is expected to have authorized the user
+ * against the notification's business beforehand; this function only
+ * performs the write.
+ */
+export async function markBusinessNotificationReadForUser({
+  businessId,
+  notificationId,
+  userId,
+}: {
+  businessId: string;
+  notificationId: string;
+  userId: string;
+}) {
+  const now = new Date();
+
+  await db
+    .insert(businessNotificationReads)
+    .values({
+      id: createId("ntr"),
+      businessId,
+      notificationId,
+      userId,
+      readAt: now,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoNothing({
+      target: [
+        businessNotificationReads.notificationId,
+        businessNotificationReads.userId,
+      ],
+    });
+
+  return now;
 }

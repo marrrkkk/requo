@@ -1,20 +1,27 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { LockedFeaturePage } from "@/components/shared/paywall";
-import { getWorkspaceBillingOverview } from "@/features/billing/queries";
+import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { updateBusinessEmailTemplateSettingsAction } from "@/features/settings/actions";
 import { BusinessEmailTemplateForm } from "@/features/settings/components/business-email-template-form";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 import { hasFeatureAccess } from "@/lib/plans";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  title: "Email",
+  description: "Edit the email templates Requo sends on behalf of this business.",
+});
 
 export default async function BusinessEmailTemplateSettingsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();
 
-  if (!hasFeatureAccess(businessContext.business.workspacePlan, "emailTemplates")) {
-    const billingOverview = await getWorkspaceBillingOverview(
-      businessContext.business.workspaceId,
+  if (!hasFeatureAccess(businessContext.business.plan, "emailTemplates")) {
+    const billingOverview = await getBusinessBillingOverview(
+      businessContext.business.id,
     );
 
     return (
@@ -26,13 +33,14 @@ export default async function BusinessEmailTemplateSettingsPage() {
         />
         <LockedFeaturePage
           feature="emailTemplates"
-          plan={businessContext.business.workspacePlan}
+          plan={businessContext.business.plan}
           description="Upgrade to customize the email message used when sending quotes through Requo."
           upgradeAction={
             billingOverview
               ? {
-                  workspaceId: billingOverview.workspaceId,
-                  workspaceSlug: billingOverview.workspaceSlug,
+                  userId: billingOverview.userId,
+                  businessId: billingOverview.businessId,
+                  businessSlug: billingOverview.businessSlug,
                   currentPlan: billingOverview.currentPlan,
                   region: billingOverview.region,
                   defaultCurrency: billingOverview.defaultCurrency,

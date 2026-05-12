@@ -1,110 +1,119 @@
 import "server-only";
 
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, and, inArray } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { headers } from "next/headers";
 
 import { db } from "@/lib/db/client";
-import { workspaces } from "@/lib/db/schema/workspaces";
+import { listLockCandidatesForDowngrade } from "@/features/businesses/plan-enforcement";
+import { businesses } from "@/lib/db/schema/businesses";
 import { paymentAttempts } from "@/lib/db/schema/subscriptions";
 import {
-  getWorkspaceSubscription,
+  getCachedAccountSubscription,
+  getAccountSubscription,
   resolveEffectivePlanFromSubscription,
 } from "@/lib/billing/subscription-service";
 import { getBillingRegion, getDefaultCurrency } from "@/lib/billing/region";
 import {
-  getWorkspaceBillingCacheTags,
+  getBusinessBillingCacheTags,
   billingShellCacheLife,
 } from "@/lib/cache/shell-tags";
-import type { WorkspaceBillingOverview } from "@/features/billing/types";
-import type { WorkspacePlan } from "@/lib/plans/plans";
+import type { AccountBillingOverview } from "@/features/billing/types";
+import type { BusinessPlan } from "@/lib/plans/plans";
 import type { BillingRegion } from "@/lib/billing/types";
 
 /**
- * Cached workspace identity and fallback plan (no dynamic APIs like headers()).
- *
- * Subscription status is intentionally read outside this cache so checkout and
- * billing screens reflect provider webhook updates even if the denormalized
- * workspace plan or a shell cache entry lags behind the authoritative
- * subscription row.
+ * Cached business identity (no dynamic APIs like headers()).
  */
-async function getCachedWorkspaceBillingData(workspaceId: string) {
+async function getCachedBusinessData(businessId: string) {
   "use cache";
 
   cacheLife(billingShellCacheLife);
-  cacheTag(...getWorkspaceBillingCacheTags(workspaceId));
+  cacheTag(...getBusinessBillingCacheTags(businessId));
 
-  const workspaceRows = await db
+  const rows = await db
     .select({
-      id: workspaces.id,
-      name: workspaces.name,
-      slug: workspaces.slug,
-      plan: workspaces.plan,
+      id: businesses.id,
+      name: businesses.name,
+      slug: businesses.slug,
+      plan: businesses.plan,
+      ownerUserId: businesses.ownerUserId,
     })
-    .from(workspaces)
-    .where(eq(workspaces.id, workspaceId))
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
     .limit(1);
 
-  const workspace = workspaceRows[0];
+  return rows[0] ?? null;
+}
 
-  if (!workspace) {
-    return null;
-  }
+function toBillingSubscriptionView(
+  subscription: Awaited<ReturnType<typeof getAccountSubscription>>,
+): AccountBillingOverview["subscription"] {
+  return subscription
+    ? {
+        status: subscription.status,
+        plan: subscription.plan,
+        provider: subscription.billingProvider,
+        currency: subscription.billingCurrency,
+        paymentMethod: subscription.paymentMethod,
+        currentPeriodStart: subscription.currentPeriodStart,
+        currentPeriodEnd: subscription.currentPeriodEnd,
+        canceledAt: subscription.canceledAt,
+        providerSubscriptionId: subscription.providerSubscriptionId,
+      }
+    : null;
+}
 
+function createEmptyDowngradePreview(): AccountBillingOverview["downgradePreview"] {
   return {
-    workspaceId: workspace.id,
-    workspaceName: workspace.name,
-    workspaceSlug: workspace.slug,
-    fallbackPlan: workspace.plan as WorkspacePlan,
+    targetPlan: "free",
+    activeBusinessLimit: null,
+    activeBusinesses: [],
+    requiresSelection: false,
   };
 }
 
 /**
- * Returns a full billing overview for the workspace billing UI.
+ * Slim shell billing state for dashboard chrome and upgrade buttons.
+ * It intentionally skips downgrade preview queries used only by billing pages.
  */
-export async function getWorkspaceBillingOverview(
-  workspaceId: string,
-): Promise<WorkspaceBillingOverview | null> {
+export async function getBusinessBillingShellOverview(
+  businessId: string,
+): Promise<AccountBillingOverview | null> {
   try {
-    const [billingData, subscription, requestHeaders] = await Promise.all([
-      getCachedWorkspaceBillingData(workspaceId),
-      getWorkspaceSubscription(workspaceId),
+    const [businessData, requestHeaders] = await Promise.all([
+      getCachedBusinessData(businessId),
       headers(),
     ]);
 
-    if (!billingData) {
+    if (!businessData) {
       return null;
     }
 
+    const subscription = await getCachedAccountSubscription(
+      businessData.ownerUserId,
+    );
     const region = getBillingRegion(requestHeaders);
     const defaultCurrency = getDefaultCurrency(region);
-    const { fallbackPlan, ...workspaceBillingData } = billingData;
     const currentPlan = subscription
       ? resolveEffectivePlanFromSubscription(subscription)
-      : fallbackPlan;
+      : (businessData.plan as BusinessPlan);
 
     return {
-      ...workspaceBillingData,
+      userId: businessData.ownerUserId,
+      businessId: businessData.id,
+      businessName: businessData.name,
+      businessSlug: businessData.slug,
       currentPlan,
       region,
       defaultCurrency,
-      subscription: subscription
-        ? {
-            status: subscription.status,
-            plan: subscription.plan,
-            provider: subscription.billingProvider,
-            currency: subscription.billingCurrency,
-            currentPeriodStart: subscription.currentPeriodStart,
-            currentPeriodEnd: subscription.currentPeriodEnd,
-            canceledAt: subscription.canceledAt,
-            providerSubscriptionId: subscription.providerSubscriptionId,
-          }
-        : null,
+      downgradePreview: createEmptyDowngradePreview(),
+      subscription: toBillingSubscriptionView(subscription),
     };
   } catch (error) {
     console.error(
-      "Failed to load workspace billing overview.",
-      { workspaceId },
+      "Failed to load shell billing overview.",
+      { businessId },
       error,
     );
 
@@ -113,16 +122,97 @@ export async function getWorkspaceBillingOverview(
 }
 
 /**
- * Returns payment history for a workspace.
+ * Returns a full billing overview for the account billing UI.
+ * The subscription is resolved from the business owner's account.
  */
-export async function getWorkspacePaymentHistory(
-  workspaceId: string,
+export async function getAccountBillingOverview(
+  businessId: string,
+): Promise<AccountBillingOverview | null> {
+  try {
+    const [businessData, requestHeaders] = await Promise.all([
+      getCachedBusinessData(businessId),
+      headers(),
+    ]);
+
+    if (!businessData) {
+      return null;
+    }
+
+    const subscription = await getAccountSubscription(businessData.ownerUserId);
+    const downgradePreview = await listLockCandidatesForDowngrade({
+      ownerUserId: businessData.ownerUserId,
+      targetPlan: "free",
+    });
+    const region = getBillingRegion(requestHeaders);
+    const defaultCurrency = getDefaultCurrency(region);
+    const currentPlan = subscription
+      ? resolveEffectivePlanFromSubscription(subscription)
+      : (businessData.plan as BusinessPlan);
+
+    return {
+      userId: businessData.ownerUserId,
+      businessId: businessData.id,
+      businessName: businessData.name,
+      businessSlug: businessData.slug,
+      currentPlan,
+      region,
+      defaultCurrency,
+      downgradePreview: {
+        targetPlan: "free",
+        activeBusinessLimit: downgradePreview.activeBusinessLimit,
+        activeBusinesses: downgradePreview.activeBusinesses.map((business) => ({
+          id: business.id,
+          name: business.name,
+          slug: business.slug,
+          lastOpenedAt: business.lastOpenedAt,
+        })),
+        requiresSelection: downgradePreview.requiresSelection,
+      },
+      subscription: toBillingSubscriptionView(subscription),
+    };
+  } catch (error) {
+    console.error(
+      "Failed to load account billing overview.",
+      { businessId },
+      error,
+    );
+
+    return null;
+  }
+}
+
+/** @deprecated Use `getAccountBillingOverview` instead. */
+export const getBusinessBillingOverview = getAccountBillingOverview;
+
+/**
+ * Returns payment history for a user account.
+ */
+export async function getAccountPaymentHistory(
+  userId: string,
   limit = 10,
 ) {
   return db
     .select()
     .from(paymentAttempts)
-    .where(eq(paymentAttempts.workspaceId, workspaceId))
+    .where(
+      and(
+        eq(paymentAttempts.userId, userId),
+        inArray(paymentAttempts.status, ["succeeded", "failed"]),
+      ),
+    )
+    .orderBy(desc(paymentAttempts.createdAt))
+    .limit(limit);
+}
+
+/** @deprecated Use `getAccountPaymentHistory` instead. */
+export async function getBusinessPaymentHistory(
+  businessId: string,
+  limit = 10,
+) {
+  return db
+    .select()
+    .from(paymentAttempts)
+    .where(eq(paymentAttempts.businessId, businessId))
     .orderBy(desc(paymentAttempts.createdAt))
     .limit(limit);
 }

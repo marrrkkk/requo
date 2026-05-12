@@ -77,10 +77,10 @@ export const workflowSteps: readonly {
 ] as const;
 
 export type LandingFeatureId =
+  | "inquiries"
   | "quotes"
-  | "forms"
-  | "analytics"
-  | "collaboration";
+  | "follow-ups"
+  | "analytics";
 
 export const landingFeatureItems: readonly {
   id: LandingFeatureId;
@@ -90,87 +90,92 @@ export const landingFeatureItems: readonly {
   previewDescription: string;
 }[] = [
   {
-    id: "quotes",
-    title: "Send quotes faster.",
+    id: "inquiries",
+    title: "One inbox for every customer request.",
     description:
-      "Build a clear quote without losing the job details. Customer info, scope, notes, and pricing stay together.",
-    previewTitle: "Quote preview",
+      "Capture inquiries from your public form or add them manually from calls, DMs, and referrals. Filter by status to see what needs attention right now.",
+    previewTitle: "Inquiries",
     previewDescription:
-      "A draft quote with line items, totals, and a customer share view.",
+      "Filter by status and jump straight into the request.",
   },
   {
-    id: "forms",
-    title: "Get better inquiry details upfront.",
+    id: "quotes",
+    title: "Turn inquiries into quotes customers can open.",
     description:
-      "Use simple forms to collect scope, timing, files, and the basics you need before you start quoting.",
-    previewTitle: "Form preview",
+      "Build a clear quote with line items, totals, notes, and an expiry. Share it as a link so customers can view, accept, or reject it right from their phone.",
+    previewTitle: "Quote #1042",
     previewDescription:
-      "A public form that collects the details you need.",
+      "A live preview that updates as you pick a draft to send.",
+  },
+  {
+    id: "follow-ups",
+    title: "Never lose a viewed quote to silence.",
+    description:
+      "Keep the next step visible with scheduled follow-ups, suggested messages, and one-tap complete, reschedule, or skip. Quotes do not cool off quietly.",
+    previewTitle: "Follow-ups due",
+    previewDescription:
+      "Tap to mark done, reschedule, or skip a reminder.",
   },
   {
     id: "analytics",
-    title: "See what needs follow-up.",
+    title: "See what is working, what is stuck.",
     description:
-      "Track inquiries, quotes, and replies so you know what is moving and what needs attention.",
-    previewTitle: "Analytics preview",
+      "Track inquiries, quotes sent, accepted, and follow-ups due across 7 days, 30 days, or 12 months. A light analytics layer, not a full BI tool.",
+    previewTitle: "Workflow analytics",
     previewDescription:
-      "A simple view of pipeline activity and follow-up.",
-  },
-  {
-    id: "collaboration",
-    title: "Keep your team on the same page.",
-    description:
-      "Share notes, activity, and customer history so the next person can pick up the job without asking around.",
-    previewTitle: "Team preview",
-    previewDescription:
-      "Shared notes, activity, and customer context in one view.",
+      "Switch the range and watch the funnel respond.",
   },
 ] as const;
 
 export const faqItems = [
   {
-    question: "What if most of my inquiries come from Facebook, Instagram, WhatsApp, email, or phone?",
+    question: "What exactly does Requo do?",
     answer:
-      "That is exactly why Requo exists. You can add inquiries from any channel, keep customer details in one place, create a quote, then share the quote link back through the same channel.",
+      "Requo runs the part between a customer asking and a customer saying yes. You capture inquiries, build a quote, share a link, and track who viewed, accepted, or went quiet so you can follow up.",
   },
   {
-    question: "Can I use Requo if every job is priced differently?",
+    question: "Do my customers need to sign up to open a quote?",
     answer:
-      "Yes. Requo is built for custom service work. You can create quotes with custom line items, notes, totals, expiry dates, and customer-specific details.",
+      "No. Every quote has a public link. Customers open it on any device, view the details, and accept or reject it in one tap.",
   },
   {
-    question: "Do I need to send quotes by email?",
+    question: "Can I add inquiries that came from calls, DMs, or referrals?",
     answer:
-      "No. Requo gives you a quote link you can send through email, WhatsApp, Messenger, Instagram, SMS, or any channel you already use.",
+      "Yes. You can post a public form and take in inquiries from anywhere, or add one manually in a few seconds with the customer name, the request, and any files.",
   },
   {
-    question: "What happens after I send a quote?",
+    question: "How do I know when a quote is viewed or needs a follow-up?",
     answer:
-      "You can track whether the quote was viewed, accepted, rejected, or still needs a follow-up. Requo helps keep the next step visible so quotes do not get forgotten.",
+      "Each quote tracks viewed, accepted, rejected, expired, and voided states. Follow-ups show up as tasks with suggested copy so you can nudge customers before the job goes cold.",
   },
   {
-    question: "What happens after a customer accepts a quote?",
+    question: "Does Requo send emails or do I share the link myself?",
     answer:
-      "The inquiry can be marked as won, and you can move into post-win next steps like contacting the customer, scheduling the work, requesting a deposit, or marking the work completed.",
+      "Both. You can send the quote through Requo with a hosted email, or copy the link and share it through WhatsApp, Messenger, SMS, or any channel you already use.",
   },
   {
-    question: "Can my team work from the same inquiry and quote details?",
+    question: "Can my team work inside the same business?",
     answer:
-      "Yes, depending on your plan. Teams can work from the same workspace or business so everyone sees the same inquiries, quotes, statuses, and follow-ups.",
+      "Yes on the Team plan. Invite members so everyone sees the same inquiries, quotes, statuses, and follow-ups. Owner-led businesses can stay on the solo plan.",
   },
   {
-    question: "Do I need to rebuild my whole process before using Requo?",
+    question: "What happens after a customer accepts?",
     answer:
-      "No. Requo is meant to fit around how you already get customers. Start by capturing inquiries, creating quotes, sharing quote links, and tracking follow-ups.",
+      "The quote moves into post-acceptance. You can mark the job as scheduled, request a deposit, or close it out as completed — without bolting on a full project management tool.",
   },
   {
-    question: "Is Requo a full CRM or project management tool?",
+    question: "Can I run more than one business from one account?",
     answer:
-      "No. Requo is focused on the inquiry-to-quote workflow: capturing requests, creating quotes, sharing links, tracking responses, and managing follow-ups. It stays lighter than a full CRM.",
+      "Yes. One login, separate businesses. Each has its own inquiries, quotes, forms, and branding, with one subscription on your account.",
   },
   {
-    question: "Is Requo free to start?",
+    question: "Does Requo replace my CRM or invoicing tool?",
     answer:
-      "Yes. You can start free, test the workflow, and upgrade when you need higher limits, more features, or team access.",
+      "No. Requo focuses on inquiry to accepted quote. Keep your invoicing or accounting tool for everything after the deposit — we stay lean on purpose.",
+  },
+  {
+    question: "Is there a free plan?",
+    answer:
+      "Yes. Start free with enough to run the full workflow end to end. Upgrade when you need higher limits, team access, or advanced follow-up features.",
   },
 ] as const;

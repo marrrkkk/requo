@@ -1,13 +1,32 @@
+import type { Metadata } from "next";
+import { Suspense } from "react";
 import { connection } from "next/server";
 
+import { DashboardSettingsSkeleton } from "@/components/shell/dashboard-settings-skeleton";
 import { updateAccountProfileAction } from "@/features/account/actions";
 import { ProfileSettingsForm } from "@/features/account/components/profile-settings-form";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { requireSession } from "@/lib/auth/session";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export default async function AccountProfilePage() {
+export const metadata: Metadata = createNoIndexMetadata({
+  absoluteTitle: "Profile · Requo account",
+  description: "Update the profile details shown across your Requo account.",
+});
+
+export const unstable_instant = false;
+
+export default function AccountProfilePage() {
+  return (
+    <Suspense fallback={<DashboardSettingsSkeleton />}>
+      <AccountProfileContent />
+    </Suspense>
+  );
+}
+
+async function AccountProfileContent() {
   await connection();
 
   const user = await requireSession();

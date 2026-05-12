@@ -12,12 +12,14 @@ import {
 } from "@/lib/billing/webhook-processor";
 import {
   activateSubscription,
-  getWorkspaceSubscription,
+  getAccountSubscription,
   expireSubscription,
   updateSubscriptionStatus,
+  updateSubscriptionPaymentMethod,
 } from "@/lib/billing/subscription-service";
+import { applyRefundStatusFromAdjustment } from "@/lib/billing/refunds";
 import { writeSubscriptionTransitionAuditLogs } from "@/features/audit/subscription";
-import { finalizeScheduledWorkspaceDeletionIfDue } from "@/features/workspaces/mutations";
+
 
 function runAfterResponse(task: () => Promise<unknown> | unknown) {
   try {
@@ -25,6 +27,34 @@ function runAfterResponse(task: () => Promise<unknown> | unknown) {
   } catch {
     void task();
   }
+}
+
+/**
+ * Resolves the userId from custom_data or by looking up the business owner.
+ */
+async function resolveUserId(
+  customData: Record<string, string> | undefined,
+  businessId: string | undefined,
+): Promise<string | undefined> {
+  if (customData?.user_id) {
+    return customData.user_id;
+  }
+
+  if (businessId) {
+    const { db } = await import("@/lib/db/client");
+    const { businesses } = await import("@/lib/db/schema/businesses");
+    const { eq } = await import("drizzle-orm");
+
+    const [biz] = await db
+      .select({ ownerUserId: businesses.ownerUserId })
+      .from(businesses)
+      .where(eq(businesses.id, businessId))
+      .limit(1);
+
+    return biz?.ownerUserId;
+  }
+
+  return undefined;
 }
 
 async function getPaddleAttempt(providerPaymentId: string) {
@@ -37,7 +67,8 @@ async function getPaddleAttempt(providerPaymentId: string) {
       amount: paymentAttempts.amount,
       currency: paymentAttempts.currency,
       plan: paymentAttempts.plan,
-      workspaceId: paymentAttempts.workspaceId,
+      userId: paymentAttempts.userId,
+      businessId: paymentAttempts.businessId,
     })
     .from(paymentAttempts)
     .where(eq(paymentAttempts.providerPaymentId, providerPaymentId))
@@ -82,7 +113,7 @@ export async function POST(request: Request) {
   const matchedAttempt = eventType.startsWith("transaction.") && transactionId
     ? await getPaddleAttempt(transactionId)
     : null;
-  const workspaceId = customData?.workspace_id ?? matchedAttempt?.workspaceId;
+  const businessId = customData?.business_id ?? matchedAttempt?.businessId ?? undefined;
   const plan = customData?.plan ?? matchedAttempt?.plan;
   const subscriptionId = data?.id as string | undefined;
   const paddleStatus = data?.status as string | undefined;
@@ -95,12 +126,18 @@ export async function POST(request: Request) {
     | null
     | undefined;
 
+  // Resolve userId from custom_data, matched attempt, or business owner
+  const userId =
+    matchedAttempt?.userId ??
+    await resolveUserId(customData, businessId);
+
   const { eventId: storedEventId, isNew } = await recordWebhookEvent({
     providerEventId: eventId,
     provider: "paddle",
     eventType,
     payload,
-    workspaceId: workspaceId ?? null,
+    userId: userId ?? null,
+    businessId: businessId ?? null,
   });
 
   if (!isNew) {
@@ -111,14 +148,14 @@ export async function POST(request: Request) {
     switch (eventType) {
       case "subscription.created":
       case "subscription.activated": {
-        if (!workspaceId || !plan || !subscriptionId) {
+        if (!userId || !plan || !subscriptionId) {
           console.warn("[Paddle Webhook] Missing subscription activation data.", {
             eventType,
           });
           break;
         }
 
-        const previousSubscription = await getWorkspaceSubscription(workspaceId);
+        const previousSubscription = await getAccountSubscription(userId);
         const periodStart = billingPeriod?.starts_at
           ? new Date(billingPeriod.starts_at)
           : new Date();
@@ -135,28 +172,30 @@ export async function POST(request: Request) {
           providerCustomerId: customerId ?? null,
           providerSubscriptionId: subscriptionId,
           status: mapPaddleStatus(paddleStatus ?? "active"),
-          workspaceId,
+          userId,
         });
 
-        runAfterResponse(() =>
-          writeSubscriptionTransitionAuditLogs({
-            workspaceId,
-            previousSubscription,
-            nextSubscription,
-            source: "webhook",
-            providerEventId: eventId,
-          }),
-        );
+        if (businessId) {
+          runAfterResponse(() =>
+            writeSubscriptionTransitionAuditLogs({
+              businessId,
+              previousSubscription,
+              nextSubscription,
+              source: "webhook",
+              providerEventId: eventId,
+            }),
+          );
+        }
         break;
       }
 
       case "subscription.updated": {
-        if (!workspaceId || !subscriptionId) {
+        if (!userId || !subscriptionId) {
           console.warn("[Paddle Webhook] Missing subscription update data.");
           break;
         }
 
-        const previousSubscription = await getWorkspaceSubscription(workspaceId);
+        const previousSubscription = await getAccountSubscription(userId);
         const periodEnd = billingPeriod?.ends_at
           ? new Date(billingPeriod.ends_at)
           : null;
@@ -164,80 +203,83 @@ export async function POST(request: Request) {
         const canceledAt =
           scheduledChange?.action === "cancel" ? new Date() : undefined;
 
-        const nextSubscription = await updateSubscriptionStatus(workspaceId, status, {
+        const nextSubscription = await updateSubscriptionStatus(userId, status, {
           ...(canceledAt ? { canceledAt } : {}),
           currentPeriodEnd: periodEnd,
           providerSubscriptionId: subscriptionId,
         });
 
-        runAfterResponse(() =>
-          writeSubscriptionTransitionAuditLogs({
-            workspaceId,
-            previousSubscription,
-            nextSubscription,
-            source: "webhook",
-            providerEventId: eventId,
-          }),
-        );
+        if (businessId) {
+          runAfterResponse(() =>
+            writeSubscriptionTransitionAuditLogs({
+              businessId,
+              previousSubscription,
+              nextSubscription,
+              source: "webhook",
+              providerEventId: eventId,
+            }),
+          );
+        }
         break;
       }
 
       case "subscription.canceled": {
-        if (!workspaceId) {
+        if (!userId) {
           break;
         }
 
-        const previousSubscription = await getWorkspaceSubscription(workspaceId);
+        const previousSubscription = await getAccountSubscription(userId);
         const endsAt = billingPeriod?.ends_at
           ? new Date(billingPeriod.ends_at)
           : scheduledChange?.effective_at
             ? new Date(scheduledChange.effective_at)
             : null;
 
-        const nextSubscription = await updateSubscriptionStatus(workspaceId, "canceled", {
+        const nextSubscription = await updateSubscriptionStatus(userId, "canceled", {
           canceledAt: new Date(),
           currentPeriodEnd: endsAt,
         });
 
-        runAfterResponse(() =>
-          writeSubscriptionTransitionAuditLogs({
-            workspaceId,
-            previousSubscription,
-            nextSubscription,
-            source: "webhook",
-            providerEventId: eventId,
-          }),
-        );
+        if (businessId) {
+          runAfterResponse(() =>
+            writeSubscriptionTransitionAuditLogs({
+              businessId,
+              previousSubscription,
+              nextSubscription,
+              source: "webhook",
+              providerEventId: eventId,
+            }),
+          );
+        }
         break;
       }
 
       case "subscription.expired": {
-        if (!workspaceId) {
+        if (!userId) {
           break;
         }
 
-        await expireSubscription(workspaceId);
+        await expireSubscription(userId);
         break;
       }
 
       case "subscription.past_due": {
-        if (!workspaceId) {
+        if (!userId) {
           break;
         }
 
-        await updateSubscriptionStatus(workspaceId, "past_due");
+        await updateSubscriptionStatus(userId, "past_due");
         break;
       }
 
       case "transaction.completed": {
-        if (!workspaceId || !plan || !transactionId) {
+        if (!userId || !plan || !transactionId) {
           break;
         }
 
         const details = data?.details as Record<string, unknown> | undefined;
         const totals = details?.totals as Record<string, unknown> | undefined;
         const total = totals?.total as string | undefined;
-        const currencyCode = (data?.currency_code as string) ?? "USD";
         const updated = await updatePaymentAttemptStatus(
           transactionId,
           "succeeded",
@@ -248,22 +290,42 @@ export async function POST(request: Request) {
             amount: total
               ? Number.parseInt(total, 10)
               : matchedAttempt?.amount ?? 0,
-            currency:
-              currencyCode === "PHP"
-                ? "PHP"
-                : (matchedAttempt?.currency ?? "USD"),
+            currency: "USD",
             plan,
             provider: "paddle",
             providerPaymentId: transactionId,
             status: "succeeded",
-            workspaceId,
+            userId,
+            businessId,
           });
         }
+
+        // Extract and update payment method
+        const payments = data?.payments as Array<Record<string, unknown>> | undefined;
+        let paymentMethod: string | null = null;
+        if (payments && payments.length > 0) {
+          const methodDetails = payments[0].method_details as Record<string, unknown> | undefined;
+          if (methodDetails) {
+            const type = methodDetails.type as string | undefined;
+            if (type === "card") {
+              const card = methodDetails.card as Record<string, string> | undefined;
+              paymentMethod = card?.type ?? "card";
+            } else {
+              paymentMethod = type ?? null;
+            }
+          }
+        }
+
+        const txnSubscriptionId = data?.subscription_id as string | undefined;
+        if (txnSubscriptionId && paymentMethod) {
+          await updateSubscriptionPaymentMethod(userId, paymentMethod);
+        }
+
         break;
       }
 
       case "transaction.payment_failed": {
-        if (!workspaceId || !transactionId) {
+        if (!userId || !transactionId) {
           break;
         }
 
@@ -277,9 +339,29 @@ export async function POST(request: Request) {
             provider: "paddle",
             providerPaymentId: transactionId,
             status: "failed",
-            workspaceId,
+            userId,
+            businessId,
           });
         }
+        break;
+      }
+
+      case "adjustment.updated":
+      case "adjustment.created": {
+        const adjustmentId = data?.id as string | undefined;
+        const adjustmentStatus = data?.status as string | undefined;
+
+        if (!adjustmentId || !adjustmentStatus) {
+          console.warn("[Paddle Webhook] Missing adjustment data.", {
+            eventType,
+          });
+          break;
+        }
+
+        await applyRefundStatusFromAdjustment({
+          providerAdjustmentId: adjustmentId,
+          paddleStatus: adjustmentStatus,
+        });
         break;
       }
 
@@ -289,15 +371,12 @@ export async function POST(request: Request) {
         });
     }
 
-    if (workspaceId) {
-      runAfterResponse(() => finalizeScheduledWorkspaceDeletionIfDue(workspaceId));
-    }
-
     await markEventProcessed(storedEventId);
   } catch {
     console.error("[Paddle Webhook] Processing error.", {
       eventType,
-      workspaceId: workspaceId ?? null,
+      userId: userId ?? null,
+      businessId: businessId ?? null,
     });
     return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }

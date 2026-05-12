@@ -69,7 +69,7 @@ function toAiConversation(row: AiConversationRow): AiConversation {
   return {
     id: row.id,
     userId: row.userId,
-    workspaceId: row.workspaceId,
+    businessId: row.businessId,
     surface: row.surface,
     entityId: row.entityId,
     title: row.title,
@@ -197,20 +197,20 @@ export async function getConversationByIdForUser({
 
 export async function getOrCreateDefaultEntityConversation({
   userId,
-  workspaceId,
+  businessId,
   surface,
   entityId,
   title,
 }: {
   userId: string;
-  workspaceId: string;
+  businessId: string;
   surface: Extract<AiSurface, "inquiry" | "quote">;
   entityId: string;
   title: string;
 }) {
   const existing = await getDefaultEntityConversation({
     userId,
-    workspaceId,
+    businessId,
     surface,
     entityId,
   });
@@ -227,7 +227,7 @@ export async function getOrCreateDefaultEntityConversation({
       .values({
         id: createId("aic"),
         userId,
-        workspaceId,
+        businessId,
         surface,
         entityId,
         title,
@@ -245,7 +245,7 @@ export async function getOrCreateDefaultEntityConversation({
 
     const raced = await getDefaultEntityConversation({
       userId,
-      workspaceId,
+      businessId,
       surface,
       entityId,
     });
@@ -260,12 +260,12 @@ export async function getOrCreateDefaultEntityConversation({
 
 async function getDefaultEntityConversation({
   userId,
-  workspaceId,
+  businessId,
   surface,
   entityId,
 }: {
   userId: string;
-  workspaceId: string;
+  businessId: string;
   surface: Extract<AiSurface, "inquiry" | "quote">;
   entityId: string;
 }) {
@@ -275,7 +275,7 @@ async function getDefaultEntityConversation({
     .where(
       and(
         eq(aiConversations.userId, userId),
-        eq(aiConversations.workspaceId, workspaceId),
+        eq(aiConversations.businessId, businessId),
         eq(aiConversations.surface, surface),
         eq(aiConversations.entityId, entityId),
         eq(aiConversations.isDefault, true),
@@ -288,11 +288,11 @@ async function getDefaultEntityConversation({
 
 export async function getOrCreateLatestDashboardConversation({
   userId,
-  workspaceId,
+  businessId,
   entityId,
 }: {
   userId: string;
-  workspaceId: string;
+  businessId: string;
   entityId: string;
 }) {
   const [conversation] = await db
@@ -301,7 +301,7 @@ export async function getOrCreateLatestDashboardConversation({
     .where(
       and(
         eq(aiConversations.userId, userId),
-        eq(aiConversations.workspaceId, workspaceId),
+        eq(aiConversations.businessId, businessId),
         eq(aiConversations.surface, "dashboard"),
         eq(aiConversations.entityId, entityId),
       ),
@@ -313,17 +313,17 @@ export async function getOrCreateLatestDashboardConversation({
     return toAiConversation(conversation);
   }
 
-  return createDashboardConversation({ userId, workspaceId, entityId });
+  return createDashboardConversation({ userId, businessId, entityId });
 }
 
 export async function createDashboardConversation({
   userId,
-  workspaceId,
+  businessId,
   entityId,
   title = "New dashboard chat",
 }: {
   userId: string;
-  workspaceId: string;
+  businessId: string;
   entityId: string;
   title?: string;
 }) {
@@ -333,7 +333,7 @@ export async function createDashboardConversation({
     .values({
       id: createId("aic"),
       userId,
-      workspaceId,
+      businessId,
       surface: "dashboard",
       entityId,
       title,
@@ -348,12 +348,12 @@ export async function createDashboardConversation({
 
 export async function listDashboardConversations({
   userId,
-  workspaceId,
+  businessId,
   entityId,
   limit = 20,
 }: {
   userId: string;
-  workspaceId: string;
+  businessId: string;
   entityId: string;
   limit?: number;
 }): Promise<AiConversationSummary[]> {
@@ -364,7 +364,7 @@ export async function listDashboardConversations({
     .where(
       and(
         eq(aiConversations.userId, userId),
-        eq(aiConversations.workspaceId, workspaceId),
+        eq(aiConversations.businessId, businessId),
         eq(aiConversations.surface, "dashboard"),
         eq(aiConversations.entityId, entityId),
       ),

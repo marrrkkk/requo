@@ -8,13 +8,13 @@ import { DashboardActionsRow, DashboardSection } from "@/components/shared/dashb
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { DatePicker } from "@/components/ui/date-picker";
-import type { AuditLogFilters, WorkspaceAuditLogFiltersView } from "@/features/audit/types";
+import type { AuditLogFilters, BusinessAuditLogFiltersView } from "@/features/audit/types";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 
-type WorkspaceAuditLogFiltersProps = {
+type BusinessAuditLogFiltersProps = {
   action: string;
   filters: AuditLogFilters;
-  options: WorkspaceAuditLogFiltersView;
+  options: BusinessAuditLogFiltersView;
 };
 
 function FilterCombobox({
@@ -68,11 +68,11 @@ function FilterDatePicker({
   );
 }
 
-export function WorkspaceAuditLogFilters({
+export function BusinessAuditLogFilters({
   action,
   filters,
   options,
-}: WorkspaceAuditLogFiltersProps) {
+}: BusinessAuditLogFiltersProps) {
   const router = useProgressRouter();
   const hasFilters = Boolean(filters.actor || filters.business || filters.entity || filters.action || filters.from || filters.to);
 

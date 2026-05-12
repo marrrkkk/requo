@@ -1,209 +1,121 @@
-import {
-  DashboardPage,
-  DashboardToolbar,
-} from "@/components/shared/dashboard-layout";
-import { PageHeader } from "@/components/shared/page-header";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  AdminDataTable,
-  AdminPagination,
-  formatDateTime,
-  formatMetadataPreview,
-  formatNumber,
-} from "@/features/admin/components/admin-common";
-import { adminAuditLogPageDescription } from "@/features/admin/constants";
-import { requireAdminPage } from "@/features/admin/page-guard";
-import { getAdminAuditLogsPage } from "@/features/admin/queries";
-import { parseAdminAuditLogFilters } from "@/features/admin/schemas";
-import { adminAuditActions, adminAuditTargetTypes } from "@/features/admin/types";
+import type { Metadata } from "next";
+import { Suspense } from "react";
 
-type AdminAuditLogsPageProps = {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+import { requireAdminUser } from "@/features/admin/access";
+import {
+  wrapAdminRouteWithViewLog,
+  type AdminAuditContext,
+} from "@/features/admin/audit";
+import { AdminAuditTable } from "@/features/admin/components/admin-audit-table";
+import {
+  type AdminAction,
+  type AdminTargetType,
+} from "@/features/admin/constants";
+import { listAdminAuditLogs } from "@/features/admin/queries";
+import { adminAuditLogListFiltersSchema } from "@/features/admin/schemas";
+import type { AuthSession, AuthUser } from "@/lib/auth/session";
+import { createNoIndexMetadata } from "@/lib/seo/site";
+
+import AdminLoading from "../loading";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  absoluteTitle: "Audit logs · Requo admin",
+  description: "Every admin view and action, newest first.",
+});
+
+type SearchParamsRecord = Record<string, string | string[] | undefined>;
+
+type AuditLogsPageProps = {
+  searchParams: Promise<SearchParamsRecord>;
 };
 
-function SelectField({
-  label,
-  name,
-  value,
-  options,
-}: {
-  label: string;
-  name: string;
-  value: string;
-  options: Array<{ label: string; value: string }>;
-}) {
+/**
+ * Admin audit logs page.
+ *
+ * Paginated feed of every `admin_audit_logs` row, filterable by admin
+ * user id, action, target type, and target id. Ordering is enforced by
+ * `listAdminAuditLogs` as `createdAt` DESC (Req 10.6).
+ *
+ * Access + audit logging follow the same pattern as the other admin
+ * pages: `requireAdminUser()` gates the render, and the returned
+ * handler is wrapped with `wrapAdminRouteWithViewLog` to record a
+ * `view.audit-logs` entry once the page settles (Req 10.1). The
+ * top-level component stays sync + wraps the async work in
+ * `<Suspense>` so `cacheComponents` can stream the dynamic body
+ * independently of the admin shell.
+ */
+export default function AuditLogsPage({ searchParams }: AuditLogsPageProps) {
   return (
-    <label className="flex min-w-0 flex-col gap-2">
-      <span className="meta-label px-0.5">{label}</span>
-      <select
-        className="control-surface h-10 rounded-md border border-border/85 px-3 text-sm text-foreground shadow-sm outline-none focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/15"
-        defaultValue={value}
-        name={name}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <Suspense fallback={<AdminLoading />}>
+      <AuditLogsPageContent searchParams={searchParams} />
+    </Suspense>
   );
 }
 
-export default async function AdminAuditLogsPage({
+async function AuditLogsPageContent({
   searchParams,
-}: AdminAuditLogsPageProps) {
-  await requireAdminPage();
-  const resolvedSearchParams = await searchParams;
-  const filters = parseAdminAuditLogFilters(resolvedSearchParams);
-  const page = await getAdminAuditLogsPage(filters);
+}: AuditLogsPageProps) {
+  const [{ session, user }, resolvedSearchParams] = await Promise.all([
+    requireAdminUser(),
+    searchParams,
+  ]);
+
+  const auditContext = buildAdminAuditContext(user, session);
+
+  const renderPage = wrapAdminRouteWithViewLog(
+    async () => renderAuditLogsPage(resolvedSearchParams),
+    auditContext,
+    {
+      action: "view.audit-logs",
+      targetType: "audit-log",
+    },
+  );
+
+  return renderPage();
+}
+
+async function renderAuditLogsPage(
+  searchParams: SearchParamsRecord,
+) {
+  // Parse once at the page boundary so we can compute pagination
+  // without reaching back into the query's internal parse result.
+  // `listAdminAuditLogs` will re-validate the input but that's a
+  // cheap check compared to the database query behind it.
+  const filters = adminAuditLogListFiltersSchema.parse(searchParams);
+
+  const { items, total } = await listAdminAuditLogs(filters);
+
+  const pageSize = filters.pageSize;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(Math.max(1, filters.page), totalPages);
 
   return (
-    <DashboardPage>
-      <PageHeader
-        description={adminAuditLogPageDescription}
-        title="Audit logs"
-      />
-
-      <DashboardToolbar>
-        <form
-          action="/admin/audit-logs"
-          className="flex flex-col gap-4"
-        >
-          <div className="data-list-toolbar-summary">
-            <p className="text-sm leading-6 text-muted-foreground">
-              Filter internal admin access and support actions.
-            </p>
-            <p className="data-list-toolbar-count">
-              {formatNumber(page.pageInfo.totalCount)} events
-            </p>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <SelectField
-              label="Action"
-              name="action"
-              options={[
-                { label: "All actions", value: "all" },
-                ...adminAuditActions.map((action) => ({
-                  label: action,
-                  value: action,
-                })),
-              ]}
-              value={filters.action}
-            />
-            <SelectField
-              label="Target type"
-              name="targetType"
-              options={[
-                { label: "All targets", value: "all" },
-                ...adminAuditTargetTypes.map((targetType) => ({
-                  label: targetType,
-                  value: targetType,
-                })),
-              ]}
-              value={filters.targetType}
-            />
-            <label className="flex min-w-0 flex-col gap-2">
-              <span className="meta-label px-0.5">Admin</span>
-              <Input
-                defaultValue={filters.admin}
-                name="admin"
-                placeholder="Email or user ID"
-              />
-            </label>
-            <label className="flex min-w-0 flex-col gap-2">
-              <span className="meta-label px-0.5">Target ID</span>
-              <Input
-                defaultValue={filters.targetId}
-                name="targetId"
-                placeholder="Target ID"
-              />
-            </label>
-            <label className="flex min-w-0 flex-col gap-2">
-              <span className="meta-label px-0.5">From</span>
-              <Input defaultValue={filters.from} name="from" type="date" />
-            </label>
-            <label className="flex min-w-0 flex-col gap-2">
-              <span className="meta-label px-0.5">To</span>
-              <Input defaultValue={filters.to} name="to" type="date" />
-            </label>
-            <div className="flex items-end">
-              <Button className="w-full sm:w-auto" type="submit" variant="outline">
-                Apply filters
-              </Button>
-            </div>
-          </div>
-        </form>
-      </DashboardToolbar>
-
-      <div className="flex flex-col gap-5">
-        <AdminDataTable empty={page.items.length === 0}>
-          <Table className="min-w-[86rem] table-fixed">
-            <TableCaption className="sr-only">
-              Newest internal admin audit events appear first.
-            </TableCaption>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[12rem]">When</TableHead>
-                <TableHead className="w-[18rem]">Admin</TableHead>
-                <TableHead className="w-[18rem]">Action</TableHead>
-                <TableHead className="w-[18rem]">Target</TableHead>
-                <TableHead className="w-[22rem]">Metadata</TableHead>
-                <TableHead className="w-[18rem]">Request</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {page.items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="w-[12rem] text-muted-foreground">
-                    {formatDateTime(item.createdAt)}
-                  </TableCell>
-                  <TableCell className="w-[18rem] table-emphasis">
-                    {item.adminEmail}
-                  </TableCell>
-                  <TableCell className="w-[18rem] table-emphasis">
-                    {item.action}
-                  </TableCell>
-                  <TableCell className="w-[18rem]">
-                    <span className="flex min-w-0 flex-col gap-1">
-                      <span className="table-emphasis">{item.targetType}</span>
-                      <span className="table-supporting-text">
-                        {item.targetId}
-                      </span>
-                    </span>
-                  </TableCell>
-                  <TableCell className="w-[22rem] text-muted-foreground">
-                    <span className="block truncate">
-                      {formatMetadataPreview(item.metadata)}
-                    </span>
-                  </TableCell>
-                  <TableCell className="w-[18rem] text-muted-foreground">
-                    {item.ipAddress ?? "No IP"} /{" "}
-                    {item.userAgent ? item.userAgent.slice(0, 60) : "No UA"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </AdminDataTable>
-
-        <AdminPagination
-          pageInfo={page.pageInfo}
-          pathname="/admin/audit-logs"
-          searchParams={resolvedSearchParams}
-        />
-      </div>
-    </DashboardPage>
+    <AdminAuditTable
+      currentPage={currentPage}
+      filters={{
+        adminUserId: filters.adminUserId ?? "",
+        action: (filters.action ?? "all") as AdminAction | "all",
+        targetType: (filters.targetType ?? "all") as AdminTargetType | "all",
+        targetId: filters.targetId ?? "",
+      }}
+      items={items}
+      pageSize={pageSize}
+      searchParams={searchParams}
+      totalItems={total}
+      totalPages={totalPages}
+    />
   );
+}
+
+function buildAdminAuditContext(
+  admin: AuthUser,
+  session: AuthSession,
+): AdminAuditContext {
+  const impersonatedBy = session.session?.impersonatedBy ?? null;
+
+  return {
+    adminUserId: admin.id,
+    adminEmail: admin.email,
+    impersonatedUserId: impersonatedBy ? session.user.id : null,
+  };
 }

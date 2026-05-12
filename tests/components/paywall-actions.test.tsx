@@ -127,8 +127,8 @@ describe("paywalled export actions", () => {
       <CommandMenu
         businessSlug="demo-business"
         role="owner"
-        workspacePlan="free"
-        workspaceSlug="demo-workspace"
+        plan="free"
+        
       />,
     );
 
@@ -148,8 +148,8 @@ describe("paywalled export actions", () => {
       <CommandMenu
         businessSlug="demo-business"
         role="owner"
-        workspacePlan="pro"
-        workspaceSlug="demo-workspace"
+        plan="pro"
+        
       />,
     );
 

@@ -1,214 +1,133 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
+import { Suspense } from "react";
 
 import {
-  DashboardPage,
-  DashboardSection,
+  DashboardDetailHeader,
+  DashboardDetailLayout,
 } from "@/components/shared/dashboard-layout";
-import { PageHeader } from "@/components/shared/page-header";
-import {
-  AdminBasicTable,
-  AdminKeyValueGrid,
-  AdminMetricCard,
-  AdminMetricGrid,
-  AdminStatusBadge,
-  formatDateTime,
-  formatMetadataPreview,
-  formatNumber,
-} from "@/features/admin/components/admin-common";
-import { getAdminRequestMetadata } from "@/features/admin/auth";
-import { logAdminAction } from "@/features/admin/audit";
-import { requireAdminPage } from "@/features/admin/page-guard";
+import { Button } from "@/components/ui/button";
+import { requireAdminUser } from "@/features/admin/access";
+import { wrapAdminRouteWithViewLog } from "@/features/admin/audit";
+import { AdminUserActions } from "@/features/admin/components/admin-user-actions";
+import { AdminUserDetail } from "@/features/admin/components/admin-user-detail";
+import { ADMIN_USERS_PATH } from "@/features/admin/navigation";
 import { getAdminUserDetail } from "@/features/admin/queries";
-import { db } from "@/lib/db/client";
+import { timed } from "@/lib/dev/server-timing";
+import { createNoIndexMetadata } from "@/lib/seo/site";
+
+import AdminLoading from "../../loading";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  absoluteTitle: "User · Requo admin",
+  description: "Inspect a Requo user and run support actions.",
+});
 
 type AdminUserDetailPageProps = {
   params: Promise<{ userId: string }>;
 };
 
-export default async function AdminUserDetailPage({
+/**
+ * Admin user detail page (task 12.2 / Req 3.3, 4.x, 8.1, 9.1).
+ *
+ * Renders `AdminUserDetail` (profile summary + subscription + owned
+ * businesses + recent audit) alongside `AdminUserActions` (verify,
+ * revoke, suspend/unsuspend, delete, impersonate) — each action
+ * flowing through `ConfirmPasswordDialog` client-side.
+ *
+ * The top-level component stays sync + wraps the async body in
+ * `<Suspense>` so `cacheComponents` can stream the dynamic detail
+ * independently of the admin shell. Writes a `view.user` audit row on
+ * every render via `wrapAdminRouteWithViewLog` (Req 10.1). The target
+ * user id is captured in the audit row so the audit feed can be
+ * filtered by target.
+ */
+export default function AdminUserDetailPage({
   params,
 }: AdminUserDetailPageProps) {
-  const admin = await requireAdminPage();
-  const { userId } = await params;
-  const detail = await getAdminUserDetail(userId);
+  return (
+    <Suspense fallback={<AdminLoading />}>
+      <AdminUserDetailPageContent params={params} />
+    </Suspense>
+  );
+}
 
-  if (!detail) {
+async function AdminUserDetailPageContent({
+  params,
+}: AdminUserDetailPageProps) {
+  // Admin auth + param resolution are independent — run them in parallel.
+  const [{ session, user: admin }, { userId }] = await Promise.all([
+    requireAdminUser(),
+    params,
+  ]);
+
+  const renderPage = wrapAdminRouteWithViewLog(
+    async () => renderDetail(userId, admin.id),
+    {
+      adminUserId: admin.id,
+      adminEmail: admin.email,
+      impersonatedUserId: session.session?.impersonatedBy
+        ? session.user.id
+        : null,
+    },
+    {
+      action: "view.user",
+      targetType: "user",
+      targetId: userId,
+    },
+  );
+
+  return renderPage();
+}
+
+async function renderDetail(userId: string, adminUserId: string) {
+  const user = await timed(
+    "adminUserDetail.getAdminUserDetail",
+    getAdminUserDetail(userId),
+  );
+
+  if (!user) {
     notFound();
   }
 
-  await logAdminAction(db, {
-    admin,
-    action: "ADMIN_VIEW_USER",
-    targetType: "user",
-    targetId: userId,
-    metadata: {
-      userEmail: detail.account.email,
-    },
-    requestMetadata: await getAdminRequestMetadata(),
-  });
-
-  const usage = detail.businesses.reduce(
-    (totals, business) => ({
-      followUps: totals.followUps + business.followUpCount,
-      inquiries: totals.inquiries + business.inquiryCount,
-      quotes: totals.quotes + business.quoteCount,
-    }),
-    { followUps: 0, inquiries: 0, quotes: 0 },
-  );
-
   return (
-    <DashboardPage>
-      <PageHeader
-        description="Read-only account support view with related workspace, business, session, and audit context."
-        title={detail.account.email}
+    <DashboardDetailLayout>
+      <DashboardDetailHeader
+        actions={
+          <AdminUserActions
+            adminUserId={adminUserId}
+            targetEmail={user.email}
+            targetEmailVerified={user.emailVerified}
+            targetIsSuspended={user.banned}
+            targetUserId={user.id}
+          />
+        }
+        description={user.name || "Admin view of a Requo user."}
+        eyebrow={
+          <Link
+            className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"
+            href={ADMIN_USERS_PATH}
+            prefetch={true}
+          >
+            <ArrowLeft className="size-3.5" />
+            All users
+          </Link>
+        }
+        title={user.email}
       />
 
-      <AdminMetricGrid>
-        <AdminMetricCard
-          label="Workspaces"
-          value={formatNumber(detail.workspaces.length)}
-        />
-        <AdminMetricCard
-          label="Owned workspaces"
-          value={formatNumber(detail.ownedWorkspaces.length)}
-        />
-        <AdminMetricCard
-          label="Businesses"
-          value={formatNumber(detail.businesses.length)}
-        />
-        <AdminMetricCard
-          description={`${formatNumber(usage.inquiries)} inquiries, ${formatNumber(usage.quotes)} quotes`}
-          label="Usage"
-          value={formatNumber(usage.followUps)}
-        />
-      </AdminMetricGrid>
+      <AdminUserDetail user={user} />
 
-      <DashboardSection title="Account">
-        <AdminKeyValueGrid
-          items={[
-            { label: "Name", value: detail.account.name },
-            { label: "Email", value: detail.account.email },
-            {
-              label: "Email verified",
-              value: detail.account.emailVerified ? "Yes" : "No",
-            },
-            { label: "Created", value: formatDateTime(detail.account.createdAt) },
-            { label: "Updated", value: formatDateTime(detail.account.updatedAt) },
-            {
-              label: "Onboarding completed",
-              value: formatDateTime(detail.account.onboardingCompletedAt),
-            },
-            { label: "Profile name", value: detail.account.fullName },
-            { label: "Job title", value: detail.account.jobTitle },
-          ]}
-        />
-      </DashboardSection>
-
-      <DashboardSection title="Workspace memberships">
-        <AdminBasicTable
-          headers={["Workspace", "Role", "Plan", "Subscription", "Status"]}
-          rows={detail.workspaces.map((workspace) => [
-            <Link
-              className="underline-offset-4 hover:underline"
-              href={`/admin/workspaces/${workspace.workspaceId}`}
-              key={workspace.workspaceId}
-            >
-              {workspace.workspaceName}
-            </Link>,
-            workspace.role,
-            workspace.plan,
-            workspace.subscriptionStatus ?? "free",
-            <AdminStatusBadge key="status" status={workspace.status} />,
-          ])}
-        />
-      </DashboardSection>
-
-      <DashboardSection title="Owned workspaces">
-        <AdminBasicTable
-          headers={["Workspace", "Plan", "Created", "Status"]}
-          rows={detail.ownedWorkspaces.map((workspace) => [
-            <Link
-              className="underline-offset-4 hover:underline"
-              href={`/admin/workspaces/${workspace.id}`}
-              key={workspace.id}
-            >
-              {workspace.name}
-            </Link>,
-            workspace.plan,
-            formatDateTime(workspace.createdAt),
-            <AdminStatusBadge key="status" status={workspace.status} />,
-          ])}
-        />
-      </DashboardSection>
-
-      <DashboardSection title="Accessible businesses">
-        <AdminBasicTable
-          headers={["Business", "Workspace", "Role", "Usage", "Status"]}
-          rows={detail.businesses.map((business) => [
-            <Link
-              className="underline-offset-4 hover:underline"
-              href={`/admin/businesses/${business.businessId}`}
-              key={business.businessId}
-            >
-              {business.businessName}
-            </Link>,
-            <Link
-              className="underline-offset-4 hover:underline"
-              href={`/admin/workspaces/${business.workspaceId}`}
-              key={business.workspaceId}
-            >
-              {business.workspaceName}
-            </Link>,
-            business.role,
-            `${formatNumber(business.inquiryCount)} inquiries / ${formatNumber(business.quoteCount)} quotes`,
-            <AdminStatusBadge key="status" status={business.status} />,
-          ])}
-        />
-      </DashboardSection>
-
-      <div className="grid gap-6 xl:grid-cols-2">
-        <DashboardSection title="Recent sessions">
-          <AdminBasicTable
-            headers={["Updated", "Expires", "IP"]}
-            rows={detail.sessions.map((session) => [
-              formatDateTime(session.updatedAt),
-              formatDateTime(session.expiresAt),
-              session.ipAddress ?? "Not available",
-            ])}
-          />
-        </DashboardSection>
-
-        <DashboardSection title="Recent admin views">
-          <AdminBasicTable
-            headers={["When", "Admin", "Action", "Metadata"]}
-            rows={detail.recentAdminAuditLogs.map((log) => [
-              formatDateTime(log.createdAt),
-              log.adminEmail,
-              log.action,
-              formatMetadataPreview(log.metadata),
-            ])}
-          />
-        </DashboardSection>
+      <div className="flex justify-start">
+        <Button asChild variant="ghost">
+          <Link href={ADMIN_USERS_PATH} prefetch={true}>
+            <ArrowLeft data-icon="inline-start" />
+            Back to users
+          </Link>
+        </Button>
       </div>
-
-      <DashboardSection title="Recent user activity">
-        <AdminBasicTable
-          headers={["When", "Workspace", "Action", "Metadata"]}
-          rows={detail.recentWorkspaceAuditLogs.map((log) => [
-            formatDateTime(log.createdAt),
-            <Link
-              className="underline-offset-4 hover:underline"
-              href={`/admin/workspaces/${log.workspaceId}`}
-              key={log.id}
-            >
-              {log.workspaceId}
-            </Link>,
-            log.action,
-            formatMetadataPreview(log.metadata),
-          ])}
-        />
-      </DashboardSection>
-    </DashboardPage>
+    </DashboardDetailLayout>
   );
 }

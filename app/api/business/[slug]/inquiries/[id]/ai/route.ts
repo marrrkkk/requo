@@ -34,7 +34,7 @@ export async function POST(
 
   if (
     !hasFeatureAccess(
-      actionContext.businessContext.business.workspacePlan,
+      actionContext.businessContext.business.plan,
       "aiAssistant",
     )
   ) {

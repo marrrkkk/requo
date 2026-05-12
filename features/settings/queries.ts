@@ -21,7 +21,7 @@ import {
   settingsBusinessCacheLife,
 } from "@/lib/cache/business-tags";
 import { db } from "@/lib/db/client";
-import { inquiries, businessInquiryForms, businesses, workspaces } from "@/lib/db/schema";
+import { inquiries, businessInquiryForms, businesses } from "@/lib/db/schema";
 
 export async function getBusinessSettingsForBusiness(
   businessId: string,
@@ -34,9 +34,9 @@ export async function getBusinessSettingsForBusiness(
   const [business] = await db
     .select({
       id: businesses.id,
-      workspaceId: businesses.workspaceId,
-      workspaceSlug: workspaces.slug,
-      plan: workspaces.plan,
+      businessId: businesses.id,
+      businessSlug: businesses.slug,
+      plan: businesses.plan,
       name: businesses.name,
       slug: businesses.slug,
       recordState: getBusinessRecordState,
@@ -70,17 +70,10 @@ export async function getBusinessSettingsForBusiness(
       notifyOnQuoteExpiring: businesses.notifyOnQuoteExpiring,
       notifyInAppOnQuoteExpiring: businesses.notifyInAppOnQuoteExpiring,
       defaultCurrency: businesses.defaultCurrency,
-      activeWorkspaceBusinessCount: sql<number>`(
-        select count(*)::int
-        from ${businesses} as workspace_businesses
-        where workspace_businesses.workspace_id = ${businesses.workspaceId}
-          and workspace_businesses.archived_at is null
-          and workspace_businesses.deleted_at is null
-      )`,
+      activeBusinessCount: sql<number>`1`,
       updatedAt: businesses.updatedAt,
     })
     .from(businesses)
-    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .where(eq(businesses.id, businessId))
     .limit(1);
 
@@ -107,7 +100,7 @@ export async function getBusinessInquiryPageSettingsForBusiness(
       id: businesses.id,
       name: businesses.name,
       slug: businesses.slug,
-      plan: workspaces.plan,
+      plan: businesses.plan,
       shortDescription: businesses.shortDescription,
       logoStoragePath: businesses.logoStoragePath,
       updatedAt: businesses.updatedAt,
@@ -122,7 +115,6 @@ export async function getBusinessInquiryPageSettingsForBusiness(
       inquiryPageConfig: businessInquiryForms.inquiryPageConfig,
     })
     .from(businesses)
-    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .innerJoin(
       businessInquiryForms,
       and(
@@ -188,7 +180,7 @@ export async function getBusinessInquiryFormSettingsForBusiness(
       id: businesses.id,
       name: businesses.name,
       slug: businesses.slug,
-      plan: workspaces.plan,
+      plan: businesses.plan,
       updatedAt: businesses.updatedAt,
       inquiryHeadline: businesses.inquiryHeadline,
       shortDescription: businesses.shortDescription,
@@ -202,7 +194,6 @@ export async function getBusinessInquiryFormSettingsForBusiness(
       inquiryPageConfig: businessInquiryForms.inquiryPageConfig,
     })
     .from(businesses)
-    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .innerJoin(
       businessInquiryForms,
       and(
@@ -349,7 +340,7 @@ export async function getBusinessInquiryFormEditorForBusiness(
         id: businesses.id,
         name: businesses.name,
         slug: businesses.slug,
-        plan: workspaces.plan,
+        plan: businesses.plan,
         shortDescription: businesses.shortDescription,
         logoStoragePath: businesses.logoStoragePath,
         updatedAt: businesses.updatedAt,
@@ -364,7 +355,6 @@ export async function getBusinessInquiryFormEditorForBusiness(
         inquiryPageConfig: businessInquiryForms.inquiryPageConfig,
       })
       .from(businesses)
-      .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
       .innerJoin(
         businessInquiryForms,
         and(

@@ -28,13 +28,13 @@ vi.mock('@/lib/db/schema/subscriptions', () => ({
     providerEventId: 'providerEventId',
     provider: 'provider',
     eventType: 'eventType',
-    workspaceId: 'workspaceId',
+    businessId: 'businessId',
     payload: 'payload',
     processedAt: 'processedAt',
     createdAt: 'createdAt',
   },
   paymentAttempts: {
-    workspaceId: 'workspaceId',
+    businessId: 'businessId',
     providerPaymentId: 'providerPaymentId',
     status: 'status',
   },
@@ -51,14 +51,14 @@ describe('lib/billing/webhook-processor', () => {
       const result = webhookSuccess('Payment processed');
       expect(result.success).toBe(true);
       expect(result.message).toBe('Payment processed');
-      expect(result.workspaceId).toBeUndefined();
+      expect(result.businessId).toBeUndefined();
     });
 
-    it('includes workspaceId when provided', () => {
+    it('includes businessId when provided', () => {
       const result = webhookSuccess('OK', 'ws_123');
       expect(result.success).toBe(true);
       expect(result.message).toBe('OK');
-      expect(result.workspaceId).toBe('ws_123');
+      expect(result.businessId).toBe('ws_123');
     });
   });
 
@@ -67,7 +67,7 @@ describe('lib/billing/webhook-processor', () => {
       const result = webhookError('Invalid signature');
       expect(result.success).toBe(false);
       expect(result.message).toBe('Invalid signature');
-      expect(result.workspaceId).toBeUndefined();
+      expect(result.businessId).toBeUndefined();
     });
   });
 });

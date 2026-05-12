@@ -5,11 +5,10 @@
  * `hasFeatureAccess` and `getRequiredPlan`; feature code should not use raw
  * plan comparisons.
  *
- * Entitlements are evaluated at the workspace level. Businesses inherit
- * feature access from their workspace's plan.
+ * Entitlements are evaluated at the business level.
  */
 
-import type { WorkspacePlan } from "@/lib/plans/plans";
+import type { BusinessPlan } from "@/lib/plans/plans";
 
 export const planFeatures = [
   "analyticsConversion",
@@ -20,7 +19,6 @@ export const planFeatures = [
   "emailTemplates",
   "customerHistory",
   "pushNotifications",
-  "replySnippets",
   "quoteLibrary",
   "knowledgeBase",
   "aiAssistant",
@@ -32,7 +30,7 @@ export const planFeatures = [
 
 export type PlanFeature = (typeof planFeatures)[number];
 
-const planEntitlements: Record<WorkspacePlan, ReadonlySet<PlanFeature>> = {
+const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
   free: new Set<PlanFeature>(["attachments", "pushNotifications"]),
   pro: new Set<PlanFeature>([
     "analyticsConversion",
@@ -43,7 +41,6 @@ const planEntitlements: Record<WorkspacePlan, ReadonlySet<PlanFeature>> = {
     "emailTemplates",
     "customerHistory",
     "pushNotifications",
-    "replySnippets",
     "quoteLibrary",
     "knowledgeBase",
     "aiAssistant",
@@ -60,7 +57,6 @@ const planEntitlements: Record<WorkspacePlan, ReadonlySet<PlanFeature>> = {
     "emailTemplates",
     "customerHistory",
     "pushNotifications",
-    "replySnippets",
     "quoteLibrary",
     "knowledgeBase",
     "aiAssistant",
@@ -72,10 +68,10 @@ const planEntitlements: Record<WorkspacePlan, ReadonlySet<PlanFeature>> = {
 };
 
 /**
- * Checks whether a workspace plan grants access to a given feature.
+ * Checks whether a business plan grants access to a given feature.
  */
 export function hasFeatureAccess(
-  plan: WorkspacePlan,
+  plan: BusinessPlan,
   feature: PlanFeature,
 ): boolean {
   return planEntitlements[plan].has(feature);
@@ -85,7 +81,7 @@ export function hasFeatureAccess(
  * Returns the minimum plan required to unlock a feature, or `null` if the
  * feature is available on all plans.
  */
-export function getRequiredPlan(feature: PlanFeature): WorkspacePlan | null {
+export function getRequiredPlan(feature: PlanFeature): BusinessPlan | null {
   if (planEntitlements.free.has(feature)) {
     return null;
   }
@@ -111,7 +107,6 @@ export const planFeatureLabels: Record<PlanFeature, string> = {
   emailTemplates: "Email templates",
   customerHistory: "Customer history",
   pushNotifications: "Push notifications",
-  replySnippets: "Saved replies",
   quoteLibrary: "Quote library",
   knowledgeBase: "Knowledge",
   aiAssistant: "AI assistant",
@@ -139,8 +134,6 @@ export const planFeatureDescriptions: Record<PlanFeature, string> = {
     "Review a customer's prior inquiries and quotes from inquiry and quote detail pages.",
   pushNotifications:
     "Receive browser push notifications for important inquiry and quote events.",
-  replySnippets:
-    "Save and reuse common responses to speed up replies.",
   quoteLibrary:
     "Build a library of reusable quote templates.",
   knowledgeBase:
@@ -154,5 +147,5 @@ export const planFeatureDescriptions: Record<PlanFeature, string> = {
   branding:
     "Remove Requo branding and unlock advanced brand controls.",
   multiBusiness:
-    "Manage more than one business in this workspace.",
+    "Manage more than one total business across your businesses.",
 };

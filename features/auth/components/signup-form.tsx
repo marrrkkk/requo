@@ -11,11 +11,20 @@ import {
   SocialAuthButtons,
   type SocialAuthProvider,
 } from "@/features/auth/components/social-auth-buttons";
-import { getAuthErrorMessage, getFieldError, getValidationState } from "@/features/auth/utils";
-import { signupSchema } from "@/features/auth/schemas";
+import {
+  getAuthErrorMessage,
+  getFieldError,
+  getMagicLinkQueryErrorMessage,
+  getValidationState,
+} from "@/features/auth/utils";
+import {
+  magicLinkSignupRequestSchema,
+  signupSchema,
+} from "@/features/auth/schemas";
 import type { AuthFormState } from "@/features/auth/types";
 import { AuthFormFeedback } from "@/features/auth/components/auth-form-feedback";
 import { onboardingPath } from "@/features/onboarding/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import { FormActions } from "@/components/shared/form-layout";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -31,10 +40,12 @@ import { PasswordInput } from "@/features/auth/components/password-input";
 
 type SignupFormProps = {
   socialProviders?: SocialAuthProvider[];
+  magicLinkEnabled?: boolean;
 };
 
 export function SignupForm({
   socialProviders = [],
+  magicLinkEnabled = false,
 }: SignupFormProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -43,7 +54,9 @@ export function SignupForm({
   // Only forward ?next when it's a genuine non-default redirect
   const loginHref = getAuthPathWithNext("/login", rawNext && nextPath !== onboardingPath ? nextPath : null);
   const [state, setState] = useState<AuthFormState>({});
-  const [loadingAction, setLoadingAction] = useState<"email" | SocialAuthProvider | null>(null);
+  const [loadingAction, setLoadingAction] = useState<
+    "email" | "magic-link" | SocialAuthProvider | null
+  >(null);
   const [isPending, startTransition] = useTransition();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -95,8 +108,8 @@ export function SignupForm({
     startTransition(async () => {
       const result = await authClient.signIn.social({
         provider,
-        // Existing users land on workspaces; brand-new users land on onboarding (nextPath default)
-        callbackURL: "/workspaces",
+        // Existing users land on businesses; brand-new users land on onboarding (nextPath default)
+        callbackURL: businessesHubPath,
         newUserCallbackURL: nextPath,
       });
 
@@ -112,17 +125,86 @@ export function SignupForm({
     });
   }
 
+  function handleMagicLinkRequest() {
+    if (!magicLinkEnabled) {
+      return;
+    }
+
+    const nameInput = document.getElementById(
+      "signup-name",
+    ) as HTMLInputElement | null;
+    const emailInput = document.getElementById(
+      "signup-email",
+    ) as HTMLInputElement | null;
+
+    const validationResult = magicLinkSignupRequestSchema.safeParse({
+      name: nameInput?.value ?? "",
+      email: emailInput?.value ?? "",
+    });
+
+    if (!validationResult.success) {
+      setState(getValidationState(validationResult.error));
+      return;
+    }
+
+    setState({});
+    setLoadingAction("magic-link");
+
+    const rawNext = searchParams.get("next");
+    const errorCallbackURL =
+      rawNext !== null && rawNext !== ""
+        ? `/signup?next=${encodeURIComponent(rawNext)}`
+        : "/signup";
+
+    startTransition(async () => {
+      const result = await authClient.signIn.magicLink({
+        email: validationResult.data.email,
+        name: validationResult.data.name,
+        callbackURL: businessesHubPath,
+        newUserCallbackURL: nextPath,
+        errorCallbackURL,
+      });
+
+      setLoadingAction(null);
+
+      if (result.error) {
+        setState({
+          error: getAuthErrorMessage(
+            result.error,
+            "We couldn’t send a sign-in link. Try again shortly.",
+          ),
+        });
+        return;
+      }
+
+      router.push(
+        `/check-email?reason=magic-link&email=${encodeURIComponent(validationResult.data.email)}`,
+      );
+    });
+  }
+
   const nameError = getFieldError(state.fieldErrors, "name");
   const emailError = getFieldError(state.fieldErrors, "email");
   const passwordError = getFieldError(state.fieldErrors, "password");
 
+  const urlMagicLinkError = getMagicLinkQueryErrorMessage(
+    searchParams.get("error"),
+  );
+
   return (
     <form className="form-stack" onSubmit={handleSubmit}>
-      <AuthFormFeedback error={state.error} success={state.success} />
+      <AuthFormFeedback
+        error={state.error ?? urlMagicLinkError ?? undefined}
+        success={state.success}
+      />
 
       <SocialAuthButtons
         disabled={isPending}
-        loadingProvider={isPending && loadingAction !== "email" ? (loadingAction as SocialAuthProvider) : null}
+        loadingProvider={
+          isPending && loadingAction !== "email" && loadingAction !== "magic-link"
+            ? (loadingAction as SocialAuthProvider)
+            : null
+        }
         onProviderClick={handleSocialSignIn}
         providers={socialProviders}
       />
@@ -131,10 +213,10 @@ export function SignupForm({
 
       <FieldGroup>
         <Field data-invalid={Boolean(nameError) || undefined}>
-          <FieldLabel htmlFor="name">Full name</FieldLabel>
+          <FieldLabel htmlFor="signup-name">Full name</FieldLabel>
           <FieldContent>
             <Input
-              id="name"
+              id="signup-name"
               name="name"
               autoComplete="name"
               maxLength={120}
@@ -149,10 +231,10 @@ export function SignupForm({
         </Field>
 
         <Field data-invalid={Boolean(emailError) || undefined}>
-          <FieldLabel htmlFor="email">Email address</FieldLabel>
+          <FieldLabel htmlFor="signup-email">Email address</FieldLabel>
           <FieldContent>
             <Input
-              id="email"
+              id="signup-email"
               name="email"
               type="email"
               autoComplete="email"

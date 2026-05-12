@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 
 import { MarketingMobileNav } from "@/components/marketing/marketing-mobile-nav";
 import { Button } from "@/components/ui/button";
-import { workspacesHubPath } from "@/features/workspaces/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import { getOptionalSession } from "@/lib/auth/session";
 
 export async function PublicHeaderActions() {
@@ -12,13 +12,13 @@ export async function PublicHeaderActions() {
   return session?.user ? (
     <>
       <Button asChild className="hidden sm:inline-flex lg:hidden" size="sm">
-        <Link href={workspacesHubPath}>
+        <Link href={businessesHubPath}>
           Visit app
           <ArrowRight data-icon="inline-end" />
         </Link>
       </Button>
       <Button asChild className="hidden lg:inline-flex">
-        <Link href={workspacesHubPath}>
+        <Link href={businessesHubPath}>
           Visit app
           <ArrowRight data-icon="inline-end" />
         </Link>

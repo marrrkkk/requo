@@ -16,9 +16,9 @@ import type { BusinessType } from "@/features/inquiries/business-types";
 import type { InquiryFormConfig } from "@/features/inquiries/form-config";
 import type { InquiryPageConfig } from "@/features/inquiries/page-config";
 import type { QuoteEmailTemplateConfig } from "@/features/settings/email-templates";
+import type { BusinessPlan } from "@/lib/plans/plans";
 import { businessMemberRoles } from "@/lib/business-members";
 import { user } from "@/lib/db/schema/auth";
-import { workspaces } from "@/lib/db/schema/workspaces";
 
 export const businessMemberRoleEnum = pgEnum("business_member_role", [
   ...businessMemberRoles,
@@ -70,17 +70,23 @@ export const businesses = pgTable(
   "businesses",
   {
     id: text("id").primaryKey(),
-    workspaceId: text("workspace_id")
+    ownerUserId: text("owner_user_id")
       .notNull()
-      .references(() => workspaces.id, { onDelete: "cascade" }),
+      .references(() => user.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
     slug: text("slug").notNull(),
+    plan: text("plan")
+      .$type<BusinessPlan>()
+      .notNull()
+      .default("free"),
     businessType: text("business_type")
       .$type<BusinessType>()
       .notNull()
       .default("general_project_services"),
     countryCode: text("country_code"),
     shortDescription: text("short_description"),
+    /** How inbound customers typically reach this business (onboarding insight). */
+    customerContactChannel: text("customer_contact_channel"),
     contactEmail: text("contact_email"),
     logoStoragePath: text("logo_storage_path"),
     logoContentType: text("logo_content_type"),
@@ -151,6 +157,11 @@ export const businesses = pgTable(
     archivedBy: text("archived_by").references(() => user.id, {
       onDelete: "set null",
     }),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    lockedBy: text("locked_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    lockedReason: text("locked_reason"),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     deletedBy: text("deleted_by").references(() => user.id, {
       onDelete: "set null",
@@ -165,14 +176,18 @@ export const businesses = pgTable(
   (table) => [
     uniqueIndex("businesses_slug_unique").on(table.slug),
     index("businesses_created_at_idx").on(table.createdAt),
-    index("businesses_workspace_id_idx").on(table.workspaceId),
-    index("businesses_workspace_archived_at_idx").on(
-      table.workspaceId,
+    index("businesses_owner_user_id_idx").on(table.ownerUserId),
+    index("businesses_owner_deleted_at_idx").on(
+      table.ownerUserId,
+      table.deletedAt,
+    ),
+    index("businesses_owner_archived_at_idx").on(
+      table.ownerUserId,
       table.archivedAt,
     ),
-    index("businesses_workspace_deleted_at_idx").on(
-      table.workspaceId,
-      table.deletedAt,
+    index("businesses_owner_locked_at_idx").on(
+      table.ownerUserId,
+      table.lockedAt,
     ),
     check("businesses_slug_format", sql`${table.slug} ~ '^[a-z0-9-]+$'`),
     check(
@@ -182,6 +197,10 @@ export const businesses = pgTable(
     check(
       "businesses_default_quote_validity_days_range",
       sql`${table.defaultQuoteValidityDays} between 1 and 365`,
+    ),
+    check(
+      "businesses_plan_valid",
+      sql`${table.plan} in ('free', 'pro', 'business')`,
     ),
   ],
 );

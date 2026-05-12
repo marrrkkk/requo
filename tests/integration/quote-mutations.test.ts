@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, and } from "drizzle-orm";
 
 vi.mock("@/lib/db/client", async () => {
-  const { testDb: mockedDb } = await import("./db");
+  const { testDb: mockedDb } = await import("../support/db");
 
   return { db: mockedDb };
 });
@@ -16,13 +16,13 @@ import {
 } from "@/features/quotes/mutations";
 import { activityLogs, inquiries, quoteItems, quotes } from "@/lib/db/schema";
 
-import { closeTestDb, testDb } from "./db";
+import { closeTestDb, testDb } from "@/tests/support/db";
 import {
   cleanupWorkflowFixture,
   createWorkflowFixture,
   getInquiryStatus,
   type WorkflowFixtureIds,
-} from "./workflow-fixtures";
+} from "@/tests/support/fixtures/workflow";
 
 const prefix = "test_quote_workflow";
 let ids: WorkflowFixtureIds;
@@ -164,9 +164,9 @@ describe("features/quotes/mutations workflow", () => {
     );
 
     const wrongBusinessSend = await markQuoteSentForBusiness({
-      businessId: ids.otherBusinessId,
       quoteId: created!.id,
-      actorUserId: ids.ownerUserId,
+      businessId: ids.otherBusinessId,
+      actorUserId: ids.outsiderUserId,
       sendMethod: "manual",
     });
 
@@ -241,8 +241,8 @@ describe("features/quotes/mutations workflow", () => {
     const lockedBeforeAcceptance =
       await updateQuotePostAcceptanceStatusForBusiness({
         businessId: ids.businessId,
-        quoteId: created!.id,
-        actorUserId: ids.ownerUserId,
+      quoteId: created!.id,
+      actorUserId: ids.ownerUserId,
         postAcceptanceStatus: "scheduled",
       });
 

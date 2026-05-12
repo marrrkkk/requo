@@ -16,7 +16,7 @@ import {
   settingsBusinessCacheLife,
 } from "@/lib/cache/business-tags";
 import { getUsageLimit } from "@/lib/plans";
-import type { WorkspacePlan } from "@/lib/plans";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 export async function getMemoryDashboardData(
   businessId: string,
@@ -44,7 +44,7 @@ export async function getMemoryDashboardData(
 
 export async function getMemorySummaryForBusiness(
   businessId: string,
-  workspacePlan: WorkspacePlan,
+  plan: plan,
 ): Promise<DashboardMemorySummary> {
   "use cache";
 
@@ -61,7 +61,7 @@ export async function getMemorySummaryForBusiness(
   ]);
 
   const memoryCount = memoryCountResult?.memoryCount ?? 0;
-  const limit = getUsageLimit(workspacePlan, "memoriesPerBusiness");
+  const limit = getUsageLimit(plan, "memoriesPerBusiness");
 
   return {
     memoryCount,

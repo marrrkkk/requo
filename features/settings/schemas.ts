@@ -11,6 +11,7 @@ import { inquiryFormConfigSchema } from "@/features/inquiries/form-config";
 import {
   inquiryPageCardSchema,
   inquiryPageImageUrlSchema,
+  inquiryPageMobileLayoutSchema,
   inquiryPageShowcaseImageFrames,
   inquiryPageShowcaseImageSizes,
   inquiryPageTemplateSchema,
@@ -329,6 +330,7 @@ export const businessInquiryPageSettingsSchema = z.object({
   businessType: z.enum(businessTypes),
   publicInquiryEnabled: formBoolean(),
   template: inquiryPageTemplateSchema,
+  mobileLayout: inquiryPageMobileLayoutSchema,
   showSupportingCards: formBoolean(),
   showShowcaseImage: formBoolean(),
   showBusinessContact: formBoolean(),

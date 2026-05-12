@@ -40,13 +40,13 @@ export async function createMemoryAction(
   }
 
   const { user, businessContext } = ownerAccess;
-  const workspacePlan = businessContext.business.workspacePlan;
+  const plan = businessContext.business.plan;
 
-  if (!hasFeatureAccess(workspacePlan, "knowledgeBase")) {
+  if (!hasFeatureAccess(plan, "knowledgeBase")) {
     return { error: "Upgrade to Pro to save knowledge for the AI assistant." };
   }
 
-  const memoryLimit = getUsageLimit(workspacePlan, "memoriesPerBusiness");
+  const memoryLimit = getUsageLimit(plan, "memoriesPerBusiness");
 
   if (memoryLimit !== null) {
     const currentCount = await getMemoryCountForBusiness(businessContext.business.id);
@@ -104,7 +104,7 @@ export async function updateMemoryAction(
 
   const { user, businessContext } = ownerAccess;
 
-  if (!hasFeatureAccess(businessContext.business.workspacePlan, "knowledgeBase")) {
+  if (!hasFeatureAccess(businessContext.business.plan, "knowledgeBase")) {
     return { error: "Upgrade to Pro to update knowledge." };
   }
 
@@ -161,7 +161,7 @@ export async function deleteMemoryAction(
 
   const { user, businessContext } = ownerAccess;
 
-  if (!hasFeatureAccess(businessContext.business.workspacePlan, "knowledgeBase")) {
+  if (!hasFeatureAccess(businessContext.business.plan, "knowledgeBase")) {
     return { error: "Upgrade to Pro to delete knowledge." };
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ArrowUpRight, Briefcase, Building2, XIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +30,7 @@ import {
 } from "@/lib/billing/plans";
 import type { BillingCurrency, BillingInterval, BillingRegion, PaidPlan } from "@/lib/billing/types";
 import { planMeta } from "@/lib/plans";
-import type { WorkspacePlan } from "@/lib/plans/plans";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
 
 const paidPlans: PaidPlan[] = ["pro", "business"];
@@ -38,20 +39,17 @@ const planHighlights: Record<PaidPlan, string[]> = {
   pro: [
     "Unlimited inquiries and quotes",
     "Follow-up reminders and quote tracking",
-    "Multiple inquiry forms",
-    "AI assistant and knowledge",
   ],
   business: [
     "Everything in Pro",
     "Team members and roles",
-    "Priority support",
   ],
 };
 
 type PlanSelectionSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  currentPlan: WorkspacePlan;
+  currentPlan: plan;
   defaultCurrency: BillingCurrency;
   region: BillingRegion;
   targetPlan?: PaidPlan;
@@ -80,10 +78,10 @@ export function PlanSelectionSheet({
       <DrawerContent
         className="fixed inset-x-0 bottom-0 z-50 max-h-[88vh] w-full overflow-hidden rounded-t-2xl border border-border/70 border-b-0 bg-card/95 sm:mx-auto sm:w-[calc(100%-1.5rem)] sm:max-w-[52rem] lg:max-w-[68rem] xl:max-w-[76rem]"
       >
-        <DrawerHeader className="border-b border-border/70 px-5 py-4 pr-14 sm:px-6 sm:py-5">
+        <DrawerHeader className="border-b border-border/70 px-5 py-4 pr-14 sm:px-6 sm:py-4">
           <DrawerTitle>Choose a plan</DrawerTitle>
           <DrawerDescription>
-            Compare Pro and Business, then continue to checkout with your preferred payment method.
+            Compare Pro and Business, then continue to checkout.
           </DrawerDescription>
         </DrawerHeader>
 
@@ -98,26 +96,27 @@ export function PlanSelectionSheet({
           </Button>
         </DrawerClose>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 pb-5 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
           {/* Billing interval toggle */}
-          <Tabs
-            onValueChange={(value) =>
-              setInterval(value === "yearly" ? "yearly" : "monthly")
-            }
-            value={interval}
-          >
-            <TabsList className="w-full max-w-xs">
-              <TabsTrigger className="flex-1" value="monthly">
-                Monthly
-              </TabsTrigger>
-              <TabsTrigger className="flex-1" value="yearly">
-                Yearly
-                <Badge variant="secondary">
-                  -{getYearlySavingsPercent("pro", defaultCurrency)}%
-                </Badge>
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex justify-center">
+            <Tabs
+              onValueChange={(value) =>
+                setInterval(value === "yearly" ? "yearly" : "monthly")
+              }
+              value={interval}
+              className="w-full max-w-[280px]"
+            >
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                <TabsTrigger value="yearly">
+                  Yearly
+                  <Badge variant="secondary" className="ml-1.5 px-1 font-medium text-[10px]">
+                    -{getYearlySavingsPercent("pro", defaultCurrency)}%
+                  </Badge>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
           <div className="grid gap-5 md:grid-cols-2">
             {paidPlans.map((plan) => {
@@ -149,7 +148,7 @@ export function PlanSelectionSheet({
                         </div>
                         <div className="min-w-0">
                           <CardTitle>{planMeta[plan].label}</CardTitle>
-                          <CardDescription className="mt-1">
+                          <CardDescription className="mt-1 min-h-[40px] line-clamp-2">
                             {planMeta[plan].description}
                           </CardDescription>
                         </div>
@@ -182,10 +181,19 @@ export function PlanSelectionSheet({
                     </div>
                     <div className="grid gap-2">
                       {planHighlights[plan].map((highlight) => (
-                        <p className="text-sm text-muted-foreground" key={highlight}>
-                          {highlight}
-                        </p>
+                        <div className="flex items-start gap-2" key={highlight}>
+                          <p className="text-sm text-muted-foreground">
+                            {highlight}
+                          </p>
+                        </div>
                       ))}
+                      <Link
+                        href="/pricing"
+                        target="_blank"
+                        className="mt-1 text-sm font-medium text-primary hover:underline"
+                      >
+                        See all features &rarr;
+                      </Link>
                     </div>
                   </CardContent>
                   <CardFooter className="mt-auto">
@@ -210,11 +218,6 @@ export function PlanSelectionSheet({
               );
             })}
           </div>
-          {region === "PH" ? (
-            <p className="rounded-xl border border-border/70 bg-muted/30 px-4 py-3 text-sm leading-6 text-muted-foreground">
-              QR Ph checkout stays in PHP. Cards and more are billed in USD at checkout.
-            </p>
-          ) : null}
         </div>
       </DrawerContent>
     </Drawer>

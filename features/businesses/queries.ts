@@ -12,10 +12,13 @@ import {
   sql,
 } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
+import { cache } from "react";
 
 import type {
   BusinessDashboardSummaryData,
   BusinessOverviewData,
+  PublicBusinessProfile,
+  PublicBusinessSitemapEntry,
 } from "@/features/businesses/types";
 import {
   getEffectiveInquiryStatus,
@@ -31,10 +34,11 @@ import { getQuoteReminderKinds } from "@/features/quotes/utils";
 import {
   getBusinessAnalyticsCacheTags,
   getBusinessOverviewCacheTags,
+  getPublicBusinessProfileCacheTags,
   hotBusinessCacheLife,
 } from "@/lib/cache/business-tags";
 import { db } from "@/lib/db/client";
-import { inquiries, quotes } from "@/lib/db/schema";
+import { businesses, inquiries, quotes } from "@/lib/db/schema";
 
 const overviewQueueItemLimit = 4;
 
@@ -377,4 +381,121 @@ async function getCachedBusinessDashboardSummaryData(
     wonCount: Number(inquirySummaryRows[0]?.wonCount ?? 0),
     lostCount: Number(inquirySummaryRows[0]?.lostCount ?? 0),
   };
+}
+
+/**
+ * Inner cached lookup for the public `/businesses/[slug]` page and its
+ * `generateMetadata`. Tagged with slug-scoped tags so mutations that change
+ * public profile data (see task 8.2) can call
+ * `revalidateTag(...getPublicBusinessProfileCacheTags(slug))` regardless of
+ * whether the caller currently holds the business id.
+ *
+ * Must not call `cookies()` or `headers()` — `"use cache"` bodies have to be
+ * request-agnostic. The outer `React.cache()` wrapper below gives us
+ * per-request deduplication so the page and `generateMetadata` share a
+ * single DB round-trip.
+ */
+async function _getPublicBusinessProfileBySlugCached(
+  slug: string,
+): Promise<PublicBusinessProfile | null> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getPublicBusinessProfileCacheTags(slug));
+
+  const [row] = await db
+    .select({
+      id: businesses.id,
+      slug: businesses.slug,
+      name: businesses.name,
+      shortDescription: businesses.shortDescription,
+      logoStoragePath: businesses.logoStoragePath,
+      updatedAt: businesses.updatedAt,
+      archivedAt: businesses.archivedAt,
+      lockedAt: businesses.lockedAt,
+      deletedAt: businesses.deletedAt,
+    })
+    .from(businesses)
+    .where(
+      and(eq(businesses.slug, slug), isNull(businesses.deletedAt)),
+    )
+    .limit(1);
+
+  if (!row) {
+    return null;
+  }
+
+  const isPublic = row.archivedAt === null && row.lockedAt === null;
+  const logoUrl = row.logoStoragePath
+    ? `/api/public/businesses/${row.slug}/logo?v=${row.updatedAt.getTime()}`
+    : null;
+
+  return {
+    id: row.id,
+    slug: row.slug,
+    name: row.name,
+    description: row.shortDescription,
+    shortDescription: row.shortDescription,
+    logoUrl,
+    updatedAt: row.updatedAt,
+    isPublic,
+    // `address`, `telephone`, and `areaServed` are intentionally left
+    // undefined — the schema has no columns for them today.
+  } satisfies PublicBusinessProfile;
+}
+
+/**
+ * Two-layer cached lookup for the public business profile consumed by
+ * `/businesses/[slug]`:
+ *
+ * - inner `"use cache"` function tagged via
+ *   `getPublicBusinessProfileCacheTags(slug)` for cross-request caching,
+ * - outer `React.cache()` wrapper for within-request deduplication so the
+ *   page component and `generateMetadata` share one DB round-trip.
+ */
+export const getPublicBusinessProfileBySlug = cache(
+  async (slug: string): Promise<PublicBusinessProfile | null> => {
+    return _getPublicBusinessProfileBySlugCached(slug);
+  },
+);
+
+/**
+ * Indexable public business URLs for `sitemap.xml`. Mirrors the
+ * public-visibility predicate used by `getPublicBusinessProfileBySlug`
+ * (archived/locked/deleted all null). Rows whose `noIndex` is `true`
+ * are returned so callers can log or observe filtering, but the sitemap
+ * generator must drop them before emitting entries.
+ *
+ * On a DB failure we log at `error` level and return `[]` so a transient
+ * database issue cannot take down the sitemap route.
+ */
+export async function listPublicBusinessSitemapEntries(): Promise<
+  PublicBusinessSitemapEntry[]
+> {
+  try {
+    const rows = await db
+      .select({
+        slug: businesses.slug,
+        updatedAt: businesses.updatedAt,
+        archivedAt: businesses.archivedAt,
+        lockedAt: businesses.lockedAt,
+        deletedAt: businesses.deletedAt,
+      })
+      .from(businesses)
+      .where(isNull(businesses.deletedAt));
+
+    return rows.map((row) => ({
+      slug: row.slug,
+      pathname: `/businesses/${row.slug}`,
+      lastModified: row.updatedAt,
+      noIndex:
+        row.archivedAt !== null
+        || row.lockedAt !== null
+        || row.deletedAt !== null,
+    }));
+  } catch (error) {
+    console.error("Failed to load public business sitemap entries.", error);
+
+    return [];
+  }
 }

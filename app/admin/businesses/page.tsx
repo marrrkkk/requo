@@ -1,131 +1,92 @@
-import Link from "next/link";
+import type { Metadata } from "next";
+import { Suspense } from "react";
 
-import { DashboardPage } from "@/components/shared/dashboard-layout";
-import { PageHeader } from "@/components/shared/page-header";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  AdminDataTable,
-  AdminPagination,
-  AdminSearchForm,
-  AdminStatusBadge,
-  formatDateTime,
-  formatNumber,
-} from "@/features/admin/components/admin-common";
-import { requireAdminPage } from "@/features/admin/page-guard";
-import { getAdminBusinessesPage } from "@/features/admin/queries";
-import { parseAdminListFilters } from "@/features/admin/schemas";
+import { requireAdminUser } from "@/features/admin/access";
+import { wrapAdminRouteWithViewLog } from "@/features/admin/audit";
+import { AdminBusinessesTable } from "@/features/admin/components/admin-businesses-table";
+import { ADMIN_BUSINESSES_PATH } from "@/features/admin/navigation";
+import { listAdminBusinesses } from "@/features/admin/queries";
+import { adminBusinessesListFiltersSchema } from "@/features/admin/schemas";
+import { createNoIndexMetadata } from "@/lib/seo/site";
+
+import AdminLoading from "../loading";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  absoluteTitle: "Businesses · Requo admin",
+  description: "Read-only review of customer business setups.",
+});
+
+type SearchParamsRecord = Record<string, string | string[] | undefined>;
 
 type AdminBusinessesPageProps = {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Promise<SearchParamsRecord>;
 };
 
-export default async function AdminBusinessesPage({
+/**
+ * Admin businesses list (task 12.3 / Req 5.1, 5.2).
+ *
+ * Uses `q`, `plan`, `page`, and `pageSize` URL params so the view stays
+ * linkable. Default ordering is `createdAt desc`. The page is read-only
+ * — no mutation affordances are rendered on the list or the detail
+ * (Req 5.4); the detail page at `[businessId]/page.tsx` enforces the
+ * same.
+ *
+ * The top-level component stays sync + wraps the async body in
+ * `<Suspense>` so `cacheComponents` can stream the dynamic list
+ * independently of the admin shell. The layout already writes a
+ * `view.dashboard` audit row for the shell render; we refine the audit
+ * here to `view.businesses` via `wrapAdminRouteWithViewLog` per Req
+ * 10.1.
+ */
+export default function AdminBusinessesPage({
   searchParams,
 }: AdminBusinessesPageProps) {
-  await requireAdminPage();
-  const resolvedSearchParams = await searchParams;
-  const filters = parseAdminListFilters(resolvedSearchParams);
-  const page = await getAdminBusinessesPage(filters);
+  return (
+    <Suspense fallback={<AdminLoading />}>
+      <AdminBusinessesPageContent searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function AdminBusinessesPageContent({
+  searchParams,
+}: AdminBusinessesPageProps) {
+  const { session, user: admin } = await requireAdminUser();
+  const rawParams = await searchParams;
+
+  const renderPage = wrapAdminRouteWithViewLog(
+    async () => renderBusinessesPage(rawParams),
+    {
+      adminUserId: admin.id,
+      adminEmail: admin.email,
+      impersonatedUserId: session.session?.impersonatedBy
+        ? session.user.id
+        : null,
+    },
+    {
+      action: "view.businesses",
+      targetType: "business",
+    },
+  );
+
+  return renderPage();
+}
+
+async function renderBusinessesPage(rawParams: SearchParamsRecord) {
+  const filters = adminBusinessesListFiltersSchema.parse(rawParams);
+  const { items, total } = await listAdminBusinesses(filters);
+  const totalPages = Math.max(1, Math.ceil(total / filters.pageSize));
+  const currentPage = Math.min(Math.max(1, filters.page), totalPages);
 
   return (
-    <DashboardPage>
-      <PageHeader
-        description="Search businesses by business name, business ID, workspace, slug, or owner email."
-        title="Businesses"
-      />
-
-      <AdminSearchForm
-        action="/admin/businesses"
-        defaultValue={filters.q}
-        description="Search businesses by business name, business ID, workspace, slug, or owner email."
-        placeholder="Search by business, ID, workspace, or owner"
-        resultLabel={`${formatNumber(page.pageInfo.totalCount)} businesses`}
-      />
-
-      <div className="flex flex-col gap-5">
-        <AdminDataTable empty={page.items.length === 0}>
-          <Table className="min-w-[82rem] table-fixed">
-            <TableCaption className="sr-only">
-              Newest matching businesses appear first.
-            </TableCaption>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[18rem]">Business</TableHead>
-                <TableHead className="w-[16rem]">Workspace</TableHead>
-                <TableHead className="w-[18rem]">Owner</TableHead>
-                <TableHead className="w-[8rem]">Inquiries</TableHead>
-                <TableHead className="w-[8rem]">Quotes</TableHead>
-                <TableHead className="w-[8rem]">Follow-ups</TableHead>
-                <TableHead className="w-[10rem]">Status</TableHead>
-                <TableHead className="w-[10rem]">Created</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {page.items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="w-[18rem]">
-                    <Link
-                      className="table-meta-stack max-w-full"
-                      href={`/admin/businesses/${item.id}`}
-                      prefetch={true}
-                    >
-                      <span className="table-link">{item.name}</span>
-                      <span className="table-supporting-text">{item.slug}</span>
-                    </Link>
-                  </TableCell>
-                  <TableCell className="w-[16rem]">
-                    <Link
-                      className="table-emphasis block max-w-full hover:text-primary hover:underline"
-                      href={`/admin/workspaces/${item.workspaceId}`}
-                      prefetch={true}
-                    >
-                      {item.workspaceName}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="w-[18rem]">
-                    <Link
-                      className="table-emphasis block max-w-full hover:text-primary hover:underline"
-                      href={`/admin/users/${item.ownerUserId}`}
-                      prefetch={true}
-                    >
-                      {item.ownerEmail}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="w-[8rem]">
-                    {formatNumber(item.inquiryCount)}
-                  </TableCell>
-                  <TableCell className="w-[8rem]">
-                    {formatNumber(item.quoteCount)}
-                  </TableCell>
-                  <TableCell className="w-[8rem]">
-                    {formatNumber(item.followUpCount)}
-                  </TableCell>
-                  <TableCell className="w-[10rem]">
-                    <AdminStatusBadge status={item.status} />
-                  </TableCell>
-                  <TableCell className="w-[10rem] text-muted-foreground">
-                    {formatDateTime(item.createdAt)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </AdminDataTable>
-
-        <AdminPagination
-          pageInfo={page.pageInfo}
-          pathname="/admin/businesses"
-          searchParams={resolvedSearchParams}
-        />
-      </div>
-    </DashboardPage>
+    <AdminBusinessesTable
+      currentPage={currentPage}
+      filters={filters}
+      items={items}
+      pageSize={filters.pageSize}
+      pathname={ADMIN_BUSINESSES_PATH}
+      searchParams={rawParams}
+      totalItems={total}
+    />
   );
 }

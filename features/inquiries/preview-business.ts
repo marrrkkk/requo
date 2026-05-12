@@ -6,13 +6,13 @@ import {
   resolveInquiryPageConfigForPlan,
 } from "@/features/inquiries/plan-rules";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
-import type { WorkspacePlan } from "@/lib/plans/plans";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 type CreatePublicInquiryPreviewBusinessInput = {
   id: string;
   name: string;
   slug: string;
-  plan: WorkspacePlan;
+  plan: plan;
   businessType: BusinessType;
   shortDescription?: string | null;
   logoUrl?: string | null;

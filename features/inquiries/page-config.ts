@@ -7,7 +7,7 @@ import {
   type BusinessType,
 } from "@/features/inquiries/business-types";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
-import type { WorkspacePlan } from "@/lib/plans/plans";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 function emptyToUndefined(value: unknown) {
   if (value == null) {
@@ -70,6 +70,10 @@ export const inquiryPageTemplates = [
   "showcase",
   "no_supporting_cards",
 ] as const;
+export const inquiryPageMobileLayouts = [
+  "full",
+  "compact",
+] as const;
 export const inquiryPageShowcaseImageFrames = [
   "wide",
   "landscape",
@@ -86,6 +90,8 @@ export const maxInquiryPageCardTitleLength = 48;
 export const maxInquiryPageCardDescriptionLength = 120;
 
 export type InquiryPageTemplate = (typeof inquiryPageTemplates)[number];
+export type InquiryPageMobileLayout =
+  (typeof inquiryPageMobileLayouts)[number];
 export type InquiryPageShowcaseImageFrame =
   (typeof inquiryPageShowcaseImageFrames)[number];
 export type InquiryPageShowcaseImageSize =
@@ -102,6 +108,19 @@ function normalizeInquiryPageTemplateValue(value: unknown) {
 export const inquiryPageTemplateSchema = z.preprocess(
   normalizeInquiryPageTemplateValue,
   z.enum(inquiryPageTemplates),
+);
+
+function normalizeInquiryPageMobileLayoutValue(value: unknown) {
+  if (value === "default") {
+    return "full";
+  }
+
+  return value;
+}
+
+export const inquiryPageMobileLayoutSchema = z.preprocess(
+  normalizeInquiryPageMobileLayoutValue,
+  z.enum(inquiryPageMobileLayouts).default("full"),
 );
 
 export const inquiryPageTemplateMeta: Record<
@@ -122,6 +141,23 @@ export const inquiryPageTemplateMeta: Record<
   no_supporting_cards: {
     label: "No supporting cards",
     description: "Show the intro and inquiry form only, with no supporting card row.",
+  },
+};
+
+export const inquiryPageMobileLayoutMeta: Record<
+  InquiryPageMobileLayout,
+  {
+    label: string;
+    description: string;
+  }
+> = {
+  full: {
+    label: "Full",
+    description: "Form first, intro and supporting content below.",
+  },
+  compact: {
+    label: "Form only",
+    description: "Show just the form on mobile.",
   },
 };
 
@@ -312,6 +348,7 @@ export type InquiryPageShowcaseImage = z.infer<
 
 export const inquiryPageConfigSchema = z.object({
   template: inquiryPageTemplateSchema,
+  mobileLayout: inquiryPageMobileLayoutSchema,
   showSupportingCards: z.boolean().default(true),
   showShowcaseImage: z.boolean().default(false),
   showBusinessContact: z.boolean().default(true),
@@ -374,7 +411,7 @@ type InquiryPageConfigDefaultsInput = {
   legacyInquiryHeadline?: string | null;
   businessType?: BusinessType;
   template?: InquiryPageTemplate;
-  plan?: WorkspacePlan;
+  plan?: plan;
 };
 
 function createDefaultInquiryPageCards(
@@ -540,6 +577,7 @@ export function createInquiryPageConfigDefaults(
 
   return {
     template: resolvedTemplate,
+    mobileLayout: "full" as const,
     showSupportingCards: resolvedTemplate !== "no_supporting_cards",
     showShowcaseImage: false,
     showBusinessContact: true,

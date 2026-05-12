@@ -1,5 +1,6 @@
 import type { BusinessRecordState } from "@/features/businesses/lifecycle";
 import type { InquiryStatus } from "@/features/inquiries/types";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import type {
   QuotePostAcceptanceStatus,
   QuoteReminderKind,
@@ -74,8 +75,17 @@ export type CreateBusinessActionState = {
     name?: string[] | undefined;
     businessType?: string[] | undefined;
     defaultCurrency?: string[] | undefined;
-    workspaceId?: string[] | undefined;
+    businessId?: string[] | undefined;
   };
+};
+
+export type BusinessQuotaSnapshot = {
+  ownerUserId: string;
+  plan: plan;
+  current: number;
+  limit: number | null;
+  allowed: boolean;
+  upgradePlan: plan | null;
 };
 
 export type BusinessRecordActionState = {
@@ -90,10 +100,59 @@ export type BusinessLifecycleView = {
   id: string;
   name: string;
   slug: string;
-  workspaceId: string;
-  workspaceSlug: string;
+  businessId: string;
+  businessSlug: string;
   recordState: BusinessRecordState;
   archivedAt: Date | null;
   deletedAt: Date | null;
-  activeWorkspaceBusinessCount: number;
+  activeBusinessCount: number;
+};
+
+/**
+ * Address shape consumed by the LocalBusiness / ProfessionalService JSON-LD
+ * emitter. Keep every field optional: the schema currently has no dedicated
+ * address columns, so we simply omit the shape when the data is absent.
+ */
+export type PublicBusinessAddress = {
+  streetAddress?: string;
+  addressLocality?: string;
+  addressRegion?: string;
+  postalCode?: string;
+  addressCountry?: string;
+};
+
+/**
+ * Sitemap row for the public `/businesses/[slug]` route. `noIndex === true`
+ * entries are produced for visibility reasons (so consumers can see what
+ * was filtered) and must be dropped from the emitted sitemap to mirror the
+ * page's `robots` metadata. Mirrors the public-visibility predicate used
+ * by `getPublicBusinessProfileBySlug` (archived/locked/deleted all null).
+ */
+export type PublicBusinessSitemapEntry = {
+  slug: string;
+  pathname: string;
+  lastModified: Date;
+  noIndex: boolean;
+};
+
+/**
+ * Public-facing business profile consumed by the `/businesses/[slug]` page
+ * and `generateMetadata`. `isPublic` is the single noindex/sitemap source
+ * of truth — a business is public when it is not archived, locked, or
+ * soft-deleted. Optional address / telephone / areaServed fields are
+ * returned as `undefined` because the schema does not yet carry those
+ * columns.
+ */
+export type PublicBusinessProfile = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  shortDescription: string | null;
+  logoUrl: string | null;
+  updatedAt: Date;
+  isPublic: boolean;
+  address?: PublicBusinessAddress;
+  telephone?: string;
+  areaServed?: string;
 };

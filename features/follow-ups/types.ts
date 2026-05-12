@@ -41,7 +41,6 @@ export type FollowUpListQueryFilters = Omit<FollowUpListFilters, "page">;
 
 export type FollowUpView = {
   id: string;
-  workspaceId: string;
   businessId: string;
   inquiryId: string | null;
   quoteId: string | null;

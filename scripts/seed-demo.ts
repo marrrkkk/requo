@@ -3,8 +3,7 @@
  *
  * Complete dev/demo database seeder for Requo.
  *
- * Creates 3 plan-level users (Free, Pro, Business) with realistic workspaces,
- * businesses, subscriptions, inquiries, quotes, and supporting data.
+ * Creates 3 plan-level users (Free, Pro, Business) with realistic  * businesses, subscriptions, inquiries, quotes, and supporting data.
  *
  * Run:  npm run db:seed-demo
  * Reqs: DATABASE_URL + BETTER_AUTH_SECRET in .env
@@ -20,6 +19,7 @@ import type { BusinessType } from "../features/inquiries/business-types";
 import { auth } from "../lib/auth/config";
 import { db, dbConnection } from "../lib/db/client";
 import {
+  accountSubscriptions,
   activityLogs,
   businessMembers,
   businesses,
@@ -30,14 +30,10 @@ import {
   profiles,
   quoteItems,
   quotes,
-  replySnippets,
   user,
-  workspaceMembers,
-  workspaces,
-  workspaceSubscriptions,
 } from "../lib/db/schema";
 import { env } from "../lib/env";
-import type { WorkspacePlan } from "../lib/plans/plans";
+import type { BusinessPlan as plan } from "../lib/plans/plans";
 
 /* ═══════════════════════════════════════════════════════════════════════════
  * Constants
@@ -49,11 +45,11 @@ const demoStaffEmail = process.env.DEMO_STAFF_EMAIL ?? "staff@requo.local";
 const demoOutsiderEmail =
   process.env.DEMO_OUTSIDER_EMAIL ?? "outsider@requo.local";
 const primaryDemoUser: SeedUserConfig = {
-  name: env.DEMO_OWNER_NAME ?? "Morgan Lee",
-  email: env.DEMO_OWNER_EMAIL ?? "demo@requo.local",
+  name: env.DEMO_OWNER_NAME ?? "Mark Louie",
+  email: env.DEMO_OWNER_EMAIL ?? "marklouie.dev@gmail.com",
   plan: "business",
-  workspaceName: "BrightSide Workspace",
-  workspaceSlug: "brightside-workspace",
+  businessGroupName: "BrightSide",
+  businessSlug: "brightside",
   businesses: [
     {
       name: env.DEMO_BUSINESS_NAME ?? "BrightSide Print Studio",
@@ -86,9 +82,9 @@ const primaryDemoUser: SeedUserConfig = {
 type SeedUserConfig = {
   name: string;
   email: string;
-  plan: WorkspacePlan;
-  workspaceName: string;
-  workspaceSlug: string;
+  plan: plan;
+  businessGroupName: string;
+  businessSlug: string;
   businesses: SeedBusinessConfig[];
   teamMembers?: SeedTeamMember[];
 };
@@ -118,15 +114,15 @@ const USERS: SeedUserConfig[] = [
     name: "Maria Santos",
     email: "free@requo.dev",
     plan: "free",
-    workspaceName: "Maria's Workspace",
-    workspaceSlug: "maria-ws",
+    businessGroupName: "Maria's",
+    businessSlug: "maria-ws",
     businesses: [
       {
         name: "Santos Print Shop",
         slug: "santos-print-shop",
         businessType: "print_signage",
         shortDescription: "Custom printing, signage, and display graphics for local businesses.",
-        defaultCurrency: "PHP",
+        defaultCurrency: "USD",
         countryCode: "PH",
         contactEmail: "maria@santosprint.ph",
         inquiryCount: 60,
@@ -139,8 +135,8 @@ const USERS: SeedUserConfig[] = [
     name: "James Carter",
     email: "pro@requo.dev",
     plan: "pro",
-    workspaceName: "Carter Interiors",
-    workspaceSlug: "carter-interiors-ws",
+    businessGroupName: "Carter Interiors",
+    businessSlug: "carter-interiors-ws",
     businesses: [
       {
         name: "Carter Interior Design",
@@ -160,15 +156,15 @@ const USERS: SeedUserConfig[] = [
     name: "Rafael Reyes",
     email: "business@requo.dev",
     plan: "business",
-    workspaceName: "Reyes Group",
-    workspaceSlug: "reyes-group-ws",
+    businessGroupName: "Reyes Group",
+    businessSlug: "reyes-group-ws",
     businesses: [
       {
         name: "Reyes Contractors",
         slug: "reyes-contractors",
         businessType: "contractor_home_improvement",
         shortDescription: "General contracting, renovations, and build-outs across Luzon.",
-        defaultCurrency: "PHP",
+        defaultCurrency: "USD",
         countryCode: "PH",
         contactEmail: "info@reyescontractors.ph",
         inquiryCount: 250,
@@ -180,7 +176,7 @@ const USERS: SeedUserConfig[] = [
         slug: "reyes-event-services",
         businessType: "event_services_rentals",
         shortDescription: "Corporate event setup, tent rentals, and audio/visual production.",
-        defaultCurrency: "PHP",
+        defaultCurrency: "USD",
         countryCode: "PH",
         contactEmail: "events@reyesgroup.ph",
         inquiryCount: 80,
@@ -368,13 +364,6 @@ const QUOTE_ITEMS: Record<string, Array<{ desc: string; minPrice: number; maxPri
   ],
 };
 
-const REPLY_SNIPPETS = [
-  { title: "Request dimensions", body: "Could you share the exact dimensions or measurements needed? This will help us provide an accurate quote." },
-  { title: "Confirm timeline", body: "What's your ideal completion date? We want to make sure we can meet your schedule." },
-  { title: "Budget clarification", body: "Do you have a target budget range in mind? This helps us tailor the proposal to your needs." },
-  { title: "Thank you for inquiry", body: "Thanks for reaching out! We'll review your request and get back to you within 24 hours with a detailed proposal." },
-];
-
 const KNOWLEDGE_ITEMS = [
   { title: "Standard turnaround", content: "Our standard production turnaround is 5-7 business days from design approval. Rush orders can be completed in 2-3 business days at a 25% surcharge." },
   { title: "Payment terms", content: "We require a 50% deposit to begin production. The remaining balance is due upon completion before delivery. We accept bank transfer, GCash, and credit card payment." },
@@ -430,14 +419,12 @@ async function resetDatabase() {
     "account",
     "verification",
     "profiles",
-    "workspaces",
-    "workspace_members",
-    "workspace_subscriptions",
-    "billing_events",
-    "payment_attempts",
     "businesses",
     "business_members",
     "business_member_invites",
+    "account_subscriptions",
+    "billing_events",
+    "payment_attempts",
     "business_inquiry_forms",
     "inquiries",
     "inquiry_attachments",
@@ -445,13 +432,18 @@ async function resetDatabase() {
     "quotes",
     "quote_items",
     "activity_logs",
+    "admin_audit_logs",
+    "audit_logs",
     "business_notifications",
     "business_notification_states",
-    "reply_snippets",
+    "business_notification_reads",
     "business_memories",
     "quote_library_entries",
     "quote_library_entry_items",
-
+    "post_win_checklist_items",
+    "follow_ups",
+    "email_outbox",
+    "email_attempts",
     "public_action_events",
   ];
   const resetTableArray = tablesToReset
@@ -922,49 +914,55 @@ async function seedStableSmokeFixtures(params: {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * Workspace + subscription creation
+ * Business + subscription creation
  * ═══════════════════════════════════════════════════════════════════════════ */
 
-async function createWorkspace(
+async function createBusinessRecord(
   config: SeedUserConfig,
   ownerId: string,
 ): Promise<string> {
   const wsId = id("ws");
   const now = new Date();
 
-  await db.insert(workspaces).values({
+  await db.insert(businesses).values({
     id: wsId,
-    name: config.workspaceName,
-    slug: config.workspaceSlug,
+    name: config.businessGroupName,
+    slug: config.businessSlug,
     plan: config.plan,
     ownerUserId: ownerId,
     createdAt: daysAgo(180),
     updatedAt: now,
   });
 
-  await db.insert(workspaceMembers).values({
+  await db.insert(businessMembers).values({
     id: id("wm"),
-    workspaceId: wsId,
+    businessId: wsId,
     userId: ownerId,
     role: "owner",
     createdAt: daysAgo(180),
     updatedAt: now,
   });
 
-  // Create subscription row for paid plans
+  // Create account-scoped subscription row for paid plans. The seeder
+  // intentionally writes `account_subscriptions` directly rather than going
+  // through `subscription-service.ts` — the service calls `revalidateTag()`,
+  // which requires a Next.js request context and is unavailable from a
+  // standalone script. Plan sync across owned businesses is trivial here
+  // because each seeded owner gets exactly one `businesses` row and we
+  // already stamp the matching `plan` value on insert above.
   if (config.plan !== "free") {
     const periodStart = daysAgo(15);
     const periodEnd = addDays(periodStart, 30);
 
-    await db.insert(workspaceSubscriptions).values({
+    await db.insert(accountSubscriptions).values({
       id: id("sub"),
-      workspaceId: wsId,
+      userId: ownerId,
       status: "active",
       plan: config.plan,
-      billingProvider: config.plan === "business" ? "paymongo" : "paddle",
-      billingCurrency: config.plan === "business" ? "PHP" : "USD",
-      providerCustomerId: `cus_demo_${config.workspaceSlug}`,
-      providerSubscriptionId: `sub_demo_${config.workspaceSlug}`,
+      billingProvider: "paddle",
+      billingCurrency: "USD",
+      providerCustomerId: `cus_demo_${config.businessSlug}`,
+      providerSubscriptionId: `sub_demo_${config.businessSlug}`,
       currentPeriodStart: periodStart,
       currentPeriodEnd: periodEnd,
       createdAt: daysAgo(90),
@@ -995,7 +993,7 @@ async function createBusiness(
 
   await db.insert(businesses).values({
     id: bizId,
-    workspaceId: wsId,
+    ownerUserId: ownerId,
     name: config.name,
     slug: config.slug,
     businessType: config.businessType,
@@ -1031,18 +1029,6 @@ async function createBusiness(
     createdAt: daysAgo(180),
     updatedAt: now,
   });
-
-  // Seed reply snippets
-  for (const snippet of REPLY_SNIPPETS) {
-    await db.insert(replySnippets).values({
-      id: id("rsp"),
-      businessId: bizId,
-      title: snippet.title,
-      body: snippet.body,
-      createdAt: daysAgo(170),
-      updatedAt: daysAgo(170),
-    });
-  }
 
   // Seed knowledge memories
   for (let i = 0; i < KNOWLEDGE_ITEMS.length; i++) {
@@ -1319,19 +1305,19 @@ async function main() {
     // Create user via Better Auth
     const userId = await createUser(userConfig.name, userConfig.email);
 
-    // Create workspace + subscription
-    const wsId = await createWorkspace(userConfig, userId);
-    console.log(`   Workspace: ${userConfig.workspaceName} (${userConfig.plan})`);
+    // Create business + subscription
+    const wsId = await createBusinessRecord(userConfig, userId);
+    console.log(`   Business: ${userConfig.businessGroupName} (${userConfig.plan})`);
 
-    // Create team members for this workspace
+    // Create team members for this business
     if (userConfig.teamMembers) {
       for (const tm of userConfig.teamMembers) {
         const tmId = await createUser(tm.name, tm.email);
-        await db.insert(workspaceMembers).values({
+        await db.insert(businessMembers).values({
           id: id("wm"),
-          workspaceId: wsId,
+          businessId: wsId,
           userId: tmId,
-          role: "member",
+          role: "staff",
           createdAt: daysAgo(90),
           updatedAt: new Date(),
         });

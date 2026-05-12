@@ -5,6 +5,9 @@ import {
   demoQuotePublicToken,
   demoVoidedQuotePublicToken,
 } from "./fixtures";
+import { registerSmokeGuard } from "./smoke-registry";
+
+registerSmokeGuard();
 
 test.describe.configure({ mode: "serial" });
 
@@ -40,7 +43,7 @@ test("customer can accept a sent quote from the public quote page @smoke", async
     timeout: 20_000,
   });
   await expect(
-    page.getByText("This quote has already been accepted and recorded."),
+    page.getByText("This quote has been accepted."),
   ).toBeVisible({ timeout: 20_000 });
   await expect(
     page.getByText("Looks good. Please move ahead and confirm the production timeline."),

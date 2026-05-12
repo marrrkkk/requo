@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
@@ -18,10 +19,11 @@ import {
 import {
   getBusinessInquiriesPath,
 } from "@/features/businesses/routes";
-import { workspacesHubPath } from "@/features/workspaces/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
 import { hasFeatureAccess } from "@/lib/plans";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 
 type InquiriesPageProps = {
   params: Promise<{ slug: string }>;
@@ -59,6 +61,16 @@ function getCachedPageWindow(currentPage: number, totalPages: number) {
   return Array.from(pages).sort((left, right) => left - right);
 }
 
+export const metadata: Metadata = createNoIndexMetadata({
+  title: "Inquiries",
+  description: "List, filter, and manage inquiries for this business.",
+});
+
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
+};
+
 export default async function InquiriesPage({
   params,
   searchParams,
@@ -74,7 +86,7 @@ export default async function InquiriesPage({
   );
 
   if (!businessContext) {
-    redirect(workspacesHubPath);
+    redirect(businessesHubPath);
   }
 
   const parsedFilters = inquiryListFiltersSchema.safeParse(resolvedSearchParams);
@@ -132,7 +144,7 @@ export default async function InquiriesPage({
   );
   const businessSlug = businessContext.business.slug;
   const canExport = hasFeatureAccess(
-    businessContext.business.workspacePlan,
+    businessContext.business.plan,
     "exports",
   );
   const hasNonViewFilters = Boolean(

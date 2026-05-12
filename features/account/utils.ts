@@ -49,5 +49,15 @@ export function resolveUserAvatarSrc({
     return getProfileAvatarUrl(profileUpdatedAt);
   }
 
-  return oauthImage ?? null;
+  if (!oauthImage) {
+    return null;
+  }
+
+  // OAuth provider avatars (e.g. Google) can intermittently fail client-side due to
+  // third-party restrictions. Proxy through our origin for reliability.
+  if (oauthImage.startsWith("http://") || oauthImage.startsWith("https://")) {
+    return "/api/account/oauth-avatar";
+  }
+
+  return oauthImage;
 }

@@ -1,18 +1,18 @@
 import type { InquiryFormConfig } from "@/features/inquiries/form-config";
 import type { InquiryPageConfig } from "@/features/inquiries/page-config";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
-import type { WorkspacePlan } from "@/lib/plans/plans";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import {
   formatUsageLimitValue,
   getUsageLimit,
 } from "@/lib/plans/usage-limits";
 
-export function getInquiryCustomFieldLimit(plan: WorkspacePlan): number {
+export function getInquiryCustomFieldLimit(plan: plan): number {
   return getUsageLimit(plan, "customFieldsPerForm") ?? Number.POSITIVE_INFINITY;
 }
 
 export function getPublicInquiryAttachmentMaxBytes(
-  plan: WorkspacePlan,
+  plan: plan,
 ): number {
   return (
     getUsageLimit(plan, "publicInquiryAttachmentMaxBytes") ??
@@ -21,7 +21,7 @@ export function getPublicInquiryAttachmentMaxBytes(
 }
 
 export function getPublicInquiryAttachmentLimitLabel(
-  plan: WorkspacePlan,
+  plan: plan,
 ): string {
   return formatUsageLimitValue(
     "publicInquiryAttachmentMaxBytes",
@@ -30,7 +30,7 @@ export function getPublicInquiryAttachmentLimitLabel(
 }
 
 export function getPublicInquiryAttachmentHelpText(
-  plan: WorkspacePlan,
+  plan: plan,
 ): string {
   return `PDF, DOC, DOCX, JPG, PNG, WEBP, or TXT up to ${getPublicInquiryAttachmentLimitLabel(plan)}`;
 }
@@ -43,7 +43,7 @@ export function countInquiryCustomFields(
 
 export function resolveInquiryFormConfigForPlan(
   config: InquiryFormConfig,
-  plan: WorkspacePlan,
+  plan: plan,
 ): InquiryFormConfig {
   const customFieldLimit = getInquiryCustomFieldLimit(plan);
   let customFieldCount = 0;
@@ -63,7 +63,7 @@ export function resolveInquiryFormConfigForPlan(
 
 export function resolveInquiryPageConfigForPlan(
   config: InquiryPageConfig,
-  plan: WorkspacePlan,
+  plan: plan,
 ): InquiryPageConfig {
   if (hasFeatureAccess(plan, "inquiryPageCustomization")) {
     return config;
@@ -77,6 +77,6 @@ export function resolveInquiryPageConfigForPlan(
   };
 }
 
-export function isInquiryPageCustomizationLocked(plan: WorkspacePlan): boolean {
+export function isInquiryPageCustomizationLocked(plan: plan): boolean {
   return !hasFeatureAccess(plan, "inquiryPageCustomization");
 }

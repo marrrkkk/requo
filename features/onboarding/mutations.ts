@@ -2,7 +2,6 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 
-import { writeAuditLog } from "@/features/audit/mutations";
 import {
   type StarterTemplateBusinessType,
 } from "@/features/businesses/starter-templates";
@@ -11,8 +10,8 @@ import type { BusinessType } from "@/features/inquiries/business-types";
 import type { InquiryFormConfig } from "@/features/inquiries/form-config";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { db } from "@/lib/db/client";
-import { profiles, workspaceMembers, workspaces } from "@/lib/db/schema";
-import { appendRandomSlugSuffix, slugifyPublicName } from "@/lib/slugs";
+import { businessMembers, businesses, profiles } from "@/lib/db/schema";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 type CompleteOnboardingForUserInput = {
   user: {
@@ -23,12 +22,12 @@ type CompleteOnboardingForUserInput = {
   jobTitle: string;
   companySize: string;
   referralSource: string;
-  workspaceName: string;
   businessName: string;
   businessType: BusinessType;
   starterTemplateBusinessType: StarterTemplateBusinessType;
   countryCode: string;
   defaultCurrency: string;
+  customerContactChannel: string;
   inquiryFormConfigOverride?: InquiryFormConfig;
 };
 
@@ -41,12 +40,12 @@ export async function completeOnboardingForUser({
   jobTitle,
   companySize,
   referralSource,
-  workspaceName,
   businessName,
   businessType,
   starterTemplateBusinessType,
   countryCode,
   defaultCurrency,
+  customerContactChannel,
   inquiryFormConfigOverride,
 }: CompleteOnboardingForUserInput) {
   await ensureProfileForUser(user);
@@ -65,89 +64,26 @@ export async function completeOnboardingForUser({
       })
       .where(eq(profiles.userId, user.id));
 
+    // Check if user already has a business (e.g., from invite flow)
     const [existingMembership] = await tx
-      .select({ workspaceId: workspaceMembers.workspaceId })
-      .from(workspaceMembers)
-      .where(eq(workspaceMembers.userId, user.id))
+      .select({
+        businessId: businessMembers.businessId,
+        plan: businesses.plan,
+      })
+      .from(businessMembers)
+      .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
+      .where(eq(businessMembers.userId, user.id))
       .limit(1);
 
-    let workspaceId: string;
+    let currentPlan: plan = "free";
 
     if (existingMembership) {
-      workspaceId = existingMembership.workspaceId;
-
-      await tx
-        .update(workspaces)
-        .set({
-          name: workspaceName,
-          updatedAt: now,
-        })
-        .where(eq(workspaces.id, workspaceId));
-    } else {
-      let workspaceSlugCandidate = slugifyPublicName(workspaceName, {
-        fallback: "workspace",
-      });
-
-      while (true) {
-        const [existing] = await tx
-          .select({ id: workspaces.id })
-          .from(workspaces)
-          .where(eq(workspaces.slug, workspaceSlugCandidate))
-          .limit(1);
-
-        if (!existing) {
-          break;
-        }
-
-        workspaceSlugCandidate = appendRandomSlugSuffix(
-          workspaceSlugCandidate,
-          {
-            fallback: "workspace",
-          },
-        );
-      }
-
-      workspaceId = createId("ws");
-
-      await tx.insert(workspaces).values({
-        id: workspaceId,
-        name: workspaceName,
-        slug: workspaceSlugCandidate,
-        plan: "free",
-        ownerUserId: user.id,
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      await tx.insert(workspaceMembers).values({
-        id: createId("wm"),
-        workspaceId,
-        userId: user.id,
-        role: "owner",
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      await writeAuditLog(tx, {
-        workspaceId,
-        actorUserId: user.id,
-        actorName: user.name,
-        actorEmail: user.email,
-        entityType: "workspace",
-        entityId: workspaceId,
-        action: "workspace.created",
-        metadata: {
-          workspaceName,
-          workspaceSlug: workspaceSlugCandidate,
-          source: "onboarding",
-        },
-        createdAt: now,
-      });
+      currentPlan = existingMembership.plan as plan;
     }
 
     return createBusinessRecordForUser({
       tx,
-      workspaceId,
+      businessId: createId("biz"),
       defaultCurrency,
       countryCode,
       user,
@@ -155,8 +91,9 @@ export async function completeOnboardingForUser({
       businessType,
       starterTemplateBusinessType,
       shortDescription: null,
+      customerContactChannel,
       inquiryFormConfigOverride,
-      workspacePlan: "free",
+      plan: currentPlan,
       activitySource: "onboarding",
       activitySummary: "Business created during onboarding.",
       now,

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
 import { BusinessInquiryPreviewShell } from "@/features/inquiries/components/business-inquiry-preview-shell";
@@ -8,11 +9,18 @@ import {
   getBusinessContextForMembershipSlug,
   hasOperationalBusinessAccess,
 } from "@/lib/db/business-access";
+import { timed } from "@/lib/dev/server-timing";
 import {
   getBusinessDashboardPath,
   getBusinessInquiryPageEditorPath,
 } from "@/features/businesses/routes";
-import { workspacesHubPath } from "@/features/workspaces/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
+import { createNoIndexMetadata } from "@/lib/seo/site";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  title: "Inquiry form preview",
+  description: "Internal preview of a business inquiry form before publishing.",
+});
 
 
 export default async function BusinessInquiryFormPreviewPage({
@@ -24,16 +32,19 @@ export default async function BusinessInquiryFormPreviewPage({
     requireSession(),
     params,
   ]);
-  const [businessContext, business] = await Promise.all([
-    getBusinessContextForMembershipSlug(session.user.id, slug),
-    getInquiryBusinessPreviewByFormSlug({
-      businessSlug: slug,
-      formSlug,
-    }),
-  ]);
+  const [businessContext, business] = await timed(
+    "previewInquiryForm.parallelContextAndBusiness",
+    Promise.all([
+      getBusinessContextForMembershipSlug(session.user.id, slug),
+      getInquiryBusinessPreviewByFormSlug({
+        businessSlug: slug,
+        formSlug,
+      }),
+    ]),
+  );
 
   if (!businessContext) {
-    redirect(workspacesHubPath);
+    redirect(businessesHubPath);
   }
 
   if (!hasOperationalBusinessAccess(businessContext.role)) {

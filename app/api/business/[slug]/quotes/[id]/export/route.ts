@@ -36,7 +36,7 @@ export async function GET(
 
   if (
     !hasFeatureAccess(
-      requestContext.businessContext.business.workspacePlan,
+      requestContext.businessContext.business.plan,
       "exports",
     )
   ) {

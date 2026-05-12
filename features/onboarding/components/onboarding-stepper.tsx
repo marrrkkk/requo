@@ -26,7 +26,7 @@ export function OnboardingStepper({
 
   return (
     <nav aria-label="Onboarding progress" className="flex flex-col gap-4">
-      <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item, index) => {
           const isCompleted = index < currentStep;
           const isCurrent = index === currentStep;
@@ -64,7 +64,7 @@ export function OnboardingStepper({
               {isInteractive ? (
                 <button
                   className={cn(
-                    "soft-panel flex w-full items-start gap-3 px-4 py-4 text-left transition-colors",
+                    "soft-panel flex h-full w-full items-start gap-3 px-4 py-4 text-left transition-colors",
                     "hover:border-foreground/15 hover:bg-accent/40",
                     isCurrent && "border-primary/20 bg-primary/[0.05]",
                     isUpcoming && "opacity-80",
@@ -78,7 +78,7 @@ export function OnboardingStepper({
                 <div
                   aria-current={isCurrent ? "step" : undefined}
                   className={cn(
-                    "soft-panel flex items-start gap-3 px-4 py-4",
+                    "soft-panel flex h-full items-start gap-3 px-4 py-4",
                     isCurrent && "border-primary/20 bg-primary/[0.05]",
                     isUpcoming && "opacity-80",
                   )}

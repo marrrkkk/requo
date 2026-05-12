@@ -1,12 +1,13 @@
 export const activeBusinessSlugCookieName = "requo-active-business";
 
+export const businessesHubPath = "/businesses";
+
 export type BusinessSettingsSection =
   | "general"
   | "members"
   | "notifications"
   | "profile"
   | "security"
-  | "replies"
   | "quote"
   | "email"
   | "pricing"

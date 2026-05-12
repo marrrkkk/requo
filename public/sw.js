@@ -5,6 +5,16 @@
  * Handles incoming push events and notification click navigation.
  */
 
+self.addEventListener("install", () => {
+  // Skip waiting so updates activate on next navigation without a double refresh.
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  // Take control of all clients immediately so in-flight pages can send pushes.
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener("push", (event) => {
   if (!event.data) {
     return;
@@ -19,12 +29,13 @@ self.addEventListener("push", (event) => {
   }
 
   const title = payload.title || "Requo";
+  const targetUrl = getSameOriginUrl(payload.url || "/");
   const options = {
     body: payload.body || "",
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
+    icon: payload.icon || "/logo.svg",
+    badge: payload.badge || "/logo.svg",
     data: {
-      url: payload.url || "/",
+      url: targetUrl,
     },
   };
 
@@ -42,7 +53,7 @@ self.addEventListener("notificationclick", (event) => {
       .then((clientList) => {
         // Try to focus an existing window
         for (const client of clientList) {
-          if (client.url.includes(self.location.origin) && "focus" in client) {
+          if (client.url.startsWith(self.location.origin) && "focus" in client) {
             client.navigate(url);
             return client.focus();
           }
@@ -55,3 +66,17 @@ self.addEventListener("notificationclick", (event) => {
       }),
   );
 });
+
+function getSameOriginUrl(url) {
+  try {
+    const parsedUrl = new URL(url, self.location.origin);
+
+    if (parsedUrl.origin !== self.location.origin) {
+      return self.location.origin;
+    }
+
+    return parsedUrl.toString();
+  } catch {
+    return self.location.origin;
+  }
+}

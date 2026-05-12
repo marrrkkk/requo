@@ -180,7 +180,7 @@ export function ProfileSettingsForm({
             <div className="flex min-w-0 flex-col gap-5">
               <FormSection
                 className="soft-panel px-5 py-5 shadow-none sm:px-6"
-                description="Shown across the workspace."
+                description="Shown across the business."
                 title="Name & role"
               >
                 <FieldGroup>
@@ -217,8 +217,6 @@ export function ProfileSettingsForm({
                           }}
                           options={jobTitleOptions}
                           placeholder="Choose your role"
-                          searchable
-                          searchPlaceholder="Search roles"
                           value={jobTitle}
                         />
                         <FieldError
@@ -504,11 +502,11 @@ function ProfileAvatarField({
               <h2 className="text-lg font-semibold tracking-tight text-foreground">
                 Profile identity
               </h2>
-              <p className="text-sm text-muted-foreground">Shown across your workspace.</p>
+              <p className="text-sm text-muted-foreground">Shown across your business.</p>
             </div>
           </div>
 
-          <div className="rounded-3xl border border-border/75 bg-background/80 px-5 py-5">
+          <div>
             <div className="flex flex-col items-center gap-4 text-center">
               <div className="group relative">
                 <input

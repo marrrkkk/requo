@@ -38,9 +38,9 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import {
   loadMoreBusinessNotificationsAction,
+  markBusinessNotificationReadAction,
   markBusinessNotificationsReadAction,
 } from "@/features/notifications/actions";
 import type {
@@ -85,6 +85,11 @@ type RealtimeInquiryRow = {
   id: string;
 };
 
+type SupabaseBrowserClient = ReturnType<
+  typeof import("@/lib/supabase/browser").createSupabaseBrowserClient
+>;
+type RealtimeChannel = ReturnType<SupabaseBrowserClient["channel"]>;
+
 export function DashboardNotificationBell({
   businessId,
   businessSlug,
@@ -94,14 +99,13 @@ export function DashboardNotificationBell({
   const isMobile = useIsMobile();
   const router = useRouter();
   const progressRouter = useProgressRouter();
-  const supabaseRef = useRef<ReturnType<typeof createSupabaseBrowserClient> | null>(
-    null,
-  );
+  const supabaseRef = useRef<SupabaseBrowserClient | null>(null);
   const refreshTimerRef = useRef<number | null>(null);
   const routeRefreshTimerRef = useRef<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isLoadingMore, startLoadMore] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
+  const [shouldConnectRealtime, setShouldConnectRealtime] = useState(false);
   const [view, setView] = useState({
     ...initialView,
     hasMore: initialView.hasMore ?? false,
@@ -151,20 +155,23 @@ export function DashboardNotificationBell({
   }
 
   useEffect(() => {
-    let isActive = true;
-    const supabase =
-      supabaseRef.current ?? createSupabaseBrowserClient();
+    // Connect realtime immediately on mount. Prior behavior waited for
+    // requestIdleCallback / 1.8s setTimeout, which meant notifications
+    // emitted in that window were missed and the user had to reload.
+    if (!shouldConnectRealtime) {
+      setShouldConnectRealtime(true);
+    }
+  }, [shouldConnectRealtime]);
 
-    supabaseRef.current = supabase;
-    let notificationChannel:
-      | Awaited<ReturnType<typeof supabase.channel>>
-      | null = null;
-    let stateChannel:
-      | Awaited<ReturnType<typeof supabase.channel>>
-      | null = null;
-    let inquiryChannel:
-      | Awaited<ReturnType<typeof supabase.channel>>
-      | null = null;
+  useEffect(() => {
+    if (!shouldConnectRealtime) {
+      return;
+    }
+
+    let isActive = true;
+    let notificationChannel: RealtimeChannel | null = null;
+    let stateChannel: RealtimeChannel | null = null;
+    let inquiryChannel: RealtimeChannel | null = null;
 
     function clearRefreshTimer() {
       if (refreshTimerRef.current) {
@@ -219,10 +226,29 @@ export function DashboardNotificationBell({
       };
     }
 
+    async function getSupabase() {
+      if (supabaseRef.current) {
+        return supabaseRef.current;
+      }
+
+      const { createSupabaseBrowserClient } = await import(
+        "@/lib/supabase/browser"
+      );
+      const nextClient = createSupabaseBrowserClient();
+      supabaseRef.current = nextClient;
+      return nextClient;
+    }
+
     async function refreshRealtimeAuth() {
       const nextToken = await fetchRealtimeToken();
 
       if (!nextToken || !isActive) {
+        return;
+      }
+
+      const supabase = await getSupabase();
+
+      if (!isActive) {
         return;
       }
 
@@ -234,6 +260,12 @@ export function DashboardNotificationBell({
       const nextToken = await fetchRealtimeToken();
 
       if (!nextToken || !isActive) {
+        return;
+      }
+
+      const supabase = await getSupabase();
+
+      if (!isActive) {
         return;
       }
 
@@ -282,6 +314,21 @@ export function DashboardNotificationBell({
         applyReadWatermark(row.last_read_at);
       };
 
+      const handleSubscribeStatus = (label: string) => (status: string) => {
+        if (
+          status === "CHANNEL_ERROR" ||
+          status === "TIMED_OUT" ||
+          status === "CLOSED"
+        ) {
+          // Surface subscription failures so they are not silent. When these
+          // fire, the fallback polling + visibility refresh below still keeps
+          // the bell accurate — realtime just won't be instant.
+          console.warn(
+            `[notifications] realtime channel "${label}" ${status}`,
+          );
+        }
+      };
+
       notificationChannel = supabase
         .channel(`business-notifications:${businessId}:${userId}`)
         .on(
@@ -296,7 +343,7 @@ export function DashboardNotificationBell({
             handleRealtimeNotification(payload.new as RealtimeNotificationRow);
           },
         )
-        .subscribe();
+        .subscribe(handleSubscribeStatus("business_notifications"));
 
       stateChannel = supabase
         .channel(`business-notification-states:${businessId}:${userId}`)
@@ -324,7 +371,7 @@ export function DashboardNotificationBell({
             handleRealtimeState(payload.new as RealtimeNotificationStateRow);
           },
         )
-        .subscribe();
+        .subscribe(handleSubscribeStatus("business_notification_states"));
 
       inquiryChannel = supabase
         .channel(`business-inquiries:${businessId}:${userId}`)
@@ -344,7 +391,7 @@ export function DashboardNotificationBell({
             }
           },
         )
-        .subscribe();
+        .subscribe(handleSubscribeStatus("inquiries"));
 
       scheduleRefresh(nextToken.expiresAt);
     }
@@ -355,20 +402,69 @@ export function DashboardNotificationBell({
       isActive = false;
       clearRefreshTimer();
       clearRouteRefreshTimer();
+      const supabase = supabaseRef.current;
 
-      if (notificationChannel) {
+      if (supabase && notificationChannel) {
         void supabase.removeChannel(notificationChannel);
       }
 
-      if (stateChannel) {
+      if (supabase && stateChannel) {
         void supabase.removeChannel(stateChannel);
       }
 
-      if (inquiryChannel) {
+      if (supabase && inquiryChannel) {
         void supabase.removeChannel(inquiryChannel);
       }
     };
-  }, [businessId, businessSlug, router, userId]);
+  }, [businessId, businessSlug, router, shouldConnectRealtime, userId]);
+
+  // Fallback refresh: if realtime is not configured, rejected, or degraded
+  // (bad JWT, missing publication, RLS blocking events, flaky connection),
+  // the bell must still pick up new notifications within a reasonable window.
+  // We soft-refresh the route on tab visibility change and on a slow interval.
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const POLL_INTERVAL_MS = 45_000;
+    let lastRefreshAt = Date.now();
+
+    const maybeRefresh = () => {
+      // Debounce so we don't spam router.refresh() when realtime is also active.
+      if (Date.now() - lastRefreshAt < 5_000) {
+        return;
+      }
+
+      lastRefreshAt = Date.now();
+      router.refresh();
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        maybeRefresh();
+      }
+    };
+
+    const handleFocus = () => {
+      maybeRefresh();
+    };
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        maybeRefresh();
+      }
+    }, POLL_INTERVAL_MS);
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [router]);
 
   const loadOlderNotifications = useCallback(() => {
     if (!view.hasMore || loadMoreInFlightRef.current || isLoadingMore) {
@@ -468,17 +564,14 @@ export function DashboardNotificationBell({
       markSingleNotificationRead(item.id);
 
       startTransition(async () => {
-        const result = await markBusinessNotificationsReadAction(
+        const result = await markBusinessNotificationReadAction(
           businessSlug,
-          item.createdAt,
+          item.id,
         );
 
         if (!result.ok) {
           console.error(result.error);
-          return;
         }
-
-        applyReadWatermark(result.lastReadAt);
       });
     }
 

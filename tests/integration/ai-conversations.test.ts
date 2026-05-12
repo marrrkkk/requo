@@ -7,14 +7,12 @@ import {
   businesses,
   businessMembers,
   user,
-  workspaceMembers,
-  workspaces,
 } from "@/lib/db/schema";
 
-import { closeTestDb, testDb } from "./db";
+import { closeTestDb, testDb } from "@/tests/support/db";
 
 vi.mock("@/lib/db/client", async () => {
-  const { testDb: mockedDb } = await import("./db");
+  const { testDb: mockedDb } = await import("../support/db");
 
   return { db: mockedDb };
 });
@@ -39,7 +37,6 @@ import {
 import { buildAiSurfaceContext } from "@/features/ai/surface-service";
 
 const userId = "test_ai_conversations_user";
-const workspaceId = "test_ai_conversations_workspace";
 const businessId = "test_ai_conversations_business";
 const otherBusinessId = "test_ai_conversations_business_other";
 
@@ -59,12 +56,12 @@ describe("features/ai/conversations", () => {
           testDb
             .select({ id: aiConversations.id })
             .from(aiConversations)
-            .where(eq(aiConversations.workspaceId, workspaceId)),
+            .where(eq(aiConversations.businessId, businessId)),
         ),
       );
     await testDb
       .delete(aiConversations)
-      .where(eq(aiConversations.workspaceId, workspaceId));
+      .where(eq(aiConversations.businessId, businessId));
     await testDb
       .delete(businessMembers)
       .where(inArray(businessMembers.businessId, [businessId, otherBusinessId]));
@@ -72,9 +69,9 @@ describe("features/ai/conversations", () => {
       .delete(businesses)
       .where(inArray(businesses.id, [businessId, otherBusinessId]));
     await testDb
-      .delete(workspaceMembers)
-      .where(eq(workspaceMembers.workspaceId, workspaceId));
-    await testDb.delete(workspaces).where(eq(workspaces.id, workspaceId));
+      .delete(businessMembers)
+      .where(eq(businessMembers.businessId, businessId));
+    await testDb.delete(businesses).where(eq(businesses.id, businessId));
     await testDb.delete(user).where(eq(user.id, userId));
 
     await testDb.insert(user).values({
@@ -86,29 +83,11 @@ describe("features/ai/conversations", () => {
       updatedAt: now,
     });
 
-    await testDb.insert(workspaces).values({
-      id: workspaceId,
-      name: "AI Conversations Workspace",
-      slug: "ai-conversations-workspace",
-      plan: "free",
-      ownerUserId: userId,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await testDb.insert(workspaceMembers).values({
-      id: "test_ai_conversations_workspace_member",
-      workspaceId,
-      userId,
-      role: "owner",
-      createdAt: now,
-      updatedAt: now,
-    });
-
     await testDb.insert(businesses).values([
       {
         id: businessId,
-        workspaceId,
+        plan: "free",
+        ownerUserId: userId,
         name: "AI Conversations Business",
         slug: "ai-conversations-business",
         businessType: "general_project_services",
@@ -118,7 +97,8 @@ describe("features/ai/conversations", () => {
       },
       {
         id: otherBusinessId,
-        workspaceId,
+        plan: "free",
+        ownerUserId: userId,
         name: "AI Conversations Other Business",
         slug: "ai-conversations-business-other",
         businessType: "general_project_services",
@@ -157,12 +137,12 @@ describe("features/ai/conversations", () => {
           testDb
             .select({ id: aiConversations.id })
             .from(aiConversations)
-            .where(eq(aiConversations.workspaceId, workspaceId)),
+            .where(eq(aiConversations.businessId, businessId)),
         ),
       );
     await testDb
       .delete(aiConversations)
-      .where(eq(aiConversations.workspaceId, workspaceId));
+      .where(eq(aiConversations.businessId, businessId));
     await testDb
       .delete(businessMembers)
       .where(inArray(businessMembers.businessId, [businessId, otherBusinessId]));
@@ -170,9 +150,9 @@ describe("features/ai/conversations", () => {
       .delete(businesses)
       .where(inArray(businesses.id, [businessId, otherBusinessId]));
     await testDb
-      .delete(workspaceMembers)
-      .where(eq(workspaceMembers.workspaceId, workspaceId));
-    await testDb.delete(workspaces).where(eq(workspaces.id, workspaceId));
+      .delete(businessMembers)
+      .where(eq(businessMembers.businessId, businessId));
+    await testDb.delete(businesses).where(eq(businesses.id, businessId));
     await testDb.delete(user).where(eq(user.id, userId));
     await closeTestDb();
   });
@@ -180,28 +160,28 @@ describe("features/ai/conversations", () => {
   it("keeps one default conversation per inquiry or quote entity", async () => {
     const inquiryConversation = await getOrCreateDefaultEntityConversation({
       userId,
-      workspaceId,
+      businessId,
       surface: "inquiry",
       entityId: "inq_default_one",
       title: "Default inquiry chat",
     });
     const sameInquiryConversation = await getOrCreateDefaultEntityConversation({
       userId,
-      workspaceId,
+      businessId,
       surface: "inquiry",
       entityId: "inq_default_one",
       title: "Renamed inquiry chat",
     });
     const otherInquiryConversation = await getOrCreateDefaultEntityConversation({
       userId,
-      workspaceId,
+      businessId,
       surface: "inquiry",
       entityId: "inq_default_two",
       title: "Other inquiry chat",
     });
     const quoteConversation = await getOrCreateDefaultEntityConversation({
       userId,
-      workspaceId,
+      businessId,
       surface: "quote",
       entityId: "quote_default_one",
       title: "Default quote chat",
@@ -225,28 +205,28 @@ describe("features/ai/conversations", () => {
   it("allows multiple dashboard conversations and opens the most recent one", async () => {
     const firstConversation = await createDashboardConversation({
       userId,
-      workspaceId,
+      businessId,
       entityId: businessId,
       title: "First dashboard chat",
     });
     await sleep(5);
     const secondConversation = await createDashboardConversation({
       userId,
-      workspaceId,
+      businessId,
       entityId: businessId,
       title: "Second dashboard chat",
     });
     await sleep(5);
     const otherBusinessConversation = await createDashboardConversation({
       userId,
-      workspaceId,
+      businessId,
       entityId: otherBusinessId,
       title: "Other business dashboard chat",
     });
 
     const latestByCreation = await getOrCreateLatestDashboardConversation({
       userId,
-      workspaceId,
+      businessId,
       entityId: businessId,
     });
 
@@ -267,12 +247,12 @@ describe("features/ai/conversations", () => {
 
     const latestByActivity = await getOrCreateLatestDashboardConversation({
       userId,
-      workspaceId,
+      businessId,
       entityId: businessId,
     });
     const dashboardHistory = await listDashboardConversations({
       userId,
-      workspaceId,
+      businessId,
       entityId: businessId,
       limit: 10,
     });
@@ -293,7 +273,7 @@ describe("features/ai/conversations", () => {
   it("returns latest messages first chronologically and paginates older messages by cursor", async () => {
     const conversation = await createDashboardConversation({
       userId,
-      workspaceId,
+      businessId,
       entityId: businessId,
       title: "Pagination dashboard chat",
     });

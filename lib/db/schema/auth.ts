@@ -17,6 +17,17 @@ export const user = pgTable(
     email: text("email").notNull(),
     emailVerified: boolean("email_verified").notNull().default(false),
     image: text("image"),
+    /**
+     * Required by the Better Auth admin plugin (`better-auth/plugins/admin`).
+     * We keep it nullable because the env-driven `ADMIN_EMAILS` allow-list is
+     * the authoritative admin signal; the plugin still stamps a default role
+     * string on every signup via its `user.create.before` hook, so the
+     * column must exist.
+     */
+    role: text("role"),
+    banned: boolean("banned").notNull().default(false),
+    banReason: text("ban_reason"),
+    banExpires: timestamp("ban_expires", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -38,6 +49,7 @@ export const session = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
+    impersonatedBy: text("impersonated_by"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

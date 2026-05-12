@@ -12,8 +12,7 @@ import {
   quoteItems,
   quotes,
   businesses,
-  workspaces,
-} from "@/lib/db/schema";
+  } from "@/lib/db/schema";
 import type { QuoteEditorInput } from "@/features/quotes/schemas";
 import type { QuoteDeliveryMethod, QuoteStatus } from "@/features/quotes/types";
 import {
@@ -320,7 +319,7 @@ export async function createQuoteForBusiness({
       return await db.transaction(async (tx) => {
         const [business] = await tx
           .select({
-            workspaceId: businesses.workspaceId,
+            businessId: businesses.id,
           })
           .from(businesses)
           .where(eq(businesses.id, businessId))
@@ -413,7 +412,6 @@ export async function createQuoteForBusiness({
         });
 
         await writeAuditLog(tx, {
-          workspaceId: business.workspaceId,
           businessId,
           actorUserId,
           entityType: "quote",
@@ -471,7 +469,7 @@ export async function updateQuoteForBusiness({
         postAcceptanceStatus: quotes.postAcceptanceStatus,
         archivedAt: quotes.archivedAt,
         deletedAt: quotes.deletedAt,
-        workspaceId: businesses.workspaceId,
+        businessId: businesses.id,
         title: quotes.title,
         customerName: quotes.customerName,
       })
@@ -577,7 +575,7 @@ export async function deleteDraftQuoteForBusiness({
         validUntil: quotes.validUntil,
         archivedAt: quotes.archivedAt,
         deletedAt: quotes.deletedAt,
-        workspaceId: businesses.workspaceId,
+        businessId: businesses.id,
         title: quotes.title,
         customerName: quotes.customerName,
       })
@@ -639,8 +637,7 @@ export async function deleteDraftQuoteForBusiness({
     });
 
     await writeAuditLog(tx, {
-      workspaceId: existingQuote.workspaceId,
-      businessId,
+      businessId: existingQuote.businessId,
       actorUserId,
       entityType: "quote",
       entityId: quoteId,
@@ -840,7 +837,7 @@ export async function voidQuoteForBusiness({
         archivedAt: quotes.archivedAt,
         deletedAt: quotes.deletedAt,
         sentAt: quotes.sentAt,
-        workspaceId: businesses.workspaceId,
+        businessId: businesses.id,
         title: quotes.title,
         customerName: quotes.customerName,
       })
@@ -915,8 +912,7 @@ export async function voidQuoteForBusiness({
     });
 
     await writeAuditLog(tx, {
-      workspaceId: existingQuote.workspaceId,
-      businessId,
+      businessId: existingQuote.businessId,
       actorUserId,
       entityType: "quote",
       entityId: quoteId,
@@ -965,7 +961,7 @@ export async function markQuoteSentForBusiness({
         postAcceptanceStatus: quotes.postAcceptanceStatus,
         archivedAt: quotes.archivedAt,
         deletedAt: quotes.deletedAt,
-        workspaceId: businesses.workspaceId,
+        businessId: businesses.id,
         title: quotes.title,
         customerName: quotes.customerName,
       })
@@ -1022,8 +1018,7 @@ export async function markQuoteSentForBusiness({
     });
 
     await writeAuditLog(tx, {
-      workspaceId: existingQuote.workspaceId,
-      businessId,
+      businessId: existingQuote.businessId,
       actorUserId,
       entityType: "quote",
       entityId: quoteId,
@@ -1135,7 +1130,7 @@ export async function respondToPublicQuoteByToken({
         businessId: quotes.businessId,
         businessSlug: businesses.slug,
         businessName: businesses.name,
-        businessPlan: workspaces.plan,
+        businessPlan: businesses.plan,
         inquiryId: quotes.inquiryId,
         quoteNumber: quotes.quoteNumber,
         title: quotes.title,
@@ -1152,7 +1147,6 @@ export async function respondToPublicQuoteByToken({
       })
       .from(quotes)
       .innerJoin(businesses, eq(quotes.businessId, businesses.id))
-      .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
       .where(and(getQuotePublicTokenLookupCondition(token), isNull(quotes.deletedAt)))
       .limit(1);
 
@@ -1551,7 +1545,7 @@ export async function cancelAcceptedQuoteForBusiness({
         status: quotes.status,
         postAcceptanceStatus: quotes.postAcceptanceStatus,
         deletedAt: quotes.deletedAt,
-        workspaceId: businesses.workspaceId,
+        businessId: businesses.id,
         title: quotes.title,
         customerName: quotes.customerName,
         totalInCents: quotes.totalInCents,
@@ -1657,8 +1651,7 @@ export async function cancelAcceptedQuoteForBusiness({
     });
 
     await writeAuditLog(tx, {
-      workspaceId: existingQuote.workspaceId,
-      businessId,
+      businessId: existingQuote.businessId,
       actorUserId,
       entityType: "quote",
       entityId: quoteId,
@@ -1704,7 +1697,7 @@ export async function completeAcceptedQuoteForBusiness({
         status: quotes.status,
         postAcceptanceStatus: quotes.postAcceptanceStatus,
         deletedAt: quotes.deletedAt,
-        workspaceId: businesses.workspaceId,
+        businessId: businesses.id,
         title: quotes.title,
         customerName: quotes.customerName,
         totalInCents: quotes.totalInCents,
@@ -1787,8 +1780,7 @@ export async function completeAcceptedQuoteForBusiness({
     });
 
     await writeAuditLog(tx, {
-      workspaceId: existingQuote.workspaceId,
-      businessId,
+      businessId: existingQuote.businessId,
       actorUserId,
       entityType: "quote",
       entityId: quoteId,

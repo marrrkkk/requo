@@ -22,7 +22,6 @@ import {
 } from "@/lib/db/schema";
 
 type CreateFollowUpForBusinessInput = {
-  workspaceId: string;
   businessId: string;
   inquiryId?: string | null;
   quoteId?: string | null;
@@ -55,7 +54,6 @@ function getFollowUpActionMetadata(input: {
 }
 
 export async function createFollowUpForBusiness({
-  workspaceId,
   businessId,
   inquiryId,
   quoteId,
@@ -122,7 +120,6 @@ export async function createFollowUpForBusiness({
 
     await tx.insert(followUps).values({
       id: followUpId,
-      workspaceId,
       businessId,
       inquiryId: resolvedInquiryId,
       quoteId: resolvedQuoteId,

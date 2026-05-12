@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+
 import { PageHeader } from "@/components/shared/page-header";
 import { LockedFeaturePage } from "@/components/shared/paywall";
 import {
@@ -7,16 +9,23 @@ import {
 } from "@/features/memory/actions";
 import { getMemoryDashboardData, getMemorySummaryForBusiness } from "@/features/memory/queries";
 import { BusinessMemoryManager } from "@/features/settings/components/business-memory-manager";
-import { getWorkspaceBillingOverview } from "@/features/billing/queries";
+import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { hasFeatureAccess } from "@/lib/plans";
+import { timed } from "@/lib/dev/server-timing";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  title: "Knowledge",
+  description: "Manage business knowledge entries used by AI features.",
+});
 
 export default async function BusinessKnowledgePage() {
   const { businessContext } = await getBusinessOperationalPageContext();
 
-  if (!hasFeatureAccess(businessContext.business.workspacePlan, "knowledgeBase")) {
-    const billingOverview = await getWorkspaceBillingOverview(
-      businessContext.business.workspaceId,
+  if (!hasFeatureAccess(businessContext.business.plan, "knowledgeBase")) {
+    const billingOverview = await getBusinessBillingOverview(
+      businessContext.business.id,
     );
 
     return (
@@ -28,13 +37,14 @@ export default async function BusinessKnowledgePage() {
         />
         <LockedFeaturePage
           feature="knowledgeBase"
-          plan={businessContext.business.workspacePlan}
+          plan={businessContext.business.plan}
           description="Upgrade to save reusable context and train better AI drafts."
           upgradeAction={
             billingOverview
               ? {
-                  workspaceId: billingOverview.workspaceId,
-                  workspaceSlug: billingOverview.workspaceSlug,
+                  userId: billingOverview.userId,
+                  businessId: billingOverview.businessId,
+                  businessSlug: billingOverview.businessSlug,
                   currentPlan: billingOverview.currentPlan,
                   region: billingOverview.region,
                   defaultCurrency: billingOverview.defaultCurrency,
@@ -47,13 +57,16 @@ export default async function BusinessKnowledgePage() {
     );
   }
 
-  const [memoryData, memorySummary] = await Promise.all([
-    getMemoryDashboardData(businessContext.business.id),
-    getMemorySummaryForBusiness(
-      businessContext.business.id,
-      businessContext.business.workspacePlan,
-    ),
-  ]);
+  const [memoryData, memorySummary] = await timed(
+    "knowledgeSettings.parallelMemoryFetches",
+    Promise.all([
+      getMemoryDashboardData(businessContext.business.id),
+      getMemorySummaryForBusiness(
+        businessContext.business.id,
+        businessContext.business.plan,
+      ),
+    ]),
+  );
 
   return (
     <>

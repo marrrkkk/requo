@@ -100,7 +100,8 @@ type PaddleTransactionResponse = {
  */
 export async function createPaddleTransaction(params: {
   plan: PaidPlan;
-  workspaceId: string;
+  userId: string;
+  businessId: string;
   userEmail: string;
   userName?: string;
   interval?: BillingInterval;
@@ -120,7 +121,8 @@ export async function createPaddleTransaction(params: {
         ],
         custom_data: {
           interval: params.interval ?? "monthly",
-          workspace_id: params.workspaceId,
+          user_id: params.userId,
+          business_id: params.businessId,
           plan: params.plan,
         },
         ...(params.userEmail
@@ -162,6 +164,120 @@ export async function getPaddleTransaction(
       `/transactions/${transactionId}`,
     );
 
+    return response.data;
+  } catch {
+    return null;
+  }
+}
+
+/* ── Adjustments (refunds) ────────────────────────────────────────────────── */
+
+/**
+ * Paddle adjustment statuses we care about.
+ * See https://developer.paddle.com/api-reference/adjustments/overview
+ */
+export type PaddleAdjustmentStatus =
+  | "pending_approval"
+  | "approved"
+  | "rejected"
+  | "reversed";
+
+type PaddleAdjustmentResponse = {
+  data: {
+    id: string;
+    status: string;
+    action: string;
+    transaction_id: string;
+    reason?: string | null;
+    created_at?: string;
+    updated_at?: string;
+  };
+};
+
+export type PaddleAdjustmentResult =
+  | {
+      type: "ok";
+      adjustmentId: string;
+      status: PaddleAdjustmentStatus;
+    }
+  | {
+      type: "error";
+      message: string;
+    };
+
+/**
+ * Maps a raw Paddle adjustment status to a normalized value.
+ * Unknown statuses fall back to "pending_approval" so we don't lose
+ * the request; the follow-up `adjustment.updated` webhook resolves it.
+ */
+export function mapPaddleAdjustmentStatus(
+  paddleStatus: string | null | undefined,
+): PaddleAdjustmentStatus {
+  switch (paddleStatus) {
+    case "approved":
+      return "approved";
+    case "rejected":
+      return "rejected";
+    case "reversed":
+      return "reversed";
+    case "pending_approval":
+    default:
+      return "pending_approval";
+  }
+}
+
+/**
+ * Creates a Paddle refund adjustment for a completed transaction.
+ *
+ * Paddle returns the adjustment with a status of `pending_approval`,
+ * `approved`, or `rejected`. Subsequent status changes arrive through
+ * `adjustment.updated` webhooks.
+ */
+export async function createPaddleAdjustment(params: {
+  transactionId: string;
+  reason: string;
+  type?: "full" | "partial";
+}): Promise<PaddleAdjustmentResult> {
+  try {
+    const response = await paddleRequest<PaddleAdjustmentResponse>(
+      "POST",
+      "/adjustments",
+      {
+        action: "refund",
+        type: params.type ?? "full",
+        transaction_id: params.transactionId,
+        reason: params.reason,
+      },
+    );
+
+    return {
+      type: "ok",
+      adjustmentId: response.data.id,
+      status: mapPaddleAdjustmentStatus(response.data.status),
+    };
+  } catch (error) {
+    console.error("[Paddle] Adjustment error:", error);
+    return {
+      type: "error",
+      message:
+        error instanceof Error
+          ? error.message
+          : "Refund creation failed. Please try again.",
+    };
+  }
+}
+
+/**
+ * Retrieves a Paddle adjustment by ID.
+ */
+export async function getPaddleAdjustment(
+  adjustmentId: string,
+): Promise<PaddleAdjustmentResponse["data"] | null> {
+  try {
+    const response = await paddleRequest<PaddleAdjustmentResponse>(
+      "GET",
+      `/adjustments/${adjustmentId}`,
+    );
     return response.data;
   } catch {
     return null;

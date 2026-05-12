@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/shared/page-header";
@@ -7,15 +8,30 @@ import {
 } from "@/features/settings/actions";
 import { BusinessInquiryFormsManager } from "@/features/settings/components/business-inquiry-forms-manager";
 import { getBusinessInquiryFormsSettingsForBusiness } from "@/features/settings/queries";
-import { getWorkspaceBillingOverview } from "@/features/billing/queries";
+import { getBusinessBillingOverview } from "@/features/billing/queries";
+import { timed } from "@/lib/dev/server-timing";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../settings/_lib/page-context";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  title: "Forms",
+  description: "Manage inquiry forms for this business.",
+});
+
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
+};
 
 export default async function BusinessFormsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();
-  const [settings, billingOverview] = await Promise.all([
-    getBusinessInquiryFormsSettingsForBusiness(businessContext.business.id),
-    getWorkspaceBillingOverview(businessContext.business.workspaceId),
-  ]);
+  const [settings, billingOverview] = await timed(
+    "formsPage.parallelSettingsAndBilling",
+    Promise.all([
+      getBusinessInquiryFormsSettingsForBusiness(businessContext.business.id),
+      getBusinessBillingOverview(businessContext.business.id),
+    ]),
+  );
 
   if (!settings) {
     notFound();
@@ -32,12 +48,13 @@ export default async function BusinessFormsPage() {
         createAction={createBusinessInquiryFormAction}
         unarchiveAction={unarchiveBusinessInquiryFormAction}
         settings={settings}
-        workspacePlan={businessContext.business.workspacePlan}
+        plan={businessContext.business.plan}
         billingProps={
           billingOverview
             ? {
-                workspaceId: billingOverview.workspaceId,
-                workspaceSlug: billingOverview.workspaceSlug,
+                userId: billingOverview.userId,
+                businessId: billingOverview.businessId,
+                businessSlug: billingOverview.businessSlug,
                 currentPlan: billingOverview.currentPlan,
                 region: billingOverview.region,
                 defaultCurrency: billingOverview.defaultCurrency,

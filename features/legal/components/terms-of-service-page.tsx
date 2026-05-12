@@ -69,9 +69,10 @@ const termsSections: LegalDocumentSection[] = [
           confidential, and promptly update your information if it changes.
         </LegalParagraph>
         <LegalParagraph>
-          The Service currently supports email-and-password sign-in, password
-          reset, session management, account deletion, and optional Google or
-          Microsoft social sign-in when enabled.
+          The Service currently supports email-and-password sign-in, optional
+          email magic links (when transactional email is configured), password
+          reset, session management, account deletion, and optional Google OAuth
+          sign-in when enabled.
         </LegalParagraph>
         <LegalParagraph>
           You are responsible for all activity that occurs under your account to
@@ -89,22 +90,22 @@ const termsSections: LegalDocumentSection[] = [
     ),
   },
   {
-    id: "workspaces",
-    title: "4. Business Workspaces, Multi-Business Access, And Invites",
+    id: "businesses",
+    title: "4. Businesses, Multi-Business Access, And Invites",
     content: (
       <>
         <LegalSectionHeading>
-          4. Business Workspaces, Multi-Business Access, And Invites
+          4. Businesses, Multi-Business Access, And Invites
         </LegalSectionHeading>
         <LegalParagraph>
-          Requo supports business workspaces, member invites, role-based access,
+          Requo supports businesses, member invites, role-based access,
           and multi-business switching. A user may belong to more than one
-          business workspace if invited or otherwise authorized.
+          business if invited or otherwise authorized.
         </LegalParagraph>
         <LegalParagraph>
-          If you create or administer a business workspace, you are responsible
+          If you create or administer a business, you are responsible
           for managing the people you invite, the permissions you grant, and the
-          content you or your team make available through that workspace.
+          content you or your team make available through that business.
         </LegalParagraph>
       </>
     ),
@@ -139,7 +140,7 @@ const termsSections: LegalDocumentSection[] = [
           items={[
             "Use the Service in violation of law, regulation, contractual restrictions, or the rights of others.",
             "Upload, submit, or transmit unlawful, infringing, abusive, fraudulent, defamatory, or harmful content.",
-            "Attempt to gain unauthorized access to the Service, another user's account, or another business workspace.",
+            "Attempt to gain unauthorized access to the Service, another user's account, or another business.",
             "Interfere with the operation, security, or integrity of the Service, including by introducing malware or abusive traffic.",
             "Use automated means to scrape, copy, or extract data from the Service except as expressly permitted by us.",
             "Use public inquiry pages or public quote links in a way that misrepresents identity, collects unrelated data, or circumvents the intended workflow of the Service.",
@@ -240,7 +241,7 @@ const termsSections: LegalDocumentSection[] = [
             `${legalConfig.storageProvider}, for database, storage, and related backend infrastructure.`,
             "Resend, for transactional email delivery.",
             "Groq, Gemini, and OpenRouter, for AI request routing when AI features are used.",
-            "Google or Microsoft, for optional social sign-in when those sign-in methods are enabled.",
+            "Google, for optional OAuth sign-in when enabled; transactional email carries magic-link sign-in when configured.",
           ]}
         />
         <LegalParagraph>
@@ -259,8 +260,8 @@ const termsSections: LegalDocumentSection[] = [
         <LegalSectionHeading>10. AI Features</LegalSectionHeading>
         <LegalParagraph>
           Requo includes AI-assisted drafting features intended for internal use
-          by authorized business workspace users. These features may send
-          prompts and related business workspace content through Groq, Gemini, or OpenRouter and,
+          by authorized business users. These features may send
+          prompts and related business content through Groq, Gemini, or OpenRouter and,
           depending on configuration, to the model provider used
           to generate drafts, summaries, and suggestions.
         </LegalParagraph>

@@ -5,59 +5,56 @@ import "server-only";
  * BusinessContext (e.g., public inquiry submission where the business
  * is resolved from slug).
  *
- * Plans now live on the workspace, so these helpers look up through
- * the business → workspace relationship.
+ * Plans now live on businesses.
  */
 
 import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
-import { businesses, workspaces } from "@/lib/db/schema";
-import type { WorkspacePlan } from "@/lib/plans/plans";
+import { businesses } from "@/lib/db/schema";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 /**
- * Returns the workspace plan for a business by its ID, or `"free"` if not found.
- * Looks up through business → workspace → plan.
+ * Returns the business plan for a business by its ID, or `"free"` if not found.
  */
-export async function getWorkspacePlanByBusinessId(
+export async function getplanByBusinessId(
   businessId: string,
-): Promise<{ plan: WorkspacePlan; workspaceId: string }> {
+): Promise<{ plan: plan; businessId: string }> {
   const [row] = await db
     .select({
-      plan: workspaces.plan,
-      workspaceId: workspaces.id,
+      plan: businesses.plan,
+      businessId: businesses.id,
     })
     .from(businesses)
-    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .where(eq(businesses.id, businessId))
     .limit(1);
 
   return {
-    plan: (row?.plan as WorkspacePlan) ?? "free",
-    workspaceId: row?.workspaceId ?? "",
+    plan: (row?.plan as plan) ?? "free",
+    businessId: row?.businessId ?? "",
   };
 }
 
 /**
- * Returns the plan for a workspace by ID.
+ * Returns the plan for a business by ID.
  *
- * Derives the effective plan from `workspace_subscriptions` when a
- * subscription exists, falling back to `workspaces.plan` for backward
- * compatibility with existing free workspaces.
+ * Derives the effective plan from `business_subscriptions` when a
+ * subscription exists, falling back to `businesses.plan` for backward
+ * compatibility with existing free businesses.
  */
-export async function getWorkspacePlanById(
-  workspaceId: string,
-): Promise<WorkspacePlan> {
+export async function getplanById(
+  businessId: string,
+): Promise<plan> {
   const { getEffectivePlan } = await import(
     "@/lib/billing/subscription-service"
   );
-  return getEffectivePlan(workspaceId);
+  return getEffectivePlan(businessId);
 }
 
-/** @deprecated Use `getWorkspacePlanByBusinessId` instead. */
+/** @deprecated Use `getplanByBusinessId` instead. */
 export async function getBusinessPlanById(
   businessId: string,
-): Promise<WorkspacePlan> {
-  const result = await getWorkspacePlanByBusinessId(businessId);
+): Promise<plan> {
+  const result = await getplanByBusinessId(businessId);
   return result.plan;
 }

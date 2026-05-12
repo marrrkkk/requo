@@ -11,6 +11,7 @@ import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -65,8 +66,11 @@ export function BusinessInquiryFormDangerZone({
 
   return (
     <Card className="gap-0 border-destructive/25 bg-card/97">
-      <CardHeader className="gap-3 pb-5">
+      <CardHeader className="gap-1.5 pb-5">
         <CardTitle>Danger zone</CardTitle>
+        <CardDescription>
+          Archive or permanently delete this form.
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 pt-0">
         {isDefault ? (

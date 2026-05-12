@@ -1,61 +1,64 @@
-"use client";
-
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Fragment, type CSSProperties, type ReactNode } from "react";
-import { ArrowLeft } from "lucide-react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
+import { DashboardPage } from "@/components/shared/dashboard-layout";
+import { PageHeader } from "@/components/shared/page-header";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarHeader,
   SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
   SidebarSeparator,
   SidebarTrigger,
-  useSidebar,
 } from "@/components/ui/sidebar";
-import { getAdminBreadcrumbs } from "@/features/admin/admin-breadcrumbs";
-import { adminNavigationItems } from "@/features/admin/constants";
-import type { AdminContext } from "@/features/admin/types";
-import { cn } from "@/lib/utils";
+import { AdminNav } from "@/features/admin/components/admin-nav";
 
-type AdminShellProps = {
-  admin: AdminContext;
+/**
+ * Admin console shell.
+ *
+ * Reuses the shared `DashboardPage` + `PageHeader` wrappers from
+ * `components/shared/*` per DESIGN.md so the admin surface stays
+ * visually consistent with the rest of the signed-in product. The
+ * shell itself is a dumb layout: auth gating, impersonation banner
+ * mount, and view audit logging are owned by `app/admin/layout.tsx`.
+ *
+ * The shell pairs a collapsible `Sidebar` (carrying `AdminNav`) with
+ * a `SidebarInset` content column. `AdminNav` already renders its
+ * items through `SidebarMenuButton` + `useSidebar`, so the shell
+ * MUST mount `SidebarProvider` for the nav to resolve correctly.
+ * Keeping this structure in the admin feature (rather than reusing
+ * `DashboardShell`) avoids pulling business-scoped concerns
+ * (business switcher, notifications, upgrade button) into the admin
+ * surface.
+ */
+export function AdminShell({
+  children,
+  headerActions,
+  banner,
+}: {
   children: ReactNode;
-};
-
-function isActive(pathname: string, href: string) {
-  return href === "/admin"
-    ? pathname === href
-    : pathname === href || pathname.startsWith(`${href}/`);
-}
-
-export function AdminShell({ admin, children }: AdminShellProps) {
-  const pathname = usePathname();
-  const breadcrumbs = getAdminBreadcrumbs(pathname);
-
+  /**
+   * Optional slot rendered on the right of the top bar. Most admin
+   * pages leave this empty; it's provided so future surfaces (e.g.
+   * impersonation quick-switch) can plug in without restyling.
+   */
+  headerActions?: ReactNode;
+  /**
+   * Optional slot rendered above the page header. Used by the admin
+   * layout to mount the impersonation banner while preserving the
+   * shell as a pure layout component.
+   */
+  banner?: ReactNode;
+}) {
   return (
     <SidebarProvider
       defaultOpen
       style={
         {
-          "--sidebar-width": "16rem",
+          "--sidebar-width": "15.5rem",
           "--sidebar-width-icon": "4.25rem",
         } as CSSProperties
       }
@@ -66,8 +69,8 @@ export function AdminShell({ admin, children }: AdminShellProps) {
             <BrandMark
               collapseLabel
               className="min-w-0 px-2 py-1.5"
-              subtitle="Internal admin"
               href="/admin"
+              subtitle="Admin"
             />
           </div>
           <SidebarSeparator />
@@ -75,44 +78,9 @@ export function AdminShell({ admin, children }: AdminShellProps) {
 
         <SidebarContent className="gap-4 px-1 pb-3 group-data-[collapsible=icon]:px-0">
           <SidebarGroup className="px-3 pt-3 group-data-[collapsible=icon]:px-2">
-            <SidebarMenu>
-              {adminNavigationItems.map((item) => (
-                <AdminNavigationItem
-                  isActive={isActive(pathname, item.href)}
-                  item={item}
-                  key={item.href}
-                />
-              ))}
-            </SidebarMenu>
+            <AdminNav />
           </SidebarGroup>
         </SidebarContent>
-
-        <SidebarSeparator />
-
-        <SidebarFooter className="p-3 pt-2 group-data-[collapsible=icon]:px-2">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                className="min-h-9 rounded-lg px-3 py-1.5 text-muted-foreground hover:text-foreground"
-                tooltip="Back to app"
-              >
-                <Link href="/">
-                  <ArrowLeft className="text-muted-foreground" />
-                  <span className="group-data-[collapsible=icon]:hidden">
-                    Back to app
-                  </span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-
-          <div className="min-w-0 px-3 py-1 group-data-[collapsible=icon]:hidden">
-            <p className="truncate text-xs text-muted-foreground">
-              {admin.email}
-            </p>
-          </div>
-        </SidebarFooter>
 
         <SidebarRail />
       </Sidebar>
@@ -120,89 +88,47 @@ export function AdminShell({ admin, children }: AdminShellProps) {
       <SidebarInset className="min-h-svh min-w-0">
         <header className="dashboard-topbar">
           <div className="dashboard-topbar-inner">
-            <div className="flex min-h-11 min-w-0 flex-wrap items-center gap-3 md:flex-nowrap">
-              <SidebarTrigger className="shrink-0" />
+            <div className="flex min-h-11 min-w-0 items-center gap-2.5 md:gap-3">
+              <SidebarTrigger className="size-10 shrink-0" />
               <span
                 aria-hidden="true"
                 className="hidden h-4 w-px shrink-0 self-center bg-border md:block"
               />
-              <div className="hidden min-w-0 flex-1 md:block">
-                <Breadcrumb>
-                  <BreadcrumbList>
-                    {breadcrumbs.map((item, index) => {
-                      const isLast = index === breadcrumbs.length - 1;
-
-                      return (
-                        <Fragment key={`${item.label}-${item.href ?? index}`}>
-                          {index > 0 ? <BreadcrumbSeparator /> : null}
-                          <BreadcrumbItem>
-                            {isLast || !item.href ? (
-                              <BreadcrumbPage>{item.label}</BreadcrumbPage>
-                            ) : (
-                              <BreadcrumbLink asChild>
-                                <Link href={item.href} prefetch={true}>
-                                  {item.label}
-                                </Link>
-                              </BreadcrumbLink>
-                            )}
-                          </BreadcrumbItem>
-                        </Fragment>
-                      );
-                    })}
-                  </BreadcrumbList>
-                </Breadcrumb>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-heading text-sm font-semibold tracking-tight text-foreground">
+                  Admin console
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  Internal operations surface
+                </p>
               </div>
+              {headerActions ? (
+                <div className="flex min-w-0 shrink-0 items-center justify-end gap-2">
+                  {headerActions}
+                </div>
+              ) : null}
             </div>
           </div>
         </header>
 
         <div className="flex flex-1 flex-col">
           <main className="dashboard-main">
-            <div className="dashboard-content">{children}</div>
+            <div className="dashboard-content">
+              <DashboardPage>
+                {banner}
+                <PageHeader
+                  description="Read-only oversight of users, businesses, and subscriptions, plus high-trust support actions."
+                  eyebrow="Admin console"
+                  title="Operations"
+                />
+                <div className="flex min-w-0 flex-col gap-6 pb-16 sm:gap-7 xl:pb-24">
+                  {children}
+                </div>
+              </DashboardPage>
+            </div>
           </main>
         </div>
       </SidebarInset>
     </SidebarProvider>
-  );
-}
-
-type AdminNavigationItemProps = {
-  isActive: boolean;
-  item: (typeof adminNavigationItems)[number];
-};
-
-function AdminNavigationItem({ isActive, item }: AdminNavigationItemProps) {
-  const Icon = item.icon;
-  const { isMobile, setOpenMobile } = useSidebar();
-
-  return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        asChild
-        className="min-h-9 rounded-lg border border-transparent px-3 py-1.5 data-[active=true]:border-sidebar-primary/12 data-[active=true]:bg-sidebar-primary/12 data-[active=true]:text-primary data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] dark:data-[active=true]:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-        isActive={isActive}
-        tooltip={item.label}
-      >
-        <Link
-          href={item.href}
-          prefetch={true}
-          onClick={() => {
-            if (isMobile) {
-              setOpenMobile(false);
-            }
-          }}
-        >
-          <Icon
-            className={cn(
-              "text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)]",
-              isActive && "text-primary",
-            )}
-          />
-          <span className="group-data-[collapsible=icon]:hidden">
-            {item.label}
-          </span>
-        </Link>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
   );
 }

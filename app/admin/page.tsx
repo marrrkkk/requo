@@ -1,45 +1,27 @@
-import Link from "next/link";
-import { Suspense } from "react";
-import { Search, ServerCrash } from "lucide-react";
+import type { Metadata } from "next";
 
-import { DashboardPage } from "@/components/shared/dashboard-layout";
-import { PageHeader } from "@/components/shared/page-header";
-import { Button } from "@/components/ui/button";
-import {
-  AdminOverviewDashboard,
-  AdminOverviewFallback,
-} from "@/features/admin/components/admin-overview";
-import { requireAdminPage } from "@/features/admin/page-guard";
+import { AdminDashboard } from "@/features/admin/components/admin-dashboard";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export default async function AdminOverviewPage() {
-  await requireAdminPage();
+export const metadata: Metadata = createNoIndexMetadata({
+  absoluteTitle: "Admin · Requo",
+  description: "Internal Requo admin dashboard with key operational counts.",
+});
 
-  return (
-    <DashboardPage>
-      <PageHeader
-        actions={
-          <>
-            <Button asChild variant="outline">
-              <Link href="/admin/users" prefetch={true}>
-                <Search data-icon="inline-start" />
-                Find user
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link href="/admin/system" prefetch={true}>
-                <ServerCrash data-icon="inline-start" />
-                System status
-              </Link>
-            </Button>
-          </>
-        }
-        description="Start with operational queues that can block customers or billing, then scan workflow health and growth."
-        title="Admin command center"
-      />
-
-      <Suspense fallback={<AdminOverviewFallback />}>
-        <AdminOverviewDashboard />
-      </Suspense>
-    </DashboardPage>
-  );
+/**
+ * Admin console landing page.
+ *
+ * The admin layout (`app/admin/layout.tsx`) has already:
+ *   - Enforced `requireAdminUser()` — unauthenticated, unverified, and
+ *     non-allow-listed callers are rejected with `notFound()` before
+ *     this page renders (Req 1.1, 1.2, 1.3, 1.6).
+ *   - Written the `view.dashboard` audit row via
+ *     `wrapAdminRouteWithViewLog` (Req 10.1).
+ *
+ * So the page itself stays thin: it composes `AdminDashboard`, which
+ * is responsible for the six count tiles plus per-tile Suspense and
+ * retry handling (Req 2.1, 2.3, 2.4).
+ */
+export default function AdminDashboardPage() {
+  return <AdminDashboard />;
 }

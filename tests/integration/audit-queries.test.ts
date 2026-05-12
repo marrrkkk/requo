@@ -2,33 +2,31 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 
 vi.mock("@/lib/db/client", async () => {
-  const { testDb: mockedDb } = await import("./db");
+  const { testDb: mockedDb } = await import("../support/db");
 
   return { db: mockedDb };
 });
 
 import {
-  getWorkspaceAuditLogExportRowsBySlug,
-  getWorkspaceAuditLogFiltersBySlug,
-  getWorkspaceAuditLogPageBySlug,
+  getBusinessAuditLogExportRowsBySlug,
+  getBusinessAuditLogFiltersBySlug,
+  getBusinessAuditLogPageBySlug,
 } from "@/features/audit/queries";
 import {
   auditLogs,
   businesses,
   businessMembers,
   user,
-  workspaceMembers,
-  workspaces,
 } from "@/lib/db/schema";
 
-import { closeTestDb, testDb } from "./db";
+import { closeTestDb, testDb } from "@/tests/support/db";
 
 const ownerId = "test_audit_owner";
 const memberId = "test_audit_member";
 const outsiderId = "test_audit_outsider";
-const workspaceId = "test_audit_workspace";
-const workspaceSlug = "test-audit-workspace";
 const businessId = "test_audit_business";
+const businessSlug = "audit-business";
+;
 const otherBusinessId = "test_audit_business_other";
 const auditIds = [
   "test_audit_log_1",
@@ -50,9 +48,9 @@ async function cleanupAuditFixtures() {
     .delete(businesses)
     .where(inArray(businesses.id, [businessId, otherBusinessId]));
   await testDb
-    .delete(workspaceMembers)
-    .where(eq(workspaceMembers.workspaceId, workspaceId));
-  await testDb.delete(workspaces).where(eq(workspaces.id, workspaceId));
+    .delete(businessMembers)
+    .where(eq(businessMembers.businessId, businessId));
+  await testDb.delete(businesses).where(eq(businesses.id, businessId));
   await testDb
     .delete(user)
     .where(inArray(user.id, [ownerId, memberId, outsiderId]));
@@ -91,39 +89,10 @@ describe("features/audit/queries", () => {
       },
     ]);
 
-    await testDb.insert(workspaces).values({
-      id: workspaceId,
-      name: "Audit Workspace",
-      slug: workspaceSlug,
-      plan: "pro",
-      ownerUserId: ownerId,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await testDb.insert(workspaceMembers).values([
-      {
-        id: "test_audit_workspace_owner_member",
-        workspaceId,
-        userId: ownerId,
-        role: "owner",
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        id: "test_audit_workspace_member_member",
-        workspaceId,
-        userId: memberId,
-        role: "member",
-        createdAt: now,
-        updatedAt: now,
-      },
-    ]);
-
     await testDb.insert(businesses).values([
       {
         id: businessId,
-        workspaceId,
+        ownerUserId: ownerId,
         name: "Audit Business",
         slug: "audit-business",
         businessType: "general_project_services",
@@ -134,7 +103,7 @@ describe("features/audit/queries", () => {
       },
       {
         id: otherBusinessId,
-        workspaceId,
+        ownerUserId: ownerId,
         name: "Second Audit Business",
         slug: "second-audit-business",
         businessType: "general_project_services",
@@ -167,7 +136,6 @@ describe("features/audit/queries", () => {
     await testDb.insert(auditLogs).values([
       {
         id: auditIds[0],
-        workspaceId,
         businessId,
         actorUserId: ownerId,
         entityType: "request",
@@ -182,7 +150,6 @@ describe("features/audit/queries", () => {
       },
       {
         id: auditIds[1],
-        workspaceId,
         businessId,
         actorUserId: ownerId,
         entityType: "quote",
@@ -197,8 +164,7 @@ describe("features/audit/queries", () => {
       },
       {
         id: auditIds[2],
-        workspaceId,
-        businessId: otherBusinessId,
+        businessId,
         actorUserId: memberId,
         entityType: "member",
         entityId: "bm_test_1",
@@ -213,14 +179,13 @@ describe("features/audit/queries", () => {
       },
       {
         id: auditIds[3],
-        workspaceId,
-        businessId: null,
+        businessId,
         actorUserId: ownerId,
-        entityType: "workspace",
-        entityId: workspaceId,
-        action: "workspace.deletion_scheduled",
+        entityType: "business",
+        entityId: businessId,
+        action: "business.deletion_scheduled",
         metadata: {
-          workspaceName: "Audit Workspace",
+          businessName: "Audit Workspace",
           scheduledDeletionAt: hoursAgo(-24).toISOString(),
         },
         source: "app",
@@ -234,8 +199,8 @@ describe("features/audit/queries", () => {
     await closeTestDb();
   });
 
-  it("returns owner-only workspace audit pages with filters applied", async () => {
-    const page = await getWorkspaceAuditLogPageBySlug(ownerId, workspaceSlug, {
+  it("returns owner-only business audit pages with filters applied", async () => {
+    const page = await getBusinessAuditLogPageBySlug(ownerId, businessSlug, {
       actor: ownerId,
       business: businessId,
       action: "quote.sent",
@@ -257,9 +222,9 @@ describe("features/audit/queries", () => {
   });
 
   it("returns owner filter options and blocks non-owner access", async () => {
-    const ownerFilters = await getWorkspaceAuditLogFiltersBySlug(
+    const ownerFilters = await getBusinessAuditLogFiltersBySlug(
       ownerId,
-      workspaceSlug,
+      businessSlug,
     );
 
     expect(ownerFilters).not.toBeNull();
@@ -267,12 +232,9 @@ describe("features/audit/queries", () => {
       "Audit Member",
       "Audit Owner",
     ]);
-    expect(ownerFilters?.businesses.map((option) => option.label)).toEqual([
-      "Audit Business",
-      "Second Audit Business",
-    ]);
+    expect(ownerFilters?.businesses.map((option) => option.label)).toEqual([]);
 
-    const memberPage = await getWorkspaceAuditLogPageBySlug(memberId, workspaceSlug, {
+    const memberPage = await getBusinessAuditLogPageBySlug(memberId, businessSlug, {
       actor: null,
       business: null,
       action: null,
@@ -281,13 +243,13 @@ describe("features/audit/queries", () => {
       to: null,
       page: 1,
     });
-    const memberFilters = await getWorkspaceAuditLogFiltersBySlug(
+    const memberFilters = await getBusinessAuditLogFiltersBySlug(
       memberId,
-      workspaceSlug,
+      businessSlug,
     );
-    const outsiderPage = await getWorkspaceAuditLogPageBySlug(
+    const outsiderPage = await getBusinessAuditLogPageBySlug(
       outsiderId,
-      workspaceSlug,
+      businessSlug,
       {
         actor: null,
         business: null,
@@ -305,9 +267,9 @@ describe("features/audit/queries", () => {
   });
 
   it("returns owner-only audit export rows for all matching logs", async () => {
-    const rows = await getWorkspaceAuditLogExportRowsBySlug(
+    const rows = await getBusinessAuditLogExportRowsBySlug(
       ownerId,
-      workspaceSlug,
+      businessSlug,
       {
         actor: null,
         business: null,
@@ -318,9 +280,9 @@ describe("features/audit/queries", () => {
         page: 1,
       },
     );
-    const quoteRows = await getWorkspaceAuditLogExportRowsBySlug(
+    const quoteRows = await getBusinessAuditLogExportRowsBySlug(
       ownerId,
-      workspaceSlug,
+      businessSlug,
       {
         actor: null,
         business: null,
@@ -331,9 +293,9 @@ describe("features/audit/queries", () => {
         page: 1,
       },
     );
-    const memberRows = await getWorkspaceAuditLogExportRowsBySlug(
+    const memberRows = await getBusinessAuditLogExportRowsBySlug(
       memberId,
-      workspaceSlug,
+      businessSlug,
       {
         actor: null,
         business: null,

@@ -1,4 +1,4 @@
-import type { WorkspacePlan } from "@/lib/plans/plans";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import type {
   BillingCurrency,
   BillingInterval,
@@ -9,17 +9,20 @@ import type {
   SubscriptionStatus,
 } from "@/lib/billing/types";
 
-/** Billing overview for the workspace billing UI. */
-export type WorkspaceBillingOverview = {
-  workspaceId: string;
-  workspaceName: string;
-  workspaceSlug: string;
-  currentPlan: WorkspacePlan;
+/** Billing overview for the account billing UI. */
+export type AccountBillingOverview = {
+  userId: string;
+  /** Current business context (for display and navigation). */
+  businessId: string;
+  businessName: string;
+  businessSlug: string;
+  currentPlan: plan;
   subscription: {
     status: SubscriptionStatus;
     plan: string;
     provider: BillingProvider;
     currency: BillingCurrency;
+    paymentMethod?: string | null;
     currentPeriodStart: Date | null;
     currentPeriodEnd: Date | null;
     canceledAt: Date | null;
@@ -27,14 +30,29 @@ export type WorkspaceBillingOverview = {
   } | null;
   region: BillingRegion;
   defaultCurrency: BillingCurrency;
+  downgradePreview: {
+    targetPlan: plan;
+    activeBusinessLimit: number | null;
+    activeBusinesses: Array<{
+      id: string;
+      name: string;
+      slug: string;
+      lastOpenedAt: Date | null;
+    }>;
+    requiresSelection: boolean;
+  };
 };
+
+/** @deprecated Use `AccountBillingOverview` instead. */
+export type WorkspaceBillingOverview = AccountBillingOverview;
 
 /** Props for the checkout dialog. */
 export type CheckoutDialogProps = {
-  workspaceId: string;
-  workspaceName?: string;
-  workspaceSlug: string;
-  currentPlan: WorkspacePlan;
+  userId: string;
+  businessId: string;
+  businessName?: string;
+  businessSlug: string;
+  currentPlan: plan;
   plan: PaidPlan;
   interval?: BillingInterval;
   region: BillingRegion;
@@ -47,37 +65,13 @@ export type CheckoutActionState = {
   success?: string;
   checkoutUrl?: string;
   paddleTransactionId?: string;
-  qrData?: {
-    qrCodeData: string;
-    paymentIntentId: string;
-    expiresAt: string;
-    amount: number;
-    currency: "PHP";
-  };
 };
-
-/** Pending QRPh checkout data loaded from the server. */
-export type PendingQrPhData = {
-  qrCodeData: string;
-  paymentIntentId: string;
-  expiresAt: string;
-  amount: number;
-  currency: "PHP";
-  plan: PaidPlan;
-};
-
-export type PendingCheckoutState = {
-  provider: "paymongo";
-} & PendingQrPhData;
+export type PendingCheckoutState = null;
 
 export type CancelPendingQrCheckoutResult =
   | {
       ok: true;
-      outcome: "canceled" | "already_canceled";
-    }
-  | {
-      ok: true;
-      outcome: "already_paid";
+      outcome: "already_canceled";
     }
   | {
       ok: false;
@@ -86,7 +80,7 @@ export type CancelPendingQrCheckoutResult =
 
 export type CheckoutStatusSnapshot = {
   subscription: {
-    effectivePlan: WorkspacePlan;
+    effectivePlan: plan;
     plan: string;
     status: SubscriptionStatus;
   } | null;

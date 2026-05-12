@@ -1,20 +1,20 @@
 "use client";
 
 import { AIChatPopover } from "@/features/ai/components/ai-chat-popover";
-import type { WorkspacePlan } from "@/lib/plans";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 type QuoteAiPanelProps = {
   businessSlug: string;
   quoteId: string;
   userName: string;
-  workspacePlan: WorkspacePlan;
+  plan: plan;
 };
 
 export function QuoteAiPanel({
   businessSlug,
   quoteId,
   userName,
-  workspacePlan,
+  plan,
 }: QuoteAiPanelProps) {
   return (
     <AIChatPopover
@@ -23,7 +23,7 @@ export function QuoteAiPanel({
       surface="quote"
       title="Quote Assistant"
       userName={userName}
-      workspacePlan={workspacePlan}
+      plan={plan}
     />
   );
 }

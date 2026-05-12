@@ -23,7 +23,7 @@ const SHOW_DELAY_MS = 180;
 const INCREMENT_INTERVAL_MS = 140;
 const COMPLETE_DELAY_MS = 160;
 const RESET_DELAY_MS = 260;
-const STALL_TIMEOUT_MS = 8000;
+const STALL_TIMEOUT_MS = 15000;
 const MIN_VISIBLE_MS = 160;
 const INITIAL_PROGRESS = 16;
 const MAX_PROGRESS = 90;
@@ -53,6 +53,23 @@ function shouldIgnoreAnchorNavigation(anchor: HTMLAnchorElement) {
     anchor.hasAttribute("download") ||
     (anchor.target !== "" && anchor.target !== "_self")
   );
+}
+
+/**
+ * Returns true when the event target sits inside a non-navigation interactive
+ * element. Buttons, dialogs, and overlay triggers (Radix portals, sheets,
+ * dropdowns) look like anchor clicks to the progress bar but never perform
+ * client-side navigation — starting the bar for them causes a stalled
+ * indicator that never completes.
+ */
+function isInsideNonNavigationInteractive(target: EventTarget | null) {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+
+  return target.closest(
+    'button, [role="button"], [role="dialog"], [role="alertdialog"], [data-radix-portal], [data-radix-popper-content-wrapper]',
+  ) !== null;
 }
 
 export function RouteProgressBar() {
@@ -177,13 +194,12 @@ export function RouteProgressBar() {
 
     stallRef.current = window.setTimeout(() => {
       if (activeRouteRef.current === nextRoute) {
-        activeRouteRef.current = null;
-        startedAtRef.current = null;
-        setBarState(false, 0);
-        clearPendingWork();
+        // Stalled — complete gracefully instead of hiding abruptly.
+        // This avoids the skeleton-disappears-into-blank-page problem.
+        completeNavigation();
       }
     }, STALL_TIMEOUT_MS);
-  }, [clearPendingWork, setBarState, startVisibleProgress]);
+  }, [clearPendingWork, completeNavigation, setBarState, startVisibleProgress]);
 
   const maybeBeginNavigation = useCallback(
     (nextRoute: string | null, options?: { force?: boolean }) => {
@@ -218,6 +234,10 @@ export function RouteProgressBar() {
 
   useEffect(() => {
     function getNextRouteFromAnchorEvent(eventTarget: EventTarget | null) {
+      if (isInsideNonNavigationInteractive(eventTarget)) {
+        return null;
+      }
+
       const anchor = getClosestAnchor(eventTarget);
 
       if (!anchor || shouldIgnoreAnchorNavigation(anchor)) {

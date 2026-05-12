@@ -21,9 +21,8 @@ const envSchema = z.object({
 
   GOOGLE_CLIENT_ID: emptyToUndefined(z.string().min(1)),
   GOOGLE_CLIENT_SECRET: emptyToUndefined(z.string().min(1)),
-  MICROSOFT_CLIENT_ID: emptyToUndefined(z.string().min(1)),
-  MICROSOFT_CLIENT_SECRET: emptyToUndefined(z.string().min(1)),
-  MICROSOFT_TENANT_ID: emptyToUndefined(z.string().min(1)).default("common"),
+  /** HTML tag verification value from Google Search Console (meta name="google-site-verification"). */
+  GOOGLE_SITE_VERIFICATION: emptyToUndefined(z.string().min(1)),
   NEXT_PUBLIC_SUPABASE_URL: z.url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
@@ -42,9 +41,6 @@ const envSchema = z.object({
   GROQ_API_KEY: emptyToUndefined(z.string().min(1)),
   GEMINI_API_KEY: emptyToUndefined(z.string().min(1)),
   OPENROUTER_API_KEY: emptyToUndefined(z.string().min(1)),
-  PAYMONGO_SECRET_KEY: emptyToUndefined(z.string().min(1)),
-  PAYMONGO_PUBLIC_KEY: emptyToUndefined(z.string().min(1)),
-  PAYMONGO_WEBHOOK_SECRET: emptyToUndefined(z.string().min(1)),
   PADDLE_API_KEY: emptyToUndefined(z.string().min(1)),
   PADDLE_WEBHOOK_SECRET: emptyToUndefined(z.string().min(1)),
   PADDLE_PRO_PRICE_ID: emptyToUndefined(z.string().min(1)),
@@ -106,9 +102,6 @@ export const isGeminiConfigured = Boolean(env.GEMINI_API_KEY);
 export const isOpenRouterConfigured = Boolean(env.OPENROUTER_API_KEY);
 export const isSupabaseRealtimeConfigured = Boolean(env.SUPABASE_JWT_SECRET);
 
-export const isPayMongoConfigured = Boolean(
-  env.PAYMONGO_SECRET_KEY && env.PAYMONGO_PUBLIC_KEY,
-);
 export const isPaddleConfigured = Boolean(
   env.PADDLE_API_KEY && env.PADDLE_PRO_PRICE_ID,
 );

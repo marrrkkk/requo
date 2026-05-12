@@ -1,7 +1,7 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { asc, eq } from "drizzle-orm";
 
-import { closeTestDb, testDb } from "./db";
+import { closeTestDb, testDb } from "@/tests/support/db";
 
 vi.mock("@/lib/db/client", () => ({ db: testDb }));
 

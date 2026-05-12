@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { BrandMark } from "@/components/shared/brand-mark";
 import { PageHeader } from "@/components/shared/page-header";
+import { ImpersonationBanner } from "@/components/shell/impersonation-banner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AccountSettingsNav } from "@/features/account/components/account-settings-nav";
@@ -15,8 +16,9 @@ import { getAccountProfileForUser } from "@/features/account/queries";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
-import { workspacesHubPath } from "@/features/workspaces/routes";
+import { businessesHubPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
+import { timed } from "@/lib/dev/server-timing";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -43,10 +45,13 @@ async function AccountSettingsShell({
   children: React.ReactNode;
 }) {
   const session = await requireSession();
-  const [themePreference, profile] = await Promise.all([
-    getThemePreferenceForUser(session.user.id),
-    getAccountProfileForUser(session.user.id),
-  ]);
+  const [themePreference, profile] = await timed(
+    "accountShell.parallelShellFetches",
+    Promise.all([
+      getThemePreferenceForUser(session.user.id),
+      getAccountProfileForUser(session.user.id),
+    ]),
+  );
   const navigationGroups = getAccountSettingsNavigation();
   const avatarSrc = resolveUserAvatarSrc({
     avatarStoragePath: profile?.avatarStoragePath,
@@ -63,12 +68,12 @@ async function AccountSettingsShell({
       <div className="min-h-svh w-full bg-background">
         <header className="sticky top-0 z-10 flex h-[4.5rem] w-full shrink-0 items-center justify-between border-b border-border/70 bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/60 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
-            <BrandMark href={workspacesHubPath} subtitle="Account" />
+            <BrandMark href={businessesHubPath} subtitle="Account" />
             <div className="h-4 w-px bg-border max-sm:hidden" />
             <Button asChild className="max-sm:hidden" size="sm" variant="ghost">
-              <Link href={workspacesHubPath}>
+              <Link href={businessesHubPath}>
                 <ArrowLeft data-icon="inline-start" className="size-4" />
-                Back to workspaces
+                Back to businesses
               </Link>
             </Button>
           </div>
@@ -86,6 +91,9 @@ async function AccountSettingsShell({
 
         <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
           <DashboardPage>
+            <Suspense fallback={null}>
+              <ImpersonationBanner />
+            </Suspense>
             <PageHeader
               description="Manage your personal details, sign-in, sessions, and account safeguards."
               eyebrow="User settings"
@@ -111,7 +119,7 @@ function AccountShellFallback() {
     <div className="min-h-svh w-full bg-background">
       <header className="sticky top-0 z-10 flex h-[4.5rem] w-full shrink-0 items-center justify-between border-b border-border/70 bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/60 sm:px-6 lg:px-8">
         <div className="flex items-center gap-4">
-          <BrandMark href={workspacesHubPath} subtitle="Account" />
+          <BrandMark href={businessesHubPath} subtitle="Account" />
           <div className="h-4 w-px bg-border max-sm:hidden" />
           <Skeleton className="hidden h-9 w-40 rounded-lg sm:block" />
         </div>

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { StatePageCard } from "@/components/shared/state-page-card";
 import { Button } from "@/components/ui/button";
+import { businessesHubPath } from "@/features/businesses/routes";
 
 export default function NotFound() {
   return (
@@ -12,7 +13,7 @@ export default function NotFound() {
             <Link href="/">Go home</Link>
           </Button>
           <Button asChild>
-            <Link href="/workspaces">Open workspaces</Link>
+            <Link href={businessesHubPath}>Open businesses</Link>
           </Button>
         </>
       }
@@ -20,7 +21,7 @@ export default function NotFound() {
       title="That page does not exist."
     >
       <div className="state-card-note">
-        Go home or open your workspaces.
+        Go home or open your businesses.
       </div>
     </StatePageCard>
   );

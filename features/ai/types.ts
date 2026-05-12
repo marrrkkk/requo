@@ -17,7 +17,7 @@ export type AiSurface = (typeof aiSurfaces)[number];
 export type AiConversation = {
   id: string;
   userId: string;
-  workspaceId: string;
+  businessId: string;
   surface: AiSurface;
   entityId: string;
   title: string | null;

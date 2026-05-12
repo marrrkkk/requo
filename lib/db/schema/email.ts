@@ -13,7 +13,6 @@ import {
 
 import { user } from "@/lib/db/schema/auth";
 import { businesses } from "@/lib/db/schema/businesses";
-import { workspaces } from "@/lib/db/schema/workspaces";
 
 export const emailProviders = ["resend", "mailtrap", "brevo"] as const;
 export type EmailProviderName = (typeof emailProviders)[number];
@@ -58,9 +57,6 @@ export const emailOutbox = pgTable(
   "email_outbox",
   {
     id: text("id").primaryKey(),
-    workspaceId: text("workspace_id").references(() => workspaces.id, {
-      onDelete: "set null",
-    }),
     businessId: text("business_id").references(() => businesses.id, {
       onDelete: "set null",
     }),
@@ -96,10 +92,6 @@ export const emailOutbox = pgTable(
   (table) => [
     uniqueIndex("email_outbox_idempotency_key_unique").on(
       table.idempotencyKey,
-    ),
-    index("email_outbox_workspace_created_at_idx").on(
-      table.workspaceId,
-      table.createdAt,
     ),
     index("email_outbox_business_created_at_idx").on(
       table.businessId,

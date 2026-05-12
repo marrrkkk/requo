@@ -1,5 +1,9 @@
 import type { MetadataRoute } from "next";
 
+import {
+  PRIVATE_ROUTE_PREFIXES,
+  PUBLIC_ROUTE_PREFIXES,
+} from "@/lib/seo/route-registry";
 import { absoluteUrl, getSiteOrigin } from "@/lib/seo/site";
 
 export default function robots(): MetadataRoute.Robots {
@@ -7,22 +11,8 @@ export default function robots(): MetadataRoute.Robots {
     host: getSiteOrigin(),
     rules: [
       {
-        allow: ["/", "/pricing", "/privacy", "/terms", "/refund-policy"],
-        disallow: [
-          "/account/",
-          "/api/",
-          "/businesses/",
-          "/forgot-password",
-          "/inquire/",
-          "/invite/",
-          "/login",
-          "/onboarding",
-          "/quote/",
-          "/reset-password",
-          "/signup",
-          "/verify-email",
-          "/workspaces/",
-        ],
+        allow: [...PUBLIC_ROUTE_PREFIXES],
+        disallow: [...PRIVATE_ROUTE_PREFIXES],
         userAgent: "*",
       },
     ],

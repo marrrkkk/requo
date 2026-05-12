@@ -46,7 +46,8 @@ import {
 } from "@/features/ai/components/inquiry-ai-panel-utils";
 import { cn } from "@/lib/utils";
 import { LockedFeaturePage } from "@/components/shared/paywall";
-import { hasFeatureAccess, type WorkspacePlan } from "@/lib/plans";
+import { hasFeatureAccess } from "@/lib/plans";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 const messagePageSize = 30;
 const topLoadThreshold = 96;
@@ -57,7 +58,7 @@ type AIChatPopoverProps = {
   surface: AiSurface;
   userName: string;
   title?: string;
-  workspacePlan: WorkspacePlan;
+  plan: plan;
 };
 
 type ConversationMessagesSnapshot = {
@@ -2073,7 +2074,7 @@ export function AIChatPanel({
 export function AIChatPopover(props: AIChatPopoverProps) {
   const [isOpen, setIsOpen] = useState(false);
   const isDashboard = props.surface === "dashboard";
-  const hasAccess = hasFeatureAccess(props.workspacePlan, "aiAssistant");
+  const hasAccess = hasFeatureAccess(props.plan, "aiAssistant");
   const [cachedConversations, setCachedConversations] = useState<
     AiConversationSummary[] | null
   >(null);
@@ -2355,7 +2356,7 @@ export function AIChatPopover(props: AIChatPopoverProps) {
                 <LockedFeaturePage
                   className="border-none shadow-none px-4 py-8"
                   feature="aiAssistant"
-                  plan={props.workspacePlan}
+                  plan={props.plan}
                 />
               </div>
             </div>

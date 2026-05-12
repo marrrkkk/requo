@@ -2,7 +2,7 @@ import { getStarterTemplateBusinessType } from "@/features/businesses/starter-te
 import type { BusinessType } from "@/features/inquiries/business-types";
 import { createInquiryFormConfigDefaults } from "@/features/inquiries/form-config";
 import { createInquiryPageConfigDefaults } from "@/features/inquiries/page-config";
-import type { WorkspacePlan } from "@/lib/plans/plans";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import { slugifyPublicName } from "@/lib/slugs";
 
 function slugify(value: string) {
@@ -35,7 +35,7 @@ type CreateInquiryFormPresetInput = {
   businessShortDescription?: string | null;
   legacyInquiryHeadline?: string | null;
   templateName?: string;
-  plan?: WorkspacePlan;
+  plan?: plan;
 };
 
 export function createInquiryFormPreset({

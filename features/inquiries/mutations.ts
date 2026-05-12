@@ -355,7 +355,7 @@ export async function changeInquiryStatusForBusiness({
         status: inquiries.status,
         archivedAt: inquiries.archivedAt,
         deletedAt: inquiries.deletedAt,
-        workspaceId: businesses.workspaceId,
+        businessId: businesses.id,
         customerName: inquiries.customerName,
         serviceCategory: inquiries.serviceCategory,
       })
@@ -472,7 +472,7 @@ export async function updateInquiryFieldsForBusiness({
         id: inquiries.id,
         archivedAt: inquiries.archivedAt,
         deletedAt: inquiries.deletedAt,
-        workspaceId: businesses.workspaceId,
+        businessId: businesses.id,
         customerName: inquiries.customerName,
         serviceCategory: inquiries.serviceCategory,
       })
@@ -516,8 +516,7 @@ export async function updateInquiryFieldsForBusiness({
     });
 
     await writeAuditLog(tx, {
-      workspaceId: existingInquiry.workspaceId,
-      businessId,
+      businessId: existingInquiry.businessId,
       actorUserId,
       entityType: "request",
       entityId: inquiryId,
@@ -557,7 +556,7 @@ export async function archiveInquiryForBusiness({
         status: inquiries.status,
         archivedAt: inquiries.archivedAt,
         deletedAt: inquiries.deletedAt,
-        workspaceId: businesses.workspaceId,
+        businessId: businesses.id,
         customerName: inquiries.customerName,
         serviceCategory: inquiries.serviceCategory,
       })
@@ -611,8 +610,7 @@ export async function archiveInquiryForBusiness({
     });
 
     await writeAuditLog(tx, {
-      workspaceId: existingInquiry.workspaceId,
-      businessId,
+      businessId: existingInquiry.businessId,
       actorUserId,
       entityType: "request",
       entityId: inquiryId,
@@ -645,7 +643,7 @@ export async function unarchiveInquiryForBusiness({
         status: inquiries.status,
         archivedAt: inquiries.archivedAt,
         deletedAt: inquiries.deletedAt,
-        workspaceId: businesses.workspaceId,
+        businessId: businesses.id,
         customerName: inquiries.customerName,
         serviceCategory: inquiries.serviceCategory,
       })
@@ -722,7 +720,7 @@ export async function trashInquiryForBusiness({
         status: inquiries.status,
         archivedAt: inquiries.archivedAt,
         deletedAt: inquiries.deletedAt,
-        workspaceId: businesses.workspaceId,
+        businessId: businesses.id,
         customerName: inquiries.customerName,
         serviceCategory: inquiries.serviceCategory,
       })
@@ -772,8 +770,7 @@ export async function trashInquiryForBusiness({
     });
 
     await writeAuditLog(tx, {
-      workspaceId: existingInquiry.workspaceId,
-      businessId,
+      businessId: existingInquiry.businessId,
       actorUserId,
       entityType: "request",
       entityId: inquiryId,
@@ -804,7 +801,7 @@ export async function restoreInquiryFromTrashForBusiness({
         id: inquiries.id,
         status: inquiries.status,
         deletedAt: inquiries.deletedAt,
-        workspaceId: businesses.workspaceId,
+        businessId: businesses.id,
         customerName: inquiries.customerName,
         serviceCategory: inquiries.serviceCategory,
       })
@@ -851,8 +848,7 @@ export async function restoreInquiryFromTrashForBusiness({
     });
 
     await writeAuditLog(tx, {
-      workspaceId: existingInquiry.workspaceId,
-      businessId,
+      businessId: existingInquiry.businessId,
       actorUserId,
       entityType: "request",
       entityId: inquiryId,

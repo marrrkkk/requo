@@ -101,25 +101,6 @@ test.describe("Paywall & Free Plan Gating", () => {
     await expect(page.getByText("Free", { exact: true })).toBeVisible();
   });
 
-  test("owner sees LockedFeaturePage when accessing saved replies settings", async ({
-    page,
-  }) => {
-    await openDemoBusiness(page);
-    await page.goto(
-      `/businesses/${demoBusinessSlug}/settings/replies`,
-    );
-
-    // Verify the full page lock component
-    await expect(page.getByRole("heading", { name: "Saved replies" })).toBeVisible();
-    await expect(
-      page.getByText("Save and reuse common responses to speed up replies."),
-    ).toBeVisible();
-
-    await expect(
-      page.getByText("Request Pro access"),
-    ).toBeVisible();
-  });
-
   test("owner sees LockedFeaturePage when accessing pricing library settings", async ({
     page,
   }) => {

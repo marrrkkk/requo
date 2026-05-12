@@ -699,6 +699,7 @@ export async function updateBusinessInquiryPageSettings({
     {
       ...form.inquiryPageConfig,
       template: values.template,
+      mobileLayout: values.mobileLayout,
       showSupportingCards: values.showSupportingCards,
       showShowcaseImage: values.showShowcaseImage,
       showBusinessContact: values.showBusinessContact,

@@ -32,7 +32,8 @@ export async function recordWebhookEvent(params: {
   providerEventId: string;
   provider: BillingProvider;
   eventType: string;
-  workspaceId?: string | null;
+  userId?: string | null;
+  businessId?: string | null;
   payload: unknown;
 }): Promise<{ isNew: boolean; eventId: string }> {
   // Check for existing event
@@ -53,7 +54,8 @@ export async function recordWebhookEvent(params: {
     providerEventId: params.providerEventId,
     provider: params.provider,
     eventType: params.eventType,
-    workspaceId: params.workspaceId ?? null,
+    userId: params.userId ?? null,
+    businessId: params.businessId ?? null,
     payload: params.payload as Record<string, unknown>,
     createdAt: new Date(),
   });
@@ -74,12 +76,13 @@ export async function markEventProcessed(eventId: string): Promise<void> {
 /* ── Payment attempt recording ────────────────────────────────────────────── */
 
 type RecordPaymentAttemptParams = {
-  workspaceId: string;
+  userId: string;
+  businessId?: string | null;
   plan: string;
   provider: BillingProvider;
   providerPaymentId: string;
   amount: number;
-  currency: "PHP" | "USD";
+  currency: "USD";
   status: "pending" | "succeeded" | "failed" | "expired";
 };
 
@@ -93,7 +96,8 @@ export async function recordPaymentAttempt(
 
   await db.insert(paymentAttempts).values({
     id,
-    workspaceId: params.workspaceId,
+    userId: params.userId,
+    businessId: params.businessId ?? null,
     plan: params.plan,
     provider: params.provider,
     providerPaymentId: params.providerPaymentId,
@@ -127,9 +131,9 @@ export async function updatePaymentAttemptStatus(
  */
 export function webhookSuccess(
   message: string,
-  workspaceId?: string,
+  businessId?: string,
 ): WebhookProcessResult {
-  return { success: true, message, workspaceId };
+  return { success: true, message, businessId };
 }
 
 export function webhookError(message: string): WebhookProcessResult {

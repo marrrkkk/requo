@@ -72,8 +72,8 @@ const privacySections: LegalDocumentSection[] = [
         <LegalList
           items={[
             "Account information such as your name, email address, login credentials, profile details, and password-reset details.",
-            "Business workspace information such as business name, slug, logo, business profile details, team member email addresses for invites, and configuration settings for inquiry pages or forms.",
-            "Operational content you create inside the Service, including inquiries, notes, replies, quotes, quote line items, status changes, pricing entries, FAQs, reply snippets, notifications, and activity records.",
+            "Business information such as business name, slug, logo, business profile details, team member email addresses for invites, and configuration settings for inquiry pages or forms.",
+            "Operational content you create inside the Service, including inquiries, notes, replies, quotes, quote line items, status changes, pricing entries, FAQs, notifications, and activity records.",
           ]}
         />
         <LegalSubheading>
@@ -100,7 +100,7 @@ const privacySections: LegalDocumentSection[] = [
         <LegalList
           items={[
             "Inquiry attachments uploaded through public inquiry forms.",
-            "Knowledge files and related extracted text stored to support business workspace features.",
+            "Knowledge files and related extracted text stored to support business features.",
             "Business logos, profile avatars, and other files you upload to the Service.",
           ]}
         />
@@ -110,7 +110,7 @@ const privacySections: LegalDocumentSection[] = [
         <LegalList
           items={[
             "Session and security information such as IP address, user agent, login activity, and device or browser details associated with account access.",
-            "Operational usage information such as page requests, timestamps, business workspace context, notification activity, and records needed to keep the Service working.",
+            "Operational usage information such as page requests, timestamps, business context, notification activity, and records needed to keep the Service working.",
             "Essential browser-side storage used for session handling and product preferences such as active business selection, theme preference, and sidebar state.",
           ]}
         />
@@ -132,18 +132,18 @@ const privacySections: LegalDocumentSection[] = [
         <LegalParagraph>
           Information submitted through a public inquiry form is made available
           to the receiving business and to authorized users within that business
-          workspace so they can review, qualify, and respond to the inquiry.
+          business so they can review, qualify, and respond to the inquiry.
         </LegalParagraph>
       </>
     ),
   },
   {
     id: "accounts-and-businesses",
-    title: "5. User Accounts And Business Workspaces",
+    title: "5. User Accounts And Businesses",
     content: (
       <>
         <LegalSectionHeading>
-          5. User Accounts And Business Workspaces
+          5. User Accounts And Businesses
         </LegalSectionHeading>
         <LegalParagraph>
           Requo supports account registration, authentication, password reset,
@@ -152,7 +152,7 @@ const privacySections: LegalDocumentSection[] = [
           may switch between businesses they are authorized to access.
         </LegalParagraph>
         <LegalParagraph>
-          We process account and business workspace information to authenticate
+          We process account and business information to authenticate
           users, maintain business-scoped access, send invite or password-reset
           emails, show the correct business context, and keep records needed to
           support legitimate product and security operations.
@@ -172,7 +172,7 @@ const privacySections: LegalDocumentSection[] = [
           The Service supports file uploads and customer-submitted content,
           including inquiry attachments, knowledge files, business logos, profile
           avatars, public quote responses, notes, FAQs, pricing entries, and
-          other business workspace content that users or customers provide.
+          other business content that users or customers provide.
         </LegalParagraph>
         <LegalParagraph>
           Some uploaded knowledge files may be processed to extract text needed
@@ -189,8 +189,8 @@ const privacySections: LegalDocumentSection[] = [
         <LegalSectionHeading>7. How We Use Information</LegalSectionHeading>
         <LegalList
           items={[
-            "Provide, maintain, and secure the Service, including account access, business workspaces, public inquiry pages, public quote pages, and related workflows.",
-            "Authenticate users, manage sessions, administer business workspace membership and invites, and support business switching for authorized users.",
+            "Provide, maintain, and secure the Service, including account access, businesses, public inquiry pages, public quote pages, and related workflows.",
+            "Authenticate users, manage sessions, administer business membership and invites, and support business switching for authorized users.",
             "Receive, store, display, route, and deliver inquiries, quotes, notifications, and transactional emails.",
             "Support knowledge features, file handling, internal analytics features, and AI drafting features used by an authorized user.",
             "Monitor usage, troubleshoot issues, investigate suspected abuse, respond to support requests, and comply with legal obligations.",
@@ -215,7 +215,7 @@ const privacySections: LegalDocumentSection[] = [
           Based on the current Service, those inputs may include inquiry details,
           submitted custom field responses, internal notes, FAQ content, excerpts
           from uploaded knowledge files, and the prompt or drafting request
-          entered by an authorized business workspace user.
+          entered by an authorized business user.
         </LegalParagraph>
         <LegalParagraph>
           You should avoid submitting highly sensitive personal information to
@@ -235,10 +235,10 @@ const privacySections: LegalDocumentSection[] = [
     content: (
       <>
         <LegalSectionHeading>9. When We Share Information</LegalSectionHeading>
-        <LegalSubheading>A. Within a business workspace</LegalSubheading>
+        <LegalSubheading>A. Within a business</LegalSubheading>
         <LegalParagraph>
-          Information inside a business workspace may be shared with authorized
-          users of that workspace, based on their role and access.
+          Information inside a business may be shared with authorized
+          users of that business, based on their role and access.
         </LegalParagraph>
         <LegalSubheading>B. With service providers</LegalSubheading>
         <LegalParagraph>
@@ -286,7 +286,7 @@ const privacySections: LegalDocumentSection[] = [
             `${legalConfig.storageProvider}, for database, storage, and related backend infrastructure.`,
             "Resend, for transactional email delivery.",
             "Groq, Gemini, and OpenRouter, for AI request routing when AI features are used.",
-            "Google or Microsoft, for optional social sign-in when those sign-in methods are enabled.",
+            "Google, for optional OAuth sign-in when enabled, and transactional email providers for magic link sign-in when configured.",
           ]}
         />
         <LegalParagraph>

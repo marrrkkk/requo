@@ -5,6 +5,9 @@ import {
   demoOwnerPassword,
   demoBusinessSlug,
 } from "./fixtures";
+import { registerSmokeGuard } from "./smoke-registry";
+
+registerSmokeGuard();
 
 async function signIn(page: Page) {
   await page.goto("/login");
@@ -14,9 +17,9 @@ async function signIn(page: Page) {
   await page.locator("#password").fill(demoOwnerPassword);
   await page.getByRole("button", { name: "Sign in" }).click();
 
-  await expect(page).toHaveURL(/\/workspaces$/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/businesses$/, { timeout: 20_000 });
   await expect(
-    page.getByRole("heading", { name: "Your workspaces" }),
+    page.getByRole("heading", { name: "Your businesses" }),
   ).toBeVisible({ timeout: 20_000 });
 }
 

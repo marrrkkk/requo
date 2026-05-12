@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="./docs/images/requo-homepage.png" alt="Requo marketing homepage" width="1200" />
+  <img src="./docs/images/requo-dashboard.png" alt="Requo owner dashboard" width="1200" />
 </p>
 
 ## Overview
@@ -44,11 +44,12 @@ keeping the core experience focused on this workflow rather than generic configu
 - Public quote pages with customer accept/reject responses and response messages
 - Manual quote sharing plus Requo email sending through transactional email
 - Follow-up scheduling and lifecycle tracking for inquiries and quotes
-- Starter defaults for inquiry fields, reply snippets, and quote notes that stay editable later
+- Starter defaults for inquiry fields and quote notes that stay editable later
 - Knowledge and FAQ management for business-specific reference material
 - AI-assisted response drafting through Groq, Gemini, and OpenRouter fallback routing
 - Transactional email flows through Resend, with Mailtrap and Brevo fallback
-- Subscription billing with PayMongo (QRPh for Philippines) and Paddle (cards for international)
+- Subscription billing with Paddle inline checkout (USD)
+- Self-serve refund requests through Paddle adjustments, with webhook-tracked approval status
 - Analytics and notification foundations for operational visibility
 
 ## Tech Stack
@@ -63,7 +64,6 @@ keeping the core experience focused on this workflow rather than generic configu
 - Supabase for storage and realtime-backed notification plumbing
 - Resend, Mailtrap, and Brevo for transactional email fallback
 - Groq, Gemini, and OpenRouter for AI-assisted drafting
-- PayMongo for QRPh payments (Philippines)
 - Paddle for card/global payments
 
 ## Getting Started
@@ -155,9 +155,6 @@ The demo seed also creates two additional sample businesses, three inquiry forms
 
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
-- `MICROSOFT_CLIENT_ID`
-- `MICROSOFT_CLIENT_SECRET`
-- `MICROSOFT_TENANT_ID`
 - `RESEND_API_KEY`
 - `MAILTRAP_API_TOKEN`
 - `BREVO_API_KEY`
@@ -190,9 +187,6 @@ The demo seed also creates two additional sample businesses, three inquiry forms
 
 ### Billing providers
 
-- `PAYMONGO_SECRET_KEY`
-- `PAYMONGO_PUBLIC_KEY`
-- `PAYMONGO_WEBHOOK_SECRET`
 - `PADDLE_API_KEY`
 - `PADDLE_WEBHOOK_SECRET`
 - `PADDLE_PRO_PRICE_ID`
@@ -245,7 +239,7 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 | `npm run db:migrate` | Apply Drizzle migrations |
 | `npm run db:push` | Push schema changes directly |
 | `npm run db:studio` | Open Drizzle Studio |
-| `npm run db:seed-demo` | Seed the demo workspace |
+| `npm run db:seed-demo` | Seed the demo business |
 
 ## Testing And CI
 
@@ -272,7 +266,7 @@ Deployment and CI responsibilities are intentionally split:
 
 - `app/` route groups, layouts, pages, and route handlers
 - `components/` shared UI primitives, shell UI, and marketing components
-- `features/` product slices such as account, AI, analytics, audit, auth, billing, businesses, business members, calendar, customers, follow-ups, inquiries, memory/knowledge, notifications, onboarding, quotes, settings, theme, workspace members, and workspaces
+- `features/` product slices such as account, AI, analytics, audit, auth, billing, businesses, business members, calendar, customers, follow-ups, inquiries, memory/knowledge, notifications, onboarding, quotes, settings, and theme
 - `lib/` auth, database, provider clients, env validation, and shared utilities
 - `emails/templates/` transactional email rendering
 - `docs/` setup and architecture documentation
@@ -283,14 +277,14 @@ Deployment and CI responsibilities are intentionally split:
 
 ### Billing
 
-- `lib/billing/` billing domain types, plan pricing, region detection, subscription service, webhook processing, and provider clients (PayMongo, Paddle)
-- `lib/billing/providers/` PayMongo and Paddle REST clients with webhook signature verification
-- `lib/db/schema/subscriptions.ts` workspace_subscriptions, billing_events, and payment_attempts tables
-- `features/billing/` checkout dialog, billing status card, upgrade button, server actions, and queries
-- `app/api/billing/` webhook route handlers for PayMongo and Paddle
+- `lib/billing/` billing domain types, plan pricing, subscription service, webhook processing, Paddle provider client, and refund service
+- `lib/billing/providers/` Paddle REST client with webhook signature verification and refund adjustments
+- `lib/db/schema/subscriptions.ts` account_subscriptions, billing_events, payment_attempts, and refunds tables
+- `features/billing/` checkout dialog, billing status card, upgrade button, payment history with refund requests, server actions, and queries
+- `app/api/billing/` webhook route for Paddle and refund request route
 - `features/follow-ups/` follow-up creation, rescheduling, completion, skipping, and reminders
 - `features/analytics/` conversion/workflow analytics plus public inquiry and quote view tracking
-- `features/workspace-members/` and `features/business-members/` workspace and business role management
+- `features/business-members/` business role management
 
 ## Architecture Notes
 
@@ -303,8 +297,8 @@ Deployment and CI responsibilities are intentionally split:
 - AI drafting stays server-side and uses business context plus uploaded knowledge, with provider fallback ordered Groq -> Gemini -> OpenRouter
 - Marketing, onboarding, starter templates, and in-app copy are aligned around the inquiry -> quote -> share/send -> follow-up -> viewed/accepted/rejected workflow
 - Starter templates are opinionated defaults, not rigid vertical product modes
-- Subscriptions are workspace-scoped with PayMongo for QRPh and Paddle for cards
-- The `workspaces.plan` column is a denormalized read cache; the authoritative state lives in `workspace_subscriptions`
+- Subscriptions are account-scoped with Paddle; all businesses owned by a user inherit the plan from the user's account subscription
+- The `businesses.plan` column is a denormalized read cache; the authoritative state lives in `account_subscriptions`
 - Billing mutations go through `lib/billing/subscription-service.ts`; webhooks go through `lib/billing/webhook-processor.ts`
 - Opaque lookup tokens are hashed with `APP_TOKEN_HASH_SECRET` or `BETTER_AUTH_SECRET`
 - See [docs/setup/billing.md](./docs/setup/billing.md) for provider setup instructions

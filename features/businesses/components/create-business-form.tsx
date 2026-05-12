@@ -35,14 +35,14 @@ type CreateBusinessFormProps = {
     state: CreateBusinessActionState,
     formData: FormData,
   ) => Promise<CreateBusinessActionState>;
-  workspaceId: string;
+  businessId: string;
 };
 
 const initialState: CreateBusinessActionState = {};
 
 export function CreateBusinessForm({
   action,
-  workspaceId,
+  businessId,
 }: CreateBusinessFormProps) {
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
@@ -64,7 +64,7 @@ export function CreateBusinessForm({
     >
         <input name="businessType" type="hidden" value={businessType} />
         <input name="defaultCurrency" type="hidden" value={defaultCurrency} />
-        <input name="workspaceId" type="hidden" value={workspaceId} />
+        <input name="businessId" type="hidden" value={businessId} />
 
         <DialogBody className="overflow-y-auto">
           <FieldGroup>

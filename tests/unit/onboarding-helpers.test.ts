@@ -11,12 +11,12 @@ function createDraft(
   overrides: Partial<OnboardingDraft> = {},
 ): OnboardingDraft {
   return {
-    workspaceName: "Northline Workspace",
     businessName: "Northline Studio",
     businessType: "web_it_services",
     starterTemplateBusinessType: "creative_marketing_services",
     countryCode: "US",
     defaultCurrency: "USD",
+    customerContactChannel: "email",
     jobTitle: "Owner",
     companySize: "2-5 people",
     referralSource: "Google Search",

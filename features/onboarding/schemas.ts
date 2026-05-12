@@ -72,13 +72,32 @@ export const referralSourceOptions = referralSourceValues.map((value) => ({
   label: value,
 }));
 
-export const onboardingWorkspaceSchema = z.object({
-  workspaceName: z
-    .string()
-    .trim()
-    .min(2, "Enter a workspace name.")
-    .max(80, "Use 80 characters or fewer."),
-});
+export const customerContactChannelValues = [
+  "phone",
+  "text_sms",
+  "email",
+  "website_form",
+  "whatsapp",
+  "social_dms",
+  "in_person",
+  "other",
+] as const;
+
+export const customerContactChannelOptions = (
+  [
+    ["phone", "Phone calls"],
+    ["text_sms", "Text / SMS"],
+    ["email", "Email"],
+    ["website_form", "Website form"],
+    ["whatsapp", "WhatsApp"],
+    ["social_dms", "Social DMs"],
+    ["in_person", "In person"],
+    ["other", "Other"],
+  ] as const
+).map(([value, label]) => ({
+  value,
+  label,
+}));
 
 export const onboardingBusinessContextSchema = z.object({
   businessName: z
@@ -99,6 +118,9 @@ export const onboardingBusinessContextSchema = z.object({
     .min(1, "Choose a currency.")
     .transform(normalizeBusinessCurrencyCode)
     .refine(isSupportedBusinessCurrencyCode, "Choose a supported currency."),
+  customerContactChannel: z.enum(customerContactChannelValues, {
+    message: "Choose how customers usually contact you.",
+  }),
 });
 
 export const onboardingTemplateSchema = z.object({
@@ -118,7 +140,6 @@ export const onboardingOwnerProfileSchema = z.object({
 });
 
 export const completeOnboardingSchema = z.object({
-  ...onboardingWorkspaceSchema.shape,
   ...onboardingBusinessContextSchema.shape,
   ...onboardingTemplateSchema.shape,
   ...onboardingOwnerProfileSchema.shape,

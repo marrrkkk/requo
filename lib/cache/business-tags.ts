@@ -132,17 +132,6 @@ export function getBusinessPricingCacheTags(businessId: string) {
   ]);
 }
 
-export function getBusinessReplySnippetsCacheTags(businessId: string) {
-  const scopeTag = getBusinessScopeTag(businessId);
-
-  return uniqueCacheTags([
-    scopeTag,
-    `${scopeTag}:settings`,
-    `${scopeTag}:inquiries`,
-    `${scopeTag}:reply-snippets`,
-  ]);
-}
-
 export function getBusinessMemoryCacheTags(businessId: string) {
   const scopeTag = getBusinessScopeTag(businessId);
 
@@ -175,5 +164,20 @@ export function getBusinessOverviewCacheTags(businessId: string) {
     `${scopeTag}:inquiries`,
     `${scopeTag}:quotes`,
     `${scopeTag}:follow-ups`,
+  ]);
+}
+
+/**
+ * Tags for the cached public business profile query consumed by
+ * `/businesses/[slug]` and its `generateMetadata`. Keyed by slug because
+ * public metadata resolution only has the slug in hand; `revalidateTag`
+ * callers that already hold the business id should additionally pass the
+ * `business:<id>` scope tag via their existing settings helpers so both
+ * paths invalidate together.
+ */
+export function getPublicBusinessProfileCacheTags(slug: string) {
+  return uniqueCacheTags([
+    `business-slug:${slug}`,
+    `business-public-profile:${slug}`,
   ]);
 }

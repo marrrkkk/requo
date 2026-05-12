@@ -45,6 +45,7 @@ import {
   resolveInquiryPageConfigForPlan,
 } from "@/features/inquiries/plan-rules";
 import { normalizeBusinessType } from "@/features/inquiries/business-types";
+import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import {
   getBusinessInquiryDetailCacheTags,
   getBusinessInquiryFormCacheTags,
@@ -64,8 +65,7 @@ import {
   businessInquiryForms,
   businessMembers,
   businesses,
-  workspaces,
-} from "@/lib/db/schema";
+  } from "@/lib/db/schema";
 import type {
   DashboardInquiryDetail,
   DashboardInquiryListItem,
@@ -114,7 +114,7 @@ async function getInquiryBusinessBySlug({
       id: businesses.id,
       name: businesses.name,
       slug: businesses.slug,
-      plan: workspaces.plan,
+      plan: businesses.plan,
       businessType: businesses.businessType,
       shortDescription: businesses.shortDescription,
       logoStoragePath: businesses.logoStoragePath,
@@ -130,7 +130,6 @@ async function getInquiryBusinessBySlug({
       inquiryPageConfig: businessInquiryForms.inquiryPageConfig,
     })
     .from(businesses)
-    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .innerJoin(
       businessInquiryForms,
       and(
@@ -142,9 +141,11 @@ async function getInquiryBusinessBySlug({
     .where(
       and(
         eq(businesses.slug, slug),
-        isNull(workspaces.deletedAt),
         isNull(businesses.deletedAt),
-        includeDisabled ? undefined : isNull(businesses.archivedAt),
+        isNull(businesses.deletedAt),
+        includeDisabled
+          ? undefined
+          : and(isNull(businesses.archivedAt), isNull(businesses.lockedAt)),
       ),
     )
     .limit(1);
@@ -294,7 +295,7 @@ async function getInquiryBusinessByFormSlug({
       id: businesses.id,
       name: businesses.name,
       slug: businesses.slug,
-      plan: workspaces.plan,
+      plan: businesses.plan,
       businessType: businesses.businessType,
       shortDescription: businesses.shortDescription,
       logoStoragePath: businesses.logoStoragePath,
@@ -310,7 +311,6 @@ async function getInquiryBusinessByFormSlug({
       inquiryPageConfig: businessInquiryForms.inquiryPageConfig,
     })
     .from(businesses)
-    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .innerJoin(
       businessInquiryForms,
       and(
@@ -322,9 +322,11 @@ async function getInquiryBusinessByFormSlug({
     .where(
       and(
         eq(businesses.slug, businessSlug),
-        isNull(workspaces.deletedAt),
         isNull(businesses.deletedAt),
-        includeDisabled ? undefined : isNull(businesses.archivedAt),
+        isNull(businesses.deletedAt),
+        includeDisabled
+          ? undefined
+          : and(isNull(businesses.archivedAt), isNull(businesses.lockedAt)),
       ),
     )
     .limit(1);
@@ -387,12 +389,12 @@ export async function getPublicBusinessLogoAssetBySlug(slug: string) {
       logoContentType: businesses.logoContentType,
     })
     .from(businesses)
-    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .where(
       and(
         eq(businesses.slug, slug),
-        isNull(workspaces.deletedAt),
+        isNull(businesses.deletedAt),
         isNull(businesses.archivedAt),
+        isNull(businesses.lockedAt),
         isNull(businesses.deletedAt),
       ),
     )
@@ -858,11 +860,10 @@ export async function getInquiryEditorFormsForBusiness(
       isDefault: businessInquiryForms.isDefault,
       publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
       inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
-      plan: workspaces.plan,
+      plan: businesses.plan,
     })
     .from(businessInquiryForms)
     .innerJoin(businesses, eq(businessInquiryForms.businessId, businesses.id))
-    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .where(
       and(
         eq(businessInquiryForms.businessId, businessId),
@@ -915,11 +916,10 @@ export async function getInquiryEditorFormForBusiness({
       isDefault: businessInquiryForms.isDefault,
       publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
       inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
-      plan: workspaces.plan,
+      plan: businesses.plan,
     })
     .from(businessInquiryForms)
     .innerJoin(businesses, eq(businessInquiryForms.businessId, businesses.id))
-    .innerJoin(workspaces, eq(businesses.workspaceId, workspaces.id))
     .where(
       and(
         eq(businessInquiryForms.businessId, businessId),
@@ -989,4 +989,52 @@ export async function getInquiryAttachmentForBusiness({
     .limit(1);
 
   return attachment ?? null;
+}
+
+export type PublicInquirySitemapEntry = {
+  lastModified: Date;
+  pathname: string;
+};
+
+/**
+ * Indexable public inquiry URLs for sitemap.xml (mirrors public page visibility).
+ */
+export async function listPublicInquirySitemapEntries(): Promise<
+  PublicInquirySitemapEntry[]
+> {
+  const rows = await db
+    .select({
+      businessSlug: businesses.slug,
+      formIsDefault: businessInquiryForms.isDefault,
+      formSlug: businessInquiryForms.slug,
+      businessUpdatedAt: businesses.updatedAt,
+      formUpdatedAt: businessInquiryForms.updatedAt,
+    })
+    .from(businesses)
+    .innerJoin(
+      businessInquiryForms,
+      and(
+        eq(businessInquiryForms.businessId, businesses.id),
+        eq(businessInquiryForms.publicInquiryEnabled, true),
+        isNull(businessInquiryForms.archivedAt),
+      ),
+    )
+    .where(
+      and(
+        isNull(businesses.deletedAt),
+        isNull(businesses.archivedAt),
+        isNull(businesses.lockedAt),
+      ),
+    );
+
+  return rows.map((row) => ({
+    lastModified:
+      row.formUpdatedAt.getTime() >= row.businessUpdatedAt.getTime()
+        ? row.formUpdatedAt
+        : row.businessUpdatedAt,
+    pathname: getBusinessPublicInquiryUrl(
+      row.businessSlug,
+      row.formIsDefault ? undefined : row.formSlug,
+    ),
+  }));
 }

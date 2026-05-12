@@ -7,7 +7,9 @@ const {
   dbSelectLimitMock,
   dbSelectMock,
   dbSelectWhereMock,
-  getWorkspaceSubscriptionMock,
+  listLockCandidatesForDowngradeMock,
+  getAccountSubscriptionMock,
+  getCachedAccountSubscriptionMock,
   headersMock,
   resolveEffectivePlanFromSubscriptionMock,
 } = vi.hoisted(() => ({
@@ -17,7 +19,9 @@ const {
   dbSelectLimitMock: vi.fn(),
   dbSelectMock: vi.fn(),
   dbSelectWhereMock: vi.fn(),
-  getWorkspaceSubscriptionMock: vi.fn(),
+  listLockCandidatesForDowngradeMock: vi.fn(),
+  getAccountSubscriptionMock: vi.fn(),
+  getCachedAccountSubscriptionMock: vi.fn(),
   headersMock: vi.fn(),
   resolveEffectivePlanFromSubscriptionMock: vi.fn(),
 }));
@@ -25,8 +29,10 @@ const {
 vi.mock("server-only", () => ({}));
 
 vi.mock("drizzle-orm", () => ({
+  and: vi.fn(() => "and"),
   desc: vi.fn(() => "desc"),
   eq: vi.fn(() => "eq"),
+  inArray: vi.fn(() => "inArray"),
 }));
 
 vi.mock("next/cache", () => ({
@@ -44,8 +50,8 @@ vi.mock("@/lib/db/client", () => ({
   },
 }));
 
-vi.mock("@/lib/db/schema/workspaces", () => ({
-  workspaces: {
+vi.mock("@/lib/db/schema/businesses", () => ({
+  businesses: {
     id: "id",
     name: "name",
     plan: "plan",
@@ -56,16 +62,23 @@ vi.mock("@/lib/db/schema/workspaces", () => ({
 vi.mock("@/lib/db/schema/subscriptions", () => ({
   paymentAttempts: {
     createdAt: "createdAt",
-    workspaceId: "workspaceId",
+    businessId: "businessId",
+    status: "status",
+    userId: "userId",
   },
 }));
 
 vi.mock("@/lib/billing/subscription-service", () => ({
-  getWorkspaceSubscription: getWorkspaceSubscriptionMock,
+  getAccountSubscription: getAccountSubscriptionMock,
+  getCachedAccountSubscription: getCachedAccountSubscriptionMock,
   resolveEffectivePlanFromSubscription: resolveEffectivePlanFromSubscriptionMock,
 }));
 
-import { getWorkspaceBillingOverview } from "@/features/billing/queries";
+vi.mock("@/features/businesses/plan-enforcement", () => ({
+  listLockCandidatesForDowngrade: listLockCandidatesForDowngradeMock,
+}));
+
+import { getBusinessBillingOverview } from "@/features/billing/queries";
 
 function mockSubscription(overrides: { plan?: string; status?: string } = {}) {
   return {
@@ -95,7 +108,8 @@ describe("features/billing/queries", () => {
     });
     dbSelectLimitMock.mockResolvedValue([
       {
-        id: "workspace_123",
+        id: "business_123",
+        ownerUserId: "user_123",
         name: "Acme Services",
         plan: "free",
         slug: "acme-services",
@@ -107,7 +121,13 @@ describe("features/billing/queries", () => {
         "x-vercel-ip-country": "US",
       }),
     );
-    getWorkspaceSubscriptionMock.mockResolvedValue(null);
+    getAccountSubscriptionMock.mockResolvedValue(null);
+    getCachedAccountSubscriptionMock.mockResolvedValue(null);
+    listLockCandidatesForDowngradeMock.mockResolvedValue({
+      activeBusinessLimit: null,
+      activeBusinesses: [],
+      requiresSelection: false,
+    });
     resolveEffectivePlanFromSubscriptionMock.mockImplementation(
       (subscription: { plan: string; status: string }) =>
         subscription.status === "active" || subscription.status === "past_due"
@@ -117,25 +137,26 @@ describe("features/billing/queries", () => {
   });
 
   it("derives the current plan from the authoritative subscription row", async () => {
-    getWorkspaceSubscriptionMock.mockResolvedValue(
+    getAccountSubscriptionMock.mockResolvedValue(
       mockSubscription({ plan: "pro", status: "active" }),
     );
 
-    const overview = await getWorkspaceBillingOverview("workspace_123");
+    const overview = await getBusinessBillingOverview("business_123");
 
     expect(overview).toMatchObject({
       currentPlan: "pro",
       defaultCurrency: "USD",
-      region: "INTL",
+      region: "global",
       subscription: {
         currency: "USD",
         plan: "pro",
         provider: "paddle",
         status: "active",
       },
-      workspaceId: "workspace_123",
-      workspaceName: "Acme Services",
-      workspaceSlug: "acme-services",
+      userId: "user_123",
+      businessId: "business_123",
+      businessName: "Acme Services",
+      businessSlug: "acme-services",
     });
     expect(resolveEffectivePlanFromSubscriptionMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -145,13 +166,14 @@ describe("features/billing/queries", () => {
     );
   });
 
-  it("falls back to the workspace plan when no subscription row exists", async () => {
-    const overview = await getWorkspaceBillingOverview("workspace_123");
+  it("falls back to the business plan when no subscription row exists", async () => {
+    const overview = await getBusinessBillingOverview("business_123");
 
     expect(overview).toMatchObject({
       currentPlan: "free",
       subscription: null,
-      workspaceId: "workspace_123",
+      userId: "user_123",
+      businessId: "business_123",
     });
     expect(resolveEffectivePlanFromSubscriptionMock).not.toHaveBeenCalled();
   });

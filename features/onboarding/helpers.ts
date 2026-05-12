@@ -10,15 +10,16 @@ import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
 import { createPublicInquiryPreviewBusiness } from "@/features/inquiries/preview-business";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
 
-export const onboardingSessionStorageKey = "requo-onboarding-draft-v4";
+export const onboardingSessionStorageKey = "requo-onboarding-draft-v5";
 
 export type OnboardingDraft = {
-  workspaceName: string;
   businessName: string;
   businessType: BusinessType | "";
   starterTemplateBusinessType: StarterTemplateBusinessType | "";
   countryCode: string;
   defaultCurrency: string;
+  /** Matches `customerContactChannelValues` in onboarding/schemas when set. */
+  customerContactChannel: string;
   jobTitle: string;
   companySize: string;
   referralSource: string;
@@ -26,12 +27,12 @@ export type OnboardingDraft = {
 
 export function createEmptyOnboardingDraft(): OnboardingDraft {
   return {
-    workspaceName: "",
     businessName: "",
     businessType: "",
     starterTemplateBusinessType: "",
     countryCode: "",
     defaultCurrency: "",
+    customerContactChannel: "",
     jobTitle: "",
     companySize: "",
     referralSource: "",

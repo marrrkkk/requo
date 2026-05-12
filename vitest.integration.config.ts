@@ -2,6 +2,8 @@ import path from 'path';
 import { config } from 'dotenv';
 import { defineConfig } from 'vitest/config';
 
+import { COVERAGE_EXCLUDES } from './vitest.shared';
+
 config({ path: '.env.local' });
 config();
 
@@ -10,6 +12,7 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['tests/integration/**/*.test.ts'],
+    reporters: [['default'], ['json', { outputFile: 'reports/vitest-integration.json' }]],
     alias: {
       '@': path.resolve(__dirname, './'),
       'server-only': path.resolve(__dirname, 'node_modules/server-only/empty.js'),
@@ -17,7 +20,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json'],
-      exclude: ['node_modules/**', '.next/**', 'tests/**', '**/*.config.*', '**/layout.tsx', '**/page.tsx']
+      exclude: ['node_modules/**', '.next/**', ...COVERAGE_EXCLUDES],
     },
     env: {
       BETTER_AUTH_SECRET: 'test-secret-at-least-32-characters-long-so-zod-passes',
@@ -31,7 +34,7 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_ANON_KEY:
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'test-anon-key',
       SUPABASE_SERVICE_ROLE_KEY:
-        process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'test-service-key'
-    }
+        process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'test-service-key',
+    },
   },
 });

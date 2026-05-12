@@ -7,7 +7,7 @@ import type {
 import type { InquiryPageConfig } from "@/features/inquiries/page-config";
 import type { BusinessInquiryFormSummary } from "@/features/inquiries/types";
 import type { QuoteEmailTemplateConfig } from "@/features/settings/email-templates";
-import type { WorkspacePlan } from "@/lib/plans/plans";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 export const businessAiTonePreferences = [
   "balanced",
@@ -21,15 +21,15 @@ export type BusinessAiTonePreference =
 
 export type BusinessSettingsView = {
   id: string;
-  workspaceId: string;
-  workspaceSlug: string;
-  plan: WorkspacePlan;
+  businessId: string;
+  businessSlug: string;
+  plan: plan;
   name: string;
   slug: string;
   recordState: BusinessRecordState;
   archivedAt: Date | null;
   deletedAt: Date | null;
-  activeWorkspaceBusinessCount: number;
+  activeBusinessCount: number;
   countryCode: string | null;
   shortDescription: string | null;
   contactEmail: string | null;
@@ -156,7 +156,7 @@ export type BusinessInquiryPageSettingsView = {
   id: string;
   name: string;
   slug: string;
-  plan: WorkspacePlan;
+  plan: plan;
   shortDescription: string | null;
   logoStoragePath: string | null;
   formId: string;
@@ -214,7 +214,7 @@ export type BusinessInquiryFormSettingsView = {
   id: string;
   name: string;
   slug: string;
-  plan: WorkspacePlan;
+  plan: plan;
   formId: string;
   formName: string;
   formSlug: string;
