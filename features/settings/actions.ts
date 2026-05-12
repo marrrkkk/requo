@@ -1068,24 +1068,6 @@ export async function deleteBusinessInquiryFormAction(
     });
 
     if (!result.ok) {
-      if (result.reason === "invalid-target") {
-        return {
-          error: "Set another form as default before deleting this one.",
-        };
-      }
-
-      if (result.reason === "last-active") {
-        return {
-          error: "Keep at least one active inquiry form.",
-        };
-      }
-
-      if (result.reason === "has-inquiries") {
-        return {
-          error: "This form already has inquiries. Archive it instead.",
-        };
-      }
-
       return {
         error: "That inquiry form could not be found.",
       };
