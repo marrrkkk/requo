@@ -304,22 +304,25 @@ export async function deleteAccountAction(
 
   const user = await requireUser();
   const validationResult = accountDeleteSchema.safeParse({
-    email: formData.get("email"),
-    password: formData.get("password"),
+    confirmation: formData.get("confirmation"),
   });
 
   if (!validationResult.success) {
     return getValidationActionState(
       validationResult.error,
-      "Check the highlighted confirmation fields and try again.",
+      "Type the confirmation text to continue.",
     );
   }
 
-  if (validationResult.data.email.toLowerCase() !== user.email.toLowerCase()) {
+  const expectedConfirmation = "delete my account";
+
+  if (
+    validationResult.data.confirmation.toLowerCase() !== expectedConfirmation
+  ) {
     return {
-      error: "Enter your exact account email to continue.",
+      error: "Type \"delete my account\" to confirm.",
       fieldErrors: {
-        email: ["This does not match your account email."],
+        confirmation: ["This does not match the expected confirmation."],
       },
     };
   }
@@ -331,15 +334,6 @@ export async function deleteAccountAction(
       error:
         security.deletion.blockers[0]?.message ??
         "Resolve your owned businesses or business ownership before deleting this account.",
-    };
-  }
-
-  if (security.hasPassword && !validationResult.data.password) {
-    return {
-      error: "Enter your current password to delete this account.",
-      fieldErrors: {
-        password: ["Current password is required."],
-      },
     };
   }
 
@@ -359,9 +353,7 @@ export async function deleteAccountAction(
     });
 
     await auth.api.deleteUser({
-      body: {
-        password: validationResult.data.password,
-      },
+      body: {},
       headers: await headers(),
     });
 
@@ -371,18 +363,8 @@ export async function deleteAccountAction(
   } catch (error) {
     console.error("Failed to delete account.", error);
 
-    const message = getAccountSecurityErrorMessage(
-      error,
-      "We couldn't delete your account right now.",
-    );
-
     return {
-      error: message,
-      fieldErrors: message.includes("current password")
-        ? {
-            password: [message],
-          }
-        : undefined,
+      error: "We couldn't delete your account right now.",
     };
   }
 

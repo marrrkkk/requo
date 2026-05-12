@@ -69,17 +69,6 @@ const accountPasswordSchema = z
   .min(8, "Use at least 8 characters.")
   .max(128, "Use 128 characters or fewer.");
 
-const optionalPasswordSchema = z.preprocess(
-  (value) => {
-    if (typeof value !== "string") {
-      return undefined;
-    }
-
-    return value.length > 0 ? value : undefined;
-  },
-  z.string().max(128, "Use 128 characters or fewer.").optional(),
-);
-
 export const accountSetPasswordSchema = z
   .object({
     newPassword: accountPasswordSchema,
@@ -116,8 +105,11 @@ export const accountChangePasswordSchema = z
   });
 
 export const accountDeleteSchema = z.object({
-  email: z.string().trim().max(320).email("Enter your account email."),
-  password: optionalPasswordSchema,
+  confirmation: z
+    .string()
+    .trim()
+    .min(1, "Type the confirmation text.")
+    .max(120, "Use 120 characters or fewer."),
 });
 
 export function normalizeOptionalTextValue(value: string) {
