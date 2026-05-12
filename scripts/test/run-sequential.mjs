@@ -1,26 +1,28 @@
 #!/usr/bin/env node
-// Runs two npm scripts sequentially, always executing both even when the first
-// exits non-zero, and exits with the first non-zero code (or 0 when both pass).
+// Runs one or more npm scripts sequentially, always executing every script
+// even when an earlier one exits non-zero, and exits with the first non-zero
+// status code (or 0 when they all pass).
 //
-// Usage: node scripts/test/run-sequential.mjs <script-a> <script-b>
+// Usage: node scripts/test/run-sequential.mjs <script> [<script> ...]
 // Example: node scripts/test/run-sequential.mjs test:unit test:components
+// Example: node scripts/test/run-sequential.mjs lint typecheck check:seo
 //
-// Satisfies Requirements 2.3 and 2.7 of the test-infrastructure-cicd spec.
+// Satisfies Requirements 2.3 and 2.7 of the test-infrastructure-cicd spec
+// and underpins the `check:seo` composite command in the SEO & performance
+// improvements spec.
 
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 
 const args = process.argv.slice(2);
 
-if (args.length !== 2) {
+if (args.length < 1) {
   process.stderr.write(
-    `run-sequential: expected exactly 2 npm script names, got ${args.length}.\n` +
-      `Usage: node scripts/test/run-sequential.mjs <script-a> <script-b>\n`,
+    `run-sequential: expected at least 1 npm script name, got ${args.length}.\n` +
+      `Usage: node scripts/test/run-sequential.mjs <script> [<script> ...]\n`,
   );
   process.exit(2);
 }
-
-const [scriptA, scriptB] = args;
 
 // Restrict script names to a safe character set so we can use `shell: true`
 // (required on Windows, where npm is a `.cmd` shim that Node refuses to spawn
@@ -60,9 +62,13 @@ function runNpmScript(scriptName) {
   return 1;
 }
 
-const codeA = runNpmScript(scriptA);
-const codeB = runNpmScript(scriptB);
+// First non-zero wins; 0 only when every script passed.
+let exitCode = 0;
+for (const script of args) {
+  const code = runNpmScript(script);
+  if (code !== 0 && exitCode === 0) {
+    exitCode = code;
+  }
+}
 
-// First non-zero wins; 0 only when both passed.
-const exitCode = codeA !== 0 ? codeA : codeB;
 process.exit(exitCode);
