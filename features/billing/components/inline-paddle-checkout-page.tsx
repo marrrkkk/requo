@@ -32,6 +32,16 @@ import { cn } from "@/lib/utils";
 
 const PADDLE_FRAME_TARGET = "requo-inline-paddle-frame";
 
+type CheckoutTransaction = {
+  requestKey: string;
+  transactionId: string;
+};
+
+type CheckoutError = {
+  requestKey: string;
+  message: string;
+};
+
 type InlinePaddleCheckoutPageProps = {
   businessId: string;
   businessName: string;
@@ -88,9 +98,12 @@ function InlineCheckoutShell({
   const [plan, setPlan] = useState<PaidPlan>(initialPlan);
   const [interval, setInterval] = useState<BillingInterval>(initialInterval);
   const [planSheetOpen, setPlanSheetOpen] = useState(false);
-  const [transactionId, setTransactionId] = useState<string | null>(null);
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const [isInitializingCheckout, setIsInitializingCheckout] = useState(true);
+  const [transaction, setTransaction] = useState<CheckoutTransaction | null>(
+    null,
+  );
+  const [checkoutError, setCheckoutError] = useState<CheckoutError | null>(
+    null,
+  );
   const [checkoutLoadedKey, setCheckoutLoadedKey] = useState<string | null>(null);
   const lastRequestedKeyRef = useRef<string | null>(null);
   const openedTransactionRef = useRef<string | null>(null);
@@ -106,6 +119,12 @@ function InlineCheckoutShell({
   // Uses a MutationObserver (external system subscription) so the setState
   // call happens in the observer callback, not synchronously in the effect body.
   const currentPlanKey = `${plan}:${interval}`;
+  const requestKey = `${businessId}:${currentPlanKey}`;
+  const transactionId =
+    transaction?.requestKey === requestKey ? transaction.transactionId : null;
+  const activeCheckoutError =
+    checkoutError?.requestKey === requestKey ? checkoutError.message : null;
+
   useEffect(() => {
     if (!paddle.isReady || !transactionId) {
       return;
@@ -160,7 +179,10 @@ function InlineCheckoutShell({
           window.setTimeout(openWhenReady, 100);
           return;
         }
-        setCheckoutError("Unable to open checkout. Please reload and try again.");
+        setCheckoutError({
+          message: "Unable to open checkout. Please reload and try again.",
+          requestKey,
+        });
         return;
       }
 
@@ -169,7 +191,7 @@ function InlineCheckoutShell({
           transactionId,
           {
             onError: (message) => {
-              setCheckoutError(message);
+              setCheckoutError({ message, requestKey });
             },
           },
           {
@@ -183,7 +205,10 @@ function InlineCheckoutShell({
         );
         openedTransactionRef.current = transactionId;
       } catch {
-        setCheckoutError("Unable to open checkout. Please reload and try again.");
+        setCheckoutError({
+          message: "Unable to open checkout. Please reload and try again.",
+          requestKey,
+        });
       }
     };
 
@@ -191,22 +216,19 @@ function InlineCheckoutShell({
     return () => {
       cancelled = true;
     };
-  }, [paddle, paddleTheme, transactionId]);
+  }, [paddle, paddleTheme, requestKey, transactionId]);
 
   useEffect(() => {
-    if (!paddle.isReady || isInitializingCheckout) {
+    if (!paddle.isReady) {
       return;
     }
 
-    const requestKey = `${businessId}:${plan}:${interval}`;
     if (lastRequestedKeyRef.current === requestKey) {
       return;
     }
 
     lastRequestedKeyRef.current = requestKey;
     openedTransactionRef.current = null;
-    setCheckoutError(null);
-    setTransactionId(null);
 
     let isCancelled = false;
     async function initializeCheckout() {
@@ -230,13 +252,19 @@ function InlineCheckoutShell({
           return;
         }
         if (!response.ok || !data.transactionId) {
-          setCheckoutError(data.error ?? "Unable to load checkout.");
+          setCheckoutError({
+            message: data.error ?? "Unable to load checkout.",
+            requestKey,
+          });
           return;
         }
-        setTransactionId(data.transactionId);
+        setTransaction({ requestKey, transactionId: data.transactionId });
       } catch {
         if (!isCancelled) {
-          setCheckoutError("Unable to load checkout.");
+          setCheckoutError({
+            message: "Unable to load checkout.",
+            requestKey,
+          });
         }
       }
     }
@@ -245,20 +273,12 @@ function InlineCheckoutShell({
     return () => {
       isCancelled = true;
     };
-  }, [businessId, interval, isInitializingCheckout, paddle.isReady, plan]);
-
-  useEffect(() => {
-    if (!paddle.isReady) {
-      return;
-    }
-    setIsInitializingCheckout(false);
-  }, [paddle.isReady]);
+  }, [businessId, interval, paddle.isReady, plan, requestKey]);
 
   const subtotal = amount;
   const tax = 0;
   const total = subtotal + tax;
-  const isPreparingCheckout =
-    !paddle.isReady || isInitializingCheckout || !transactionId;
+  const isPreparingCheckout = !paddle.isReady || !transactionId;
   const isCheckoutLoaded = checkoutLoadedKey === currentPlanKey;
   const showLoading = isPreparingCheckout || !isCheckoutLoaded;
 
@@ -270,7 +290,7 @@ function InlineCheckoutShell({
       <div
         className={cn(
           "fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background transition-opacity duration-300",
-          showLoading && !checkoutError
+          showLoading && !activeCheckoutError
             ? "pointer-events-auto opacity-100"
             : "pointer-events-none opacity-0",
         )}
@@ -282,10 +302,10 @@ function InlineCheckoutShell({
       </div>
 
       {/* Error state */}
-      {checkoutError ? (
+      {activeCheckoutError ? (
         <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4">
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-6 py-4 text-center">
-            <p className="text-sm text-destructive">{checkoutError}</p>
+            <p className="text-sm text-destructive">{activeCheckoutError}</p>
           </div>
           <Button variant="outline" onClick={() => window.location.reload()}>
             Reload page
@@ -297,7 +317,7 @@ function InlineCheckoutShell({
       <div
         className={cn(
           "mx-auto grid w-full max-w-6xl gap-6 px-4 py-6 transition-opacity duration-300 sm:px-6 sm:py-8 lg:grid-cols-[auto_1fr] lg:gap-10 lg:px-8",
-          showLoading && !checkoutError ? "opacity-0" : "opacity-100",
+          showLoading && !activeCheckoutError ? "opacity-0" : "opacity-100",
         )}
       >
         {/* Left panel – order summary */}

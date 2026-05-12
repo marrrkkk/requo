@@ -58,35 +58,29 @@ export function UpgradeBadge({
  *────────────────────────────────────────────────────────────────────────────*/
 
 const planBadgeStyles: Record<plan, string> = {
-  free: "",
-  pro: "border-primary/20 bg-primary/10 text-primary dark:border-primary/25 dark:bg-primary/15",
+  free: "bg-muted/60 text-muted-foreground dark:bg-muted/40",
+  pro: "bg-primary/15 text-primary dark:bg-primary/20 dark:text-primary",
   business:
-    "border-violet-500/20 bg-violet-500/10 text-violet-600 dark:border-violet-400/25 dark:bg-violet-400/15 dark:text-violet-400",
+    "bg-violet-500/15 text-violet-700 dark:bg-violet-500/20 dark:text-violet-400",
 };
 
 export function PlanBadge({
   plan,
-  showIcon = true,
   className,
 }: {
   plan: plan;
-  /** Show plan icon. Set false for compact contexts. */
-  showIcon?: boolean;
   className?: string;
 }) {
   return (
-    <Badge
-      variant={plan === "free" ? "outline" : "secondary"}
-      className={cn(planBadgeStyles[plan], className)}
+    <span
+      className={cn(
+        "inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-xs font-semibold",
+        planBadgeStyles[plan],
+        className,
+      )}
     >
-      {showIcon && plan === "pro" ? (
-        <Briefcase className="size-3" />
-      ) : null}
-      {showIcon && plan === "business" ? (
-        <Building2 className="size-3" />
-      ) : null}
       {planMeta[plan].label}
-    </Badge>
+    </span>
   );
 }
 
