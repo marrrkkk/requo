@@ -1711,7 +1711,7 @@ export function BusinessInquiryPageForm({
           }
         }}
       >
-        <DialogContent className="sm:max-w-5xl">
+        <DialogContent className="sm:max-w-5xl" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Crop image</DialogTitle>
             <DialogDescription>
