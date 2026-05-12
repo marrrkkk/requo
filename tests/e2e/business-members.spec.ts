@@ -35,19 +35,15 @@ test("owner can invite a new member from business settings", async ({ page }) =>
   await page.goto(`/businesses/${demoBusinessSlug}/settings/members`);
   await page.waitForLoadState("networkidle");
 
+  await page.getByRole("button", { name: "Invite member" }).click();
   await page.getByLabel("Email address").fill(inviteEmail);
   await page.getByRole("button", { name: "Send invite" }).click();
 
-  const inviteRow = page
-    .locator("div.rounded-3xl")
-    .filter({ has: page.getByText(inviteEmail, { exact: true }) })
-    .first();
-
-  await expect(inviteRow).toBeVisible({
+  await expect(page.getByText(inviteEmail, { exact: true })).toBeVisible({
     timeout: 20_000,
   });
   await expect(
-    inviteRow.getByRole("button", { name: "Copy invite link" }),
+    page.getByRole("button", { name: "Copy link" }).first(),
   ).toBeVisible();
 });
 
@@ -155,38 +151,35 @@ test("owner can change a member role and remove them safely", async ({ page }) =
   await page.waitForLoadState("networkidle");
 
   const ownerRow = page
-    .locator("div.rounded-3xl")
+    .locator("div")
     .filter({ has: page.getByText(demoOwnerEmail, { exact: true }) })
+    .filter({ has: page.getByText("Protected owner", { exact: true }) })
     .first();
   await expect(
-    ownerRow.getByText("Owner access stays unchanged here."),
+    ownerRow.getByText("Protected owner", { exact: true }),
   ).toBeVisible();
 
   const staffRow = page
-    .locator("div.rounded-3xl")
+    .locator("div")
     .filter({ has: page.getByText(demoStaffEmail, { exact: true }) })
+    .filter({ has: page.getByRole("button", { name: "Manage access" }) })
     .first();
 
   await expect(staffRow).toBeVisible();
 
-  await staffRow
-    .locator('input[name="role"]')
-    .evaluate((element) => {
-      const input = element as HTMLInputElement;
-      input.value = "manager";
-    });
-  await staffRow
-    .locator("form")
-    .first()
-    .evaluate((form) => {
-      (form as HTMLFormElement).requestSubmit();
-    });
+  await staffRow.getByRole("button", { name: "Manage access" }).click();
+  await page.getByRole("radio", { name: "Manager" }).click();
+  await page.getByRole("button", { name: "Save changes" }).click();
 
   await expect(staffRow).toContainText("Manager", {
     timeout: 20_000,
   });
 
-  await staffRow.getByRole("button", { name: "Remove" }).click({ force: true });
+  await staffRow.getByRole("button", { name: /Open actions/ }).click();
+  await page.getByRole("menuitem", { name: "Remove member" }).click();
+  await expect(page.getByRole("heading", { name: "Remove member?" })).toBeVisible();
+  await page.getByRole("button", { name: "Remove member" }).click();
+
   await expect(page.getByText(demoStaffEmail, { exact: true })).toHaveCount(0, {
     timeout: 20_000,
   });
