@@ -5,7 +5,7 @@ import { createPageMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createPageMetadata({
   description:
-    "Read the Requo Refund Policy for refund eligibility, subscription cancellation, and payment provider considerations.",
+    "The Requo Refund Policy explains refund eligibility, subscription cancellation, and payment provider notes for owner-led service businesses using Requo.",
   pathname: "/refund-policy",
   title: "Refund Policy",
 });

@@ -8,11 +8,13 @@ import {
 } from "@/features/settings/actions";
 import { BusinessNotificationSettingsForm } from "@/features/settings/components/business-notification-settings-form";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createNoIndexMetadata({
   title: "Notifications",
-};
+  description: "Configure push and email notifications for this business.",
+});
 
 export default async function BusinessNotificationSettingsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();

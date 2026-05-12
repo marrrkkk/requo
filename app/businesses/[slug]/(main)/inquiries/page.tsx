@@ -23,6 +23,7 @@ import { businessesHubPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
 import { hasFeatureAccess } from "@/lib/plans";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 
 type InquiriesPageProps = {
   params: Promise<{ slug: string }>;
@@ -60,9 +61,10 @@ function getCachedPageWindow(currentPage: number, totalPages: number) {
   return Array.from(pages).sort((left, right) => left - right);
 }
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createNoIndexMetadata({
   title: "Inquiries",
-};
+  description: "List, filter, and manage inquiries for this business.",
+});
 
 export const unstable_instant = {
   prefetch: 'static',

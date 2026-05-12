@@ -444,7 +444,6 @@ export function BusinessInquiryFormsManager({
                         <Button asChild>
                           <Link
                             href={getBusinessPublicInquiryUrl(settings.slug, form.slug)}
-                            prefetch={false}
                             rel="noreferrer"
                             target="_blank"
                           >

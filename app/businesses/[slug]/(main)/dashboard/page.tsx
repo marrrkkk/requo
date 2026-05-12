@@ -38,6 +38,7 @@ import {
 import { DashboardTour } from "@/features/onboarding/components/dashboard-tour";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 import { redirect } from "next/navigation";
 import { businessesHubPath } from "@/features/businesses/routes";
 import BusinessDashboardLoading from "../loading";
@@ -46,9 +47,10 @@ type DashboardOverviewPageProps = {
   params: Promise<{ slug: string }>;
 };
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createNoIndexMetadata({
   title: "Dashboard",
-};
+  description: "Operational overview for this business.",
+});
 
 export const unstable_instant = {
   prefetch: 'static',

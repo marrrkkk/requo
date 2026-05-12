@@ -11,11 +11,14 @@ import { getMemoryDashboardData, getMemorySummaryForBusiness } from "@/features/
 import { BusinessMemoryManager } from "@/features/settings/components/business-memory-manager";
 import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { hasFeatureAccess } from "@/lib/plans";
+import { timed } from "@/lib/dev/server-timing";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createNoIndexMetadata({
   title: "Knowledge",
-};
+  description: "Manage business knowledge entries used by AI features.",
+});
 
 export default async function BusinessKnowledgePage() {
   const { businessContext } = await getBusinessOperationalPageContext();
@@ -54,13 +57,16 @@ export default async function BusinessKnowledgePage() {
     );
   }
 
-  const [memoryData, memorySummary] = await Promise.all([
-    getMemoryDashboardData(businessContext.business.id),
-    getMemorySummaryForBusiness(
-      businessContext.business.id,
-      businessContext.business.plan,
-    ),
-  ]);
+  const [memoryData, memorySummary] = await timed(
+    "knowledgeSettings.parallelMemoryFetches",
+    Promise.all([
+      getMemoryDashboardData(businessContext.business.id),
+      getMemorySummaryForBusiness(
+        businessContext.business.id,
+        businessContext.business.plan,
+      ),
+    ]),
+  );
 
   return (
     <>

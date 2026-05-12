@@ -8,11 +8,13 @@ import { updateBusinessEmailTemplateSettingsAction } from "@/features/settings/a
 import { BusinessEmailTemplateForm } from "@/features/settings/components/business-email-template-form";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 import { hasFeatureAccess } from "@/lib/plans";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createNoIndexMetadata({
   title: "Email",
-};
+  description: "Edit the email templates Requo sends on behalf of this business.",
+});
 
 export default async function BusinessEmailTemplateSettingsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();

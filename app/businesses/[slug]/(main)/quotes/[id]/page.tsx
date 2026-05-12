@@ -90,6 +90,13 @@ import { env, isEmailConfigured } from "@/lib/env";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
+import { createNoIndexMetadata } from "@/lib/seo/site";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  title: "Quote detail",
+  description: "View, edit, send, or track a single quote for this business.",
+});
 
 const QuoteAiPanel = dynamic(
   () =>
@@ -365,7 +372,6 @@ async function QuoteDetailContent({
               <Button asChild variant="outline">
                 <Link
                   href={getBusinessQuotePrintPath(businessSlug, quote.id)}
-                  prefetch={false}
                   rel="noopener noreferrer"
                   target="_blank"
                 >
@@ -554,7 +560,6 @@ async function QuoteDetailContent({
                     <TruncatedTextWithTooltip
                       className="underline-offset-4 hover:underline"
                       href={`mailto:${quoteContactEmail}`}
-                      prefetch={false}
                       text={quoteContactEmail}
                     />
                   ) : (
@@ -655,7 +660,7 @@ async function QuoteDetailContent({
                 <div className="dashboard-actions [&>*]:w-full sm:[&>*]:w-auto">
                   <CopyQuoteLinkButton url={customerQuoteUrl} />
                   <Button asChild variant="outline">
-                    <Link href={customerQuotePath} prefetch={false} target="_blank">
+                    <Link href={customerQuotePath} target="_blank">
                       Open customer view
                       <ExternalLink data-icon="inline-end" />
                     </Link>

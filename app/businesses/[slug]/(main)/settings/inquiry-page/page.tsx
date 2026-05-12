@@ -6,11 +6,13 @@ import {
   getBusinessInquiryFormsPath,
   getBusinessInquiryPageEditorPath,
 } from "@/features/businesses/routes";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createNoIndexMetadata({
   title: "Inquiry page",
-};
+  description: "Edit the public inquiry page linked to this business.",
+});
 
 export default async function BusinessInquiryPageSettingsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();

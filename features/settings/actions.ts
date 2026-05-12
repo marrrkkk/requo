@@ -9,6 +9,7 @@ import {
   getBusinessInquiryFormCacheTags,
   getBusinessInquiryFormsCacheTags,
   getBusinessSettingsCacheTags,
+  getPublicBusinessProfileCacheTags,
   uniqueCacheTags,
 } from "@/lib/cache/business-tags";
 import {
@@ -147,6 +148,14 @@ export async function updateBusinessSettingsAction(
 
     // Invalidate dashboard-scoped cache tags — fast, no per-path overhead.
     updateCacheTags(getBusinessSettingsCacheTags(businessContext.business.id));
+
+    // Invalidate the public `/businesses/[slug]` profile cache keyed by
+    // slug. Cover both old and new slugs when the slug changed so a stale
+    // entry under the previous slug doesn't keep serving.
+    updateCacheTags(getPublicBusinessProfileCacheTags(result.previousSlug));
+    if (result.previousSlug !== result.nextSlug) {
+      updateCacheTags(getPublicBusinessProfileCacheTags(result.nextSlug));
+    }
 
     // Slug change requires layout-level revalidation for the new routes.
     if (result.previousSlug !== result.nextSlug) {

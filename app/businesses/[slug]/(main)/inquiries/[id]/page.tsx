@@ -91,6 +91,13 @@ import { Button } from "@/components/ui/button";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
 import { hasFeatureAccess } from "@/lib/plans";
+import { createNoIndexMetadata } from "@/lib/seo/site";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  title: "Inquiry detail",
+  description: "View and respond to a single inquiry for this business.",
+});
 
 const InquiryAiPanel = dynamic(
   () =>
@@ -254,7 +261,6 @@ async function InquiryDetailContent({
               <Button asChild variant="outline">
                 <Link
                   href={getBusinessInquiryPrintPath(businessSlug, inquiry.id)}
-                  prefetch={false}
                   rel="noopener noreferrer"
                   target="_blank"
                 >
@@ -548,7 +554,6 @@ async function InquiryDetailContent({
                   <TruncatedTextWithTooltip
                     className="underline-offset-4 hover:underline"
                     href={`mailto:${customerContactEmail}`}
-                    prefetch={false}
                     text={customerContactEmail}
                   />
                 ) : (

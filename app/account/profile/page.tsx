@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { connection } from "next/server";
 
@@ -8,6 +9,12 @@ import { getAccountProfileForUser } from "@/features/account/queries";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
 import { requireSession } from "@/lib/auth/session";
+import { createNoIndexMetadata } from "@/lib/seo/site";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  absoluteTitle: "Profile · Requo account",
+  description: "Update the profile details shown across your Requo account.",
+});
 
 export const unstable_instant = false;
 

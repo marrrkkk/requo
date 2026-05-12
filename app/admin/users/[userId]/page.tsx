@@ -15,6 +15,7 @@ import { AdminUserActions } from "@/features/admin/components/admin-user-actions
 import { AdminUserDetail } from "@/features/admin/components/admin-user-detail";
 import { ADMIN_USERS_PATH } from "@/features/admin/navigation";
 import { getAdminUserDetail } from "@/features/admin/queries";
+import { timed } from "@/lib/dev/server-timing";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 import AdminLoading from "../../loading";
@@ -56,8 +57,11 @@ export default function AdminUserDetailPage({
 async function AdminUserDetailPageContent({
   params,
 }: AdminUserDetailPageProps) {
-  const { session, user: admin } = await requireAdminUser();
-  const { userId } = await params;
+  // Admin auth + param resolution are independent — run them in parallel.
+  const [{ session, user: admin }, { userId }] = await Promise.all([
+    requireAdminUser(),
+    params,
+  ]);
 
   const renderPage = wrapAdminRouteWithViewLog(
     async () => renderDetail(userId, admin.id),
@@ -79,7 +83,10 @@ async function AdminUserDetailPageContent({
 }
 
 async function renderDetail(userId: string, adminUserId: string) {
-  const user = await getAdminUserDetail(userId);
+  const user = await timed(
+    "adminUserDetail.getAdminUserDetail",
+    getAdminUserDetail(userId),
+  );
 
   if (!user) {
     notFound();

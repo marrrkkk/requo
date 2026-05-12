@@ -10,6 +10,7 @@ import {
 import { AdminSubscriptionDetail } from "@/features/admin/components/admin-subscription-detail";
 import { AdminSubscriptionOverrideForm } from "@/features/admin/components/admin-subscription-override-form";
 import { getAdminSubscriptionDetail } from "@/features/admin/queries";
+import { timed } from "@/lib/dev/server-timing";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 import AdminLoading from "../../loading";
@@ -61,7 +62,10 @@ async function AdminSubscriptionDetailPageContent({
     params,
   ]);
 
-  const subscription = await getAdminSubscriptionDetail(subscriptionId);
+  const subscription = await timed(
+    "adminSubscriptionDetail.getAdminSubscriptionDetail",
+    getAdminSubscriptionDetail(subscriptionId),
+  );
 
   if (!subscription) {
     notFound();

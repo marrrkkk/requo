@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { ArrowRight, CalendarClock, Lock } from "lucide-react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
@@ -29,7 +30,14 @@ import { ThemePreferenceSync } from "@/features/theme/components/theme-preferenc
 import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
+import { timed } from "@/lib/dev/server-timing";
 import { businessMemberRoleMeta } from "@/lib/business-members";
+import { createNoIndexMetadata } from "@/lib/seo/site";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  absoluteTitle: "Businesses · Requo",
+  description: "Manage the businesses, settings, and team access you own.",
+});
 
 export default async function BusinessesPage() {
   const session = await requireSession();
@@ -40,15 +48,18 @@ export default async function BusinessesPage() {
     memberships,
     recentlyOpenedBusinesses,
     businessQuota,
-  ] = await Promise.all([
-    getThemePreferenceForUser(session.user.id),
-    getAccountProfileForUser(session.user.id),
-    getBusinessMembershipsForUser(session.user.id, "all"),
-    getRecentlyOpenedBusinessesForUser(session.user.id),
-    getBusinessQuotaForUser({
-      ownerUserId: session.user.id,
-    }),
-  ]);
+  ] = await timed(
+    "businessesHub.parallelShellFetches",
+    Promise.all([
+      getThemePreferenceForUser(session.user.id),
+      getAccountProfileForUser(session.user.id),
+      getBusinessMembershipsForUser(session.user.id, "all"),
+      getRecentlyOpenedBusinessesForUser(session.user.id),
+      getBusinessQuotaForUser({
+        ownerUserId: session.user.id,
+      }),
+    ]),
+  );
 
   if (memberships.length === 0 && !profile?.onboardingCompletedAt) {
     redirect(onboardingPath);

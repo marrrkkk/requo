@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { connection } from "next/server";
 
@@ -10,12 +11,20 @@ import {
 import { listRefundsForPaymentAttempts, refundWindowDays } from "@/lib/billing/refunds";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForUser } from "@/lib/db/business-access";
+import { timed } from "@/lib/dev/server-timing";
 import {
   getMonthlyInquiryCount,
   getMonthlyQuoteCount,
   getMonthlyRequoQuoteSendCount,
 } from "@/lib/plans/usage";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 import AccountBillingLoading from "./loading";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  absoluteTitle: "Billing · Requo account",
+  description:
+    "Manage your Requo subscription, review usage, and view payment history.",
+});
 
 export const unstable_instant = false;
 
@@ -49,17 +58,21 @@ async function AccountBillingContent() {
     quotesThisMonth,
     requoQuoteEmailsThisMonth,
     paymentHistory,
-  ] =
-    await Promise.all([
+  ] = await timed(
+    "accountBilling.parallelShellFetches",
+    Promise.all([
       getAccountBillingOverview(businessId),
       getMonthlyInquiryCount(businessId),
       getMonthlyQuoteCount(businessId),
       getMonthlyRequoQuoteSendCount(businessId),
       getAccountPaymentHistory(session.user.id),
-    ]);
+    ]),
+  );
 
-  const refunds = await listRefundsForPaymentAttempts(
-    paymentHistory.map((record) => record.id),
+  // Refunds depend on paymentHistory ids — chained on purpose.
+  const refunds = await timed(
+    "accountBilling.listRefundsForPaymentAttempts",
+    listRefundsForPaymentAttempts(paymentHistory.map((record) => record.id)),
   );
 
   if (!billingOverview) {

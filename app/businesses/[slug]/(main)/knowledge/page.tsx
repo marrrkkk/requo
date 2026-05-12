@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import {
@@ -6,6 +7,12 @@ import {
 import { businessesHubPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
+import { createNoIndexMetadata } from "@/lib/seo/site";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  title: "Knowledge",
+  description: "Redirects to the business knowledge settings page.",
+});
 
 type KnowledgePageProps = {
   params: Promise<{ slug: string }>;

@@ -10,11 +10,13 @@ import {
   getMonthlyQuoteCount,
   getMonthlyRequoQuoteSendCount,
 } from "@/lib/plans/usage";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOwnerPageContext } from "../_lib/page-context";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createNoIndexMetadata({
   title: "Billing",
-};
+  description: "Business billing overview, usage, and payment history.",
+});
 
 export default async function BillingSettingsPage() {
   const { user, businessContext } = await getBusinessOwnerPageContext();

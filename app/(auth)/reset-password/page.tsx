@@ -4,11 +4,10 @@ import { AuthShell } from "@/components/shell/auth-shell";
 import { AuthenticatedPageRedirect } from "@/features/auth/components/authenticated-page-redirect";
 import { businessesHubPath } from "@/features/businesses/routes";
 import { ResetPasswordForm } from "@/features/auth/components/reset-password-form";
-import { createPageMetadata } from "@/lib/seo/site";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export const metadata: Metadata = createPageMetadata({
+export const metadata: Metadata = createNoIndexMetadata({
   description: "Set a new password for your Requo account.",
-  noIndex: true,
   title: "Choose a new password",
 });
 

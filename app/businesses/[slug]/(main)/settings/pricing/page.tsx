@@ -13,11 +13,14 @@ import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 import { BusinessPricingLibraryManager } from "@/features/settings/components/business-pricing-library-manager";
 import { hasFeatureAccess } from "@/lib/plans";
+import { timed } from "@/lib/dev/server-timing";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createNoIndexMetadata({
   title: "Pricing",
-};
+  description: "Manage the pricing library used to build quotes quickly.",
+});
 
 export default async function BusinessPricingPage() {
   const { businessContext } = await getBusinessOperationalPageContext();
@@ -56,10 +59,13 @@ export default async function BusinessPricingPage() {
     );
   }
 
-  const [settings, quoteLibrary] = await Promise.all([
-    getBusinessSettingsForBusiness(businessContext.business.id),
-    getQuoteLibraryForBusiness(businessContext.business.id),
-  ]);
+  const [settings, quoteLibrary] = await timed(
+    "pricingSettings.parallelSettingsAndLibrary",
+    Promise.all([
+      getBusinessSettingsForBusiness(businessContext.business.id),
+      getQuoteLibraryForBusiness(businessContext.business.id),
+    ]),
+  );
 
   if (!settings) {
     notFound();

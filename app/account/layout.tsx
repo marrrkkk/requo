@@ -18,6 +18,7 @@ import { ThemePreferenceSync } from "@/features/theme/components/theme-preferenc
 import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { businessesHubPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
+import { timed } from "@/lib/dev/server-timing";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -44,10 +45,13 @@ async function AccountSettingsShell({
   children: React.ReactNode;
 }) {
   const session = await requireSession();
-  const [themePreference, profile] = await Promise.all([
-    getThemePreferenceForUser(session.user.id),
-    getAccountProfileForUser(session.user.id),
-  ]);
+  const [themePreference, profile] = await timed(
+    "accountShell.parallelShellFetches",
+    Promise.all([
+      getThemePreferenceForUser(session.user.id),
+      getAccountProfileForUser(session.user.id),
+    ]),
+  );
   const navigationGroups = getAccountSettingsNavigation();
   const avatarSrc = resolveUserAvatarSrc({
     avatarStoragePath: profile?.avatarStoragePath,

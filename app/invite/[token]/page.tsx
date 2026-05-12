@@ -6,6 +6,7 @@ import { AuthShell } from "@/components/shell/auth-shell";
 import { Button } from "@/components/ui/button";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getOptionalSession } from "@/lib/auth/session";
+import { timed } from "@/lib/dev/server-timing";
 import { getBusinessMemberInvitePath } from "@/features/businesses/routes";
 import { getBusinessMemberInviteForToken } from "@/features/business-members/queries";
 import { acceptBusinessMemberInviteAction } from "@/features/business-members/actions";
@@ -58,7 +59,17 @@ async function BusinessMemberInviteContent({
   searchParams: Promise<{ error?: string | string[] }>;
 }) {
   const [{ token }, { error }] = await Promise.all([params, searchParams]);
-  const invite = await getBusinessMemberInviteForToken(token);
+  // Kick off invite + session lookups in parallel — independent queries.
+  // Await both up front so a missing invite early-return doesn't leave the
+  // session promise dangling (which would surface as an unhandled rejection
+  // if it rejected).
+  const [invite, session] = await timed(
+    "invite.parallelInviteAndSession",
+    Promise.all([
+      getBusinessMemberInviteForToken(token),
+      getOptionalSession(),
+    ]),
+  );
 
   if (!invite) {
     return (
@@ -78,7 +89,6 @@ async function BusinessMemberInviteContent({
     );
   }
 
-  const session = await getOptionalSession();
   const isSignedIn = Boolean(session);
   const inviteEmail = invite.email;
   const inviteError = typeof error === "string" ? error : error?.[0];

@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import {
   useEffect,
   useRef,
@@ -110,12 +111,15 @@ export function InquiryShowcaseImageSurface({
         ref={viewportRef}
       >
         {mediaSize && imageStyle ? (
-          <img
+          <Image
             alt={alt}
             className="absolute max-w-none select-none object-cover"
             src={url}
             style={imageStyle}
             draggable={false}
+            width={mediaSize.width}
+            height={mediaSize.height}
+            unoptimized
           />
         ) : (
           <div className="absolute inset-0 bg-muted/20" />

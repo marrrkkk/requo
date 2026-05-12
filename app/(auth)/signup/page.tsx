@@ -10,12 +10,11 @@ import { onboardingPath } from "@/features/onboarding/routes";
 import { businessesHubPath } from "@/features/businesses/routes";
 import { getOptionalSession } from "@/lib/auth/session";
 import { isEmailConfigured } from "@/lib/env";
-import { createPageMetadata } from "@/lib/seo/site";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export const metadata: Metadata = createPageMetadata({
+export const metadata: Metadata = createNoIndexMetadata({
   description:
     "Create a Requo account to manage inquiries, send quotes, and follow up in one place.",
-  noIndex: true,
   title: "Create account",
 });
 

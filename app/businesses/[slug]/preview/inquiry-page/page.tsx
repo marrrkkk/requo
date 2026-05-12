@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { getDefaultBusinessInquiryFormForBusiness } from "@/features/settings/queries";
@@ -11,6 +12,12 @@ import {
   getBusinessInquiryFormPreviewPath,
 } from "@/features/businesses/routes";
 import { businessesHubPath } from "@/features/businesses/routes";
+import { createNoIndexMetadata } from "@/lib/seo/site";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  title: "Inquiry page preview",
+  description: "Redirects to the current inquiry form preview.",
+});
 
 export default async function BusinessInquiryPagePreviewRedirect({
   params,

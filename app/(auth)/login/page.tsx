@@ -11,11 +11,10 @@ import { getOptionalSession } from "@/lib/auth/session";
 import { onboardingPath } from "@/features/onboarding/routes";
 import { businessesHubPath } from "@/features/businesses/routes";
 import { isEmailConfigured } from "@/lib/env";
-import { createPageMetadata } from "@/lib/seo/site";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export const metadata: Metadata = createPageMetadata({
+export const metadata: Metadata = createNoIndexMetadata({
   description: "Log in to Requo to manage inquiries, quotes, and follow-up.",
-  noIndex: true,
   title: "Log in",
 });
 

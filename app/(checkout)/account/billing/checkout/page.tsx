@@ -7,11 +7,14 @@ import { getAccountBillingOverview } from "@/features/billing/queries";
 import { businessesHubPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForUser } from "@/lib/db/business-access";
+import { timed } from "@/lib/dev/server-timing";
 import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export const metadata: Metadata = {
-  title: "Checkout",
-};
+export const metadata: Metadata = createNoIndexMetadata({
+  absoluteTitle: "Checkout · Requo",
+  description: "Complete your Requo subscription checkout securely.",
+});
 
 type AccountBillingCheckoutPageProps = {
   searchParams: Promise<{
@@ -52,19 +55,25 @@ export default async function AccountBillingCheckoutPage({
 async function AccountBillingCheckoutContent({
   searchParams,
 }: AccountBillingCheckoutPageProps) {
-  const session = await requireSession();
-  const context = await getBusinessContextForUser(session.user.id);
+  // Resolve session + searchParams in parallel (independent).
+  const [session, params] = await Promise.all([requireSession(), searchParams]);
+  const context = await timed(
+    "checkout.getBusinessContextForUser",
+    getBusinessContextForUser(session.user.id),
+  );
 
   if (!context) {
     redirect(businessesHubPath);
   }
 
-  const billing = await getAccountBillingOverview(context.business.id);
+  const billing = await timed(
+    "checkout.getAccountBillingOverview",
+    getAccountBillingOverview(context.business.id),
+  );
   if (!billing) {
     redirect("/account/billing");
   }
 
-  const params = await searchParams;
   const initialPlan = normalizePlan(params.plan);
   const initialInterval = normalizeInterval(params.interval);
 

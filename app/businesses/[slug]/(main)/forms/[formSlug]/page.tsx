@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
@@ -25,7 +26,13 @@ import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
 import { FormEditorTour } from "@/features/onboarding/components/form-editor-tour";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { requireSession } from "@/lib/auth/session";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../../settings/_lib/page-context";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  title: "Form editor",
+  description: "Edit fields, public page, preview, and publishing for an inquiry form.",
+});
 
 export const unstable_instant = {
   prefetch: 'static',

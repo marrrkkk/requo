@@ -19,10 +19,12 @@ import {
   BusinessMembersManager,
   BusinessMembersManagerFallback,
 } from "@/features/business-members/components/business-members-manager";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createNoIndexMetadata({
   title: "Members",
-};
+  description: "Invite and manage team members for this business.",
+});
 
 export const unstable_instant = {
   prefetch: 'static',

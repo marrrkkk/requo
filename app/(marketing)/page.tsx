@@ -14,12 +14,12 @@ import {
 } from "@/lib/seo/site";
 
 const marketingDescription =
-  "Quote software for service businesses. Capture inquiries, send clear quotes, track views and follow-ups from one hub. Free to start.";
+  "Requo is quote software for owner-led service businesses. Capture inquiries, send professional quotes, follow up, and track accepted and rejected deals.";
 
 export const metadata: Metadata = createPageMetadata({
+  absoluteTitle: "Requo — Manage inquiries, send quotes, follow up",
   description: marketingDescription,
   pathname: "/",
-  title: "Quote software for service businesses",
 });
 
 export default function MarketingPage() {

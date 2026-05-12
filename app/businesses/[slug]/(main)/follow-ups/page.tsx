@@ -20,6 +20,7 @@ import { getBusinessFollowUpsPath } from "@/features/businesses/routes";
 import { businessesHubPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 
 type FollowUpsPageProps = {
   params: Promise<{ slug: string }>;
@@ -28,9 +29,10 @@ type FollowUpsPageProps = {
 
 const ITEMS_PER_PAGE = 10;
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createNoIndexMetadata({
   title: "Follow-ups",
-};
+  description: "List, filter, and resolve follow-up tasks for this business.",
+});
 
 export const unstable_instant = {
   prefetch: 'static',

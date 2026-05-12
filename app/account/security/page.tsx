@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { headers } from "next/headers";
 import { connection } from "next/server";
@@ -16,6 +17,13 @@ import { getAccountSecurityForUser } from "@/features/account/queries";
 import type { AccountSessionView } from "@/features/account/types";
 import { requireSession } from "@/lib/auth/session";
 import { auth } from "@/lib/auth/server";
+import { timed } from "@/lib/dev/server-timing";
+import { createNoIndexMetadata } from "@/lib/seo/site";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  absoluteTitle: "Security · Requo account",
+  description: "Manage passwords, active sessions, and account deletion.",
+});
 
 export const unstable_instant = false;
 
@@ -32,12 +40,15 @@ async function AccountSecurityContent() {
 
   const session = await requireSession();
   const user = session.user;
-  const [security, sessions] = await Promise.all([
-    getAccountSecurityForUser(user.id, user.email),
-    auth.api.listSessions({
-      headers: await headers(),
-    }),
-  ]);
+  const [security, sessions] = await timed(
+    "accountSecurity.parallelSecurityAndSessions",
+    Promise.all([
+      getAccountSecurityForUser(user.id, user.email),
+      auth.api.listSessions({
+        headers: await headers(),
+      }),
+    ]),
+  );
 
   return (
     <SecuritySettingsForm

@@ -11,6 +11,7 @@ import {
   getBusinessContextForMembershipSlug,
   hasOperationalBusinessAccess,
 } from "@/lib/db/business-access";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 
 type AnalyticsPageProps = {
   params: Promise<{ slug: string }>;
@@ -99,7 +100,8 @@ export async function generateMetadata({
         ? analyticsSections.conversion.label
         : analyticsSections.workflow.label;
 
-  return {
+  return createNoIndexMetadata({
     title: `Analytics · ${tabLabel}`,
-  };
+    description: "Conversion and workflow analytics for this business.",
+  });
 }

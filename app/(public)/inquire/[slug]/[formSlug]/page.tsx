@@ -15,6 +15,7 @@ import {
 import { getPublicInquiryBusinessByFormSlug } from "@/features/inquiries/queries";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { getPublicInquiryWebPageStructuredData } from "@/lib/seo/structured-data";
+import { timed } from "@/lib/dev/server-timing";
 import {
   absoluteUrl,
   getSiteOrigin,
@@ -52,10 +53,13 @@ export default async function PublicInquiryFormPage({
   const submitted = Array.isArray(submittedParam)
     ? submittedParam.includes("1")
     : submittedParam === "1";
-  const business = await getPublicInquiryBusinessByFormSlug({
-    businessSlug: slug,
-    formSlug,
-  });
+  const business = await timed(
+    "publicInquiryForm.getPublicInquiryBusinessByFormSlug",
+    getPublicInquiryBusinessByFormSlug({
+      businessSlug: slug,
+      formSlug,
+    }),
+  );
 
   if (!business) {
     notFound();

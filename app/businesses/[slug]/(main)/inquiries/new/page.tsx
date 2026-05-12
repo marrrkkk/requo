@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { FormInput } from "lucide-react";
 import { redirect } from "next/navigation";
 
@@ -14,12 +15,18 @@ import {
 import { businessesHubPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 import Link from "next/link";
 
 type NewInquiryPageProps = {
   params: Promise<{ slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+export const metadata: Metadata = createNoIndexMetadata({
+  title: "New inquiry",
+  description: "Quick-add an inquiry captured outside of a public form.",
+});
 
 export const unstable_instant = {
   prefetch: 'static',

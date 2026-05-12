@@ -339,7 +339,6 @@ export function BusinessSettingsForm({
                               <Link
                                 className="underline underline-offset-4"
                                 href={publicInquiryUrl}
-                                prefetch={false}
                                 rel="noreferrer"
                                 target="_blank"
                               >

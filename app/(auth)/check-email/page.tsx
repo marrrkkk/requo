@@ -3,12 +3,11 @@ import { MailCheck } from "lucide-react";
 import Link from "next/link";
 
 import { AuthShell } from "@/components/shell/auth-shell";
-import { createPageMetadata } from "@/lib/seo/site";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 import { Button } from "@/components/ui/button";
 
-export const metadata: Metadata = createPageMetadata({
+export const metadata: Metadata = createNoIndexMetadata({
   description: "Check your email inbox to verify your Requo account.",
-  noIndex: true,
   title: "Check your email",
 });
 

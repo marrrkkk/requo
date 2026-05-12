@@ -9,11 +9,14 @@ import {
 import { BusinessInquiryFormsManager } from "@/features/settings/components/business-inquiry-forms-manager";
 import { getBusinessInquiryFormsSettingsForBusiness } from "@/features/settings/queries";
 import { getBusinessBillingOverview } from "@/features/billing/queries";
+import { timed } from "@/lib/dev/server-timing";
+import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../settings/_lib/page-context";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = createNoIndexMetadata({
   title: "Forms",
-};
+  description: "Manage inquiry forms for this business.",
+});
 
 export const unstable_instant = {
   prefetch: 'static',
@@ -22,10 +25,13 @@ export const unstable_instant = {
 
 export default async function BusinessFormsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();
-  const [settings, billingOverview] = await Promise.all([
-    getBusinessInquiryFormsSettingsForBusiness(businessContext.business.id),
-    getBusinessBillingOverview(businessContext.business.id),
-  ]);
+  const [settings, billingOverview] = await timed(
+    "formsPage.parallelSettingsAndBilling",
+    Promise.all([
+      getBusinessInquiryFormsSettingsForBusiness(businessContext.business.id),
+      getBusinessBillingOverview(businessContext.business.id),
+    ]),
+  );
 
   if (!settings) {
     notFound();

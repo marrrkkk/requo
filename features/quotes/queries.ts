@@ -643,7 +643,7 @@ async function getCachedQuoteSendPayloadForBusiness({
   };
 }
 
-export async function getPublicQuoteByToken(
+async function getPublicQuoteByTokenImpl(
   token: string,
 ): Promise<PublicQuoteView | null> {
   scheduleExpiredQuoteSyncForPublicToken(token);
@@ -738,6 +738,8 @@ export async function getPublicQuoteByToken(
     items,
   };
 }
+
+export const getPublicQuoteByToken = cache(getPublicQuoteByTokenImpl);
 
 type GetInquiryQuotePrefillForBusinessInput = {
   businessId: string;

@@ -22,6 +22,7 @@ import {
   getBusinessContextForMembershipSlug,
   getBusinessMembershipsForUser,
 } from "@/lib/db/business-access";
+import { timed } from "@/lib/dev/server-timing";
 import { siteName } from "@/lib/seo/site";
 
 export const unstable_instant = false;
@@ -105,14 +106,17 @@ async function StreamedDashboardShell({
 }) {
   // All use "use cache" so these resolve from cache on repeat navs.
   const [themePreference, allBusinessMemberships, profile, billing] =
-    await Promise.all([
-      getThemePreferenceForUser(userId),
-      getBusinessMembershipsForUser(userId, "all"),
-      getAccountProfileForUser(userId),
-      getBusinessBillingShellOverview(businessContext.business.id).catch(
-        () => null,
-      ),
-    ]);
+    await timed(
+      "businessShell.parallelShellFetches",
+      Promise.all([
+        getThemePreferenceForUser(userId),
+        getBusinessMembershipsForUser(userId, "all"),
+        getAccountProfileForUser(userId),
+        getBusinessBillingShellOverview(businessContext.business.id).catch(
+          () => null,
+        ),
+      ]),
+    );
 
   const businessMemberships = allBusinessMemberships.filter(
     (membership) => membership.business.recordState !== "trash",
