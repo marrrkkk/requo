@@ -88,6 +88,7 @@ import {
 import { businessesHubPath } from "@/features/businesses/routes";
 import { env, isEmailConfigured } from "@/lib/env";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
 import { createNoIndexMetadata } from "@/lib/seo/site";
@@ -547,45 +548,18 @@ async function QuoteDetailContent({
             ) : null}
 
             <DashboardSection
-              contentClassName="grid gap-3 sm:grid-cols-2"
-              description="Saved customer channel for sending and follow-up."
-              title="Customer contact"
-            >
-              <InfoTile
-                className={showQuotePreferredContact ? undefined : "sm:col-span-2"}
-                icon={Mail}
-                label="Email"
-                value={
-                  quoteContactEmail ? (
-                    <TruncatedTextWithTooltip
-                      className="underline-offset-4 hover:underline"
-                      href={`mailto:${quoteContactEmail}`}
-                      text={quoteContactEmail}
-                    />
-                  ) : (
-                    "Not provided"
-                  )
-                }
-                valueClassName="break-all"
-              />
-              {showQuotePreferredContact ? (
-                <InfoTile
-                  icon={AtSign}
-                  label={quotePreferredContactLabel}
-                  value={quote.customerContactHandle}
-                  valueClassName="break-all"
-                />
-              ) : null}
-            </DashboardSection>
-
-            <DashboardSection
               contentClassName="flex flex-col gap-4"
               description="Share, open, and track the secure quote page."
               title="Customer view"
             >
               {customerQuoteUrl ? (
                 <>
-                  <div className="soft-panel px-4 py-4 shadow-none">
+                  <div className={cn(
+                    "rounded-xl border px-4 py-4 shadow-none",
+                    quote.status === "accepted" && "border-green-200 bg-green-50 dark:border-green-900/40 dark:bg-green-950/30",
+                    quote.status === "rejected" && "border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/30",
+                    quote.status !== "accepted" && quote.status !== "rejected" && "soft-panel",
+                  )}>
                     <p className="text-sm font-medium text-foreground">
                       {customerViewCopy.title}
                     </p>
@@ -666,6 +640,51 @@ async function QuoteDetailContent({
                     </Link>
                   </Button>
                 </div>
+              ) : null}
+            </DashboardSection>
+
+            <DashboardSection
+              contentClassName="grid gap-3 sm:grid-cols-2"
+              description="Saved customer channel for sending and follow-up."
+              title="Customer contact"
+            >
+              <InfoTile
+                className={showQuotePreferredContact ? undefined : "sm:col-span-2"}
+                icon={Mail}
+                label="Email"
+                value={
+                  quoteContactEmail ? (
+                    <TruncatedTextWithTooltip
+                      className="underline-offset-4 hover:underline"
+                      href={`mailto:${quoteContactEmail}`}
+                      text={quoteContactEmail}
+                    />
+                  ) : (
+                    "Not provided"
+                  )
+                }
+                valueClassName="break-all"
+              />
+              {showQuotePreferredContact ? (
+                <InfoTile
+                  icon={AtSign}
+                  label={quotePreferredContactLabel}
+                  value={
+                    getContactHandleUrl(quote.customerContactMethod, quote.customerContactHandle) ? (
+                      <a
+                        className="text-primary underline-offset-4 hover:underline break-all"
+                        href={getContactHandleUrl(quote.customerContactMethod, quote.customerContactHandle)!}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                      >
+                        {quote.customerContactHandle}
+                      </a>
+                    ) : (
+                      quote.customerContactHandle
+                    )
+                  }
+                  valueClassName="break-all"
+                />
               ) : null}
             </DashboardSection>
 
@@ -770,7 +789,7 @@ function QuoteActivitySheetSection({
                 </SheetDescription>
               </SheetHeader>
               <SheetBody className="min-h-0 flex-1">
-                <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
+                <ScrollArea className="h-full pr-4">
                   <DashboardDetailFeed>
                     {activities.map((activity) => (
                       <DashboardDetailFeedItem
@@ -832,7 +851,7 @@ function CustomerHistorySheetSection({
                 </SheetDescription>
               </SheetHeader>
               <SheetBody className="min-h-0 flex-1">
-                <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
+                <ScrollArea className="h-full pr-4">
                   <CustomerHistoryPanel
                     businessSlug={businessSlug}
                     history={history}
@@ -889,6 +908,23 @@ function shouldShowPreferredContactTile(contact: {
     contact.customerContactHandle.trim().length > 0 &&
     contact.customerContactMethod.trim().toLowerCase() !== "email"
   );
+}
+
+function getContactHandleUrl(method: string, handle: string): string | null {
+  const normalizedMethod = method.trim().toLowerCase();
+  const trimmedHandle = handle.trim();
+  if (!trimmedHandle) return null;
+
+  switch (normalizedMethod) {
+    case "facebook":
+      return `https://facebook.com/${trimmedHandle}`;
+    case "instagram":
+      return `https://instagram.com/${trimmedHandle}`;
+    case "whatsapp":
+      return `https://wa.me/${trimmedHandle.replace(/[^0-9+]/g, "")}`;
+    default:
+      return null;
+  }
 }
 
 /* -------------------------------------------------------------------------- */

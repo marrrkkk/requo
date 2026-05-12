@@ -142,6 +142,7 @@ export function SendQuoteDialog({
   const primaryMessage = getChannelMessage(detectedChannel, templateInput);
   const [editedMessage, setEditedMessage] = useState(primaryMessage);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [showMarkSentConfirm, setShowMarkSentConfirm] = useState(false);
 
   const isEmailContact = detectedChannel === "email";
   const showRequoOption =
@@ -156,6 +157,7 @@ export function SendQuoteDialog({
         getChannelMessage(detectedChannel, templateInput),
       );
       setCopiedField(null);
+      setShowMarkSentConfirm(false);
     }
 
     setOpen(next);
@@ -215,6 +217,11 @@ export function SendQuoteDialog({
 
   function handleMarkAsSent() {
     if (disabled || isPending) return;
+    setShowMarkSentConfirm(true);
+  }
+
+  function confirmMarkAsSent() {
+    setShowMarkSentConfirm(false);
     formRef.current?.requestSubmit(manSubmitRef.current ?? undefined);
   }
 
@@ -510,19 +517,40 @@ export function SendQuoteDialog({
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                <Button
-                  className="flex-1"
-                  disabled={disabled || isPending}
-                  onClick={handleMarkAsSent}
-                  type="button"
-                >
-                  {isPending ? (
-                    <Spinner data-icon="inline-start" aria-hidden="true" />
-                  ) : (
-                    <Check data-icon="inline-start" />
-                  )}
-                  {isPending ? "Marking sent..." : "Mark as Sent"}
-                </Button>
+                {showMarkSentConfirm ? (
+                  <div className="flex flex-1 items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Mark this quote as sent?</span>
+                    <Button
+                      onClick={confirmMarkAsSent}
+                      size="sm"
+                      type="button"
+                    >
+                      Confirm
+                    </Button>
+                    <Button
+                      onClick={() => setShowMarkSentConfirm(false)}
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    className="flex-1"
+                    disabled={disabled || isPending}
+                    onClick={handleMarkAsSent}
+                    type="button"
+                  >
+                    {isPending ? (
+                      <Spinner data-icon="inline-start" aria-hidden="true" />
+                    ) : (
+                      <Check data-icon="inline-start" />
+                    )}
+                    {isPending ? "Marking sent..." : "Mark as Sent"}
+                  </Button>
+                )}
               </div>
             </DialogFooter>
           </>
