@@ -128,7 +128,7 @@ export function getWorkspaceSettingsNavigation(
 
   return [
     {
-      label: "Business",
+      label: "Account",
       items: [
         {
           href: getBusinessSettingsPath(businessSlug, "billing"),
