@@ -102,3 +102,53 @@ export function buildContentDisposition(
 
   return `${dispositionType}; filename="${fallbackFileName}"; filename*=UTF-8''${encodedFileName}`;
 }
+
+
+/**
+ * Builds cache-control and ETag headers for private asset responses.
+ *
+ * When the request URL contains a cache-busting query param (e.g. `?v=...`),
+ * the asset is treated as immutable for up to 1 year because a new version of
+ * the asset gets a different URL. Without a cache buster we use a short cache
+ * with stale-while-revalidate so updates propagate quickly.
+ */
+export function getAssetCacheHeaders(input: {
+  request: Request;
+  etagSeed: string;
+}): { "cache-control": string; etag: string } {
+  const url = new URL(input.request.url);
+  const hasCacheBuster = url.searchParams.has("v");
+
+  // Build a deterministic short etag without requiring node:crypto on the edge.
+  let hash = 0;
+  for (let i = 0; i < input.etagSeed.length; i++) {
+    hash = (hash * 31 + input.etagSeed.charCodeAt(i)) | 0;
+  }
+  const etag = `"${Math.abs(hash).toString(36)}"`;
+
+  return {
+    "cache-control": hasCacheBuster
+      ? "private, max-age=31536000, immutable"
+      : "private, max-age=300, stale-while-revalidate=86400",
+    etag,
+  };
+}
+
+/**
+ * Returns a 304 Not Modified response when the request's If-None-Match header
+ * matches the resource's ETag. Returns null if a fresh response should be
+ * returned.
+ */
+export function getNotModifiedResponse(
+  request: Request,
+  etag: string,
+): Response | null {
+  const ifNoneMatch = request.headers.get("if-none-match");
+  if (ifNoneMatch && ifNoneMatch === etag) {
+    return new Response(null, {
+      status: 304,
+      headers: { etag },
+    });
+  }
+  return null;
+}

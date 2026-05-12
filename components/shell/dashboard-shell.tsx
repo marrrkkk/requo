@@ -4,8 +4,6 @@
 
 import dynamic from "next/dynamic";
 
-import Image from "next/image";
-
 import Link from "next/link";
 
 
@@ -70,6 +68,8 @@ import { canManageOperationalBusinessSettings } from "@/lib/business-members";
 import type { BusinessContext } from "@/lib/db/business-access";
 
 import { BrandMark } from "@/components/shared/brand-mark";
+
+import { BusinessAvatar } from "@/components/shared/business-avatar";
 
 import { PlanBadge } from "@/components/shared/paywall";
 
@@ -245,6 +245,10 @@ type DashboardShellProps = {
 
   businessMemberships: BusinessContext[];
 
+  /** Pre-rendered banner below the top nav, e.g. archived business warning. */
+
+  bannerSlot?: ReactNode;
+
   /** Pre-rendered notification bell, typically Suspense-wrapped for streaming. */
 
   notificationSlot: ReactNode;
@@ -268,6 +272,8 @@ export function DashboardShell({
   businessContext,
 
   businessMemberships,
+
+  bannerSlot,
 
   notificationSlot,
 
@@ -597,11 +603,11 @@ export function DashboardShell({
 
         </header>
 
-
+        {bannerSlot}
 
         <div className="flex flex-1 flex-col">
 
-          <main className="dashboard-main">
+          <main className="dashboard-main" data-archived={business.recordState === "archived" || undefined}>
 
             <div className="dashboard-content">{children}</div>
 
@@ -825,7 +831,7 @@ function DashboardUserMenu({
 
                 {user.avatarSrc ? (
 
-                  <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} />
+                  <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
 
                 ) : null}
 
@@ -875,7 +881,7 @@ function DashboardUserMenu({
 
                   {user.avatarSrc ? (
 
-                    <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} />
+                    <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
 
                   ) : null}
 
@@ -968,10 +974,8 @@ function DashboardUserMenu({
                 >
 
                   <BriefcaseBusiness data-icon="inline-start" />
-
                   Billing
-
-                  <PlanBadge plan={plan} showIcon={false} className="ml-auto" />
+                  <PlanBadge plan={plan} className="ml-auto" />
 
                 </Link>
 
@@ -1105,37 +1109,11 @@ function BusinessSwitcher({
 
           <div className="flex items-start gap-3.5">
 
-            <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-[0.9rem] border border-sidebar-border bg-muted/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] dark:border-white/8 dark:bg-accent dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_1px_rgba(0,0,0,0.18)]">
-
-              {business.logoStoragePath ? (
-
-                <Image
-
-                  alt={`${business.name} logo`}
-
-                  className="h-full w-full object-cover"
-
-                  height={56}
-
-                  src="/api/business/logo"
-
-                  unoptimized
-
-                  width={56}
-
-                />
-
-              ) : (
-
-                <span className="text-sm font-semibold tracking-[0.16em] text-sidebar-foreground">
-
-                  {getInitials(business.name)}
-
-                </span>
-
-              )}
-
-            </div>
+            <BusinessAvatar
+              name={business.name}
+              logoUrl={business.logoStoragePath ? "/api/business/logo" : null}
+              className="size-14 rounded-[0.9rem] border-sidebar-border shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] dark:border-white/8 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_1px_rgba(0,0,0,0.18)] [&_[data-slot=avatar-image]]:rounded-[0.9rem] [&_[data-slot=avatar-fallback]]:rounded-[0.9rem] [&_[data-slot=avatar-fallback]]:text-sm [&_[data-slot=avatar-fallback]]:tracking-[0.16em] [&_[data-slot=avatar-fallback]]:text-sidebar-foreground"
+            />
 
             <div className="min-w-0 flex-1">
 
@@ -1164,8 +1142,7 @@ function BusinessSwitcher({
           </div>
 
           <div className="mt-3 flex flex-wrap gap-2">
-
-            <PlanBadge plan={business.plan} showIcon={true} />
+            <PlanBadge plan={business.plan} />
 
             <Badge
 
@@ -1225,11 +1202,10 @@ function BusinessSwitcher({
 
                 >
 
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background text-[0.72rem] font-semibold tracking-[0.14em] text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] dark:border-white/8 dark:bg-card dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_1px_rgba(0,0,0,0.18)]">
-
-                    {getInitials(membership.business.name)}
-
-                  </div>
+                  <BusinessAvatar
+                    name={membership.business.name}
+                    logoUrl={membership.business.logoStoragePath ? `/api/business/${membership.business.slug}/logo` : null}
+                  />
 
                   <div className="min-w-0 flex-1">
 

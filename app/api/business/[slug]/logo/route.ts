@@ -1,11 +1,15 @@
 import { getBusinessLogoAssetForBusiness } from "@/features/settings/queries";
-import { buildContentDisposition } from "@/lib/files";
+import {
+  buildContentDisposition,
+  getAssetCacheHeaders,
+  getNotModifiedResponse,
+} from "@/lib/files";
 import { getBusinessRequestContextForSlug } from "@/lib/db/business-access";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { businessLogoBucket } from "@/features/settings/utils";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await context.params;
@@ -33,6 +37,16 @@ export async function GET(
     });
   }
 
+  const cacheHeaders = getAssetCacheHeaders({
+    request,
+    etagSeed: `${asset.logoStoragePath}`,
+  });
+
+  const notModified = getNotModifiedResponse(request, cacheHeaders.etag);
+  if (notModified) {
+    return notModified;
+  }
+
   const storageClient = createSupabaseAdminClient();
   const { data, error } = await storageClient.storage
     .from(businessLogoBucket)
@@ -51,7 +65,7 @@ export async function GET(
 
   return new Response(data, {
     headers: {
-      "cache-control": "private, max-age=300, stale-while-revalidate=60",
+      ...cacheHeaders,
       "content-disposition": buildContentDisposition(
         asset.logoStoragePath.split("/").pop() ?? "business-logo",
         "inline",
