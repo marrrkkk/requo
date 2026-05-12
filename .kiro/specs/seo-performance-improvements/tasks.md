@@ -33,13 +33,13 @@ Every code change stays inside the existing layout (`app/`, `lib/seo/`, `compone
     - Call `assertMetadataBaseResolvable()` from module evaluation so build fails on permanent misconfiguration.
     - _Requirements: 1.1, 1.4, 1.5, 1.6_
 
-  - [ ]* 1.3 Property test `getSiteUrl` fallback ladder and OG URL resolution
+  - [x] 1.3 Property test `getSiteUrl` fallback ladder and OG URL resolution
     - **Property 16: metadataBase fallback ladder always resolves to a valid URL**
     - **Property 17: metadataBase resolves relative OG URLs to the deployed origin**
     - **Validates: Requirements 1.4, 1.6**
     - Use `fast-check` to generate env-var records with at-least-one valid source and assert `origin`/`pathname` shape; generate paths and assert `createPageMetadata` `openGraph.url` resolves via `new URL(P, S)`.
 
-  - [ ]* 1.4 Unit test permanent `metadataBase` failure
+  - [x] 1.4 Unit test permanent `metadataBase` failure
     - Clear all fallback env sources and assert `assertMetadataBaseResolvable()` throws.
     - _Requirements: 1.5_
 
@@ -49,17 +49,17 @@ Every code change stays inside the existing layout (`app/`, `lib/seo/`, `compone
     - Update `components/seo/structured-data.tsx` to route its JSON serialisation through `encodeJsonLd`.
     - _Requirements: 6.3, 6.4, 6.5, 6.6_
 
-  - [ ]* 1.6 Property test JSON-LD escaper
+  - [x] 1.6 Property test JSON-LD escaper
     - **Property 13: JSON-LD escaping resists script-tag termination**
     - **Validates: Requirements 6.6**
     - `fast-check` `fullUnicodeString` + adversarial inserts (`</script>`, `</`, `<!--`, backslashes); assert no `</` in output, valid JSON round-trip, safe for `<script type="application/ld+json">` insertion.
 
-  - [ ]* 1.7 Property test Product offers and LocalBusiness gating
+  - [x] 1.7 Property test Product offers and LocalBusiness gating
     - **Property 10: Product offers emitter covers every plan × interval pair**
     - **Property 11: LocalBusiness / ProfessionalService emitter is gated on profile sufficiency**
     - **Validates: Requirements 6.3, 6.4**
 
-  - [ ]* 1.8 Property test breadcrumb reconstruction
+  - [x] 1.8 Property test breadcrumb reconstruction
     - **Property 12: Breadcrumbs reconstruct the pathname**
     - **Validates: Requirements 6.5**
 
@@ -71,7 +71,7 @@ Every code change stays inside the existing layout (`app/`, `lib/seo/`, `compone
     - Keep `SpeedInsights` rendered in the root layout.
     - _Requirements: 1.1, 1.2, 1.3, 13.1_
 
-  - [ ]* 2.2 Unit test root metadata + viewport + verification branches
+  - [x] 2.2 Unit test root metadata + viewport + verification branches
     - Assert required fields present, viewport shape, and conditional `verification.google` inclusion based on env.
     - _Requirements: 1.1, 1.2, 1.3, 13.1_
 
@@ -81,7 +81,7 @@ Every code change stays inside the existing layout (`app/`, `lib/seo/`, `compone
     - Update `app/sitemap.ts` to: include static entries for `/`, `/pricing`, `/privacy`, `/terms`, `/refund-policy`, `/inquire` with `changeFrequency`/`lastModified`/`priority`; append indexable business slug entries; omit entries where `noIndex === true`; add `images: [{ url: absoluteUrl("/opengraph-image") }]` to the root entry; keep `export const revalidate = 3600`.
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-  - [ ]* 3.2 Property + unit tests for sitemap
+  - [x] 3.2 Property + unit tests for sitemap
     - **Property 7: Sitemap reflects public business visibility**
     - **Validates: Requirements 4.2, 4.3**
     - Add one unit test covering static entries, `revalidate`, and root `images` array (R4.1/R4.4/R4.5).
@@ -91,7 +91,7 @@ Every code change stays inside the existing layout (`app/`, `lib/seo/`, `compone
     - Keep `/_next/` out of `disallow`.
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-  - [ ]* 3.4 Property + unit tests for robots
+  - [x] 3.4 Property + unit tests for robots
     - **Property 8: Robots allow/disallow mirror the route registry**
     - **Property 9: Robots and metadata agree on private-route indexability**
     - **Validates: Requirements 5.1, 5.4**
@@ -120,15 +120,15 @@ Every code change stays inside the existing layout (`app/`, `lib/seo/`, `compone
     - Export `generateMetadata` from the public quote page (under `app/(public)/quote/...`) awaiting `params`, always returning `robots.{index:false,follow:false}` and `alternates.canonical` equal to the quote pathname.
     - _Requirements: 3.1, 3.3, 3.4_
 
-  - [ ]* 5.5 Property test business slug metadata correctness
+  - [x] 5.5 Property test business slug metadata correctness
     - **Property 4: Business slug metadata correctness**
     - **Validates: Requirements 3.1, 3.2, 3.4**
 
-  - [ ]* 5.6 Property test public quote metadata always noindex
+  - [x] 5.6 Property test public quote metadata always noindex
     - **Property 5: Quote page metadata always noindex**
     - **Validates: Requirements 3.1, 3.3, 3.4**
 
-- [ ] 6. Structured data coverage
+- [x] 6. Structured data coverage
   - [x] 6.1 Emit `SoftwareApplication` + `FAQPage` on the marketing home
     - Use `<StructuredData>` with new emitters from `lib/seo/structured-data.ts` inside `app/(marketing)/page.tsx`.
     - _Requirements: 6.2_
@@ -141,7 +141,7 @@ Every code change stays inside the existing layout (`app/`, `lib/seo/`, `compone
     - Render via `<StructuredData>` only when the profile has `name`, `url`, and `description`.
     - _Requirements: 6.4_
 
-  - [-] 6.4 Emit `BreadcrumbList` on every Public_Route deeper than one segment
+  - [x] 6.4 Emit `BreadcrumbList` on every Public_Route deeper than one segment
     - Use `buildBreadcrumbsForPathname` and `getBreadcrumbListStructuredData` in the relevant layouts/pages.
     - _Requirements: 6.5_
 
@@ -195,11 +195,11 @@ Every code change stays inside the existing layout (`app/`, `lib/seo/`, `compone
     - DB-backed test that a business-profile mutation invalidates the matching public-profile tag (R10.3).
     - _Requirements: 10.3_
 
-- [~] 9. Checkpoint - Metadata, structured data, social previews, cache
+- [x] 9. Checkpoint - Metadata, structured data, social previews, cache
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 10. Streaming, Suspense, and parallel fetching
-  - [ ] 10.1 Add `loading.tsx` coverage for every data-fetching page
+- [x] 10. Streaming, Suspense, and parallel fetching
+  - [-] 10.1 Add `loading.tsx` coverage for every data-fetching page
     - Add a colocated `loading.tsx` next to every `page.tsx` that performs a server data fetch and does not already have one.
     - _Requirements: 8.3_
 
@@ -233,11 +233,11 @@ Every code change stays inside the existing layout (`app/`, `lib/seo/`, `compone
     - Ensure all fonts load via `next/font` in `app/layout.tsx` with `subsets`, `display: "swap"`, and `--font-*` CSS variables; remove any `<link>` or CSS `@import` web-font usage discovered by the audit (task 13.2).
     - _Requirements: 11.5, 11.6_
 
-  - [ ]* 11.4 Unit test `images.remotePatterns` shape
+  - [x] 11.4 Unit test `images.remotePatterns` shape
     - Assert the exported `next.config.ts` has an `images.remotePatterns` array.
     - _Requirements: 11.4_
 
-- [ ] 12. Bundle and prefetch
+- [x] 12. Bundle and prefetch
   - [x] 12.1 Wire `@next/bundle-analyzer`
     - Add `@next/bundle-analyzer` as a dev dependency and wrap `next.config.ts` export with `withBundleAnalyzer({ enabled: process.env.ANALYZE === "true" })`.
     - _Requirements: 12.3_
@@ -255,7 +255,7 @@ Every code change stays inside the existing layout (`app/`, `lib/seo/`, `compone
     - Keep `next/dynamic` reserved for client-only heavy leaves (AI panel, command menu, charts) and without `ssr: false` unless the component requires browser APIs (annotated in code).
     - _Requirements: 12.1, 12.2_
 
-  - [ ]* 12.5 Unit test `modularizeImports` shape
+  - [x] 12.5 Unit test `modularizeImports` shape
     - Assert the exported `next.config.ts` has a `modularizeImports` object (empty is acceptable).
     - _Requirements: 12.5_
 
@@ -285,16 +285,16 @@ Every code change stays inside the existing layout (`app/`, `lib/seo/`, `compone
     - Pass the PR description to the script so waiver annotations are honoured.
     - _Requirements: 13.4, 13.5_
 
-  - [ ]* 14.3 Unit tests for waiver parsing and threshold classification
+  - [x] 14.3 Unit tests for waiver parsing and threshold classification
     - Cover critical vs non-critical classification and the `seo-budget-waiver` regex.
     - _Requirements: 13.5_
 
-- [ ] 15. End-to-end smoke coverage for rendered SEO markup
+- [x] 15. End-to-end smoke coverage for rendered SEO markup
   - [ ]* 15.1 Add Playwright smoke checks for public metadata
     - Under `tests/e2e/` (tagged `@smoke`) assert the rendered HTML on `/`, `/pricing`, `/inquire`, and one business slug contains the expected `<title>`, `<meta name="description">`, `<link rel="canonical">`, and JSON-LD scripts.
     - _Requirements: 2.1, 2.2, 2.3, 3.1, 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [~] 16. Final checkpoint - Ensure all tests pass
+- [x] 16. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
