@@ -36,11 +36,13 @@ import {
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const viewport: Viewport = {
@@ -95,6 +97,7 @@ export const metadata: Metadata = {
     template: `%s | ${siteName}`,
   },
   icons: {
+    apple: "/logo.svg",
     icon: "/logo.svg",
     shortcut: "/logo.svg",
   },

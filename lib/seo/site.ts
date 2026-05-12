@@ -7,7 +7,7 @@ export const siteDescription =
   "Requo is quote software for service businesses. Capture inquiries, send quotes, track status, and follow up from one business hub.";
 const defaultSocialImagePath = "/opengraph-image";
 
-type PageMetadataOptions = {
+export type PageMetadataOptions = {
   title?: string;
   absoluteTitle?: string;
   description: string;
@@ -18,7 +18,19 @@ type PageMetadataOptions = {
   imageAlt?: string;
   brandTitle?: boolean;
   openGraphType?: "website" | "article";
+  openGraphOverrides?: Partial<NonNullable<Metadata["openGraph"]>>;
+  twitterOverrides?: Partial<NonNullable<Metadata["twitter"]>>;
 };
+
+/**
+ * Thrown when none of the supported fallback sources (`BETTER_AUTH_URL`,
+ * `VERCEL_URL`, or the dev-only `http://localhost:3000` default) can produce
+ * a usable `metadataBase`. This fails the build rather than letting Next emit
+ * relative OG/Twitter URLs that will not resolve.
+ */
+export class MetadataBaseResolutionError extends Error {
+  override readonly name = "MetadataBaseResolutionError";
+}
 
 function normalizeConfiguredUrl(url: string) {
   const normalized = new URL(url);
@@ -30,7 +42,18 @@ function normalizeConfiguredUrl(url: string) {
   return normalized;
 }
 
-function getConfiguredSiteUrl() {
+/**
+ * Resolves the site's `metadataBase` using the documented fallback ladder:
+ *
+ * 1. `BETTER_AUTH_URL` (production, preview, and explicit local override)
+ * 2. `VERCEL_URL` (automatic on preview deploys)
+ * 3. `http://localhost:3000` (development only)
+ *
+ * Throws `MetadataBaseResolutionError` when none of the sources resolves, so
+ * that a permanent misconfiguration fails the Next.js build instead of
+ * silently emitting relative social URLs.
+ */
+export function assertMetadataBaseResolvable(): URL {
   const betterAuthUrl = process.env.BETTER_AUTH_URL?.trim();
 
   if (betterAuthUrl) {
@@ -45,10 +68,16 @@ function getConfiguredSiteUrl() {
     );
   }
 
-  return new URL("http://localhost:3000");
+  if (process.env.NODE_ENV === "development") {
+    return new URL("http://localhost:3000");
+  }
+
+  throw new MetadataBaseResolutionError(
+    "Set `BETTER_AUTH_URL` in production or `VERCEL_URL` on preview deploys.",
+  );
 }
 
-function normalizePathname(pathname: string) {
+export function normalizePathname(pathname: string) {
   if (pathname === "/") {
     return pathname;
   }
@@ -61,7 +90,7 @@ function normalizePathname(pathname: string) {
 }
 
 export function getSiteUrl() {
-  return getConfiguredSiteUrl();
+  return assertMetadataBaseResolvable();
 }
 
 export function getSiteOrigin() {
@@ -99,6 +128,8 @@ export function createPageMetadata({
   imageAlt = `${siteName} social preview`,
   brandTitle = true,
   openGraphType = "website",
+  openGraphOverrides,
+  twitterOverrides,
 }: PageMetadataOptions): Metadata {
   const socialTitle = absoluteTitle
     ? absoluteTitle
@@ -107,6 +138,31 @@ export function createPageMetadata({
         ? formatSiteTitle(title)
         : title
       : siteName;
+
+  const openGraph: NonNullable<Metadata["openGraph"]> = {
+    description,
+    ...(pathname ? { url: normalizePathname(pathname) } : {}),
+    images: [
+      {
+        alt: imageAlt,
+        height: 630,
+        url: normalizePathname(imagePath),
+        width: 1200,
+      },
+    ],
+    siteName,
+    title: socialTitle,
+    type: openGraphType,
+    ...(openGraphOverrides ?? {}),
+  };
+
+  const twitter: NonNullable<Metadata["twitter"]> = {
+    card: "summary_large_image",
+    description,
+    images: [normalizePathname(twitterImagePath)],
+    title: socialTitle,
+    ...(twitterOverrides ?? {}),
+  };
 
   return {
     ...(absoluteTitle
@@ -127,27 +183,8 @@ export function createPageMetadata({
         }
       : {}),
     ...(noIndex ? { robots: createNoIndexRobots() } : {}),
-    openGraph: {
-      description,
-      ...(pathname ? { url: normalizePathname(pathname) } : {}),
-      images: [
-        {
-          alt: imageAlt,
-          height: 630,
-          url: normalizePathname(imagePath),
-          width: 1200,
-        },
-      ],
-      siteName,
-      title: socialTitle,
-      type: openGraphType,
-    },
-    twitter: {
-      card: "summary_large_image",
-      description,
-      images: [normalizePathname(twitterImagePath)],
-      title: socialTitle,
-    },
+    openGraph,
+    twitter,
   };
 }
 
@@ -168,3 +205,8 @@ export function createNoIndexMetadata({
     title,
   });
 }
+
+// Fail the build immediately when `metadataBase` cannot be resolved so that
+// permanent misconfiguration surfaces at build time rather than producing
+// relative OG/Twitter URLs on the deployed site.
+assertMetadataBaseResolvable();
