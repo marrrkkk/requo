@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowRight, CalendarClock, Lock } from "lucide-react";
+import { ArrowRight, Archive, CalendarClock, Lock } from "lucide-react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
+import { BusinessAvatar } from "@/components/shared/business-avatar";
 import { PlanBadge } from "@/components/shared/paywall";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -111,18 +112,18 @@ export default async function BusinessesPage() {
             <section className="space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <p className="meta-label">
-                  {memberships.length} business{memberships.length === 1 ? "" : "es"}
+                  {memberships.filter((m) => m.business.recordState !== "archived").length} business{memberships.filter((m) => m.business.recordState !== "archived").length === 1 ? "" : "es"}
                 </p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {memberships.map((membership) => {
+                {memberships.filter((m) => m.business.recordState !== "archived").map((membership) => {
                   const ws = membership.business;
                   const roleMeta = businessMemberRoleMeta[membership.role];
                   const isLocked = ws.recordState === "locked";
                   return (
                     <Card
-                      className="group flex flex-col border-border/80 bg-card/98 transition-colors hover:border-border hover:bg-card hover:shadow-sm"
+                      className="group relative flex flex-col border-border/80 bg-card/98 transition-colors hover:border-border hover:bg-card hover:shadow-sm"
                       key={ws.id}
                     >
                       <CardHeader className="gap-4">
@@ -178,6 +179,12 @@ export default async function BusinessesPage() {
                           ) : null}
                         </div>
                       </CardContent>
+                      <BusinessAvatar
+                        name={ws.name}
+                        logoUrl={ws.logoStoragePath ? `/api/business/${ws.slug}/logo` : null}
+                        size="lg"
+                        className="pointer-events-none absolute right-4 bottom-4 opacity-50 transition-opacity group-hover:opacity-90"
+                      />
                     </Card>
                   );
                 })}
@@ -189,6 +196,60 @@ export default async function BusinessesPage() {
                 />
               </div>
             </section>
+
+            {memberships.filter((m) => m.business.recordState === "archived").length > 0 ? (
+              <section className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Archive className="size-4 text-muted-foreground" />
+                  <p className="meta-label">
+                    {memberships.filter((m) => m.business.recordState === "archived").length} archived
+                  </p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {memberships.filter((m) => m.business.recordState === "archived").map((membership) => {
+                    const ws = membership.business;
+                    const roleMeta = businessMemberRoleMeta[membership.role];
+                    return (
+                      <Card
+                        className="group relative flex flex-col border-border/60 bg-muted/30 opacity-75 transition-opacity hover:opacity-100"
+                        key={ws.id}
+                      >
+                        <CardHeader className="gap-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0 flex-1">
+                              <CardTitle className="max-w-full truncate text-lg">
+                                {ws.name}
+                              </CardTitle>
+                              <CardDescription className="mt-1 max-w-full truncate font-medium">
+                                /{ws.slug}
+                              </CardDescription>
+                            </div>
+                            <Badge variant="outline" className="gap-1">
+                              <Archive className="size-3.5" />
+                              Archived
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="flex flex-1 flex-col justify-between space-y-5">
+                          <div className="flex flex-wrap gap-2">
+                            <Badge className="capitalize" variant="secondary">
+                              {roleMeta?.label ?? membership.role}
+                            </Badge>
+                          </div>
+                          <Button asChild className="w-full sm:w-auto" variant="outline">
+                            <Link href={getBusinessDashboardPath(ws.slug)} prefetch={true}>
+                              Open read-only
+                              <ArrowRight data-icon="inline-end" />
+                            </Link>
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
           </div>
         </main>
       </div>

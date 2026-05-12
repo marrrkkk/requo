@@ -23,12 +23,6 @@ import { getFieldError } from "@/lib/action-state";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Field,
   FieldContent,
   FieldDescription,
@@ -54,15 +48,12 @@ import {
   businessCurrencyOptions,
   resolveCurrencyForCountry,
 } from "@/features/businesses/locale";
-import { getBusinessPath } from "@/features/businesses/routes";
 import type {
-  BusinessAiTonePreference,
   BusinessSettingsActionState,
   BusinessSettingsView,
 } from "@/features/settings/types";
 import type { BusinessRecordActionState } from "@/features/businesses/types";
 import {
-  formatBusinessAiToneLabel,
   getBusinessPublicInquiryUrl,
   businessLogoAccept,
   businessLogoAllowedMimeTypes,
@@ -81,6 +72,10 @@ type BusinessSettingsFormProps = {
     state: BusinessRecordActionState,
     formData: FormData,
   ) => Promise<BusinessRecordActionState>;
+  deleteAction: (
+    state: BusinessRecordActionState,
+    formData: FormData,
+  ) => Promise<BusinessRecordActionState>;
   fallbackContactEmail: string;
   logoPreviewUrl: string | null;
   restoreAction: (
@@ -88,10 +83,6 @@ type BusinessSettingsFormProps = {
     formData: FormData,
   ) => Promise<BusinessRecordActionState>;
   settings: BusinessSettingsView;
-  trashAction: (
-    state: BusinessRecordActionState,
-    formData: FormData,
-  ) => Promise<BusinessRecordActionState>;
   unarchiveAction: (
     state: BusinessRecordActionState,
     formData: FormData,
@@ -99,17 +90,6 @@ type BusinessSettingsFormProps = {
 };
 
 const initialState: BusinessSettingsActionState = {};
-
-const aiToneOptions: BusinessAiTonePreference[] = [
-  "balanced",
-  "warm",
-  "direct",
-  "formal",
-];
-const aiToneComboboxOptions = aiToneOptions.map((value) => ({
-  label: formatBusinessAiToneLabel(value),
-  value,
-}));
 
 type LoadedLogoAsset = {
   file: File;
@@ -123,10 +103,8 @@ type BusinessSettingsDraftValues = {
   slug: string;
   contactEmail: string;
   shortDescription: string;
-  defaultEmailSignature: string;
   countryCode: string;
   defaultCurrency: string;
-  aiTonePreference: BusinessAiTonePreference;
 };
 
 function getBusinessSettingsDraftValues(
@@ -138,21 +116,19 @@ function getBusinessSettingsDraftValues(
     slug: settings.slug,
     contactEmail: settings.contactEmail ?? fallbackContactEmail,
     shortDescription: settings.shortDescription ?? "",
-    defaultEmailSignature: settings.defaultEmailSignature ?? "",
     countryCode: settings.countryCode ?? "",
     defaultCurrency: settings.defaultCurrency,
-    aiTonePreference: settings.aiTonePreference,
   };
 }
 
 export function BusinessSettingsForm({
   action,
   archiveAction,
+  deleteAction,
   fallbackContactEmail,
   logoPreviewUrl,
   restoreAction,
   settings,
-  trashAction,
   unarchiveAction,
 }: BusinessSettingsFormProps) {
   const router = useProgressRouter();
@@ -172,7 +148,6 @@ export function BusinessSettingsForm({
   const [logoResetSignal, setLogoResetSignal] = useState(0);
   const countryCodeError = getFieldError(state.fieldErrors, "countryCode");
   const defaultCurrencyError = getFieldError(state.fieldErrors, "defaultCurrency");
-  const aiToneError = getFieldError(state.fieldErrors, "aiTonePreference");
   const publicInquiryUrl = useMemo(
     () => getBusinessPublicInquiryUrl(draftValues.slug || settings.slug),
     [draftValues.slug, settings.slug],
@@ -181,14 +156,12 @@ export function BusinessSettingsForm({
     draftValues.name !== savedValues.name ||
     draftValues.slug !== savedValues.slug ||
     draftValues.contactEmail !== savedValues.contactEmail ||
-    draftValues.shortDescription !== savedValues.shortDescription ||
-    draftValues.defaultEmailSignature !== savedValues.defaultEmailSignature;
+    draftValues.shortDescription !== savedValues.shortDescription;
   const hasControlledChanges =
     removeLogo ||
     hasPendingLogo ||
     draftValues.countryCode !== savedValues.countryCode ||
-    draftValues.defaultCurrency !== savedValues.defaultCurrency ||
-    draftValues.aiTonePreference !== savedValues.aiTonePreference;
+    draftValues.defaultCurrency !== savedValues.defaultCurrency;
   const hasUnsavedChanges = hasControlledChanges || hasTextInputChanges;
   const { shouldRenderFloatingActions, floatingActionsState } =
     useFloatingUnsavedChanges(hasUnsavedChanges);
@@ -253,23 +226,9 @@ export function BusinessSettingsForm({
           type="hidden"
           value={draftValues.defaultCurrency}
         />
-        <input
-          name="aiTonePreference"
-          type="hidden"
-          value={draftValues.aiTonePreference}
-        />
 
         <section className="section-panel p-5 sm:p-6">
           <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-2">
-              <h2 className="font-heading text-lg font-semibold leading-tight tracking-tight text-foreground">
-                Business profile
-              </h2>
-              <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                The customer-facing details used on inquiry pages, quotes, and email replies.
-              </p>
-            </div>
-
             <div className="grid gap-7 xl:grid-cols-[14rem_minmax(0,1fr)] xl:gap-8">
               <BusinessLogoField
                 businessName={businessNamePreview}
@@ -499,83 +458,6 @@ export function BusinessSettingsForm({
           </div>
         </section>
 
-        <Card className="gap-0 border-border/75 bg-card/97">
-          <CardHeader className="gap-2.5 pb-6">
-            <CardTitle>Reply defaults</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="flex min-w-0 flex-col gap-5">
-                <FormSection
-                  className="soft-panel px-5 py-5 shadow-none sm:px-6"
-                  title="AI writing tone"
-                >
-                  <Field data-invalid={Boolean(aiToneError) || undefined}>
-                    <FieldLabel htmlFor="settings-ai-tone">Tone preference</FieldLabel>
-                    <FieldContent>
-                      <Combobox
-                        aria-invalid={Boolean(aiToneError) || undefined}
-                        disabled={isPending}
-                        id="settings-ai-tone"
-                        onValueChange={(value) =>
-                          updateDraftValue(
-                            "aiTonePreference",
-                            value as BusinessAiTonePreference,
-                          )
-                        }
-                        options={aiToneComboboxOptions}
-                        placeholder="Choose a tone"
-                        searchPlaceholder="Search tone"
-                        value={draftValues.aiTonePreference}
-                      />
-                      <FieldError
-                        errors={aiToneError ? [{ message: aiToneError }] : undefined}
-                      />
-                    </FieldContent>
-                  </Field>
-                </FormSection>
-
-                <FormSection
-                  className="soft-panel px-5 py-5 shadow-none sm:px-6"
-                  title="Email signature"
-                >
-                  <Field
-                    data-invalid={
-                      Boolean(state.fieldErrors?.defaultEmailSignature) || undefined
-                    }
-                  >
-                    <FieldLabel htmlFor="settings-email-signature">
-                      Default email signature
-                    </FieldLabel>
-                    <FieldContent>
-                      <Textarea
-                        value={draftValues.defaultEmailSignature}
-                        disabled={isPending}
-                        id="settings-email-signature"
-                        maxLength={1200}
-                        name="defaultEmailSignature"
-                        onChange={(event) =>
-                          updateDraftValue(
-                            "defaultEmailSignature",
-                            event.currentTarget.value,
-                        )
-                      }
-                      placeholder="Thanks,\nNorthline Home Services"
-                      rows={5}
-                    />
-                      <FieldError
-                        errors={
-                          state.fieldErrors?.defaultEmailSignature?.[0]
-                            ? [{ message: state.fieldErrors.defaultEmailSignature[0] }]
-                            : undefined
-                        }
-                      />
-                    </FieldContent>
-                  </Field>
-                </FormSection>
-            </div>
-          </CardContent>
-        </Card>
-
         <FloatingFormActions
           disableSubmit={!hasUnsavedChanges}
           isPending={isPending}
@@ -589,14 +471,11 @@ export function BusinessSettingsForm({
       </form>
 
       <BusinessDeleteZone
-        activeBusinessCount={settings.activeBusinessCount}
         archiveAction={archiveAction}
-        archivedRedirectHref={`${getBusinessPath(settings.businessSlug)}?view=archived`}
         businessName={settings.name}
+        deleteAction={deleteAction}
         recordState={settings.recordState}
         restoreAction={restoreAction}
-        trashAction={trashAction}
-        trashRedirectHref={`${getBusinessPath(settings.businessSlug)}?view=trash`}
         unarchiveAction={unarchiveAction}
       />
     </>
@@ -923,7 +802,7 @@ function BusinessLogoField({
           }
         }}
       >
-        <DialogContent className="sm:max-w-5xl">
+        <DialogContent className="sm:max-w-5xl" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Crop logo</DialogTitle>
             <DialogDescription>Fit your logo to the business frame.</DialogDescription>

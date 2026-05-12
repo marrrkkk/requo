@@ -981,6 +981,22 @@ html[data-reload-loading="true"] [data-reload-loading-overlay] {
     @apply flex flex-1 flex-col px-3 py-5 sm:px-6 sm:py-7 xl:px-8 xl:py-8;
   }
 
+  .dashboard-main[data-archived] button:not([data-allow-archived]),
+  .dashboard-main[data-archived] [role="button"]:not([data-allow-archived]),
+  .dashboard-main[data-archived] input:not([data-allow-archived]),
+  .dashboard-main[data-archived] textarea:not([data-allow-archived]),
+  .dashboard-main[data-archived] select:not([data-allow-archived]) {
+    @apply pointer-events-none opacity-50;
+  }
+
+  .dashboard-main[data-archived] [data-allow-archived] button,
+  .dashboard-main[data-archived] [data-allow-archived] [role="button"],
+  .dashboard-main[data-archived] [data-allow-archived] input,
+  .dashboard-main[data-archived] [data-allow-archived] textarea,
+  .dashboard-main[data-archived] [data-allow-archived] select {
+    @apply pointer-events-auto opacity-100;
+  }
+
   .public-page {
     @apply mx-auto w-full max-w-[90rem] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10;
   }

@@ -10,13 +10,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import { BusinessCheckoutProvider } from "@/features/billing/components/business-checkout-provider";
 import { LockedBusinessSurface } from "@/features/businesses/components/locked-business-surface";
+import { ArchivedBusinessBanner } from "@/features/businesses/components/archived-business-banner";
+import { unarchiveBusinessAction } from "@/features/businesses/actions";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { getBusinessBillingShellOverview } from "@/features/billing/queries";
 import { getBusinessNotificationBellView } from "@/features/notifications/queries";
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
-import { businessesHubPath } from "@/features/businesses/routes";
+import { businessesHubPath, getBusinessDashboardPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
 import {
   getBusinessContextForMembershipSlug,
@@ -164,6 +166,18 @@ async function StreamedDashboardShell({
       />
     ) : null;
 
+  const archivedBusinessBanner =
+    businessContext.business.recordState === "archived" ? (
+      <ArchivedBusinessBanner
+        dashboardHref={getBusinessDashboardPath(businessContext.business.slug)}
+        unarchiveAction={unarchiveBusinessAction.bind(
+          null,
+          businessContext.business.id,
+          businessContext.business.slug,
+        )}
+      />
+    ) : null;
+
   const shellContent = (
     <>
       <RecentBusinessTracker
@@ -179,6 +193,7 @@ async function StreamedDashboardShell({
         }}
         businessContext={businessContext}
         businessMemberships={businessMemberships}
+        bannerSlot={archivedBusinessBanner}
         notificationSlot={notificationSlot}
         upgradeSlot={upgradeSlot}
       >

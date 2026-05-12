@@ -27,6 +27,7 @@ import {
 import {
   archiveBusiness,
   createBusinessForUser,
+  deleteBusinessPermanently,
   restoreBusiness,
   trashBusiness,
   unarchiveBusiness,
@@ -503,6 +504,69 @@ export async function restoreBusinessAction(
     return {
       error: "We couldn't restore the business right now.",
     };
+  }
+}
+
+export async function deleteBusinessPermanentlyAction(
+  businessId: string,
+  businessSlug: string,
+  _prevState: BusinessRecordActionState = initialBusinessRecordState,
+  formData: FormData,
+): Promise<BusinessRecordActionState> {
+  void _prevState;
+
+  const ownerAccess = await getBusinessActionContext({
+    businessSlug,
+    minimumRole: "owner",
+    unauthorizedMessage: "Only the business owner can do that.",
+  });
+
+  if (!ownerAccess.ok) {
+    return { error: ownerAccess.error };
+  }
+
+  const confirmation =
+    typeof formData.get("confirmation") === "string"
+      ? (formData.get("confirmation") as string)
+      : "";
+
+  if (!confirmation.trim()) {
+    return {
+      error: "Type the business name to confirm deletion.",
+      fieldErrors: { confirmation: ["Type the business name to confirm."] },
+    };
+  }
+
+  try {
+    const result = await deleteBusinessPermanently({
+      businessId,
+      actorUserId: ownerAccess.user.id,
+      confirmation,
+    });
+
+    if (!result.ok) {
+      if (result.reason === "confirmation-mismatch") {
+        return {
+          error: "Type the exact business name to confirm deletion.",
+          fieldErrors: {
+            confirmation: ["This does not match the business name."],
+          },
+        };
+      }
+
+      return { error: "That business could not be found." };
+    }
+
+    await clearActiveBusinessCookieIfNeeded(businessSlug);
+    updateUserBusinessMembershipCacheTags({
+      userId: ownerAccess.user.id,
+      businessSlug,
+    });
+
+    return { success: "Business permanently deleted." };
+  } catch (error) {
+    console.error("Failed to permanently delete business.", error);
+    return { error: "We couldn't delete the business right now." };
   }
 }
 
