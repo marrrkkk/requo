@@ -38,6 +38,14 @@ vi.mock("sonner", () => ({
   },
 }));
 
+vi.mock("@/components/theme-provider", () => ({
+  useTheme: () => ({
+    resolvedTheme: "light",
+    setTheme: vi.fn(),
+    theme: "system",
+  }),
+}));
+
 import { CommandMenu } from "@/components/shell/command-menu";
 import { SendQuoteDialog } from "@/features/quotes/components/send-quote-dialog";
 
