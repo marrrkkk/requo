@@ -1,5 +1,5 @@
 export const businessMemberRoles = ["owner", "manager", "staff"] as const;
-export const businessMemberAssignableRoles = ["manager", "staff"] as const;
+export const businessMemberAssignableRoles = ["owner", "manager", "staff"] as const;
 export const businessMemberInviteDurationDays = 14;
 
 export type BusinessMemberRole = (typeof businessMemberRoles)[number];

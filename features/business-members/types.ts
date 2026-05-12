@@ -14,7 +14,7 @@ export type BusinessMemberView = {
 export type BusinessMemberInviteView = {
   inviteId: string;
   email: string;
-  role: Exclude<BusinessMemberRole, "owner">;
+  role: BusinessMemberRole;
   token: string;
   inviterName: string | null;
   inviterEmail: string;

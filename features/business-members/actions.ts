@@ -4,9 +4,12 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { and, eq, ne } from "drizzle-orm";
 
 import { getValidationActionState } from "@/lib/action-state";
 import { uniqueCacheTags, getBusinessMembersCacheTags } from "@/lib/cache/business-tags";
+import { db } from "@/lib/db/client";
+import { businessMembers } from "@/lib/db/schema";
 import { getOwnerBusinessActionContext } from "@/lib/db/business-access";
 import { requireSession } from "@/lib/auth/session";
 import { activeBusinessSlugCookieName, getBusinessDashboardPath, getBusinessMemberInvitePath, getBusinessMembersPath } from "@/features/businesses/routes";
@@ -64,7 +67,7 @@ export async function createBusinessMemberInviteAction(
       businessId: businessContext.business.id,
       inviterUserId: user.id,
       email: validationResult.data.email,
-      role: validationResult.data.role === "manager" ? "manager" : "staff",
+      role: validationResult.data.role,
       token: inviteToken,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
@@ -187,7 +190,22 @@ export async function removeBusinessMemberAction(
   const isSelf = formData.get("userId") === user.id;
 
   if (isSelf) {
-    return { error: "You can't remove the business owner." };
+    // Allow leaving only if there is at least one other owner.
+    const otherOwners = await db
+      .select({ id: businessMembers.id })
+      .from(businessMembers)
+      .where(
+        and(
+          eq(businessMembers.businessId, businessContext.business.id),
+          eq(businessMembers.role, "owner"),
+          ne(businessMembers.userId, user.id),
+        ),
+      )
+      .limit(1);
+
+    if (otherOwners.length === 0) {
+      return { error: "Assign another owner before leaving this business." };
+    }
   }
 
   try {
