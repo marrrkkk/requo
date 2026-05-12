@@ -209,7 +209,6 @@ export const auth = betterAuth({
     },
   },
   plugins: [
-    nextCookies(),
     magicLink({
       expiresIn: 900,
       storeToken: "hashed",
@@ -231,6 +230,9 @@ export const auth = betterAuth({
       // set explicitly to make the invariant visible in config).
       allowImpersonatingAdmins: false,
     }),
+    // next-cookies must be last so plugins with `hooks.after` don't set
+    // cookies that bypass the Next.js cookie store.
+    nextCookies(),
   ],
   databaseHooks: {
     user: {
