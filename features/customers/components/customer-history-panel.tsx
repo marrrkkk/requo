@@ -182,7 +182,7 @@ export function CustomerHistoryPanel({
                     </TabsList>
 
                     <TabsContent className="min-h-0 flex-1" value="all">
-                      <ScrollArea className="h-[calc(100vh-17rem)] pr-4">
+                      <ScrollArea className="h-full pr-4">
                         <DashboardDetailFeed>
                           {timeline.map((item) =>
                             item.kind === "inquiry" ? (
@@ -233,7 +233,7 @@ export function CustomerHistoryPanel({
                     </TabsContent>
 
                     <TabsContent className="min-h-0 flex-1" value="inquiries">
-                      <ScrollArea className="h-[calc(100vh-17rem)] pr-4">
+                      <ScrollArea className="h-full pr-4">
                         {history.inquiries.length ? (
                           <DashboardDetailFeed>
                             {history.inquiries.map((inquiry) => (
@@ -265,7 +265,7 @@ export function CustomerHistoryPanel({
                     </TabsContent>
 
                     <TabsContent className="min-h-0 flex-1" value="quotes">
-                      <ScrollArea className="h-[calc(100vh-17rem)] pr-4">
+                      <ScrollArea className="h-full pr-4">
                         {history.quotes.length ? (
                           <DashboardDetailFeed>
                             {history.quotes.map((quote) => (

@@ -359,7 +359,7 @@ async function InquiryDetailContent({
                     </SheetDescription>
                   </SheetHeader>
                   <SheetBody className="min-h-0 flex-1">
-                    <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
+                    <ScrollArea className="h-full pr-4">
                       <div className="grid gap-3 xl:grid-cols-2">
                         {customFields.map((field) => (
                           <InfoTile
@@ -406,7 +406,7 @@ async function InquiryDetailContent({
                     </SheetDescription>
                   </SheetHeader>
                   <SheetBody className="min-h-0 flex-1">
-                    <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
+                    <ScrollArea className="h-full pr-4">
                       <DashboardDetailFeed>
                         {inquiry.attachments.map((attachment) => (
                           <DashboardDetailFeedItem
@@ -496,7 +496,7 @@ async function InquiryDetailContent({
                           </SheetDescription>
                         </SheetHeader>
                         <SheetBody className="min-h-0 flex-1 gap-5">
-                          <ScrollArea className="h-[calc(100vh-10rem)] pr-4">
+                          <ScrollArea className="h-full pr-4">
                             <DashboardDetailFeed>
                               {inquiry.activities.map((activity) => (
                                 <DashboardDetailFeedItem
@@ -762,7 +762,7 @@ function InquiryNotesSheetSection({
           <SheetBody className="min-h-0 flex-1 gap-5">
             <InquiryNoteForm action={noteAction} embedded />
             {inquiry.notes.length ? (
-              <ScrollArea className="h-[calc(100vh-22rem)] pr-4">
+              <ScrollArea className="h-full pr-4">
                 <DashboardDetailFeed>
                   {inquiry.notes.map((note) => (
                     <DashboardDetailFeedItem
@@ -824,7 +824,7 @@ function CustomerHistorySheetSection({
                 </SheetDescription>
               </SheetHeader>
               <SheetBody className="min-h-0 flex-1">
-                <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
+                <ScrollArea className="h-full pr-4">
                   <CustomerHistoryPanel
                     businessSlug={businessSlug}
                     history={history}

@@ -152,7 +152,7 @@ export function FollowUpPanel({
                   </SheetDescription>
                 </SheetHeader>
                 <SheetBody className="min-h-0 flex-1 gap-5">
-                  <ScrollArea className="h-[calc(100vh-10rem)] pr-4">
+                  <ScrollArea className="h-full pr-4">
                     <DashboardDetailFeed>
                       {history.map((followUp) => (
                         <DashboardDetailFeedItem
