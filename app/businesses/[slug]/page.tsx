@@ -10,7 +10,11 @@ import {
 import { getPublicBusinessProfileBySlug } from "@/features/businesses/queries";
 import { timed } from "@/lib/dev/server-timing";
 import { absoluteUrl } from "@/lib/seo/site";
-import { getLocalBusinessStructuredData } from "@/lib/seo/structured-data";
+import {
+  buildBreadcrumbsForPathname,
+  getBreadcrumbListStructuredData,
+  getLocalBusinessStructuredData,
+} from "@/lib/seo/structured-data";
 
 /**
  * Public business profile at `/businesses/[slug]`.
@@ -86,12 +90,34 @@ export default async function PublicBusinessPage({
     areaServed: business.areaServed,
   });
 
+  const breadcrumbItems = buildBreadcrumbsForPathname(
+    `/businesses/${business.slug}`,
+    {
+      "/businesses": "Businesses",
+      [`/businesses/${business.slug}`]: business.name,
+    },
+  );
+  const breadcrumbStructuredData = breadcrumbItems.length
+    ? getBreadcrumbListStructuredData({
+        items: breadcrumbItems.map((item) => ({
+          ...item,
+          url: absoluteUrl(item.url),
+        })),
+      })
+    : null;
+
   return (
     <>
       {businessStructuredData ? (
         <StructuredData
           data={businessStructuredData}
           id={`requo-business-${business.slug}-structured-data`}
+        />
+      ) : null}
+      {breadcrumbStructuredData ? (
+        <StructuredData
+          data={breadcrumbStructuredData}
+          id="breadcrumb-structured-data"
         />
       ) : null}
       <StatePageCard

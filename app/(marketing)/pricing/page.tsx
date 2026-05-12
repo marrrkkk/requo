@@ -9,7 +9,11 @@ import { planPricing } from "@/lib/billing/plans";
 import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
 import { businessPlans, planMeta, type BusinessPlan } from "@/lib/plans/plans";
 import { absoluteUrl, createPageMetadata } from "@/lib/seo/site";
-import { getProductPricingStructuredData } from "@/lib/seo/structured-data";
+import {
+  buildBreadcrumbsForPathname,
+  getBreadcrumbListStructuredData,
+  getProductPricingStructuredData,
+} from "@/lib/seo/structured-data";
 
 export const metadata: Metadata = createPageMetadata({
   description:
@@ -76,12 +80,30 @@ export default function PricingRoute() {
     url: absoluteUrl("/pricing"),
   });
 
+  const breadcrumbItems = buildBreadcrumbsForPathname("/pricing", {
+    "/pricing": "Pricing",
+  });
+  const breadcrumbStructuredData = breadcrumbItems.length
+    ? getBreadcrumbListStructuredData({
+        items: breadcrumbItems.map((item) => ({
+          ...item,
+          url: absoluteUrl(item.url),
+        })),
+      })
+    : null;
+
   return (
     <>
       <StructuredData
         data={productStructuredData}
         id="requo-product-pricing-structured-data"
       />
+      {breadcrumbStructuredData ? (
+        <StructuredData
+          data={breadcrumbStructuredData}
+          id="breadcrumb-structured-data"
+        />
+      ) : null}
       <Suspense fallback={<PricingPage currency="USD" />}>
         <PricingRouteDynamic />
       </Suspense>

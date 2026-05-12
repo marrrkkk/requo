@@ -13,7 +13,11 @@ import {
   getPublicInquiryPageTitle,
 } from "@/features/inquiries/metadata";
 import { getPublicInquiryBusinessBySlug } from "@/features/inquiries/queries";
-import { getPublicInquiryWebPageStructuredData } from "@/lib/seo/structured-data";
+import {
+  buildBreadcrumbsForPathname,
+  getBreadcrumbListStructuredData,
+  getPublicInquiryWebPageStructuredData,
+} from "@/lib/seo/structured-data";
 import { timed } from "@/lib/dev/server-timing";
 import {
   absoluteUrl,
@@ -77,12 +81,34 @@ export default async function PublicInquiryPage({
     siteOrigin: getSiteOrigin(),
   });
 
+  const breadcrumbItems = buildBreadcrumbsForPathname(
+    `/inquire/${slug}`,
+    {
+      "/inquire": "Inquire",
+      [`/inquire/${slug}`]: business.name,
+    },
+  );
+  const breadcrumbStructuredData = breadcrumbItems.length
+    ? getBreadcrumbListStructuredData({
+        items: breadcrumbItems.map((item) => ({
+          ...item,
+          url: absoluteUrl(item.url),
+        })),
+      })
+    : null;
+
   return (
     <>
       <StructuredData
         data={inquiryWebPageStructuredData}
         id="requo-public-inquiry-webpage-structured-data"
       />
+      {breadcrumbStructuredData ? (
+        <StructuredData
+          data={breadcrumbStructuredData}
+          id="breadcrumb-structured-data"
+        />
+      ) : null}
       <PublicInquiryPageRenderer
         business={business}
         action={submitPublicInquiry}

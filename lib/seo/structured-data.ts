@@ -287,7 +287,7 @@ export function buildBreadcrumbsForPathname(
 ): Array<{ name: string; url: string }> {
   const segments = pathname.split("/").filter(Boolean);
 
-  if (segments.length <= 1) {
+  if (segments.length === 0) {
     return [];
   }
 

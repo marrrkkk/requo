@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 
+import { StructuredData } from "@/components/seo/structured-data";
 import { RefundPolicyPage } from "@/features/legal/components/refund-policy-page";
-import { createPageMetadata } from "@/lib/seo/site";
+import { absoluteUrl, createPageMetadata } from "@/lib/seo/site";
+import {
+  buildBreadcrumbsForPathname,
+  getBreadcrumbListStructuredData,
+} from "@/lib/seo/structured-data";
 
 export const metadata: Metadata = createPageMetadata({
   description:
@@ -11,5 +16,27 @@ export const metadata: Metadata = createPageMetadata({
 });
 
 export default function RefundPage() {
-  return <RefundPolicyPage />;
+  const breadcrumbItems = buildBreadcrumbsForPathname("/refund-policy", {
+    "/refund-policy": "Refund Policy",
+  });
+  const breadcrumbStructuredData = breadcrumbItems.length
+    ? getBreadcrumbListStructuredData({
+        items: breadcrumbItems.map((item) => ({
+          ...item,
+          url: absoluteUrl(item.url),
+        })),
+      })
+    : null;
+
+  return (
+    <>
+      {breadcrumbStructuredData ? (
+        <StructuredData
+          data={breadcrumbStructuredData}
+          id="breadcrumb-structured-data"
+        />
+      ) : null}
+      <RefundPolicyPage />
+    </>
+  );
 }
