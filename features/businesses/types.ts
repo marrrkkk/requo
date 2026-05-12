@@ -107,3 +107,52 @@ export type BusinessLifecycleView = {
   deletedAt: Date | null;
   activeBusinessCount: number;
 };
+
+/**
+ * Address shape consumed by the LocalBusiness / ProfessionalService JSON-LD
+ * emitter. Keep every field optional: the schema currently has no dedicated
+ * address columns, so we simply omit the shape when the data is absent.
+ */
+export type PublicBusinessAddress = {
+  streetAddress?: string;
+  addressLocality?: string;
+  addressRegion?: string;
+  postalCode?: string;
+  addressCountry?: string;
+};
+
+/**
+ * Sitemap row for the public `/businesses/[slug]` route. `noIndex === true`
+ * entries are produced for visibility reasons (so consumers can see what
+ * was filtered) and must be dropped from the emitted sitemap to mirror the
+ * page's `robots` metadata. Mirrors the public-visibility predicate used
+ * by `getPublicBusinessProfileBySlug` (archived/locked/deleted all null).
+ */
+export type PublicBusinessSitemapEntry = {
+  slug: string;
+  pathname: string;
+  lastModified: Date;
+  noIndex: boolean;
+};
+
+/**
+ * Public-facing business profile consumed by the `/businesses/[slug]` page
+ * and `generateMetadata`. `isPublic` is the single noindex/sitemap source
+ * of truth — a business is public when it is not archived, locked, or
+ * soft-deleted. Optional address / telephone / areaServed fields are
+ * returned as `undefined` because the schema does not yet carry those
+ * columns.
+ */
+export type PublicBusinessProfile = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  shortDescription: string | null;
+  logoUrl: string | null;
+  updatedAt: Date;
+  isPublic: boolean;
+  address?: PublicBusinessAddress;
+  telephone?: string;
+  areaServed?: string;
+};

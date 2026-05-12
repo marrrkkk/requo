@@ -15,6 +15,7 @@ import {
   getBusinessOverviewCacheTags,
   getBusinessQuoteListCacheTags,
   getBusinessSettingsCacheTags,
+  getPublicBusinessProfileCacheTags,
   uniqueCacheTags,
 } from "@/lib/cache/business-tags";
 import { getBusinessActionContext } from "@/lib/db/business-access";
@@ -68,6 +69,12 @@ function updateBusinessCacheTags(businessId: string) {
     ...getBusinessAnalyticsCacheTags(businessId),
     ...getBusinessOverviewCacheTags(businessId),
   ])) {
+    updateTag(tag);
+  }
+}
+
+function updatePublicBusinessProfileCacheTags(businessSlug: string) {
+  for (const tag of getPublicBusinessProfileCacheTags(businessSlug)) {
     updateTag(tag);
   }
 }
@@ -193,6 +200,11 @@ export async function createBusinessAction(
       userId: user.id,
       businessSlug: business.slug,
     });
+    // Invalidate any cached null under this slug so the newly created
+    // public profile page starts serving fresh. Covers the edge case
+    // where `/businesses/<slug>` was visited before the business
+    // existed and the null was cached by the two-layer query.
+    updatePublicBusinessProfileCacheTags(business.slug);
     revalidatePath(businessesHubPath);
     dashboardPath = getBusinessDashboardPath(business.slug);
   } catch (error) {
@@ -278,6 +290,7 @@ async function archiveScopedBusiness(
 
     await clearActiveBusinessCookieIfNeeded(businessSlug);
     updateBusinessCacheTags(scopedBusinessId);
+    updatePublicBusinessProfileCacheTags(result.businessSlug);
     revalidateBusinessLifecyclePaths({
       businessSlug: result.businessSlug,
     });
@@ -340,6 +353,7 @@ export async function unarchiveBusinessAction(
     }
 
     updateBusinessCacheTags(ownerAccess.businessContext.business.id);
+    updatePublicBusinessProfileCacheTags(result.businessSlug);
     revalidateBusinessLifecyclePaths({
       businessSlug: result.businessSlug,
     });
@@ -418,6 +432,7 @@ export async function trashBusinessAction(
 
     await clearActiveBusinessCookieIfNeeded(businessSlug);
     updateBusinessCacheTags(ownerAccess.businessContext.business.id);
+    updatePublicBusinessProfileCacheTags(result.businessSlug);
     revalidateBusinessLifecyclePaths({
       businessSlug: result.businessSlug,
     });
@@ -474,6 +489,7 @@ export async function restoreBusinessAction(
     }
 
     updateBusinessCacheTags(ownerAccess.businessContext.business.id);
+    updatePublicBusinessProfileCacheTags(result.businessSlug);
     revalidateBusinessLifecyclePaths({
       businessSlug: result.businessSlug,
     });
@@ -532,6 +548,7 @@ export async function unlockBusinessAction(
     }
 
     updateBusinessCacheTags(ownerAccess.businessContext.business.id);
+    updatePublicBusinessProfileCacheTags(businessSlug);
     revalidateBusinessLifecyclePaths({
       businessSlug,
     });

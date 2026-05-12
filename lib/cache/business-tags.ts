@@ -166,3 +166,18 @@ export function getBusinessOverviewCacheTags(businessId: string) {
     `${scopeTag}:follow-ups`,
   ]);
 }
+
+/**
+ * Tags for the cached public business profile query consumed by
+ * `/businesses/[slug]` and its `generateMetadata`. Keyed by slug because
+ * public metadata resolution only has the slug in hand; `revalidateTag`
+ * callers that already hold the business id should additionally pass the
+ * `business:<id>` scope tag via their existing settings helpers so both
+ * paths invalidate together.
+ */
+export function getPublicBusinessProfileCacheTags(slug: string) {
+  return uniqueCacheTags([
+    `business-slug:${slug}`,
+    `business-public-profile:${slug}`,
+  ]);
+}
