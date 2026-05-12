@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
 
 vi.mock("@/lib/db/client", async () => {
-  const { testDb: mockedDb } = await import("./db");
+  const { testDb: mockedDb } = await import("../support/db");
 
   return { db: mockedDb };
 });
@@ -26,12 +26,12 @@ import {
   inquiryNotes,
 } from "@/lib/db/schema";
 
-import { closeTestDb, testDb } from "./db";
+import { closeTestDb, testDb } from "@/tests/support/db";
 import {
   cleanupWorkflowFixture,
   createWorkflowFixture,
   type WorkflowFixtureIds,
-} from "./workflow-fixtures";
+} from "@/tests/support/fixtures/workflow";
 
 const prefix = "test_inquiry_workflow";
 let ids: WorkflowFixtureIds;

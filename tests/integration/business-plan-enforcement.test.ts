@@ -2,19 +2,19 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { and, eq, isNull } from "drizzle-orm";
 
 vi.mock("@/lib/db/client", async () => {
-  const { testDb: mockedDb } = await import("./db");
+  const { testDb: mockedDb } = await import("../support/db");
   return { db: mockedDb };
 });
 
 import { enforceActiveBusinessLimitOnPlanChange } from "@/features/businesses/plan-enforcement";
 import { businesses, userRecentBusinesses } from "@/lib/db/schema";
 
-import { closeTestDb, testDb } from "./db";
+import { closeTestDb, testDb } from "@/tests/support/db";
 import {
   cleanupWorkflowFixture,
   createWorkflowFixture,
   type WorkflowFixtureIds,
-} from "./workflow-fixtures";
+} from "@/tests/support/fixtures/workflow";
 
 const prefix = "test_business_plan_enforcement";
 let ids: WorkflowFixtureIds;

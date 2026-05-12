@@ -58,6 +58,7 @@ import {
   getPublicInquiryAttachmentMaxBytes,
   resolveInquiryFormConfigForPlan,
 } from "@/features/inquiries/plan-rules";
+import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 
 function getTextValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -78,6 +79,23 @@ function getInquiryMutationCacheTags(businessId: string, inquiryId: string) {
   ]);
 }
 
+const publicInquirySubmitRateLimit = {
+  limit: 4,
+  windowMs: 10 * 60 * 1000,
+} as const;
+
+function getSubmittedPublicInquiryUrl(business: {
+  slug: string;
+  form: { isDefault: boolean; slug: string };
+}) {
+  const pagePath = getBusinessPublicInquiryUrl(
+    business.slug,
+    business.form.isDefault ? undefined : business.form.slug,
+  );
+
+  return `${pagePath}?submitted=1`;
+}
+
 export async function submitPublicInquiryAction(
   slug: string,
   formSlug: string | null,
@@ -85,12 +103,6 @@ export async function submitPublicInquiryAction(
   formData: FormData,
 ): Promise<PublicInquiryFormState> {
   const honeypotValue = getTextValue(formData, "website")?.trim();
-
-  if (honeypotValue) {
-    return {
-      success: "Thanks. Your inquiry has been sent.",
-    };
-  }
 
   const business = formSlug
     ? await getPublicInquiryBusinessByFormSlug({
@@ -102,6 +114,22 @@ export async function submitPublicInquiryAction(
   if (!business) {
     return {
       error: "This inquiry page is unavailable right now.",
+    };
+  }
+
+  if (honeypotValue) {
+    redirect(getSubmittedPublicInquiryUrl(business));
+  }
+
+  const allowed = await assertPublicActionRateLimit({
+    action: "public-inquiry-submit",
+    scope: `${business.id}:${business.form.id}`,
+    ...publicInquirySubmitRateLimit,
+  });
+
+  if (!allowed) {
+    return {
+      error: "Too many inquiry attempts. Please wait a few minutes before trying again.",
     };
   }
 
@@ -133,19 +161,6 @@ export async function submitPublicInquiryAction(
 
   if (!validationResult.success) {
     return getValidationActionState(validationResult.error, "Check the highlighted fields and try again.");
-  }
-
-  const allowed = await assertPublicActionRateLimit({
-    action: "public-inquiry-submit",
-    scope: business.id,
-    limit: 6,
-    windowMs: 15 * 60 * 1000,
-  });
-
-  if (!allowed) {
-    return {
-      error: "We couldn't submit your inquiry right now. Please try again.",
-    };
   }
 
   try {
@@ -219,10 +234,6 @@ export async function submitPublicInquiryAction(
       }
     });
 
-    return {
-      success: "Thanks. Your inquiry has been sent.",
-      inquiryId: createdInquiry.inquiryId,
-    };
   } catch (error) {
     console.error("Failed to submit public inquiry.", error);
 
@@ -230,6 +241,8 @@ export async function submitPublicInquiryAction(
       error: "We couldn't submit your inquiry right now. Please try again.",
     };
   }
+
+  redirect(getSubmittedPublicInquiryUrl(business));
 }
 
 export async function createManualInquiryAction(

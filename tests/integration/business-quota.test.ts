@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { count, eq, like } from "drizzle-orm";
 
 vi.mock("@/lib/db/client", async () => {
-  const { testDb: mockedDb } = await import("./db");
+  const { testDb: mockedDb } = await import("../support/db");
 
   return { db: mockedDb };
 });
@@ -16,7 +16,7 @@ import {
 import { businesses, businessMembers, profiles, user, accountSubscriptions } from "@/lib/db/schema";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
-import { closeTestDb, testDb } from "./db";
+import { closeTestDb, testDb } from "@/tests/support/db";
 
 const prefix = "test_business_quota";
 const now = new Date("2026-05-07T00:00:00.000Z");

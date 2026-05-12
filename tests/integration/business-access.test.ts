@@ -10,7 +10,7 @@ vi.mock("react", () => ({
 }));
 
 vi.mock("@/lib/db/client", async () => {
-  const { testDb: mockedDb } = await import("./db");
+  const { testDb: mockedDb } = await import("../support/db");
 
   return { db: mockedDb };
 });
@@ -50,12 +50,12 @@ import {
 import { getBusinessContextForUser } from "@/lib/db/business-access";
 import { accountSubscriptions, businesses } from "@/lib/db/schema";
 
-import { closeTestDb, testDb } from "./db";
+import { closeTestDb, testDb } from "@/tests/support/db";
 import {
   cleanupWorkflowFixture,
   createWorkflowFixture,
   type WorkflowFixtureIds,
-} from "./workflow-fixtures";
+} from "@/tests/support/fixtures/workflow";
 
 const prefix = "test_workflow_access";
 let ids: WorkflowFixtureIds;

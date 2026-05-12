@@ -82,13 +82,108 @@ export const inquiryContactMethods = [
 export type InquiryContactMethod = (typeof inquiryContactMethods)[number];
 
 export const inquiryContactMethodLabels: Record<InquiryContactMethod, string> = {
-  email: "Email Address",
-  phone: "Phone Number",
-  facebook: "Facebook URL",
-  instagram: "Instagram Handle",
-  whatsapp: "WhatsApp Number",
-  other: "Other Contact Info",
+  email: "Email",
+  phone: "Phone",
+  facebook: "Facebook",
+  instagram: "Instagram",
+  whatsapp: "WhatsApp",
+  other: "Other",
 };
+
+const inquirySocialContactMeta = {
+  facebook: {
+    canonicalHost: "facebook.com",
+    domains: ["facebook.com", "www.facebook.com", "m.facebook.com", "fb.com", "www.fb.com"],
+    prefix: "facebook.com/",
+  },
+  instagram: {
+    canonicalHost: "instagram.com",
+    domains: ["instagram.com", "www.instagram.com"],
+    prefix: "instagram.com/",
+  },
+} as const satisfies Partial<
+  Record<
+    InquiryContactMethod,
+    {
+      canonicalHost: string;
+      domains: readonly string[];
+      prefix: string;
+    }
+  >
+>;
+
+export function getInquiryContactHandleUrlPrefix(
+  method: InquiryContactMethod,
+) {
+  return inquirySocialContactMeta[method as keyof typeof inquirySocialContactMeta]
+    ?.prefix;
+}
+
+function parseContactHandleUrl(value: string) {
+  const candidate = /^[a-z][a-z\d+.-]*:\/\//i.test(value)
+    ? value
+    : `https://${value}`;
+
+  try {
+    return new URL(candidate);
+  } catch {
+    return null;
+  }
+}
+
+function safeDecodePathname(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+export function normalizeInquiryContactHandleEditableValue(
+  method: InquiryContactMethod,
+  value: string,
+) {
+  const trimmedValue = value.trim();
+  const socialMeta =
+    inquirySocialContactMeta[method as keyof typeof inquirySocialContactMeta];
+
+  if (!trimmedValue || !socialMeta) {
+    return trimmedValue;
+  }
+
+  const withoutHandleMarker = trimmedValue.replace(/^@+/, "").replace(/^\/+/, "");
+  const parsedUrl = parseContactHandleUrl(withoutHandleMarker);
+  const hostName = parsedUrl?.hostname.toLowerCase();
+
+  if (
+    !parsedUrl ||
+    !hostName ||
+    !socialMeta.domains.some((domain) => domain === hostName)
+  ) {
+    return withoutHandleMarker;
+  }
+
+  return safeDecodePathname(parsedUrl.pathname)
+    .split("/")
+    .filter(Boolean)
+    .join("/")
+    .replace(/^@+/, "");
+}
+
+export function normalizeInquiryContactHandleSubmissionValue(
+  method: InquiryContactMethod,
+  value: string,
+) {
+  const socialMeta =
+    inquirySocialContactMeta[method as keyof typeof inquirySocialContactMeta];
+  const editableValue = normalizeInquiryContactHandleEditableValue(method, value);
+
+  if (!editableValue || !socialMeta) {
+    return editableValue;
+  }
+
+  return `https://${socialMeta.canonicalHost}/${editableValue}`;
+}
 
 export const inquiryProjectSystemFieldKeys = [
   "serviceCategory",
@@ -498,7 +593,6 @@ function createGeneralProjectServicesFields() {
 
 function normalizeLegacyContactFieldLabel(
   field: InquiryContactFieldConfig,
-  _contactKey: InquiryContactFieldKey,
 ): InquiryContactFieldConfig {
   return field;
 }
@@ -688,11 +782,9 @@ export function getNormalizedInquiryFormConfig(
     contactFields: {
       customerName: normalizeLegacyContactFieldLabel(
         parsed.data.contactFields.customerName,
-        "customerName",
       ),
       preferredContact: normalizeLegacyContactFieldLabel(
         parsed.data.contactFields.preferredContact,
-        "preferredContact",
       ),
     },
   } satisfies InquiryFormConfig;

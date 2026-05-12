@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img src="./docs/images/requo-homepage.png" alt="Requo marketing homepage" width="1200" />
+  <img src="./docs/images/requo-dashboard.png" alt="Requo owner dashboard" width="1200" />
 </p>
 
 ## Overview
@@ -49,6 +49,7 @@ keeping the core experience focused on this workflow rather than generic configu
 - AI-assisted response drafting through Groq, Gemini, and OpenRouter fallback routing
 - Transactional email flows through Resend, with Mailtrap and Brevo fallback
 - Subscription billing with Paddle inline checkout (USD)
+- Self-serve refund requests through Paddle adjustments, with webhook-tracked approval status
 - Analytics and notification foundations for operational visibility
 
 ## Tech Stack
@@ -276,11 +277,11 @@ Deployment and CI responsibilities are intentionally split:
 
 ### Billing
 
-- `lib/billing/` billing domain types, plan pricing, subscription service, webhook processing, and Paddle provider client
-- `lib/billing/providers/` Paddle REST client with webhook signature verification
-- `lib/db/schema/subscriptions.ts` account_subscriptions, billing_events, and payment_attempts tables
-- `features/billing/` checkout dialog, billing status card, upgrade button, server actions, and queries
-- `app/api/billing/` webhook route handler for Paddle
+- `lib/billing/` billing domain types, plan pricing, subscription service, webhook processing, Paddle provider client, and refund service
+- `lib/billing/providers/` Paddle REST client with webhook signature verification and refund adjustments
+- `lib/db/schema/subscriptions.ts` account_subscriptions, billing_events, payment_attempts, and refunds tables
+- `features/billing/` checkout dialog, billing status card, upgrade button, payment history with refund requests, server actions, and queries
+- `app/api/billing/` webhook route for Paddle and refund request route
 - `features/follow-ups/` follow-up creation, rescheduling, completion, skipping, and reminders
 - `features/analytics/` conversion/workflow analytics plus public inquiry and quote view tracking
 - `features/business-members/` business role management

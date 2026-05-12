@@ -39,10 +39,19 @@ export async function generateMetadata({
 
 export default async function PublicInquiryFormPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string; formSlug: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const { slug, formSlug } = await params;
+  const [{ slug, formSlug }, resolvedSearchParams] = await Promise.all([
+    params,
+    searchParams,
+  ]);
+  const submittedParam = resolvedSearchParams.submitted;
+  const submitted = Array.isArray(submittedParam)
+    ? submittedParam.includes("1")
+    : submittedParam === "1";
   const business = await getPublicInquiryBusinessByFormSlug({
     businessSlug: slug,
     formSlug,
@@ -84,11 +93,14 @@ export default async function PublicInquiryFormPage({
       <PublicInquiryPageRenderer
         business={business}
         action={submitPublicInquiry}
+        submitted={submitted}
       />
-      <PublicInquiryFormViewTracker
-        businessId={business.id}
-        businessInquiryFormId={business.form.id}
-      />
+      {!submitted ? (
+        <PublicInquiryFormViewTracker
+          businessId={business.id}
+          businessInquiryFormId={business.form.id}
+        />
+      ) : null}
     </>
   );
 }

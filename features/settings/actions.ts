@@ -258,6 +258,50 @@ export async function updateBusinessNotificationSettingsAction(
   };
 }
 
+export async function sendTestPushNotificationAction(): Promise<{
+  success?: string;
+  error?: string;
+}> {
+  const ownerAccess = await getOperationalBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+
+  try {
+    const { sendTestPushToUserForBusiness } = await import("@/lib/push/send");
+    const deliveredCount = await sendTestPushToUserForBusiness({
+      businessId: businessContext.business.id,
+      userId: user.id,
+      businessName: businessContext.business.name,
+    });
+
+    if (deliveredCount === 0) {
+      return {
+        error:
+          "No push-enabled browsers found. Enable push on this browser first.",
+      };
+    }
+
+    return {
+      success:
+        deliveredCount === 1
+          ? "Test notification sent. Check this browser."
+          : `Test notification sent to ${deliveredCount} browsers.`,
+    };
+  } catch (error) {
+    console.error("Failed to send test push notification.", error);
+
+    return {
+      error: "We couldn't send the test notification right now.",
+    };
+  }
+}
+
 export async function updateBusinessQuoteSettingsAction(
   _prevState: BusinessQuoteSettingsActionState,
   formData: FormData,

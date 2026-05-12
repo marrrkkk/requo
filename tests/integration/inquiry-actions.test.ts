@@ -1,5 +1,5 @@
 import { describe, it, expect, afterAll, beforeAll, vi } from 'vitest';
-import { testDb, closeTestDb } from './db';
+import { testDb, closeTestDb } from '@/tests/support/db';
 import {
   businessInquiryForms,
   businessMembers,

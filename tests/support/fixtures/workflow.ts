@@ -2,6 +2,7 @@ import { eq, inArray } from "drizzle-orm";
 
 import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
 import {
+  accountSubscriptions,
   activityLogs,
   analyticsEvents,
   auditLogs,
@@ -18,7 +19,7 @@ import {
   userRecentBusinesses,
 } from "@/lib/db/schema";
 
-import { testDb } from "./db";
+import { testDb } from "../db";
 
 export type WorkflowFixtureIds = {
   ownerUserId: string;
@@ -102,6 +103,9 @@ export async function cleanupWorkflowFixture(prefix: string) {
   await testDb.delete(quoteItems).where(inArray(quoteItems.businessId, businessIds));
   await testDb.delete(quotes).where(inArray(quotes.businessId, businessIds));
   await testDb.delete(inquiries).where(inArray(inquiries.businessId, businessIds));
+  await testDb
+    .delete(accountSubscriptions)
+    .where(inArray(accountSubscriptions.userId, userIds));
   await testDb
     .delete(businessInquiryForms)
     .where(inArray(businessInquiryForms.businessId, businessIds));

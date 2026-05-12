@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -61,16 +62,17 @@ export function BusinessInquiryFormPresetCard({
   return (
     <>
       <Card className="gap-0 border-border/75 bg-card/97">
-        <CardHeader className="gap-3 pb-5">
-          <CardTitle>Defaults</CardTitle>
+        <CardHeader className="gap-1.5 pb-5">
+          <CardTitle>Reset</CardTitle>
+          <CardDescription>
+            Rebuild from a starter template.
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 pt-0">
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1">
+            <p className="meta-label">Starter template</p>
             <p className="text-sm font-medium text-foreground">
               {starterTemplate.label}
-            </p>
-            <p className="text-sm leading-6 text-muted-foreground">
-              Rebuild the fields and public page from the selected starter template.
             </p>
           </div>
 
@@ -78,12 +80,16 @@ export function BusinessInquiryFormPresetCard({
             className="w-full"
             disabled={isPending}
             onClick={() => setIsDialogOpen(true)}
+            size="sm"
             type="button"
             variant="outline"
           >
             <RefreshCcw data-icon="inline-start" />
             Apply defaults
           </Button>
+          <p className="text-xs leading-5 text-muted-foreground">
+            Replaces the current fields and public page copy.
+          </p>
         </CardContent>
       </Card>
 

@@ -19,7 +19,7 @@ const refundSections: LegalDocumentSection[] = [
           This Refund Policy explains the terms and conditions under which{" "}
           {legalConfig.companyName} (&quot;{legalConfig.companyName},&quot;
           &quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) provides refunds
-          for business subscriptions purchased through{" "}
+          for subscriptions purchased through{" "}
           <a
             className="text-foreground underline-offset-4 hover:underline"
             href={legalConfig.domain}
@@ -29,10 +29,10 @@ const refundSections: LegalDocumentSection[] = [
           .
         </LegalParagraph>
         <LegalParagraph>
-          This policy applies to all subscription plans and payment methods
-          offered through the Service. By subscribing to a business plan, you
-          agree to the terms outlined in this Refund Policy and our Terms of
-          Service.
+          Subscription payments are processed by Paddle, our merchant of record.
+          Refunds are issued through Paddle and returned to the original card
+          used for the purchase. By subscribing to a paid plan, you agree to the
+          terms outlined in this Refund Policy and our Terms of Service.
         </LegalParagraph>
       </>
     ),
@@ -45,22 +45,23 @@ const refundSections: LegalDocumentSection[] = [
         <LegalSectionHeading>2. Refund Eligibility</LegalSectionHeading>
         <LegalParagraph>
           {legalConfig.companyName} offers a 30-day money-back guarantee for
-          first-time subscribers to business plans.
+          paid subscriptions.
         </LegalParagraph>
         <LegalSubheading>Eligibility Requirements</LegalSubheading>
         <LegalList
           items={[
-            "Refunds apply only to the first billing cycle of a new subscription",
-            "Refund requests must be submitted within 30 days of the initial payment",
-            "Refunds are issued to the original payment method used for the purchase",
-            "Refunds are not available for subscription renewals or subsequent billing periods",
+            "Refund requests must be submitted within 30 days of the original payment date",
+            "Refunds are issued to the original card used for the purchase",
+            "Each individual payment can only be refunded once",
+            "A refund request in progress blocks additional refund requests for the same payment",
           ]}
         />
         <LegalSubheading>Refund Amount</LegalSubheading>
         <LegalParagraph>
-          Eligible refunds will be issued for the full amount of the first
-          billing cycle payment. No partial refunds are provided for unused
-          portions of a billing period.
+          Eligible refunds are issued for the full amount of the original
+          payment. Partial refunds are not offered. Currency conversion rates
+          may differ from the original transaction rate depending on your card
+          issuer.
         </LegalParagraph>
       </>
     ),
@@ -72,33 +73,60 @@ const refundSections: LegalDocumentSection[] = [
       <>
         <LegalSectionHeading>3. How To Request A Refund</LegalSectionHeading>
         <LegalParagraph>
-          To request a refund, contact our support team at{" "}
+          You can request a refund directly from your account:
+        </LegalParagraph>
+        <LegalList
+          items={[
+            <>
+              Open{" "}
+              <span className="text-foreground">
+                Account &rsaquo; Billing &rsaquo; Order history
+              </span>
+              .
+            </>,
+            "Find the payment you'd like to refund.",
+            "Click Request refund and confirm. You may add an optional reason.",
+          ]}
+        />
+        <LegalParagraph>
+          If you&apos;d prefer, you can also email{" "}
           <a
             className="text-foreground underline-offset-4 hover:underline"
             href={`mailto:${legalConfig.supportEmail}`}
           >
             {legalConfig.supportEmail}
           </a>{" "}
-          with the following information:
+          with the email address on your account and the date of the payment.
+        </LegalParagraph>
+        <LegalSubheading>Approval Process</LegalSubheading>
+        <LegalParagraph>
+          When you submit a refund request, {legalConfig.companyName} creates a
+          refund adjustment with Paddle. Paddle reviews each refund and may
+          return one of the following outcomes:
         </LegalParagraph>
         <LegalList
           items={[
-            "Your business name or slug",
-            "The email address associated with your account",
-            "The date of your subscription payment",
-            "A brief explanation of your reason for requesting a refund",
+            <>
+              <span className="text-foreground">Pending approval:</span>{" "}
+              Paddle is reviewing the request. Your subscription remains active
+              in the meantime.
+            </>,
+            <>
+              <span className="text-foreground">Approved:</span> The refund is
+              processed. Your subscription is canceled and paid features remain
+              available until the end of the current billing period.
+            </>,
+            <>
+              <span className="text-foreground">Rejected:</span> The refund is
+              not processed and your subscription is unchanged.
+            </>,
           ]}
         />
         <LegalSubheading>Processing Timeframe</LegalSubheading>
         <LegalParagraph>
-          Refund requests are typically processed within 5-10 business days
-          after approval. The time it takes for the refund to appear in your
-          account depends on your payment provider and financial institution.
-        </LegalParagraph>
-        <LegalParagraph>
-          Processing times may vary depending on the payment provider used for
-          the original transaction and financial institution. Paddle-processed
-          card refunds may appear at different times depending on the bank.
+          Most approved refunds are initiated within 1-5 business days. The
+          time it takes for the refund to appear in your account depends on
+          your card issuer and can take up to 10 business days after approval.
         </LegalParagraph>
       </>
     ),
@@ -110,65 +138,44 @@ const refundSections: LegalDocumentSection[] = [
       <>
         <LegalSectionHeading>4. Subscription Cancellation</LegalSectionHeading>
         <LegalParagraph>
-          You may cancel your business subscription at any time through your
-          account dashboard. Cancellation does not automatically result in a
-          refund.
+          You can cancel your subscription at any time from your account
+          billing page. Cancellation is separate from a refund and does not, by
+          itself, issue money back.
         </LegalParagraph>
         <LegalSubheading>Cancellation Process</LegalSubheading>
         <LegalList
           items={[
-            "Navigate to your business settings and select the billing or subscription section",
-            "Follow the cancellation prompts to cancel your subscription",
-            "You will receive a confirmation email once the cancellation is processed",
+            "Open Account > Billing.",
+            "Click Cancel subscription and confirm.",
+            "You will receive an in-app confirmation once the cancellation is recorded.",
           ]}
         />
         <LegalSubheading>Access After Cancellation</LegalSubheading>
         <LegalParagraph>
-          When you cancel a subscription, your business will retain access to
-          paid features until the end of the current billing period. No refunds
-          are provided for the remaining time in the billing period after
-          cancellation.
-        </LegalParagraph>
-        <LegalParagraph>
-          After the billing period expires, your business will revert to the
-          free plan (if available) or lose access to paid features, depending on
-          the plan structure at that time.
+          When you cancel a subscription, you keep paid features until the end
+          of the current billing period. At the end of that period your account
+          reverts to the free plan. If you also need the payment refunded,
+          submit a refund request using the steps above.
         </LegalParagraph>
       </>
     ),
   },
   {
-    id: "payment-providers",
-    title: "5. Payment Provider Considerations",
+    id: "payment-provider",
+    title: "5. Payment Provider",
     content: (
       <>
-        <LegalSectionHeading>
-          5. Payment Provider Considerations
-        </LegalSectionHeading>
+        <LegalSectionHeading>5. Payment Provider</LegalSectionHeading>
         <LegalParagraph>
-          {legalConfig.companyName} uses Paddle to process subscription
-          payments:
+          {legalConfig.companyName} uses Paddle as its sole payment processor
+          and merchant of record. All paid plans are billed in USD. Refunds are
+          issued through Paddle adjustments, which are subject to Paddle&apos;s
+          review and their standard processing times.
         </LegalParagraph>
-        <LegalList
-          items={[
-            "Paddle: Processes card payments for subscriptions",
-          ]}
-        />
-        <LegalSubheading>Provider-Specific Differences</LegalSubheading>
         <LegalParagraph>
-          Refund processing times and procedures may vary depending on the
-          payment provider used for your subscription:
-        </LegalParagraph>
-        <LegalList
-          items={[
-            "Card payments through Paddle are processed as recurring subscriptions",
-            "Currency conversion rates (if applicable) are determined by the payment provider and may differ from the original transaction rate",
-          ]}
-        />
-        <LegalParagraph>
-          We will work with the appropriate payment provider to process your
-          refund request as quickly as possible, but we cannot guarantee
-          specific processing times for provider-specific delays.
+          We will work with Paddle to process your refund request as quickly as
+          possible, but we cannot guarantee specific processing times for
+          delays introduced by Paddle or your card issuer.
         </LegalParagraph>
       </>
     ),
@@ -180,16 +187,16 @@ const refundSections: LegalDocumentSection[] = [
       <>
         <LegalSectionHeading>6. Exceptions And Limitations</LegalSectionHeading>
         <LegalParagraph>
-          The following situations are not eligible for refunds:
+          The following situations are not eligible for a refund:
         </LegalParagraph>
         <LegalList
           items={[
-            "Refund requests submitted more than 30 days after the initial payment",
-            "Subscription renewals or payments for subsequent billing periods",
+            "Refund requests submitted more than 30 days after the payment date",
+            "Payments that have already been refunded",
+            "Payments with a refund request already in progress",
             "Partial refunds for unused portions of a billing period after cancellation",
-            "Subscriptions that have been cancelled but are still within the paid billing period",
             "Violations of our Terms of Service or acceptable use policies",
-            "Chargebacks or payment disputes initiated through your financial institution (contact us first)",
+            "Chargebacks or payment disputes initiated through your card issuer without contacting us first",
           ]}
         />
         <LegalSubheading>Abuse Prevention</LegalSubheading>
@@ -209,8 +216,8 @@ const refundSections: LegalDocumentSection[] = [
       <>
         <LegalSectionHeading>7. Questions And Contact</LegalSectionHeading>
         <LegalParagraph>
-          If you have questions about this Refund Policy or need assistance with
-          a refund request, please contact us:
+          If you have questions about this Refund Policy or need help with a
+          refund request, please contact us:
         </LegalParagraph>
         <LegalList
           items={[
@@ -227,8 +234,8 @@ const refundSections: LegalDocumentSection[] = [
           ]}
         />
         <LegalParagraph>
-          We aim to respond to all refund requests within 2-3 business days. For
-          general privacy inquiries, you may also contact{" "}
+          We aim to respond to refund-related questions within 2-3 business
+          days. For general privacy inquiries, you may also contact{" "}
           <a
             className="text-foreground underline-offset-4 hover:underline"
             href={`mailto:${legalConfig.privacyEmail}`}

@@ -3,7 +3,11 @@ import { connection } from "next/server";
 
 import { BillingStatusCard } from "@/features/billing/components/billing-status-card";
 import { PaymentHistoryTable } from "@/features/billing/components/payment-history-table";
-import { getAccountBillingOverview, getAccountPaymentHistory } from "@/features/billing/queries";
+import {
+  getAccountBillingOverview,
+  getAccountPaymentHistory,
+} from "@/features/billing/queries";
+import { listRefundsForPaymentAttempts, refundWindowDays } from "@/lib/billing/refunds";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForUser } from "@/lib/db/business-access";
 import {
@@ -54,6 +58,10 @@ async function AccountBillingContent() {
       getAccountPaymentHistory(session.user.id),
     ]);
 
+  const refunds = await listRefundsForPaymentAttempts(
+    paymentHistory.map((record) => record.id),
+  );
+
   if (!billingOverview) {
     return (
       <div className="rounded-lg border border-border/75 p-6 text-center text-muted-foreground">
@@ -81,7 +89,15 @@ async function AccountBillingContent() {
 
         <div className="flex flex-col gap-4">
           <h3 className="text-lg font-semibold tracking-tight">Order history</h3>
-          <PaymentHistoryTable records={paymentHistory} />
+          <PaymentHistoryTable
+            records={paymentHistory}
+            refunds={refunds.map((refund) => ({
+              id: refund.id,
+              paymentAttemptId: refund.paymentAttemptId,
+              status: refund.status,
+            }))}
+            refundWindowDays={refundWindowDays}
+          />
         </div>
       </div>
     </div>

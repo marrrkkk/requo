@@ -200,6 +200,7 @@ type BusinessNotificationSettingsFormProps = {
     state: BusinessNotificationSettingsActionState,
     formData: FormData,
   ) => Promise<BusinessNotificationSettingsActionState>;
+  sendTestPushAction?: () => Promise<{ success?: string; error?: string }>;
   businessId: string;
   settings: Pick<BusinessSettingsView, NotificationFieldKey>;
 };
@@ -210,6 +211,7 @@ const initialState: BusinessNotificationSettingsActionState = {};
 
 export function BusinessNotificationSettingsForm({
   action,
+  sendTestPushAction,
   businessId,
   settings,
 }: BusinessNotificationSettingsFormProps) {
@@ -234,6 +236,7 @@ export function BusinessNotificationSettingsForm({
   const [pendingPushField, setPendingPushField] =
     useState<NotificationFieldKey | null>(null);
   const [isEnablingBrowserPush, setIsEnablingBrowserPush] = useState(false);
+  const [isSendingTestPush, setIsSendingTestPush] = useState(false);
 
   const hasUnsavedChanges = allFieldKeys.some(
     (key) => values[key] !== settings[key],
@@ -411,6 +414,32 @@ export function BusinessNotificationSettingsForm({
     setValues((prev) => ({ ...prev, [fieldKey]: nextValue }));
   }
 
+  async function handleSendTestPush() {
+    if (!sendTestPushAction) {
+      return;
+    }
+
+    setIsSendingTestPush(true);
+
+    try {
+      const result = await sendTestPushAction();
+
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+
+      if (result.success) {
+        toast.success(result.success);
+      }
+    } catch (error) {
+      console.error("Failed to send test push.", error);
+      toast.error("We couldn't send the test notification right now.");
+    } finally {
+      setIsSendingTestPush(false);
+    }
+  }
+
   function handleCancelChanges() {
     const reset = {} as Record<NotificationFieldKey, boolean>;
     for (const key of allFieldKeys) {
@@ -433,10 +462,14 @@ export function BusinessNotificationSettingsForm({
 
       <PushBrowserStatus
         busy={isEnablingBrowserPush}
+        isSendingTest={isSendingTestPush}
         selectedPushCount={selectedPushCount}
         setupState={pushSetupState}
         onEnable={() => {
           void enablePushForBrowser();
+        }}
+        onSendTest={() => {
+          void handleSendTestPush();
         }}
       />
 
@@ -587,17 +620,52 @@ function NotificationEventRow({
 
 function PushBrowserStatus({
   busy,
+  isSendingTest,
   selectedPushCount,
   setupState,
   onEnable,
+  onSendTest,
 }: {
   busy: boolean;
+  isSendingTest: boolean;
   selectedPushCount: number;
   setupState: PushSetupState;
   onEnable: () => void;
+  onSendTest: () => void;
 }) {
-  if (selectedPushCount === 0 || setupState === "ready") {
+  if (selectedPushCount === 0) {
     return null;
+  }
+
+  if (setupState === "ready") {
+    return (
+      <Alert role="status">
+        <Smartphone />
+        <AlertTitle>Push is enabled on this browser</AlertTitle>
+        <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <span>
+            Send a test notification to confirm this browser receives pushes.
+          </span>
+          <Button
+            className="w-fit"
+            disabled={isSendingTest}
+            onClick={onSendTest}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            {isSendingTest ? (
+              <>
+                <Spinner data-icon="inline-start" aria-hidden="true" />
+                Sending...
+              </>
+            ) : (
+              "Send test notification"
+            )}
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
   }
 
   const statusContent = getPushStatusContent(setupState);

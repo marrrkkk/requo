@@ -1,7 +1,7 @@
 import "server-only";
 
 import webPush from "web-push";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { pushSubscriptions } from "@/lib/db/schema/push-subscriptions";
@@ -85,6 +85,50 @@ export async function sendPushToBusinessSubscribers(
   if (subscriptions.length === 0) {
     return 0;
   }
+
+  const results = await Promise.allSettled(
+    subscriptions.map((sub) => sendPushNotification(sub, payload)),
+  );
+
+  return results.filter(
+    (r) => r.status === "fulfilled" && r.value === true,
+  ).length;
+}
+
+/**
+ * Send a test push notification to a single user's subscriptions for a business.
+ * Used by the notification settings page so owners can verify delivery
+ * without triggering a real inquiry or quote event.
+ */
+export async function sendTestPushToUserForBusiness(input: {
+  businessId: string;
+  userId: string;
+  businessName: string;
+}): Promise<number> {
+  const subscriptions = await db
+    .select({
+      id: pushSubscriptions.id,
+      endpoint: pushSubscriptions.endpoint,
+      p256dh: pushSubscriptions.p256dh,
+      auth: pushSubscriptions.auth,
+    })
+    .from(pushSubscriptions)
+    .where(
+      and(
+        eq(pushSubscriptions.businessId, input.businessId),
+        eq(pushSubscriptions.userId, input.userId),
+      ),
+    );
+
+  if (subscriptions.length === 0) {
+    return 0;
+  }
+
+  const payload: PushPayload = {
+    title: "Test notification",
+    body: `Push notifications are working for ${input.businessName}.`,
+    url: "/",
+  };
 
   const results = await Promise.allSettled(
     subscriptions.map((sub) => sendPushNotification(sub, payload)),

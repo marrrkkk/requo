@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 
 vi.mock("@/lib/db/client", async () => {
-  const { testDb: mockedDb } = await import("./db");
+  const { testDb: mockedDb } = await import("../support/db");
 
   return { db: mockedDb };
 });
@@ -31,7 +31,7 @@ import {
   user,
 } from "@/lib/db/schema";
 
-import { closeTestDb, testDb } from "./db";
+import { closeTestDb, testDb } from "@/tests/support/db";
 
 const userId = "test_analytics_user";
 ;

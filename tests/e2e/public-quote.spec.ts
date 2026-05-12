@@ -5,6 +5,9 @@ import {
   demoQuotePublicToken,
   demoVoidedQuotePublicToken,
 } from "./fixtures";
+import { registerSmokeGuard } from "./smoke-registry";
+
+registerSmokeGuard();
 
 test.describe.configure({ mode: "serial" });
 

@@ -55,6 +55,16 @@ export const paymentAttemptStatusEnum = pgEnum("payment_attempt_status", [
   ...paymentAttemptStatuses,
 ]);
 
+export const refundStatuses = [
+  "pending_approval",
+  "approved",
+  "rejected",
+  "failed",
+] as const;
+export type RefundStatus = (typeof refundStatuses)[number];
+
+export const refundStatusEnum = pgEnum("refund_status", [...refundStatuses]);
+
 /* ── account_subscriptions ──────────────────────────────────────────────── */
 
 /**
@@ -212,5 +222,58 @@ export const paymentAttempts = pgTable(
     index("payment_attempts_provider_payment_id_idx").on(
       table.providerPaymentId,
     ),
+  ],
+);
+
+/* ── refunds ─────────────────────────────────────────────────────────────── */
+
+/**
+ * Refund requests for completed payments.
+ *
+ * A refund is created when an owner requests a refund for a paid transaction.
+ * Status transitions through `pending_approval` → `approved` | `rejected`
+ * based on the provider's `adjustment.updated` webhook events.
+ *
+ * Duplicate refund requests for the same payment are prevented by
+ * application-level checks before inserting a new row.
+ */
+export const refunds = pgTable(
+  "refunds",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    paymentAttemptId: text("payment_attempt_id")
+      .notNull()
+      .references(() => paymentAttempts.id, { onDelete: "cascade" }),
+    subscriptionId: text("subscription_id").references(
+      () => accountSubscriptions.id,
+      { onDelete: "set null" },
+    ),
+    businessId: text("business_id").references(() => businesses.id, {
+      onDelete: "set null",
+    }),
+    provider: billingProviderEnum("provider").notNull(),
+    providerTransactionId: text("provider_transaction_id").notNull(),
+    providerAdjustmentId: text("provider_adjustment_id"),
+    status: refundStatusEnum("status").notNull().default("pending_approval"),
+    reason: text("reason"),
+    requestedByUserId: text("requested_by_user_id").references(
+      () => user.id,
+      { onDelete: "set null" },
+    ),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("refunds_user_id_idx").on(table.userId),
+    index("refunds_payment_attempt_id_idx").on(table.paymentAttemptId),
+    index("refunds_provider_adjustment_id_idx").on(table.providerAdjustmentId),
+    index("refunds_status_idx").on(table.status),
   ],
 );

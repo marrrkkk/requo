@@ -17,6 +17,7 @@ import {
   updateSubscriptionStatus,
   updateSubscriptionPaymentMethod,
 } from "@/lib/billing/subscription-service";
+import { applyRefundStatusFromAdjustment } from "@/lib/billing/refunds";
 import { writeSubscriptionTransitionAuditLogs } from "@/features/audit/subscription";
 
 
@@ -342,6 +343,25 @@ export async function POST(request: Request) {
             businessId,
           });
         }
+        break;
+      }
+
+      case "adjustment.updated":
+      case "adjustment.created": {
+        const adjustmentId = data?.id as string | undefined;
+        const adjustmentStatus = data?.status as string | undefined;
+
+        if (!adjustmentId || !adjustmentStatus) {
+          console.warn("[Paddle Webhook] Missing adjustment data.", {
+            eventType,
+          });
+          break;
+        }
+
+        await applyRefundStatusFromAdjustment({
+          providerAdjustmentId: adjustmentId,
+          paddleStatus: adjustmentStatus,
+        });
         break;
       }
 

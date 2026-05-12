@@ -19,10 +19,10 @@ import {
   user,
 } from "@/lib/db/schema";
 
-import { closeTestDb, testDb } from "./db";
+import { closeTestDb, testDb } from "@/tests/support/db";
 
 vi.mock("@/lib/db/client", async () => {
-  const { testDb: mockedDb } = await import("./db");
+  const { testDb: mockedDb } = await import("../support/db");
 
   return { db: mockedDb };
 });

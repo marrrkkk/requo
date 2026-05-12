@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 import { demoBusinessSlug } from "./fixtures";
+import { registerSmokeGuard } from "./smoke-registry";
+
+registerSmokeGuard();
 
 test("invalid public inquiry links show the public not-found state", async ({
   page,
@@ -58,7 +61,11 @@ test("public inquiry page accepts a new submission @smoke", async ({ page }) => 
   await expect(page.getByText("Inquiry received.")).toBeVisible({
     timeout: 20_000,
   });
-  await expect(page.getByText(/^Reference inq_/)).toBeVisible({
-    timeout: 20_000,
-  });
+  await expect(page).toHaveURL(/submitted=1/);
+  await expect(
+    page.getByRole("button", { name: "Submit another inquiry" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Send inquiry" }),
+  ).toHaveCount(0);
 });

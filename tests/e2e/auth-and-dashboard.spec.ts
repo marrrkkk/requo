@@ -5,6 +5,9 @@ import {
   demoOwnerPassword,
   demoBusinessSlug,
 } from "./fixtures";
+import { registerSmokeGuard } from "./smoke-registry";
+
+registerSmokeGuard();
 
 async function signIn(page: Page) {
   await page.goto("/login");

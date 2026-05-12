@@ -31,8 +31,8 @@ type CreateBusinessDialogProps = {
     state: CreateBusinessActionState,
     formData: FormData,
   ) => Promise<CreateBusinessActionState>;
-  businessId: string;
   trigger?: React.ReactNode;
+  triggerVariant?: "button" | "hub-card";
   isLocked?: boolean;
   businessQuota?: BusinessQuotaSnapshot;
   billingProps?: {
@@ -45,10 +45,45 @@ type CreateBusinessDialogProps = {
   };
 };
 
+function createTemporaryBusinessId() {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function CreateBusinessHubCardTrigger() {
+  return (
+    <button
+      type="button"
+      className="group surface-card flex h-full w-full cursor-pointer flex-col gap-5 overflow-hidden rounded-xl border border-dashed border-border/80 bg-transparent p-0 text-left text-sm text-card-foreground outline-none transition-colors hover:border-border hover:bg-card/50 focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/15"
+    >
+      <span className="flex items-center gap-3 px-4 pt-4 text-muted-foreground transition-colors group-hover:text-foreground sm:px-6 sm:pt-6">
+        <PlusCircle className="size-5" />
+        <span className="font-heading text-lg font-semibold leading-tight tracking-tight">
+          New business
+        </span>
+      </span>
+      <span className="flex flex-1 flex-col justify-end gap-5 px-4 pb-4 sm:px-6 sm:pb-6">
+        <span className="text-sm leading-6 text-muted-foreground">
+          Set up a new business with inquiry capture, quote defaults, and follow-up basics.
+        </span>
+        <span
+          aria-hidden="true"
+          className="control-surface-secondary inline-flex h-10 w-full shrink-0 items-center justify-center gap-2 rounded-md border border-border/55 px-4 text-sm font-medium text-secondary-foreground sm:w-auto"
+        >
+          Create business
+        </span>
+      </span>
+    </button>
+  );
+}
+
 export function CreateBusinessDialog({
   action,
-  businessId,
   trigger,
+  triggerVariant = "button",
   isLocked,
   businessQuota,
   billingProps,
@@ -59,6 +94,7 @@ export function CreateBusinessDialog({
   const [planSheetOpen, setPlanSheetOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PaidPlan | null>(null);
   const [selectedInterval, setSelectedInterval] = useState<BillingInterval>("monthly");
+  const [businessId, setBusinessId] = useState<string | null>(null);
   const useSharedCheckout = Boolean(
     businessCheckout &&
       billingProps &&
@@ -105,17 +141,32 @@ export function CreateBusinessDialog({
       Create business
     </Button>
   );
+  const resolvedTrigger =
+    trigger ??
+    (triggerVariant === "hub-card" ? (
+      <CreateBusinessHubCardTrigger />
+    ) : (
+      defaultTrigger
+    ));
+
+  function handleCreateDialogOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      setBusinessId((currentBusinessId) =>
+        currentBusinessId ?? createTemporaryBusinessId(),
+      );
+    }
+
+    setOpen(nextOpen);
+  }
 
   if (quotaLocked) {
     return (
       <>
-        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
-        <div onClick={() => setOpen(true)}>
-          {trigger ?? defaultTrigger}
-        </div>
-
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="sm:max-w-md">
+          <DialogTrigger asChild>
+            {resolvedTrigger}
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>
                 {upgradePlan === "business"
@@ -126,56 +177,56 @@ export function CreateBusinessDialog({
                 {lockedDescription}
               </DialogDescription>
             </DialogHeader>
-              <DialogBody className="pt-2">
-                <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
-                  <p className="meta-label mb-2.5">
-                    {upgradePlan
-                      ? `${planMeta[upgradePlan].label} plan includes`
-                      : "Current plan"}
-                  </p>
-                  <ul className="flex flex-col gap-2">
-                    {upgradeFeatures.map((feature) => (
-                      <li
-                        className="flex items-center gap-2.5 text-sm text-foreground"
-                        key={feature}
-                      >
-                        <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                          <Check className="size-3" />
-                        </div>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </DialogBody>
-              <DialogFooter>
-                <Button className="w-full sm:w-auto" variant="outline" onClick={() => setOpen(false)}>
-                  Cancel
-                </Button>
-                {billingProps && upgradePlan ? (
-                  <Button
-                    className="w-full sm:w-auto"
-                    onClick={() => {
-                      setOpen(false);
-                      if (useSharedCheckout && businessCheckout) {
-                        if (businessCheckout.pendingCheckout) {
-                          businessCheckout.continueCheckout();
-                          return;
-                        }
-
-                        businessCheckout.openPlanSelection();
+            <DialogBody className="pt-2">
+              <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
+                <p className="meta-label mb-2.5">
+                  {upgradePlan
+                    ? `${planMeta[upgradePlan].label} plan includes`
+                    : "Current plan"}
+                </p>
+                <ul className="flex flex-col gap-2">
+                  {upgradeFeatures.map((feature) => (
+                    <li
+                      className="flex items-center gap-2.5 text-sm text-foreground"
+                      key={feature}
+                    >
+                      <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <Check className="size-3" />
+                      </div>
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </DialogBody>
+            <DialogFooter>
+              <Button className="w-full sm:w-auto" variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              {billingProps && upgradePlan ? (
+                <Button
+                  className="w-full sm:w-auto"
+                  onClick={() => {
+                    setOpen(false);
+                    if (useSharedCheckout && businessCheckout) {
+                      if (businessCheckout.pendingCheckout) {
+                        businessCheckout.continueCheckout();
                         return;
                       }
 
-                      setPlanSheetOpen(true);
-                    }}
-                  >
-                    <ArrowUpRight data-icon="inline-start" />
-                    {upgradeLabel}
-                  </Button>
-                ) : null}
-              </DialogFooter>
-            </DialogContent>
+                      businessCheckout.openPlanSelection();
+                      return;
+                    }
+
+                    setPlanSheetOpen(true);
+                  }}
+                >
+                  <ArrowUpRight data-icon="inline-start" />
+                  {upgradeLabel}
+                </Button>
+              ) : null}
+            </DialogFooter>
+          </DialogContent>
         </Dialog>
 
         {!useSharedCheckout && billingProps ? (
@@ -214,9 +265,9 @@ export function CreateBusinessDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleCreateDialogOpenChange}>
       <DialogTrigger asChild>
-        {trigger ?? defaultTrigger}
+        {resolvedTrigger}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[32rem]">
         <DialogHeader>
@@ -225,10 +276,12 @@ export function CreateBusinessDialog({
             Use a starter template to set up inquiry capture, quote defaults, and follow-up basics.
           </DialogDescription>
         </DialogHeader>
-        <CreateBusinessForm
-          action={action}
-          businessId={businessId}
-        />
+        {businessId ? (
+          <CreateBusinessForm
+            action={action}
+            businessId={businessId}
+          />
+        ) : null}
       </DialogContent>
     </Dialog>
   );

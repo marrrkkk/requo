@@ -4,10 +4,13 @@ import {
   getInquiryFormFieldInputName,
   getInquirySubmittedFieldValueDisplay,
   inquiryContactFieldKeys,
+  inquiryContactMethods,
+  normalizeInquiryContactHandleSubmissionValue,
   type InquiryFormConfig,
   type InquiryFormCustomFieldDefinition,
   type InquiryFormFieldDefinition,
   type InquiryFormSystemFieldDefinition,
+  type InquiryContactMethod,
   type InquirySubmittedFieldSnapshot,
   type InquirySubmittedFieldSnapshotField,
 } from "@/features/inquiries/form-config";
@@ -512,6 +515,24 @@ function createPublicInquirySubmissionSchema(
   });
 }
 
+function isInquiryContactMethod(value: unknown): value is InquiryContactMethod {
+  return (
+    typeof value === "string" &&
+    inquiryContactMethods.includes(value as InquiryContactMethod)
+  );
+}
+
+function normalizeCustomerContactHandle(
+  method: unknown,
+  handle: unknown,
+) {
+  if (!isInquiryContactMethod(method) || typeof handle !== "string") {
+    return handle;
+  }
+
+  return normalizeInquiryContactHandleSubmissionValue(method, handle);
+}
+
 function getSubmittedFieldSnapshotValue(
   field: InquiryFormFieldDefinition | (typeof inquiryContactFieldKeys)[number],
   parsedValues: Record<string, unknown>,
@@ -602,7 +623,10 @@ export function validatePublicInquirySubmission(
   
   if (config.contactFields.preferredContact.enabled) {
     candidate.customerContactMethod = getRawFormValue(formData, "customerContactMethod");
-    candidate.customerContactHandle = getRawFormValue(formData, "customerContactHandle");
+    candidate.customerContactHandle = normalizeCustomerContactHandle(
+      candidate.customerContactMethod,
+      getRawFormValue(formData, "customerContactHandle"),
+    );
   }
 
   for (const field of config.projectFields) {

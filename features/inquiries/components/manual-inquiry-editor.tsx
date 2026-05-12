@@ -993,9 +993,9 @@ function getContactHandlePlaceholder(method: InquiryContactMethod) {
     case "phone":
       return "+63 912 345 6789";
     case "facebook":
-      return "https://facebook.com/username";
+      return "username";
     case "instagram":
-      return "@username";
+      return "username";
     case "whatsapp":
       return "+63 912 345 6789";
     case "other":
@@ -1010,8 +1010,6 @@ function getContactHandleInputType(method: InquiryContactMethod) {
     case "phone":
     case "whatsapp":
       return "tel";
-    case "facebook":
-      return "url";
     default:
       return "text";
   }
@@ -1024,8 +1022,6 @@ function getContactHandleInputMode(method: InquiryContactMethod) {
     case "phone":
     case "whatsapp":
       return "tel" as const;
-    case "facebook":
-      return "url" as const;
     default:
       return "text" as const;
   }

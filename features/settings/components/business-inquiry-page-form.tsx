@@ -77,6 +77,7 @@ import { getFieldError } from "@/lib/action-state";
 import {
   createInquiryPageBusinessContact,
   inquiryPageBusinessContactSocialMeta,
+  inquiryPageMobileLayoutMeta,
   inquiryPageShowcaseImageFrameMeta,
   inquiryPageShowcaseImageSizeMeta,
   maxInquiryPageCardDescriptionLength,
@@ -85,6 +86,7 @@ import {
   maxInquiryPageCards,
   type InquiryPageCard,
   type InquiryPageCardIcon,
+  type InquiryPageMobileLayout,
   type InquiryPageShowcaseImageCrop,
   type InquiryPageShowcaseImageFrame,
   type InquiryPageShowcaseImageSize,
@@ -156,6 +158,9 @@ export function BusinessInquiryPageForm({
     pageCustomizationLocked
       ? "no_supporting_cards"
       : settings.inquiryPageConfig.template,
+  );
+  const [mobileLayout, setMobileLayout] = useState<InquiryPageMobileLayout>(
+    settings.inquiryPageConfig.mobileLayout ?? "full",
   );
   const [showSupportingCards, setShowSupportingCards] = useState(
     pageCustomizationLocked ? false : settings.inquiryPageConfig.showSupportingCards,
@@ -293,6 +298,7 @@ export function BusinessInquiryPageForm({
     businessType !== settings.businessType ||
     (!pageCustomizationLocked &&
       template !== settings.inquiryPageConfig.template) ||
+    mobileLayout !== (settings.inquiryPageConfig.mobileLayout ?? "full") ||
     (!pageCustomizationLocked &&
       showSupportingCards !== settings.inquiryPageConfig.showSupportingCards) ||
     (!pageCustomizationLocked &&
@@ -445,6 +451,7 @@ export function BusinessInquiryPageForm({
   const draftInquiryPageConfig = useMemo(
     () => ({
       template: effectiveTemplate,
+      mobileLayout,
       showSupportingCards: effectiveShowSupportingCards,
       showShowcaseImage: effectiveShowShowcaseImage,
       showBusinessContact,
@@ -477,6 +484,7 @@ export function BusinessInquiryPageForm({
       formDescription,
       formTitle,
       headline,
+      mobileLayout,
       showBusinessContact,
       showcaseImageCrop,
       showcaseImageFrame,
@@ -611,6 +619,7 @@ export function BusinessInquiryPageForm({
         ? "no_supporting_cards"
         : settings.inquiryPageConfig.template,
     );
+    setMobileLayout(settings.inquiryPageConfig.mobileLayout ?? "full");
     setShowSupportingCards(
       pageCustomizationLocked
         ? false
@@ -680,6 +689,7 @@ export function BusinessInquiryPageForm({
         value={String(settings.publicInquiryEnabled)}
       />
       <input name="template" type="hidden" value={effectiveTemplate} />
+      <input name="mobileLayout" type="hidden" value={mobileLayout} />
       <input
         name="showSupportingCards"
         type="hidden"
@@ -723,50 +733,53 @@ export function BusinessInquiryPageForm({
       />
       <input name="cards" type="hidden" value={JSON.stringify(cards)} />
 
-      <div className="flex flex-col gap-12 sm:gap-16">
-        <section className="space-y-6 sm:space-y-8">
-          <SectionIntro
-            description="Edit the public inquiry page."
-            title="Page"
+      <div className="flex flex-col gap-5 sm:gap-6">
+        <div className="flex flex-col gap-1.5 sm:px-2">
+          <h2 className="font-heading text-lg font-semibold tracking-tight text-foreground">
+            Page
+          </h2>
+          <p className="text-sm leading-6 text-muted-foreground">
+            Edit what customers see on the public inquiry page.
+          </p>
+        </div>
+
+        <PageSectionToc showCardsSection={pageCustomizationLocked || effectiveTemplate !== "no_supporting_cards"} />
+
+        <section
+          className="section-panel scroll-mt-20 p-5 sm:p-6"
+          id="basics"
+        >
+          <SectionHeading
+            description="Name, link, and starter template for this form."
+            title="Basics"
           />
 
-          <div className="rounded-[2.25rem] border border-border/75 bg-muted/20 px-6 py-7 sm:p-8">
-            <div className="space-y-2">
-              <p className="meta-label">Page setup</p>
-              <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
-                Page details
-              </p>
-              <p className="text-sm leading-6 text-muted-foreground">
-                Name it, set the link, and write the intro.
-              </p>
-            </div>
-
-            <div className="mt-8 grid gap-6">
-              <DetailsPanel
-                description="Name your form and set its public link."
-                eyebrow="Identity"
-                title="Form details"
-              >
-                <div className="grid gap-5 lg:grid-cols-2">
-                  <Field data-invalid={Boolean(nameError) || undefined}>
-                    <FieldLabel htmlFor="inquiry-page-form-name">Form name</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        aria-invalid={Boolean(nameError) || undefined}
-                        disabled={isPending}
-                        id="inquiry-page-form-name"
-                        maxLength={80}
-                        minLength={2}
-                        name="name"
-                        onChange={(event) => setFormName(event.currentTarget.value)}
-                        required
-                        value={formName}
-                      />
-                      <FieldError
-                        errors={nameError ? [{ message: nameError }] : undefined}
-                      />
-                    </FieldContent>
-                  </Field>
+          <div className="mt-6 flex flex-col gap-6">
+            <DetailsPanel
+              description="Shown to customers and used to build the public URL."
+              eyebrow="Identity"
+              title="Form details"
+            >
+              <div className="grid gap-5 lg:grid-cols-2">
+                <Field data-invalid={Boolean(nameError) || undefined}>
+                  <FieldLabel htmlFor="inquiry-page-form-name">Form name</FieldLabel>
+                  <FieldContent>
+                    <Input
+                      aria-invalid={Boolean(nameError) || undefined}
+                      disabled={isPending}
+                      id="inquiry-page-form-name"
+                      maxLength={80}
+                      minLength={2}
+                      name="name"
+                      onChange={(event) => setFormName(event.currentTarget.value)}
+                      required
+                      value={formName}
+                    />
+                    <FieldError
+                      errors={nameError ? [{ message: nameError }] : undefined}
+                    />
+                  </FieldContent>
+                </Field>
 
                   <Field data-invalid={Boolean(slugError) || undefined}>
                     <FieldLabel htmlFor="inquiry-page-form-slug">Form slug</FieldLabel>
@@ -839,6 +852,19 @@ export function BusinessInquiryPageForm({
                 </Field>
               </DetailsPanel>
 
+            </div>
+        </section>
+
+        <section
+          className="section-panel scroll-mt-20 p-5 sm:p-6"
+          id="content"
+        >
+          <SectionHeading
+            description="Copy shown at the top of the page and directly above the form."
+            title="Content"
+          />
+
+          <div className="mt-6 flex flex-col gap-6">
               <DetailsPanel
                 description="Shown above the form."
                 eyebrow="Form"
@@ -1006,31 +1032,23 @@ export function BusinessInquiryPageForm({
               </DetailsPanel>
 
             </div>
-          </div>
         </section>
 
-        <section className="space-y-6 sm:space-y-8">
-          <SectionIntro
+        <section
+          className="section-panel scroll-mt-20 p-5 sm:p-6"
+          id="layout"
+        >
+          <SectionHeading
             description="Choose how the page is arranged."
             title="Layout"
           />
 
-          <div className="rounded-[2.25rem] border border-border/75 bg-muted/20 px-6 py-7 sm:p-8">
-            <div className="space-y-2">
-              <p className="meta-label">Template</p>
-              <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
-                Choose a layout
-              </p>
-              <p className="text-sm leading-6 text-muted-foreground">
-                Pick how the intro, form, and supporting details are arranged.
-              </p>
-            </div>
-
+          <div className="mt-6 flex flex-col gap-6">
             {pageCustomizationLocked ? (
               <LockedSettingNotice message="Free forms use the no supporting cards layout. Upgrade to Pro to choose another layout." />
             ) : null}
 
-            <div className="mt-8 grid gap-4 xl:grid-cols-3">
+            <div className="grid gap-4 xl:grid-cols-3">
               {(
                 Object.keys(inquiryPageTemplateMeta) as InquiryPageTemplate[]
               ).map((templateId) => {
@@ -1095,6 +1113,39 @@ export function BusinessInquiryPageForm({
             </div>
 
             <div className="mt-6 border-t border-border/70 pt-6">
+              <div className="space-y-1">
+                <p className="meta-label">Mobile layout</p>
+                <p className="text-[0.95rem] font-semibold tracking-tight text-foreground">
+                  On mobile
+                </p>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Pick what customers see on phones. Desktop layout is unchanged.
+                </p>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {(
+                  Object.keys(inquiryPageMobileLayoutMeta) as InquiryPageMobileLayout[]
+                ).map((layoutId) => {
+                  const layoutMeta = inquiryPageMobileLayoutMeta[layoutId];
+                  const isSelected = mobileLayout === layoutId;
+
+                  return (
+                    <OptionTile
+                      description={layoutMeta.description}
+                      disabled={isPending}
+                      isSelected={isSelected}
+                      key={layoutId}
+                      label={layoutMeta.label}
+                      selectedLabel="Selected"
+                      onClick={() => setMobileLayout(layoutId)}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-6 border-t border-border/70 pt-6">
               <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div className="space-y-1">
                   <p className="meta-label">Brand assets</p>
@@ -1149,13 +1200,17 @@ export function BusinessInquiryPageForm({
         </section>
 
         {pageCustomizationLocked || effectiveTemplate !== "no_supporting_cards" ? (
-          <section className="space-y-6 sm:space-y-8">
-            <SectionIntro
-              description="Add the short prompts shown beside the inquiry form."
+          <section
+            className="section-panel scroll-mt-20 p-5 sm:p-6"
+            id="cards"
+          >
+            <SectionHeading
+              description="Short prompts shown beside the inquiry form."
               title="Supporting cards"
             />
 
-            <BuilderSection
+            <div className="mt-6">
+              <BuilderSection
               action={
                 <Button
                   className="w-full sm:w-auto"
@@ -1231,16 +1286,20 @@ export function BusinessInquiryPageForm({
                 errors={cardsError ? [{ message: cardsError }] : undefined}
               />
             </BuilderSection>
+            </div>
           </section>
         ) : null}
 
-        <section className="space-y-6 sm:space-y-8">
-          <SectionIntro
-            description="Add an optional image to the page."
+        <section
+          className="section-panel scroll-mt-20 p-5 sm:p-6"
+          id="showcase"
+        >
+          <SectionHeading
+            description="Add an optional image to the top of the page."
             title="Showcase image"
           />
 
-          <div className="flex flex-col gap-8 rounded-[2.25rem] border border-border/75 bg-muted/20 px-6 py-7 sm:p-8">
+          <div className="mt-6 flex flex-col gap-6">
             {pageCustomizationLocked ? (
               <LockedSettingNotice message="Showcase images are saved for later, but Free public forms do not display them." />
             ) : null}
@@ -1406,13 +1465,16 @@ export function BusinessInquiryPageForm({
           </div>
         </section>
 
-        <section className="space-y-6 sm:space-y-8">
-          <SectionIntro
+        <section
+          className="section-panel scroll-mt-20 p-5 sm:p-6"
+          id="contact"
+        >
+          <SectionHeading
             description="Shown in the public form area when at least one detail is filled in."
             title="Business contact"
           />
 
-          <div className="flex flex-col gap-8 rounded-[2.25rem] border border-border/75 bg-muted/20 px-6 py-7 sm:p-8">
+          <div className="mt-6 flex flex-col gap-6">
             <SectionVisibilityToggle
               checked={showBusinessContact}
               description="Keep the contact details saved, but hide the business contact block on the public form when this is off."
@@ -1730,7 +1792,7 @@ export function BusinessInquiryPageForm({
   );
 }
 
-function SectionIntro({
+function SectionHeading({
   description,
   title,
 }: {
@@ -1738,18 +1800,60 @@ function SectionIntro({
   title: string;
 }) {
   return (
-    <div className="space-y-2.5 sm:px-2">
-      <h2 className="font-heading text-[1.65rem] font-semibold tracking-tight text-foreground">
+    <div className="flex flex-col gap-1.5">
+      <h2 className="font-heading text-lg font-semibold tracking-tight text-foreground">
         {title}
       </h2>
-      <p className="text-base leading-6 text-muted-foreground">{description}</p>
+      <p className="text-sm leading-6 text-muted-foreground">{description}</p>
     </div>
+  );
+}
+
+const pageSectionTocItems: Array<{
+  id: string;
+  label: string;
+  requiresCardsSection?: boolean;
+}> = [
+  { id: "basics", label: "Basics" },
+  { id: "content", label: "Content" },
+  { id: "layout", label: "Layout" },
+  { id: "cards", label: "Cards", requiresCardsSection: true },
+  { id: "showcase", label: "Showcase" },
+  { id: "contact", label: "Contact" },
+];
+
+function PageSectionToc({
+  showCardsSection,
+}: {
+  showCardsSection: boolean;
+}) {
+  const items = pageSectionTocItems.filter(
+    (item) => !item.requiresCardsSection || showCardsSection,
+  );
+
+  return (
+    <nav
+      aria-label="Page sections"
+      className="-mx-4 mb-2 px-4 sm:-mx-6 sm:px-6"
+    >
+      <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto rounded-lg border border-border/70 bg-muted/25 p-1.5">
+        {items.map((item) => (
+          <a
+            className="inline-flex shrink-0 items-center rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            href={`#${item.id}`}
+            key={item.id}
+          >
+            {item.label}
+          </a>
+        ))}
+      </div>
+    </nav>
   );
 }
 
 function LockedSettingNotice({ message }: { message: string }) {
   return (
-    <div className="mt-5 flex items-start gap-3 rounded-xl border border-border/70 bg-background/75 px-4 py-3 text-sm text-muted-foreground">
+    <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-background/75 px-4 py-3 text-sm text-muted-foreground">
       <div className="min-w-0">
         <p className="font-medium text-foreground">Pro feature</p>
         <p className="mt-1 leading-6">{message}</p>
@@ -1944,17 +2048,16 @@ function BuilderSection({
   title: string;
 }) {
   return (
-    <div className="rounded-[1.75rem] border border-dashed border-border/70 bg-muted/15 p-4 sm:rounded-[2rem] sm:p-7">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1.5">
-          <p className="meta-label">
-            {title}
-          </p>
+    <div className="flex flex-col gap-5">
+      {action ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="meta-label">{title}</p>
+          <div className="w-full shrink-0 sm:w-auto">{action}</div>
         </div>
-        {action ? <div className="w-full shrink-0 sm:w-auto">{action}</div> : null}
-      </div>
-
-      <div className="mt-6 space-y-5">{children}</div>
+      ) : (
+        <p className="meta-label">{title}</p>
+      )}
+      <div className="flex flex-col gap-5">{children}</div>
     </div>
   );
 }

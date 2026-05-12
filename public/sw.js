@@ -5,6 +5,16 @@
  * Handles incoming push events and notification click navigation.
  */
 
+self.addEventListener("install", () => {
+  // Skip waiting so updates activate on next navigation without a double refresh.
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  // Take control of all clients immediately so in-flight pages can send pushes.
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener("push", (event) => {
   if (!event.data) {
     return;
