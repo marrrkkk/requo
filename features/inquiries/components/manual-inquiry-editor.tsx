@@ -25,10 +25,12 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  getInquiryContactHandleUrlPrefix,
   getInquiryFormFieldInputName,
   getInquirySubmittedFieldValueDisplay,
   inquiryContactMethodLabels,
   inquiryContactMethods,
+  normalizeInquiryContactHandleEditableValue,
   type InquiryContactMethod,
   type InquiryFormFieldDefinition,
   type InquiryFormSystemFieldDefinition,
@@ -170,12 +172,7 @@ export function ManualInquiryEditor({
 
       <DashboardSidebarStack className="min-w-0">
         <DashboardSection
-          action={
-            <>
-              <DashboardMetaPill>{selectedForm.slug}</DashboardMetaPill>
-              <DashboardMetaPill>New inquiry</DashboardMetaPill>
-            </>
-          }
+          action={<DashboardMetaPill>{selectedForm.slug}</DashboardMetaPill>}
           contentClassName="flex flex-col gap-5"
           description="Choose the intake form this manual inquiry should follow."
           title="Intake setup"
@@ -289,22 +286,10 @@ export function ManualInquiryEditor({
                   />
                 </FieldLabel>
                 <FieldContent>
-                  <Input
-                    autoComplete={
-                      customerContactMethod === "email" ? "email" : "off"
-                    }
+                  <ContactHandleInput
+                    contactMethod={customerContactMethod}
                     disabled={isPending}
-                    id="manual-inquiry-contact-handle"
-                    inputMode={getContactHandleInputMode(customerContactMethod)}
-                    key={customerContactMethod}
-                    maxLength={320}
-                    name="customerContactHandle"
-                    onChange={(event) =>
-                      setCustomerContactHandle(event.currentTarget.value)
-                    }
-                    placeholder={getContactHandlePlaceholder(customerContactMethod)}
-                    required
-                    type={getContactHandleInputType(customerContactMethod)}
+                    onChange={setCustomerContactHandle}
                     value={customerContactHandle}
                   />
                   <FieldError
@@ -546,6 +531,17 @@ function renderProjectInput({
       );
     }
 
+    if (field.key === "budgetText") {
+      return (
+        <BudgetRangeInput
+          disabled={isPending}
+          inputName={inputName}
+          onChange={onValueChange}
+          value={stringValue}
+        />
+      );
+    }
+
     return (
       <Input
         disabled={isPending}
@@ -556,7 +552,7 @@ function renderProjectInput({
         onChange={(event) => onValueChange(event.currentTarget.value)}
         placeholder={field.placeholder}
         required={field.required}
-        type={field.key === "budgetText" ? "text" : "text"}
+        type="text"
         value={stringValue}
       />
     );
@@ -1065,5 +1061,112 @@ function FieldLabelText({
         <span className="text-xs font-medium text-muted-foreground">Optional</span>
       ) : null}
     </span>
+  );
+}
+
+function ContactHandleInput({
+  contactMethod,
+  disabled,
+  onChange,
+  value,
+}: {
+  contactMethod: InquiryContactMethod;
+  disabled: boolean;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  const contactHandlePrefix = getInquiryContactHandleUrlPrefix(contactMethod);
+
+  if (contactHandlePrefix) {
+    return (
+      <div className="flex items-stretch">
+        <span className="inline-flex items-center rounded-l-lg border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
+          {contactHandlePrefix}
+        </span>
+        <Input
+          className="rounded-l-none"
+          disabled={disabled}
+          id="manual-inquiry-contact-handle"
+          maxLength={320}
+          name="customerContactHandle"
+          onBlur={() => {
+            onChange(
+              normalizeInquiryContactHandleEditableValue(contactMethod, value),
+            );
+          }}
+          onChange={(event) => onChange(event.currentTarget.value)}
+          placeholder={getContactHandlePlaceholder(contactMethod)}
+          required
+          type="text"
+          value={value}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <Input
+      autoComplete={contactMethod === "email" ? "email" : "off"}
+      disabled={disabled}
+      id="manual-inquiry-contact-handle"
+      inputMode={getContactHandleInputMode(contactMethod)}
+      key={contactMethod}
+      maxLength={320}
+      name="customerContactHandle"
+      onChange={(event) => onChange(event.currentTarget.value)}
+      placeholder={getContactHandlePlaceholder(contactMethod)}
+      required
+      type={getContactHandleInputType(contactMethod)}
+      value={value}
+    />
+  );
+}
+
+function BudgetRangeInput({
+  disabled,
+  inputName,
+  onChange,
+  value,
+}: {
+  disabled: boolean;
+  inputName: string;
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  const parts = value.split("-").map((p) => p.trim());
+  const minValue = parts[0] ?? "";
+  const maxValue = parts[1] ?? "";
+
+  function combine(min: string, max: string) {
+    if (min && max) return `${min} - ${max}`;
+    if (min) return min;
+    if (max) return `0 - ${max}`;
+    return "";
+  }
+
+  return (
+    <>
+      <input type="hidden" name={inputName} value={value} />
+      <div className="grid grid-cols-2 gap-3">
+        <Input
+          disabled={disabled}
+          inputMode="numeric"
+          min={0}
+          onChange={(event) => onChange(combine(event.currentTarget.value, maxValue))}
+          placeholder="Min"
+          type="number"
+          value={minValue}
+        />
+        <Input
+          disabled={disabled}
+          inputMode="numeric"
+          min={0}
+          onChange={(event) => onChange(combine(minValue, event.currentTarget.value))}
+          placeholder="Max"
+          type="number"
+          value={maxValue}
+        />
+      </div>
+    </>
   );
 }
