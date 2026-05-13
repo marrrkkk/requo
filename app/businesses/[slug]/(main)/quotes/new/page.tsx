@@ -19,6 +19,7 @@ import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
 import { timed } from "@/lib/dev/server-timing";
 import { createNoIndexMetadata } from "@/lib/seo/site";
+import { hasFeatureAccess } from "@/lib/plans";
 
 type NewQuotePageProps = {
   params: Promise<{ slug: string }>;
@@ -129,6 +130,11 @@ export default async function NewQuotePage({
       <QuoteEditor
         action={action}
         businessName={businessContext.business.name}
+        businessSlug={businessContext.business.slug}
+        canUseAiGenerator={hasFeatureAccess(
+          businessContext.business.plan,
+          "aiAssistant",
+        )}
         currency={businessContext.business.defaultCurrency}
         initialValues={initialValues}
         key={inquiryPrefill?.id ?? "manual"}

@@ -1,5 +1,3 @@
-import dynamic from "next/dynamic";
-import Image from "next/image";
 import Link from "next/link";
 import { AtSign, ExternalLink, Mail, Printer } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
@@ -98,29 +96,6 @@ export const metadata: Metadata = createNoIndexMetadata({
   title: "Quote detail",
   description: "View, edit, send, or track a single quote for this business.",
 });
-
-const QuoteAiPanel = dynamic(
-  () =>
-    import("@/features/ai/components/quote-ai-panel").then(
-      (module) => module.QuoteAiPanel,
-    ),
-  {
-    loading: () => (
-      <div className="fixed bottom-4 right-4 z-40 sm:bottom-5 sm:right-5">
-        <div className="flex size-14 items-center justify-center rounded-full border border-border/70 bg-[var(--surface-elevated-bg)] shadow-[var(--surface-shadow-lg)]">
-          <Image
-            src="/logo.svg"
-            alt=""
-            width={34}
-            height={34}
-            className="size-[2.15rem] object-contain"
-          />
-          <span className="sr-only">Loading Requo assistant</span>
-        </div>
-      </div>
-    ),
-  },
-);
 
 type QuoteDetailPageProps = {
   params: Promise<{ slug: string; id: string }>;
@@ -422,6 +397,11 @@ async function QuoteDetailContent({
           <QuoteEditor
             action={updateAction}
             businessName={businessContext.business.name}
+            businessSlug={businessSlug}
+            canUseAiGenerator={hasFeatureAccess(
+              businessContext.business.plan,
+              "aiAssistant",
+            )}
             currency={quote.currency}
             initialValues={getQuoteEditorInitialValuesFromDetail(quote)}
             key={quote.id}
@@ -738,12 +718,6 @@ async function QuoteDetailContent({
           </DashboardSidebarStack>
         </DashboardDetailLayout>
       )}
-      <QuoteAiPanel
-        businessSlug={businessSlug}
-        quoteId={quote.id}
-        userName={session.user.name || "You"}
-        plan={businessContext.business.plan}
-      />
     </DashboardPage>
   );
 }

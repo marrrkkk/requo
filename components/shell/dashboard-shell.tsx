@@ -203,13 +203,13 @@ const CommandMenu = dynamic(
 
 
 
-const DashboardAiPanel = dynamic(
+const AIChatPopover = dynamic(
 
   () =>
 
-    import("@/features/ai/components/dashboard-ai-panel").then(
+    import("@/features/ai/components/ai-chat-popover").then(
 
-      (module) => module.DashboardAiPanel,
+      (module) => module.AIChatPopover,
 
     ),
 
@@ -615,9 +615,7 @@ export function DashboardShell({
 
         </div>
 
-        <DashboardAiPanel
-
-          businessId={business.id}
+        <AIChatPopover
 
           businessSlug={business.slug}
 

@@ -1,6 +1,4 @@
 import Link from "next/link";
-import dynamic from "next/dynamic";
-import Image from "next/image";
 import {
   AtSign,
   FileText,
@@ -98,29 +96,6 @@ export const metadata: Metadata = createNoIndexMetadata({
   title: "Inquiry detail",
   description: "View and respond to a single inquiry for this business.",
 });
-
-const InquiryAiPanel = dynamic(
-  () =>
-    import("@/features/ai/components/inquiry-ai-panel").then(
-      (module) => module.InquiryAiPanel,
-    ),
-  {
-    loading: () => (
-      <div className="fixed bottom-4 right-4 z-40 sm:bottom-5 sm:right-5">
-        <div className="flex size-14 items-center justify-center rounded-full border border-border/70 bg-[var(--surface-elevated-bg)] shadow-[var(--surface-shadow-lg)]">
-          <Image
-            src="/logo.svg"
-            alt=""
-            width={34}
-            height={34}
-            className="size-[2.15rem] object-contain"
-          />
-          <span className="sr-only">Loading Requo assistant</span>
-        </div>
-      </div>
-    ),
-  },
-);
 
 type InquiryDetailPageProps = {
   params: Promise<{ slug: string; id: string }>;
@@ -697,12 +672,6 @@ async function InquiryDetailContent({
           </DashboardSection>
         </DashboardSidebarStack>
       </DashboardDetailLayout>
-      <InquiryAiPanel
-        businessSlug={businessSlug}
-        inquiryId={inquiry.id}
-        userName={session.user.name || "You"}
-        plan={businessContext.business.plan}
-      />
     </DashboardPage>
   );
 }

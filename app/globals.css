@@ -1612,6 +1612,23 @@ html[data-reload-loading="true"] [data-reload-loading-overlay] {
   .ai-prose th {
     @apply bg-secondary/60 font-semibold;
   }
+
+  .ai-stream-cursor {
+    animation: ai-stream-cursor-blink 1s steps(2, start) infinite;
+  }
+
+  @keyframes ai-stream-cursor-blink {
+    to {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ai-stream-cursor {
+      animation: none;
+      opacity: 0.6;
+    }
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

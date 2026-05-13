@@ -92,17 +92,8 @@ export type AiChatStreamEvent =
       message: string;
     };
 
-export const aiAssistantIntents = [
-  "draft-first-reply",
-  "summarize-inquiry",
-  "suggest-follow-up-questions",
-  "suggest-quote-line-items",
-  "rewrite-draft",
-  "generate-follow-up-message",
-  "custom",
-] as const;
-
-export type AiAssistantIntent = (typeof aiAssistantIntents)[number];
+export const aiAssistantTruncationMessage =
+  "The response hit the current output limit. Ask the assistant to continue if you need the rest.";
 
 export type InquiryAssistantContext = {
   business: {
@@ -220,80 +211,28 @@ export type InquiryAssistantContext = {
   memory: BusinessMemoryContext;
 };
 
-export type AiAssistantFieldErrors = Partial<
-  Record<"customPrompt" | "sourceDraft", string[] | undefined>
->;
+/**
+ * Draft payload returned by the AI quote generator.
+ * Values are normalised so the client can patch the editor without further parsing.
+ */
+export type AiQuoteDraftItem = {
+  description: string;
+  quantity: number;
+  unitPriceInCents: number;
+};
 
-export type AiAssistantResult = {
-  intent: AiAssistantIntent;
+export type AiQuoteDraft = {
   title: string;
-  output: string;
+  notes: string | null;
+  items: AiQuoteDraftItem[];
+  /** Present when the draft leaned on a pricing library entry. */
+  pricingLibraryEntryId?: string | null;
   model: string;
-  canInsertIntoReply: boolean;
+  provider: AiProviderName;
+  rationale?: string | null;
 };
 
-export type AiAssistantActionState = {
+export type AiQuoteDraftActionState = {
   error?: string;
-  fieldErrors?: AiAssistantFieldErrors;
-  result?: AiAssistantResult;
-};
-
-export type AiAssistantStreamEvent =
-  | {
-      type: "messages";
-      userMessage: InquiryMessage;
-      assistantMessage: InquiryMessage;
-    }
-  | {
-      type: "meta";
-      title: string;
-      model: string;
-      provider?: AiProviderName;
-      providerModel?: string;
-    }
-  | {
-      type: "delta";
-      value: string;
-    }
-  | {
-      type: "done";
-      truncated: boolean;
-    }
-  | {
-      type: "error";
-      message: string;
-    };
-
-export const aiAssistantTruncationMessage =
-  "The response hit the current output limit. Ask the assistant to continue if you need the rest.";
-
-export const inquiryMessageRoles = ["user", "assistant", "system"] as const;
-
-export type InquiryMessageRole = (typeof inquiryMessageRoles)[number];
-
-export const inquiryMessageStatuses = [
-  "completed",
-  "generating",
-  "failed",
-] as const;
-
-export type InquiryMessageStatus = (typeof inquiryMessageStatuses)[number];
-
-export type InquiryMessage = {
-  id: string;
-  inquiryId: string;
-  role: InquiryMessageRole;
-  content: string;
-  provider: AiProviderName | null;
-  model: string | null;
-  status: InquiryMessageStatus;
-  metadata: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type InquiryMessagesPage = {
-  messages: InquiryMessage[];
-  nextCursor: string | null;
-  hasMore: boolean;
+  draft?: AiQuoteDraft;
 };

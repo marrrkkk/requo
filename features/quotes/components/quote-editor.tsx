@@ -54,10 +54,13 @@ import {
   centsToMoneyInput,
   createQuoteEditorLineItem,
   createQuoteEditorLineItemFromLibraryItem,
+  createQuoteEditorLineItemValue,
   formatQuoteMoney,
   isQuoteEditorLineItemBlank,
   parseCurrencyInputToCents,
 } from "@/features/quotes/utils";
+import { AiQuoteGeneratorDialog } from "@/features/quotes/components/ai-quote-generator-dialog";
+import type { AiQuoteDraft } from "@/features/ai/types";
 import { cn } from "@/lib/utils";
 
 type QuoteEditorProps = {
@@ -66,6 +69,7 @@ type QuoteEditorProps = {
     formData: FormData,
   ) => Promise<QuoteEditorActionState>;
   businessName: string;
+  businessSlug: string;
   currency: string;
   initialValues: QuoteEditorValues;
   linkedInquiry: QuoteLinkedInquirySummary | null;
@@ -74,6 +78,7 @@ type QuoteEditorProps = {
   showFloatingUnsavedChanges?: boolean;
   submitLabel: string;
   submitPendingLabel: string;
+  canUseAiGenerator?: boolean;
 };
 
 const initialState: QuoteEditorActionState = {};
@@ -176,6 +181,7 @@ function getQuotePreviewItems(items: QuoteEditorLineItemValue[]) {
 export function QuoteEditor({
   action,
   businessName,
+  businessSlug,
   currency,
   initialValues,
   linkedInquiry,
@@ -184,6 +190,7 @@ export function QuoteEditor({
   showFloatingUnsavedChanges = false,
   submitLabel,
   submitPendingLabel,
+  canUseAiGenerator = false,
 }: QuoteEditorProps) {
   const [title, setTitle] = useState(initialValues.title);
   const [customerName, setCustomerName] = useState(initialValues.customerName);
@@ -429,6 +436,34 @@ export function QuoteEditor({
         : [...currentItems, ...copiedItems];
     });
     setIsLibraryOpen(false);
+  }
+
+  function applyAiDraft(draft: AiQuoteDraft) {
+    clearLineItemTimers();
+
+    if (draft.title.trim()) {
+      setTitle(draft.title.trim());
+    }
+
+    if (draft.notes !== null && draft.notes !== undefined) {
+      setNotes(draft.notes);
+    }
+
+    const draftItems = draft.items.length
+      ? draft.items.map((item) =>
+          createQuoteEditorLineItemValue({
+            description: item.description,
+            quantity: String(item.quantity),
+            unitPrice: centsToMoneyInput(item.unitPriceInCents),
+          }),
+        )
+      : [createQuoteEditorLineItem()];
+
+    setItems(draftItems.map((item) => ({ ...item, motionState: "entering" as const })));
+
+    for (const item of draftItems) {
+      scheduleItemEnter(item.id);
+    }
   }
 
   return (
@@ -716,6 +751,14 @@ export function QuoteEditor({
         <DashboardSection
           action={
             <>
+              {canUseAiGenerator ? (
+                <AiQuoteGeneratorDialog
+                  businessSlug={businessSlug}
+                  disabled={isPending}
+                  linkedInquiry={linkedInquiry}
+                  onApply={applyAiDraft}
+                />
+              ) : null}
               <Button
                 type="button"
                 variant="outline"

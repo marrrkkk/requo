@@ -1,9 +1,6 @@
 import { z } from "zod";
 
-import {
-  aiAssistantIntents,
-  aiSurfaces,
-} from "@/features/ai/types";
+import { aiSurfaces } from "@/features/ai/types";
 
 export const aiSurfaceSchema = z.enum(aiSurfaces);
 
@@ -76,6 +73,36 @@ export const aiChatRequestSchema = z.object({
   qualityTier: aiQualityTierSchema.optional(),
 });
 
+/**
+ * Input for the "Generate with AI" quote action.
+ * - `inquiryId` is optional so manual quotes can still be generated from a short brief.
+ * - `brief` is a short user note; optional when a linked inquiry already supplies context.
+ */
+export const aiGenerateQuoteDraftSchema = z
+  .object({
+    businessSlug: z.string().trim().min(1).max(120),
+    inquiryId: z.preprocess(
+      (value) => emptyToUndefined(firstString(value)),
+      z.string().trim().min(1).max(128).optional(),
+    ),
+    brief: z.preprocess(
+      (value) => emptyToUndefined(firstString(value)),
+      z.string().trim().max(2000).optional(),
+    ),
+  })
+  .superRefine((value, ctx) => {
+    if (!value.inquiryId && !value.brief) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["brief"],
+        message:
+          "Describe the job in a short brief or open this quote from a linked inquiry before generating.",
+      });
+    }
+  });
+
+export type AiGenerateQuoteDraftInput = z.infer<typeof aiGenerateQuoteDraftSchema>;
+
 function emptyToUndefined(value: unknown) {
   if (typeof value === "string" && value.trim() === "") {
     return undefined;
@@ -91,60 +118,3 @@ function firstString(value: unknown) {
 
   return value;
 }
-
-function optionalTrimmedText(maxLength: number) {
-  return z.preprocess(
-    emptyToUndefined,
-    z
-      .string()
-      .trim()
-      .max(maxLength, `Use ${maxLength} characters or fewer.`)
-      .optional(),
-  );
-}
-
-export const aiAssistantIntentSchema = z.enum(aiAssistantIntents);
-
-export const aiAssistantRequestSchema = z
-  .object({
-    intent: aiAssistantIntentSchema,
-    customPrompt: optionalTrimmedText(1200),
-    sourceDraft: optionalTrimmedText(6000),
-  })
-  .superRefine((value, ctx) => {
-    if (value.intent === "custom" && !value.customPrompt) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Add a custom prompt before running a custom request.",
-        path: ["customPrompt"],
-      });
-    }
-
-    if (value.intent === "rewrite-draft" && !value.sourceDraft) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Paste the draft you want rewritten.",
-        path: ["sourceDraft"],
-      });
-    }
-  });
-
-export type AiAssistantRequestInput = z.infer<typeof aiAssistantRequestSchema>;
-
-export const inquiryMessagePaginationSchema = z.object({
-  before: z.preprocess(
-    (value) => emptyToUndefined(firstString(value)),
-    z.string().trim().max(500).optional(),
-  ),
-  limit: z
-    .preprocess((value) => {
-      const rawValue = firstString(value);
-
-      if (typeof rawValue !== "string" || rawValue.trim() === "") {
-        return 30;
-      }
-
-      return Number(rawValue);
-    }, z.number().int().min(1).max(50))
-    .catch(30),
-});
