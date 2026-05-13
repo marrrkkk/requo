@@ -8,7 +8,6 @@ import {
 } from "@/features/settings/actions";
 import { BusinessInquiryFormsManager } from "@/features/settings/components/business-inquiry-forms-manager";
 import { getBusinessInquiryFormsSettingsForBusiness } from "@/features/settings/queries";
-import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { timed } from "@/lib/dev/server-timing";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../settings/_lib/page-context";
@@ -25,12 +24,9 @@ export const unstable_instant = {
 
 export default async function BusinessFormsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();
-  const [settings, billingOverview] = await timed(
-    "formsPage.parallelSettingsAndBilling",
-    Promise.all([
-      getBusinessInquiryFormsSettingsForBusiness(businessContext.business.id),
-      getBusinessBillingOverview(businessContext.business.id),
-    ]),
+  const settings = await timed(
+    "formsPage.settings",
+    getBusinessInquiryFormsSettingsForBusiness(businessContext.business.id),
   );
 
   if (!settings) {
@@ -49,18 +45,6 @@ export default async function BusinessFormsPage() {
         unarchiveAction={unarchiveBusinessInquiryFormAction}
         settings={settings}
         plan={businessContext.business.plan}
-        billingProps={
-          billingOverview
-            ? {
-                userId: billingOverview.userId,
-                businessId: billingOverview.businessId,
-                businessSlug: billingOverview.businessSlug,
-                currentPlan: billingOverview.currentPlan,
-                region: billingOverview.region,
-                defaultCurrency: billingOverview.defaultCurrency,
-              }
-            : undefined
-        }
       />
     </>
   );

@@ -18,6 +18,11 @@ export const metadata: Metadata = createNoIndexMetadata({
   title: "Log in",
 });
 
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
+};
+
 export default async function LoginPage({
   searchParams,
 }: {

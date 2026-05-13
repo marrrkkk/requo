@@ -24,14 +24,20 @@ import {
   Copy,
   History,
   MessageSquarePlus,
+  Pin,
   SendHorizontal,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+import type { BusinessPlan } from "@/lib/plans/plans";
+import { hasFeatureAccess } from "@/lib/plans";
+import { LockedAction } from "@/features/paywall";
 import type {
   AiChatStreamEvent,
   AiConversation,
@@ -44,6 +50,7 @@ import {
   consumeStream,
   createDashboardConversationSummary,
   createMessageId,
+  deleteConversation,
   fetchDashboardConversations,
   fetchConversation,
   fetchMessagePage,
@@ -62,7 +69,6 @@ import {
   type ConversationMessagesSnapshot,
   type EntityConversationSnapshot,
 } from "@/features/ai/components/ai-chat-helpers";
-import { cn } from "@/lib/utils";
 
 type AiChatPanelProps = {
   businessSlug: string;
@@ -70,6 +76,7 @@ type AiChatPanelProps = {
   surface: AiSurface;
   userName: string;
   title: string;
+  plan: BusinessPlan;
   activeDashboardConversation?: AiConversation | null;
   cachedDashboardConversations?: AiConversationSummary[] | null;
   entityCache?: Map<string, EntityConversationSnapshot>;
@@ -582,12 +589,32 @@ export function DashboardChatHistoryList({
   isLoading,
   onSelect,
   onCreateNew,
+  onDelete,
+  pinnedIds,
+  onTogglePin,
 }: {
   conversations: AiConversationSummary[];
   isLoading: boolean;
   onSelect: (conversation: AiConversationSummary) => void;
   onCreateNew?: () => void;
+  onDelete?: (conversationId: string) => void;
+  pinnedIds?: Set<string>;
+  onTogglePin?: (conversationId: string) => void;
 }) {
+  // Sort: pinned first, then by lastMessageAt.
+  const sortedConversations = useMemo(() => {
+    if (!pinnedIds?.size) return conversations;
+
+    return [...conversations].sort((a, b) => {
+      const aPinned = pinnedIds.has(a.id);
+      const bPinned = pinnedIds.has(b.id);
+
+      if (aPinned && !bPinned) return -1;
+      if (!aPinned && bPinned) return 1;
+
+      return 0; // preserve existing order within each group
+    });
+  }, [conversations, pinnedIds]);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
@@ -595,28 +622,69 @@ export function DashboardChatHistoryList({
           <div className="flex min-h-[16rem] items-center justify-center text-sm text-muted-foreground">
             <Spinner aria-hidden="true" />
           </div>
-        ) : conversations.length ? (
+        ) : sortedConversations.length ? (
           <div className="flex flex-col gap-1.5">
-            {conversations.map((conversation) => (
-              <button
-                className="group/history flex flex-col gap-1 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-accent"
-                key={conversation.id}
-                onClick={() => onSelect(conversation)}
-                type="button"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="truncate text-sm font-medium text-foreground">
-                    {conversation.title ?? "New dashboard chat"}
-                  </span>
-                  <span className="shrink-0 text-[0.7rem] text-muted-foreground tabular-nums">
-                    {formatRelativeTime(conversation.lastMessageAt)}
-                  </span>
+            {sortedConversations.map((conversation) => {
+              const isPinned = pinnedIds?.has(conversation.id) ?? false;
+
+              return (
+                <div
+                  className="group/history relative flex flex-col gap-1 rounded-xl px-3 py-2.5 transition-colors hover:bg-accent"
+                  key={conversation.id}
+                >
+                  <button
+                    className="flex w-full flex-col gap-1 text-left"
+                    onClick={() => onSelect(conversation)}
+                    type="button"
+                  >
+                    <div className="flex items-center justify-between gap-3 pr-14">
+                      <span className="truncate text-sm font-medium text-foreground">
+                        {isPinned ? "📌 " : ""}
+                        {conversation.title ?? "New dashboard chat"}
+                      </span>
+                      <span className="shrink-0 text-[0.7rem] text-muted-foreground tabular-nums">
+                        {formatRelativeTime(conversation.lastMessageAt)}
+                      </span>
+                    </div>
+                    <span className="line-clamp-2 text-[0.82rem] leading-5 text-muted-foreground">
+                      {conversation.lastMessagePreview ?? "No messages yet"}
+                    </span>
+                  </button>
+
+                  {/* Per-item actions */}
+                  <div className="absolute right-2 top-2 flex gap-0.5 opacity-0 transition-opacity group-hover/history:opacity-100">
+                    {onTogglePin ? (
+                      <button
+                        aria-label={isPinned ? "Unpin" : "Pin"}
+                        className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onTogglePin(conversation.id);
+                        }}
+                        title={isPinned ? "Unpin" : "Pin to top"}
+                        type="button"
+                      >
+                        <Pin className={cn("size-3.5", isPinned && "text-primary")} />
+                      </button>
+                    ) : null}
+                    {onDelete ? (
+                      <button
+                        aria-label="Delete"
+                        className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onDelete(conversation.id);
+                        }}
+                        title="Delete conversation"
+                        type="button"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
-                <span className="line-clamp-2 text-[0.82rem] leading-5 text-muted-foreground">
-                  {conversation.lastMessagePreview ?? "No messages yet"}
-                </span>
-              </button>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="flex min-h-[16rem] flex-col items-center justify-center gap-3 text-center text-sm leading-6 text-muted-foreground">
@@ -656,6 +724,7 @@ export function AIChatPanel({
   entityCache,
   entityId,
   messagesCache,
+  plan,
   surface,
   title,
   userName,
@@ -722,6 +791,81 @@ export function AIChatPanel({
   );
   const [copyState, setCopyState] = useTimedCopyState();
   const [isCreatingChat, setIsCreatingChat] = useState(false);
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+
+    try {
+      const stored = localStorage.getItem(`requo:pinned-chats:${businessSlug}`);
+
+      return stored ? new Set(JSON.parse(stored) as string[]) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  function persistPinnedIds(next: Set<string>) {
+    setPinnedIds(next);
+
+    try {
+      localStorage.setItem(
+        `requo:pinned-chats:${businessSlug}`,
+        JSON.stringify([...next]),
+      );
+    } catch {
+      // localStorage full or unavailable — ignore.
+    }
+  }
+
+  function handleTogglePin(conversationId: string) {
+    const next = new Set(pinnedIds);
+
+    if (next.has(conversationId)) {
+      next.delete(conversationId);
+    } else {
+      next.add(conversationId);
+    }
+
+    persistPinnedIds(next);
+  }
+
+  async function handleDeleteConversation(conversationId: string) {
+    // Optimistically remove from the list.
+    setHistoryConversations((current) =>
+      current.filter((c) => c.id !== conversationId),
+    );
+
+    // Remove from pinned if pinned.
+    if (pinnedIds.has(conversationId)) {
+      const next = new Set(pinnedIds);
+
+      next.delete(conversationId);
+      persistPinnedIds(next);
+    }
+
+    // If the deleted conversation is the active one, clear it.
+    if (conversation?.id === conversationId) {
+      setConversation(null);
+      setMessages([]);
+      setHistoryOpen(true);
+    }
+
+    try {
+      await deleteConversation(conversationId);
+    } catch (error) {
+      console.error("Failed to delete conversation.", error);
+      // Reload the list to restore the item if the server rejected.
+      try {
+        const payload = await fetchDashboardConversations({
+          businessSlug,
+          entityId,
+        });
+
+        setHistoryConversations(payload.conversations);
+      } catch {
+        // Best-effort recovery.
+      }
+    }
+  }
 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const shouldScrollToBottomRef = useRef(false);
@@ -872,7 +1016,7 @@ export function AIChatPanel({
   ]);
 
   useEffect(() => {
-    if (!isDashboard || hasCachedList) {
+    if (!isDashboard || hasCachedList || !hasFeatureAccess(plan, "aiAssistant")) {
       return;
     }
 
@@ -910,6 +1054,7 @@ export function AIChatPanel({
   }, [
     isDashboard,
     activeDashboardConversation,
+    plan,
     hasCachedList,
     businessSlug,
     entityId,
@@ -1570,6 +1715,12 @@ export function AIChatPanel({
                 model: event.model,
               }));
               break;
+            case "status":
+              updateMessage(assistantMessageId, (message) => ({
+                ...message,
+                statusNote: { content: event.message, tone: "muted" as const },
+              }));
+              break;
             case "delta":
               renderedContent += event.value;
               prepareIncomingMessageScroll();
@@ -1703,6 +1854,7 @@ export function AIChatPanel({
 
   const canOpenHistory = surface === "dashboard" && !historyOpen;
   const isInputDisabled = isPending || isCreatingChat || !conversation;
+  const hasAiAccess = hasFeatureAccess(plan, "aiAssistant");
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--surface-elevated-bg)]">
@@ -1790,9 +1942,12 @@ export function AIChatPanel({
           conversations={historyConversations}
           isLoading={isHistoryLoading}
           onCreateNew={() => void createNewDashboardChat()}
+          onDelete={(id) => void handleDeleteConversation(id)}
           onSelect={(nextConversation) => {
             void loadMessagesForConversation(nextConversation);
           }}
+          onTogglePin={handleTogglePin}
+          pinnedIds={pinnedIds}
         />
       ) : (
         <>
@@ -1850,15 +2005,40 @@ export function AIChatPanel({
           </div>
 
           <div className="border-t border-border/70 px-3 pb-3 pt-2">
-            <ChatInput
-              disabled={isInputDisabled}
-              onChange={setComposerValue}
-              onSubmit={() => {
-                void runMessage(composerValue);
-              }}
-              placeholder={placeholder}
-              value={composerValue}
-            />
+            {hasAiAccess ? (
+              <ChatInput
+                disabled={isInputDisabled}
+                onChange={setComposerValue}
+                onSubmit={() => {
+                  void runMessage(composerValue);
+                }}
+                placeholder={placeholder}
+                value={composerValue}
+              />
+            ) : (
+              <div className="flex items-end gap-2 rounded-2xl border border-border bg-background px-2.5 py-2 shadow-[var(--control-shadow)]">
+                <Textarea
+                  className="min-h-9 max-h-[8.75rem] flex-1 resize-none border-0 bg-transparent px-1.5 py-1.5 shadow-none focus-visible:ring-0 focus-visible:border-0"
+                  disabled
+                  placeholder={placeholder}
+                  rows={1}
+                />
+                <LockedAction
+                  feature="aiAssistant"
+                  plan={plan}
+                  description="You've reached your AI usage limit. Upgrade to Pro to get AI-drafted replies and suggestions for inquiries."
+                >
+                  <Button
+                    aria-label="Send message"
+                    className="size-9 shrink-0 rounded-xl"
+                    size="icon"
+                    type="button"
+                  >
+                    <SendHorizontal />
+                  </Button>
+                </LockedAction>
+              </div>
+            )}
             <p className="mt-1.5 px-1 text-[0.65rem] leading-4 text-muted-foreground">
               Enter to send. Shift + Enter for a new line.
             </p>

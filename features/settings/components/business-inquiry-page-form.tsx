@@ -37,7 +37,6 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { toast } from "sonner";
 
 import { FloatingFormActions } from "@/components/shared/floating-form-actions";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
@@ -99,6 +98,7 @@ import type {
   BusinessInquiryPageSettingsView,
 } from "@/features/settings/types";
 import { isInquiryPageCustomizationLocked } from "@/features/inquiries/plan-rules";
+import { LockedAction } from "@/features/paywall";
 import { publicSlugMaxLength, publicSlugPattern } from "@/lib/slugs";
 import { cn } from "@/lib/utils";
 
@@ -118,19 +118,10 @@ type BusinessInquiryPageFormProps = {
 const initialState: BusinessInquiryPageActionState = {};
 const inquiryPageCardsDndContextId = "business-inquiry-page-cards-dnd";
 const inquiryPageCardsSortableContextId = "business-inquiry-page-cards-sortable";
-const inquiryPageCustomizationNoticeTitle = "This is a Pro feature.";
-const inquiryPageCustomizationNoticeDescription =
-  "Upgrade to Pro to customize public inquiry page layouts, supporting cards, and showcase images.";
 const inquiryPageSortableTransition = {
   duration: 160,
   easing: "cubic-bezier(0.25, 1, 0.5, 1)",
 } as const;
-
-function showInquiryPageCustomizationNotice() {
-  toast.info(inquiryPageCustomizationNoticeTitle, {
-    description: inquiryPageCustomizationNoticeDescription,
-  });
-}
 
 export function BusinessInquiryPageForm({
   action,
@@ -1044,18 +1035,16 @@ export function BusinessInquiryPageForm({
           />
 
           <div className="mt-6 flex flex-col gap-6">
-            {pageCustomizationLocked ? (
-              <LockedSettingNotice message="Free forms use the no supporting cards layout. Upgrade to Pro to choose another layout." />
-            ) : null}
-
             <div className="grid gap-4 xl:grid-cols-3">
               {(
                 Object.keys(inquiryPageTemplateMeta) as InquiryPageTemplate[]
               ).map((templateId) => {
                 const templateMeta = inquiryPageTemplateMeta[templateId];
                 const isSelected = effectiveTemplate === templateId;
+                const isLockedTemplate =
+                  pageCustomizationLocked && templateId !== "no_supporting_cards";
 
-                return (
+                const templateButton = (
                   <button
                     key={templateId}
                     className={cn(
@@ -1065,17 +1054,7 @@ export function BusinessInquiryPageForm({
                         : "hover:bg-accent/30",
                     )}
                     disabled={isPending}
-                    onClick={() => {
-                      if (
-                        pageCustomizationLocked &&
-                        templateId !== "no_supporting_cards"
-                      ) {
-                        showInquiryPageCustomizationNotice();
-                        return;
-                      }
-
-                      setTemplate(templateId);
-                    }}
+                    onClick={() => setTemplate(templateId)}
                     type="button"
                   >
                     <div className="flex items-center justify-between gap-3">
@@ -1083,11 +1062,6 @@ export function BusinessInquiryPageForm({
                         {templateMeta.label}
                       </p>
                       <span className="flex items-center gap-2">
-                        {pageCustomizationLocked && templateId !== "no_supporting_cards" ? (
-                          <span className="dashboard-meta-pill min-h-0 px-3 py-1">
-                            Pro
-                          </span>
-                        ) : null}
                         {isSelected ? (
                           <span className="dashboard-meta-pill min-h-0 px-3 py-1">
                             Selected
@@ -1103,6 +1077,20 @@ export function BusinessInquiryPageForm({
                     </p>
                   </button>
                 );
+
+                if (isLockedTemplate) {
+                  return (
+                    <LockedAction
+                      key={templateId}
+                      feature="inquiryPageCustomization"
+                      plan={settings.plan}
+                    >
+                      {templateButton}
+                    </LockedAction>
+                  );
+                }
+
+                return templateButton;
               })}
             </div>
 
@@ -1145,7 +1133,7 @@ export function BusinessInquiryPageForm({
               </div>
             </div>
 
-            <div className="mt-6 border-t border-border/70 pt-6">
+            <div className="mt-6 border-t border-border/70 pt-6" role="group" aria-label="Branding">
               <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div className="space-y-1">
                   <p className="meta-label">Brand assets</p>
@@ -1158,13 +1146,17 @@ export function BusinessInquiryPageForm({
                 </div>
 
                 {generalSettingsHref ? (
-                  <Button asChild className="w-full sm:w-auto" variant="outline">
-                    <Link href={generalSettingsHref}>Open business profile</Link>
-                  </Button>
+                  <LockedAction feature="branding" plan={settings.plan}>
+                    <Button asChild className="w-full sm:w-auto" variant="outline">
+                      <Link href={generalSettingsHref}>Open business profile</Link>
+                    </Button>
+                  </LockedAction>
                 ) : (
-                  <Button asChild className="w-full sm:w-auto" variant="outline">
-                    <Link href={settingsHref}>Open settings</Link>
-                  </Button>
+                  <LockedAction feature="branding" plan={settings.plan}>
+                    <Button asChild className="w-full sm:w-auto" variant="outline">
+                      <Link href={settingsHref}>Open settings</Link>
+                    </Button>
+                  </LockedAction>
                 )}
               </div>
 
@@ -1212,34 +1204,28 @@ export function BusinessInquiryPageForm({
             <div className="mt-6">
               <BuilderSection
               action={
-                <Button
-                  className="w-full sm:w-auto"
-                  disabled={
-                    isPending || (!pageCustomizationLocked && hasReachedCardLimit)
-                  }
-                  onClick={
-                    pageCustomizationLocked
-                      ? showInquiryPageCustomizationNotice
-                      : addCard
-                  }
-                  type="button"
-                  variant="outline"
-                >
-                  <Plus data-icon="inline-start" />
-                  Add card
-                </Button>
+                <LockedAction feature="inquiryPageCustomization" plan={settings.plan}>
+                  <Button
+                    className="w-full sm:w-auto"
+                    disabled={isPending || hasReachedCardLimit}
+                    onClick={addCard}
+                    type="button"
+                    variant="outline"
+                  >
+                    <Plus data-icon="inline-start" />
+                    Add card
+                  </Button>
+                </LockedAction>
               }
               title="Cards"
             >
-              {pageCustomizationLocked ? (
-                <LockedSettingNotice message="Supporting cards are visible here so you can see what Pro unlocks, but they are not shown on Free public forms." />
-              ) : null}
-
               <SectionVisibilityToggle
                 checked={effectiveShowSupportingCards}
                 description="Keep the cards saved, but hide them from the public page when this is off."
                 disabled={isPending || pageCustomizationLocked}
                 label="Show supporting cards"
+                locked={pageCustomizationLocked}
+                plan={settings.plan}
                 onCheckedChange={setShowSupportingCards}
               />
 
@@ -1300,15 +1286,13 @@ export function BusinessInquiryPageForm({
           />
 
           <div className="mt-6 flex flex-col gap-6">
-            {pageCustomizationLocked ? (
-              <LockedSettingNotice message="Showcase images are saved for later, but Free public forms do not display them." />
-            ) : null}
-
             <SectionVisibilityToggle
               checked={effectiveShowShowcaseImage}
               description="Keep the image settings saved, but hide the showcase image on the public page when this is off."
               disabled={isPending || pageCustomizationLocked}
               label="Show showcase image"
+              locked={pageCustomizationLocked}
+              plan={settings.plan}
               onCheckedChange={setShowShowcaseImage}
             />
 
@@ -1364,14 +1348,9 @@ export function BusinessInquiryPageForm({
                               key={frame}
                               label={option.label}
                               selectedLabel="Selected"
-                              onClick={() => {
-                                if (pageCustomizationLocked) {
-                                  showInquiryPageCustomizationNotice();
-                                  return;
-                                }
-
-                                setShowcaseImageFrame(frame);
-                              }}
+                              onClick={() => setShowcaseImageFrame(frame)}
+                              locked={pageCustomizationLocked}
+                              plan={settings.plan}
                             />
                           );
                         })}
@@ -1404,14 +1383,9 @@ export function BusinessInquiryPageForm({
                               key={size}
                               label={option.label}
                               selectedLabel="Selected"
-                              onClick={() => {
-                                if (pageCustomizationLocked) {
-                                  showInquiryPageCustomizationNotice();
-                                  return;
-                                }
-
-                                setShowcaseImageSize(size);
-                              }}
+                              onClick={() => setShowcaseImageSize(size)}
+                              locked={pageCustomizationLocked}
+                              plan={settings.plan}
                             />
                           );
                         })}
@@ -1433,7 +1407,7 @@ export function BusinessInquiryPageForm({
                 frame={showcaseImageFrame}
                 onCrop={
                   pageCustomizationLocked
-                    ? showInquiryPageCustomizationNotice
+                    ? undefined
                     : () => void handleOpenCropDialog()
                 }
                 size={showcaseImageSize}
@@ -1851,41 +1825,44 @@ function PageSectionToc({
   );
 }
 
-function LockedSettingNotice({ message }: { message: string }) {
-  return (
-    <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-background/75 px-4 py-3 text-sm text-muted-foreground">
-      <div className="min-w-0">
-        <p className="font-medium text-foreground">Pro feature</p>
-        <p className="mt-1 leading-6">{message}</p>
-      </div>
-    </div>
-  );
-}
-
 function SectionVisibilityToggle({
   checked,
   description,
   disabled,
   label,
+  locked,
+  plan,
   onCheckedChange,
 }: {
   checked: boolean;
   description: string;
   disabled: boolean;
   label: string;
+  locked?: boolean;
+  plan?: import("@/lib/plans/plans").BusinessPlan;
   onCheckedChange: (nextValue: boolean) => void;
 }) {
+  const switchElement = (
+    <Switch
+      checked={checked}
+      disabled={disabled}
+      onCheckedChange={onCheckedChange}
+    />
+  );
+
   return (
     <label className="soft-panel flex flex-col gap-5 px-5 py-5 shadow-none sm:flex-row sm:items-center sm:justify-between sm:p-7">
       <div className="min-w-0 space-y-1.5">
         <p className="text-[0.95rem] font-semibold text-foreground">{label}</p>
         <p className="text-sm leading-6 text-muted-foreground">{description}</p>
       </div>
-      <Switch
-        checked={checked}
-        disabled={disabled}
-        onCheckedChange={onCheckedChange}
-      />
+      {locked && plan ? (
+        <LockedAction feature="inquiryPageCustomization" plan={plan}>
+          {switchElement}
+        </LockedAction>
+      ) : (
+        switchElement
+      )}
     </label>
   );
 }
@@ -1925,6 +1902,8 @@ function OptionTile({
   disabled,
   isSelected,
   label,
+  locked,
+  plan,
   selectedLabel,
   onClick,
 }: {
@@ -1932,14 +1911,16 @@ function OptionTile({
   disabled: boolean;
   isSelected: boolean;
   label: string;
+  locked?: boolean;
+  plan?: import("@/lib/plans/plans").BusinessPlan;
   selectedLabel: string;
   onClick: () => void;
 }) {
-  return (
+  const tile = (
     <button
       aria-pressed={isSelected}
       className={cn(
-        "soft-panel flex min-h-24 flex-col items-start justify-between gap-3 px-4 py-3 text-left shadow-none transition-[border-color,background-color,box-shadow]",
+        "soft-panel flex min-h-24 w-full flex-col items-start justify-between gap-3 px-4 py-3 text-left shadow-none transition-[border-color,background-color,box-shadow]",
         isSelected
           ? "border-primary/30 bg-accent/50 ring-1 ring-primary/15"
           : "hover:bg-accent/25",
@@ -1969,6 +1950,16 @@ function OptionTile({
       </span>
     </button>
   );
+
+  if (locked && plan) {
+    return (
+      <LockedAction feature="inquiryPageCustomization" plan={plan}>
+        {tile}
+      </LockedAction>
+    );
+  }
+
+  return tile;
 }
 
 function ShowcaseImageEditorPreview({

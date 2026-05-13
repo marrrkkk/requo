@@ -13,6 +13,8 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Business quote defaults and templates.",
 });
 
+export const unstable_instant = { prefetch: 'static' };
+
 export default async function BusinessQuoteSettingsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();
   const settings = await getBusinessSettingsForBusiness(

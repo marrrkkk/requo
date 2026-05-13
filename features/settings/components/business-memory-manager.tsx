@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { BookOpen, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { BookOpen, FileUp, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 
 import {
   AlertDialog,
@@ -40,6 +40,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { ImporterDialog } from "@/features/importer/components/importer-dialog";
+import type { KnowledgeDraft } from "@/features/importer/components/importer-knowledge-review";
+import type { PricingDraft } from "@/features/importer/components/importer-pricing-review";
+import type {
+  ImporterAnalyzeResult,
+  ImporterCommitResult,
+  ImporterDestination,
+} from "@/features/importer/types";
 import type {
   DashboardMemory,
   DashboardMemorySummary,
@@ -66,6 +74,19 @@ type BusinessMemoryManagerProps = {
     state: MemoryDeleteActionState,
     formData: FormData,
   ) => Promise<MemoryDeleteActionState>;
+  importerEnabled: boolean;
+  analyzeImportAction: (
+    destination: ImporterDestination,
+    formData: FormData,
+  ) => Promise<ImporterAnalyzeResult>;
+  commitKnowledgeImportAction: (payload: {
+    sourceName: string;
+    items: KnowledgeDraft[];
+  }) => Promise<ImporterCommitResult>;
+  commitPricingImportAction: (payload: {
+    sourceName: string;
+    entries: PricingDraft[];
+  }) => Promise<ImporterCommitResult>;
 };
 
 type EditorState =
@@ -79,6 +100,10 @@ export function BusinessMemoryManager({
   createAction,
   updateAction,
   deleteAction,
+  importerEnabled,
+  analyzeImportAction,
+  commitKnowledgeImportAction,
+  commitPricingImportAction,
 }: BusinessMemoryManagerProps) {
   const { memories } = memoryData;
   const { memoryCount, limit } = memorySummary;
@@ -86,6 +111,7 @@ export function BusinessMemoryManager({
   const canAdd = !isAtLimit;
   const [editorState, setEditorState] = useState<EditorState>(null);
   const [deleteTarget, setDeleteTarget] = useState<DashboardMemory | null>(null);
+  const [importerOpen, setImporterOpen] = useState(false);
 
   return (
     <div className="flex flex-col gap-6">
@@ -111,15 +137,29 @@ export function BusinessMemoryManager({
           {memoryCount} of {limit === null ? "unlimited" : limit}{" "}
           {memoryCount === 1 ? "entry" : "entries"} used
         </p>
-        <Button
-          disabled={!canAdd}
-          onClick={() => setEditorState({ mode: "create" })}
-          size="sm"
-          type="button"
-        >
-          <Plus data-icon="inline-start" />
-          {canAdd ? "Add knowledge" : "Limit reached"}
-        </Button>
+        <div className="flex items-center gap-2">
+          {importerEnabled ? (
+            <Button
+              disabled={!canAdd}
+              onClick={() => setImporterOpen(true)}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              <FileUp data-icon="inline-start" />
+              Import from file
+            </Button>
+          ) : null}
+          <Button
+            disabled={!canAdd}
+            onClick={() => setEditorState({ mode: "create" })}
+            size="sm"
+            type="button"
+          >
+            <Plus data-icon="inline-start" />
+            {canAdd ? "Add knowledge" : "Limit reached"}
+          </Button>
+        </div>
       </div>
 
       {/* Entries list */}
@@ -194,6 +234,18 @@ export function BusinessMemoryManager({
           deleteAction={deleteAction}
           memory={deleteTarget}
           onClose={() => setDeleteTarget(null)}
+        />
+      ) : null}
+
+      {/* File importer */}
+      {importerEnabled ? (
+        <ImporterDialog
+          analyzeAction={analyzeImportAction}
+          commitKnowledgeAction={commitKnowledgeImportAction}
+          commitPricingAction={commitPricingImportAction}
+          destination="knowledge"
+          onOpenChange={setImporterOpen}
+          open={importerOpen}
         />
       ) : null}
     </div>

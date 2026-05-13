@@ -7,13 +7,20 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
-import { ArrowLeft, Briefcase, Building2, Loader2 } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+  ArrowLeft,
+  Briefcase,
+  Building2,
+  Check,
+  Loader2,
+  Lock,
+  Shield,
+} from "lucide-react";
+
+import { BrandMark } from "@/components/shared/brand-mark";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { useTheme } from "@/components/theme-provider";
 import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
 import {
@@ -27,6 +34,7 @@ import type {
   BillingRegion,
   PaidPlan,
 } from "@/lib/billing/types";
+import { planMeta } from "@/lib/plans";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +65,21 @@ type CheckoutShellProps = InlinePaddleCheckoutPageProps & {
   paddleEnvironment: "sandbox" | "production";
 };
 
+const planHighlights: Record<PaidPlan, string[]> = {
+  pro: [
+    "Unlimited inquiries and quotes",
+    "Follow-up reminders and tracking",
+    "AI-assisted quote drafts",
+    "Custom branding",
+  ],
+  business: [
+    "Everything in Pro",
+    "Team members and roles",
+    "Advanced analytics",
+    "Priority support",
+  ],
+};
+
 export function InlinePaddleCheckoutPage(props: InlinePaddleCheckoutPageProps) {
   const paddleClientToken = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN ?? null;
   const paddleEnvironment = (process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT ??
@@ -64,8 +87,12 @@ export function InlinePaddleCheckoutPage(props: InlinePaddleCheckoutPageProps) {
 
   if (!paddleClientToken) {
     return (
-      <div className="rounded-xl border border-border/70 bg-muted/20 p-6 text-sm text-muted-foreground">
-        Paddle checkout is not configured for this environment.
+      <div className="flex min-h-svh items-center justify-center bg-background px-4">
+        <div className="soft-panel max-w-md px-6 py-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            Paddle checkout is not configured for this environment.
+          </p>
+        </div>
       </div>
     );
   }
@@ -115,9 +142,6 @@ function InlineCheckoutShell({
     [interval, plan],
   );
 
-  // Detect when the Paddle iframe has been injected into the container.
-  // Uses a MutationObserver (external system subscription) so the setState
-  // call happens in the observer callback, not synchronously in the effect body.
   const currentPlanKey = `${plan}:${interval}`;
   const requestKey = `${businessId}:${currentPlanKey}`;
   const transactionId =
@@ -142,8 +166,6 @@ function InlineCheckoutShell({
       }
     });
 
-    // If iframe is already present, the observer won't fire for past mutations,
-    // so schedule a microtask check that runs outside the synchronous effect body.
     if (container.querySelector("iframe")) {
       queueMicrotask(() => setCheckoutLoadedKey(currentPlanKey));
     } else {
@@ -275,9 +297,6 @@ function InlineCheckoutShell({
     };
   }, [businessId, interval, paddle.isReady, plan, requestKey]);
 
-  const subtotal = amount;
-  const tax = 0;
-  const total = subtotal + tax;
   const isPreparingCheckout = !paddle.isReady || !transactionId;
   const isCheckoutLoaded = checkoutLoadedKey === currentPlanKey;
   const showLoading = isPreparingCheckout || !isCheckoutLoaded;
@@ -303,8 +322,8 @@ function InlineCheckoutShell({
 
       {/* Error state */}
       {activeCheckoutError ? (
-        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4">
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-6 py-4 text-center">
+        <div className="flex min-h-svh flex-col items-center justify-center gap-5 bg-background px-4">
+          <div className="section-panel max-w-md px-6 py-6 text-center">
             <p className="text-sm text-destructive">{activeCheckoutError}</p>
           </div>
           <Button variant="outline" onClick={() => window.location.reload()}>
@@ -313,103 +332,198 @@ function InlineCheckoutShell({
         </div>
       ) : null}
 
-      {/* Two-column checkout layout */}
+      {/* Checkout page */}
       <div
         className={cn(
-          "mx-auto grid w-full max-w-6xl gap-6 px-4 py-6 transition-opacity duration-300 sm:px-6 sm:py-8 lg:grid-cols-[auto_1fr] lg:gap-10 lg:px-8",
+          "min-h-svh w-full bg-background transition-opacity duration-300",
           showLoading && !activeCheckoutError ? "opacity-0" : "opacity-100",
         )}
       >
-        {/* Left panel – order summary */}
-        <aside className="flex w-full flex-col lg:w-[380px]">
-          <Link
-            href="/account/billing"
-            className="mb-4 inline-flex w-fit items-center gap-2 text-sm font-medium text-primary transition-colors hover:text-primary/80"
-          >
-            <ArrowLeft className="size-4" />
-            Return to Requo
-          </Link>
+        {/* Header */}
+        <header className="sticky top-0 z-10 flex h-[4.5rem] w-full shrink-0 items-center justify-between border-b border-border/70 bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/60 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-4">
+            <BrandMark href="/account/billing" subtitle="Checkout" />
+            <div className="h-4 w-px bg-border max-sm:hidden" />
+            <Button asChild className="max-sm:hidden" size="sm" variant="ghost">
+              <Link href="/account/billing">
+                <ArrowLeft data-icon="inline-start" className="size-4" />
+                Back to billing
+              </Link>
+            </Button>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Lock className="size-3.5" />
+            <span className="max-sm:hidden">Secure checkout</span>
+          </div>
+        </header>
 
-          <Card className="border-border/60">
-            <CardContent className="p-5 sm:p-6">
-              {/* Total price */}
-              <div className="mb-6">
-                <p className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                  {formatPrice(total, "USD")}
-                  <span className="ml-2 text-base font-normal text-muted-foreground">
-                    inc. tax
+        {/* Main content */}
+        <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
+          <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-10 xl:gap-14">
+            {/* Left: Paddle checkout frame */}
+            <section className="order-2 min-w-0 lg:order-1">
+              <div className="flex flex-col gap-5">
+                <div className="flex flex-col gap-2">
+                  <h1 className="font-heading text-xl font-semibold tracking-tight sm:text-2xl">
+                    Complete your subscription
+                  </h1>
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    Enter your payment details below. Your subscription starts immediately.
+                  </p>
+                </div>
+
+                <div className="section-panel overflow-hidden">
+                  <div
+                    id={PADDLE_FRAME_TARGET}
+                    className={`${PADDLE_FRAME_TARGET} min-h-[500px]`}
+                  />
+                </div>
+
+                {/* Trust signals */}
+                <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Shield className="size-3.5 text-primary" />
+                    256-bit SSL encryption
                   </span>
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  billed {interval === "yearly" ? "yearly" : "monthly"}
-                </p>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Lock className="size-3.5 text-primary" />
+                    Processed by Paddle
+                  </span>
+                </div>
               </div>
+            </section>
 
-              {/* Plan item */}
-              <div className="space-y-4">
-                <div className="rounded-lg border border-border/50 bg-muted/30 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                      <PlanIcon className="size-4 text-primary" />
+            {/* Right: Order summary sidebar */}
+            <aside className="order-1 lg:sticky lg:top-[6rem] lg:order-2 lg:self-start">
+              <div className="flex flex-col gap-5">
+                {/* Plan card */}
+                <div className="section-panel overflow-hidden">
+                  <div className="flex flex-col gap-5 px-5 py-5 sm:px-6 sm:py-6">
+                    {/* Plan header */}
+                    <div className="flex items-start gap-4">
+                      <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-background/90">
+                        <PlanIcon className="size-5 text-primary" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h2 className="font-heading text-base font-semibold tracking-tight">
+                            {planMeta[plan].label}
+                          </h2>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {interval === "yearly" ? "Annual" : "Monthly"}
+                          </Badge>
+                        </div>
+                        <p className="mt-0.5 text-sm text-muted-foreground">
+                          {planMeta[plan].description}
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground">
-                        {plan === "pro" ? "Pro plan" : "Business plan"}
-                      </p>
-                      <p className="text-sm font-semibold text-foreground">
+
+                    {/* Plan features */}
+                    <div className="flex flex-col gap-2">
+                      {planHighlights[plan].map((feature) => (
+                        <div className="flex items-center gap-2.5" key={feature}>
+                          <Check className="size-3.5 shrink-0 text-primary" />
+                          <span className="text-sm text-foreground">{feature}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPlanSheetOpen(true)}
+                      type="button"
+                    >
+                      Change plan or interval
+                    </Button>
+                  </div>
+
+                  <Separator className="bg-border/60" />
+
+                  {/* Pricing breakdown */}
+                  <div className="flex flex-col gap-3 px-5 py-5 sm:px-6 sm:py-6">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {planMeta[plan].label} ({interval === "yearly" ? "annual" : "monthly"})
+                      </span>
+                      <span className="font-medium text-foreground">
                         {formatPrice(amount, "USD")}
-                        <span className="font-normal text-muted-foreground">
-                          /{interval === "yearly" ? "year" : "month"}
+                      </span>
+                    </div>
+
+                    {interval === "yearly" ? (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          Monthly equivalent
                         </span>
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Qty: 1
-                      </p>
+                        <span className="text-muted-foreground">
+                          {formatPrice(Math.round(amount / 12), "USD")}/mo
+                        </span>
+                      </div>
+                    ) : null}
+
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Tax</span>
+                      <span className="text-muted-foreground">
+                        Calculated at checkout
+                      </span>
+                    </div>
+
+                    <Separator className="bg-border/60" />
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-foreground">
+                        Total due today
+                      </span>
+                      <span className="font-heading text-xl font-semibold tracking-tight text-foreground">
+                        {formatPrice(amount, "USD")}
+                        <span className="ml-1 text-sm font-normal text-muted-foreground">
+                          /{interval === "yearly" ? "yr" : "mo"}
+                        </span>
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  onClick={() => setPlanSheetOpen(true)}
-                  type="button"
-                >
-                  Change plan
-                </Button>
+                {/* Business context note */}
+                <div className="soft-panel px-4 py-3.5">
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    Subscribing for <span className="font-medium text-foreground">{businessName}</span>.
+                    {currentPlan !== "free" ? (
+                      <> Upgrading from {currentPlan} plan.</>
+                    ) : (
+                      <> Currently on the free plan.</>
+                    )}
+                  </p>
+                </div>
+
+                {/* Links */}
+                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                  <Link
+                    href="/terms"
+                    className="transition-colors hover:text-foreground"
+                  >
+                    Terms
+                  </Link>
+                  <Link
+                    href="/privacy"
+                    className="transition-colors hover:text-foreground"
+                  >
+                    Privacy
+                  </Link>
+                  <Link
+                    href="/refund-policy"
+                    className="transition-colors hover:text-foreground"
+                  >
+                    Refund policy
+                  </Link>
+                </div>
               </div>
-
-              {/* Pricing breakdown */}
-              <div className="mt-6 space-y-2.5 border-t border-border/50 pt-5 text-sm">
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span>Subtotal</span>
-                  <span>{formatPrice(subtotal, "USD")}</span>
-                </div>
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span>Tax</span>
-                  <span>{formatPrice(tax, "USD")}</span>
-                </div>
-                <div className="flex items-center justify-between border-t border-border/50 pt-2.5 font-semibold text-foreground">
-                  <span>Total</span>
-                  <span>{formatPrice(total, "USD")}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Footer info */}
-          <p className="mt-4 text-xs text-muted-foreground">
-            {businessName} · Current plan: {currentPlan}. Checkout processed securely by Paddle.
-          </p>
-        </aside>
-
-        {/* Right panel – Paddle inline checkout */}
-        <section className="flex min-w-0 flex-col">
-          <div
-            id={PADDLE_FRAME_TARGET}
-            className={`${PADDLE_FRAME_TARGET} min-h-[500px] flex-1`}
-          />
-        </section>
+            </aside>
+          </div>
+        </main>
       </div>
 
       <PlanSelectionSheet

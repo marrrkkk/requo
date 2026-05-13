@@ -7,8 +7,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { WorkflowNextActionSummary } from "@/features/businesses/components/workflow-next-action";
-import { getQuoteNextAction } from "@/features/businesses/workflow-next-actions";
 import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
 import { QuoteRecordStateBadge } from "@/features/quotes/components/quote-record-state-badge";
 import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
@@ -32,10 +30,6 @@ export function QuoteListCards({
   return (
     <div className="data-list-mobile-grid">
       {quotes.map((quote) => {
-        const nextAction = getQuoteNextAction({
-          businessSlug,
-          quote,
-        });
         const reminders = quote.reminders.filter(
           (reminder) => reminder !== "follow_up_due",
         );
@@ -73,12 +67,6 @@ export function QuoteListCards({
                           <Badge variant="secondary">Viewed, no response</Badge>
                         ) : null}
                       </div>
-                    ) : null}
-                    {nextAction ? (
-                      <WorkflowNextActionSummary
-                        action={nextAction}
-                        className="mt-2"
-                      />
                     ) : null}
                   </div>
                   <div className="flex shrink-0 flex-col gap-2">

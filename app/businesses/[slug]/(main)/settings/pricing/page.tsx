@@ -10,9 +10,15 @@ import {
 } from "@/features/quotes/quote-library-actions";
 import { getQuoteLibraryForBusiness } from "@/features/quotes/quote-library-queries";
 import { getBusinessBillingOverview } from "@/features/billing/queries";
+import {
+  analyzeImportAction,
+  commitKnowledgeImportAction,
+  commitPricingImportAction,
+} from "@/features/importer/actions";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 import { BusinessPricingLibraryManager } from "@/features/settings/components/business-pricing-library-manager";
 import { hasFeatureAccess } from "@/lib/plans";
+import { getUsageLimit } from "@/lib/plans/usage-limits";
 import { timed } from "@/lib/dev/server-timing";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
@@ -21,6 +27,8 @@ export const metadata: Metadata = createNoIndexMetadata({
   title: "Pricing",
   description: "Manage the pricing library used to build quotes quickly.",
 });
+
+export const unstable_instant = { prefetch: 'static' };
 
 export default async function BusinessPricingPage() {
   const { businessContext } = await getBusinessOperationalPageContext();
@@ -82,8 +90,16 @@ export default async function BusinessPricingPage() {
       <BusinessPricingLibraryManager
         createAction={createQuoteLibraryEntryAction}
         deleteAction={deleteQuoteLibraryEntryAction}
+        pricingLimit={getUsageLimit(businessContext.business.plan, "pricingEntriesPerBusiness")}
         quoteLibrary={quoteLibrary}
         updateAction={updateQuoteLibraryEntryAction}
+        importerEnabled={hasFeatureAccess(
+          businessContext.business.plan,
+          "aiAssistant",
+        )}
+        analyzeImportAction={analyzeImportAction}
+        commitKnowledgeImportAction={commitKnowledgeImportAction}
+        commitPricingImportAction={commitPricingImportAction}
       />
     </>
   );

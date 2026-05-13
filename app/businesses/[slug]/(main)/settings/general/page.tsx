@@ -24,6 +24,8 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "General business profile settings, branding, and lifecycle actions.",
 });
 
+export const unstable_instant = { prefetch: 'static' };
+
 export default async function BusinessGeneralSettingsPage() {
   const { user, businessContext } = await getBusinessOwnerPageContext();
   const settings = await getBusinessSettingsForBusiness(

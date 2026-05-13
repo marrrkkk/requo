@@ -16,6 +16,8 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Configure push and email notifications for this business.",
 });
 
+export const unstable_instant = { prefetch: 'static' };
+
 export default async function BusinessNotificationSettingsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();
   const settings = await getBusinessSettingsForBusiness(

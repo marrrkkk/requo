@@ -18,6 +18,8 @@ import { followUpListFiltersSchema } from "@/features/follow-ups/schemas";
 import type { FollowUpListFilters } from "@/features/follow-ups/types";
 import { getBusinessFollowUpsPath } from "@/features/businesses/routes";
 import { businessesHubPath } from "@/features/businesses/routes";
+import { LockedAction } from "@/features/paywall";
+import { CreateFollowUpButton } from "@/features/follow-ups/components/create-follow-up-button";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
 import { createNoIndexMetadata } from "@/lib/seo/site";
@@ -108,6 +110,11 @@ export default async function FollowUpsPage({
         description="See who needs contact next, why, and when. Follow-ups are lightweight reminders tied to inquiries and quotes."
         eyebrow="Follow-ups"
         title="Follow-ups"
+        actions={
+          <LockedAction feature="followUps" plan={businessContext.business.plan}>
+            <CreateFollowUpButton businessSlug={businessSlug} />
+          </LockedAction>
+        }
       />
 
       <Suspense fallback={<FollowUpListControlsFallback />}>

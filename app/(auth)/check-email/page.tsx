@@ -11,6 +11,11 @@ export const metadata: Metadata = createNoIndexMetadata({
   title: "Check your email",
 });
 
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
+};
+
 export default async function CheckEmailPage({
   searchParams,
 }: {

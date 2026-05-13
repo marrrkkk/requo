@@ -1444,6 +1444,61 @@ html[data-reload-loading="true"] [data-reload-loading-overlay] {
     z-index: var(--z-popover-layer);
   }
 
+  [data-slot="dropdown-menu-mobile-overlay"] {
+    display: none;
+  }
+
+  @media (max-width: 1023.98px) {
+    [data-slot="dropdown-menu-mobile-overlay"] {
+      position: fixed;
+      inset: 0;
+      z-index: calc(var(--z-popover-layer) - 1);
+      display: block;
+      background: var(--modal-backdrop);
+      animation: sidebar-overlay-fade-in var(--motion-duration-fast)
+        var(--motion-ease-standard) both;
+    }
+
+    [data-slot="dropdown-menu-mobile-overlay"][data-state="closed"] {
+      animation: sidebar-overlay-fade-out var(--motion-duration-fast)
+        var(--motion-ease-standard) both;
+    }
+
+    [data-radix-popper-content-wrapper]:has(
+        [data-slot="dropdown-menu-content"][data-mobile-sheet="true"]
+      ),
+    [data-radix-popper-content-wrapper]:has(
+        [data-slot="dropdown-menu-sub-content"][data-mobile-sheet="true"]
+      ) {
+      position: fixed !important;
+      inset: auto 0 0 0 !important;
+      width: 100vw !important;
+      min-width: 0 !important;
+      max-width: 100vw !important;
+      transform: none !important;
+      z-index: var(--z-popover-layer) !important;
+    }
+
+    [data-slot="dropdown-menu-content"][data-mobile-sheet="true"],
+    [data-slot="dropdown-menu-sub-content"][data-mobile-sheet="true"] {
+      width: 100vw !important;
+      min-width: 0 !important;
+      max-width: 100vw !important;
+      max-height: min(calc(100dvh - 0.75rem), 34rem) !important;
+      transform-origin: bottom center !important;
+      border-width: 1px 1px 0;
+      border-radius: var(--radius-xl) var(--radius-xl) 0 0 !important;
+      animation: sidebar-sheet-enter-bottom 220ms var(--motion-ease-emphasized)
+        both !important;
+    }
+
+    [data-slot="dropdown-menu-content"][data-mobile-sheet="true"][data-state="closed"],
+    [data-slot="dropdown-menu-sub-content"][data-mobile-sheet="true"][data-state="closed"] {
+      animation: sidebar-sheet-exit-bottom var(--motion-duration-base)
+        var(--motion-ease-standard) both !important;
+    }
+  }
+
   .toast-layer {
     z-index: var(--z-toast);
   }

@@ -53,6 +53,7 @@ import {
   FieldSet,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { LockedAction } from "@/features/paywall";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -82,9 +83,11 @@ import {
   businessMemberRoleMeta,
   type BusinessMemberRole,
 } from "@/lib/business-members";
+import type { BusinessPlan } from "@/lib/plans/plans";
 
 type MembersManagerProps = {
   view: BusinessMembersSettingsView;
+  plan: BusinessPlan;
   createInviteAction: BusinessMemberAction;
   cancelInviteAction: BusinessMemberAction;
   updateRoleAction: BusinessMemberAction;
@@ -104,6 +107,7 @@ const roleOptions: ComboboxOption[] = assignableRoles.map((value) => ({
 
 export function BusinessMembersManager({
   view,
+  plan,
   createInviteAction,
   cancelInviteAction,
   updateRoleAction,
@@ -154,10 +158,12 @@ export function BusinessMembersManager({
         title="Members"
         description="Review business access, invite teammates, and keep admin permissions limited to the right people."
         action={
-          <Button type="button" onClick={() => setInviteOpen(true)}>
-            <MailPlus data-icon="inline-start" />
-            Invite member
-          </Button>
+          <LockedAction feature="members" plan={plan}>
+            <Button type="button" onClick={() => setInviteOpen(true)}>
+              <MailPlus data-icon="inline-start" />
+              Invite member
+            </Button>
+          </LockedAction>
         }
       >
         <div className="flex flex-col gap-4">

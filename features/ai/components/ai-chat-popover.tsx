@@ -3,17 +3,12 @@
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { LockedFeaturePage } from "@/components/shared/paywall";
 import { hasFeatureAccess } from "@/lib/plans";
 import type { BusinessPlan } from "@/lib/plans/plans";
+import { cn } from "@/lib/utils";
 import type {
   AiConversation,
   AiConversationSummary,
@@ -115,6 +110,17 @@ export function AIChatPopover({
   const aiContext = useMemo(() => resolveAiContext(pathname), [pathname]);
   const hasAccess = hasFeatureAccess(plan, "aiAssistant");
   const [isOpen, setIsOpen] = useState(false);
+  // Track whether the panel has ever been opened. We only show the close
+  // animation after the first open — otherwise the animate-out keyframes
+  // briefly flash the panel visible on re-renders that happen before the
+  // user has ever opened it.
+  const hasBeenOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      hasBeenOpenedRef.current = true;
+    }
+  }, [isOpen]);
   const [cachedConversations, setCachedConversations] = useState<
     AiConversationSummary[] | null
   >(null);
@@ -128,7 +134,6 @@ export function AIChatPopover({
   );
 
   const title = resolvePanelTitle(aiContext.surface);
-  const isDashboard = aiContext.surface === "dashboard";
   const dashboardListWarmupStartedRef = useRef(false);
   const entityWarmupInFlightRef = useRef(new Map<string, Promise<void>>());
   const messagesWarmupInFlightRef = useRef(new Map<string, Promise<void>>());
@@ -298,6 +303,21 @@ export function AIChatPopover({
     }
   }, [isOpen, warmupOnOpenIntent]);
 
+  // Auto-close when navigating to an entity detail page (inquiry/quote).
+  // The entity-specific AI is handled inline on those pages.
+  const prevSurfaceRef = useRef(aiContext.surface);
+
+  useEffect(() => {
+    if (
+      aiContext.surface !== "dashboard" &&
+      prevSurfaceRef.current === "dashboard"
+    ) {
+      setIsOpen(false);
+    }
+
+    prevSurfaceRef.current = aiContext.surface;
+  }, [aiContext.surface]);
+
   const handleMessagesCacheUpdate = useCallback(
     (conversationId: string, snapshot: ConversationMessagesSnapshot) => {
       messagesCache.set(conversationId, snapshot);
@@ -312,98 +332,79 @@ export function AIChatPopover({
     [entityCache],
   );
 
+  // Hide the trigger entirely on entity detail pages (inquiry/quote have
+  // their own inline AI panel).
+  if (aiContext.surface !== "dashboard") {
+    return null;
+  }
+
   return (
     <div
       className="fixed bottom-4 right-4 z-40 sm:bottom-5 sm:right-5"
       suppressHydrationWarning
     >
-      <Popover onOpenChange={setIsOpen} open={isOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            aria-label={isOpen ? `Close ${title}` : `Open ${title}`}
-            className="size-14 rounded-full border-border/70 bg-[var(--surface-elevated-bg)] p-0 shadow-[var(--surface-shadow-lg)]"
-            data-testid={`${aiContext.surface}-ai-launcher`}
-            onFocus={warmupOnOpenIntent}
-            onMouseEnter={warmupOnOpenIntent}
-            size="icon-lg"
-            type="button"
-            variant="outline"
-          >
-            <Image
-              src="/logo.svg"
-              alt=""
-              width={34}
-              height={34}
-              className="size-[2.15rem] object-contain"
-            />
-            <span className="sr-only">
-              {isOpen ? `Close ${title}` : `Open ${title}`}
-            </span>
-          </Button>
-        </PopoverTrigger>
+      {/* Panel — always mounted so scroll position and input are preserved */}
+      <div
+        aria-hidden={!isOpen}
+        className={cn(
+          "absolute bottom-[calc(100%+1.125rem)] right-0 flex h-[calc(100vh-12rem)] w-[min(calc(100vw-1rem),27rem)] flex-col overflow-hidden rounded-[1.5rem] border bg-popover text-foreground shadow-md ring-1 ring-foreground/10 overlay-surface origin-bottom-right",
+          isOpen
+            ? "animate-in fade-in-0 zoom-in-90 slide-in-from-bottom-4 duration-250"
+            : hasBeenOpenedRef.current
+              ? "animate-out fade-out-0 zoom-out-90 slide-out-to-bottom-4 duration-200 pointer-events-none fill-mode-forwards"
+              : "pointer-events-none invisible opacity-0",
+        )}
+        data-testid={`${aiContext.surface}-ai-dialog`}
+        role="dialog"
+      >
+        <AIChatPanel
+          activeDashboardConversation={activeDashboardConversation}
+          businessSlug={businessSlug}
+          cachedDashboardConversations={cachedConversations}
+          entityCache={entityCache}
+          entityId={aiContext.entityId}
+          messagesCache={messagesCache}
+          onActiveDashboardConversationChange={
+            setActiveDashboardConversation
+          }
+          onClose={() => setIsOpen(false)}
+          onDashboardConversationsChange={setCachedConversations}
+          onEntityCacheUpdate={handleEntityCacheUpdate}
+          onMessagesCacheUpdate={handleMessagesCacheUpdate}
+          plan={plan}
+          surface={aiContext.surface}
+          title={title}
+          userName={userName}
+        />
+      </div>
 
-        <PopoverContent
-          align="end"
-          className="overlay-surface h-[calc(100vh-12rem)] w-[min(calc(100vw-1rem),27rem)] gap-0 overflow-hidden rounded-[1.5rem] border p-0 text-foreground"
-          collisionPadding={8}
-          data-testid={`${aiContext.surface}-ai-dialog`}
-          onOpenAutoFocus={(event) => event.preventDefault()}
-          side="top"
-          sideOffset={18}
-        >
-          {hasAccess ? (
-            <AIChatPanel
-              activeDashboardConversation={
-                isDashboard ? activeDashboardConversation : null
-              }
-              businessSlug={businessSlug}
-              cachedDashboardConversations={
-                isDashboard ? cachedConversations : null
-              }
-              entityCache={entityCache}
-              entityId={aiContext.entityId}
-              // Remount the panel when the surface/entity changes so it picks
-              // up the correct dedicated chat for that inquiry/quote.
-              key={`${aiContext.surface}:${aiContext.entityId}`}
-              messagesCache={messagesCache}
-              onActiveDashboardConversationChange={
-                setActiveDashboardConversation
-              }
-              onClose={() => setIsOpen(false)}
-              onDashboardConversationsChange={setCachedConversations}
-              onEntityCacheUpdate={handleEntityCacheUpdate}
-              onMessagesCacheUpdate={handleMessagesCacheUpdate}
-              surface={aiContext.surface}
-              title={title}
-              userName={userName}
-            />
-          ) : (
-            <div className="flex h-full flex-col">
-              <div className="flex shrink-0 items-center justify-between border-b border-border/70 bg-[var(--surface-sunken-bg)] px-4 py-3">
-                <h3 className="font-heading text-sm font-semibold tracking-tight text-foreground">
-                  {title}
-                </h3>
-                <Button
-                  aria-label="Close panel"
-                  className="size-7 rounded-[0.4rem] [&_svg]:size-3.5"
-                  onClick={() => setIsOpen(false)}
-                  size="icon"
-                  variant="ghost"
-                >
-                  <X />
-                </Button>
-              </div>
-              <div className="flex flex-1 flex-col justify-center p-4">
-                <LockedFeaturePage
-                  className="border-none shadow-none px-4 py-8"
-                  feature="aiAssistant"
-                  plan={plan}
-                />
-              </div>
-            </div>
-          )}
-        </PopoverContent>
-      </Popover>
+      {/* Trigger button */}
+      <Button
+        aria-label={isOpen ? `Close ${title}` : `Open ${title}`}
+        className="size-14 rounded-full border-border/70 bg-[var(--surface-elevated-bg)] p-0 shadow-[var(--surface-shadow-lg)]"
+        data-testid={`${aiContext.surface}-ai-launcher`}
+        onClick={() => setIsOpen((open) => !open)}
+        onFocus={warmupOnOpenIntent}
+        onMouseEnter={warmupOnOpenIntent}
+        size="icon-lg"
+        type="button"
+        variant="outline"
+      >
+        {isOpen ? (
+          <ChevronDown className="size-6 text-muted-foreground" />
+        ) : (
+          <Image
+            src="/logo.svg"
+            alt=""
+            width={34}
+            height={34}
+            className="size-[2.15rem] object-contain"
+          />
+        )}
+        <span className="sr-only">
+          {isOpen ? `Close ${title}` : `Open ${title}`}
+        </span>
+      </Button>
     </div>
   );
 }

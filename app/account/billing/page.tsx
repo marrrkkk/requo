@@ -26,7 +26,7 @@ export const metadata: Metadata = createNoIndexMetadata({
     "Manage your Requo subscription, review usage, and view payment history.",
 });
 
-export const unstable_instant = false;
+export const unstable_instant = { prefetch: 'static' };
 
 export default function AccountBillingPage() {
   return (

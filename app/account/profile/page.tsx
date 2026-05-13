@@ -16,7 +16,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Update the profile details shown across your Requo account.",
 });
 
-export const unstable_instant = false;
+export const unstable_instant = { prefetch: 'static' };
 
 export default function AccountProfilePage() {
   return (

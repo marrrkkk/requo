@@ -3,6 +3,7 @@ import {
   ArrowRight,
   BellRing,
   CheckCircle2,
+  CircleX,
   FileText,
   Inbox,
 } from "lucide-react";
@@ -19,7 +20,6 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardActivationChecklist } from "@/features/businesses/components/dashboard-activation-checklist";
 import { NeedsAttentionSeeMore, type NeedsAttentionIconName } from "@/features/businesses/components/needs-attention-see-more";
-import { WorkflowNextActionSummary } from "@/features/businesses/components/workflow-next-action";
 import {
   getBusinessInquiriesPath,
   getBusinessInquiryPath,
@@ -27,10 +27,6 @@ import {
   getBusinessQuotePath,
   getBusinessQuotesPath,
 } from "@/features/businesses/routes";
-import {
-  getInquiryNextAction,
-  getQuoteNextAction,
-} from "@/features/businesses/workflow-next-actions";
 import type {
   BusinessDashboardSummaryData,
   BusinessOverviewData,
@@ -47,6 +43,7 @@ import type { InquiryStatus } from "@/features/inquiries/types";
 import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
 import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
+import type { QuoteReminderKind, QuoteStatus } from "@/features/quotes/types";
 import { formatQuoteDate, formatQuoteMoney } from "@/features/quotes/utils";
 import { cn } from "@/lib/utils";
 
@@ -107,14 +104,14 @@ export async function DashboardOverviewStatsSection({
         value={overview.counts.overdueInquiries}
       />
       <OverviewActionStat
-        label="Expiring soon"
-        tooltip="Next 7 days"
-        value={overview.counts.expiringSoonQuotes}
-      />
-      <OverviewActionStat
         label="New inquiries"
         tooltip="Last 48h"
         value={overview.counts.newInquiries}
+      />
+      <OverviewActionStat
+        label="Expiring soon"
+        tooltip="Quotes expiring in the next 7 days"
+        value={overview.counts.expiringSoonQuotes}
       />
       <OverviewActionStat
         label="Draft quotes"
@@ -123,7 +120,7 @@ export async function DashboardOverviewStatsSection({
       />
       <OverviewActionStat
         label="Needs next step"
-        tooltip="Accepted work"
+        tooltip="Accepted quotes awaiting scheduling or follow-up"
         value={overview.counts.recentAcceptedQuotes}
       />
     </div>
@@ -136,6 +133,11 @@ type DashboardNeedsAttentionSectionProps = {
   followUpOverviewPromise: FollowUpOverviewDataPromise;
 };
 
+type NeedsAttentionBadge =
+  | { kind: "inquiry"; status: InquiryStatus }
+  | { kind: "quote"; status: QuoteStatus }
+  | { kind: "reminder"; reminderKind: QuoteReminderKind };
+
 type NeedsAttentionItem = {
   href: string;
   key: string;
@@ -146,6 +148,7 @@ type NeedsAttentionItem = {
   actionLabel: string;
   tone: "urgent" | "normal" | "positive";
   iconName: NeedsAttentionIconName;
+  badge?: NeedsAttentionBadge;
 };
 
 export async function DashboardNeedsAttentionSection({
@@ -174,6 +177,7 @@ export async function DashboardNeedsAttentionSection({
       actionLabel: "Create quote",
       tone: "urgent" as const,
       iconName: "inbox" as const,
+      badge: { kind: "inquiry" as const, status: inquiry.status },
     })),
     ...overview.expiringSoonQuotes.map((quote) => ({
       href: getBusinessQuotePath(businessSlug, quote.id),
@@ -185,6 +189,7 @@ export async function DashboardNeedsAttentionSection({
       actionLabel: "Follow up before expiry",
       tone: "urgent" as const,
       iconName: "file-text" as const,
+      badge: { kind: "quote" as const, status: quote.status },
     })),
     ...overview.newInquiries.map((inquiry) => ({
       href: getBusinessInquiryPath(businessSlug, inquiry.id),
@@ -196,6 +201,7 @@ export async function DashboardNeedsAttentionSection({
       actionLabel: "Create quote",
       tone: "normal" as const,
       iconName: "inbox" as const,
+      badge: { kind: "inquiry" as const, status: inquiry.status },
     })),
     ...overview.recentAcceptedQuotes.map((quote) => ({
       href: getBusinessQuotePath(businessSlug, quote.id),
@@ -207,6 +213,7 @@ export async function DashboardNeedsAttentionSection({
       actionLabel: "Track next work step",
       tone: "positive" as const,
       iconName: "check-circle" as const,
+      badge: { kind: "quote" as const, status: quote.status },
     })),
   ];
   const attentionCount = items.length;
@@ -455,6 +462,43 @@ export async function DashboardOverviewQueuesSection({
               description="Accepted quotes that still need scheduling, deposit, or follow-up show up here."
               icon={CheckCircle2}
               title="All caught up"
+              variant="flat"
+            />
+          )}
+        </OverviewQueueCard>
+
+        <OverviewQueueCard
+          action={
+            <Button asChild size="sm" variant="ghost">
+              <Link
+                href={`${getBusinessQuotesPath(businessSlug)}?status=rejected`}
+                prefetch={true}
+              >
+                Declined quotes
+                <ArrowRight data-icon="inline-end" />
+              </Link>
+            </Button>
+          }
+          count={overview.counts.declinedQuotes}
+          title="Declined"
+        >
+          {overview.declinedQuotes.length ? (
+            <div className="flex flex-col divide-y divide-border/70">
+              {overview.declinedQuotes.map((quote) => (
+                <OverviewQuoteRow
+                  key={quote.id}
+                  meta={`Declined ${formatQuoteDate(quote.customerRespondedAt ?? quote.updatedAt)}`}
+                  quote={quote}
+                  businessSlug={businessSlug}
+                />
+              ))}
+            </div>
+          ) : (
+            <DashboardEmptyState
+              className="px-5 py-12 sm:px-6"
+              description="Quotes that customers have declined show up here."
+              icon={CircleX}
+              title="No declined quotes"
               variant="flat"
             />
           )}
@@ -715,16 +759,32 @@ function NeedsAttentionRow({ item }: { item: NeedsAttentionItem }) {
         <Icon className="size-4" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-foreground">
-          {item.title}
-        </p>
-        <p className="truncate text-sm text-muted-foreground">
-          {item.description}
-        </p>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-foreground">
+              {item.title}
+            </p>
+            <p className="truncate text-sm text-muted-foreground">
+              {item.description}
+            </p>
+          </div>
+          {item.badge ? <NeedsAttentionBadgeDisplay badge={item.badge} /> : null}
+        </div>
       </div>
       <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
     </Link>
   );
+}
+
+function NeedsAttentionBadgeDisplay({ badge }: { badge: NeedsAttentionBadge }) {
+  switch (badge.kind) {
+    case "inquiry":
+      return <InquiryStatusBadge status={badge.status} />;
+    case "quote":
+      return <QuoteStatusBadge status={badge.status} />;
+    case "reminder":
+      return <QuoteReminderBadge kind={badge.reminderKind} />;
+  }
 }
 
 function getBusinessInquiriesStatusPath(
@@ -745,11 +805,6 @@ function OverviewInquiryRow({
   metaLabel: string;
   businessSlug: string;
 }) {
-  const nextAction = getInquiryNextAction({
-    businessSlug,
-    inquiry,
-  });
-
   return (
     <Link
       className="group block px-5 py-4 transition-colors hover:bg-accent/22 sm:px-6"
@@ -766,12 +821,6 @@ function OverviewInquiryRow({
               <p className="mt-1 truncate text-sm text-muted-foreground">
                 {inquiry.customerEmail}
               </p>
-              {nextAction ? (
-                <WorkflowNextActionSummary
-                  action={nextAction}
-                  className="mt-2"
-                />
-              ) : null}
             </div>
             <InquiryStatusBadge status={inquiry.status} />
           </div>
@@ -805,10 +854,6 @@ function OverviewQuoteRow({
   meta: string;
   businessSlug: string;
 }) {
-  const nextAction = getQuoteNextAction({
-    businessSlug,
-    quote,
-  });
   const reminders = quote.reminders.filter((reminder) => reminder !== "follow_up_due");
 
   return (
@@ -843,12 +888,6 @@ function OverviewQuoteRow({
                     />
                   ) : null}
                 </div>
-              ) : null}
-              {nextAction ? (
-                <WorkflowNextActionSummary
-                  action={nextAction}
-                  className="mt-2"
-                />
               ) : null}
             </div>
             <QuoteStatusBadge status={quote.status} />

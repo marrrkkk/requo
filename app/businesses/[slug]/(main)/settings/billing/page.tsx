@@ -18,6 +18,8 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Business billing overview, usage, and payment history.",
 });
 
+export const unstable_instant = { prefetch: 'static' };
+
 export default async function BillingSettingsPage() {
   const { user, businessContext } = await getBusinessOwnerPageContext();
   const businessId = businessContext.business.id;

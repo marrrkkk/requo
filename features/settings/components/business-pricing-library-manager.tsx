@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
+  FileUp,
   Layers,
   MoreHorizontal,
   Package,
@@ -38,6 +39,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DashboardEmptyState } from "@/components/shared/dashboard-layout";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ImporterDialog } from "@/features/importer/components/importer-dialog";
+import type { KnowledgeDraft } from "@/features/importer/components/importer-knowledge-review";
+import type { PricingDraft } from "@/features/importer/components/importer-pricing-review";
+import type {
+  ImporterAnalyzeResult,
+  ImporterCommitResult,
+  ImporterDestination,
+} from "@/features/importer/types";
 import { QuoteLibraryEntryForm } from "@/features/quotes/components/quote-library-entry-form";
 import {
   centsToMoneyInput,
@@ -55,6 +64,7 @@ import { useProgressRouter } from "@/hooks/use-progress-router";
 
 type BusinessPricingLibraryManagerProps = {
   quoteLibrary: DashboardQuoteLibraryEntry[];
+  pricingLimit: number | null;
   createAction: (
     state: QuoteLibraryActionState,
     formData: FormData,
@@ -69,6 +79,19 @@ type BusinessPricingLibraryManagerProps = {
     state: QuoteLibraryDeleteActionState,
     formData: FormData,
   ) => Promise<QuoteLibraryDeleteActionState>;
+  importerEnabled: boolean;
+  analyzeImportAction: (
+    destination: ImporterDestination,
+    formData: FormData,
+  ) => Promise<ImporterAnalyzeResult>;
+  commitKnowledgeImportAction: (payload: {
+    sourceName: string;
+    items: KnowledgeDraft[];
+  }) => Promise<ImporterCommitResult>;
+  commitPricingImportAction: (payload: {
+    sourceName: string;
+    entries: PricingDraft[];
+  }) => Promise<ImporterCommitResult>;
 };
 
 type FilterTab = "all" | "block" | "package";
@@ -80,9 +103,14 @@ type EditorState =
 
 export function BusinessPricingLibraryManager({
   quoteLibrary,
+  pricingLimit,
   createAction,
   updateAction,
   deleteAction,
+  importerEnabled,
+  analyzeImportAction,
+  commitKnowledgeImportAction,
+  commitPricingImportAction,
 }: BusinessPricingLibraryManagerProps) {
   const [filter, setFilter] = useState<FilterTab>("all");
   const [editorState, setEditorState] = useState<EditorState>(null);
@@ -91,6 +119,9 @@ export function BusinessPricingLibraryManager({
   const [seedItems, setSeedItems] = useState<
     QuoteLibraryEditorValues["items"] | null
   >(null);
+  const [importerOpen, setImporterOpen] = useState(false);
+  const totalCount = quoteLibrary.length;
+  const isAtLimit = pricingLimit !== null && totalCount >= pricingLimit;
 
   const blockCount = quoteLibrary.filter((e) => e.kind === "block").length;
   const packageCount = quoteLibrary.filter((e) => e.kind === "package").length;
@@ -132,7 +163,7 @@ export function BusinessPricingLibraryManager({
   return (
     <div className="flex flex-col gap-6">
       {/* Stats summary */}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         <StatCard
           icon={Layers}
           label="Pricing blocks"
@@ -144,6 +175,12 @@ export function BusinessPricingLibraryManager({
           label="Service packages"
           value={packageCount}
           description="Bundled services"
+        />
+        <StatCard
+          icon={Layers}
+          label="Plan usage"
+          value={`${totalCount}/${pricingLimit ?? "∞"}`}
+          description={isAtLimit ? "Limit reached" : "Entries used"}
         />
       </div>
 
@@ -167,7 +204,20 @@ export function BusinessPricingLibraryManager({
         </Tabs>
 
         <div className="flex gap-2">
+          {importerEnabled ? (
+            <Button
+              disabled={isAtLimit}
+              onClick={() => setImporterOpen(true)}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              <FileUp data-icon="inline-start" />
+              Import from file
+            </Button>
+          ) : null}
           <Button
+            disabled={isAtLimit}
             onClick={() => openCreate("block")}
             size="sm"
             type="button"
@@ -177,6 +227,7 @@ export function BusinessPricingLibraryManager({
             New block
           </Button>
           <Button
+            disabled={isAtLimit}
             onClick={() => openCreate("package")}
             size="sm"
             type="button"
@@ -347,6 +398,18 @@ export function BusinessPricingLibraryManager({
         entry={deleteTarget}
         onClose={() => setDeleteTarget(null)}
       />
+
+      {/* File importer */}
+      {importerEnabled ? (
+        <ImporterDialog
+          analyzeAction={analyzeImportAction}
+          commitKnowledgeAction={commitKnowledgeImportAction}
+          commitPricingAction={commitPricingImportAction}
+          destination="pricing"
+          onOpenChange={setImporterOpen}
+          open={importerOpen}
+        />
+      ) : null}
     </div>
   );
 }
@@ -359,7 +422,7 @@ function StatCard({
 }: {
   icon: typeof Layers;
   label: string;
-  value: number;
+  value: number | string;
   description: string;
 }) {
   return (

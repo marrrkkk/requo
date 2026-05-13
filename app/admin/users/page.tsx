@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { DataListPagination } from "@/components/shared/data-list-pagination";
+
+export const unstable_instant = { prefetch: 'static' };
 import {
   DashboardEmptyState,
   DashboardSection,

@@ -10,6 +10,11 @@ import {
 import { getMemoryDashboardData, getMemorySummaryForBusiness } from "@/features/memory/queries";
 import { BusinessMemoryManager } from "@/features/settings/components/business-memory-manager";
 import { getBusinessBillingOverview } from "@/features/billing/queries";
+import {
+  analyzeImportAction,
+  commitKnowledgeImportAction,
+  commitPricingImportAction,
+} from "@/features/importer/actions";
 import { hasFeatureAccess } from "@/lib/plans";
 import { timed } from "@/lib/dev/server-timing";
 import { createNoIndexMetadata } from "@/lib/seo/site";
@@ -19,6 +24,8 @@ export const metadata: Metadata = createNoIndexMetadata({
   title: "Knowledge",
   description: "Manage business knowledge entries used by AI features.",
 });
+
+export const unstable_instant = { prefetch: 'static' };
 
 export default async function BusinessKnowledgePage() {
   const { businessContext } = await getBusinessOperationalPageContext();
@@ -82,6 +89,13 @@ export default async function BusinessKnowledgePage() {
         createAction={createMemoryAction}
         updateAction={updateMemoryAction}
         deleteAction={deleteMemoryAction}
+        importerEnabled={hasFeatureAccess(
+          businessContext.business.plan,
+          "aiAssistant",
+        )}
+        analyzeImportAction={analyzeImportAction}
+        commitKnowledgeImportAction={commitKnowledgeImportAction}
+        commitPricingImportAction={commitPricingImportAction}
       />
     </>
   );

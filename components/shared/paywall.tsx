@@ -39,6 +39,10 @@ type UpgradeActionProps = {
  * UpgradeBadge — small inline badge that shows the required plan.
  *────────────────────────────────────────────────────────────────────────────*/
 
+/**
+ * @deprecated Use `UpgradePrompt` with `showBadge` from `@/features/paywall` instead.
+ * This component remains for unmigrated routes and will be removed once migration is complete.
+ */
 export function UpgradeBadge({
   plan,
   className,
@@ -55,13 +59,16 @@ export function UpgradeBadge({
 
 /*──────────────────────────────────────────────────────────────────────────────
  * PlanBadge — shows the current business plan as a visually distinct badge.
+ *
+ * Note: PlanBadge is a utility display component, not a paywall component.
+ * It may be moved to a shared location in the future but is not deprecated.
  *────────────────────────────────────────────────────────────────────────────*/
 
 const planBadgeStyles: Record<plan, string> = {
-  free: "bg-muted/60 text-muted-foreground dark:bg-muted/40",
-  pro: "bg-primary/15 text-primary dark:bg-primary/20 dark:text-primary",
+  free: "border-border/80 bg-muted/60 text-muted-foreground shadow-[var(--control-shadow)] dark:bg-muted/40",
+  pro: "border-primary/30 bg-primary/10 text-primary shadow-[var(--control-shadow)] dark:border-primary/25 dark:bg-primary/15",
   business:
-    "bg-violet-500/15 text-violet-700 dark:bg-violet-500/20 dark:text-violet-400",
+    "border-violet-300/50 bg-violet-500/10 text-violet-700 shadow-[var(--control-shadow)] dark:border-violet-500/25 dark:bg-violet-500/15 dark:text-violet-400",
 };
 
 export function PlanBadge({
@@ -74,7 +81,7 @@ export function PlanBadge({
   return (
     <span
       className={cn(
-        "inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-xs font-semibold",
+        "inline-flex h-6 shrink-0 items-center rounded-full border px-2.5 text-xs font-semibold",
         planBadgeStyles[plan],
         className,
       )}
@@ -88,6 +95,11 @@ export function PlanBadge({
  * LockedFeatureCard — a card-sized locked state for gated features.
  *────────────────────────────────────────────────────────────────────────────*/
 
+/**
+ * @deprecated Use `UpgradePrompt` with `variant="card"` from `@/features/paywall` instead.
+ * This component remains for unmigrated routes and will be removed once migration is complete.
+ * @see {@link @/features/paywall} for the new unified paywall system.
+ */
 export function LockedFeatureCard({
   feature,
   plan,
@@ -172,6 +184,12 @@ export function LockedFeatureCard({
  * prompt when a feature is locked for the current plan.
  *────────────────────────────────────────────────────────────────────────────*/
 
+/**
+ * @deprecated Use `PremiumContentBlur` from `@/features/paywall` for premium-generated outputs,
+ * or `FeaturePreviewPaywall` from `@/features/paywall` for page sections with static content.
+ * This component remains for unmigrated routes and will be removed once migration is complete.
+ * @see {@link @/features/paywall} for the new unified paywall system.
+ */
 export function LockedFeatureOverlay({
   feature,
   plan,
@@ -224,65 +242,24 @@ export function LockedFeatureOverlay({
 
 /*──────────────────────────────────────────────────────────────────────────────
  * UsageLimitBanner — inline banner showing monthly usage progress.
+ *
+ * @deprecated Use `UsageLimitBanner` from `@/features/paywall` instead.
+ * This re-export exists for migration compatibility and will be removed
+ * once all consumers are updated.
  *────────────────────────────────────────────────────────────────────────────*/
 
-export function UsageLimitBanner({
-  label,
-  current,
-  limit,
-  plan,
-  className,
-}: {
-  label: string;
-  current: number;
-  limit: number;
-  plan: plan;
-  className?: string;
-}) {
-  const percentage = Math.min(100, Math.round((current / limit) * 100));
-  const isAtLimit = current >= limit;
-
-  return (
-    <div
-      className={cn(
-        "flex flex-col gap-3 rounded-xl border px-4 py-3.5",
-        isAtLimit
-          ? "border-destructive/30 bg-destructive/5"
-          : "border-border/70 bg-muted/30",
-        className,
-      )}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-medium text-foreground">
-          {label}
-        </p>
-        <span className="text-sm tabular-nums text-muted-foreground">
-          {current} / {limit}
-        </span>
-      </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-border/50">
-        <div
-          className={cn(
-            "h-full rounded-full transition-all",
-            isAtLimit ? "bg-destructive" : "bg-primary",
-          )}
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-      {isAtLimit ? (
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          You&apos;ve reached this business plan limit.{" "}
-          {getUpgradeCtaLabel(plan)} for unlimited usage.
-        </p>
-      ) : null}
-    </div>
-  );
-}
+export { UsageLimitBanner } from "@/features/paywall/components/usage-limit-banner";
 
 /*──────────────────────────────────────────────────────────────────────────────
  * LockedFeaturePage — full-page locked state for gated dashboard sections.
  *────────────────────────────────────────────────────────────────────────────*/
 
+/**
+ * @deprecated Use `FeaturePreviewPaywall` from `@/features/paywall` for pages with previewable content,
+ * or `UpgradePrompt` with `variant="empty-state"` from `@/features/paywall` for pages with no renderable content.
+ * This component remains for unmigrated routes and will be removed once migration is complete.
+ * @see {@link @/features/paywall} for the new unified paywall system.
+ */
 export function LockedFeaturePage({
   feature,
   plan,

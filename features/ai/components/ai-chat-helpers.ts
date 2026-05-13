@@ -251,6 +251,21 @@ export async function fetchDashboardConversations(input: {
   };
 }
 
+export async function deleteConversation(conversationId: string) {
+  const response = await fetch(`/api/ai/conversations/${conversationId}`, {
+    method: "DELETE",
+    headers: { accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      await getJsonErrorMessage(response, "Could not delete this conversation."),
+    );
+  }
+
+  return (await response.json()) as { deleted: boolean };
+}
+
 function parseStreamEvent(line: string) {
   const parsed = JSON.parse(line) as AiChatStreamEvent;
 
@@ -258,6 +273,7 @@ function parseStreamEvent(line: string) {
     parsed.type !== "conversation" &&
     parsed.type !== "messages" &&
     parsed.type !== "meta" &&
+    parsed.type !== "status" &&
     parsed.type !== "delta" &&
     parsed.type !== "done" &&
     parsed.type !== "error"

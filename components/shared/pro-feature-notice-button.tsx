@@ -20,6 +20,13 @@ type ProFeatureNoticeButtonProps = Omit<
   noticeDescription?: string;
 };
 
+/**
+ * @deprecated Use `LockedAction` from `@/features/paywall` instead.
+ * LockedAction provides the same upgrade popover behavior with consistent styling,
+ * plan badge indicators, and proper accessibility attributes.
+ * This component remains for unmigrated routes and will be removed once migration is complete.
+ * @see {@link @/features/paywall} for the new unified paywall system.
+ */
 export function ProFeatureNoticeButton({
   children,
   noticeTitle = "This is a Pro feature.",

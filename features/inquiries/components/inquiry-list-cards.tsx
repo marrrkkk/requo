@@ -10,8 +10,6 @@ import type { DashboardInquiryListItem } from "@/features/inquiries/types";
 import {
   formatInquiryDate,
 } from "@/features/inquiries/utils";
-import { WorkflowNextActionSummary } from "@/features/businesses/components/workflow-next-action";
-import { getInquiryNextAction } from "@/features/businesses/workflow-next-actions";
 import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
@@ -28,11 +26,6 @@ export function InquiryListCards({
   return (
     <div className="data-list-mobile-grid">
       {inquiries.map((inquiry) => {
-        const nextAction = getInquiryNextAction({
-          businessSlug,
-          inquiry,
-        });
-
         return (
           <Link
             className="block"
@@ -50,12 +43,6 @@ export function InquiryListCards({
                     <CardDescription className="truncate text-sm">
                       {inquiry.customerEmail ?? ""}
                     </CardDescription>
-                    {nextAction ? (
-                      <WorkflowNextActionSummary
-                        action={nextAction}
-                        className="mt-2"
-                      />
-                    ) : null}
                   </div>
                   <div className="flex shrink-0 flex-col gap-2">
                     <InquiryStatusBadge status={inquiry.status} />

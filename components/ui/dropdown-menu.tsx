@@ -5,17 +5,58 @@ import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { CheckIcon, ChevronRightIcon } from "lucide-react"
+import {
+  useControllableOpenState,
+  useOverlayPresence,
+} from "@/components/ui/overlay-state"
+
+type DropdownMenuStateContextValue = {
+  mobileSheet: boolean
+  open: boolean
+  present: boolean
+  setOpen: (open: boolean) => void
+}
+
+const DropdownMenuStateContext =
+  React.createContext<DropdownMenuStateContextValue | null>(null)
 
 function DropdownMenu({
+  defaultOpen = false,
+  mobileSheet = true,
   modal = false,
+  onOpenChange,
+  open: openProp,
   ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Root> & {
+  mobileSheet?: boolean
+}) {
+  const [open, setOpen] = useControllableOpenState({
+    defaultOpen,
+    onOpenChange,
+    open: openProp,
+  })
+  const present = useOverlayPresence(open)
+  const contextValue = React.useMemo(
+    () => ({
+      mobileSheet,
+      open,
+      present,
+      setOpen,
+    }),
+    [mobileSheet, open, present, setOpen]
+  )
+
   return (
-    <DropdownMenuPrimitive.Root
-      data-slot="dropdown-menu"
-      modal={modal}
-      {...props}
-    />
+    <DropdownMenuStateContext.Provider value={contextValue}>
+      <DropdownMenuPrimitive.Root
+        data-slot="dropdown-menu"
+        defaultOpen={defaultOpen}
+        modal={modal}
+        onOpenChange={setOpen}
+        open={open}
+        {...props}
+      />
+    </DropdownMenuStateContext.Provider>
   )
 }
 
@@ -45,10 +86,15 @@ function DropdownMenuContent({
   sideOffset = 4,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+  const menuState = React.useContext(DropdownMenuStateContext)
+  const mobileSheet = menuState?.mobileSheet ?? true
+
   return (
     <DropdownMenuPrimitive.Portal>
+      <DropdownMenuMobileOverlay />
       <DropdownMenuPrimitive.Content
         data-slot="dropdown-menu-content"
+        data-mobile-sheet={mobileSheet ? "true" : undefined}
         sideOffset={sideOffset}
         align={align}
         collisionPadding={collisionPadding}
@@ -56,6 +102,23 @@ function DropdownMenuContent({
         {...props}
       />
     </DropdownMenuPrimitive.Portal>
+  )
+}
+
+function DropdownMenuMobileOverlay() {
+  const menuState = React.useContext(DropdownMenuStateContext)
+
+  if (!menuState?.mobileSheet || !menuState.present) {
+    return null
+  }
+
+  return (
+    <div
+      aria-hidden="true"
+      data-state={menuState.open ? "open" : "closed"}
+      data-slot="dropdown-menu-mobile-overlay"
+      onClick={() => menuState.setOpen(false)}
+    />
   )
 }
 
@@ -251,9 +314,13 @@ function DropdownMenuSubContent({
   collisionPadding = 12,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
+  const menuState = React.useContext(DropdownMenuStateContext)
+  const mobileSheet = menuState?.mobileSheet ?? true
+
   return (
     <DropdownMenuPrimitive.SubContent
       data-slot="dropdown-menu-sub-content"
+      data-mobile-sheet={mobileSheet ? "true" : undefined}
       collisionPadding={collisionPadding}
       className={cn("overlay-surface popover-layer max-h-[min(var(--radix-dropdown-menu-content-available-height),calc(100dvh-1rem))] max-w-[calc(100vw-1rem)] min-w-[96px] origin-(--radix-dropdown-menu-content-transform-origin) overflow-y-auto overscroll-contain rounded-md border p-1 text-popover-foreground duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95", className )}
       {...props}

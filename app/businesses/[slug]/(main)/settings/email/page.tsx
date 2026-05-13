@@ -16,6 +16,8 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Edit the email templates Requo sends on behalf of this business.",
 });
 
+export const unstable_instant = { prefetch: 'static' };
+
 export default async function BusinessEmailTemplateSettingsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();
 

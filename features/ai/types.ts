@@ -80,6 +80,10 @@ export type AiChatStreamEvent =
       providerModel?: string;
     }
   | {
+      type: "status";
+      message: string;
+    }
+  | {
       type: "delta";
       value: string;
     }

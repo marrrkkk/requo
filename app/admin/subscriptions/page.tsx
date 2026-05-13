@@ -13,6 +13,8 @@ import { createNoIndexMetadata } from "@/lib/seo/site";
 
 import AdminLoading from "../loading";
 
+export const unstable_instant = { prefetch: 'static' };
+
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
 
 type AdminSubscriptionsPageProps = {

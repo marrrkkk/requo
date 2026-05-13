@@ -1,4 +1,3 @@
-import { LockedFeatureCard } from "@/components/shared/paywall";
 import { analyticsSections, type AnalyticsSectionId } from "@/features/analytics/config";
 import { AnalyticsConversionTab } from "@/features/analytics/components/analytics-conversion-tab";
 import { AnalyticsOverviewTab } from "@/features/analytics/components/analytics-overview-tab";
@@ -10,9 +9,16 @@ import {
   getWorkflowAnalyticsData,
 } from "@/features/analytics/queries";
 import { getBusinessBillingOverview } from "@/features/billing/queries";
+import {
+  PremiumContentBlur,
+  placeholderConversionData,
+  placeholderWorkflowData,
+} from "@/features/paywall";
 import { hasFeatureAccess } from "@/lib/plans";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
+import { AnalyticsConversionPlaceholder } from "./analytics-conversion-placeholder";
+import { AnalyticsWorkflowPlaceholder } from "./analytics-workflow-placeholder";
 import { getBusinessAnalyticsPath } from "@/features/businesses/routes";
 
 type AnalyticsTabPanelProps = {
@@ -46,25 +52,31 @@ export async function AnalyticsTabPanel({
       const billingOverview = await getBusinessBillingOverview(businessId);
 
       content = (
-        <LockedFeatureCard
-          description="Upgrade to compare form traffic, inquiry conversion, and quote handoff performance."
+        <PremiumContentBlur
           feature="analyticsConversion"
           plan={plan}
-          title="Inquiry/Form Performance"
+          placeholder={
+            <AnalyticsConversionPlaceholder
+              data={placeholderConversionData}
+              currency={currency}
+            />
+          }
           upgradeAction={
             billingOverview
               ? {
                   userId: billingOverview.userId,
                   businessId: billingOverview.businessId,
-                    businessSlug: billingOverview.businessSlug,
+                  businessSlug: billingOverview.businessSlug,
                   currentPlan: billingOverview.currentPlan,
                   region: billingOverview.region,
                   defaultCurrency: billingOverview.defaultCurrency,
-                  ctaLabel: "Upgrade for conversion analytics",
                 }
               : undefined
           }
-        />
+        >
+          {/* Premium content not rendered when locked */}
+          <AnalyticsConversionTab currency={currency} data={null as never} />
+        </PremiumContentBlur>
       );
     }
   } else if (hasFeatureAccess(plan, "analyticsWorkflow")) {
@@ -75,25 +87,28 @@ export async function AnalyticsTabPanel({
     const billingOverview = await getBusinessBillingOverview(businessId);
 
     content = (
-      <LockedFeatureCard
-        description="Upgrade to monitor quote outcomes, response speed, and turnaround timing."
+      <PremiumContentBlur
         feature="analyticsWorkflow"
         plan={plan}
-        title="Quote Performance"
+        placeholder={
+          <AnalyticsWorkflowPlaceholder data={placeholderWorkflowData} />
+        }
         upgradeAction={
           billingOverview
             ? {
                 userId: billingOverview.userId,
                 businessId: billingOverview.businessId,
-                    businessSlug: billingOverview.businessSlug,
+                businessSlug: billingOverview.businessSlug,
                 currentPlan: billingOverview.currentPlan,
                 region: billingOverview.region,
                 defaultCurrency: billingOverview.defaultCurrency,
-                ctaLabel: "Upgrade for quote performance",
               }
             : undefined
         }
-      />
+      >
+        {/* Premium content not rendered when locked */}
+        <AnalyticsWorkflowTab data={null as never} />
+      </PremiumContentBlur>
     );
   }
 

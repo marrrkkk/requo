@@ -23,9 +23,11 @@ import { getAccountProfileForUser } from "@/features/account/queries";
 import { AccountUserMenu } from "@/features/account/components/account-user-menu";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { onboardingPath } from "@/features/onboarding/routes";
+import { UpgradePrompt } from "@/features/paywall";
 import { RecentlyOpenedBusinesses } from "@/features/businesses/components/recently-opened-businesses";
 import { getRecentlyOpenedBusinessesForUser } from "@/features/businesses/recently-opened";
 import { getBusinessQuotaForUser } from "@/features/businesses/quota";
+import { planMeta } from "@/lib/plans/plans";
 
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
@@ -39,6 +41,11 @@ export const metadata: Metadata = createNoIndexMetadata({
   absoluteTitle: "Businesses · Requo",
   description: "Manage the businesses, settings, and team access you own.",
 });
+
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
+};
 
 export default async function BusinessesPage() {
   const session = await requireSession();
@@ -108,6 +115,14 @@ export default async function BusinessesPage() {
 
           <div className="w-full space-y-6">
             <RecentlyOpenedBusinesses businesses={recentlyOpenedBusinesses} />
+
+            {!businessQuota.allowed && businessQuota.upgradePlan && (
+              <UpgradePrompt
+                variant="banner"
+                plan={businessQuota.plan}
+                description={`Your ${planMeta[businessQuota.plan].label} plan supports ${businessQuota.limit === 1 ? "1 business" : `${businessQuota.limit} businesses`}. Upgrade to ${planMeta[businessQuota.upgradePlan].label} to add more.`}
+              />
+            )}
 
             <section className="space-y-4">
               <div className="flex items-center justify-between gap-3">
