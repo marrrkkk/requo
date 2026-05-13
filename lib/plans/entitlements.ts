@@ -26,6 +26,7 @@ export const planFeatures = [
   "exports",
   "branding",
   "multiBusiness",
+  "followUps",
 ] as const;
 
 export type PlanFeature = (typeof planFeatures)[number];
@@ -47,6 +48,7 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "exports",
     "branding",
     "multiBusiness",
+    "followUps",
   ]),
   business: new Set<PlanFeature>([
     "analyticsConversion",
@@ -64,6 +66,7 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "exports",
     "branding",
     "multiBusiness",
+    "followUps",
   ]),
 };
 
@@ -114,6 +117,7 @@ export const planFeatureLabels: Record<PlanFeature, string> = {
   exports: "Data exports",
   branding: "Advanced branding",
   multiBusiness: "Multiple businesses",
+  followUps: "Follow-ups",
 };
 
 /** Short value description for use in paywall locked states. */
@@ -148,4 +152,6 @@ export const planFeatureDescriptions: Record<PlanFeature, string> = {
     "Remove Requo branding and unlock advanced brand controls.",
   multiBusiness:
     "Manage more than one total business across your businesses.",
+  followUps:
+    "Create follow-up reminders to stay on top of inquiries and quotes.",
 };
