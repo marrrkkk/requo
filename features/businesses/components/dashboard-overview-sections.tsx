@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  BarChart3,
   BellRing,
   CheckCircle2,
   FileText,
@@ -18,14 +17,11 @@ import { HelpTooltip } from "@/components/shared/help-tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatAnalyticsPercent } from "@/features/analytics/utils";
 import { DashboardActivationChecklist } from "@/features/businesses/components/dashboard-activation-checklist";
+import { NeedsAttentionSeeMore, type NeedsAttentionIconName } from "@/features/businesses/components/needs-attention-see-more";
 import { WorkflowNextActionSummary } from "@/features/businesses/components/workflow-next-action";
 import {
-  getBusinessAnalyticsPath,
-  getBusinessFollowUpsPath,
   getBusinessInquiriesPath,
-  getBusinessInquiryFormsPath,
   getBusinessInquiryPath,
   getBusinessNewQuotePath,
   getBusinessQuotePath,
@@ -52,7 +48,6 @@ import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quo
 import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
 import { formatQuoteDate, formatQuoteMoney } from "@/features/quotes/utils";
-import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { cn } from "@/lib/utils";
 
 const overviewQueueMaxItems = 4;
@@ -150,6 +145,7 @@ type NeedsAttentionItem = {
   meta: string;
   actionLabel: string;
   tone: "urgent" | "normal" | "positive";
+  iconName: NeedsAttentionIconName;
 };
 
 export async function DashboardNeedsAttentionSection({
@@ -177,6 +173,7 @@ export async function DashboardNeedsAttentionSection({
       meta: `Submitted ${formatQuoteDate(inquiry.submittedAt)}`,
       actionLabel: "Create quote",
       tone: "urgent" as const,
+      iconName: "inbox" as const,
     })),
     ...overview.expiringSoonQuotes.map((quote) => ({
       href: getBusinessQuotePath(businessSlug, quote.id),
@@ -187,6 +184,7 @@ export async function DashboardNeedsAttentionSection({
       meta: `Expires ${formatQuoteDate(quote.validUntil)}`,
       actionLabel: "Follow up before expiry",
       tone: "urgent" as const,
+      iconName: "file-text" as const,
     })),
     ...overview.newInquiries.map((inquiry) => ({
       href: getBusinessInquiryPath(businessSlug, inquiry.id),
@@ -197,42 +195,36 @@ export async function DashboardNeedsAttentionSection({
       meta: `Submitted ${formatQuoteDate(inquiry.submittedAt)}`,
       actionLabel: "Create quote",
       tone: "normal" as const,
+      iconName: "inbox" as const,
     })),
     ...overview.recentAcceptedQuotes.map((quote) => ({
       href: getBusinessQuotePath(businessSlug, quote.id),
       key: `accepted-quote:${quote.id}`,
-      label: "Accepted — next step",
+      label: "Accepted",
       title: quote.title,
       description: quote.customerName,
       meta: `Accepted ${formatQuoteDate(quote.acceptedAt ?? quote.updatedAt)}`,
       actionLabel: "Track next work step",
       tone: "positive" as const,
+      iconName: "check-circle" as const,
     })),
-  ].slice(0, 6);
-  const attentionCount =
-    followUpOverview.counts.overdue +
-    followUpOverview.counts.dueToday +
-    overview.counts.overdueInquiries +
-    overview.counts.expiringSoonQuotes +
-    overview.counts.newInquiries +
-    overview.counts.recentAcceptedQuotes;
+  ];
+  const attentionCount = items.length;
+  const visibleItems = items.slice(0, 3);
 
   return (
     <DashboardSection
       action={
-        <Button asChild size="sm" variant="ghost">
-          <Link href={getBusinessFollowUpsPath(businessSlug)} prefetch={true}>
-            Open follow-ups
-            <ArrowRight data-icon="inline-end" />
-          </Link>
-        </Button>
+        attentionCount > 0 ? (
+          <Badge variant="secondary">{attentionCount} open</Badge>
+        ) : null
       }
-      description="The shortest list of customers and quotes that need action before they go cold."
-      title="Needs attention today"
+      description="Quotes and inquiries waiting on the next step."
+      title="Needs attention"
     >
-      {items.length ? (
-        <div className="grid gap-3 lg:grid-cols-2">
-          {items.map((item) => (
+      {visibleItems.length ? (
+        <div className="flex flex-col divide-y divide-border/70">
+          {visibleItems.map((item) => (
             <NeedsAttentionRow item={item} key={item.key} />
           ))}
         </div>
@@ -246,11 +238,9 @@ export async function DashboardNeedsAttentionSection({
         />
       )}
 
-      <p className="mt-4 text-xs text-muted-foreground">
-        {attentionCount
-          ? `${attentionCount} active item${attentionCount === 1 ? "" : "s"} need attention.`
-          : "You can still review upcoming follow-ups below."}
-      </p>
+      {attentionCount > 3 ? (
+        <NeedsAttentionSeeMore items={items} />
+      ) : null}
     </DashboardSection>
   );
 }
@@ -264,14 +254,10 @@ type DashboardOverviewQueuesSectionProps = {
 
 export async function DashboardOverviewQueuesSection({
   businessSlug,
-  publicInquiryEnabled,
   summaryPromise,
   overviewPromise,
 }: DashboardOverviewQueuesSectionProps) {
-  const [summary, overview] = await Promise.all([summaryPromise, overviewPromise]);
-  const closedOutcomeCount = summary.wonCount + summary.lostCount;
-  const winRate = closedOutcomeCount ? summary.wonCount / closedOutcomeCount : 0;
-  const publicInquiryUrl = getBusinessPublicInquiryUrl(businessSlug);
+  const [, overview] = await Promise.all([summaryPromise, overviewPromise]);
   const overdueInquiryPath = getBusinessInquiriesStatusPath(
     businessSlug,
     "overdue",
@@ -436,7 +422,7 @@ export async function DashboardOverviewQueuesSection({
 
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="grid gap-5 xl:grid-cols-2">
         <OverviewQueueCard
           action={
             <Button asChild size="sm" variant="ghost">
@@ -450,7 +436,7 @@ export async function DashboardOverviewQueuesSection({
             </Button>
           }
           count={overview.counts.recentAcceptedQuotes}
-          title="Accepted — next step"
+          title="Accepted"
         >
           {overview.recentAcceptedQuotes.length ? (
             <div className="flex flex-col divide-y divide-border/70">
@@ -473,51 +459,6 @@ export async function DashboardOverviewQueuesSection({
             />
           )}
         </OverviewQueueCard>
-
-        <section className="section-panel overflow-hidden">
-          <div className="flex h-full flex-col gap-5 px-5 py-5 sm:px-6 sm:py-6">
-            <div className="flex flex-col divide-y divide-border/70">
-              <OverviewSidebarMetric
-                label="This week"
-                tooltip="New inquiries this week"
-                value={`${summary.inquiriesThisWeek}`}
-              />
-              <OverviewSidebarMetric
-                label="Coverage"
-                tooltip="Inquiries turned into quotes"
-                value={formatAnalyticsPercent(summary.inquiryCoverageRate)}
-              />
-              <OverviewSidebarMetric
-                label="Win rate"
-                tooltip="Won inquiries versus lost inquiries"
-                value={formatAnalyticsPercent(winRate)}
-              />
-            </div>
-
-            <div className="mt-auto flex flex-col gap-2.5">
-              <Button asChild variant="outline">
-                <Link href={getBusinessAnalyticsPath(businessSlug)} prefetch={true}>
-                  View analytics
-                  <BarChart3 data-icon="inline-end" />
-                </Link>
-              </Button>
-              <Button asChild variant="ghost">
-                <Link
-                  href={
-                    publicInquiryEnabled
-                      ? publicInquiryUrl
-                      : getBusinessInquiryFormsPath(businessSlug)
-                  }
-                  prefetch={publicInquiryEnabled ? false : undefined}
-                  rel={publicInquiryEnabled ? "noreferrer" : undefined}
-                  target={publicInquiryEnabled ? "_blank" : undefined}
-                >
-                  {publicInquiryEnabled ? "Open public form" : "Open forms"}
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </section>
       </div>
     </>
   );
@@ -578,23 +519,21 @@ export function DashboardOverviewStatsFallback() {
 export function DashboardNeedsAttentionFallback() {
   return (
     <DashboardSection
-      action={<Skeleton className="h-9 w-32 rounded-lg" />}
+      action={<Skeleton className="h-6 w-16 rounded-full" />}
       description={
-        <Skeleton className="h-4 w-full max-w-xl rounded-md" />
+        <Skeleton className="h-4 w-full max-w-xs rounded-md" />
       }
-      title="Needs attention today"
+      title="Needs attention"
     >
-      <div className="grid gap-3 lg:grid-cols-2">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <div className="soft-panel px-4 py-4 shadow-none" key={index}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex min-w-0 flex-1 flex-col gap-2">
-                <Skeleton className="h-4 w-24 rounded-md" />
-                <Skeleton className="h-5 w-40 rounded-md" />
-                <Skeleton className="h-4 w-full max-w-xs rounded-md" />
-              </div>
-              <Skeleton className="size-4 rounded-full" />
+      <div className="flex flex-col divide-y divide-border/70">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div className="flex items-center gap-4 px-1 py-3.5 sm:px-2" key={index}>
+            <Skeleton className="size-9 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1">
+              <Skeleton className="h-4 w-40 rounded-md" />
+              <Skeleton className="mt-1.5 h-3.5 w-56 rounded-md" />
             </div>
+            <Skeleton className="size-4 rounded-full" />
           </div>
         ))}
       </div>
@@ -606,37 +545,13 @@ export function DashboardOverviewQueuesFallback() {
   return (
     <>
       <div className="grid gap-5 xl:grid-cols-2">
-        {Array.from({ length: 3 }).map((_, index) => (
+        {Array.from({ length: 4 }).map((_, index) => (
           <OverviewQueueCardSkeleton key={index} />
         ))}
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="grid gap-5 xl:grid-cols-2">
         <OverviewQueueCardSkeleton />
-
-        <section className="section-panel overflow-hidden">
-          <div className="flex h-full flex-col gap-5 px-5 py-5 sm:px-6 sm:py-6">
-            <div className="flex flex-col divide-y divide-border/70">
-              {Array.from({ length: 3 }).map((_, index) => (
-                <div
-                  className="flex items-center justify-between gap-4 py-2.5 first:pt-0 last:pb-0"
-                  key={index}
-                >
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-4 w-16 rounded-md" />
-                    <Skeleton className="size-4 rounded-full" />
-                  </div>
-                  <Skeleton className="h-4 w-12 rounded-md" />
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-auto flex flex-col gap-2.5">
-              <Skeleton className="h-10 w-full rounded-xl" />
-              <Skeleton className="h-10 w-full rounded-xl" />
-            </div>
-          </div>
-        </section>
       </div>
     </>
   );
@@ -665,26 +580,6 @@ function OverviewActionStat({
       >
         {value}
       </p>
-    </div>
-  );
-}
-
-function OverviewSidebarMetric({
-  label,
-  value,
-  tooltip,
-}: {
-  label: string;
-  value: string;
-  tooltip?: string;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
-      <div className="flex items-center gap-1.5">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        {tooltip ? <HelpTooltip content={tooltip} label={label} /> : null}
-      </div>
-      <p className="text-sm font-semibold tracking-tight text-foreground">{value}</p>
     </div>
   );
 }
@@ -785,40 +680,49 @@ function createFollowUpAttentionItem(
     key: `follow-up:${followUp.id}`,
     label,
     title: followUp.title,
-    description: `${followUp.customerName} - ${followUp.reason}`,
+    description: `${followUp.customerName} · ${followUp.reason}`,
     meta: `Due ${formatFollowUpDate(followUp.dueAt)}`,
     actionLabel: "Work follow-up",
     tone,
+    iconName: "bell-ring",
   };
 }
 
+const attentionIconMap: Record<NeedsAttentionIconName, typeof ArrowRight> = {
+  "inbox": Inbox,
+  "file-text": FileText,
+  "bell-ring": BellRing,
+  "check-circle": CheckCircle2,
+};
+
 function NeedsAttentionRow({ item }: { item: NeedsAttentionItem }) {
+  const Icon = attentionIconMap[item.iconName];
+
   return (
     <Link
-      className="group soft-panel block px-4 py-4 shadow-none transition-colors hover:bg-accent/22"
+      className="group flex items-center gap-4 px-1 py-3.5 transition-colors hover:bg-accent/22 sm:px-2"
       href={item.href}
       prefetch={true}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <Badge
-            variant={item.tone === "urgent" ? "secondary" : "outline"}
-          >
-            {item.label}
-          </Badge>
-          <p className="mt-3 truncate text-sm font-semibold text-foreground">
-            {item.title}
-          </p>
-          <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
-            {item.description}
-          </p>
-          <p className="mt-2 text-xs text-muted-foreground">{item.meta}</p>
-          <p className="mt-2 text-xs font-medium text-foreground">
-            Next: {item.actionLabel}
-          </p>
-        </div>
-        <ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+      <div
+        className={cn(
+          "flex size-9 shrink-0 items-center justify-center rounded-full",
+          item.tone === "urgent" && "bg-destructive/10 text-destructive",
+          item.tone === "normal" && "bg-primary/10 text-primary",
+          item.tone === "positive" && "bg-green-500/10 text-green-600 dark:text-green-400",
+        )}
+      >
+        <Icon className="size-4" />
       </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-foreground">
+          {item.title}
+        </p>
+        <p className="truncate text-sm text-muted-foreground">
+          {item.description}
+        </p>
+      </div>
+      <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
     </Link>
   );
 }
