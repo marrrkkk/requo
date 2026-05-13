@@ -39,7 +39,7 @@ const mockRequest: AiCompletionRequest = {
 
 /** Track which model was actually requested by the provider mock. */
 function makeProvider(
-  name: "groq" | "gemini" | "openrouter",
+  name: "groq" | "gemini" | "cerebras",
   overrides: Partial<AiProvider> = {},
 ): AiProvider {
   return {
@@ -66,7 +66,7 @@ function makeProvider(
 }
 
 function makeRetryableError(
-  provider: "groq" | "gemini" | "openrouter",
+  provider: "groq" | "gemini" | "cerebras",
   statusCode: number,
 ): AiProviderError {
   return new AiProviderError(
@@ -79,7 +79,7 @@ function makeRetryableError(
 }
 
 function makeNonRetryableError(
-  provider: "groq" | "gemini" | "openrouter",
+  provider: "groq" | "gemini" | "cerebras",
   statusCode: number,
 ): AiProviderError {
   return new AiProviderError(
@@ -184,7 +184,7 @@ describe("generateWithFallback", () => {
     expect(gemini.generateCompletion).toHaveBeenCalledOnce();
   });
 
-  it("moves to OpenRouter after Groq and Gemini models all fail", async () => {
+  it("moves to cerebras after Groq and Gemini models all fail", async () => {
     const groq = makeProvider("groq", {
       generateCompletion: vi.fn(async () => {
         throw makeRetryableError("groq", 503);
@@ -195,22 +195,22 @@ describe("generateWithFallback", () => {
         throw makeRetryableError("gemini", 502);
       }),
     });
-    const openrouter = makeProvider("openrouter");
+    const cerebras = makeProvider("cerebras");
 
-    vi.mocked(getConfiguredProviders).mockReturnValue([groq, gemini, openrouter]);
+    vi.mocked(getConfiguredProviders).mockReturnValue([groq, gemini, cerebras]);
     setupModels({
       groq: ["qwen/qwen3-32b", "llama-3.3-70b-versatile"],
       gemini: ["gemini-2.5-flash", "gemini-2.5-flash-lite"],
-      openrouter: ["nvidia/nemotron-3-super:free"],
+      cerebras: ["nvidia/nemotron-3-super:free"],
     });
 
     const result = await generateWithFallback(mockRequest);
 
-    expect(result.provider).toBe("openrouter");
+    expect(result.provider).toBe("cerebras");
     expect(result.model).toBe("nvidia/nemotron-3-super:free");
     expect(groq.generateCompletion).toHaveBeenCalledTimes(2);
     expect(gemini.generateCompletion).toHaveBeenCalledTimes(2);
-    expect(openrouter.generateCompletion).toHaveBeenCalledOnce();
+    expect(cerebras.generateCompletion).toHaveBeenCalledOnce();
   });
 
   it("stops immediately on 401 without trying more models or providers", async () => {
@@ -275,23 +275,23 @@ describe("generateWithFallback", () => {
         throw makeRetryableError("gemini", 500);
       }),
     });
-    const openrouter = makeProvider("openrouter", {
+    const cerebras = makeProvider("cerebras", {
       generateCompletion: vi.fn(async () => {
-        throw makeRetryableError("openrouter", 504);
+        throw makeRetryableError("cerebras", 504);
       }),
     });
 
-    vi.mocked(getConfiguredProviders).mockReturnValue([groq, gemini, openrouter]);
+    vi.mocked(getConfiguredProviders).mockReturnValue([groq, gemini, cerebras]);
     setupModels({
       groq: ["model-a", "model-b"],
       gemini: ["model-c"],
-      openrouter: ["model-d"],
+      cerebras: ["model-d"],
     });
 
     await expect(generateWithFallback(mockRequest)).rejects.toThrow();
     expect(groq.generateCompletion).toHaveBeenCalledTimes(2);
     expect(gemini.generateCompletion).toHaveBeenCalledTimes(1);
-    expect(openrouter.generateCompletion).toHaveBeenCalledTimes(1);
+    expect(cerebras.generateCompletion).toHaveBeenCalledTimes(1);
   });
 
   it("throws when no providers are configured", async () => {
@@ -526,7 +526,7 @@ describe("getModelsForProvider (integration)", () => {
       typeof import("@/lib/ai/config")
     >("@/lib/ai/config");
 
-    for (const provider of ["groq", "gemini", "openrouter"] as const) {
+    for (const provider of ["groq", "gemini", "cerebras"] as const) {
       for (const tier of ["balanced", "cheap", "best", "coding"] as const) {
         const models = realFn(provider, tier);
         expect(models.length).toBeGreaterThan(0);

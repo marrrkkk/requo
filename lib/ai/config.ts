@@ -1,15 +1,16 @@
 import "server-only";
 
 import { groqProvider } from "@/lib/ai/groq-provider";
+import { cerebrasProvider } from "@/lib/ai/cerebras-provider";
 import { geminiProvider } from "@/lib/ai/gemini-provider";
-import { openrouterProvider } from "@/lib/ai/openrouter-provider";
 import type { AiProvider, AiProviderName, AiQualityTier } from "@/lib/ai/types";
 
 // ---------------------------------------------------------------------------
 // Provider ordering, model lists, and quality-tier configuration
 //
-// The fallback chain is: Groq → Gemini → OpenRouter.
-// Within each provider the router tries multiple models before moving on.
+// The fallback chain is: Groq → Cerebras → Gemini.
+// Within each provider the router tries the best model first, then falls
+// back to smaller/faster models before moving to the next provider.
 //
 // Adding a new provider:
 //   1. Implement AiProvider in a new file.
@@ -23,8 +24,8 @@ import type { AiProvider, AiProviderName, AiQualityTier } from "@/lib/ai/types";
 /** All providers in fallback order. */
 const ALL_PROVIDERS: AiProvider[] = [
   groqProvider,
+  cerebrasProvider,
   geminiProvider,
-  openrouterProvider,
 ];
 
 /** Returns the ordered list of configured providers. */
@@ -42,7 +43,7 @@ export function isAiConfigured(): boolean {
 /**
  * Model lists for each provider, keyed by quality tier.
  * The router tries models in array order within a provider before
- * falling back to the next provider.
+ * falling back to the next provider. Best model first, then smaller fallbacks.
  */
 const PROVIDER_MODELS: Record<AiProviderName, Record<AiQualityTier, string[]>> = {
   groq: {
@@ -54,14 +55,36 @@ const PROVIDER_MODELS: Record<AiProviderName, Record<AiQualityTier, string[]>> =
     ],
     cheap: [
       "llama-3.1-8b-instant",
-      "qwen/qwen3-32b",
+      "meta-llama/llama-4-scout-17b-16e-instruct",
     ],
     best: [
       "qwen/qwen3-32b",
       "llama-3.3-70b-versatile",
+      "meta-llama/llama-4-scout-17b-16e-instruct",
     ],
     coding: [
       "qwen/qwen3-32b",
+      "llama-3.3-70b-versatile",
+    ],
+  },
+
+  cerebras: {
+    balanced: [
+      "qwen-3-235b-a22b-instruct-2507",
+      "gpt-oss-120b",
+      "llama3.1-8b",
+    ],
+    cheap: [
+      "llama3.1-8b",
+      "gpt-oss-120b",
+    ],
+    best: [
+      "qwen-3-235b-a22b-instruct-2507",
+      "gpt-oss-120b",
+    ],
+    coding: [
+      "qwen-3-235b-a22b-instruct-2507",
+      "gpt-oss-120b",
     ],
   },
 
@@ -81,27 +104,6 @@ const PROVIDER_MODELS: Record<AiProviderName, Record<AiQualityTier, string[]>> =
     coding: [
       "gemini-2.5-pro",
       "gemini-2.5-flash",
-    ],
-  },
-
-  openrouter: {
-    balanced: [
-      "nvidia/nemotron-3-super:free",
-      "openai/gpt-oss-120b:free",
-      "qwen/qwen3-coder-480b-a35b:free",
-      "openrouter/free",
-    ],
-    cheap: [
-      "openrouter/free",
-      "nvidia/nemotron-3-super:free",
-    ],
-    best: [
-      "openai/gpt-oss-120b:free",
-      "nvidia/nemotron-3-super:free",
-    ],
-    coding: [
-      "qwen/qwen3-coder-480b-a35b:free",
-      "openai/gpt-oss-120b:free",
     ],
   },
 };

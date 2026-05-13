@@ -40,7 +40,7 @@ const envSchema = z.object({
   EMAIL_FROM_SUPPORT: emptyToUndefined(z.string().trim().min(1)),
   GROQ_API_KEY: emptyToUndefined(z.string().min(1)),
   GEMINI_API_KEY: emptyToUndefined(z.string().min(1)),
-  OPENROUTER_API_KEY: emptyToUndefined(z.string().min(1)),
+  CEREBRAS_API_KEY: emptyToUndefined(z.string().min(1)),
   PADDLE_API_KEY: emptyToUndefined(z.string().min(1)),
   PADDLE_WEBHOOK_SECRET: emptyToUndefined(z.string().min(1)),
   PADDLE_PRO_PRICE_ID: emptyToUndefined(z.string().min(1)),
@@ -99,7 +99,7 @@ export const isEmailConfigured = Boolean(
 
 export const isGroqConfigured = Boolean(env.GROQ_API_KEY);
 export const isGeminiConfigured = Boolean(env.GEMINI_API_KEY);
-export const isOpenRouterConfigured = Boolean(env.OPENROUTER_API_KEY);
+export const isCerebrasConfigured = Boolean(env.CEREBRAS_API_KEY);
 export const isSupabaseRealtimeConfigured = Boolean(env.SUPABASE_JWT_SECRET);
 
 export const isPaddleConfigured = Boolean(
