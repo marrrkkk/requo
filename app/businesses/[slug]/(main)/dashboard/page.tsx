@@ -41,7 +41,6 @@ import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { redirect } from "next/navigation";
 import { businessesHubPath } from "@/features/businesses/routes";
-import BusinessDashboardLoading from "../loading";
 
 type DashboardOverviewPageProps = {
   params: Promise<{ slug: string }>;
@@ -60,11 +59,7 @@ export const unstable_instant = {
 export default function DashboardOverviewPage({
   params,
 }: DashboardOverviewPageProps) {
-  return (
-    <Suspense fallback={<BusinessDashboardLoading />}>
-      <DashboardOverviewContent params={params} />
-    </Suspense>
-  );
+  return <DashboardOverviewContent params={params} />;
 }
 
 async function DashboardOverviewContent({
