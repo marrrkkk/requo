@@ -4,7 +4,7 @@ import { Suspense } from "react";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { getBusinessMembersSettingsForBusiness } from "@/features/business-members/queries";
-import { getBusinessOwnerPageContext } from "@/app/businesses/[slug]/(main)/settings/_lib/page-context";
+import { getBusinessSettingsPageContext } from "@/app/businesses/[slug]/(main)/settings/_lib/page-context";
 import {
   cancelBusinessMemberInviteAction,
   createBusinessMemberInviteAction,
@@ -15,6 +15,7 @@ import {
   BusinessMembersManager,
   BusinessMembersManagerFallback,
 } from "@/features/business-members/components/business-members-manager";
+import { canManageBusinessAdministration } from "@/lib/business-members";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -33,10 +34,9 @@ export default async function BusinessMembersPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const { user, businessContext } = await getBusinessOwnerPageContext(slug);
+  const { user, businessContext } = await getBusinessSettingsPageContext(slug);
+  const canManage = canManageBusinessAdministration(businessContext.role);
 
-  // Always show the member list — the invite action is gated by LockedAction
-  // inside BusinessMembersManager based on the plan.
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
       <PageHeader title="Members" description="Members with access to this business." />
@@ -44,6 +44,7 @@ export default async function BusinessMembersPage({
         <StreamedMemberList
           userId={user.id}
           businessContext={businessContext}
+          canManage={canManage}
         />
       </Suspense>
     </div>
@@ -57,9 +58,11 @@ export default async function BusinessMembersPage({
 async function StreamedMemberList({
   userId,
   businessContext,
+  canManage,
 }: {
   userId: string;
-  businessContext: Awaited<ReturnType<typeof getBusinessOwnerPageContext>>["businessContext"];
+  businessContext: Awaited<ReturnType<typeof getBusinessSettingsPageContext>>["businessContext"];
+  canManage: boolean;
 }) {
   const view = await getBusinessMembersSettingsForBusiness(
     businessContext.business.id,
@@ -78,6 +81,7 @@ async function StreamedMemberList({
       createInviteAction={createBusinessMemberInviteAction}
       removeMemberAction={removeBusinessMemberAction}
       updateRoleAction={updateBusinessMemberRoleAction}
+      readOnly={!canManage}
     />
   );
 }

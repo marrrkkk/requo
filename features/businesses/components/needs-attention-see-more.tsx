@@ -34,6 +34,7 @@ type NeedsAttentionModalItem = {
   actionLabel: string;
   tone: "urgent" | "normal" | "positive";
   iconName: NeedsAttentionIconName;
+  category?: "Inquiry" | "Quote" | "Follow-up";
 };
 
 const iconMap: Record<NeedsAttentionIconName, LucideIcon> = {
@@ -116,9 +117,16 @@ function NeedsAttentionModalRow({
         <Icon className="size-4" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-foreground">
-          {item.title}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="truncate text-sm font-semibold text-foreground">
+            {item.title}
+          </p>
+          {item.category ? (
+            <span className="shrink-0 text-[0.68rem] font-medium uppercase tracking-wider text-muted-foreground/70">
+              {item.category}
+            </span>
+          ) : null}
+        </div>
         <p className="truncate text-sm text-muted-foreground">
           {item.description}
         </p>

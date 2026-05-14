@@ -149,6 +149,7 @@ type NeedsAttentionItem = {
   tone: "urgent" | "normal" | "positive";
   iconName: NeedsAttentionIconName;
   badge?: NeedsAttentionBadge;
+  category: "Inquiry" | "Quote" | "Follow-up";
 };
 
 export async function DashboardNeedsAttentionSection({
@@ -178,6 +179,7 @@ export async function DashboardNeedsAttentionSection({
       tone: "urgent" as const,
       iconName: "inbox" as const,
       badge: { kind: "inquiry" as const, status: inquiry.status },
+      category: "Inquiry" as const,
     })),
     ...overview.expiringSoonQuotes.map((quote) => ({
       href: getBusinessQuotePath(businessSlug, quote.id),
@@ -190,6 +192,7 @@ export async function DashboardNeedsAttentionSection({
       tone: "urgent" as const,
       iconName: "file-text" as const,
       badge: { kind: "quote" as const, status: quote.status },
+      category: "Quote" as const,
     })),
     ...overview.newInquiries.map((inquiry) => ({
       href: getBusinessInquiryPath(businessSlug, inquiry.id),
@@ -202,6 +205,7 @@ export async function DashboardNeedsAttentionSection({
       tone: "normal" as const,
       iconName: "inbox" as const,
       badge: { kind: "inquiry" as const, status: inquiry.status },
+      category: "Inquiry" as const,
     })),
     ...overview.recentAcceptedQuotes.map((quote) => ({
       href: getBusinessQuotePath(businessSlug, quote.id),
@@ -214,6 +218,7 @@ export async function DashboardNeedsAttentionSection({
       tone: "positive" as const,
       iconName: "check-circle" as const,
       badge: { kind: "quote" as const, status: quote.status },
+      category: "Quote" as const,
     })),
   ];
   const attentionCount = items.length;
@@ -729,6 +734,7 @@ function createFollowUpAttentionItem(
     actionLabel: "Work follow-up",
     tone,
     iconName: "bell-ring",
+    category: "Follow-up",
   };
 }
 
@@ -761,9 +767,14 @@ function NeedsAttentionRow({ item }: { item: NeedsAttentionItem }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-foreground">
-              {item.title}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="truncate text-sm font-semibold text-foreground">
+                {item.title}
+              </p>
+              <span className="shrink-0 text-[0.68rem] font-medium uppercase tracking-wider text-muted-foreground/70">
+                {item.category}
+              </span>
+            </div>
             <p className="truncate text-sm text-muted-foreground">
               {item.description}
             </p>
