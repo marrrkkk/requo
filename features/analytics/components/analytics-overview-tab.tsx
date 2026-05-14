@@ -31,9 +31,16 @@ import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AnalyticsStatusBreakdown } from "@/features/analytics/components/analytics-status-breakdown";
 
+// Recharts reads browser layout APIs, so keep the trend chart client-only.
 const AnalyticsTrendOverview = dynamic(
-  () => import("@/features/analytics/components/analytics-trend-overview").then((m) => m.AnalyticsTrendOverview),
-  { ssr: false, loading: () => <Skeleton className="h-[362px] w-full rounded-xl" /> }
+  () =>
+    import("@/features/analytics/components/analytics-trend-overview").then(
+      (m) => m.AnalyticsTrendOverview,
+    ),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-[362px] w-full rounded-xl" />,
+  },
 );
 import type { BusinessAnalyticsData } from "@/features/analytics/types";
 import {

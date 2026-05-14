@@ -24,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
+import { Combobox } from "@/components/ui/combobox";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import { cancelSubscriptionAction } from "@/features/billing/actions";
@@ -118,6 +119,45 @@ export function BillingStatusCard({
 
   return (
     <div className="flex flex-col gap-6">
+      {!subscription?.canceledAt &&
+      hasSubscription &&
+      variant === "full" &&
+      downgradePreview.requiresSelection ? (
+        <Alert
+          variant="default"
+          className="border-amber-200/60 bg-amber-50/50 py-4 text-amber-900 dark:border-amber-800/40 dark:bg-amber-950/20 dark:text-amber-300 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-500"
+        >
+          <CircleAlert className="size-5 mt-0.5" />
+          <div className="flex flex-col gap-3">
+            <div>
+              <p className="text-base font-semibold">
+                You&apos;re downgrading to Free.
+              </p>
+              <p className="mt-1 text-sm leading-relaxed opacity-90">
+                Free includes 1 active business. You currently have{" "}
+                {downgradePreview.activeBusinesses.length} businesses. Choose
+                which business to keep active. The other businesses will be
+                locked but not deleted. You can unlock them anytime by upgrading
+                again.
+              </p>
+            </div>
+            <div className="max-w-md">
+              <Combobox
+                id="keep-business"
+                value={keepBusinessId}
+                onValueChange={setKeepBusinessId}
+                options={downgradePreview.activeBusinesses.map((b) => ({
+                  label: b.name,
+                  value: b.id,
+                }))}
+                placeholder="Select a business to keep active"
+                buttonClassName="bg-background/50 border-amber-200/50 dark:border-amber-800/50 hover:bg-background/80"
+              />
+            </div>
+          </div>
+        </Alert>
+      ) : null}
+
       <div className="grid gap-6 md:grid-cols-[1fr_minmax(0,1fr)] lg:grid-cols-[1fr_1fr] items-stretch">
         
         {/* Plan Card */}
@@ -283,39 +323,6 @@ export function BillingStatusCard({
             hasSubscription &&
             variant === "full" ? (
               <div className="mt-auto pt-2">
-                {downgradePreview.requiresSelection ? (
-                  <div className="mb-4 rounded-xl border border-border/70 bg-muted/30 p-4">
-                    <p className="text-sm font-medium text-foreground">
-                      You&apos;re downgrading to Free.
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Free includes 1 active business. You currently have{" "}
-                      {downgradePreview.activeBusinesses.length} businesses.
-                      Choose which business to keep active. The other businesses
-                      will be locked but not deleted. You can unlock them anytime
-                      by upgrading again.
-                    </p>
-                    <fieldset className="mt-3 grid gap-2">
-                      {downgradePreview.activeBusinesses.map((business) => (
-                        <label
-                          key={business.id}
-                          className="flex items-center gap-2 rounded-lg border border-border/70 bg-background px-3 py-2 text-sm"
-                        >
-                          <input
-                            type="radio"
-                            name="keep-business-choice"
-                            value={business.id}
-                            checked={keepBusinessId === business.id}
-                            onChange={() => setKeepBusinessId(business.id)}
-                          />
-                          <span className="font-medium text-foreground">
-                            {business.name}
-                          </span>
-                        </label>
-                      ))}
-                    </fieldset>
-                  </div>
-                ) : null}
                 <form action={cancelAction} className="w-full">
                   <input name="businessId" type="hidden" value={businessId} />
                   {keepBusinessId ? (
@@ -358,22 +365,13 @@ export function BillingStatusCard({
 
       {/* Usage Cards Grid */}
       {isFreePlan && freePlanUsage ? (
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card className="border-border/75 bg-card/97">
-            <CardContent className="p-5">
-              <UsageMeter
-                current={freePlanUsage.inquiries}
-                label="Inquiries"
-                limit={getUsageLimit("free", "inquiriesPerMonth") ?? 100}
-              />
-            </CardContent>
-          </Card>
+        <div className="grid gap-4 md:grid-cols-2">
           <Card className="border-border/75 bg-card/97">
             <CardContent className="p-5">
               <UsageMeter
                 current={freePlanUsage.quotes}
                 label="Quotes"
-                limit={getUsageLimit("free", "quotesPerMonth") ?? 50}
+                limit={getUsageLimit("free", "quotesPerMonth") ?? 30}
               />
             </CardContent>
           </Card>
@@ -382,7 +380,7 @@ export function BillingStatusCard({
               <UsageMeter
                 current={freePlanUsage.requoQuoteEmailsThisMonth}
                 label="Emails sent"
-                limit={getUsageLimit("free", "requoQuoteEmailsPerMonth") ?? 30}
+                limit={getUsageLimit("free", "requoQuoteEmailsPerMonth") ?? 15}
               />
             </CardContent>
           </Card>

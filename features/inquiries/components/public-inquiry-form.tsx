@@ -28,6 +28,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Combobox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -610,29 +611,12 @@ function renderProjectInput({
       );
     case "multi_select":
       return (
-        <div className="grid gap-2 sm:grid-cols-2">
-          {(field.options ?? []).map((option) => {
-            const optionId = `${inputId}-${option.id}`;
-
-            return (
-              <label
-                key={option.id}
-                className="soft-panel flex items-center gap-3 px-3 py-3 shadow-none"
-                htmlFor={optionId}
-              >
-                <input
-                  className="size-4 rounded border border-input/95"
-                  disabled={isPending}
-                  id={optionId}
-                  name={inputName}
-                  type="checkbox"
-                  value={option.value}
-                />
-                <span className="text-sm text-foreground">{option.label}</span>
-              </label>
-            );
-          })}
-        </div>
+        <MultiSelectField
+          disabled={isPending}
+          inputId={inputId}
+          inputName={inputName}
+          options={field.options ?? []}
+        />
       );
     case "number":
       return (
@@ -833,6 +817,58 @@ function ProjectBooleanSelectInput({
         value={value ?? ""}
       />
     </>
+  );
+}
+
+function MultiSelectField({
+  disabled,
+  inputId,
+  inputName,
+  options,
+}: {
+  disabled: boolean;
+  inputId: string;
+  inputName: string;
+  options: Array<{ id: string; label: string; value: string }>;
+}) {
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      {options.map((option) => {
+        const optionId = `${inputId}-${option.id}`;
+        const isChecked = checked.has(option.value);
+
+        return (
+          <label
+            key={option.id}
+            className="soft-panel flex cursor-pointer items-center gap-3 px-3 py-3 shadow-none"
+            htmlFor={optionId}
+          >
+            {isChecked ? (
+              <input type="hidden" name={inputName} value={option.value} />
+            ) : null}
+            <Checkbox
+              checked={isChecked}
+              disabled={disabled}
+              id={optionId}
+              onCheckedChange={(state) => {
+                setChecked((prev) => {
+                  const next = new Set(prev);
+                  if (state === true) {
+                    next.add(option.value);
+                  } else {
+                    next.delete(option.value);
+                  }
+                  return next;
+                });
+              }}
+            />
+            <span className="text-sm text-foreground">{option.label}</span>
+          </label>
+        );
+      })}
+    </div>
   );
 }
 

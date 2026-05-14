@@ -1,4 +1,4 @@
-const dbConnectTimeoutSeconds = 5;
+const dbConnectTimeoutSeconds = 15;
 const supabasePoolerHostFragment = "pooler.supabase.com";
 const supabasePoolerPort = "6543";
 
@@ -8,7 +8,7 @@ export function getDatabaseConnectionOptions(databaseUrl: string) {
   return {
     connect_timeout: dbConnectTimeoutSeconds,
     prepare: false,
-    max: isSupabasePooler ? 1 : 10,
+    max: isSupabasePooler ? 5 : 10,
     ...(isSupabasePooler ? { idle_timeout: 20 } : {}),
   };
 }

@@ -33,7 +33,7 @@ export default function BusinessesLoading() {
                 <Card className="border-border/60 bg-card/80" key={`recent-${index}`}>
                   <CardHeader className="gap-0 pb-3">
                     <div className="flex items-start gap-3">
-                      <Skeleton className="size-10 rounded-xl" />
+                      <Skeleton className="size-10 rounded-lg" />
                       <div className="min-w-0 flex-1 space-y-2">
                         <Skeleton className="h-5 w-40 max-w-full rounded-md" />
                         <Skeleton className="h-4 w-28 max-w-full rounded-md" />
@@ -61,14 +61,14 @@ export default function BusinessesLoading() {
             <Skeleton className="h-4 w-32 rounded-md" />
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 3 }).map((_, index) => (
-                <Card className="border-border/80 bg-card/98" key={index}>
+                <Card className="relative border-border/80 bg-card/98" key={index}>
                   <CardHeader className="gap-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0 flex-1 space-y-2">
                         <Skeleton className="h-6 w-40 rounded-md" />
                         <Skeleton className="h-4 w-32 rounded-md" />
                       </div>
-                      <Skeleton className="h-6 w-14 rounded-md" />
+                      <Skeleton className="h-6 w-14 rounded-full" />
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-5">
@@ -77,6 +77,7 @@ export default function BusinessesLoading() {
                     </div>
                     <Skeleton className="h-10 w-full rounded-xl sm:w-36" />
                   </CardContent>
+                  <Skeleton className="absolute right-4 bottom-4 size-10 rounded-lg" />
                 </Card>
               ))}
             </div>

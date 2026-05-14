@@ -10,6 +10,7 @@ import {
   createAiUserMessage,
   createDashboardConversation,
   decodeAiMessageCursor,
+  deleteDashboardConversation,
   getOrCreateDefaultEntityConversation,
   getOrCreateLatestDashboardConversation,
   getPaginatedAiMessagesForConversation,
@@ -233,6 +234,40 @@ export async function createAiConversationRouteResponse(request: Request) {
   );
 }
 
+export async function deleteAiConversationRouteResponse({
+  request,
+  conversationId,
+}: {
+  request: Request;
+  conversationId: string;
+}) {
+  void request;
+
+  const { user, response } = await getAuthenticatedUserResponse();
+
+  if (!user) {
+    return response;
+  }
+
+  const result = await deleteDashboardConversation({
+    conversationId,
+    userId: user.id,
+  });
+
+  if (!result) {
+    return Response.json({ error: "Not found." }, { status: 404 });
+  }
+
+  return Response.json(
+    { deleted: true },
+    {
+      headers: {
+        "cache-control": "private, no-store",
+      },
+    },
+  );
+}
+
 export async function getAiMessagesRouteResponse({
   request,
   conversationId,
@@ -429,7 +464,7 @@ export async function createAiChatRouteResponse(request: Request) {
           getRecentCompletedAiMessages({
             conversationId: authorizedConversation.id,
             userId: user.id,
-            limit: 20,
+            limit: parsedBody.data.surface === "dashboard" ? 10 : 20,
           }),
           buildAiSurfaceContext({
             surface: parsedBody.data.surface,

@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { PageHeader } from "@/components/shared/page-header";
+import { ManagerBodySkeleton } from "@/components/shell/settings-body-skeletons";
 import {
   createBusinessInquiryFormAction,
   unarchiveBusinessInquiryFormAction,
 } from "@/features/settings/actions";
 import { BusinessInquiryFormsManager } from "@/features/settings/components/business-inquiry-forms-manager";
 import { getBusinessInquiryFormsSettingsForBusiness } from "@/features/settings/queries";
-import { getBusinessBillingOverview } from "@/features/billing/queries";
-import { timed } from "@/lib/dev/server-timing";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../settings/_lib/page-context";
 
@@ -19,23 +19,15 @@ export const metadata: Metadata = createNoIndexMetadata({
 });
 
 export const unstable_instant = {
-  prefetch: 'static',
+  prefetch: "static",
   unstable_disableValidation: true,
 };
 
 export default async function BusinessFormsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();
-  const [settings, billingOverview] = await timed(
-    "formsPage.parallelSettingsAndBilling",
-    Promise.all([
-      getBusinessInquiryFormsSettingsForBusiness(businessContext.business.id),
-      getBusinessBillingOverview(businessContext.business.id),
-    ]),
+  const settingsPromise = getBusinessInquiryFormsSettingsForBusiness(
+    businessContext.business.id,
   );
-
-  if (!settings) {
-    notFound();
-  }
 
   return (
     <>
@@ -43,25 +35,35 @@ export default async function BusinessFormsPage() {
         title="Forms"
         description="Manage inquiry capture, public URLs, and starting intake defaults."
       />
-
-      <BusinessInquiryFormsManager
-        createAction={createBusinessInquiryFormAction}
-        unarchiveAction={unarchiveBusinessInquiryFormAction}
-        settings={settings}
-        plan={businessContext.business.plan}
-        billingProps={
-          billingOverview
-            ? {
-                userId: billingOverview.userId,
-                businessId: billingOverview.businessId,
-                businessSlug: billingOverview.businessSlug,
-                currentPlan: billingOverview.currentPlan,
-                region: billingOverview.region,
-                defaultCurrency: billingOverview.defaultCurrency,
-              }
-            : undefined
-        }
-      />
+      <Suspense fallback={<ManagerBodySkeleton />}>
+        <BusinessFormsBody
+          businessPlan={businessContext.business.plan}
+          settingsPromise={settingsPromise}
+        />
+      </Suspense>
     </>
+  );
+}
+
+async function BusinessFormsBody({
+  businessPlan,
+  settingsPromise,
+}: {
+  businessPlan: Awaited<ReturnType<typeof getBusinessOperationalPageContext>>["businessContext"]["business"]["plan"];
+  settingsPromise: ReturnType<typeof getBusinessInquiryFormsSettingsForBusiness>;
+}) {
+  const settings = await settingsPromise;
+
+  if (!settings) {
+    notFound();
+  }
+
+  return (
+    <BusinessInquiryFormsManager
+      createAction={createBusinessInquiryFormAction}
+      unarchiveAction={unarchiveBusinessInquiryFormAction}
+      settings={settings}
+      plan={businessPlan}
+    />
   );
 }

@@ -25,16 +25,16 @@ export const inquiryStatusLabels: Record<InquiryStatus, string> = {
 };
 
 export const inquiryStatusClassNames: Record<InquiryStatus, string> = {
-  new: "border-sky-200/80 bg-sky-50 text-sky-700 dark:border-sky-500/25 dark:bg-sky-500/12 dark:text-sky-200",
+  new: "!border-sky-500/30 !bg-sky-500/15 !text-sky-800 dark:!border-sky-500/25 dark:!bg-sky-500/12 dark:!text-sky-200",
   quoted:
-    "border-violet-200/80 bg-violet-50 text-violet-700 dark:border-violet-500/25 dark:bg-violet-500/12 dark:text-violet-200",
+    "!border-violet-500/30 !bg-violet-500/15 !text-violet-800 dark:!border-violet-500/25 dark:!bg-violet-500/12 dark:!text-violet-200",
   waiting:
-    "border-amber-200/80 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/12 dark:text-amber-200",
-  won: "border-lime-200/80 bg-lime-50 text-lime-700 dark:border-lime-500/25 dark:bg-lime-500/12 dark:text-lime-200",
-  lost: "border-rose-200/80 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/12 dark:text-rose-200",
+    "!border-amber-500/30 !bg-amber-500/15 !text-amber-800 dark:!border-amber-500/25 dark:!bg-amber-500/12 dark:!text-amber-200",
+  won: "!border-lime-500/30 !bg-lime-500/15 !text-lime-800 dark:!border-lime-500/25 dark:!bg-lime-500/12 dark:!text-lime-200",
+  lost: "!border-rose-500/30 !bg-rose-500/15 !text-rose-800 dark:!border-rose-500/25 dark:!bg-rose-500/12 dark:!text-rose-200",
   archived:
-    "border-slate-200/80 bg-slate-100 text-slate-700 dark:border-slate-500/25 dark:bg-slate-500/12 dark:text-slate-200",
-  overdue: "border-orange-200/80 bg-orange-50 text-orange-700 dark:border-orange-500/25 dark:bg-orange-500/12 dark:text-orange-200",
+    "!border-slate-500/25 !bg-slate-500/12 !text-slate-800 dark:!border-slate-500/25 dark:!bg-slate-500/12 dark:!text-slate-200",
+  overdue: "!border-orange-500/30 !bg-orange-500/15 !text-orange-800 dark:!border-orange-500/25 dark:!bg-orange-500/12 dark:!text-orange-200",
 };
 
 export const inquiryStatusIcons = {
@@ -60,9 +60,9 @@ export const inquiryRecordStateClassNames: Record<
   string
 > = {
   archived:
-    "border-slate-200/80 bg-slate-100 text-slate-700 dark:border-slate-500/25 dark:bg-slate-500/12 dark:text-slate-200",
+    "!border-slate-500/25 !bg-slate-500/12 !text-slate-800 dark:!border-slate-500/25 dark:!bg-slate-500/12 dark:!text-slate-200",
   trash:
-    "border-rose-200/80 bg-rose-50 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/12 dark:text-rose-200",
+    "!border-rose-500/30 !bg-rose-500/15 !text-rose-800 dark:!border-rose-500/25 dark:!bg-rose-500/12 dark:!text-rose-200",
 };
 
 export const inquiryRecordStateIcons = {

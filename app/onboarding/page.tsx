@@ -20,6 +20,11 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Set up your first business to start capturing inquiries.",
 });
 
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
+};
+
 export default async function OnboardingPage() {
   const session = await requireSession();
 

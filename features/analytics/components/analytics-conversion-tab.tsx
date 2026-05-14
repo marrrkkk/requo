@@ -19,14 +19,28 @@ import { AnalyticsMetricCard } from "@/features/analytics/components/analytics-m
 import { AnalyticsValueCard } from "@/features/analytics/components/analytics-value-card";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Recharts reads browser layout APIs, so keep the trend chart client-only.
 const AnalyticsConversionTrend = dynamic(
-  () => import("@/features/analytics/components/analytics-conversion-trend").then((m) => m.AnalyticsConversionTrend),
-  { ssr: false, loading: () => <Skeleton className="h-[362px] w-full rounded-xl" /> }
+  () =>
+    import("@/features/analytics/components/analytics-conversion-trend").then(
+      (m) => m.AnalyticsConversionTrend,
+    ),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-[362px] w-full rounded-xl" />,
+  },
 );
 
+// Recharts reads browser layout APIs, so keep the revenue chart client-only.
 const AnalyticsRevenueTrend = dynamic(
-  () => import("@/features/analytics/components/analytics-revenue-trend").then((m) => m.AnalyticsRevenueTrend),
-  { ssr: false, loading: () => <Skeleton className="h-[362px] w-full rounded-xl" /> }
+  () =>
+    import("@/features/analytics/components/analytics-revenue-trend").then(
+      (m) => m.AnalyticsRevenueTrend,
+    ),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-[362px] w-full rounded-xl" />,
+  },
 );
 import type { ConversionAnalyticsData } from "@/features/analytics/types";
 import {

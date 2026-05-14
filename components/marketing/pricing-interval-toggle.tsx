@@ -1,118 +1,51 @@
 "use client";
 
-/**
- * Client-side pricing cards section with monthly/yearly toggle.
- * Extracted from the server-rendered PricingPage so interval state
- * can be managed client-side without making the whole page a client component.
- */
-
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Check } from "lucide-react";
+import { Check } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { planMeta } from "@/lib/plans";
-import { getYearlySavingsPercent, getMonthlyEquivalentLabel, getPlanPriceLabel } from "@/lib/billing/plans";
+import {
+  getYearlySavingsPercent,
+  getMonthlyEquivalentLabel,
+  getPlanPriceLabel,
+} from "@/lib/billing/plans";
 import type { BillingCurrency, BillingInterval } from "@/lib/billing/types";
-import type { BusinessPlan as plan } from "@/lib/plans/plans";
-import { formatUsageLimitValue, getUsageLimit } from "@/lib/plans";
 
-const planHighlights: Record<plan, string[]> = {
-  free: [
-    "1 total business",
-    `${getUsageLimit("free", "inquiriesPerMonth")} inquiries per month`,
-    `${getUsageLimit("free", "quotesPerMonth")} quotes per month`,
-    "Public inquiry pages",
-    "Quote workflow",
-    `${getUsageLimit("free", "customFieldsPerForm")} custom fields per form`,
-    `${formatUsageLimitValue(
-      "publicInquiryAttachmentMaxBytes",
-      getUsageLimit("free", "publicInquiryAttachmentMaxBytes"),
-    )} uploads`,
-    "Dashboard & overview analytics",
-    "Activity log",
-  ],
-  pro: [
-    "Unlimited inquiries and quotes",
-    "Conversion & workflow analytics",
-    "Multiple inquiry forms",
-    "Inquiry page customization",
-    `${formatUsageLimitValue(
-      "publicInquiryAttachmentMaxBytes",
-      getUsageLimit("pro", "publicInquiryAttachmentMaxBytes"),
-    )} uploads`,
-    "AI assistant & knowledge",
-    "Email templates & quote library",
-    "Data exports & advanced branding",
-    "Up to 10 total businesses",
-  ],
-  business: [
-    "Everything in Pro",
-    "Unlimited businesses",
-    "Team members & roles",
-    `${formatUsageLimitValue(
-      "publicInquiryAttachmentMaxBytes",
-      getUsageLimit("business", "publicInquiryAttachmentMaxBytes"),
-    )} uploads`,
-    "Priority support",
-  ],
-};
-
-function getPlanCardConfig(currency: BillingCurrency, interval: BillingInterval) {
-  return [
-    {
-      plan: "free" as plan,
-      price: "$0",
-      pricePeriod: "forever",
-      monthlyEquivalent: null,
-      highlighted: false,
-      cta: { label: "Get started free", href: "/signup", variant: "outline" as const },
-      includes: "Core workflow for a single business:",
-    },
-    {
-      plan: "pro" as plan,
-      price: getPlanPriceLabel("pro", currency, interval).replace(interval === "monthly" ? "/mo" : "/yr", ""),
-      pricePeriod: interval === "monthly" ? "month" : "year",
-      monthlyEquivalent: interval === "yearly" ? getMonthlyEquivalentLabel("pro", currency) : null,
-      highlighted: true,
-      cta: {
-        label: "Upgrade to Pro",
-        href: "/signup",
-        variant: "default" as const,
-      },
-      includes: "Everything in Free, plus:",
-    },
-    {
-      plan: "business" as plan,
-      price: getPlanPriceLabel("business", currency, interval).replace(interval === "monthly" ? "/mo" : "/yr", ""),
-      pricePeriod: interval === "monthly" ? "month" : "year",
-      monthlyEquivalent: interval === "yearly" ? getMonthlyEquivalentLabel("business", currency) : null,
-      highlighted: false,
-      cta: {
-        label: "Upgrade to Business",
-        href: "/signup",
-        variant: "outline" as const,
-      },
-      includes: "Everything in Pro, plus:",
-    },
-  ];
-}
-export function PricingIntervalToggle({ currency }: { currency: BillingCurrency }) {
+export function PricingIntervalToggle({
+  currency,
+}: {
+  currency: BillingCurrency;
+}) {
   const [interval, setInterval] = useState<BillingInterval>("monthly");
   const savingsPercent = getYearlySavingsPercent("pro", currency);
-  const planCards = getPlanCardConfig(currency, interval);
+
+  const proPrice = getPlanPriceLabel("pro", currency, interval).replace(
+    interval === "monthly" ? "/mo" : "/yr",
+    "",
+  );
+  const businessPrice = getPlanPriceLabel("business", currency, interval).replace(
+    interval === "monthly" ? "/mo" : "/yr",
+    "",
+  );
+  const proMonthly =
+    interval === "yearly" ? getMonthlyEquivalentLabel("pro", currency) : null;
+  const businessMonthly =
+    interval === "yearly"
+      ? getMonthlyEquivalentLabel("business", currency)
+      : null;
+  const period = interval === "monthly" ? "mo" : "yr";
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-6 lg:px-8 lg:py-12">
+    <section className="mx-auto w-full max-w-7xl px-5 py-10 sm:px-6 lg:px-8 lg:py-14">
       {/* Toggle */}
-      <div className="mb-8 flex items-center justify-center">
-        <div className="inline-flex rounded-full border border-border/70 bg-muted/30 p-1">
+      <div className="mb-12 flex justify-center">
+        <div className="inline-flex rounded-full border border-border/70 bg-muted/25 p-1">
           <button
             className={cn(
-              "relative rounded-full px-5 py-2 text-sm font-medium transition-all",
+              "rounded-full px-5 py-2 text-sm font-medium transition-colors",
               interval === "monthly"
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
@@ -124,7 +57,7 @@ export function PricingIntervalToggle({ currency }: { currency: BillingCurrency 
           </button>
           <button
             className={cn(
-              "relative flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition-all",
+              "flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition-colors",
               interval === "yearly"
                 ? "bg-background text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
@@ -133,95 +66,136 @@ export function PricingIntervalToggle({ currency }: { currency: BillingCurrency 
             type="button"
           >
             Yearly
-            <Badge
-              variant="secondary"
-              className="border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0 text-[10px] text-emerald-600 dark:border-emerald-400/25 dark:bg-emerald-400/15 dark:text-emerald-400"
-            >
-              Save {savingsPercent}%
-            </Badge>
+            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-400">
+              -{savingsPercent}%
+            </span>
           </button>
         </div>
       </div>
 
-      {/* Plan cards */}
-      <div className="grid gap-5 md:grid-cols-3">
-        {planCards.map((config) => (
-          <div
-            className={cn(
-              "flex flex-col rounded-xl border p-6",
-              config.highlighted
-                ? "border-primary/30 bg-accent/20 shadow-[0_0_0_1px_hsl(var(--primary)/0.12)]"
-                : "border-border/70 bg-card/60",
-            )}
-            key={config.plan}
-          >
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <Badge
-                  variant={config.highlighted ? "default" : "secondary"}
-                >
-                  {planMeta[config.plan].label}
-                </Badge>
-                {config.highlighted ? (
-                  <Badge variant="outline">Most popular</Badge>
-                ) : null}
-              </div>
+      {/* Cards */}
+      <div className="grid gap-5 lg:grid-cols-3">
+        {/* Free */}
+        <div className="flex flex-col rounded-2xl border border-border/70 bg-card/70 p-6 sm:p-7">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Free
+          </p>
+          <p className="mt-4 font-heading text-4xl font-semibold tracking-tight text-foreground">
+            $0
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            No card required
+          </p>
+          <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+            The full inquiry-to-quote loop for a single business. No time limit.
+          </p>
 
-              <div>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="font-heading text-3xl font-semibold tracking-tight text-foreground">
-                    {config.price}
-                  </span>
-                  {config.pricePeriod ? (
-                    <span className="text-sm text-muted-foreground">
-                      /{config.pricePeriod}
-                    </span>
-                  ) : null}
-                </div>
-                {config.monthlyEquivalent ? (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {config.monthlyEquivalent} billed yearly
-                  </p>
-                ) : null}
-              </div>
+          <Button asChild variant="outline" size="lg" className="mt-6 w-full">
+            <Link href="/businesses">Start free</Link>
+          </Button>
 
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {planMeta[config.plan].description}
-              </p>
-            </div>
+          <ul className="mt-7 flex flex-col gap-2.5 border-t border-border/50 pt-6">
+            <Feature>Unlimited inquiries</Feature>
+            <Feature>30 quotes / month</Feature>
+            <Feature>3 active follow-ups</Feature>
+            <Feature>Customer history</Feature>
+            <Feature>Conversion analytics</Feature>
+            <Feature>Public pages for inquiries & quotes</Feature>
+            <Feature>3 custom fields per form</Feature>
+            <Feature>5 MB uploads</Feature>
+          </ul>
+        </div>
 
-            <Separator className="my-5 bg-border/60" />
-
-            <div className="flex flex-1 flex-col gap-4">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {config.includes}
-              </p>
-              <ul className="grid gap-3">
-                {planHighlights[config.plan].map((item) => (
-                  <li className="flex items-start gap-2.5 text-sm leading-6 text-foreground" key={item}>
-                    <Check className="mt-0.5 size-4 shrink-0 text-primary" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="mt-6">
-              <Button
-                asChild
-                className="w-full"
-                size="lg"
-                variant={config.cta.variant}
-              >
-                <Link href={config.cta.href}>
-                  {config.cta.label}
-                  <ArrowRight data-icon="inline-end" />
-                </Link>
-              </Button>
-            </div>
+        {/* Pro */}
+        <div className="relative flex flex-col rounded-2xl border border-primary/25 bg-card p-6 shadow-[0_2px_20px_-4px_hsl(var(--primary)/0.08)] ring-1 ring-primary/[0.06] sm:p-7">
+          <Badge className="absolute top-5 right-6 sm:right-7">
+            Popular
+          </Badge>
+          <p className="text-xs font-semibold uppercase tracking-widest text-primary">
+            Pro
+          </p>
+          <div className="mt-4 flex items-baseline gap-1">
+            <span className="font-heading text-4xl font-semibold tracking-tight text-foreground">
+              {proPrice}
+            </span>
+            <span className="text-sm text-muted-foreground">/{period}</span>
           </div>
-        ))}
+          <p className="mt-1 text-xs text-muted-foreground">
+            {proMonthly
+              ? `${proMonthly} billed monthly`
+              : "Cancel anytime"}
+          </p>
+          <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+            More quotes, AI drafts, multiple forms, and advanced branding for growing operators.
+          </p>
+
+          <Button asChild size="lg" className="mt-6 w-full">
+            <Link href={`/account/billing/checkout?plan=pro&interval=${interval}`}>
+              Start with Pro
+            </Link>
+          </Button>
+
+          <ul className="mt-7 flex flex-col gap-2.5 border-t border-border/50 pt-6">
+            <Feature>Unlimited quotes & follow-ups</Feature>
+            <Feature>AI assistant — 100 generations / mo</Feature>
+            <Feature>Workflow analytics</Feature>
+            <Feature>5 inquiry forms, 5 businesses</Feature>
+            <Feature>Page customization & branding</Feature>
+            <Feature>Email templates & quote library</Feature>
+            <Feature>Knowledge base (10 items)</Feature>
+            <Feature>Data exports</Feature>
+            <Feature>25 MB uploads</Feature>
+          </ul>
+        </div>
+
+        {/* Business */}
+        <div className="flex flex-col rounded-2xl border border-border/70 bg-card/70 p-6 sm:p-7">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            Business
+          </p>
+          <div className="mt-4 flex items-baseline gap-1">
+            <span className="font-heading text-4xl font-semibold tracking-tight text-foreground">
+              {businessPrice}
+            </span>
+            <span className="text-sm text-muted-foreground">/{period}</span>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {businessMonthly
+              ? `${businessMonthly} billed monthly`
+              : "Cancel anytime"}
+          </p>
+          <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+            Team roles, higher AI and email caps, audit logs, and priority support.
+          </p>
+
+          <Button asChild variant="outline" size="lg" className="mt-6 w-full">
+            <Link href={`/account/billing/checkout?plan=business&interval=${interval}`}>
+              Start with Business
+            </Link>
+          </Button>
+
+          <ul className="mt-7 flex flex-col gap-2.5 border-t border-border/50 pt-6">
+            <Feature>Everything in Pro</Feature>
+            <Feature>Team members — up to 25</Feature>
+            <Feature>500 AI generations / mo</Feature>
+            <Feature>500 Requo email sends / mo</Feature>
+            <Feature>Unlimited businesses & forms</Feature>
+            <Feature>Knowledge base (50 items)</Feature>
+            <Feature>Audit logs</Feature>
+            <Feature>50 MB uploads</Feature>
+            <Feature>Priority support</Feature>
+          </ul>
+        </div>
       </div>
     </section>
+  );
+}
+
+function Feature({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-2 text-[0.82rem] leading-relaxed text-foreground">
+      <Check aria-hidden="true" className="mt-[3px] size-3.5 shrink-0 text-primary/80" />
+      <span>{children}</span>
+    </li>
   );
 }

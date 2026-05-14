@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
@@ -19,9 +18,7 @@ import {
 import {
   getBusinessInquiriesPath,
 } from "@/features/businesses/routes";
-import { businessesHubPath } from "@/features/businesses/routes";
-import { requireSession } from "@/lib/auth/session";
-import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
+import { getAppShellContext } from "@/lib/app-shell/context";
 import { hasFeatureAccess } from "@/lib/plans";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
@@ -75,19 +72,11 @@ export default async function InquiriesPage({
   params,
   searchParams,
 }: InquiriesPageProps) {
-  const [session, { slug }, resolvedSearchParams] = await Promise.all([
-    requireSession(),
+  const [{ slug }, resolvedSearchParams] = await Promise.all([
     params,
     searchParams,
   ]);
-  const businessContext = await getBusinessContextForMembershipSlug(
-    session.user.id,
-    slug,
-  );
-
-  if (!businessContext) {
-    redirect(businessesHubPath);
-  }
+  const { businessContext } = await getAppShellContext(slug);
 
   const parsedFilters = inquiryListFiltersSchema.safeParse(resolvedSearchParams);
   const filters = parsedFilters.success

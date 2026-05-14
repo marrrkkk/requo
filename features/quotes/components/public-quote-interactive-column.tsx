@@ -1,16 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Mail } from "lucide-react";
+import { CheckCircle2, CircleSlash, Clock, Mail, XCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { PublicQuoteResponseForm } from "@/features/quotes/components/public-quote-response-form";
 import type {
   PublicQuoteResolvedSnapshot,
@@ -49,105 +42,116 @@ export function PublicQuoteInteractiveColumn({
   const customerResponseMessage =
     resolved?.customerResponseMessage ?? quote.customerResponseMessage;
 
-  const headingCopy = useMemo(() => {
-    if (isActionable) {
-      return {
-        title: "Quote response" as const,
-        description:
-          "Accept to confirm, or decline with an optional note." as const,
-      };
-    }
-
+  const statusInfo = useMemo(() => {
     if (displayStatus === "accepted") {
       return {
-        title: "Quote accepted" as const,
-        description:
-          "This quote has been accepted." as const,
+        icon: CheckCircle2,
+        iconColor: "text-emerald-500",
+        bgColor: "border-emerald-500/20 bg-emerald-500/5",
+        title: "Quote accepted",
+        description: "You accepted this quote. The business has been notified.",
       };
     }
-
     if (displayStatus === "rejected") {
       return {
-        title: "Quote declined" as const,
-        description: "This quote has been declined." as const,
+        icon: XCircle,
+        iconColor: "text-red-400",
+        bgColor: "border-red-500/20 bg-red-500/5",
+        title: "Quote declined",
+        description: "You declined this quote. The business has been notified.",
       };
     }
-
     if (displayStatus === "voided") {
       return {
-        title: "Quote voided" as const,
+        icon: CircleSlash,
+        iconColor: "text-muted-foreground",
+        bgColor: "border-border/60 bg-muted/30",
+        title: "Quote voided",
         description:
-          "This quote was voided." as const,
+          "This quote was voided by the business and is no longer active.",
       };
     }
-
+    if (displayStatus === "expired") {
+      return {
+        icon: Clock,
+        iconColor: "text-amber-500",
+        bgColor: "border-amber-500/20 bg-amber-500/5",
+        title: "Quote expired",
+        description: `This quote expired on ${formatQuoteDate(quote.validUntil)}. Contact the business if you'd still like to proceed.`,
+      };
+    }
     return {
-      title: "Quote no longer active" as const,
-      description: "This quote is no longer accepting online responses." as const,
+      icon: CircleSlash,
+      iconColor: "text-muted-foreground",
+      bgColor: "border-border/60 bg-muted/30",
+      title: "Quote closed",
+      description: "This quote is no longer accepting responses.",
     };
-  }, [displayStatus, isActionable]);
+  }, [displayStatus, quote.validUntil]);
 
   return (
-    <div className="flex w-full flex-col gap-6">
-      <Card className="gap-0 bg-background/94 w-full">
-        <CardHeader className="gap-2 pb-5">
-          <CardTitle>{headingCopy.title}</CardTitle>
-          <CardDescription className="leading-normal sm:leading-7">
-            {headingCopy.description}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4 pt-0">
-          {isActionable ? (
-            <PublicQuoteResponseForm
-              action={respondAction}
-              onResolved={setResolved}
-            />
-          ) : (
-            <div className="soft-panel p-4 text-sm leading-normal sm:leading-7 text-muted-foreground">
-              {customerRespondedAt ? (
-                <>
-                  Response recorded on{" "}
-                  {formatQuoteDateTime(customerRespondedAt)}.
-                </>
-              ) : displayStatus === "voided" ? (
-                "This quote was voided by the business and is now read-only."
-              ) : displayStatus === "expired" ? (
-                <>
-                  This quote expired on {formatQuoteDate(quote.validUntil)}.
-                </>
-              ) : (
-                "This quote is already closed."
-              )}
-            </div>
-          )}
+    <div className="flex flex-col gap-5">
+      {isActionable ? (
+        <div className="rounded-xl border border-border/60 bg-background/95 px-4 py-5 shadow-sm sm:p-6">
+          <p className="mb-4 text-sm font-medium text-muted-foreground">
+            Ready to respond?
+          </p>
+          <PublicQuoteResponseForm
+            action={respondAction}
+            onResolved={setResolved}
+          />
+        </div>
+      ) : (
+        <div
+          className={`flex items-start gap-3.5 rounded-xl border p-4 sm:p-5 ${statusInfo.bgColor}`}
+        >
+          <statusInfo.icon
+            className={`mt-0.5 size-5 shrink-0 ${statusInfo.iconColor}`}
+          />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">
+              {statusInfo.title}
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              {statusInfo.description}
+            </p>
+            {customerRespondedAt ? (
+              <p className="mt-2 text-xs text-muted-foreground/80">
+                Responded {formatQuoteDateTime(customerRespondedAt)}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      )}
 
-          {customerResponseMessage ? (
-            <div className="soft-panel p-4">
-              <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                Message on file
-              </p>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-normal sm:leading-7 text-foreground">
-                {customerResponseMessage}
-              </p>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+      {customerResponseMessage ? (
+        <div className="rounded-xl border border-border/50 px-4 py-4 sm:px-5">
+          <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+            Your message
+          </p>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+            {customerResponseMessage}
+          </p>
+        </div>
+      ) : null}
 
       {quote.businessContactEmail ? (
-        <Card className="gap-0 bg-background/94 w-full">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base">Questions about this quote?</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <Button asChild className="w-full sm:w-auto" variant="outline">
-              <a href={`mailto:${quote.businessContactEmail}`}>
-                <Mail data-icon="inline-start" className="size-4" />
-                Contact {quote.businessName}
-              </a>
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-3 rounded-xl border border-border/50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <p className="text-sm text-muted-foreground">
+            Have questions? Reach out to {quote.businessName}.
+          </p>
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="w-full shrink-0 sm:w-auto"
+          >
+            <a href={`mailto:${quote.businessContactEmail}`}>
+              <Mail data-icon="inline-start" className="size-3.5" />
+              Contact
+            </a>
+          </Button>
+        </div>
       ) : null}
     </div>
   );

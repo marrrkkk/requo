@@ -12,9 +12,9 @@ describe("db connection options", () => {
 
     expect(isSupabasePoolerDatabaseUrl(url)).toBe(true);
     expect(getDatabaseConnectionOptions(url)).toMatchObject({
-      connect_timeout: 5,
+      connect_timeout: 15,
       prepare: false,
-      max: 1,
+      max: 5,
       idle_timeout: 20,
     });
   });
@@ -24,7 +24,7 @@ describe("db connection options", () => {
 
     expect(isSupabasePoolerDatabaseUrl(url)).toBe(false);
     expect(getDatabaseConnectionOptions(url)).toMatchObject({
-      connect_timeout: 5,
+      connect_timeout: 15,
       prepare: false,
       max: 10,
     });
@@ -34,7 +34,7 @@ describe("db connection options", () => {
   it("falls back to non-pooler defaults for malformed URLs", () => {
     expect(isSupabasePoolerDatabaseUrl("not-a-url")).toBe(false);
     expect(getDatabaseConnectionOptions("not-a-url")).toMatchObject({
-      connect_timeout: 5,
+      connect_timeout: 15,
       prepare: false,
       max: 10,
     });

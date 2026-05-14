@@ -24,7 +24,8 @@ const envSchema = z.object({
   /** HTML tag verification value from Google Search Console (meta name="google-site-verification"). */
   GOOGLE_SITE_VERIFICATION: emptyToUndefined(z.string().min(1)),
   NEXT_PUBLIC_SUPABASE_URL: z.url(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: emptyToUndefined(z.string().min(1)),
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: emptyToUndefined(z.string().min(1)),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   SUPABASE_JWT_SECRET: emptyToUndefined(z.string().min(1)),
   RESEND_API_KEY: emptyToUndefined(z.string().min(1)),
@@ -40,6 +41,7 @@ const envSchema = z.object({
   EMAIL_FROM_SUPPORT: emptyToUndefined(z.string().trim().min(1)),
   GROQ_API_KEY: emptyToUndefined(z.string().min(1)),
   GEMINI_API_KEY: emptyToUndefined(z.string().min(1)),
+  CEREBRAS_API_KEY: emptyToUndefined(z.string().min(1)),
   OPENROUTER_API_KEY: emptyToUndefined(z.string().min(1)),
   PADDLE_API_KEY: emptyToUndefined(z.string().min(1)),
   PADDLE_WEBHOOK_SECRET: emptyToUndefined(z.string().min(1)),
@@ -64,9 +66,12 @@ const envSchema = z.object({
 
 export const env = envSchema.parse(process.env);
 
+export const supabaseKey =
+  env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+
 export const publicEnv = {
   NEXT_PUBLIC_SUPABASE_URL: env.NEXT_PUBLIC_SUPABASE_URL,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseKey,
   NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
   NEXT_PUBLIC_PADDLE_ENVIRONMENT: env.NEXT_PUBLIC_PADDLE_ENVIRONMENT,
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
@@ -99,11 +104,14 @@ export const isEmailConfigured = Boolean(
 
 export const isGroqConfigured = Boolean(env.GROQ_API_KEY);
 export const isGeminiConfigured = Boolean(env.GEMINI_API_KEY);
-export const isOpenRouterConfigured = Boolean(env.OPENROUTER_API_KEY);
+export const isCerebrasConfigured = Boolean(env.CEREBRAS_API_KEY);
 export const isSupabaseRealtimeConfigured = Boolean(env.SUPABASE_JWT_SECRET);
 
 export const isPaddleConfigured = Boolean(
   env.PADDLE_API_KEY && env.PADDLE_PRO_PRICE_ID,
+);
+export const isOpenRouterConfigured = Boolean(
+  (process.env.OPENROUTER_API_KEY ?? "").trim().length > 0,
 );
 export const isPushConfigured = Boolean(
   env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY,

@@ -24,6 +24,18 @@ const sensitiveNoStoreHeaders = [
   { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
 ] satisfies Array<{ key: string; value: string }>;
 
+// Authenticated app shell (dashboard, businesses hub, business-scoped pages).
+// These URLs are user-private but do NOT carry tokens in the path, so we allow
+// the Next.js router cache to prefetch RSC payloads. `private, max-age=0`
+// keeps shared caches (CDNs, proxies) out while letting the browser / router
+// cache serve instant navigations. Without this relaxation the router cannot
+// honor `experimental.staleTimes` and every navigation re-fetches from origin.
+const authenticatedAppShellHeaders = [
+  { key: "Cache-Control", value: "private, max-age=0, must-revalidate" },
+  { key: "Referrer-Policy", value: "no-referrer" },
+  { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+] satisfies Array<{ key: string; value: string }>;
+
 const apiNoIndexHeaders = [
   { key: "Cache-Control", value: "private, no-store, max-age=0" },
   { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
@@ -82,7 +94,19 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/businesses/:path*",
-        headers: sensitiveNoStoreHeaders,
+        headers: authenticatedAppShellHeaders,
+      },
+      {
+        source: "/account/:path*",
+        headers: authenticatedAppShellHeaders,
+      },
+      {
+        source: "/admin/:path*",
+        headers: authenticatedAppShellHeaders,
+      },
+      {
+        source: "/onboarding/:path*",
+        headers: authenticatedAppShellHeaders,
       },
       {
         source: "/forgot-password",

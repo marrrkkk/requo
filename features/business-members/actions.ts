@@ -4,9 +4,13 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
+import { and, eq, ne } from "drizzle-orm";
 
 import { getValidationActionState } from "@/lib/action-state";
 import { uniqueCacheTags, getBusinessMembersCacheTags } from "@/lib/cache/business-tags";
+import { getUserPendingInvitesCacheTags } from "@/lib/cache/shell-tags";
+import { db } from "@/lib/db/client";
+import { businessMemberInvites, businessMembers } from "@/lib/db/schema";
 import { getOwnerBusinessActionContext } from "@/lib/db/business-access";
 import { requireSession } from "@/lib/auth/session";
 import { activeBusinessSlugCookieName, getBusinessDashboardPath, getBusinessMemberInvitePath, getBusinessMembersPath } from "@/features/businesses/routes";
@@ -64,7 +68,7 @@ export async function createBusinessMemberInviteAction(
       businessId: businessContext.business.id,
       inviterUserId: user.id,
       email: validationResult.data.email,
-      role: validationResult.data.role === "manager" ? "manager" : "staff",
+      role: validationResult.data.role,
       token: inviteToken,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
@@ -187,7 +191,22 @@ export async function removeBusinessMemberAction(
   const isSelf = formData.get("userId") === user.id;
 
   if (isSelf) {
-    return { error: "You can't remove the business owner." };
+    // Allow leaving only if there is at least one other owner.
+    const otherOwners = await db
+      .select({ id: businessMembers.id })
+      .from(businessMembers)
+      .where(
+        and(
+          eq(businessMembers.businessId, businessContext.business.id),
+          eq(businessMembers.role, "owner"),
+          ne(businessMembers.userId, user.id),
+        ),
+      )
+      .limit(1);
+
+    if (otherOwners.length === 0) {
+      return { error: "Assign another owner before leaving this business." };
+    }
   }
 
   try {
@@ -226,5 +245,70 @@ export async function acceptBusinessMemberInviteAction(inviteToken: string) {
   });
 
   redirect(getBusinessDashboardPath(result.businessSlug));
+}
+
+export async function acceptInviteFromHubAction(
+  inviteToken: string,
+): Promise<{ error?: string }> {
+  const session = await requireSession();
+  const result = await acceptBusinessMemberInvite({
+    inviteToken,
+    userId: session.user.id,
+    userEmail: session.user.email,
+  });
+
+  if (!result.ok) {
+    return { error: result.error };
+  }
+
+  updateCacheTags(getUserPendingInvitesCacheTags(session.user.id));
+  updateCacheTags(getBusinessMembersCacheTags(result.businessSlug));
+
+  // Persist active business in the shell cookie.
+  const cookieStore = await cookies();
+  cookieStore.set(activeBusinessSlugCookieName, result.businessSlug, {
+    path: "/",
+    sameSite: "lax",
+  });
+
+  revalidatePath("/businesses");
+  redirect(getBusinessDashboardPath(result.businessSlug));
+}
+
+export async function declineInviteFromHubAction(
+  inviteId: string,
+): Promise<{ error?: string }> {
+  const session = await requireSession();
+
+  // Verify the invite belongs to this user's email before deleting.
+  const invite = await db
+    .select({
+      id: businessMemberInvites.id,
+      email: businessMemberInvites.email,
+      businessId: businessMemberInvites.businessId,
+    })
+    .from(businessMemberInvites)
+    .where(eq(businessMemberInvites.id, inviteId))
+    .limit(1);
+
+  const row = invite[0];
+
+  if (!row) {
+    return { error: "That invite could not be found." };
+  }
+
+  if (row.email.toLowerCase() !== session.user.email.toLowerCase()) {
+    return { error: "This invite belongs to a different account." };
+  }
+
+  await db
+    .delete(businessMemberInvites)
+    .where(eq(businessMemberInvites.id, inviteId));
+
+  updateCacheTags(getUserPendingInvitesCacheTags(session.user.id));
+  updateCacheTags(getBusinessMembersCacheTags(row.businessId));
+  revalidatePath("/businesses");
+
+  return {};
 }
 

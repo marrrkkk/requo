@@ -1,7 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Clock, PanelsTopLeft } from "lucide-react";
 
+import { BusinessAvatar } from "@/components/shared/business-avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -48,20 +48,12 @@ export function RecentlyOpenedBusinesses({
               <Card className="h-full border-border/60 bg-card/80 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-[background-color,border-color,box-shadow,transform] duration-150 ease-out hover:border-border hover:bg-card hover:shadow-[0_3px_8px_rgba(15,23,42,0.06)] dark:border-white/6 dark:bg-card/60 dark:shadow-[0_1px_2px_rgba(0,0,0,0.2)] dark:hover:border-white/10 dark:hover:bg-card/80 dark:hover:shadow-[0_3px_8px_rgba(0,0,0,0.25)]">
                 <CardHeader className="gap-0 pb-3">
                   <div className="flex items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-background/90 text-[0.7rem] font-semibold tracking-[0.14em] text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] dark:border-white/8 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                      {business.logoStoragePath ? (
-                        <Image
-                          alt={`${business.name} logo`}
-                          className="h-full w-full object-cover"
-                          height={40}
-                          src={`/api/business/${business.slug}/logo`}
-                          unoptimized
-                          width={40}
-                        />
-                      ) : (
-                        getInitials(business.name)
-                      )}
-                    </div>
+                    <BusinessAvatar
+                      name={business.name}
+                      logoUrl={business.logoStoragePath ? `/api/business/${business.slug}/logo` : null}
+                      size="lg"
+                      loading="eager"
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-foreground">
                         {business.name}
@@ -101,13 +93,4 @@ export function RecentlyOpenedBusinesses({
       </div>
     </section>
   );
-}
-
-function getInitials(value: string) {
-  return value
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((segment) => segment[0]?.toUpperCase())
-    .join("");
 }

@@ -1,16 +1,14 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
+import { DashboardAnalyticsSkeleton } from "@/components/shell/dashboard-analytics-skeleton";
 import { analyticsSections } from "@/features/analytics/config";
 import { AnalyticsTabPanel } from "@/features/analytics/components/analytics-tab-panel";
-import { businessesHubPath } from "@/features/businesses/routes";
-import { requireSession } from "@/lib/auth/session";
-import {
-  getBusinessContextForMembershipSlug,
-  hasOperationalBusinessAccess,
-} from "@/lib/db/business-access";
+import { canViewBusinessAnalytics } from "@/lib/business-members";
+import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 type AnalyticsPageProps = {
@@ -27,7 +25,7 @@ const analyticsTabIds = [
 type AnalyticsTabId = (typeof analyticsTabIds)[number];
 
 export const unstable_instant = {
-  prefetch: 'static',
+  prefetch: "static",
   unstable_disableValidation: true,
 };
 
@@ -45,26 +43,17 @@ export default async function AnalyticsPage({
   params,
   searchParams,
 }: AnalyticsPageProps) {
-  const [session, { slug }, resolvedSearchParams] = await Promise.all([
-    requireSession(),
+  const [{ slug }, resolvedSearchParams] = await Promise.all([
     params,
     searchParams,
   ]);
-  const businessContext = await getBusinessContextForMembershipSlug(
-    session.user.id,
-    slug,
-  );
+  const { businessContext } = await getAppShellContext(slug);
 
-  if (!businessContext) {
-    redirect(businessesHubPath);
-  }
-
-  if (!hasOperationalBusinessAccess(businessContext.role)) {
+  if (!canViewBusinessAnalytics(businessContext.role)) {
     redirect(`/businesses/${businessContext.business.slug}/dashboard`);
   }
 
   const activeTab = getAnalyticsTab(resolvedSearchParams.tab);
-  const businessId = businessContext.business.id;
   const businessSlug = businessContext.business.slug;
   const plan = businessContext.business.plan;
   const currency = businessContext.business.defaultCurrency;
@@ -77,13 +66,17 @@ export default async function AnalyticsPage({
         description="Track how inquiry form traffic turns into quotes, customer decisions, and follow-through."
       />
 
-      <AnalyticsTabPanel
-        activeTab={activeTab}
-        businessId={businessContext.business.id}
-        businessSlug={businessSlug}
-        currency={currency}
-        plan={plan}
-      />
+      <Suspense
+        fallback={<DashboardAnalyticsSkeleton />}
+      >
+        <AnalyticsTabPanel
+          activeTab={activeTab}
+          businessId={businessContext.business.id}
+          businessSlug={businessSlug}
+          currency={currency}
+          plan={plan}
+        />
+      </Suspense>
     </DashboardPage>
   );
 }

@@ -1,10 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useTransition } from "react";
 
 import {
-  dispatchRouteProgressComplete,
   dispatchRouteProgressStart,
   getCurrentRouteProgressKey,
   getRouteProgressKeyFromHref,
@@ -23,79 +21,53 @@ function getPathnameFromHref(href: string | URL) {
 
 export function useProgressRouter() {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const awaitingCompletionRef = useRef(false);
 
-  useEffect(() => {
-    if (isPending || !awaitingCompletionRef.current) {
-      return;
+  const push = (...args: Parameters<typeof router.push>) => {
+    const [href] = args;
+    const nextRoute = getRouteProgressKeyFromHref(href);
+    const nextPathname = getPathnameFromHref(href);
+    const currentPathname =
+      typeof window !== "undefined" ? window.location.pathname : null;
+    const isSamePathQueryUpdate =
+      nextPathname !== null && currentPathname === nextPathname;
+
+    if (nextRoute && !isSamePathQueryUpdate) {
+      dispatchRouteProgressStart({ route: nextRoute });
     }
 
-    awaitingCompletionRef.current = false;
-    dispatchRouteProgressComplete();
-  }, [isPending]);
+    router.push(...args);
+  };
 
-  const trackTransition = useCallback(
-    (action: () => void) => {
-      awaitingCompletionRef.current = true;
-      startTransition(action);
-    },
-    [startTransition],
-  );
+  const replace = (...args: Parameters<typeof router.replace>) => {
+    const [href] = args;
+    const nextRoute = getRouteProgressKeyFromHref(href);
+    const nextPathname = getPathnameFromHref(href);
+    const currentPathname =
+      typeof window !== "undefined" ? window.location.pathname : null;
+    const isSamePathQueryUpdate =
+      nextPathname !== null && currentPathname === nextPathname;
 
-  return useMemo(
-    () => ({
-      ...router,
-      push: (...args: Parameters<typeof router.push>) => {
-        const [href] = args;
-        const nextRoute = getRouteProgressKeyFromHref(href);
-        const nextPathname = getPathnameFromHref(href);
-        const currentPathname =
-          typeof window !== "undefined" ? window.location.pathname : null;
-        const isSamePathQueryUpdate =
-          nextPathname !== null && currentPathname === nextPathname;
+    if (nextRoute && !isSamePathQueryUpdate) {
+      dispatchRouteProgressStart({ route: nextRoute });
+    }
 
-        if (nextRoute && !isSamePathQueryUpdate) {
-          dispatchRouteProgressStart({ route: nextRoute });
-        }
+    router.replace(...args);
+  };
 
-        trackTransition(() => {
-          router.push(...args);
-        });
-      },
-      replace: (...args: Parameters<typeof router.replace>) => {
-        const [href] = args;
-        const nextRoute = getRouteProgressKeyFromHref(href);
-        const nextPathname = getPathnameFromHref(href);
-        const currentPathname =
-          typeof window !== "undefined" ? window.location.pathname : null;
-        const isSamePathQueryUpdate =
-          nextPathname !== null && currentPathname === nextPathname;
+  const refresh = (...args: Parameters<typeof router.refresh>) => {
+    dispatchRouteProgressStart({
+      force: true,
+      route: getCurrentRouteProgressKey(),
+    });
+    router.refresh(...args);
+  };
 
-        if (nextRoute && !isSamePathQueryUpdate) {
-          dispatchRouteProgressStart({ route: nextRoute });
-        }
-
-        trackTransition(() => {
-          router.replace(...args);
-        });
-      },
-      back: () => {
-        router.back();
-      },
-      forward: () => {
-        router.forward();
-      },
-      refresh: (...args: Parameters<typeof router.refresh>) => {
-        dispatchRouteProgressStart({
-          force: true,
-          route: getCurrentRouteProgressKey(),
-        });
-        trackTransition(() => {
-          router.refresh(...args);
-        });
-      },
-    }),
-    [router, trackTransition],
-  );
+  return {
+    ...router,
+    push,
+    replace,
+    back: () => router.back(),
+    forward: () => router.forward(),
+    refresh,
+  };
 }

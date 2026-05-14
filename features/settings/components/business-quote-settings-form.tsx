@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Info } from "lucide-react";
 
 import {
   FloatingFormActions,
   useFloatingUnsavedChanges,
 } from "@/components/shared/floating-form-actions";
-import { FormSection } from "@/components/shared/form-layout";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Field,
   FieldContent,
+  FieldDescription,
   FieldError,
   FieldLabel,
 } from "@/components/ui/field";
@@ -70,30 +70,30 @@ export function BusinessQuoteSettingsForm({
   return (
     <form action={formAction} className="form-stack pb-28">
       <div className="flex flex-col gap-6">
-        <section className="section-panel p-6">
-          <FormSection
-            description="Base values for new quotes."
-            title="Defaults"
-          >
-            <Alert>
-              <AlertTitle>Quote defaults only affect new quotes.</AlertTitle>
-              <AlertDescription>
-                Existing quotes keep their stored validity window and notes.
-                New quotes use the defaults saved here.
-              </AlertDescription>
-            </Alert>
+        {/* Info notice */}
+        <div className="flex items-start gap-3 rounded-xl border border-border/75 bg-muted/30 px-5 py-4">
+          <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            These defaults apply to new quotes only. Existing quotes keep their
+            stored values.
+          </p>
+        </div>
 
-            <div className="grid gap-5">
-              <Field
-                data-invalid={
-                  Boolean(state.fieldErrors?.defaultQuoteValidityDays) || undefined
-                }
-              >
-                <FieldLabel htmlFor="quote-settings-validity-days">
-                  Validity days
-                </FieldLabel>
-                <FieldContent>
+        {/* Settings fields */}
+        <section className="section-panel p-5 sm:p-6">
+          <div className="flex flex-col gap-6">
+            <Field
+              data-invalid={
+                Boolean(state.fieldErrors?.defaultQuoteValidityDays) || undefined
+              }
+            >
+              <FieldLabel htmlFor="quote-settings-validity-days">
+                Default validity period
+              </FieldLabel>
+              <FieldContent>
+                <div className="flex items-center gap-3">
                   <Input
+                    className="w-24"
                     disabled={isPending}
                     id="quote-settings-validity-days"
                     inputMode="numeric"
@@ -108,27 +108,26 @@ export function BusinessQuoteSettingsForm({
                     type="number"
                     value={defaultQuoteValidityDays}
                   />
-                  <FieldError
-                    errors={
-                      state.fieldErrors?.defaultQuoteValidityDays?.[0]
-                        ? [{ message: state.fieldErrors.defaultQuoteValidityDays[0] }]
-                        : undefined
-                    }
-                  />
-                </FieldContent>
-              </Field>
-            </div>
-          </FormSection>
-        </section>
+                  <span className="text-sm text-muted-foreground">days</span>
+                </div>
+                <FieldDescription>
+                  How long new quotes stay valid before expiring (1–365 days).
+                </FieldDescription>
+                <FieldError
+                  errors={
+                    state.fieldErrors?.defaultQuoteValidityDays?.[0]
+                      ? [{ message: state.fieldErrors.defaultQuoteValidityDays[0] }]
+                      : undefined
+                  }
+                />
+              </FieldContent>
+            </Field>
 
-        <section className="section-panel p-6">
-          <FormSection
-            description="Added to new quotes by default."
-            title="Default quote notes"
-          >
+            <div className="border-t border-border" />
+
             <Field data-invalid={Boolean(state.fieldErrors?.defaultQuoteNotes) || undefined}>
               <FieldLabel htmlFor="quote-settings-default-notes">
-                Quote notes
+                Default quote notes
               </FieldLabel>
               <FieldContent>
                 <Textarea
@@ -137,9 +136,14 @@ export function BusinessQuoteSettingsForm({
                   maxLength={1600}
                   name="defaultQuoteNotes"
                   onChange={(event) => setDefaultQuoteNotes(event.currentTarget.value)}
-                  rows={8}
+                  placeholder="e.g., Payment terms, warranty info, or next steps..."
+                  rows={6}
                   value={defaultQuoteNotes}
                 />
+                <FieldDescription>
+                  Automatically added to the notes section of every new quote.
+                  Customers see this on the public quote page.
+                </FieldDescription>
                 <FieldError
                   errors={
                     state.fieldErrors?.defaultQuoteNotes?.[0]
@@ -149,18 +153,18 @@ export function BusinessQuoteSettingsForm({
                 />
               </FieldContent>
             </Field>
-          </FormSection>
+          </div>
         </section>
       </div>
 
       <FloatingFormActions
         disableSubmit={!hasUnsavedChanges}
         isPending={isPending}
-        message="You have unsaved quote default changes."
+        message="You have unsaved quote settings."
         onCancel={handleCancelChanges}
         state={floatingActionsState}
-        submitLabel="Save quote defaults"
-        submitPendingLabel="Saving quote defaults..."
+        submitLabel="Save quote settings"
+        submitPendingLabel="Saving..."
         visible={shouldRenderFloatingActions}
       />
     </form>

@@ -68,7 +68,7 @@ export function QuoteActivityPanel({ activities }: QuoteActivityPanelProps) {
                   </SheetDescription>
                 </SheetHeader>
                 <SheetBody className="min-h-0 flex-1">
-                  <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
+                  <ScrollArea className="h-full pr-4">
                     <DashboardDetailFeed>
                       {activities.map((activity) => (
                         <DashboardDetailFeedItem

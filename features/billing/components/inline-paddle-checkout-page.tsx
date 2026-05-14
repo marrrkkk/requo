@@ -7,14 +7,16 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
-import { ArrowLeft, Briefcase, Building2, Loader2 } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
-import { useTheme } from "@/components/theme-provider";
+  ArrowLeft,
+  Check,
+  Loader2,
+  Lock,
+  Shield,
+} from "lucide-react";
+
+import { BrandMark } from "@/components/shared/brand-mark";
+import { Button } from "@/components/ui/button";
 import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
 import {
   PaddleProvider,
@@ -27,10 +29,21 @@ import type {
   BillingRegion,
   PaidPlan,
 } from "@/lib/billing/types";
+import { planMeta } from "@/lib/plans";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
 
 const PADDLE_FRAME_TARGET = "requo-inline-paddle-frame";
+
+type CheckoutTransaction = {
+  requestKey: string;
+  transactionId: string;
+};
+
+type CheckoutError = {
+  requestKey: string;
+  message: string;
+};
 
 type InlinePaddleCheckoutPageProps = {
   businessId: string;
@@ -47,6 +60,23 @@ type CheckoutShellProps = InlinePaddleCheckoutPageProps & {
   paddleEnvironment: "sandbox" | "production";
 };
 
+const planHighlights: Record<PaidPlan, string[]> = {
+  pro: [
+    "Unlimited quotes & follow-ups",
+    "AI assistant (100 gen/mo)",
+    "Workflow analytics",
+    "Page customization & branding",
+    "Up to 5 businesses",
+  ],
+  business: [
+    "Everything in Pro",
+    "Team members (25/business)",
+    "500 AI generations/mo",
+    "Unlimited businesses",
+    "Priority support",
+  ],
+};
+
 export function InlinePaddleCheckoutPage(props: InlinePaddleCheckoutPageProps) {
   const paddleClientToken = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN ?? null;
   const paddleEnvironment = (process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT ??
@@ -54,8 +84,12 @@ export function InlinePaddleCheckoutPage(props: InlinePaddleCheckoutPageProps) {
 
   if (!paddleClientToken) {
     return (
-      <div className="rounded-xl border border-border/70 bg-muted/20 p-6 text-sm text-muted-foreground">
-        Paddle checkout is not configured for this environment.
+      <div className="flex min-h-svh items-center justify-center bg-background px-4">
+        <div className="soft-panel max-w-md px-6 py-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            Paddle checkout is not configured for this environment.
+          </p>
+        </div>
       </div>
     );
   }
@@ -84,28 +118,33 @@ function InlineCheckoutShell({
   initialInterval,
 }: CheckoutShellProps) {
   const paddle = usePaddle();
-  const { resolvedTheme } = useTheme();
   const [plan, setPlan] = useState<PaidPlan>(initialPlan);
   const [interval, setInterval] = useState<BillingInterval>(initialInterval);
   const [planSheetOpen, setPlanSheetOpen] = useState(false);
-  const [transactionId, setTransactionId] = useState<string | null>(null);
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const [isInitializingCheckout, setIsInitializingCheckout] = useState(true);
+  const [transaction, setTransaction] = useState<CheckoutTransaction | null>(
+    null,
+  );
+  const [checkoutError, setCheckoutError] = useState<CheckoutError | null>(
+    null,
+  );
   const [checkoutLoadedKey, setCheckoutLoadedKey] = useState<string | null>(null);
   const lastRequestedKeyRef = useRef<string | null>(null);
   const openedTransactionRef = useRef<string | null>(null);
 
-  const paddleTheme = resolvedTheme === "dark" ? "dark" : "light";
+  const paddleTheme = "light" as const;
 
   const amount = useMemo(
     () => getPlanPrice(plan, "USD", interval),
     [interval, plan],
   );
 
-  // Detect when the Paddle iframe has been injected into the container.
-  // Uses a MutationObserver (external system subscription) so the setState
-  // call happens in the observer callback, not synchronously in the effect body.
   const currentPlanKey = `${plan}:${interval}`;
+  const requestKey = `${businessId}:${currentPlanKey}`;
+  const transactionId =
+    transaction?.requestKey === requestKey ? transaction.transactionId : null;
+  const activeCheckoutError =
+    checkoutError?.requestKey === requestKey ? checkoutError.message : null;
+
   useEffect(() => {
     if (!paddle.isReady || !transactionId) {
       return;
@@ -123,8 +162,6 @@ function InlineCheckoutShell({
       }
     });
 
-    // If iframe is already present, the observer won't fire for past mutations,
-    // so schedule a microtask check that runs outside the synchronous effect body.
     if (container.querySelector("iframe")) {
       queueMicrotask(() => setCheckoutLoadedKey(currentPlanKey));
     } else {
@@ -160,7 +197,10 @@ function InlineCheckoutShell({
           window.setTimeout(openWhenReady, 100);
           return;
         }
-        setCheckoutError("Unable to open checkout. Please reload and try again.");
+        setCheckoutError({
+          message: "Unable to open checkout. Please reload and try again.",
+          requestKey,
+        });
         return;
       }
 
@@ -169,12 +209,13 @@ function InlineCheckoutShell({
           transactionId,
           {
             onError: (message) => {
-              setCheckoutError(message);
+              setCheckoutError({ message, requestKey });
             },
           },
           {
             displayMode: "inline",
-            frameStyle: "width: 100%; min-width: 100%; border: none;",
+            frameStyle:
+              "width: 100%; min-width: 100%; border: none; background: transparent;",
             frameTarget: PADDLE_FRAME_TARGET,
             frameInitialHeight: "550",
             theme: paddleTheme,
@@ -183,7 +224,10 @@ function InlineCheckoutShell({
         );
         openedTransactionRef.current = transactionId;
       } catch {
-        setCheckoutError("Unable to open checkout. Please reload and try again.");
+        setCheckoutError({
+          message: "Unable to open checkout. Please reload and try again.",
+          requestKey,
+        });
       }
     };
 
@@ -191,22 +235,19 @@ function InlineCheckoutShell({
     return () => {
       cancelled = true;
     };
-  }, [paddle, paddleTheme, transactionId]);
+  }, [paddle, paddleTheme, requestKey, transactionId]);
 
   useEffect(() => {
-    if (!paddle.isReady || isInitializingCheckout) {
+    if (!paddle.isReady) {
       return;
     }
 
-    const requestKey = `${businessId}:${plan}:${interval}`;
     if (lastRequestedKeyRef.current === requestKey) {
       return;
     }
 
     lastRequestedKeyRef.current = requestKey;
     openedTransactionRef.current = null;
-    setCheckoutError(null);
-    setTransactionId(null);
 
     let isCancelled = false;
     async function initializeCheckout() {
@@ -230,13 +271,19 @@ function InlineCheckoutShell({
           return;
         }
         if (!response.ok || !data.transactionId) {
-          setCheckoutError(data.error ?? "Unable to load checkout.");
+          setCheckoutError({
+            message: data.error ?? "Unable to load checkout.",
+            requestKey,
+          });
           return;
         }
-        setTransactionId(data.transactionId);
+        setTransaction({ requestKey, transactionId: data.transactionId });
       } catch {
         if (!isCancelled) {
-          setCheckoutError("Unable to load checkout.");
+          setCheckoutError({
+            message: "Unable to load checkout.",
+            requestKey,
+          });
         }
       }
     }
@@ -245,47 +292,34 @@ function InlineCheckoutShell({
     return () => {
       isCancelled = true;
     };
-  }, [businessId, interval, isInitializingCheckout, paddle.isReady, plan]);
+  }, [businessId, interval, paddle.isReady, plan, requestKey]);
 
-  useEffect(() => {
-    if (!paddle.isReady) {
-      return;
-    }
-    setIsInitializingCheckout(false);
-  }, [paddle.isReady]);
-
-  const subtotal = amount;
-  const tax = 0;
-  const total = subtotal + tax;
-  const isPreparingCheckout =
-    !paddle.isReady || isInitializingCheckout || !transactionId;
+  const isPreparingCheckout = !paddle.isReady || !transactionId;
   const isCheckoutLoaded = checkoutLoadedKey === currentPlanKey;
   const showLoading = isPreparingCheckout || !isCheckoutLoaded;
 
-  const PlanIcon = plan === "pro" ? Briefcase : Building2;
-
   return (
     <>
-      {/* Full-page loading state */}
+      {/* Full-page loading overlay */}
       <div
         className={cn(
           "fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background transition-opacity duration-300",
-          showLoading && !checkoutError
+          showLoading && !activeCheckoutError
             ? "pointer-events-auto opacity-100"
             : "pointer-events-none opacity-0",
         )}
       >
-        <Loader2 className="size-8 animate-spin text-primary" />
+        <Loader2 className="size-7 animate-spin text-primary" />
         <p className="text-sm text-muted-foreground">
           Preparing secure checkout…
         </p>
       </div>
 
       {/* Error state */}
-      {checkoutError ? (
-        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 px-4">
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-6 py-4 text-center">
-            <p className="text-sm text-destructive">{checkoutError}</p>
+      {activeCheckoutError ? (
+        <div className="flex min-h-svh flex-col items-center justify-center gap-5 bg-background px-4">
+          <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-6 py-5 text-center">
+            <p className="text-sm text-destructive">{activeCheckoutError}</p>
           </div>
           <Button variant="outline" onClick={() => window.location.reload()}>
             Reload page
@@ -293,103 +327,167 @@ function InlineCheckoutShell({
         </div>
       ) : null}
 
-      {/* Two-column checkout layout */}
+      {/* Checkout layout */}
       <div
         className={cn(
-          "mx-auto grid w-full max-w-6xl gap-6 px-4 py-6 transition-opacity duration-300 sm:px-6 sm:py-8 lg:grid-cols-[auto_1fr] lg:gap-10 lg:px-8",
-          showLoading && !checkoutError ? "opacity-0" : "opacity-100",
+          "min-h-svh w-full bg-background transition-opacity duration-300",
+          showLoading && !activeCheckoutError ? "opacity-0" : "opacity-100",
         )}
       >
-        {/* Left panel – order summary */}
-        <aside className="flex w-full flex-col lg:w-[380px]">
-          <Link
-            href="/account/billing"
-            className="mb-4 inline-flex w-fit items-center gap-2 text-sm font-medium text-primary transition-colors hover:text-primary/80"
-          >
-            <ArrowLeft className="size-4" />
-            Return to Requo
-          </Link>
+        {/* Header */}
+        <header className="sticky top-0 z-10 flex h-14 w-full items-center justify-between border-b border-border/60 bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/60 sm:px-6">
+          <div className="flex items-center gap-3">
+            <Button asChild size="sm" variant="ghost" className="gap-1.5">
+              <Link href="/account/billing">
+                <ArrowLeft className="size-3.5" />
+                <span className="max-sm:sr-only">Back</span>
+              </Link>
+            </Button>
+            <div className="h-4 w-px bg-border/70 max-sm:hidden" />
+            <BrandMark href="/account/billing" subtitle={null} />
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Lock className="size-3" />
+            <span className="max-sm:hidden">Secure checkout</span>
+          </div>
+        </header>
 
-          <Card className="border-border/60">
-            <CardContent className="p-5 sm:p-6">
-              {/* Total price */}
-              <div className="mb-6">
-                <p className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                  {formatPrice(total, "USD")}
-                  <span className="ml-2 text-base font-normal text-muted-foreground">
-                    inc. tax
-                  </span>
-                </p>
+        {/* Content */}
+        <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:py-12">
+          <div className="grid gap-8 lg:grid-cols-[1fr_22rem] lg:gap-12">
+            {/* Payment form */}
+            <div className="order-1 lg:order-1">
+              <div className="mb-5">
+                <h1 className="font-heading text-xl font-semibold tracking-tight">
+                  Payment details
+                </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  billed {interval === "yearly" ? "yearly" : "monthly"}
+                  Your subscription starts immediately after payment.
                 </p>
               </div>
 
-              {/* Plan item */}
-              <div className="space-y-4">
-                <div className="rounded-lg border border-border/50 bg-muted/30 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                      <PlanIcon className="size-4 text-primary" />
+              {/* Paddle frame */}
+              <div className="rounded-xl border border-border/60 bg-card/50 p-1">
+                <div
+                  id={PADDLE_FRAME_TARGET}
+                  className={`${PADDLE_FRAME_TARGET} min-h-[500px] overflow-hidden rounded-lg`}
+                />
+              </div>
+
+              <div className="mt-4 flex items-center gap-4 text-[11px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <Shield className="size-3 text-primary/70" />
+                  256-bit SSL
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Lock className="size-3 text-primary/70" />
+                  Paddle secure payments
+                </span>
+              </div>
+            </div>
+
+            {/* Order summary */}
+            <div className="order-2 lg:sticky lg:top-20 lg:order-2 lg:self-start">
+              <div className="rounded-xl border border-border/60 bg-card/70">
+                {/* Plan info */}
+                <div className="p-5">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">
+                      {planMeta[plan].label}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {interval === "yearly" ? "Annual" : "Monthly"} billing
+                    </p>
+                  </div>
+
+                  <ul className="mt-4 flex flex-col gap-1.5">
+                    {planHighlights[plan].map((feature) => (
+                      <li
+                        className="flex items-center gap-2 text-xs text-muted-foreground"
+                        key={feature}
+                      >
+                        <Check className="size-3 shrink-0 text-primary/70" />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <button
+                    className="mt-4 text-xs font-medium text-primary hover:underline"
+                    onClick={() => setPlanSheetOpen(true)}
+                    type="button"
+                  >
+                    Change plan
+                  </button>
+                </div>
+
+                {/* Price */}
+                <div className="border-t border-border/50 p-5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      {planMeta[plan].label} ({interval === "yearly" ? "annual" : "monthly"})
+                    </span>
+                    <span className="text-sm font-medium text-foreground">
+                      {formatPrice(amount, "USD")}
+                    </span>
+                  </div>
+                  {interval === "yearly" ? (
+                    <div className="mt-1.5 flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">
+                        Per month
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatPrice(Math.round(amount / 12), "USD")}/mo
+                      </span>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground">
-                        {plan === "pro" ? "Pro plan" : "Business plan"}
-                      </p>
-                      <p className="text-sm font-semibold text-foreground">
-                        {formatPrice(amount, "USD")}
-                        <span className="font-normal text-muted-foreground">
-                          /{interval === "yearly" ? "year" : "month"}
-                        </span>
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Qty: 1
-                      </p>
-                    </div>
+                  ) : null}
+                  <div className="mt-1.5 flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Tax</span>
+                    <span className="text-xs text-muted-foreground">
+                      Calculated at checkout
+                    </span>
+                  </div>
+
+                  <div className="mt-4 flex items-baseline justify-between border-t border-border/40 pt-4">
+                    <span className="text-sm font-medium text-foreground">
+                      Due today
+                    </span>
+                    <span className="font-heading text-lg font-semibold tracking-tight text-foreground">
+                      {formatPrice(amount, "USD")}
+                      <span className="ml-0.5 text-xs font-normal text-muted-foreground">
+                        /{interval === "yearly" ? "yr" : "mo"}
+                      </span>
+                    </span>
                   </div>
                 </div>
-
-                <Button
-                  className="w-full"
-                  variant="outline"
-                  onClick={() => setPlanSheetOpen(true)}
-                  type="button"
-                >
-                  Change plan
-                </Button>
               </div>
 
-              {/* Pricing breakdown */}
-              <div className="mt-6 space-y-2.5 border-t border-border/50 pt-5 text-sm">
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span>Subtotal</span>
-                  <span>{formatPrice(subtotal, "USD")}</span>
-                </div>
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span>Tax</span>
-                  <span>{formatPrice(tax, "USD")}</span>
-                </div>
-                <div className="flex items-center justify-between border-t border-border/50 pt-2.5 font-semibold text-foreground">
-                  <span>Total</span>
-                  <span>{formatPrice(total, "USD")}</span>
-                </div>
+              {/* Context */}
+              <p className="mt-3 px-1 text-[11px] leading-4 text-muted-foreground">
+                Subscribing for{" "}
+                <span className="font-medium text-foreground">
+                  {businessName}
+                </span>
+                .{" "}
+                {currentPlan !== "free"
+                  ? `Upgrading from ${planMeta[currentPlan].label}.`
+                  : "Currently on the free plan."}
+              </p>
+
+              <div className="mt-3 flex gap-3 px-1 text-[11px] text-muted-foreground">
+                <Link href="/terms" className="hover:text-foreground">
+                  Terms
+                </Link>
+                <Link href="/privacy" className="hover:text-foreground">
+                  Privacy
+                </Link>
+                <Link href="/refund-policy" className="hover:text-foreground">
+                  Refunds
+                </Link>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Footer info */}
-          <p className="mt-4 text-xs text-muted-foreground">
-            {businessName} · Current plan: {currentPlan}. Checkout processed securely by Paddle.
-          </p>
-        </aside>
-
-        {/* Right panel – Paddle inline checkout */}
-        <section className="flex min-w-0 flex-col">
-          <div
-            id={PADDLE_FRAME_TARGET}
-            className={`${PADDLE_FRAME_TARGET} min-h-[500px] flex-1`}
-          />
-        </section>
+            </div>
+          </div>
+        </main>
       </div>
 
       <PlanSelectionSheet

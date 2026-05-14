@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, count, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, gt, inArray, isNull, sql } from "drizzle-orm";
 
 import {
   toBusinessNotificationItem,
@@ -55,11 +55,13 @@ export async function getBusinessNotificationBellView({
   businessId,
   businessSlug,
   userId,
+  memberSince,
   limit = defaultNotificationLimit,
 }: {
   businessId: string;
   businessSlug: string;
   userId: string;
+  memberSince: Date;
   limit?: number;
 }): Promise<BusinessNotificationBellView> {
   const [rawRows, stateRows] = await Promise.all([
@@ -75,7 +77,12 @@ export async function getBusinessNotificationBellView({
         createdAt: businessNotifications.createdAt,
       })
       .from(businessNotifications)
-      .where(eq(businessNotifications.businessId, businessId))
+      .where(
+        and(
+          eq(businessNotifications.businessId, businessId),
+          gte(businessNotifications.createdAt, memberSince),
+        ),
+      )
       .orderBy(
         desc(businessNotifications.createdAt),
         desc(businessNotifications.id),
@@ -107,11 +114,13 @@ export async function getBusinessNotificationBellView({
 
   // Accurate unread count: notifications where
   //   created_at > last_read_at (or no watermark)
+  //   AND created_at >= memberSince
   //   AND no individual read row exists for this user.
   //
   // The LEFT JOIN + IS NULL pattern avoids a subquery per row.
   const unreadConditions = [
     eq(businessNotifications.businessId, businessId),
+    gte(businessNotifications.createdAt, memberSince),
     isNull(businessNotificationReads.id),
   ];
 
@@ -158,6 +167,7 @@ export async function fetchBusinessNotificationsBeforeCursor({
   businessId,
   businessSlug,
   userId,
+  memberSince,
   cursor,
   lastReadAt,
   limit = defaultNotificationLimit,
@@ -165,6 +175,7 @@ export async function fetchBusinessNotificationsBeforeCursor({
   businessId: string;
   businessSlug: string;
   userId: string;
+  memberSince: Date;
   cursor: BusinessNotificationCursor;
   lastReadAt: string | null;
   limit?: number;
@@ -190,6 +201,7 @@ export async function fetchBusinessNotificationsBeforeCursor({
     .where(
       and(
         eq(businessNotifications.businessId, businessId),
+        gte(businessNotifications.createdAt, memberSince),
         olderThanCursor,
       ),
     )

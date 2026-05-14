@@ -125,6 +125,7 @@ export function SignupForm({
     });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function handleMagicLinkRequest() {
     if (!magicLinkEnabled) {
       return;

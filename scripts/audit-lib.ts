@@ -7,9 +7,7 @@
  * - a consistent `path:line — message` offender format,
  * - a single `exitIfOffenders` exit policy.
  *
- * No dependencies beyond Node built-ins. The audit scripts run under `tsx`
- * with `module: esnext` + `target: es2017`, which is enough for top-level
- * await and `node:fs/promises`.
+ * No dependencies beyond Node built-ins. The audit scripts run under `tsx`.
  */
 
 import { readFile, readdir } from "node:fs/promises";

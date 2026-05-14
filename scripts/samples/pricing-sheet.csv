@@ -1,0 +1,21 @@
+Service,Description,Quantity,Unit Price
+Basic Lawn Mowing,"Standard residential lawn up to 500 sqm, includes edging",1,$45.00
+Premium Lawn Mowing,"Large residential lawn 500-1000 sqm, includes edging and blowing",1,$85.00
+Garden Bed Weeding,"Per garden bed, hand weeding and mulch top-up",1,$35.00
+Hedge Trimming,"Per linear metre, up to 2m height",1,$12.00
+Tree Pruning - Small,"Trees under 3m, shaping and deadwood removal",1,$120.00
+Tree Pruning - Medium,"Trees 3-6m, requires ladder work",1,$280.00
+Pressure Washing - Driveway,"Standard double driveway, concrete or paver",1,$180.00
+Pressure Washing - Deck,"Timber or composite deck up to 30 sqm",1,$150.00
+Gutter Cleaning,"Single-storey home, includes downpipe flush",1,$95.00
+Gutter Cleaning - Two Storey,"Two-storey home, includes downpipe flush",1,$160.00
+Seasonal Garden Makeover,"Full garden tidy: weeding, pruning, mulching, green waste removal. Up to 4 hours labour.",1,$380.00
+Green Waste Removal,"Per trailer load, includes tip fees",1,$75.00
+Irrigation System Check,"Inspect all zones, adjust heads, report faults",1,$110.00
+Fertiliser Application,"Granular slow-release, covers up to 500 sqm lawn",1,$65.00
+Starter Package - Weekly,"Weekly mowing + fortnightly edging + monthly garden bed tidy",4,$160.00
+Maintenance Package - Fortnightly,"Fortnightly mowing + hedge trim + seasonal garden tidy",2,$220.00
+Premium Package - Weekly,"Weekly full-service: mow, edge, blow, weed, prune as needed",4,$340.00
+One-Off Spring Clean,"Full property reset: mow, edge, weed all beds, prune shrubs, pressure wash paths, 1 trailer green waste",1,$650.00
+Mulch Supply and Spread,"Per cubic metre, includes delivery and spreading",1,$95.00
+Lawn Aeration,"Core aeration for compacted lawns, up to 500 sqm",1,$180.00

@@ -636,7 +636,7 @@ function ProfileAvatarField({
           }
         }}
       >
-        <DialogContent className="sm:max-w-4xl">
+        <DialogContent className="sm:max-w-4xl" onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Crop profile photo</DialogTitle>
             <DialogDescription>Adjust the crop.</DialogDescription>

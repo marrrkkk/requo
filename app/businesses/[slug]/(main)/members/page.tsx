@@ -3,12 +3,8 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/shared/page-header";
-import { LockedFeaturePage } from "@/components/shared/paywall";
-import { Skeleton } from "@/components/ui/skeleton";
-import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { getBusinessMembersSettingsForBusiness } from "@/features/business-members/queries";
-import { getBusinessOwnerPageContext } from "@/app/businesses/[slug]/(main)/settings/_lib/page-context";
-import { hasFeatureAccess } from "@/lib/plans";
+import { getBusinessSettingsPageContext } from "@/app/businesses/[slug]/(main)/settings/_lib/page-context";
 import {
   cancelBusinessMemberInviteAction,
   createBusinessMemberInviteAction,
@@ -19,6 +15,7 @@ import {
   BusinessMembersManager,
   BusinessMembersManagerFallback,
 } from "@/features/business-members/components/business-members-manager";
+import { canManageBusinessAdministration } from "@/lib/business-members";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -37,20 +34,9 @@ export default async function BusinessMembersPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const { user, businessContext } = await getBusinessOwnerPageContext(slug);
+  const { user, businessContext } = await getBusinessSettingsPageContext(slug);
+  const canManage = canManageBusinessAdministration(businessContext.role);
 
-  if (!hasFeatureAccess(businessContext.business.plan, "members")) {
-    return (
-      <>
-        <PageHeader title="Members" />
-        <Suspense fallback={<MemberPaywallFallback />}>
-          <StreamedMemberPaywall businessContext={businessContext} />
-        </Suspense>
-      </>
-    );
-  }
-
-  // Stream the member list — header renders immediately.
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
       <PageHeader title="Members" description="Members with access to this business." />
@@ -58,6 +44,7 @@ export default async function BusinessMembersPage({
         <StreamedMemberList
           userId={user.id}
           businessContext={businessContext}
+          canManage={canManage}
         />
       </Suspense>
     </div>
@@ -68,43 +55,14 @@ export default async function BusinessMembersPage({
 /*  Streamed sections                                                          */
 /* -------------------------------------------------------------------------- */
 
-async function StreamedMemberPaywall({
-  businessContext,
-}: {
-  businessContext: Awaited<ReturnType<typeof getBusinessOwnerPageContext>>["businessContext"];
-}) {
-  const billingOverview = await getBusinessBillingOverview(
-    businessContext.business.id,
-  );
-
-  return (
-    <LockedFeaturePage
-      feature="members"
-      plan={businessContext.business.plan}
-      description="Upgrade to invite teammates and assign business roles."
-      upgradeAction={
-        billingOverview
-          ? {
-              userId: billingOverview.userId,
-              businessId: billingOverview.businessId,
-              businessSlug: billingOverview.businessSlug,
-              currentPlan: billingOverview.currentPlan,
-              region: billingOverview.region,
-              defaultCurrency: billingOverview.defaultCurrency,
-              ctaLabel: "Upgrade to invite members",
-            }
-          : undefined
-      }
-    />
-  );
-}
-
 async function StreamedMemberList({
   userId,
   businessContext,
+  canManage,
 }: {
   userId: string;
-  businessContext: Awaited<ReturnType<typeof getBusinessOwnerPageContext>>["businessContext"];
+  businessContext: Awaited<ReturnType<typeof getBusinessSettingsPageContext>>["businessContext"];
+  canManage: boolean;
 }) {
   const view = await getBusinessMembersSettingsForBusiness(
     businessContext.business.id,
@@ -118,10 +76,12 @@ async function StreamedMemberList({
   return (
     <BusinessMembersManager
       view={view}
+      plan={businessContext.business.plan}
       cancelInviteAction={cancelBusinessMemberInviteAction}
       createInviteAction={createBusinessMemberInviteAction}
       removeMemberAction={removeBusinessMemberAction}
       updateRoleAction={updateBusinessMemberRoleAction}
+      readOnly={!canManage}
     />
   );
 }
@@ -132,13 +92,4 @@ async function StreamedMemberList({
 
 function MemberListFallback() {
   return <BusinessMembersManagerFallback />;
-}
-
-function MemberPaywallFallback() {
-  return (
-    <div className="animate-pulse rounded-2xl border border-border/70 bg-background/50 p-8">
-      <Skeleton className="h-5 w-48" />
-      <Skeleton className="mt-3 h-4 w-64" />
-    </div>
-  );
 }

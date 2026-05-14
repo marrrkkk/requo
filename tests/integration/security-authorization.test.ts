@@ -250,7 +250,7 @@ describe("security authorization boundaries", () => {
   // TODO: getWorkspaceOverviewBySlug was removed in the business migration.
   // Re-enable once a business-scoped overview query is in place.
   it.skip("scopes overview reads to business membership", async () => {
-    const ownerView = {}
+    const _ownerView = {}
     const strangerView = {}
 
     

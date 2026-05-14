@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 
 import type {
   AiConversation,
@@ -19,8 +19,8 @@ import { aiConversations, aiMessages } from "@/lib/db/schema";
 
 const aiProviderNames = new Set<AiProviderName>([
   "groq",
+  "cerebras",
   "gemini",
-  "openrouter",
 ]);
 
 type AiConversationRow = typeof aiConversations.$inferSelect;
@@ -367,6 +367,8 @@ export async function listDashboardConversations({
         eq(aiConversations.businessId, businessId),
         eq(aiConversations.surface, "dashboard"),
         eq(aiConversations.entityId, entityId),
+        // Only show conversations that have at least one message.
+        isNotNull(aiConversations.lastMessageAt),
       ),
     )
     .orderBy(desc(getConversationOrderExpression()), desc(aiConversations.id))
@@ -726,4 +728,25 @@ async function touchConversationAfterMessage({
       updatedAt: new Date(),
     })
     .where(eq(aiConversations.id, conversationId));
+}
+
+export async function deleteDashboardConversation({
+  conversationId,
+  userId,
+}: {
+  conversationId: string;
+  userId: string;
+}) {
+  const [deleted] = await db
+    .delete(aiConversations)
+    .where(
+      and(
+        eq(aiConversations.id, conversationId),
+        eq(aiConversations.userId, userId),
+        eq(aiConversations.surface, "dashboard"),
+      ),
+    )
+    .returning({ id: aiConversations.id });
+
+  return deleted ?? null;
 }

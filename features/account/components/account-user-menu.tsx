@@ -58,7 +58,7 @@ export function AccountUserMenu({ user }: AccountUserMenuProps) {
         >
           <Avatar className="size-9">
             {user.avatarSrc ? (
-              <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} />
+              <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
             ) : null}
             <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
           </Avatar>
@@ -69,7 +69,7 @@ export function AccountUserMenu({ user }: AccountUserMenuProps) {
           <div className="flex items-center gap-3">
             <Avatar className="size-9">
               {user.avatarSrc ? (
-                <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} />
+                <AvatarImage alt={`${user.name} avatar`} src={user.avatarSrc} loading="eager" decoding="async" fetchPriority="high" />
               ) : null}
               <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
             </Avatar>

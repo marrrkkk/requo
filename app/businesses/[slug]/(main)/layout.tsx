@@ -1,66 +1,135 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
 
 import { RecentBusinessTracker } from "@/features/businesses/components/recent-business-tracker";
 
 import { DashboardShell } from "@/components/shell/dashboard-shell";
-import { DashboardShellSkeleton } from "@/components/shell/dashboard-shell-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import { BusinessCheckoutProvider } from "@/features/billing/components/business-checkout-provider";
 import { LockedBusinessSurface } from "@/features/businesses/components/locked-business-surface";
+import { ArchivedBusinessBanner } from "@/features/businesses/components/archived-business-banner";
+import { unarchiveBusinessAction } from "@/features/businesses/actions";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { getBusinessBillingShellOverview } from "@/features/billing/queries";
 import { getBusinessNotificationBellView } from "@/features/notifications/queries";
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
-import { businessesHubPath } from "@/features/businesses/routes";
+import { getBusinessDashboardPath } from "@/features/businesses/routes";
+import { getAppShellContext } from "@/lib/app-shell/context";
+import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { requireSession } from "@/lib/auth/session";
-import {
-  getBusinessContextForMembershipSlug,
-  getBusinessMembershipsForUser,
-} from "@/lib/db/business-access";
 import { timed } from "@/lib/dev/server-timing";
 import { siteName } from "@/lib/seo/site";
 
-export const unstable_instant = false;
-
 /**
- * Auth gate: resolves session + business membership.
- * Kept thin so loading.tsx can show fallback instantly during client nav.
- * Shell data (theme, profile, billing, memberships) streams in via Suspense.
+ * Persistent authenticated shell.
+ *
+ * The shell frame (sidebar + topbar) renders synchronously so navigations
+ * inside this segment don't re-mount the sidebar or flash a full shell
+ * skeleton. Slow or optional pieces — billing state, the notification bell,
+ * and the upgrade button — stream inside dedicated <Suspense> boundaries.
+ *
+ * Every page inside (main)/** reads its session + business context through
+ * `getAppShellContext`, which is `React.cache`-deduped within a request, so
+ * pages never re-await the auth gate.
  */
 export default async function BusinessDashboardLayout({
   children,
   params,
-}: { children: React.ReactNode; params: Promise<{ slug: string }> }) {
-  const [session, { slug }] = await Promise.all([requireSession(), params]);
-  const businessContext = await getBusinessContextForMembershipSlug(
-    session.user.id,
-    slug,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+
+  // Kick off every independent shell fetch in parallel. `requireSession` is
+  // `React.cache`d, so `getAppShellContext(slug)` reuses its result instead
+  // of re-resolving the session. All four queries race in parallel; the
+  // business-context lookup is the only one that depends on the slug.
+  const session = await requireSession();
+
+  const [businessContextResult, themePreference, allBusinessMemberships, profile] =
+    await timed(
+      "businessShell.parallelShellFetches",
+      Promise.all([
+        getAppShellContext(slug),
+        getThemePreferenceForUser(session.user.id),
+        getBusinessMembershipsForUser(session.user.id, "all"),
+        getAccountProfileForUser(session.user.id),
+      ]),
+    );
+
+  const { user, businessContext } = businessContextResult;
+
+  const businessMemberships = allBusinessMemberships.filter(
+    (membership) => membership.business.recordState !== "trash",
   );
 
-  if (!businessContext) {
-    redirect(businessesHubPath);
-  }
+  const avatarSrc = resolveUserAvatarSrc({
+    avatarStoragePath: profile?.avatarStoragePath,
+    profileUpdatedAt: profile?.updatedAt,
+    oauthImage: user.image ?? null,
+  });
 
-  // Stream entire shell: sidebar + topbar + children arrive as shell data resolves.
-  // This lets loading.tsx show the DashboardShellSkeleton immediately while
-  // theme, memberships, profile, and billing load in the background.
-  return (
-    <Suspense fallback={<DashboardShellSkeleton />}>
-      <StreamedDashboardShell
-        userId={session.user.id}
-        userEmail={session.user.email}
-        userName={session.user.name}
-        userImage={session.user.image ?? null}
-        businessContext={businessContext}
-      >
-        {children}
-      </StreamedDashboardShell>
+  const archivedBusinessBanner =
+    businessContext.business.recordState === "archived" ? (
+      <ArchivedBusinessBanner
+        dashboardHref={getBusinessDashboardPath(businessContext.business.slug)}
+        unarchiveAction={unarchiveBusinessAction.bind(
+          null,
+          businessContext.business.id,
+          businessContext.business.slug,
+        )}
+      />
+    ) : null;
+
+  const notificationSlot = (
+    <Suspense fallback={<Skeleton className="size-9 rounded-lg" />}>
+      <NotificationBellStreamedSection
+        businessId={businessContext.business.id}
+        businessSlug={businessContext.business.slug}
+        memberSince={businessContext.memberJoinedAt}
+        userId={user.id}
+      />
     </Suspense>
+  );
+
+  const upgradeSlot = (
+    <Suspense fallback={null}>
+      <UpgradeSlotStreamedSection
+        businessId={businessContext.business.id}
+        businessSlug={businessContext.business.slug}
+      />
+    </Suspense>
+  );
+
+  return (
+    <>
+      <RecentBusinessTracker businessSlug={businessContext.business.slug} />
+      <BillingBoundary
+        businessContext={businessContext}
+        archivedBanner={archivedBusinessBanner}
+      >
+        <DashboardShell
+          themePreference={themePreference}
+          user={{
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            avatarSrc,
+          }}
+          businessContext={businessContext}
+          businessMemberships={businessMemberships}
+          bannerSlot={archivedBusinessBanner}
+          notificationSlot={notificationSlot}
+          upgradeSlot={upgradeSlot}
+        >
+          {children}
+        </DashboardShell>
+      </BillingBoundary>
+    </>
   );
 }
 
@@ -69,13 +138,10 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  const [session, { slug }] = await Promise.all([requireSession(), params]);
-  const businessContext = await getBusinessContextForMembershipSlug(
-    session.user.id,
-    slug,
-  );
+  const { slug } = await params;
+  const { businessContext } = await getAppShellContext(slug);
 
-  const businessName = businessContext?.business?.name ?? "Business";
+  const businessName = businessContext.business.name;
 
   return {
     title: {
@@ -86,75 +152,27 @@ export async function generateMetadata({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Streamed shell — async server component that resolves shell data          */
+/*  Streamed slots — each isolates one slow shell dependency                  */
 /* -------------------------------------------------------------------------- */
 
-async function StreamedDashboardShell({
-  userId,
-  userEmail,
-  userName,
-  userImage,
+/**
+ * BillingBoundary streams the checkout provider + locked-business banner so
+ * the shell frame can render before the billing overview resolves. When
+ * billing is unavailable we still render children (locked surface requires
+ * billing data, so it is skipped gracefully).
+ */
+async function BillingBoundary({
   businessContext,
+  archivedBanner,
   children,
 }: {
-  userId: string;
-  userEmail: string;
-  userName: string;
-  userImage: string | null;
-  businessContext: Awaited<ReturnType<typeof getBusinessContextForMembershipSlug>> & {};
+  businessContext: Awaited<ReturnType<typeof getAppShellContext>>["businessContext"];
+  archivedBanner: React.ReactNode;
   children: React.ReactNode;
 }) {
-  // All use "use cache" so these resolve from cache on repeat navs.
-  const [themePreference, allBusinessMemberships, profile, billing] =
-    await timed(
-      "businessShell.parallelShellFetches",
-      Promise.all([
-        getThemePreferenceForUser(userId),
-        getBusinessMembershipsForUser(userId, "all"),
-        getAccountProfileForUser(userId),
-        getBusinessBillingShellOverview(businessContext.business.id).catch(
-          () => null,
-        ),
-      ]),
-    );
-
-  const businessMemberships = allBusinessMemberships.filter(
-    (membership) => membership.business.recordState !== "trash",
-  );
-
-  const avatarSrc = resolveUserAvatarSrc({
-    avatarStoragePath: profile?.avatarStoragePath,
-    profileUpdatedAt: profile?.updatedAt,
-    oauthImage: userImage,
-  });
-
-  // Notification bell streams independently via Suspense.
-  const notificationSlot = (
-    <Suspense fallback={<Skeleton className="size-9 rounded-lg" />}>
-      <NotificationBellStreamedSection
-        businessId={businessContext.business.id}
-        businessSlug={businessContext.business.slug}
-        userId={userId}
-      />
-    </Suspense>
-  );
-
-  // Upgrade button uses the already-fetched billing data
-  const upgradeSlot =
-    billing && billing.currentPlan !== "business" ? (
-      <div className="shrink-0">
-        <UpgradeButton
-          className="whitespace-nowrap"
-          currentPlan={billing.currentPlan}
-          defaultCurrency={billing.defaultCurrency}
-          region={billing.region}
-          size="sm"
-          userId={billing.userId}
-          businessId={billing.businessId}
-          businessSlug={billing.businessSlug}
-        />
-      </div>
-    ) : null;
+  const billing = await getBusinessBillingShellOverview(
+    businessContext.business.id,
+  ).catch(() => null);
 
   const lockedBusinessBanner =
     businessContext.business.recordState === "locked" && billing ? (
@@ -164,61 +182,44 @@ async function StreamedDashboardShell({
       />
     ) : null;
 
-  const shellContent = (
+  const bodyWithBanner = (
     <>
-      <RecentBusinessTracker
-        businessSlug={businessContext.business.slug}
-      />
-      <DashboardShell
-        themePreference={themePreference}
-        user={{
-          id: userId,
-          email: userEmail,
-          name: userName,
-          avatarSrc,
-        }}
-        businessContext={businessContext}
-        businessMemberships={businessMemberships}
-        notificationSlot={notificationSlot}
-        upgradeSlot={upgradeSlot}
-      >
-        <>
-          {lockedBusinessBanner}
-          {children}
-        </>
-      </DashboardShell>
+      {lockedBusinessBanner}
+      {children}
     </>
   );
 
-  // Wrap with checkout context when billing data is available.
+  // `archivedBanner` is rendered separately inside DashboardShell via
+  // `bannerSlot` so we only inject locked-plan banner content here.
+  void archivedBanner;
+
   if (billing) {
     return (
       <BusinessCheckoutProvider billing={billing}>
-        {shellContent}
+        {bodyWithBanner}
       </BusinessCheckoutProvider>
     );
   }
 
-  return shellContent;
+  return bodyWithBanner;
 }
-
-/* -------------------------------------------------------------------------- */
-/*  Streamed sections — async server components wrapped in Suspense above     */
-/* -------------------------------------------------------------------------- */
 
 async function NotificationBellStreamedSection({
   businessId,
   businessSlug,
+  memberSince,
   userId,
 }: {
   businessId: string;
   businessSlug: string;
+  memberSince: Date;
   userId: string;
 }) {
   const notificationView = await getBusinessNotificationBellView({
     businessId,
     businessSlug,
     userId,
+    memberSince,
   });
 
   return (
@@ -234,5 +235,36 @@ async function NotificationBellStreamedSection({
       ].join(":")}
       userId={userId}
     />
+  );
+}
+
+async function UpgradeSlotStreamedSection({
+  businessId,
+  businessSlug,
+}: {
+  businessId: string;
+  businessSlug: string;
+}) {
+  const billing = await getBusinessBillingShellOverview(businessId).catch(
+    () => null,
+  );
+
+  if (!billing || billing.currentPlan === "business") {
+    return null;
+  }
+
+  return (
+    <div className="shrink-0">
+      <UpgradeButton
+        className="whitespace-nowrap"
+        currentPlan={billing.currentPlan}
+        defaultCurrency={billing.defaultCurrency}
+        region={billing.region}
+        size="sm"
+        userId={billing.userId}
+        businessId={billing.businessId}
+        businessSlug={businessSlug}
+      />
+    </div>
   );
 }

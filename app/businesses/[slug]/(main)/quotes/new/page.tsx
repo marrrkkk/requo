@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
@@ -9,16 +9,15 @@ import { getQuoteLibraryForBusiness } from "@/features/quotes/quote-library-quer
 import { getInquiryQuotePrefillForBusiness } from "@/features/quotes/queries";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 import { inquiryRouteParamsSchema } from "@/features/inquiries/schemas";
-import { businessesHubPath } from "@/features/businesses/routes";
 import {
   createQuoteEditorLineItem,
   getDefaultQuoteValidityDate,
   getQuoteEditorInitialValuesFromInquiry,
 } from "@/features/quotes/utils";
-import { requireSession } from "@/lib/auth/session";
-import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
+import { getAppShellContext } from "@/lib/app-shell/context";
 import { timed } from "@/lib/dev/server-timing";
 import { createNoIndexMetadata } from "@/lib/seo/site";
+import { hasFeatureAccess } from "@/lib/plans";
 
 type NewQuotePageProps = {
   params: Promise<{ slug: string }>;
@@ -39,19 +38,11 @@ export default async function NewQuotePage({
   params,
   searchParams,
 }: NewQuotePageProps) {
-  const [session, { slug }, rawSearchParams] = await Promise.all([
-    requireSession(),
+  const [{ slug }, rawSearchParams] = await Promise.all([
     params,
     searchParams,
   ]);
-  const businessContext = await getBusinessContextForMembershipSlug(
-    session.user.id,
-    slug,
-  );
-
-  if (!businessContext) {
-    redirect(businessesHubPath);
-  }
+  const { businessContext } = await getAppShellContext(slug);
 
   const rawInquiryId = Array.isArray(rawSearchParams.inquiryId)
     ? rawSearchParams.inquiryId[0]
@@ -129,6 +120,11 @@ export default async function NewQuotePage({
       <QuoteEditor
         action={action}
         businessName={businessContext.business.name}
+        businessSlug={businessContext.business.slug}
+        canUseAiGenerator={hasFeatureAccess(
+          businessContext.business.plan,
+          "aiAssistant",
+        )}
         currency={businessContext.business.defaultCurrency}
         initialValues={initialValues}
         key={inquiryPrefill?.id ?? "manual"}

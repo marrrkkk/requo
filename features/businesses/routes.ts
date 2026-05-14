@@ -13,7 +13,8 @@ export type BusinessSettingsSection =
   | "pricing"
   | "knowledge"
   | "integrations"
-  | "billing";
+  | "billing"
+  | "audit-log";
 
 export function getBusinessPath(slug: string) {
   return `/businesses/${slug}`;

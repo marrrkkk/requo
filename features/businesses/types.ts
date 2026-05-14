@@ -48,6 +48,7 @@ export type BusinessOverviewCounts = {
   expiringSoonQuotes: number;
   newInquiries: number;
   recentAcceptedQuotes: number;
+  declinedQuotes: number;
   draftQuotes: number;
 };
 
@@ -56,6 +57,7 @@ export type BusinessOverviewData = {
   expiringSoonQuotes: BusinessOverviewQuoteActionItem[];
   newInquiries: BusinessOverviewInquiryActionItem[];
   recentAcceptedQuotes: BusinessOverviewQuoteActionItem[];
+  declinedQuotes: BusinessOverviewQuoteActionItem[];
   draftQuotes: BusinessOverviewQuoteActionItem[];
   counts: BusinessOverviewCounts;
 };

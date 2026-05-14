@@ -1,5 +1,5 @@
 export const businessMemberRoles = ["owner", "manager", "staff"] as const;
-export const businessMemberAssignableRoles = ["manager", "staff"] as const;
+export const businessMemberAssignableRoles = ["owner", "manager", "staff"] as const;
 export const businessMemberInviteDurationDays = 14;
 
 export type BusinessMemberRole = (typeof businessMemberRoles)[number];
@@ -82,7 +82,11 @@ export function canAccessBusinessForms(role: BusinessMemberRole) {
 }
 
 export function canViewBusinessAnalytics(role: BusinessMemberRole) {
-  return hasBusinessRoleAccess(role, "manager");
+  return hasBusinessRoleAccess(role, "staff");
+}
+
+export function canViewBusinessMembers(role: BusinessMemberRole) {
+  return hasBusinessRoleAccess(role, "staff");
 }
 
 export function canManageBusinessWorkspace(role: BusinessMemberRole) {

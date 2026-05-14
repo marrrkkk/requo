@@ -1,6 +1,6 @@
 "server only";
 
-import { and, asc, count, eq, sql } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { businessMemories } from "@/lib/db/schema/memories";
@@ -8,7 +8,7 @@ import type { MemoryInput } from "@/features/memory/schemas";
 
 export async function createMemoryForBusiness({
   businessId,
-  actorUserId,
+  actorUserId: _actorUserId,
   memory,
 }: {
   businessId: string;
@@ -40,7 +40,7 @@ export async function createMemoryForBusiness({
 
 export async function updateMemoryForBusiness({
   businessId,
-  actorUserId,
+  actorUserId: _actorUserId,
   memoryId,
   memory,
 }: {
@@ -69,7 +69,7 @@ export async function updateMemoryForBusiness({
 
 export async function deleteMemoryForBusiness({
   businessId,
-  actorUserId,
+  actorUserId: _actorUserId,
   memoryId,
 }: {
   businessId: string;

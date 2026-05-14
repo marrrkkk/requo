@@ -41,6 +41,28 @@ function truncateText(value: string | null | undefined, maxLength: number) {
   return `${normalized.slice(0, maxLength).trimEnd()}...`;
 }
 
+/**
+ * Compact key/value formatter that drops empty or default values to save tokens.
+ * Returns a semicolon-joined string like `k1 v1; k2 v2` or "" if all fields are empty.
+ */
+function compactFields(
+  fields: Array<[string, string | number | null | undefined]>,
+): string {
+  return fields
+    .filter(([, value]) => {
+      if (value === null || value === undefined) return false;
+      if (typeof value === "string") {
+        const trimmed = value.trim();
+
+        return trimmed.length > 0 && trimmed !== "Not set" && trimmed !== "None";
+      }
+
+      return true;
+    })
+    .map(([key, value]) => (key ? `${key} ${value}` : String(value)))
+    .join("; ");
+}
+
 function formatDate(value: Date | string | null | undefined) {
   if (!value) {
     return "Not set";
@@ -51,6 +73,16 @@ function formatDate(value: Date | string | null | undefined) {
   }
 
   return value.toISOString();
+}
+
+/** Compact date formatter that returns null for missing dates (for compactFields filtering). */
+function formatDateOrNull(value: Date | string | null | undefined): string | null {
+  if (!value) return null;
+
+  if (typeof value === "string") return value;
+
+  // Shorter ISO: just the date part for compactness
+  return value.toISOString().slice(0, 10);
 }
 
 function formatFileSize(bytes: number) {
@@ -71,8 +103,8 @@ function formatMemoryLines(memory: Awaited<ReturnType<typeof buildBusinessMemory
   }
 
   return memory.memories
-    .slice(0, 10)
-    .map((item) => `- ${item.title}: ${truncateText(item.content, 700)}`)
+    .slice(0, 6)
+    .map((item) => `- ${item.title}: ${truncateText(item.content, 400)}`)
     .join("\n");
 }
 
@@ -189,40 +221,47 @@ function formatFollowUpViewLines(followUps: FollowUpView[]) {
   }
 
   return followUps
-    .map((followUp) => {
-      const outcome =
-        followUp.status === "completed"
-          ? `; completed ${formatDate(followUp.completedAt)}`
-          : followUp.status === "skipped"
-            ? `; skipped ${formatDate(followUp.skippedAt)}`
-            : "";
-
-      return [
-        `- ${followUp.title}; status ${followUp.status}; due ${formatDate(
-          followUp.dueAt,
-        )}; channel ${followUp.channel}; bucket ${followUp.dueBucket}${outcome}`,
-        `  Customer: ${followUp.customerName}; ${followUp.customerEmail ?? "no email"}; ${followUp.customerContactMethod ?? "no method"} ${followUp.customerContactHandle ?? ""}`,
-        `  Related: ${followUp.related.label}`,
-        `  Reason: ${truncateText(followUp.reason, 320)}`,
-        `  Suggested message: ${truncateText(followUp.suggestedMessage, 500)}`,
-      ].join("\n");
-    })
+    .map((followUp) =>
+      `- ${compactFields([
+        ["", followUp.title],
+        ["status", followUp.status],
+        ["due", formatDateOrNull(followUp.dueAt)],
+        ["channel", followUp.channel],
+        ["bucket", followUp.dueBucket],
+        [
+          followUp.status === "completed" ? "completed" : followUp.status === "skipped" ? "skipped" : "",
+          followUp.status === "completed"
+            ? formatDateOrNull(followUp.completedAt)
+            : followUp.status === "skipped"
+              ? formatDateOrNull(followUp.skippedAt)
+              : null,
+        ],
+        ["customer", followUp.customerName],
+        ["related", followUp.related.label],
+        ["reason", truncateText(followUp.reason, 180) || null],
+      ])}`,
+    )
     .join("\n");
 }
 
 function formatFollowUpOverviewLines(overview: FollowUpOverviewData) {
-  return [
+  const sections: string[] = [
     `Counts: overdue ${overview.counts.overdue}; due today ${overview.counts.dueToday}; upcoming ${overview.counts.upcoming}`,
-    "",
-    "Overdue",
-    formatFollowUpViewLines(overview.overdue),
-    "",
-    "Due today",
-    formatFollowUpViewLines(overview.dueToday),
-    "",
-    "Upcoming",
-    formatFollowUpViewLines(overview.upcoming),
-  ].join("\n");
+  ];
+
+  if (overview.overdue.length) {
+    sections.push("", "Overdue", formatFollowUpViewLines(overview.overdue));
+  }
+
+  if (overview.dueToday.length) {
+    sections.push("", "Due today", formatFollowUpViewLines(overview.dueToday));
+  }
+
+  if (overview.upcoming.length) {
+    sections.push("", "Upcoming", formatFollowUpViewLines(overview.upcoming));
+  }
+
+  return sections.join("\n");
 }
 
 function formatLinkedInquiryContext(context: InquiryAssistantContext | null) {
@@ -305,16 +344,16 @@ function formatBusinessActivityLines(
   }
 
   return activities
-    .map((activity) => {
-      const related = [
-        activity.inquiryId ? `inquiry ${activity.inquiryId}` : null,
-        activity.quoteId ? `quote ${activity.quoteId}` : null,
-      ]
-        .filter(Boolean)
-        .join("; ");
-
-      return `- ${formatDate(activity.createdAt)}; ${activity.type}; ${activity.summary}; actor ${activity.actorName ?? "system"}${related ? `; ${related}` : ""}`;
-    })
+    .map((activity) =>
+      `- ${compactFields([
+        ["", formatDateOrNull(activity.createdAt)],
+        ["", activity.type],
+        ["", activity.summary],
+        ["by", activity.actorName && activity.actorName !== "system" ? activity.actorName : null],
+        ["inq", activity.inquiryId],
+        ["q", activity.quoteId],
+      ])}`,
+    )
     .join("\n");
 }
 
@@ -330,25 +369,25 @@ function formatBusinessProfileLines(profile: {
   defaultQuoteNotes?: string | null;
   createdAt?: Date | string | null;
 }) {
-  return [
+  const lines: Array<string | null> = [
     "Business profile",
     `- Name: ${profile.name}`,
     profile.slug ? `- Slug: /${profile.slug}` : null,
     profile.businessType ? `- Business type: ${profile.businessType}` : null,
-    `- Description: ${profile.shortDescription ?? "Not set"}`,
-    `- Contact email: ${profile.contactEmail ?? "Not set"}`,
+    profile.shortDescription ? `- Description: ${profile.shortDescription}` : null,
+    profile.contactEmail ? `- Contact email: ${profile.contactEmail}` : null,
     `- Default currency: ${profile.defaultCurrency}`,
     `- Preferred tone: ${profile.aiTonePreference}`,
-    `- Created: ${formatDate(profile.createdAt)}`,
-    profile.defaultEmailSignature !== undefined
-      ? `- Default email signature: ${profile.defaultEmailSignature ?? "Not set"}`
+    profile.createdAt ? `- Created: ${formatDate(profile.createdAt)}` : null,
+    profile.defaultEmailSignature
+      ? `- Default email signature: ${truncateText(profile.defaultEmailSignature, 300)}`
       : null,
-    profile.defaultQuoteNotes !== undefined
-      ? `- Default quote notes: ${profile.defaultQuoteNotes ?? "Not set"}`
+    profile.defaultQuoteNotes
+      ? `- Default quote notes: ${truncateText(profile.defaultQuoteNotes, 300)}`
       : null,
-  ]
-    .filter((line): line is string => Boolean(line))
-    .join("\n");
+  ];
+
+  return lines.filter((line): line is string => Boolean(line)).join("\n");
 }
 
 async function buildInquiryContext(input: {
@@ -612,7 +651,7 @@ async function buildDashboardContext(input: {
         ),
       )
       .orderBy(desc(inquiries.submittedAt))
-      .limit(20),
+      .limit(5),
     db
       .select({
         id: quotes.id,
@@ -645,7 +684,7 @@ async function buildDashboardContext(input: {
         ),
       )
       .orderBy(desc(quotes.createdAt))
-      .limit(20),
+      .limit(5),
     getFollowUpOverviewForBusinessUncached(input.businessId),
     db
       .select({
@@ -661,7 +700,7 @@ async function buildDashboardContext(input: {
       .leftJoin(user, eq(activityLogs.actorUserId, user.id))
       .where(eq(activityLogs.businessId, input.businessId))
       .orderBy(desc(activityLogs.createdAt))
-      .limit(30),
+      .limit(10),
   ]);
   const business = businessRow[0];
 
@@ -685,24 +724,55 @@ async function buildDashboardContext(input: {
       createdAt: business.createdAt,
     }),
     "",
-    "Recent inquiries",
+    `Recent inquiries (showing up to 5 most recent)`,
     recentInquiries.length
-      ? recentInquiries
-          .map(
-            (inquiry) =>
-              `- ${inquiry.customerName}; ${inquiry.customerEmail ?? "no email"}; ${inquiry.customerContactMethod} ${inquiry.customerContactHandle}; ${inquiry.serviceCategory}; status ${inquiry.status}; subject ${inquiry.subject ?? "Not set"}; source ${inquiry.source ?? "unknown"}; submitted ${formatDate(inquiry.submittedAt)}; deadline ${inquiry.requestedDeadline ?? "Not set"}; budget ${inquiry.budgetText ?? "Not set"}; details ${truncateText(inquiry.details, 320)}`,
-          )
-          .join("\n")
+      ? [
+          ...recentInquiries.map((inquiry) =>
+            `- ${compactFields([
+              ["", inquiry.customerName],
+              ["email", inquiry.customerEmail],
+              ["via", `${inquiry.customerContactMethod} ${inquiry.customerContactHandle}`.trim()],
+              ["category", inquiry.serviceCategory],
+              ["status", inquiry.status],
+              ["subject", inquiry.subject],
+              ["source", inquiry.source],
+              ["submitted", formatDateOrNull(inquiry.submittedAt)],
+              ["deadline", inquiry.requestedDeadline],
+              ["budget", inquiry.budgetText],
+              ["details", truncateText(inquiry.details, 180) || null],
+            ])}`,
+          ),
+          ...(recentInquiries.length >= 5
+            ? ["(More inquiries available in the Inquiries page)"]
+            : []),
+        ].join("\n")
       : "- No recent inquiries.",
     "",
-    "Recent quotes",
+    `Recent quotes (showing up to 5 most recent)`,
     recentQuotes.length
-      ? recentQuotes
-          .map(
-            (quote) =>
-              `- ${quote.quoteNumber}; ${quote.title}; ${quote.customerName}; ${quote.customerEmail ?? "no email"}; ${quote.customerContactMethod} ${quote.customerContactHandle}; status ${quote.status}; subtotal ${formatQuoteMoney(quote.subtotalInCents, quote.currency)}; discount ${formatQuoteMoney(quote.discountInCents, quote.currency)}; total ${formatQuoteMoney(quote.totalInCents, quote.currency)}; valid until ${quote.validUntil}; linked inquiry ${quote.inquiryId ?? "none"}; sent ${formatDate(quote.sentAt)}; viewed ${formatDate(quote.publicViewedAt)}; accepted ${formatDate(quote.acceptedAt)}; customer responded ${formatDate(quote.customerRespondedAt)}; response ${truncateText(quote.customerResponseMessage, 220) || "None"}; post-acceptance ${quote.postAcceptanceStatus}`,
-          )
-          .join("\n")
+      ? [
+          ...recentQuotes.map((quote) =>
+            `- ${compactFields([
+              ["", quote.quoteNumber],
+              ["title", quote.title],
+              ["customer", quote.customerName],
+              ["email", quote.customerEmail],
+              ["status", quote.status],
+              ["total", formatQuoteMoney(quote.totalInCents, quote.currency)],
+              ["valid-until", quote.validUntil],
+              ["linked-inquiry", quote.inquiryId],
+              ["sent", formatDateOrNull(quote.sentAt)],
+              ["viewed", formatDateOrNull(quote.publicViewedAt)],
+              ["accepted", formatDateOrNull(quote.acceptedAt)],
+              ["responded", formatDateOrNull(quote.customerRespondedAt)],
+              ["response", truncateText(quote.customerResponseMessage, 120) || null],
+              ["post-acceptance", quote.postAcceptanceStatus === "none" ? null : quote.postAcceptanceStatus],
+            ])}`,
+          ),
+          ...(recentQuotes.length >= 5
+            ? ["(More quotes available in the Quotes page)"]
+            : []),
+        ].join("\n")
       : "- No recent quotes.",
     "",
     "Follow-up overview",
@@ -778,6 +848,7 @@ function getSurfaceInstructions(surface: AiSurface) {
   return [
     ...shared,
     "Dashboard surface: help across the current business. Be read-heavy by default and summarize this business's inquiries, quotes, follow-ups, recent activity, and operational workload.",
+    "Only the most recent items are included in context. If the user asks for a full list or more items than shown, tell them to check the Inquiries or Quotes page for the complete list.",
     "Avoid broad or destructive write guidance from dashboard. Any database modification must be done with the app controls.",
   ].join("\n");
 }
@@ -789,42 +860,188 @@ export function buildAiSurfaceCompletionRequest(input: {
   history?: AiChatMessage[];
   qualityTier?: AiCompletionRequest["qualityTier"];
 }): AiCompletionRequest {
+  const systemContent = getSurfaceInstructions(input.surface);
+  const userContent = [
+    "Current Requo context",
+    input.context,
+    "",
+    "User request",
+    truncateText(input.message, 4000),
+  ].join("\n");
+
+  // Rough token estimate: ~4 chars per token for English text.
+  // Reserve budget for output tokens and leave headroom for model overhead.
+  const maxOutputTokens = input.surface === "quote" ? 2200 : 1700;
+  const maxInputChars = 16_000; // ~4000 tokens input budget for smaller models
+  const fixedChars = systemContent.length + userContent.length;
+  const availableForHistory = Math.max(0, maxInputChars - fixedChars);
+
+  const history = trimHistoryToFit(input.history ?? [], availableForHistory);
+
   return {
     model: "",
     messages: [
       {
         role: "system",
-        content: getSurfaceInstructions(input.surface),
+        content: systemContent,
       },
-      ...(input.history ?? []),
+      ...history,
       {
         role: "user",
-        content: [
-          "Current Requo context",
-          input.context,
-          "",
-          "User request",
-          truncateText(input.message, 4000),
-        ].join("\n"),
+        content: userContent,
       },
     ],
     temperature: 0.2,
-    maxOutputTokens: input.surface === "quote" ? 2200 : 1700,
+    maxOutputTokens,
     qualityTier: input.qualityTier ?? "balanced",
   };
 }
 
-function getErrorMessage(error: unknown) {
-  if (
+/**
+ * Trims chat history to fit a character budget while preserving conversation coherence.
+ *
+ * Strategy:
+ * 1. If everything fits, return as-is.
+ * 2. Otherwise, keep the most recent messages (for continuity) and optionally the
+ *    first user message (as a topic anchor), dropping messages from the middle.
+ * 3. When messages are dropped from the middle, inject a system breadcrumb so the
+ *    model knows there was earlier context it didn't see.
+ * 4. As a last resort, truncate the oldest remaining message's content.
+ */
+function trimHistoryToFit(
+  history: AiChatMessage[],
+  maxChars: number,
+): AiChatMessage[] {
+  if (history.length === 0 || maxChars <= 0) {
+    return [];
+  }
+
+  const totalChars = history.reduce((sum, msg) => sum + msg.content.length, 0);
+
+  if (totalChars <= maxChars) {
+    return history;
+  }
+
+  // Find the first user message to use as a topic anchor.
+  const firstUserIndex = history.findIndex((msg) => msg.role === "user");
+  const firstUser = firstUserIndex >= 0 ? history[firstUserIndex] : null;
+
+  // Collect recent messages (from newest), stopping when we'd exceed budget.
+  // Reserve room for the topic anchor + breadcrumb.
+  const breadcrumbCost = 120; // approx chars for "[Earlier messages omitted...]"
+  const anchorCost = firstUser ? Math.min(firstUser.content.length, 400) + 20 : 0;
+  const recentBudget = Math.max(200, maxChars - anchorCost - breadcrumbCost);
+
+  const recent: AiChatMessage[] = [];
+  let recentChars = 0;
+
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (i === firstUserIndex) continue; // don't double-count
+
+    const msg = history[i];
+    const cost = msg.content.length;
+
+    if (recentChars + cost > recentBudget && recent.length >= 2) {
+      break;
+    }
+
+    recent.unshift(msg);
+    recentChars += cost;
+  }
+
+  // If we consumed everything after the anchor, no breadcrumb needed.
+  const firstRecentIndex =
+    recent.length > 0 ? history.indexOf(recent[0]) : history.length;
+  const droppedCount =
+    firstRecentIndex - (firstUserIndex >= 0 ? firstUserIndex + 1 : 0);
+
+  const result: AiChatMessage[] = [];
+
+  if (firstUser) {
+    // Truncate the anchor content if it's very long.
+    result.push({
+      role: firstUser.role,
+      content:
+        firstUser.content.length > 400
+          ? `${firstUser.content.slice(0, 400).trimEnd()}...`
+          : firstUser.content,
+    });
+  }
+
+  if (droppedCount > 0) {
+    result.push({
+      role: "system",
+      content: `[Earlier ${droppedCount} message${droppedCount === 1 ? "" : "s"} omitted for brevity. Ask if you need earlier context.]`,
+    });
+  }
+
+  result.push(...recent);
+
+  return result;
+}
+
+/**
+ * Converts a raw AI provider error into a user-friendly message.
+ * Never leaks API keys, model names, org IDs, or billing links to users.
+ */
+function getErrorMessage(error: unknown): string {
+  const rawMessage =
     typeof error === "object" &&
     error !== null &&
     "message" in error &&
     typeof error.message === "string"
+      ? error.message
+      : "";
+
+  const lower = rawMessage.toLowerCase();
+
+  // Rate limit / capacity / quota — all fallbacks exhausted.
+  if (
+    lower.includes("rate_limit") ||
+    lower.includes("rate limit") ||
+    lower.includes("quota") ||
+    lower.includes("tokens per minute") ||
+    lower.includes("tpm") ||
+    lower.includes("request too large") ||
+    lower.includes("too many tokens") ||
+    lower.includes("context length") ||
+    lower.includes("context_length") ||
+    lower.includes("capacity") ||
+    lower.includes("overloaded")
   ) {
-    return error.message;
+    return "The assistant is busy right now. Please try again in a moment.";
   }
 
-  return "Unknown AI request failure.";
+  // Auth / config problems — user can't fix, but we shouldn't leak details.
+  if (
+    lower.includes("unauthorized") ||
+    lower.includes("invalid api key") ||
+    lower.includes("authentication") ||
+    lower.includes("forbidden") ||
+    lower.includes("not configured")
+  ) {
+    return "The assistant is temporarily unavailable. Please try again later.";
+  }
+
+  // Timeout / network.
+  if (
+    lower.includes("timeout") ||
+    lower.includes("timed out") ||
+    lower.includes("aborted") ||
+    lower.includes("network") ||
+    lower.includes("econnreset") ||
+    lower.includes("fetch failed")
+  ) {
+    return "The assistant took too long to respond. Please try again.";
+  }
+
+  // Empty response.
+  if (lower.includes("empty response")) {
+    return "The assistant didn't produce a reply. Please try rephrasing your question.";
+  }
+
+  // Default generic message — never surface raw provider text.
+  return "The assistant couldn't respond right now. Please try again in a moment.";
 }
 
 function getVisibleText(text: string): string {
@@ -861,9 +1078,14 @@ export async function* createAiSurfaceAssistantStream(input: {
         : "Dashboard Assistant";
   const completionRequest = buildAiSurfaceCompletionRequest(input);
   let streamResponse;
+  let emittedFallbackStatus = false;
 
   try {
-    streamResponse = await streamWithFallback(completionRequest);
+    streamResponse = await streamWithFallback(completionRequest, {
+      onFallback: () => {
+        emittedFallbackStatus = true;
+      },
+    });
   } catch (error) {
     yield {
       type: "meta",
@@ -875,6 +1097,13 @@ export async function* createAiSurfaceAssistantStream(input: {
       message: getErrorMessage(error),
     };
     return;
+  }
+
+  if (emittedFallbackStatus) {
+    yield {
+      type: "status",
+      message: "Switching to another model, one moment...",
+    };
   }
 
   yield {

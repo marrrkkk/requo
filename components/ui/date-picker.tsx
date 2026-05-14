@@ -18,12 +18,12 @@ function parseDateString(value: string): Date | undefined {
   const year = Number(match[1]);
   const month = Number(match[2]);
   const day = Number(match[3]);
-  const parsedDate = new Date(Date.UTC(year, month - 1, day));
+  const parsedDate = new Date(year, month - 1, day);
 
   if (
-    parsedDate.getUTCFullYear() !== year ||
-    parsedDate.getUTCMonth() !== month - 1 ||
-    parsedDate.getUTCDate() !== day
+    parsedDate.getFullYear() !== year ||
+    parsedDate.getMonth() !== month - 1 ||
+    parsedDate.getDate() !== day
   ) {
     return undefined;
   }
@@ -32,9 +32,9 @@ function parseDateString(value: string): Date | undefined {
 }
 
 function toDateInputValue(date: Date): string {
-  const year = date.getUTCFullYear();
-  const month = `${date.getUTCMonth() + 1}`.padStart(2, "0");
-  const day = `${date.getUTCDate()}`.padStart(2, "0");
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 
@@ -49,7 +49,6 @@ function formatDateLabel(value: string): string {
     day: "numeric",
     month: "short",
     year: "numeric",
-    timeZone: "UTC",
   }).format(parsedDate);
 }
 
@@ -80,7 +79,7 @@ export function DatePicker({
 }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const selectedDate = useMemo(() => parseDateString(value), [value]);
-  const currentYear = new Date().getUTCFullYear();
+  const currentYear = new Date().getFullYear();
 
   return (
     <div className={cn("w-full", className)}>
@@ -124,6 +123,7 @@ export function DatePicker({
           <Calendar
             autoFocus
             captionLayout="dropdown"
+            className="w-full"
             disabled={disabled}
             mode="single"
             fromYear={currentYear - 10}

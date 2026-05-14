@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowRight, CalendarClock, Lock } from "lucide-react";
+import { ArrowRight, Archive, CalendarClock, Lock } from "lucide-react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
+import { BusinessAvatar } from "@/components/shared/business-avatar";
 import { PlanBadge } from "@/components/shared/paywall";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,9 +23,14 @@ import { getAccountProfileForUser } from "@/features/account/queries";
 import { AccountUserMenu } from "@/features/account/components/account-user-menu";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { onboardingPath } from "@/features/onboarding/routes";
+import { UpgradePrompt } from "@/features/paywall";
 import { RecentlyOpenedBusinesses } from "@/features/businesses/components/recently-opened-businesses";
 import { getRecentlyOpenedBusinessesForUser } from "@/features/businesses/recently-opened";
 import { getBusinessQuotaForUser } from "@/features/businesses/quota";
+import { planMeta } from "@/lib/plans/plans";
+import { getPendingInvitesForUser } from "@/features/business-members/queries";
+import { acceptInviteFromHubAction, declineInviteFromHubAction } from "@/features/business-members/actions";
+import { PendingInvitesBanner } from "@/features/business-members/components/pending-invites-banner";
 
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
@@ -39,6 +45,11 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Manage the businesses, settings, and team access you own.",
 });
 
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
+};
+
 export default async function BusinessesPage() {
   const session = await requireSession();
 
@@ -48,6 +59,7 @@ export default async function BusinessesPage() {
     memberships,
     recentlyOpenedBusinesses,
     businessQuota,
+    pendingInvites,
   ] = await timed(
     "businessesHub.parallelShellFetches",
     Promise.all([
@@ -58,6 +70,7 @@ export default async function BusinessesPage() {
       getBusinessQuotaForUser({
         ownerUserId: session.user.id,
       }),
+      getPendingInvitesForUser(session.user.id, session.user.email),
     ]),
   );
 
@@ -106,23 +119,37 @@ export default async function BusinessesPage() {
           </div>
 
           <div className="w-full space-y-6">
+            <PendingInvitesBanner
+              invites={pendingInvites}
+              acceptAction={acceptInviteFromHubAction}
+              declineAction={declineInviteFromHubAction}
+            />
+
             <RecentlyOpenedBusinesses businesses={recentlyOpenedBusinesses} />
+
+            {!businessQuota.allowed && businessQuota.upgradePlan && (
+              <UpgradePrompt
+                variant="banner"
+                plan={businessQuota.plan}
+                description={`Your ${planMeta[businessQuota.plan].label} plan supports ${businessQuota.limit === 1 ? "1 business" : `${businessQuota.limit} businesses`}. Upgrade to ${planMeta[businessQuota.upgradePlan].label} to add more.`}
+              />
+            )}
 
             <section className="space-y-4">
               <div className="flex items-center justify-between gap-3">
                 <p className="meta-label">
-                  {memberships.length} business{memberships.length === 1 ? "" : "es"}
+                  {memberships.filter((m) => m.business.recordState !== "archived").length} business{memberships.filter((m) => m.business.recordState !== "archived").length === 1 ? "" : "es"}
                 </p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {memberships.map((membership) => {
+                {memberships.filter((m) => m.business.recordState !== "archived").map((membership) => {
                   const ws = membership.business;
                   const roleMeta = businessMemberRoleMeta[membership.role];
                   const isLocked = ws.recordState === "locked";
                   return (
                     <Card
-                      className="group flex flex-col border-border/80 bg-card/98 transition-colors hover:border-border hover:bg-card hover:shadow-sm"
+                      className="group relative flex flex-col border-border/80 bg-card/98 transition-colors hover:border-border hover:bg-card hover:shadow-sm"
                       key={ws.id}
                     >
                       <CardHeader className="gap-4">
@@ -178,6 +205,12 @@ export default async function BusinessesPage() {
                           ) : null}
                         </div>
                       </CardContent>
+                      <BusinessAvatar
+                        name={ws.name}
+                        logoUrl={ws.logoStoragePath ? `/api/business/${ws.slug}/logo` : null}
+                        size="lg"
+                        className="pointer-events-none absolute right-4 bottom-4 opacity-50 transition-opacity group-hover:opacity-90"
+                      />
                     </Card>
                   );
                 })}
@@ -189,6 +222,60 @@ export default async function BusinessesPage() {
                 />
               </div>
             </section>
+
+            {memberships.filter((m) => m.business.recordState === "archived").length > 0 ? (
+              <section className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Archive className="size-4 text-muted-foreground" />
+                  <p className="meta-label">
+                    {memberships.filter((m) => m.business.recordState === "archived").length} archived
+                  </p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {memberships.filter((m) => m.business.recordState === "archived").map((membership) => {
+                    const ws = membership.business;
+                    const roleMeta = businessMemberRoleMeta[membership.role];
+                    return (
+                      <Card
+                        className="group relative flex flex-col border-border/60 bg-muted/30 opacity-75 transition-opacity hover:opacity-100"
+                        key={ws.id}
+                      >
+                        <CardHeader className="gap-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0 flex-1">
+                              <CardTitle className="max-w-full truncate text-lg">
+                                {ws.name}
+                              </CardTitle>
+                              <CardDescription className="mt-1 max-w-full truncate font-medium">
+                                /{ws.slug}
+                              </CardDescription>
+                            </div>
+                            <Badge variant="outline" className="gap-1">
+                              <Archive className="size-3.5" />
+                              Archived
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="flex flex-1 flex-col justify-between space-y-5">
+                          <div className="flex flex-wrap gap-2">
+                            <Badge className="capitalize" variant="secondary">
+                              {roleMeta?.label ?? membership.role}
+                            </Badge>
+                          </div>
+                          <Button asChild className="w-full sm:w-auto" variant="outline">
+                            <Link href={getBusinessDashboardPath(ws.slug)} prefetch={true}>
+                              Open read-only
+                              <ArrowRight data-icon="inline-end" />
+                            </Link>
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
           </div>
         </main>
       </div>

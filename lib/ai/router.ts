@@ -15,12 +15,12 @@ import type {
 // ---------------------------------------------------------------------------
 // AI Provider + Model Fallback Router
 //
-// Two-level fallback: providers (Groq → Gemini → OpenRouter), then models
+// Two-level fallback: providers (Groq → Cerebras → Gemini), then models
 // within each provider. The quality tier (balanced / cheap / best / coding)
 // selects which model list each provider uses.
 //
 // Loop logic:
-//   for each provider in [groq, gemini, openrouter]:
+//   for each provider in [groq, cerebras, gemini]:
 //     for each model in provider.models[qualityTier]:
 //       try request
 //       if success → return normalised response
@@ -62,7 +62,7 @@ export async function generateWithFallback(
 
   if (providers.length === 0) {
     throw new Error(
-      "No AI providers are configured. Add at least one API key (GROQ_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY) to enable the assistant.",
+      "No AI providers are configured. Add at least one API key (GROQ_API_KEY, CEREBRAS_API_KEY, or GEMINI_API_KEY) to enable the assistant.",
     );
   }
 
@@ -144,17 +144,19 @@ export async function generateWithFallback(
  */
 export async function streamWithFallback(
   request: AiCompletionRequest,
+  options?: { onFallback?: () => void },
 ): Promise<AiStreamResponse> {
   const providers = getConfiguredProviders();
 
   if (providers.length === 0) {
     throw new Error(
-      "No AI providers are configured. Add at least one API key (GROQ_API_KEY, GEMINI_API_KEY, or OPENROUTER_API_KEY) to enable the assistant.",
+      "No AI providers are configured. Add at least one API key (GROQ_API_KEY, CEREBRAS_API_KEY, or GEMINI_API_KEY) to enable the assistant.",
     );
   }
 
   const tier = request.qualityTier ?? "balanced";
   let lastError: unknown;
+  let attemptCount = 0;
 
   for (const provider of providers) {
     const models = getModelsForProvider(provider.name, tier);
@@ -175,6 +177,7 @@ export async function streamWithFallback(
         return streamResponse;
       } catch (error) {
         lastError = error;
+        attemptCount += 1;
 
         const errorInfo = getSanitizedErrorInfo(error);
 
@@ -193,6 +196,11 @@ export async function streamWithFallback(
                   ? error.message
                   : "All AI providers failed.",
               );
+        }
+
+        // Notify the caller that we're switching to a fallback model.
+        if (attemptCount === 1 && options?.onFallback) {
+          options.onFallback();
         }
 
         if (error instanceof AiProviderError && error.retryAfterMs) {

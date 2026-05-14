@@ -1,10 +1,14 @@
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { profileAvatarBucket } from "@/features/account/utils";
-import { buildContentDisposition } from "@/lib/files";
+import {
+  buildContentDisposition,
+  getAssetCacheHeaders,
+  getNotModifiedResponse,
+} from "@/lib/files";
 import { getOptionalSession } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getOptionalSession();
 
   if (!session) {
@@ -27,6 +31,16 @@ export async function GET() {
     });
   }
 
+  const cacheHeaders = getAssetCacheHeaders({
+    request,
+    etagSeed: `${profile.avatarStoragePath}:${profile.updatedAt.getTime()}`,
+  });
+
+  const notModified = getNotModifiedResponse(request, cacheHeaders.etag);
+  if (notModified) {
+    return notModified;
+  }
+
   const storageClient = createSupabaseAdminClient();
   const { data, error } = await storageClient.storage
     .from(profileAvatarBucket)
@@ -45,7 +59,7 @@ export async function GET() {
 
   return new Response(data, {
     headers: {
-      "cache-control": "private, max-age=300, stale-while-revalidate=60",
+      ...cacheHeaders,
       "content-disposition": buildContentDisposition(
         profile.avatarStoragePath.split("/").pop() ?? "profile-avatar",
         "inline",

@@ -113,6 +113,7 @@ import {
   getInquiryCustomFieldLimit,
   getPublicInquiryAttachmentHelpText,
 } from "@/features/inquiries/plan-rules";
+import { LockedAction } from "@/features/paywall";
 import { cn } from "@/lib/utils";
 
 const MAX_CUSTOM_FIELD_OPTIONS = 12;
@@ -800,16 +801,34 @@ export function BusinessInquiryFormForm({
 
                 <FormSection
                   action={
-                    <Button
-                      className="w-full sm:w-auto"
-                      disabled={isFieldInteractionLocked || hasReachedCustomFieldLimit}
-                      onClick={() => setAddFieldDialogOpen(true)}
-                      type="button"
-                      variant="outline"
-                    >
-                      <Plus data-icon="inline-start" />
-                      Add field
-                    </Button>
+                    hasReachedCustomFieldLimit ? (
+                      <LockedAction
+                        feature="multipleForms"
+                        plan={settings.plan}
+                        description="Add more custom fields to your inquiry forms."
+                      >
+                        <Button
+                          className="w-full sm:w-auto"
+                          disabled={isFieldInteractionLocked}
+                          type="button"
+                          variant="outline"
+                        >
+                          <Plus data-icon="inline-start" />
+                          Add field
+                        </Button>
+                      </LockedAction>
+                    ) : (
+                      <Button
+                        className="w-full sm:w-auto"
+                        disabled={isFieldInteractionLocked}
+                        onClick={() => setAddFieldDialogOpen(true)}
+                        type="button"
+                        variant="outline"
+                      >
+                        <Plus data-icon="inline-start" />
+                        Add field
+                      </Button>
+                    )
                   }
                   title={
                     isEditingProjectGroupLabel ? (
@@ -903,9 +922,9 @@ export function BusinessInquiryFormForm({
 
                   {hasReachedCustomFieldLimit ? (
                     <Alert>
-                      <AlertTitle>Custom field limit reached</AlertTitle>
+                      <AlertTitle>Field limit reached</AlertTitle>
                       <AlertDescription>
-                        Your current plan supports {customFieldLimit} custom
+                        Your plan supports up to {customFieldLimit} custom
                         fields per form.
                       </AlertDescription>
                     </Alert>

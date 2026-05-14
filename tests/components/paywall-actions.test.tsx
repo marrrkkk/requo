@@ -38,6 +38,14 @@ vi.mock("sonner", () => ({
   },
 }));
 
+vi.mock("@/components/theme-provider", () => ({
+  useTheme: () => ({
+    resolvedTheme: "light",
+    setTheme: vi.fn(),
+    theme: "system",
+  }),
+}));
+
 import { CommandMenu } from "@/components/shell/command-menu";
 import { SendQuoteDialog } from "@/features/quotes/components/send-quote-dialog";
 
@@ -106,17 +114,17 @@ describe("paywalled export actions", () => {
     await user.click(screen.getByRole("button", { name: "Send quote" }));
 
     const lockedPdfAction = await screen.findByRole("button", {
-      name: "Download PDF",
+      name: "PDF",
     });
 
     expect(
-      screen.queryByRole("link", { name: "Download PDF" }),
+      screen.queryByRole("link", { name: "PDF" }),
     ).not.toBeInTheDocument();
 
     await user.click(lockedPdfAction);
 
     expect(
-      await screen.findByText("PDF export is a Pro feature."),
+      await screen.findByText("PDF is a Pro feature."),
     ).toBeVisible();
   });
 

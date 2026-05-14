@@ -3,6 +3,7 @@ import "server-only";
 import { desc, eq, and, inArray } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { headers } from "next/headers";
+import { cache } from "react";
 
 import { db } from "@/lib/db/client";
 import { listLockCandidatesForDowngrade } from "@/features/businesses/plan-enforcement";
@@ -76,50 +77,54 @@ function createEmptyDowngradePreview(): AccountBillingOverview["downgradePreview
 /**
  * Slim shell billing state for dashboard chrome and upgrade buttons.
  * It intentionally skips downgrade preview queries used only by billing pages.
+ *
+ * Wrapped in `React.cache` so the business shell and the streamed upgrade
+ * slot (which both call this from the same layout) share one resolution per
+ * request. The inner cached reads are already `"use cache"`-backed.
  */
-export async function getBusinessBillingShellOverview(
-  businessId: string,
-): Promise<AccountBillingOverview | null> {
-  try {
-    const [businessData, requestHeaders] = await Promise.all([
-      getCachedBusinessData(businessId),
-      headers(),
-    ]);
+export const getBusinessBillingShellOverview = cache(
+  async (businessId: string): Promise<AccountBillingOverview | null> => {
+    try {
+      const [businessData, requestHeaders] = await Promise.all([
+        getCachedBusinessData(businessId),
+        headers(),
+      ]);
 
-    if (!businessData) {
+      if (!businessData) {
+        return null;
+      }
+
+      const subscription = await getCachedAccountSubscription(
+        businessData.ownerUserId,
+      );
+      const region = getBillingRegion(requestHeaders);
+      const defaultCurrency = getDefaultCurrency(region);
+      const currentPlan = subscription
+        ? resolveEffectivePlanFromSubscription(subscription)
+        : (businessData.plan as BusinessPlan);
+
+      return {
+        userId: businessData.ownerUserId,
+        businessId: businessData.id,
+        businessName: businessData.name,
+        businessSlug: businessData.slug,
+        currentPlan,
+        region,
+        defaultCurrency,
+        downgradePreview: createEmptyDowngradePreview(),
+        subscription: toBillingSubscriptionView(subscription),
+      };
+    } catch (error) {
+      console.error(
+        "Failed to load shell billing overview.",
+        { businessId },
+        error,
+      );
+
       return null;
     }
-
-    const subscription = await getCachedAccountSubscription(
-      businessData.ownerUserId,
-    );
-    const region = getBillingRegion(requestHeaders);
-    const defaultCurrency = getDefaultCurrency(region);
-    const currentPlan = subscription
-      ? resolveEffectivePlanFromSubscription(subscription)
-      : (businessData.plan as BusinessPlan);
-
-    return {
-      userId: businessData.ownerUserId,
-      businessId: businessData.id,
-      businessName: businessData.name,
-      businessSlug: businessData.slug,
-      currentPlan,
-      region,
-      defaultCurrency,
-      downgradePreview: createEmptyDowngradePreview(),
-      subscription: toBillingSubscriptionView(subscription),
-    };
-  } catch (error) {
-    console.error(
-      "Failed to load shell billing overview.",
-      { businessId },
-      error,
-    );
-
-    return null;
-  }
-}
+  },
+);
 
 /**
  * Returns a full billing overview for the account billing UI.

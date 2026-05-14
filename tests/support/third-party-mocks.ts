@@ -99,27 +99,25 @@ export function mockGemini(): void {
 }
 
 /**
- * Mocks `@/lib/ai/openrouter-provider` — the OpenRouter-backed `AiProvider`
- * used as the final fallback in the AI router chain. The lower-level
- * `@/lib/openrouter/client` factory is not mocked here because the provider
- * module is the boundary the app imports from.
+ * Mocks `@/lib/ai/cerebras-provider` — the Cerebras-backed `AiProvider`
+ * used as the second fallback in the AI router chain.
  *
  * Call at the top of the test file, outside any `beforeEach`.
  */
-export function mockOpenRouter(): void {
-  vi.mock("@/lib/ai/openrouter-provider", () => ({
-    openrouterProvider: {
-      name: "openrouter",
+export function mockCerebras(): void {
+  vi.mock("@/lib/ai/cerebras-provider", () => ({
+    cerebrasProvider: {
+      name: "cerebras",
       isConfigured: vi.fn(() => false),
       generateCompletion: vi.fn(async () => ({
-        provider: "openrouter",
+        provider: "cerebras",
         model: "test-model",
         text: "",
         usage: undefined,
         raw: null,
       })),
       generateStream: vi.fn(async () => ({
-        provider: "openrouter",
+        provider: "cerebras",
         model: "test-model",
         stream: (async function* () {})(),
       })),
@@ -200,7 +198,7 @@ export function mockAllThirdParties(): void {
   mockResend();
   mockGroq();
   mockGemini();
-  mockOpenRouter();
+  mockCerebras();
   mockPaddle();
   mockSupabaseStorage();
 }

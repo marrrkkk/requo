@@ -7,9 +7,10 @@ import "server-only";
 // fall back to the next provider or stop immediately.
 //
 // Retryable (triggers fallback):
-//   408 timeout, 409 conflict/capacity, 429 rate limit,
-//   500, 502, 503, 504 server errors,
-//   network timeouts, connection errors, model temporarily unavailable.
+//   408 timeout, 409 conflict/capacity, 413 payload too large (TPM on Groq),
+//   429 rate limit, 500, 502, 503, 504 server errors,
+//   network timeouts, connection errors, model temporarily unavailable,
+//   capacity/quota messages even when the status code is ambiguous.
 //
 // Non-retryable (stops immediately):
 //   400 bad request, 401 invalid key, 403 permission denied,
@@ -18,7 +19,16 @@ import "server-only";
 
 import type { AiProviderName } from "@/lib/ai/types";
 
-const RETRYABLE_STATUS_CODES = new Set([408, 409, 429, 500, 502, 503, 504]);
+const RETRYABLE_STATUS_CODES = new Set([
+  408, // timeout
+  409, // conflict/capacity
+  413, // payload too large (Groq returns this for TPM overflows on large prompts)
+  429, // rate limit
+  500, // server error
+  502, // bad gateway
+  503, // service unavailable
+  504, // gateway timeout
+]);
 
 const NETWORK_ERROR_PATTERNS = [
   "econnrefused",
@@ -32,6 +42,32 @@ const NETWORK_ERROR_PATTERNS = [
   "aborterror",
   "the operation was aborted",
   "signal timed out",
+];
+
+/**
+ * Message fragments that indicate a retryable capacity/quota problem even
+ * when the status code is missing or ambiguous. Providers occasionally
+ * return 400/500 with text like "Request too large" or "rate_limit_exceeded".
+ * Treat those as retryable so the router can fall back to another provider.
+ */
+const RETRYABLE_MESSAGE_PATTERNS = [
+  "rate_limit_exceeded",
+  "rate limit exceeded",
+  "rate-limit",
+  "quota exceeded",
+  "quota_exceeded",
+  "request too large",
+  "too many tokens",
+  "tokens per minute",
+  "tpm",
+  "context length",
+  "context_length",
+  "maximum context",
+  "max_tokens_exceeded",
+  "capacity",
+  "overloaded",
+  "service unavailable",
+  "model_overloaded",
 ];
 
 /**
@@ -142,6 +178,37 @@ function isNetworkError(error: unknown): boolean {
   return NETWORK_ERROR_PATTERNS.some((pattern) => message.includes(pattern));
 }
 
+/**
+ * Detects retryable capacity/rate-limit errors by message content.
+ * Used as a safety net when a provider returns a non-standard status code
+ * (e.g., Groq sometimes wraps TPM overflows in a 400/413 with a JSON body).
+ */
+function isRetryableMessage(error: unknown): boolean {
+  const direct =
+    error instanceof Error ? error.message : typeof error === "string" ? error : "";
+
+  // Some SDKs nest the real message inside { error: { message } } or a body string.
+  let nested = "";
+
+  if (typeof error === "object" && error !== null) {
+    const errWithError = error as { error?: { message?: unknown } };
+
+    if (typeof errWithError.error?.message === "string") {
+      nested = errWithError.error.message;
+    }
+
+    const errWithBody = error as { body?: unknown };
+
+    if (typeof errWithBody.body === "string") {
+      nested += ` ${errWithBody.body}`;
+    }
+  }
+
+  const haystack = `${direct} ${nested}`.toLowerCase();
+
+  return RETRYABLE_MESSAGE_PATTERNS.some((pattern) => haystack.includes(pattern));
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -153,6 +220,10 @@ export function isRetryableError(error: unknown): boolean {
   }
 
   if (isNetworkError(error)) {
+    return true;
+  }
+
+  if (isRetryableMessage(error)) {
     return true;
   }
 
@@ -177,6 +248,7 @@ export function wrapProviderError(
   const statusCode = extractStatusCode(error);
   const retryable =
     isNetworkError(error) ||
+    isRetryableMessage(error) ||
     (statusCode !== null ? RETRYABLE_STATUS_CODES.has(statusCode) : true);
   const retryAfterMs = extractRetryAfterMs(error);
   const message =

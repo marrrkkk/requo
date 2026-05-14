@@ -24,7 +24,7 @@ export function applyTestEnv(): void {
     RESEND_API_KEY: '',
     GROQ_API_KEY: '',
     GEMINI_API_KEY: '',
-    OPENROUTER_API_KEY: '',
+    CEREBRAS_API_KEY: '',
     PADDLE_API_KEY: '',
     PADDLE_WEBHOOK_SECRET: '',
   };

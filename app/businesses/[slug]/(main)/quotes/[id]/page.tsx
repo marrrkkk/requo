@@ -1,8 +1,6 @@
-import dynamic from "next/dynamic";
-import Image from "next/image";
 import Link from "next/link";
-import { AtSign, ExternalLink, Mail, Printer } from "lucide-react";
-import { notFound, redirect } from "next/navigation";
+import { AtSign, ExternalLink, Mail } from "lucide-react";
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import {
@@ -11,14 +9,12 @@ import {
   DashboardDetailFeedItem,
   DashboardDetailHeader,
   DashboardEmptyState,
-  DashboardMetaPill,
   DashboardPage,
   DashboardSection,
   DashboardSidebarStack,
 } from "@/components/shared/dashboard-layout";
 import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
 import { InfoTile } from "@/components/shared/info-tile";
-import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -57,7 +53,7 @@ import { CopyQuoteLinkButton } from "@/features/quotes/components/copy-quote-lin
 import { WorkflowNextActionCallout } from "@/features/businesses/components/workflow-next-action";
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";
 import { QuoteExportPopover } from "@/features/quotes/components/quote-export-popover";
-import { QuoteLifecycleActions } from "@/features/quotes/components/quote-lifecycle-actions";
+import { QuoteManageDialog } from "@/features/quotes/components/quote-manage-dialog";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
 import { QuotePostWinCard } from "@/features/quotes/components/quote-post-win-card";
@@ -82,14 +78,12 @@ import {
 import {
   getBusinessInquiryPath,
   getBusinessQuoteExportPath,
-  getBusinessQuotePrintPath,
   getBusinessQuotesPath,
 } from "@/features/businesses/routes";
-import { businessesHubPath } from "@/features/businesses/routes";
 import { env, isEmailConfigured } from "@/lib/env";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { requireSession } from "@/lib/auth/session";
-import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
+import { cn } from "@/lib/utils";
+import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import type { Metadata } from "next";
 
@@ -97,29 +91,6 @@ export const metadata: Metadata = createNoIndexMetadata({
   title: "Quote detail",
   description: "View, edit, send, or track a single quote for this business.",
 });
-
-const QuoteAiPanel = dynamic(
-  () =>
-    import("@/features/ai/components/quote-ai-panel").then(
-      (module) => module.QuoteAiPanel,
-    ),
-  {
-    loading: () => (
-      <div className="fixed bottom-4 right-4 z-40 sm:bottom-5 sm:right-5">
-        <div className="flex size-14 items-center justify-center rounded-full border border-border/70 bg-[var(--surface-elevated-bg)] shadow-[var(--surface-shadow-lg)]">
-          <Image
-            src="/logo.svg"
-            alt=""
-            width={34}
-            height={34}
-            className="size-[2.15rem] object-contain"
-          />
-          <span className="sr-only">Loading Requo assistant</span>
-        </div>
-      </div>
-    ),
-  },
-);
 
 type QuoteDetailPageProps = {
   params: Promise<{ slug: string; id: string }>;
@@ -143,15 +114,8 @@ export default function QuoteDetailPage({
 async function QuoteDetailContent({
   params,
 }: QuoteDetailPageProps) {
-  const [session, resolvedParams] = await Promise.all([requireSession(), params]);
-  const businessContext = await getBusinessContextForMembershipSlug(
-    session.user.id,
-    resolvedParams.slug,
-  );
-
-  if (!businessContext) {
-    redirect(businessesHubPath);
-  }
+  const resolvedParams = await params;
+  const { businessContext } = await getAppShellContext(resolvedParams.slug);
 
   const parsedParams = quoteRouteParamsSchema.safeParse(resolvedParams);
 
@@ -263,10 +227,6 @@ async function QuoteDetailContent({
             description:
               "The public quote remains available for review, but it is no longer accepting a new online response.",
           };
-  const lifecycleSectionDescription =
-    quote.status === "sent"
-      ? "Use void for sent quotes and archive for safe cleanup."
-      : "Preserve the quote history and archive it when you want to hide it from active lists.";
   const quoteContactEmail = getCustomerContactEmail(quote);
   const showQuotePreferredContact = shouldShowPreferredContactTile(quote);
   const quotePreferredContactLabel = getContactMethodLabel(
@@ -342,19 +302,13 @@ async function QuoteDetailContent({
   return (
     <DashboardPage className="pb-24">
       <DashboardDetailHeader
-        eyebrow="Quote detail"
+        eyebrow="Quote"
         title={quote.title}
-        description={`Prepared for ${quote.customerName}.`}
+        description={`Quote created · ${formatQuoteDateTime(quote.createdAt)}`}
         meta={
           <>
             <QuoteStatusBadge status={quote.status} />
             {isArchived ? <QuoteRecordStateBadge state="archived" /> : null}
-            <DashboardMetaPill>
-              Valid until {formatQuoteDate(quote.validUntil)}
-            </DashboardMetaPill>
-            <DashboardMetaPill>
-              {quote.inquiryId ? "Linked inquiry" : "Manual quote"}
-            </DashboardMetaPill>
             {quote.postAcceptanceStatus !== "none" ? (
               <QuotePostAcceptanceStatusBadge status={quote.postAcceptanceStatus} />
             ) : null}
@@ -363,32 +317,20 @@ async function QuoteDetailContent({
         actions={
           <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center [&_[data-slot=button]]:w-full sm:[&_[data-slot=button]]:w-auto">
 
+            <QuoteManageDialog
+              archiveAction={archiveAction}
+              businessQuoteListHref={getBusinessQuotesPath(businessSlug)}
+              deleteDraftAction={deleteDraftAction}
+              isArchived={isArchived}
+              restoreArchivedAction={restoreArchivedAction}
+              status={quote.status}
+              voidAction={voidAction}
+            />
             <QuoteExportPopover
               canExport={canExportData}
               pdfHref={getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")}
               pngHref={getBusinessQuoteExportPath(businessSlug, quote.id, "png")}
             />
-            {canExportData ? (
-              <Button asChild variant="outline">
-                <Link
-                  href={getBusinessQuotePrintPath(businessSlug, quote.id)}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
-                  <Printer data-icon="inline-start" />
-                  Print
-                </Link>
-              </Button>
-            ) : (
-              <ProFeatureNoticeButton
-                noticeDescription="Upgrade to Pro to print quote records."
-                noticeTitle="Print is a Pro feature."
-                variant="outline"
-              >
-                <Printer data-icon="inline-start" />
-                Print
-              </ProFeatureNoticeButton>
-            )}
             {quote.status === "draft" ? (
               <SendQuoteDialog
                 sendAction={sendAction}
@@ -421,6 +363,11 @@ async function QuoteDetailContent({
           <QuoteEditor
             action={updateAction}
             businessName={businessContext.business.name}
+            businessSlug={businessSlug}
+            canUseAiGenerator={hasFeatureAccess(
+              businessContext.business.plan,
+              "aiAssistant",
+            )}
             currency={quote.currency}
             initialValues={getQuoteEditorInitialValuesFromDetail(quote)}
             key={quote.id}
@@ -482,21 +429,6 @@ async function QuoteDetailContent({
               </div>
 
 
-
-              <DashboardSection
-                description="Delete unneeded drafts before they enter the quote lifecycle."
-                title="Draft actions"
-              >
-                <QuoteLifecycleActions
-                  archiveAction={archiveAction}
-                  businessQuoteListHref={getBusinessQuotesPath(businessSlug)}
-                  deleteDraftAction={deleteDraftAction}
-                  isArchived={isArchived}
-                  restoreArchivedAction={restoreArchivedAction}
-                  status={quote.status}
-                  voidAction={voidAction}
-                />
-              </DashboardSection>
             </DashboardSidebarStack>
           </DashboardDetailLayout>
         </>
@@ -547,45 +479,18 @@ async function QuoteDetailContent({
             ) : null}
 
             <DashboardSection
-              contentClassName="grid gap-3 sm:grid-cols-2"
-              description="Saved customer channel for sending and follow-up."
-              title="Customer contact"
-            >
-              <InfoTile
-                className={showQuotePreferredContact ? undefined : "sm:col-span-2"}
-                icon={Mail}
-                label="Email"
-                value={
-                  quoteContactEmail ? (
-                    <TruncatedTextWithTooltip
-                      className="underline-offset-4 hover:underline"
-                      href={`mailto:${quoteContactEmail}`}
-                      text={quoteContactEmail}
-                    />
-                  ) : (
-                    "Not provided"
-                  )
-                }
-                valueClassName="break-all"
-              />
-              {showQuotePreferredContact ? (
-                <InfoTile
-                  icon={AtSign}
-                  label={quotePreferredContactLabel}
-                  value={quote.customerContactHandle}
-                  valueClassName="break-all"
-                />
-              ) : null}
-            </DashboardSection>
-
-            <DashboardSection
               contentClassName="flex flex-col gap-4"
               description="Share, open, and track the secure quote page."
               title="Customer view"
             >
               {customerQuoteUrl ? (
                 <>
-                  <div className="soft-panel px-4 py-4 shadow-none">
+                  <div className={cn(
+                    "rounded-xl border px-4 py-4 shadow-none",
+                    quote.status === "accepted" && "border-green-200 bg-green-50 dark:border-green-900/40 dark:bg-green-950/30",
+                    quote.status === "rejected" && "border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/30",
+                    quote.status !== "accepted" && quote.status !== "rejected" && "soft-panel",
+                  )}>
                     <p className="text-sm font-medium text-foreground">
                       {customerViewCopy.title}
                     </p>
@@ -669,6 +574,51 @@ async function QuoteDetailContent({
               ) : null}
             </DashboardSection>
 
+            <DashboardSection
+              contentClassName="grid gap-3 sm:grid-cols-2"
+              description="Saved customer channel for sending and follow-up."
+              title="Customer contact"
+            >
+              <InfoTile
+                className={showQuotePreferredContact ? undefined : "sm:col-span-2"}
+                icon={Mail}
+                label="Email"
+                value={
+                  quoteContactEmail ? (
+                    <TruncatedTextWithTooltip
+                      className="underline-offset-4 hover:underline"
+                      href={`mailto:${quoteContactEmail}`}
+                      text={quoteContactEmail}
+                    />
+                  ) : (
+                    "Not provided"
+                  )
+                }
+                valueClassName="break-all"
+              />
+              {showQuotePreferredContact ? (
+                <InfoTile
+                  icon={AtSign}
+                  label={quotePreferredContactLabel}
+                  value={
+                    getContactHandleUrl(quote.customerContactMethod, quote.customerContactHandle) ? (
+                      <a
+                        className="text-primary underline-offset-4 hover:underline break-all"
+                        href={getContactHandleUrl(quote.customerContactMethod, quote.customerContactHandle)!}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                      >
+                        {quote.customerContactHandle}
+                      </a>
+                    ) : (
+                      quote.customerContactHandle
+                    )
+                  }
+                  valueClassName="break-all"
+                />
+              ) : null}
+            </DashboardSection>
+
             <div id="follow-ups">
               <FollowUpPanel
                 businessSlug={businessSlug}
@@ -701,30 +651,9 @@ async function QuoteDetailContent({
             ) : null}
 
 
-
-            <DashboardSection
-              description={lifecycleSectionDescription}
-              title="Lifecycle"
-            >
-              <QuoteLifecycleActions
-                archiveAction={archiveAction}
-                businessQuoteListHref={getBusinessQuotesPath(businessSlug)}
-                deleteDraftAction={deleteDraftAction}
-                isArchived={isArchived}
-                restoreArchivedAction={restoreArchivedAction}
-                status={quote.status}
-                voidAction={voidAction}
-              />
-            </DashboardSection>
           </DashboardSidebarStack>
         </DashboardDetailLayout>
       )}
-      <QuoteAiPanel
-        businessSlug={businessSlug}
-        quoteId={quote.id}
-        userName={session.user.name || "You"}
-        plan={businessContext.business.plan}
-      />
     </DashboardPage>
   );
 }
@@ -770,7 +699,7 @@ function QuoteActivitySheetSection({
                 </SheetDescription>
               </SheetHeader>
               <SheetBody className="min-h-0 flex-1">
-                <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
+                <ScrollArea className="h-full pr-4">
                   <DashboardDetailFeed>
                     {activities.map((activity) => (
                       <DashboardDetailFeedItem
@@ -832,7 +761,7 @@ function CustomerHistorySheetSection({
                 </SheetDescription>
               </SheetHeader>
               <SheetBody className="min-h-0 flex-1">
-                <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
+                <ScrollArea className="h-full pr-4">
                   <CustomerHistoryPanel
                     businessSlug={businessSlug}
                     history={history}
@@ -889,6 +818,23 @@ function shouldShowPreferredContactTile(contact: {
     contact.customerContactHandle.trim().length > 0 &&
     contact.customerContactMethod.trim().toLowerCase() !== "email"
   );
+}
+
+function getContactHandleUrl(method: string, handle: string): string | null {
+  const normalizedMethod = method.trim().toLowerCase();
+  const trimmedHandle = handle.trim();
+  if (!trimmedHandle) return null;
+
+  switch (normalizedMethod) {
+    case "facebook":
+      return `https://facebook.com/${trimmedHandle}`;
+    case "instagram":
+      return `https://instagram.com/${trimmedHandle}`;
+    case "whatsapp":
+      return `https://wa.me/${trimmedHandle.replace(/[^0-9+]/g, "")}`;
+    default:
+      return null;
+  }
 }
 
 /* -------------------------------------------------------------------------- */

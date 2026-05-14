@@ -18,7 +18,7 @@ import {
 import type { BusinessInquiryFormDangerActionState } from "@/features/settings/types";
 
 type BusinessInquiryFormDangerZoneProps = {
-  activeFormCount: number;
+  activeFormCount?: number;
   archiveAction: (
     state: BusinessInquiryFormDangerActionState,
     formData: FormData,
@@ -29,20 +29,17 @@ type BusinessInquiryFormDangerZoneProps = {
   ) => Promise<BusinessInquiryFormDangerActionState>;
   formId: string;
   inquiryListHref: string;
-  isDefault: boolean;
-  submittedInquiryCount: number;
+  isDefault?: boolean;
+  submittedInquiryCount?: number;
 };
 
 const initialState: BusinessInquiryFormDangerActionState = {};
 
 export function BusinessInquiryFormDangerZone({
-  activeFormCount,
   archiveAction,
   deleteAction,
   formId,
   inquiryListHref,
-  isDefault,
-  submittedInquiryCount,
 }: BusinessInquiryFormDangerZoneProps) {
   const router = useProgressRouter();
   const [deleteState, deleteFormAction, isDeletePending] = useActionStateWithSonner(
@@ -53,8 +50,6 @@ export function BusinessInquiryFormDangerZone({
     archiveAction,
     initialState,
   );
-  const canMutate = !isDefault && activeFormCount > 1;
-  const shouldArchive = submittedInquiryCount > 0;
 
   useEffect(() => {
     if (!deleteState.success && !archiveState.success) {
@@ -73,88 +68,56 @@ export function BusinessInquiryFormDangerZone({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 pt-0">
-        {isDefault ? (
-          <Alert>
-            <AlertTitle>This is the default form.</AlertTitle>
-            <AlertDescription>
-              Set another form as default before deleting or archiving this one.
-            </AlertDescription>
-          </Alert>
-        ) : null}
+        <Alert variant="destructive">
+          <AlertTitle>Delete this form</AlertTitle>
+          <AlertDescription>
+            This permanently deletes the form and unlinks any submitted inquiries.
+          </AlertDescription>
+        </Alert>
 
-        {!isDefault && activeFormCount <= 1 ? (
-          <Alert>
-            <AlertTitle>Keep one active form.</AlertTitle>
-            <AlertDescription>
-              Create another form before removing this one.
-            </AlertDescription>
-          </Alert>
-        ) : null}
+        <div className="flex flex-wrap gap-3">
+          <form action={archiveFormAction}>
+            <input name="targetFormId" type="hidden" value={formId} />
+            <Button
+              disabled={isArchivePending}
+              type="submit"
+              variant="outline"
+            >
+              {isArchivePending ? (
+                <>
+                  <Spinner data-icon="inline-start" aria-hidden="true" />
+                  Archiving...
+                </>
+              ) : (
+                <>
+                  <Archive data-icon="inline-start" />
+                  Archive form
+                </>
+              )}
+            </Button>
+          </form>
 
-        {canMutate ? (
-          shouldArchive ? (
-            <>
-              <Alert>
-                <AlertTitle>Archive this form</AlertTitle>
-                <AlertDescription>
-                  This form already has {submittedInquiryCount} linked inquiries, so it can
-                  only be archived.
-                </AlertDescription>
-              </Alert>
-              <form action={archiveFormAction}>
-                <input name="targetFormId" type="hidden" value={formId} />
-                <Button
-                  className="w-full"
-                  disabled={isArchivePending}
-                  type="submit"
-                  variant="outline"
-                >
-                  {isArchivePending ? (
-                    <>
-                      <Spinner data-icon="inline-start" aria-hidden="true" />
-                      Archiving...
-                    </>
-                  ) : (
-                    <>
-                      <Archive data-icon="inline-start" />
-                      Archive form
-                    </>
-                  )}
-                </Button>
-              </form>
-            </>
-          ) : (
-            <>
-              <Alert variant="destructive">
-                <AlertTitle>Delete this form</AlertTitle>
-                <AlertDescription>
-                  This permanently deletes the form because it has no submitted inquiries.
-                </AlertDescription>
-              </Alert>
-              <form action={deleteFormAction}>
-                <input name="targetFormId" type="hidden" value={formId} />
-                <Button
-                  className="w-full"
-                  disabled={isDeletePending}
-                  type="submit"
-                  variant="destructive"
-                >
-                  {isDeletePending ? (
-                    <>
-                      <Spinner data-icon="inline-start" aria-hidden="true" />
-                      Deleting...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 data-icon="inline-start" />
-                      Delete form
-                    </>
-                  )}
-                </Button>
-              </form>
-            </>
-          )
-        ) : null}
+          <form action={deleteFormAction}>
+            <input name="targetFormId" type="hidden" value={formId} />
+            <Button
+              disabled={isDeletePending}
+              type="submit"
+              variant="destructive"
+            >
+              {isDeletePending ? (
+                <>
+                  <Spinner data-icon="inline-start" aria-hidden="true" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 data-icon="inline-start" />
+                  Delete form
+                </>
+              )}
+            </Button>
+          </form>
+        </div>
       </CardContent>
     </Card>
   );

@@ -449,7 +449,7 @@ export function SecuritySettingsForm({
               <p className="text-sm text-muted-foreground">
                 {accountDeletionBlocked
                   ? "Resolve business ownership or billing blockers before deleting this account."
-                  : "Permanently remove this account after confirming the final details below."}
+                  : "Permanently remove this account by typing the confirmation below."}
               </p>
             </div>
 
@@ -470,7 +470,7 @@ export function SecuritySettingsForm({
                 {security.deletion.blockers.map((blocker, index) => (
                   <Alert key={`${blocker.code}-${index}`}>
                     <AlertTitle>
-                      {blocker.businessName ?? blocker.businessName ?? "Blocking relationship"}
+                      {blocker.businessName ?? "Blocking relationship"}
                     </AlertTitle>
                     <AlertDescription>{blocker.message}</AlertDescription>
                   </Alert>
@@ -478,72 +478,34 @@ export function SecuritySettingsForm({
               </div>
             ) : null}
 
-            {!accountDeletionBlocked && !hasPassword ? (
-              <Alert>
-                <AlertTitle>Provider-only sign-in detected</AlertTitle>
-                <AlertDescription>
-                  This account does not currently use a password. If deletion fails,
-                  sign in again and retry from a fresh session.
-                </AlertDescription>
-              </Alert>
-            ) : null}
-
             {!accountDeletionBlocked ? (
               <form action={deleteFormAction} className="form-stack">
                 <FieldGroup>
-                  <Field data-invalid={Boolean(deleteState.fieldErrors?.email) || undefined}>
-                    <FieldLabel htmlFor="security-delete-email">
-                      Confirm account email
+                  <Field data-invalid={Boolean(deleteState.fieldErrors?.confirmation) || undefined}>
+                    <FieldLabel htmlFor="security-delete-confirmation">
+                      Type &quot;delete my account&quot; to confirm
                     </FieldLabel>
                     <FieldContent>
                       <Input
-                        autoComplete="email"
+                        autoComplete="off"
                         disabled={isDeletePending}
-                        id="security-delete-email"
-                        name="email"
-                        placeholder={security.email}
+                        id="security-delete-confirmation"
+                        name="confirmation"
+                        placeholder="delete my account"
                         required
-                        type="email"
                       />
                       <FieldDescription>
-                        Enter {security.email} to confirm deletion.
+                        Type <strong>delete my account</strong> to confirm permanent deletion.
                       </FieldDescription>
                       <FieldError
                         errors={
-                          deleteState.fieldErrors?.email?.[0]
-                            ? [{ message: deleteState.fieldErrors.email[0] }]
+                          deleteState.fieldErrors?.confirmation?.[0]
+                            ? [{ message: deleteState.fieldErrors.confirmation[0] }]
                             : undefined
                         }
                       />
                     </FieldContent>
                   </Field>
-
-                  {hasPassword ? (
-                    <Field
-                      data-invalid={Boolean(deleteState.fieldErrors?.password) || undefined}
-                    >
-                      <FieldLabel htmlFor="security-delete-password">
-                        Current password
-                      </FieldLabel>
-                      <FieldContent>
-                        <PasswordInput
-                          autoComplete="current-password"
-                          disabled={isDeletePending}
-                          id="security-delete-password"
-                          name="password"
-                          placeholder="Enter your current password"
-                          required
-                        />
-                        <FieldError
-                          errors={
-                            deleteState.fieldErrors?.password?.[0]
-                              ? [{ message: deleteState.fieldErrors.password[0] }]
-                              : undefined
-                          }
-                        />
-                      </FieldContent>
-                    </Field>
-                  ) : null}
                 </FieldGroup>
 
                 <div className="flex justify-end">

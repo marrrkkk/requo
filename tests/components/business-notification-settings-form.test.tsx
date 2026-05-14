@@ -156,7 +156,10 @@ describe("BusinessNotificationSettingsForm", () => {
         "Notification permission was not granted.",
       ),
     );
-    expect(screen.getByRole("button", { name: "Save notifications" })).toBeDisabled();
+    // With FloatingFormActions, the Save button is only rendered when there
+    // are unsaved changes. A failed push registration leaves no changes,
+    // so the button should not be in the DOM at all.
+    expect(screen.queryByRole("button", { name: "Save notifications" })).toBeNull();
   });
 
   it("removes this browser when the last push channel is disabled", async () => {

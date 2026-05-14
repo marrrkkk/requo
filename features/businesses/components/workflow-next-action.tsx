@@ -3,13 +3,23 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type {
   WorkflowNextAction,
   WorkflowNextActionPriority,
 } from "@/features/businesses/workflow-next-actions";
 import { cn } from "@/lib/utils";
+
+function getPriorityStyles(priority: WorkflowNextActionPriority) {
+  switch (priority) {
+    case "high":
+      return "border-red-500/20 bg-red-500/5 dark:border-red-500/15 dark:bg-red-500/5";
+    case "medium":
+      return "border-amber-500/20 bg-amber-500/5 dark:border-amber-500/15 dark:bg-amber-500/5";
+    case "low":
+      return "border-primary/12 bg-primary/3 dark:border-primary/10 dark:bg-primary/3";
+  }
+}
 
 type WorkflowNextActionCalloutProps = {
   action: WorkflowNextAction | null;
@@ -29,19 +39,14 @@ export function WorkflowNextActionCallout({
   return (
     <div
       className={cn(
-        "alert-surface relative flex flex-col gap-1 rounded-xl border border-primary/12 px-4 py-4 pr-12 text-sm text-foreground sm:px-5 sm:pr-14",
+        "relative flex flex-col gap-1 rounded-xl border px-4 py-4 pr-12 text-sm text-foreground sm:px-5 sm:pr-14",
+        getPriorityStyles(action.priority),
         className,
       )}
       role="status"
     >
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="meta-label">Next action</p>
-          <Badge variant={getPriorityBadgeVariant(action.priority)}>
-            {action.badgeLabel}
-          </Badge>
-        </div>
-        <p className="mt-2 font-heading text-[0.98rem] font-semibold leading-6 tracking-tight text-foreground">
+        <p className="font-heading text-[0.98rem] font-semibold leading-6 tracking-tight text-foreground">
           {action.label}
         </p>
         <p className="mt-1 max-w-3xl leading-6 text-muted-foreground">
@@ -91,8 +96,4 @@ export function WorkflowNextActionSummary({
       <span className="truncate font-medium">{action.label}</span>
     </span>
   );
-}
-
-function getPriorityBadgeVariant(priority: WorkflowNextActionPriority) {
-  return priority === "high" ? "secondary" : "outline";
 }

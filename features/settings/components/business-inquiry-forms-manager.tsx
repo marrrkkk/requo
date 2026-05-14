@@ -10,7 +10,6 @@ import {
   Download,
   FileArchive,
   ArchiveRestore,
-  Check,
   Link2,
   PencilLine,
   Plus,
@@ -69,9 +68,7 @@ import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { hasFeatureAccess } from "@/lib/plans";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
-import type { BillingCurrency, BillingInterval, BillingRegion, PaidPlan } from "@/lib/billing/types";
-import { CheckoutDialog } from "@/features/billing/components/checkout-dialog";
-import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
+import { LockedAction } from "@/features/paywall";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 
 type BusinessInquiryFormsManagerProps = {
@@ -85,14 +82,6 @@ type BusinessInquiryFormsManagerProps = {
     formData: FormData,
   ) => Promise<BusinessInquiryFormDangerActionState>;
   plan: plan;
-  billingProps?: {
-    userId: string;
-    businessId: string;
-    businessSlug: string;
-    currentPlan: plan;
-    region: BillingRegion;
-    defaultCurrency: BillingCurrency;
-  };
 };
 
 const initialState: BusinessInquiryFormsActionState = {};
@@ -102,7 +91,6 @@ export function BusinessInquiryFormsManager({
   createAction,
   unarchiveAction,
   plan,
-  billingProps,
 }: BusinessInquiryFormsManagerProps) {
   const businessCheckout = useBusinessCheckout();
   const [createState, createFormAction, isCreatePending] = useActionStateWithSonner(
@@ -114,22 +102,12 @@ export function BusinessInquiryFormsManager({
   );
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false);
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [isPlanSheetOpen, setIsPlanSheetOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<PaidPlan | null>(null);
-  const [selectedInterval, setSelectedInterval] = useState<BillingInterval>('monthly');
   const [/* unarchiveState */, unarchiveFormAction, isUnarchivePending] = useActionStateWithSonner(
     unarchiveAction,
     initialState,
   );
-  const useSharedCheckout = Boolean(
-    businessCheckout &&
-      billingProps &&
-      businessCheckout.businessId === billingProps.businessId,
-  );
   const effectiveplan =
-    useSharedCheckout && businessCheckout
+    businessCheckout
       ? businessCheckout.currentPlan
       : plan;
   const nameError = createState.fieldErrors?.name?.[0];
@@ -301,107 +279,16 @@ export function BusinessInquiryFormsManager({
               </DialogContent>
             </Dialog>
           ) : (
-            <>
-              <Button onClick={() => setIsUpgradeDialogOpen(true)}>
+            <LockedAction
+              feature="multipleForms"
+              plan={effectiveplan}
+              description="Create additional inquiry forms for different services or audiences."
+            >
+              <Button>
                 <Plus data-icon="inline-start" />
                 Create form
               </Button>
-              <Dialog open={isUpgradeDialogOpen} onOpenChange={setIsUpgradeDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Unlock unlimited forms</DialogTitle>
-                    <DialogDescription>
-                      You&apos;ve reached the limit of your Free plan. Upgrade to Pro to create specialized forms for different services, events, or audiences.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogBody className="pt-2">
-                    <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
-                      <p className="meta-label mb-2.5">Pro plan includes</p>
-                      <ul className="flex flex-col gap-2">
-                        {[
-                          "Unlimited inquiry forms",
-                          "Custom branding and colors",
-                          "AI-powered quote drafting",
-                          "Support for multiple businesses",
-                        ].map((feature) => (
-                          <li
-                            className="flex items-center gap-2.5 text-sm text-foreground"
-                            key={feature}
-                          >
-                            <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                              <Check className="size-3" />
-                            </div>
-                            {feature}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </DialogBody>
-                  <DialogFooter>
-                    <Button
-                      className="w-full sm:w-auto"
-                      onClick={() => setIsUpgradeDialogOpen(false)}
-                      type="button"
-                      variant="outline"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      className="w-full sm:w-auto"
-                      onClick={() => {
-                        setIsUpgradeDialogOpen(false);
-                        if (useSharedCheckout && businessCheckout) {
-                          if (businessCheckout.pendingCheckout) {
-                            businessCheckout.continueCheckout();
-                            return;
-                          }
-
-                          businessCheckout.openPlanSelection("pro");
-                          return;
-                        }
-
-                        setIsPlanSheetOpen(true);
-                      }}
-                      type="button"
-                    >
-                      <ArrowUpRight data-icon="inline-start" />
-                      Upgrade to Pro
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-              {billingProps && !useSharedCheckout ? (
-                <>
-                  <PlanSelectionSheet
-                    currentPlan={billingProps.currentPlan}
-                    defaultCurrency={billingProps.defaultCurrency}
-                    onOpenChange={setIsPlanSheetOpen}
-                    onSelectPlan={(plan, interval) => {
-                      setSelectedPlan(plan);
-                      setSelectedInterval(interval);
-                      setIsPlanSheetOpen(false);
-                      setIsCheckoutOpen(true);
-                    }}
-                    open={isPlanSheetOpen}
-                    region={billingProps.region}
-                  />
-                  {selectedPlan ? (
-                    <CheckoutDialog
-                      currentPlan={billingProps.currentPlan}
-                      defaultCurrency={billingProps.defaultCurrency}
-                      onOpenChange={setIsCheckoutOpen}
-                      open={isCheckoutOpen}
-                      plan={selectedPlan}
-                      interval={selectedInterval}
-                      region={billingProps.region}
-                      userId={billingProps.userId}
-                      businessId={billingProps.businessId}
-                      businessSlug={billingProps.businessSlug}
-                    />
-                  ) : null}
-                </>
-              ) : null}
-            </>
+            </LockedAction>
           )}
         </div>
 

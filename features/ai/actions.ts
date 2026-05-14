@@ -1,91 +1,90 @@
 "use server";
 
-import type { AiAssistantActionState } from "@/features/ai/types";
-import { getValidationActionState } from "@/lib/action-state";
-import { getInquiryAssistantContextForBusiness } from "@/features/ai/queries";
-import { aiAssistantRequestSchema } from "@/features/ai/schemas";
-import { generateInquiryAssistantResult } from "@/features/ai/service";
-import { getWorkspaceBusinessActionContext } from "@/lib/db/business-access";
+import { aiGenerateQuoteDraftSchema } from "@/features/ai/schemas";
+import { generateQuoteDraftForBusiness } from "@/features/ai/quote-generator";
+import type { AiQuoteDraftActionState } from "@/features/ai/types";
+import { getBusinessActionContext } from "@/lib/db/business-access";
 import { hasFeatureAccess } from "@/lib/plans";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
 
-export async function generateInquiryAssistantAction(
-  inquiryId: string,
-  prevState: AiAssistantActionState,
+/**
+ * Generate an AI-drafted quote for the current business.
+ *
+ * Returns a structured draft the client can merge into the quote editor.
+ * The action never mutates saved quotes; saving still happens through
+ * `createQuoteAction` / `updateQuoteAction`.
+ */
+export async function generateQuoteDraftAction(
+  businessSlug: string,
+  prevState: AiQuoteDraftActionState,
   formData: FormData,
-): Promise<AiAssistantActionState> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
+): Promise<AiQuoteDraftActionState> {
+  void prevState;
 
-  if (!ownerAccess.ok) {
+  const parsed = aiGenerateQuoteDraftSchema.safeParse({
+    businessSlug,
+    inquiryId: formData.get("inquiryId"),
+    brief: formData.get("brief"),
+  });
+
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+
     return {
-      ...prevState,
-      error: ownerAccess.error,
+      error: firstIssue?.message ?? "Check the request and try again.",
     };
   }
 
-  const { businessContext } = ownerAccess;
+  const actionContext = await getBusinessActionContext({
+    businessSlug: parsed.data.businessSlug,
+    minimumRole: "staff",
+    requireActiveBusiness: true,
+    unauthorizedMessage: "You do not have access to that business action.",
+  });
 
-  if (!hasFeatureAccess(businessContext.business.plan, "aiAssistant")) {
+  if (!actionContext.ok) {
     return {
-      ...prevState,
-      error: "Upgrade to Pro to use the AI assistant.",
+      error: actionContext.error,
     };
   }
 
-  const isAllowed = await assertPublicActionRateLimit({
-    action: "business-inquiry-ai",
+  if (
+    !hasFeatureAccess(
+      actionContext.businessContext.business.plan,
+      "aiAssistant",
+    )
+  ) {
+    return {
+      error: "Upgrade to Pro to use the AI quote generator.",
+    };
+  }
+
+  const allowed = await assertPublicActionRateLimit({
+    action: "ai-quote-draft",
     limit: 10,
-    scope: `${businessContext.business.id}:${ownerAccess.user.id}:${inquiryId}`,
+    scope: `${actionContext.businessContext.business.id}:${actionContext.user.id}`,
     windowMs: 60_000,
   });
 
-  if (!isAllowed) {
+  if (!allowed) {
     return {
-      ...prevState,
-      error: "Too many AI requests. Wait a minute and try again.",
+      error: "Too many AI generations. Wait a minute and try again.",
     };
   }
 
-  const validationResult = aiAssistantRequestSchema.safeParse({
-    intent: formData.get("intent"),
-    customPrompt: formData.get("customPrompt"),
-    sourceDraft: formData.get("sourceDraft"),
+  const result = await generateQuoteDraftForBusiness({
+    businessId: actionContext.businessContext.business.id,
+    inquiryId: parsed.data.inquiryId ?? null,
+    brief: parsed.data.brief ?? null,
   });
 
-  if (!validationResult.success) {
+  if (!result.ok) {
     return {
-      ...prevState,
-      ...getValidationActionState(validationResult.error, "Check the AI request and try again."),
+      error: result.error,
     };
   }
 
-  const context = await getInquiryAssistantContextForBusiness({
-    businessId: businessContext.business.id,
-    inquiryId,
-  });
-
-  if (!context) {
-    return {
-      ...prevState,
-      error: "That inquiry could not be found.",
-    };
-  }
-
-  try {
-    const result = await generateInquiryAssistantResult({
-      context,
-      request: validationResult.data,
-    });
-
-    return {
-      result,
-    };
-  } catch (error) {
-    console.error("Failed to generate inquiry AI output.", error);
-
-    return {
-      ...prevState,
-      error: "The assistant could not generate an answer right now. Try again in a moment.",
-    };
-  }
+  return {
+    draft: result.draft,
+  };
 }

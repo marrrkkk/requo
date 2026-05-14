@@ -13,7 +13,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { FormActions } from "@/components/shared/form-layout";
+import {
+  FloatingFormActions,
+  useFloatingUnsavedChanges,
+} from "@/components/shared/floating-form-actions";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -241,6 +244,8 @@ export function BusinessNotificationSettingsForm({
   const hasUnsavedChanges = allFieldKeys.some(
     (key) => values[key] !== settings[key],
   );
+  const { shouldRenderFloatingActions, floatingActionsState } =
+    useFloatingUnsavedChanges(hasUnsavedChanges);
   const selectedPushCount = pushFieldKeys.filter((key) => values[key]).length;
   const isPushBusy = Boolean(pendingPushField) || isEnablingBrowserPush;
 
@@ -500,26 +505,16 @@ export function BusinessNotificationSettingsForm({
         ))}
       </div>
 
-      <FormActions>
-        <Button
-          disabled={isPending || !hasUnsavedChanges}
-          onClick={handleCancelChanges}
-          type="button"
-          variant="outline"
-        >
-          Cancel
-        </Button>
-        <Button disabled={isPending || !hasUnsavedChanges} type="submit">
-          {isPending ? (
-            <>
-              <Spinner data-icon="inline-start" aria-hidden="true" />
-              Saving notifications...
-            </>
-          ) : (
-            "Save notifications"
-          )}
-        </Button>
-      </FormActions>
+      <FloatingFormActions
+        disableSubmit={!hasUnsavedChanges}
+        isPending={isPending}
+        message="You have unsaved notification settings."
+        onCancel={handleCancelChanges}
+        state={floatingActionsState}
+        submitLabel="Save notifications"
+        submitPendingLabel="Saving notifications..."
+        visible={shouldRenderFloatingActions}
+      />
     </form>
   );
 }

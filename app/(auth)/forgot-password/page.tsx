@@ -11,6 +11,11 @@ export const metadata: Metadata = createNoIndexMetadata({
   title: "Reset your password",
 });
 
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
+};
+
 export default function ForgotPasswordPage() {
   return (
     <AuthShell badge="Recovery" title="Reset password" layout="centered">

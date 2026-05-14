@@ -1,9 +1,9 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  BarChart3,
   BellRing,
   CheckCircle2,
+  CircleX,
   FileText,
   Inbox,
 } from "lucide-react";
@@ -18,23 +18,15 @@ import { HelpTooltip } from "@/components/shared/help-tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatAnalyticsPercent } from "@/features/analytics/utils";
 import { DashboardActivationChecklist } from "@/features/businesses/components/dashboard-activation-checklist";
-import { WorkflowNextActionSummary } from "@/features/businesses/components/workflow-next-action";
+import { NeedsAttentionSeeMore, type NeedsAttentionIconName } from "@/features/businesses/components/needs-attention-see-more";
 import {
-  getBusinessAnalyticsPath,
-  getBusinessFollowUpsPath,
   getBusinessInquiriesPath,
-  getBusinessInquiryFormsPath,
   getBusinessInquiryPath,
   getBusinessNewQuotePath,
   getBusinessQuotePath,
   getBusinessQuotesPath,
 } from "@/features/businesses/routes";
-import {
-  getInquiryNextAction,
-  getQuoteNextAction,
-} from "@/features/businesses/workflow-next-actions";
 import type {
   BusinessDashboardSummaryData,
   BusinessOverviewData,
@@ -51,8 +43,8 @@ import type { InquiryStatus } from "@/features/inquiries/types";
 import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
 import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
+import type { QuoteReminderKind, QuoteStatus } from "@/features/quotes/types";
 import { formatQuoteDate, formatQuoteMoney } from "@/features/quotes/utils";
-import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { cn } from "@/lib/utils";
 
 const overviewQueueMaxItems = 4;
@@ -112,14 +104,14 @@ export async function DashboardOverviewStatsSection({
         value={overview.counts.overdueInquiries}
       />
       <OverviewActionStat
-        label="Expiring soon"
-        tooltip="Next 7 days"
-        value={overview.counts.expiringSoonQuotes}
-      />
-      <OverviewActionStat
         label="New inquiries"
         tooltip="Last 48h"
         value={overview.counts.newInquiries}
+      />
+      <OverviewActionStat
+        label="Expiring soon"
+        tooltip="Quotes expiring in the next 7 days"
+        value={overview.counts.expiringSoonQuotes}
       />
       <OverviewActionStat
         label="Draft quotes"
@@ -128,7 +120,7 @@ export async function DashboardOverviewStatsSection({
       />
       <OverviewActionStat
         label="Needs next step"
-        tooltip="Accepted work"
+        tooltip="Accepted quotes awaiting scheduling or follow-up"
         value={overview.counts.recentAcceptedQuotes}
       />
     </div>
@@ -141,6 +133,11 @@ type DashboardNeedsAttentionSectionProps = {
   followUpOverviewPromise: FollowUpOverviewDataPromise;
 };
 
+type NeedsAttentionBadge =
+  | { kind: "inquiry"; status: InquiryStatus }
+  | { kind: "quote"; status: QuoteStatus }
+  | { kind: "reminder"; reminderKind: QuoteReminderKind };
+
 type NeedsAttentionItem = {
   href: string;
   key: string;
@@ -150,6 +147,9 @@ type NeedsAttentionItem = {
   meta: string;
   actionLabel: string;
   tone: "urgent" | "normal" | "positive";
+  iconName: NeedsAttentionIconName;
+  badge?: NeedsAttentionBadge;
+  category: "Inquiry" | "Quote" | "Follow-up";
 };
 
 export async function DashboardNeedsAttentionSection({
@@ -177,6 +177,9 @@ export async function DashboardNeedsAttentionSection({
       meta: `Submitted ${formatQuoteDate(inquiry.submittedAt)}`,
       actionLabel: "Create quote",
       tone: "urgent" as const,
+      iconName: "inbox" as const,
+      badge: { kind: "inquiry" as const, status: inquiry.status },
+      category: "Inquiry" as const,
     })),
     ...overview.expiringSoonQuotes.map((quote) => ({
       href: getBusinessQuotePath(businessSlug, quote.id),
@@ -187,6 +190,9 @@ export async function DashboardNeedsAttentionSection({
       meta: `Expires ${formatQuoteDate(quote.validUntil)}`,
       actionLabel: "Follow up before expiry",
       tone: "urgent" as const,
+      iconName: "file-text" as const,
+      badge: { kind: "quote" as const, status: quote.status },
+      category: "Quote" as const,
     })),
     ...overview.newInquiries.map((inquiry) => ({
       href: getBusinessInquiryPath(businessSlug, inquiry.id),
@@ -197,42 +203,40 @@ export async function DashboardNeedsAttentionSection({
       meta: `Submitted ${formatQuoteDate(inquiry.submittedAt)}`,
       actionLabel: "Create quote",
       tone: "normal" as const,
+      iconName: "inbox" as const,
+      badge: { kind: "inquiry" as const, status: inquiry.status },
+      category: "Inquiry" as const,
     })),
     ...overview.recentAcceptedQuotes.map((quote) => ({
       href: getBusinessQuotePath(businessSlug, quote.id),
       key: `accepted-quote:${quote.id}`,
-      label: "Accepted — next step",
+      label: "Accepted",
       title: quote.title,
       description: quote.customerName,
       meta: `Accepted ${formatQuoteDate(quote.acceptedAt ?? quote.updatedAt)}`,
       actionLabel: "Track next work step",
       tone: "positive" as const,
+      iconName: "check-circle" as const,
+      badge: { kind: "quote" as const, status: quote.status },
+      category: "Quote" as const,
     })),
-  ].slice(0, 6);
-  const attentionCount =
-    followUpOverview.counts.overdue +
-    followUpOverview.counts.dueToday +
-    overview.counts.overdueInquiries +
-    overview.counts.expiringSoonQuotes +
-    overview.counts.newInquiries +
-    overview.counts.recentAcceptedQuotes;
+  ];
+  const attentionCount = items.length;
+  const visibleItems = items.slice(0, 3);
 
   return (
     <DashboardSection
       action={
-        <Button asChild size="sm" variant="ghost">
-          <Link href={getBusinessFollowUpsPath(businessSlug)} prefetch={true}>
-            Open follow-ups
-            <ArrowRight data-icon="inline-end" />
-          </Link>
-        </Button>
+        attentionCount > 0 ? (
+          <Badge variant="secondary">{attentionCount} open</Badge>
+        ) : null
       }
-      description="The shortest list of customers and quotes that need action before they go cold."
-      title="Needs attention today"
+      description="Quotes and inquiries waiting on the next step."
+      title="Needs attention"
     >
-      {items.length ? (
-        <div className="grid gap-3 lg:grid-cols-2">
-          {items.map((item) => (
+      {visibleItems.length ? (
+        <div className="flex flex-col divide-y divide-border/70">
+          {visibleItems.map((item) => (
             <NeedsAttentionRow item={item} key={item.key} />
           ))}
         </div>
@@ -246,11 +250,9 @@ export async function DashboardNeedsAttentionSection({
         />
       )}
 
-      <p className="mt-4 text-xs text-muted-foreground">
-        {attentionCount
-          ? `${attentionCount} active item${attentionCount === 1 ? "" : "s"} need attention.`
-          : "You can still review upcoming follow-ups below."}
-      </p>
+      {attentionCount > 3 ? (
+        <NeedsAttentionSeeMore items={items} />
+      ) : null}
     </DashboardSection>
   );
 }
@@ -264,14 +266,10 @@ type DashboardOverviewQueuesSectionProps = {
 
 export async function DashboardOverviewQueuesSection({
   businessSlug,
-  publicInquiryEnabled,
   summaryPromise,
   overviewPromise,
 }: DashboardOverviewQueuesSectionProps) {
-  const [summary, overview] = await Promise.all([summaryPromise, overviewPromise]);
-  const closedOutcomeCount = summary.wonCount + summary.lostCount;
-  const winRate = closedOutcomeCount ? summary.wonCount / closedOutcomeCount : 0;
-  const publicInquiryUrl = getBusinessPublicInquiryUrl(businessSlug);
+  const [, overview] = await Promise.all([summaryPromise, overviewPromise]);
   const overdueInquiryPath = getBusinessInquiriesStatusPath(
     businessSlug,
     "overdue",
@@ -436,7 +434,7 @@ export async function DashboardOverviewQueuesSection({
 
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="grid gap-5 xl:grid-cols-2">
         <OverviewQueueCard
           action={
             <Button asChild size="sm" variant="ghost">
@@ -450,7 +448,7 @@ export async function DashboardOverviewQueuesSection({
             </Button>
           }
           count={overview.counts.recentAcceptedQuotes}
-          title="Accepted — next step"
+          title="Accepted"
         >
           {overview.recentAcceptedQuotes.length ? (
             <div className="flex flex-col divide-y divide-border/70">
@@ -474,50 +472,42 @@ export async function DashboardOverviewQueuesSection({
           )}
         </OverviewQueueCard>
 
-        <section className="section-panel overflow-hidden">
-          <div className="flex h-full flex-col gap-5 px-5 py-5 sm:px-6 sm:py-6">
+        <OverviewQueueCard
+          action={
+            <Button asChild size="sm" variant="ghost">
+              <Link
+                href={`${getBusinessQuotesPath(businessSlug)}?status=rejected`}
+                prefetch={true}
+              >
+                Declined quotes
+                <ArrowRight data-icon="inline-end" />
+              </Link>
+            </Button>
+          }
+          count={overview.counts.declinedQuotes}
+          title="Declined"
+        >
+          {overview.declinedQuotes.length ? (
             <div className="flex flex-col divide-y divide-border/70">
-              <OverviewSidebarMetric
-                label="This week"
-                tooltip="New inquiries this week"
-                value={`${summary.inquiriesThisWeek}`}
-              />
-              <OverviewSidebarMetric
-                label="Coverage"
-                tooltip="Inquiries turned into quotes"
-                value={formatAnalyticsPercent(summary.inquiryCoverageRate)}
-              />
-              <OverviewSidebarMetric
-                label="Win rate"
-                tooltip="Won inquiries versus lost inquiries"
-                value={formatAnalyticsPercent(winRate)}
-              />
+              {overview.declinedQuotes.map((quote) => (
+                <OverviewQuoteRow
+                  key={quote.id}
+                  meta={`Declined ${formatQuoteDate(quote.customerRespondedAt ?? quote.updatedAt)}`}
+                  quote={quote}
+                  businessSlug={businessSlug}
+                />
+              ))}
             </div>
-
-            <div className="mt-auto flex flex-col gap-2.5">
-              <Button asChild variant="outline">
-                <Link href={getBusinessAnalyticsPath(businessSlug)} prefetch={true}>
-                  View analytics
-                  <BarChart3 data-icon="inline-end" />
-                </Link>
-              </Button>
-              <Button asChild variant="ghost">
-                <Link
-                  href={
-                    publicInquiryEnabled
-                      ? publicInquiryUrl
-                      : getBusinessInquiryFormsPath(businessSlug)
-                  }
-                  prefetch={publicInquiryEnabled ? false : undefined}
-                  rel={publicInquiryEnabled ? "noreferrer" : undefined}
-                  target={publicInquiryEnabled ? "_blank" : undefined}
-                >
-                  {publicInquiryEnabled ? "Open public form" : "Open forms"}
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </section>
+          ) : (
+            <DashboardEmptyState
+              className="px-5 py-12 sm:px-6"
+              description="Quotes that customers have declined show up here."
+              icon={CircleX}
+              title="No declined quotes"
+              variant="flat"
+            />
+          )}
+        </OverviewQueueCard>
       </div>
     </>
   );
@@ -578,23 +568,21 @@ export function DashboardOverviewStatsFallback() {
 export function DashboardNeedsAttentionFallback() {
   return (
     <DashboardSection
-      action={<Skeleton className="h-9 w-32 rounded-lg" />}
+      action={<Skeleton className="h-6 w-16 rounded-full" />}
       description={
-        <Skeleton className="h-4 w-full max-w-xl rounded-md" />
+        <Skeleton className="h-4 w-full max-w-xs rounded-md" />
       }
-      title="Needs attention today"
+      title="Needs attention"
     >
-      <div className="grid gap-3 lg:grid-cols-2">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <div className="soft-panel px-4 py-4 shadow-none" key={index}>
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex min-w-0 flex-1 flex-col gap-2">
-                <Skeleton className="h-4 w-24 rounded-md" />
-                <Skeleton className="h-5 w-40 rounded-md" />
-                <Skeleton className="h-4 w-full max-w-xs rounded-md" />
-              </div>
-              <Skeleton className="size-4 rounded-full" />
+      <div className="flex flex-col divide-y divide-border/70">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div className="flex items-center gap-4 px-1 py-3.5 sm:px-2" key={index}>
+            <Skeleton className="size-9 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1">
+              <Skeleton className="h-4 w-40 rounded-md" />
+              <Skeleton className="mt-1.5 h-3.5 w-56 rounded-md" />
             </div>
+            <Skeleton className="size-4 rounded-full" />
           </div>
         ))}
       </div>
@@ -606,37 +594,13 @@ export function DashboardOverviewQueuesFallback() {
   return (
     <>
       <div className="grid gap-5 xl:grid-cols-2">
-        {Array.from({ length: 3 }).map((_, index) => (
+        {Array.from({ length: 4 }).map((_, index) => (
           <OverviewQueueCardSkeleton key={index} />
         ))}
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="grid gap-5 xl:grid-cols-2">
         <OverviewQueueCardSkeleton />
-
-        <section className="section-panel overflow-hidden">
-          <div className="flex h-full flex-col gap-5 px-5 py-5 sm:px-6 sm:py-6">
-            <div className="flex flex-col divide-y divide-border/70">
-              {Array.from({ length: 3 }).map((_, index) => (
-                <div
-                  className="flex items-center justify-between gap-4 py-2.5 first:pt-0 last:pb-0"
-                  key={index}
-                >
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-4 w-16 rounded-md" />
-                    <Skeleton className="size-4 rounded-full" />
-                  </div>
-                  <Skeleton className="h-4 w-12 rounded-md" />
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-auto flex flex-col gap-2.5">
-              <Skeleton className="h-10 w-full rounded-xl" />
-              <Skeleton className="h-10 w-full rounded-xl" />
-            </div>
-          </div>
-        </section>
       </div>
     </>
   );
@@ -665,26 +629,6 @@ function OverviewActionStat({
       >
         {value}
       </p>
-    </div>
-  );
-}
-
-function OverviewSidebarMetric({
-  label,
-  value,
-  tooltip,
-}: {
-  label: string;
-  value: string;
-  tooltip?: string;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
-      <div className="flex items-center gap-1.5">
-        <p className="text-sm text-muted-foreground">{label}</p>
-        {tooltip ? <HelpTooltip content={tooltip} label={label} /> : null}
-      </div>
-      <p className="text-sm font-semibold tracking-tight text-foreground">{value}</p>
     </div>
   );
 }
@@ -785,42 +729,73 @@ function createFollowUpAttentionItem(
     key: `follow-up:${followUp.id}`,
     label,
     title: followUp.title,
-    description: `${followUp.customerName} - ${followUp.reason}`,
+    description: `${followUp.customerName} · ${followUp.reason}`,
     meta: `Due ${formatFollowUpDate(followUp.dueAt)}`,
     actionLabel: "Work follow-up",
     tone,
+    iconName: "bell-ring",
+    category: "Follow-up",
   };
 }
 
+const attentionIconMap: Record<NeedsAttentionIconName, typeof ArrowRight> = {
+  "inbox": Inbox,
+  "file-text": FileText,
+  "bell-ring": BellRing,
+  "check-circle": CheckCircle2,
+};
+
 function NeedsAttentionRow({ item }: { item: NeedsAttentionItem }) {
+  const Icon = attentionIconMap[item.iconName];
+
   return (
     <Link
-      className="group soft-panel block px-4 py-4 shadow-none transition-colors hover:bg-accent/22"
+      className="group flex items-center gap-4 px-1 py-3.5 transition-colors hover:bg-accent/22 sm:px-2"
       href={item.href}
       prefetch={true}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <Badge
-            variant={item.tone === "urgent" ? "secondary" : "outline"}
-          >
-            {item.label}
-          </Badge>
-          <p className="mt-3 truncate text-sm font-semibold text-foreground">
-            {item.title}
-          </p>
-          <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted-foreground">
-            {item.description}
-          </p>
-          <p className="mt-2 text-xs text-muted-foreground">{item.meta}</p>
-          <p className="mt-2 text-xs font-medium text-foreground">
-            Next: {item.actionLabel}
-          </p>
-        </div>
-        <ArrowRight className="mt-1 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+      <div
+        className={cn(
+          "flex size-9 shrink-0 items-center justify-center rounded-full",
+          item.tone === "urgent" && "bg-destructive/10 text-destructive",
+          item.tone === "normal" && "bg-primary/10 text-primary",
+          item.tone === "positive" && "bg-green-500/10 text-green-600 dark:text-green-400",
+        )}
+      >
+        <Icon className="size-4" />
       </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="truncate text-sm font-semibold text-foreground">
+                {item.title}
+              </p>
+              <span className="shrink-0 text-[0.68rem] font-medium uppercase tracking-wider text-muted-foreground/70">
+                {item.category}
+              </span>
+            </div>
+            <p className="truncate text-sm text-muted-foreground">
+              {item.description}
+            </p>
+          </div>
+          {item.badge ? <NeedsAttentionBadgeDisplay badge={item.badge} /> : null}
+        </div>
+      </div>
+      <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
     </Link>
   );
+}
+
+function NeedsAttentionBadgeDisplay({ badge }: { badge: NeedsAttentionBadge }) {
+  switch (badge.kind) {
+    case "inquiry":
+      return <InquiryStatusBadge status={badge.status} />;
+    case "quote":
+      return <QuoteStatusBadge status={badge.status} />;
+    case "reminder":
+      return <QuoteReminderBadge kind={badge.reminderKind} />;
+  }
 }
 
 function getBusinessInquiriesStatusPath(
@@ -841,11 +816,6 @@ function OverviewInquiryRow({
   metaLabel: string;
   businessSlug: string;
 }) {
-  const nextAction = getInquiryNextAction({
-    businessSlug,
-    inquiry,
-  });
-
   return (
     <Link
       className="group block px-5 py-4 transition-colors hover:bg-accent/22 sm:px-6"
@@ -862,12 +832,6 @@ function OverviewInquiryRow({
               <p className="mt-1 truncate text-sm text-muted-foreground">
                 {inquiry.customerEmail}
               </p>
-              {nextAction ? (
-                <WorkflowNextActionSummary
-                  action={nextAction}
-                  className="mt-2"
-                />
-              ) : null}
             </div>
             <InquiryStatusBadge status={inquiry.status} />
           </div>
@@ -901,10 +865,6 @@ function OverviewQuoteRow({
   meta: string;
   businessSlug: string;
 }) {
-  const nextAction = getQuoteNextAction({
-    businessSlug,
-    quote,
-  });
   const reminders = quote.reminders.filter((reminder) => reminder !== "follow_up_due");
 
   return (
@@ -939,12 +899,6 @@ function OverviewQuoteRow({
                     />
                   ) : null}
                 </div>
-              ) : null}
-              {nextAction ? (
-                <WorkflowNextActionSummary
-                  action={nextAction}
-                  className="mt-2"
-                />
               ) : null}
             </div>
             <QuoteStatusBadge status={quote.status} />

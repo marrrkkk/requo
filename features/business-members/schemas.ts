@@ -2,9 +2,7 @@ import { z } from "zod";
 
 import { businessMemberRoles } from "@/lib/business-members";
 
-const inviteRoleSchema = z
-  .enum(businessMemberRoles)
-  .refine((role) => role !== "owner", "Owner invites are not supported.");
+const inviteRoleSchema = z.enum(businessMemberRoles);
 
 export const businessMemberInviteSchema = z.object({
   email: z.string().trim().max(320).email("Enter a valid email address."),

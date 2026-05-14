@@ -14,7 +14,8 @@ export type BusinessSettingsNavigationIcon =
   | "quote"
   | "email"
   | "pricing"
-  | "billing";
+  | "billing"
+  | "audit-log";
 
 export type BusinessSettingsNavigationItem = {
   href: string;
@@ -122,20 +123,30 @@ export function getWorkspaceSettingsNavigation(
   businessSlug: string,
   role: BusinessMemberRole,
 ): BusinessSettingsNavigationGroup[] {
-  if (!canManageBusinessAdministration(role)) {
+  if (!canManageOperationalBusinessSettings(role)) {
     return [];
+  }
+
+  const items: BusinessSettingsNavigationItem[] = [];
+
+  items.push({
+    href: getBusinessSettingsPath(businessSlug, "audit-log"),
+    label: "Audit log",
+    icon: "audit-log" as const,
+  });
+
+  if (canManageBusinessAdministration(role)) {
+    items.push({
+      href: getBusinessSettingsPath(businessSlug, "billing"),
+      label: "Billing",
+      icon: "billing" as const,
+    });
   }
 
   return [
     {
-      label: "Business",
-      items: [
-        {
-          href: getBusinessSettingsPath(businessSlug, "billing"),
-          label: "Billing",
-          icon: "billing" as const,
-        },
-      ],
+      label: "Account",
+      items,
     },
   ];
 }

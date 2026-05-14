@@ -1,15 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 // Mock "server-only" so the module can be imported
 vi.mock('server-only', () => ({}));
 
 // Mock db client
-const mockInsert = vi.fn();
-const mockSelect = vi.fn();
-const mockUpdate = vi.fn();
-const mockWhere = vi.fn();
-const mockLimit = vi.fn();
-const mockReturning = vi.fn();
+const _mockInsert = vi.fn();
+const _mockSelect = vi.fn();
+const _mockUpdate = vi.fn();
+const _mockWhere = vi.fn();
+const _mockLimit = vi.fn();
+const _mockReturning = vi.fn();
 const mockSet = vi.fn();
 const mockValues = vi.fn();
 const mockFrom = vi.fn();

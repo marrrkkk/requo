@@ -5,27 +5,8 @@ import {
   activeBusinessSlugCookieName,
   getBusinessDashboardSlugFromPathname,
 } from "@/features/businesses/routes";
-// admin proxy-auth removed during business migration
-
-function isAdminPath(pathname: string) {
-  return pathname === "/admin" || pathname.startsWith("/admin/");
-}
-
-function adminNotFound() {
-  return new NextResponse(null, { status: 404 });
-}
 
 export async function proxy(request: NextRequest) {
-  if (isAdminPath(request.nextUrl.pathname)) {
-    const isAdmin = await false /* admin removed */ && (request.headers);
-
-    if (!isAdmin) {
-      return adminNotFound();
-    }
-
-    return NextResponse.next();
-  }
-
   if (
     request.nextUrl.pathname === "/" &&
     request.headers.get("accept")?.includes("text/markdown")
@@ -58,8 +39,6 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     "/",
-    "/admin",
-    "/admin/:path*",
     "/businesses/:slug/dashboard/:path*",
     "/businesses/:slug/preview/:path*",
   ],

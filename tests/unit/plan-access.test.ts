@@ -11,14 +11,18 @@ describe("business plan access", () => {
     expect(getUpgradePlan("free")).toBe("pro");
 
     expect(getUsageLimit("free", "businessesPerPlan")).toBe(1);
-    expect(getUsageLimit("free", "inquiriesPerMonth")).toBe(100);
-    expect(getUsageLimit("free", "quotesPerMonth")).toBe(50);
+    expect(getUsageLimit("free", "inquiriesPerMonth")).toBeNull();
+    expect(getUsageLimit("free", "quotesPerMonth")).toBe(30);
     expect(getUsageLimit("free", "requoQuoteEmailsPerDay")).toBe(3);
-    expect(getUsageLimit("free", "customFieldsPerForm")).toBe(4);
+    expect(getUsageLimit("free", "customFieldsPerForm")).toBe(3);
+    expect(getUsageLimit("free", "activeFollowUps")).toBe(3);
     expect(getUsageLimit("free", "publicInquiryAttachmentMaxBytes")).toBe(
       5 * 1024 * 1024,
     );
     expect(hasFeatureAccess("free", "attachments")).toBe(true);
+    expect(hasFeatureAccess("free", "customerHistory")).toBe(true);
+    expect(hasFeatureAccess("free", "followUps")).toBe(true);
+    expect(hasFeatureAccess("free", "analyticsConversion")).toBe(true);
     expect(hasFeatureAccess("free", "exports")).toBe(false);
     expect(hasFeatureAccess("free", "branding")).toBe(false);
     expect(hasFeatureAccess("free", "multiBusiness")).toBe(false);
@@ -26,9 +30,10 @@ describe("business plan access", () => {
 
   it("unlocks core operator features on pro without enabling team roles", () => {
     expect(isUsageLimited("pro", "quotesPerMonth")).toBe(false);
-    expect(isUsageLimited("pro", "requoQuoteEmailsPerDay")).toBe(false);
-    expect(getUsageLimit("pro", "businessesPerPlan")).toBe(10);
-    expect(getUsageLimit("pro", "customFieldsPerForm")).toBe(12);
+    expect(isUsageLimited("pro", "requoQuoteEmailsPerDay")).toBe(true);
+    expect(getUsageLimit("pro", "requoQuoteEmailsPerDay")).toBe(20);
+    expect(getUsageLimit("pro", "businessesPerPlan")).toBe(5);
+    expect(getUsageLimit("pro", "customFieldsPerForm")).toBe(10);
     expect(getUsageLimit("pro", "publicInquiryAttachmentMaxBytes")).toBe(
       25 * 1024 * 1024,
     );

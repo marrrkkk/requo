@@ -153,6 +153,7 @@ export async function loadMoreBusinessNotificationsAction(
       businessId: businessContext.business.id,
       businessSlug,
       userId: user.id,
+      memberSince: businessContext.memberJoinedAt,
       cursor: { createdAt: cursorCreatedAt, id: cursorId },
       lastReadAt,
     });

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { DashboardPage } from "@/components/shared/dashboard-layout";
@@ -17,9 +16,9 @@ import {
 import { followUpListFiltersSchema } from "@/features/follow-ups/schemas";
 import type { FollowUpListFilters } from "@/features/follow-ups/types";
 import { getBusinessFollowUpsPath } from "@/features/businesses/routes";
-import { businessesHubPath } from "@/features/businesses/routes";
-import { requireSession } from "@/lib/auth/session";
-import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
+import { LockedAction } from "@/features/paywall";
+import { CreateFollowUpButton } from "@/features/follow-ups/components/create-follow-up-button";
+import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 type FollowUpsPageProps = {
@@ -43,19 +42,11 @@ export default async function FollowUpsPage({
   params,
   searchParams,
 }: FollowUpsPageProps) {
-  const [session, { slug }, resolvedSearchParams] = await Promise.all([
-    requireSession(),
+  const [{ slug }, resolvedSearchParams] = await Promise.all([
     params,
     searchParams,
   ]);
-  const businessContext = await getBusinessContextForMembershipSlug(
-    session.user.id,
-    slug,
-  );
-
-  if (!businessContext) {
-    redirect(businessesHubPath);
-  }
+  const { businessContext } = await getAppShellContext(slug);
 
   const parsedFilters = followUpListFiltersSchema.safeParse(resolvedSearchParams);
   const filters = parsedFilters.success
@@ -108,6 +99,11 @@ export default async function FollowUpsPage({
         description="See who needs contact next, why, and when. Follow-ups are lightweight reminders tied to inquiries and quotes."
         eyebrow="Follow-ups"
         title="Follow-ups"
+        actions={
+          <LockedAction feature="followUps" plan={businessContext.business.plan}>
+            <CreateFollowUpButton businessSlug={businessSlug} />
+          </LockedAction>
+        }
       />
 
       <Suspense fallback={<FollowUpListControlsFallback />}>

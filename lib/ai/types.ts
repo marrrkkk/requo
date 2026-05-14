@@ -3,14 +3,14 @@ import "server-only";
 // ---------------------------------------------------------------------------
 // AI Provider Abstraction — shared types
 //
-// Every provider (Groq, Gemini, OpenRouter) normalizes its SDK-specific
+// Every provider (Groq, Cerebras, Gemini) normalizes its SDK-specific
 // inputs and outputs into these shapes. The router in `router.ts` works
 // exclusively with these types so adding a new provider later only requires
 // implementing the `AiProvider` interface.
 // ---------------------------------------------------------------------------
 
 /** Identifiers for each supported AI provider. */
-export type AiProviderName = "groq" | "gemini" | "openrouter";
+export type AiProviderName = "groq" | "cerebras" | "gemini" | "openrouter";
 
 /**
  * Quality tier controls which models are preferred within each provider.

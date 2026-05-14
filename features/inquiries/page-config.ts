@@ -374,6 +374,7 @@ export const inquiryPageConfigSchema = z.object({
       `Use ${maxInquiryPageCards} supporting cards or fewer.`,
     ),
   showcaseImage: inquiryPageShowcaseImageSchema.optional(),
+  thankYouMessage: optionalText(280),
 });
 
 export type InquiryPageConfig = z.infer<typeof inquiryPageConfigSchema>;
@@ -590,6 +591,7 @@ export function createInquiryPageConfigDefaults(
     businessContact: undefined,
     cards: createDefaultInquiryPageCards(resolvedBusinessType),
     showcaseImage: undefined,
+    thankYouMessage: undefined,
   };
 }
 

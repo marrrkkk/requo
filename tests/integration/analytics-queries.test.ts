@@ -1,5 +1,5 @@
 const businessId = "test_analytics_business";
-const otherBusinessId = "test_analytics_business_other";
+const _otherBusinessId = "test_analytics_business_other";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 

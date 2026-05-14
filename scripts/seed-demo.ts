@@ -29,6 +29,8 @@ import {
   inquiryNotes,
   profiles,
   quoteItems,
+  quoteLibraryEntries,
+  quoteLibraryEntryItems,
   quotes,
   user,
 } from "../lib/db/schema";
@@ -48,8 +50,6 @@ const primaryDemoUser: SeedUserConfig = {
   name: env.DEMO_OWNER_NAME ?? "Mark Louie",
   email: env.DEMO_OWNER_EMAIL ?? "marklouie.dev@gmail.com",
   plan: "business",
-  businessGroupName: "BrightSide",
-  businessSlug: "brightside",
   businesses: [
     {
       name: env.DEMO_BUSINESS_NAME ?? "BrightSide Print Studio",
@@ -79,12 +79,37 @@ const primaryDemoUser: SeedUserConfig = {
   ],
 };
 
+/**
+ * Admin-facing seed user. Marked admin via `ADMIN_EMAILS` in `.env` so
+ * signing in gives access to `/admin`. Also gets a full dataset
+ * (business, inquiries, quotes, pricing library, knowledge) so the
+ * admin's own dashboards are not empty when poking around.
+ */
+const adminDemoUser: SeedUserConfig = {
+  name: "Mark Louie",
+  email: "marklouie.dev@gmail.com",
+  plan: "business",
+  businesses: [
+    {
+      name: "Mark Louie Studio",
+      slug: "mark-louie-studio",
+      businessType: "creative_marketing_services",
+      shortDescription:
+        "Brand, web, and marketing design studio for growing service businesses.",
+      defaultCurrency: "USD",
+      countryCode: "PH",
+      contactEmail: "hello@marklouie.dev",
+      inquiryCount: 80,
+      quoteRatio: 0.55,
+      aiTonePreference: "balanced",
+    },
+  ],
+};
+
 type SeedUserConfig = {
   name: string;
   email: string;
   plan: plan;
-  businessGroupName: string;
-  businessSlug: string;
   businesses: SeedBusinessConfig[];
   teamMembers?: SeedTeamMember[];
 };
@@ -110,12 +135,11 @@ type SeedTeamMember = {
 
 const USERS: SeedUserConfig[] = [
   primaryDemoUser,
+  adminDemoUser,
   {
     name: "Maria Santos",
     email: "free@requo.dev",
     plan: "free",
-    businessGroupName: "Maria's",
-    businessSlug: "maria-ws",
     businesses: [
       {
         name: "Santos Print Shop",
@@ -135,8 +159,6 @@ const USERS: SeedUserConfig[] = [
     name: "James Carter",
     email: "pro@requo.dev",
     plan: "pro",
-    businessGroupName: "Carter Interiors",
-    businessSlug: "carter-interiors-ws",
     businesses: [
       {
         name: "Carter Interior Design",
@@ -156,8 +178,6 @@ const USERS: SeedUserConfig[] = [
     name: "Rafael Reyes",
     email: "business@requo.dev",
     plan: "business",
-    businessGroupName: "Reyes Group",
-    businessSlug: "reyes-group-ws",
     businesses: [
       {
         name: "Reyes Contractors",
@@ -368,6 +388,332 @@ const KNOWLEDGE_ITEMS = [
   { title: "Standard turnaround", content: "Our standard production turnaround is 5-7 business days from design approval. Rush orders can be completed in 2-3 business days at a 25% surcharge." },
   { title: "Payment terms", content: "We require a 50% deposit to begin production. The remaining balance is due upon completion before delivery. We accept bank transfer, GCash, and credit card payment." },
 ];
+
+/**
+ * Pricing library seed data keyed by business type.
+ *
+ * Each entry becomes a row in `quote_library_entries`, with its items
+ * inserted into `quote_library_entry_items`. Prices are in cents.
+ *
+ * `block` entries are single reusable rows; `package` entries are pre-built
+ * bundles that the owner can insert into a quote in one click.
+ */
+type PricingLibraryEntry = {
+  kind: "block" | "package";
+  name: string;
+  description: string | null;
+  items: Array<{
+    description: string;
+    quantity: number;
+    unitPriceInCents: number;
+  }>;
+};
+
+const PRICING_LIBRARY: Record<string, PricingLibraryEntry[]> = {
+  print_signage: [
+    {
+      kind: "block",
+      name: "Design and layout fee",
+      description: "Flat design fee for custom artwork up to 3 revisions.",
+      items: [
+        {
+          description: "Design and layout (3 revisions)",
+          quantity: 1,
+          unitPriceInCents: 20000,
+        },
+      ],
+    },
+    {
+      kind: "block",
+      name: "Rush production surcharge",
+      description: "Applies when the customer needs delivery in under 3 business days.",
+      items: [
+        {
+          description: "Rush production (< 3 business days)",
+          quantity: 1,
+          unitPriceInCents: 15000,
+        },
+      ],
+    },
+    {
+      kind: "package",
+      name: "Grand opening signage bundle",
+      description: "Common storefront launch kit: banner, window decals, and install.",
+      items: [
+        {
+          description: "Large format banner (8ft x 3ft)",
+          quantity: 1,
+          unitPriceInCents: 9500,
+        },
+        {
+          description: "Window decals (set of 4)",
+          quantity: 1,
+          unitPriceInCents: 6500,
+        },
+        {
+          description: "On-site installation (2 hours)",
+          quantity: 1,
+          unitPriceInCents: 12000,
+        },
+      ],
+    },
+    {
+      kind: "package",
+      name: "Trade show booth starter",
+      description: "Graphics-only booth kit for a standard 10x10 booth.",
+      items: [
+        {
+          description: "Tension fabric back wall graphic",
+          quantity: 1,
+          unitPriceInCents: 32000,
+        },
+        {
+          description: "Counter wrap and podium graphic",
+          quantity: 1,
+          unitPriceInCents: 18000,
+        },
+        {
+          description: "Directional signage (set of 2)",
+          quantity: 2,
+          unitPriceInCents: 4500,
+        },
+      ],
+    },
+  ],
+  creative_marketing_services: [
+    {
+      kind: "block",
+      name: "Discovery workshop",
+      description: "One scoping workshop to align on goals, audience, and deliverables.",
+      items: [
+        {
+          description: "90-minute discovery workshop",
+          quantity: 1,
+          unitPriceInCents: 35000,
+        },
+      ],
+    },
+    {
+      kind: "block",
+      name: "Additional revision round",
+      description: "Extra revision round beyond the three included in the base scope.",
+      items: [
+        {
+          description: "Additional revision round",
+          quantity: 1,
+          unitPriceInCents: 12500,
+        },
+      ],
+    },
+    {
+      kind: "package",
+      name: "Starter brand identity",
+      description: "Logo, color palette, and brand guidelines for a new venture.",
+      items: [
+        {
+          description: "Logo design (3 concepts, 2 revisions)",
+          quantity: 1,
+          unitPriceInCents: 60000,
+        },
+        {
+          description: "Primary + secondary color palette",
+          quantity: 1,
+          unitPriceInCents: 12000,
+        },
+        {
+          description: "Brand guidelines PDF (12 pages)",
+          quantity: 1,
+          unitPriceInCents: 22000,
+        },
+      ],
+    },
+    {
+      kind: "package",
+      name: "Marketing site — 5 pages",
+      description: "Custom design + build for a 5-page marketing site on the customer's CMS.",
+      items: [
+        {
+          description: "UX strategy and sitemap",
+          quantity: 1,
+          unitPriceInCents: 45000,
+        },
+        {
+          description: "Page design (home + 4 interior)",
+          quantity: 5,
+          unitPriceInCents: 22000,
+        },
+        {
+          description: "Front-end build and QA",
+          quantity: 1,
+          unitPriceInCents: 80000,
+        },
+      ],
+    },
+    {
+      kind: "package",
+      name: "Monthly social content pack",
+      description: "Ten custom social posts delivered ready to schedule.",
+      items: [
+        {
+          description: "Social creative (10 posts)",
+          quantity: 10,
+          unitPriceInCents: 1800,
+        },
+        {
+          description: "Monthly strategy brief",
+          quantity: 1,
+          unitPriceInCents: 7500,
+        },
+      ],
+    },
+  ],
+  contractor_home_improvement: [
+    {
+      kind: "block",
+      name: "Job site setup and cleanup",
+      description: "Flat fee for dust protection, disposal, and end-of-job cleanup.",
+      items: [
+        {
+          description: "Site setup, protection, and cleanup",
+          quantity: 1,
+          unitPriceInCents: 18000,
+        },
+      ],
+    },
+    {
+      kind: "block",
+      name: "Licensed electrician call-out",
+      description: "Day rate for a licensed electrician (6-hour day).",
+      items: [
+        {
+          description: "Licensed electrician (6 hours)",
+          quantity: 1,
+          unitPriceInCents: 65000,
+        },
+      ],
+    },
+    {
+      kind: "package",
+      name: "Bathroom remodel starter",
+      description: "Standard scope for a 5x8 bathroom refresh with new vanity and tile.",
+      items: [
+        {
+          description: "Demolition and disposal",
+          quantity: 1,
+          unitPriceInCents: 28000,
+        },
+        {
+          description: "Materials (tile, vanity, fixtures)",
+          quantity: 1,
+          unitPriceInCents: 120000,
+        },
+        {
+          description: "Skilled labor (5 work days)",
+          quantity: 5,
+          unitPriceInCents: 48000,
+        },
+      ],
+    },
+    {
+      kind: "package",
+      name: "Exterior painting (single-story)",
+      description: "Prep, prime, and two coats on a typical single-story exterior.",
+      items: [
+        {
+          description: "Surface prep and masking",
+          quantity: 1,
+          unitPriceInCents: 25000,
+        },
+        {
+          description: "Premium exterior paint",
+          quantity: 8,
+          unitPriceInCents: 7500,
+        },
+        {
+          description: "Painting crew (3 work days)",
+          quantity: 3,
+          unitPriceInCents: 55000,
+        },
+      ],
+    },
+  ],
+  event_services_rentals: [
+    {
+      kind: "block",
+      name: "Setup and teardown crew",
+      description: "Two-person crew for event load-in and load-out.",
+      items: [
+        {
+          description: "Two-person crew (4 hours)",
+          quantity: 1,
+          unitPriceInCents: 22000,
+        },
+      ],
+    },
+    {
+      kind: "block",
+      name: "Generator rental",
+      description: "Quiet generator rental with fuel for a standard outdoor event.",
+      items: [
+        {
+          description: "Generator + fuel (8 hours)",
+          quantity: 1,
+          unitPriceInCents: 18000,
+        },
+      ],
+    },
+    {
+      kind: "package",
+      name: "Outdoor wedding essentials",
+      description: "10m x 20m tent, tables, chairs, and lighting for up to 80 guests.",
+      items: [
+        {
+          description: "10m x 20m tent rental",
+          quantity: 1,
+          unitPriceInCents: 45000,
+        },
+        {
+          description: "Round tables and chairs (80 guests)",
+          quantity: 1,
+          unitPriceInCents: 28000,
+        },
+        {
+          description: "Bistro + uplighting package",
+          quantity: 1,
+          unitPriceInCents: 35000,
+        },
+      ],
+    },
+    {
+      kind: "package",
+      name: "Corporate conference AV",
+      description: "Sound, lighting, and projection for a 150-seat conference room.",
+      items: [
+        {
+          description: "Sound system with handhelds and lavs",
+          quantity: 1,
+          unitPriceInCents: 60000,
+        },
+        {
+          description: "Stage lighting package",
+          quantity: 1,
+          unitPriceInCents: 42000,
+        },
+        {
+          description: "Projector + 10ft screen",
+          quantity: 1,
+          unitPriceInCents: 28000,
+        },
+      ],
+    },
+  ],
+};
+
+function getPricingLibraryForType(
+  businessType: string,
+): PricingLibraryEntry[] {
+  return PRICING_LIBRARY[businessType] ?? PRICING_LIBRARY.print_signage;
+}
 
 const INQUIRY_STATUSES = ["new", "waiting", "quoted", "won", "lost", "archived"] as const;
 const INQUIRY_STATUS_WEIGHTS = [20, 18, 22, 17, 13, 10];
@@ -914,63 +1260,39 @@ async function seedStableSmokeFixtures(params: {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * Business + subscription creation
+ * Account subscription (paid plans only)
  * ═══════════════════════════════════════════════════════════════════════════ */
 
-async function createBusinessRecord(
-  config: SeedUserConfig,
-  ownerId: string,
-): Promise<string> {
-  const wsId = id("ws");
+/**
+ * Creates the account-scoped subscription row for paid users. The seeder
+ * writes `account_subscriptions` directly instead of going through
+ * `subscription-service.ts` because the service calls `revalidateTag()`,
+ * which requires a Next.js request context and is unavailable from a
+ * standalone script. Plan inheritance to `businesses.plan` is handled at
+ * insert time in `createBusiness`.
+ */
+async function createAccountSubscription(config: SeedUserConfig, ownerId: string) {
+  if (config.plan === "free") return;
+
   const now = new Date();
+  const periodStart = daysAgo(15);
+  const periodEnd = addDays(periodStart, 30);
+  const accountScope = config.email.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
 
-  await db.insert(businesses).values({
-    id: wsId,
-    name: config.businessGroupName,
-    slug: config.businessSlug,
-    plan: config.plan,
-    ownerUserId: ownerId,
-    createdAt: daysAgo(180),
-    updatedAt: now,
-  });
-
-  await db.insert(businessMembers).values({
-    id: id("wm"),
-    businessId: wsId,
+  await db.insert(accountSubscriptions).values({
+    id: id("sub"),
     userId: ownerId,
-    role: "owner",
-    createdAt: daysAgo(180),
+    status: "active",
+    plan: config.plan,
+    billingProvider: "paddle",
+    billingCurrency: "USD",
+    providerCustomerId: `cus_demo_${accountScope}`,
+    providerSubscriptionId: `sub_demo_${accountScope}`,
+    currentPeriodStart: periodStart,
+    currentPeriodEnd: periodEnd,
+    createdAt: daysAgo(90),
     updatedAt: now,
   });
-
-  // Create account-scoped subscription row for paid plans. The seeder
-  // intentionally writes `account_subscriptions` directly rather than going
-  // through `subscription-service.ts` — the service calls `revalidateTag()`,
-  // which requires a Next.js request context and is unavailable from a
-  // standalone script. Plan sync across owned businesses is trivial here
-  // because each seeded owner gets exactly one `businesses` row and we
-  // already stamp the matching `plan` value on insert above.
-  if (config.plan !== "free") {
-    const periodStart = daysAgo(15);
-    const periodEnd = addDays(periodStart, 30);
-
-    await db.insert(accountSubscriptions).values({
-      id: id("sub"),
-      userId: ownerId,
-      status: "active",
-      plan: config.plan,
-      billingProvider: "paddle",
-      billingCurrency: "USD",
-      providerCustomerId: `cus_demo_${config.businessSlug}`,
-      providerSubscriptionId: `sub_demo_${config.businessSlug}`,
-      currentPeriodStart: periodStart,
-      currentPeriodEnd: periodEnd,
-      createdAt: daysAgo(90),
-      updatedAt: now,
-    });
-  }
-
-  return wsId;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -979,7 +1301,7 @@ async function createBusinessRecord(
 
 async function createBusiness(
   config: SeedBusinessConfig,
-  wsId: string,
+  plan: plan,
   ownerId: string,
 ): Promise<{ businessId: string; formId: string }> {
   const bizId = id("biz");
@@ -996,6 +1318,7 @@ async function createBusiness(
     ownerUserId: ownerId,
     name: config.name,
     slug: config.slug,
+    plan,
     businessType: config.businessType,
     shortDescription: config.shortDescription,
     contactEmail: config.contactEmail,
@@ -1043,7 +1366,60 @@ async function createBusiness(
     });
   }
 
+  // Seed pricing library (quote library entries and their items).
+  await seedPricingLibrary({
+    businessId: bizId,
+    businessType: config.businessType,
+    currency: config.defaultCurrency,
+  });
+
   return { businessId: bizId, formId };
+}
+
+async function seedPricingLibrary(params: {
+  businessId: string;
+  businessType: string;
+  currency: string;
+}) {
+  const entries = getPricingLibraryForType(params.businessType);
+
+  if (!entries.length) return;
+
+  const createdAt = daysAgo(150);
+  const entryRows: Array<typeof quoteLibraryEntries.$inferInsert> = [];
+  const itemRows: Array<typeof quoteLibraryEntryItems.$inferInsert> = [];
+
+  for (const entry of entries) {
+    const entryId = id("qle");
+
+    entryRows.push({
+      id: entryId,
+      businessId: params.businessId,
+      kind: entry.kind,
+      currency: params.currency,
+      name: entry.name,
+      description: entry.description,
+      createdAt,
+      updatedAt: createdAt,
+    });
+
+    entry.items.forEach((item, position) => {
+      itemRows.push({
+        id: id("qli"),
+        businessId: params.businessId,
+        entryId,
+        description: item.description,
+        quantity: item.quantity,
+        unitPriceInCents: item.unitPriceInCents,
+        position,
+        createdAt,
+        updatedAt: createdAt,
+      });
+    });
+  }
+
+  await db.insert(quoteLibraryEntries).values(entryRows);
+  await db.insert(quoteLibraryEntryItems).values(itemRows);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1075,7 +1451,7 @@ async function seedBusinessData(
     const lastName = pick(rng, LAST_NAMES);
     const customerName = `${firstName} ${lastName}`;
     const customerEmail = `${firstName.toLowerCase()}.${lastName.toLowerCase().replace(/[^a-z]/g, "")}@example.com`;
-    const companyName = chance(rng, 0.6) ? pick(rng, COMPANIES) : null;
+    const _companyName = chance(rng, 0.6) ? pick(rng, COMPANIES) : null;
     const phone = chance(rng, 0.7) ? `(${randInt(rng, 200, 999)}) ${randInt(rng, 200, 999)}-${String(randInt(rng, 0, 10000)).padStart(4, "0")}` : null;
 
     // Spread inquiries over the last 180 days
@@ -1305,23 +1681,17 @@ async function main() {
     // Create user via Better Auth
     const userId = await createUser(userConfig.name, userConfig.email);
 
-    // Create business + subscription
-    const wsId = await createBusinessRecord(userConfig, userId);
-    console.log(`   Business: ${userConfig.businessGroupName} (${userConfig.plan})`);
+    // Create the account-scoped subscription. No ghost "workspace" business
+    // row: each seeded business is a real standalone business scoped to the
+    // user's account plan.
+    await createAccountSubscription(userConfig, userId);
 
-    // Create team members for this business
+    // Pre-create team-member user accounts so their email + password exist
+    // before we attach them as members on each business below.
     if (userConfig.teamMembers) {
       for (const tm of userConfig.teamMembers) {
-        const tmId = await createUser(tm.name, tm.email);
-        await db.insert(businessMembers).values({
-          id: id("wm"),
-          businessId: wsId,
-          userId: tmId,
-          role: "staff",
-          createdAt: daysAgo(90),
-          updatedAt: new Date(),
-        });
-        console.log(`   Team member: ${tm.email} (${tm.businessRole})`);
+        await createUser(tm.name, tm.email);
+        console.log(`   Team member user: ${tm.email} (${tm.businessRole})`);
       }
     }
 
@@ -1329,7 +1699,11 @@ async function main() {
 
     // Create businesses
     for (const bizConfig of userConfig.businesses) {
-      const { businessId, formId } = await createBusiness(bizConfig, wsId, userId);
+      const { businessId, formId } = await createBusiness(
+        bizConfig,
+        userConfig.plan,
+        userId,
+      );
 
       // Add team members to this business
       if (userConfig.teamMembers) {

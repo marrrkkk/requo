@@ -723,6 +723,7 @@ export async function updateBusinessInquiryPageSettings({
           }
         : undefined,
       cards: values.cards,
+      thankYouMessage: values.thankYouMessage,
     },
     {
       businessName: business.name,
@@ -1340,7 +1341,7 @@ export async function deleteBusinessInquiryForm({
   actorUserId,
   targetFormId,
 }: TargetBusinessInquiryFormInput): Promise<BusinessInquiryFormMutationResult> {
-  const [businessRows, targetFormRows, activeForms, linkedInquiries] = await Promise.all([
+  const [businessRows, targetFormRows] = await Promise.all([
     db
       .select({
         id: businesses.id,
@@ -1364,24 +1365,6 @@ export async function deleteBusinessInquiryForm({
         ),
       )
       .limit(1),
-    db
-      .select({
-        id: businessInquiryForms.id,
-      })
-      .from(businessInquiryForms)
-      .where(
-        and(
-          eq(businessInquiryForms.businessId, businessId),
-          isNull(businessInquiryForms.archivedAt),
-        ),
-      ),
-    db
-      .select({
-        id: inquiries.id,
-      })
-      .from(inquiries)
-      .where(eq(inquiries.businessInquiryFormId, targetFormId))
-      .limit(1),
   ]);
 
   const business = businessRows[0];
@@ -1394,30 +1377,36 @@ export async function deleteBusinessInquiryForm({
     };
   }
 
-  if (targetForm.isDefault) {
-    return {
-      ok: false,
-      reason: "invalid-target",
-    };
-  }
-
-  if (activeForms.length <= 1) {
-    return {
-      ok: false,
-      reason: "last-active",
-    };
-  }
-
-  if (linkedInquiries.length) {
-    return {
-      ok: false,
-      reason: "has-inquiries",
-    };
-  }
-
   const now = new Date();
 
   await db.transaction(async (tx) => {
+    // If deleting the default form, promote another active form to default.
+    if (targetForm.isDefault) {
+      const [nextDefault] = await tx
+        .select({ id: businessInquiryForms.id })
+        .from(businessInquiryForms)
+        .where(
+          and(
+            eq(businessInquiryForms.businessId, businessId),
+            isNull(businessInquiryForms.archivedAt),
+            ne(businessInquiryForms.id, targetFormId),
+          ),
+        )
+        .limit(1);
+
+      if (nextDefault) {
+        await tx
+          .update(businessInquiryForms)
+          .set({ isDefault: true, updatedAt: now })
+          .where(eq(businessInquiryForms.id, nextDefault.id));
+      }
+    }
+
+    // Delete inquiries linked to this form before deleting the form.
+    await tx
+      .delete(inquiries)
+      .where(eq(inquiries.businessInquiryFormId, targetFormId));
+
     await tx
       .delete(businessInquiryForms)
       .where(

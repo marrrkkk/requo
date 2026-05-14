@@ -604,3 +604,32 @@ export async function restoreBusiness({
     nextState: "active",
   };
 }
+
+export async function deleteBusinessPermanently({
+  businessId,
+  actorUserId,
+  confirmation,
+}: {
+  businessId: string;
+  actorUserId: string;
+  confirmation: string;
+}): Promise<
+  | { ok: true }
+  | { ok: false; reason: "not-found" | "confirmation-mismatch" }
+> {
+  void actorUserId;
+
+  const business = await getBusinessLifecycleTarget(businessId);
+
+  if (!business) {
+    return { ok: false, reason: "not-found" };
+  }
+
+  if (confirmation.trim().toLowerCase() !== business.name.trim().toLowerCase()) {
+    return { ok: false, reason: "confirmation-mismatch" };
+  }
+
+  await db.delete(businesses).where(eq(businesses.id, businessId));
+
+  return { ok: true };
+}

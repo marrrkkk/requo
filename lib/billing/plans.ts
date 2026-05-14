@@ -9,12 +9,12 @@ import type { BillingCurrency, BillingInterval, PaidPlan, PlanPricing } from "@/
 /** Prices in smallest currency unit (USD cents). */
 export const planPricing: Record<BillingInterval, Record<PaidPlan, PlanPricing>> = {
   monthly: {
-    pro: { USD: 499 },
-    business: { USD: 999 },
+    pro: { USD: 599 },
+    business: { USD: 1299 },
   },
   yearly: {
-    pro: { USD: 4990 },
-    business: { USD: 9990 },
+    pro: { USD: 5990 },
+    business: { USD: 12990 },
   },
 };
 

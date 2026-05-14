@@ -1,12 +1,11 @@
 "server only";
 
-import { and, asc, count, desc, eq, sql } from "drizzle-orm";
+import { asc, count, desc, eq } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 
 import { db } from "@/lib/db/client";
 import { businessMemories } from "@/lib/db/schema/memories";
 import type {
-  DashboardMemory,
   DashboardMemoryData,
   DashboardMemorySummary,
   BusinessMemoryContext,

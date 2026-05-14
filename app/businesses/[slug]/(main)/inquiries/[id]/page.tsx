@@ -1,14 +1,16 @@
 import Link from "next/link";
-import dynamic from "next/dynamic";
-import Image from "next/image";
 import {
   AtSign,
+  CalendarClock,
+  ClipboardList,
   FileText,
   Mail,
-  Printer,
+  MessageSquare,
   ReceiptText,
+  Tag,
+  Wallet,
 } from "lucide-react";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import {
@@ -23,10 +25,8 @@ import {
   DashboardSidebarStack,
 } from "@/components/shared/dashboard-layout";
 import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
-import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Sheet,
   SheetBody,
@@ -60,11 +60,10 @@ import {
 } from "@/features/inquiries/actions";
 import { CopyEmailButton } from "@/features/inquiries/components/copy-email-button";
 import { InquiryNoteForm } from "@/features/inquiries/components/inquiry-note-form";
-import { InquiryRecordActions } from "@/features/inquiries/components/inquiry-record-actions";
 import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
 import { InquiryExportPopover } from "@/features/inquiries/components/inquiry-export-popover";
+import { InquiryManageDialog } from "@/features/inquiries/components/inquiry-manage-dialog";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
-import { InquiryStatusForm } from "@/features/inquiries/components/inquiry-status-form";
 import { getInquiryDetailForBusiness } from "@/features/inquiries/queries";
 import { inquiryRouteParamsSchema } from "@/features/inquiries/schemas";
 import {
@@ -74,22 +73,18 @@ import {
   formatInquiryDateTime,
 } from "@/features/inquiries/utils";
 import {
-  inquirySources,
   type DashboardInquiryDetail,
   type InquiryNoteActionState,
   type InquiryWorkflowStatus,
 } from "@/features/inquiries/types";
 import { formatQuoteMoney } from "@/features/quotes/utils";
-import { businessesHubPath } from "@/features/businesses/routes";
 import {
   getBusinessInquiryExportPath,
   getBusinessNewQuotePath,
-  getBusinessInquiryPrintPath,
   getBusinessQuotePath,
 } from "@/features/businesses/routes";
 import { Button } from "@/components/ui/button";
-import { requireSession } from "@/lib/auth/session";
-import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
+import { getAppShellContext } from "@/lib/app-shell/context";
 import { hasFeatureAccess } from "@/lib/plans";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import type { Metadata } from "next";
@@ -98,29 +93,6 @@ export const metadata: Metadata = createNoIndexMetadata({
   title: "Inquiry detail",
   description: "View and respond to a single inquiry for this business.",
 });
-
-const InquiryAiPanel = dynamic(
-  () =>
-    import("@/features/ai/components/inquiry-ai-panel").then(
-      (module) => module.InquiryAiPanel,
-    ),
-  {
-    loading: () => (
-      <div className="fixed bottom-4 right-4 z-40 sm:bottom-5 sm:right-5">
-        <div className="flex size-14 items-center justify-center rounded-full border border-border/70 bg-[var(--surface-elevated-bg)] shadow-[var(--surface-shadow-lg)]">
-          <Image
-            src="/logo.svg"
-            alt=""
-            width={34}
-            height={34}
-            className="size-[2.15rem] object-contain"
-          />
-          <span className="sr-only">Loading Requo assistant</span>
-        </div>
-      </div>
-    ),
-  },
-);
 
 type InquiryDetailPageProps = {
   params: Promise<{ slug: string; id: string }>;
@@ -144,15 +116,8 @@ export default function InquiryDetailPage({
 async function InquiryDetailContent({
   params,
 }: InquiryDetailPageProps) {
-  const [session, resolvedParams] = await Promise.all([requireSession(), params]);
-  const businessContext = await getBusinessContextForMembershipSlug(
-    session.user.id,
-    resolvedParams.slug,
-  );
-
-  if (!businessContext) {
-    redirect(businessesHubPath);
-  }
+  const resolvedParams = await params;
+  const { businessContext } = await getAppShellContext(resolvedParams.slug);
 
   const parsedParams = inquiryRouteParamsSchema.safeParse(resolvedParams);
 
@@ -223,27 +188,28 @@ async function InquiryDetailContent({
   return (
     <DashboardPage className="pb-24">
       <DashboardDetailHeader
-        eyebrow="Inquiry detail"
+        eyebrow="Inquiry"
         title={inquiry.customerName}
-        description={getInquiryHeaderDescription(inquiry)}
+        description={`Inquiry received · ${formatInquiryDateTime(inquiry.submittedAt)}`}
         meta={
           <>
             <InquiryStatusBadge status={inquiry.status} />
             {inquiry.recordState !== "active" ? (
               <InquiryRecordStateBadge state={inquiry.recordState} />
             ) : null}
-            <DashboardMetaPill>
-              Received {formatInquiryDateTime(inquiry.submittedAt)}
-            </DashboardMetaPill>
-            <DashboardMetaPill
-              className="max-w-full break-all font-mono text-[0.72rem]"
-            >
-              Ref {inquiry.id}
-            </DashboardMetaPill>
           </>
         }
         actions={
           <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center [&_[data-slot=button]]:w-full sm:[&_[data-slot=button]]:w-auto">
+            <InquiryManageDialog
+              workflowStatus={workflowStatus}
+              recordState={inquiry.recordState}
+              statusAction={statusAction}
+              archiveAction={archiveAction}
+              unarchiveAction={unarchiveAction}
+              trashAction={trashAction}
+              restoreAction={restoreAction}
+            />
             <InquiryExportPopover
               canExport={canExportData}
               pdfHref={getBusinessInquiryExportPath(
@@ -257,27 +223,6 @@ async function InquiryDetailContent({
                 "png",
               )}
             />
-            {canExportData ? (
-              <Button asChild variant="outline">
-                <Link
-                  href={getBusinessInquiryPrintPath(businessSlug, inquiry.id)}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
-                  <Printer data-icon="inline-start" />
-                  Print
-                </Link>
-              </Button>
-            ) : (
-              <ProFeatureNoticeButton
-                noticeDescription="Upgrade to Pro to print inquiry records."
-                noticeTitle="Print is a Pro feature."
-                variant="outline"
-              >
-                <Printer data-icon="inline-start" />
-                Print
-              </ProFeatureNoticeButton>
-            )}
             {canGenerateQuote ? (
               <Button asChild>
                 <Link href={getBusinessNewQuotePath(businessSlug, inquiry.id)}>
@@ -296,46 +241,54 @@ async function InquiryDetailContent({
         <DashboardSidebarStack>
           <DashboardSection
             contentClassName="flex flex-col gap-6"
-            description={`${getInquirySourceDescription(inquiry.source)} Review the request before replying or quoting.`}
-            title="Inquiry brief"
+            description="What the customer is asking for."
+            title="Inquiry overview"
           >
-            <div className="grid gap-4 sm:grid-cols-3">
-              <InfoTile label="Form" value={inquiry.inquiryFormName} />
+            <div className="grid gap-3 sm:grid-cols-2">
               <InfoTile
+                icon={Tag}
+                label={systemFieldDefaultLabels.serviceCategory}
+                value={inquiry.serviceCategory}
+              />
+              <InfoTile
+                icon={Wallet}
                 label={systemFieldDefaultLabels.budgetText}
                 value={formatInquiryBudget(inquiry.budgetText)}
               />
               <InfoTile
+                icon={CalendarClock}
                 label={systemFieldDefaultLabels.requestedDeadline}
                 value={inquiry.requestedDeadline ?? "Not provided"}
               />
-              {inquiry.subject &&
-              inquiry.subject !== inquiry.serviceCategory ? (
-                <InfoTile
-                  className="sm:col-span-3"
-                  label="Subject"
-                  value={inquiry.subject}
-                />
-              ) : null}
-            </div>
-
-            <div className="soft-panel px-5 py-5 shadow-none">
-              <p className="meta-label">
-                {systemFieldDefaultLabels.serviceCategory}
-              </p>
-              <TruncatedTextWithTooltip
-                className="mt-3 text-sm leading-normal sm:leading-7 text-foreground"
-                lines={3}
-                text={inquiry.serviceCategory}
+              <InfoTile
+                icon={ClipboardList}
+                label="Form"
+                value={inquiry.inquiryFormName}
               />
             </div>
 
-            <div className="soft-panel px-5 py-5 shadow-none">
-              <p className="meta-label">
-                {systemFieldDefaultLabels.details}
-              </p>
+            {inquiry.subject &&
+            inquiry.subject !== inquiry.serviceCategory ? (
+              <div className="soft-panel px-5 py-4 shadow-none">
+                <p className="meta-label">Subject</p>
+                <p className="mt-2 text-sm leading-6 text-foreground">
+                  {inquiry.subject}
+                </p>
+              </div>
+            ) : null}
+
+            <div className="soft-panel flex flex-col gap-3 px-5 py-5 shadow-none">
+              <div className="flex items-center gap-2">
+                <MessageSquare
+                  aria-hidden="true"
+                  className="size-4 text-muted-foreground"
+                />
+                <p className="meta-label">
+                  {systemFieldDefaultLabels.details}
+                </p>
+              </div>
               <TruncatedTextWithTooltip
-                className="mt-3 whitespace-pre-wrap text-sm leading-normal sm:leading-7 text-foreground"
+                className="whitespace-pre-wrap text-sm leading-normal sm:leading-7 text-foreground"
                 lines={6}
                 text={inquiry.details}
               />
@@ -359,7 +312,7 @@ async function InquiryDetailContent({
                     </SheetDescription>
                   </SheetHeader>
                   <SheetBody className="min-h-0 flex-1">
-                    <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
+                    <ScrollArea className="h-full pr-4">
                       <div className="grid gap-3 xl:grid-cols-2">
                         {customFields.map((field) => (
                           <InfoTile
@@ -406,7 +359,7 @@ async function InquiryDetailContent({
                     </SheetDescription>
                   </SheetHeader>
                   <SheetBody className="min-h-0 flex-1">
-                    <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
+                    <ScrollArea className="h-full pr-4">
                       <DashboardDetailFeed>
                         {inquiry.attachments.map((attachment) => (
                           <DashboardDetailFeedItem
@@ -496,7 +449,7 @@ async function InquiryDetailContent({
                           </SheetDescription>
                         </SheetHeader>
                         <SheetBody className="min-h-0 flex-1 gap-5">
-                          <ScrollArea className="h-[calc(100vh-10rem)] pr-4">
+                          <ScrollArea className="h-full pr-4">
                             <DashboardDetailFeed>
                               {inquiry.activities.map((activity) => (
                                 <DashboardDetailFeedItem
@@ -658,51 +611,8 @@ async function InquiryDetailContent({
 
 
 
-          <DashboardSection
-            description="Move the inquiry through your workflow."
-            title="Workflow"
-          >
-            {inquiry.recordState === "active" ? (
-              <InquiryStatusForm
-                key={workflowStatus}
-                action={statusAction}
-                currentStatus={workflowStatus}
-              />
-            ) : (
-              <Alert>
-                <AlertTitle>
-                  {inquiry.recordState === "archived"
-                    ? "Restore this inquiry to active first."
-                    : "Restore this inquiry from trash first."}
-                </AlertTitle>
-                <AlertDescription>
-                  Workflow status is locked while the inquiry is{" "}
-                  {inquiry.recordState === "archived" ? "archived" : "in trash"}.
-                </AlertDescription>
-              </Alert>
-            )}
-          </DashboardSection>
-
-          <DashboardSection
-            description="Archive for safekeeping or move obvious junk to trash."
-            title="Manage inquiry"
-          >
-            <InquiryRecordActions
-              archiveAction={archiveAction}
-              recordState={inquiry.recordState}
-              restoreAction={restoreAction}
-              trashAction={trashAction}
-              unarchiveAction={unarchiveAction}
-            />
-          </DashboardSection>
         </DashboardSidebarStack>
       </DashboardDetailLayout>
-      <InquiryAiPanel
-        businessSlug={businessSlug}
-        inquiryId={inquiry.id}
-        userName={session.user.name || "You"}
-        plan={businessContext.business.plan}
-      />
     </DashboardPage>
   );
 }
@@ -762,7 +672,7 @@ function InquiryNotesSheetSection({
           <SheetBody className="min-h-0 flex-1 gap-5">
             <InquiryNoteForm action={noteAction} embedded />
             {inquiry.notes.length ? (
-              <ScrollArea className="h-[calc(100vh-22rem)] pr-4">
+              <ScrollArea className="h-full pr-4">
                 <DashboardDetailFeed>
                   {inquiry.notes.map((note) => (
                     <DashboardDetailFeedItem
@@ -824,7 +734,7 @@ function CustomerHistorySheetSection({
                 </SheetDescription>
               </SheetHeader>
               <SheetBody className="min-h-0 flex-1">
-                <ScrollArea className="h-[calc(100vh-12rem)] pr-4">
+                <ScrollArea className="h-full pr-4">
                   <CustomerHistoryPanel
                     businessSlug={businessSlug}
                     history={history}
@@ -843,29 +753,6 @@ function CustomerHistorySheetSection({
       )}
     </DashboardSection>
   );
-}
-
-function getInquiryHeaderDescription(inquiry: {
-  serviceCategory: string;
-  source: string | null;
-  submittedAt: Date;
-}) {
-  const eventLabel =
-    inquiry.source === inquirySources.manualDashboard
-      ? "inquiry created"
-      : "inquiry received";
-
-  return `${inquiry.serviceCategory} ${eventLabel} ${formatInquiryDateTime(
-    inquiry.submittedAt,
-  )}.`;
-}
-
-function getInquirySourceDescription(source: string | null) {
-  if (source === inquirySources.manualDashboard) {
-    return "Created manually inside the dashboard.";
-  }
-
-  return "Submitted through the public form.";
 }
 
 function getCustomerContactEmail(inquiry: {

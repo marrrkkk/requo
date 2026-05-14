@@ -348,6 +348,7 @@ export const businessInquiryPageSettingsSchema = z.object({
     .min(1, "Enter a form title.")
     .max(80, "Use 80 characters or fewer."),
   formDescription: optionalText(200),
+  thankYouMessage: optionalText(280),
   businessContactPhone: optionalText(40),
   businessContactEmail: optionalEmail(),
   businessFacebookUrl: optionalExternalUrl(),

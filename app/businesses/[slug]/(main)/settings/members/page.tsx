@@ -9,7 +9,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Redirects to the business members management page.",
 });
 
-export const unstable_instant = false;
+export const unstable_instant = { prefetch: 'static', unstable_disableValidation: true };
 
 export default async function BusinessMembersSettingsPage({
   params,

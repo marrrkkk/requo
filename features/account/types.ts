@@ -87,7 +87,7 @@ export type AccountSessionActionState = {
 };
 
 export type AccountDeleteFieldErrors = Partial<
-  Record<"email" | "password", string[] | undefined>
+  Record<"confirmation", string[] | undefined>
 >;
 
 export type AccountDeleteActionState = {

@@ -18,6 +18,11 @@ export const metadata: Metadata = createNoIndexMetadata({
   title: "Create account",
 });
 
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
+};
+
 export default async function SignupPage() {
   // Server-side redirect for already-authenticated users — avoids client-side flash
   const session = await getOptionalSession();

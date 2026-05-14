@@ -22,7 +22,7 @@ export async function createBusinessMemberInvite({
   businessId: string;
   inviterUserId: string;
   email: string;
-  role: "manager" | "staff";
+  role: "owner" | "manager" | "staff";
   token: string;
   expiresAt: Date;
 }) {
