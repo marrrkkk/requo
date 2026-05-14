@@ -214,10 +214,6 @@ export async function updateBusinessNotificationSettingsAction(
 
   const { user, businessContext } = ownerAccess;
   const validationResult = businessNotificationSettingsSchema.safeParse({
-    notifyOnNewInquiry: formData.get("notifyOnNewInquiry") === "on",
-    notifyOnQuoteSent: formData.get("notifyOnQuoteSent") === "on",
-    notifyOnQuoteResponse: formData.get("notifyOnQuoteResponse") === "on",
-    notifyOnMemberInviteResponse: formData.get("notifyOnMemberInviteResponse") === "on",
     notifyInAppOnNewInquiry: formData.get("notifyInAppOnNewInquiry") === "on",
     notifyInAppOnQuoteSent: formData.get("notifyInAppOnQuoteSent") === "on",
     notifyInAppOnQuoteResponse: formData.get("notifyInAppOnQuoteResponse") === "on",
@@ -226,9 +222,7 @@ export async function updateBusinessNotificationSettingsAction(
     notifyPushOnQuoteSent: formData.get("notifyPushOnQuoteSent") === "on",
     notifyPushOnQuoteResponse: formData.get("notifyPushOnQuoteResponse") === "on",
     notifyPushOnMemberInviteResponse: formData.get("notifyPushOnMemberInviteResponse") === "on",
-    notifyOnFollowUpReminder: formData.get("notifyOnFollowUpReminder") === "on",
     notifyInAppOnFollowUpReminder: formData.get("notifyInAppOnFollowUpReminder") === "on",
-    notifyOnQuoteExpiring: formData.get("notifyOnQuoteExpiring") === "on",
     notifyInAppOnQuoteExpiring: formData.get("notifyInAppOnQuoteExpiring") === "on",
   });
 
@@ -448,6 +442,7 @@ export async function updateBusinessInquiryPageAction(
     brandTagline: formData.get("brandTagline"),
     formTitle: formData.get("formTitle"),
     formDescription: formData.get("formDescription"),
+    thankYouMessage: formData.get("thankYouMessage"),
     businessContactPhone: formData.get("businessContactPhone"),
     businessContactEmail: formData.get("businessContactEmail"),
     businessFacebookUrl: formData.get("businessFacebookUrl"),

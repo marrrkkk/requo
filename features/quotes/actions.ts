@@ -26,8 +26,6 @@ import {
   getResendFromEmailConfigurationError,
   getResendSendFailureMessage,
   sendQuoteEmail,
-  sendQuoteResponseOwnerNotificationEmail,
-  sendQuoteSentOwnerNotificationEmail,
 } from "@/lib/resend/client";
 import {
   archiveQuoteForBusiness,
@@ -589,37 +587,7 @@ export async function sendQuoteAction(
       };
     }
 
-    if (businessSettings.notifyOnQuoteSent && ownerEmails.length) {
-      after(async () => {
-        try {
-          await sendQuoteSentOwnerNotificationEmail({
-            quoteId: quote.id,
-            updatedAt: quote.updatedAt,
-            recipients: ownerEmails,
-            businessName: businessContext.business.name,
-            customerName: quote.customerName,
-            customerEmail: quote.customerEmail,
-            quoteNumber: quote.quoteNumber,
-            title: quote.title,
-            dashboardUrl: new URL(
-              getBusinessQuotePath(businessContext.business.slug, quote.id),
-              env.BETTER_AUTH_URL,
-            ).toString(),
-            publicQuoteUrl,
-            businessId: businessContext.business.id,
-          });
-        } catch (error) {
-          console.error(
-            "The quote was sent but the owner notification email failed to send.",
-            error,
-          );
-        }
-      });
-    }
-
-    // Push notification for quote sent
-    if (
-      businessSettings.notifyPushOnQuoteSent &&
+    if (businessSettings.notifyPushOnQuoteSent &&
       hasFeatureAccess(businessContext.business.plan, "pushNotifications")
     ) {
       after(async () => {
@@ -856,44 +824,7 @@ export async function respondToPublicQuoteAction(
       };
     }
 
-    if (result.notifyOnQuoteResponse) {
-      after(async () => {
-        const ownerEmails = await getBusinessOwnerEmails(result.businessId);
-
-        if (!ownerEmails.length) {
-          return;
-        }
-
-        try {
-          await sendQuoteResponseOwnerNotificationEmail({
-            quoteId: result.quoteId,
-            updatedAt: result.updatedAt,
-            recipients: ownerEmails,
-            businessName: result.businessName,
-            customerName: result.customerName,
-            customerEmail: result.customerEmail,
-            customerMessage: result.customerResponseMessage,
-            quoteNumber: result.quoteNumber,
-            title: result.title,
-            response: result.status,
-            dashboardUrl: new URL(
-              getBusinessQuotePath(result.businessSlug, result.quoteId),
-              env.BETTER_AUTH_URL,
-            ).toString(),
-            businessId: result.businessId,
-          });
-        } catch (error) {
-          console.error(
-            "The quote response was saved but the owner notification email failed to send.",
-            error,
-          );
-        }
-      });
-    }
-
-    // Push notification for quote response
-    if (
-      result.notifyPushOnQuoteResponse &&
+    if (result.notifyPushOnQuoteResponse &&
       hasFeatureAccess(result.businessPlan, "pushNotifications")
     ) {
       after(async () => {
