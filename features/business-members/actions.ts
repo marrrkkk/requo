@@ -8,8 +8,9 @@ import { and, eq, ne } from "drizzle-orm";
 
 import { getValidationActionState } from "@/lib/action-state";
 import { uniqueCacheTags, getBusinessMembersCacheTags } from "@/lib/cache/business-tags";
+import { getUserPendingInvitesCacheTags } from "@/lib/cache/shell-tags";
 import { db } from "@/lib/db/client";
-import { businessMembers } from "@/lib/db/schema";
+import { businessMemberInvites, businessMembers } from "@/lib/db/schema";
 import { getOwnerBusinessActionContext } from "@/lib/db/business-access";
 import { requireSession } from "@/lib/auth/session";
 import { activeBusinessSlugCookieName, getBusinessDashboardPath, getBusinessMemberInvitePath, getBusinessMembersPath } from "@/features/businesses/routes";
@@ -244,5 +245,70 @@ export async function acceptBusinessMemberInviteAction(inviteToken: string) {
   });
 
   redirect(getBusinessDashboardPath(result.businessSlug));
+}
+
+export async function acceptInviteFromHubAction(
+  inviteToken: string,
+): Promise<{ error?: string }> {
+  const session = await requireSession();
+  const result = await acceptBusinessMemberInvite({
+    inviteToken,
+    userId: session.user.id,
+    userEmail: session.user.email,
+  });
+
+  if (!result.ok) {
+    return { error: result.error };
+  }
+
+  updateCacheTags(getUserPendingInvitesCacheTags(session.user.id));
+  updateCacheTags(getBusinessMembersCacheTags(result.businessSlug));
+
+  // Persist active business in the shell cookie.
+  const cookieStore = await cookies();
+  cookieStore.set(activeBusinessSlugCookieName, result.businessSlug, {
+    path: "/",
+    sameSite: "lax",
+  });
+
+  revalidatePath("/businesses");
+  redirect(getBusinessDashboardPath(result.businessSlug));
+}
+
+export async function declineInviteFromHubAction(
+  inviteId: string,
+): Promise<{ error?: string }> {
+  const session = await requireSession();
+
+  // Verify the invite belongs to this user's email before deleting.
+  const invite = await db
+    .select({
+      id: businessMemberInvites.id,
+      email: businessMemberInvites.email,
+      businessId: businessMemberInvites.businessId,
+    })
+    .from(businessMemberInvites)
+    .where(eq(businessMemberInvites.id, inviteId))
+    .limit(1);
+
+  const row = invite[0];
+
+  if (!row) {
+    return { error: "That invite could not be found." };
+  }
+
+  if (row.email.toLowerCase() !== session.user.email.toLowerCase()) {
+    return { error: "This invite belongs to a different account." };
+  }
+
+  await db
+    .delete(businessMemberInvites)
+    .where(eq(businessMemberInvites.id, inviteId));
+
+  updateCacheTags(getUserPendingInvitesCacheTags(session.user.id));
+  updateCacheTags(getBusinessMembersCacheTags(row.businessId));
+  revalidatePath("/businesses");
+
+  return {};
 }
 

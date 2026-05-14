@@ -88,3 +88,9 @@ export function getUserBillingCacheTags(userId: string) {
   return uniqueCacheTags([scopeTag, `${scopeTag}:billing`]);
 }
 
+export function getUserPendingInvitesCacheTags(userId: string) {
+  const scopeTag = getUserScopeTag(userId);
+
+  return uniqueCacheTags([scopeTag, `${scopeTag}:pending-invites`]);
+}
+

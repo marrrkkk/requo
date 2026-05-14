@@ -82,7 +82,11 @@ export function canAccessBusinessForms(role: BusinessMemberRole) {
 }
 
 export function canViewBusinessAnalytics(role: BusinessMemberRole) {
-  return hasBusinessRoleAccess(role, "manager");
+  return hasBusinessRoleAccess(role, "staff");
+}
+
+export function canViewBusinessMembers(role: BusinessMemberRole) {
+  return hasBusinessRoleAccess(role, "staff");
 }
 
 export function canManageBusinessWorkspace(role: BusinessMemberRole) {

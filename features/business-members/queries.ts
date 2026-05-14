@@ -8,6 +8,7 @@ import {
   getBusinessMembersCacheTags,
   settingsBusinessCacheLife,
 } from "@/lib/cache/business-tags";
+import { getUserPendingInvitesCacheTags } from "@/lib/cache/shell-tags";
 import { db } from "@/lib/db/client";
 import { businessMemberInvites, businessMembers, businesses, user } from "@/lib/db/schema";
 import { hashOpaqueToken } from "@/lib/security/tokens";
@@ -140,4 +141,54 @@ export async function getBusinessMemberInviteForToken(token: string) {
     .limit(1);
 
   return rows[0] ?? null;
+}
+
+export type PendingInviteForUser = {
+  inviteId: string;
+  businessName: string;
+  role: string;
+  token: string;
+  inviterName: string | null;
+  expiresAt: Date;
+};
+
+export async function getPendingInvitesForUser(
+  userId: string,
+  userEmail: string,
+): Promise<PendingInviteForUser[]> {
+  "use cache";
+
+  cacheLife(settingsBusinessCacheLife);
+  cacheTag(...getUserPendingInvitesCacheTags(userId));
+
+  const rows = await db
+    .select({
+      inviteId: businessMemberInvites.id,
+      businessName: businesses.name,
+      role: businessMemberInvites.role,
+      token: businessMemberInvites.token,
+      inviterName: user.name,
+      expiresAt: businessMemberInvites.expiresAt,
+    })
+    .from(businessMemberInvites)
+    .innerJoin(businesses, eq(businessMemberInvites.businessId, businesses.id))
+    .innerJoin(user, eq(businessMemberInvites.inviterUserId, user.id))
+    .where(
+      and(
+        eq(businessMemberInvites.email, userEmail.toLowerCase()),
+        gt(businessMemberInvites.expiresAt, new Date()),
+      ),
+    )
+    .orderBy(asc(businessMemberInvites.createdAt));
+
+  return rows
+    .filter((row) => typeof row.token === "string" && row.token.length > 0)
+    .map((row) => ({
+      inviteId: row.inviteId,
+      businessName: row.businessName,
+      role: row.role,
+      token: row.token as string,
+      inviterName: row.inviterName,
+      expiresAt: row.expiresAt,
+    }));
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Copy,
   MailPlus,
@@ -92,6 +92,7 @@ type MembersManagerProps = {
   cancelInviteAction: BusinessMemberAction;
   updateRoleAction: BusinessMemberAction;
   removeMemberAction: BusinessMemberAction;
+  readOnly?: boolean;
 };
 
 type AssignableRole = BusinessMemberRole;
@@ -112,6 +113,7 @@ export function BusinessMembersManager({
   cancelInviteAction,
   updateRoleAction,
   removeMemberAction,
+  readOnly = false,
 }: MembersManagerProps) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -124,7 +126,7 @@ export function BusinessMembersManager({
     null,
   );
 
-  const [inviteState, inviteFormAction, isInvitePending] =
+  const [, inviteFormAction, isInvitePending] =
     useActionStateWithSonner(createInviteAction, initialState);
   const [, cancelInviteFormAction, isCancelInvitePending] =
     useActionStateWithSonner(cancelInviteAction, initialState);
@@ -133,15 +135,7 @@ export function BusinessMembersManager({
   const [, removeMemberFormAction, isRemoveMemberPending] =
     useActionStateWithSonner(removeMemberAction, initialState);
   const origin = typeof window === "undefined" ? "" : window.location.origin;
-
-  const inviteLink = useMemo(() => {
-    const link = inviteState?.inviteLink;
-    if (typeof link !== "string" || !link) {
-      return null;
-    }
-
-    return link.startsWith("/") ? `${origin}${link}` : link;
-  }, [inviteState?.inviteLink, origin]);
+  const [pendingInvitesOpen, setPendingInvitesOpen] = useState(false);
 
   async function copyText(value: string) {
     await navigator.clipboard.writeText(value);
@@ -158,12 +152,19 @@ export function BusinessMembersManager({
         title="Members"
         description="Review business access, invite teammates, and keep admin permissions limited to the right people."
         action={
-          <LockedAction feature="members" plan={plan}>
-            <Button type="button" onClick={() => setInviteOpen(true)}>
-              <MailPlus data-icon="inline-start" />
-              Invite member
-            </Button>
-          </LockedAction>
+          <div className="flex items-center gap-2">
+            {!readOnly && view.invites.length ? (
+              <Button type="button" variant="outline" onClick={() => setPendingInvitesOpen(true)}>
+                {view.invites.length} pending
+              </Button>
+            ) : null}
+            <LockedAction feature="members" plan={plan}>
+              <Button type="button" onClick={() => setInviteOpen(true)} disabled={readOnly}>
+                <MailPlus data-icon="inline-start" />
+                Invite member
+              </Button>
+            </LockedAction>
+          </div>
         }
       >
         <div className="flex flex-col gap-4">
@@ -171,12 +172,6 @@ export function BusinessMembersManager({
             <Badge variant="secondary">
               {view.members.length} member{view.members.length === 1 ? "" : "s"}
             </Badge>
-            {view.invites.length ? (
-              <Badge variant="outline">
-                {view.invites.length} pending invite
-                {view.invites.length === 1 ? "" : "s"}
-              </Badge>
-            ) : null}
           </div>
 
           <div className="overflow-hidden rounded-xl border border-border bg-background/60">
@@ -188,6 +183,7 @@ export function BusinessMembersManager({
                   onManageAccess={openAccessDialog}
                   onRemove={setRemoveMember}
                   ownerCount={view.members.filter((m) => m.role === "owner").length}
+                  readOnly={readOnly}
                   rowIndex={index}
                 />
               ))}
@@ -196,36 +192,15 @@ export function BusinessMembersManager({
         </div>
       </DashboardSection>
 
-      {inviteLink ? (
-        <DashboardSection
-          title="Latest invite link"
-          description="Send this link to the invited email address. The link also appears in pending invites until it is accepted or canceled."
-        >
-          <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="min-w-0 truncate font-mono text-xs text-muted-foreground">
-              {inviteLink}
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={async () => {
-                await copyText(inviteLink);
-              }}
-            >
-              <Copy data-icon="inline-start" />
-              Copy link
-            </Button>
-          </div>
-        </DashboardSection>
-      ) : null}
-
       {view.invites.length ? (
-        <PendingInvitesSection
+        <PendingInvitesDialog
           invites={view.invites}
           inviteOrigin={origin}
           isCancelPending={isCancelInvitePending}
           onCancelInvite={cancelInviteFormAction}
           onCopyInvite={copyText}
+          open={pendingInvitesOpen}
+          onOpenChange={setPendingInvitesOpen}
         />
       ) : null}
 
@@ -368,78 +343,99 @@ function InviteMemberDialog({
   );
 }
 
-function PendingInvitesSection({
+function PendingInvitesDialog({
   invites,
   inviteOrigin,
   isCancelPending,
   onCancelInvite,
   onCopyInvite,
+  open,
+  onOpenChange,
 }: {
   invites: BusinessMemberInviteView[];
   inviteOrigin: string;
   isCancelPending: boolean;
   onCancelInvite: ReturnType<typeof useActionStateWithSonner<BusinessMemberInviteActionState>>[1];
   onCopyInvite: (value: string) => Promise<void>;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
   return (
-    <DashboardSection
-      title="Pending invites"
-      description="Copy an invite link or cancel access before the invite is accepted."
-      action={<Badge variant="secondary">{invites.length}</Badge>}
-    >
-      <div className="grid gap-3">
-        {invites.map((invite) => {
-          const inviteUrl = `${inviteOrigin}${getBusinessMemberInvitePath(invite.token)}`;
-          const roleLabel = businessMemberRoleMeta[invite.role].label;
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Pending invites</DialogTitle>
+          <DialogDescription>
+            Copy an invite link or cancel access before the invite is accepted.
+          </DialogDescription>
+        </DialogHeader>
 
-          return (
-            <div
-              className="rounded-xl border border-border bg-background/60 p-4"
-              key={invite.inviteId}
-            >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {invite.email}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {roleLabel} invite, expires{" "}
-                    {new Date(invite.expiresAt).toLocaleDateString()}
-                  </p>
+        <DialogBody>
+          <div className="grid gap-3">
+            {invites.map((invite) => {
+              const inviteUrl = `${inviteOrigin}${getBusinessMemberInvitePath(invite.token)}`;
+              const roleLabel = businessMemberRoleMeta[invite.role].label;
+
+              return (
+                <div
+                  className="rounded-xl border border-border bg-muted/20 p-4"
+                  key={invite.inviteId}
+                >
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {invite.email}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {roleLabel} invite, expires{" "}
+                        {new Date(invite.expiresAt).toLocaleDateString()}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 sm:justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => onCopyInvite(inviteUrl)}
+                      >
+                        <Copy data-icon="inline-start" />
+                        Copy link
+                      </Button>
+
+                      <form action={onCancelInvite}>
+                        <input
+                          type="hidden"
+                          name="inviteId"
+                          value={invite.inviteId}
+                        />
+                        <Button
+                          disabled={isCancelPending}
+                          size="sm"
+                          type="submit"
+                          variant="outline"
+                        >
+                          <Trash2 data-icon="inline-start" />
+                          Cancel
+                        </Button>
+                      </form>
+                    </div>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+        </DialogBody>
 
-                <div className="flex flex-wrap gap-2 sm:justify-end">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={async () => onCopyInvite(inviteUrl)}
-                  >
-                    <Copy data-icon="inline-start" />
-                    Copy link
-                  </Button>
-
-                  <form action={onCancelInvite}>
-                    <input
-                      type="hidden"
-                      name="inviteId"
-                      value={invite.inviteId}
-                    />
-                    <Button
-                      disabled={isCancelPending}
-                      type="submit"
-                      variant="outline"
-                    >
-                      <Trash2 data-icon="inline-start" />
-                      Cancel
-                    </Button>
-                  </form>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </DashboardSection>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="outline">
+              Done
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -448,12 +444,14 @@ function MemberRow({
   onManageAccess,
   onRemove,
   ownerCount,
+  readOnly,
   rowIndex,
 }: {
   member: BusinessMemberView;
   onManageAccess: (member: BusinessMemberView) => void;
   onRemove: (member: BusinessMemberView) => void;
   ownerCount: number;
+  readOnly: boolean;
   rowIndex: number;
 }) {
   const roleMeta = businessMemberRoleMeta[member.role];
@@ -489,29 +487,42 @@ function MemberRow({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 md:justify-end">
-          {!member.isCurrentUser ? (
-            <Button
-              className="hidden md:inline-flex"
-              size="sm"
-              type="button"
-              variant="outline"
-              onClick={() => onManageAccess(member)}
-            >
-              <UserCog data-icon="inline-start" />
-              Manage access
-            </Button>
-          ) : null}
+        {!readOnly ? (
+          <div className="flex items-center gap-2 md:justify-end">
+            {!member.isCurrentUser ? (
+              <Button
+                className="hidden md:inline-flex"
+                size="sm"
+                type="button"
+                variant="outline"
+                onClick={() => onManageAccess(member)}
+              >
+                <UserCog data-icon="inline-start" />
+                Manage access
+              </Button>
+            ) : null}
 
-          <MemberActionsMenu
-            canLeave={canLeave}
-            canRemove={canRemove}
-            isCurrentUser={member.isCurrentUser}
-            member={member}
-            onManageAccess={onManageAccess}
-            onRemove={onRemove}
-          />
-        </div>
+            <MemberActionsMenu
+              canLeave={canLeave}
+              canRemove={canRemove}
+              isCurrentUser={member.isCurrentUser}
+              member={member}
+              onManageAccess={onManageAccess}
+              onRemove={onRemove}
+            />
+          </div>
+        ) : member.isCurrentUser && canLeave ? (
+          <div className="flex items-center gap-2 md:justify-end">
+            <MemberActionsMenu
+              canLeave={canLeave}
+              canRemove={false}
+              isCurrentUser={member.isCurrentUser}
+              member={member}
+              onManageAccess={onManageAccess}
+              onRemove={onRemove}
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );

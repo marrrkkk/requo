@@ -28,6 +28,9 @@ import { RecentlyOpenedBusinesses } from "@/features/businesses/components/recen
 import { getRecentlyOpenedBusinessesForUser } from "@/features/businesses/recently-opened";
 import { getBusinessQuotaForUser } from "@/features/businesses/quota";
 import { planMeta } from "@/lib/plans/plans";
+import { getPendingInvitesForUser } from "@/features/business-members/queries";
+import { acceptInviteFromHubAction, declineInviteFromHubAction } from "@/features/business-members/actions";
+import { PendingInvitesBanner } from "@/features/business-members/components/pending-invites-banner";
 
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
@@ -56,6 +59,7 @@ export default async function BusinessesPage() {
     memberships,
     recentlyOpenedBusinesses,
     businessQuota,
+    pendingInvites,
   ] = await timed(
     "businessesHub.parallelShellFetches",
     Promise.all([
@@ -66,6 +70,7 @@ export default async function BusinessesPage() {
       getBusinessQuotaForUser({
         ownerUserId: session.user.id,
       }),
+      getPendingInvitesForUser(session.user.id, session.user.email),
     ]),
   );
 
@@ -114,6 +119,12 @@ export default async function BusinessesPage() {
           </div>
 
           <div className="w-full space-y-6">
+            <PendingInvitesBanner
+              invites={pendingInvites}
+              acceptAction={acceptInviteFromHubAction}
+              declineAction={declineInviteFromHubAction}
+            />
+
             <RecentlyOpenedBusinesses businesses={recentlyOpenedBusinesses} />
 
             {!businessQuota.allowed && businessQuota.upgradePlan && (
