@@ -1,3 +1,15 @@
+import { ArrowUpRight, Lock } from "lucide-react";
+import Link from "next/link";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import type { PlanFeature } from "@/lib/plans/entitlements";
 import { cn } from "@/lib/utils";
@@ -7,8 +19,8 @@ import {
   getUpgradeDescription,
   getFeatureLabel,
   getRequiredPlanLabel,
+  getUpgradeCtaText,
 } from "../lib/utils";
-import { UpgradePrompt } from "./upgrade-prompt";
 import type { UpgradeActionProps } from "../types";
 
 type PremiumContentBlurProps = {
@@ -16,7 +28,7 @@ type PremiumContentBlurProps = {
   feature: PlanFeature;
   /** Current business plan */
   plan: BusinessPlan;
-  /** Static placeholder content to show when locked (blurred) */
+  /** Static placeholder content to show when locked */
   placeholder: React.ReactNode;
   /** The actual premium content (only rendered when unlocked) */
   children: React.ReactNode;
@@ -29,59 +41,83 @@ type PremiumContentBlurProps = {
 /**
  * PremiumContentBlur
  *
- * Blurs only premium-generated outputs (analytics insights, AI suggestions, reports)
- * while keeping the surrounding page visible. When locked, renders a static placeholder
- * with a blur effect and a centered upgrade prompt overlay.
+ * Shows premium content when unlocked. When locked, renders a clean upgrade
+ * card with feature description and CTA — no blur overlay.
  *
  * CRITICAL: When locked, children (premium data) are NOT rendered in the DOM at all.
- * Only the placeholder prop is rendered (blurred) with the UpgradePrompt overlay.
  */
 export function PremiumContentBlur({
   feature,
   plan,
-  placeholder,
+  placeholder: _placeholder,
   children,
   upgradeAction,
   className,
 }: PremiumContentBlurProps) {
   const hasAccess = safeHasFeatureAccess(plan, feature);
 
-  // Unlocked: render children normally without any blur or overlay
+  // Unlocked: render children normally
   if (hasAccess) {
     return <>{children}</>;
   }
 
-  // Locked: render placeholder (blurred) with UpgradePrompt overlay
-  // Do NOT render children — premium data must not be accessible
+  // Locked: render upgrade card
   const featureLabel = getFeatureLabel(feature);
   const planLabel = getRequiredPlanLabel(feature);
   const description = getUpgradeDescription(feature);
+  const ctaText = getUpgradeCtaText(plan);
 
   return (
     <div
       role="region"
       aria-label={`Premium feature: ${featureLabel} — requires ${planLabel} plan`}
-      className={cn("relative", className)}
+      className={cn("flex flex-col gap-6", className)}
     >
-      {/* Blurred placeholder — not interactive, hidden from assistive tech */}
-      <div
-        className="blur-[3px] pointer-events-none select-none"
-        aria-hidden="true"
-      >
-        {placeholder}
-      </div>
-
-      {/* Centered upgrade prompt overlay */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <UpgradePrompt
-          variant="inline"
-          plan={plan}
-          feature={feature}
-          description={description}
-          showBadge
-          upgradeAction={upgradeAction}
-        />
-      </div>
+      <Card className="border-border/70 bg-card/50">
+        <CardHeader className="gap-3 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-muted/40">
+              <Lock className="size-4 text-muted-foreground" aria-hidden="true" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base">{featureLabel}</CardTitle>
+                <Badge variant="secondary">{planLabel}</Badge>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4 pt-0">
+          <p className="text-sm leading-6 text-muted-foreground">
+            {description}
+          </p>
+          {ctaText ? (
+            <div>
+              {upgradeAction ? (
+                <UpgradeButton
+                  userId={upgradeAction.userId}
+                  businessId={upgradeAction.businessId}
+                  businessSlug={upgradeAction.businessSlug}
+                  currentPlan={upgradeAction.currentPlan}
+                  region={upgradeAction.region}
+                  defaultCurrency={upgradeAction.defaultCurrency}
+                  size="default"
+                >
+                  <ArrowUpRight data-icon="inline-start" />
+                  {ctaText}
+                </UpgradeButton>
+              ) : (
+                <Button asChild>
+                  <Link href="/account/billing">
+                    <ArrowUpRight data-icon="inline-start" />
+                    {ctaText}
+                  </Link>
+                </Button>
+              )}
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
     </div>
   );
 }

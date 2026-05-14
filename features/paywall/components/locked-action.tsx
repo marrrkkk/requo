@@ -4,7 +4,6 @@ import { useState } from "react";
 import { ArrowUpRight, Lock } from "lucide-react";
 import Link from "next/link";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -14,6 +13,12 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import type { PlanFeature } from "@/lib/plans/entitlements";
@@ -107,49 +112,45 @@ export function LockedAction({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <div
-          role="group"
-          aria-label={`${requiredPlanLabel} plan required`}
-          aria-disabled="true"
-          tabIndex={0}
-          className={cn(
-            "relative inline-flex min-h-11 min-w-11 items-center justify-center md:min-h-0 md:min-w-0",
-            className,
-          )}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setOpen(true);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              e.stopPropagation();
-              setOpen(true);
-            }
-          }}
-        >
-          {/* Render child with reduced opacity */}
-          <div className="pointer-events-none opacity-50" aria-hidden="true">
-            {children}
-          </div>
-
-          {/* Lock icon appended */}
-          <Lock
-            className="absolute -right-1 -top-1 size-3.5 text-muted-foreground"
-            aria-hidden="true"
-          />
-
-          {/* Plan badge overlay */}
-          <Badge
-            variant="secondary"
-            className="absolute -right-2 -bottom-2 scale-75"
-          >
-            {requiredPlanLabel}
-          </Badge>
-        </div>
-      </PopoverTrigger>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <div
+                role="group"
+                aria-label={`${requiredPlanLabel} plan required`}
+                aria-disabled="true"
+                tabIndex={0}
+                className={cn(
+                  "relative inline-flex min-h-11 min-w-11 cursor-not-allowed items-center justify-center md:min-h-0 md:min-w-0",
+                  className,
+                )}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setOpen(true);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setOpen(true);
+                  }
+                }}
+              >
+                {/* Render child disabled */}
+                <div className="pointer-events-none opacity-50" aria-hidden="true">
+                  {children}
+                </div>
+              </div>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            <Lock className="inline size-3 mr-1" aria-hidden="true" />
+            Requires {requiredPlanLabel} plan
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       <PopoverContent
         align="center"

@@ -365,22 +365,13 @@ export function BillingStatusCard({
 
       {/* Usage Cards Grid */}
       {isFreePlan && freePlanUsage ? (
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card className="border-border/75 bg-card/97">
-            <CardContent className="p-5">
-              <UsageMeter
-                current={freePlanUsage.inquiries}
-                label="Inquiries"
-                limit={getUsageLimit("free", "inquiriesPerMonth") ?? 100}
-              />
-            </CardContent>
-          </Card>
+        <div className="grid gap-4 md:grid-cols-2">
           <Card className="border-border/75 bg-card/97">
             <CardContent className="p-5">
               <UsageMeter
                 current={freePlanUsage.quotes}
                 label="Quotes"
-                limit={getUsageLimit("free", "quotesPerMonth") ?? 50}
+                limit={getUsageLimit("free", "quotesPerMonth") ?? 30}
               />
             </CardContent>
           </Card>
@@ -389,7 +380,7 @@ export function BillingStatusCard({
               <UsageMeter
                 current={freePlanUsage.requoQuoteEmailsThisMonth}
                 label="Emails sent"
-                limit={getUsageLimit("free", "requoQuoteEmailsPerMonth") ?? 30}
+                limit={getUsageLimit("free", "requoQuoteEmailsPerMonth") ?? 15}
               />
             </CardContent>
           </Card>

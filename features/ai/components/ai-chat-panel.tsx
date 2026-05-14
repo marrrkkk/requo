@@ -141,12 +141,12 @@ async function copyText(
   }
 }
 
-function getSurfaceEyebrow(surface: AiSurface) {
+function getSurfaceEyebrow(surface: AiSurface, entityId: string) {
   switch (surface) {
     case "inquiry":
-      return "Scoped to this inquiry";
+      return entityId;
     case "quote":
-      return "Scoped to this quote";
+      return entityId;
     default:
       return "Across all inquiries and quotes";
   }
@@ -758,11 +758,15 @@ export function AIChatPanel({
   );
   const [composerValue, setComposerValue] = useState("");
   const [isPending, setIsPending] = useState(false);
-  const [isHydrating, setIsHydrating] = useState(() =>
-    isDashboard
+  const [isHydrating, setIsHydrating] = useState(() => {
+    if (!hasFeatureAccess(plan, "aiAssistant")) {
+      return false;
+    }
+
+    return isDashboard
       ? Boolean(activeDashboardConversation && !initialDashboardMessages)
-      : !initialEntitySnapshot,
-  );
+      : !initialEntitySnapshot;
+  });
   const [hydrateError, setHydrateError] = useState<string | null>(null);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [paginationError, setPaginationError] = useState<string | null>(null);
@@ -787,7 +791,7 @@ export function AIChatPanel({
     AiConversationSummary[]
   >(cachedDashboardConversations ?? []);
   const [isHistoryLoading, setIsHistoryLoading] = useState(
-    isDashboard && !hasCachedList,
+    isDashboard && !hasCachedList && hasFeatureAccess(plan, "aiAssistant"),
   );
   const [copyState, setCopyState] = useTimedCopyState();
   const [isCreatingChat, setIsCreatingChat] = useState(false);
@@ -1067,6 +1071,11 @@ export function AIChatPanel({
       return;
     }
 
+    if (!hasFeatureAccess(plan, "aiAssistant")) {
+      setIsHydrating(false);
+      return;
+    }
+
     const cached = entityCache?.get(entityCacheKey);
 
     if (cached && reloadKey === 0) {
@@ -1147,6 +1156,7 @@ export function AIChatPanel({
     entityCache,
     entityCacheKey,
     entityId,
+    plan,
     reloadKey,
     surface,
     userName,
@@ -1850,7 +1860,7 @@ export function AIChatPanel({
   );
 
   const placeholder = useMemo(() => getPanelPlaceholder(surface), [surface]);
-  const eyebrow = useMemo(() => getSurfaceEyebrow(surface), [surface]);
+  const eyebrow = useMemo(() => getSurfaceEyebrow(surface, entityId), [surface, entityId]);
 
   const canOpenHistory = surface === "dashboard" && !historyOpen;
   const isInputDisabled = isPending || isCreatingChat || !conversation;
@@ -1895,18 +1905,20 @@ export function AIChatPanel({
         <div className="flex items-center gap-0.5">
           {surface === "dashboard" ? (
             <>
-              <Button
-                aria-label="New chat"
-                className="size-8"
-                disabled={isPending || isCreatingChat}
-                onClick={() => void createNewDashboardChat()}
-                size="icon-sm"
-                type="button"
-                variant="ghost"
-              >
-                <MessageSquarePlus />
-                <span className="sr-only">New chat</span>
-              </Button>
+              {hasAiAccess ? (
+                <Button
+                  aria-label="New chat"
+                  className="size-8"
+                  disabled={isPending || isCreatingChat}
+                  onClick={() => void createNewDashboardChat()}
+                  size="icon-sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <MessageSquarePlus />
+                  <span className="sr-only">New chat</span>
+                </Button>
+              ) : null}
               {!historyOpen ? (
                 <Button
                   aria-label="History"
@@ -1938,17 +1950,38 @@ export function AIChatPanel({
       </div>
 
       {historyOpen && isDashboard ? (
-        <DashboardChatHistoryList
-          conversations={historyConversations}
-          isLoading={isHistoryLoading}
-          onCreateNew={() => void createNewDashboardChat()}
-          onDelete={(id) => void handleDeleteConversation(id)}
-          onSelect={(nextConversation) => {
-            void loadMessagesForConversation(nextConversation);
-          }}
-          onTogglePin={handleTogglePin}
-          pinnedIds={pinnedIds}
-        />
+        hasAiAccess ? (
+          <DashboardChatHistoryList
+            conversations={historyConversations}
+            isLoading={isHistoryLoading}
+            onCreateNew={() => void createNewDashboardChat()}
+            onDelete={(id) => void handleDeleteConversation(id)}
+            onSelect={(nextConversation) => {
+              void loadMessagesForConversation(nextConversation);
+            }}
+            onTogglePin={handleTogglePin}
+            pinnedIds={pinnedIds}
+          />
+        ) : (
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
+            <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Sparkles className="size-5" aria-hidden="true" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <p className="text-sm font-medium text-foreground">
+                AI Assistant
+              </p>
+              <p className="max-w-xs text-sm leading-6 text-muted-foreground">
+                Get AI-drafted replies, quote suggestions, and follow-up ideas for your inquiries.
+              </p>
+            </div>
+            <Button asChild size="sm">
+              <a href="/account/billing">
+                Upgrade to Pro
+              </a>
+            </Button>
+          </div>
+        )
       ) : (
         <>
           <div className="relative min-h-0 flex-1">

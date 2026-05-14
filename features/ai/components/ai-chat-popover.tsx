@@ -85,14 +85,8 @@ function resolveAiContext(pathname: string): AiContext {
 }
 
 function resolvePanelTitle(surface: AiSurface) {
-  switch (surface) {
-    case "inquiry":
-      return "Inquiry Assistant";
-    case "quote":
-      return "Quote Assistant";
-    default:
-      return "Requo AI";
-  }
+  void surface;
+  return "Requo AI";
 }
 
 type AIChatPopoverProps = {
@@ -292,15 +286,12 @@ export function AIChatPopover({
     }
   }, [isOpen, warmupOnOpenIntent]);
 
-  // Auto-close when navigating to an entity detail page (inquiry/quote).
-  // The entity-specific AI is handled inline on those pages.
+  // Close the popover when navigating between surfaces so the user
+  // starts fresh on the new context.
   const prevSurfaceRef = useRef(aiContext.surface);
 
   useEffect(() => {
-    if (
-      aiContext.surface !== "dashboard" &&
-      prevSurfaceRef.current === "dashboard"
-    ) {
+    if (aiContext.surface !== prevSurfaceRef.current) {
       setIsOpen(false);
     }
 
@@ -320,12 +311,6 @@ export function AIChatPopover({
     },
     [entityCache],
   );
-
-  // Hide the trigger entirely on entity detail pages (inquiry/quote have
-  // their own inline AI panel).
-  if (aiContext.surface !== "dashboard") {
-    return null;
-  }
 
   return (
     <div
