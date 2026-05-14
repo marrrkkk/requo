@@ -2,6 +2,7 @@ import {
   MessageSquareText,
   ReceiptText,
   Sparkles,
+  ArrowRight,
 } from "lucide-react";
 import { ReactNode } from "react";
 
@@ -43,19 +44,80 @@ export function AuthShell({
 
   if (layout === "signup") {
     return (
-      <div className="auth-page xl:overflow-hidden xl:py-0 relative">
-        <div className="absolute left-6 top-6 z-10 sm:left-8 sm:top-8 xl:left-10 xl:top-10">
-          <BrandMark subtitle={null} />
-        </div>
-        <div className="mx-auto flex w-full max-w-[76rem] flex-col gap-10 px-5 py-10 sm:px-6 xl:grid xl:h-screen xl:grid-cols-[1fr_auto_1fr] xl:items-center xl:gap-16 xl:px-8 xl:py-0">
-          <div className="flex w-full justify-center xl:justify-end">
+      <div className="flex min-h-dvh w-full flex-col lg:flex-row">
+        {/* Left: Form side */}
+        <div className="flex flex-1 flex-col items-center justify-center px-5 py-10 sm:px-8 lg:px-12 xl:px-16">
+          <div className="w-full max-w-[26rem]">
+            <div className="mb-8 lg:hidden">
+              <BrandMark subtitle={null} />
+            </div>
             <AuthFormPlain badge={badge} title={title} description={description} hideBrandMark>
               {children}
             </AuthFormPlain>
           </div>
-          <div className="hidden h-[40rem] w-px shrink-0 bg-border/70 xl:block" />
-          <div className="flex w-full justify-center xl:justify-start">
-            <SignupBenefits />
+        </div>
+
+        {/* Right: Visual branded panel */}
+        <div className="auth-visual-panel">
+          <div className="relative z-10 flex h-full flex-col justify-between p-8 sm:p-10 lg:p-12 xl:p-16">
+            <div className="auth-visual-brand">
+              <BrandMark subtitle={null} />
+            </div>
+
+            <div className="flex flex-col gap-8">
+              <div className="flex flex-col gap-4">
+                <h2 className="font-heading text-3xl font-semibold leading-tight tracking-tight text-white sm:text-4xl xl:text-[2.75rem]">
+                  Turn inquiries into
+                  <br />
+                  accepted quotes.
+                </h2>
+                <p className="max-w-md text-base leading-relaxed text-white/70 sm:text-lg">
+                  The workflow tool for owner-led service businesses that handle
+                  custom pricing.
+                </p>
+              </div>
+
+              <div className="grid gap-5">
+                {[
+                  {
+                    icon: MessageSquareText,
+                    text: "Capture scope, timing, and budget in one form",
+                  },
+                  {
+                    icon: ReceiptText,
+                    text: "Send professional quotes with line items",
+                  },
+                  {
+                    icon: Sparkles,
+                    text: "Track views, acceptances, and follow up on time",
+                  },
+                ].map((item, i) => {
+                  const Icon = item.icon;
+                  return (
+                    <div key={i} className="flex items-center gap-4">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 backdrop-blur-sm">
+                        <Icon className="h-4.5 w-4.5 text-white/90" />
+                      </div>
+                      <p className="text-sm font-medium text-white/85 sm:text-[0.94rem]">
+                        {item.text}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-sm text-white/50">
+              <ArrowRight className="h-3.5 w-3.5" />
+              <span>Free to start. No credit card required.</span>
+            </div>
+          </div>
+
+          {/* Decorative elements */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="absolute -right-20 -top-20 h-80 w-80 rounded-full bg-white/[0.04] blur-3xl" />
+            <div className="absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-white/[0.03] blur-3xl" />
+            <div className="absolute right-12 top-1/3 h-48 w-48 rounded-full bg-white/[0.02] blur-2xl" />
           </div>
         </div>
       </div>
@@ -142,7 +204,7 @@ function AuthFormPlain({
   hideBrandMark,
 }: Pick<AuthShellProps, "badge" | "title" | "description" | "children"> & { hideBrandMark?: boolean }) {
   return (
-    <div className="flex w-full max-w-[26rem] flex-col gap-8 pt-12 xl:pt-0">
+    <div className="flex w-full max-w-[26rem] flex-col gap-8">
       <div className="flex flex-col gap-6">
         {!hideBrandMark && <BrandMark subtitle={null} />}
         <div className="flex flex-col gap-2.5">
@@ -158,56 +220,6 @@ function AuthFormPlain({
         </div>
       </div>
       <div>{children}</div>
-    </div>
-  );
-}
-
-function SignupBenefits() {
-  return (
-    <div className="hidden xl:flex xl:w-full xl:max-w-[28rem] xl:flex-col xl:justify-center">
-      <div className="flex flex-col gap-10">
-        <div className="flex flex-col gap-3">
-          <h2 className="font-heading text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            Built for service businesses.
-          </h2>
-          <p className="text-base leading-normal sm:leading-7 text-muted-foreground sm:text-lg">
-            Stop losing track of inquiries and scattered quotes.
-          </p>
-        </div>
-        
-        <div className="grid gap-8 mt-2">
-          {[
-            {
-              icon: MessageSquareText,
-              title: "Capture every inquiry",
-              description: "Use clean public forms to collect exactly what you need before quoting."
-            },
-            {
-              icon: ReceiptText,
-              title: "Send quotes faster",
-              description: "Keep the job details open right next to your pricing and line items."
-            },
-            {
-              icon: Sparkles,
-              title: "Never miss a follow-up",
-              description: "Know immediately when a quote is viewed, accepted, or needs a nudge."
-            }
-          ].map((benefit, i) => {
-            const Icon = benefit.icon;
-            return (
-              <div key={i} className="flex items-start gap-5">
-                <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <h3 className="text-base font-medium text-foreground">{benefit.title}</h3>
-                  <p className="text-sm leading-6 text-muted-foreground">{benefit.description}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }

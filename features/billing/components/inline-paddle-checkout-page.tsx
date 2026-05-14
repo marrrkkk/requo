@@ -9,8 +9,6 @@ import {
 import Link from "next/link";
 import {
   ArrowLeft,
-  Briefcase,
-  Building2,
   Check,
   Loader2,
   Lock,
@@ -18,10 +16,7 @@ import {
 } from "lucide-react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { useTheme } from "@/components/theme-provider";
 import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
 import {
   PaddleProvider,
@@ -67,15 +62,17 @@ type CheckoutShellProps = InlinePaddleCheckoutPageProps & {
 
 const planHighlights: Record<PaidPlan, string[]> = {
   pro: [
-    "Unlimited inquiries and quotes",
-    "Follow-up reminders and tracking",
-    "AI-assisted quote drafts",
-    "Custom branding",
+    "Unlimited quotes & follow-ups",
+    "AI assistant (100 gen/mo)",
+    "Workflow analytics",
+    "Page customization & branding",
+    "Up to 5 businesses",
   ],
   business: [
     "Everything in Pro",
-    "Team members and roles",
-    "Advanced analytics",
+    "Team members (25/business)",
+    "500 AI generations/mo",
+    "Unlimited businesses",
     "Priority support",
   ],
 };
@@ -121,7 +118,6 @@ function InlineCheckoutShell({
   initialInterval,
 }: CheckoutShellProps) {
   const paddle = usePaddle();
-  const { resolvedTheme } = useTheme();
   const [plan, setPlan] = useState<PaidPlan>(initialPlan);
   const [interval, setInterval] = useState<BillingInterval>(initialInterval);
   const [planSheetOpen, setPlanSheetOpen] = useState(false);
@@ -135,7 +131,7 @@ function InlineCheckoutShell({
   const lastRequestedKeyRef = useRef<string | null>(null);
   const openedTransactionRef = useRef<string | null>(null);
 
-  const paddleTheme = resolvedTheme === "dark" ? "dark" : "light";
+  const paddleTheme = "light" as const;
 
   const amount = useMemo(
     () => getPlanPrice(plan, "USD", interval),
@@ -218,7 +214,8 @@ function InlineCheckoutShell({
           },
           {
             displayMode: "inline",
-            frameStyle: "width: 100%; min-width: 100%; border: none;",
+            frameStyle:
+              "width: 100%; min-width: 100%; border: none; background: transparent;",
             frameTarget: PADDLE_FRAME_TARGET,
             frameInitialHeight: "550",
             theme: paddleTheme,
@@ -301,11 +298,9 @@ function InlineCheckoutShell({
   const isCheckoutLoaded = checkoutLoadedKey === currentPlanKey;
   const showLoading = isPreparingCheckout || !isCheckoutLoaded;
 
-  const PlanIcon = plan === "pro" ? Briefcase : Building2;
-
   return (
     <>
-      {/* Full-page loading state */}
+      {/* Full-page loading overlay */}
       <div
         className={cn(
           "fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background transition-opacity duration-300",
@@ -314,7 +309,7 @@ function InlineCheckoutShell({
             : "pointer-events-none opacity-0",
         )}
       >
-        <Loader2 className="size-8 animate-spin text-primary" />
+        <Loader2 className="size-7 animate-spin text-primary" />
         <p className="text-sm text-muted-foreground">
           Preparing secure checkout…
         </p>
@@ -323,7 +318,7 @@ function InlineCheckoutShell({
       {/* Error state */}
       {activeCheckoutError ? (
         <div className="flex min-h-svh flex-col items-center justify-center gap-5 bg-background px-4">
-          <div className="section-panel max-w-md px-6 py-6 text-center">
+          <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-6 py-5 text-center">
             <p className="text-sm text-destructive">{activeCheckoutError}</p>
           </div>
           <Button variant="outline" onClick={() => window.location.reload()}>
@@ -332,7 +327,7 @@ function InlineCheckoutShell({
         </div>
       ) : null}
 
-      {/* Checkout page */}
+      {/* Checkout layout */}
       <div
         className={cn(
           "min-h-svh w-full bg-background transition-opacity duration-300",
@@ -340,188 +335,157 @@ function InlineCheckoutShell({
         )}
       >
         {/* Header */}
-        <header className="sticky top-0 z-10 flex h-[4.5rem] w-full shrink-0 items-center justify-between border-b border-border/70 bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/60 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-4">
-            <BrandMark href="/account/billing" subtitle="Checkout" />
-            <div className="h-4 w-px bg-border max-sm:hidden" />
-            <Button asChild className="max-sm:hidden" size="sm" variant="ghost">
+        <header className="sticky top-0 z-10 flex h-14 w-full items-center justify-between border-b border-border/60 bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/60 sm:px-6">
+          <div className="flex items-center gap-3">
+            <Button asChild size="sm" variant="ghost" className="gap-1.5">
               <Link href="/account/billing">
-                <ArrowLeft data-icon="inline-start" className="size-4" />
-                Back to billing
+                <ArrowLeft className="size-3.5" />
+                <span className="max-sm:sr-only">Back</span>
               </Link>
             </Button>
+            <div className="h-4 w-px bg-border/70 max-sm:hidden" />
+            <BrandMark href="/account/billing" subtitle={null} />
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Lock className="size-3.5" />
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Lock className="size-3" />
             <span className="max-sm:hidden">Secure checkout</span>
           </div>
         </header>
 
-        {/* Main content */}
-        <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
-          <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-10 xl:gap-14">
-            {/* Left: Paddle checkout frame */}
-            <section className="order-2 min-w-0 lg:order-1">
-              <div className="flex flex-col gap-5">
-                <div className="flex flex-col gap-2">
-                  <h1 className="font-heading text-xl font-semibold tracking-tight sm:text-2xl">
-                    Complete your subscription
-                  </h1>
-                  <p className="text-sm leading-6 text-muted-foreground">
-                    Enter your payment details below. Your subscription starts immediately.
-                  </p>
-                </div>
-
-                <div className="section-panel overflow-hidden">
-                  <div
-                    id={PADDLE_FRAME_TARGET}
-                    className={`${PADDLE_FRAME_TARGET} min-h-[500px]`}
-                  />
-                </div>
-
-                {/* Trust signals */}
-                <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1.5">
-                    <Shield className="size-3.5 text-primary" />
-                    256-bit SSL encryption
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <Lock className="size-3.5 text-primary" />
-                    Processed by Paddle
-                  </span>
-                </div>
+        {/* Content */}
+        <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:py-12">
+          <div className="grid gap-8 lg:grid-cols-[1fr_22rem] lg:gap-12">
+            {/* Payment form */}
+            <div className="order-1 lg:order-1">
+              <div className="mb-5">
+                <h1 className="font-heading text-xl font-semibold tracking-tight">
+                  Payment details
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Your subscription starts immediately after payment.
+                </p>
               </div>
-            </section>
 
-            {/* Right: Order summary sidebar */}
-            <aside className="order-1 lg:sticky lg:top-[6rem] lg:order-2 lg:self-start">
-              <div className="flex flex-col gap-5">
-                {/* Plan card */}
-                <div className="section-panel overflow-hidden">
-                  <div className="flex flex-col gap-5 px-5 py-5 sm:px-6 sm:py-6">
-                    {/* Plan header */}
-                    <div className="flex items-start gap-4">
-                      <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-background/90">
-                        <PlanIcon className="size-5 text-primary" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <h2 className="font-heading text-base font-semibold tracking-tight">
-                            {planMeta[plan].label}
-                          </h2>
-                          <Badge variant="secondary" className="text-[10px]">
-                            {interval === "yearly" ? "Annual" : "Monthly"}
-                          </Badge>
-                        </div>
-                        <p className="mt-0.5 text-sm text-muted-foreground">
-                          {planMeta[plan].description}
-                        </p>
-                      </div>
-                    </div>
+              {/* Paddle frame */}
+              <div className="rounded-xl border border-border/60 bg-card/50 p-1">
+                <div
+                  id={PADDLE_FRAME_TARGET}
+                  className={`${PADDLE_FRAME_TARGET} min-h-[500px] overflow-hidden rounded-lg`}
+                />
+              </div>
 
-                    {/* Plan features */}
-                    <div className="flex flex-col gap-2">
-                      {planHighlights[plan].map((feature) => (
-                        <div className="flex items-center gap-2.5" key={feature}>
-                          <Check className="size-3.5 shrink-0 text-primary" />
-                          <span className="text-sm text-foreground">{feature}</span>
-                        </div>
-                      ))}
-                    </div>
+              <div className="mt-4 flex items-center gap-4 text-[11px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <Shield className="size-3 text-primary/70" />
+                  256-bit SSL
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Lock className="size-3 text-primary/70" />
+                  Paddle secure payments
+                </span>
+              </div>
+            </div>
 
-                    <Button
-                      className="w-full"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPlanSheetOpen(true)}
-                      type="button"
-                    >
-                      Change plan or interval
-                    </Button>
+            {/* Order summary */}
+            <div className="order-2 lg:sticky lg:top-20 lg:order-2 lg:self-start">
+              <div className="rounded-xl border border-border/60 bg-card/70">
+                {/* Plan info */}
+                <div className="p-5">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">
+                      {planMeta[plan].label}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {interval === "yearly" ? "Annual" : "Monthly"} billing
+                    </p>
                   </div>
 
-                  <Separator className="bg-border/60" />
+                  <ul className="mt-4 flex flex-col gap-1.5">
+                    {planHighlights[plan].map((feature) => (
+                      <li
+                        className="flex items-center gap-2 text-xs text-muted-foreground"
+                        key={feature}
+                      >
+                        <Check className="size-3 shrink-0 text-primary/70" />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
 
-                  {/* Pricing breakdown */}
-                  <div className="flex flex-col gap-3 px-5 py-5 sm:px-6 sm:py-6">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        {planMeta[plan].label} ({interval === "yearly" ? "annual" : "monthly"})
+                  <button
+                    className="mt-4 text-xs font-medium text-primary hover:underline"
+                    onClick={() => setPlanSheetOpen(true)}
+                    type="button"
+                  >
+                    Change plan
+                  </button>
+                </div>
+
+                {/* Price */}
+                <div className="border-t border-border/50 p-5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      {planMeta[plan].label} ({interval === "yearly" ? "annual" : "monthly"})
+                    </span>
+                    <span className="text-sm font-medium text-foreground">
+                      {formatPrice(amount, "USD")}
+                    </span>
+                  </div>
+                  {interval === "yearly" ? (
+                    <div className="mt-1.5 flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">
+                        Per month
                       </span>
-                      <span className="font-medium text-foreground">
-                        {formatPrice(amount, "USD")}
-                      </span>
-                    </div>
-
-                    {interval === "yearly" ? (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          Monthly equivalent
-                        </span>
-                        <span className="text-muted-foreground">
-                          {formatPrice(Math.round(amount / 12), "USD")}/mo
-                        </span>
-                      </div>
-                    ) : null}
-
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Tax</span>
-                      <span className="text-muted-foreground">
-                        Calculated at checkout
-                      </span>
-                    </div>
-
-                    <Separator className="bg-border/60" />
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-foreground">
-                        Total due today
-                      </span>
-                      <span className="font-heading text-xl font-semibold tracking-tight text-foreground">
-                        {formatPrice(amount, "USD")}
-                        <span className="ml-1 text-sm font-normal text-muted-foreground">
-                          /{interval === "yearly" ? "yr" : "mo"}
-                        </span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatPrice(Math.round(amount / 12), "USD")}/mo
                       </span>
                     </div>
+                  ) : null}
+                  <div className="mt-1.5 flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Tax</span>
+                    <span className="text-xs text-muted-foreground">
+                      Calculated at checkout
+                    </span>
+                  </div>
+
+                  <div className="mt-4 flex items-baseline justify-between border-t border-border/40 pt-4">
+                    <span className="text-sm font-medium text-foreground">
+                      Due today
+                    </span>
+                    <span className="font-heading text-lg font-semibold tracking-tight text-foreground">
+                      {formatPrice(amount, "USD")}
+                      <span className="ml-0.5 text-xs font-normal text-muted-foreground">
+                        /{interval === "yearly" ? "yr" : "mo"}
+                      </span>
+                    </span>
                   </div>
                 </div>
-
-                {/* Business context note */}
-                <div className="soft-panel px-4 py-3.5">
-                  <p className="text-xs leading-5 text-muted-foreground">
-                    Subscribing for <span className="font-medium text-foreground">{businessName}</span>.
-                    {currentPlan !== "free" ? (
-                      <> Upgrading from {currentPlan} plan.</>
-                    ) : (
-                      <> Currently on the free plan.</>
-                    )}
-                  </p>
-                </div>
-
-                {/* Links */}
-                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                  <Link
-                    href="/terms"
-                    className="transition-colors hover:text-foreground"
-                  >
-                    Terms
-                  </Link>
-                  <Link
-                    href="/privacy"
-                    className="transition-colors hover:text-foreground"
-                  >
-                    Privacy
-                  </Link>
-                  <Link
-                    href="/refund-policy"
-                    className="transition-colors hover:text-foreground"
-                  >
-                    Refund policy
-                  </Link>
-                </div>
               </div>
-            </aside>
+
+              {/* Context */}
+              <p className="mt-3 px-1 text-[11px] leading-4 text-muted-foreground">
+                Subscribing for{" "}
+                <span className="font-medium text-foreground">
+                  {businessName}
+                </span>
+                .{" "}
+                {currentPlan !== "free"
+                  ? `Upgrading from ${planMeta[currentPlan].label}.`
+                  : "Currently on the free plan."}
+              </p>
+
+              <div className="mt-3 flex gap-3 px-1 text-[11px] text-muted-foreground">
+                <Link href="/terms" className="hover:text-foreground">
+                  Terms
+                </Link>
+                <Link href="/privacy" className="hover:text-foreground">
+                  Privacy
+                </Link>
+                <Link href="/refund-policy" className="hover:text-foreground">
+                  Refunds
+                </Link>
+              </div>
+            </div>
           </div>
         </main>
       </div>
