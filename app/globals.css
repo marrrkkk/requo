@@ -370,6 +370,77 @@ html[data-reload-loading="true"] [data-reload-loading-overlay] {
   }
 }
 
+@keyframes ai-glow-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--primary) 50%, transparent),
+      0 0 12px color-mix(in srgb, var(--primary) 20%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--primary) 70%, transparent),
+      0 0 20px color-mix(in srgb, var(--primary) 35%, transparent);
+  }
+}
+
+.ai-glow-border {
+  animation: ai-glow-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes ai-glow-rotate {
+  from {
+    --ai-glow-angle: 0deg;
+  }
+  to {
+    --ai-glow-angle: 360deg;
+  }
+}
+
+@property --ai-glow-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.ai-glow-section {
+  position: relative;
+  overflow: visible;
+  border-color: transparent;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--primary) 40%, transparent),
+    0 0 16px color-mix(in srgb, var(--primary) 15%, transparent);
+}
+
+.ai-glow-section::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--ai-glow-angle),
+    transparent 25%,
+    var(--primary) 50%,
+    transparent 75%
+  );
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: ai-glow-rotate 2s linear infinite;
+  pointer-events: none;
+}
+
+.ai-glow-section::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 24px 4px color-mix(in srgb, var(--primary) 20%, transparent);
+  opacity: 0.7;
+  animation: ai-glow-pulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
 @keyframes subtle-fade-up {
   0% {
     opacity: 0;
