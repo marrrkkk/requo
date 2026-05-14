@@ -723,6 +723,7 @@ export async function updateBusinessInquiryPageSettings({
           }
         : undefined,
       cards: values.cards,
+      thankYouMessage: values.thankYouMessage,
     },
     {
       businessName: business.name,

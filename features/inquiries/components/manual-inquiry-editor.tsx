@@ -11,6 +11,7 @@ import {
 } from "@/components/shared/dashboard-layout";
 import { InfoTile } from "@/components/shared/info-tile";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Combobox } from "@/components/ui/combobox";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -592,25 +593,21 @@ function renderProjectInput({
         <div className="grid gap-2 sm:grid-cols-2">
           {(field.options ?? []).map((option) => {
             const optionId = `${inputId}-${option.id}`;
-            const checked = multiValue.includes(option.value);
+            const isChecked = multiValue.includes(option.value);
 
             return (
               <label
                 key={option.id}
-                className="soft-panel flex items-center gap-3 px-3 py-3 shadow-none"
+                className="soft-panel flex cursor-pointer items-center gap-3 px-3 py-3 shadow-none"
                 htmlFor={optionId}
               >
-                <input
-                  checked={checked}
-                  className="size-4 rounded border border-input/95"
+                <Checkbox
+                  checked={isChecked}
                   disabled={isPending}
                   id={optionId}
-                  name={inputName}
-                  onChange={(event) =>
-                    onMultiValueChange(option.value, event.currentTarget.checked)
+                  onCheckedChange={(state) =>
+                    onMultiValueChange(option.value, state === true)
                   }
-                  type="checkbox"
-                  value={option.value}
                 />
                 <span className="text-sm text-foreground">{option.label}</span>
               </label>

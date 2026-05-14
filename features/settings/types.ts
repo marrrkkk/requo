@@ -186,6 +186,7 @@ export type BusinessInquiryPageFieldName =
   | "brandTagline"
   | "formTitle"
   | "formDescription"
+  | "thankYouMessage"
   | "businessContactPhone"
   | "businessContactEmail"
   | "businessFacebookUrl"

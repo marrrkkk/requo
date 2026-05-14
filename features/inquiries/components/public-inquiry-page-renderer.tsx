@@ -495,6 +495,8 @@ function PublicInquiryReceivedFeedback({
     business.slug,
     business.form.isDefault ? undefined : business.form.slug,
   );
+  const customMessage = business.inquiryPageConfig.thankYouMessage;
+  const defaultMessage = `${business.name} will review your inquiry and follow up with a quote via your preferred contact method. Keep an eye on your inbox.`;
 
   return (
     <main className="public-page flex min-h-[calc(100svh-3rem)] items-center justify-center">
@@ -507,7 +509,7 @@ function PublicInquiryReceivedFeedback({
             Inquiry received.
           </h1>
           <p className="max-w-md text-sm leading-6 text-muted-foreground">
-            Thanks. Your inquiry has been sent to {business.name}.
+            {customMessage || defaultMessage}
           </p>
         </div>
         <Button asChild size="lg">

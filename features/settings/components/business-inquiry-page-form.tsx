@@ -179,6 +179,9 @@ export function BusinessInquiryPageForm({
   const [formDescription, setFormDescription] = useState(
     settings.inquiryPageConfig.formDescription ?? "",
   );
+  const [thankYouMessage, setThankYouMessage] = useState(
+    settings.inquiryPageConfig.thankYouMessage ?? "",
+  );
   const [businessContactPhone, setBusinessContactPhone] = useState(
     settings.inquiryPageConfig.businessContact?.phone ?? "",
   );
@@ -238,6 +241,7 @@ export function BusinessInquiryPageForm({
   const brandTaglineError = getFieldError(fieldErrors, "brandTagline");
   const formTitleError = getFieldError(fieldErrors, "formTitle");
   const formDescriptionError = getFieldError(fieldErrors, "formDescription");
+  const thankYouMessageError = getFieldError(fieldErrors, "thankYouMessage");
   const businessContactPhoneError = getFieldError(
     fieldErrors,
     "businessContactPhone",
@@ -301,6 +305,7 @@ export function BusinessInquiryPageForm({
     description !== (settings.inquiryPageConfig.description ?? "") ||
     formTitle !== settings.inquiryPageConfig.formTitle ||
     formDescription !== (settings.inquiryPageConfig.formDescription ?? "") ||
+    thankYouMessage !== (settings.inquiryPageConfig.thankYouMessage ?? "") ||
     businessContactPhone !==
       (settings.inquiryPageConfig.businessContact?.phone ?? "") ||
     businessContactEmail !==
@@ -453,6 +458,7 @@ export function BusinessInquiryPageForm({
       description: normalizeOptionalTextDraft(description),
       formTitle: formTitle.trim(),
       formDescription: normalizeOptionalTextDraft(formDescription),
+      thankYouMessage: normalizeOptionalTextDraft(thankYouMessage),
       businessContact: draftBusinessContact,
       showcaseImage: showcaseImageUrl.trim()
         ? {
@@ -481,6 +487,7 @@ export function BusinessInquiryPageForm({
       showcaseImageFrame,
       showcaseImageSize,
       showcaseImageUrl,
+      thankYouMessage,
     ],
   );
 
@@ -629,6 +636,7 @@ export function BusinessInquiryPageForm({
     setDescription(settings.inquiryPageConfig.description ?? "");
     setFormTitle(settings.inquiryPageConfig.formTitle);
     setFormDescription(settings.inquiryPageConfig.formDescription ?? "");
+    setThankYouMessage(settings.inquiryPageConfig.thankYouMessage ?? "");
     setBusinessContactPhone(
       settings.inquiryPageConfig.businessContact?.phone ?? "",
     );
@@ -908,6 +916,47 @@ export function BusinessInquiryPageForm({
                         errors={
                           formDescriptionError
                             ? [{ message: formDescriptionError }]
+                            : undefined
+                        }
+                      />
+                    </FieldContent>
+                  </Field>
+                </FieldGroup>
+              </DetailsPanel>
+
+              <DetailsPanel
+                description="Shown after a customer submits an inquiry."
+                eyebrow="Confirmation"
+                title="Thank you message"
+              >
+                <FieldGroup>
+                  <Field data-invalid={Boolean(thankYouMessageError) || undefined}>
+                    <FieldLabel htmlFor="inquiry-page-thank-you-message">
+                      Custom message
+                    </FieldLabel>
+                    <FieldContent>
+                      <LockedAction feature="inquiryPageCustomization" plan={settings.plan}>
+                        <Textarea
+                          aria-invalid={Boolean(thankYouMessageError) || undefined}
+                          disabled={isPending || pageCustomizationLocked}
+                          id="inquiry-page-thank-you-message"
+                          maxLength={280}
+                          name="thankYouMessage"
+                          onChange={(event) =>
+                            setThankYouMessage(event.currentTarget.value)
+                          }
+                          placeholder={`${settings.name} will review your inquiry and follow up with a quote via your preferred contact method. Keep an eye on your inbox.`}
+                          rows={3}
+                          value={thankYouMessage}
+                        />
+                      </LockedAction>
+                      <FieldDescription>
+                        Leave blank to use the default message. Customers see this after submitting.
+                      </FieldDescription>
+                      <FieldError
+                        errors={
+                          thankYouMessageError
+                            ? [{ message: thankYouMessageError }]
                             : undefined
                         }
                       />
