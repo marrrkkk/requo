@@ -220,11 +220,11 @@ export function MarketingHero() {
         <div className="flex flex-col gap-12 lg:gap-14">
           <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-6 text-center">
             <div className="flex flex-col items-center gap-4">
-              <h1 className="max-w-4xl font-heading text-4xl font-semibold leading-[0.94] tracking-tight text-balance sm:text-6xl xl:text-[4.15rem]">
-                Turn more inquiries into won jobs.
+              <h1 className="max-w-4xl font-heading text-[2rem] font-semibold leading-[1.05] tracking-tight text-balance sm:text-5xl sm:leading-[0.96] lg:text-6xl xl:text-[4.15rem] xl:leading-[0.94]">
+                Turn inquiries into accepted quotes.
               </h1>
-              <p className="max-w-2xl text-base leading-normal sm:leading-8 text-muted-foreground sm:text-lg">
-                Requo is quote software for service businesses. Capture inquiries, send clear quotes, see who opens them, and follow up before jobs go cold.
+              <p className="max-w-2xl text-[0.95rem] leading-relaxed text-muted-foreground text-balance sm:text-base sm:leading-8 lg:text-lg">
+                Capture every customer request, send professional quotes, know when they&apos;re opened, and follow up at the right time before promising leads go quiet.
               </p>
             </div>
 
@@ -250,7 +250,7 @@ export function MarketingHero() {
       </section>
 
       <section
-        className="mx-auto mt-24 w-full max-w-6xl px-5 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0"
+        className="mx-auto mt-32 w-full max-w-6xl px-5 sm:mt-40 sm:px-6 lg:mt-48 lg:px-8 xl:px-0"
         id="why-requo"
       >
         <div className="grid gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-16">
@@ -341,7 +341,7 @@ export function MarketingHero() {
       </section>
 
       <section
-        className="mx-auto mt-24 w-full max-w-6xl px-5 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0"
+        className="mx-auto mt-32 w-full max-w-6xl px-5 sm:mt-40 sm:px-6 lg:mt-48 lg:px-8 xl:px-0"
         id="workflow"
       >
         <InViewReveal className="flex flex-col items-start gap-4">
@@ -404,7 +404,7 @@ export function MarketingHero() {
       </section>
 
       <section
-        className="relative left-1/2 mt-24 w-screen -translate-x-1/2 overflow-x-clip sm:mt-32 lg:mt-40"
+        className="relative left-1/2 mt-32 w-screen -translate-x-1/2 overflow-x-clip sm:mt-40 lg:mt-48"
         id="features"
       >
         <InViewReveal className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-5 sm:px-6 lg:px-8 xl:px-0">
@@ -433,7 +433,7 @@ export function MarketingHero() {
         </div>
       </section>
 
-      <section className="mx-auto mt-24 w-full max-w-4xl px-5 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8" id="faq">
+      <section className="mx-auto mt-32 w-full max-w-4xl px-5 sm:mt-40 sm:px-6 lg:mt-48 lg:px-8" id="faq">
         <InViewReveal className="flex flex-col items-start gap-4">
           <p className="eyebrow">FAQ</p>
           <h2 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl lg:text-5xl">
@@ -491,56 +491,43 @@ export function MarketingHero() {
       </section>
 
       <InViewReveal
-        className="mx-auto mt-24 w-full max-w-6xl px-5 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0"
+        className="mx-auto mt-32 w-full max-w-4xl px-5 sm:mt-40 sm:px-6 lg:mt-48 lg:px-8 xl:px-0"
         delay={120}
       >
-        <section className="hero-panel overflow-hidden">
-          <div className="relative flex flex-col items-center gap-6 px-5 py-12 text-center sm:px-8 sm:py-16 lg:py-20 xl:px-12">
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute -top-24 right-[-8rem] -z-10 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
-            />
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute -bottom-20 left-[-6rem] -z-10 h-56 w-56 rounded-full bg-primary/5 blur-3xl"
-            />
+        <section className="flex flex-col items-center gap-6 text-center">
+          <h2 className="max-w-2xl font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl lg:text-5xl">
+            Stop losing jobs to slow follow-up.
+          </h2>
 
-            <p className="eyebrow">READY WHEN YOU ARE</p>
+          <p className="max-w-xl text-base leading-relaxed text-muted-foreground text-balance sm:text-lg sm:leading-8">
+            Set up in minutes. Capture your first inquiry, send a quote, and see the moment it&apos;s opened.
+          </p>
 
-            <h2 className="max-w-2xl font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl lg:text-5xl">
-              Your inquiries deserve better than your inbox.
-            </h2>
+          <div className="mt-2 flex w-full max-w-sm flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row">
+            <Button asChild className="w-full sm:w-auto" size="lg">
+              <Link href="/signup">
+                Get started free
+                <ArrowRight data-icon="inline-end" />
+              </Link>
+            </Button>
+            <Button asChild className="w-full sm:w-auto" size="lg" variant="outline">
+              <Link href="/pricing">See pricing</Link>
+            </Button>
+          </div>
 
-            <p className="max-w-xl text-base leading-normal text-muted-foreground sm:text-lg sm:leading-8">
-              Start free. Set up your first form, send a quote, and track follow-ups today.
-            </p>
-
-            <div className="flex w-full max-w-sm flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row">
-              <Button asChild className="w-full sm:w-auto" size="lg">
-                <Link href="/signup">
-                  Start free
-                  <ArrowRight data-icon="inline-end" />
-                </Link>
-              </Button>
-              <Button asChild className="w-full sm:w-auto" size="lg" variant="outline">
-                <Link href="/pricing">See pricing</Link>
-              </Button>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
-                <Check className="size-3 text-primary" />
-                Free plan
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Check className="size-3 text-primary" />
-                No credit card
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <Check className="size-3 text-primary" />
-                Cancel anytime
-              </span>
-            </div>
+          <div className="mt-1 flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <Check className="size-3 text-primary" />
+              Free plan available
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Check className="size-3 text-primary" />
+              No credit card required
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <Check className="size-3 text-primary" />
+              Cancel anytime
+            </span>
           </div>
         </section>
       </InViewReveal>

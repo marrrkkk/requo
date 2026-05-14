@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, Minus } from "lucide-react";
 import { Fragment, Suspense } from "react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
@@ -16,7 +16,6 @@ import {
   PublicHeaderActions,
   PublicHeaderActionsFallback,
 } from "@/components/marketing/public-header-actions";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -29,7 +28,7 @@ import type { BillingCurrency } from "@/lib/billing/types";
 import { PricingIntervalToggle } from "@/components/marketing/pricing-interval-toggle";
 
 /*──────────────────────────────────────────────────────────────────────────────
- * Plan feature list definition — drives the comparison table.
+ * Feature comparison table data
  *────────────────────────────────────────────────────────────────────────────*/
 
 type PricingFeatureRow = {
@@ -49,39 +48,46 @@ const pricingCategories: PricingFeatureCategory[] = [
     category: "Core Workflow",
     features: [
       { label: "Inquiry capture", free: true, pro: true, business: true },
-      { label: "Quote workflow", free: true, pro: true, business: true },
-      { label: "Follow-up reminders", free: true, pro: true, business: true },
-      { label: "Viewed, accepted, and rejected quote tracking", free: true, pro: true, business: true },
+      { label: "Quote creation & sending", free: true, pro: true, business: true },
+      { label: "Public inquiry pages", free: true, pro: true, business: true },
+      { label: "Public quote pages", free: true, pro: true, business: true },
+      { label: "Quote status tracking", free: true, pro: true, business: true },
+      { label: "Follow-up reminders", free: "3 active", pro: "Unlimited", business: "Unlimited" },
+      { label: "Customer history", free: true, pro: true, business: true },
     ],
   },
   {
-    category: "Usage Limits",
+    category: "Limits",
     features: [
-      {
-        label: "Businesses per plan",
-        free: formatUsageLimitValue(
-          "businessesPerPlan",
-          getUsageLimit("free", "businessesPerPlan"),
-        ),
-        pro: formatUsageLimitValue(
-          "businessesPerPlan",
-          getUsageLimit("pro", "businessesPerPlan"),
-        ),
-        business: formatUsageLimitValue(
-          "businessesPerPlan",
-          getUsageLimit("business", "businessesPerPlan"),
-        ),
-      },
-      {
-        label: "Inquiries per month",
-        free: `${getUsageLimit("free", "inquiriesPerMonth")}`,
-        pro: "Unlimited",
-        business: "Unlimited",
-      },
+      { label: "Inquiries per month", free: "Unlimited", pro: "Unlimited", business: "Unlimited" },
       {
         label: "Quotes per month",
         free: `${getUsageLimit("free", "quotesPerMonth")}`,
         pro: "Unlimited",
+        business: "Unlimited",
+      },
+      {
+        label: "AI generations / month",
+        free: `${getUsageLimit("free", "aiLineItemGenerationsPerMonth")}`,
+        pro: `${getUsageLimit("pro", "aiLineItemGenerationsPerMonth")}`,
+        business: `${getUsageLimit("business", "aiLineItemGenerationsPerMonth")}`,
+      },
+      {
+        label: "Requo email sends / month",
+        free: `${getUsageLimit("free", "requoQuoteEmailsPerMonth")}`,
+        pro: `${getUsageLimit("pro", "requoQuoteEmailsPerMonth")}`,
+        business: `${getUsageLimit("business", "requoQuoteEmailsPerMonth")}`,
+      },
+      {
+        label: "Businesses",
+        free: `${getUsageLimit("free", "businessesPerPlan")}`,
+        pro: `${getUsageLimit("pro", "businessesPerPlan")}`,
+        business: "Unlimited",
+      },
+      {
+        label: "Live inquiry forms",
+        free: `${getUsageLimit("free", "liveFormsPerBusiness")}`,
+        pro: `${getUsageLimit("pro", "liveFormsPerBusiness")}`,
         business: "Unlimited",
       },
       {
@@ -91,141 +97,62 @@ const pricingCategories: PricingFeatureCategory[] = [
         business: `${getUsageLimit("business", "customFieldsPerForm")}`,
       },
       {
-        label: "Public inquiry upload size",
-        free: formatUsageLimitValue(
-          "publicInquiryAttachmentMaxBytes",
-          getUsageLimit("free", "publicInquiryAttachmentMaxBytes"),
-        ),
-        pro: formatUsageLimitValue(
-          "publicInquiryAttachmentMaxBytes",
-          getUsageLimit("pro", "publicInquiryAttachmentMaxBytes"),
-        ),
-        business: formatUsageLimitValue(
-          "publicInquiryAttachmentMaxBytes",
-          getUsageLimit("business", "publicInquiryAttachmentMaxBytes"),
-        ),
+        label: "File upload size",
+        free: formatUsageLimitValue("publicInquiryAttachmentMaxBytes", getUsageLimit("free", "publicInquiryAttachmentMaxBytes")),
+        pro: formatUsageLimitValue("publicInquiryAttachmentMaxBytes", getUsageLimit("pro", "publicInquiryAttachmentMaxBytes")),
+        business: formatUsageLimitValue("publicInquiryAttachmentMaxBytes", getUsageLimit("business", "publicInquiryAttachmentMaxBytes")),
       },
-    ],
-  },
-  {
-    category: "Business & Team",
-    features: [
       {
-        label: planFeatureLabels.multiBusiness,
+        label: "Knowledge items",
         free: false,
-        pro: true,
-        business: true,
+        pro: `${getUsageLimit("pro", "memoriesPerBusiness")}`,
+        business: `${getUsageLimit("business", "memoriesPerBusiness")}`,
       },
       {
-        label: planFeatureLabels.members,
+        label: "Team members",
         free: false,
         pro: false,
-        business: true,
+        business: `Up to ${getUsageLimit("business", "membersPerBusiness")}`,
       },
     ],
   },
   {
-    category: "Customer Experience",
+    category: "AI & Productivity",
     features: [
-      { label: "Public inquiry pages", free: true, pro: true, business: true },
-      { label: "Public quote pages", free: true, pro: true, business: true },
-      { label: "Logo and business/form name", free: true, pro: true, business: true },
-      {
-        label: planFeatureLabels.branding,
-        free: false,
-        pro: true,
-        business: true,
-      },
-      {
-        label: planFeatureLabels.inquiryPageCustomization,
-        free: false,
-        pro: true,
-        business: true,
-      },
-      {
-        label: planFeatureLabels.attachments,
-        free: true,
-        pro: true,
-        business: true,
-      },
+      { label: planFeatureLabels.aiAssistant, free: false, pro: true, business: true },
+      { label: planFeatureLabels.knowledgeBase, free: false, pro: true, business: true },
+      { label: planFeatureLabels.emailTemplates, free: false, pro: true, business: true },
+      { label: planFeatureLabels.quoteLibrary, free: false, pro: true, business: true },
+      { label: planFeatureLabels.multipleForms, free: false, pro: true, business: true },
+      { label: planFeatureLabels.exports, free: false, pro: true, business: true },
     ],
   },
   {
-    category: "Productivity",
+    category: "Customization & Branding",
     features: [
-      {
-        label: planFeatureLabels.multipleForms,
-        free: false,
-        pro: true,
-        business: true,
-      },
-      {
-        label: planFeatureLabels.emailTemplates,
-        free: false,
-        pro: true,
-        business: true,
-      },
-      {
-        label: planFeatureLabels.quoteLibrary,
-        free: false,
-        pro: true,
-        business: true,
-      },
-      {
-        label: planFeatureLabels.knowledgeBase,
-        free: false,
-        pro: true,
-        business: true,
-      },
-      {
-        label: planFeatureLabels.aiAssistant,
-        free: false,
-        pro: true,
-        business: true,
-      },
-      {
-        label: planFeatureLabels.customerHistory,
-        free: false,
-        pro: true,
-        business: true,
-      },
-      {
-        label: planFeatureLabels.pushNotifications,
-        free: false,
-        pro: true,
-        business: true,
-      },
+      { label: "Logo and business name", free: true, pro: true, business: true },
+      { label: planFeatureLabels.inquiryPageCustomization, free: false, pro: true, business: true },
+      { label: planFeatureLabels.branding, free: false, pro: true, business: true },
     ],
   },
   {
-    category: "Insights & Analytics",
+    category: "Analytics",
     features: [
-      { label: "Dashboard & overview", free: true, pro: true, business: true },
-      { label: "Activity log", free: true, pro: true, business: true },
-      { label: "Overview analytics", free: true, pro: true, business: true },
-      {
-        label: planFeatureLabels.analyticsConversion,
-        free: false,
-        pro: true,
-        business: true,
-      },
-      {
-        label: planFeatureLabels.analyticsWorkflow,
-        free: false,
-        pro: true,
-        business: true,
-      },
-      {
-        label: planFeatureLabels.exports,
-        free: false,
-        pro: true,
-        business: true,
-      },
+      { label: "Dashboard overview", free: true, pro: true, business: true },
+      { label: planFeatureLabels.analyticsConversion, free: true, pro: true, business: true },
+      { label: planFeatureLabels.analyticsWorkflow, free: false, pro: true, business: true },
+    ],
+  },
+  {
+    category: "Team & Scale",
+    features: [
+      { label: planFeatureLabels.multiBusiness, free: false, pro: true, business: true },
+      { label: planFeatureLabels.members, free: false, pro: false, business: true },
+      { label: "Audit logs", free: false, pro: false, business: true },
+      { label: "Priority support", free: false, pro: false, business: true },
     ],
   },
 ];
-
-
 
 /*──────────────────────────────────────────────────────────────────────────────
  * Component
@@ -257,52 +184,47 @@ export function PricingPage({ currency }: { currency: BillingCurrency }) {
       }
     >
       {/* Hero */}
-      <PublicHeroSurface className="surface-grid overflow-hidden px-5 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-14">
-        <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-6 text-center">
-          <Badge className="w-fit" variant="outline">
-            Pricing
-          </Badge>
-          <div className="flex flex-col items-center gap-4">
-            <h1 className="max-w-3xl font-heading text-4xl font-semibold leading-[0.94] tracking-tight text-balance sm:text-5xl xl:text-[3.5rem]">
-              Run the full inquiry-to-quote workflow from day one.
-            </h1>
-            <p className="max-w-2xl text-base leading-normal sm:leading-8 text-muted-foreground sm:text-lg">
-              Capture inquiries, create quotes, share them with customers,
-              follow up on time, and track outcomes. Start free, then upgrade
-              when you need more capacity and workflow tools.
-            </p>
-          </div>
+      <PublicHeroSurface className="surface-grid overflow-hidden px-5 py-10 sm:px-6 sm:py-12 lg:px-8 lg:py-16">
+        <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-5 text-center">
+          <h1 className="max-w-2xl font-heading text-4xl font-semibold leading-[0.94] tracking-tight text-balance sm:text-5xl xl:text-[3.5rem]">
+            Simple pricing. No surprises.
+          </h1>
+          <p className="max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg sm:leading-8">
+            Start free with unlimited inquiries. Upgrade when you need more
+            quotes, AI, and workflow tools.
+          </p>
         </div>
       </PublicHeroSurface>
 
-      {/* Plan cards with toggle — rendered client-side for interval state */}
+      {/* Plan cards with toggle */}
       <PricingIntervalToggle currency={currency} />
 
-      {/* Feature comparison table */}
-      <section className="section-panel mx-auto w-full max-w-[76rem] overflow-hidden">
-        <div className="flex flex-col gap-3 border-b border-border/70 px-5 py-5 sm:px-6 sm:py-6">
-          <Badge className="w-fit" variant="outline">
+      {/* Feature comparison */}
+      <section className="mx-auto w-full max-w-[76rem] rounded-2xl border border-border/70 bg-card/40 overflow-hidden">
+        <div className="flex flex-col gap-2 px-5 py-6 sm:px-8 sm:py-7">
+          <h2 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
             Compare plans
-          </Badge>
-          <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
-            Everything at a glance.
           </h2>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            See exactly what each plan includes.
+          </p>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[36rem] text-sm">
+        {/* Desktop table */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border/50">
-                <th className="px-5 py-3.5 text-left font-medium text-muted-foreground sm:px-6">
+              <tr className="border-y border-border/50 bg-muted/20">
+                <th className="w-[40%] px-8 py-4 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Feature
                 </th>
-                <th className="px-4 py-3.5 text-center font-medium text-muted-foreground">
+                <th className="w-[20%] px-4 py-4 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Free
                 </th>
-                <th className="px-4 py-3.5 text-center font-medium text-foreground">
+                <th className="w-[20%] px-4 py-4 text-center text-xs font-semibold uppercase tracking-wider text-foreground">
                   Pro
                 </th>
-                <th className="px-4 py-3.5 text-center font-medium text-muted-foreground">
+                <th className="w-[20%] px-4 py-4 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Business
                 </th>
               </tr>
@@ -310,19 +232,22 @@ export function PricingPage({ currency }: { currency: BillingCurrency }) {
             <tbody>
               {pricingCategories.map((category) => (
                 <Fragment key={category.category}>
-                  {/* Category Header Row */}
-                  <tr className="border-y border-border/50 bg-muted/30 first:border-t-0">
-                    <th
+                  <tr className="border-t border-border/50">
+                    <td
                       colSpan={4}
-                      className="px-5 py-3 text-left text-sm font-semibold text-foreground sm:px-6"
+                      className="px-8 pb-2 pt-6 text-xs font-semibold uppercase tracking-wider text-primary"
                     >
                       {category.category}
-                    </th>
+                    </td>
                   </tr>
-                  {/* Feature Rows */}
                   {category.features.map((row) => (
-                    <tr className="border-b border-border/30 last:border-b-0" key={row.label}>
-                      <td className="px-5 py-3 text-foreground sm:px-6">{row.label}</td>
+                    <tr
+                      className="border-b border-border/20 last:border-b-0"
+                      key={row.label}
+                    >
+                      <td className="px-8 py-3.5 text-sm text-foreground">
+                        {row.label}
+                      </td>
                       <PricingCell value={row.free} />
                       <PricingCell value={row.pro} highlighted />
                       <PricingCell value={row.business} />
@@ -333,18 +258,67 @@ export function PricingPage({ currency }: { currency: BillingCurrency }) {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile stacked view */}
+        <div className="flex flex-col gap-0 md:hidden">
+          {pricingCategories.map((category) => (
+            <div key={category.category} className="border-t border-border/50">
+              <p className="px-5 pb-2 pt-5 text-xs font-semibold uppercase tracking-wider text-primary">
+                {category.category}
+              </p>
+              <div className="flex flex-col">
+                {category.features.map((row) => (
+                  <div
+                    key={row.label}
+                    className="border-b border-border/20 px-5 py-3.5 last:border-b-0"
+                  >
+                    <p className="text-sm font-medium text-foreground">
+                      {row.label}
+                    </p>
+                    <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
+                      <div>
+                        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                          Free
+                        </p>
+                        <p className="mt-1">
+                          <MobileCell value={row.free} />
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-medium uppercase tracking-wider text-foreground">
+                          Pro
+                        </p>
+                        <p className="mt-1">
+                          <MobileCell value={row.pro} />
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                          Business
+                        </p>
+                        <p className="mt-1">
+                          <MobileCell value={row.business} />
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* CTA */}
-      <section className="hero-panel mx-auto mt-8 w-full max-w-[76rem] overflow-hidden lg:mt-12">
-        <div className="flex flex-col gap-6 px-5 py-6 sm:px-6 sm:py-7 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex max-w-2xl flex-col gap-3">
+      <section className="mx-auto mt-10 w-full max-w-[76rem] rounded-2xl border border-border/70 bg-accent/10 overflow-hidden lg:mt-14">
+        <div className="flex flex-col gap-6 px-6 py-8 sm:px-8 sm:py-10 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex max-w-xl flex-col gap-3">
             <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
-              Ready to stop losing inquiries?
+              Ready to streamline your quotes?
             </h2>
-            <p className="text-sm leading-normal sm:leading-7 text-muted-foreground sm:text-base">
-              Start with the Free plan today. Upgrade to Pro or Business when
-              you need unlimited inquiries, quote capacity, and advanced tools.
+            <p className="text-sm leading-relaxed text-muted-foreground sm:text-base sm:leading-7">
+              Start capturing inquiries and sending quotes today. No credit card
+              required.
             </p>
           </div>
 
@@ -355,15 +329,20 @@ export function PricingPage({ currency }: { currency: BillingCurrency }) {
                 <ArrowRight data-icon="inline-end" />
               </Link>
             </Button>
-            <Button asChild className="w-full sm:w-auto" size="lg" variant="outline">
+            <Button
+              asChild
+              className="w-full sm:w-auto"
+              size="lg"
+              variant="outline"
+            >
               <Link href="/login">Log in</Link>
             </Button>
           </div>
         </div>
 
-        <Separator className="bg-border/70" />
+        <Separator className="bg-border/50" />
 
-        <div className="flex flex-col gap-4 px-5 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-4 px-6 py-4 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
           <BrandMark subtitle="Inquiry-to-quote workflow" />
           <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
             <Link className="transition-colors hover:text-foreground" href="/">
@@ -386,7 +365,7 @@ export function PricingPage({ currency }: { currency: BillingCurrency }) {
 }
 
 /*──────────────────────────────────────────────────────────────────────────────
- * Helper components (server)
+ * Helper components
  *────────────────────────────────────────────────────────────────────────────*/
 
 function PricingCell({
@@ -399,23 +378,37 @@ function PricingCell({
   return (
     <td
       className={cn(
-        "px-4 py-3 text-center",
-        highlighted ? "bg-accent/8" : "",
+        "px-4 py-3.5 text-center",
+        highlighted ? "bg-primary/[0.03]" : "",
       )}
     >
       {typeof value === "boolean" ? (
         value ? (
           <Check className="mx-auto size-4 text-primary" />
         ) : (
-          <span className="text-muted-foreground/50">—</span>
+          <Minus className="mx-auto size-3.5 text-muted-foreground/40" />
         )
       ) : (
-        <span className="text-sm font-medium text-foreground">{value}</span>
+        <span className="text-sm font-medium tabular-nums text-foreground">
+          {value}
+        </span>
       )}
     </td>
   );
 }
 
+function MobileCell({ value }: { value: string | boolean }) {
+  if (typeof value === "boolean") {
+    return value ? (
+      <Check className="mx-auto size-3.5 text-primary" />
+    ) : (
+      <Minus className="mx-auto size-3 text-muted-foreground/40" />
+    );
+  }
 
-
-
+  return (
+    <span className="text-xs font-medium tabular-nums text-foreground">
+      {value}
+    </span>
+  );
+}
