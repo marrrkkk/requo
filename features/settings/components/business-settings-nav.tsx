@@ -6,6 +6,7 @@ import {
   CreditCard,
   FileText,
   Mail,
+  ScrollText,
   Settings2,
   Tags,
   Users,
@@ -30,6 +31,7 @@ const settingsNavigationIcons: Record<BusinessSettingsNavigationIcon, typeof Set
   email: Mail,
   pricing: Tags,
   billing: CreditCard,
+  "audit-log": ScrollText,
 };
 
 export function BusinessSettingsNav({ groups }: BusinessSettingsNavProps) {
