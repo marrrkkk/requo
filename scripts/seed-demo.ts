@@ -134,8 +134,13 @@ type SeedTeamMember = {
 };
 
 const USERS: SeedUserConfig[] = [
-  primaryDemoUser,
-  adminDemoUser,
+  {
+    ...primaryDemoUser,
+    businesses: [
+      ...primaryDemoUser.businesses,
+      ...adminDemoUser.businesses,
+    ],
+  },
   {
     name: "Maria Santos",
     email: "free@requo.dev",

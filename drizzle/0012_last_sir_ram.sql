@@ -1,2 +1,0 @@
-ALTER TABLE "workspaces" ADD COLUMN "default_quote_validity_days" integer DEFAULT 14 NOT NULL;--> statement-breakpoint
-ALTER TABLE "workspaces" ADD CONSTRAINT "workspaces_default_quote_validity_days_range" CHECK ("workspaces"."default_quote_validity_days" between 1 and 365);
