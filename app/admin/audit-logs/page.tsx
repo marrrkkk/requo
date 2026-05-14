@@ -18,7 +18,7 @@ import { createNoIndexMetadata } from "@/lib/seo/site";
 
 import AdminLoading from "../loading";
 
-export const unstable_instant = { prefetch: 'static' };
+export const unstable_instant = { prefetch: 'static', unstable_disableValidation: true };
 
 export const metadata: Metadata = createNoIndexMetadata({
   absoluteTitle: "Audit logs · Requo admin",

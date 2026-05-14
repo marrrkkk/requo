@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { AdminDashboard } from "@/features/admin/components/admin-dashboard";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export const unstable_instant = { prefetch: 'static' };
+export const unstable_instant = { prefetch: 'static', unstable_disableValidation: true };
 
 export const metadata: Metadata = createNoIndexMetadata({
   absoluteTitle: "Admin · Requo",

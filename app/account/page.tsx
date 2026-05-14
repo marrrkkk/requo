@@ -10,7 +10,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Redirects to the signed-in account profile settings.",
 });
 
-export const unstable_instant = { prefetch: 'static' };
+export const unstable_instant = { prefetch: 'static', unstable_disableValidation: true };
 
 export default async function AccountPage() {
   await connection();

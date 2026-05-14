@@ -3,7 +3,7 @@ import { Suspense } from "react";
 
 import { DataListPagination } from "@/components/shared/data-list-pagination";
 
-export const unstable_instant = { prefetch: 'static' };
+export const unstable_instant = { prefetch: 'static', unstable_disableValidation: true };
 import {
   DashboardEmptyState,
   DashboardSection,

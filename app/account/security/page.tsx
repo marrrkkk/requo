@@ -25,7 +25,7 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Manage passwords, active sessions, and account deletion.",
 });
 
-export const unstable_instant = { prefetch: 'static' };
+export const unstable_instant = { prefetch: 'static', unstable_disableValidation: true };
 
 export default function AccountSecurityPage() {
   return (
