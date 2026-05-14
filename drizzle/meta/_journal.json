@@ -442,6 +442,13 @@
     {
       "idx": 63,
       "version": "7",
+      "when": 1778950000000,
+      "tag": "0066_account_subscriptions_and_enum_normalization",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
       "when": 1778999999999,
       "tag": "0065_paddle_refunds",
       "breakpoints": true
