@@ -4,11 +4,11 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { hasFeatureAccess } from "@/lib/plans";
 import type { BusinessPlan } from "@/lib/plans/plans";
-import { cn } from "@/lib/utils";
 import type {
   AiConversation,
   AiConversationSummary,
@@ -110,17 +110,6 @@ export function AIChatPopover({
   const aiContext = useMemo(() => resolveAiContext(pathname), [pathname]);
   const hasAccess = hasFeatureAccess(plan, "aiAssistant");
   const [isOpen, setIsOpen] = useState(false);
-  // Track whether the panel has ever been opened. We only show the close
-  // animation after the first open — otherwise the animate-out keyframes
-  // briefly flash the panel visible on re-renders that happen before the
-  // user has ever opened it.
-  const hasBeenOpenedRef = useRef(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      hasBeenOpenedRef.current = true;
-    }
-  }, [isOpen]);
   const [cachedConversations, setCachedConversations] = useState<
     AiConversationSummary[] | null
   >(null);
@@ -343,45 +332,45 @@ export function AIChatPopover({
       className="fixed bottom-4 right-4 z-40 sm:bottom-5 sm:right-5"
       suppressHydrationWarning
     >
-      {/* Panel — always mounted so scroll position and input are preserved */}
-      <div
-        aria-hidden={!isOpen}
-        className={cn(
-          "absolute bottom-[calc(100%+1.125rem)] right-0 flex h-[calc(100vh-12rem)] w-[min(calc(100vw-1rem),27rem)] flex-col overflow-hidden rounded-[1.5rem] border bg-popover text-foreground shadow-md ring-1 ring-foreground/10 overlay-surface origin-bottom-right",
-          isOpen
-            ? "animate-in fade-in-0 zoom-in-90 slide-in-from-bottom-4 duration-250"
-            : hasBeenOpenedRef.current
-              ? "animate-out fade-out-0 zoom-out-90 slide-out-to-bottom-4 duration-200 pointer-events-none fill-mode-forwards"
-              : "pointer-events-none invisible opacity-0",
-        )}
-        data-testid={`${aiContext.surface}-ai-dialog`}
-        role="dialog"
-      >
-        <AIChatPanel
-          activeDashboardConversation={activeDashboardConversation}
-          businessSlug={businessSlug}
-          cachedDashboardConversations={cachedConversations}
-          entityCache={entityCache}
-          entityId={aiContext.entityId}
-          messagesCache={messagesCache}
-          onActiveDashboardConversationChange={
-            setActiveDashboardConversation
-          }
-          onClose={() => setIsOpen(false)}
-          onDashboardConversationsChange={setCachedConversations}
-          onEntityCacheUpdate={handleEntityCacheUpdate}
-          onMessagesCacheUpdate={handleMessagesCacheUpdate}
-          plan={plan}
-          surface={aiContext.surface}
-          title={title}
-          userName={userName}
-        />
-      </div>
+      {/* Panel */}
+      <AnimatePresence>
+        {isOpen ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.92, y: 16 }}
+            transition={{ type: "spring", stiffness: 380, damping: 26 }}
+            className="absolute bottom-[calc(100%+1.125rem)] right-0 flex h-[calc(100vh-12rem)] w-[min(calc(100vw-1rem),27rem)] flex-col overflow-hidden rounded-[1.5rem] border bg-popover text-foreground shadow-md ring-1 ring-foreground/10 overlay-surface origin-bottom-right"
+            data-testid={`${aiContext.surface}-ai-dialog`}
+            role="dialog"
+          >
+            <AIChatPanel
+              activeDashboardConversation={activeDashboardConversation}
+              businessSlug={businessSlug}
+              cachedDashboardConversations={cachedConversations}
+              entityCache={entityCache}
+              entityId={aiContext.entityId}
+              messagesCache={messagesCache}
+              onActiveDashboardConversationChange={
+                setActiveDashboardConversation
+              }
+              onClose={() => setIsOpen(false)}
+              onDashboardConversationsChange={setCachedConversations}
+              onEntityCacheUpdate={handleEntityCacheUpdate}
+              onMessagesCacheUpdate={handleMessagesCacheUpdate}
+              plan={plan}
+              surface={aiContext.surface}
+              title={title}
+              userName={userName}
+            />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       {/* Trigger button */}
       <Button
         aria-label={isOpen ? `Close ${title}` : `Open ${title}`}
-        className="size-14 rounded-full border-border/70 bg-[var(--surface-elevated-bg)] p-0 shadow-[var(--surface-shadow-lg)]"
+        className="size-14 rounded-full border-border/70 bg-[var(--surface-elevated-bg)] p-0 shadow-[var(--surface-shadow-lg)] overflow-hidden"
         data-testid={`${aiContext.surface}-ai-launcher`}
         onClick={() => setIsOpen((open) => !open)}
         onFocus={warmupOnOpenIntent}
@@ -390,17 +379,37 @@ export function AIChatPopover({
         type="button"
         variant="outline"
       >
-        {isOpen ? (
-          <ChevronDown className="size-6 text-muted-foreground" />
-        ) : (
-          <Image
-            src="/logo.svg"
-            alt=""
-            width={34}
-            height={34}
-            className="size-[2.15rem] object-contain"
-          />
-        )}
+        <AnimatePresence mode="wait" initial={false}>
+          {isOpen ? (
+            <motion.span
+              key="close"
+              initial={{ rotate: 90, scale: 0.6, opacity: 0 }}
+              animate={{ rotate: 0, scale: 1, opacity: 1 }}
+              exit={{ rotate: -90, scale: 0.6, opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+              className="flex items-center justify-center"
+            >
+              <ChevronDown className="size-6 text-muted-foreground" />
+            </motion.span>
+          ) : (
+            <motion.span
+              key="logo"
+              initial={{ rotate: -90, scale: 0.6, opacity: 0 }}
+              animate={{ rotate: 0, scale: 1, opacity: 1 }}
+              exit={{ rotate: 90, scale: 0.6, opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeInOut" }}
+              className="flex items-center justify-center"
+            >
+              <Image
+                src="/logo.svg"
+                alt=""
+                width={34}
+                height={34}
+                className="size-[2.15rem] object-contain"
+              />
+            </motion.span>
+          )}
+        </AnimatePresence>
         <span className="sr-only">
           {isOpen ? `Close ${title}` : `Open ${title}`}
         </span>
