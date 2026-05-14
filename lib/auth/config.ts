@@ -32,6 +32,14 @@ function buildTrustedOrigins() {
     origins.add(getTrustedVercelOrigin(env.VERCEL_URL));
   }
 
+  // Vercel auto-sets VERCEL_BRANCH_URL and VERCEL_PROJECT_PRODUCTION_URL
+  if (process.env.VERCEL_BRANCH_URL) {
+    origins.add(getTrustedVercelOrigin(process.env.VERCEL_BRANCH_URL));
+  }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    origins.add(getTrustedVercelOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL));
+  }
+
   if (env.NODE_ENV !== "production") {
     for (const origin of Array.from(origins)) {
       const url = new URL(origin);
