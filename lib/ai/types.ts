@@ -10,7 +10,7 @@ import "server-only";
 // ---------------------------------------------------------------------------
 
 /** Identifiers for each supported AI provider. */
-export type AiProviderName = "groq" | "cerebras" | "gemini";
+export type AiProviderName = "groq" | "cerebras" | "gemini" | "openrouter";
 
 /**
  * Quality tier controls which models are preferred within each provider.

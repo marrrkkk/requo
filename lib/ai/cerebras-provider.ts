@@ -60,7 +60,11 @@ export const cerebrasProvider: AiProvider = {
         temperature: request.temperature,
         max_completion_tokens: request.maxOutputTokens,
         stream: false,
-      });
+      }) as {
+        choices?: Array<{ message?: { content?: string } }>;
+        model?: string;
+        usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+      };
 
       const text = response.choices?.[0]?.message?.content ?? "";
 
@@ -98,7 +102,9 @@ export const cerebrasProvider: AiProvider = {
         temperature: request.temperature,
         max_completion_tokens: request.maxOutputTokens,
         stream: true,
-      });
+      }) as AsyncIterable<{
+        choices?: Array<{ delta?: { content?: string }; finish_reason?: string | null }>;
+      }>;
 
       async function* chunks(): AsyncGenerator<AiStreamChunk> {
         for await (const chunk of stream) {

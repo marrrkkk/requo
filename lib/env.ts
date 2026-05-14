@@ -41,6 +41,7 @@ const envSchema = z.object({
   GROQ_API_KEY: emptyToUndefined(z.string().min(1)),
   GEMINI_API_KEY: emptyToUndefined(z.string().min(1)),
   CEREBRAS_API_KEY: emptyToUndefined(z.string().min(1)),
+  OPENROUTER_API_KEY: emptyToUndefined(z.string().min(1)),
   PADDLE_API_KEY: emptyToUndefined(z.string().min(1)),
   PADDLE_WEBHOOK_SECRET: emptyToUndefined(z.string().min(1)),
   PADDLE_PRO_PRICE_ID: emptyToUndefined(z.string().min(1)),
@@ -104,6 +105,9 @@ export const isSupabaseRealtimeConfigured = Boolean(env.SUPABASE_JWT_SECRET);
 
 export const isPaddleConfigured = Boolean(
   env.PADDLE_API_KEY && env.PADDLE_PRO_PRICE_ID,
+);
+export const isOpenRouterConfigured = Boolean(
+  (process.env.OPENROUTER_API_KEY ?? "").trim().length > 0,
 );
 export const isPushConfigured = Boolean(
   env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY,

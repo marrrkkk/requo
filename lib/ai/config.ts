@@ -3,6 +3,7 @@ import "server-only";
 import { groqProvider } from "@/lib/ai/groq-provider";
 import { cerebrasProvider } from "@/lib/ai/cerebras-provider";
 import { geminiProvider } from "@/lib/ai/gemini-provider";
+import { openrouterProvider } from "@/lib/ai/openrouter-provider";
 import type { AiProvider, AiProviderName, AiQualityTier } from "@/lib/ai/types";
 
 // ---------------------------------------------------------------------------
@@ -26,6 +27,7 @@ const ALL_PROVIDERS: AiProvider[] = [
   groqProvider,
   cerebrasProvider,
   geminiProvider,
+  openrouterProvider,
 ];
 
 /** Returns the ordered list of configured providers. */
@@ -104,6 +106,25 @@ const PROVIDER_MODELS: Record<AiProviderName, Record<AiQualityTier, string[]>> =
     coding: [
       "gemini-2.5-pro",
       "gemini-2.5-flash",
+    ],
+  },
+
+  openrouter: {
+    balanced: [
+      "meta-llama/llama-3.3-70b-instruct",
+      "mistralai/mistral-small-3.1-24b-instruct",
+    ],
+    cheap: [
+      "mistralai/mistral-small-3.1-24b-instruct",
+      "meta-llama/llama-3.3-70b-instruct",
+    ],
+    best: [
+      "meta-llama/llama-3.3-70b-instruct",
+      "mistralai/mistral-small-3.1-24b-instruct",
+    ],
+    coding: [
+      "meta-llama/llama-3.3-70b-instruct",
+      "mistralai/mistral-small-3.1-24b-instruct",
     ],
   },
 };
