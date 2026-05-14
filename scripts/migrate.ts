@@ -248,6 +248,13 @@ async function hasBusinessAuditLog(client: SqlClient) {
   return await tableExists(client, "audit_logs");
 }
 
+async function hasAccountSubscriptionsSchema(client: SqlClient) {
+  return (
+    (await tableExists(client, "account_subscriptions")) &&
+    (await tableExists(client, "business_subscriptions"))
+  );
+}
+
 async function repairKnownMigrationDrift(client: SqlClient) {
   await client`create schema if not exists drizzle`;
   await client`
@@ -314,6 +321,10 @@ async function repairKnownMigrationDrift(client: SqlClient) {
     {
       tag: "0036_workspace_audit_log",
       matches: hasBusinessAuditLog,
+    },
+    {
+      tag: "0066_account_subscriptions_and_enum_normalization",
+      matches: hasAccountSubscriptionsSchema,
     },
   ];
 
