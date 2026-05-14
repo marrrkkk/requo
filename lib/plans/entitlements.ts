@@ -32,7 +32,13 @@ export const planFeatures = [
 export type PlanFeature = (typeof planFeatures)[number];
 
 const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
-  free: new Set<PlanFeature>(["attachments", "pushNotifications"]),
+  free: new Set<PlanFeature>([
+    "analyticsConversion",
+    "attachments",
+    "customerHistory",
+    "followUps",
+    "pushNotifications",
+  ]),
   pro: new Set<PlanFeature>([
     "analyticsConversion",
     "analyticsWorkflow",
