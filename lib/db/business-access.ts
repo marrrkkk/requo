@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { cookies } from "next/headers";
 import { cache } from "react";
@@ -10,7 +10,7 @@ import {
   getUserMembershipsCacheTags,
   membershipShellCacheLife,
 } from "@/lib/cache/shell-tags";
-import { getCachedEffectivePlan } from "@/lib/billing/subscription-service";
+import { getCachedEffectivePlanForUser } from "@/lib/billing/subscription-service";
 
 import type {
   BusinessRecordState,
@@ -48,6 +48,7 @@ import {
 export type BusinessContext = {
   membershipId: string;
   role: BusinessMemberRole;
+  memberJoinedAt: Date;
   business: {
     id: string;
     plan: BusinessPlan;
@@ -138,6 +139,7 @@ async function getCachedBusinessMemberships(
     .select({
       membershipId: businessMembers.id,
       role: businessMembers.role,
+      memberJoinedAt: businessMembers.createdAt,
       businessId: businesses.id,
       businessPlan: businesses.plan,
       businessName: businesses.name,
@@ -150,6 +152,7 @@ async function getCachedBusinessMemberships(
       archivedAt: businesses.archivedAt,
       lockedAt: businesses.lockedAt,
       deletedAt: businesses.deletedAt,
+      ownerUserId: businesses.ownerUserId,
     })
     .from(businessMembers)
     .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
@@ -168,6 +171,8 @@ async function getCachedBusinessMemberships(
   return memberships.map((membership) => ({
     membershipId: membership.membershipId,
     role: membership.role,
+    memberJoinedAt: membership.memberJoinedAt,
+    ownerUserId: membership.ownerUserId,
     business: {
       id: membership.businessId,
       plan: membership.businessPlan as BusinessPlan,
@@ -182,7 +187,7 @@ async function getCachedBusinessMemberships(
       lockedAt: membership.lockedAt,
       deletedAt: membership.deletedAt,
     },
-  })) satisfies BusinessContext[];
+  }));
 }
 
 export const getBusinessMembershipsForUser = cache(async (
@@ -217,6 +222,7 @@ async function getCachedBusinessContextForMembershipSlug(
     .select({
       membershipId: businessMembers.id,
       role: businessMembers.role,
+      memberJoinedAt: businessMembers.createdAt,
       businessId: businesses.id,
       businessPlan: businesses.plan,
       businessName: businesses.name,
@@ -229,6 +235,7 @@ async function getCachedBusinessContextForMembershipSlug(
       archivedAt: businesses.archivedAt,
       lockedAt: businesses.lockedAt,
       deletedAt: businesses.deletedAt,
+      ownerUserId: businesses.ownerUserId,
     })
     .from(businessMembers)
     .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
@@ -248,6 +255,8 @@ async function getCachedBusinessContextForMembershipSlug(
   return {
     membershipId: context.membershipId,
     role: context.role,
+    memberJoinedAt: context.memberJoinedAt,
+    ownerUserId: context.ownerUserId,
     business: {
       id: context.businessId,
       plan: context.businessPlan as BusinessPlan,
@@ -262,7 +271,7 @@ async function getCachedBusinessContextForMembershipSlug(
       lockedAt: context.lockedAt,
       deletedAt: context.deletedAt,
     },
-  } satisfies BusinessContext;
+  };
 }
 
 export const getBusinessContextForMembershipSlug = cache(async (
@@ -279,20 +288,30 @@ export const getBusinessContextForMembershipSlug = cache(async (
   return applyEffectiveBusinessPlan(context);
 });
 
-async function getEffectiveBusinessPlanMap(businessIds: string[]) {
-  const uniqueBusinessIds = Array.from(new Set(businessIds));
+/**
+ * Resolve the effective plan for each unique owner in one pass. All
+ * businesses owned by the same user inherit that user's account plan, so
+ * there's no need to look up the plan per business (which would fan out
+ * to `2 * N` queries). For a user who owns all N of their businesses this
+ * collapses to a single cached subscription read.
+ */
+async function getEffectivePlanByOwnerMap(ownerUserIds: string[]) {
+  const uniqueOwnerUserIds = Array.from(new Set(ownerUserIds));
   const entries = await Promise.all(
-    uniqueBusinessIds.map(async (businessId) => {
+    uniqueOwnerUserIds.map(async (ownerUserId) => {
       try {
-        return [businessId, await getCachedEffectivePlan(businessId)] as const;
+        return [
+          ownerUserId,
+          await getCachedEffectivePlanForUser(ownerUserId),
+        ] as const;
       } catch (error) {
         console.error(
-          "Failed to resolve effective business plan.",
-          { businessId },
+          "Failed to resolve effective plan for owner.",
+          { ownerUserId },
           error,
         );
 
-        return [businessId, null] as const;
+        return [ownerUserId, null] as const;
       }
     }),
   );
@@ -300,21 +319,29 @@ async function getEffectiveBusinessPlanMap(businessIds: string[]) {
   return new Map(entries);
 }
 
-async function applyEffectiveBusinessPlans(contexts: BusinessContext[]) {
-  if (contexts.length === 0) {
-    return contexts;
+type MembershipRowWithOwner = BusinessContext & { ownerUserId: string };
+
+async function applyEffectiveBusinessPlans(
+  rows: MembershipRowWithOwner[],
+): Promise<BusinessContext[]> {
+  if (rows.length === 0) {
+    return [];
   }
 
-  const planByBusinessId = await getEffectiveBusinessPlanMap(
-    contexts.map((context) => context.business.id),
+  const planByOwner = await getEffectivePlanByOwnerMap(
+    rows.map((row) => row.ownerUserId),
   );
 
-  return contexts.map((context) => {
-    const plan =
-      planByBusinessId.get(context.business.id) ??
-      context.business.plan;
+  return rows.map((row) => {
+    const plan = planByOwner.get(row.ownerUserId) ?? row.business.plan;
+    const context: BusinessContext = {
+      membershipId: row.membershipId,
+      role: row.role,
+      memberJoinedAt: row.memberJoinedAt,
+      business: row.business,
+    };
 
-    if (plan === context.business.plan) {
+    if (plan === row.business.plan) {
       return context;
     }
 
@@ -324,21 +351,29 @@ async function applyEffectiveBusinessPlans(contexts: BusinessContext[]) {
         ...context.business,
         plan,
       },
-    };
-  }) satisfies BusinessContext[];
+    } satisfies BusinessContext;
+  });
 }
 
-async function applyEffectiveBusinessPlan(context: BusinessContext | null) {
-  if (!context) {
+async function applyEffectiveBusinessPlan(
+  row: MembershipRowWithOwner | null,
+): Promise<BusinessContext | null> {
+  if (!row) {
     return null;
   }
 
   const plan =
-    (await getEffectiveBusinessPlanMap([context.business.id])).get(
-      context.business.id,
-    ) ?? context.business.plan;
+    (await getEffectivePlanByOwnerMap([row.ownerUserId])).get(
+      row.ownerUserId,
+    ) ?? row.business.plan;
+  const context: BusinessContext = {
+    membershipId: row.membershipId,
+    role: row.role,
+    memberJoinedAt: row.memberJoinedAt,
+    business: row.business,
+  };
 
-  if (plan === context.business.plan) {
+  if (plan === row.business.plan) {
     return context;
   }
 

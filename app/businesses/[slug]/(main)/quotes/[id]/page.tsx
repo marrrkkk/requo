@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { AtSign, ExternalLink, Mail, Printer } from "lucide-react";
-import { notFound, redirect } from "next/navigation";
+import { AtSign, ExternalLink, Mail } from "lucide-react";
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import {
@@ -9,14 +9,12 @@ import {
   DashboardDetailFeedItem,
   DashboardDetailHeader,
   DashboardEmptyState,
-  DashboardMetaPill,
   DashboardPage,
   DashboardSection,
   DashboardSidebarStack,
 } from "@/components/shared/dashboard-layout";
 import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
 import { InfoTile } from "@/components/shared/info-tile";
-import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -55,7 +53,7 @@ import { CopyQuoteLinkButton } from "@/features/quotes/components/copy-quote-lin
 import { WorkflowNextActionCallout } from "@/features/businesses/components/workflow-next-action";
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";
 import { QuoteExportPopover } from "@/features/quotes/components/quote-export-popover";
-import { QuoteLifecycleActions } from "@/features/quotes/components/quote-lifecycle-actions";
+import { QuoteManageDialog } from "@/features/quotes/components/quote-manage-dialog";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
 import { QuotePostWinCard } from "@/features/quotes/components/quote-post-win-card";
@@ -80,15 +78,12 @@ import {
 import {
   getBusinessInquiryPath,
   getBusinessQuoteExportPath,
-  getBusinessQuotePrintPath,
   getBusinessQuotesPath,
 } from "@/features/businesses/routes";
-import { businessesHubPath } from "@/features/businesses/routes";
 import { env, isEmailConfigured } from "@/lib/env";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
-import { requireSession } from "@/lib/auth/session";
-import { getBusinessContextForMembershipSlug } from "@/lib/db/business-access";
+import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import type { Metadata } from "next";
 
@@ -119,15 +114,8 @@ export default function QuoteDetailPage({
 async function QuoteDetailContent({
   params,
 }: QuoteDetailPageProps) {
-  const [session, resolvedParams] = await Promise.all([requireSession(), params]);
-  const businessContext = await getBusinessContextForMembershipSlug(
-    session.user.id,
-    resolvedParams.slug,
-  );
-
-  if (!businessContext) {
-    redirect(businessesHubPath);
-  }
+  const resolvedParams = await params;
+  const { businessContext } = await getAppShellContext(resolvedParams.slug);
 
   const parsedParams = quoteRouteParamsSchema.safeParse(resolvedParams);
 
@@ -239,10 +227,6 @@ async function QuoteDetailContent({
             description:
               "The public quote remains available for review, but it is no longer accepting a new online response.",
           };
-  const lifecycleSectionDescription =
-    quote.status === "sent"
-      ? "Use void for sent quotes and archive for safe cleanup."
-      : "Preserve the quote history and archive it when you want to hide it from active lists.";
   const quoteContactEmail = getCustomerContactEmail(quote);
   const showQuotePreferredContact = shouldShowPreferredContactTile(quote);
   const quotePreferredContactLabel = getContactMethodLabel(
@@ -318,19 +302,13 @@ async function QuoteDetailContent({
   return (
     <DashboardPage className="pb-24">
       <DashboardDetailHeader
-        eyebrow="Quote detail"
+        eyebrow="Quote"
         title={quote.title}
-        description={`Prepared for ${quote.customerName}.`}
+        description={`Quote created · ${formatQuoteDateTime(quote.createdAt)}`}
         meta={
           <>
             <QuoteStatusBadge status={quote.status} />
             {isArchived ? <QuoteRecordStateBadge state="archived" /> : null}
-            <DashboardMetaPill>
-              Valid until {formatQuoteDate(quote.validUntil)}
-            </DashboardMetaPill>
-            <DashboardMetaPill>
-              {quote.inquiryId ? "Linked inquiry" : "Manual quote"}
-            </DashboardMetaPill>
             {quote.postAcceptanceStatus !== "none" ? (
               <QuotePostAcceptanceStatusBadge status={quote.postAcceptanceStatus} />
             ) : null}
@@ -339,32 +317,20 @@ async function QuoteDetailContent({
         actions={
           <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center [&_[data-slot=button]]:w-full sm:[&_[data-slot=button]]:w-auto">
 
+            <QuoteManageDialog
+              archiveAction={archiveAction}
+              businessQuoteListHref={getBusinessQuotesPath(businessSlug)}
+              deleteDraftAction={deleteDraftAction}
+              isArchived={isArchived}
+              restoreArchivedAction={restoreArchivedAction}
+              status={quote.status}
+              voidAction={voidAction}
+            />
             <QuoteExportPopover
               canExport={canExportData}
               pdfHref={getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")}
               pngHref={getBusinessQuoteExportPath(businessSlug, quote.id, "png")}
             />
-            {canExportData ? (
-              <Button asChild variant="outline">
-                <Link
-                  href={getBusinessQuotePrintPath(businessSlug, quote.id)}
-                  rel="noopener noreferrer"
-                  target="_blank"
-                >
-                  <Printer data-icon="inline-start" />
-                  Print
-                </Link>
-              </Button>
-            ) : (
-              <ProFeatureNoticeButton
-                noticeDescription="Upgrade to Pro to print quote records."
-                noticeTitle="Print is a Pro feature."
-                variant="outline"
-              >
-                <Printer data-icon="inline-start" />
-                Print
-              </ProFeatureNoticeButton>
-            )}
             {quote.status === "draft" ? (
               <SendQuoteDialog
                 sendAction={sendAction}
@@ -463,21 +429,6 @@ async function QuoteDetailContent({
               </div>
 
 
-
-              <DashboardSection
-                description="Delete unneeded drafts before they enter the quote lifecycle."
-                title="Draft actions"
-              >
-                <QuoteLifecycleActions
-                  archiveAction={archiveAction}
-                  businessQuoteListHref={getBusinessQuotesPath(businessSlug)}
-                  deleteDraftAction={deleteDraftAction}
-                  isArchived={isArchived}
-                  restoreArchivedAction={restoreArchivedAction}
-                  status={quote.status}
-                  voidAction={voidAction}
-                />
-              </DashboardSection>
             </DashboardSidebarStack>
           </DashboardDetailLayout>
         </>
@@ -700,21 +651,6 @@ async function QuoteDetailContent({
             ) : null}
 
 
-
-            <DashboardSection
-              description={lifecycleSectionDescription}
-              title="Lifecycle"
-            >
-              <QuoteLifecycleActions
-                archiveAction={archiveAction}
-                businessQuoteListHref={getBusinessQuotesPath(businessSlug)}
-                deleteDraftAction={deleteDraftAction}
-                isArchived={isArchived}
-                restoreArchivedAction={restoreArchivedAction}
-                status={quote.status}
-                voidAction={voidAction}
-              />
-            </DashboardSection>
           </DashboardSidebarStack>
         </DashboardDetailLayout>
       )}

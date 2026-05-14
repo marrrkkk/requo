@@ -4,16 +4,15 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import {
   BellRing,
   Check,
-  ChevronDown,
   Copy,
   ExternalLink,
+  Link2,
   Mail,
   SendHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -26,13 +25,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type {
@@ -40,7 +32,6 @@ import type {
   QuoteSendChannel,
   QuoteStatus,
 } from "@/features/quotes/types";
-import { quoteSendChannels } from "@/features/quotes/types";
 import {
   type FollowUpCreateActionState,
 } from "@/features/follow-ups/types";
@@ -50,17 +41,13 @@ import {
 } from "@/features/follow-ups/utils";
 import {
   buildMailtoUrl,
-  formatQuoteDate,
   formatQuoteMoney,
   generateQuoteEmailBody,
   generateQuoteEmailSubject,
   generateQuoteFollowUpMessage,
   getChannelMessage,
-  getChannelPrimaryAction,
   getDefaultSendChannel,
-  getSendChannelLabel,
   quoteSendChannelLabels,
-  quoteStatusLabels,
 } from "@/features/quotes/utils";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { useProgressRouter } from "@/hooks/use-progress-router";
@@ -133,7 +120,6 @@ export function SendQuoteDialog({
   const detectedChannel = getDefaultSendChannel(quote.customerContactMethod);
   const [selectedChannel, setSelectedChannel] =
     useState<QuoteSendChannel>(detectedChannel);
-  const channelAction = getChannelPrimaryAction(detectedChannel);
   const templateInput = {
     customerName: quote.customerName,
     businessName,
@@ -142,30 +128,22 @@ export function SendQuoteDialog({
   const primaryMessage = getChannelMessage(detectedChannel, templateInput);
   const [editedMessage, setEditedMessage] = useState(primaryMessage);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [showMarkSentConfirm, setShowMarkSentConfirm] = useState(false);
 
   const isEmailContact = detectedChannel === "email";
   const showRequoOption =
     isRequoEmailAvailable && isEmailContact && quote.customerEmail;
 
-  // Reset state when dialog opens
   function handleOpenChange(next: boolean) {
     if (next) {
       setStep("ready");
       setSelectedChannel(detectedChannel);
-      setEditedMessage(
-        getChannelMessage(detectedChannel, templateInput),
-      );
+      setEditedMessage(getChannelMessage(detectedChannel, templateInput));
       setCopiedField(null);
-      setShowMarkSentConfirm(false);
     }
-
     setOpen(next);
   }
 
-  // After form submit succeeds, detect via sendState
   if (sendState?.success && step === "ready") {
-    // Move to sent step on next render
     queueMicrotask(() => setStep("sent"));
   }
 
@@ -177,20 +155,19 @@ export function SendQuoteDialog({
       toast.success(`${label} copied.`);
       setCopiedField(label);
       setTimeout(() => setCopiedField(null), 2000);
-
       if (eventType) {
         startLogging(async () => {
           await logEventAction(eventType, selectedChannel);
         });
       }
     } catch {
-      toast.error(`Couldn't copy ${label.toLowerCase()}. Try selecting and copying manually.`);
+      toast.error(`Couldn't copy ${label.toLowerCase()}.`);
     }
   }
 
   function handleCopyLink() {
     if (!customerQuoteUrl) return;
-    void copyText(customerQuoteUrl, "Quote link", "copied_link");
+    void copyText(customerQuoteUrl, "Link", "copied_link");
   }
 
   function handleCopyMessage() {
@@ -199,12 +176,11 @@ export function SendQuoteDialog({
 
   function handleCopyFollowUp() {
     const followUpMsg = generateQuoteFollowUpMessage(templateInput);
-    void copyText(followUpMsg, "Follow-up message", "copied_followup");
+    void copyText(followUpMsg, "Follow-up", "copied_followup");
   }
 
   function handleOpenEmailApp() {
     if (!quote.customerEmail || !customerQuoteUrl) return;
-
     startLogging(async () => {
       await logEventAction("opened_email_app", "email");
     });
@@ -217,11 +193,6 @@ export function SendQuoteDialog({
 
   function handleMarkAsSent() {
     if (disabled || isPending) return;
-    setShowMarkSentConfirm(true);
-  }
-
-  function confirmMarkAsSent() {
-    setShowMarkSentConfirm(false);
     formRef.current?.requestSubmit(manSubmitRef.current ?? undefined);
   }
 
@@ -243,8 +214,8 @@ export function SendQuoteDialog({
       <Alert>
         <AlertTitle>Customer link unavailable</AlertTitle>
         <AlertDescription>
-          Requo couldn&apos;t recover the secure customer link for this quote, so
-          sending is temporarily unavailable.
+          The secure customer link couldn&apos;t be recovered. Sending is
+          temporarily unavailable.
         </AlertDescription>
       </Alert>
     );
@@ -259,299 +230,192 @@ export function SendQuoteDialog({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-md">
         {step === "ready" ? (
           <>
             <DialogHeader>
               <DialogTitle>Send quote</DialogTitle>
               <DialogDescription>
-                Send this quote to {quote.customerName} via their preferred
-                channel.
+                Deliver {quote.quoteNumber} to {quote.customerName}.
               </DialogDescription>
             </DialogHeader>
 
-            <DialogBody className="flex flex-col gap-5">
-              {/* --- Quote summary --- */}
-              <div className="soft-panel flex flex-col gap-3 px-4 py-4 shadow-none">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex flex-col gap-0.5">
-                    <p className="text-sm font-medium text-foreground">
-                      {quote.customerName}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {quote.quoteNumber} · {quote.title}
-                    </p>
-                  </div>
-                  <Badge variant="secondary">
-                    {quoteStatusLabels[quote.status] ?? quote.status}
-                  </Badge>
+            <DialogBody className="flex flex-col gap-5 pt-1">
+              {/* Quote summary row */}
+              <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {quote.title}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {quoteSendChannelLabels[detectedChannel]} · {quote.customerContactHandle}
+                  </p>
                 </div>
-
-                <div className="grid gap-3 text-sm sm:grid-cols-2">
-                  <div>
-                    <p className="meta-label">Total</p>
-                    <p className="mt-0.5 font-medium text-foreground">
-                      {formatQuoteMoney(quote.totalInCents, quote.currency)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="meta-label">Valid until</p>
-                    <p className="mt-0.5 text-foreground">
-                      {formatQuoteDate(quote.validUntil)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="meta-label">Channel</p>
-                    <p className="mt-0.5 text-foreground">
-                      {quoteSendChannelLabels[detectedChannel]}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="meta-label">Send to</p>
-                    <p className="mt-0.5 truncate text-foreground">
-                      {quote.customerContactHandle}
-                    </p>
-                  </div>
-                </div>
+                <p className="shrink-0 text-base font-semibold tracking-tight text-foreground">
+                  {formatQuoteMoney(quote.totalInCents, quote.currency)}
+                </p>
               </div>
 
-              {/* --- Send with Requo option --- */}
-              {showRequoOption ? (
-                <form ref={formRef} action={formAction}>
-                  <button
-                    aria-hidden="true"
-                    className="hidden"
-                    disabled={disabled || isPending}
-                    name="deliveryMethod"
-                    ref={reqSubmitRef}
-                    tabIndex={-1}
-                    type="submit"
-                    value="requo"
-                  />
-                  <button
-                    aria-hidden="true"
-                    className="hidden"
-                    disabled={disabled || isPending}
-                    name="deliveryMethod"
-                    ref={manSubmitRef}
-                    tabIndex={-1}
-                    type="submit"
-                    value="manual"
-                  />
+              {/* Hidden form for submit */}
+              <form ref={formRef} action={formAction} className="hidden">
+                <button
+                  aria-hidden="true"
+                  disabled={disabled || isPending}
+                  name="deliveryMethod"
+                  ref={reqSubmitRef}
+                  tabIndex={-1}
+                  type="submit"
+                  value="requo"
+                />
+                <button
+                  aria-hidden="true"
+                  disabled={disabled || isPending}
+                  name="deliveryMethod"
+                  ref={manSubmitRef}
+                  tabIndex={-1}
+                  type="submit"
+                  value="manual"
+                />
+              </form>
 
-                  <div className="flex flex-col gap-3">
-                    <Button
-                      className="w-full"
-                      disabled={disabled || isPending}
-                      onClick={handleSendWithRequo}
-                      type="button"
-                    >
-                      {isPending ? (
-                        <Spinner data-icon="inline-start" aria-hidden="true" />
-                      ) : (
-                        <SendHorizontal data-icon="inline-start" />
-                      )}
-                      {isPending ? "Sending..." : "Send with Requo"}
-                    </Button>
-
-                    <div className="flex items-center gap-3">
-                      <div className="h-px flex-1 bg-border" />
-                      <span className="meta-label">or send yourself</span>
-                      <div className="h-px flex-1 bg-border" />
-                    </div>
-                  </div>
-                </form>
-              ) : (
-                <form ref={formRef} action={formAction} className="hidden">
-                  <button
-                    aria-hidden="true"
-                    className="hidden"
-                    disabled={disabled || isPending}
-                    name="deliveryMethod"
-                    ref={manSubmitRef}
-                    tabIndex={-1}
-                    type="submit"
-                    value="manual"
-                  />
-                </form>
-              )}
-
-              {/* --- Message preview --- */}
+              {/* Message preview */}
               <div className="flex flex-col gap-2">
-                <p className="meta-label">Message preview</p>
-                <div className="relative">
-                  <textarea
-                    className="w-full resize-none rounded-lg border border-input bg-muted/40 p-3 pr-10 text-sm leading-relaxed text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    onChange={(e) => setEditedMessage(e.target.value)}
-                    rows={4}
-                    value={editedMessage}
-                  />
+                <div className="flex items-center justify-between">
+                  <p className="meta-label">Message</p>
                   <Button
-                    className="absolute right-2 top-2"
                     onClick={handleCopyMessage}
-                    size="icon-xs"
-                    title="Copy message"
+                    size="xs"
                     type="button"
                     variant="ghost"
                   >
                     {copiedField === "Message" ? (
-                      <Check className="size-3.5" />
+                      <Check data-icon="inline-start" className="size-3" />
                     ) : (
-                      <Copy className="size-3.5" />
+                      <Copy data-icon="inline-start" className="size-3" />
                     )}
+                    {copiedField === "Message" ? "Copied" : "Copy"}
                   </Button>
                 </div>
+                <textarea
+                  className="w-full resize-none rounded-lg border border-input bg-muted/30 px-3.5 py-3 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  onChange={(e) => setEditedMessage(e.target.value)}
+                  rows={3}
+                  value={editedMessage}
+                />
               </div>
 
-              {/* --- Primary channel action --- */}
-              <div className="flex flex-col gap-2">
-                {channelAction.variant === "email" && mailtoUrl ? (
-                  <Button
-                    asChild
-                    className="w-full"
-                    onClick={handleOpenEmailApp}
-                    variant="outline"
-                  >
-                    <a href={mailtoUrl} target="_blank" rel="noopener noreferrer">
-                      <Mail data-icon="inline-start" />
-                      Open in Email App
-                      <ExternalLink data-icon="inline-end" className="size-3.5" />
-                    </a>
-                  </Button>
-                ) : (
-                  <Button
-                    className="w-full"
-                    onClick={handleCopyMessage}
-                    type="button"
-                    variant="outline"
-                  >
-                    {copiedField === "Message" ? (
-                      <Check data-icon="inline-start" />
-                    ) : (
-                      <Copy data-icon="inline-start" />
-                    )}
-                    {copiedField === "Message"
-                      ? "Copied!"
-                      : channelAction.label}
-                  </Button>
-                )}
-              </div>
-
-              {/* --- Secondary actions --- */}
-              <div className="flex flex-wrap gap-2">
+              {/* Quick actions row */}
+              <div className="flex items-center gap-2">
                 <Button
+                  className="flex-1"
                   onClick={handleCopyLink}
                   size="sm"
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                 >
-                  {copiedField === "Quote link" ? (
+                  {copiedField === "Link" ? (
                     <Check data-icon="inline-start" className="size-3.5" />
                   ) : (
-                    <Copy data-icon="inline-start" className="size-3.5" />
+                    <Link2 data-icon="inline-start" className="size-3.5" />
                   )}
-                  {copiedField === "Quote link" ? "Copied!" : "Copy link"}
-                </Button>
-
-                <Button
-                  onClick={handleCopyFollowUp}
-                  size="sm"
-                  type="button"
-                  variant="ghost"
-                >
-                  <Copy data-icon="inline-start" className="size-3.5" />
-                  Copy follow-up
+                  {copiedField === "Link" ? "Copied" : "Copy link"}
                 </Button>
 
                 {pdfExportHref ? (
-                  <Button asChild size="sm" variant="ghost">
+                  <Button asChild className="flex-1" size="sm" variant="outline">
                     <a href={pdfExportHref} target="_blank" rel="noopener noreferrer">
                       <ExternalLink data-icon="inline-start" className="size-3.5" />
-                      Download PDF
+                      PDF
                     </a>
                   </Button>
                 ) : pdfExportLocked ? (
                   <ProFeatureNoticeButton
-                    noticeDescription="Upgrade to Pro to download quote PDFs before sending."
-                    noticeTitle="PDF export is a Pro feature."
+                    className="flex-1"
+                    noticeDescription="Upgrade to Pro to download quote PDFs."
+                    noticeTitle="PDF is a Pro feature."
                     size="sm"
-                    variant="ghost"
+                    variant="outline"
                   >
                     <ExternalLink data-icon="inline-start" className="size-3.5" />
-                    Download PDF
+                    PDF
                   </ProFeatureNoticeButton>
                 ) : null}
               </div>
-
-              {/* --- Email disclaimer --- */}
-              {isEmailContact && mailtoUrl ? (
-                <p className="text-xs leading-5 text-muted-foreground">
-                  Your email app controls which account sends this. Check the
-                  From address before sending.
-                </p>
-              ) : null}
             </DialogBody>
 
-            {/* --- Mark as Sent footer --- */}
-            <DialogFooter className="flex-col gap-3 sm:flex-col">
-              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
-                <span className="text-sm text-muted-foreground">Via</span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button size="sm" type="button" variant="outline">
-                      {getSendChannelLabel(selectedChannel)}
-                      <ChevronDown data-icon="inline-end" className="size-3.5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-40">
-                    <DropdownMenuGroup>
-                      {quoteSendChannels.map((ch) => (
-                        <DropdownMenuItem
-                          key={ch}
-                          onSelect={() => setSelectedChannel(ch)}
-                        >
-                          {quoteSendChannelLabels[ch]}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                {showMarkSentConfirm ? (
-                  <div className="flex flex-1 items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Mark this quote as sent?</span>
+            <DialogFooter className="flex-col gap-2 sm:flex-col">
+              {/* Primary send action */}
+              {showRequoOption ? (
+                <>
+                  <Button
+                    className="w-full"
+                    disabled={disabled || isPending}
+                    onClick={handleSendWithRequo}
+                    type="button"
+                  >
+                    {isPending ? (
+                      <Spinner data-icon="inline-start" aria-hidden="true" />
+                    ) : (
+                      <SendHorizontal data-icon="inline-start" />
+                    )}
+                    {isPending ? "Sending..." : "Send with Requo"}
+                  </Button>
+                  <div className="flex w-full items-center gap-2">
+                    {isEmailContact && mailtoUrl ? (
+                      <Button
+                        asChild
+                        className="flex-1"
+                        onClick={handleOpenEmailApp}
+                        variant="outline"
+                      >
+                        <a href={mailtoUrl} target="_blank" rel="noopener noreferrer">
+                          <Mail data-icon="inline-start" />
+                          Email app
+                        </a>
+                      </Button>
+                    ) : null}
                     <Button
-                      onClick={confirmMarkAsSent}
-                      size="sm"
+                      className="flex-1"
+                      disabled={disabled || isPending}
+                      onClick={handleMarkAsSent}
                       type="button"
+                      variant="outline"
                     >
-                      Confirm
-                    </Button>
-                    <Button
-                      onClick={() => setShowMarkSentConfirm(false)}
-                      size="sm"
-                      type="button"
-                      variant="ghost"
-                    >
-                      Cancel
+                      <Check data-icon="inline-start" />
+                      Mark as sent
                     </Button>
                   </div>
-                ) : (
+                </>
+              ) : (
+                <div className="flex w-full items-center gap-2">
+                  {isEmailContact && mailtoUrl ? (
+                    <Button
+                      asChild
+                      className="flex-1"
+                      onClick={handleOpenEmailApp}
+                    >
+                      <a href={mailtoUrl} target="_blank" rel="noopener noreferrer">
+                        <Mail data-icon="inline-start" />
+                        Open email app
+                      </a>
+                    </Button>
+                  ) : null}
                   <Button
                     className="flex-1"
                     disabled={disabled || isPending}
                     onClick={handleMarkAsSent}
                     type="button"
+                    variant={isEmailContact && mailtoUrl ? "outline" : "default"}
                   >
                     {isPending ? (
                       <Spinner data-icon="inline-start" aria-hidden="true" />
                     ) : (
                       <Check data-icon="inline-start" />
                     )}
-                    {isPending ? "Marking sent..." : "Mark as Sent"}
+                    {isPending ? "Marking..." : "Mark as sent"}
                   </Button>
-                )}
-              </div>
+                </div>
+              )}
             </DialogFooter>
           </>
         ) : (
@@ -560,26 +424,24 @@ export function SendQuoteDialog({
             <DialogHeader>
               <DialogTitle>Quote sent</DialogTitle>
               <DialogDescription>
-                {sendState?.success ??
-                  `Quote ${quote.quoteNumber} marked as sent.`}
+                {sendState?.success ?? `${quote.quoteNumber} marked as sent.`}
               </DialogDescription>
             </DialogHeader>
 
             <DialogBody className="flex flex-col gap-5">
-              <div className="soft-panel flex flex-col gap-3 px-4 py-4 shadow-none">
-                <div className="flex items-center gap-2">
-                  <div className="flex size-8 items-center justify-center rounded-full bg-primary/10">
-                    <Check className="size-4 text-primary" />
-                  </div>
+              <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3.5">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/15">
+                  <Check className="size-4 text-primary" />
+                </div>
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">
-                    Quote {quote.quoteNumber} is now in the sent stage
+                    Tracking is active
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    Requo will notify you when the customer views, accepts, or
+                    declines this quote.
                   </p>
                 </div>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  Requo will track when the customer views, accepts, or
-                  declines the quote. Set a follow-up reminder if you want this
-                  quote to stay on your radar.
-                </p>
               </div>
 
               {createFollowUpAction ? (
@@ -589,31 +451,11 @@ export function SendQuoteDialog({
                   quote={quote}
                   selectedChannel={selectedChannel}
                 />
-              ) : (
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-medium text-foreground">
-                    Quick follow-up
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Need to send a follow-up later? Copy a ready-made message
-                    anytime.
-                  </p>
-                  <Button
-                    className="mt-1 w-full sm:w-auto"
-                    onClick={handleCopyFollowUp}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    <Copy data-icon="inline-start" className="size-3.5" />
-                    Copy follow-up message
-                  </Button>
-                </div>
-              )}
+              ) : null}
             </DialogBody>
 
             <DialogFooter>
-              <Button onClick={() => setOpen(false)} type="button">
+              <Button className="w-full" onClick={() => setOpen(false)} type="button">
                 Done
               </Button>
             </DialogFooter>
@@ -623,6 +465,8 @@ export function SendQuoteDialog({
     </Dialog>
   );
 }
+
+/* -------------------------------------------------------------------------- */
 
 function QuoteFollowUpPrompt({
   action,
@@ -662,83 +506,35 @@ function QuoteFollowUpPrompt({
 
   if (state.success) {
     return (
-      <div className="soft-panel flex flex-col gap-3 px-4 py-4 shadow-none">
-        <div className="flex items-center gap-2">
-          <BellRing className="size-4 text-primary" aria-hidden="true" />
+      <div className="flex items-start gap-3 rounded-lg border border-border/60 px-4 py-3.5">
+        <BellRing className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+        <div>
           <p className="text-sm font-medium text-foreground">
             Follow-up reminder set
           </p>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            It will appear in your follow-ups list.
+          </p>
         </div>
-        <p className="text-sm leading-6 text-muted-foreground">
-          It will appear in your dashboard follow-ups list.
-        </p>
       </div>
     );
   }
 
   if (dismissed) {
-    return (
-      <div className="soft-panel flex flex-col gap-3 px-4 py-4 shadow-none">
-        <p className="text-sm font-medium text-foreground">
-          Follow-up reminder skipped
-        </p>
-        <p className="text-sm leading-6 text-muted-foreground">
-          You can still create one later from the quote detail page.
-        </p>
-      </div>
-    );
+    return null;
   }
 
-  function HiddenFields({ dueDate }: { dueDate: string }) {
-    return (
-      <>
-        <input name="title" type="hidden" value={followUpTitle} />
-        <input name="reason" type="hidden" value={followUpReason} />
-        <input name="channel" type="hidden" value={followUpChannel} />
-        <input name="dueDate" type="hidden" value={dueDate} />
-      </>
-    );
-  }
+  const hiddenFieldValues = { title: followUpTitle, reason: followUpReason, channel: followUpChannel };
 
   return (
     <div className="flex flex-col gap-3">
-      <div>
+      <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-foreground">
-          Set follow-up reminder?
+          Set a follow-up reminder?
         </p>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">
-          Choose when this quote should come back to your attention. Requo will
-          not send anything automatically.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {[
-          ["tomorrow", "Tomorrow"],
-          ["3d", "In 3 days"],
-          ["7d", "In 7 days"],
-        ].map(([value, label]) => (
-          <form action={formAction} key={value}>
-            <HiddenFields
-              dueDate={getQuickFollowUpDueDate(value as "tomorrow" | "3d" | "7d")}
-            />
-            <Button disabled={isPending} size="sm" type="submit" variant="outline">
-              {isPending ? null : <BellRing data-icon="inline-start" />}
-              {label}
-            </Button>
-          </form>
-        ))}
-        <Button
-          onClick={() => setCustomOpen((value) => !value)}
-          size="sm"
-          type="button"
-          variant="outline"
-        >
-          Custom date
-        </Button>
         <Button
           onClick={() => setDismissed(true)}
-          size="sm"
+          size="xs"
           type="button"
           variant="ghost"
         >
@@ -746,42 +542,67 @@ function QuoteFollowUpPrompt({
         </Button>
       </div>
 
-      {customOpen ? (
-        <form action={formAction} className="rounded-lg border border-border/70 p-3">
-          <input name="title" type="hidden" value={followUpTitle} />
-          <input name="reason" type="hidden" value={followUpReason} />
-          <input name="channel" type="hidden" value={followUpChannel} />
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="min-w-0 flex-1">
-              <p className="meta-label mb-2">Custom due date</p>
-              <DatePicker
-                id="quote-follow-up-custom-date"
-                name="dueDate"
-                onChange={setCustomDueDate}
-                required
-                value={customDueDate}
-              />
-            </div>
-            <Button disabled={isPending} type="submit">
-              {isPending ? (
-                <Spinner data-icon="inline-start" aria-hidden="true" />
-              ) : (
-                <BellRing data-icon="inline-start" />
-              )}
-              Save reminder
+      <div className="flex flex-wrap gap-2">
+        {[
+          ["tomorrow", "Tomorrow"],
+          ["3d", "3 days"],
+          ["7d", "7 days"],
+        ].map(([value, label]) => (
+          <form action={formAction} key={value}>
+            <input name="title" type="hidden" value={hiddenFieldValues.title} />
+            <input name="reason" type="hidden" value={hiddenFieldValues.reason} />
+            <input name="channel" type="hidden" value={hiddenFieldValues.channel} />
+            <input name="dueDate" type="hidden" value={getQuickFollowUpDueDate(value as "tomorrow" | "3d" | "7d")} />
+            <Button disabled={isPending} size="sm" type="submit" variant="outline">
+              {label}
             </Button>
+          </form>
+        ))}
+        <Button
+          onClick={() => setCustomOpen((v) => !v)}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          Custom
+        </Button>
+      </div>
+
+      {customOpen ? (
+        <form action={formAction} className="flex items-end gap-2 rounded-lg border border-border/60 p-3">
+          <input name="title" type="hidden" value={hiddenFieldValues.title} />
+          <input name="reason" type="hidden" value={hiddenFieldValues.reason} />
+          <input name="channel" type="hidden" value={hiddenFieldValues.channel} />
+          <input name="dueDate" type="hidden" value={customDueDate} />
+          <div className="min-w-0 flex-1">
+            <p className="meta-label mb-1.5">Due date</p>
+            <DatePicker
+              id="quote-follow-up-custom-date"
+              name="dueDate"
+              onChange={setCustomDueDate}
+              required
+              value={customDueDate}
+            />
           </div>
+          <Button disabled={isPending} size="sm" type="submit">
+            {isPending ? (
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+            ) : (
+              <BellRing data-icon="inline-start" />
+            )}
+            Set
+          </Button>
         </form>
       ) : null}
 
       <Button
-        className="w-full sm:w-fit"
+        className="w-fit"
         onClick={onCopyFollowUp}
-        size="sm"
+        size="xs"
         type="button"
         variant="ghost"
       >
-        <Copy data-icon="inline-start" className="size-3.5" />
+        <Copy data-icon="inline-start" className="size-3" />
         Copy follow-up message
       </Button>
     </div>

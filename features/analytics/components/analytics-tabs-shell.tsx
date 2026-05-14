@@ -12,7 +12,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { analyticsSections, type AnalyticsSectionId } from "@/features/analytics/config";
 import { AnalyticsTabContentFallback } from "@/features/analytics/components/analytics-tab-content-fallback";
 import { useProgressRouter } from "@/hooks/use-progress-router";
-import { cn } from "@/lib/utils";
 
 const analyticsTabItems = [
   {

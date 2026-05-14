@@ -1,7 +1,5 @@
 import {
-  ArrowUpRight,
   MessageSquareText,
-  Paperclip,
   ReceiptText,
   Sparkles,
 } from "lucide-react";
@@ -15,7 +13,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 
 type AuthShellProps = {
   badge?: string;

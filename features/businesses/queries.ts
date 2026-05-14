@@ -102,7 +102,6 @@ async function getCachedBusinessOverviewData(
   cacheLife(hotBusinessCacheLife);
   cacheTag(...getBusinessOverviewCacheTags(businessId));
 
-  const recentAcceptedCutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
   const today = new Date().toISOString().slice(0, 10);
   const expiringSoonCutoff = getFutureUtcDateString(7);
   const isOverdueInquiry = sql`${getEffectiveInquiryStatus} = 'overdue'`;

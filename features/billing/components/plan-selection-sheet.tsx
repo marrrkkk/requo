@@ -61,7 +61,7 @@ export function PlanSelectionSheet({
   onOpenChange,
   currentPlan,
   defaultCurrency,
-  region,
+  region: _region,
   targetPlan,
   onSelectPlan,
 }: PlanSelectionSheetProps) {

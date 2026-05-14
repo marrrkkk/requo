@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Briefcase, Building2 } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import type { PlanFeature } from "@/lib/plans";

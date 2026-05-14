@@ -9,8 +9,9 @@ import {
   useRef,
   useState,
 } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Sparkles, Trash2, GripVertical } from "lucide-react";
 import { toast } from "sonner";
+import { AnimatePresence, Reorder, useDragControls } from "framer-motion";
 
 import {
   DashboardMetaPill,
@@ -59,7 +60,8 @@ import {
   isQuoteEditorLineItemBlank,
   parseCurrencyInputToCents,
 } from "@/features/quotes/utils";
-import { AiQuoteGeneratorDialog } from "@/features/quotes/components/ai-quote-generator-dialog";
+import { AddLineItemDialog } from "@/features/quotes/components/add-line-item-dialog";
+import { generateQuoteDraftAction } from "@/features/ai/actions";
 import type { AiQuoteDraft } from "@/features/ai/types";
 import { cn } from "@/lib/utils";
 
@@ -83,7 +85,6 @@ type QuoteEditorProps = {
 
 const initialState: QuoteEditorActionState = {};
 const LINE_ITEM_ENTER_DURATION_MS = 220;
-const LINE_ITEM_EXIT_DURATION_MS = 180;
 const LazyQuoteLibrarySheet = dynamic(() =>
   import("@/features/quotes/components/quote-library-sheet").then(
     (module) => module.QuoteLibrarySheet,
@@ -92,6 +93,7 @@ const LazyQuoteLibrarySheet = dynamic(() =>
 
 type EditorLineItem = QuoteEditorLineItemValue & {
   motionState?: "entering" | "exiting";
+  isAiGenerated?: boolean;
 };
 
 function cloneQuoteEditorValues(values: QuoteEditorValues): QuoteEditorValues {
@@ -151,14 +153,12 @@ function areQuoteEditorValuesEqual(
 }
 
 function getVisibleEditorItems(items: EditorLineItem[]): QuoteEditorLineItemValue[] {
-  return items
-    .filter((item) => item.motionState !== "exiting")
-    .map((item) => ({
-      id: item.id,
-      description: item.description,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-    }));
+  return items.map((item) => ({
+    id: item.id,
+    description: item.description,
+    quantity: item.quantity,
+    unitPrice: item.unitPrice,
+  }));
 }
 
 function getQuotePreviewItems(items: QuoteEditorLineItemValue[]) {
@@ -208,6 +208,7 @@ export function QuoteEditor({
   );
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [hasLoadedLibrary, setHasLoadedLibrary] = useState(false);
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
   const [savedValues, setSavedValues] = useState(() =>
     normalizeQuoteEditorValues(initialValues),
   );
@@ -390,25 +391,8 @@ export function QuoteEditor({
       return;
     }
 
-    const currentItem = items.find((item) => item.id === itemId);
-
-    if (!currentItem || currentItem.motionState === "exiting") {
-      return;
-    }
-
     setItems((currentItems) =>
-      currentItems.map((item) =>
-        item.id === itemId ? { ...item, motionState: "exiting" } : item,
-      ),
-    );
-
-    scheduleLineItemTimeout(
-      itemId,
-      () =>
-        setItems((currentItems) =>
-          currentItems.filter((item) => item.id !== itemId),
-        ),
-      LINE_ITEM_EXIT_DURATION_MS,
+      currentItems.filter((item) => item.id !== itemId),
     );
   }
 
@@ -441,14 +425,6 @@ export function QuoteEditor({
   function applyAiDraft(draft: AiQuoteDraft) {
     clearLineItemTimers();
 
-    if (draft.title.trim()) {
-      setTitle(draft.title.trim());
-    }
-
-    if (draft.notes !== null && draft.notes !== undefined) {
-      setNotes(draft.notes);
-    }
-
     const draftItems = draft.items.length
       ? draft.items.map((item) =>
           createQuoteEditorLineItemValue({
@@ -459,10 +435,44 @@ export function QuoteEditor({
         )
       : [createQuoteEditorLineItem()];
 
-    setItems(draftItems.map((item) => ({ ...item, motionState: "entering" as const })));
+    setItems(draftItems.map((item) => ({ ...item, motionState: "entering" as const, isAiGenerated: true })));
 
     for (const item of draftItems) {
       scheduleItemEnter(item.id);
+    }
+
+    // Clear glow after animation completes
+    setTimeout(() => {
+      setItems((currentItems) =>
+        currentItems.map((item) => ({ ...item, isAiGenerated: false })),
+      );
+    }, 2500);
+  }
+
+  async function generateWithAi() {
+    setIsAiGenerating(true);
+
+    const formData = new FormData();
+    if (linkedInquiry) {
+      formData.set("inquiryId", linkedInquiry.id);
+    }
+    // Use current title as brief context when no linked inquiry
+    if (!linkedInquiry && title.trim()) {
+      formData.set("brief", title.trim());
+    }
+
+    const result = await generateQuoteDraftAction(businessSlug, {}, formData);
+
+    setIsAiGenerating(false);
+
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+
+    if (result.draft) {
+      applyAiDraft(result.draft);
+      toast.success("Line items generated.");
     }
   }
 
@@ -749,15 +759,27 @@ export function QuoteEditor({
         </DashboardSection>
 
         <DashboardSection
+          className={cn(isAiGenerating && "ai-glow-section")}
           action={
             <>
               {canUseAiGenerator ? (
-                <AiQuoteGeneratorDialog
-                  businessSlug={businessSlug}
-                  disabled={isPending}
-                  linkedInquiry={linkedInquiry}
-                  onApply={applyAiDraft}
-                />
+                <Button
+                  type="button"
+                  onClick={generateWithAi}
+                  disabled={isPending || isAiGenerating || (!linkedInquiry && !title.trim())}
+                >
+                  {isAiGenerating ? (
+                    <>
+                      <Spinner aria-hidden="true" data-icon="inline-start" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles data-icon="inline-start" />
+                      Generate with AI
+                    </>
+                  )}
+                </Button>
               ) : null}
               <Button
                 type="button"
@@ -767,30 +789,34 @@ export function QuoteEditor({
               >
                 Insert saved
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
+              <AddLineItemDialog
+                disabled={isPending}
+                onAdd={(newItem) => {
                   const nextItem = {
                     ...createQuoteEditorLineItem(),
+                    description: newItem.description,
+                    quantity: newItem.quantity,
+                    unitPrice: newItem.unitPrice,
                     motionState: "entering" as const,
                   };
 
                   setItems((currentItems) => [...currentItems, nextItem]);
                   scheduleItemEnter(nextItem.id);
                 }}
-                disabled={isPending}
-              >
-                <Plus data-icon="inline-start" />
-                Add item
-              </Button>
+              />
             </>
           }
-          contentClassName="flex flex-col gap-5"
+          contentClassName="flex flex-col gap-4"
           description="Add priced rows. The preview and totals update while you edit."
           title="Line items"
         >
-          <div className="flex flex-col gap-4">
+          <Reorder.Group
+            axis="y"
+            values={items}
+            onReorder={setItems}
+            className="flex flex-col gap-4"
+          >
+            <AnimatePresence mode="popLayout" initial={false}>
             {items.map((item, index) => {
               const unitPriceInCents = parseCurrencyInputToCents(item.unitPrice);
               const quantity = Number.parseInt(item.quantity.trim(), 10);
@@ -798,126 +824,23 @@ export function QuoteEditor({
                 Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
 
               return (
-                <div
-                  className={cn(
-                    "soft-panel p-5 motion-reduce:animate-none",
-                    item.motionState === "entering" &&
-                      "motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-2 motion-safe:duration-200",
-                    item.motionState === "exiting" &&
-                      "pointer-events-none motion-safe:animate-out motion-safe:fade-out-0 motion-safe:slide-out-to-bottom-2 motion-safe:duration-150",
-                  )}
-                  data-motion-state={item.motionState}
+                <LineItemCard
                   key={item.id}
-                >
-                  <div className="flex flex-col gap-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-medium text-foreground">
-                        Item {index + 1}
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon-sm"
-                        onClick={() => removeItem(item.id)}
-                        disabled={
-                          isPending ||
-                          visibleItems.length === 1 ||
-                          item.motionState === "exiting"
-                        }
-                      >
-                        <Trash2 data-icon="inline-start" />
-                        <span className="sr-only">Remove line item</span>
-                      </Button>
-                    </div>
-
-                    <FieldGroup>
-                      <Field>
-                        <FieldLabel htmlFor={`quote-item-description-${item.id}`}>
-                          Description
-                        </FieldLabel>
-                        <FieldContent>
-                          <Input
-                            id={`quote-item-description-${item.id}`}
-                            maxLength={400}
-                            value={item.description}
-                            onChange={(event) =>
-                              updateItem(item.id, {
-                                description: event.currentTarget.value,
-                              })
-                            }
-                            placeholder="Logo concept package"
-                            required
-                            disabled={isPending}
-                          />
-                        </FieldContent>
-                      </Field>
-
-                      <div className="grid gap-4 sm:grid-cols-[10rem_minmax(0,1fr)_minmax(0,1fr)]">
-                        <Field>
-                          <FieldLabel htmlFor={`quote-item-quantity-${item.id}`}>
-                            Quantity
-                          </FieldLabel>
-                          <FieldContent>
-                            <Input
-                              id={`quote-item-quantity-${item.id}`}
-                              inputMode="numeric"
-                              max="999999999"
-                              type="number"
-                              min="1"
-                              required
-                              step="1"
-                              value={item.quantity}
-                              onChange={(event) =>
-                                updateItem(item.id, {
-                                  quantity: event.currentTarget.value,
-                                })
-                              }
-                              disabled={isPending}
-                            />
-                          </FieldContent>
-                        </Field>
-
-                        <Field>
-                          <FieldLabel htmlFor={`quote-item-price-${item.id}`}>
-                            Unit price
-                          </FieldLabel>
-                          <FieldContent>
-                            <Input
-                              id={`quote-item-price-${item.id}`}
-                              inputMode="decimal"
-                              type="number"
-                              max="1000000"
-                              min="0"
-                              required
-                              step="0.01"
-                              value={item.unitPrice}
-                              onChange={(event) =>
-                                updateItem(item.id, {
-                                  unitPrice: event.currentTarget.value,
-                                })
-                              }
-                              placeholder="0.00"
-                              disabled={isPending}
-                            />
-                          </FieldContent>
-                        </Field>
-
-                        <div className="info-tile bg-muted/20 px-4 py-3 shadow-none">
-                          <p className="meta-label">Line total</p>
-                          <p className="mt-2 text-sm font-medium text-foreground">
-                            {formatQuoteMoney(
-                              safeQuantity * unitPriceInCents,
-                              currency,
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                    </FieldGroup>
-                  </div>
-                </div>
+                  item={item}
+                  index={index}
+                  currency={currency}
+                  unitPriceInCents={unitPriceInCents}
+                  safeQuantity={safeQuantity}
+                  isPending={isPending}
+                  canRemove={visibleItems.length > 1}
+                  onUpdate={updateItem}
+                  onRemove={removeItem}
+                  formatMoney={formatQuoteMoney}
+                />
               );
             })}
-          </div>
+            </AnimatePresence>
+          </Reorder.Group>
         </DashboardSection>
 
         <DashboardSection
@@ -1049,4 +972,156 @@ function getQuoteContactHandleLabel(method: string) {
   }
 
   return "Contact details";
+}
+
+function LineItemCard({
+  item,
+  index,
+  currency,
+  unitPriceInCents,
+  safeQuantity,
+  isPending,
+  canRemove,
+  onUpdate,
+  onRemove,
+  formatMoney,
+}: {
+  item: EditorLineItem;
+  index: number;
+  currency: string;
+  unitPriceInCents: number;
+  safeQuantity: number;
+  isPending: boolean;
+  canRemove: boolean;
+  onUpdate: (id: string, patch: Partial<EditorLineItem>) => void;
+  onRemove: (id: string) => void;
+  formatMoney: (cents: number, currency: string) => string;
+}) {
+  const dragControls = useDragControls();
+
+  return (
+    <Reorder.Item
+      value={item}
+      dragListener={false}
+      dragControls={dragControls}
+      initial={{ opacity: 0, y: 12, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -8, scale: 0.97 }}
+      transition={{ type: "spring", stiffness: 400, damping: 30 }}
+      layout
+      className={cn(
+        "soft-panel relative overflow-hidden rounded-xl p-5",
+        item.isAiGenerated && "ai-glow-border",
+      )}
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              aria-label={`Reorder item ${index + 1}`}
+              className="shrink-0 cursor-grab touch-none text-muted-foreground/50 transition-colors hover:text-muted-foreground active:cursor-grabbing"
+              onPointerDown={(e) => dragControls.start(e)}
+              type="button"
+            >
+              <GripVertical className="size-4" />
+            </button>
+            <p className="text-sm font-medium text-foreground">
+              Item {index + 1}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            onClick={() => onRemove(item.id)}
+            disabled={isPending || !canRemove}
+          >
+            <Trash2 data-icon="inline-start" />
+            <span className="sr-only">Remove line item</span>
+          </Button>
+        </div>
+
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor={`quote-item-description-${item.id}`}>
+              Description
+            </FieldLabel>
+            <FieldContent>
+              <Input
+                id={`quote-item-description-${item.id}`}
+                maxLength={400}
+                value={item.description}
+                onChange={(event) =>
+                  onUpdate(item.id, {
+                    description: event.currentTarget.value,
+                  })
+                }
+                placeholder="Logo concept package"
+                required
+                disabled={isPending}
+              />
+            </FieldContent>
+          </Field>
+
+          <div className="grid gap-4 sm:grid-cols-[10rem_minmax(0,1fr)_minmax(0,1fr)]">
+            <Field>
+              <FieldLabel htmlFor={`quote-item-quantity-${item.id}`}>
+                Quantity
+              </FieldLabel>
+              <FieldContent>
+                <Input
+                  id={`quote-item-quantity-${item.id}`}
+                  inputMode="numeric"
+                  max="999999999"
+                  type="number"
+                  min="1"
+                  required
+                  step="1"
+                  value={item.quantity}
+                  onChange={(event) =>
+                    onUpdate(item.id, {
+                      quantity: event.currentTarget.value,
+                    })
+                  }
+                  disabled={isPending}
+                />
+              </FieldContent>
+            </Field>
+
+            <Field>
+              <FieldLabel htmlFor={`quote-item-price-${item.id}`}>
+                Unit price
+              </FieldLabel>
+              <FieldContent>
+                <Input
+                  id={`quote-item-price-${item.id}`}
+                  inputMode="decimal"
+                  type="number"
+                  max="1000000"
+                  min="0"
+                  required
+                  step="0.01"
+                  value={item.unitPrice}
+                  onChange={(event) =>
+                    onUpdate(item.id, {
+                      unitPrice: event.currentTarget.value,
+                    })
+                  }
+                  placeholder="0.00"
+                  disabled={isPending}
+                />
+              </FieldContent>
+            </Field>
+
+            <div className="info-tile bg-muted/20 px-4 py-3 shadow-none">
+              <p className="meta-label">Line total</p>
+              <p className="mt-2 text-sm font-medium text-foreground">
+                {formatMoney(safeQuantity * unitPriceInCents, currency)}
+              </p>
+            </div>
+          </div>
+        </FieldGroup>
+      </div>
+    </Reorder.Item>
+  );
 }

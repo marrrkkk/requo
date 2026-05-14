@@ -19,7 +19,7 @@ import {
 } from "@/lib/navigation/route-progress";
 import { cn } from "@/lib/utils";
 
-const SHOW_DELAY_MS = 180;
+const SHOW_DELAY_MS = 150;
 const INCREMENT_INTERVAL_MS = 140;
 const COMPLETE_DELAY_MS = 160;
 const RESET_DELAY_MS = 260;
@@ -199,7 +199,7 @@ export function RouteProgressBar() {
         completeNavigation();
       }
     }, STALL_TIMEOUT_MS);
-  }, [clearPendingWork, completeNavigation, setBarState, startVisibleProgress]);
+  }, [clearPendingWork, completeNavigation, startVisibleProgress]);
 
   const maybeBeginNavigation = useCallback(
     (nextRoute: string | null, options?: { force?: boolean }) => {

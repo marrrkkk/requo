@@ -1451,7 +1451,7 @@ async function seedBusinessData(
     const lastName = pick(rng, LAST_NAMES);
     const customerName = `${firstName} ${lastName}`;
     const customerEmail = `${firstName.toLowerCase()}.${lastName.toLowerCase().replace(/[^a-z]/g, "")}@example.com`;
-    const companyName = chance(rng, 0.6) ? pick(rng, COMPANIES) : null;
+    const _companyName = chance(rng, 0.6) ? pick(rng, COMPANIES) : null;
     const phone = chance(rng, 0.7) ? `(${randInt(rng, 200, 999)}) ${randInt(rng, 200, 999)}-${String(randInt(rng, 0, 10000)).padStart(4, "0")}` : null;
 
     // Spread inquiries over the last 180 days
