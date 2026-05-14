@@ -6,7 +6,7 @@
     "dev": "concurrently \"npm run dev:app\" \"ngrok http 3000\"",
     "dev:app": "node --max-old-space-size=12288 ./node_modules/next/dist/bin/next dev",
     "build": "next build",
-    "vercel-build": "npm run db:push && next build",
+    "vercel-build": "npm run db:migrate && next build",
     "start": "next start",
     "start:app": "next start",
     "lint": "eslint",
