@@ -1,2 +1,0 @@
-ALTER TABLE "businesses" ADD COLUMN "notify_on_member_invite_response" boolean DEFAULT true NOT NULL;--> statement-breakpoint
-ALTER TABLE "businesses" ADD COLUMN "notify_in_app_on_member_invite_response" boolean DEFAULT true NOT NULL;

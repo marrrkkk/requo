@@ -1,2 +1,0 @@
-CREATE TYPE "public"."profile_theme_preference" AS ENUM('light', 'dark', 'system');--> statement-breakpoint
-ALTER TABLE "profiles" ADD COLUMN "theme_preference" "profile_theme_preference" DEFAULT 'system' NOT NULL;
