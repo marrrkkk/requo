@@ -213,7 +213,7 @@ test.describe("Paywall & Free Plan Gating", () => {
 
       // Check no custom branded logo is present
       const logoCount = await page.getByRole("img").count();
-      const hasBusinessLogo = logoCount > 0 && (await page.getByRole("img").first().isVisible());
+      const _hasBusinessLogo = logoCount > 0 && (await page.getByRole("img").first().isVisible());
     }
   });
 });
