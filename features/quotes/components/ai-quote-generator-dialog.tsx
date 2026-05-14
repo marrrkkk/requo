@@ -91,7 +91,6 @@ export function AiQuoteGeneratorDialog({
         disabled={disabled}
         onClick={() => setOpen(true)}
         type="button"
-        variant="outline"
       >
         <Sparkles data-icon="inline-start" />
         Generate with AI

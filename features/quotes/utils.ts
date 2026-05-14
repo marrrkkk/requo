@@ -30,16 +30,16 @@ export const quoteStatusLabels: Record<QuoteStatus, string> = {
 
 export const quoteStatusClassNames: Record<QuoteStatus, string> = {
   draft:
-    "border-indigo-200/80 bg-indigo-50 text-indigo-700 dark:border-indigo-500/25 dark:bg-indigo-500/12 dark:text-indigo-200",
-  sent: "border-cyan-200/80 bg-cyan-50 text-cyan-700 dark:border-cyan-500/25 dark:bg-cyan-500/12 dark:text-cyan-200",
+    "!border-indigo-500/30 !bg-indigo-500/15 !text-indigo-800 dark:!border-indigo-500/25 dark:!bg-indigo-500/12 dark:!text-indigo-200",
+  sent: "!border-cyan-500/30 !bg-cyan-500/15 !text-cyan-800 dark:!border-cyan-500/25 dark:!bg-cyan-500/12 dark:!text-cyan-200",
   accepted:
-    "border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/12 dark:text-emerald-200",
+    "!border-emerald-500/30 !bg-emerald-500/15 !text-emerald-800 dark:!border-emerald-500/25 dark:!bg-emerald-500/12 dark:!text-emerald-200",
   rejected:
-    "border-red-200/80 bg-red-50 text-red-700 dark:border-red-500/25 dark:bg-red-500/12 dark:text-red-200",
+    "!border-red-500/30 !bg-red-500/15 !text-red-800 dark:!border-red-500/25 dark:!bg-red-500/12 dark:!text-red-200",
   expired:
-    "border-orange-200/80 bg-orange-50 text-orange-700 dark:border-orange-500/25 dark:bg-orange-500/12 dark:text-orange-200",
+    "!border-orange-500/30 !bg-orange-500/15 !text-orange-800 dark:!border-orange-500/25 dark:!bg-orange-500/12 dark:!text-orange-200",
   voided:
-    "border-slate-200/80 bg-slate-100 text-slate-700 dark:border-slate-500/25 dark:bg-slate-500/12 dark:text-slate-200",
+    "!border-slate-500/25 !bg-slate-500/12 !text-slate-800 dark:!border-slate-500/25 dark:!bg-slate-500/12 dark:!text-slate-200",
 };
 
 export const quoteStatusIcons = {
@@ -57,7 +57,7 @@ export const quoteRecordStateLabels = {
 
 export const quoteRecordStateClassNames = {
   archived:
-    "border-slate-200/80 bg-slate-100 text-slate-700 dark:border-slate-500/25 dark:bg-slate-500/12 dark:text-slate-200",
+    "!border-slate-500/25 !bg-slate-500/12 !text-slate-800 dark:!border-slate-500/25 dark:!bg-slate-500/12 dark:!text-slate-200",
 } as const;
 
 export const quoteRecordStateIcons = {
@@ -85,17 +85,17 @@ export const quotePostAcceptanceStatusClassNames: Record<
   QuotePostAcceptanceStatus,
   string
 > = {
-  none: "border-slate-200/80 bg-slate-100 text-slate-700 dark:border-slate-500/25 dark:bg-slate-500/12 dark:text-slate-200",
+  none: "!border-slate-500/25 !bg-slate-500/12 !text-slate-800 dark:!border-slate-500/25 dark:!bg-slate-500/12 dark:!text-slate-200",
   booked:
-    "border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/12 dark:text-emerald-200",
+    "!border-emerald-500/30 !bg-emerald-500/15 !text-emerald-800 dark:!border-emerald-500/25 dark:!bg-emerald-500/12 dark:!text-emerald-200",
   scheduled:
-    "border-amber-200/80 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/12 dark:text-amber-200",
+    "!border-amber-500/30 !bg-amber-500/15 !text-amber-800 dark:!border-amber-500/25 dark:!bg-amber-500/12 dark:!text-amber-200",
   in_progress:
-    "border-blue-200/80 bg-blue-50 text-blue-700 dark:border-blue-500/25 dark:bg-blue-500/12 dark:text-blue-200",
+    "!border-blue-500/30 !bg-blue-500/15 !text-blue-800 dark:!border-blue-500/25 dark:!bg-blue-500/12 dark:!text-blue-200",
   completed:
-    "border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-500/25 dark:bg-emerald-500/12 dark:text-emerald-200",
+    "!border-emerald-500/30 !bg-emerald-500/15 !text-emerald-800 dark:!border-emerald-500/25 dark:!bg-emerald-500/12 dark:!text-emerald-200",
   canceled:
-    "border-red-200/80 bg-red-50 text-red-700 dark:border-red-500/25 dark:bg-red-500/12 dark:text-red-200",
+    "!border-red-500/30 !bg-red-500/15 !text-red-800 dark:!border-red-500/25 dark:!bg-red-500/12 dark:!text-red-200",
 };
 
 export const quoteReminderLabels: Record<QuoteReminderKind, string> = {
@@ -105,9 +105,9 @@ export const quoteReminderLabels: Record<QuoteReminderKind, string> = {
 
 export const quoteReminderClassNames: Record<QuoteReminderKind, string> = {
   follow_up_due:
-    "border-orange-200/80 bg-orange-50 text-orange-700 dark:border-orange-500/25 dark:bg-orange-500/12 dark:text-orange-200",
+    "!border-orange-500/30 !bg-orange-500/15 !text-orange-800 dark:!border-orange-500/25 dark:!bg-orange-500/12 dark:!text-orange-200",
   expiring_soon:
-    "border-amber-200/80 bg-amber-50 text-amber-700 dark:border-amber-500/25 dark:bg-amber-500/12 dark:text-amber-200",
+    "!border-amber-500/30 !bg-amber-500/15 !text-amber-800 dark:!border-amber-500/25 dark:!bg-amber-500/12 dark:!text-amber-200",
 };
 
 export const quoteFollowUpReminderDays = 3;
