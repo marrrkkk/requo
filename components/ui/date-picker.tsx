@@ -119,10 +119,11 @@ export function DatePicker({
             {value ? formatDateLabel(value) : placeholder}
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-auto min-w-[20rem] p-0">
+        <PopoverContent align="start" className="w-auto p-0">
           <Calendar
             autoFocus
             captionLayout="dropdown"
+            className="w-full"
             disabled={disabled}
             mode="single"
             fromYear={currentYear - 10}
