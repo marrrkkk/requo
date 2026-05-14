@@ -345,7 +345,8 @@ export function RouteProgressBar() {
 
   return (
     <div
-      aria-hidden="true"
+      aria-hidden
+      suppressHydrationWarning
       className={cn(
         "pointer-events-none fixed inset-x-0 top-0 z-[140] transition-opacity duration-200 ease-out",
         visible ? "opacity-100" : "opacity-0",
