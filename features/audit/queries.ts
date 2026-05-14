@@ -105,7 +105,7 @@ export async function getBusinessAuditLogPageBySlug(
     return null;
   }
 
-  if (membership.role !== "owner") {
+  if (membership.role !== "owner" && membership.role !== "manager") {
     return null;
   }
 
@@ -189,7 +189,7 @@ export async function getBusinessAuditLogFiltersBySlug(
     return null;
   }
 
-  if (membership.role !== "owner") {
+  if (membership.role !== "owner" && membership.role !== "manager") {
     return null;
   }
 
@@ -251,7 +251,7 @@ export async function getBusinessAuditLogExportRowsBySlug(
     )
     .limit(1);
 
-  if (!membership || membership.role !== "owner") {
+  if (!membership || (membership.role !== "owner" && membership.role !== "manager")) {
     return null;
   }
 

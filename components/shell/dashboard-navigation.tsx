@@ -12,8 +12,9 @@ import {
 
 
 import {
-  canManageBusinessAdministration,
   canManageOperationalBusinessSettings,
+  canViewBusinessAnalytics,
+  canViewBusinessMembers,
   type BusinessMemberRole,
 } from "@/lib/business-members";
 import {
@@ -72,7 +73,7 @@ export function getDashboardNavigation(
       description: "See who needs contact next and when.",
       icon: BellRing,
     },
-    ...(canManageOperationalBusinessSettings(role)
+    ...(canViewBusinessAnalytics(role)
       ? [
           {
             href: getBusinessAnalyticsPath(slug),
@@ -92,7 +93,7 @@ export function getDashboardNavigation(
           },
         ]
       : []),
-    ...(canManageBusinessAdministration(role)
+    ...(canViewBusinessMembers(role)
       ? [
           {
             href: getBusinessMembersPath(slug),

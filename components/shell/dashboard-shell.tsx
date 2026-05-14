@@ -659,6 +659,18 @@ function DashboardNavigationItem({
 
 
 
+  function handleClick() {
+
+    if (isMobile) {
+
+      setOpenMobile(false);
+
+    }
+
+  }
+
+
+
   return (
 
     <SidebarMenuItem
@@ -685,15 +697,7 @@ function DashboardNavigationItem({
 
           prefetch={true}
 
-          onClick={() => {
-
-            if (isMobile) {
-
-              setOpenMobile(false);
-
-            }
-
-          }}
+          onClick={handleClick}
 
         >
 

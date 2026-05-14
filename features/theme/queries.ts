@@ -2,6 +2,7 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
+import { cache } from "react";
 
 import type { ThemePreference } from "@/features/theme/types";
 import {
@@ -11,7 +12,7 @@ import {
 import { db } from "@/lib/db/client";
 import { profiles } from "@/lib/db/schema";
 
-export async function getThemePreferenceForUser(
+async function getCachedThemePreference(
   userId: string,
 ): Promise<ThemePreference> {
   "use cache";
@@ -41,6 +42,17 @@ export async function getThemePreferenceForUser(
     throw error;
   }
 }
+
+/**
+ * Request-deduped theme preference lookup. Wraps the `"use cache"`-backed
+ * inner function in `React.cache` so multiple components within the same
+ * render (shell + page) share a single resolution.
+ */
+export const getThemePreferenceForUser = cache(
+  async (userId: string): Promise<ThemePreference> => {
+    return getCachedThemePreference(userId);
+  },
+);
 
 function isMissingThemePreferenceColumnError(error: unknown) {
   return (
