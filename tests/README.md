@@ -33,7 +33,7 @@ npm run test:integration
 
 ### `tests/e2e/`
 
-Playwright smoke coverage for the five critical user flows: owner sign-in, non-member denial, public inquiry submission, quote creation and sending, and public quote response. The default `@smoke` set runs on every merge; the full suite is available for broader browser journeys.
+Playwright smoke coverage for the five critical user flows: owner sign-in, non-member denial, public inquiry submission, quote creation and sending, and public quote response. The default `@smoke` set is the fast validation slice for local work and Vercel preview checks; the full suite is available for broader browser journeys.
 
 ```bash
 npm run test:e2e:smoke
@@ -127,5 +127,4 @@ Each guard lives next to the tests it protects and runs as part of the normal Vi
 
 - Design document: [`.kiro/specs/test-infrastructure-cicd/design.md`](../.kiro/specs/test-infrastructure-cicd/design.md)
 - Requirements document: [`.kiro/specs/test-infrastructure-cicd/requirements.md`](../.kiro/specs/test-infrastructure-cicd/requirements.md)
-- CI/CD operations: [`docs/ci-cd.md`](../docs/ci-cd.md)
 - Root agent guide: [`AGENTS.md`](../AGENTS.md)
