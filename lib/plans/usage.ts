@@ -61,7 +61,6 @@ export async function getMonthlyInquiryCount(
     .where(
       and(
         eq(inquiries.businessId, businessId),
-        isNull(inquiries.deletedAt),
         gte(inquiries.createdAt, start),
         lt(inquiries.createdAt, end),
       ),

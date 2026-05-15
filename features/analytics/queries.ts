@@ -31,7 +31,6 @@ import { inquiryFilterableStatuses } from "@/features/inquiries/types";
 import { quoteStatuses } from "@/features/quotes/types";
 import {
   getEffectiveInquiryStatus,
-  getNonDeletedInquiryCondition,
   getOperationalInquiryCondition,
 } from "@/features/inquiries/queries";
 import {
@@ -375,7 +374,6 @@ export async function getBusinessAnalyticsData(
       .where(
         and(
           eq(inquiries.businessId, businessId),
-          getNonDeletedInquiryCondition(),
           gte(inquiries.submittedAt, summaryStart),
         ),
       ),
@@ -414,7 +412,7 @@ export async function getBusinessAnalyticsData(
       count: count(),
     })
     .from(inquiries)
-    .where(and(eq(inquiries.businessId, businessId), getNonDeletedInquiryCondition()))
+    .where(and(eq(inquiries.businessId, businessId), ))
     .groupBy(getEffectiveInquiryStatus);
 
   const [formViewTrendRows, inquiryTrendRows] = await Promise.all([
@@ -437,7 +435,6 @@ export async function getBusinessAnalyticsData(
       .where(
         and(
           eq(inquiries.businessId, businessId),
-          getNonDeletedInquiryCondition(),
           gte(inquiries.submittedAt, trendStart),
         ),
       )
@@ -564,7 +561,6 @@ export async function getBusinessAnalyticsData(
         .where(
           and(
             eq(inquiries.businessId, businessId),
-            getNonDeletedInquiryCondition(),
             gte(inquiries.submittedAt, priorStart),
             lt(inquiries.submittedAt, summaryStart),
           ),
@@ -711,7 +707,6 @@ export async function getConversionAnalyticsData(
     .where(
       and(
         eq(inquiries.businessId, businessId),
-        getNonDeletedInquiryCondition(),
         gte(inquiries.submittedAt, summaryStart),
       ),
     )
@@ -758,7 +753,6 @@ export async function getConversionAnalyticsData(
       .where(
         and(
           eq(inquiries.businessId, businessId),
-          getNonDeletedInquiryCondition(),
           gte(inquiries.submittedAt, summaryStart),
         ),
       ),
@@ -994,7 +988,6 @@ export async function getWorkflowAnalyticsData(
       .where(
         and(
           eq(inquiries.businessId, businessId),
-          getNonDeletedInquiryCondition(),
           gte(inquiries.submittedAt, summaryStart),
         ),
       ),

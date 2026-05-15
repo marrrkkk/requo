@@ -81,7 +81,6 @@ export async function createFollowUpForBusiness({
           and(
             eq(inquiries.id, resolvedInquiryId),
             eq(inquiries.businessId, businessId),
-            isNull(inquiries.deletedAt),
           ),
         )
         .limit(1);

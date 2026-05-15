@@ -145,10 +145,6 @@ export async function GET(
         header: "archived_at",
         render: (row) => row.archivedAt?.toISOString(),
       },
-      {
-        header: "deleted_at",
-        render: (row) => row.deletedAt?.toISOString(),
-      },
     ],
     rows,
   );

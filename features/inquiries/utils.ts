@@ -4,7 +4,6 @@ import {
   CircleDot,
   Clock3,
   FileText,
-  Trash2,
   Timer,
   Trophy,
 } from "lucide-react";
@@ -52,7 +51,6 @@ export const inquiryRecordStateLabels: Record<
   string
 > = {
   archived: "Archived",
-  trash: "In trash",
 };
 
 export const inquiryRecordStateClassNames: Record<
@@ -61,13 +59,10 @@ export const inquiryRecordStateClassNames: Record<
 > = {
   archived:
     "!border-slate-500/25 !bg-slate-500/12 !text-slate-800 dark:!border-slate-500/25 dark:!bg-slate-500/12 dark:!text-slate-200",
-  trash:
-    "!border-rose-500/30 !bg-rose-500/15 !text-rose-800 dark:!border-rose-500/25 dark:!bg-rose-500/12 dark:!text-rose-200",
 };
 
 export const inquiryRecordStateIcons = {
   archived: Archive,
-  trash: Trash2,
 } as const;
 
 const inquiryDateFormatter = new Intl.DateTimeFormat("en-US", {

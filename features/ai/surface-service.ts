@@ -647,7 +647,6 @@ async function buildDashboardContext(input: {
       .where(
         and(
           eq(inquiries.businessId, input.businessId),
-          isNull(inquiries.deletedAt),
         ),
       )
       .orderBy(desc(inquiries.submittedAt))

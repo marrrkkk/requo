@@ -136,7 +136,7 @@ async function getCachedAdminDashboardCounts(): Promise<AdminDashboardCounts> {
       .select({ count: count() })
       .from(inquiries)
       .where(
-        and(gte(inquiries.submittedAt, cutoff), isNull(inquiries.deletedAt)),
+        and(gte(inquiries.submittedAt, cutoff)),
       ),
     db
       .select({ count: count() })
@@ -534,7 +534,7 @@ async function getAdminBusinessDetailInner(
       .select({ count: count() })
       .from(inquiries)
       .where(
-        and(eq(inquiries.businessId, businessId), isNull(inquiries.deletedAt)),
+        and(eq(inquiries.businessId, businessId)),
       ),
     db
       .select({ count: count() })
@@ -544,7 +544,7 @@ async function getAdminBusinessDetailInner(
       .select({ lastInquiryAt: max(inquiries.submittedAt) })
       .from(inquiries)
       .where(
-        and(eq(inquiries.businessId, businessId), isNull(inquiries.deletedAt)),
+        and(eq(inquiries.businessId, businessId)),
       ),
     db
       .select({ lastQuoteSentAt: max(quotes.sentAt) })

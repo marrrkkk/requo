@@ -6,7 +6,6 @@ import { cacheLife, cacheTag } from "next/cache";
 import type { CustomerHistoryData } from "@/features/customers/types";
 import {
   getEffectiveInquiryStatus,
-  getNonDeletedInquiryCondition,
 } from "@/features/inquiries/queries";
 import {
   getEffectiveQuoteStatus,
@@ -66,8 +65,7 @@ async function getCachedCustomerHistoryForBusiness(input: {
 
   const inquiryConditions = [
     eq(inquiries.businessId, input.businessId),
-    getNonDeletedInquiryCondition(),
-  ];
+    ];
   const quoteConditions = [
     eq(quotes.businessId, input.businessId),
     getNonDeletedQuoteCondition(),

@@ -69,7 +69,7 @@ describe("features/businesses/workflow-next-actions", () => {
         inquiry: {
           id: "inq_1",
           status: "new",
-          recordState: "trash",
+          recordState: "archived",
         },
       });
 

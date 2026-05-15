@@ -13,8 +13,6 @@ import {
   archiveInquiryAction,
   changeInquiryStatusAction,
   createManualInquiryAction,
-  restoreInquiryFromTrashAction,
-  trashInquiryAction,
   unarchiveInquiryAction,
 } from '@/features/inquiries/actions';
 import { createInquiryFormConfigDefaults } from '@/features/inquiries/form-config';
@@ -227,7 +225,6 @@ describe('features/inquiries/actions', () => {
       const [updatedInquiry] = await testDb.select().from(inquiries).where(eq(inquiries.id, testInquiry.id));
       expect(updatedInquiry.status).toBe('quoted');
       expect(updatedInquiry.archivedAt).toBeNull();
-      expect(updatedInquiry.deletedAt).toBeNull();
     });
 
     it('archives a request and blocks workflow changes until it is restored', async () => {
@@ -254,28 +251,6 @@ describe('features/inquiries/actions', () => {
       expect(restoreResult).toEqual({ success: 'Inquiry restored to active.' });
 
       const [restoredInquiry] = await testDb.select().from(inquiries).where(eq(inquiries.id, testInquiry.id));
-      expect(restoredInquiry.archivedAt).toBeNull();
-      expect(restoredInquiry.deletedAt).toBeNull();
-    }, 10000);
-
-    it('moves a request to trash and restores it without hard deleting the row', async () => {
-      const testInquiry = await createInquiryFixture('test_inquiry_3');
-
-      const trashFn = trashInquiryAction.bind(null, testInquiry.id);
-      const trashResult = await trashFn({}, new FormData());
-
-      expect(trashResult).toEqual({ success: 'Inquiry moved to trash.' });
-
-      const [trashedInquiry] = await testDb.select().from(inquiries).where(eq(inquiries.id, testInquiry.id));
-      expect(trashedInquiry.deletedAt).not.toBeNull();
-
-      const restoreFn = restoreInquiryFromTrashAction.bind(null, testInquiry.id);
-      const restoreResult = await restoreFn({}, new FormData());
-
-      expect(restoreResult).toEqual({ success: 'Inquiry restored from trash.' });
-
-      const [restoredInquiry] = await testDb.select().from(inquiries).where(eq(inquiries.id, testInquiry.id));
-      expect(restoredInquiry.deletedAt).toBeNull();
       expect(restoredInquiry.archivedAt).toBeNull();
     }, 10000);
   });

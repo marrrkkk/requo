@@ -774,7 +774,6 @@ export async function getInquiryQuotePrefillForBusiness({
       and(
         eq(inquiries.id, inquiryId),
         eq(inquiries.businessId, businessId),
-        isNull(inquiries.deletedAt),
       ),
     )
     .limit(1);

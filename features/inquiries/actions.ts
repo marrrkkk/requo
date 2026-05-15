@@ -25,8 +25,6 @@ import {
   changeInquiryStatusForBusiness,
   createManualInquirySubmission,
   createPublicInquirySubmission,
-  restoreInquiryFromTrashForBusiness,
-  trashInquiryForBusiness,
   unarchiveInquiryForBusiness,
 } from "@/features/inquiries/mutations";
 import {
@@ -412,10 +410,7 @@ export async function changeInquiryStatusAction(
     updateCacheTags(getInquiryMutationCacheTags(businessContext.business.id, inquiryId));
     if (result.locked) {
       return {
-        error:
-          result.lockedReason === "trash"
-            ? "Restore this inquiry from trash before updating its workflow status."
-            : "Unarchive this inquiry before updating its workflow status.",
+        error: "Unarchive this inquiry before updating its workflow status.",
       };
     }
 
@@ -447,7 +442,7 @@ async function runInquiryRecordAction(
     | {
         changed: boolean;
         locked?: boolean;
-        lockedReason?: "archived" | "trash";
+        lockedReason?: "archived";
       }
     | null
   >,
@@ -456,7 +451,6 @@ async function runInquiryRecordAction(
     unchanged: string;
     missing?: string;
     archivedLocked?: string;
-    trashLocked?: string;
     fallbackError: string;
   },
 ): Promise<InquiryRecordActionState> {
@@ -487,10 +481,7 @@ async function runInquiryRecordAction(
 
     if (result.locked) {
       return {
-        error:
-          result.lockedReason === "trash"
-            ? messages.trashLocked ?? "Restore this inquiry from trash first."
-            : messages.archivedLocked ?? "Unarchive this inquiry first.",
+        error: messages.archivedLocked ?? "Unarchive this inquiry first.",
       };
     }
 
@@ -517,7 +508,6 @@ export async function archiveInquiryAction(
   return runInquiryRecordAction(inquiryId, archiveInquiryForBusiness, {
     success: "Inquiry archived.",
     unchanged: "Inquiry is already archived.",
-    trashLocked: "Restore this inquiry from trash before archiving it.",
     fallbackError: "Failed to archive inquiry.",
   });
 }
@@ -533,37 +523,6 @@ export async function unarchiveInquiryAction(
   return runInquiryRecordAction(inquiryId, unarchiveInquiryForBusiness, {
     success: "Inquiry restored to active.",
     unchanged: "Inquiry is already active.",
-    trashLocked: "Restore this inquiry from trash instead.",
     fallbackError: "Failed to unarchive inquiry.",
-  });
-}
-
-export async function trashInquiryAction(
-  inquiryId: string,
-  _prevState: InquiryRecordActionState,
-  _formData: FormData,
-): Promise<InquiryRecordActionState> {
-  void _prevState;
-  void _formData;
-
-  return runInquiryRecordAction(inquiryId, trashInquiryForBusiness, {
-    success: "Inquiry moved to trash.",
-    unchanged: "Inquiry is already in trash.",
-    fallbackError: "Failed to move inquiry to trash.",
-  });
-}
-
-export async function restoreInquiryFromTrashAction(
-  inquiryId: string,
-  _prevState: InquiryRecordActionState,
-  _formData: FormData,
-): Promise<InquiryRecordActionState> {
-  void _prevState;
-  void _formData;
-
-  return runInquiryRecordAction(inquiryId, restoreInquiryFromTrashForBusiness, {
-    success: "Inquiry restored from trash.",
-    unchanged: "Inquiry is already active.",
-    fallbackError: "Failed to restore inquiry from trash.",
   });
 }

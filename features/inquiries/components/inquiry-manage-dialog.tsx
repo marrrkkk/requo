@@ -1,6 +1,6 @@
 "use client";
 
-import { Archive, RotateCcw, Settings, Trash2 } from "lucide-react";
+import { Archive, RotateCcw, Settings } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,10 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { InquiryStatusForm } from "@/features/inquiries/components/inquiry-status-form";
-import {
-  ServerActionButton,
-  ServerActionConfirmDialog,
-} from "@/components/shared/server-action-button";
+import { ServerActionButton } from "@/components/shared/server-action-button";
 import type {
   InquiryRecordActionState,
   InquiryRecordState,
@@ -39,14 +36,6 @@ type InquiryManageDialogProps = {
     state: InquiryRecordActionState,
     formData: FormData,
   ) => Promise<InquiryRecordActionState>;
-  trashAction: (
-    state: InquiryRecordActionState,
-    formData: FormData,
-  ) => Promise<InquiryRecordActionState>;
-  restoreAction: (
-    state: InquiryRecordActionState,
-    formData: FormData,
-  ) => Promise<InquiryRecordActionState>;
 };
 
 export function InquiryManageDialog({
@@ -55,8 +44,6 @@ export function InquiryManageDialog({
   statusAction,
   archiveAction,
   unarchiveAction,
-  trashAction,
-  restoreAction,
 }: InquiryManageDialogProps) {
   return (
     <Dialog>
@@ -100,16 +87,6 @@ export function InquiryManageDialog({
                     label="Archive"
                     pendingLabel="Archiving..."
                   />
-                  <ServerActionConfirmDialog
-                    action={trashAction}
-                    confirmLabel="Move to trash"
-                    confirmPendingLabel="Moving..."
-                    description="This hides the inquiry from active work. You can restore it later."
-                    icon={Trash2}
-                    title="Move to trash?"
-                    triggerLabel="Trash"
-                    triggerVariant="destructive"
-                  />
                 </div>
               </section>
             </>
@@ -117,42 +94,19 @@ export function InquiryManageDialog({
             <section className="flex flex-col gap-3">
               <div className="soft-panel flex flex-col gap-2 px-4 py-4 shadow-none">
                 <p className="text-sm font-medium text-foreground">
-                  {recordState === "archived"
-                    ? "This inquiry is archived."
-                    : "This inquiry is in trash."}
+                  This inquiry is archived.
                 </p>
                 <p className="text-sm leading-6 text-muted-foreground">
                   Restore it to change the workflow status.
                 </p>
               </div>
               <div className="flex items-center gap-2.5">
-                {recordState === "archived" ? (
-                  <ServerActionButton
-                    action={unarchiveAction}
-                    icon={RotateCcw}
-                    label="Restore to active"
-                    pendingLabel="Restoring..."
-                  />
-                ) : (
-                  <ServerActionButton
-                    action={restoreAction}
-                    icon={RotateCcw}
-                    label="Restore inquiry"
-                    pendingLabel="Restoring..."
-                  />
-                )}
-                {recordState === "archived" ? (
-                  <ServerActionConfirmDialog
-                    action={trashAction}
-                    confirmLabel="Move to trash"
-                    confirmPendingLabel="Moving..."
-                    description="This hides the inquiry from active work. You can restore it later."
-                    icon={Trash2}
-                    title="Move to trash?"
-                    triggerLabel="Trash"
-                    triggerVariant="destructive"
-                  />
-                ) : null}
+                <ServerActionButton
+                  action={unarchiveAction}
+                  icon={RotateCcw}
+                  label="Restore to active"
+                  pendingLabel="Restoring..."
+                />
               </div>
             </section>
           )}

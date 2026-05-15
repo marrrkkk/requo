@@ -126,7 +126,6 @@ async function maybeMoveInquiryToQuoted(
         eq(inquiries.businessId, businessId),
         inArray(inquiries.status, ["new", "waiting"]),
         isNull(inquiries.archivedAt),
-        isNull(inquiries.deletedAt),
       ),
     )
     .returning({ id: inquiries.id });
@@ -156,7 +155,6 @@ async function maybeMoveInquiryToWon(
         eq(inquiries.businessId, businessId),
         inArray(inquiries.status, ["new", "quoted", "waiting"]),
         isNull(inquiries.archivedAt),
-        isNull(inquiries.deletedAt),
       ),
     )
     .returning({ id: inquiries.id });
@@ -337,7 +335,6 @@ export async function createQuoteForBusiness({
               and(
                 eq(inquiries.id, inquiryId),
                 eq(inquiries.businessId, businessId),
-                isNull(inquiries.deletedAt),
               ),
             )
             .limit(1);
@@ -1613,7 +1610,6 @@ export async function cancelAcceptedQuoteForBusiness({
             eq(inquiries.id, existingQuote.inquiryId),
             eq(inquiries.businessId, businessId),
             eq(inquiries.status, "won"),
-            isNull(inquiries.deletedAt),
           ),
         );
     }
