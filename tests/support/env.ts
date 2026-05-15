@@ -25,8 +25,6 @@ export function applyTestEnv(): void {
     GROQ_API_KEY: '',
     GEMINI_API_KEY: '',
     CEREBRAS_API_KEY: '',
-    PADDLE_API_KEY: '',
-    PADDLE_WEBHOOK_SECRET: '',
   };
 
   for (const [key, value] of Object.entries(defaults)) {
