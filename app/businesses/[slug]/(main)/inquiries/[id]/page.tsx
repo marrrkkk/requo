@@ -24,6 +24,7 @@ import {
   DashboardSection,
   DashboardSidebarStack,
 } from "@/components/shared/dashboard-layout";
+import { ArchivedRecordBanner } from "@/components/shared/archived-record-banner";
 import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -54,8 +55,6 @@ import {
   addInquiryNoteAction,
   archiveInquiryAction,
   changeInquiryStatusAction,
-  restoreInquiryFromTrashAction,
-  trashInquiryAction,
   unarchiveInquiryAction,
 } from "@/features/inquiries/actions";
 import { CopyEmailButton } from "@/features/inquiries/components/copy-email-button";
@@ -80,6 +79,7 @@ import {
 import { formatQuoteMoney } from "@/features/quotes/utils";
 import {
   getBusinessInquiryExportPath,
+  getBusinessInquiryPath,
   getBusinessNewQuotePath,
   getBusinessQuotePath,
 } from "@/features/businesses/routes";
@@ -143,8 +143,6 @@ async function InquiryDetailContent({
   const statusAction = changeInquiryStatusAction.bind(null, inquiry.id);
   const archiveAction = archiveInquiryAction.bind(null, inquiry.id);
   const unarchiveAction = unarchiveInquiryAction.bind(null, inquiry.id);
-  const trashAction = trashInquiryAction.bind(null, inquiry.id);
-  const restoreAction = restoreInquiryFromTrashAction.bind(null, inquiry.id);
   const createFollowUpAction = createInquiryFollowUpAction.bind(null, inquiry.id);
   const customFields = getCustomSubmittedFields(
     inquiry.submittedFieldSnapshot,
@@ -168,7 +166,7 @@ async function InquiryDetailContent({
       })
     : Promise.resolve(null);
 
-  const canGenerateQuote = inquiry.recordState !== "trash";
+  const canGenerateQuote = inquiry.recordState !== "archived";
   const workflowStatus: InquiryWorkflowStatus =
     inquiry.status === "quoted" ||
     inquiry.status === "won" ||
@@ -187,6 +185,13 @@ async function InquiryDetailContent({
 
   return (
     <DashboardPage className="pb-24">
+      {inquiry.recordState === "archived" ? (
+        <ArchivedRecordBanner
+          recordLabel="inquiry"
+          redirectHref={getBusinessInquiryPath(businessSlug, inquiry.id)}
+          unarchiveAction={unarchiveAction}
+        />
+      ) : null}
       <DashboardDetailHeader
         eyebrow="Inquiry"
         title={inquiry.customerName}
@@ -207,8 +212,6 @@ async function InquiryDetailContent({
               statusAction={statusAction}
               archiveAction={archiveAction}
               unarchiveAction={unarchiveAction}
-              trashAction={trashAction}
-              restoreAction={restoreAction}
             />
             <InquiryExportPopover
               canExport={canExportData}

@@ -5,9 +5,9 @@ import { DashboardListResultsSkeleton } from "@/components/shared/dashboard-list
 import {
   DashboardEmptyState,
 } from "@/components/shared/dashboard-layout";
-import { ListViewSwitcher } from "@/components/shared/list-view-switcher";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { ArchivedQuotesSheet } from "@/features/quotes/components/archived-quotes-sheet";
 import { QuoteExportCsvDropdown } from "@/features/quotes/components/quote-export-csv-dropdown";
 import { QuoteListFilters } from "@/features/quotes/components/quote-list-filters";
 import { QuoteListResults } from "@/features/quotes/components/quote-list-results";
@@ -30,36 +30,40 @@ type QuoteListResultsData = {
   totalPages: number;
 };
 
+type QuoteRecordActionState = { error?: string; success?: string };
+
 type QuoteListControlsSectionProps = {
   businessSlug: string;
   canExport: boolean;
   filters: QuoteListFiltersValue;
   searchParams: SearchParamsRecord;
   totalItemsPromise: Promise<number>;
+  archivedItemsPromise: Promise<DashboardQuoteListItem[]>;
+  restoreAction: (
+    quoteId: string,
+    state: QuoteRecordActionState,
+    formData: FormData,
+  ) => Promise<QuoteRecordActionState>;
 };
 
 export async function QuoteListControlsSection({
   businessSlug,
   canExport,
   filters,
-  searchParams,
+  searchParams: _searchParams,
   totalItemsPromise,
+  archivedItemsPromise,
+  restoreAction,
 }: QuoteListControlsSectionProps) {
-  const totalItems = await totalItemsPromise;
+  const [totalItems, archivedItems] = await Promise.all([
+    totalItemsPromise,
+    archivedItemsPromise,
+  ]);
 
   return (
     <>
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <ListViewSwitcher
-          currentValue={filters.view}
-          defaultValue="active"
-          options={[
-            { label: "Active", value: "active" },
-            { label: "Archived", value: "archived" },
-          ]}
-          pathname={getBusinessQuotesPath(businessSlug)}
-          searchParams={searchParams}
-        />
+        <div />
 
         <div className="dashboard-actions w-full [&>*]:w-full sm:[&>*]:w-auto xl:w-auto xl:justify-end">
           <QuoteExportCsvDropdown
@@ -67,6 +71,11 @@ export async function QuoteListControlsSection({
             canExport={canExport}
             filters={filters}
             resultCount={totalItems}
+          />
+          <ArchivedQuotesSheet
+            businessSlug={businessSlug}
+            items={archivedItems}
+            restoreAction={restoreAction}
           />
           <Button asChild>
             <Link href={getBusinessNewQuotePath(businessSlug)} prefetch={true}>

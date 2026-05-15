@@ -5,9 +5,9 @@ import { DashboardListResultsSkeleton } from "@/components/shared/dashboard-list
 import {
   DashboardEmptyState,
 } from "@/components/shared/dashboard-layout";
-import { ListViewSwitcher } from "@/components/shared/list-view-switcher";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { ArchivedInquiriesSheet } from "@/features/inquiries/components/archived-inquiries-sheet";
 import { InquiryExportCsvDropdown } from "@/features/inquiries/components/inquiry-export-csv-dropdown";
 import { InquiryListFilters as InquiryListToolbar } from "@/features/inquiries/components/inquiry-list-filters";
 import { InquiryListResults } from "@/features/inquiries/components/inquiry-list-results";
@@ -15,6 +15,7 @@ import type {
   DashboardInquiryListItem,
   InquiryListFilters,
 } from "@/features/inquiries/types";
+import type { InquiryRecordActionState } from "@/features/inquiries/types";
 import {
   getBusinessInquiriesPath,
   getBusinessNewInquiryPath,
@@ -43,19 +44,28 @@ type InquiryListControlsSectionProps = {
   searchParams: SearchParamsRecord;
   totalItemsPromise: Promise<number>;
   formOptionsPromise: Promise<InquiryFormOption[]>;
+  archivedItemsPromise: Promise<DashboardInquiryListItem[]>;
+  unarchiveAction: (
+    inquiryId: string,
+    state: InquiryRecordActionState,
+    formData: FormData,
+  ) => Promise<InquiryRecordActionState>;
 };
 
 export async function InquiryListControlsSection({
   businessSlug,
   canExport,
   filters,
-  searchParams,
+  searchParams: _searchParams,
   totalItemsPromise,
   formOptionsPromise,
+  archivedItemsPromise,
+  unarchiveAction,
 }: InquiryListControlsSectionProps) {
-  const [totalItems, inquiryFormOptions] = await Promise.all([
+  const [totalItems, inquiryFormOptions, archivedItems] = await Promise.all([
     totalItemsPromise,
     formOptionsPromise,
+    archivedItemsPromise,
   ]);
   const formOptions = [
     {
@@ -71,17 +81,7 @@ export async function InquiryListControlsSection({
   return (
     <>
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <ListViewSwitcher
-          currentValue={filters.view}
-          defaultValue="active"
-          options={[
-            { label: "Active", value: "active" },
-            { label: "Archived", value: "archived" },
-            { label: "Trash", value: "trash" },
-          ]}
-          pathname={getBusinessInquiriesPath(businessSlug)}
-          searchParams={searchParams}
-        />
+        <div />
 
         <div className="dashboard-actions w-full [&>*]:w-full sm:[&>*]:w-auto xl:w-auto xl:justify-end">
           <InquiryExportCsvDropdown
@@ -90,6 +90,11 @@ export async function InquiryListControlsSection({
             filters={filters}
             formOptions={formOptions}
             resultCount={totalItems}
+          />
+          <ArchivedInquiriesSheet
+            businessSlug={businessSlug}
+            items={archivedItems}
+            unarchiveAction={unarchiveAction}
           />
           <Button asChild>
             <Link href={getBusinessNewInquiryPath(businessSlug)} prefetch={true}>
@@ -170,9 +175,7 @@ export async function InquiryListContentSection({
           ? "Try another search or status."
           : filters.view === "archived"
             ? "Archived inquiries stay here until you restore them."
-            : filters.view === "trash"
-              ? "Inquiries moved to trash stay here until you restore them."
-              : "Quick-add an inquiry manually or wait for new inquiries to arrive."
+            : "Quick-add an inquiry manually or wait for new inquiries to arrive."
       }
       icon={Inbox}
       title={
@@ -180,9 +183,7 @@ export async function InquiryListContentSection({
           ? "No inquiries match these filters."
           : filters.view === "archived"
             ? "No archived inquiries"
-            : filters.view === "trash"
-              ? "Trash is empty"
-              : "Your inquiry inbox is still empty."
+            : "Your inquiry inbox is still empty."
       }
       variant="list"
     />

@@ -13,6 +13,7 @@ import {
   DashboardSection,
   DashboardSidebarStack,
 } from "@/components/shared/dashboard-layout";
+import { ArchivedRecordBanner } from "@/components/shared/archived-record-banner";
 import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
 import { InfoTile } from "@/components/shared/info-tile";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
@@ -78,6 +79,7 @@ import {
 import {
   getBusinessInquiryPath,
   getBusinessQuoteExportPath,
+  getBusinessQuotePath,
   getBusinessQuotesPath,
 } from "@/features/businesses/routes";
 import { env, isEmailConfigured } from "@/lib/env";
@@ -301,6 +303,13 @@ async function QuoteDetailContent({
 
   return (
     <DashboardPage className="pb-24">
+      {isArchived ? (
+        <ArchivedRecordBanner
+          recordLabel="quote"
+          redirectHref={getBusinessQuotePath(businessSlug, quote.id)}
+          unarchiveAction={restoreArchivedAction}
+        />
+      ) : null}
       <DashboardDetailHeader
         eyebrow="Quote"
         title={quote.title}
