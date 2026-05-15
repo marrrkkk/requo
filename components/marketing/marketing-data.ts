@@ -24,6 +24,14 @@ export function getMarketingNavKey(item: MarketingNavItem) {
   return "hash" in item ? `${item.pathname}#${item.hash}` : item.pathname;
 }
 
+export const resourceLinks = [
+  { label: "Privacy Policy", href: "/privacy" },
+  { label: "Terms of Service", href: "/terms" },
+  { label: "Refund Policy", href: "/refund-policy" },
+] as const;
+
+export type ResourceLink = (typeof resourceLinks)[number];
+
 export const whyPoints: readonly {
   icon: LucideIcon;
   title: string;

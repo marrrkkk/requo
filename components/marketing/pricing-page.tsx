@@ -162,6 +162,7 @@ export function PricingPage({ currency }: { currency: BillingCurrency }) {
   return (
     <PublicPageShell
       brandSubtitle={null}
+      brandSize="lg"
       className="pb-14 lg:pb-20"
       headerAction={
         <Suspense fallback={<PublicHeaderActionsFallback />}>

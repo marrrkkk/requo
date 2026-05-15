@@ -10,6 +10,7 @@ import {
   navItems,
 } from "@/components/marketing/marketing-data";
 import { InViewReveal } from "@/components/marketing/in-view-reveal";
+import { MarketingResourcesNav } from "@/components/marketing/marketing-resources-nav";
 import { MarketingShowcase } from "@/components/marketing/marketing-showcase";
 import {
   PublicHeaderActions,
@@ -194,6 +195,7 @@ export function MarketingHero() {
     <div className="overflow-x-clip">
       <PublicPageShell
         brandSubtitle={null}
+        brandSize="lg"
         className="pb-28 lg:pb-40"
         headerRevealOnScroll
         headerAction={
@@ -201,7 +203,7 @@ export function MarketingHero() {
             <PublicHeaderActions />
           </Suspense>
         }
-        headerClassName="bg-background/92 py-3 shadow-none backdrop-blur-xl supports-backdrop-filter:bg-background/88 sm:py-3.5"
+        headerClassName="public-page-header--integrated bg-background/92 py-3 shadow-none backdrop-blur-xl supports-backdrop-filter:bg-background/88 sm:py-3.5"
         headerNav={
           <nav className="public-page-header-nav">
             {navItems.map((item) => (
@@ -213,6 +215,7 @@ export function MarketingHero() {
                 {item.label}
               </Link>
             ))}
+            <MarketingResourcesNav />
           </nav>
         }
       >

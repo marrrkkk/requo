@@ -6,8 +6,8 @@ type BrandWordmarkProps = {
 };
 
 const sizeStyles: Record<NonNullable<BrandWordmarkProps["size"]>, string> = {
-  default: "text-[1.08rem] leading-[1.04] tracking-[-0.05em]",
-  hero: "text-[3.1rem] leading-[1.03] tracking-[-0.08em] sm:text-[3.65rem]",
+  default: "text-[1.12rem] leading-[1.04] tracking-[-0.02em]",
+  hero: "text-[3.1rem] leading-[1.03] tracking-[-0.045em] sm:text-[3.65rem]",
 };
 
 export function BrandWordmark({
@@ -17,7 +17,7 @@ export function BrandWordmark({
   return (
     <span
       className={cn(
-        "font-heading font-semibold text-primary",
+        "font-brand font-semibold text-primary",
         sizeStyles[size],
         className,
       )}

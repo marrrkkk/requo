@@ -10,6 +10,7 @@ type PublicPageShellProps = {
   children: ReactNode;
   className?: string;
   brandSubtitle?: string | null;
+  brandSize?: "default" | "lg";
   headerClassName?: string;
   headerRevealOnScroll?: boolean;
 };
@@ -20,15 +21,22 @@ export function PublicPageShell({
   children,
   className,
   brandSubtitle = null,
+  brandSize = "default",
   headerClassName,
   headerRevealOnScroll = false,
 }: PublicPageShellProps) {
   const headerContent = (
     <>
-      <div className="flex min-w-0 flex-1 items-center gap-4 lg:gap-6">
-        <BrandMark subtitle={brandSubtitle} />
-        {headerNav ? <div className="min-w-0 flex-1">{headerNav}</div> : null}
+      <div className="flex min-w-0 shrink-0 items-center gap-4 lg:gap-6">
+        <BrandMark subtitle={brandSubtitle} size={brandSize} />
       </div>
+      {headerNav ? (
+        <div className="hidden min-w-0 flex-1 justify-center lg:flex">
+          {headerNav}
+        </div>
+      ) : (
+        <div className="flex-1" aria-hidden="true" />
+      )}
       {headerAction ? (
         <div className="public-page-header-actions">
           {headerAction}
