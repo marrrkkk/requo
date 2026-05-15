@@ -4,27 +4,35 @@ import "server-only";
  * Refund service.
  *
  * Encapsulates refund eligibility rules, refund record writes, and the
- * Paddle adjustment call. Consumers are the refund API route and the
- * Paddle `adjustment.updated` webhook handler.
+ * call into the billing provider's refund API. The provider is wired
+ * through the abstraction in `@/lib/billing/providers` so this module
+ * stays decoupled from any concrete payment processor.
+ *
+ * Consumers:
+ *   - the refund API route (`app/api/billing/refund/route.ts`)
+ *   - the Dodo webhook handler (`app/api/billing/dodo/webhook/route.ts`)
+ *     which updates refund rows directly via Drizzle and then calls
+ *     `applyApprovedRefundSideEffects` to cancel the subscription.
+ *
+ * Schema notes:
+ *   - The `refunds` table no longer has a `paymentAttemptId` FK. The
+ *     join key between a refund and a payment is `providerPaymentId`,
+ *     which both `payment_attempts.providerPaymentId` and
+ *     `refunds.providerPaymentId` carry.
  */
 
 import { desc, eq, inArray } from "drizzle-orm";
 
-import { db } from "@/lib/db/client";
-import {
-  paymentAttempts,
-  refunds,
-  type RefundStatus,
-} from "@/lib/db/schema/subscriptions";
-import {
-  createPaddleAdjustment,
-  mapPaddleAdjustmentStatus,
-  type PaddleAdjustmentStatus,
-} from "@/lib/billing/providers/paddle";
+import { getBillingProvider } from "@/lib/billing/providers";
 import {
   cancelSubscription,
   getAccountSubscription,
 } from "@/lib/billing/subscription-service";
+import { db } from "@/lib/db/client";
+import {
+  paymentAttempts,
+  refunds,
+} from "@/lib/db/schema/subscriptions";
 
 /** Refund window measured from the payment's `createdAt`. */
 export const refundWindowDays = 30;
@@ -37,7 +45,6 @@ export type RefundEligibleReason =
   | "not_yours"
   | "not_completed"
   | "outside_window"
-  | "unsupported_provider"
   | "already_refunded"
   | "refund_in_progress";
 
@@ -65,35 +72,21 @@ export type RequestRefundResult =
       message: string;
     };
 
-function generateId(prefix: string): string {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
-
-function mapAdjustmentStatusToRefundStatus(
-  status: PaddleAdjustmentStatus,
-): RefundStatus {
-  switch (status) {
-    case "approved":
-      return "approved";
-    case "rejected":
-      return "rejected";
-    case "reversed":
-      return "rejected";
-    case "pending_approval":
-    default:
-      return "pending_approval";
-  }
+function generateRefundId(): string {
+  return `rfd_${crypto.randomUUID().replace(/-/g, "")}`;
 }
 
 /**
  * Returns refunds that block a new refund request for a given payment.
- * Any existing refund that is `pending_approval` or `approved` blocks.
+ * Any existing refund row that is `pending` or `approved` blocks.
  */
-async function getBlockingRefunds(paymentAttemptId: string) {
+async function getRefundsForPayment(
+  providerPaymentId: string,
+): Promise<RefundRow[]> {
   return db
     .select()
     .from(refunds)
-    .where(eq(refunds.paymentAttemptId, paymentAttemptId));
+    .where(eq(refunds.providerPaymentId, providerPaymentId));
 }
 
 /**
@@ -124,6 +117,14 @@ export async function getOwnedPaymentAttempt(
 /**
  * Determines whether a given payment can be refunded by the owner.
  * Encapsulates every eligibility rule in one place.
+ *
+ * Rules:
+ *   1. payment status must be `succeeded`
+ *   2. payment must be within `refundWindowDays` of `createdAt`
+ *   3. no existing refund row in `pending` or `approved` status for the
+ *      same `providerPaymentId`
+ *
+ * Ownership is enforced by `getOwnedPaymentAttempt` upstream, not here.
  */
 export async function checkRefundEligibility(
   payment: PaymentAttemptRow,
@@ -133,14 +134,6 @@ export async function checkRefundEligibility(
       eligible: false,
       reason: "not_completed",
       message: "Only completed payments can be refunded.",
-    };
-  }
-
-  if (payment.provider !== "paddle") {
-    return {
-      eligible: false,
-      reason: "unsupported_provider",
-      message: "Refunds are only supported for Paddle payments.",
     };
   }
 
@@ -154,9 +147,9 @@ export async function checkRefundEligibility(
     };
   }
 
-  const existing = await getBlockingRefunds(payment.id);
+  const existing = await getRefundsForPayment(payment.providerPaymentId);
   const blocking = existing.find(
-    (row) => row.status === "pending_approval" || row.status === "approved",
+    (row) => row.status === "pending" || row.status === "approved",
   );
 
   if (blocking) {
@@ -178,8 +171,9 @@ export async function checkRefundEligibility(
 }
 
 /**
- * Requests a refund for a payment. Runs all eligibility checks,
- * creates a Paddle adjustment, and persists a refund record.
+ * Requests a refund for a payment. Runs all eligibility checks, calls
+ * the billing provider's refund API, and inserts a `pending` refund
+ * row keyed by `providerRefundId` and `providerPaymentId`.
  *
  * Access control: the caller must have verified the user is
  * authenticated. Ownership is verified inside this function.
@@ -211,116 +205,77 @@ export async function requestRefundForPayment(params: {
     };
   }
 
-  const subscription = await getAccountSubscription(params.userId);
+  const trimmedReason = params.reason.slice(0, 500);
 
-  const adjustmentResult = await createPaddleAdjustment({
-    transactionId: payment.providerPaymentId,
-    reason: params.reason.slice(0, 500),
-  });
+  const provider = getBillingProvider(payment.provider);
+  const providerResult = await provider.requestRefund(
+    payment.providerPaymentId,
+    trimmedReason,
+  );
 
-  if (adjustmentResult.type === "error") {
+  if (providerResult.type === "error") {
     return {
       ok: false,
       reason: "provider_error",
-      message: adjustmentResult.message,
+      message: providerResult.message,
     };
   }
 
   const now = new Date();
-  const id = generateId("ref");
 
   try {
     const [inserted] = await db
       .insert(refunds)
       .values({
-        id,
+        id: generateRefundId(),
         userId: params.userId,
-        paymentAttemptId: payment.id,
-        subscriptionId: subscription?.id ?? null,
-        businessId: payment.businessId ?? null,
         provider: payment.provider,
-        providerTransactionId: payment.providerPaymentId,
-        providerAdjustmentId: adjustmentResult.adjustmentId,
-        status: mapAdjustmentStatusToRefundStatus(adjustmentResult.status),
-        reason: params.reason,
-        requestedByUserId: params.userId,
+        providerRefundId: providerResult.refundId,
+        providerPaymentId: payment.providerPaymentId,
+        amount: payment.amount,
+        currency: payment.currency,
+        status: "pending",
+        reason: trimmedReason,
         createdAt: now,
         updatedAt: now,
       })
       .returning();
 
-    // If Paddle returned an already-approved adjustment (rare but possible),
-    // downgrade access immediately so the user can't keep paid features.
-    if (adjustmentResult.status === "approved") {
-      await applyApprovedRefundSideEffects(params.userId);
+    if (!inserted) {
+      return {
+        ok: false,
+        reason: "internal_error",
+        message: "Refund was initiated but could not be recorded.",
+      };
     }
 
-    return { ok: true, refund: inserted! };
+    return { ok: true, refund: inserted };
   } catch (error) {
-    console.error("[Refund] Failed to store refund row.", {
-      userId: params.userId,
-      paymentAttemptId: payment.id,
-      adjustmentId: adjustmentResult.adjustmentId,
-      error,
-    });
+    const message =
+      error instanceof Error ? error.message : "Unable to record refund.";
     return {
       ok: false,
       reason: "internal_error",
-      message: "Refund request failed. Please try again.",
+      message,
     };
   }
 }
 
 /**
- * Updates a refund row by Paddle adjustment ID.
- * Used by the `adjustment.updated` webhook handler.
- */
-export async function applyRefundStatusFromAdjustment(params: {
-  providerAdjustmentId: string;
-  paddleStatus: string;
-}): Promise<RefundRow | null> {
-  const mappedStatus = mapPaddleAdjustmentStatus(params.paddleStatus);
-  const refundStatus = mapAdjustmentStatusToRefundStatus(mappedStatus);
-
-  const [existing] = await db
-    .select()
-    .from(refunds)
-    .where(eq(refunds.providerAdjustmentId, params.providerAdjustmentId))
-    .limit(1);
-
-  if (!existing) {
-    return null;
-  }
-
-  // No-op if the status is unchanged (idempotency against webhook replays).
-  if (existing.status === refundStatus) {
-    return existing;
-  }
-
-  const [updated] = await db
-    .update(refunds)
-    .set({
-      status: refundStatus,
-      updatedAt: new Date(),
-    })
-    .where(eq(refunds.id, existing.id))
-    .returning();
-
-  if (refundStatus === "approved") {
-    await applyApprovedRefundSideEffects(existing.userId);
-  }
-
-  return updated ?? null;
-}
-
-/**
  * Side effects applied when a refund transitions to `approved`.
+ *
  * Cancels the user's subscription so paid access ends at the current
  * billing period. This is intentionally conservative: we don't force
- * an immediate downgrade so that if Paddle subsequently reverses the
- * adjustment, the user isn't needlessly locked out mid-cycle.
+ * an immediate downgrade so that if the provider subsequently reverses
+ * the refund, the user isn't needlessly locked out mid-cycle.
+ *
+ * Invoked by the webhook handler after it flips a refund row to
+ * `approved`. Idempotent — re-running is a no-op when the user is
+ * already canceled or on the free plan.
  */
-async function applyApprovedRefundSideEffects(userId: string): Promise<void> {
+export async function applyApprovedRefundSideEffects(
+  userId: string,
+): Promise<void> {
   const subscription = await getAccountSubscription(userId);
   if (!subscription) return;
   if (subscription.status === "free" || subscription.status === "canceled") {
@@ -344,25 +299,73 @@ export async function listRefundsForUser(
 }
 
 /**
- * Returns refunds for a specific set of payment attempts.
- * Preferred when the UI already has the payment list loaded.
+ * Returns refunds for a specific set of provider payment ids.
+ * Replaces the previous `listRefundsForPaymentAttempts` helper now
+ * that the `refunds` table joins to payments via `providerPaymentId`
+ * rather than a `paymentAttemptId` FK.
  */
-export async function listRefundsForPaymentAttempts(
-  paymentAttemptIds: readonly string[],
+export async function listRefundsForPaymentIds(
+  providerPaymentIds: readonly string[],
 ): Promise<RefundRow[]> {
-  if (paymentAttemptIds.length === 0) {
+  if (providerPaymentIds.length === 0) {
     return [];
   }
 
   return db
     .select()
     .from(refunds)
-    .where(inArray(refunds.paymentAttemptId, [...paymentAttemptIds]));
+    .where(inArray(refunds.providerPaymentId, [...providerPaymentIds]));
 }
 
-/** @internal exported for tests */
-export function _mapAdjustmentStatusToRefundStatus(
-  status: PaddleAdjustmentStatus,
-): RefundStatus {
-  return mapAdjustmentStatusToRefundStatus(status);
+/**
+ * Builds a `paymentAttemptId → RefundRow` map for a set of payment
+ * attempts. Convenience wrapper around `listRefundsForPaymentIds` for
+ * UI callers that already hold the `paymentAttempts` rows and want to
+ * key by attempt id rather than provider payment id.
+ *
+ * When multiple refund rows share a `providerPaymentId`, the mapping
+ * prefers a non-failed refund so the UI surfaces the active refund
+ * state instead of a stale failed attempt.
+ */
+export async function mapRefundsByPaymentAttempt(
+  payments: readonly Pick<PaymentAttemptRow, "id" | "providerPaymentId">[],
+): Promise<Map<string, RefundRow>> {
+  if (payments.length === 0) {
+    return new Map();
+  }
+
+  const providerPaymentIds = Array.from(
+    new Set(
+      payments
+        .map((row) => row.providerPaymentId)
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
+
+  if (providerPaymentIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = await listRefundsForPaymentIds(providerPaymentIds);
+
+  const byProviderPaymentId = new Map<string, RefundRow>();
+  for (const row of rows) {
+    const existing = byProviderPaymentId.get(row.providerPaymentId);
+    if (
+      !existing ||
+      (existing.status === "failed" && row.status !== "failed")
+    ) {
+      byProviderPaymentId.set(row.providerPaymentId, row);
+    }
+  }
+
+  const result = new Map<string, RefundRow>();
+  for (const payment of payments) {
+    const refund = byProviderPaymentId.get(payment.providerPaymentId);
+    if (refund) {
+      result.set(payment.id, refund);
+    }
+  }
+
+  return result;
 }

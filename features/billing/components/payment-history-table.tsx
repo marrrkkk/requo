@@ -40,11 +40,13 @@ type PaymentHistoryRecord = {
   provider: BillingProvider;
   status: PaymentAttemptStatus;
   providerPaymentId: string;
+  /** e.g. "Visa •••• 4242" or "Card" as fallback */
+  paymentMethodLabel?: string;
 };
 
 type RefundRecord = {
   id: string;
-  paymentAttemptId: string;
+  providerPaymentId: string;
   status: RefundStatus;
 };
 
@@ -68,14 +70,13 @@ export function PaymentHistoryTable({
   const refundByPaymentId = useMemo(() => {
     const map = new Map<string, RefundRecord>();
     for (const refund of refunds) {
-      const existing = map.get(refund.paymentAttemptId);
-      // Prefer non-rejected refunds when multiple exist for one payment.
+      const existing = map.get(refund.providerPaymentId);
+      // Prefer non-failed refunds when multiple exist for one payment.
       if (
         !existing ||
-        (existing.status === "rejected" && refund.status !== "rejected") ||
         (existing.status === "failed" && refund.status !== "failed")
       ) {
-        map.set(refund.paymentAttemptId, refund);
+        map.set(refund.providerPaymentId, refund);
       }
     }
     return map;
@@ -117,7 +118,7 @@ export function PaymentHistoryTable({
         }
 
         toast.success(
-          "Refund requested. We'll update you once Paddle approves it.",
+          "Refund requested. We'll update you once it's approved.",
         );
         setTargetPayment(null);
         setReason("");
@@ -154,7 +155,7 @@ export function PaymentHistoryTable({
           </TableHeader>
           <TableBody>
             {records.map((record) => {
-              const refund = refundByPaymentId.get(record.id);
+              const refund = refundByPaymentId.get(record.providerPaymentId);
               const isRefundable = isEligibleForRefund({
                 record,
                 refund,
@@ -173,7 +174,7 @@ export function PaymentHistoryTable({
                   <TableCell className="font-semibold text-foreground">
                     {formatCurrency(record.amount, record.currency)}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">Card</TableCell>
+                  <TableCell className="text-muted-foreground">{record.paymentMethodLabel ?? "Card"}</TableCell>
                   <TableCell>
                     <PaymentRowStatusBadge record={record} refund={refund} />
                   </TableCell>
@@ -194,10 +195,9 @@ export function PaymentHistoryTable({
                     ) : refund ? (
                       <span className="text-xs text-muted-foreground">
                         {refund.status === "approved" ? "Refunded" : null}
-                        {refund.status === "pending_approval"
+                        {refund.status === "pending"
                           ? "Awaiting approval"
                           : null}
-                        {refund.status === "rejected" ? "Request rejected" : null}
                         {refund.status === "failed" ? "Request failed" : null}
                       </span>
                     ) : (
@@ -221,9 +221,9 @@ export function PaymentHistoryTable({
           <DialogHeader>
             <DialogTitle>Request a refund</DialogTitle>
             <DialogDescription>
-              Your request is submitted to Paddle for approval. If approved,
-              your subscription will cancel and access ends at the next
-              billing period.
+              Your request is submitted to our payment provider for approval.
+              If approved, your subscription will cancel and access ends at
+              the next billing period.
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="flex flex-col gap-4">
@@ -305,7 +305,7 @@ function PaymentRowStatusBadge({
             Refunded
           </Badge>
         );
-      case "pending_approval":
+      case "pending":
         return (
           <Badge
             variant="outline"
@@ -314,7 +314,6 @@ function PaymentRowStatusBadge({
             Refund pending
           </Badge>
         );
-      case "rejected":
       case "failed":
         // Fall through to show the original payment status below.
         break;
@@ -371,11 +370,11 @@ function isEligibleForRefund({
   refundWindowDays: number;
 }): boolean {
   if (record.status !== "succeeded") return false;
-  if (record.provider !== "paddle") return false;
+  if (record.provider !== "dodo") return false;
 
   if (
     refund &&
-    (refund.status === "pending_approval" || refund.status === "approved")
+    (refund.status === "pending" || refund.status === "approved")
   ) {
     return false;
   }

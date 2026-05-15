@@ -1,9 +1,12 @@
 /**
  * Plan pricing definitions for the billing system.
  *
- * USD-only pricing.
+ * USD is the authoritative base currency. PHP entries are optional and
+ * display-only — the final PHP amount is computed by Dodo Adaptive
+ * Currency at checkout.
  */
 
+import { formatPhpApproximation } from "@/lib/billing/adaptive-currency";
 import type { BillingCurrency, BillingInterval, PaidPlan, PlanPricing } from "@/lib/billing/types";
 
 /** Prices in smallest currency unit (USD cents). */
@@ -24,15 +27,23 @@ export function getPlanPrice(
   currency: BillingCurrency,
   interval: BillingInterval = "monthly",
 ): number {
-  return planPricing[interval][plan][currency];
+  const pricing = planPricing[interval][plan];
+  // PHP entries are optional (display-only approximation). Fall back to
+  // the USD base price when no explicit PHP entry is configured.
+  return pricing[currency] ?? pricing.USD;
 }
 
-/** Formats a price for display. */
+/** Formats a price for display in the given currency. */
 export function formatPrice(
   amountInSmallestUnit: number,
   currency: BillingCurrency,
 ): string {
-  void currency;
+  if (currency === "PHP") {
+    // PHP amounts are stored in centavos; display as whole pesos
+    // formatted with the en-PH locale (e.g. "₱1,299"), no decimals.
+    const pesos = Math.round(amountInSmallestUnit / 100);
+    return formatPhpApproximation(pesos);
+  }
   const decimal = amountInSmallestUnit / 100;
   return `$${decimal.toFixed(2)}`;
 }
@@ -74,6 +85,6 @@ export function getYearlySavingsPercent(
 
 /** Returns the currency symbol for a billing currency. */
 export function getCurrencySymbol(currency: BillingCurrency): string {
-  void currency;
+  if (currency === "PHP") return "₱";
   return "$";
 }

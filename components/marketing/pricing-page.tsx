@@ -24,7 +24,7 @@ import {
   getUsageLimit,
   planFeatureLabels,
 } from "@/lib/plans";
-import type { BillingCurrency } from "@/lib/billing/types";
+import type { BillingCurrency, BillingRegion } from "@/lib/billing/types";
 import { PricingIntervalToggle } from "@/components/marketing/pricing-interval-toggle";
 
 /*──────────────────────────────────────────────────────────────────────────────
@@ -158,7 +158,13 @@ const pricingCategories: PricingFeatureCategory[] = [
  * Component
  *────────────────────────────────────────────────────────────────────────────*/
 
-export function PricingPage({ currency }: { currency: BillingCurrency }) {
+export function PricingPage({
+  currency,
+  region,
+}: {
+  currency: BillingCurrency;
+  region: BillingRegion;
+}) {
   return (
     <PublicPageShell
       brandSubtitle={null}
@@ -185,7 +191,7 @@ export function PricingPage({ currency }: { currency: BillingCurrency }) {
       }
     >
       {/* Hero */}
-      <PublicHeroSurface className="surface-grid overflow-hidden px-5 py-10 sm:px-6 sm:py-12 lg:px-8 lg:py-16">
+      <PublicHeroSurface className="overflow-hidden px-5 py-10 sm:px-6 sm:py-12 lg:px-8 lg:py-16">
         <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-5 text-center">
           <h1 className="max-w-2xl font-heading text-4xl font-semibold leading-[0.94] tracking-tight text-balance sm:text-5xl xl:text-[3.5rem]">
             Simple pricing. No surprises.
@@ -198,7 +204,7 @@ export function PricingPage({ currency }: { currency: BillingCurrency }) {
       </PublicHeroSurface>
 
       {/* Plan cards with toggle */}
-      <PricingIntervalToggle currency={currency} />
+      <PricingIntervalToggle currency={currency} region={region} />
 
       {/* Feature comparison */}
       <section className="mx-auto w-full max-w-[76rem] rounded-2xl border border-border/70 bg-card/40 overflow-hidden">

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { requireUser } from "@/lib/auth/session";
-import { isPaddleConfigured } from "@/lib/env";
+import { isDodoConfigured } from "@/lib/env";
 import {
   requestRefundForPayment,
   type RefundFailureReason,
@@ -28,7 +28,6 @@ function statusForReason(reason: RefundFailureReason): number {
       return 404;
     case "not_completed":
     case "outside_window":
-    case "unsupported_provider":
       return 409;
     case "already_refunded":
     case "refund_in_progress":
@@ -41,7 +40,7 @@ function statusForReason(reason: RefundFailureReason): number {
 }
 
 export async function POST(request: Request) {
-  if (!isPaddleConfigured) {
+  if (!isDodoConfigured) {
     return NextResponse.json(
       { error: "Refunds are not available in this environment." },
       { status: 503 },
@@ -87,8 +86,10 @@ export async function POST(request: Request) {
     refund: {
       id: result.refund.id,
       status: result.refund.status,
-      paymentAttemptId: result.refund.paymentAttemptId,
-      providerAdjustmentId: result.refund.providerAdjustmentId,
+      providerRefundId: result.refund.providerRefundId,
+      providerPaymentId: result.refund.providerPaymentId,
+      amount: result.refund.amount,
+      currency: result.refund.currency,
       createdAt: result.refund.createdAt,
     },
   });

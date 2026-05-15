@@ -214,12 +214,18 @@ export async function getBusinessPaymentHistory(
   businessId: string,
   limit = 10,
 ) {
-  return db
-    .select()
-    .from(paymentAttempts)
-    .where(eq(paymentAttempts.businessId, businessId))
-    .orderBy(desc(paymentAttempts.createdAt))
-    .limit(limit);
+  const rows = await db
+    .select({ ownerUserId: businesses.ownerUserId })
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
+  const ownerUserId = rows[0]?.ownerUserId;
+  if (!ownerUserId) {
+    return [];
+  }
+
+  return getAccountPaymentHistory(ownerUserId, limit);
 }
 
 /**

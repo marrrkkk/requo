@@ -29,10 +29,11 @@ const refundSections: LegalDocumentSection[] = [
           .
         </LegalParagraph>
         <LegalParagraph>
-          Subscription payments are processed by Paddle, our merchant of record.
-          Refunds are issued through Paddle and returned to the original card
-          used for the purchase. By subscribing to a paid plan, you agree to the
-          terms outlined in this Refund Policy and our Terms of Service.
+          Subscription payments are processed by our payment provider, the
+          merchant of record for {legalConfig.companyName}. Refunds are issued
+          through that provider and returned to the original card used for the
+          purchase. By subscribing to a paid plan, you agree to the terms
+          outlined in this Refund Policy and our Terms of Service.
         </LegalParagraph>
       </>
     ),
@@ -100,16 +101,16 @@ const refundSections: LegalDocumentSection[] = [
         </LegalParagraph>
         <LegalSubheading>Approval Process</LegalSubheading>
         <LegalParagraph>
-          When you submit a refund request, {legalConfig.companyName} creates a
-          refund adjustment with Paddle. Paddle reviews each refund and may
+          When you submit a refund request, {legalConfig.companyName} forwards
+          it to our payment provider. The provider reviews each refund and may
           return one of the following outcomes:
         </LegalParagraph>
         <LegalList
           items={[
             <>
               <span className="text-foreground">Pending approval:</span>{" "}
-              Paddle is reviewing the request. Your subscription remains active
-              in the meantime.
+              The provider is reviewing the request. Your subscription remains
+              active in the meantime.
             </>,
             <>
               <span className="text-foreground">Approved:</span> The refund is
@@ -167,15 +168,16 @@ const refundSections: LegalDocumentSection[] = [
       <>
         <LegalSectionHeading>5. Payment Provider</LegalSectionHeading>
         <LegalParagraph>
-          {legalConfig.companyName} uses Paddle as its sole payment processor
-          and merchant of record. All paid plans are billed in USD. Refunds are
-          issued through Paddle adjustments, which are subject to Paddle&apos;s
-          review and their standard processing times.
+          {legalConfig.companyName} uses a third-party payment provider as its
+          merchant of record. All paid plans are billed in USD. Refunds are
+          issued through the provider, which is subject to the provider&apos;s
+          review and standard processing times.
         </LegalParagraph>
         <LegalParagraph>
-          We will work with Paddle to process your refund request as quickly as
-          possible, but we cannot guarantee specific processing times for
-          delays introduced by Paddle or your card issuer.
+          We will work with our payment provider to process your refund
+          request as quickly as possible, but we cannot guarantee specific
+          processing times for delays introduced by the provider or your card
+          issuer.
         </LegalParagraph>
       </>
     ),

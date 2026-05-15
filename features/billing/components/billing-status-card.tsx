@@ -7,9 +7,8 @@
  */
 
 import Image from "next/image";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import {
-  CreditCard,
   CircleCheck,
   CircleAlert,
   Clock,
@@ -27,11 +26,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { Combobox } from "@/components/ui/combobox";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
+import { PaymentMethodIcon } from "@/features/billing/components/payment-method-icon";
 import { cancelSubscriptionAction } from "@/features/billing/actions";
-import {
-  clearCachedPendingCheckout,
-  clearCachedPendingQrCheckout,
-} from "@/features/billing/pending-checkout";
 import type {
   AccountBillingOverview,
   CancelActionState,
@@ -74,10 +70,9 @@ export function BillingStatusCard({
   );
 
   const isFreePlan = currentPlan === "free";
-  const cancelSuccess = cancelState.success;
 
   const getPaymentMethodDisplay = (_provider: string, method?: string | null) => {
-    if (!method) return "Visa, Mastercard, PayPal";
+    if (!method) return "Credit or debit card";
 
     switch (method.toLowerCase()) {
       case "visa": return "Visa";
@@ -95,12 +90,6 @@ export function BillingStatusCard({
     }
   };
 
-  useEffect(() => {
-    if (cancelSuccess) {
-      clearCachedPendingCheckout(userId);
-    }
-  }, [cancelSuccess, userId]);
-
   const hasActiveSubscription =
     subscription &&
     (subscription.status === "active" || subscription.status === "past_due");
@@ -110,12 +99,6 @@ export function BillingStatusCard({
   const [keepBusinessId, setKeepBusinessId] = useState(
     downgradePreview.activeBusinesses[0]?.id ?? "",
   );
-
-  useEffect(() => {
-    if (!hasPendingSubscription) {
-      clearCachedPendingQrCheckout(userId);
-    }
-  }, [hasPendingSubscription, userId]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -240,7 +223,7 @@ export function BillingStatusCard({
                 {subscription.provider ? (
                   <div className="flex items-center gap-4">
                     <div className="flex h-11 w-16 shrink-0 items-center justify-center rounded-lg border border-border/80 bg-background shadow-sm">
-                      <CreditCard className="size-5 text-muted-foreground" />
+                      <PaymentMethodIcon method={subscription.paymentMethod} />
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-foreground">

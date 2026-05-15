@@ -1,26 +1,71 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import {
   getYearlySavingsPercent,
   getMonthlyEquivalentLabel,
+  getPlanPrice,
   getPlanPriceLabel,
 } from "@/lib/billing/plans";
-import type { BillingCurrency, BillingInterval } from "@/lib/billing/types";
+import {
+  getPhpApproximation,
+  getPhpDisclaimer,
+} from "@/lib/billing/adaptive-currency";
+import { startDodoCheckout } from "@/features/billing/start-checkout";
+import { getAuthPathWithNext } from "@/lib/auth/redirects";
+import type {
+  BillingCurrency,
+  BillingInterval,
+  BillingRegion,
+  PaidPlan,
+} from "@/lib/billing/types";
 
 export function PricingIntervalToggle({
   currency,
+  region,
 }: {
   currency: BillingCurrency;
+  region: BillingRegion;
 }) {
   const [interval, setInterval] = useState<BillingInterval>("monthly");
+  const [pendingPlan, setPendingPlan] = useState<PaidPlan | null>(null);
+  const [isPending, startTransition] = useTransition();
   const savingsPercent = getYearlySavingsPercent("pro", currency);
+
+  function handleSubscribe(plan: PaidPlan) {
+    if (isPending) return;
+    setPendingPlan(plan);
+    startTransition(async () => {
+      const result = await startDodoCheckout({ plan, interval });
+      if (result.ok) {
+        setPendingPlan(null);
+        return;
+      }
+
+      if (result.reason === "unauthorized") {
+        const next = `/pricing?plan=${plan}&interval=${interval}`;
+        window.location.assign(getAuthPathWithNext("/login", next));
+        return;
+      }
+
+      if (result.reason === "already_subscribed") {
+        toast.info(result.message);
+        setPendingPlan(null);
+        return;
+      }
+
+      toast.error(result.message);
+      setPendingPlan(null);
+    });
+  }
 
   const proPrice = getPlanPriceLabel("pro", currency, interval).replace(
     interval === "monthly" ? "/mo" : "/yr",
@@ -37,6 +82,20 @@ export function PricingIntervalToggle({
       ? getMonthlyEquivalentLabel("business", currency)
       : null;
   const period = interval === "monthly" ? "mo" : "yr";
+
+  const showPhpApproximation = region === "PH";
+  const proPhpDisclaimer = showPhpApproximation
+    ? getPhpDisclaimer(
+        getPhpApproximation(getPlanPrice("pro", "USD", interval)),
+        interval,
+      )
+    : null;
+  const businessPhpDisclaimer = showPhpApproximation
+    ? getPhpDisclaimer(
+        getPhpApproximation(getPlanPrice("business", "USD", interval)),
+        interval,
+      )
+    : null;
 
   return (
     <section className="mx-auto w-full max-w-7xl px-5 py-10 sm:px-6 lg:px-8 lg:py-14">
@@ -125,14 +184,30 @@ export function PricingIntervalToggle({
               ? `${proMonthly} billed monthly`
               : "Cancel anytime"}
           </p>
+          {proPhpDisclaimer ? (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {proPhpDisclaimer}
+            </p>
+          ) : null}
           <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
             More quotes, AI drafts, multiple forms, and advanced branding for growing operators.
           </p>
 
-          <Button asChild size="lg" className="mt-6 w-full">
-            <Link href={`/account/billing/checkout?plan=pro&interval=${interval}`}>
-              Start with Pro
-            </Link>
+          <Button
+            className="mt-6 w-full"
+            disabled={isPending}
+            onClick={() => handleSubscribe("pro")}
+            size="lg"
+            type="button"
+          >
+            {isPending && pendingPlan === "pro" ? (
+              <>
+                <Spinner data-icon="inline-start" aria-hidden="true" />
+                Opening checkout…
+              </>
+            ) : (
+              "Start with Pro"
+            )}
           </Button>
 
           <ul className="mt-7 flex flex-col gap-2.5 border-t border-border/50 pt-6">
@@ -164,14 +239,31 @@ export function PricingIntervalToggle({
               ? `${businessMonthly} billed monthly`
               : "Cancel anytime"}
           </p>
+          {businessPhpDisclaimer ? (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {businessPhpDisclaimer}
+            </p>
+          ) : null}
           <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
             Team roles, higher AI and email caps, audit logs, and priority support.
           </p>
 
-          <Button asChild variant="outline" size="lg" className="mt-6 w-full">
-            <Link href={`/account/billing/checkout?plan=business&interval=${interval}`}>
-              Start with Business
-            </Link>
+          <Button
+            className="mt-6 w-full"
+            disabled={isPending}
+            onClick={() => handleSubscribe("business")}
+            size="lg"
+            type="button"
+            variant="outline"
+          >
+            {isPending && pendingPlan === "business" ? (
+              <>
+                <Spinner data-icon="inline-start" aria-hidden="true" />
+                Opening checkout…
+              </>
+            ) : (
+              "Start with Business"
+            )}
           </Button>
 
           <ul className="mt-7 flex flex-col gap-2.5 border-t border-border/50 pt-6">

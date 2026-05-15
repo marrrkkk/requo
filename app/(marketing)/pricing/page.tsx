@@ -64,7 +64,7 @@ async function PricingRouteDynamic() {
   const region = getBillingRegion(requestHeaders);
   const currency = getDefaultCurrency(region);
 
-  return <PricingPage currency={currency} />;
+  return <PricingPage currency={currency} region={region} />;
 }
 
 /**
@@ -104,7 +104,7 @@ export default function PricingRoute() {
           id="breadcrumb-structured-data"
         />
       ) : null}
-      <Suspense fallback={<PricingPage currency="USD" />}>
+      <Suspense fallback={<PricingPage currency="USD" region="global" />}>
         <PricingRouteDynamic />
       </Suspense>
     </>
