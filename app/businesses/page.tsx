@@ -31,6 +31,7 @@ import { planMeta } from "@/lib/plans/plans";
 import { getPendingInvitesForUser } from "@/features/business-members/queries";
 import { acceptInviteFromHubAction, declineInviteFromHubAction } from "@/features/business-members/actions";
 import { PendingInvitesBanner } from "@/features/business-members/components/pending-invites-banner";
+import { UpgradeSuccessToast } from "@/features/billing/components/upgrade-success-toast";
 
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
@@ -90,6 +91,7 @@ export default async function BusinessesPage() {
         themePreference={themePreference}
         userId={session.user.id}
       />
+      <UpgradeSuccessToast />
       <div className="min-h-svh w-full bg-background">
         <header className="sticky top-0 z-10 flex h-[4.5rem] w-full shrink-0 items-center justify-between border-b border-border/70 bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/60 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">

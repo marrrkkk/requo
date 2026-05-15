@@ -7,6 +7,7 @@ import { DashboardShell } from "@/components/shell/dashboard-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import { BusinessCheckoutProvider } from "@/features/billing/components/business-checkout-provider";
+import { UpgradeSuccessToast } from "@/features/billing/components/upgrade-success-toast";
 import { LockedBusinessSurface } from "@/features/businesses/components/locked-business-surface";
 import { ArchivedBusinessBanner } from "@/features/businesses/components/archived-business-banner";
 import { unarchiveBusinessAction } from "@/features/businesses/actions";
@@ -108,6 +109,7 @@ export default async function BusinessDashboardLayout({
   return (
     <>
       <RecentBusinessTracker businessSlug={businessContext.business.slug} />
+      <UpgradeSuccessToast />
       <BillingBoundary
         businessContext={businessContext}
         archivedBanner={archivedBusinessBanner}

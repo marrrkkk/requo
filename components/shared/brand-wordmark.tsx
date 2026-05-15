@@ -17,7 +17,7 @@ export function BrandWordmark({
   return (
     <span
       className={cn(
-        "font-brand font-semibold text-primary",
+        "font-brand font-bold text-primary",
         sizeStyles[size],
         className,
       )}
