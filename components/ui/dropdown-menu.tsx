@@ -129,7 +129,6 @@ function DropdownMenuMobileOverlayPortal() {
       aria-hidden="true"
       data-state={menuState.open ? "open" : "closed"}
       data-slot="dropdown-menu-mobile-overlay"
-      onClick={() => menuState.setOpen(false)}
     />,
     document.body,
   )
