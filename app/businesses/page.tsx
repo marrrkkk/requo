@@ -209,7 +209,13 @@ export default async function BusinessesPage() {
                         name={ws.name}
                         logoUrl={ws.logoStoragePath ? `/api/business/${ws.slug}/logo` : null}
                         size="lg"
-                        className="pointer-events-none absolute right-4 bottom-4 opacity-50 transition-opacity group-hover:opacity-90"
+                        className="pointer-events-none absolute right-4 bottom-20 opacity-70 sm:hidden"
+                      />
+                      <BusinessAvatar
+                        name={ws.name}
+                        logoUrl={ws.logoStoragePath ? `/api/business/${ws.slug}/logo` : null}
+                        size="lg"
+                        className="pointer-events-none absolute right-4 bottom-4 hidden opacity-50 transition-opacity sm:block group-hover:opacity-90"
                       />
                     </Card>
                   );
