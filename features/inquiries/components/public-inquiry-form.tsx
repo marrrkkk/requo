@@ -571,6 +571,22 @@ function renderProjectInput({
       );
     }
 
+    if (field.key === "budgetText") {
+      return (
+        <Input
+          disabled={isPending}
+          id={inputId}
+          inputMode="numeric"
+          min={0}
+          name={inputName}
+          placeholder={field.placeholder}
+          required={field.required}
+          step={1}
+          type="number"
+        />
+      );
+    }
+
     return (
       <Input
         disabled={isPending}

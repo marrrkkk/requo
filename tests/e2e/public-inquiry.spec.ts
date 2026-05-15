@@ -49,7 +49,7 @@ test("public inquiry page accepts a new submission @smoke", async ({ page }) => 
     .locator("#inquiry-contactHandle:visible")
     .fill(`taylor+${Date.now()}@example.com`);
   await page.locator("#inquiry-serviceCategory:visible").fill("Window graphics");
-  await page.locator("#inquiry-budgetText:visible").fill("Around $1,500");
+  await page.locator("#inquiry-budgetText:visible").fill("1500");
   await page
     .locator("#inquiry-details:visible")
     .fill(

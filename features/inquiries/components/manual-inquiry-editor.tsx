@@ -534,10 +534,17 @@ function renderProjectInput({
 
     if (field.key === "budgetText") {
       return (
-        <BudgetRangeInput
+        <Input
           disabled={isPending}
-          inputName={inputName}
-          onChange={onValueChange}
+          id={inputId}
+          inputMode="numeric"
+          min={0}
+          name={inputName}
+          onChange={(event) => onValueChange(event.currentTarget.value)}
+          placeholder={field.placeholder}
+          required={field.required}
+          step={1}
+          type="number"
           value={stringValue}
         />
       );
@@ -875,13 +882,6 @@ function ManualInquiryPreview({
                 Saved with the {selectedForm.name} form.
               </p>
             </div>
-            <div className="soft-panel flex min-w-[12rem] flex-col gap-2 px-4 py-4 shadow-none">
-              <p className="meta-label">Workflow</p>
-              <p className="text-sm font-medium text-foreground">New inquiry</p>
-              <p className="text-sm leading-6 text-muted-foreground">
-                Created manually from the dashboard.
-              </p>
-            </div>
           </div>
 
           <div className="dashboard-detail-header-meta">
@@ -1119,51 +1119,3 @@ function ContactHandleInput({
   );
 }
 
-function BudgetRangeInput({
-  disabled,
-  inputName,
-  onChange,
-  value,
-}: {
-  disabled: boolean;
-  inputName: string;
-  onChange: (value: string) => void;
-  value: string;
-}) {
-  const parts = value.split("-").map((p) => p.trim());
-  const minValue = parts[0] ?? "";
-  const maxValue = parts[1] ?? "";
-
-  function combine(min: string, max: string) {
-    if (min && max) return `${min} - ${max}`;
-    if (min) return min;
-    if (max) return `0 - ${max}`;
-    return "";
-  }
-
-  return (
-    <>
-      <input type="hidden" name={inputName} value={value} />
-      <div className="grid grid-cols-2 gap-3">
-        <Input
-          disabled={disabled}
-          inputMode="numeric"
-          min={0}
-          onChange={(event) => onChange(combine(event.currentTarget.value, maxValue))}
-          placeholder="Min"
-          type="number"
-          value={minValue}
-        />
-        <Input
-          disabled={disabled}
-          inputMode="numeric"
-          min={0}
-          onChange={(event) => onChange(combine(minValue, event.currentTarget.value))}
-          placeholder="Max"
-          type="number"
-          value={maxValue}
-        />
-      </div>
-    </>
-  );
-}
