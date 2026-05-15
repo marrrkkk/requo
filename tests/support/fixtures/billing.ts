@@ -107,7 +107,7 @@ async function applyState(
   await activateSubscription({
     userId: accountId,
     plan: "pro",
-    provider: "paddle",
+    provider: "dodo",
     currency: "USD",
     status: "active",
     currentPeriodStart: PERIOD_START,

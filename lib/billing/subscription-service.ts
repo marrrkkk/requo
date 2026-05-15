@@ -203,6 +203,7 @@ type ActivateSubscriptionParams = {
   provider: BillingProvider;
   currency: BillingCurrency;
   status?: SubscriptionStatus;
+  adaptiveCurrency?: boolean;
   providerCustomerId?: string | null;
   providerSubscriptionId?: string | null;
   providerCheckoutId?: string | null;
@@ -231,6 +232,7 @@ export async function activateSubscription(
         plan: params.plan,
         billingProvider: params.provider,
         billingCurrency: params.currency,
+        adaptiveCurrency: params.adaptiveCurrency ?? existing.adaptiveCurrency,
         providerCustomerId: params.providerCustomerId ?? existing.providerCustomerId,
         providerSubscriptionId:
           params.providerSubscriptionId ?? existing.providerSubscriptionId,
@@ -256,6 +258,7 @@ export async function activateSubscription(
         plan: params.plan,
         billingProvider: params.provider,
         billingCurrency: params.currency,
+        adaptiveCurrency: params.adaptiveCurrency ?? false,
         providerCustomerId: params.providerCustomerId ?? null,
         providerSubscriptionId: params.providerSubscriptionId ?? null,
         providerCheckoutId: params.providerCheckoutId ?? null,
@@ -272,6 +275,7 @@ export async function activateSubscription(
           plan: params.plan,
           billingProvider: params.provider,
           billingCurrency: params.currency,
+          adaptiveCurrency: params.adaptiveCurrency ?? false,
           providerCustomerId: params.providerCustomerId ?? null,
           providerSubscriptionId: params.providerSubscriptionId ?? null,
           providerCheckoutId: params.providerCheckoutId ?? null,

@@ -841,14 +841,14 @@ export async function deleteUserAction(
 /**
  * Default provider + currency used when the admin activates a
  * subscription for a user who has no existing `account_subscriptions`
- * row. Paddle + USD are the only values `account_subscriptions`
+ * row. Dodo + USD are the only values `account_subscriptions`
  * accepts today (see `lib/db/schema/subscriptions.ts`), and the admin
  * override surface is not the right place to prompt an admin to pick
  * a provider. If the user already has a row we prefer the row's
  * existing provider/currency so the override stays aligned with the
  * account's current billing setup.
  */
-const DEFAULT_OVERRIDE_PROVIDER: BillingProvider = "paddle";
+const DEFAULT_OVERRIDE_PROVIDER: BillingProvider = "dodo";
 const DEFAULT_OVERRIDE_CURRENCY: BillingCurrency = "USD";
 
 /**
@@ -952,7 +952,7 @@ export async function manualPlanOverrideAction(
   }
 
   // Pull provider/currency from the existing subscription row if one
-  // exists so the override doesn't silently flip Paddle→PayMongo etc.
+  // exists so the override doesn't silently flip providers (e.g., Dodo→another).
   // When there is no row yet, fall back to the module-level defaults.
   const existing = await getAccountSubscription(userId);
   const previousPlan: BusinessPlan | null = existing

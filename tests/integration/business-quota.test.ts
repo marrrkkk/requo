@@ -185,7 +185,7 @@ describe("global business quota enforcement", () => {
       userId: ownerId,
       status: "active",
       plan: "business",
-      billingProvider: "paddle",
+      billingProvider: "dodo",
       billingCurrency: "USD",
       createdAt: now,
       updatedAt: now,

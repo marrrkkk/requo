@@ -57,6 +57,7 @@
     "country-to-currency": "^2.0.3",
     "currency-codes": "^2.2.0",
     "date-fns": "^4.1.0",
+    "dodopayments": "^2.31.2",
     "drizzle-orm": "^0.45.2",
     "framer-motion": "11.18.2",
     "groq-sdk": "^1.1.2",

@@ -83,7 +83,7 @@ import { getBusinessBillingOverview } from "@/features/billing/queries";
 function mockSubscription(overrides: { plan?: string; status?: string } = {}) {
   return {
     billingCurrency: "USD",
-    billingProvider: "paddle",
+    billingProvider: "dodo",
     canceledAt: null,
     currentPeriodEnd: new Date("2026-06-01T00:00:00.000Z"),
     currentPeriodStart: new Date("2026-05-01T00:00:00.000Z"),
@@ -150,7 +150,7 @@ describe("features/billing/queries", () => {
       subscription: {
         currency: "USD",
         plan: "pro",
-        provider: "paddle",
+        provider: "dodo",
         status: "active",
       },
       userId: "user_123",

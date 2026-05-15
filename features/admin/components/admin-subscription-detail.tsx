@@ -67,7 +67,7 @@ const paymentStatusVariant: Record<
 };
 
 const providerLabels: Record<BillingProvider, string> = {
-  paddle: "Paddle",
+  dodo: "Dodo",
 };
 
 function formatTimestamp(value: Date | null): string {

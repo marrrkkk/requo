@@ -45,15 +45,6 @@ const envSchema = z.object({
   GEMINI_API_KEY: emptyToUndefined(z.string().min(1)),
   CEREBRAS_API_KEY: emptyToUndefined(z.string().min(1)),
   OPENROUTER_API_KEY: emptyToUndefined(z.string().min(1)),
-  PADDLE_API_KEY: emptyToUndefined(z.string().min(1)),
-  PADDLE_WEBHOOK_SECRET: emptyToUndefined(z.string().min(1)),
-  PADDLE_PRO_PRICE_ID: emptyToUndefined(z.string().min(1)),
-  PADDLE_PRO_YEARLY_PRICE_ID: emptyToUndefined(z.string().min(1)),
-  PADDLE_BUSINESS_PRICE_ID: emptyToUndefined(z.string().min(1)),
-  PADDLE_BUSINESS_YEARLY_PRICE_ID: emptyToUndefined(z.string().min(1)),
-  PADDLE_ENVIRONMENT: emptyToUndefined(z.enum(["sandbox", "production"])).default("sandbox"),
-  NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: emptyToUndefined(z.string().min(1)),
-  NEXT_PUBLIC_PADDLE_ENVIRONMENT: emptyToUndefined(z.enum(["sandbox", "production"])).default("sandbox"),
   DEMO_OWNER_NAME: emptyToUndefined(z.string().trim().min(1)),
   DEMO_OWNER_EMAIL: emptyToUndefined(z.email()),
   DEMO_OWNER_PASSWORD: emptyToUndefined(z.string().min(8)),
@@ -64,6 +55,17 @@ const envSchema = z.object({
   DEMO_VOIDED_QUOTE_PUBLIC_TOKEN: emptyToUndefined(z.string().trim().min(1)),
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: emptyToUndefined(z.string().min(1)),
   VAPID_PRIVATE_KEY: emptyToUndefined(z.string().min(1)),
+
+  DODO_API_KEY: emptyToUndefined(z.string().min(1)),
+  DODO_WEBHOOK_SECRET: emptyToUndefined(z.string().min(1)),
+  DODO_ENVIRONMENT: emptyToUndefined(z.enum(["test_mode", "live_mode"])).default(
+    "test_mode",
+  ),
+  DODO_PRO_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
+  DODO_BUSINESS_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
+  DODO_PRO_YEARLY_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
+  DODO_BUSINESS_YEARLY_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
+  NEXT_PUBLIC_APP_URL: emptyToUndefined(z.url()),
 });
 
 export const env = envSchema.parse(process.env);
@@ -74,8 +76,6 @@ export const supabaseKey =
 export const publicEnv = {
   NEXT_PUBLIC_SUPABASE_URL: env.NEXT_PUBLIC_SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseKey,
-  NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
-  NEXT_PUBLIC_PADDLE_ENVIRONMENT: env.NEXT_PUBLIC_PADDLE_ENVIRONMENT,
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
 };
 
@@ -109,13 +109,18 @@ export const isGeminiConfigured = Boolean(env.GEMINI_API_KEY);
 export const isCerebrasConfigured = Boolean(env.CEREBRAS_API_KEY);
 export const isSupabaseRealtimeConfigured = Boolean(env.SUPABASE_JWT_SECRET);
 
-export const isPaddleConfigured = Boolean(
-  env.PADDLE_API_KEY && env.PADDLE_PRO_PRICE_ID,
-);
 export const isOpenRouterConfigured = Boolean(
   (process.env.OPENROUTER_API_KEY ?? "").trim().length > 0,
 );
 export const isPushConfigured = Boolean(
   env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY,
+);
+
+export const isDodoConfigured = Boolean(
+  env.DODO_API_KEY &&
+    (env.DODO_PRO_PRODUCT_ID ||
+      env.DODO_BUSINESS_PRODUCT_ID ||
+      env.DODO_PRO_YEARLY_PRODUCT_ID ||
+      env.DODO_BUSINESS_YEARLY_PRODUCT_ID),
 );
 

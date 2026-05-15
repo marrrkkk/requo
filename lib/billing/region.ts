@@ -4,8 +4,10 @@
  * Priority:
  * 1. x-vercel-ip-country header (Vercel Edge Network)
  * 2. cf-ipcountry header (Cloudflare)
- * 3. Explicit country code override (e.g., from user preference)
- * 4. Default: INTL → USD
+ * 3. Default: "global"
+ *
+ * Note: Base currency is always USD. PHP pricing is shown via Dodo
+ * Adaptive Currency at checkout — it is not a separate base price.
  */
 
 import type {
@@ -16,11 +18,12 @@ import type {
 
 /**
  * Detects the billing region from request headers.
- * Returns "PH" for Philippines, "INTL" for everywhere else.
+ * Returns "PH" for Philippines, "global" for everywhere else.
  */
 export function getBillingRegion(headers: Headers): BillingRegion {
-  void headers;
-  return "global";
+  const country =
+    headers.get("x-vercel-ip-country") ?? headers.get("cf-ipcountry");
+  return getBillingRegionFromCountry(country);
 }
 
 /**
@@ -29,11 +32,18 @@ export function getBillingRegion(headers: Headers): BillingRegion {
 export function getBillingRegionFromCountry(
   countryCode: string | null | undefined,
 ): BillingRegion {
-  void countryCode;
-  return "global";
+  if (!countryCode) {
+    return "global";
+  }
+  return countryCode.toUpperCase() === "PH" ? "PH" : "global";
 }
 
-/** Maps a billing region to its default currency. */
+/**
+ * Maps a billing region to its default base currency.
+ *
+ * Always returns USD — PHP is shown via Dodo Adaptive Currency at
+ * checkout, not as a separate base price.
+ */
 export function getDefaultCurrency(region: BillingRegion): BillingCurrency {
   void region;
   return "USD";
@@ -42,7 +52,7 @@ export function getDefaultCurrency(region: BillingRegion): BillingCurrency {
 /** Maps a billing region to its default payment provider. */
 export function getDefaultProvider(region: BillingRegion): BillingProvider {
   void region;
-  return "paddle";
+  return "dodo";
 }
 
 /** Maps a billing currency to its corresponding provider. */
@@ -50,5 +60,10 @@ export function getProviderForCurrency(
   currency: BillingCurrency,
 ): BillingProvider {
   void currency;
-  return "paddle";
+  return "dodo";
+}
+
+/** Convenience helper: true when the region is the Philippines. */
+export function isPhilippinesRegion(region: BillingRegion): boolean {
+  return region === "PH";
 }

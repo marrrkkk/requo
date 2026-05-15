@@ -1289,7 +1289,7 @@ async function createAccountSubscription(config: SeedUserConfig, ownerId: string
     userId: ownerId,
     status: "active",
     plan: config.plan,
-    billingProvider: "paddle",
+    billingProvider: "dodo",
     billingCurrency: "USD",
     providerCustomerId: `cus_demo_${accountScope}`,
     providerSubscriptionId: `sub_demo_${accountScope}`,
