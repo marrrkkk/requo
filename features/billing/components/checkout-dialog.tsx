@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
+import { startDodoCheckout } from "@/features/billing/start-checkout";
 import type { CheckoutDialogProps } from "@/features/billing/types";
 
 type ControlledCheckoutDialogProps = CheckoutDialogProps & {
@@ -25,30 +28,50 @@ export function CheckoutDialog({
   plan,
   interval = "monthly",
 }: ControlledCheckoutDialogProps) {
-  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Checkout moved to a dedicated page</DialogTitle>
+          <DialogTitle>Continue to secure checkout</DialogTitle>
           <DialogDescription>
-            Continue in the new secure inline Paddle checkout flow.
+            We&apos;ll redirect you to our payment partner to finish your purchase.
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
           <Button
             className="w-full"
+            disabled={isPending}
             onClick={() => {
-              const params = new URLSearchParams({
-                interval,
-                plan,
+              startTransition(async () => {
+                const result = await startDodoCheckout({ plan, interval });
+                if (result.ok) {
+                  // Hosted checkout opened in a new tab (or same-tab
+                  // fallback). Close the dialog so the user returns to
+                  // the page they came from.
+                  onOpenChange(false);
+                  return;
+                }
+
+                if (result.reason === "already_subscribed") {
+                  toast.info(result.message);
+                  onOpenChange(false);
+                  return;
+                }
+
+                toast.error(result.message);
               });
-              router.push(`/account/billing/checkout?${params.toString()}`);
-              onOpenChange(false);
             }}
           >
-            Continue to checkout
+            {isPending ? (
+              <>
+                <Spinner data-icon="inline-start" aria-hidden="true" />
+                Opening checkout…
+              </>
+            ) : (
+              "Continue to checkout"
+            )}
           </Button>
         </DialogBody>
       </DialogContent>

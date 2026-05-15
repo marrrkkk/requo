@@ -1,14 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
 
-import { InlinePaddleCheckoutPage } from "@/features/billing/components/inline-paddle-checkout-page";
-import { getAccountBillingOverview } from "@/features/billing/queries";
 import { businessesHubPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
-import { getBusinessContextForUser } from "@/lib/db/business-access";
-import { timed } from "@/lib/dev/server-timing";
-import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -16,76 +10,69 @@ export const metadata: Metadata = createNoIndexMetadata({
   description: "Complete your Requo subscription checkout securely.",
 });
 
-type AccountBillingCheckoutPageProps = {
-  searchParams: Promise<{
-    interval?: string;
-    plan?: string;
-  }>;
+type SearchParamsRecord = Record<string, string | string[] | undefined>;
+
+type CheckoutPageProps = {
+  searchParams: Promise<SearchParamsRecord>;
 };
 
-function normalizePlan(value: string | undefined): PaidPlan {
-  return value === "business" ? "business" : "pro";
+function readParam(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+  return value ?? null;
 }
 
-function normalizeInterval(value: string | undefined): BillingInterval {
-  return value === "yearly" ? "yearly" : "monthly";
+/**
+ * Same-origin allowlist for the post-checkout return URL. We accept
+ * any path under our app routes (businesses hub, business dashboards,
+ * account billing). Anything else falls back to the businesses hub.
+ *
+ * This is a security gate, not just a UX preference — a malicious
+ * value in the query string could otherwise redirect to a third-party
+ * origin after a successful checkout.
+ */
+function resolveReturnTo(value: string | null): string {
+  if (!value) return businessesHubPath;
+
+  const trimmed = value.trim();
+
+  // Must be a relative path, must not be protocol-relative or `/api/*`.
+  if (!trimmed.startsWith("/")) return businessesHubPath;
+  if (trimmed.startsWith("//")) return businessesHubPath;
+  if (trimmed.startsWith("/api/")) return businessesHubPath;
+
+  return trimmed;
 }
 
+/**
+ * Dodo Payments hosted-checkout return page.
+ *
+ * Dodo redirects the user here after they finish (or abandon) the
+ * hosted checkout. We do not show a processing UI — the webhook is
+ * the source of truth and the user's effective plan revalidates via
+ * cache tags as soon as the webhook lands. We simply redirect the
+ * browser to the page they came from (`returnTo`) so they can
+ * continue working.
+ *
+ * Default fallback: the businesses hub. The caller (checkout API
+ * route) embeds `returnTo` in the success URL when it creates the
+ * Dodo session.
+ */
 export default async function AccountBillingCheckoutPage({
   searchParams,
-}: AccountBillingCheckoutPageProps) {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
-            <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <p className="text-sm text-muted-foreground">
-              Loading checkout…
-            </p>
-          </div>
-        </div>
-      }
-    >
-      <AccountBillingCheckoutContent searchParams={searchParams} />
-    </Suspense>
-  );
-}
+}: CheckoutPageProps) {
+  // Make sure the user is signed in before we redirect — the destination
+  // routes all assume an authenticated session anyway.
+  await requireSession();
 
-async function AccountBillingCheckoutContent({
-  searchParams,
-}: AccountBillingCheckoutPageProps) {
-  // Resolve session + searchParams in parallel (independent).
-  const [session, params] = await Promise.all([requireSession(), searchParams]);
-  const context = await timed(
-    "checkout.getBusinessContextForUser",
-    getBusinessContextForUser(session.user.id),
-  );
+  const resolvedSearchParams = await searchParams;
+  const returnTo = resolveReturnTo(readParam(resolvedSearchParams.returnTo));
 
-  if (!context) {
-    redirect(businessesHubPath);
-  }
+  // We pass the upgrade flag through so the destination page can show
+  // a brief confirmation toast.
+  const url = new URL(returnTo, "http://placeholder.local");
+  url.searchParams.set("upgrade", "success");
 
-  const billing = await timed(
-    "checkout.getAccountBillingOverview",
-    getAccountBillingOverview(context.business.id),
-  );
-  if (!billing) {
-    redirect("/account/billing");
-  }
-
-  const initialPlan = normalizePlan(params.plan);
-  const initialInterval = normalizeInterval(params.interval);
-
-  return (
-    <InlinePaddleCheckoutPage
-      businessId={billing.businessId}
-      businessName={billing.businessName}
-      currentPlan={billing.currentPlan}
-      defaultCurrency={billing.defaultCurrency}
-      initialPlan={initialPlan}
-      initialInterval={initialInterval}
-      region={billing.region}
-    />
-  );
+  redirect(`${url.pathname}${url.search}`);
 }

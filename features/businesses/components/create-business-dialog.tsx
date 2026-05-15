@@ -209,11 +209,6 @@ export function CreateBusinessDialog({
                   onClick={() => {
                     setOpen(false);
                     if (useSharedCheckout && businessCheckout) {
-                      if (businessCheckout.pendingCheckout) {
-                        businessCheckout.continueCheckout();
-                        return;
-                      }
-
                       businessCheckout.openPlanSelection();
                       return;
                     }

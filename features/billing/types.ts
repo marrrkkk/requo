@@ -64,19 +64,7 @@ export type CheckoutActionState = {
   error?: string;
   success?: string;
   checkoutUrl?: string;
-  paddleTransactionId?: string;
 };
-export type PendingCheckoutState = null;
-
-export type CancelPendingQrCheckoutResult =
-  | {
-      ok: true;
-      outcome: "already_canceled";
-    }
-  | {
-      ok: false;
-      error: string;
-    };
 
 export type CheckoutStatusSnapshot = {
   subscription: {
