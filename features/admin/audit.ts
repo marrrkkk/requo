@@ -188,6 +188,11 @@ function mergeImpersonationMetadata(
 export async function writeAdminAuditLog(
   input: WriteAdminAuditLogInput,
 ): Promise<void> {
+  // Skip audit logging for synthetic JWT-only admin sessions (no real user in DB)
+  if (input.context.adminUserId === "admin-jwt") {
+    return;
+  }
+
   const headerStore = await headers();
   const ipAddress = resolveAdminIpAddress(headerStore);
   const userAgent = resolveAdminUserAgent(headerStore);

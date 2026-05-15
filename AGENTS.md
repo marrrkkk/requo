@@ -178,6 +178,10 @@ A task is done when:
 - If demo data or e2e fixtures need refreshing, use `npm run db:migrate` and `npm run db:seed-demo` when the environment supports it.
 - Secret-storage or reversible-credential changes may also require `npm run db:backfill-security-secrets` after keys are configured.
 - Prefer `npm run dev:app` for app-only local work. `npm run dev` also starts `ngrok` for callback and webhook testing.
-- Vercel owns preview and production deployment. GitHub Actions owns merge gates:
-  - `verify`: lint, typecheck, unit/component tests, build
-  - `server-tests`: Postgres-backed integration tests and Playwright smoke coverage
+- Vercel owns preview and production deployment through Git integration.
+- Run local verification before pushing:
+  - `npm run check`
+  - `npm run test`
+  - `npm run test:integration`
+  - `npm run build`
+  - `npm run test:e2e:smoke`

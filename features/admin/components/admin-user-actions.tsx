@@ -27,7 +27,10 @@ import {
   suspendUserAction,
   unsuspendUserAction,
 } from "@/features/admin/mutations";
-import { getAdminStartImpersonationPath } from "@/features/admin/navigation";
+import {
+  ADMIN_USERS_PATH,
+  getAdminStartImpersonationPath,
+} from "@/features/admin/navigation";
 import type { AdminActionResult } from "@/features/admin/types";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 
@@ -172,7 +175,7 @@ export function AdminUserActions({
             });
             handleResult(result, `Deleted ${targetEmail}.`);
             if (result.ok) {
-              router.replace("/admin/users");
+              router.replace(ADMIN_USERS_PATH);
             }
             return;
           }

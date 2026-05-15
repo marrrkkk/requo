@@ -241,7 +241,7 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 | `npm run db:studio` | Open Drizzle Studio |
 | `npm run db:seed-demo` | Seed the demo business |
 
-## Testing And CI
+## Testing And Validation
 
 Requo uses a layered, risk-based test strategy:
 
@@ -252,15 +252,18 @@ Requo uses a layered, risk-based test strategy:
 
 The browser suite is intentionally split:
 
-- `npm run test:e2e:smoke` is the fast CI slice for critical sign-in, authorization, public inquiry, and public quote flows
+- `npm run test:e2e:smoke` is the fast validation slice for critical sign-in, authorization, public inquiry, and public quote flows
 - `npm run test:e2e` runs the fuller browser suite for broader regression coverage
 
-Deployment and CI responsibilities are intentionally split:
+Deployment and validation responsibilities are intentionally split:
 
 - Vercel handles preview and production deployments
-- GitHub Actions handles merge gates:
-  - `verify`: install, lint, typecheck, unit/component tests, and build
-  - `server-tests`: Postgres-backed integration tests plus the Playwright smoke suite
+- Local/manual commands handle validation before push:
+  - `npm run check`: lint, typecheck, and repo audits
+  - `npm run test`: unit and component tests
+  - `npm run test:integration`: Postgres-backed integration tests
+  - `npm run test:e2e:smoke`: critical browser smoke flows
+  - `npm run build`: production build verification
 
 ## Repository Map
 
@@ -301,6 +304,8 @@ Deployment and CI responsibilities are intentionally split:
 - The `businesses.plan` column is a denormalized read cache; the authoritative state lives in `account_subscriptions`
 - Billing mutations go through `lib/billing/subscription-service.ts`; webhooks go through `lib/billing/webhook-processor.ts`
 - Opaque lookup tokens are hashed with `APP_TOKEN_HASH_SECRET` or `BETTER_AUTH_SECRET`
+- State and data defaults stay server-first: prefer cached server reads, Server Actions, route refreshes, and local component state before adding client-state libraries
+- Do not add app-wide Zustand, TanStack Query, or Redis by default; introduce them only for measured bottlenecks such as complex client-only islands, background refetch pressure, or distributed rate limiting/queueing needs
 - See [docs/setup/billing.md](./docs/setup/billing.md) for provider setup instructions
 
 Detailed architecture guidance lives in [docs/architecture/requo-architecture.md](./docs/architecture/requo-architecture.md).
@@ -316,6 +321,8 @@ npm run test:integration
 npm run build
 npm run test:e2e:smoke
 ```
+
+Vercel Git integration is the deployment path for this repository: push a branch to create a preview deployment, then merge to the production branch configured in Vercel for the production deploy.
 
 For broader browser coverage before larger merges, also run:
 

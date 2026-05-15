@@ -1,122 +1,100 @@
 import "server-only";
 
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 
+import { verifyAdminSession } from "@/lib/admin/auth";
 import {
   getOptionalSession,
   type AuthSession,
   type AuthUser,
 } from "@/lib/auth/session";
-import { env } from "@/lib/env";
 
 /**
  * Context returned to admin pages, route handlers, and server actions
- * after the admin access gate succeeds. Shape matches the sketch in
- * `.kiro/specs/admin-console/design.md` (Access Gate Flow).
+ * after the admin access gate succeeds.
+ *
+ * When the admin is authenticated via the JWT cookie (subdomain login),
+ * `session` and `user` are synthetic placeholders. Mutations that need
+ * a real Better Auth session should call `getOptionalSession()` directly.
  */
 export type AdminContext = {
   readonly session: AuthSession;
   readonly user: AuthUser;
 };
 
-/**
- * Split the raw `ADMIN_EMAILS` value into normalized, lowercased,
- * whitespace-trimmed entries. Empty entries (e.g. from a trailing or
- * duplicate comma) are dropped. Exported for tests.
- *
- * Per Requirement 1.5, an unset or empty list yields an empty array,
- * which makes every `isAdminEmail` check fail.
- */
-export function parseAdminAllowList(
-  raw: string | null | undefined,
-): readonly string[] {
-  if (!raw) {
-    return [];
-  }
+/** Synthetic admin identity used when only the JWT cookie is present. */
+const SYNTHETIC_ADMIN_USER: AuthUser = {
+  id: "admin-jwt",
+  name: "Admin",
+  email: process.env.ADMIN_USERNAME ?? "admin",
+  emailVerified: true,
+  image: null,
+  banned: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
 
-  return raw
-    .split(",")
-    .map((entry) => entry.trim().toLowerCase())
-    .filter((entry) => entry.length > 0);
-}
-
-/**
- * Parsed allow-list computed once from `env.ADMIN_EMAILS`. `env` is
- * evaluated at module load, so the derived list is stable for the
- * process lifetime.
- */
-const parsedAdminAllowList: readonly string[] = parseAdminAllowList(
-  env.ADMIN_EMAILS,
-);
+const SYNTHETIC_ADMIN_SESSION: AuthSession = {
+  session: {
+    id: "admin-jwt-session",
+    userId: "admin-jwt",
+    token: "",
+    expiresAt: new Date(Date.now() + 86400000),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ipAddress: null,
+    userAgent: null,
+    impersonatedBy: null,
+  },
+  user: SYNTHETIC_ADMIN_USER,
+};
 
 /**
- * Return the parsed, normalized allow-list derived from `ADMIN_EMAILS`.
- * Exposed so tests and other code can assert the parsed list directly
- * without re-splitting the raw env value.
- */
-export function getParsedAdminAllowList(): readonly string[] {
-  return parsedAdminAllowList;
-}
-
-/**
- * True when `email` (after trimming + lowercasing) is present in `list`.
+ * Admin access gate. Checks the admin JWT session cookie first.
+ * Falls back to Better Auth session + email allow-list for backward
+ * compatibility with mutations that need a real user identity.
  *
- * Case-insensitive, whitespace-trimmed comparison per Requirement 1.4.
- * Pure function — intentionally decoupled from env and DB state so it
- * can be exercised by unit and property tests.
- */
-export function isAdminEmail(
-  email: string,
-  list: readonly string[],
-): boolean {
-  if (typeof email !== "string") {
-    return false;
-  }
-
-  const normalized = email.trim().toLowerCase();
-
-  if (normalized.length === 0) {
-    return false;
-  }
-
-  if (list.length === 0) {
-    return false;
-  }
-
-  return list.includes(normalized);
-}
-
-/**
- * Admin access gate. Composes the three checks defined by Requirement 1:
- *
- * 1. A Better Auth session must exist (Req 1.1).
- * 2. The signed-in user's `emailVerified` must be `true` (Req 1.3).
- * 3. The signed-in email must appear in `ADMIN_EMAILS` after
- *    whitespace-trimmed, case-insensitive normalization (Req 1.2, 1.4).
- *
- * Any failure triggers `notFound()`, which renders Next.js's 404 page
- * and keeps `/admin` undiscoverable to scanners (design decision in
- * `design.md`).
- *
- * Every admin page, route handler, and server action MUST call this
- * before performing any read or write, per Requirement 1.6.
+ * If neither auth method succeeds, redirects to `/login` which on the
+ * admin subdomain resolves to the admin login page via middleware rewrite.
  */
 export async function requireAdminUser(): Promise<AdminContext> {
+  // Primary: check admin JWT cookie (subdomain login)
+  const hasAdminSession = await verifyAdminSession();
+
+  if (hasAdminSession) {
+    // Try to also get a Better Auth session for richer context
+    const betterAuthSession = await getOptionalSession();
+
+    if (betterAuthSession?.user) {
+      return {
+        session: betterAuthSession,
+        user: betterAuthSession.user,
+      };
+    }
+
+    // JWT-only: return synthetic context
+    return {
+      session: SYNTHETIC_ADMIN_SESSION,
+      user: SYNTHETIC_ADMIN_USER,
+    };
+  }
+
+  // Fallback: check Better Auth session + admin email allow-list
   const session = await getOptionalSession();
 
-  if (!session) {
-    notFound();
+  if (session?.user) {
+    const adminEmails = (process.env.ADMIN_EMAILS ?? "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter((e) => e.length > 0);
+
+    if (
+      session.user.emailVerified &&
+      adminEmails.includes(session.user.email.trim().toLowerCase())
+    ) {
+      return { session, user: session.user };
+    }
   }
 
-  const { user } = session;
-
-  if (!user || user.emailVerified !== true) {
-    notFound();
-  }
-
-  if (!isAdminEmail(user.email, parsedAdminAllowList)) {
-    notFound();
-  }
-
-  return { session, user };
+  redirect("/login");
 }

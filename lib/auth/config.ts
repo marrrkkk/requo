@@ -4,6 +4,7 @@ import { admin, magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
+import { getAdminHost } from "@/lib/admin/subdomain-config";
 import { db } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { env } from "@/lib/env";
@@ -55,6 +56,11 @@ function buildTrustedOrigins() {
       }
     }
   }
+
+  // Add admin subdomain to trusted origins
+  const adminHost = getAdminHost();
+  const adminProtocol = env.NODE_ENV === "production" ? "https" : "http";
+  origins.add(`${adminProtocol}://${adminHost}`);
 
   return Array.from(origins);
 }
