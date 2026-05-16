@@ -12,7 +12,7 @@ import {
 import { toast } from "sonner";
 
 import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
-import { startDodoCheckout } from "@/features/billing/start-checkout";
+import { startPolarCheckout } from "@/features/billing/start-checkout";
 import type { AccountBillingOverview } from "@/features/billing/types";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
 import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
@@ -20,8 +20,6 @@ import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 type BusinessCheckoutContextValue = {
   currentPlan: plan;
-  defaultCurrency: AccountBillingOverview["defaultCurrency"];
-  region: AccountBillingOverview["region"];
   userId: string;
   businessId: string;
   businessSlug: string;
@@ -57,7 +55,7 @@ export function BusinessCheckoutProvider({
         : undefined;
 
       startTransition(async () => {
-        const result = await startDodoCheckout({ plan, interval, returnTo });
+        const result = await startPolarCheckout({ plan, interval, returnTo });
         if (result.ok) {
           // Checkout opened in a new tab (or same-tab fallback).
           // Either way we don't need to do anything further here.
@@ -85,11 +83,9 @@ export function BusinessCheckoutProvider({
       businessId: billing.businessId,
       businessSlug: billing.businessSlug,
       currentPlan: billing.currentPlan,
-      defaultCurrency: billing.defaultCurrency,
       isStartingCheckout,
       openCheckout,
       openPlanSelection,
-      region: billing.region,
       userId: billing.userId,
     }),
     [billing, isStartingCheckout, openCheckout, openPlanSelection],
@@ -102,14 +98,12 @@ export function BusinessCheckoutProvider({
       </BusinessCheckoutContext.Provider>
       <PlanSelectionSheet
         currentPlan={billing.currentPlan}
-        defaultCurrency={billing.defaultCurrency}
         onOpenChange={setIsPlanSheetOpen}
         onSelectPlan={(plan, interval) => {
           setIsPlanSheetOpen(false);
           openCheckout(plan, interval);
         }}
         open={isPlanSheetOpen}
-        region={billing.region}
         targetPlan={sheetTargetPlan}
       />
     </>

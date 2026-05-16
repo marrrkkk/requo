@@ -228,7 +228,7 @@ describe("business access control", () => {
       userId: ids.ownerUserId,
       status: "active",
       plan: "business",
-      billingProvider: "dodo",
+      billingProvider: "polar",
       billingCurrency: "USD",
       currentPeriodStart: new Date("2026-05-01T00:00:00.000Z"),
       currentPeriodEnd: new Date("2026-06-01T00:00:00.000Z"),

@@ -3,7 +3,6 @@ import type {
   BillingCurrency,
   BillingInterval,
   BillingProvider,
-  BillingRegion,
   PaymentAttemptStatus,
   PaidPlan,
   SubscriptionStatus,
@@ -27,9 +26,8 @@ export type AccountBillingOverview = {
     currentPeriodEnd: Date | null;
     canceledAt: Date | null;
     providerSubscriptionId: string | null;
+    providerCustomerId: string | null;
   } | null;
-  region: BillingRegion;
-  defaultCurrency: BillingCurrency;
   downgradePreview: {
     targetPlan: plan;
     activeBusinessLimit: number | null;
@@ -55,8 +53,6 @@ export type CheckoutDialogProps = {
   currentPlan: plan;
   plan: PaidPlan;
   interval?: BillingInterval;
-  region: BillingRegion;
-  defaultCurrency: BillingCurrency;
 };
 
 /** Checkout action state for server action form submissions. */
@@ -76,10 +72,4 @@ export type CheckoutStatusSnapshot = {
     providerPaymentId: string;
     status: PaymentAttemptStatus;
   } | null;
-};
-
-/** Cancel action state. */
-export type CancelActionState = {
-  error?: string;
-  success?: string;
 };

@@ -4,7 +4,7 @@
  * Destructive billing-only schema reset.
  *
  * Drops every billing table, drops and recreates the billing-related enums
- * with the new Dodo Payments values, and recreates the billing tables to
+ * with the current Polar values, and recreates the billing tables to
  * match the updated Drizzle schema in `lib/db/schema/subscriptions.ts`.
  *
  * What this script touches:
@@ -59,7 +59,7 @@ async function resetEnums() {
   // are intentionally left as-is.
   const enumStatements = [
     `DROP TYPE IF EXISTS billing_provider CASCADE`,
-    `CREATE TYPE billing_provider AS ENUM ('dodo')`,
+    `CREATE TYPE billing_provider AS ENUM ('polar')`,
     `DROP TYPE IF EXISTS billing_currency CASCADE`,
     `CREATE TYPE billing_currency AS ENUM ('USD', 'PHP')`,
     `DROP TYPE IF EXISTS refund_status CASCADE`,
@@ -87,7 +87,6 @@ async function recreateTables() {
         plan text NOT NULL,
         billing_provider billing_provider NOT NULL,
         billing_currency billing_currency NOT NULL,
-        adaptive_currency boolean NOT NULL DEFAULT false,
         provider_customer_id text,
         provider_subscription_id text,
         provider_checkout_id text,
@@ -214,7 +213,7 @@ async function main() {
   console.log(
     "⚠  DESTRUCTIVE: drops billing tables and recreates them with",
   );
-  console.log("   updated enums for the Dodo Payments migration. All");
+  console.log("   updated enums for the Polar billing migration. All");
   console.log("   subscription, payment, billing-event, and refund rows");
   console.log("   will be lost.\n");
 

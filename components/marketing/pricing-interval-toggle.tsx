@@ -12,28 +12,20 @@ import { cn } from "@/lib/utils";
 import {
   getYearlySavingsPercent,
   getMonthlyEquivalentLabel,
-  getPlanPrice,
   getPlanPriceLabel,
 } from "@/lib/billing/plans";
-import {
-  getPhpApproximation,
-  getPhpDisclaimer,
-} from "@/lib/billing/adaptive-currency";
-import { startDodoCheckout } from "@/features/billing/start-checkout";
+import { startPolarCheckout } from "@/features/billing/start-checkout";
 import { getAuthPathWithNext } from "@/lib/auth/redirects";
 import type {
   BillingCurrency,
   BillingInterval,
-  BillingRegion,
   PaidPlan,
 } from "@/lib/billing/types";
 
 export function PricingIntervalToggle({
   currency,
-  region,
 }: {
   currency: BillingCurrency;
-  region: BillingRegion;
 }) {
   const [interval, setInterval] = useState<BillingInterval>("monthly");
   const [pendingPlan, setPendingPlan] = useState<PaidPlan | null>(null);
@@ -44,7 +36,7 @@ export function PricingIntervalToggle({
     if (isPending) return;
     setPendingPlan(plan);
     startTransition(async () => {
-      const result = await startDodoCheckout({ plan, interval });
+      const result = await startPolarCheckout({ plan, interval });
       if (result.ok) {
         setPendingPlan(null);
         return;
@@ -82,20 +74,6 @@ export function PricingIntervalToggle({
       ? getMonthlyEquivalentLabel("business", currency)
       : null;
   const period = interval === "monthly" ? "mo" : "yr";
-
-  const showPhpApproximation = region === "PH";
-  const proPhpDisclaimer = showPhpApproximation
-    ? getPhpDisclaimer(
-        getPhpApproximation(getPlanPrice("pro", "USD", interval)),
-        interval,
-      )
-    : null;
-  const businessPhpDisclaimer = showPhpApproximation
-    ? getPhpDisclaimer(
-        getPhpApproximation(getPlanPrice("business", "USD", interval)),
-        interval,
-      )
-    : null;
 
   return (
     <section className="mx-auto w-full max-w-7xl px-5 py-10 sm:px-6 lg:px-8 lg:py-14">
@@ -184,11 +162,6 @@ export function PricingIntervalToggle({
               ? `${proMonthly} billed monthly`
               : "Cancel anytime"}
           </p>
-          {proPhpDisclaimer ? (
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              {proPhpDisclaimer}
-            </p>
-          ) : null}
           <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
             More quotes, AI drafts, multiple forms, and advanced branding for growing operators.
           </p>
@@ -239,11 +212,6 @@ export function PricingIntervalToggle({
               ? `${businessMonthly} billed monthly`
               : "Cancel anytime"}
           </p>
-          {businessPhpDisclaimer ? (
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              {businessPhpDisclaimer}
-            </p>
-          ) : null}
           <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
             Team roles, higher AI and email caps, audit logs, and priority support.
           </p>

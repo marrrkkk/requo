@@ -260,8 +260,6 @@ async function UpgradeSlotStreamedSection({
       <UpgradeButton
         className="whitespace-nowrap"
         currentPlan={billing.currentPlan}
-        defaultCurrency={billing.defaultCurrency}
-        region={billing.region}
         size="sm"
         userId={billing.userId}
         businessId={billing.businessId}

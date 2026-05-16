@@ -107,7 +107,13 @@ export async function markEventIgnored(eventId: string): Promise<void> {
 /* ── Payment attempt recording ────────────────────────────────────────────── */
 
 type RecordPaymentAttemptParams = {
-  userId: string;
+  /**
+   * The Requo `user.id`, or `null` when the originating webhook event
+   * could not be resolved to a Requo user. The DB column is nullable
+   * (`onDelete: "set null"`) to accommodate operator-reconcilable
+   * payment rows. See Requirement 8.4.
+   */
+  userId: string | null;
   plan: string;
   provider: BillingProvider;
   providerPaymentId: string;
@@ -126,7 +132,7 @@ export async function recordPaymentAttempt(
 
   await db.insert(paymentAttempts).values({
     id,
-    userId: params.userId,
+    userId: params.userId ?? null,
     plan: params.plan,
     provider: params.provider,
     providerPaymentId: params.providerPaymentId,

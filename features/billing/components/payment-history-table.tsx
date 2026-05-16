@@ -1,8 +1,5 @@
 "use client";
 
-import { useCallback, useMemo, useState, useTransition } from "react";
-import { toast } from "sonner";
-
 import {
   Table,
   TableBody,
@@ -12,25 +9,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Spinner } from "@/components/ui/spinner";
-import { Textarea } from "@/components/ui/textarea";
-import { useProgressRouter } from "@/hooks/use-progress-router";
 import type {
   BillingCurrency,
   BillingProvider,
   PaymentAttemptStatus,
 } from "@/lib/billing/types";
-import type { RefundStatus } from "@/lib/db/schema/subscriptions";
 
 type PaymentHistoryRecord = {
   id: string;
@@ -44,91 +27,16 @@ type PaymentHistoryRecord = {
   paymentMethodLabel?: string;
 };
 
-type RefundRecord = {
-  id: string;
-  providerPaymentId: string;
-  status: RefundStatus;
-};
-
 type PaymentHistoryTableProps = {
   records: PaymentHistoryRecord[];
-  refunds?: RefundRecord[];
-  refundWindowDays?: number;
 };
 
-export function PaymentHistoryTable({
-  records,
-  refunds = [],
-  refundWindowDays = 30,
-}: PaymentHistoryTableProps) {
-  const router = useProgressRouter();
-  const [isPending, startTransition] = useTransition();
-  const [targetPayment, setTargetPayment] =
-    useState<PaymentHistoryRecord | null>(null);
-  const [reason, setReason] = useState("");
-
-  const refundByPaymentId = useMemo(() => {
-    const map = new Map<string, RefundRecord>();
-    for (const refund of refunds) {
-      const existing = map.get(refund.providerPaymentId);
-      // Prefer non-failed refunds when multiple exist for one payment.
-      if (
-        !existing ||
-        (existing.status === "failed" && refund.status !== "failed")
-      ) {
-        map.set(refund.providerPaymentId, refund);
-      }
-    }
-    return map;
-  }, [refunds]);
-
-  const closeDialog = useCallback(() => {
-    if (isPending) return;
-    setTargetPayment(null);
-    setReason("");
-  }, [isPending]);
-
-  const submitRefundRequest = useCallback(() => {
-    if (!targetPayment) return;
-
-    const paymentId = targetPayment.id;
-    const trimmedReason = reason.trim();
-
-    startTransition(async () => {
-      try {
-        const response = await fetch("/api/billing/refund", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            paymentAttemptId: paymentId,
-            reason: trimmedReason || undefined,
-          }),
-        });
-
-        const payload = (await response.json().catch(() => ({}))) as {
-          error?: string;
-        };
-
-        if (!response.ok) {
-          toast.error(
-            payload.error ??
-              "We couldn't submit your refund request. Please try again.",
-          );
-          return;
-        }
-
-        toast.success(
-          "Refund requested. We'll update you once it's approved.",
-        );
-        setTargetPayment(null);
-        setReason("");
-        router.refresh();
-      } catch {
-        toast.error("We couldn't reach the server. Please try again.");
-      }
-    });
-  }, [reason, router, startTransition, targetPayment]);
-
+/**
+ * Read-only payment history. Cancel and refund actions live in the
+ * Polar customer portal post-refactor; this table just surfaces what
+ * Requo recorded from `payment_attempts`.
+ */
+export function PaymentHistoryTable({ records }: PaymentHistoryTableProps) {
   if (records.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-border/60 border-dashed bg-muted/10 py-12 text-center">
@@ -141,186 +49,48 @@ export function PaymentHistoryTable({
   }
 
   return (
-    <>
-      <div className="rounded-xl border border-border/75 bg-card/97 overflow-hidden">
-        <Table>
-          <TableHeader className="bg-muted/30">
-            <TableRow>
-              <TableHead className="w-[180px]">Date</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Payment Method</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[160px] text-right">Action</TableHead>
+    <div className="rounded-xl border border-border/75 bg-card/97 overflow-hidden">
+      <Table>
+        <TableHeader className="bg-muted/30">
+          <TableRow>
+            <TableHead className="w-[180px]">Date</TableHead>
+            <TableHead>Provider</TableHead>
+            <TableHead>Payment ID</TableHead>
+            <TableHead>Amount</TableHead>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {records.map((record) => (
+            <TableRow key={record.id}>
+              <TableCell className="font-medium text-muted-foreground">
+                {record.createdAt.toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </TableCell>
+              <TableCell className="capitalize text-muted-foreground">
+                {record.provider}
+              </TableCell>
+              <TableCell
+                className="font-mono text-xs text-muted-foreground truncate max-w-[220px]"
+                title={record.providerPaymentId}
+              >
+                {record.providerPaymentId}
+              </TableCell>
+              <TableCell className="font-semibold text-foreground">
+                {formatCurrency(record.amount, record.currency)}
+              </TableCell>
+              <TableCell>
+                <PaymentStatusBadge status={record.status} />
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {records.map((record) => {
-              const refund = refundByPaymentId.get(record.providerPaymentId);
-              const isRefundable = isEligibleForRefund({
-                record,
-                refund,
-                refundWindowDays,
-              });
-
-              return (
-                <TableRow key={record.id}>
-                  <TableCell className="font-medium text-muted-foreground">
-                    {record.createdAt.toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
-                  </TableCell>
-                  <TableCell className="font-semibold text-foreground">
-                    {formatCurrency(record.amount, record.currency)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{record.paymentMethodLabel ?? "Card"}</TableCell>
-                  <TableCell>
-                    <PaymentRowStatusBadge record={record} refund={refund} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {isRefundable ? (
-                      <Button
-                        disabled={isPending}
-                        onClick={() => {
-                          setTargetPayment(record);
-                          setReason("");
-                        }}
-                        size="sm"
-                        type="button"
-                        variant="outline"
-                      >
-                        Request refund
-                      </Button>
-                    ) : refund ? (
-                      <span className="text-xs text-muted-foreground">
-                        {refund.status === "approved" ? "Refunded" : null}
-                        {refund.status === "pending"
-                          ? "Awaiting approval"
-                          : null}
-                        {refund.status === "failed" ? "Request failed" : null}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
-
-      <Dialog
-        open={targetPayment !== null}
-        onOpenChange={(open) => {
-          if (!open) closeDialog();
-        }}
-      >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Request a refund</DialogTitle>
-            <DialogDescription>
-              Your request is submitted to our payment provider for approval.
-              If approved, your subscription will cancel and access ends at
-              the next billing period.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogBody className="flex flex-col gap-4">
-            {targetPayment ? (
-              <div className="rounded-lg border border-border/70 bg-muted/20 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Payment</p>
-                <p className="mt-1 text-sm font-medium text-foreground">
-                  {formatCurrency(targetPayment.amount, targetPayment.currency)} on {" "}
-                  {targetPayment.createdAt.toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </p>
-              </div>
-            ) : null}
-            <label className="flex flex-col gap-2 text-sm">
-              <span className="font-medium text-foreground">
-                Reason (optional)
-              </span>
-              <Textarea
-                disabled={isPending}
-                maxLength={500}
-                onChange={(event) => setReason(event.currentTarget.value)}
-                placeholder="Let us know why you're requesting a refund."
-                rows={3}
-                value={reason}
-              />
-              <span className="text-xs text-muted-foreground">
-                {reason.length} / 500
-              </span>
-            </label>
-          </DialogBody>
-          <DialogFooter>
-            <Button
-              disabled={isPending}
-              onClick={closeDialog}
-              type="button"
-              variant="outline"
-            >
-              Cancel
-            </Button>
-            <Button
-              disabled={isPending}
-              onClick={submitRefundRequest}
-              type="button"
-            >
-              {isPending ? (
-                <>
-                  <Spinner data-icon="inline-start" aria-hidden="true" />
-                  Requesting...
-                </>
-              ) : (
-                "Request refund"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
-}
-
-function PaymentRowStatusBadge({
-  record,
-  refund,
-}: {
-  record: PaymentHistoryRecord;
-  refund: RefundRecord | undefined;
-}) {
-  if (refund) {
-    switch (refund.status) {
-      case "approved":
-        return (
-          <Badge
-            variant="outline"
-            className="border-border/80 text-muted-foreground"
-          >
-            Refunded
-          </Badge>
-        );
-      case "pending":
-        return (
-          <Badge
-            variant="outline"
-            className="border-border/80 text-muted-foreground"
-          >
-            Refund pending
-          </Badge>
-        );
-      case "failed":
-        // Fall through to show the original payment status below.
-        break;
-    }
-  }
-
-  return <PaymentStatusBadge status={record.status} />;
 }
 
 function PaymentStatusBadge({ status }: { status: PaymentAttemptStatus }) {
@@ -358,29 +128,6 @@ function PaymentStatusBadge({ status }: { status: PaymentAttemptStatus }) {
     default:
       return <Badge variant="outline">{status}</Badge>;
   }
-}
-
-function isEligibleForRefund({
-  record,
-  refund,
-  refundWindowDays,
-}: {
-  record: PaymentHistoryRecord;
-  refund: RefundRecord | undefined;
-  refundWindowDays: number;
-}): boolean {
-  if (record.status !== "succeeded") return false;
-  if (record.provider !== "dodo") return false;
-
-  if (
-    refund &&
-    (refund.status === "pending" || refund.status === "approved")
-  ) {
-    return false;
-  }
-
-  const windowMs = refundWindowDays * 24 * 60 * 60 * 1000;
-  return Date.now() - record.createdAt.getTime() <= windowMs;
 }
 
 function formatCurrency(amountInCents: number, currency: string) {

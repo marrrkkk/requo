@@ -3,11 +3,11 @@
 /**
  * Billing status card for business settings.
  * Modern SaaS-style billing overview with a vibrant current plan card,
- * billing details, usage metrics, and action buttons.
+ * billing details, usage metrics, and a link to the Polar customer portal
+ * for cancel/refund/payment-method changes.
  */
 
 import Image from "next/image";
-import { useActionState, useState } from "react";
 import {
   CircleCheck,
   CircleAlert,
@@ -15,6 +15,7 @@ import {
   CircleMinus,
   CircleDashed,
   ArrowUpRight,
+  ExternalLink,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -22,16 +23,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
-import { Spinner } from "@/components/ui/spinner";
-import { Combobox } from "@/components/ui/combobox";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import { PaymentMethodIcon } from "@/features/billing/components/payment-method-icon";
-import { cancelSubscriptionAction } from "@/features/billing/actions";
-import type {
-  AccountBillingOverview,
-  CancelActionState,
-} from "@/features/billing/types";
+import type { AccountBillingOverview } from "@/features/billing/types";
 import { planMeta, getUsageLimit } from "@/lib/plans";
 
 type BillingStatusCardProps = {
@@ -55,19 +50,12 @@ export function BillingStatusCard({
     userId,
     businessId,
     businessSlug,
-    region,
-    defaultCurrency,
-    downgradePreview,
   } = billing;
   const businessCheckout = useBusinessCheckout();
   const currentPlan =
     businessCheckout?.businessId === businessId
       ? businessCheckout.currentPlan
       : billingCurrentPlan;
-  const [cancelState, cancelAction, isCanceling] = useActionState(
-    cancelSubscriptionAction,
-    {} as CancelActionState,
-  );
 
   const isFreePlan = currentPlan === "free";
 
@@ -96,51 +84,9 @@ export function BillingStatusCard({
   const hasPendingSubscription =
     subscription && subscription.status === "pending";
   const hasSubscription = hasActiveSubscription || hasPendingSubscription;
-  const [keepBusinessId, setKeepBusinessId] = useState(
-    downgradePreview.activeBusinesses[0]?.id ?? "",
-  );
 
   return (
     <div className="flex flex-col gap-6">
-      {!subscription?.canceledAt &&
-      hasSubscription &&
-      variant === "full" &&
-      downgradePreview.requiresSelection ? (
-        <Alert
-          variant="default"
-          className="border-amber-200/60 bg-amber-50/50 py-4 text-amber-900 dark:border-amber-800/40 dark:bg-amber-950/20 dark:text-amber-300 [&>svg]:text-amber-600 dark:[&>svg]:text-amber-500"
-        >
-          <CircleAlert className="size-5 mt-0.5" />
-          <div className="flex flex-col gap-3">
-            <div>
-              <p className="text-base font-semibold">
-                You&apos;re downgrading to Free.
-              </p>
-              <p className="mt-1 text-sm leading-relaxed opacity-90">
-                Free includes 1 active business. You currently have{" "}
-                {downgradePreview.activeBusinesses.length} businesses. Choose
-                which business to keep active. The other businesses will be
-                locked but not deleted. You can unlock them anytime by upgrading
-                again.
-              </p>
-            </div>
-            <div className="max-w-md">
-              <Combobox
-                id="keep-business"
-                value={keepBusinessId}
-                onValueChange={setKeepBusinessId}
-                options={downgradePreview.activeBusinesses.map((b) => ({
-                  label: b.name,
-                  value: b.id,
-                }))}
-                placeholder="Select a business to keep active"
-                buttonClassName="bg-background/50 border-amber-200/50 dark:border-amber-800/50 hover:bg-background/80"
-              />
-            </div>
-          </div>
-        </Alert>
-      ) : null}
-
       <div className="grid gap-6 md:grid-cols-[1fr_minmax(0,1fr)] lg:grid-cols-[1fr_1fr] items-stretch">
         
         {/* Plan Card */}
@@ -185,8 +131,6 @@ export function BillingStatusCard({
                 </p>
                 <UpgradeButton
                   currentPlan={currentPlan}
-                  defaultCurrency={defaultCurrency}
-                  region={region}
                   userId={userId}
                   businessId={businessId}
                   businessSlug={businessSlug}
@@ -286,60 +230,20 @@ export function BillingStatusCard({
               </Alert>
             ) : null}
 
-            {cancelState.success ? (
-              <Alert
-                variant="default"
-                className="mt-2 border-emerald-200/60 bg-emerald-50/50 py-3 text-emerald-700 dark:border-emerald-800/40 dark:bg-emerald-950/20 dark:text-emerald-400"
-              >
-                <CircleCheck className="size-4" />
-                <p className="text-sm">{cancelState.success}</p>
-              </Alert>
-            ) : null}
-            {cancelState.error ? (
-              <Alert variant="destructive" className="mt-2 py-3">
-                <CircleAlert className="size-4" />
-                <p className="text-sm">{cancelState.error}</p>
-              </Alert>
-            ) : null}
-
-            {!subscription?.canceledAt &&
-            hasSubscription &&
+            {hasSubscription &&
+            subscription?.providerCustomerId &&
             variant === "full" ? (
-              <div className="mt-auto pt-2">
-                <form action={cancelAction} className="w-full">
-                  <input name="businessId" type="hidden" value={businessId} />
-                  {keepBusinessId ? (
-                    <input
-                      name="keepBusinessId"
-                      type="hidden"
-                      value={keepBusinessId}
-                    />
-                  ) : null}
-                  <Button
-                    disabled={
-                      isCanceling ||
-                      (downgradePreview.requiresSelection && !keepBusinessId)
-                    }
-                    size="sm"
-                    type="submit"
-                    variant="outline"
-                    className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    {isCanceling ? (
-                      <>
-                        <Spinner
-                          aria-hidden="true"
-                          className="text-destructive"
-                        />
-                        Canceling...
-                      </>
-                    ) : subscription.status === "pending" ? (
-                      "Cancel pending payment"
-                    ) : (
-                      "Cancel subscription"
-                    )}
-                  </Button>
-                </form>
+              <div className="mt-auto flex flex-col gap-2 pt-2">
+                <Button asChild size="sm" className="w-full">
+                  <a href="/api/billing/polar/customer-portal">
+                    <ExternalLink data-icon="inline-start" />
+                    Manage billing
+                  </a>
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Update payment method, cancel, or request a refund in the
+                  Polar customer portal.
+                </p>
               </div>
             ) : null}
           </CardContent>

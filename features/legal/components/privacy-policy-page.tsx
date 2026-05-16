@@ -161,6 +161,30 @@ const privacySections: LegalDocumentSection[] = [
     ),
   },
   {
+    id: "billing-and-payments",
+    title: "5A. Billing And Payment Information",
+    content: (
+      <>
+        <LegalSectionHeading>
+          5A. Billing And Payment Information
+        </LegalSectionHeading>
+        <LegalParagraph>
+          When you subscribe to a paid plan, payment is processed by{" "}
+          {legalConfig.paymentProvider}, our merchant of record. We do not
+          directly collect or store full payment card details. {legalConfig.paymentProvider}{" "}
+          collects and processes payment information on our behalf.
+        </LegalParagraph>
+        <LegalParagraph>
+          We receive and store subscription-related records including plan
+          selection, billing interval, subscription status, payment attempt
+          outcomes, transaction identifiers, and refund status. These records
+          are used to manage your subscription, enforce plan limits, process
+          refund requests, and maintain billing history.
+        </LegalParagraph>
+      </>
+    ),
+  },
+  {
     id: "files-and-customer-content",
     title: "6. Files, Uploads, And Customer-Submitted Content",
     content: (
@@ -284,6 +308,7 @@ const privacySections: LegalDocumentSection[] = [
           items={[
             `${legalConfig.hostingProvider}, for hosting and application delivery.`,
             `${legalConfig.storageProvider}, for database, storage, and related backend infrastructure.`,
+            `${legalConfig.paymentProvider}, for subscription billing, payment processing, and refunds as the merchant of record.`,
             "Resend, for transactional email delivery.",
             "Groq, Gemini, and OpenRouter, for AI request routing when AI features are used.",
             "Google, for optional OAuth sign-in when enabled, and transactional email providers for magic link sign-in when configured.",

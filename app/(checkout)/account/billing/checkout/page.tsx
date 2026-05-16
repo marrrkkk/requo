@@ -46,9 +46,9 @@ function resolveReturnTo(value: string | null): string {
 }
 
 /**
- * Dodo Payments hosted-checkout return page.
+ * Polar hosted-checkout return page.
  *
- * Dodo redirects the user here after they finish (or abandon) the
+ * Polar redirects the user here after they finish (or abandon) the
  * hosted checkout. We do not show a processing UI — the webhook is
  * the source of truth and the user's effective plan revalidates via
  * cache tags as soon as the webhook lands. We simply redirect the
@@ -57,7 +57,7 @@ function resolveReturnTo(value: string | null): string {
  *
  * Default fallback: the businesses hub. The caller (checkout API
  * route) embeds `returnTo` in the success URL when it creates the
- * Dodo session.
+ * Polar session.
  */
 export default async function AccountBillingCheckoutPage({
   searchParams,

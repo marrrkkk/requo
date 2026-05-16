@@ -24,7 +24,7 @@ import type {
 } from "@/features/businesses/types";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import { getUpgradePlan, planMeta } from "@/lib/plans/plans";
-import type { BillingCurrency, BillingInterval, BillingRegion, PaidPlan } from "@/lib/billing/types";
+import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
 
 type CreateBusinessDialogProps = {
   action: (
@@ -40,8 +40,6 @@ type CreateBusinessDialogProps = {
     businessId: string;
     businessSlug: string;
     currentPlan: plan;
-    region: BillingRegion;
-    defaultCurrency: BillingCurrency;
   };
 };
 
@@ -228,7 +226,6 @@ export function CreateBusinessDialog({
           <>
             <PlanSelectionSheet
               currentPlan={effectiveCurrentPlan ?? billingProps.currentPlan}
-              defaultCurrency={billingProps.defaultCurrency}
               onOpenChange={setPlanSheetOpen}
               onSelectPlan={(plan, interval) => {
                 setSelectedPlan(plan);
@@ -237,17 +234,14 @@ export function CreateBusinessDialog({
                 setCheckoutOpen(true);
               }}
               open={planSheetOpen}
-              region={billingProps.region}
             />
             {selectedPlan ? (
               <CheckoutDialog
                 currentPlan={effectiveCurrentPlan ?? billingProps.currentPlan}
-                defaultCurrency={billingProps.defaultCurrency}
                 onOpenChange={setCheckoutOpen}
                 open={checkoutOpen}
                 plan={selectedPlan}
                 interval={selectedInterval}
-                region={billingProps.region}
                 userId={billingProps.userId}
                 businessId={billingProps.businessId}
                 businessSlug={billingProps.businessSlug}

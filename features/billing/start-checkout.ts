@@ -3,9 +3,9 @@
 import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
 
 /**
- * Posts to `/api/account/billing/checkout` to create a Dodo Payments
- * hosted checkout session, then opens the hosted checkout URL in a
- * new browser tab.
+ * Posts to `/api/account/billing/checkout` to create a Polar hosted
+ * checkout session, then opens the hosted checkout URL in a new
+ * browser tab.
  *
  * A fresh checkout session is created on every call — we never reuse
  * a prior link. Hosted checkout sessions are ephemeral by design and
@@ -27,7 +27,7 @@ export type StartCheckoutParams = {
   interval: BillingInterval;
   /**
    * Same-origin path the user should land on after returning from
-   * Dodo's hosted checkout. Default behavior (no value sent) routes
+   * Polar's hosted checkout. Default behavior (no value sent) routes
    * them to the businesses hub. Inside a business, pass the dashboard
    * path so the user lands back where they were.
    */
@@ -79,7 +79,7 @@ function openBlankTab(): Window | null {
 
 function navigateNewTab(target: Window, url: string): void {
   // Cut the back-reference to this window before navigating
-  // cross-origin. Once the new tab is on dodopayments.com, the
+  // cross-origin. Once the new tab is on the Polar domain, the
   // browser's cross-origin protections take over.
   try {
     target.opener = null;
@@ -88,11 +88,11 @@ function navigateNewTab(target: Window, url: string): void {
     // navigation will isolate the tab anyway.
   }
   // `replace` keeps the about:blank entry out of history so the user
-  // pressing Back from Dodo doesn't land on a blank page.
+  // pressing Back from Polar doesn't land on a blank page.
   target.location.replace(url);
 }
 
-export async function startDodoCheckout(
+export async function startPolarCheckout(
   params: StartCheckoutParams,
 ): Promise<StartCheckoutResult> {
   const newTab = openBlankTab();

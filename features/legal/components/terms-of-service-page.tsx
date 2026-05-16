@@ -232,22 +232,24 @@ const termsSections: LegalDocumentSection[] = [
         </LegalSectionHeading>
         <LegalParagraph>
           The Service uses third-party services for hosting, data and file
-          storage, transactional email, AI request routing, and optional social
-          sign-in. The providers supported in the current Service include:
+          storage, payment processing, transactional email, AI request routing,
+          and optional social sign-in. The providers supported in the current
+          Service include:
         </LegalParagraph>
         <LegalList
           items={[
             `${legalConfig.hostingProvider}, for hosting and application delivery.`,
             `${legalConfig.storageProvider}, for database, storage, and related backend infrastructure.`,
+            `${legalConfig.paymentProvider}, for subscription billing, payment processing, and refunds as the merchant of record.`,
             "Resend, for transactional email delivery.",
             "Groq, Gemini, and OpenRouter, for AI request routing when AI features are used.",
             "Google, for optional OAuth sign-in when enabled; transactional email carries magic-link sign-in when configured.",
           ]}
         />
         <LegalParagraph>
-          Your use of a third-party login provider may also be subject to that
-          provider&rsquo;s own terms and privacy practices. Requo is not
-          responsible for third-party services we do not control.
+          Your use of a third-party login or payment provider may also be
+          subject to that provider&rsquo;s own terms and privacy practices.
+          Requo is not responsible for third-party services we do not control.
         </LegalParagraph>
       </>
     ),
@@ -280,14 +282,53 @@ const termsSections: LegalDocumentSection[] = [
   },
   {
     id: "fees",
-    title: "11. Paid Plans And Fees",
+    title: "11. Paid Plans, Fees, And Billing",
     content: (
       <>
-        <LegalSectionHeading>11. Paid Plans And Fees</LegalSectionHeading>
+        <LegalSectionHeading>11. Paid Plans, Fees, And Billing</LegalSectionHeading>
         <LegalParagraph>
-          Requo may offer free access today and may introduce paid plans or
-          other fees later. If paid plans are introduced, the applicable
-          pricing and billing terms will be presented at that time.
+          Requo offers a free plan with limited features and paid subscription
+          plans (Pro and Business) with additional capabilities. Paid plans are
+          available on monthly or yearly billing cycles. Current pricing is
+          displayed on the pricing page and during checkout.
+        </LegalParagraph>
+        <LegalSubheading>A. Payment processing</LegalSubheading>
+        <LegalParagraph>
+          Subscription payments are processed by {legalConfig.paymentProvider},
+          our merchant of record. All plans are priced in USD. Depending on your
+          location, an approximate local currency amount may be displayed at
+          checkout for convenience, but the authoritative charge is in USD.
+        </LegalParagraph>
+        <LegalSubheading>B. Recurring billing</LegalSubheading>
+        <LegalParagraph>
+          Paid subscriptions renew automatically at the end of each billing
+          period unless you cancel before the renewal date. You authorize{" "}
+          {legalConfig.paymentProvider} to charge your payment method on file
+          for each renewal.
+        </LegalParagraph>
+        <LegalSubheading>C. Cancellation</LegalSubheading>
+        <LegalParagraph>
+          You may cancel your subscription at any time from your account billing
+          page. After cancellation, you retain access to paid features until the
+          end of the current billing period, after which your account reverts to
+          the free plan.
+        </LegalParagraph>
+        <LegalSubheading>D. Refunds</LegalSubheading>
+        <LegalParagraph>
+          Refund eligibility and procedures are described in our{" "}
+          <a
+            className="text-foreground underline-offset-4 hover:underline"
+            href="/refund-policy"
+          >
+            Refund Policy
+          </a>
+          .
+        </LegalParagraph>
+        <LegalSubheading>E. Price changes</LegalSubheading>
+        <LegalParagraph>
+          We may change plan pricing from time to time. If we increase the price
+          of a plan you are subscribed to, we will provide reasonable advance
+          notice before the change takes effect on your next renewal.
         </LegalParagraph>
       </>
     ),

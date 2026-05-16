@@ -68,8 +68,6 @@ export async function AnalyticsTabPanel({
                   businessId: billingOverview.businessId,
                   businessSlug: billingOverview.businessSlug,
                   currentPlan: billingOverview.currentPlan,
-                  region: billingOverview.region,
-                  defaultCurrency: billingOverview.defaultCurrency,
                 }
               : undefined
           }
@@ -100,8 +98,6 @@ export async function AnalyticsTabPanel({
                 businessId: billingOverview.businessId,
                 businessSlug: billingOverview.businessSlug,
                 currentPlan: billingOverview.currentPlan,
-                region: billingOverview.region,
-                defaultCurrency: billingOverview.defaultCurrency,
               }
             : undefined
         }

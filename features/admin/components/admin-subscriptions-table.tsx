@@ -61,7 +61,7 @@ const statusLabels: Record<SubscriptionStatus, string> = {
 };
 
 const providerLabels: Record<BillingProvider, string> = {
-  dodo: "Dodo",
+  polar: "Polar",
 };
 
 const statusBadgeVariant: Record<

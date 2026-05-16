@@ -2,7 +2,6 @@ import "server-only";
 
 import { desc, eq, and, inArray } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
-import { headers } from "next/headers";
 import { cache } from "react";
 
 import { db } from "@/lib/db/client";
@@ -14,14 +13,12 @@ import {
   getAccountSubscription,
   resolveEffectivePlanFromSubscription,
 } from "@/lib/billing/subscription-service";
-import { getBillingRegion, getDefaultCurrency } from "@/lib/billing/region";
 import {
   getBusinessBillingCacheTags,
   billingShellCacheLife,
 } from "@/lib/cache/shell-tags";
 import type { AccountBillingOverview } from "@/features/billing/types";
 import type { BusinessPlan } from "@/lib/plans/plans";
-import type { BillingRegion } from "@/lib/billing/types";
 
 /**
  * Cached business identity (no dynamic APIs like headers()).
@@ -61,6 +58,7 @@ function toBillingSubscriptionView(
         currentPeriodEnd: subscription.currentPeriodEnd,
         canceledAt: subscription.canceledAt,
         providerSubscriptionId: subscription.providerSubscriptionId,
+        providerCustomerId: subscription.providerCustomerId,
       }
     : null;
 }
@@ -85,10 +83,7 @@ function createEmptyDowngradePreview(): AccountBillingOverview["downgradePreview
 export const getBusinessBillingShellOverview = cache(
   async (businessId: string): Promise<AccountBillingOverview | null> => {
     try {
-      const [businessData, requestHeaders] = await Promise.all([
-        getCachedBusinessData(businessId),
-        headers(),
-      ]);
+      const businessData = await getCachedBusinessData(businessId);
 
       if (!businessData) {
         return null;
@@ -97,8 +92,6 @@ export const getBusinessBillingShellOverview = cache(
       const subscription = await getCachedAccountSubscription(
         businessData.ownerUserId,
       );
-      const region = getBillingRegion(requestHeaders);
-      const defaultCurrency = getDefaultCurrency(region);
       const currentPlan = subscription
         ? resolveEffectivePlanFromSubscription(subscription)
         : (businessData.plan as BusinessPlan);
@@ -109,8 +102,6 @@ export const getBusinessBillingShellOverview = cache(
         businessName: businessData.name,
         businessSlug: businessData.slug,
         currentPlan,
-        region,
-        defaultCurrency,
         downgradePreview: createEmptyDowngradePreview(),
         subscription: toBillingSubscriptionView(subscription),
       };
@@ -134,10 +125,7 @@ export async function getAccountBillingOverview(
   businessId: string,
 ): Promise<AccountBillingOverview | null> {
   try {
-    const [businessData, requestHeaders] = await Promise.all([
-      getCachedBusinessData(businessId),
-      headers(),
-    ]);
+    const businessData = await getCachedBusinessData(businessId);
 
     if (!businessData) {
       return null;
@@ -148,8 +136,6 @@ export async function getAccountBillingOverview(
       ownerUserId: businessData.ownerUserId,
       targetPlan: "free",
     });
-    const region = getBillingRegion(requestHeaders);
-    const defaultCurrency = getDefaultCurrency(region);
     const currentPlan = subscription
       ? resolveEffectivePlanFromSubscription(subscription)
       : (businessData.plan as BusinessPlan);
@@ -160,8 +146,6 @@ export async function getAccountBillingOverview(
       businessName: businessData.name,
       businessSlug: businessData.slug,
       currentPlan,
-      region,
-      defaultCurrency,
       downgradePreview: {
         targetPlan: "free",
         activeBusinessLimit: downgradePreview.activeBusinessLimit,
@@ -226,12 +210,4 @@ export async function getBusinessPaymentHistory(
   }
 
   return getAccountPaymentHistory(ownerUserId, limit);
-}
-
-/**
- * Detects the billing region for the current request.
- */
-export async function detectBillingRegion(): Promise<BillingRegion> {
-  const requestHeaders = await headers();
-  return getBillingRegion(requestHeaders);
 }

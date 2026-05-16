@@ -1,5 +1,4 @@
 import {
-  boolean,
   index,
   jsonb,
   pgEnum,
@@ -14,7 +13,7 @@ import { user } from "@/lib/db/schema/auth";
 
 /* ── Enums ────────────────────────────────────────────────────────────────── */
 
-export const billingProviders = ["dodo"] as const;
+export const billingProviders = ["polar"] as const;
 export type BillingProvider = (typeof billingProviders)[number];
 
 export const billingProviderEnum = pgEnum("billing_provider", [
@@ -78,7 +77,6 @@ export const accountSubscriptions = pgTable(
     plan: text("plan").notNull(), // "pro" | "business"
     billingProvider: billingProviderEnum("billing_provider").notNull(),
     billingCurrency: billingCurrencyEnum("billing_currency").notNull(),
-    adaptiveCurrency: boolean("adaptive_currency").notNull().default(false),
     providerCustomerId: text("provider_customer_id"),
     providerSubscriptionId: text("provider_subscription_id"),
     providerCheckoutId: text("provider_checkout_id"),
@@ -175,14 +173,24 @@ export const paymentAttempts = pgTable(
 /* ── refunds ─────────────────────────────────────────────────────────────── */
 
 /**
- * Refund records for completed payments.
+ * Refund records.
  *
- * A refund is created when an owner requests a refund for a paid transaction.
- * Status transitions through `pending` → `approved` | `failed` based on the
- * provider's refund webhook events.
+ * As of the canonical-Polar refactor, this table is **read-only** at the
+ * application layer. Refunds are issued exclusively through the Polar
+ * customer portal, and the Polar webhook route no longer reacts to
+ * `refund.*` events — those events fall through to the catch-all
+ * handler and are recorded in `billing_events` with status `ignored`.
+ * Subscription state changes that follow a refund (e.g. cancellation
+ * at period end, immediate revocation) are reflected via
+ * `subscription.canceled` / `subscription.revoked` webhooks and the
+ * subscription handlers, not via this table.
  *
- * Duplicate refund requests for the same payment are prevented by
- * application-level checks before inserting a new row.
+ * Existing rows are historical: they were written by the previous
+ * self-serve refund flow (`requestRefundForPayment` +
+ * `app/api/billing/refund/route.ts`) and the previous `refund.*`
+ * webhook handlers, both removed. The table is preserved so historical
+ * refund context remains queryable by support and audit tooling, but
+ * no application code path inserts new rows.
  */
 export const refunds = pgTable(
   "refunds",

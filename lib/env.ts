@@ -56,15 +56,15 @@ const envSchema = z.object({
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: emptyToUndefined(z.string().min(1)),
   VAPID_PRIVATE_KEY: emptyToUndefined(z.string().min(1)),
 
-  DODO_API_KEY: emptyToUndefined(z.string().min(1)),
-  DODO_WEBHOOK_SECRET: emptyToUndefined(z.string().min(1)),
-  DODO_ENVIRONMENT: emptyToUndefined(z.enum(["test_mode", "live_mode"])).default(
-    "test_mode",
+  POLAR_ACCESS_TOKEN: emptyToUndefined(z.string().min(1)),
+  POLAR_WEBHOOK_SECRET: emptyToUndefined(z.string().min(1)),
+  POLAR_SERVER: emptyToUndefined(z.enum(["sandbox", "production"])).default(
+    "sandbox",
   ),
-  DODO_PRO_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
-  DODO_BUSINESS_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
-  DODO_PRO_YEARLY_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
-  DODO_BUSINESS_YEARLY_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
+  POLAR_PRO_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
+  POLAR_BUSINESS_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
+  POLAR_PRO_YEARLY_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
+  POLAR_BUSINESS_YEARLY_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
   NEXT_PUBLIC_APP_URL: emptyToUndefined(z.url()),
 });
 
@@ -116,11 +116,12 @@ export const isPushConfigured = Boolean(
   env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY,
 );
 
-export const isDodoConfigured = Boolean(
-  env.DODO_API_KEY &&
-    (env.DODO_PRO_PRODUCT_ID ||
-      env.DODO_BUSINESS_PRODUCT_ID ||
-      env.DODO_PRO_YEARLY_PRODUCT_ID ||
-      env.DODO_BUSINESS_YEARLY_PRODUCT_ID),
+export const isPolarConfigured = Boolean(
+  env.POLAR_ACCESS_TOKEN &&
+    env.POLAR_WEBHOOK_SECRET &&
+    (env.POLAR_PRO_PRODUCT_ID ||
+      env.POLAR_BUSINESS_PRODUCT_ID ||
+      env.POLAR_PRO_YEARLY_PRODUCT_ID ||
+      env.POLAR_BUSINESS_YEARLY_PRODUCT_ID),
 );
 

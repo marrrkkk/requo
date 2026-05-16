@@ -2,17 +2,20 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { requireUser } from "@/lib/auth/session";
-import { getBillingProvider } from "@/lib/billing/providers";
+import { getPolarProductId } from "@/lib/billing/polar-products";
 import { getAccountSubscription } from "@/lib/billing/subscription-service";
-import { env, isDodoConfigured } from "@/lib/env";
+import { env, isPolarConfigured } from "@/lib/env";
 
 /**
- * Creates a Dodo Payments hosted checkout session and returns the
- * redirect URL for the client to follow. The success and cancel URLs
- * are absolute origins so Dodo can redirect users back to this app
- * after completing or abandoning checkout.
- *
- * Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.10, 11.1, 11.9
+ * Thin eligibility-check + redirect route in front of the canonical
+ * `@polar-sh/nextjs` `Checkout` adapter at
+ * `/api/billing/polar/checkout`. Runs the auth, Zod, isPolarConfigured,
+ * already-subscribed and missing-email gates, resolves the
+ * `(plan, interval)` pair to a configured Polar product id, then
+ * returns a JSON `{ checkoutUrl }` payload pointing at the adapter
+ * route so the client-side `start-checkout` flow keeps working
+ * unchanged. The adapter route does the actual Polar API call and
+ * issues the final redirect.
  */
 
 const checkoutBodySchema = z.object({
@@ -29,11 +32,95 @@ function sanitizeReturnTo(value: string | undefined): string | null {
   return value;
 }
 
+/**
+ * Resolves the visitor's public IP from forwarded-for headers so the
+ * canonical `@polar-sh/nextjs` `Checkout` adapter can pass it to
+ * Polar as `customerIpAddress`. Polar uses the field to geolocate
+ * currency on the hosted checkout page; without it, Polar sees the
+ * server egress IP and the visitor sees the wrong currency.
+ *
+ * Priority: `x-forwarded-for` (first hop) → `x-real-ip` →
+ * `cf-connecting-ip` → null. Loopback / private addresses are
+ * filtered out so localhost dev requests don't poison the value;
+ * in that case the redirect route falls back to fetching the dev
+ * machine's public IP via an external echo service so the dev
+ * experience matches production behavior.
+ */
+function isPrivateIp(candidate: string): boolean {
+  if (
+    candidate === "127.0.0.1" ||
+    candidate === "::1" ||
+    candidate.startsWith("10.") ||
+    candidate.startsWith("192.168.") ||
+    candidate.startsWith("169.254.")
+  ) {
+    return true;
+  }
+  // 172.16.0.0 – 172.31.255.255
+  if (candidate.startsWith("172.")) {
+    const second = Number.parseInt(candidate.split(".")[1] ?? "", 10);
+    if (second >= 16 && second <= 31) return true;
+  }
+  return false;
+}
+
+function resolveForwardedIp(request: Request): string | null {
+  const candidates = [
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
+    request.headers.get("x-real-ip")?.trim(),
+    request.headers.get("cf-connecting-ip")?.trim(),
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    if (isPrivateIp(candidate)) continue;
+    return candidate;
+  }
+
+  return null;
+}
+
+/**
+ * Last-resort lookup of the dev machine's egress IP. Only called when
+ * the request didn't carry a forwarded-for header (typical for direct
+ * `localhost:3000` requests in dev). Result is cached for one process
+ * lifetime to avoid hammering the echo service on every checkout.
+ */
+let cachedDevPublicIp: string | null | undefined;
+async function fetchDevPublicIp(): Promise<string | null> {
+  if (cachedDevPublicIp !== undefined) return cachedDevPublicIp;
+  try {
+    const response = await fetch("https://api.ipify.org?format=json", {
+      signal: AbortSignal.timeout(2000),
+    });
+    if (!response.ok) {
+      cachedDevPublicIp = null;
+      return null;
+    }
+    const data = (await response.json()) as { ip?: unknown };
+    if (typeof data.ip === "string" && data.ip.length > 0 && !isPrivateIp(data.ip)) {
+      cachedDevPublicIp = data.ip;
+      return data.ip;
+    }
+  } catch {
+    // Echo service unreachable. Fall through.
+  }
+  cachedDevPublicIp = null;
+  return null;
+}
+
+async function resolveClientIp(request: Request): Promise<string | null> {
+  const fromHeaders = resolveForwardedIp(request);
+  if (fromHeaders) return fromHeaders;
+
+  if (env.NODE_ENV !== "production") {
+    return fetchDevPublicIp();
+  }
+
+  return null;
+}
+
 function resolveAppOrigin(): string | null {
-  // For user-facing redirects (success/cancel URLs), prefer the local
-  // origin (BETTER_AUTH_URL = http://localhost:3000) so the browser
-  // lands on localhost after checkout. NEXT_PUBLIC_APP_URL may be the
-  // ngrok tunnel used only for webhook delivery.
   const candidates = [
     env.BETTER_AUTH_URL,
     env.NEXT_PUBLIC_APP_URL,
@@ -57,16 +144,8 @@ function resolveAppOrigin(): string | null {
   return null;
 }
 
-function isConfigurationError(message: string): boolean {
-  // Heuristic: provider-side configuration problems surface as messages
-  // that mention missing product configuration. Treat those as 503 so
-  // the client UI can distinguish a temporary backend issue from a
-  // permanent provider-side failure.
-  return /no dodo product configured/i.test(message);
-}
-
 export async function POST(request: Request): Promise<Response> {
-  if (!isDodoConfigured) {
+  if (!isPolarConfigured) {
     return NextResponse.json(
       { error: "Billing is not configured." },
       { status: 503 },
@@ -126,6 +205,17 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  const productId = getPolarProductId(plan, interval);
+
+  if (!productId) {
+    return NextResponse.json(
+      {
+        error: `No Polar product configured for ${plan} (${interval}).`,
+      },
+      { status: 503 },
+    );
+  }
+
   const origin = resolveAppOrigin();
 
   if (!origin) {
@@ -135,33 +225,21 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  // Dodo redirects users back to the success URL when they finish
-  // checkout. We embed `returnTo` so the success page can bounce the
-  // user back to where they triggered the upgrade (e.g. the dashboard
-  // they were on inside a business, or the businesses hub).
-  const successUrlObj = new URL("/account/billing/checkout", origin);
+  const redirectUrl = new URL("/api/billing/polar/checkout", origin);
+  redirectUrl.searchParams.set("products", productId);
+  redirectUrl.searchParams.set("customerExternalId", user.id);
+  redirectUrl.searchParams.set("customerEmail", userEmail);
+
+  // Forward the visitor's IP so Polar's hosted checkout localizes
+  // currency to the customer's region rather than the server egress IP.
+  const clientIp = await resolveClientIp(request);
+  if (clientIp) {
+    redirectUrl.searchParams.set("customerIpAddress", clientIp);
+  }
+
   if (returnTo) {
-    successUrlObj.searchParams.set("returnTo", returnTo);
-  }
-  const successUrl = successUrlObj.toString();
-  const cancelUrl = `${origin}/pricing`;
-
-  const provider = getBillingProvider("dodo");
-  const result = await provider.createCheckoutSession({
-    plan,
-    interval,
-    userId: user.id,
-    userEmail,
-    successUrl,
-    cancelUrl,
-  });
-
-  if (result.type === "redirect") {
-    return NextResponse.json({ checkoutUrl: result.url });
+    redirectUrl.searchParams.set("returnTo", returnTo);
   }
 
-  return NextResponse.json(
-    { error: result.message },
-    { status: isConfigurationError(result.message) ? 503 : 502 },
-  );
+  return NextResponse.json({ checkoutUrl: redirectUrl.toString() });
 }

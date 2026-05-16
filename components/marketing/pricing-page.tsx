@@ -24,7 +24,7 @@ import {
   getUsageLimit,
   planFeatureLabels,
 } from "@/lib/plans";
-import type { BillingCurrency, BillingRegion } from "@/lib/billing/types";
+import type { BillingCurrency } from "@/lib/billing/types";
 import { PricingIntervalToggle } from "@/components/marketing/pricing-interval-toggle";
 
 /*──────────────────────────────────────────────────────────────────────────────
@@ -160,10 +160,8 @@ const pricingCategories: PricingFeatureCategory[] = [
 
 export function PricingPage({
   currency,
-  region,
 }: {
   currency: BillingCurrency;
-  region: BillingRegion;
 }) {
   return (
     <PublicPageShell
@@ -204,7 +202,7 @@ export function PricingPage({
       </PublicHeroSurface>
 
       {/* Plan cards with toggle */}
-      <PricingIntervalToggle currency={currency} region={region} />
+      <PricingIntervalToggle currency={currency} />
 
       {/* Feature comparison */}
       <section className="mx-auto w-full max-w-[76rem] rounded-2xl border border-border/70 bg-card/40 overflow-hidden">

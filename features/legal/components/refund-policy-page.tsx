@@ -29,11 +29,12 @@ const refundSections: LegalDocumentSection[] = [
           .
         </LegalParagraph>
         <LegalParagraph>
-          Subscription payments are processed by our payment provider, the
-          merchant of record for {legalConfig.companyName}. Refunds are issued
-          through that provider and returned to the original card used for the
-          purchase. By subscribing to a paid plan, you agree to the terms
-          outlined in this Refund Policy and our Terms of Service.
+          Subscription payments are processed by {legalConfig.paymentProvider},
+          the merchant of record for {legalConfig.companyName}. Refunds are
+          issued through {legalConfig.paymentProvider} and returned to the
+          original payment method used for the purchase. By subscribing to a
+          paid plan, you agree to the terms outlined in this Refund Policy and
+          our Terms of Service.
         </LegalParagraph>
       </>
     ),
@@ -52,7 +53,7 @@ const refundSections: LegalDocumentSection[] = [
         <LegalList
           items={[
             "Refund requests must be submitted within 30 days of the original payment date",
-            "Refunds are issued to the original card used for the purchase",
+            "Refunds are issued to the original payment method used for the purchase",
             "Each individual payment can only be refunded once",
             "A refund request in progress blocks additional refund requests for the same payment",
           ]}
@@ -61,8 +62,8 @@ const refundSections: LegalDocumentSection[] = [
         <LegalParagraph>
           Eligible refunds are issued for the full amount of the original
           payment. Partial refunds are not offered. Currency conversion rates
-          may differ from the original transaction rate depending on your card
-          issuer.
+          may differ from the original transaction rate depending on your
+          payment provider or card issuer.
         </LegalParagraph>
       </>
     ),
@@ -108,7 +109,7 @@ const refundSections: LegalDocumentSection[] = [
         <LegalList
           items={[
             <>
-              <span className="text-foreground">Pending approval:</span>{" "}
+              <span className="text-foreground">Pending:</span>{" "}
               The provider is reviewing the request. Your subscription remains
               active in the meantime.
             </>,
@@ -118,8 +119,9 @@ const refundSections: LegalDocumentSection[] = [
               available until the end of the current billing period.
             </>,
             <>
-              <span className="text-foreground">Rejected:</span> The refund is
-              not processed and your subscription is unchanged.
+              <span className="text-foreground">Failed:</span> The refund could
+              not be processed. Your subscription remains unchanged. You may
+              contact us for assistance.
             </>,
           ]}
         />
@@ -127,7 +129,8 @@ const refundSections: LegalDocumentSection[] = [
         <LegalParagraph>
           Most approved refunds are initiated within 1-5 business days. The
           time it takes for the refund to appear in your account depends on
-          your card issuer and can take up to 10 business days after approval.
+          your payment provider or card issuer and can take up to 10 business
+          days after approval.
         </LegalParagraph>
       </>
     ),
@@ -168,13 +171,15 @@ const refundSections: LegalDocumentSection[] = [
       <>
         <LegalSectionHeading>5. Payment Provider</LegalSectionHeading>
         <LegalParagraph>
-          {legalConfig.companyName} uses a third-party payment provider as its
-          merchant of record. All paid plans are billed in USD. Refunds are
-          issued through the provider, which is subject to the provider&apos;s
-          review and standard processing times.
+          {legalConfig.companyName} uses {legalConfig.paymentProvider} as its
+          merchant of record. All paid plans are billed in USD. Depending on
+          your location, an approximate local currency amount may be displayed
+          at checkout for convenience, but the authoritative charge is in USD.
+          Refunds are issued through {legalConfig.paymentProvider} and are
+          subject to the provider&apos;s review and standard processing times.
         </LegalParagraph>
         <LegalParagraph>
-          We will work with our payment provider to process your refund
+          We will work with {legalConfig.paymentProvider} to process your refund
           request as quickly as possible, but we cannot guarantee specific
           processing times for delays introduced by the provider or your card
           issuer.
@@ -198,7 +203,7 @@ const refundSections: LegalDocumentSection[] = [
             "Payments with a refund request already in progress",
             "Partial refunds for unused portions of a billing period after cancellation",
             "Violations of our Terms of Service or acceptable use policies",
-            "Chargebacks or payment disputes initiated through your card issuer without contacting us first",
+            "Chargebacks or payment disputes initiated through your payment provider or card issuer without contacting us first",
           ]}
         />
         <LegalSubheading>Abuse Prevention</LegalSubheading>

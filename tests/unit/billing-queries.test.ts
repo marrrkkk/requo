@@ -10,7 +10,6 @@ const {
   listLockCandidatesForDowngradeMock,
   getAccountSubscriptionMock,
   getCachedAccountSubscriptionMock,
-  headersMock,
   resolveEffectivePlanFromSubscriptionMock,
 } = vi.hoisted(() => ({
   cacheLifeMock: vi.fn(),
@@ -22,7 +21,6 @@ const {
   listLockCandidatesForDowngradeMock: vi.fn(),
   getAccountSubscriptionMock: vi.fn(),
   getCachedAccountSubscriptionMock: vi.fn(),
-  headersMock: vi.fn(),
   resolveEffectivePlanFromSubscriptionMock: vi.fn(),
 }));
 
@@ -38,10 +36,6 @@ vi.mock("drizzle-orm", () => ({
 vi.mock("next/cache", () => ({
   cacheLife: cacheLifeMock,
   cacheTag: cacheTagMock,
-}));
-
-vi.mock("next/headers", () => ({
-  headers: headersMock,
 }));
 
 vi.mock("@/lib/db/client", () => ({
@@ -83,7 +77,7 @@ import { getBusinessBillingOverview } from "@/features/billing/queries";
 function mockSubscription(overrides: { plan?: string; status?: string } = {}) {
   return {
     billingCurrency: "USD",
-    billingProvider: "dodo",
+    billingProvider: "polar",
     canceledAt: null,
     currentPeriodEnd: new Date("2026-06-01T00:00:00.000Z"),
     currentPeriodStart: new Date("2026-05-01T00:00:00.000Z"),
@@ -116,11 +110,6 @@ describe("features/billing/queries", () => {
       },
     ]);
 
-    headersMock.mockResolvedValue(
-      new Headers({
-        "x-vercel-ip-country": "US",
-      }),
-    );
     getAccountSubscriptionMock.mockResolvedValue(null);
     getCachedAccountSubscriptionMock.mockResolvedValue(null);
     listLockCandidatesForDowngradeMock.mockResolvedValue({
@@ -145,12 +134,10 @@ describe("features/billing/queries", () => {
 
     expect(overview).toMatchObject({
       currentPlan: "pro",
-      defaultCurrency: "USD",
-      region: "global",
       subscription: {
         currency: "USD",
         plan: "pro",
-        provider: "dodo",
+        provider: "polar",
         status: "active",
       },
       userId: "user_123",

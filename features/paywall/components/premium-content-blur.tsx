@@ -99,8 +99,6 @@ export function PremiumContentBlur({
                   businessId={upgradeAction.businessId}
                   businessSlug={upgradeAction.businessSlug}
                   currentPlan={upgradeAction.currentPlan}
-                  region={upgradeAction.region}
-                  defaultCurrency={upgradeAction.defaultCurrency}
                   size="default"
                 >
                   <ArrowUpRight data-icon="inline-start" />

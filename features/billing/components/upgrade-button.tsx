@@ -7,15 +7,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
-import { startDodoCheckout } from "@/features/billing/start-checkout";
+import { startPolarCheckout } from "@/features/billing/start-checkout";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
-import type {
-  BillingCurrency,
-  BillingInterval,
-  BillingRegion,
-  PaidPlan,
-} from "@/lib/billing/types";
+import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
 import { cn } from "@/lib/utils";
 
 type UpgradeButtonProps = {
@@ -24,8 +19,6 @@ type UpgradeButtonProps = {
   businessSlug: string;
   currentPlan: plan;
   targetPlan?: "pro" | "business";
-  region?: BillingRegion;
-  defaultCurrency?: BillingCurrency;
   variant?: "default" | "outline" | "ghost" | "secondary";
   size?: "default" | "sm" | "lg";
   className?: string;
@@ -77,7 +70,7 @@ export function UpgradeButton({
         }
 
         startTransition(async () => {
-          const result = await startDodoCheckout({
+          const result = await startPolarCheckout({
             plan: nextPlan,
             interval,
             returnTo: businessSlug

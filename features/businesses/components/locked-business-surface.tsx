@@ -32,8 +32,6 @@ export function LockedBusinessSurface({
         <div className="flex flex-wrap gap-2">
           <UpgradeButton
             currentPlan={billing.currentPlan}
-            defaultCurrency={billing.defaultCurrency}
-            region={billing.region}
             size="sm"
             userId={billing.userId}
             businessId={billing.businessId}

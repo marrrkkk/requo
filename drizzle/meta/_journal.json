@@ -15,6 +15,20 @@
       "when": 1778846270731,
       "tag": "0001_dodo_payments_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778930203918,
+      "tag": "0002_polar_billing_migration",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1778940701437,
+      "tag": "0003_drop_adaptive_currency",
+      "breakpoints": true
     }
   ]
 }

@@ -177,16 +177,17 @@ Feature responsibilities:
 - Email: transactional delivery is centralized in `lib/email`, with Resend first and Mailtrap/Brevo fallback for retryable provider failures.
 - AI providers: Groq, Gemini, and OpenRouter are routed server-side through `lib/ai`.
 - Better Auth: sessions, password flows, and user lifecycle hooks.
-- Paddle: recurring card subscriptions and inline checkout in USD.
+- Polar: recurring card subscriptions in USD, hosted checkout, customer self-service portal, and refunds (merchant of record).
 
 ## Billing Architecture
 
-- Subscriptions are business-scoped. Each business has at most one `business_subscriptions` row.
-- `businesses.plan` is a denormalized read cache. `business_subscriptions` is authoritative.
-- `lib/billing/subscription-service.ts` is the single write path for subscription mutations and keeps `businesses.plan` in sync.
+- Subscriptions are account-scoped. Each user account has at most one `account_subscriptions` row.
+- `businesses.plan` is a denormalized read cache. `account_subscriptions` is authoritative.
+- All businesses owned by a user inherit the plan from the user's account subscription.
+- `lib/billing/subscription-service.ts` is the single write path for subscription mutations and keeps `businesses.plan` in sync across all owned businesses.
 - `lib/billing/webhook-processor.ts` records provider events in `billing_events` for idempotency.
-- Paddle is the only billing provider and handles recurring card subscriptions.
-- Billing webhook route lives in `app/api/billing/paddle/webhook/route.ts`.
+- Polar is the only billing provider and handles recurring card subscriptions in USD as a merchant of record.
+- Billing webhook route lives in `app/api/billing/polar/webhook/route.ts`. The customer self-service portal route is `app/api/billing/polar/customer-portal/route.ts`. The refund request route is `app/api/billing/refund/route.ts`.
 
 ## Testing Architecture
 

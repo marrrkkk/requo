@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
-import { startDodoCheckout } from "@/features/billing/start-checkout";
+import { startPolarCheckout } from "@/features/billing/start-checkout";
 import type { CheckoutDialogProps } from "@/features/billing/types";
 
 type ControlledCheckoutDialogProps = CheckoutDialogProps & {
@@ -45,7 +45,7 @@ export function CheckoutDialog({
             disabled={isPending}
             onClick={() => {
               startTransition(async () => {
-                const result = await startDodoCheckout({ plan, interval });
+                const result = await startPolarCheckout({ plan, interval });
                 if (result.ok) {
                   // Hosted checkout opened in a new tab (or same-tab
                   // fallback). Close the dialog so the user returns to

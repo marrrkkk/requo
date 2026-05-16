@@ -1,12 +1,10 @@
 /**
  * Plan pricing definitions for the billing system.
  *
- * USD is the authoritative base currency. PHP entries are optional and
- * display-only — the final PHP amount is computed by Dodo Adaptive
- * Currency at checkout.
+ * USD is the authoritative base currency. Polar handles any
+ * local-currency display natively per product at checkout.
  */
 
-import { formatPhpApproximation } from "@/lib/billing/adaptive-currency";
 import type { BillingCurrency, BillingInterval, PaidPlan, PlanPricing } from "@/lib/billing/types";
 
 /** Prices in smallest currency unit (USD cents). */
@@ -42,7 +40,8 @@ export function formatPrice(
     // PHP amounts are stored in centavos; display as whole pesos
     // formatted with the en-PH locale (e.g. "₱1,299"), no decimals.
     const pesos = Math.round(amountInSmallestUnit / 100);
-    return formatPhpApproximation(pesos);
+    if (!Number.isFinite(pesos) || pesos <= 0) return "";
+    return `₱${pesos.toLocaleString("en-PH")}`;
   }
   const decimal = amountInSmallestUnit / 100;
   return `$${decimal.toFixed(2)}`;

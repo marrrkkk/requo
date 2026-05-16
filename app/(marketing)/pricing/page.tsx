@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { Suspense } from "react";
 
 import { PricingPage } from "@/components/marketing/pricing-page";
 import { StructuredData } from "@/components/seo/structured-data";
-import { getBillingRegion, getDefaultCurrency } from "@/lib/billing/region";
 import { planPricing } from "@/lib/billing/plans";
 import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
 import { businessPlans, planMeta, type BusinessPlan } from "@/lib/plans/plans";
@@ -59,18 +57,9 @@ function buildPricingOffers() {
   );
 }
 
-async function PricingRouteDynamic() {
-  const requestHeaders = await headers();
-  const region = getBillingRegion(requestHeaders);
-  const currency = getDefaultCurrency(region);
-
-  return <PricingPage currency={currency} region={region} />;
-}
-
 /**
- * Dynamic pricing page detects the visitor's region from request headers and
- * shows USD pricing for all users. Wrapped
- * in Suspense to allow PPR of the page shell.
+ * Pricing is always shown in USD. Polar handles regional pricing per
+ * product configuration at checkout, so Requo no longer detects a region.
  */
 export default function PricingRoute() {
   const productStructuredData = getProductPricingStructuredData({
@@ -104,8 +93,8 @@ export default function PricingRoute() {
           id="breadcrumb-structured-data"
         />
       ) : null}
-      <Suspense fallback={<PricingPage currency="USD" region="global" />}>
-        <PricingRouteDynamic />
+      <Suspense fallback={<PricingPage currency="USD" />}>
+        <PricingPage currency="USD" />
       </Suspense>
     </>
   );

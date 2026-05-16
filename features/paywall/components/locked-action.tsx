@@ -63,8 +63,6 @@ function UpgradeCta({
         businessId={upgradeAction.businessId}
         businessSlug={upgradeAction.businessSlug}
         currentPlan={upgradeAction.currentPlan}
-        region={upgradeAction.region}
-        defaultCurrency={upgradeAction.defaultCurrency}
         size="sm"
         className={touchTargetClasses}
       >

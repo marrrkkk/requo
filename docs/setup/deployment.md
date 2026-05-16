@@ -44,7 +44,7 @@ views plus customer responses from one place.
 - `GROQ_API_KEY`
 - `GEMINI_API_KEY`
 - `OPENROUTER_API_KEY`
-- Paddle billing variables when checkout is enabled
+- Polar billing variables when checkout is enabled
 
 ## Better Auth Checklist
 
@@ -104,20 +104,19 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 
 ## Billing Checklist
 
-- Billing is business-scoped. `business_subscriptions` is authoritative and `businesses.plan` is a read cache.
-- Configure Paddle for recurring card/USD checkout:
-  - `PADDLE_API_KEY`
-  - `PADDLE_WEBHOOK_SECRET`
-  - `PADDLE_PRO_PRICE_ID`
-  - `PADDLE_PRO_YEARLY_PRICE_ID`
-  - `PADDLE_BUSINESS_PRICE_ID`
-  - `PADDLE_BUSINESS_YEARLY_PRICE_ID`
-  - `PADDLE_ENVIRONMENT`
-  - `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN`
-  - `NEXT_PUBLIC_PADDLE_ENVIRONMENT`
+- Billing is account-scoped. `account_subscriptions` is authoritative and `businesses.plan` is a read cache. All businesses owned by a user inherit the plan from the user's account subscription.
+- Configure Polar (https://docs.polar.sh) for recurring USD subscription billing:
+  - `POLAR_ACCESS_TOKEN`
+  - `POLAR_WEBHOOK_SECRET`
+  - `POLAR_SERVER` (`sandbox` for dev / preview; `production` for live charges — cut over only after sandbox validation)
+  - `POLAR_PRO_PRODUCT_ID`
+  - `POLAR_PRO_YEARLY_PRODUCT_ID`
+  - `POLAR_BUSINESS_PRODUCT_ID`
+  - `POLAR_BUSINESS_YEARLY_PRODUCT_ID`
 - Point webhooks at:
-  - `/api/billing/paddle/webhook`
-- Read `docs/setup/billing.md` before enabling live checkout.
+  - `/api/billing/polar/webhook`
+- Subscribe the webhook to subscription.* and order.* events (see `docs/setup/billing.md` for the full list). Refunds happen in the Polar customer portal; refund.* events fall through as `ignored` post-refactor.
+- Read `docs/setup/billing.md` before enabling live checkout. The "Production cutover" section there documents the full sandbox→production switch step by step, including pre-cutover checks, env replacement order, post-deploy verification, and the rollback path.
 
 ## Rollout Order
 
@@ -127,11 +126,11 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 4. Configure Supabase storage credentials and verify upload-backed flows.
 5. Configure email providers and verify forgot-password plus quote-send flows.
 6. Configure at least one AI provider and verify the inquiry assistant.
-7. Configure Paddle if checkout is part of the deployment.
+7. Configure Polar if checkout is part of the deployment.
 8. Run the baseline health checks and smoke-test dashboard login, non-member denial, public inquiry submission, quote send/share, and public quote response.
 
 ## Current Operational Gaps
 
 - Live provider behavior is not covered by the default automated suite.
-- There is no deployment-specific observability layer yet for email, AI provider, or Paddle failures.
+- There is no deployment-specific observability layer yet for email, AI provider, or Polar failures.
 - SQL RLS helpers and policies exist, but the app does not currently inject `app.current_user_id` into the Postgres session, so database-session RLS is not the main enforcement path for runtime queries yet.
