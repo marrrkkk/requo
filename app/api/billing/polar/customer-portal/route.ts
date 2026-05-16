@@ -1,20 +1,18 @@
 import "server-only";
 
-import { CustomerPortal } from "@polar-sh/nextjs";
+import { NextResponse } from "next/server";
+import { Polar } from "@polar-sh/sdk";
 
 import { requireUser } from "@/lib/auth/session";
 import { getAccountSubscription } from "@/lib/billing/subscription-service";
-import { env } from "@/lib/env";
+import { env, isPolarConfigured } from "@/lib/env";
 
 /**
  * Polar Customer Portal route.
  *
- * Uses the canonical `@polar-sh/nextjs` `CustomerPortal` adapter. The
- * `getCustomerId` callback resolves the authenticated user, looks up
- * their `account_subscriptions.providerCustomerId`, and returns it. If
- * the user is unauthenticated or has no provider customer id yet, the
- * thrown error propagates up through the adapter and is surfaced as a
- * 4xx by Polar's adapter.
+ * Resolves the authenticated user's `providerCustomerId` from
+ * `account_subscriptions`, then creates a customer-portal session via
+ * the Polar SDK and redirects the browser to the portal URL.
  *
  * UI callers are gated separately on `subscription.providerCustomerId`
  * being non-null, so this route is only reachable for users with an
@@ -22,16 +20,41 @@ import { env } from "@/lib/env";
  *
  * Usage: GET /api/billing/polar/customer-portal
  */
-export const GET = CustomerPortal({
-  accessToken: env.POLAR_ACCESS_TOKEN ?? "",
-  server: env.POLAR_SERVER,
-  getCustomerId: async () => {
-    const user = await requireUser();
-    const subscription = await getAccountSubscription(user.id);
-    if (!subscription?.providerCustomerId) {
-      throw new Error("No billing account found. Subscribe to a plan first.");
-    }
-    return subscription.providerCustomerId;
-  },
-  returnUrl: `${env.NEXT_PUBLIC_APP_URL ?? ""}/account/billing`,
-});
+export async function GET(): Promise<Response> {
+  if (!isPolarConfigured || !env.POLAR_ACCESS_TOKEN) {
+    return NextResponse.json(
+      { error: "Billing is not configured." },
+      { status: 503 },
+    );
+  }
+
+  const user = await requireUser();
+  const subscription = await getAccountSubscription(user.id);
+
+  if (!subscription?.providerCustomerId) {
+    return NextResponse.json(
+      { error: "No billing account found. Subscribe to a plan first." },
+      { status: 404 },
+    );
+  }
+
+  const returnUrl = `${env.NEXT_PUBLIC_APP_URL ?? ""}/account/billing`;
+
+  const polar = new Polar({
+    accessToken: env.POLAR_ACCESS_TOKEN,
+    server: env.POLAR_SERVER,
+  });
+
+  try {
+    const session = await polar.customerSessions.create({
+      customerId: subscription.providerCustomerId,
+      returnUrl,
+    });
+
+    return NextResponse.redirect(session.customerPortalUrl);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Could not open billing portal.";
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
+}
