@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { BrandWordmark } from "@/components/shared/brand-wordmark";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 type BrandMarkSize = "default" | "lg";
@@ -14,14 +13,14 @@ type BrandMarkProps = {
   size?: BrandMarkSize;
 };
 
+const logoSizeClass: Record<BrandMarkSize, string> = {
+  default: "size-8",
+  lg: "size-9",
+};
+
 const wordmarkSizeClass: Record<BrandMarkSize, string> = {
   default: "",
   lg: "text-[1.45rem] tracking-[-0.02em] sm:text-[1.55rem]",
-};
-
-const avatarSizeClass: Record<BrandMarkSize, string> = {
-  default: "size-10",
-  lg: "size-11",
 };
 
 export function BrandMark({
@@ -36,23 +35,19 @@ export function BrandMark({
       href={href}
       aria-label="Requo"
       className={cn(
-        "inline-flex items-center gap-3 text-foreground",
+        "inline-flex items-center gap-2.5 text-foreground",
         collapseLabel && "group-data-[collapsible=icon]:gap-0",
         className,
       )}
     >
-      <Avatar
-        size="lg"
+      <span
         className={cn(
-          "shrink-0 rounded-xl border border-border/70 bg-background/80 shadow-sm dark:border-white/8 dark:bg-card dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_1px_1px_rgba(0,0,0,0.2)]",
-          avatarSizeClass[size],
+          "flex shrink-0 items-center justify-center text-primary",
+          logoSizeClass[size],
         )}
       >
-        <AvatarImage src="/logo.svg" alt="" className="rounded-none object-contain p-1.5" />
-        <AvatarFallback className="rounded-xl font-heading text-sm font-semibold text-foreground">
-          R
-        </AvatarFallback>
-      </Avatar>
+        <BrandLogoIcon className="size-full" />
+      </span>
       <span
         className={cn(
           "flex min-w-0 flex-col leading-none",
@@ -61,11 +56,27 @@ export function BrandMark({
       >
         <BrandWordmark className={cn("truncate", wordmarkSizeClass[size])} />
         {subtitle !== null ? (
-          <span className="truncate text-[0.64rem] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          <span className="mt-0.5 truncate text-[0.6rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             {subtitle}
           </span>
         ) : null}
       </span>
     </Link>
+  );
+}
+
+function BrandLogoIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 100 100"
+      fill="currentColor"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path d="m18.762 27.812c7.4922 0.94531 13.793-5.3555 12.848-12.848-0.64453-5.1055-4.7656-9.2266-9.8711-9.8711-7.4922-0.94531-13.793 5.3555-12.848 12.848 0.64453 5.1055 4.7656 9.2266 9.8711 9.8711z" />
+      <path d="m71.438 24.273c3.1484 3.3516 8.2305 4.8633 13.543 2.457 2.2383-1.0117 4.0625-2.8281 5.0664-5.0703 3.7852-8.457-2.2969-16.66-10.301-16.66-4.8711 0-8.9922 3.0586-10.648 7.3516-0.058594 0.15625-0.20703 0.26172-0.375 0.26172h-23.945c-0.95312 0-1.875 0.43359-2.4219 1.2148-2.1875 3.1211-0.011719 6.4688 2.9531 6.4688h13.195c0.22656 0 0.26953 0.3125 0.058594 0.38672-10.301 3.6211-17.023 8.7188-20.945 12.262-17.57 15.891-22.605 40.23-22.621 40.305 0 0.003906-0.007813 0.042969-0.027344 0.089844-0.035156 0.082031-0.097656 0.14844-0.17578 0.19141-4.9258 2.6836-7.7109 8.8008-4.8516 15.207 1.0039 2.25 2.8164 4.082 5.0625 5.0938 8.4688 3.8203 16.695-2.2734 16.695-10.285 0-4.3555-2.457-8.1055-6.0391-10.039-0.16016-0.085937-0.25-0.26562-0.21094-0.44531 4.8281-23.574 22.625-42.469 45.582-48.902 0.14453-0.039062 0.30078 0.003906 0.40234 0.11328z" />
+      <path d="m83.59 71.867v-29.711c0-2.0078-1.4688-3.7969-3.4648-3.9883-2.293-0.21875-4.2188 1.5781-4.2188 3.8242v29.867c0 0.53906-0.30469 1.0391-0.79688 1.2578-4.1836 1.8594-7.0586 6.1133-6.7969 11.047 0.29297 5.543 5.4062 10.594 10.953 10.824 6.5469 0.26953 11.938-4.957 11.938-11.445 0-4.668-2.8086-8.6445-6.8164-10.426-0.49219-0.21875-0.79688-0.71484-0.79688-1.25z" />
+    </svg>
   );
 }
