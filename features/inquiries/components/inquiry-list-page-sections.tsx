@@ -84,18 +84,20 @@ export async function InquiryListControlsSection({
         <div />
 
         <div className="dashboard-actions w-full [&>*]:w-full sm:[&>*]:w-auto xl:w-auto xl:justify-end">
-          <InquiryExportCsvDropdown
-            businessSlug={businessSlug}
-            canExport={canExport}
-            filters={filters}
-            formOptions={formOptions}
-            resultCount={totalItems}
-          />
-          <ArchivedInquiriesSheet
-            businessSlug={businessSlug}
-            items={archivedItems}
-            unarchiveAction={unarchiveAction}
-          />
+          <div className="flex gap-2">
+            <InquiryExportCsvDropdown
+              businessSlug={businessSlug}
+              canExport={canExport}
+              filters={filters}
+              formOptions={formOptions}
+              resultCount={totalItems}
+            />
+            <ArchivedInquiriesSheet
+              businessSlug={businessSlug}
+              items={archivedItems}
+              unarchiveAction={unarchiveAction}
+            />
+          </div>
           <Button asChild>
             <Link href={getBusinessNewInquiryPath(businessSlug)} prefetch={true}>
               <Plus data-icon="inline-start" />

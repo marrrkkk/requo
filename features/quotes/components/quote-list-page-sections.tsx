@@ -66,17 +66,19 @@ export async function QuoteListControlsSection({
         <div />
 
         <div className="dashboard-actions w-full [&>*]:w-full sm:[&>*]:w-auto xl:w-auto xl:justify-end">
-          <QuoteExportCsvDropdown
-            businessSlug={businessSlug}
-            canExport={canExport}
-            filters={filters}
-            resultCount={totalItems}
-          />
-          <ArchivedQuotesSheet
-            businessSlug={businessSlug}
-            items={archivedItems}
-            restoreAction={restoreAction}
-          />
+          <div className="flex gap-2">
+            <QuoteExportCsvDropdown
+              businessSlug={businessSlug}
+              canExport={canExport}
+              filters={filters}
+              resultCount={totalItems}
+            />
+            <ArchivedQuotesSheet
+              businessSlug={businessSlug}
+              items={archivedItems}
+              restoreAction={restoreAction}
+            />
+          </div>
           <Button asChild>
             <Link href={getBusinessNewQuotePath(businessSlug)} prefetch={true}>
               <ReceiptText data-icon="inline-start" />
