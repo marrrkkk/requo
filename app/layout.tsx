@@ -16,6 +16,7 @@ import { ScrollToTop } from "@/components/shared/scroll-to-top";
 import { WebMCPProvider } from "@/components/shared/webmcp-provider";
 import { StructuredData } from "@/components/seo/structured-data";
 import { Toaster } from "@/components/ui/sonner";
+import { DevTools } from "@/features/dev-tools/dev-tools";
 import { getThemeInitScript } from "@/features/theme/init-script";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { legalConfig } from "@/features/legal/config";
@@ -180,6 +181,7 @@ export default function RootLayout({
             </Suspense>
             <TooltipProvider>{children}</TooltipProvider>
             <Toaster />
+            <DevTools />
           </ThemeProvider>
           <Analytics />
           <SpeedInsights />
