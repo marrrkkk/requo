@@ -1,6 +1,7 @@
 import "server-only";
 
-import { GoogleGenAI } from "@google/genai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { generateText } from "ai";
 
 import { env, isGeminiConfigured } from "@/lib/env";
 import type { ExtractedPayload } from "@/features/importer/extractors";
@@ -128,42 +129,35 @@ export type AiExtractionResult =
     }
   | { ok: false; error: string };
 
-function getClient(): GoogleGenAI | null {
+function getGeminiProvider() {
   if (!isGeminiConfigured || !env.GEMINI_API_KEY) {
     return null;
   }
 
-  return new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+  return createGoogleGenerativeAI({
+    apiKey: env.GEMINI_API_KEY,
+  });
 }
 
-function buildContents(payload: ExtractedPayload) {
+function buildUserContent(payload: ExtractedPayload): Array<{ type: "text"; text: string } | { type: "file"; data: string; mediaType: string }> {
   if (payload.kind === "pdf") {
     return [
       {
-        role: "user" as const,
-        parts: [
-          {
-            inlineData: {
-              mimeType: "application/pdf",
-              data: payload.base64,
-            },
-          },
-          {
-            text: `File name: ${payload.fileName}\nExtract structured data from this document as described by the system instructions.`,
-          },
-        ],
+        type: "file",
+        data: payload.base64,
+        mediaType: "application/pdf",
+      },
+      {
+        type: "text",
+        text: `File name: ${payload.fileName}\nExtract structured data from this document as described by the system instructions.`,
       },
     ];
   }
 
   return [
     {
-      role: "user" as const,
-      parts: [
-        {
-          text: `File name: ${payload.fileName}\n\nDocument content:\n${payload.text}`,
-        },
-      ],
+      type: "text",
+      text: `File name: ${payload.fileName}\n\nDocument content:\n${payload.text}`,
     },
   ];
 }
@@ -171,9 +165,9 @@ function buildContents(payload: ExtractedPayload) {
 export async function aiExtractFromFile(
   input: ExtractionInput,
 ): Promise<AiExtractionResult> {
-  const client = getClient();
+  const provider = getGeminiProvider();
 
-  if (!client) {
+  if (!provider) {
     return {
       ok: false,
       error:
@@ -185,24 +179,26 @@ export async function aiExtractFromFile(
     input.destination === "knowledge"
       ? KNOWLEDGE_INSTRUCTIONS
       : PRICING_INSTRUCTIONS;
-  const contents = buildContents(input.payload);
+  const userContent = buildUserContent(input.payload);
 
   let lastError: unknown = null;
 
   for (const model of EXTRACTION_MODELS) {
     try {
-      const response = await client.models.generateContent({
-        model,
-        contents,
-        config: {
-          systemInstruction,
-          temperature: 0.1,
-          responseMimeType: "application/json",
-          abortSignal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
-        },
+      const result = await generateText({
+        model: provider(model),
+        system: systemInstruction,
+        messages: [
+          {
+            role: "user",
+            content: userContent,
+          },
+        ],
+        temperature: 0.1,
+        abortSignal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
       });
 
-      const text = response.text ?? "";
+      const text = result.text ?? "";
 
       if (!text.trim()) {
         lastError = new Error("Empty response from AI extractor.");
