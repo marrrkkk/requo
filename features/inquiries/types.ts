@@ -4,7 +4,6 @@ import type {
   InquirySubmittedFieldSnapshot,
 } from "@/features/inquiries/form-config";
 import type { InquiryPageConfig } from "@/features/inquiries/page-config";
-import type { SignalScore } from "@/features/inquiries/qualification/types";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 export const inquiryStatuses = [
@@ -61,7 +60,6 @@ export type DashboardInquiryListItem = {
   archivedAt: Date | null;
   pendingFollowUpCount: number;
   nextFollowUpDueAt: Date | null;
-  qualificationTemperature: string | null;
   hasDuplicateFlag: boolean;
   submittedAt: Date;
   createdAt: Date;
@@ -122,9 +120,6 @@ export type DashboardInquiryDetail = {
   archivedAt: Date | null;
   submittedAt: Date;
   createdAt: Date;
-  qualificationScore: number | null;
-  qualificationTemperature: string | null;
-  qualificationSignals: SignalScore[] | null;
   attachments: DashboardInquiryAttachment[];
   notes: DashboardInquiryNote[];
   activities: DashboardInquiryActivity[];
@@ -137,7 +132,7 @@ export type InquiryListFilters = {
   view: InquiryRecordView;
   status: InquiryStatusFilterValue;
   form: string;
-  sort: "newest" | "oldest" | "score";
+  sort: "newest" | "oldest";
   page: number;
 };
 

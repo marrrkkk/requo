@@ -17,10 +17,8 @@ import {
 } from "@/features/inquiries/utils";
 import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
-import { TemperatureBadge } from "@/features/inquiries/components/temperature-badge";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
 import { Copy } from "lucide-react";
-import type { Temperature } from "@/features/inquiries/qualification/types";
 
 type InquiryListTableProps = {
   inquiries: DashboardInquiryListItem[];
@@ -109,10 +107,6 @@ export function InquiryListTable({
                     {inquiry.recordState !== "active" ? (
                       <InquiryRecordStateBadge state={inquiry.recordState} />
                     ) : null}
-                    <TemperatureBadge
-                      temperature={inquiry.qualificationTemperature as Temperature | null}
-                      variant="dot"
-                    />
                   </Link>
                 </TableCell>
               </TableRow>

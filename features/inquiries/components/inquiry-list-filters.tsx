@@ -45,7 +45,7 @@ export function InquiryListFilters({
     nextQuery: string,
     nextStatus: InquiryStatusFilterValue,
     nextForm: string,
-    nextSort: "newest" | "oldest" | "score",
+    nextSort: "newest" | "oldest",
     nextView: InquiryListFilters["view"],
   ) => {
     const params = new URLSearchParams();
@@ -132,14 +132,13 @@ export function InquiryListFilters({
       sortLabel="Sort by"
       sortValue={sort}
       onSortChange={(value) => {
-        const nextSort = value as "newest" | "oldest" | "score";
+        const nextSort = value as "newest" | "oldest";
         setSort(nextSort);
         navigate(query, status, form, nextSort, view);
       }}
       sortOptions={[
         { label: "Newest first", value: "newest" },
         { label: "Oldest first", value: "oldest" },
-        { label: "Highest score", value: "score" },
       ]}
       isPending={isPending}
       onClear={() => {

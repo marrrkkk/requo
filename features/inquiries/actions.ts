@@ -25,6 +25,7 @@ import {
   changeInquiryStatusForBusiness,
   createManualInquirySubmission,
   createPublicInquirySubmission,
+  deleteInquiryForBusiness,
   unarchiveInquiryForBusiness,
 } from "@/features/inquiries/mutations";
 import {
@@ -524,5 +525,20 @@ export async function unarchiveInquiryAction(
     success: "Inquiry restored to active.",
     unchanged: "Inquiry is already active.",
     fallbackError: "Failed to unarchive inquiry.",
+  });
+}
+
+export async function deleteInquiryAction(
+  inquiryId: string,
+  _prevState: InquiryRecordActionState,
+  _formData: FormData,
+): Promise<InquiryRecordActionState> {
+  void _prevState;
+  void _formData;
+
+  return runInquiryRecordAction(inquiryId, deleteInquiryForBusiness, {
+    success: "Inquiry deleted.",
+    unchanged: "Inquiry is already deleted.",
+    fallbackError: "Failed to delete inquiry.",
   });
 }

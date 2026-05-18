@@ -545,9 +545,7 @@ export async function getInquiryListPageForBusiness({
   const offset = Math.max(0, (page - 1) * pageSize);
 
   const orderByClause =
-    filters.sort === "score"
-      ? [desc(inquiries.qualificationScore), desc(inquiries.submittedAt), desc(inquiries.createdAt)]
-      : [submittedAtSort(inquiries.submittedAt), createdAtSort(inquiries.createdAt)];
+    [submittedAtSort(inquiries.submittedAt), createdAtSort(inquiries.createdAt)];
 
   return db
     .select({
@@ -577,7 +575,6 @@ export async function getInquiryListPageForBusiness({
           and ${followUps.inquiryId} = ${inquiries.id}
           and ${followUps.status} = 'pending'
       )`,
-      qualificationTemperature: inquiries.qualificationTemperature,
       hasDuplicateFlag: sql<boolean>`exists(
         select 1 from inquiry_duplicates
         where inquiry_duplicates.inquiry_id = ${inquiries.id}
@@ -702,9 +699,6 @@ export async function getInquiryDetailForBusiness({
       submittedAt: inquiries.submittedAt,
       createdAt: inquiries.createdAt,
       submittedFieldSnapshot: inquiries.submittedFieldSnapshot,
-      qualificationScore: inquiries.qualificationScore,
-      qualificationTemperature: inquiries.qualificationTemperature,
-      qualificationSignals: inquiries.qualificationSignals,
     })
     .from(inquiries)
     .innerJoin(

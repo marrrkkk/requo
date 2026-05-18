@@ -697,3 +697,80 @@ export async function unarchiveInquiryForBusiness({
   });
 }
 
+
+export async function deleteInquiryForBusiness({
+  businessId,
+  inquiryId,
+  actorUserId,
+}: UpdateInquiryRecordStateForBusinessInput) {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [existingInquiry] = await tx
+      .select({
+        id: inquiries.id,
+        status: inquiries.status,
+        archivedAt: inquiries.archivedAt,
+        deletedAt: inquiries.deletedAt,
+        businessId: businesses.id,
+        customerName: inquiries.customerName,
+        serviceCategory: inquiries.serviceCategory,
+      })
+      .from(inquiries)
+      .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
+      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
+      .limit(1);
+
+    if (!existingInquiry) {
+      return null;
+    }
+
+    if (existingInquiry.deletedAt) {
+      return {
+        changed: false,
+        locked: false,
+      };
+    }
+
+    await tx
+      .update(inquiries)
+      .set({
+        deletedAt: now,
+        deletedBy: actorUserId,
+        updatedAt: now,
+      })
+      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)));
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      inquiryId,
+      actorUserId,
+      type: "inquiry.deleted",
+      summary: "Inquiry deleted.",
+      metadata: {
+        previousStatus: existingInquiry.status,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await writeAuditLog(tx, {
+      businessId: existingInquiry.businessId,
+      actorUserId,
+      entityType: "request",
+      entityId: inquiryId,
+      action: "request.deleted",
+      metadata: {
+        customerName: existingInquiry.customerName,
+        serviceCategory: existingInquiry.serviceCategory,
+      },
+      createdAt: now,
+    });
+
+    return {
+      changed: true,
+      locked: false,
+    };
+  });
+}

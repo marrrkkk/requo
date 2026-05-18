@@ -17,7 +17,6 @@ import { user } from "@/lib/db/schema/auth";
 import { businessInquiryForms } from "@/lib/db/schema/business-inquiry-forms";
 import { businesses } from "@/lib/db/schema/businesses";
 import type { InquirySubmittedFieldSnapshot } from "@/features/inquiries/form-config";
-import type { SignalScore } from "@/features/inquiries/qualification/types";
 
 export const inquiryStatusEnum = pgEnum("inquiry_status", [
   "new",
@@ -84,9 +83,7 @@ export const inquiries = pgTable(
       .defaultNow(),
     qualificationScore: integer("qualification_score"),
     qualificationTemperature: text("qualification_temperature"),
-    qualificationSignals: jsonb("qualification_signals").$type<
-      SignalScore[]
-    >(),
+    qualificationSignals: jsonb("qualification_signals"),
     qualifiedAt: timestamp("qualified_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
