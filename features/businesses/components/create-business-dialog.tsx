@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { forwardRef, useState } from "react";
 import { ArrowUpRight, PlusCircle, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { CheckoutDialog } from "@/features/billing/components/checkout-dialog";
 import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
@@ -25,6 +35,7 @@ import type {
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import { getUpgradePlan, planMeta } from "@/lib/plans/plans";
 import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type CreateBusinessDialogProps = {
   action: (
@@ -51,10 +62,15 @@ function createTemporaryBusinessId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function CreateBusinessHubCardTrigger() {
+const CreateBusinessHubCardTrigger = forwardRef<
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement>
+>(function CreateBusinessHubCardTrigger(props, ref) {
   return (
     <button
+      ref={ref}
       type="button"
+      {...props}
       className="group surface-card flex h-full w-full cursor-pointer flex-col gap-5 overflow-hidden rounded-xl border border-dashed border-border/80 bg-transparent p-0 text-left text-sm text-card-foreground outline-none transition-colors hover:border-border hover:bg-card/50 focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/15"
     >
       <span className="flex items-center gap-3 px-4 pt-4 text-muted-foreground transition-colors group-hover:text-foreground sm:px-6 sm:pt-6">
@@ -76,7 +92,7 @@ function CreateBusinessHubCardTrigger() {
       </span>
     </button>
   );
-}
+});
 
 export function CreateBusinessDialog({
   action,
@@ -86,6 +102,7 @@ export function CreateBusinessDialog({
   businessQuota,
   billingProps,
 }: CreateBusinessDialogProps) {
+  const isMobile = useIsMobile();
   const businessCheckout = useBusinessCheckout();
   const [open, setOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -157,7 +174,117 @@ export function CreateBusinessDialog({
     setOpen(nextOpen);
   }
 
+  // --- Locked state: upgrade prompt ---
   if (quotaLocked) {
+    const lockedContent = (
+      <>
+        <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
+          <p className="meta-label mb-2.5">
+            {upgradePlan
+              ? `${planMeta[upgradePlan].label} plan includes`
+              : "Current plan"}
+          </p>
+          <ul className="flex flex-col gap-2">
+            {upgradeFeatures.map((feature) => (
+              <li
+                className="flex items-center gap-2.5 text-sm text-foreground"
+                key={feature}
+              >
+                <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <Check className="size-3" />
+                </div>
+                {feature}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </>
+    );
+
+    const lockedFooter = (
+      <>
+        <Button className="w-full sm:w-auto" variant="outline" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+        {billingProps && upgradePlan ? (
+          <Button
+            className="w-full sm:w-auto"
+            onClick={() => {
+              setOpen(false);
+              if (useSharedCheckout && businessCheckout) {
+                businessCheckout.openPlanSelection();
+                return;
+              }
+
+              setPlanSheetOpen(true);
+            }}
+          >
+            <ArrowUpRight data-icon="inline-start" />
+            {upgradeLabel}
+          </Button>
+        ) : null}
+      </>
+    );
+
+    const billingSheets = !useSharedCheckout && billingProps ? (
+      <>
+        <PlanSelectionSheet
+          currentPlan={effectiveCurrentPlan ?? billingProps.currentPlan}
+          onOpenChange={setPlanSheetOpen}
+          onSelectPlan={(plan, interval) => {
+            setSelectedPlan(plan);
+            setSelectedInterval(interval);
+            setPlanSheetOpen(false);
+            setCheckoutOpen(true);
+          }}
+          open={planSheetOpen}
+        />
+        {selectedPlan ? (
+          <CheckoutDialog
+            currentPlan={effectiveCurrentPlan ?? billingProps.currentPlan}
+            onOpenChange={setCheckoutOpen}
+            open={checkoutOpen}
+            plan={selectedPlan}
+            interval={selectedInterval}
+            userId={billingProps.userId}
+            businessId={billingProps.businessId}
+            businessSlug={billingProps.businessSlug}
+          />
+        ) : null}
+      </>
+    ) : null;
+
+    if (isMobile) {
+      return (
+        <>
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+              {resolvedTrigger}
+            </SheetTrigger>
+            <SheetContent side="bottom">
+              <SheetHeader>
+                <SheetTitle>
+                  {upgradePlan === "business"
+                    ? "Unlock unlimited businesses"
+                    : "Add more businesses"}
+                </SheetTitle>
+                <SheetDescription>
+                  {lockedDescription}
+                </SheetDescription>
+              </SheetHeader>
+              <SheetBody className="pt-2">
+                {lockedContent}
+              </SheetBody>
+              <SheetFooter>
+                {lockedFooter}
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+          {billingSheets}
+        </>
+      );
+    }
+
     return (
       <>
         <Dialog open={open} onOpenChange={setOpen}>
@@ -176,80 +303,42 @@ export function CreateBusinessDialog({
               </DialogDescription>
             </DialogHeader>
             <DialogBody className="pt-2">
-              <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
-                <p className="meta-label mb-2.5">
-                  {upgradePlan
-                    ? `${planMeta[upgradePlan].label} plan includes`
-                    : "Current plan"}
-                </p>
-                <ul className="flex flex-col gap-2">
-                  {upgradeFeatures.map((feature) => (
-                    <li
-                      className="flex items-center gap-2.5 text-sm text-foreground"
-                      key={feature}
-                    >
-                      <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                        <Check className="size-3" />
-                      </div>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {lockedContent}
             </DialogBody>
             <DialogFooter>
-              <Button className="w-full sm:w-auto" variant="outline" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-              {billingProps && upgradePlan ? (
-                <Button
-                  className="w-full sm:w-auto"
-                  onClick={() => {
-                    setOpen(false);
-                    if (useSharedCheckout && businessCheckout) {
-                      businessCheckout.openPlanSelection();
-                      return;
-                    }
-
-                    setPlanSheetOpen(true);
-                  }}
-                >
-                  <ArrowUpRight data-icon="inline-start" />
-                  {upgradeLabel}
-                </Button>
-              ) : null}
+              {lockedFooter}
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        {billingSheets}
+      </>
+    );
+  }
 
-        {!useSharedCheckout && billingProps ? (
-          <>
-            <PlanSelectionSheet
-              currentPlan={effectiveCurrentPlan ?? billingProps.currentPlan}
-              onOpenChange={setPlanSheetOpen}
-              onSelectPlan={(plan, interval) => {
-                setSelectedPlan(plan);
-                setSelectedInterval(interval);
-                setPlanSheetOpen(false);
-                setCheckoutOpen(true);
-              }}
-              open={planSheetOpen}
-            />
-            {selectedPlan ? (
-              <CheckoutDialog
-                currentPlan={effectiveCurrentPlan ?? billingProps.currentPlan}
-                onOpenChange={setCheckoutOpen}
-                open={checkoutOpen}
-                plan={selectedPlan}
-                interval={selectedInterval}
-                userId={billingProps.userId}
-                businessId={billingProps.businessId}
-                businessSlug={billingProps.businessSlug}
+  // --- Normal state: create business form ---
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={handleCreateDialogOpenChange}>
+        <SheetTrigger asChild>
+          {resolvedTrigger}
+        </SheetTrigger>
+        <SheetContent side="bottom" className="max-h-[calc(100dvh-1rem)]">
+          <SheetHeader>
+            <SheetTitle>Create new business</SheetTitle>
+            <SheetDescription>
+              Use a starter template to set up inquiry capture, quote defaults, and follow-up basics.
+            </SheetDescription>
+          </SheetHeader>
+          <SheetBody>
+            {businessId ? (
+              <CreateBusinessForm
+                action={action}
+                businessId={businessId}
               />
             ) : null}
-          </>
-        ) : null}
-      </>
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
     );
   }
 
@@ -275,4 +364,3 @@ export function CreateBusinessDialog({
     </Dialog>
   );
 }
-
