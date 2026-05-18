@@ -18,10 +18,13 @@ import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Image from "next/image";
 import { formatDistanceToNowStrict } from "date-fns";
+import { motion, LayoutGroup } from "framer-motion";
+import { Shimmer } from "@/components/ai-elements/shimmer";
 import {
   AlertTriangle,
   ArrowDown,
   ArrowLeft,
+  ArrowUp,
   Check,
   Copy,
   History,
@@ -34,6 +37,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Combobox } from "@/components/ui/combobox";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -90,6 +94,10 @@ type AiChatPanelProps = {
   entityCache?: Map<string, EntityConversationSnapshot>;
   messagesCache?: Map<string, ConversationMessagesSnapshot>;
   onClose: () => void;
+  /** When true, hides the close button (used for full-page mode). */
+  hideClose?: boolean;
+  /** When "fullPage", removes compact panel styling and centers the input area. */
+  variant?: "popover" | "fullPage";
   onActiveDashboardConversationChange?: (
     conversation: AiConversation | null,
   ) => void;
@@ -221,6 +229,15 @@ function formatRelativeTime(value: string | null) {
   }
 }
 
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 5) return "Working late";
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  if (hour < 21) return "Good evening";
+  return "Working late";
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Message bubble                                                             */
 /* -------------------------------------------------------------------------- */
@@ -231,8 +248,18 @@ type AssistantBubbleProps = {
   isCopyError: boolean;
   onCopy: (message: ChatMessage) => void;
   showModelMetadata: boolean;
-  sources: AiChatSource[];
+  sources?: AiChatSource[];
 };
+
+const ThinkingIndicator = memo(function ThinkingIndicator() {
+  return (
+    <div className="flex items-center py-1">
+      <Shimmer duration={1.5} className="text-sm font-medium">
+        Thinking
+      </Shimmer>
+    </div>
+  );
+});
 
 const StreamingIndicator = memo(function StreamingIndicator() {
   return (
@@ -251,7 +278,7 @@ const AssistantMessageBody = memo(function AssistantMessageBody({
   isStreaming: boolean;
 }) {
   return (
-    <div className="ai-prose text-sm leading-6 text-foreground">
+    <div className="ai-prose text-sm leading-7 text-foreground">
       <ReactMarkdown
         components={markdownComponents}
         remarkPlugins={[remarkGfm]}
@@ -263,43 +290,23 @@ const AssistantMessageBody = memo(function AssistantMessageBody({
   );
 });
 
-const AssistantSources = memo(function AssistantSources({
-  sources,
-}: {
-  sources: AiChatSource[];
-}) {
-  if (!sources.length) {
-    return null;
+/** Extract internal app links from message content for the sources panel. */
+function extractMessageLinks(content: string): Array<{ label: string; href: string }> {
+  const linkPattern = /\[([^\]]+)\]\((\/[^)]+)\)/g;
+  const links: Array<{ label: string; href: string }> = [];
+  const seen = new Set<string>();
+  let match: RegExpExecArray | null;
+
+  while ((match = linkPattern.exec(content)) !== null) {
+    const href = match[2];
+    if (!seen.has(href)) {
+      seen.add(href);
+      links.push({ label: match[1], href });
+    }
   }
 
-  return (
-    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-      {sources.map((source) => (
-        <a
-          className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[0.72rem] font-medium text-primary transition-colors hover:border-primary/40 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          href={source.href}
-          key={`${source.label}:${source.href}`}
-        >
-          <svg
-            className="size-3 shrink-0"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m9.86-2.06a4.5 4.5 0 0 0-1.242-7.244l-4.5-4.5a4.5 4.5 0 0 0-6.364 6.364l1.757 1.757"
-            />
-          </svg>
-          {source.label}
-        </a>
-      ))}
-    </div>
-  );
-});
+  return links;
+}
 
 const AssistantBubble = memo(function AssistantBubble({
   message,
@@ -307,148 +314,178 @@ const AssistantBubble = memo(function AssistantBubble({
   isCopyError,
   onCopy,
   showModelMetadata,
-  sources,
 }: AssistantBubbleProps) {
   const hasContent = message.content.trim().length > 0;
   const showPendingOnly = message.pending && !hasContent;
   const canCopy = !message.isError && hasContent && !message.pending;
   const modelLabel = showModelMetadata ? message.model : undefined;
+  const messageLinks = hasContent ? extractMessageLinks(message.content) : [];
+  const [sourcesOpen, setSourcesOpen] = useState(false);
 
   return (
-    <div className="flex w-full justify-start">
-      <div className="flex max-w-[92%] flex-col gap-2">
-        <div
-          className={cn(
-            "group/assistant w-full rounded-2xl border border-border/60 bg-background px-4 py-3 shadow-[var(--surface-shadow-sm)]",
-            message.isError && "border-destructive/40 bg-destructive/5",
-          )}
-        >
-          {showPendingOnly ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Spinner aria-hidden="true" data-icon="inline-start" />
-              Thinking...
+    <div className="flex w-full flex-col gap-1">
+      {showPendingOnly ? (
+        <ThinkingIndicator />
+      ) : (
+        <>
+          {message.isError ? (
+            <div className="flex items-center gap-2 rounded-lg bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              <AlertTriangle aria-hidden="true" className="size-4 shrink-0" />
+              <span>{message.content || "Could not complete that request."}</span>
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
-              {message.isError ? (
-                <div className="flex items-center gap-2 text-xs font-medium text-destructive">
-                  <AlertTriangle
-                    aria-hidden="true"
-                    className="size-3.5"
-                  />
-                  {message.title ?? "Could not complete that request"}
-                </div>
-              ) : message.title ? (
-                <h3 className="font-heading text-[0.95rem] font-semibold text-foreground">
-                  {message.title}
-                </h3>
-              ) : null}
+            <AssistantMessageBody
+              content={message.content}
+              isStreaming={Boolean(message.pending)}
+            />
+          )}
 
-              <AssistantMessageBody
-                content={message.content}
-                isStreaming={Boolean(message.pending)}
-              />
+          {message.statusNote ? (
+            <p
+              className={cn(
+                "text-xs leading-5",
+                message.statusNote.tone === "error"
+                  ? "text-destructive"
+                  : "text-muted-foreground",
+              )}
+            >
+              {message.statusNote.content}
+            </p>
+          ) : null}
 
-              {message.statusNote ? (
-                <p
-                  className={cn(
-                    "text-xs leading-5",
-                    message.statusNote.tone === "error"
-                      ? "text-destructive"
-                      : "text-muted-foreground",
-                  )}
+          {/* Bottom toolbar — copy + sources */}
+          {(canCopy || messageLinks.length > 0 || modelLabel) ? (
+            <div className="mt-1 flex items-center gap-1">
+              {canCopy ? (
+                <button
+                  aria-label={isCopied ? "Copied" : isCopyError ? "Copy failed" : "Copy response"}
+                  className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => onCopy(message)}
+                  type="button"
                 >
-                  {message.statusNote.content}
-                </p>
+                  {isCopied ? (
+                    <Check aria-hidden="true" className="size-3.5" />
+                  ) : (
+                    <Copy aria-hidden="true" className="size-3.5" />
+                  )}
+                </button>
               ) : null}
 
-              {canCopy || modelLabel ? (
-                <div className="flex items-center justify-between gap-3 pt-1">
-                  <span
-                    className={cn(
-                      "truncate font-mono text-[0.68rem] text-muted-foreground",
-                      !modelLabel && "invisible",
-                    )}
-                  >
-                    {modelLabel ?? ""}
+              {messageLinks.length > 0 ? (
+                <button
+                  aria-label="View sources"
+                  className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => setSourcesOpen(true)}
+                  type="button"
+                >
+                  <span className="flex -space-x-1">
+                    {messageLinks.slice(0, 3).map((_, i) => (
+                      <span
+                        className="flex size-4 items-center justify-center rounded-full border border-background bg-primary/15 text-[0.55rem] font-bold text-primary"
+                        key={i}
+                      >
+                        {i + 1}
+                      </span>
+                    ))}
                   </span>
-                  {canCopy ? (
-                    <button
-                      aria-label={
-                        isCopied
-                          ? "Copied"
-                          : isCopyError
-                            ? "Copy failed"
-                            : "Copy response"
-                      }
-                      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      onClick={() => onCopy(message)}
-                      type="button"
-                    >
-                      {isCopied ? (
-                        <Check aria-hidden="true" className="size-3.5" />
-                      ) : (
-                        <Copy aria-hidden="true" className="size-3.5" />
-                      )}
-                      {isCopied ? "Copied" : isCopyError ? "Copy failed" : "Copy"}
-                    </button>
-                  ) : null}
-                </div>
+                  Sources
+                </button>
               ) : null}
 
-              {showModelMetadata && message.debugInfo ? (
-                <div className="mt-2 rounded-lg border border-dashed border-border/80 bg-muted/30 px-3 py-2 font-mono text-[0.65rem] leading-relaxed text-muted-foreground">
-                  <div className="mb-1 text-[0.7rem] font-semibold text-foreground/70">Debug</div>
-                  <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
-                    <span>Provider</span>
-                    <span>{message.debugInfo.provider}</span>
-                    <span>Model</span>
-                    <span>{message.debugInfo.model}</span>
-                    <span>Latency</span>
-                    <span>{message.debugInfo.latencyMs}ms</span>
-                    {message.debugInfo.inputTokens != null && (
-                      <>
-                        <span>Input tokens</span>
-                        <span>{message.debugInfo.inputTokens.toLocaleString()}</span>
-                      </>
-                    )}
-                    {message.debugInfo.outputTokens != null && (
-                      <>
-                        <span>Output tokens</span>
-                        <span>{message.debugInfo.outputTokens.toLocaleString()}</span>
-                      </>
-                    )}
-                    {message.debugInfo.totalTokens != null && (
-                      <>
-                        <span>Total tokens</span>
-                        <span>{message.debugInfo.totalTokens.toLocaleString()}</span>
-                      </>
-                    )}
-                    {message.debugInfo.steps != null && message.debugInfo.steps > 1 && (
-                      <>
-                        <span>Steps</span>
-                        <span>{message.debugInfo.steps}</span>
-                      </>
-                    )}
-                    {message.debugInfo.toolCalls && message.debugInfo.toolCalls.length > 0 && (
-                      <>
-                        <span>Tools used</span>
-                        <span>{message.debugInfo.toolCalls.map((t) => t.name).join(", ")}</span>
-                      </>
-                    )}
-                    {message.debugInfo.systemPromptLength != null && (
-                      <>
-                        <span>System prompt</span>
-                        <span>{message.debugInfo.systemPromptLength.toLocaleString()} chars</span>
-                      </>
-                    )}
-                  </div>
-                </div>
+              {modelLabel ? (
+                <span className="ml-auto truncate font-mono text-[0.62rem] text-muted-foreground/60">
+                  {modelLabel}
+                </span>
               ) : null}
             </div>
-          )}
-        </div>
-      </div>
+          ) : null}
+
+          {showModelMetadata && message.debugInfo ? (
+            <div className="mt-2 rounded-lg border border-dashed border-border/80 bg-muted/30 px-3 py-2 font-mono text-[0.65rem] leading-relaxed text-muted-foreground">
+              <div className="mb-1 text-[0.7rem] font-semibold text-foreground/70">Debug</div>
+              <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+                <span>Provider</span>
+                <span>{message.debugInfo.provider}</span>
+                <span>Model</span>
+                <span>{message.debugInfo.model}</span>
+                <span>Latency</span>
+                <span>{message.debugInfo.latencyMs}ms</span>
+                {message.debugInfo.inputTokens != null && (
+                  <>
+                    <span>Input tokens</span>
+                    <span>{message.debugInfo.inputTokens.toLocaleString()}</span>
+                  </>
+                )}
+                {message.debugInfo.outputTokens != null && (
+                  <>
+                    <span>Output tokens</span>
+                    <span>{message.debugInfo.outputTokens.toLocaleString()}</span>
+                  </>
+                )}
+                {message.debugInfo.toolCalls && message.debugInfo.toolCalls.length > 0 && (
+                  <>
+                    <span>Tools used</span>
+                    <span>{message.debugInfo.toolCalls.map((t) => t.name).join(", ")}</span>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : null}
+
+          {/* Sources sheet */}
+          {sourcesOpen && messageLinks.length > 0 ? (
+            <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
+              <div
+                className="absolute inset-0 bg-black/20 backdrop-blur-[2px]"
+                onClick={() => setSourcesOpen(false)}
+                aria-hidden="true"
+              />
+              <div className="absolute inset-y-0 right-0 w-full max-w-sm animate-in slide-in-from-right border-l border-border bg-popover shadow-xl duration-200">
+                <div className="flex h-full flex-col">
+                  <div className="flex items-center justify-between border-b border-border/70 px-5 py-4">
+                    <h3 className="font-heading text-base font-semibold text-foreground">
+                      Sources ({messageLinks.length})
+                    </h3>
+                    <Button
+                      aria-label="Close sources"
+                      className="size-8"
+                      onClick={() => setSourcesOpen(false)}
+                      size="icon-sm"
+                      type="button"
+                      variant="ghost"
+                    >
+                      <X />
+                    </Button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto px-5 py-4">
+                    <div className="flex flex-col gap-2">
+                      {messageLinks.map((link, index) => (
+                        <a
+                          className="flex items-start gap-3 rounded-lg border border-border/60 px-4 py-3 transition-colors hover:bg-accent"
+                          href={link.href}
+                          key={`${link.href}-${index}`}
+                        >
+                          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                            {index + 1}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {link.label}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {link.href}
+                            </p>
+                          </div>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </>
+      )}
     </div>
   );
 });
@@ -460,8 +497,8 @@ const UserBubble = memo(function UserBubble({
 }) {
   return (
     <div className="flex w-full justify-end">
-      <div className="max-w-[88%] rounded-2xl bg-primary px-3.5 py-2.5 text-primary-foreground shadow-[var(--control-shadow)]">
-        <p className="whitespace-pre-wrap break-words text-sm leading-6">
+      <div className="max-w-[85%] rounded-2xl bg-muted/60 px-4 py-2.5">
+        <p className="whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
           {message.content}
         </p>
       </div>
@@ -608,12 +645,15 @@ export function ChatInput({
   value,
   onChange,
   onSubmit,
+  isGenerating,
 }: {
   disabled: boolean;
   placeholder: string;
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  /** When true, applies a glowing border animation to the input. */
+  isGenerating?: boolean;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -626,6 +666,7 @@ export function ChatInput({
     el.style.height = "0px";
     const nextHeight = Math.min(el.scrollHeight, 140);
     el.style.height = `${nextHeight}px`;
+    el.style.overflowY = el.scrollHeight > 140 ? "auto" : "hidden";
   }, [value]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -648,11 +689,14 @@ export function ChatInput({
 
   return (
     <form
-      className="flex items-end gap-2 rounded-2xl border border-border bg-background px-2.5 py-2 shadow-[var(--control-shadow)] focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30"
+      className={cn(
+        "relative flex items-center rounded-2xl bg-muted/70 px-4 py-3 transition-shadow",
+        isGenerating && "ai-glow-border",
+      )}
       onSubmit={handleSubmit}
     >
-      <Textarea
-        className="min-h-9 max-h-[8.75rem] flex-1 resize-none border-0 bg-transparent px-1.5 py-1.5 shadow-none focus-visible:ring-0 focus-visible:border-0"
+      <textarea
+        className="min-h-6 max-h-[8.75rem] flex-1 resize-none overflow-hidden border-none bg-transparent px-0 py-0 text-sm leading-6 text-foreground shadow-none outline-none placeholder:text-muted-foreground/70 disabled:cursor-not-allowed disabled:opacity-50"
         disabled={disabled}
         maxLength={6000}
         onChange={(event) => onChange(event.currentTarget.value)}
@@ -665,12 +709,12 @@ export function ChatInput({
 
       <Button
         aria-label="Send message"
-        className="size-9 shrink-0 rounded-xl"
+        className="ml-2 size-8 shrink-0 rounded-lg"
         disabled={disabled || !value.trim()}
-        size="icon"
+        size="icon-sm"
         type="submit"
       >
-        {disabled ? <Spinner aria-hidden="true" /> : <SendHorizontal />}
+        {disabled ? <Spinner aria-hidden="true" /> : <ArrowUp className="size-4" />}
       </Button>
     </form>
   );
@@ -687,6 +731,40 @@ function DevModelSelector({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const groups = useMemo(() => {
+    const autoGroup = {
+      heading: "Smart Routing",
+      options: [
+        {
+          value: autoAiModelOptionValue,
+          label: "Auto",
+          searchText: "auto smart capacity",
+        },
+      ],
+    };
+
+    const providerGroups = new Map<string, { label: string; value: string; searchText: string }[]>();
+    for (const option of aiChatDevModelOptions) {
+      const providerLabel = option.label.split(" / ")[0] ?? option.provider;
+      if (!providerGroups.has(providerLabel)) {
+        providerGroups.set(providerLabel, []);
+      }
+      providerGroups.get(providerLabel)!.push({
+        value: option.value,
+        label: option.model,
+        searchText: `${providerLabel} ${option.model}`,
+      });
+    }
+
+    return [
+      autoGroup,
+      ...Array.from(providerGroups.entries()).map(([heading, options]) => ({
+        heading,
+        options,
+      })),
+    ];
+  }, []);
+
   return (
     <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-background/80 px-3 py-2">
       <label
@@ -695,20 +773,20 @@ function DevModelSelector({
       >
         Dev model
       </label>
-      <select
-        className="h-8 max-w-full rounded-md border border-border bg-background px-2 text-xs text-foreground shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={disabled}
-        id={id}
-        onChange={(event) => onChange(event.currentTarget.value)}
-        value={value}
-      >
-        <option value={autoAiModelOptionValue}>Auto fallback</option>
-        {aiChatDevModelOptions.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <div className="w-full max-w-[280px]">
+        <Combobox
+          buttonClassName="h-8 text-xs"
+          contentClassName="max-h-[320px]"
+          disabled={disabled}
+          groups={groups}
+          id={id}
+          onValueChange={onChange}
+          placeholder="Select model..."
+          searchable
+          searchPlaceholder="Search models..."
+          value={value}
+        />
+      </div>
     </div>
   );
 }
@@ -786,6 +864,8 @@ export function DashboardChatHistoryList({
   pinnedIds?: Set<string>;
   onTogglePin?: (conversationId: string) => void;
 }) {
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+
   // Sort: pinned first, then by lastMessageAt.
   const sortedConversations = useMemo(() => {
     if (!pinnedIds?.size) return conversations;
@@ -797,103 +877,149 @@ export function DashboardChatHistoryList({
       if (aPinned && !bPinned) return -1;
       if (!aPinned && bPinned) return 1;
 
-      return 0; // preserve existing order within each group
+      return 0;
     });
   }, [conversations, pinnedIds]);
+
+  function handleConfirmDelete() {
+    if (deleteTarget && onDelete) {
+      onDelete(deleteTarget);
+    }
+    setDeleteTarget(null);
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-        {isLoading ? (
-          <div className="flex min-h-[16rem] items-center justify-center text-sm text-muted-foreground">
-            <Spinner aria-hidden="true" />
-          </div>
-        ) : sortedConversations.length ? (
-          <div className="flex flex-col gap-1.5">
-            {sortedConversations.map((conversation) => {
-              const isPinned = pinnedIds?.has(conversation.id) ?? false;
-
-              return (
-                <div
-                  className="group/history relative flex flex-col gap-1 rounded-xl px-3 py-2.5 transition-colors hover:bg-accent"
-                  key={conversation.id}
-                >
-                  <button
-                    className="flex w-full flex-col gap-1 text-left"
-                    onClick={() => onSelect(conversation)}
-                    type="button"
-                  >
-                    <div className="flex items-center justify-between gap-3 pr-14">
-                      <span className="truncate text-sm font-medium text-foreground">
-                        {isPinned ? "📌 " : ""}
-                        {conversation.title ?? "New dashboard chat"}
-                      </span>
-                      <span className="shrink-0 text-[0.7rem] text-muted-foreground tabular-nums">
-                        {formatRelativeTime(conversation.lastMessageAt)}
-                      </span>
-                    </div>
-                    <span className="line-clamp-2 text-[0.82rem] leading-5 text-muted-foreground">
-                      {conversation.lastMessagePreview ?? "No messages yet"}
-                    </span>
-                  </button>
-
-                  {/* Per-item actions */}
-                  <div className="absolute right-2 top-2 flex gap-0.5 opacity-0 transition-opacity group-hover/history:opacity-100">
-                    {onTogglePin ? (
-                      <button
-                        aria-label={isPinned ? "Unpin" : "Pin"}
-                        className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onTogglePin(conversation.id);
-                        }}
-                        title={isPinned ? "Unpin" : "Pin to top"}
-                        type="button"
-                      >
-                        <Pin className={cn("size-3.5", isPinned && "text-primary")} />
-                      </button>
-                    ) : null}
-                    {onDelete ? (
-                      <button
-                        aria-label="Delete"
-                        className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onDelete(conversation.id);
-                        }}
-                        title="Delete conversation"
-                        type="button"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="flex min-h-[16rem] flex-col items-center justify-center gap-3 text-center text-sm leading-6 text-muted-foreground">
-            <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <MessageSquarePlus aria-hidden="true" className="size-5" />
+      <div className="min-h-0 flex-1 overflow-y-auto ai-chat-scrollbar">
+        <div className="mx-auto w-full max-w-2xl px-4 py-5">
+          {isLoading ? (
+            <div className="flex min-h-[16rem] items-center justify-center text-sm text-muted-foreground">
+              <Spinner aria-hidden="true" />
             </div>
-            <p className="max-w-xs">
-              Start your first dashboard chat to summarise inquiries, plan
-              follow-ups, or draft quotes.
+          ) : sortedConversations.length ? (
+            <div className="flex flex-col gap-1">
+              {sortedConversations.map((conversation) => {
+                const isPinned = pinnedIds?.has(conversation.id) ?? false;
+
+                return (
+                  <div
+                    className="group/history relative flex flex-col gap-1 rounded-xl px-4 py-3 transition-colors hover:bg-accent"
+                    key={conversation.id}
+                  >
+                    <button
+                      className="flex w-full flex-col gap-1.5 text-left"
+                      onClick={() => onSelect(conversation)}
+                      type="button"
+                    >
+                      <div className="flex items-center justify-between gap-3 pr-16">
+                        <span className="truncate text-sm font-medium text-foreground">
+                          {isPinned ? "📌 " : ""}
+                          {conversation.title ?? "New chat"}
+                        </span>
+                        <span className="shrink-0 text-[0.7rem] text-muted-foreground tabular-nums">
+                          {formatRelativeTime(conversation.lastMessageAt)}
+                        </span>
+                      </div>
+                      <span className="line-clamp-2 text-[0.82rem] leading-5 text-muted-foreground">
+                        {conversation.lastMessagePreview ?? "No messages yet"}
+                      </span>
+                    </button>
+
+                    {/* Per-item actions */}
+                    <div className="absolute right-3 top-3 flex gap-0.5 opacity-0 transition-opacity group-hover/history:opacity-100">
+                      {onTogglePin ? (
+                        <button
+                          aria-label={isPinned ? "Unpin" : "Pin"}
+                          className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onTogglePin(conversation.id);
+                          }}
+                          title={isPinned ? "Unpin" : "Pin to top"}
+                          type="button"
+                        >
+                          <Pin className={cn("size-3.5", isPinned && "text-primary")} />
+                        </button>
+                      ) : null}
+                      {onDelete ? (
+                        <button
+                          aria-label="Delete"
+                          className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setDeleteTarget(conversation.id);
+                          }}
+                          title="Delete conversation"
+                          type="button"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex min-h-[16rem] flex-col items-center justify-center gap-3 text-center text-sm leading-6 text-muted-foreground">
+              <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <MessageSquarePlus aria-hidden="true" className="size-5" />
+              </div>
+              <p className="max-w-xs">
+                Start your first chat to explore inquiries, plan follow-ups, or draft quotes.
+              </p>
+              {onCreateNew ? (
+                <Button
+                  onClick={onCreateNew}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                >
+                  <MessageSquarePlus data-icon="inline-start" />
+                  New chat
+                </Button>
+              ) : null}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Delete confirmation dialog */}
+      {deleteTarget ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="alertdialog" aria-modal="true">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            onClick={() => setDeleteTarget(null)}
+            aria-hidden="true"
+          />
+          <div className="relative mx-4 w-full max-w-sm rounded-xl border border-border bg-popover p-6 shadow-lg animate-in fade-in zoom-in-95 duration-150">
+            <h3 className="font-heading text-base font-semibold text-foreground">
+              Delete conversation?
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              This will permanently remove this conversation and its messages. This action cannot be undone.
             </p>
-            {onCreateNew ? (
+            <div className="mt-5 flex justify-end gap-2">
               <Button
-                onClick={onCreateNew}
+                onClick={() => setDeleteTarget(null)}
                 size="sm"
                 type="button"
                 variant="outline"
               >
-                <MessageSquarePlus data-icon="inline-start" />
-                New chat
+                Cancel
               </Button>
-            ) : null}
+              <Button
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={handleConfirmDelete}
+                size="sm"
+                type="button"
+              >
+                Delete
+              </Button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -908,11 +1034,13 @@ export function AIChatPanel({
   cachedDashboardConversations,
   entityCache,
   entityId,
+  hideClose,
   messagesCache,
   plan,
   surface,
   title,
   userName,
+  variant = "popover",
   onClose,
   onActiveDashboardConversationChange,
   onDashboardConversationsChange,
@@ -971,7 +1099,7 @@ export function AIChatPanel({
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [historyOpen, setHistoryOpen] = useState(
-    () => isDashboard && !activeDashboardConversation,
+    () => variant !== "fullPage" && isDashboard && !activeDashboardConversation,
   );
   const [historyConversations, setHistoryConversations] = useState<
     AiConversationSummary[]
@@ -1214,7 +1342,9 @@ export function AIChatPanel({
     const controller = new AbortController();
 
     if (!activeDashboardConversation) {
-      setHistoryOpen(true);
+      if (variant !== "fullPage") {
+        setHistoryOpen(true);
+      }
     }
     setIsHistoryLoading(true);
 
@@ -1251,6 +1381,7 @@ export function AIChatPanel({
     entityId,
     reloadKey,
     onDashboardConversationsChange,
+    variant,
   ]);
 
   useEffect(() => {
@@ -1737,10 +1868,6 @@ export function AIChatPanel({
       const trimmedMessage = messageText.trim();
 
       if (!trimmedMessage) {
-        appendAssistantNote(
-          "Type a question before sending it to the assistant.",
-          true,
-        );
         return;
       }
 
@@ -2023,7 +2150,6 @@ export function AIChatPanel({
     },
     [
       activeDashboardConversation,
-      appendAssistantNote,
       businessSlug,
       conversation,
       devModel,
@@ -2067,9 +2193,10 @@ export function AIChatPanel({
   const isInputDisabled = isPending || isCreatingChat || !conversation;
   const hasAiAccess = hasFeatureAccess(plan, "aiAssistant");
 
-  return (
-    <div className="flex h-full min-h-0 flex-col bg-[var(--surface-elevated-bg)]">
-      {/* Header */}
+  const panelContent = (
+    <div className={cn("flex h-full min-h-0 flex-col", variant === "popover" && "bg-[var(--surface-elevated-bg)]")}>
+      {/* Header — hidden in fullPage variant */}
+      {variant !== "fullPage" ? (
       <div className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
         <div className="flex min-w-0 items-center gap-2.5">
           {canOpenHistory ? (
@@ -2138,7 +2265,7 @@ export function AIChatPanel({
           ) : null}
           <Button
             aria-label="Close assistant"
-            className="size-8"
+            className={hideClose ? "hidden" : "size-8"}
             onClick={onClose}
             size="icon-sm"
             type="button"
@@ -2149,10 +2276,27 @@ export function AIChatPanel({
           </Button>
         </div>
       </div>
+      ) : null}
 
       {historyOpen && isDashboard ? (
         hasAiAccess ? (
-          <DashboardChatHistoryList
+          <div className="relative min-h-0 flex-1 flex flex-col">
+            {variant === "fullPage" ? (
+              <div className="flex items-center justify-end px-3 pt-1 sm:absolute sm:right-4 sm:top-3 sm:z-10 sm:p-0">
+                <Button
+                  aria-label="Back to chat"
+                  disabled={isPending || isCreatingChat}
+                  onClick={() => setHistoryOpen(false)}
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <ArrowLeft data-icon="inline-start" />
+                  Back
+                </Button>
+              </div>
+            ) : null}
+            <DashboardChatHistoryList
             conversations={historyConversations}
             isLoading={isHistoryLoading}
             onCreateNew={() => void createNewDashboardChat()}
@@ -2163,6 +2307,7 @@ export function AIChatPanel({
             onTogglePin={handleTogglePin}
             pinnedIds={pinnedIds}
           />
+          </div>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
             <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -2186,61 +2331,207 @@ export function AIChatPanel({
       ) : (
         <>
           <div className="relative min-h-0 flex-1">
-            <div
-              className="h-full overflow-y-auto overscroll-contain"
-              onScroll={handleTranscriptScroll}
-              ref={scrollContainerRef}
-            >
-              <div className="flex min-h-full flex-col gap-3 px-4 py-4">
-                <ChatMessageList
-                  copyState={copyState}
-                  hasMore={hasMore}
-                  hydrateError={hydrateError}
-                  isHydrating={isHydrating || isCreatingChat}
-                  isLoadingOlder={isLoadingOlder}
-                  loadingLabel={
-                    isCreatingChat
-                      ? "Creating a new chat..."
-                      : "Loading saved assistant history..."
-                  }
-                  messages={messages}
-                  onCopy={handleCopy}
-                  onReload={handleReload}
-                  paginationError={paginationError}
-                  showModelMetadata={showAiChatDevTools}
-                  sources={sources}
-                />
-
-                {!messages.length &&
-                !isHydrating &&
-                !hydrateError &&
-                !isCreatingChat ? (
-                  <EmptyState
-                    disabled={isInputDisabled}
-                    onRun={(prompt) => void runMessage(prompt)}
-                    surface={surface}
-                  />
-                ) : null}
-              </div>
-            </div>
-
-            {showScrollToBottom ? (
-              <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
+            {/* Full-page inline action buttons — top bar on mobile, floating on desktop */}
+            {variant === "fullPage" && hasAiAccess ? (
+              <div className="flex items-center justify-end gap-1 px-3 pt-1 sm:absolute sm:right-4 sm:top-3 sm:z-10 sm:p-0">
                 <Button
-                  aria-label="Scroll to latest"
-                  className="pointer-events-auto size-9 rounded-full shadow-[var(--surface-shadow-md)]"
-                  onClick={scrollToBottom}
-                  size="icon"
+                  aria-label="New chat"
+                  className="size-8"
+                  disabled={isPending || isCreatingChat}
+                  onClick={() => void createNewDashboardChat()}
+                  size="icon-sm"
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                 >
-                  <ArrowDown />
+                  <MessageSquarePlus />
+                  <span className="sr-only">New chat</span>
+                </Button>
+                <Button
+                  aria-label="History"
+                  className="size-8"
+                  disabled={isPending || isCreatingChat}
+                  onClick={() => void refreshDashboardHistory()}
+                  size="icon-sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  <History />
+                  <span className="sr-only">History</span>
                 </Button>
               </div>
             ) : null}
+
+            {/* Full-page new chat layout: greeting + input + quick actions + history */}
+            {variant === "fullPage" &&
+            !messages.length &&
+            !isHydrating &&
+            !hydrateError &&
+            !isCreatingChat ? (
+              <div className="flex h-full flex-col">
+                <div className="flex flex-1 flex-col items-center justify-center px-4">
+                  <div className="mx-auto w-full max-w-2xl">
+                    {/* Greeting */}
+                    <h1 className="mb-1 font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                      {getGreeting()}, {userName.split(" ")[0]}
+                    </h1>
+                    <p className="mb-6 text-sm text-muted-foreground">
+                      How can I help with your business today?
+                    </p>
+
+                    {/* Chat input */}
+                    <motion.div layoutId="ai-chat-input" layout="position" initial={false} transition={{ layout: { duration: 0.35, ease: "easeInOut" } }}>
+                      <ChatInput
+                        disabled={isInputDisabled}
+                        isGenerating={isPending}
+                        onChange={setComposerValue}
+                        onSubmit={() => {
+                          void runMessage(composerValue);
+                        }}
+                        placeholder={placeholder}
+                        value={composerValue}
+                      />
+                    </motion.div>
+
+                    {/* Quick actions */}
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {aiQuickActions[surface].map((action, index) => {
+                        const colors = [
+                          "border-blue-200/80 bg-blue-100/50 text-blue-800 shadow-sm shadow-blue-100/50 hover:bg-blue-100 dark:border-blue-700/40 dark:bg-blue-900/30 dark:text-blue-200 dark:shadow-blue-900/20 dark:hover:bg-blue-900/50",
+                          "border-purple-200/80 bg-purple-100/50 text-purple-800 shadow-sm shadow-purple-100/50 hover:bg-purple-100 dark:border-purple-700/40 dark:bg-purple-900/30 dark:text-purple-200 dark:shadow-purple-900/20 dark:hover:bg-purple-900/50",
+                          "border-orange-200/80 bg-orange-100/50 text-orange-800 shadow-sm shadow-orange-100/50 hover:bg-orange-100 dark:border-orange-700/40 dark:bg-orange-900/30 dark:text-orange-200 dark:shadow-orange-900/20 dark:hover:bg-orange-900/50",
+                          "border-teal-200/80 bg-teal-100/50 text-teal-800 shadow-sm shadow-teal-100/50 hover:bg-teal-100 dark:border-teal-700/40 dark:bg-teal-900/30 dark:text-teal-200 dark:shadow-teal-900/20 dark:hover:bg-teal-900/50",
+                        ];
+                        return (
+                          <button
+                            className={cn(
+                              "rounded-full border px-3.5 py-1.5 text-[0.8rem] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                              colors[index % colors.length],
+                            )}
+                            disabled={isInputDisabled}
+                            key={action.label}
+                            onClick={() => void runMessage(action.prompt)}
+                            type="button"
+                          >
+                            {action.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recent conversations — exclude empty chats, limit to 3 on mobile */}
+                {(() => {
+                  const nonEmpty = historyConversations.filter((c) => c.lastMessagePreview);
+                  if (!nonEmpty.length) return null;
+                  return (
+                    <div className="mx-auto w-full max-w-2xl border-t border-border/50 px-4 py-4">
+                      <p className="mb-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Recent
+                      </p>
+                      <div className="flex flex-col gap-1">
+                        {/* Show 3 on mobile, 5 on desktop */}
+                        {nonEmpty.slice(0, 3).map((conv) => (
+                          <button
+                            className="flex items-center justify-between gap-4 rounded-lg px-3 py-2 text-left transition-colors hover:bg-accent"
+                            key={conv.id}
+                            onClick={() => void loadMessagesForConversation(conv)}
+                            type="button"
+                          >
+                            <span className="truncate text-sm text-foreground">
+                              {conv.title ?? "Untitled chat"}
+                            </span>
+                            <span className="shrink-0 text-[0.7rem] text-muted-foreground tabular-nums">
+                              {formatRelativeTime(conv.lastMessageAt)}
+                            </span>
+                          </button>
+                        ))}
+                        {nonEmpty.slice(3, 5).map((conv) => (
+                          <button
+                            className="hidden sm:flex items-center justify-between gap-4 rounded-lg px-3 py-2 text-left transition-colors hover:bg-accent"
+                            key={conv.id}
+                            onClick={() => void loadMessagesForConversation(conv)}
+                            type="button"
+                          >
+                            <span className="truncate text-sm text-foreground">
+                              {conv.title ?? "Untitled chat"}
+                            </span>
+                            <span className="shrink-0 text-[0.7rem] text-muted-foreground tabular-nums">
+                              {formatRelativeTime(conv.lastMessageAt)}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            ) : (
+              /* Normal chat layout (messages exist or popover variant) */
+              <>
+              <motion.div
+                key="fullpage-chat"
+                initial={variant === "fullPage" ? { opacity: 0 } : false}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className={cn("h-full overflow-y-auto overscroll-contain", variant === "fullPage" && "ai-chat-scrollbar")}
+                onScroll={handleTranscriptScroll}
+                ref={scrollContainerRef}
+              >
+                <div className={cn("flex min-h-full flex-col gap-3 px-4 py-4", variant === "fullPage" && "mx-auto w-full max-w-2xl px-4 py-6")}>
+                  <ChatMessageList
+                    copyState={copyState}
+                    hasMore={hasMore}
+                    hydrateError={hydrateError}
+                    isHydrating={isHydrating || isCreatingChat}
+                    isLoadingOlder={isLoadingOlder}
+                    loadingLabel={
+                      isCreatingChat
+                        ? "Creating a new chat..."
+                        : "Loading saved assistant history..."
+                    }
+                    messages={messages}
+                    onCopy={handleCopy}
+                    onReload={handleReload}
+                    paginationError={paginationError}
+                    showModelMetadata={showAiChatDevTools}
+                    sources={sources}
+                  />
+
+                  {!messages.length &&
+                  !isHydrating &&
+                  !hydrateError &&
+                  !isCreatingChat ? (
+                    <EmptyState
+                      disabled={isInputDisabled}
+                      onRun={(prompt) => void runMessage(prompt)}
+                      surface={surface}
+                    />
+                  ) : null}
+                </div>
+              </motion.div>
+
+              {showScrollToBottom ? (
+                <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
+                  <Button
+                    aria-label="Scroll to latest"
+                    className="pointer-events-auto size-9 rounded-full shadow-[var(--surface-shadow-md)]"
+                    onClick={scrollToBottom}
+                    size="icon"
+                    type="button"
+                    variant="outline"
+                  >
+                    <ArrowDown />
+                  </Button>
+                </div>
+              ) : null}
+              </>
+            )}
           </div>
 
-          <div className="border-t border-border/70 px-3 pb-3 pt-2">
+          {/* Input area — hidden when fullPage new-chat layout is showing */}
+          {!(variant === "fullPage" && !messages.length && !isHydrating && !hydrateError && !isCreatingChat) ? (
+          <div className={cn("border-t border-border/70 px-3 pb-3 pt-2", variant === "fullPage" && "mx-auto w-full max-w-2xl px-4 pb-4 pt-3")}>
             {hasAiAccess ? (
               <>
                 {showAiChatDevTools ? (
@@ -2251,15 +2542,18 @@ export function AIChatPanel({
                     value={devModel}
                   />
                 ) : null}
-                <ChatInput
-                  disabled={isInputDisabled}
-                  onChange={setComposerValue}
-                  onSubmit={() => {
-                    void runMessage(composerValue);
-                  }}
-                  placeholder={placeholder}
-                  value={composerValue}
-                />
+                <motion.div layoutId={variant === "fullPage" ? "ai-chat-input" : undefined} layout="position" initial={false} transition={{ layout: { duration: 0.35, ease: "easeInOut" } }}>
+                  <ChatInput
+                    disabled={isInputDisabled}
+                    isGenerating={isPending}
+                    onChange={setComposerValue}
+                    onSubmit={() => {
+                      void runMessage(composerValue);
+                    }}
+                    placeholder={placeholder}
+                    value={composerValue}
+                  />
+                </motion.div>
               </>
             ) : (
               <div className="flex items-end gap-2 rounded-2xl border border-border bg-background px-2.5 py-2 shadow-[var(--control-shadow)]">
@@ -2285,12 +2579,19 @@ export function AIChatPanel({
                 </LockedAction>
               </div>
             )}
-            <p className="mt-1.5 px-1 text-[0.65rem] leading-4 text-muted-foreground">
+            <p className="mt-1.5 hidden px-1 text-[0.65rem] leading-4 text-muted-foreground sm:block">
               Enter to send. Shift + Enter for a new line.
             </p>
           </div>
+          ) : null}
         </>
       )}
     </div>
   );
+
+  if (variant === "fullPage") {
+    return <LayoutGroup>{panelContent}</LayoutGroup>;
+  }
+
+  return panelContent;
 }

@@ -13,13 +13,18 @@ import {
 } from "@/features/follow-ups/queries";
 import type { FollowUpOverviewData, FollowUpView } from "@/features/follow-ups/types";
 import { getAdditionalInquirySubmittedFields } from "@/features/inquiries/form-config";
-import { buildBusinessMemoryContext } from "@/features/memory/queries";
+import { retrieveRelevantMemories } from "@/features/memory/rag-retriever";
 import {
   getQuoteDetailForBusiness,
 } from "@/features/quotes/queries";
 import { formatQuoteMoney } from "@/features/quotes/utils";
 import { streamWithFallback } from "@/lib/ai";
 import type { AiChatMessage, AiCompletionRequest } from "@/lib/ai";
+import { summarizeDroppedMessages } from "@/lib/ai/history-summarizer";
+import {
+  classifyMessageComplexity,
+  getContextBudgetForComplexity,
+} from "@/lib/ai/message-complexity";
 import type { AiModelSelection } from "@/lib/ai/model-options";
 import { db } from "@/lib/db/client";
 import {
@@ -90,17 +95,6 @@ function formatFileSize(bytes: number) {
   }
 
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatMemoryLines(memory: Awaited<ReturnType<typeof buildBusinessMemoryContext>>) {
-  if (!memory.memories.length) {
-    return "- No saved business knowledge.";
-  }
-
-  return memory.memories
-    .slice(0, 6)
-    .map((item) => `- ${item.title}: ${truncateText(item.content, 400)}`)
-    .join("\n");
 }
 
 function formatActivityLines(
@@ -388,6 +382,8 @@ function formatBusinessProfileLines(profile: {
 async function buildInquiryContext(input: {
   businessId: string;
   entityId: string;
+  /** User message for RAG-based memory retrieval */
+  userMessage?: string;
 }) {
   const context = await getInquiryAssistantContextForBusiness({
     businessId: input.businessId,
@@ -397,6 +393,17 @@ async function buildInquiryContext(input: {
   if (!context) {
     return null;
   }
+
+  // Use RAG for memory retrieval — only load relevant memories
+  const queryText = input.userMessage
+    ? `${input.userMessage} ${context.inquiry.serviceCategory} ${context.inquiry.customerName}`
+    : `${context.inquiry.details} ${context.inquiry.serviceCategory}`;
+
+  const memoryResult = await retrieveRelevantMemories({
+    businessId: input.businessId,
+    queryText,
+    topK: 3,
+  });
 
   const additionalFields = getAdditionalInquirySubmittedFields(
     context.inquiry.submittedFieldSnapshot,
@@ -467,15 +474,19 @@ async function buildInquiryContext(input: {
       : null,
     "",
     "Business knowledge",
-    formatMemoryLines(context.memory),
+    memoryResult.combinedText
+      ? memoryResult.memories.map((m) => `- ${m.title}: ${truncateText(m.content, 400)}`).join("\n")
+      : "- No saved business knowledge.",
   ].filter((line): line is string => line !== null).join("\n");
 }
 
 async function buildQuoteContext(input: {
   businessId: string;
   entityId: string;
+  /** User message for RAG-based memory retrieval */
+  userMessage?: string;
 }) {
-  const [businessRows, quote, quoteFollowUps, memory] = await Promise.all([
+  const [businessRows, quote, quoteFollowUps] = await Promise.all([
     db
       .select({
         name: businesses.name,
@@ -500,7 +511,6 @@ async function buildQuoteContext(input: {
       businessId: input.businessId,
       quoteId: input.entityId,
     }),
-    buildBusinessMemoryContext(input.businessId),
   ]);
   const business = businessRows[0];
 
@@ -508,12 +518,24 @@ async function buildQuoteContext(input: {
     return null;
   }
 
-  const linkedInquiryContext = quote.inquiryId
-    ? await getInquiryAssistantContextForBusiness({
-        businessId: input.businessId,
-        inquiryId: quote.inquiryId,
-      })
-    : null;
+  // Use RAG for memory retrieval — only load relevant memories
+  const queryText = input.userMessage
+    ? `${input.userMessage} ${quote.title} ${quote.customerName}`
+    : `${quote.title} ${quote.customerName} ${quote.notes ?? ""}`;
+
+  const [memoryResult, linkedInquiryContext] = await Promise.all([
+    retrieveRelevantMemories({
+      businessId: input.businessId,
+      queryText,
+      topK: 3,
+    }),
+    quote.inquiryId
+      ? getInquiryAssistantContextForBusiness({
+          businessId: input.businessId,
+          inquiryId: quote.inquiryId,
+        })
+      : Promise.resolve(null),
+  ]);
 
   return [
     "Surface: quote",
@@ -565,16 +587,20 @@ async function buildQuoteContext(input: {
       : null,
     "",
     "Business knowledge",
-    formatMemoryLines(memory),
+    memoryResult.combinedText
+      ? memoryResult.memories.map((m) => `- ${m.title}: ${truncateText(m.content, 400)}`).join("\n")
+      : "- No saved business knowledge.",
   ].filter((line): line is string => line !== null).join("\n");
 }
 
 async function buildDashboardContext(input: {
   businessId: string;
+  /** User message for RAG-based memory retrieval */
+  userMessage?: string;
 }) {
   // Minimal context for dashboard — tools handle all data queries.
-  // Only load business identity and saved knowledge (which tools don't cover).
-  const [businessRow, memory] = await Promise.all([
+  // Only load business identity and relevant knowledge (RAG-filtered).
+  const [businessRow, memoryResult] = await Promise.all([
     db
       .select({
         id: businesses.id,
@@ -595,13 +621,21 @@ async function buildDashboardContext(input: {
         ),
       )
       .limit(1),
-    buildBusinessMemoryContext(input.businessId),
+    retrieveRelevantMemories({
+      businessId: input.businessId,
+      queryText: input.userMessage ?? "",
+      topK: 3,
+    }),
   ]);
   const business = businessRow[0];
 
   if (!business) {
     return null;
   }
+
+  const memoryLines = memoryResult.combinedText
+    ? memoryResult.memories.map((m) => `- ${m.title}: ${truncateText(m.content, 400)}`).join("\n")
+    : "- No saved business knowledge.";
 
   return [
     "Surface: dashboard",
@@ -612,9 +646,12 @@ async function buildDashboardContext(input: {
     `Created: ${business.createdAt.toISOString().slice(0, 10)}`,
     "",
     "Business knowledge",
-    formatMemoryLines(memory),
+    memoryLines,
     "",
-    "NOTE: Use your tools to query actual business data (inquiries, quotes, stats, follow-ups, activity). Do not guess — always use a tool when the user asks about records, counts, or details.",
+    "IMPORTANT: You MUST call tools to answer any question about data. Do NOT use the business knowledge above to answer count/status/detail questions — it is background context only.",
+    `Use this slug for building links: ${business.slug}`,
+    "Link format for inquiries: /businesses/SLUG/inquiries/INQUIRY_ID",
+    "Link format for quotes: /businesses/SLUG/quotes/QUOTE_ID",
   ].filter((line): line is string => line !== null).join("\n");
 }
 
@@ -622,6 +659,8 @@ export async function buildAiSurfaceContext(input: {
   surface: AiSurface;
   entityId: string;
   businessId: string | null;
+  /** User message for RAG-based memory retrieval */
+  userMessage?: string;
 }) {
   switch (input.surface) {
     case "inquiry":
@@ -629,6 +668,7 @@ export async function buildAiSurfaceContext(input: {
         ? buildInquiryContext({
             businessId: input.businessId,
             entityId: input.entityId,
+            userMessage: input.userMessage,
           })
         : null;
     case "quote":
@@ -636,12 +676,14 @@ export async function buildAiSurfaceContext(input: {
         ? buildQuoteContext({
             businessId: input.businessId,
             entityId: input.entityId,
+            userMessage: input.userMessage,
           })
         : null;
     case "dashboard":
       return input.businessId
         ? buildDashboardContext({
             businessId: input.businessId,
+            userMessage: input.userMessage,
           })
         : null;
   }
@@ -649,66 +691,36 @@ export async function buildAiSurfaceContext(input: {
 
 export function getSurfaceInstructions(surface: AiSurface) {
   const shared = [
-    "You are Requo's internal assistant for an owner-led service business.",
-    "Use only the provided Requo business context and chat history.",
-    "Resolve follow-up questions, pronouns, and omitted subjects from the recent chat history before asking the user to repeat themselves.",
-    "If the last part of the conversation was about the current business profile, treat short follow-ups such as 'when was it created' or 'what is its email' as referring to that business unless the user redirects.",
-    "Stay focused on inquiries, quotes, tickets, reports, cases, complaints, incidents, customer issues, support workflows, follow-ups, and operational summaries.",
-    "Never claim that you changed the database, sent a message, or updated a record.",
-    "If the user asks to create, update, save, send, close, reopen, assign, or otherwise modify app records, explain that chat can draft or guide the change but the saved change must be done with the app controls.",
-    "If exact pricing, policy, availability, or terms are missing, say what is missing instead of inventing details.",
-    "Do not include <think> or <thinking> tags, internal thought process, or reasoning blocks.",
-    "Format every response as GitHub-flavored Markdown. Use concise headings, bullets, tables, or checklists when they make the answer easier to scan.",
-    "Do not add a Sources section; Requo displays clickable source links below your answer.",
+    "You are Requo's assistant for an owner-led service business.",
+    "Use ONLY the provided context, tool results, and chat history. Never invent, assume, or hallucinate data.",
+    "Stay focused on inquiries, quotes, follow-ups, and operational summaries.",
+    "Never claim you changed the database or sent a message. Modifications require app controls.",
+    "If pricing/policy/terms are missing, say what's missing instead of inventing details.",
+    "Format as GitHub-flavored Markdown. Be concise.",
+    "",
+    "STRICT DATA RULES:",
+    "- Every number, count, name, status, date, and amount you mention MUST come directly from context or tool output.",
+    "- NEVER fabricate records, IDs, quote numbers, customer names, or statistics.",
+    "- If data is not available in context or tool results, explicitly state that. Do not estimate or approximate.",
+    "- When tool results include IDs, use them to construct accurate links.",
     "",
     "RESPONSE RULES:",
-    "- For simple factual questions (status, date, amount, name), answer in ONE sentence. No headers, no bullets, no preamble. Example: 'The status of Q-1006 is **Draft**.'",
-    "- For detail requests, use the templates below.",
-    "- Always include links to referenced inquiries/quotes using markdown link format. The business slug is in the context.",
-    "- Link format for inquiries: [Customer Name](/businesses/SLUG/inquiries/INQUIRY_ID)",
-    "- Link format for quotes: [Q-XXXX](/businesses/SLUG/quotes/QUOTE_ID)",
-    "- Make the customer name or quote number the clickable text, not a raw URL.",
+    "- Simple factual questions: ONE sentence, no headers. E.g. 'The status of Q-1006 is **Draft**.'",
+    "- Link inquiries using the URL from tool output: [Name](/businesses/SLUG/inquiries/ID)",
+    "- Link quotes using the URL from tool output: [Q-XXXX](/businesses/SLUG/quotes/ID)",
+    "- Only present data from context or tool output. Never invent records. If not found, say so.",
     "",
-    "RESPONSE TEMPLATES:",
-    "",
-    "Single inquiry detail:",
-    "**[Customer Name](link)** — [Service Category] `[status]`",
-    "- Email: [email]",
-    "- Subject: [subject]",
-    "- Submitted: [date] | Deadline: [deadline]",
-    "- Budget: [budget]",
-    "> [First 2-3 sentences of customer details]",
-    "",
-    "Inquiry list:",
-    "1. [**Customer Name**](link) — [Category] `[status]` — [1-line summary]",
-    "2. [**Customer Name**](link) — [Category] `[status]` — [1-line summary]",
-    "",
-    "Single quote detail:",
-    "[**Q-XXXX**](link) — [Title] `[status]`",
-    "- Customer: [name] ([email])",
-    "- Total: [amount] | Valid until: [date]",
-    "- Sent: [date] | Accepted: [date]",
-    "",
-    "| Item | Qty | Price |",
-    "|------|-----|-------|",
-    "| [desc] | [qty] | [price] |",
-    "",
-    "Quote list:",
-    "1. [**Q-XXXX**](link) \"[Title]\" for [Customer] — `[status]` — [total]",
-    "2. [**Q-XXXX**](link) \"[Title]\" for [Customer] — `[status]` — [total]",
-    "",
-    "Follow-ups:",
-    "- ⏰ **[Title]** — due [date] `[status]` — [reason]",
-    "",
-    "IMPORTANT: Only present data from the provided context. Never invent records, names, amounts, or dates. If not found, say 'I couldn't find [X] in the records.'",
+    "TEMPLATES:",
+    "Inquiry: **[Name](link)** — [Category] `[status]` with bullet details",
+    "Quote: [**Q-XXXX**](link) — [Title] `[status]` | Customer | Total | line items table",
+    "Follow-up: ⏰ **[Title]** — due [date] `[status]` — [reason]",
   ];
 
   if (surface === "inquiry") {
     return [
       ...shared,
       "",
-      "Inquiry surface: help with the current inquiry, related customer workflow, summaries, replies, follow-ups, notes, status explanations, and quote preparation.",
-      "When summarizing the inquiry, use the single inquiry template. Always include the customer email.",
+      "Inquiry surface: help with the current inquiry, summaries, replies, follow-ups, notes, status, and quote preparation.",
     ].join("\n");
   }
 
@@ -716,22 +728,24 @@ export function getSurfaceInstructions(surface: AiSurface) {
     return [
       ...shared,
       "",
-      "Quote surface: prioritize quote drafting, wording improvements, terms, notes, exclusions, assumptions, customer-facing messages, follow-ups, linked inquiry context, and missing-information checks.",
-      "When showing quote details, use the single quote template with the line items table. Always include the customer email.",
-      "Drafting quote text is allowed when it is only shown to the user.",
-      "Saving quote text, changing quote status, sending externally, or changing quote totals must be done with the quote page controls.",
+      "Quote surface: help with quote drafting, wording, terms, notes, follow-ups, linked inquiry context, and missing-info checks.",
+      "Drafting text is allowed. Saving/sending/changing status requires app controls.",
     ].join("\n");
   }
 
   return [
     ...shared,
     "",
-    "Dashboard surface: help across the current business. Answer questions about inquiries, quotes, follow-ups, activity, and business performance.",
-    "You have tools to query the business database. ALWAYS use tools to get data — never guess or make up numbers.",
-    "For count questions, use count_inquiries or count_quotes. For specific records, use get_inquiry_details or get_quote_details. For overviews, use get_business_stats.",
-    "If the user asks about something you can look up with a tool, call the tool first before responding.",
-    "If the requested information cannot be retrieved with any available tool, say so clearly.",
-    "Avoid broad or destructive write guidance from dashboard. Any database modification must be done with the app controls.",
+    "Dashboard surface: answer questions across the business using tools.",
+    "CRITICAL RULES — NO HALLUCINATION:",
+    "- ALWAYS call a tool before answering any question about data, counts, statuses, records, or business metrics.",
+    "- NEVER guess or estimate counts, totals, statuses, names, emails, dates, or amounts. If you don't have tool output, call the tool first.",
+    "- NEVER fabricate inquiry IDs, quote numbers, customer names, or any identifiers. Only reference data returned by tools.",
+    "- If a tool returns 'not found' or empty results, report that honestly. Do not invent alternative results.",
+    "- If the user's question cannot be answered with available tools, say so clearly. Do not approximate.",
+    "- Use the URLs returned by tools in your links. Do not construct URLs from memory — only use URLs from tool output.",
+    "- When referencing counts, use the EXACT numbers from tool output. Do not round, approximate, or add to them.",
+    "- Available tools: count_inquiries, count_quotes, list_inquiries, list_quotes, search_inquiries, search_quotes, get_inquiry_details, get_quote_details, get_business_stats, get_analytics_overview, get_revenue_summary, get_follow_ups, get_recent_activity, get_stale_inquiries, get_expiring_quotes, get_customer_history, get_service_categories, get_pricing_library, get_inquiry_notes, get_inquiry_conversation, get_inquiry_attachments, get_job_pipeline, get_response_times, get_period_comparison, get_business_knowledge, get_quote_customer_response.",
   ].join("\n");
 }
 
@@ -752,10 +766,11 @@ export function buildAiSurfaceCompletionRequest(input: {
     truncateText(input.message, 4000),
   ].join("\n");
 
-  // Rough token estimate: ~4 chars per token for English text.
-  // Reserve budget for output tokens and leave headroom for model overhead.
+  // Classify message complexity for dynamic budget allocation
+  const complexity = classifyMessageComplexity(input.message);
+  const maxInputChars = getContextBudgetForComplexity(complexity);
+
   const maxOutputTokens = input.surface === "quote" ? 2200 : 1700;
-  const maxInputChars = 16_000; // ~4000 tokens input budget for smaller models
   const fixedChars = systemContent.length + userContent.length;
   const availableForHistory = Math.max(0, maxInputChars - fixedChars);
 
@@ -777,7 +792,7 @@ export function buildAiSurfaceCompletionRequest(input: {
     ],
     temperature: 0.2,
     maxOutputTokens,
-    qualityTier: input.qualityTier ?? "balanced",
+    qualityTier: input.qualityTier ?? (complexity === "simple" ? "cheap" : "balanced"),
     ...(input.modelSelection ? { model: input.modelSelection.model } : {}),
   };
 }
@@ -789,8 +804,8 @@ export function buildAiSurfaceCompletionRequest(input: {
  * 1. If everything fits, return as-is.
  * 2. Otherwise, keep the most recent messages (for continuity) and optionally the
  *    first user message (as a topic anchor), dropping messages from the middle.
- * 3. When messages are dropped from the middle, inject a system breadcrumb so the
- *    model knows there was earlier context it didn't see.
+ * 3. When messages are dropped from the middle, generate a heuristic summary
+ *    so the model knows there was earlier context it didn't see.
  * 4. As a last resort, truncate the oldest remaining message's content.
  */
 function trimHistoryToFit(
@@ -812,10 +827,10 @@ function trimHistoryToFit(
   const firstUser = firstUserIndex >= 0 ? history[firstUserIndex] : null;
 
   // Collect recent messages (from newest), stopping when we'd exceed budget.
-  // Reserve room for the topic anchor + breadcrumb.
-  const breadcrumbCost = 120; // approx chars for "[Earlier messages omitted...]"
+  // Reserve room for the topic anchor + summary breadcrumb.
+  const summaryBudget = 300; // chars for the summary message
   const anchorCost = firstUser ? Math.min(firstUser.content.length, 400) + 20 : 0;
-  const recentBudget = Math.max(200, maxChars - anchorCost - breadcrumbCost);
+  const recentBudget = Math.max(200, maxChars - anchorCost - summaryBudget);
 
   const recent: AiChatMessage[] = [];
   let recentChars = 0;
@@ -834,11 +849,11 @@ function trimHistoryToFit(
     recentChars += cost;
   }
 
-  // If we consumed everything after the anchor, no breadcrumb needed.
+  // Determine which messages were dropped
   const firstRecentIndex =
     recent.length > 0 ? history.indexOf(recent[0]) : history.length;
-  const droppedCount =
-    firstRecentIndex - (firstUserIndex >= 0 ? firstUserIndex + 1 : 0);
+  const droppedStartIndex = firstUserIndex >= 0 ? firstUserIndex + 1 : 0;
+  const droppedMessages = history.slice(droppedStartIndex, firstRecentIndex);
 
   const result: AiChatMessage[] = [];
 
@@ -853,11 +868,15 @@ function trimHistoryToFit(
     });
   }
 
-  if (droppedCount > 0) {
-    result.push({
-      role: "system",
-      content: `[Earlier ${droppedCount} message${droppedCount === 1 ? "" : "s"} omitted for brevity. Ask if you need earlier context.]`,
-    });
+  if (droppedMessages.length > 0) {
+    // Generate a heuristic summary of dropped messages instead of just "[omitted]"
+    const summary = summarizeDroppedMessages(droppedMessages);
+    if (summary) {
+      result.push({
+        role: "system",
+        content: summary,
+      });
+    }
   }
 
   result.push(...recent);

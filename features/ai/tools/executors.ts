@@ -21,8 +21,11 @@ import {
   analyticsEvents,
   businesses,
   businessInquiryForms,
+  businessMemories,
   followUps,
   inquiries,
+  inquiryAttachments,
+  inquiryMessages,
   inquiryNotes,
   quoteItems,
   quoteLibraryEntries,
@@ -191,7 +194,7 @@ async function executeSearchInquiries(
 
   const lines = rows.map(
     (r) =>
-      `- [id:${r.id}] ${r.customerName} (${r.customerEmail ?? "no email"}) — ${r.serviceCategory} [${r.status}] — subject: ${r.subject ?? "N/A"} — submitted: ${formatDate(r.submittedAt)}${r.budgetText ? ` — budget: ${r.budgetText}` : ""} — ${truncate(r.details, 120)}`,
+      `- [id:${r.id}] ${r.customerName} (${r.customerEmail ?? "no email"}) — ${r.serviceCategory} [${r.status}] — subject: ${r.subject ?? "N/A"} — submitted: ${formatDate(r.submittedAt)}${r.budgetText ? ` — budget: ${r.budgetText}` : ""} — ${truncate(r.details, 120)} — url: /businesses/${ctx.businessSlug}/inquiries/${r.id}`,
   );
 
   return `Found ${rows.length} inquiries matching "${query}":\n${lines.join("\n")}`;
@@ -247,7 +250,7 @@ async function executeSearchQuotes(
 
   const lines = rows.map(
     (r) =>
-      `- [id:${r.id}] ${r.quoteNumber} "${r.title}" for ${r.customerName} (${r.customerEmail ?? "no email"}) [${r.status}] — total: ${formatQuoteMoney(r.totalInCents, r.currency)} — created: ${formatDate(r.createdAt)}${r.sentAt ? ` — sent: ${formatDate(r.sentAt)}` : ""}`,
+      `- [id:${r.id}] ${r.quoteNumber} "${r.title}" for ${r.customerName} (${r.customerEmail ?? "no email"}) [${r.status}] — total: ${formatQuoteMoney(r.totalInCents, r.currency)} — created: ${formatDate(r.createdAt)}${r.sentAt ? ` — sent: ${formatDate(r.sentAt)}` : ""} — url: /businesses/${ctx.businessSlug}/quotes/${r.id}`,
   );
 
   return `Found ${rows.length} quotes matching "${query}":\n${lines.join("\n")}`;
@@ -324,6 +327,7 @@ async function executeGetInquiryDetails(
   return [
     `Inquiry: ${inq.customerName}`,
     `- ID: ${inq.id}`,
+    `- URL: /businesses/${ctx.businessSlug}/inquiries/${inq.id}`,
     `- Email: ${inq.customerEmail ?? "Not provided"}`,
     `- Contact: ${inq.customerContactMethod} ${inq.customerContactHandle}`,
     `- Category: ${inq.serviceCategory}`,
@@ -413,6 +417,7 @@ async function executeGetQuoteDetails(
   return [
     `Quote: ${q.quoteNumber} — "${q.title}"`,
     `- ID: ${q.id}`,
+    `- URL: /businesses/${ctx.businessSlug}/quotes/${q.id}`,
     `- Customer: ${q.customerName} (${q.customerEmail ?? "no email"})`,
     `- Contact: ${q.customerContactMethod} ${q.customerContactHandle}`,
     `- Status: ${q.status}`,
@@ -425,7 +430,7 @@ async function executeGetQuoteDetails(
     `- Viewed: ${formatDate(q.publicViewedAt)}`,
     `- Accepted: ${formatDate(q.acceptedAt)}`,
     q.notes ? `- Notes: ${truncate(q.notes, 400)}` : null,
-    q.inquiryId ? `- Linked inquiry: ${q.inquiryId}` : null,
+    q.inquiryId ? `- Linked inquiry: ${q.inquiryId} (url: /businesses/${ctx.businessSlug}/inquiries/${q.inquiryId})` : null,
     `- Line items:\n${itemsSection}`,
   ]
     .filter((line): line is string => line !== null)
@@ -662,7 +667,7 @@ async function executeListInquiries(
 
   const lines = rows.map(
     (r) =>
-      `- [id:${r.id}] ${r.customerName} (${r.customerEmail ?? "no email"}) — ${r.serviceCategory} [${r.status}] — subject: ${r.subject ?? "N/A"} — submitted: ${formatDate(r.submittedAt)}${r.budgetText ? ` — budget: ${r.budgetText}` : ""}`,
+      `- [id:${r.id}] ${r.customerName} (${r.customerEmail ?? "no email"}) — ${r.serviceCategory} [${r.status}] — subject: ${r.subject ?? "N/A"} — submitted: ${formatDate(r.submittedAt)}${r.budgetText ? ` — budget: ${r.budgetText}` : ""} — url: /businesses/${ctx.businessSlug}/inquiries/${r.id}`,
   );
 
   const paginationNote =
@@ -726,7 +731,7 @@ async function executeListQuotes(
 
   const lines = rows.map(
     (r) =>
-      `- [id:${r.id}] ${r.quoteNumber} "${r.title}" for ${r.customerName} (${r.customerEmail ?? "no email"}) [${r.status}] — total: ${formatQuoteMoney(r.totalInCents, r.currency)} — created: ${formatDate(r.createdAt)}${r.sentAt ? ` — sent: ${formatDate(r.sentAt)}` : ""}`,
+      `- [id:${r.id}] ${r.quoteNumber} "${r.title}" for ${r.customerName} (${r.customerEmail ?? "no email"}) [${r.status}] — total: ${formatQuoteMoney(r.totalInCents, r.currency)} — created: ${formatDate(r.createdAt)}${r.sentAt ? ` — sent: ${formatDate(r.sentAt)}` : ""} — url: /businesses/${ctx.businessSlug}/quotes/${r.id}`,
   );
 
   const paginationNote =
@@ -947,7 +952,7 @@ async function executeGetStaleInquiries(
   if (!rows.length) return `No stale inquiries found (older than ${staleDays} days without response).`;
 
   const lines = rows.map(
-    (r) => `- [id:${r.id}] ${r.customerName} — ${r.serviceCategory} [${r.status}] — submitted: ${formatDate(r.submittedAt)} — subject: ${r.subject ?? "N/A"}`,
+    (r) => `- [id:${r.id}] ${r.customerName} — ${r.serviceCategory} [${r.status}] — submitted: ${formatDate(r.submittedAt)} — subject: ${r.subject ?? "N/A"} — url: /businesses/${ctx.businessSlug}/inquiries/${r.id}`,
   );
 
   return `Stale inquiries (no response, ${staleDays}+ days old): ${rows.length} found\n${lines.join("\n")}`;
@@ -1001,7 +1006,7 @@ async function executeGetExpiringQuotes(
   if (!rows.length) return `No quotes expiring within the next ${withinDays} days.`;
 
   const lines = rows.map(
-    (r) => `- [id:${r.id}] ${r.quoteNumber} "${r.title}" for ${r.customerName} — ${formatQuoteMoney(r.totalInCents, currency)} — expires: ${r.validUntil}`,
+    (r) => `- [id:${r.id}] ${r.quoteNumber} "${r.title}" for ${r.customerName} — ${formatQuoteMoney(r.totalInCents, currency)} — expires: ${r.validUntil} — url: /businesses/${ctx.businessSlug}/quotes/${r.id}`,
   );
 
   return `Quotes expiring within ${withinDays} days: ${rows.length} found\n${lines.join("\n")}`;
@@ -1080,7 +1085,7 @@ async function executeGetCustomerHistory(
       "",
       `Inquiries (${customerInquiries.length}):`,
       ...customerInquiries.map(
-        (r) => `- [id:${r.id}] ${r.customerName} — ${r.serviceCategory} [${r.status}] — ${formatDate(r.submittedAt)}`,
+        (r) => `- [id:${r.id}] ${r.customerName} — ${r.serviceCategory} [${r.status}] — ${formatDate(r.submittedAt)} — url: /businesses/${ctx.businessSlug}/inquiries/${r.id}`,
       ),
     );
   }
@@ -1090,7 +1095,7 @@ async function executeGetCustomerHistory(
       "",
       `Quotes (${customerQuotes.length}):`,
       ...customerQuotes.map(
-        (r) => `- [id:${r.id}] ${r.quoteNumber} "${r.title}" [${r.status}] — ${formatQuoteMoney(r.totalInCents, r.currency)} — ${formatDate(r.createdAt)}`,
+        (r) => `- [id:${r.id}] ${r.quoteNumber} "${r.title}" [${r.status}] — ${formatQuoteMoney(r.totalInCents, r.currency)} — ${formatDate(r.createdAt)} — url: /businesses/${ctx.businessSlug}/quotes/${r.id}`,
       ),
     );
   }
@@ -1253,6 +1258,376 @@ async function executeGetInquiryNotes(
 }
 
 // ---------------------------------------------------------------------------
+// Tool: get_inquiry_conversation
+// ---------------------------------------------------------------------------
+
+async function executeGetInquiryConversation(
+  ctx: AiToolExecutionContext,
+  args: Record<string, unknown>,
+): Promise<string> {
+  const inquiryId = typeof args.inquiry_id === "string" ? args.inquiry_id.trim() : "";
+  if (!inquiryId) return "Error: inquiry_id parameter is required.";
+
+  // Verify belongs to business
+  const inqRows = await db
+    .select({ id: inquiries.id, customerName: inquiries.customerName })
+    .from(inquiries)
+    .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, ctx.businessId)))
+    .limit(1);
+  if (!inqRows.length) return `Inquiry "${inquiryId}" not found.`;
+
+  const messages = await db
+    .select({
+      role: inquiryMessages.role,
+      content: inquiryMessages.content,
+      status: inquiryMessages.status,
+      createdAt: inquiryMessages.createdAt,
+    })
+    .from(inquiryMessages)
+    .where(
+      and(
+        eq(inquiryMessages.inquiryId, inquiryId),
+        eq(inquiryMessages.status, "completed"),
+      ),
+    )
+    .orderBy(inquiryMessages.createdAt)
+    .limit(30);
+
+  if (!messages.length) return `No conversation messages for inquiry "${inqRows[0].customerName}".`;
+
+  const lines = messages.map(
+    (m) => `[${m.role}] (${formatDate(m.createdAt)}): ${truncate(m.content, 400)}`,
+  );
+
+  return `Conversation with ${inqRows[0].customerName} (${messages.length} messages):\n${lines.join("\n")}`;
+}
+
+// ---------------------------------------------------------------------------
+// Tool: get_inquiry_attachments
+// ---------------------------------------------------------------------------
+
+async function executeGetInquiryAttachments(
+  ctx: AiToolExecutionContext,
+  args: Record<string, unknown>,
+): Promise<string> {
+  const inquiryId = typeof args.inquiry_id === "string" ? args.inquiry_id.trim() : "";
+  if (!inquiryId) return "Error: inquiry_id parameter is required.";
+
+  const attachments = await db
+    .select({
+      id: inquiryAttachments.id,
+      fileName: inquiryAttachments.fileName,
+      contentType: inquiryAttachments.contentType,
+      fileSize: inquiryAttachments.fileSize,
+      createdAt: inquiryAttachments.createdAt,
+    })
+    .from(inquiryAttachments)
+    .where(
+      and(
+        eq(inquiryAttachments.inquiryId, inquiryId),
+        eq(inquiryAttachments.businessId, ctx.businessId),
+      ),
+    )
+    .orderBy(inquiryAttachments.createdAt);
+
+  if (!attachments.length) return "No attachments for this inquiry.";
+
+  const lines = attachments.map(
+    (a) => `- ${a.fileName} (${a.contentType}, ${formatFileSize(a.fileSize)}) — uploaded ${formatDate(a.createdAt)}`,
+  );
+
+  return `Attachments (${attachments.length}):\n${lines.join("\n")}`;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// ---------------------------------------------------------------------------
+// Tool: get_job_pipeline
+// ---------------------------------------------------------------------------
+
+async function executeGetJobPipeline(
+  ctx: AiToolExecutionContext,
+  args: Record<string, unknown>,
+): Promise<string> {
+  const statusFilter = typeof args.status === "string" ? args.status : null;
+  const limit = clampLimit(args.limit, 10);
+
+  const businessRow = await db
+    .select({ defaultCurrency: businesses.defaultCurrency })
+    .from(businesses)
+    .where(eq(businesses.id, ctx.businessId))
+    .limit(1);
+  const currency = businessRow[0]?.defaultCurrency ?? "USD";
+
+  const rows = await db
+    .select({
+      id: quotes.id,
+      quoteNumber: quotes.quoteNumber,
+      title: quotes.title,
+      customerName: quotes.customerName,
+      totalInCents: quotes.totalInCents,
+      postAcceptanceStatus: quotes.postAcceptanceStatus,
+      acceptedAt: quotes.acceptedAt,
+      completedAt: quotes.completedAt,
+    })
+    .from(quotes)
+    .where(
+      and(
+        eq(quotes.businessId, ctx.businessId),
+        isNull(quotes.deletedAt),
+        eq(quotes.status, "accepted"),
+        statusFilter
+          ? sql`${quotes.postAcceptanceStatus} = ${statusFilter}`
+          : undefined,
+      ),
+    )
+    .orderBy(desc(quotes.acceptedAt))
+    .limit(limit);
+
+  if (!rows.length) return statusFilter
+    ? `No accepted quotes with post-acceptance status "${statusFilter}".`
+    : "No accepted quotes (job pipeline is empty).";
+
+  const lines = rows.map(
+    (r) => `- [id:${r.id}] ${r.quoteNumber} "${r.title}" for ${r.customerName} — ${formatQuoteMoney(r.totalInCents, currency)} — stage: ${r.postAcceptanceStatus} — accepted: ${formatDate(r.acceptedAt)}${r.completedAt ? ` — completed: ${formatDate(r.completedAt)}` : ""} — url: /businesses/${ctx.businessSlug}/quotes/${r.id}`,
+  );
+
+  return `Job pipeline (${rows.length} accepted quotes):\n${lines.join("\n")}`;
+}
+
+// ---------------------------------------------------------------------------
+// Tool: get_response_times
+// ---------------------------------------------------------------------------
+
+async function executeGetResponseTimes(
+  ctx: AiToolExecutionContext,
+  args: Record<string, unknown>,
+): Promise<string> {
+  const days = typeof args.days === "number" ? Math.min(Math.max(7, args.days), 90) : 30;
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  const rows = await db
+    .select({
+      avgResponseHours: sql<number | null>`
+        avg(extract(epoch from (${inquiries.lastRespondedAt} - ${inquiries.submittedAt})) / 3600)
+        filter (where ${inquiries.lastRespondedAt} is not null)
+      `,
+      medianResponseHours: sql<number | null>`
+        percentile_cont(0.5) within group (
+          order by extract(epoch from (${inquiries.lastRespondedAt} - ${inquiries.submittedAt})) / 3600
+        ) filter (where ${inquiries.lastRespondedAt} is not null)
+      `,
+      respondedCount: sql<number>`count(*) filter (where ${inquiries.lastRespondedAt} is not null)`,
+      unrespondedCount: sql<number>`count(*) filter (where ${inquiries.lastRespondedAt} is null and ${inquiries.status} in ('new', 'waiting'))`,
+      totalCount: count(),
+    })
+    .from(inquiries)
+    .where(
+      and(
+        eq(inquiries.businessId, ctx.businessId),
+        isNull(inquiries.deletedAt),
+        gte(inquiries.submittedAt, since),
+      ),
+    );
+
+  const r = rows[0];
+  const avgHours = r?.avgResponseHours != null ? Math.round(Number(r.avgResponseHours) * 10) / 10 : null;
+  const medianHours = r?.medianResponseHours != null ? Math.round(Number(r.medianResponseHours) * 10) / 10 : null;
+  const responded = Number(r?.respondedCount ?? 0);
+  const unresponded = Number(r?.unrespondedCount ?? 0);
+  const total = r?.totalCount ?? 0;
+
+  return [
+    `Response times (last ${days} days, ${total} inquiries)`,
+    `- Average response time: ${avgHours != null ? `${avgHours}h` : "N/A"}`,
+    `- Median response time: ${medianHours != null ? `${medianHours}h` : "N/A"}`,
+    `- Responded: ${responded} / Awaiting response: ${unresponded}`,
+    `- Response rate: ${total ? ((responded / total) * 100).toFixed(0) : "0"}%`,
+  ].join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Tool: get_period_comparison
+// ---------------------------------------------------------------------------
+
+async function executeGetPeriodComparison(
+  ctx: AiToolExecutionContext,
+  args: Record<string, unknown>,
+): Promise<string> {
+  const days = typeof args.days === "number" ? Math.min(Math.max(7, args.days), 90) : 30;
+  const now = new Date();
+  const currentStart = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  const previousStart = new Date(now.getTime() - days * 2 * 24 * 60 * 60 * 1000);
+
+  const businessRow = await db
+    .select({ defaultCurrency: businesses.defaultCurrency })
+    .from(businesses)
+    .where(eq(businesses.id, ctx.businessId))
+    .limit(1);
+  const currency = businessRow[0]?.defaultCurrency ?? "USD";
+
+  const [currentInq, previousInq, currentQ, previousQ] = await Promise.all([
+    db.select({ count: count() }).from(inquiries).where(and(
+      eq(inquiries.businessId, ctx.businessId), isNull(inquiries.deletedAt),
+      gte(inquiries.submittedAt, currentStart),
+    )),
+    db.select({ count: count() }).from(inquiries).where(and(
+      eq(inquiries.businessId, ctx.businessId), isNull(inquiries.deletedAt),
+      gte(inquiries.submittedAt, previousStart), lt(inquiries.submittedAt, currentStart),
+    )),
+    db.select({
+      count: count(),
+      accepted: sql<number>`count(*) filter (where ${quotes.status} = 'accepted')`,
+      value: sql<number>`coalesce(sum(${quotes.totalInCents}) filter (where ${quotes.status} = 'accepted'), 0)`,
+    }).from(quotes).where(and(
+      eq(quotes.businessId, ctx.businessId), isNull(quotes.deletedAt),
+      gte(quotes.createdAt, currentStart),
+    )),
+    db.select({
+      count: count(),
+      accepted: sql<number>`count(*) filter (where ${quotes.status} = 'accepted')`,
+      value: sql<number>`coalesce(sum(${quotes.totalInCents}) filter (where ${quotes.status} = 'accepted'), 0)`,
+    }).from(quotes).where(and(
+      eq(quotes.businessId, ctx.businessId), isNull(quotes.deletedAt),
+      gte(quotes.createdAt, previousStart), lt(quotes.createdAt, currentStart),
+    )),
+  ]);
+
+  const ci = currentInq[0]?.count ?? 0;
+  const pi = previousInq[0]?.count ?? 0;
+  const cq = currentQ[0]?.count ?? 0;
+  const pq = previousQ[0]?.count ?? 0;
+  const ca = Number(currentQ[0]?.accepted ?? 0);
+  const pa = Number(previousQ[0]?.accepted ?? 0);
+  const cv = Number(currentQ[0]?.value ?? 0);
+  const pv = Number(previousQ[0]?.value ?? 0);
+
+  function pctChange(curr: number, prev: number): string {
+    if (prev === 0) return curr > 0 ? "+∞%" : "0%";
+    const pct = ((curr - prev) / prev * 100).toFixed(0);
+    return Number(pct) >= 0 ? `+${pct}%` : `${pct}%`;
+  }
+
+  return [
+    `Period comparison: last ${days} days vs previous ${days} days`,
+    "",
+    `Inquiries: ${ci} (was ${pi}, ${pctChange(ci, pi)})`,
+    `Quotes created: ${cq} (was ${pq}, ${pctChange(cq, pq)})`,
+    `Quotes accepted: ${ca} (was ${pa}, ${pctChange(ca, pa)})`,
+    `Accepted revenue: ${formatQuoteMoney(cv, currency)} (was ${formatQuoteMoney(pv, currency)}, ${pctChange(cv, pv)})`,
+  ].join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Tool: get_business_knowledge
+// ---------------------------------------------------------------------------
+
+async function executeGetBusinessKnowledge(
+  ctx: AiToolExecutionContext,
+  args: Record<string, unknown>,
+): Promise<string> {
+  const query = typeof args.query === "string" ? args.query.trim() : "";
+
+  const memories = await db
+    .select({
+      id: businessMemories.id,
+      title: businessMemories.title,
+      content: businessMemories.content,
+      updatedAt: businessMemories.updatedAt,
+    })
+    .from(businessMemories)
+    .where(
+      and(
+        eq(businessMemories.businessId, ctx.businessId),
+        query ? or(
+          ilike(businessMemories.title, `%${query}%`),
+          ilike(businessMemories.content, `%${query}%`),
+        ) : undefined,
+      ),
+    )
+    .orderBy(businessMemories.position)
+    .limit(10);
+
+  if (!memories.length) return query
+    ? `No knowledge entries matching "${query}".`
+    : "No business knowledge entries saved yet.";
+
+  const lines = memories.map(
+    (m) => `- **${m.title}** (updated ${formatDate(m.updatedAt)}): ${truncate(m.content, 300)}`,
+  );
+
+  return `Business knowledge (${memories.length} entries):\n${lines.join("\n")}`;
+}
+
+// ---------------------------------------------------------------------------
+// Tool: get_quote_customer_response
+// ---------------------------------------------------------------------------
+
+async function executeGetQuoteCustomerResponse(
+  ctx: AiToolExecutionContext,
+  args: Record<string, unknown>,
+): Promise<string> {
+  const quoteId = typeof args.quote_id === "string" ? args.quote_id.trim() : "";
+  if (!quoteId) return "Error: quote_id parameter is required.";
+
+  const rows = await db
+    .select({
+      id: quotes.id,
+      quoteNumber: quotes.quoteNumber,
+      customerName: quotes.customerName,
+      status: quotes.status,
+      customerRespondedAt: quotes.customerRespondedAt,
+      customerResponseMessage: quotes.customerResponseMessage,
+      acceptedAt: quotes.acceptedAt,
+      postAcceptanceStatus: quotes.postAcceptanceStatus,
+      cancellationReason: quotes.cancellationReason,
+      cancellationNote: quotes.cancellationNote,
+    })
+    .from(quotes)
+    .where(
+      and(
+        eq(quotes.businessId, ctx.businessId),
+        isNull(quotes.deletedAt),
+        or(eq(quotes.id, quoteId), ilike(quotes.quoteNumber, quoteId)),
+      ),
+    )
+    .limit(1);
+
+  if (!rows.length) return `Quote "${quoteId}" not found.`;
+  const q = rows[0];
+
+  const parts: string[] = [
+    `${q.quoteNumber} — ${q.customerName} [${q.status}]`,
+    `URL: /businesses/${ctx.businessSlug}/quotes/${q.id}`,
+  ];
+
+  if (q.customerRespondedAt) {
+    parts.push(`Customer responded: ${formatDate(q.customerRespondedAt)}`);
+  }
+  if (q.customerResponseMessage) {
+    parts.push(`Response message: "${truncate(q.customerResponseMessage, 600)}"`);
+  }
+  if (q.postAcceptanceStatus && q.postAcceptanceStatus !== "none") {
+    parts.push(`Post-acceptance stage: ${q.postAcceptanceStatus}`);
+  }
+  if (q.cancellationReason) {
+    parts.push(`Cancellation reason: ${q.cancellationReason}`);
+  }
+  if (q.cancellationNote) {
+    parts.push(`Cancellation note: ${truncate(q.cancellationNote, 300)}`);
+  }
+  if (!q.customerResponseMessage && !q.cancellationReason) {
+    parts.push("No customer response recorded yet.");
+  }
+
+  return parts.join("\n");
+}
+
+// ---------------------------------------------------------------------------
 // Main executor dispatcher
 // ---------------------------------------------------------------------------
 
@@ -1279,6 +1654,13 @@ const TOOL_EXECUTORS: Record<
   get_service_categories: executeGetServiceCategories,
   get_pricing_library: executeGetPricingLibrary,
   get_inquiry_notes: executeGetInquiryNotes,
+  get_inquiry_conversation: executeGetInquiryConversation,
+  get_inquiry_attachments: executeGetInquiryAttachments,
+  get_job_pipeline: executeGetJobPipeline,
+  get_response_times: executeGetResponseTimes,
+  get_period_comparison: executeGetPeriodComparison,
+  get_business_knowledge: executeGetBusinessKnowledge,
+  get_quote_customer_response: executeGetQuoteCustomerResponse,
 };
 
 /**

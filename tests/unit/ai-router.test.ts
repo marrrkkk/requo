@@ -57,6 +57,23 @@ vi.mock("ai", () => ({
   customProvider: vi.fn(),
 }));
 
+// Mock capacity selector — return models matching the mocked registry providers
+const mockSelectModels = vi.fn(() => [
+  "groq:model-a" as `${string}:${string}`,
+  "groq:model-b" as `${string}:${string}`,
+  "cerebras:model-c" as `${string}:${string}`,
+  "google:model-d" as `${string}:${string}`,
+  "openrouter:model-e" as `${string}:${string}`,
+]);
+const mockRecordModelUsage = vi.fn();
+const mockMarkModelExhausted = vi.fn();
+
+vi.mock("@/lib/ai/capacity-selector", () => ({
+  selectModels: (...args: unknown[]) => mockSelectModels(...args),
+  recordModelUsage: (...args: unknown[]) => mockRecordModelUsage(...args),
+  markModelExhausted: (...args: unknown[]) => mockMarkModelExhausted(...args),
+}));
+
 // Import router after mocks
 import { generateWithFallback, streamWithFallback } from "@/lib/ai/router";
 import { getModelsForProvider } from "@/lib/ai/model-options";
@@ -187,6 +204,7 @@ describe("generateWithFallback", () => {
     (registryModule as Record<string, unknown>).cerebras = null;
     (registryModule as Record<string, unknown>).google = null;
     (registryModule as Record<string, unknown>).openrouter = null;
+    mockSelectModels.mockReturnValueOnce([]);
 
     await expect(generateWithFallback(mockRequest)).rejects.toThrow(
       "No AI providers are configured",
@@ -199,7 +217,7 @@ describe("generateWithFallback", () => {
     (registryModule as Record<string, unknown>).openrouter = originalOpenrouter;
   });
 
-  it("passes qualityTier to getModelsForProvider", async () => {
+  it("passes qualityTier to capacity selector as minQuality", async () => {
     mockGenerateText.mockResolvedValueOnce({
       text: "cheap response",
       usage: { inputTokens: 5, outputTokens: 3 },
@@ -207,7 +225,9 @@ describe("generateWithFallback", () => {
 
     await generateWithFallback({ ...mockRequest, qualityTier: "cheap" });
 
-    expect(vi.mocked(getModelsForProvider)).toHaveBeenCalledWith("groq", "cheap");
+    expect(mockSelectModels).toHaveBeenCalledWith(
+      expect.objectContaining({ minQuality: 4 }),
+    );
   });
 
   it("respects Retry-After cap at 5 seconds", async () => {
@@ -300,6 +320,7 @@ describe("streamWithFallback", () => {
     (registryModule as Record<string, unknown>).cerebras = null;
     (registryModule as Record<string, unknown>).google = null;
     (registryModule as Record<string, unknown>).openrouter = null;
+    mockSelectModels.mockReturnValueOnce([]);
 
     await expect(streamWithFallback(mockRequest)).rejects.toThrow(
       "No AI providers are configured",

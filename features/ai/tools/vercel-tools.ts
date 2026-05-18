@@ -23,7 +23,7 @@ import type { AiToolExecutionContext } from "./types";
 export function createDashboardTools(ctx: AiToolExecutionContext) {
   return {
     count_inquiries: tool({
-      description: "Count total inquiries for the business, optionally filtered by status. Returns the count and breakdown by status.",
+      description: "Count total inquiries for the business, optionally filtered by status. Returns the exact count and breakdown by status. ALWAYS call this before stating any inquiry count.",
       inputSchema: z.object({
         status: z
           .enum(["new", "waiting", "quoted", "won", "lost", "overdue", "archived"])
@@ -37,7 +37,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     count_quotes: tool({
-      description: "Count total quotes for the business, optionally filtered by status. Returns the count, breakdown by status, and total value.",
+      description: "Count total quotes for the business, optionally filtered by status. Returns the exact count, breakdown by status, and total value. ALWAYS call this before stating any quote count.",
       inputSchema: z.object({
         status: z
           .enum(["draft", "sent", "viewed", "accepted", "rejected", "expired", "voided"])
@@ -105,7 +105,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_business_stats: tool({
-      description: "Get comprehensive business statistics including inquiry counts by status, quote counts by status, total quoted value, conversion rates, and recent activity summary.",
+      description: "Get comprehensive business statistics including inquiry counts by status, quote counts by status, total quoted value, conversion rates, and recent activity summary. ALWAYS call this for overview questions about the business.",
       inputSchema: z.object({}),
       execute: async () => {
         const result = await executeToolCall(ctx, { tool: "get_business_stats", args: {} });
@@ -253,6 +253,84 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
       }),
       execute: async ({ inquiry_id }) => {
         const result = await executeToolCall(ctx, { tool: "get_inquiry_notes", args: { inquiry_id } });
+        return result.result;
+      },
+    }),
+
+    get_inquiry_conversation: tool({
+      description: "Get the full conversation/message history for a specific inquiry. Shows what was said between the business and the customer.",
+      inputSchema: z.object({
+        inquiry_id: z.string().describe("The inquiry ID to get the conversation for."),
+      }),
+      execute: async ({ inquiry_id }) => {
+        const result = await executeToolCall(ctx, { tool: "get_inquiry_conversation", args: { inquiry_id } });
+        return result.result;
+      },
+    }),
+
+    get_inquiry_attachments: tool({
+      description: "List file attachments submitted with an inquiry. Shows file names, types, and sizes.",
+      inputSchema: z.object({
+        inquiry_id: z.string().describe("The inquiry ID to list attachments for."),
+      }),
+      execute: async ({ inquiry_id }) => {
+        const result = await executeToolCall(ctx, { tool: "get_inquiry_attachments", args: { inquiry_id } });
+        return result.result;
+      },
+    }),
+
+    get_job_pipeline: tool({
+      description: "Get accepted quotes by their post-acceptance stage (booked, scheduled, in_progress, completed, canceled). Shows what jobs are in the pipeline.",
+      inputSchema: z.object({
+        status: z.enum(["none", "booked", "scheduled", "in_progress", "completed", "canceled"]).optional().describe("Filter by post-acceptance status. Omit to get all accepted quotes."),
+        limit: z.number().optional().describe("Maximum results to return (default 10)."),
+      }),
+      execute: async ({ status, limit }) => {
+        const result = await executeToolCall(ctx, { tool: "get_job_pipeline", args: { status, limit } });
+        return result.result;
+      },
+    }),
+
+    get_response_times: tool({
+      description: "Get average and median response times for inquiries. Shows how quickly the business responds to new inquiries.",
+      inputSchema: z.object({
+        days: z.number().optional().describe("Number of days to analyze (default 30, max 90)."),
+      }),
+      execute: async ({ days }) => {
+        const result = await executeToolCall(ctx, { tool: "get_response_times", args: { days } });
+        return result.result;
+      },
+    }),
+
+    get_period_comparison: tool({
+      description: "Compare current period vs previous period for key metrics (inquiries, quotes, accepted revenue). Answers 'how am I doing compared to before?'",
+      inputSchema: z.object({
+        days: z.number().optional().describe("Period length in days to compare (default 30). Compares last N days vs the N days before that."),
+      }),
+      execute: async ({ days }) => {
+        const result = await executeToolCall(ctx, { tool: "get_period_comparison", args: { days } });
+        return result.result;
+      },
+    }),
+
+    get_business_knowledge: tool({
+      description: "Search or list saved business knowledge entries (rules, pricing info, preferences). Shows what the AI knows about the business.",
+      inputSchema: z.object({
+        query: z.string().optional().describe("Search term to filter knowledge entries. Omit to list all."),
+      }),
+      execute: async ({ query }) => {
+        const result = await executeToolCall(ctx, { tool: "get_business_knowledge", args: { query } });
+        return result.result;
+      },
+    }),
+
+    get_quote_customer_response: tool({
+      description: "Get the customer's response/feedback for a specific quote. Shows why they accepted, rejected, or what they said. Also shows cancellation reasons if applicable.",
+      inputSchema: z.object({
+        quote_id: z.string().describe("The quote ID or quote number to look up."),
+      }),
+      execute: async ({ quote_id }) => {
+        const result = await executeToolCall(ctx, { tool: "get_quote_customer_response", args: { quote_id } });
         return result.result;
       },
     }),

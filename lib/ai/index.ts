@@ -33,3 +33,26 @@ export {
   resetCooldowns,
 } from "./usage-limiter";
 export type { UsageLimitCheck, UsageLimitResult } from "./usage-limiter";
+export { summarizeDroppedMessages } from "./history-summarizer";
+export {
+  classifyMessageComplexity,
+  getHistoryLimitForComplexity,
+  getContextBudgetForComplexity,
+} from "./message-complexity";
+export type { MessageComplexity } from "./message-complexity";
+export {
+  generateEmbedding,
+  cosineSimilarity,
+  rankBySimilarity,
+} from "./embeddings";
+export {
+  selectModels,
+  selectToolCallingModels,
+  selectSimpleTextModels,
+  selectComplexTextModels,
+  recordModelUsage,
+  markModelExhausted,
+  getCapacitySnapshot,
+  getAllRegisteredModelIds,
+} from "./capacity-selector";
+export type { ModelCapacity } from "./capacity-selector";

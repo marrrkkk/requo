@@ -62,6 +62,9 @@ export {
 const entityDetailPattern =
   /\/businesses\/[^/]+\/(inquiries|quotes)\/(?!new(?:\/|$))([^/?#]+)\/?$/;
 
+/** Matches the dedicated assistant page route. */
+const assistantPagePattern = /\/businesses\/[^/]+\/assistant\/?$/;
+
 type AiContext = {
   surface: AiSurface;
   entityId: string;
@@ -104,6 +107,7 @@ export function AIChatPopover({
   const pathname = usePathname();
   const aiContext = useMemo(() => resolveAiContext(pathname), [pathname]);
   const hasAccess = hasFeatureAccess(plan, "aiAssistant");
+  const isAssistantPage = assistantPagePattern.test(pathname);
   const [isOpen, setIsOpen] = useState(false);
   const [cachedConversations, setCachedConversations] = useState<
     AiConversationSummary[] | null
@@ -312,6 +316,11 @@ export function AIChatPopover({
     },
     [entityCache],
   );
+
+  // Hide the floating popover on the dedicated assistant page
+  if (isAssistantPage) {
+    return null;
+  }
 
   return (
     <div

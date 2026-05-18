@@ -4,9 +4,11 @@ import { createGroq } from "@ai-sdk/groq";
 import { createCerebras } from "@ai-sdk/cerebras";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { createMistral } from "@ai-sdk/mistral";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createProviderRegistry, customProvider } from "ai";
 
-import { env, isGroqConfigured, isCerebrasConfigured, isGeminiConfigured, isOpenRouterConfigured } from "@/lib/env";
+import { env, isGroqConfigured, isCerebrasConfigured, isGeminiConfigured, isOpenRouterConfigured, isMistralConfigured, isCloudflareAiConfigured } from "@/lib/env";
 
 // ---------------------------------------------------------------------------
 // AI Provider Registry — Vercel AI SDK
@@ -37,6 +39,20 @@ const openrouter = isOpenRouterConfigured
   ? createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY })
   : null;
 
+const mistral = isMistralConfigured
+  ? createMistral({ apiKey: env.MISTRAL_API_KEY })
+  : null;
+
+const cloudflare = isCloudflareAiConfigured
+  ? createOpenAICompatible({
+      name: "cloudflare",
+      baseURL: `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/ai/v1`,
+      headers: {
+        Authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}`,
+      },
+    })
+  : null;
+
 // ── Registry setup ────────────────────────────────────────────────────────
 
 /**
@@ -44,12 +60,14 @@ const openrouter = isOpenRouterConfigured
  * Access models via: registry.languageModel("groq:llama-3.3-70b-versatile")
  */
 function buildRegistry() {
-  const providers: Record<string, ReturnType<typeof customProvider> | ReturnType<typeof createGroq> | ReturnType<typeof createCerebras> | ReturnType<typeof createGoogleGenerativeAI> | ReturnType<typeof createOpenRouter>> = {};
+  const providers: Record<string, ReturnType<typeof customProvider> | ReturnType<typeof createGroq> | ReturnType<typeof createCerebras> | ReturnType<typeof createGoogleGenerativeAI> | ReturnType<typeof createOpenRouter> | ReturnType<typeof createMistral> | ReturnType<typeof createOpenAICompatible>> = {};
 
   if (groq) providers.groq = groq;
   if (cerebras) providers.cerebras = cerebras;
   if (google) providers.google = google;
   if (openrouter) providers.openrouter = openrouter;
+  if (mistral) providers.mistral = mistral;
+  if (cloudflare) providers.cloudflare = cloudflare;
 
   return createProviderRegistry(providers);
 }
@@ -58,9 +76,9 @@ export const registry = buildRegistry();
 
 // ── Provider availability checks ──────────────────────────────────────────
 
-export { groq, cerebras, google, openrouter };
+export { groq, cerebras, google, openrouter, mistral, cloudflare };
 
 /** Returns true if at least one AI provider is configured. */
 export function isAiConfigured(): boolean {
-  return isGroqConfigured || isCerebrasConfigured || isGeminiConfigured || isOpenRouterConfigured;
+  return isGroqConfigured || isCerebrasConfigured || isGeminiConfigured || isOpenRouterConfigured || isMistralConfigured || isCloudflareAiConfigured;
 }

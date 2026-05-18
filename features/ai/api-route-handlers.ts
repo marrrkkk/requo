@@ -37,6 +37,17 @@ import type { AiChatStreamEvent } from "@/features/ai/types";
 import type { AiProviderName } from "@/lib/ai";
 import { registry } from "@/lib/ai/registry";
 import {
+  selectToolCallingModels,
+  selectSimpleTextModels,
+  selectComplexTextModels,
+  recordModelUsage,
+  markModelExhausted,
+} from "@/lib/ai/capacity-selector";
+import {
+  classifyMessageComplexity,
+  getHistoryLimitForComplexity,
+} from "@/lib/ai/message-complexity";
+import {
   autoAiModelOptionValue,
   parseAiModelOptionValue,
 } from "@/lib/ai/model-options";
@@ -82,24 +93,14 @@ function getVisibleText(text: string): string {
 }
 
 /**
- * Resolves the model ID for the registry based on an optional model selection.
- * For tool-calling flows, prefers Gemini (reliable tool support).
- * Falls back to groq with the first balanced model for non-tool flows.
+ * Resolves a model ID for the registry from an explicit dev-mode model selection.
+ * Only used when the user has picked a specific model in the dev panel.
  */
-function resolveModelForRegistry(
-  modelSelection: AiModelSelection | null | undefined,
-  hasTools = false,
+function resolveExplicitModelId(
+  modelSelection: AiModelSelection,
 ): `${string}:${string}` {
-  if (modelSelection) {
-    const prefix = modelSelection.provider === "gemini" ? "google" : modelSelection.provider;
-    return `${prefix}:${modelSelection.model}` as `${string}:${string}`;
-  }
-  // For tool-calling, prefer Gemini Flash (best tool support, no reasoning_content issues)
-  if (hasTools) {
-    return "google:gemini-2.5-flash" as `${string}:${string}`;
-  }
-  // Default to groq for non-tool chat
-  return "groq:qwen/qwen3-32b" as `${string}:${string}`;
+  const prefix = modelSelection.provider === "gemini" ? "google" : modelSelection.provider;
+  return `${prefix}:${modelSelection.model}` as `${string}:${string}`;
 }
 
 async function getAuthenticatedUserResponse() {
@@ -521,16 +522,24 @@ export async function createAiChatRouteResponse(request: Request) {
 
       try {
         // History and surface context are independent — fetch in parallel.
+        // Use complexity classifier to determine how much history to load.
+        const messageComplexity = classifyMessageComplexity(parsedBody.data.message);
+        const historyLimit = getHistoryLimitForComplexity(
+          messageComplexity,
+          parsedBody.data.surface,
+        );
+
         const [historyMessages, surfaceContext] = await Promise.all([
           getRecentCompletedAiMessages({
             conversationId: authorizedConversation.id,
             userId: user.id,
-            limit: parsedBody.data.surface === "dashboard" ? 10 : 20,
+            limit: historyLimit,
           }),
           buildAiSurfaceContext({
             surface: parsedBody.data.surface,
             entityId: parsedBody.data.entityId,
             businessId: authorizedBusinessId,
+            userMessage: parsedBody.data.message,
           }),
         ]);
 
@@ -578,35 +587,96 @@ export async function createAiChatRouteResponse(request: Request) {
             : undefined;
 
         // Build the model ID for the registry
-        const resolvedModel = resolveModelForRegistry(modelSelection, Boolean(tools));
+        // Use capacity-aware selector: picks best model with headroom, avoids exhausted ones
+        // If dev model is selected, put it first but include fallbacks after it
+        const modelsToTry = modelSelection
+          ? [resolveExplicitModelId(modelSelection), ...(tools
+              ? selectToolCallingModels()
+              : messageComplexity === "simple"
+                ? selectSimpleTextModels()
+                : selectComplexTextModels()
+            ).filter((m) => m !== resolveExplicitModelId(modelSelection))]
+          : tools
+            ? selectToolCallingModels()
+            : messageComplexity === "simple"
+              ? selectSimpleTextModels()
+              : selectComplexTextModels();
 
-        const maxOutputTokens = parsedBody.data.surface === "quote" ? 2200 : 1700;
+        // Reduce output budget for simple messages
+        const maxOutputTokens = messageComplexity === "simple"
+          ? 800
+          : parsedBody.data.surface === "quote" ? 2200 : 1700;
 
-        // Wrap model with extractReasoningMiddleware to prevent reasoning_content
-        // from being sent back in multi-step tool calls to providers that don't support it
-        const baseModel = registry.languageModel(resolvedModel);
-        const wrappedModel = wrapLanguageModel({
-          model: baseModel,
-          middleware: extractReasoningMiddleware({ tagName: "think" }),
-        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let result: any = null;
+        let selectedModelId: string | null = null;
 
-        const result = streamText({
-          model: wrappedModel,
-          system: systemPrompt,
-          messages: aiMessages,
-          tools,
-          stopWhen: tools ? stepCountIs(5) : undefined,
-          temperature: 0.2,
-          maxOutputTokens,
-          abortSignal: AbortSignal.timeout(30_000),
-          onError: ({ error }) => {
-            console.error("[ai-chat] streamText error:", error);
-          },
-        });
+        // Try models in order. streamText doesn't throw synchronously on 429 —
+        // the error surfaces during stream iteration. So we attempt to consume
+        // the first chunk to verify the stream is alive before committing.
+        for (const modelId of modelsToTry) {
+          try {
+            const baseModel = registry.languageModel(modelId);
+            const wrappedModel = wrapLanguageModel({
+              model: baseModel,
+              middleware: extractReasoningMiddleware({ tagName: "think" }),
+            });
 
-        // Emit meta event
-        const providerName = modelSelection?.provider ?? "groq";
-        const modelName = modelSelection?.model ?? "auto";
+            const streamResult = streamText({
+              model: wrappedModel,
+              system: systemPrompt,
+              messages: aiMessages,
+              tools,
+              maxRetries: 0,
+              stopWhen: tools ? stepCountIs(5) : undefined,
+              temperature: 0.2,
+              maxOutputTokens,
+              abortSignal: AbortSignal.timeout(30_000),
+              onError: ({ error }) => {
+                // Log but don't throw — let the stream consumer handle it
+                console.warn(`[ai-chat] onError for ${modelId}:`, (error as Error)?.message ?? error);
+              },
+            });
+
+            // Verify the stream is alive by checking if we can get the textStream
+            // without an immediate rejection. streamText returns immediately but
+            // errors surface during consumption — we'll catch them below.
+            result = streamResult;
+            selectedModelId = modelId;
+            recordModelUsage(modelId);
+            break;
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            const isRateLimit =
+              errorMsg.includes("429") ||
+              errorMsg.includes("quota") ||
+              errorMsg.includes("RESOURCE_EXHAUSTED") ||
+              errorMsg.includes("rate_limit") ||
+              errorMsg.includes("Rate limit");
+
+            if (isRateLimit) {
+              markModelExhausted(modelId);
+              console.warn(`[ai-chat] ${modelId} rate limited (sync), trying next...`);
+              continue;
+            }
+
+            console.error(`[ai-chat] ${modelId} failed (non-retryable):`, errorMsg);
+            break;
+          }
+        }
+
+        if (!result) {
+          const message = "The assistant is busy right now. Please try again in a moment.";
+          await markAssistantFailed(message);
+          controller.enqueue(encodeStreamEvent({ type: "error", message }));
+          return;
+        }
+
+        // Emit meta event with the actual model that was selected
+        const providerName = (selectedModelId?.split(":")[0] as AiProviderName | undefined)
+          ?? "groq";
+        const modelName = selectedModelId?.split(":").slice(1).join(":")
+          ?? "auto";
         provider = providerName;
         model = modelName;
 
@@ -625,31 +695,233 @@ export async function createAiChatRouteResponse(request: Request) {
           }),
         );
 
-        // Stream text deltas to the client
-        let truncated = false;
-        for await (const chunk of result.textStream) {
-          if (chunk) {
-            // Filter out <think> blocks
-            const visible = getVisibleText(assistantContent + chunk).slice(
-              getVisibleText(assistantContent).length,
-            );
-            if (visible) {
-              assistantContent += visible;
-              controller.enqueue(encodeStreamEvent({ type: "delta", value: visible }));
-            } else {
-              // Still accumulate for think-block detection
-              assistantContent += chunk;
+        // Stream text deltas to the client.
+        // If a 429 occurs during streaming (async error), catch it and retry
+        // with the next available model.
+        const truncated = false;
+        let streamFailed = false;
+
+        try {
+          for await (const chunk of result.textStream) {
+            if (chunk) {
+              const visible = getVisibleText(assistantContent + chunk).slice(
+                getVisibleText(assistantContent).length,
+              );
+              if (visible) {
+                assistantContent += visible;
+                controller.enqueue(encodeStreamEvent({ type: "delta", value: visible }));
+              } else {
+                assistantContent += chunk;
+              }
             }
+          }
+        } catch (streamError) {
+          const errorMsg = streamError instanceof Error ? streamError.message : String(streamError);
+          // Check if this is a rate limit error — also catch AI_NoOutputGeneratedError
+          // which wraps 429s from the provider when streamText can't produce output.
+          const errorName = streamError instanceof Error ? streamError.name : "";
+          const isRateLimit =
+            errorMsg.includes("429") ||
+            errorMsg.includes("quota") ||
+            errorMsg.includes("RESOURCE_EXHAUSTED") ||
+            errorMsg.includes("rate_limit") ||
+            errorMsg.includes("exceeded your current quota") ||
+            errorName === "AI_NoOutputGeneratedError";
+
+          if (isRateLimit && selectedModelId) {
+            markModelExhausted(selectedModelId);
+            console.warn(`[ai-chat] ${selectedModelId} failed during stream (${errorName || "unknown"}), retrying with next model...`);
+
+            // Find next model to try
+            const currentIndex = modelsToTry.indexOf(selectedModelId as `${string}:${string}`);
+            const remainingModels = modelsToTry.slice(currentIndex + 1);
+
+            for (const fallbackModelId of remainingModels) {
+              try {
+                const baseModel = registry.languageModel(fallbackModelId);
+                const wrappedModel = wrapLanguageModel({
+                  model: baseModel,
+                  middleware: extractReasoningMiddleware({ tagName: "think" }),
+                });
+
+                const retryResult = streamText({
+                  model: wrappedModel,
+                  system: systemPrompt,
+                  messages: aiMessages,
+                  tools,
+                  maxRetries: 0,
+                  stopWhen: tools ? stepCountIs(5) : undefined,
+                  temperature: 0.2,
+                  maxOutputTokens,
+                  abortSignal: AbortSignal.timeout(30_000),
+                });
+
+                // Reset content and re-stream
+                assistantContent = "";
+                selectedModelId = fallbackModelId;
+                recordModelUsage(fallbackModelId);
+
+                // Update meta
+                const retryProvider = (fallbackModelId.split(":")[0] as AiProviderName) ?? "groq";
+                const retryModel = fallbackModelId.split(":").slice(1).join(":");
+                provider = retryProvider;
+                model = retryModel;
+
+                controller.enqueue(
+                  encodeStreamEvent({
+                    type: "meta",
+                    title: "Dashboard Assistant",
+                    model: `${retryProvider}/${retryModel}`,
+                    provider: retryProvider,
+                    providerModel: retryModel,
+                  }),
+                );
+
+                for await (const chunk of retryResult.textStream) {
+                  if (chunk) {
+                    const visible = getVisibleText(assistantContent + chunk).slice(
+                      getVisibleText(assistantContent).length,
+                    );
+                    if (visible) {
+                      assistantContent += visible;
+                      controller.enqueue(encodeStreamEvent({ type: "delta", value: visible }));
+                    } else {
+                      assistantContent += chunk;
+                    }
+                  }
+                }
+
+                result = retryResult;
+                break; // Success
+              } catch (retryError) {
+                const retryMsg = retryError instanceof Error ? retryError.message : String(retryError);
+                markModelExhausted(fallbackModelId);
+                console.warn(`[ai-chat] Fallback ${fallbackModelId} also failed: ${retryMsg.slice(0, 100)}`);
+                continue;
+              }
+            }
+
+            // If all retries failed and no content was produced
+            if (!assistantContent.trim()) {
+              streamFailed = true;
+            }
+          } else {
+            // Non-rate-limit stream error
+            streamFailed = true;
+            console.error(`[ai-chat] Stream error (non-retryable): ${errorMsg.slice(0, 200)}`);
+          }
+        }
+
+        if (streamFailed && !assistantContent.trim()) {
+          const message = "The assistant could not generate an answer right now. Try again in a moment.";
+          await markAssistantFailed(message);
+          controller.enqueue(encodeStreamEvent({ type: "error", message }));
+          return;
+        }
+
+        // If the stream completed but produced no content, the model likely
+        // failed silently (e.g., 429 handled internally by the SDK).
+        // Retry with next available model.
+        if (!streamFailed && !assistantContent.trim()) {
+          markModelExhausted(selectedModelId!);
+          console.warn(`[ai-chat] ${selectedModelId} produced empty output, retrying with next model...`);
+
+          const currentIndex = modelsToTry.indexOf(selectedModelId as `${string}:${string}`);
+          const remainingModels = modelsToTry.slice(currentIndex + 1);
+
+          for (const fallbackModelId of remainingModels) {
+            try {
+              const baseModel = registry.languageModel(fallbackModelId);
+              const wrappedModel = wrapLanguageModel({
+                model: baseModel,
+                middleware: extractReasoningMiddleware({ tagName: "think" }),
+              });
+
+              const retryResult = streamText({
+                model: wrappedModel,
+                system: systemPrompt,
+                messages: aiMessages,
+                tools,
+                maxRetries: 0,
+                stopWhen: tools ? stepCountIs(5) : undefined,
+                temperature: 0.2,
+                maxOutputTokens,
+                abortSignal: AbortSignal.timeout(30_000),
+              });
+
+              assistantContent = "";
+              selectedModelId = fallbackModelId;
+              recordModelUsage(fallbackModelId);
+
+              const retryProvider = (fallbackModelId.split(":")[0] as AiProviderName) ?? "groq";
+              const retryModel = fallbackModelId.split(":").slice(1).join(":");
+              provider = retryProvider;
+              model = retryModel;
+
+              controller.enqueue(
+                encodeStreamEvent({
+                  type: "meta",
+                  title:
+                    parsedBody.data.surface === "inquiry"
+                      ? "Inquiry Assistant"
+                      : parsedBody.data.surface === "quote"
+                        ? "Quote Assistant"
+                        : "Dashboard Assistant",
+                  model: `${retryProvider}/${retryModel}`,
+                  provider: retryProvider,
+                  providerModel: retryModel,
+                }),
+              );
+
+              for await (const chunk of retryResult.textStream) {
+                if (chunk) {
+                  const visible = getVisibleText(assistantContent + chunk).slice(
+                    getVisibleText(assistantContent).length,
+                  );
+                  if (visible) {
+                    assistantContent += visible;
+                    controller.enqueue(encodeStreamEvent({ type: "delta", value: visible }));
+                  } else {
+                    assistantContent += chunk;
+                  }
+                }
+              }
+
+              if (assistantContent.trim()) {
+                result = retryResult;
+                break;
+              }
+
+              // Still empty — try next
+              markModelExhausted(fallbackModelId);
+            } catch (retryError) {
+              markModelExhausted(fallbackModelId);
+              const retryMsg = retryError instanceof Error ? retryError.message : "";
+              console.warn(`[ai-chat] Fallback ${fallbackModelId} failed: ${retryMsg.slice(0, 100)}`);
+              continue;
+            }
+          }
+
+          if (!assistantContent.trim()) {
+            const message = "The assistant could not generate an answer right now. Try again in a moment.";
+            await markAssistantFailed(message);
+            controller.enqueue(encodeStreamEvent({ type: "error", message }));
+            return;
           }
         }
 
         // Check for truncation from the final response
-        const finalResponse = await result.response;
-        if (finalResponse.messages?.length) {
-          const lastMsg = finalResponse.messages[finalResponse.messages.length - 1];
-          if (lastMsg && "content" in lastMsg && Array.isArray(lastMsg.content)) {
-            // Check finish reason
+        try {
+          const finalResponse = await result.response;
+          if (finalResponse.messages?.length) {
+            const lastMsg = finalResponse.messages[finalResponse.messages.length - 1];
+            if (lastMsg && "content" in lastMsg && Array.isArray(lastMsg.content)) {
+              // Check finish reason
+            }
           }
+        } catch {
+          // result.response can throw AI_NoOutputGeneratedError if the stream
+          // was empty — we've already handled this above via the retry logic.
         }
 
         // Clean up assistantContent to only visible text
@@ -662,9 +934,11 @@ export async function createAiChatRouteResponse(request: Request) {
           try {
             const usage = await result.usage;
             const steps = await result.steps;
+            /* eslint-disable @typescript-eslint/no-explicit-any */
             const toolCalls = steps
-              ?.flatMap((step) => step.toolCalls ?? [])
-              .map((tc) => ({ name: tc.toolName })) ?? [];
+              ?.flatMap((step: any) => step.toolCalls ?? [])
+              .map((tc: any) => ({ name: tc.toolName })) ?? [];
+            /* eslint-enable @typescript-eslint/no-explicit-any */
 
             controller.enqueue(
               encodeStreamEvent({
