@@ -64,6 +64,7 @@ export function InquiryListCards({
                     </div>
                     <TemperatureBadge
                       temperature={inquiry.qualificationTemperature as Temperature | null}
+                      variant="dot"
                     />
                   </div>
                 </div>

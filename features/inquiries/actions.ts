@@ -1,6 +1,5 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
 import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
@@ -16,8 +15,6 @@ import {
   getBusinessMessagingSettings,
   getWorkspaceBusinessActionContext,
 } from "@/lib/db/business-access";
-import { db } from "@/lib/db/client";
-import { inquiryDuplicates } from "@/lib/db/schema";
 import { hasFeatureAccess } from "@/lib/plans";
 import { getplanByBusinessId } from "@/lib/plans/queries";
 import { checkUsageAllowance } from "@/lib/plans/usage";
@@ -528,59 +525,4 @@ export async function unarchiveInquiryAction(
     unchanged: "Inquiry is already active.",
     fallbackError: "Failed to unarchive inquiry.",
   });
-}
-
-export async function dismissDuplicateWarningAction(
-  inquiryId: string,
-): Promise<{ success?: string; error?: string }> {
-  const ownerAccess = await getWorkspaceBusinessActionContext();
-
-  if (!ownerAccess.ok) {
-    return {
-      error: ownerAccess.error,
-    };
-  }
-
-  const { user, businessContext } = ownerAccess;
-
-  try {
-    const [duplicate] = await db
-      .select({ id: inquiryDuplicates.id })
-      .from(inquiryDuplicates)
-      .where(
-        and(
-          eq(inquiryDuplicates.inquiryId, inquiryId),
-          eq(inquiryDuplicates.businessId, businessContext.business.id),
-        ),
-      )
-      .limit(1);
-
-    if (!duplicate) {
-      return {
-        error: "No duplicate warning found for that inquiry.",
-      };
-    }
-
-    await db
-      .update(inquiryDuplicates)
-      .set({
-        dismissedAt: new Date(),
-        dismissedBy: user.id,
-      })
-      .where(eq(inquiryDuplicates.id, duplicate.id));
-
-    updateCacheTags(
-      getInquiryMutationCacheTags(businessContext.business.id, inquiryId),
-    );
-
-    return {
-      success: "Duplicate warning dismissed.",
-    };
-  } catch (error) {
-    console.error("Failed to dismiss duplicate warning.", error);
-
-    return {
-      error: "We couldn't dismiss that warning right now.",
-    };
-  }
 }

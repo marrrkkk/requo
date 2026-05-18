@@ -128,7 +128,7 @@ Implement rule-based lead scoring and duplicate detection for the Requo inquiry 
 - [x] 7. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 8. Implement UI components
+- [x] 8. Implement UI components
   - [x] 8.1 Create TemperatureBadge component
     - Create `features/inquiries/components/temperature-badge.tsx`
     - Render color-coded badge using existing Badge component and semantic tokens: hot (red/urgent), warm (amber/attention), cold (blue/neutral)
@@ -148,19 +148,19 @@ Implement rule-based lead scoring and duplicate detection for the Requo inquiry 
     - Include dismiss button that persists dismissal via server action
     - _Requirements: 11.1, 11.2, 11.4_
 
-  - [-] 8.4 Integrate qualification display into inquiry list page
+  - [x] 8.4 Integrate qualification display into inquiry list page
     - Add TemperatureBadge to inquiry list items (table and card views)
     - Add duplicate indicator icon for flagged inquiries
     - Add sort-by-score option to existing sort controls
     - _Requirements: 7.1, 7.2, 7.3, 11.3_
 
-  - [-] 8.5 Integrate qualification display into inquiry detail page
+  - [x] 8.5 Integrate qualification display into inquiry detail page
     - Add TemperatureBadge and numeric score to inquiry header area
     - Add QualificationBreakdown section showing signal contributions
     - Add DuplicateWarningBanner at top of page when duplicate is flagged
     - _Requirements: 8.1, 8.2, 8.3, 11.1, 11.2_
 
-  - [ ] 8.6 Implement dismiss duplicate warning server action
+  - [x] 8.6 Implement dismiss duplicate warning server action
     - Create server action to persist duplicate warning dismissal (update `dismissed_at` and `dismissed_by` on `inquiry_duplicates` record)
     - Validate business access before allowing dismissal
     - _Requirements: 11.4_
@@ -171,7 +171,7 @@ Implement rule-based lead scoring and duplicate detection for the Requo inquiry 
     - Test DuplicateWarningBanner shows reason and link, handles dismiss
     - _Requirements: 7.1, 8.1–8.3, 11.1–11.4_
 
-- [~] 9. Final checkpoint - Ensure all tests pass
+- [x] 9. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

@@ -46,7 +46,7 @@ export function InquiryExportCsvDropdown({
   const view = filters.view;
   const [status, setStatus] = useState<InquiryStatusFilterValue>(filters.status);
   const [form, setForm] = useState(filters.form);
-  const [sort, setSort] = useState<"newest" | "oldest">(filters.sort);
+  const [sort, setSort] = useState<"newest" | "oldest" | "score">(filters.sort);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 

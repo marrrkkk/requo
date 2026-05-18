@@ -111,6 +111,7 @@ export function InquiryListTable({
                     ) : null}
                     <TemperatureBadge
                       temperature={inquiry.qualificationTemperature as Temperature | null}
+                      variant="dot"
                     />
                   </Link>
                 </TableCell>

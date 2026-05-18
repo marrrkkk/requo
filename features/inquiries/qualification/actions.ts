@@ -4,6 +4,8 @@ import { updateTag } from "next/cache";
 
 import {
   getBusinessInquiryDetailCacheTags,
+  getBusinessInquiryListCacheTags,
+  uniqueCacheTags,
 } from "@/lib/cache/business-tags";
 import { getWorkspaceBusinessActionContext } from "@/lib/db/business-access";
 import { db } from "@/lib/db/client";
@@ -12,6 +14,7 @@ import { and, eq } from "drizzle-orm";
 
 /**
  * Dismiss a duplicate warning for an inquiry.
+ * Validates business access before allowing dismissal.
  * Persists the dismissal so the warning does not reappear.
  */
 export async function dismissDuplicateWarningAction(
@@ -19,13 +22,24 @@ export async function dismissDuplicateWarningAction(
   businessId: string,
   inquiryId: string,
 ): Promise<void> {
-  const { userId } = await getWorkspaceBusinessActionContext(businessId);
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    throw new Error(ownerAccess.error);
+  }
+
+  const { user, businessContext } = ownerAccess;
+
+  // Ensure the user's active business matches the requested businessId
+  if (businessContext.business.id !== businessId) {
+    throw new Error("You do not have access to that business action.");
+  }
 
   await db
     .update(inquiryDuplicates)
     .set({
       dismissedAt: new Date(),
-      dismissedBy: userId,
+      dismissedBy: user.id,
     })
     .where(
       and(
@@ -34,7 +48,10 @@ export async function dismissDuplicateWarningAction(
       ),
     );
 
-  const tags = getBusinessInquiryDetailCacheTags(businessId, inquiryId);
+  const tags = uniqueCacheTags([
+    ...getBusinessInquiryDetailCacheTags(businessId, inquiryId),
+    ...getBusinessInquiryListCacheTags(businessId),
+  ]);
   for (const tag of tags) {
     updateTag(tag);
   }
