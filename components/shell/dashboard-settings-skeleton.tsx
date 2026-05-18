@@ -442,39 +442,55 @@ export function DashboardSettingsNotificationSkeleton() {
   return (
     <DashboardSettingsShellSkeleton>
       <div className="dashboard-side-stack">
-        <SettingsPageHeader descriptionWidth="w-40" titleWidth="max-w-sm" />
+        <SettingsPageHeader descriptionWidth="w-52" titleWidth="max-w-sm" />
 
-        <section className="section-panel p-6">
-          <div className="space-y-5">
-            <div className="space-y-1">
-              <Skeleton className="h-6 w-28 rounded-md" />
-              <Skeleton className="h-4 w-28 rounded-md" />
-            </div>
-
-            <div className="overflow-hidden rounded-2xl border border-border/70 bg-muted/15">
-              {Array.from({ length: 3 }).map((_, index) => (
-                <SettingsToggleRowSkeleton key={index} />
-              ))}
-            </div>
+        <section className="section-panel">
+          {/* Group 1 */}
+          <div className="px-5 pb-1 pt-5 sm:px-6">
+            <Skeleton className="h-3 w-16 rounded-md" />
           </div>
-        </section>
+          {Array.from({ length: 2 }).map((_, index) => (
+            <NotificationRowSkeleton key={`g1-${index}`} hasPush={index === 0} />
+          ))}
 
-        <section className="section-panel p-6">
-          <div className="space-y-5">
-            <div className="space-y-1">
-              <Skeleton className="h-6 w-40 rounded-md" />
-              <Skeleton className="h-4 w-32 rounded-md" />
-            </div>
+          <div className="border-t border-border/60" />
 
-            <div className="overflow-hidden rounded-2xl border border-border/70 bg-muted/15">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <SettingsToggleRowSkeleton key={index} />
-              ))}
-            </div>
+          {/* Group 2 */}
+          <div className="px-5 pb-1 pt-5 sm:px-6">
+            <Skeleton className="h-3 w-14 rounded-md" />
           </div>
+          {Array.from({ length: 3 }).map((_, index) => (
+            <NotificationRowSkeleton key={`g2-${index}`} hasPush={index < 2} />
+          ))}
+
+          <div className="border-t border-border/60" />
+
+          {/* Group 3 */}
+          <div className="px-5 pb-1 pt-5 sm:px-6">
+            <Skeleton className="h-3 w-12 rounded-md" />
+          </div>
+          <NotificationRowSkeleton hasPush />
         </section>
       </div>
     </DashboardSettingsShellSkeleton>
+  );
+}
+
+function NotificationRowSkeleton({ hasPush }: { hasPush?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-4 px-5 py-3.5 sm:px-6">
+      <div className="flex items-center gap-3">
+        <Skeleton className="size-8 rounded-lg" />
+        <div className="space-y-1.5">
+          <Skeleton className="h-4 w-32 rounded-md" />
+          <Skeleton className="h-3.5 w-48 rounded-md" />
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-6 w-16 rounded-full" />
+        {hasPush ? <Skeleton className="h-6 w-14 rounded-full" /> : null}
+      </div>
+    </div>
   );
 }
 
@@ -717,100 +733,57 @@ function SettingsCardSkeleton({
   );
 }
 
-function SettingsToggleRowSkeleton() {
-  return (
-    <div className="grid gap-4 border-b border-border/70 px-4 py-4 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-5">
-      <div className="space-y-1">
-        <Skeleton className="h-4 w-28 rounded-md" />
-        <Skeleton className="h-4 w-full max-w-sm rounded-md" />
-      </div>
-      <Skeleton className="h-6 w-11 rounded-full" />
-    </div>
-  );
-}
-
 function DashboardSettingsGeneralSkeletonContent() {
   return (
     <>
       <SettingsPageHeader descriptionWidth="w-56" titleWidth="max-w-sm" />
 
-      <SettingsCardSkeleton titleWidth="w-36">
-        <div className="grid gap-6 xl:grid-cols-[19rem_minmax(0,1fr)] xl:gap-7">
-          <div className="rounded-3xl border border-border/75 bg-muted/25 p-5">
-            <div className="space-y-2">
-              <Skeleton className="h-3 w-24 rounded-md" />
-              <Skeleton className="h-6 w-36 rounded-lg" />
-              <Skeleton className="h-4 w-40 rounded-md" />
-            </div>
-
-              <div className="mt-5 rounded-3xl border border-border/65 bg-background/85 p-5">
-                <div className="flex flex-col items-center gap-4 text-center">
-                  <Skeleton className="size-24 rounded-[1.6rem]" />
-                  <div className="w-full space-y-2">
-                    <Skeleton className="h-5 w-40 rounded-md" />
-                  <Skeleton className="h-4 w-full rounded-md" />
-                  <Skeleton className="h-4 w-3/4 rounded-md" />
-                  <Skeleton className="h-7 w-28 rounded-full" />
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 space-y-3">
-              <Skeleton className="h-4 w-28 rounded-md" />
-              <Skeleton className="h-11 w-full rounded-xl" />
-              <Skeleton className="h-16 rounded-2xl" />
-            </div>
-          </div>
-
+      <section className="section-panel p-5 sm:p-6">
+        <div className="flex flex-col gap-7">
+          {/* Identity & contact */}
           <div className="space-y-5">
-            <div className="rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
-              <div className="space-y-2">
-                <Skeleton className="h-6 w-48 rounded-lg" />
-                <Skeleton className="h-4 w-full max-w-md rounded-md" />
-              </div>
-
-              <div className="mt-5 space-y-5">
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-48 rounded-lg" />
+              <Skeleton className="h-4 w-full max-w-md rounded-md" />
+            </div>
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
+              <Skeleton className="size-20 shrink-0 rounded-xl sm:size-24" />
+              <div className="grid min-w-0 flex-1 gap-5 sm:grid-cols-2">
                 <FieldSkeleton />
-                <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                  <FieldSkeleton />
-                  <FieldSkeleton />
-                </div>
+                <FieldSkeleton />
               </div>
             </div>
-
-            <div className="rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
-              <div className="space-y-2">
-                <Skeleton className="h-6 w-36 rounded-lg" />
-                <Skeleton className="h-4 w-full max-w-md rounded-md" />
-              </div>
-
-              <div className="mt-5">
-                <FieldSkeleton className="h-36 rounded-2xl" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </SettingsCardSkeleton>
-
-      <SettingsCardSkeleton titleWidth="w-36">
-        <div className="space-y-5">
-          <div className="rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
-            <Skeleton className="h-6 w-32 rounded-lg" />
-            <Skeleton className="mt-2 h-4 w-36 rounded-md" />
-            <div className="mt-5">
+            <div className="grid gap-5 sm:grid-cols-2">
               <FieldSkeleton />
             </div>
           </div>
 
-          <div className="rounded-3xl border border-border/75 bg-muted/20 px-5 py-5 sm:px-6">
-            <Skeleton className="h-6 w-32 rounded-lg" />
-            <Skeleton className="mt-2 h-4 w-36 rounded-md" />
-            <div className="mt-5">
-              <FieldSkeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-px w-full rounded-full" />
+
+          {/* Business summary */}
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-36 rounded-lg" />
+              <Skeleton className="h-4 w-full max-w-sm rounded-md" />
+            </div>
+            <FieldSkeleton className="h-28 rounded-2xl" />
+          </div>
+
+          <Skeleton className="h-px w-full rounded-full" />
+
+          {/* Regional defaults */}
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-32 rounded-lg" />
+              <Skeleton className="h-4 w-72 rounded-md" />
+            </div>
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+              <FieldSkeleton />
+              <FieldSkeleton />
             </div>
           </div>
         </div>
-      </SettingsCardSkeleton>
+      </section>
 
       <SettingsCardSkeleton destructive titleWidth="w-28">
         <Skeleton className="h-4 w-60 rounded-md" />
