@@ -189,6 +189,7 @@ export function createQuoteEditorLineItemValue(
     description: string;
     quantity: string;
     unitPrice: string;
+    aiReview: QuoteEditorLineItemValue["aiReview"];
   }>,
 ): QuoteEditorLineItemValue {
   return {
@@ -196,6 +197,7 @@ export function createQuoteEditorLineItemValue(
     description: value?.description ?? "",
     quantity: value?.quantity ?? "1",
     unitPrice: value?.unitPrice ?? "",
+    aiReview: value?.aiReview,
   };
 }
 

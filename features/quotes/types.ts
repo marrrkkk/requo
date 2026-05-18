@@ -249,6 +249,31 @@ export type QuoteEditorLineItemValue = {
   description: string;
   quantity: string;
   unitPrice: string;
+  /**
+   * Optional AI review metadata. Populated when the editor was hydrated from
+   * an AI-generated draft. Cleared once the owner edits the price.
+   */
+  aiReview?: AiQuoteLineItemReview;
+};
+
+/**
+ * AI review metadata attached to an editor line item. Mirrors the AI draft
+ * line item shape but lives on the editor row so the UI can surface a per-row
+ * badge and the send guard can block delivery while items still need pricing.
+ */
+export type AiQuoteLineItemReview = {
+  name: string;
+  pricingSource:
+    | "pricing_library_block"
+    | "pricing_library_package"
+    | "past_quote"
+    | "business_memory"
+    | "owner_brief"
+    | "none";
+  pricingSourceLabel: string | null;
+  confidence: "high" | "medium" | "low";
+  reviewStatus: "matched" | "calculated" | "needs_review" | "no_pricing_found";
+  reason: string;
 };
 
 export type QuoteEditorValues = {

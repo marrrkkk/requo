@@ -476,6 +476,19 @@ export async function sendQuoteAction(
       };
     }
 
+    const unpricedItems = quote.items.filter(
+      (item) => item.unitPriceInCents <= 0,
+    );
+
+    if (unpricedItems.length > 0) {
+      return {
+        error:
+          unpricedItems.length === 1
+            ? "One line item still needs pricing review. Set a price before sending this quote."
+            : `${unpricedItems.length} line items still need pricing review. Set a price for each one before sending this quote.`,
+      };
+    }
+
     if (
       deliveryMethod === "requo" &&
       businessContext.business.plan === "free"

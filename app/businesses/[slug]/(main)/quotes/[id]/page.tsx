@@ -239,6 +239,10 @@ async function QuoteDetailContent({
     "exports",
   );
 
+  const unpricedItemCount = quote.items.filter(
+    (item) => item.unitPriceInCents <= 0,
+  ).length;
+
   const linkedInquirySection = (
     <DashboardSection
       description="Original inquiry context."
@@ -359,6 +363,7 @@ async function QuoteDetailContent({
                     : undefined
                 }
                 pdfExportLocked={!canExportData}
+                unpricedItemCount={unpricedItemCount}
               />
             ) : null}
           </div>
@@ -420,6 +425,7 @@ async function QuoteDetailContent({
                         : undefined
                     }
                     pdfExportLocked={!canExportData}
+                    unpricedItemCount={unpricedItemCount}
                   />
                 </DashboardSection>
               </div>
