@@ -105,6 +105,14 @@ type TargetBusinessInquiryFormInput = {
 type SetBusinessInquiryFormPublicStateInput = TargetBusinessInquiryFormInput & {
   publicInquiryEnabled: boolean;
 };
+type SetBusinessInquiryFormConversationalModeInput = TargetBusinessInquiryFormInput & {
+  conversationalModeEnabled: boolean;
+};
+type UpdateBusinessInquiryFormChatbotSettingsInput = TargetBusinessInquiryFormInput & {
+  assistantName: string;
+  avatarStyle: "brand" | "initials";
+  openingMessage: string;
+};
 
 type UpdateBusinessSettingsResult =
   | { ok: true; previousSlug: string; nextSlug: string }
@@ -1592,6 +1600,195 @@ export async function unarchiveBusinessInquiryForm({
       metadata: {
         inquiryFormId: targetFormId,
         inquiryFormSlug: targetForm.slug,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+
+  return {
+    ok: true,
+    businessSlug: business.slug,
+    formSlug: targetForm.slug,
+  };
+}
+
+export async function setBusinessInquiryFormConversationalMode({
+  businessId,
+  actorUserId,
+  targetFormId,
+  conversationalModeEnabled,
+}: SetBusinessInquiryFormConversationalModeInput): Promise<BusinessInquiryFormMutationResult> {
+  const [businessRows, targetFormRows] = await Promise.all([
+    db
+      .select({
+        id: businesses.id,
+        slug: businesses.slug,
+      })
+      .from(businesses)
+      .where(eq(businesses.id, businessId))
+      .limit(1),
+    db
+      .select({
+        id: businessInquiryForms.id,
+        slug: businessInquiryForms.slug,
+        inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
+      })
+      .from(businessInquiryForms)
+      .where(
+        and(
+          eq(businessInquiryForms.businessId, businessId),
+          eq(businessInquiryForms.id, targetFormId),
+          isNull(businessInquiryForms.archivedAt),
+        ),
+      )
+      .limit(1),
+  ]);
+
+  const business = businessRows[0];
+  const targetForm = targetFormRows[0];
+
+  if (!business || !targetForm) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
+  const now = new Date();
+  const updatedFormConfig = {
+    ...targetForm.inquiryFormConfig,
+    conversationalMode: conversationalModeEnabled
+      ? {
+          enabled: true,
+          openingMessage:
+            targetForm.inquiryFormConfig.conversationalMode?.openingMessage,
+        }
+      : { enabled: false },
+  };
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(businessInquiryForms)
+      .set({
+        inquiryFormConfig: updatedFormConfig,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(businessInquiryForms.businessId, businessId),
+          eq(businessInquiryForms.id, targetFormId),
+        ),
+      );
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      actorUserId,
+      type: "business.inquiry_form_updated",
+      summary: conversationalModeEnabled
+        ? `Conversational intake enabled for ${targetForm.slug}.`
+        : `Conversational intake disabled for ${targetForm.slug}.`,
+      metadata: {
+        inquiryFormId: targetFormId,
+        inquiryFormSlug: targetForm.slug,
+        conversationalModeEnabled,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+
+  return {
+    ok: true,
+    businessSlug: business.slug,
+    formSlug: targetForm.slug,
+  };
+}
+
+export async function updateBusinessInquiryFormChatbotSettings({
+  businessId,
+  actorUserId,
+  targetFormId,
+  assistantName,
+  avatarStyle,
+  openingMessage,
+}: UpdateBusinessInquiryFormChatbotSettingsInput): Promise<BusinessInquiryFormMutationResult> {
+  const [businessRows, targetFormRows] = await Promise.all([
+    db
+      .select({
+        id: businesses.id,
+        slug: businesses.slug,
+      })
+      .from(businesses)
+      .where(eq(businesses.id, businessId))
+      .limit(1),
+    db
+      .select({
+        id: businessInquiryForms.id,
+        slug: businessInquiryForms.slug,
+        inquiryFormConfig: businessInquiryForms.inquiryFormConfig,
+      })
+      .from(businessInquiryForms)
+      .where(
+        and(
+          eq(businessInquiryForms.businessId, businessId),
+          eq(businessInquiryForms.id, targetFormId),
+          isNull(businessInquiryForms.archivedAt),
+        ),
+      )
+      .limit(1),
+  ]);
+
+  const business = businessRows[0];
+  const targetForm = targetFormRows[0];
+
+  if (!business || !targetForm) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
+  const now = new Date();
+  const trimmedName = assistantName.trim() || undefined;
+  const trimmedMessage = openingMessage.trim() || undefined;
+  const updatedFormConfig = {
+    ...targetForm.inquiryFormConfig,
+    conversationalMode: {
+      ...targetForm.inquiryFormConfig.conversationalMode,
+      enabled: targetForm.inquiryFormConfig.conversationalMode?.enabled ?? false,
+      assistantName: trimmedName,
+      avatarStyle,
+      openingMessage: trimmedMessage,
+    },
+  };
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(businessInquiryForms)
+      .set({
+        inquiryFormConfig: updatedFormConfig,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(businessInquiryForms.businessId, businessId),
+          eq(businessInquiryForms.id, targetFormId),
+        ),
+      );
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      actorUserId,
+      type: "business.inquiry_form_updated",
+      summary: `Chatbot settings updated for ${targetForm.slug}.`,
+      metadata: {
+        inquiryFormId: targetFormId,
+        inquiryFormSlug: targetForm.slug,
+        hasCustomAssistantName: Boolean(trimmedName),
+        avatarStyle,
       },
       createdAt: now,
       updatedAt: now,

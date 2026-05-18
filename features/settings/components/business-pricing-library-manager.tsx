@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  ArrowRight,
   FileUp,
   Layers,
   MoreHorizontal,
@@ -15,12 +14,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  ResponsiveOverlay,
+  ResponsiveOverlayContent,
+  ResponsiveOverlayDescription,
+  ResponsiveOverlayHeader,
+  ResponsiveOverlayTitle,
+} from "@/components/ui/responsive-overlay";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,7 +46,10 @@ import type {
   ImporterCommitResult,
   ImporterDestination,
 } from "@/features/importer/types";
-import { QuoteLibraryEntryForm } from "@/features/quotes/components/quote-library-entry-form";
+import {
+  QuoteLibraryEntryForm,
+  type QuoteLibraryBlockReference,
+} from "@/features/quotes/components/quote-library-entry-form";
 import {
   centsToMoneyInput,
   formatQuoteMoney,
@@ -56,7 +58,6 @@ import type {
   DashboardQuoteLibraryEntry,
   QuoteLibraryActionState,
   QuoteLibraryDeleteActionState,
-  QuoteLibraryEditorValues,
   QuoteLibraryEntryKind,
 } from "@/features/quotes/types";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
@@ -116,17 +117,28 @@ export function BusinessPricingLibraryManager({
   const [editorState, setEditorState] = useState<EditorState>(null);
   const [deleteTarget, setDeleteTarget] =
     useState<DashboardQuoteLibraryEntry | null>(null);
-  const [seedItems, setSeedItems] = useState<
-    QuoteLibraryEditorValues["items"] | null
-  >(null);
   const [importerOpen, setImporterOpen] = useState(false);
   const totalCount = quoteLibrary.length;
   const isAtLimit = pricingLimit !== null && totalCount >= pricingLimit;
 
   const blockCount = quoteLibrary.filter((e) => e.kind === "block").length;
   const packageCount = quoteLibrary.filter((e) => e.kind === "package").length;
-  const availableBlocks = useMemo(
-    () => quoteLibrary.filter((e) => e.kind === "block"),
+  const availableBlocks = useMemo<QuoteLibraryBlockReference[]>(
+    () =>
+      quoteLibrary
+        .filter((entry) => entry.kind === "block")
+        .map((entry) => ({
+          id: entry.id,
+          name: entry.name,
+          currency: entry.currency,
+          totalInCents: entry.totalInCents,
+          items: entry.items.map((item) => ({
+            id: item.id,
+            description: item.description,
+            quantity: item.quantity,
+            unitPriceInCents: item.unitPriceInCents,
+          })),
+        })),
     [quoteLibrary],
   );
 
@@ -136,28 +148,15 @@ export function BusinessPricingLibraryManager({
   }, [quoteLibrary, filter]);
 
   function openCreate(kind: QuoteLibraryEntryKind) {
-    setSeedItems(null);
     setEditorState({ mode: "create", kind });
   }
 
   function openEdit(entry: DashboardQuoteLibraryEntry) {
-    setSeedItems(null);
     setEditorState({ mode: "edit", entry });
   }
 
   function closeEditor() {
     setEditorState(null);
-    setSeedItems(null);
-  }
-
-  function importBlockIntoPackage(block: DashboardQuoteLibraryEntry) {
-    const blockItems = block.items.map((item, index) => ({
-      id: `imported_${block.id}_${item.id}_${index}_${Date.now()}`,
-      description: item.description,
-      quantity: String(item.quantity),
-      unitPrice: centsToMoneyInput(item.unitPriceInCents),
-    }));
-    setSeedItems((current) => [...(current ?? []), ...blockItems]);
   }
 
   return (
@@ -274,71 +273,57 @@ export function BusinessPricingLibraryManager({
       )}
 
       {/* Editor dialog */}
-      <Dialog
+      <ResponsiveOverlay
         open={editorState !== null}
         onOpenChange={(open) => {
           if (!open) closeEditor();
         }}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <ResponsiveOverlayContent className="sm:max-w-2xl">
           {editorState ? (
             <>
-              <DialogHeader>
-                <DialogTitle>
-                  {editorState.mode === "create" ? (
-                    editorState.kind === "package" ? (
-                      "Create service package"
+              <ResponsiveOverlayHeader>
+                <div className="flex items-start gap-3">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40">
+                    {(editorState.mode === "create"
+                      ? editorState.kind
+                      : editorState.entry.kind) === "package" ? (
+                      <Package className="size-5 text-muted-foreground" />
                     ) : (
-                      "Create pricing block"
-                    )
-                  ) : editorState.entry.kind === "package" ? (
-                    "Edit service package"
-                  ) : (
-                    "Edit pricing block"
-                  )}
-                </DialogTitle>
-                <DialogDescription>
-                  {editorState.mode === "create" &&
-                  editorState.kind === "package"
-                    ? "Bundle line items into a reusable package. Quickly import items from your existing blocks below."
-                    : editorState.mode === "create"
-                      ? "A reusable line item you can add to any quote with one click."
-                      : "Update the details and line items."}
-                </DialogDescription>
-              </DialogHeader>
-
-              {/* Block picker for package creation */}
-              {editorState.mode === "create" &&
-              editorState.kind === "package" &&
-              availableBlocks.length > 0 ? (
-                <div className="rounded-xl border border-border/75 bg-muted/20 px-4 py-3">
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Quick add from blocks
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {availableBlocks.map((block) => (
-                      <Button
-                        key={block.id}
-                        onClick={() => importBlockIntoPackage(block)}
-                        size="sm"
-                        type="button"
-                        variant="outline"
-                      >
-                        <ArrowRight data-icon="inline-start" />
-                        {block.name}
-                        <span className="ml-1.5 text-xs text-muted-foreground">
-                          {formatQuoteMoney(block.totalInCents, block.currency)}
-                        </span>
-                      </Button>
-                    ))}
+                      <Layers className="size-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <ResponsiveOverlayTitle>
+                      {editorState.mode === "create" ? (
+                        editorState.kind === "package" ? (
+                          "Create service package"
+                        ) : (
+                          "Create pricing block"
+                        )
+                      ) : editorState.entry.kind === "package" ? (
+                        "Edit service package"
+                      ) : (
+                        "Edit pricing block"
+                      )}
+                    </ResponsiveOverlayTitle>
+                    <ResponsiveOverlayDescription>
+                      {editorState.mode === "create" &&
+                      editorState.kind === "package"
+                        ? "Bundle line items into a reusable package. Add them manually or import from saved blocks."
+                        : editorState.mode === "create"
+                          ? "A reusable line item you can drop into any quote with one click."
+                          : "Update the details and line items."}
+                    </ResponsiveOverlayDescription>
                   </div>
                 </div>
-              ) : null}
+              </ResponsiveOverlayHeader>
 
               <div
+                className="contents"
                 key={
                   editorState.mode === "create"
-                    ? `create-${editorState.kind}-${seedItems?.length ?? 0}`
+                    ? `create-${editorState.kind}`
                     : `edit-${editorState.entry.id}`
                 }
               >
@@ -347,6 +332,12 @@ export function BusinessPricingLibraryManager({
                     editorState.mode === "create"
                       ? createAction
                       : updateAction.bind(null, editorState.entry.id)
+                  }
+                  availableBlocks={
+                    editorState.mode === "create" &&
+                    editorState.kind === "package"
+                      ? availableBlocks
+                      : undefined
                   }
                   fixedKind={
                     editorState.mode === "create"
@@ -371,15 +362,10 @@ export function BusinessPricingLibraryManager({
                             unitPrice: centsToMoneyInput(item.unitPriceInCents),
                           })),
                         }
-                      : seedItems && seedItems.length > 0
-                        ? {
-                            kind: editorState.kind,
-                            name: "",
-                            description: "",
-                            items: seedItems,
-                          }
-                        : undefined
+                      : undefined
                   }
+                  layout="dialog"
+                  onCancel={closeEditor}
                   onSuccess={closeEditor}
                   submitLabel={
                     editorState.mode === "create" ? "Create" : "Save changes"
@@ -389,8 +375,8 @@ export function BusinessPricingLibraryManager({
               </div>
             </>
           ) : null}
-        </DialogContent>
-      </Dialog>
+        </ResponsiveOverlayContent>
+      </ResponsiveOverlay>
 
       {/* Delete confirmation */}
       <DeleteConfirmDialog

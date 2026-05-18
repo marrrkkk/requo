@@ -26,15 +26,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  ResponsiveOverlay,
+  ResponsiveOverlayBody,
+  ResponsiveOverlayContent,
+  ResponsiveOverlayDescription,
+  ResponsiveOverlayFooter,
+  ResponsiveOverlayHeader,
+  ResponsiveOverlayTitle,
+  ResponsiveOverlayTrigger,
+} from "@/components/ui/responsive-overlay";
 import {
   Field,
   FieldContent,
@@ -123,21 +123,21 @@ export function BusinessInquiryFormsManager({
       <div className="flex flex-col gap-8">
         <div className="flex justify-end gap-2">
           {archivedForms.length > 0 && (
-            <Dialog open={isArchiveDialogOpen} onOpenChange={setIsArchiveDialogOpen}>
-              <DialogTrigger asChild>
+            <ResponsiveOverlay open={isArchiveDialogOpen} onOpenChange={setIsArchiveDialogOpen}>
+              <ResponsiveOverlayTrigger asChild>
                 <Button variant="outline">
                   <FileArchive data-icon="inline-start" />
                   Archived
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-xl">
-                <DialogHeader>
-                  <DialogTitle>Archived forms</DialogTitle>
-                  <DialogDescription>
+              </ResponsiveOverlayTrigger>
+              <ResponsiveOverlayContent className="sm:max-w-xl">
+                <ResponsiveOverlayHeader>
+                  <ResponsiveOverlayTitle>Archived forms</ResponsiveOverlayTitle>
+                  <ResponsiveOverlayDescription>
                     These forms are disabled and no longer accept new submissions.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogBody className="gap-4">
+                  </ResponsiveOverlayDescription>
+                </ResponsiveOverlayHeader>
+                <ResponsiveOverlayBody className="gap-4">
                     {archivedForms.map((form) => (
                       <Card className="border-border/70 bg-background/75" key={form.id}>
                         <CardHeader className="gap-3 pb-2 pt-4">
@@ -164,29 +164,29 @@ export function BusinessInquiryFormsManager({
                         </CardContent>
                       </Card>
                     ))}
-                </DialogBody>
-              </DialogContent>
-            </Dialog>
+                </ResponsiveOverlayBody>
+              </ResponsiveOverlayContent>
+            </ResponsiveOverlay>
           )}
 
           {canCreateAdditionalForms ? (
-            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-              <DialogTrigger asChild>
+            <ResponsiveOverlay open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <ResponsiveOverlayTrigger asChild>
                 <Button>
                   <Plus data-icon="inline-start" />
                   Create form
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-xl">
-                <DialogHeader>
-                  <DialogTitle>Create form</DialogTitle>
-                  <DialogDescription>
+              </ResponsiveOverlayTrigger>
+              <ResponsiveOverlayContent className="sm:max-w-xl">
+                <ResponsiveOverlayHeader>
+                  <ResponsiveOverlayTitle>Create form</ResponsiveOverlayTitle>
+                  <ResponsiveOverlayDescription>
                     Add a new inquiry form and its public page for this business.
-                  </DialogDescription>
-                </DialogHeader>
+                  </ResponsiveOverlayDescription>
+                </ResponsiveOverlayHeader>
 
                 <form action={createFormAction} className="flex min-h-0 flex-1 flex-col">
-                  <DialogBody className="gap-6">
+                  <ResponsiveOverlayBody className="gap-6">
                     <input name="businessType" type="hidden" value={businessType} />
 
                     <FieldGroup className="rounded-xl border border-border/70 bg-muted/20 p-3 sm:p-4">
@@ -245,9 +245,9 @@ export function BusinessInquiryFormsManager({
                         </FieldContent>
                       </Field>
                     </FieldGroup>
-                  </DialogBody>
+                  </ResponsiveOverlayBody>
 
-                  <DialogFooter className="grid grid-cols-1 sm:grid-cols-2">
+                  <ResponsiveOverlayFooter className="grid grid-cols-1 sm:grid-cols-2">
                     <Button
                       className="w-full"
                       onClick={() => setIsCreateDialogOpen(false)}
@@ -274,10 +274,10 @@ export function BusinessInquiryFormsManager({
                         </>
                       )}
                     </Button>
-                  </DialogFooter>
+                  </ResponsiveOverlayFooter>
                 </form>
-              </DialogContent>
-            </Dialog>
+              </ResponsiveOverlayContent>
+            </ResponsiveOverlay>
           ) : (
             <LockedAction
               feature="multipleForms"
@@ -561,22 +561,22 @@ function FormShareDialog({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
+    <ResponsiveOverlay open={isOpen} onOpenChange={setIsOpen}>
+      <ResponsiveOverlayTrigger asChild>
         <Button variant="outline" type="button" className="px-3 sm:px-4">
           <Link2 className="size-4 sm:-ml-1 sm:mr-2" />
           <span className="hidden sm:inline">Share</span>
           <span className="sr-only">Share</span>
         </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Share form</DialogTitle>
-          <DialogDescription>
+      </ResponsiveOverlayTrigger>
+      <ResponsiveOverlayContent className="sm:max-w-md">
+        <ResponsiveOverlayHeader>
+          <ResponsiveOverlayTitle>Share form</ResponsiveOverlayTitle>
+          <ResponsiveOverlayDescription>
             Share this inquiry form link or scan the QR code.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogBody className="items-center gap-6">
+          </ResponsiveOverlayDescription>
+        </ResponsiveOverlayHeader>
+        <ResponsiveOverlayBody className="items-center gap-6">
           <div className="relative mx-auto flex items-center justify-center rounded-xl border border-border/70 bg-white p-4">
             <QRCodeSVG
               id={`qr-svg-${formSlug}`}
@@ -599,15 +599,15 @@ function FormShareDialog({
               Copy
             </Button>
           </div>
-        </DialogBody>
-        <DialogFooter>
+        </ResponsiveOverlayBody>
+        <ResponsiveOverlayFooter>
           <Button variant="outline" type="button" onClick={handleDownload}>
             <Download data-icon="inline-start" />
             Download QR
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveOverlayFooter>
+      </ResponsiveOverlayContent>
+    </ResponsiveOverlay>
   );
 }
 

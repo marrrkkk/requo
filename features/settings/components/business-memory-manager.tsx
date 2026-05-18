@@ -16,14 +16,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { DashboardEmptyState } from "@/components/shared/dashboard-layout";
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  ResponsiveOverlay,
+  ResponsiveOverlayBody,
+  ResponsiveOverlayContent,
+  ResponsiveOverlayDescription,
+  ResponsiveOverlayFooter,
+  ResponsiveOverlayHeader,
+  ResponsiveOverlayTitle,
+} from "@/components/ui/responsive-overlay";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -186,25 +186,25 @@ export function BusinessMemoryManager({
       )}
 
       {/* Editor dialog */}
-      <Dialog
+      <ResponsiveOverlay
         open={editorState !== null}
         onOpenChange={(open) => {
           if (!open) setEditorState(null);
         }}
       >
-        <DialogContent className="sm:max-w-lg">
+        <ResponsiveOverlayContent className="sm:max-w-lg">
           {editorState ? (
             <>
-              <DialogHeader>
-                <DialogTitle>
+              <ResponsiveOverlayHeader>
+                <ResponsiveOverlayTitle>
                   {editorState.mode === "create" ? "Add knowledge" : "Edit knowledge"}
-                </DialogTitle>
-                <DialogDescription>
+                </ResponsiveOverlayTitle>
+                <ResponsiveOverlayDescription>
                   {editorState.mode === "create"
                     ? "Context that AI uses when drafting replies and quotes."
                     : "Update the context provided to AI drafts."}
-                </DialogDescription>
-              </DialogHeader>
+                </ResponsiveOverlayDescription>
+              </ResponsiveOverlayHeader>
               <KnowledgeForm
                 action={
                   editorState.mode === "create"
@@ -225,8 +225,8 @@ export function BusinessMemoryManager({
               />
             </>
           ) : null}
-        </DialogContent>
-      </Dialog>
+        </ResponsiveOverlayContent>
+      </ResponsiveOverlay>
 
       {/* Delete confirmation */}
       {deleteTarget ? (
@@ -309,7 +309,7 @@ function KnowledgeForm({
 
   return (
     <form action={handleSubmit}>
-      <DialogBody className="flex flex-col gap-4">
+      <ResponsiveOverlayBody className="flex flex-col gap-4">
         <Field data-invalid={Boolean(formState.fieldErrors?.title)}>
           <FieldLabel htmlFor={`${idPrefix}-title`}>Title</FieldLabel>
           <FieldContent>
@@ -347,9 +347,9 @@ function KnowledgeForm({
         {formState.error ? (
           <p className="text-sm text-destructive">{formState.error}</p>
         ) : null}
-      </DialogBody>
+      </ResponsiveOverlayBody>
 
-      <DialogFooter>
+      <ResponsiveOverlayFooter>
         <Button disabled={isPending} type="submit">
           {isPending ? (
             <>
@@ -360,7 +360,7 @@ function KnowledgeForm({
             submitLabel
           )}
         </Button>
-      </DialogFooter>
+      </ResponsiveOverlayFooter>
     </form>
   );
 }
