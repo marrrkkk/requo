@@ -9,10 +9,12 @@ import {
   useMemo,
   useRef,
   useState,
+  useId,
   type FormEvent,
   type KeyboardEvent,
 } from "react";
 import ReactMarkdown from "react-markdown";
+import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Image from "next/image";
 import { formatDistanceToNowStrict } from "date-fns";
@@ -54,6 +56,7 @@ import {
   fetchDashboardConversations,
   fetchConversation,
   fetchMessagePage,
+  getAiChatSources,
   formatConversationTime,
   getEntityConversationCacheKey,
   getJsonErrorMessage,
@@ -65,10 +68,15 @@ import {
   mergeDashboardConversationSummary,
   shouldSkipDashboardConversationHydration,
   topLoadThreshold,
+  type AiChatSource,
   type ChatMessage,
   type ConversationMessagesSnapshot,
   type EntityConversationSnapshot,
 } from "@/features/ai/components/ai-chat-helpers";
+import {
+  autoAiModelOptionValue,
+  getAllAiModelOptions,
+} from "@/lib/ai/model-options";
 
 type AiChatPanelProps = {
   businessSlug: string;
@@ -109,6 +117,47 @@ type AssistantTerminalEvent = Extract<
   AiChatStreamEvent,
   { type: "done" | "error" }
 >;
+
+const showAiChatDevTools = process.env.NODE_ENV === "development";
+const aiChatDevModelOptions = getAllAiModelOptions();
+
+const markdownComponents: Components = {
+  a({ href, children, ...props }) {
+    const isExternal = href ? /^https?:\/\//i.test(href) : false;
+    const isInternalRoute = href && !isExternal && href.startsWith("/");
+
+    // Internal app links render as pill-style inline links
+    if (isInternalRoute) {
+      return (
+        <a
+          {...props}
+          href={href}
+          className="inline-flex items-center gap-0.5 rounded-md bg-primary/8 px-1.5 py-0.5 text-primary no-underline transition-colors hover:bg-primary/15"
+        >
+          {children}
+        </a>
+      );
+    }
+
+    return (
+      <a
+        {...props}
+        href={href}
+        rel={isExternal ? "noreferrer" : props.rel}
+        target={isExternal ? "_blank" : props.target}
+      >
+        {children}
+      </a>
+    );
+  },
+  table({ children, ...props }) {
+    return (
+      <div className="overflow-x-auto rounded-lg">
+        <table {...props}>{children}</table>
+      </div>
+    );
+  },
+};
 
 function useTimedCopyState() {
   const [state, setState] = useState<MessageCopyState>(null);
@@ -181,6 +230,8 @@ type AssistantBubbleProps = {
   isCopied: boolean;
   isCopyError: boolean;
   onCopy: (message: ChatMessage) => void;
+  showModelMetadata: boolean;
+  sources: AiChatSource[];
 };
 
 const StreamingIndicator = memo(function StreamingIndicator() {
@@ -199,20 +250,53 @@ const AssistantMessageBody = memo(function AssistantMessageBody({
   content: string;
   isStreaming: boolean;
 }) {
-  // While streaming, render plain pre-wrapped text plus a cursor. This avoids
-  // re-parsing markdown on every delta, which was the previous perf bottleneck.
-  if (isStreaming) {
-    return (
-      <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
+  return (
+    <div className="ai-prose text-sm leading-6 text-foreground">
+      <ReactMarkdown
+        components={markdownComponents}
+        remarkPlugins={[remarkGfm]}
+      >
         {content}
-        <StreamingIndicator />
-      </p>
-    );
+      </ReactMarkdown>
+      {isStreaming ? <StreamingIndicator /> : null}
+    </div>
+  );
+});
+
+const AssistantSources = memo(function AssistantSources({
+  sources,
+}: {
+  sources: AiChatSource[];
+}) {
+  if (!sources.length) {
+    return null;
   }
 
   return (
-    <div className="ai-prose text-sm leading-6 text-foreground">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      {sources.map((source) => (
+        <a
+          className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2.5 py-0.5 text-[0.72rem] font-medium text-primary transition-colors hover:border-primary/40 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          href={source.href}
+          key={`${source.label}:${source.href}`}
+        >
+          <svg
+            className="size-3 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m9.86-2.06a4.5 4.5 0 0 0-1.242-7.244l-4.5-4.5a4.5 4.5 0 0 0-6.364 6.364l1.757 1.757"
+            />
+          </svg>
+          {source.label}
+        </a>
+      ))}
     </div>
   );
 });
@@ -222,11 +306,13 @@ const AssistantBubble = memo(function AssistantBubble({
   isCopied,
   isCopyError,
   onCopy,
+  showModelMetadata,
+  sources,
 }: AssistantBubbleProps) {
   const hasContent = message.content.trim().length > 0;
   const showPendingOnly = message.pending && !hasContent;
   const canCopy = !message.isError && hasContent && !message.pending;
-  const modelLabel = message.model;
+  const modelLabel = showModelMetadata ? message.model : undefined;
 
   return (
     <div className="flex w-full justify-start">
@@ -337,10 +423,14 @@ function MessageRow({
   message,
   copyState,
   onCopy,
+  showModelMetadata,
+  sources,
 }: {
   message: ChatMessage;
   copyState: MessageCopyState;
   onCopy: (message: ChatMessage) => void;
+  showModelMetadata: boolean;
+  sources: AiChatSource[];
 }) {
   if (message.role === "user") {
     return <UserBubble message={message} />;
@@ -357,6 +447,8 @@ function MessageRow({
       isCopyError={isCopyError}
       message={message}
       onCopy={onCopy}
+      showModelMetadata={showModelMetadata}
+      sources={sources}
     />
   );
 }
@@ -376,6 +468,8 @@ export function ChatMessageList({
   loadingLabel,
   onCopy,
   onReload,
+  showModelMetadata,
+  sources,
 }: {
   messages: ChatMessage[];
   copyState: MessageCopyState;
@@ -387,6 +481,8 @@ export function ChatMessageList({
   loadingLabel?: string;
   onCopy: (message: ChatMessage) => void;
   onReload: () => void;
+  showModelMetadata?: boolean;
+  sources?: AiChatSource[];
 }) {
   if (messages.length) {
     return (
@@ -415,6 +511,8 @@ export function ChatMessageList({
             key={message.id}
             message={message}
             onCopy={onCopy}
+            showModelMetadata={showModelMetadata ?? false}
+            sources={sources ?? []}
           />
         ))}
       </>
@@ -525,6 +623,43 @@ export function ChatInput({
         {disabled ? <Spinner aria-hidden="true" /> : <SendHorizontal />}
       </Button>
     </form>
+  );
+}
+
+function DevModelSelector({
+  disabled,
+  id,
+  value,
+  onChange,
+}: {
+  disabled: boolean;
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-background/80 px-3 py-2">
+      <label
+        className="text-[0.68rem] font-medium uppercase tracking-[0.14em] text-muted-foreground"
+        htmlFor={id}
+      >
+        Dev model
+      </label>
+      <select
+        className="h-8 max-w-full rounded-md border border-border bg-background px-2 text-xs text-foreground shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+        disabled={disabled}
+        id={id}
+        onChange={(event) => onChange(event.currentTarget.value)}
+        value={value}
+      >
+        <option value={autoAiModelOptionValue}>Auto fallback</option>
+        {aiChatDevModelOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }
 
@@ -757,6 +892,7 @@ export function AIChatPanel({
       [],
   );
   const [composerValue, setComposerValue] = useState("");
+  const [devModel, setDevModel] = useState(autoAiModelOptionValue);
   const [isPending, setIsPending] = useState(false);
   const [isHydrating, setIsHydrating] = useState(() => {
     if (!hasFeatureAccess(plan, "aiAssistant")) {
@@ -794,6 +930,7 @@ export function AIChatPanel({
     isDashboard && !hasCachedList && hasFeatureAccess(plan, "aiAssistant"),
   );
   const [copyState, setCopyState] = useTimedCopyState();
+  const devModelSelectId = useId();
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(() => {
     if (typeof window === "undefined") return new Set();
@@ -1683,6 +1820,9 @@ export function AIChatPanel({
             surface,
             entityId,
             message: trimmedMessage,
+            ...(showAiChatDevTools && devModel !== autoAiModelOptionValue
+              ? { devModel }
+              : {}),
           }),
         });
 
@@ -1830,6 +1970,7 @@ export function AIChatPanel({
       appendAssistantNote,
       businessSlug,
       conversation,
+      devModel,
       entityCacheKey,
       entityId,
       hasMore,
@@ -1861,6 +2002,10 @@ export function AIChatPanel({
 
   const placeholder = useMemo(() => getPanelPlaceholder(surface), [surface]);
   const eyebrow = useMemo(() => getSurfaceEyebrow(surface, entityId), [surface, entityId]);
+  const sources = useMemo(
+    () => getAiChatSources({ businessSlug, entityId, surface }),
+    [businessSlug, entityId, surface],
+  );
 
   const canOpenHistory = surface === "dashboard" && !historyOpen;
   const isInputDisabled = isPending || isCreatingChat || !conversation;
@@ -2006,6 +2151,8 @@ export function AIChatPanel({
                   onCopy={handleCopy}
                   onReload={handleReload}
                   paginationError={paginationError}
+                  showModelMetadata={showAiChatDevTools}
+                  sources={sources}
                 />
 
                 {!messages.length &&
@@ -2039,15 +2186,25 @@ export function AIChatPanel({
 
           <div className="border-t border-border/70 px-3 pb-3 pt-2">
             {hasAiAccess ? (
-              <ChatInput
-                disabled={isInputDisabled}
-                onChange={setComposerValue}
-                onSubmit={() => {
-                  void runMessage(composerValue);
-                }}
-                placeholder={placeholder}
-                value={composerValue}
-              />
+              <>
+                {showAiChatDevTools ? (
+                  <DevModelSelector
+                    disabled={isInputDisabled}
+                    id={devModelSelectId}
+                    onChange={setDevModel}
+                    value={devModel}
+                  />
+                ) : null}
+                <ChatInput
+                  disabled={isInputDisabled}
+                  onChange={setComposerValue}
+                  onSubmit={() => {
+                    void runMessage(composerValue);
+                  }}
+                  placeholder={placeholder}
+                  value={composerValue}
+                />
+              </>
             ) : (
               <div className="flex items-end gap-2 rounded-2xl border border-border bg-background px-2.5 py-2 shadow-[var(--control-shadow)]">
                 <Textarea

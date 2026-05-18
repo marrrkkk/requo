@@ -29,6 +29,11 @@ export type ChatMessage = {
   };
 };
 
+export type AiChatSource = {
+  label: string;
+  href: string;
+};
+
 export type ConversationMessagesSnapshot = {
   messages: ChatMessage[];
   nextCursor: string | null;
@@ -427,6 +432,43 @@ export function getEntityConversationCacheKey(
   entityId: string,
 ) {
   return `${surface}:${entityId}`;
+}
+
+export function getAiChatSources(input: {
+  businessSlug: string;
+  entityId: string;
+  surface: AiSurface;
+}): AiChatSource[] {
+  const businessPath = `/businesses/${encodeURIComponent(input.businessSlug)}`;
+
+  switch (input.surface) {
+    case "inquiry":
+      return [
+        {
+          label: "Current inquiry",
+          href: `${businessPath}/inquiries/${encodeURIComponent(input.entityId)}`,
+        },
+        { label: "Quotes", href: `${businessPath}/quotes` },
+        { label: "Knowledge", href: `${businessPath}/knowledge` },
+      ];
+    case "quote":
+      return [
+        {
+          label: "Current quote",
+          href: `${businessPath}/quotes/${encodeURIComponent(input.entityId)}`,
+        },
+        { label: "Inquiries", href: `${businessPath}/inquiries` },
+        { label: "Knowledge", href: `${businessPath}/knowledge` },
+      ];
+    case "dashboard":
+      return [
+        { label: "Dashboard", href: `${businessPath}/dashboard` },
+        { label: "Inquiries", href: `${businessPath}/inquiries` },
+        { label: "Quotes", href: `${businessPath}/quotes` },
+        { label: "Follow-ups", href: `${businessPath}/follow-ups` },
+        { label: "Knowledge", href: `${businessPath}/knowledge` },
+      ];
+  }
 }
 
 export function shouldWarmupEntityConversation(options: {

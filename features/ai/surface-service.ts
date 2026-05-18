@@ -22,6 +22,7 @@ import {
 import { formatQuoteMoney } from "@/features/quotes/utils";
 import { streamWithFallback } from "@/lib/ai";
 import type { AiChatMessage, AiCompletionRequest } from "@/lib/ai";
+import type { AiModelSelection } from "@/lib/ai/model-options";
 import { db } from "@/lib/db/client";
 import {
   activityLogs,
@@ -407,75 +408,73 @@ async function buildInquiryContext(input: {
     context.inquiry.submittedFieldSnapshot,
   );
 
+  // Compact business line
+  const businessLine = `Business: ${context.business.name} (${context.business.businessType}); slug: ${context.business.slug}; currency ${context.business.defaultCurrency}; tone ${context.business.aiTonePreference}`;
+
+  // Compact inquiry header — only include non-null fields
+  const inquiryFields = compactFields([
+    ["", context.inquiry.customerName],
+    ["email", context.inquiry.customerEmail],
+    ["category", context.inquiry.serviceCategory],
+    ["status", context.inquiry.status],
+    ["subject", context.inquiry.subject],
+    ["deadline", context.inquiry.requestedDeadline],
+    ["budget", context.inquiry.budgetText],
+    ["submitted", formatDateOrNull(context.inquiry.submittedAt)],
+  ]);
+
   return [
     "Surface: inquiry",
     "",
-    formatBusinessProfileLines({
-      name: context.business.name,
-      slug: context.business.slug,
-      businessType: context.business.businessType,
-      shortDescription: context.business.shortDescription,
-      contactEmail: context.business.contactEmail,
-      defaultCurrency: context.business.defaultCurrency,
-      aiTonePreference: context.business.aiTonePreference,
-      defaultEmailSignature: context.business.defaultEmailSignature,
-      defaultQuoteNotes: context.business.defaultQuoteNotes,
-      createdAt: context.business.createdAt,
-    }),
+    businessLine,
+    context.business.shortDescription ? `Description: ${context.business.shortDescription}` : null,
     "",
-    "Inquiry",
-    `- ID: ${context.inquiry.id}`,
-    `- Customer: ${context.inquiry.customerName}`,
-    `- Email: ${context.inquiry.customerEmail ?? "Not provided"}`,
-    `- Contact: ${context.inquiry.customerContactMethod} ${context.inquiry.customerContactHandle}`,
-    `- Category: ${context.inquiry.serviceCategory}`,
-    `- Subject: ${context.inquiry.subject ?? "Not provided"}`,
-    `- Status: ${context.inquiry.status}`,
-    `- Deadline: ${context.inquiry.requestedDeadline ?? "Not provided"}`,
-    `- Budget: ${context.inquiry.budgetText ?? "Not provided"}`,
-    `- Submitted: ${formatDate(context.inquiry.submittedAt)}`,
+    `Inquiry: ${inquiryFields}`,
     "",
     "Customer message",
     truncateText(context.inquiry.details, 3000),
-    "",
-    "Additional submitted fields",
     additionalFields.length
-      ? additionalFields
-          .map((field) => `- ${field.label}: ${field.displayValue}`)
-          .join("\n")
-      : "- None.",
-    "",
-    "Attachments",
+      ? [
+          "",
+          "Additional fields",
+          ...additionalFields.map((field) => `- ${field.label}: ${field.displayValue}`),
+        ].join("\n")
+      : null,
     context.attachments.length
-      ? context.attachments
-          .map(
-            (attachment) =>
-              `- ${attachment.fileName}; ${attachment.contentType}; ${formatFileSize(
-                attachment.fileSize,
-              )}; uploaded ${formatDate(attachment.createdAt)}`,
-          )
-          .join("\n")
-      : "- No attachments.",
-    "",
-    "Internal notes",
+      ? [
+          "",
+          "Attachments",
+          ...context.attachments.map(
+            (a) => `- ${a.fileName} (${a.contentType}, ${formatFileSize(a.fileSize)})`,
+          ),
+        ].join("\n")
+      : null,
     context.notes.length
-      ? context.notes
-          .map((note) => `- ${note.authorName ?? "Owner"}: ${truncateText(note.body, 320)}`)
-          .join("\n")
-      : "- No notes yet.",
+      ? [
+          "",
+          "Internal notes",
+          ...context.notes.map((note) => `- ${note.authorName ?? "Owner"}: ${truncateText(note.body, 280)}`),
+        ].join("\n")
+      : null,
     "",
     "Follow-ups",
     formatFollowUpLines(context.followUps),
     "",
     "Related quotes",
     formatRelatedQuoteLines(context.relatedQuotes),
-    "",
-    "Inquiry activity timeline",
-    formatActivityLines(context.activities),
+    context.activities.length
+      ? [
+          "",
+          "Activity",
+          ...context.activities.slice(0, 8).map(
+            (a) => `- ${formatDateOrNull(a.createdAt)} ${a.summary}`,
+          ),
+        ].join("\n")
+      : null,
     "",
     "Business knowledge",
     formatMemoryLines(context.memory),
-  ].join("\n");
+  ].filter((line): line is string => line !== null).join("\n");
 }
 
 async function buildQuoteContext(input: {
@@ -525,71 +524,55 @@ async function buildQuoteContext(input: {
   return [
     "Surface: quote",
     "",
-    formatBusinessProfileLines({
-      name: business.name,
-      slug: business.slug,
-      businessType: business.businessType,
-      shortDescription: business.shortDescription,
-      contactEmail: business.contactEmail,
-      defaultCurrency: business.defaultCurrency,
-      aiTonePreference: business.aiTonePreference,
-      defaultEmailSignature: business.defaultEmailSignature,
-      defaultQuoteNotes: business.defaultQuoteNotes,
-      createdAt: business.createdAt,
-    }),
+    `Business: ${business.name} (${business.businessType}); slug: ${business.slug}; currency ${business.defaultCurrency}; tone ${business.aiTonePreference}`,
+    business.shortDescription ? `Description: ${business.shortDescription}` : null,
     "",
-    "Quote",
-    `- ID: ${quote.id}`,
-    `- Number: ${quote.quoteNumber}`,
-    `- Title: ${quote.title}`,
-    `- Customer: ${quote.customerName}`,
-    `- Email: ${quote.customerEmail ?? "Not provided"}`,
-    `- Contact: ${quote.customerContactMethod} ${quote.customerContactHandle}`,
-    `- Status: ${quote.status}`,
-    `- Subtotal: ${formatQuoteMoney(quote.subtotalInCents, quote.currency)}`,
-    `- Discount: ${formatQuoteMoney(quote.discountInCents, quote.currency)}`,
-    `- Valid until: ${quote.validUntil}`,
-    `- Total: ${formatQuoteMoney(quote.totalInCents, quote.currency)}`,
-    `- Sent: ${formatDate(quote.sentAt)}`,
-    `- Viewed: ${formatDate(quote.publicViewedAt)}`,
-    `- Accepted: ${formatDate(quote.acceptedAt)}`,
-    `- Customer responded: ${formatDate(quote.customerRespondedAt)}`,
-    `- Customer response: ${truncateText(quote.customerResponseMessage, 600) || "None"}`,
-    `- Post-acceptance status: ${quote.postAcceptanceStatus}`,
-    `- Archived: ${formatDate(quote.archivedAt)}`,
-    `- Voided: ${formatDate(quote.voidedAt)}`,
-    `- Notes: ${truncateText(quote.notes, 1600) || "Not set"}`,
+    `Quote: ${quote.quoteNumber} "${quote.title}"`,
+    `Customer: ${compactFields([
+      ["", quote.customerName],
+      ["email", quote.customerEmail],
+    ])}`,
+    `Status: ${compactFields([
+      ["", quote.status],
+      ["total", formatQuoteMoney(quote.totalInCents, quote.currency)],
+      ["valid-until", quote.validUntil],
+      ["sent", formatDateOrNull(quote.sentAt)],
+      ["accepted", formatDateOrNull(quote.acceptedAt)],
+      ["post-acceptance", quote.postAcceptanceStatus === "none" ? null : quote.postAcceptanceStatus],
+    ])}`,
+    quote.customerResponseMessage
+      ? `Customer response: ${truncateText(quote.customerResponseMessage, 400)}`
+      : null,
+    quote.notes ? `Notes: ${truncateText(quote.notes, 800)}` : null,
     "",
     "Line items",
     quote.items.length
       ? quote.items
           .map(
             (item) =>
-              `- ${item.description}; quantity ${item.quantity}; unit ${formatQuoteMoney(
-                item.unitPriceInCents,
-                quote.currency,
-              )}; line total ${formatQuoteMoney(item.lineTotalInCents, quote.currency)}`,
+              `- ${item.description} x${item.quantity} @${formatQuoteMoney(item.unitPriceInCents, quote.currency)} = ${formatQuoteMoney(item.lineTotalInCents, quote.currency)}`,
           )
           .join("\n")
       : "- No line items.",
     "",
-    "Quote follow-ups",
+    "Follow-ups",
     formatFollowUpViewLines(quoteFollowUps),
     "",
-    "Linked inquiry context",
+    "Linked inquiry",
     formatLinkedInquiryContext(linkedInquiryContext),
-    "",
-    "Recent quote activity",
     quote.activities.length
-      ? quote.activities
-          .slice(0, 8)
-          .map((activity) => `- ${formatDate(activity.createdAt)}: ${activity.summary}`)
-          .join("\n")
-      : "- No activity yet.",
+      ? [
+          "",
+          "Activity",
+          ...quote.activities.slice(0, 6).map(
+            (a) => `- ${formatDate(a.createdAt)}: ${a.summary}`,
+          ),
+        ].join("\n")
+      : null,
     "",
     "Business knowledge",
     formatMemoryLines(memory),
-  ].join("\n");
+  ].filter((line): line is string => line !== null).join("\n");
 }
 
 async function buildDashboardContext(input: {
@@ -710,48 +693,37 @@ async function buildDashboardContext(input: {
   return [
     "Surface: dashboard",
     "",
-    formatBusinessProfileLines({
-      name: business.name,
-      slug: business.slug,
-      businessType: business.businessType,
-      shortDescription: business.shortDescription,
-      contactEmail: business.contactEmail,
-      defaultCurrency: business.defaultCurrency,
-      aiTonePreference: business.aiTonePreference,
-      defaultEmailSignature: business.defaultEmailSignature,
-      defaultQuoteNotes: business.defaultQuoteNotes,
-      createdAt: business.createdAt,
-    }),
+    `Business: ${business.name} (${business.businessType}); slug: ${business.slug}; currency ${business.defaultCurrency}; tone ${business.aiTonePreference}`,
+    business.shortDescription ? `Description: ${business.shortDescription}` : null,
+    business.defaultQuoteNotes ? `Default quote notes: ${truncateText(business.defaultQuoteNotes, 200)}` : null,
     "",
-    `Recent inquiries (showing up to 5 most recent)`,
+    `Recent inquiries (${recentInquiries.length})`,
     recentInquiries.length
       ? [
           ...recentInquiries.map((inquiry) =>
-            `- ${compactFields([
+            `- [id:${inquiry.id}] ${compactFields([
               ["", inquiry.customerName],
               ["email", inquiry.customerEmail],
-              ["via", `${inquiry.customerContactMethod} ${inquiry.customerContactHandle}`.trim()],
               ["category", inquiry.serviceCategory],
               ["status", inquiry.status],
               ["subject", inquiry.subject],
-              ["source", inquiry.source],
               ["submitted", formatDateOrNull(inquiry.submittedAt)],
               ["deadline", inquiry.requestedDeadline],
               ["budget", inquiry.budgetText],
-              ["details", truncateText(inquiry.details, 180) || null],
+              ["details", truncateText(inquiry.details, 120) || null],
             ])}`,
           ),
           ...(recentInquiries.length >= 5
-            ? ["(More inquiries available in the Inquiries page)"]
+            ? ["(More inquiries exist beyond these 5 — ask the user for specifics or search by name)"]
             : []),
         ].join("\n")
-      : "- No recent inquiries.",
+      : "- None.",
     "",
-    `Recent quotes (showing up to 5 most recent)`,
+    `Recent quotes (${recentQuotes.length})`,
     recentQuotes.length
       ? [
           ...recentQuotes.map((quote) =>
-            `- ${compactFields([
+            `- [id:${quote.id}] ${compactFields([
               ["", quote.quoteNumber],
               ["title", quote.title],
               ["customer", quote.customerName],
@@ -759,30 +731,26 @@ async function buildDashboardContext(input: {
               ["status", quote.status],
               ["total", formatQuoteMoney(quote.totalInCents, quote.currency)],
               ["valid-until", quote.validUntil],
-              ["linked-inquiry", quote.inquiryId],
               ["sent", formatDateOrNull(quote.sentAt)],
-              ["viewed", formatDateOrNull(quote.publicViewedAt)],
               ["accepted", formatDateOrNull(quote.acceptedAt)],
-              ["responded", formatDateOrNull(quote.customerRespondedAt)],
-              ["response", truncateText(quote.customerResponseMessage, 120) || null],
               ["post-acceptance", quote.postAcceptanceStatus === "none" ? null : quote.postAcceptanceStatus],
             ])}`,
           ),
           ...(recentQuotes.length >= 5
-            ? ["(More quotes available in the Quotes page)"]
+            ? ["(More quotes exist beyond these 5 — ask the user for specifics or search by name)"]
             : []),
         ].join("\n")
-      : "- No recent quotes.",
+      : "- None.",
     "",
-    "Follow-up overview",
+    "Follow-ups",
     formatFollowUpOverviewLines(followUpOverview),
     "",
-    "Recent business activity",
+    "Recent activity",
     formatBusinessActivityLines(recentActivity),
     "",
     "Business knowledge",
     formatMemoryLines(memory),
-  ].join("\n");
+  ].filter((line): line is string => line !== null).join("\n");
 }
 
 export async function buildAiSurfaceContext(input: {
@@ -825,20 +793,66 @@ function getSurfaceInstructions(surface: AiSurface) {
     "If the user asks to create, update, save, send, close, reopen, assign, or otherwise modify app records, explain that chat can draft or guide the change but the saved change must be done with the app controls.",
     "If exact pricing, policy, availability, or terms are missing, say what is missing instead of inventing details.",
     "Do not include <think> or <thinking> tags, internal thought process, or reasoning blocks.",
-    "Keep the answer concise and directly usable.",
+    "Format every response as GitHub-flavored Markdown. Use concise headings, bullets, tables, or checklists when they make the answer easier to scan.",
+    "Do not add a Sources section; Requo displays clickable source links below your answer.",
+    "",
+    "RESPONSE RULES:",
+    "- For simple factual questions (status, date, amount, name), answer in ONE sentence. No headers, no bullets, no preamble. Example: 'The status of Q-1006 is **Draft**.'",
+    "- For detail requests, use the templates below.",
+    "- Always include links to referenced inquiries/quotes using markdown link format. The business slug is in the context.",
+    "- Link format for inquiries: [Customer Name](/businesses/SLUG/inquiries/INQUIRY_ID)",
+    "- Link format for quotes: [Q-XXXX](/businesses/SLUG/quotes/QUOTE_ID)",
+    "- Make the customer name or quote number the clickable text, not a raw URL.",
+    "",
+    "RESPONSE TEMPLATES:",
+    "",
+    "Single inquiry detail:",
+    "**[Customer Name](link)** — [Service Category] `[status]`",
+    "- Email: [email]",
+    "- Subject: [subject]",
+    "- Submitted: [date] | Deadline: [deadline]",
+    "- Budget: [budget]",
+    "> [First 2-3 sentences of customer details]",
+    "",
+    "Inquiry list:",
+    "1. [**Customer Name**](link) — [Category] `[status]` — [1-line summary]",
+    "2. [**Customer Name**](link) — [Category] `[status]` — [1-line summary]",
+    "",
+    "Single quote detail:",
+    "[**Q-XXXX**](link) — [Title] `[status]`",
+    "- Customer: [name] ([email])",
+    "- Total: [amount] | Valid until: [date]",
+    "- Sent: [date] | Accepted: [date]",
+    "",
+    "| Item | Qty | Price |",
+    "|------|-----|-------|",
+    "| [desc] | [qty] | [price] |",
+    "",
+    "Quote list:",
+    "1. [**Q-XXXX**](link) \"[Title]\" for [Customer] — `[status]` — [total]",
+    "2. [**Q-XXXX**](link) \"[Title]\" for [Customer] — `[status]` — [total]",
+    "",
+    "Follow-ups:",
+    "- ⏰ **[Title]** — due [date] `[status]` — [reason]",
+    "",
+    "IMPORTANT: Only present data from the provided context. Never invent records, names, amounts, or dates. If not found, say 'I couldn't find [X] in the records.'",
   ];
 
   if (surface === "inquiry") {
     return [
       ...shared,
+      "",
       "Inquiry surface: help with the current inquiry, related customer workflow, summaries, replies, follow-ups, notes, status explanations, and quote preparation.",
+      "When summarizing the inquiry, use the single inquiry template. Always include the customer email.",
     ].join("\n");
   }
 
   if (surface === "quote") {
     return [
       ...shared,
+      "",
       "Quote surface: prioritize quote drafting, wording improvements, terms, notes, exclusions, assumptions, customer-facing messages, follow-ups, linked inquiry context, and missing-information checks.",
+      "When showing quote details, use the single quote template with the line items table. Always include the customer email.",
       "Drafting quote text is allowed when it is only shown to the user.",
       "Saving quote text, changing quote status, sending externally, or changing quote totals must be done with the quote page controls.",
     ].join("\n");
@@ -846,8 +860,10 @@ function getSurfaceInstructions(surface: AiSurface) {
 
   return [
     ...shared,
+    "",
     "Dashboard surface: help across the current business. Be read-heavy by default and summarize this business's inquiries, quotes, follow-ups, recent activity, and operational workload.",
-    "Only the most recent items are included in context. If the user asks for a full list or more items than shown, tell them to check the Inquiries or Quotes page for the complete list.",
+    "Only the most recent items are included in context. If the user asks about a person or record not in the recent context, check the 'Additional records matching the user's query' section which contains database search results.",
+    "If neither the recent context nor the search results contain the requested information, say 'I couldn't find [X] in the records. Check the Inquiries or Quotes page for the full list.'",
     "Avoid broad or destructive write guidance from dashboard. Any database modification must be done with the app controls.",
   ].join("\n");
 }
@@ -858,6 +874,7 @@ export function buildAiSurfaceCompletionRequest(input: {
   message: string;
   history?: AiChatMessage[];
   qualityTier?: AiCompletionRequest["qualityTier"];
+  modelSelection?: AiModelSelection | null;
 }): AiCompletionRequest {
   const systemContent = getSurfaceInstructions(input.surface);
   const userContent = [
@@ -878,6 +895,7 @@ export function buildAiSurfaceCompletionRequest(input: {
   const history = trimHistoryToFit(input.history ?? [], availableForHistory);
 
   return {
+    provider: input.modelSelection?.provider,
     model: "",
     messages: [
       {
@@ -893,6 +911,7 @@ export function buildAiSurfaceCompletionRequest(input: {
     temperature: 0.2,
     maxOutputTokens,
     qualityTier: input.qualityTier ?? "balanced",
+    ...(input.modelSelection ? { model: input.modelSelection.model } : {}),
   };
 }
 
@@ -1068,6 +1087,7 @@ export async function* createAiSurfaceAssistantStream(input: {
   message: string;
   history?: AiChatMessage[];
   qualityTier?: AiCompletionRequest["qualityTier"];
+  modelSelection?: AiModelSelection | null;
 }): AsyncGenerator<AiChatStreamEvent> {
   const title =
     input.surface === "inquiry"
@@ -1099,10 +1119,7 @@ export async function* createAiSurfaceAssistantStream(input: {
   }
 
   if (emittedFallbackStatus) {
-    yield {
-      type: "status",
-      message: "Switching to another model, one moment...",
-    };
+    // Silently switch — no user-facing message needed
   }
 
   yield {

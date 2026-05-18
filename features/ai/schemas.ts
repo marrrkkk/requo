@@ -71,6 +71,7 @@ export const aiChatRequestSchema = z.object({
   entityId: z.string().trim().min(1).max(128),
   message: z.string().trim().min(1).max(6000),
   qualityTier: aiQualityTierSchema.optional(),
+  devModel: z.string().trim().min(1).max(240).optional(),
 });
 
 /**

@@ -218,22 +218,84 @@ export type InquiryAssistantContext = {
 /**
  * Draft payload returned by the AI quote generator.
  * Values are normalised so the client can patch the editor without further parsing.
+ *
+ * The AI is not allowed to invent final prices. Each item is tagged with a
+ * `reviewStatus` so the owner can see what was priced from approved sources
+ * and what still needs human pricing before the quote is sent.
  */
+export const aiQuoteDraftItemReviewStatuses = [
+  "matched",
+  "calculated",
+  "needs_review",
+  "no_pricing_found",
+] as const;
+
+export type AiQuoteDraftItemReviewStatus =
+  (typeof aiQuoteDraftItemReviewStatuses)[number];
+
+export const aiQuoteDraftItemPricingSources = [
+  "pricing_library_block",
+  "pricing_library_package",
+  "past_quote",
+  "business_memory",
+  "owner_brief",
+  "none",
+] as const;
+
+export type AiQuoteDraftItemPricingSource =
+  (typeof aiQuoteDraftItemPricingSources)[number];
+
+export const aiQuoteDraftItemConfidenceLevels = [
+  "high",
+  "medium",
+  "low",
+] as const;
+
+export type AiQuoteDraftItemConfidence =
+  (typeof aiQuoteDraftItemConfidenceLevels)[number];
+
 export type AiQuoteDraftItem = {
+  /** Short label for the item, shown in the editor as a chip/header. */
+  name: string;
+  /** Customer-facing description that becomes the quote line item description. */
   description: string;
   quantity: number;
+  /**
+   * Final price in cents. Only set for `matched` or `calculated` items.
+   * Always 0 for `needs_review` and `no_pricing_found` so the owner can
+   * see the missing price in the editor and the send guard can block delivery.
+   */
   unitPriceInCents: number;
+  /** Where the price came from. `none` when nothing was matched. */
+  pricingSource: AiQuoteDraftItemPricingSource;
+  /** Optional human-readable label describing the source (e.g. library entry name). */
+  pricingSourceLabel: string | null;
+  /** AI confidence in the chosen line item. */
+  confidence: AiQuoteDraftItemConfidence;
+  /** Required review state. Drives the editor warning + send guard. */
+  reviewStatus: AiQuoteDraftItemReviewStatus;
+  /** Short reason explaining why this item was chosen. */
+  reason: string;
+};
+
+export type AiQuoteMissingInfoItem = {
+  label: string;
+  question: string;
 };
 
 export type AiQuoteDraft = {
   title: string;
   notes: string | null;
   items: AiQuoteDraftItem[];
+  missingInfo: AiQuoteMissingInfoItem[];
+  clarificationMessage: string | null;
   /** Present when the draft leaned on a pricing library entry. */
   pricingLibraryEntryId?: string | null;
   model: string;
   provider: AiProviderName;
   rationale?: string | null;
+  /** Count of items the owner still needs to price before the quote can be sent. */
+  itemsNeedingReview: number;
 };
 
 export type AiQuoteDraftActionState = {

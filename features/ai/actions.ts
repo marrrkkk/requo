@@ -5,7 +5,18 @@ import { generateQuoteDraftForBusiness } from "@/features/ai/quote-generator";
 import type { AiQuoteDraftActionState } from "@/features/ai/types";
 import { getBusinessActionContext } from "@/lib/db/business-access";
 import { hasFeatureAccess } from "@/lib/plans";
-import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
+import { checkUsageLimit } from "@/lib/ai";
+import { getEffectivePlan } from "@/lib/billing/subscription-service";
+import type { AiTaskType } from "@/features/ai/task-registry";
+
+// ---------------------------------------------------------------------------
+// Server Actions
+//
+// NOTE: Pipeline utilities (executeAiPipeline, executeStreamingAiPipeline,
+// hashPromptVersion) are imported directly from "@/features/ai/pipeline"
+// by modules that need them. They cannot be re-exported from a "use server"
+// file because Next.js only allows async function exports here.
+// ---------------------------------------------------------------------------
 
 /**
  * Generate an AI-drafted quote for the current business.
@@ -13,6 +24,10 @@ import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
  * Returns a structured draft the client can merge into the quote editor.
  * The action never mutates saved quotes; saving still happens through
  * `createQuoteAction` / `updateQuoteAction`.
+ *
+ * Pipeline: validate input → check usage limit → invoke quote generator
+ * (which internally uses the AI pipeline for context building, model routing,
+ * and response parsing).
  */
 export async function generateQuoteDraftAction(
   businessSlug: string,
@@ -21,6 +36,7 @@ export async function generateQuoteDraftAction(
 ): Promise<AiQuoteDraftActionState> {
   void prevState;
 
+  // 1. Validate input (Zod)
   const parsed = aiGenerateQuoteDraftSchema.safeParse({
     businessSlug,
     inquiryId: formData.get("inquiryId"),
@@ -35,6 +51,7 @@ export async function generateQuoteDraftAction(
     };
   }
 
+  // 2. Check business access
   const actionContext = await getBusinessActionContext({
     businessSlug: parsed.data.businessSlug,
     minimumRole: "staff",
@@ -48,6 +65,7 @@ export async function generateQuoteDraftAction(
     };
   }
 
+  // 3. Check plan feature access
   if (
     !hasFeatureAccess(
       actionContext.businessContext.business.plan,
@@ -59,21 +77,30 @@ export async function generateQuoteDraftAction(
     };
   }
 
-  const allowed = await assertPublicActionRateLimit({
-    action: "ai-quote-draft",
-    limit: 10,
-    scope: `${actionContext.businessContext.business.id}:${actionContext.user.id}`,
-    windowMs: 60_000,
+  // 4. Check usage limit (replaces the old rate limiter for AI actions)
+  const taskType: AiTaskType = "quote_draft";
+  const businessId = actionContext.businessContext.business.id;
+  const userId = actionContext.user.id;
+
+  const plan = await getEffectivePlan(businessId);
+
+  const usageCheck = await checkUsageLimit({
+    userId,
+    businessId,
+    taskType,
+    plan,
   });
 
-  if (!allowed) {
+  if (!usageCheck.allowed) {
     return {
-      error: "Too many AI generations. Wait a minute and try again.",
+      error: usageCheck.message,
     };
   }
 
+  // 5. Invoke the quote generator (handles context building, AI call, response parsing)
   const result = await generateQuoteDraftForBusiness({
-    businessId: actionContext.businessContext.business.id,
+    businessId,
+    userId,
     inquiryId: parsed.data.inquiryId ?? null,
     brief: parsed.data.brief ?? null,
   });

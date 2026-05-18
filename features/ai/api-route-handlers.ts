@@ -30,8 +30,13 @@ import {
   buildAiSurfaceContext,
   createAiSurfaceAssistantStream,
 } from "@/features/ai/surface-service";
+import { retrieveRelevantContext } from "@/features/ai/context-retriever";
 import type { AiChatStreamEvent } from "@/features/ai/types";
 import type { AiProviderName } from "@/lib/ai";
+import {
+  autoAiModelOptionValue,
+  parseAiModelOptionValue,
+} from "@/lib/ai/model-options";
 import { getCurrentUser } from "@/lib/auth/session";
 import { hasFeatureAccess } from "@/lib/plans";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
@@ -348,6 +353,23 @@ export async function createAiChatRouteResponse(request: Request) {
     return Response.json({ error: "Check the AI request and try again." }, { status: 400 });
   }
 
+  const modelSelection =
+    process.env.NODE_ENV === "development"
+      ? parseAiModelOptionValue(parsedBody.data.devModel)
+      : null;
+
+  if (
+    process.env.NODE_ENV === "development" &&
+    parsedBody.data.devModel &&
+    parsedBody.data.devModel !== autoAiModelOptionValue &&
+    !modelSelection
+  ) {
+    return Response.json(
+      { error: "Choose a valid development AI model." },
+      { status: 400 },
+    );
+  }
+
   const authorization = await getAuthorizedAiConversation({
     userId: user.id,
     conversationId: parsedBody.data.conversationId,
@@ -481,14 +503,41 @@ export async function createAiChatRouteResponse(request: Request) {
           return;
         }
 
+        // For dashboard surface, augment context with relevant records
+        // based on the user's message (searches inquiries/quotes by keyword)
+        let augmentedContext = surfaceContext;
+        if (parsedBody.data.surface === "dashboard" && authorizedBusinessId) {
+          try {
+            const retrieved = await retrieveRelevantContext({
+              businessId: authorizedBusinessId,
+              searchText: parsedBody.data.message,
+              currency: "USD", // Will be overridden by actual results
+            });
+            if (retrieved.hasResults) {
+              const extraContext: string[] = ["\n\nAdditional records matching the user's query:"];
+              if (retrieved.pastInquiries) {
+                extraContext.push(`\nMatching inquiries:\n${retrieved.pastInquiries}`);
+              }
+              if (retrieved.pastQuotes) {
+                extraContext.push(`\nMatching quotes:\n${retrieved.pastQuotes}`);
+              }
+              augmentedContext += extraContext.join("");
+            }
+          } catch (retrievalError) {
+            // Non-critical — proceed without augmented context
+            console.warn("[ai-chat] Context retrieval failed:", retrievalError);
+          }
+        }
+
         const history = toGenericAiChatHistory(historyMessages, userMessage.id);
 
         for await (const event of createAiSurfaceAssistantStream({
           surface: parsedBody.data.surface,
-          context: surfaceContext,
+          context: augmentedContext,
           message: parsedBody.data.message,
           history,
           qualityTier: parsedBody.data.qualityTier,
+          modelSelection,
         })) {
           if (event.type === "meta") {
             provider = event.provider ?? null;
