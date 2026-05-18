@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import {
   Bell,
   ChevronDown,
@@ -13,11 +13,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import {
-  FloatingFormActions,
-  useFloatingUnsavedChanges,
-} from "@/components/shared/floating-form-actions";
-import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,7 +22,6 @@ import {
 } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { useProgressRouter } from "@/hooks/use-progress-router";
 import {
   getExistingPushSubscription,
   getPushPermission,
@@ -41,18 +35,6 @@ import type {
   BusinessNotificationSettingsActionState,
   BusinessSettingsView,
 } from "@/features/settings/types";
-
-/* ── Channel definitions ─────────────────────────────────────────────────── */
-
-type Channel = "inApp" | "push";
-
-const channelMeta: Record<Channel, { label: string; icon: React.ElementType }> =
-  {
-    push: { label: "Push", icon: Smartphone },
-    inApp: { label: "In-app", icon: Bell },
-  };
-
-const channelOrder: Channel[] = ["push", "inApp"];
 
 /* ── Notification event config ──────────────────────────────────────────── */
 
@@ -208,8 +190,6 @@ type BusinessNotificationSettingsFormProps = {
   settings: Pick<BusinessSettingsView, NotificationFieldKey>;
 };
 
-const initialState: BusinessNotificationSettingsActionState = {};
-
 /* ── Component ───────────────────────────────────────────────────────────── */
 
 export function BusinessNotificationSettingsForm({
@@ -218,12 +198,6 @@ export function BusinessNotificationSettingsForm({
   businessId,
   settings,
 }: BusinessNotificationSettingsFormProps) {
-  const router = useProgressRouter();
-  const [state, formAction, isPending] = useActionStateWithSonner(
-    action,
-    initialState,
-  );
-
   const [values, setValues] = useState<Record<NotificationFieldKey, boolean>>(
     () => {
       const initial = {} as Record<NotificationFieldKey, boolean>;
@@ -236,18 +210,13 @@ export function BusinessNotificationSettingsForm({
   const [pushSetupState, setPushSetupState] =
     useState<PushSetupState>("checking");
   const [pushEndpoint, setPushEndpoint] = useState<string | null>(null);
-  const [pendingPushField, setPendingPushField] =
-    useState<NotificationFieldKey | null>(null);
   const [isEnablingBrowserPush, setIsEnablingBrowserPush] = useState(false);
   const [isSendingTestPush, setIsSendingTestPush] = useState(false);
+  const [_isSaving, startTransition] = useTransition();
+  const valuesRef = useRef(values);
+  valuesRef.current = values;
 
-  const hasUnsavedChanges = allFieldKeys.some(
-    (key) => values[key] !== settings[key],
-  );
-  const { shouldRenderFloatingActions, floatingActionsState } =
-    useFloatingUnsavedChanges(hasUnsavedChanges);
   const selectedPushCount = pushFieldKeys.filter((key) => values[key]).length;
-  const isPushBusy = Boolean(pendingPushField) || isEnablingBrowserPush;
 
   const removePushForBusiness = useCallback(
     async (endpoint?: string | null) => {
@@ -260,26 +229,10 @@ export function BusinessNotificationSettingsForm({
         return;
       }
 
-      const removed = await removePushSubscription(existingEndpoint, businessId);
-
-      if (!removed) {
-        toast.error("We could not remove this browser from push notifications.");
-      }
+      await removePushSubscription(existingEndpoint, businessId);
     },
     [businessId, pushEndpoint],
   );
-
-  useEffect(() => {
-    if (!state.success) {
-      return;
-    }
-
-    if (selectedPushCount === 0) {
-      void removePushForBusiness();
-    }
-
-    router.refresh();
-  }, [removePushForBusiness, router, selectedPushCount, state.success]);
 
   const refreshPushSetupState = useCallback(async () => {
     if (!isPushConfiguredForClient()) {
@@ -335,20 +288,36 @@ export function BusinessNotificationSettingsForm({
 
     async function refresh() {
       await refreshPushSetupState();
-
-      if (isCancelled) {
-        return;
-      }
+      if (isCancelled) return;
     }
 
     void refresh();
-
-    return () => {
-      isCancelled = true;
-    };
+    return () => { isCancelled = true; };
   }, [refreshPushSetupState]);
 
-  async function enablePushForBrowser(fieldKey?: NotificationFieldKey) {
+  // Auto-save: submit current values to server action
+  function saveValues(nextValues: Record<NotificationFieldKey, boolean>) {
+    startTransition(async () => {
+      const formData = new FormData();
+      for (const key of allFieldKeys) {
+        formData.set(key, nextValues[key] ? "on" : "off");
+      }
+
+      const result = await action({}, formData);
+
+      if (result.error) {
+        toast.error(result.error);
+      }
+
+      // If all push disabled, clean up subscription
+      const nextPushCount = pushFieldKeys.filter((k) => nextValues[k]).length;
+      if (nextPushCount === 0) {
+        void removePushForBusiness();
+      }
+    });
+  }
+
+  async function enablePushForBrowser(): Promise<boolean> {
     if (!isPushConfiguredForClient()) {
       setPushSetupState("not-configured");
       toast.error("Push notifications are not configured for this environment.");
@@ -361,21 +330,26 @@ export function BusinessNotificationSettingsForm({
       return false;
     }
 
-    if (getPushPermission() === "denied") {
+    const currentPermission = getPushPermission();
+
+    if (currentPermission === "denied") {
       setPushSetupState("blocked");
       toast.error("Browser notifications are blocked. Allow them in browser settings first.");
       return false;
     }
 
-    setPendingPushField(fieldKey ?? null);
-    setIsEnablingBrowserPush(fieldKey ? false : true);
+    setIsEnablingBrowserPush(true);
 
     try {
       const subscription = await subscribeToPush();
 
       if (!subscription) {
         setPushSetupState("needs-enable");
-        toast.error("Notification permission was not granted.");
+        toast.error(
+          currentPermission === "default"
+            ? "Notification permission was not granted."
+            : "Could not create a push subscription. Try refreshing the page.",
+        );
         return false;
       }
 
@@ -389,10 +363,11 @@ export function BusinessNotificationSettingsForm({
 
       setPushEndpoint(subscription.endpoint);
       setPushSetupState("ready");
-      toast.success("Push notifications are enabled for this browser.");
+      if (currentPermission === "default") {
+        toast.success("Push notifications enabled for this browser.");
+      }
       return true;
     } finally {
-      setPendingPushField(null);
       setIsEnablingBrowserPush(false);
     }
   }
@@ -401,28 +376,19 @@ export function BusinessNotificationSettingsForm({
     fieldKey: NotificationFieldKey,
     nextValue: boolean,
   ) {
+    // For push fields being enabled, always ensure a fresh subscription
     if (isPushFieldKey(fieldKey) && nextValue) {
-      const enabled = await enablePushForBrowser(fieldKey);
-
-      if (!enabled) {
-        return;
-      }
+      const enabled = await enablePushForBrowser();
+      if (!enabled) return;
     }
 
-    if (isPushFieldKey(fieldKey) && !nextValue) {
-      const nextValues = { ...values, [fieldKey]: false };
-
-      setValues(nextValues);
-      return;
-    }
-
-    setValues((prev) => ({ ...prev, [fieldKey]: nextValue }));
+    const nextValues = { ...valuesRef.current, [fieldKey]: nextValue };
+    setValues(nextValues);
+    saveValues(nextValues);
   }
 
   async function handleSendTestPush() {
-    if (!sendTestPushAction) {
-      return;
-    }
+    if (!sendTestPushAction) return;
 
     setIsSendingTestPush(true);
 
@@ -437,57 +403,32 @@ export function BusinessNotificationSettingsForm({
       if (result.success) {
         toast.success(result.success);
       }
-    } catch (error) {
-      console.error("Failed to send test push.", error);
+    } catch {
       toast.error("We couldn't send the test notification right now.");
     } finally {
       setIsSendingTestPush(false);
     }
   }
 
-  function handleCancelChanges() {
-    const reset = {} as Record<NotificationFieldKey, boolean>;
-    for (const key of allFieldKeys) {
-      reset[key] = settings[key];
-    }
-    setValues(reset);
-  }
-
   return (
-    <form action={formAction} className="form-stack">
-      {/* Hidden inputs for form submission */}
-      {allFieldKeys.map((key) => (
-        <input
-          key={key}
-          name={key}
-          type="hidden"
-          value={values[key] ? "on" : "off"}
-        />
-      ))}
-
+    <div className="flex flex-col gap-6">
       <PushBrowserStatus
         busy={isEnablingBrowserPush}
         isSendingTest={isSendingTestPush}
         selectedPushCount={selectedPushCount}
         setupState={pushSetupState}
-        onEnable={() => {
-          void enablePushForBrowser();
-        }}
-        onSendTest={() => {
-          void handleSendTestPush();
-        }}
+        onEnable={() => { void enablePushForBrowser(); }}
+        onSendTest={() => { void handleSendTestPush(); }}
       />
 
-      <div className="flex flex-col">
+      <section className="section-panel">
         {notificationGroups.map((group, groupIndex) => (
-          <section key={group.label}>
+          <div key={group.label}>
             {groupIndex > 0 ? (
               <div className="border-t border-border/60" />
             ) : null}
-            <div className="px-1 pb-2 pt-6">
-              <h3 className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                {group.label}
-              </h3>
+            <div className="px-5 pb-1 pt-5 sm:px-6">
+              <h3 className="meta-label">{group.label}</h3>
             </div>
             <div className="flex flex-col">
               {group.events.map((event) => (
@@ -495,45 +436,39 @@ export function BusinessNotificationSettingsForm({
                   key={event.id}
                   event={event}
                   values={values}
-                  disabled={isPending || isPushBusy}
-                  pendingField={pendingPushField}
                   onToggle={handleToggle}
                 />
               ))}
             </div>
-          </section>
+          </div>
         ))}
-      </div>
-
-      <FloatingFormActions
-        disableSubmit={!hasUnsavedChanges}
-        isPending={isPending}
-        message="You have unsaved notification settings."
-        onCancel={handleCancelChanges}
-        state={floatingActionsState}
-        submitLabel="Save notifications"
-        submitPendingLabel="Saving notifications..."
-        visible={shouldRenderFloatingActions}
-      />
-    </form>
+      </section>
+    </div>
   );
 }
 
 /* ── Event Row ───────────────────────────────────────────────────────────── */
 
+type Channel = "inApp" | "push";
+
+const channelMeta: Record<Channel, { label: string; icon: React.ElementType }> = {
+  inApp: { label: "In-app", icon: Bell },
+  push: { label: "Push", icon: Smartphone },
+};
+
+const channelOrder: Channel[] = ["push", "inApp"];
+
 function NotificationEventRow({
   event,
   values,
-  disabled,
-  pendingField,
   onToggle,
 }: {
   event: NotificationEventConfig;
   values: Record<NotificationFieldKey, boolean>;
-  disabled: boolean;
-  pendingField: NotificationFieldKey | null;
   onToggle: (key: NotificationFieldKey, value: boolean) => void | Promise<void>;
 }) {
+  const Icon = event.icon;
+
   const availableChannels = channelOrder.filter(
     (ch) => event.channels[ch] !== undefined,
   );
@@ -544,18 +479,16 @@ function NotificationEventRow({
 
   const summaryLabel =
     enabledChannels.length === 0
-      ? "None"
+      ? "Off"
       : enabledChannels.map((ch) => channelMeta[ch].label).join(", ");
 
-  const Icon = event.icon;
-
   return (
-    <div className="flex items-start justify-between gap-4 rounded-xl px-1 py-4">
-      <div className="flex min-w-0 items-start gap-3">
-        <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-muted/30 text-muted-foreground">
+    <div className="flex items-center justify-between gap-4 px-5 py-3.5 sm:px-6">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-muted/30 text-muted-foreground">
           <Icon className="size-4" />
         </div>
-        <div className="min-w-0 space-y-0.5">
+        <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">{event.label}</p>
           <p className="text-[0.8rem] leading-relaxed text-muted-foreground">
             {event.description}
@@ -567,15 +500,11 @@ function NotificationEventRow({
         <PopoverTrigger asChild>
           <Button
             className="shrink-0 gap-1.5 text-muted-foreground"
-            disabled={disabled}
             size="sm"
             type="button"
             variant="ghost"
           >
             <span className="text-[0.8rem]">{summaryLabel}</span>
-            {pendingField && event.channels.push === pendingField ? (
-              <Spinner className="size-3.5" aria-hidden="true" />
-            ) : null}
             <ChevronDown className="size-3.5 opacity-60" />
           </Button>
         </PopoverTrigger>
@@ -600,8 +529,8 @@ function NotificationEventRow({
                   </div>
                   <Switch
                     checked={isChecked}
-                    disabled={disabled}
                     onCheckedChange={(next) => onToggle(fieldKey, next)}
+                    aria-label={`${event.label} ${meta.label.toLowerCase()}`}
                   />
                 </label>
               );
@@ -612,6 +541,8 @@ function NotificationEventRow({
     </div>
   );
 }
+
+/* ── Push Status Banner ──────────────────────────────────────────────────── */
 
 function PushBrowserStatus({
   busy,
