@@ -94,7 +94,24 @@ export type AiChatStreamEvent =
   | {
       type: "error";
       message: string;
+    }
+  | {
+      type: "debug";
+      info: AiChatDebugInfo;
     };
+
+export type AiChatDebugInfo = {
+  model: string;
+  provider: string;
+  latencyMs: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  toolCalls?: Array<{ name: string; durationMs?: number }>;
+  steps?: number;
+  systemPromptLength?: number;
+  contextLength?: number;
+};
 
 export const aiAssistantTruncationMessage =
   "The response hit the current output limit. Ask the assistant to continue if you need the rest.";

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { getInquiryAssistantContextForBusiness } from "@/features/ai/queries";
 import type {
@@ -9,14 +9,12 @@ import type {
   InquiryAssistantContext,
 } from "@/features/ai/types";
 import {
-  getFollowUpOverviewForBusinessUncached,
   getFollowUpsForQuote,
 } from "@/features/follow-ups/queries";
 import type { FollowUpOverviewData, FollowUpView } from "@/features/follow-ups/types";
 import { getAdditionalInquirySubmittedFields } from "@/features/inquiries/form-config";
 import { buildBusinessMemoryContext } from "@/features/memory/queries";
 import {
-  getEffectiveQuoteStatus,
   getQuoteDetailForBusiness,
 } from "@/features/quotes/queries";
 import { formatQuoteMoney } from "@/features/quotes/utils";
@@ -25,11 +23,7 @@ import type { AiChatMessage, AiCompletionRequest } from "@/lib/ai";
 import type { AiModelSelection } from "@/lib/ai/model-options";
 import { db } from "@/lib/db/client";
 import {
-  activityLogs,
   businesses,
-  inquiries,
-  quotes,
-  user,
 } from "@/lib/db/schema";
 
 function truncateText(value: string | null | undefined, maxLength: number) {
@@ -578,14 +572,9 @@ async function buildQuoteContext(input: {
 async function buildDashboardContext(input: {
   businessId: string;
 }) {
-  const [
-    businessRow,
-    memory,
-    recentInquiries,
-    recentQuotes,
-    followUpOverview,
-    recentActivity,
-  ] = await Promise.all([
+  // Minimal context for dashboard — tools handle all data queries.
+  // Only load business identity and saved knowledge (which tools don't cover).
+  const [businessRow, memory] = await Promise.all([
     db
       .select({
         id: businesses.id,
@@ -596,8 +585,6 @@ async function buildDashboardContext(input: {
         contactEmail: businesses.contactEmail,
         defaultCurrency: businesses.defaultCurrency,
         aiTonePreference: businesses.aiTonePreference,
-        defaultEmailSignature: businesses.defaultEmailSignature,
-        defaultQuoteNotes: businesses.defaultQuoteNotes,
         createdAt: businesses.createdAt,
       })
       .from(businesses)
@@ -609,80 +596,6 @@ async function buildDashboardContext(input: {
       )
       .limit(1),
     buildBusinessMemoryContext(input.businessId),
-    db
-      .select({
-        id: inquiries.id,
-        customerName: inquiries.customerName,
-        customerEmail: inquiries.customerEmail,
-        customerContactMethod: inquiries.customerContactMethod,
-        customerContactHandle: inquiries.customerContactHandle,
-        serviceCategory: inquiries.serviceCategory,
-        subject: inquiries.subject,
-        status: inquiries.status,
-        source: inquiries.source,
-        submittedAt: inquiries.submittedAt,
-        createdAt: inquiries.createdAt,
-        requestedDeadline: inquiries.requestedDeadline,
-        budgetText: inquiries.budgetText,
-        details: inquiries.details,
-      })
-      .from(inquiries)
-      .where(
-        and(
-          eq(inquiries.businessId, input.businessId),
-        ),
-      )
-      .orderBy(desc(inquiries.submittedAt))
-      .limit(5),
-    db
-      .select({
-        id: quotes.id,
-        quoteNumber: quotes.quoteNumber,
-        title: quotes.title,
-        customerName: quotes.customerName,
-        customerEmail: quotes.customerEmail,
-        customerContactMethod: quotes.customerContactMethod,
-        customerContactHandle: quotes.customerContactHandle,
-        status: getEffectiveQuoteStatus,
-        subtotalInCents: quotes.subtotalInCents,
-        discountInCents: quotes.discountInCents,
-        totalInCents: quotes.totalInCents,
-        currency: quotes.currency,
-        validUntil: quotes.validUntil,
-        sentAt: quotes.sentAt,
-        acceptedAt: quotes.acceptedAt,
-        publicViewedAt: quotes.publicViewedAt,
-        customerRespondedAt: quotes.customerRespondedAt,
-        customerResponseMessage: quotes.customerResponseMessage,
-        postAcceptanceStatus: quotes.postAcceptanceStatus,
-        inquiryId: quotes.inquiryId,
-        createdAt: quotes.createdAt,
-      })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, input.businessId),
-          isNull(quotes.deletedAt),
-        ),
-      )
-      .orderBy(desc(quotes.createdAt))
-      .limit(5),
-    getFollowUpOverviewForBusinessUncached(input.businessId),
-    db
-      .select({
-        id: activityLogs.id,
-        type: activityLogs.type,
-        summary: activityLogs.summary,
-        createdAt: activityLogs.createdAt,
-        actorName: user.name,
-        inquiryId: activityLogs.inquiryId,
-        quoteId: activityLogs.quoteId,
-      })
-      .from(activityLogs)
-      .leftJoin(user, eq(activityLogs.actorUserId, user.id))
-      .where(eq(activityLogs.businessId, input.businessId))
-      .orderBy(desc(activityLogs.createdAt))
-      .limit(10),
   ]);
   const business = businessRow[0];
 
@@ -693,63 +606,15 @@ async function buildDashboardContext(input: {
   return [
     "Surface: dashboard",
     "",
-    `Business: ${business.name} (${business.businessType}); slug: ${business.slug}; currency ${business.defaultCurrency}; tone ${business.aiTonePreference}`,
+    `Business: ${business.name} (${business.businessType}); slug: /${business.slug}; currency ${business.defaultCurrency}; tone ${business.aiTonePreference}`,
     business.shortDescription ? `Description: ${business.shortDescription}` : null,
-    business.defaultQuoteNotes ? `Default quote notes: ${truncateText(business.defaultQuoteNotes, 200)}` : null,
-    "",
-    `Recent inquiries (${recentInquiries.length})`,
-    recentInquiries.length
-      ? [
-          ...recentInquiries.map((inquiry) =>
-            `- [id:${inquiry.id}] ${compactFields([
-              ["", inquiry.customerName],
-              ["email", inquiry.customerEmail],
-              ["category", inquiry.serviceCategory],
-              ["status", inquiry.status],
-              ["subject", inquiry.subject],
-              ["submitted", formatDateOrNull(inquiry.submittedAt)],
-              ["deadline", inquiry.requestedDeadline],
-              ["budget", inquiry.budgetText],
-              ["details", truncateText(inquiry.details, 120) || null],
-            ])}`,
-          ),
-          ...(recentInquiries.length >= 5
-            ? ["(More inquiries exist beyond these 5 — ask the user for specifics or search by name)"]
-            : []),
-        ].join("\n")
-      : "- None.",
-    "",
-    `Recent quotes (${recentQuotes.length})`,
-    recentQuotes.length
-      ? [
-          ...recentQuotes.map((quote) =>
-            `- [id:${quote.id}] ${compactFields([
-              ["", quote.quoteNumber],
-              ["title", quote.title],
-              ["customer", quote.customerName],
-              ["email", quote.customerEmail],
-              ["status", quote.status],
-              ["total", formatQuoteMoney(quote.totalInCents, quote.currency)],
-              ["valid-until", quote.validUntil],
-              ["sent", formatDateOrNull(quote.sentAt)],
-              ["accepted", formatDateOrNull(quote.acceptedAt)],
-              ["post-acceptance", quote.postAcceptanceStatus === "none" ? null : quote.postAcceptanceStatus],
-            ])}`,
-          ),
-          ...(recentQuotes.length >= 5
-            ? ["(More quotes exist beyond these 5 — ask the user for specifics or search by name)"]
-            : []),
-        ].join("\n")
-      : "- None.",
-    "",
-    "Follow-ups",
-    formatFollowUpOverviewLines(followUpOverview),
-    "",
-    "Recent activity",
-    formatBusinessActivityLines(recentActivity),
+    business.contactEmail ? `Contact email: ${business.contactEmail}` : null,
+    `Created: ${business.createdAt.toISOString().slice(0, 10)}`,
     "",
     "Business knowledge",
     formatMemoryLines(memory),
+    "",
+    "NOTE: Use your tools to query actual business data (inquiries, quotes, stats, follow-ups, activity). Do not guess — always use a tool when the user asks about records, counts, or details.",
   ].filter((line): line is string => line !== null).join("\n");
 }
 
@@ -782,7 +647,7 @@ export async function buildAiSurfaceContext(input: {
   }
 }
 
-function getSurfaceInstructions(surface: AiSurface) {
+export function getSurfaceInstructions(surface: AiSurface) {
   const shared = [
     "You are Requo's internal assistant for an owner-led service business.",
     "Use only the provided Requo business context and chat history.",
@@ -861,9 +726,11 @@ function getSurfaceInstructions(surface: AiSurface) {
   return [
     ...shared,
     "",
-    "Dashboard surface: help across the current business. Be read-heavy by default and summarize this business's inquiries, quotes, follow-ups, recent activity, and operational workload.",
-    "Only the most recent items are included in context. If the user asks about a person or record not in the recent context, check the 'Additional records matching the user's query' section which contains database search results.",
-    "If neither the recent context nor the search results contain the requested information, say 'I couldn't find [X] in the records. Check the Inquiries or Quotes page for the full list.'",
+    "Dashboard surface: help across the current business. Answer questions about inquiries, quotes, follow-ups, activity, and business performance.",
+    "You have tools to query the business database. ALWAYS use tools to get data — never guess or make up numbers.",
+    "For count questions, use count_inquiries or count_quotes. For specific records, use get_inquiry_details or get_quote_details. For overviews, use get_business_stats.",
+    "If the user asks about something you can look up with a tool, call the tool first before responding.",
+    "If the requested information cannot be retrieved with any available tool, say so clearly.",
     "Avoid broad or destructive write guidance from dashboard. Any database modification must be done with the app controls.",
   ].join("\n");
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  AiChatDebugInfo,
   AiChatStreamEvent,
   AiConversation,
   AiConversationSummary,
@@ -27,6 +28,7 @@ export type ChatMessage = {
     content: string;
     tone: "muted" | "error";
   };
+  debugInfo?: AiChatDebugInfo;
 };
 
 export type AiChatSource = {
@@ -281,7 +283,8 @@ function parseStreamEvent(line: string) {
     parsed.type !== "status" &&
     parsed.type !== "delta" &&
     parsed.type !== "done" &&
-    parsed.type !== "error"
+    parsed.type !== "error" &&
+    parsed.type !== "debug"
   ) {
     throw new Error("Unexpected AI stream event.");
   }

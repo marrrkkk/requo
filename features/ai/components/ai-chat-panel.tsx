@@ -395,6 +395,56 @@ const AssistantBubble = memo(function AssistantBubble({
                   ) : null}
                 </div>
               ) : null}
+
+              {showModelMetadata && message.debugInfo ? (
+                <div className="mt-2 rounded-lg border border-dashed border-border/80 bg-muted/30 px-3 py-2 font-mono text-[0.65rem] leading-relaxed text-muted-foreground">
+                  <div className="mb-1 text-[0.7rem] font-semibold text-foreground/70">Debug</div>
+                  <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+                    <span>Provider</span>
+                    <span>{message.debugInfo.provider}</span>
+                    <span>Model</span>
+                    <span>{message.debugInfo.model}</span>
+                    <span>Latency</span>
+                    <span>{message.debugInfo.latencyMs}ms</span>
+                    {message.debugInfo.inputTokens != null && (
+                      <>
+                        <span>Input tokens</span>
+                        <span>{message.debugInfo.inputTokens.toLocaleString()}</span>
+                      </>
+                    )}
+                    {message.debugInfo.outputTokens != null && (
+                      <>
+                        <span>Output tokens</span>
+                        <span>{message.debugInfo.outputTokens.toLocaleString()}</span>
+                      </>
+                    )}
+                    {message.debugInfo.totalTokens != null && (
+                      <>
+                        <span>Total tokens</span>
+                        <span>{message.debugInfo.totalTokens.toLocaleString()}</span>
+                      </>
+                    )}
+                    {message.debugInfo.steps != null && message.debugInfo.steps > 1 && (
+                      <>
+                        <span>Steps</span>
+                        <span>{message.debugInfo.steps}</span>
+                      </>
+                    )}
+                    {message.debugInfo.toolCalls && message.debugInfo.toolCalls.length > 0 && (
+                      <>
+                        <span>Tools used</span>
+                        <span>{message.debugInfo.toolCalls.map((t) => t.name).join(", ")}</span>
+                      </>
+                    )}
+                    {message.debugInfo.systemPromptLength != null && (
+                      <>
+                        <span>System prompt</span>
+                        <span>{message.debugInfo.systemPromptLength.toLocaleString()} chars</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : null}
             </div>
           )}
         </div>
@@ -1884,6 +1934,12 @@ export function AIChatPanel({
               break;
             case "error":
               terminalEvent = event;
+              break;
+            case "debug":
+              updateMessage(assistantMessageId, (message) => ({
+                ...message,
+                debugInfo: event.info,
+              }));
               break;
           }
         });
