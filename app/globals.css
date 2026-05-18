@@ -1006,7 +1006,7 @@ html[data-reload-loading="true"] [data-reload-loading-overlay] {
   }
 
   .data-list-toolbar-actions {
-    @apply flex flex-col gap-3 sm:flex-row sm:items-center;
+    @apply flex flex-row items-center gap-2 sm:gap-3;
     @apply xl:ml-auto xl:shrink-0 xl:justify-end;
   }
 
@@ -1022,11 +1022,11 @@ html[data-reload-loading="true"] [data-reload-loading-overlay] {
   }
 
   .data-list-card-header {
-    @apply gap-4 pb-5;
+    @apply gap-3 pb-3 sm:gap-4 sm:pb-5;
   }
 
   .data-list-card-meta {
-    @apply grid gap-3 sm:grid-cols-3;
+    @apply grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3;
   }
 
   .data-list-card-footer {
@@ -1815,18 +1815,37 @@ html[data-reload-loading="true"] [data-reload-loading-overlay] {
   }
 
   .ai-prose table {
-    @apply w-full border-collapse text-[0.9em];
+    @apply w-full text-[0.82em] leading-snug;
     margin-top: 0.6em;
     margin-bottom: 0.6em;
+    border-spacing: 0;
+    border-collapse: separate;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
   }
 
   .ai-prose th,
   .ai-prose td {
-    @apply border border-border/70 px-2.5 py-1.5 text-left;
+    @apply px-2.5 py-1.5 text-left;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+  }
+
+  .ai-prose tr:last-child td {
+    border-bottom: none;
   }
 
   .ai-prose th {
-    @apply bg-secondary/60 font-semibold;
+    @apply bg-secondary/50 text-[0.9em] font-medium uppercase tracking-wide text-muted-foreground;
+  }
+
+  .ai-prose tbody tr:hover {
+    @apply bg-secondary/30;
+  }
+
+  .ai-prose td:first-child,
+  .ai-prose th:first-child {
+    @apply font-medium text-foreground;
   }
 
   .ai-stream-cursor {

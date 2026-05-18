@@ -77,10 +77,10 @@ export function QuoteListCards({
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="grid gap-3 pt-0 sm:grid-cols-2">
-                <div className="info-tile min-w-0 h-full px-3.5 py-3 shadow-none">
+              <CardContent className="grid grid-cols-2 gap-2.5 pt-0 sm:grid-cols-2 sm:gap-3">
+                <div className="info-tile col-span-2 min-w-0 h-full px-3 py-2.5 shadow-none sm:px-3.5 sm:py-3">
                   <span className="meta-label">Customer</span>
-                  <div className="mt-2 min-w-0 flex flex-col gap-1">
+                  <div className="mt-1.5 min-w-0 flex flex-col gap-0.5 sm:mt-2 sm:gap-1">
                     <p
                       className="truncate text-sm font-medium text-foreground"
                       title={quote.customerName}
@@ -92,15 +92,15 @@ export function QuoteListCards({
                     </p>
                   </div>
                 </div>
-                <div className="info-tile min-w-0 h-full px-3.5 py-3 shadow-none">
+                <div className="info-tile min-w-0 h-full px-3 py-2.5 shadow-none sm:px-3.5 sm:py-3">
                   <span className="meta-label">Valid until</span>
-                  <p className="mt-2 truncate text-sm text-foreground">
+                  <p className="mt-1.5 truncate text-sm text-foreground sm:mt-2">
                     {formatQuoteDate(quote.validUntil)}
                   </p>
                 </div>
-                <div className="info-tile min-w-0 h-full px-3.5 py-3 shadow-none">
+                <div className="info-tile min-w-0 h-full px-3 py-2.5 shadow-none sm:px-3.5 sm:py-3">
                   <span className="meta-label">Total</span>
-                  <p className="mt-2 truncate text-sm font-semibold text-foreground">
+                  <p className="mt-1.5 truncate text-sm font-semibold text-foreground sm:mt-2">
                     {formatQuoteMoney(quote.totalInCents, quote.currency)}
                   </p>
                 </div>

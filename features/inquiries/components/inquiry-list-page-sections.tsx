@@ -83,8 +83,8 @@ export async function InquiryListControlsSection({
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div />
 
-        <div className="dashboard-actions w-full [&>*]:w-full sm:[&>*]:w-auto xl:w-auto xl:justify-end">
-          <div className="flex gap-2">
+        <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end xl:w-auto">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-2 [&>*]:w-full sm:[&>*]:w-auto">
             <InquiryExportCsvDropdown
               businessSlug={businessSlug}
               canExport={canExport}
@@ -98,7 +98,7 @@ export async function InquiryListControlsSection({
               unarchiveAction={unarchiveAction}
             />
           </div>
-          <Button asChild>
+          <Button asChild className="w-full sm:w-auto">
             <Link href={getBusinessNewInquiryPath(businessSlug)} prefetch={true}>
               <Plus data-icon="inline-start" />
               Quick-add inquiry
@@ -196,11 +196,14 @@ export function InquiryListControlsFallback() {
   return (
     <>
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <Skeleton className="h-10 w-48 rounded-xl" />
+        <Skeleton className="hidden h-10 w-48 rounded-xl xl:block" />
 
-        <div className="dashboard-actions w-full [&>*]:w-full sm:[&>*]:w-auto xl:w-auto xl:justify-end">
-          <Skeleton className="h-10 w-full rounded-xl sm:w-36" />
-          <Skeleton className="h-10 w-full rounded-xl sm:w-40" />
+        <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end xl:w-auto">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-2">
+            <Skeleton className="h-10 w-full rounded-xl sm:w-36" />
+            <Skeleton className="h-10 w-full rounded-xl sm:w-32" />
+          </div>
+          <Skeleton className="h-10 w-full rounded-xl sm:w-44" />
         </div>
       </div>
 
@@ -228,8 +231,8 @@ export function InquiryListControlsFallback() {
             </div>
 
             <div className="data-list-toolbar-actions">
-              <Skeleton className="h-10 w-full rounded-xl sm:hidden" />
-              <Skeleton className="hidden h-10 w-20 rounded-xl sm:block" />
+              <Skeleton className="h-10 flex-1 rounded-xl sm:hidden" />
+              <Skeleton className="h-10 w-20 rounded-xl" />
               <Skeleton className="hidden size-5 rounded-full sm:block" />
             </div>
           </div>

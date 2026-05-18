@@ -25,13 +25,18 @@ export function DashboardListPageSkeleton({
           </div>
         </div>
 
-        <div className="dashboard-actions w-full sm:[&>*]:w-auto xl:w-auto xl:max-w-xl xl:justify-end">
-          {actionSkeletons.map((width) => (
-            <Skeleton
-              key={width}
-              className={`h-10 w-full rounded-xl sm:w-auto ${width}`}
-            />
-          ))}
+        <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end xl:w-auto xl:max-w-xl">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-2">
+            {actionSkeletons.map((width) => (
+              <Skeleton
+                key={`secondary-${width}`}
+                className={`h-10 w-full rounded-xl sm:w-auto ${width}`}
+              />
+            ))}
+          </div>
+          <Skeleton
+            className={`h-10 w-full rounded-xl sm:w-auto ${isInquiryList ? "sm:w-44" : "sm:w-36"}`}
+          />
         </div>
       </div>
 
@@ -65,8 +70,8 @@ export function DashboardListPageSkeleton({
             ) : null}
 
             <div className="data-list-toolbar-actions">
-              <Skeleton className="h-10 w-full rounded-xl sm:hidden" />
-              <Skeleton className="hidden h-10 w-20 rounded-xl sm:block" />
+              <Skeleton className="h-10 flex-1 rounded-xl sm:hidden" />
+              <Skeleton className="h-10 w-20 rounded-xl" />
               <Skeleton className="hidden size-5 rounded-full sm:block" />
             </div>
           </div>
