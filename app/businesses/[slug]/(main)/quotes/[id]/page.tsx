@@ -54,7 +54,7 @@ import { CopyQuoteLinkButton } from "@/features/quotes/components/copy-quote-lin
 import { WorkflowNextActionCallout } from "@/features/businesses/components/workflow-next-action";
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";
 import { QuoteExportPopover } from "@/features/quotes/components/quote-export-popover";
-import { QuoteManageDialog } from "@/features/quotes/components/quote-manage-dialog";
+import { QuoteManageDropdown } from "@/features/quotes/components/quote-manage-dropdown";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
 import { QuotePostWinCard } from "@/features/quotes/components/quote-post-win-card";
@@ -330,7 +330,7 @@ async function QuoteDetailContent({
         actions={
           <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center [&_[data-slot=button]]:w-full sm:[&_[data-slot=button]]:w-auto">
 
-            <QuoteManageDialog
+            <QuoteManageDropdown
               archiveAction={archiveAction}
               businessQuoteListHref={getBusinessQuotesPath(businessSlug)}
               deleteDraftAction={deleteDraftAction}

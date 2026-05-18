@@ -55,6 +55,7 @@ import {
   addInquiryNoteAction,
   archiveInquiryAction,
   changeInquiryStatusAction,
+  deleteInquiryAction,
   unarchiveInquiryAction,
 } from "@/features/inquiries/actions";
 import { CopyEmailButton } from "@/features/inquiries/components/copy-email-button";
@@ -62,10 +63,8 @@ import { InquiryDuplicateBanner } from "@/features/inquiries/components/inquiry-
 import { InquiryNoteForm } from "@/features/inquiries/components/inquiry-note-form";
 import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
 import { InquiryExportPopover } from "@/features/inquiries/components/inquiry-export-popover";
-import { InquiryManageDialog } from "@/features/inquiries/components/inquiry-manage-dialog";
+import { InquiryManageDropdown } from "@/features/inquiries/components/inquiry-manage-dropdown";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
-import { QualificationBreakdown } from "@/features/inquiries/components/qualification-breakdown";
-import { TemperatureBadge } from "@/features/inquiries/components/temperature-badge";
 import { getInquiryDetailForBusiness, getInquiryDuplicateForBusiness } from "@/features/inquiries/queries";
 import { inquiryRouteParamsSchema } from "@/features/inquiries/schemas";
 import {
@@ -79,10 +78,11 @@ import {
   type InquiryNoteActionState,
   type InquiryWorkflowStatus,
 } from "@/features/inquiries/types";
-import type { DuplicateFlag, Temperature } from "@/features/inquiries/qualification/types";
+import type { DuplicateFlag } from "@/features/inquiries/qualification/types";
 import { dismissDuplicateWarningAction } from "@/features/inquiries/qualification/actions";
 import { formatQuoteMoney } from "@/features/quotes/utils";
 import {
+  getBusinessInquiriesPath,
   getBusinessInquiryExportPath,
   getBusinessInquiryPath,
   getBusinessNewQuotePath,
@@ -154,6 +154,7 @@ async function InquiryDetailContent({
   const statusAction = changeInquiryStatusAction.bind(null, inquiry.id);
   const archiveAction = archiveInquiryAction.bind(null, inquiry.id);
   const unarchiveAction = unarchiveInquiryAction.bind(null, inquiry.id);
+  const deleteAction = deleteInquiryAction.bind(null, inquiry.id);
   const createFollowUpAction = createInquiryFollowUpAction.bind(null, inquiry.id);
   const customFields = getCustomSubmittedFields(
     inquiry.submittedFieldSnapshot,
@@ -229,24 +230,18 @@ async function InquiryDetailContent({
             {inquiry.recordState !== "active" ? (
               <InquiryRecordStateBadge state={inquiry.recordState} />
             ) : null}
-            <TemperatureBadge
-              temperature={inquiry.qualificationTemperature as Temperature | null}
-            />
-            {inquiry.qualificationScore != null ? (
-              <span className="text-sm font-medium tabular-nums text-muted-foreground">
-                {inquiry.qualificationScore}/100
-              </span>
-            ) : null}
           </>
         }
         actions={
           <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center [&_[data-slot=button]]:w-full sm:[&_[data-slot=button]]:w-auto">
-            <InquiryManageDialog
+            <InquiryManageDropdown
               workflowStatus={workflowStatus}
               recordState={inquiry.recordState}
+              businessInquiryListHref={getBusinessInquiriesPath(businessSlug)}
               statusAction={statusAction}
               archiveAction={archiveAction}
               unarchiveAction={unarchiveAction}
+              deleteAction={deleteAction}
             />
             <InquiryExportPopover
               canExport={canExportData}
@@ -521,16 +516,6 @@ async function InquiryDetailContent({
         </DashboardSidebarStack>
 
         <DashboardSidebarStack>
-          {inquiry.qualificationSignals &&
-          inquiry.qualificationTemperature &&
-          inquiry.qualificationScore != null ? (
-            <QualificationBreakdown
-              signals={inquiry.qualificationSignals}
-              compositeScore={inquiry.qualificationScore}
-              temperature={inquiry.qualificationTemperature as Temperature}
-            />
-          ) : null}
-
           <DashboardSection
             contentClassName="grid gap-3 sm:grid-cols-2"
             footer={
