@@ -1,5 +1,12 @@
 import "server-only";
 
+import type {
+  AiProviderName,
+  AiQualityTier,
+} from "@/lib/ai/model-options";
+
+export type { AiProviderName, AiQualityTier } from "@/lib/ai/model-options";
+
 // ---------------------------------------------------------------------------
 // AI Provider Abstraction — shared types
 //
@@ -9,9 +16,6 @@ import "server-only";
 // implementing the `AiProvider` interface.
 // ---------------------------------------------------------------------------
 
-/** Identifiers for each supported AI provider. */
-export type AiProviderName = "groq" | "cerebras" | "gemini" | "openrouter";
-
 /**
  * Quality tier controls which models are preferred within each provider.
  *
@@ -20,8 +24,6 @@ export type AiProviderName = "groq" | "cerebras" | "gemini" | "openrouter";
  * - "best"     — prefer strongest models first.
  * - "coding"   — prefer coding-capable models.
  */
-export type AiQualityTier = "balanced" | "cheap" | "best" | "coding";
-
 /** Normalized chat message shape sent to every provider. */
 export type AiChatMessage = {
   role: "system" | "user" | "assistant";
@@ -30,6 +32,7 @@ export type AiChatMessage = {
 
 /** Normalized request shape passed to each provider. */
 export type AiCompletionRequest = {
+  provider?: AiProviderName;
   model: string;
   messages: AiChatMessage[];
   temperature: number;

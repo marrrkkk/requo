@@ -9,6 +9,7 @@ import {
 import type {
   AiCompletionRequest,
   AiCompletionResponse,
+  AiProviderName,
   AiStreamResponse,
 } from "@/lib/ai/types";
 
@@ -48,6 +49,26 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
+function getProviderCandidates(
+  providers: ReturnType<typeof getConfiguredProviders>,
+  providerName: AiProviderName | undefined,
+) {
+  return providerName
+    ? providers.filter((provider) => provider.name === providerName)
+    : providers;
+}
+
+function getModelCandidates(
+  request: AiCompletionRequest,
+  providerName: AiProviderName,
+) {
+  if (request.provider === providerName && request.model.trim()) {
+    return [request.model];
+  }
+
+  return getModelsForProvider(providerName, request.qualityTier ?? "balanced");
+}
+
 /**
  * Generate a completion using the provider + model fallback chain.
  *
@@ -58,19 +79,23 @@ function sleep(ms: number): Promise<void> {
 export async function generateWithFallback(
   request: AiCompletionRequest,
 ): Promise<AiCompletionResponse> {
-  const providers = getConfiguredProviders();
+  const providers = getProviderCandidates(
+    getConfiguredProviders(),
+    request.provider,
+  );
 
   if (providers.length === 0) {
     throw new Error(
-      "No AI providers are configured. Add at least one API key (GROQ_API_KEY, CEREBRAS_API_KEY, or GEMINI_API_KEY) to enable the assistant.",
+      request.provider
+        ? `The selected AI provider "${request.provider}" is not configured.`
+        : "No AI providers are configured. Add at least one API key (GROQ_API_KEY, CEREBRAS_API_KEY, or GEMINI_API_KEY) to enable the assistant.",
     );
   }
 
-  const tier = request.qualityTier ?? "balanced";
   let lastError: unknown;
 
   for (const provider of providers) {
-    const models = getModelsForProvider(provider.name, tier);
+    const models = getModelCandidates(request, provider.name);
 
     for (let m = 0; m < models.length; m += 1) {
       const model = models[m];
@@ -146,20 +171,24 @@ export async function streamWithFallback(
   request: AiCompletionRequest,
   options?: { onFallback?: () => void },
 ): Promise<AiStreamResponse> {
-  const providers = getConfiguredProviders();
+  const providers = getProviderCandidates(
+    getConfiguredProviders(),
+    request.provider,
+  );
 
   if (providers.length === 0) {
     throw new Error(
-      "No AI providers are configured. Add at least one API key (GROQ_API_KEY, CEREBRAS_API_KEY, or GEMINI_API_KEY) to enable the assistant.",
+      request.provider
+        ? `The selected AI provider "${request.provider}" is not configured.`
+        : "No AI providers are configured. Add at least one API key (GROQ_API_KEY, CEREBRAS_API_KEY, or GEMINI_API_KEY) to enable the assistant.",
     );
   }
 
-  const tier = request.qualityTier ?? "balanced";
   let lastError: unknown;
   let attemptCount = 0;
 
   for (const provider of providers) {
-    const models = getModelsForProvider(provider.name, tier);
+    const models = getModelCandidates(request, provider.name);
 
     for (let m = 0; m < models.length; m += 1) {
       const model = models[m];

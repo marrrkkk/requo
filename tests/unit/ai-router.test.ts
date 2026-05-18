@@ -264,6 +264,32 @@ describe("generateWithFallback", () => {
     expect(result.model).toBe("llama-3.3-70b-versatile");
   });
 
+  it("uses a selected provider and model without trying the fallback list", async () => {
+    const groq = makeProvider("groq");
+    const gemini = makeProvider("gemini");
+
+    vi.mocked(getConfiguredProviders).mockReturnValue([groq, gemini]);
+    setupModels({
+      groq: ["groq-default"],
+      gemini: ["gemini-default"],
+    });
+    const modelListCallCount = vi.mocked(getModelsForProvider).mock.calls.length;
+
+    const result = await generateWithFallback({
+      ...mockRequest,
+      provider: "gemini",
+      model: "gemini-2.5-pro",
+    });
+
+    expect(result.provider).toBe("gemini");
+    expect(result.model).toBe("gemini-2.5-pro");
+    expect(groq.generateCompletion).not.toHaveBeenCalled();
+    expect(gemini.generateCompletion).toHaveBeenCalledOnce();
+    expect(vi.mocked(getModelsForProvider).mock.calls).toHaveLength(
+      modelListCallCount,
+    );
+  });
+
   it("throws when all providers and models fail", async () => {
     const groq = makeProvider("groq", {
       generateCompletion: vi.fn(async () => {
@@ -403,6 +429,32 @@ describe("streamWithFallback", () => {
     }
 
     expect(chunks).toEqual(["Streamed from groq/qwen/qwen3-32b"]);
+  });
+
+  it("streams from a selected provider and model without trying fallback models", async () => {
+    const groq = makeProvider("groq");
+    const gemini = makeProvider("gemini");
+
+    vi.mocked(getConfiguredProviders).mockReturnValue([groq, gemini]);
+    setupModels({
+      groq: ["groq-default"],
+      gemini: ["gemini-default"],
+    });
+    const modelListCallCount = vi.mocked(getModelsForProvider).mock.calls.length;
+
+    const result = await streamWithFallback({
+      ...mockRequest,
+      provider: "gemini",
+      model: "gemini-2.5-pro",
+    });
+
+    expect(result.provider).toBe("gemini");
+    expect(result.model).toBe("gemini-2.5-pro");
+    expect(groq.generateStream).not.toHaveBeenCalled();
+    expect(gemini.generateStream).toHaveBeenCalledOnce();
+    expect(vi.mocked(getModelsForProvider).mock.calls).toHaveLength(
+      modelListCallCount,
+    );
   });
 
   it("falls back to next model when first stream connection fails", async () => {
