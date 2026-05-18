@@ -1,7 +1,9 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   index,
+  integer,
   pgEnum,
   pgTable,
   text,
@@ -29,6 +31,15 @@ export const followUpChannelEnum = pgEnum("follow_up_channel", [
   "other",
 ]);
 
+export const followUpRecurrenceEnum = pgEnum("follow_up_recurrence", [
+  "none",
+  "daily",
+  "every_3_days",
+  "weekly",
+  "biweekly",
+  "monthly",
+]);
+
 export const followUps = pgTable(
   "follow_ups",
   {
@@ -53,6 +64,21 @@ export const followUps = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true }),
     skippedAt: timestamp("skipped_at", { withTimezone: true }),
     status: followUpStatusEnum("status").notNull().default("pending"),
+    /** Recurrence pattern — when completed, auto-creates next follow-up. */
+    recurrence: followUpRecurrenceEnum("recurrence").notNull().default("none"),
+    /** Max number of recurrences (null = unlimited until manually stopped). */
+    recurrenceLimit: integer("recurrence_limit"),
+    /** How many times this follow-up has recurred so far. */
+    recurrenceCount: integer("recurrence_count").notNull().default(0),
+    /** Parent follow-up ID for recurrence chain tracking. */
+    parentFollowUpId: text("parent_follow_up_id"),
+    /** Soft-delete timestamp. */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    deletedByUserId: text("deleted_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    /** Whether a reminder notification has been sent for the current due date. */
+    reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
     createdByUserId: text("created_by_user_id").references(() => user.id, {
       onDelete: "set null",
     }),
@@ -75,6 +101,9 @@ export const followUps = pgTable(
     index("follow_ups_inquiry_id_idx").on(table.inquiryId),
     index("follow_ups_quote_id_idx").on(table.quoteId),
     index("follow_ups_assigned_to_user_id_idx").on(table.assignedToUserId),
+    index("follow_ups_not_deleted_idx")
+      .on(table.businessId, table.status)
+      .where(sql`${table.deletedAt} is null`),
     check(
       "follow_ups_related_record_required",
       sql`${table.inquiryId} is not null or ${table.quoteId} is not null`,

@@ -43,6 +43,20 @@
       "when": 1779071407462,
       "tag": "0005_cold_wonder_man",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1779105675629,
+      "tag": "0006_minor_echo",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1779200000000,
+      "tag": "0007_follow_up_enhancements",
+      "breakpoints": true
     }
   ]
 }

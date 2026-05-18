@@ -4,14 +4,18 @@ import { and, eq, isNull } from "drizzle-orm";
 
 import type {
   FollowUpCreateInput,
+  FollowUpEditInput,
+  FollowUpReassignInput,
   FollowUpRescheduleInput,
 } from "@/features/follow-ups/schemas";
-import type { FollowUpStatus } from "@/features/follow-ups/types";
+import type { FollowUpRecurrence, FollowUpStatus } from "@/features/follow-ups/types";
 import {
   createActivityId,
   createFollowUpId,
   formatFollowUpDate,
+  getNextRecurrenceDueDate,
   parseFollowUpDueDateInput,
+  shouldRecur,
 } from "@/features/follow-ups/utils";
 import { db } from "@/lib/db/client";
 import {
@@ -27,7 +31,10 @@ type CreateFollowUpForBusinessInput = {
   quoteId?: string | null;
   actorUserId: string;
   assignedToUserId?: string | null;
-  followUp: FollowUpCreateInput;
+  followUp: Omit<FollowUpCreateInput, "recurrence" | "recurrenceLimit"> & {
+    recurrence?: FollowUpCreateInput["recurrence"];
+    recurrenceLimit?: FollowUpCreateInput["recurrenceLimit"];
+  };
 };
 
 type FollowUpMutationResult = {
@@ -126,6 +133,9 @@ export async function createFollowUpForBusiness({
       title: followUp.title,
       reason: followUp.reason,
       channel: followUp.channel,
+      recurrence: followUp.recurrence ?? "none",
+      recurrenceLimit: followUp.recurrenceLimit ?? null,
+      recurrenceCount: 0,
       dueAt,
       status: "pending",
       createdByUserId: actorUserId,
@@ -181,11 +191,22 @@ export async function completeFollowUpForBusiness({
         inquiryId: followUps.inquiryId,
         quoteId: followUps.quoteId,
         title: followUps.title,
+        reason: followUps.reason,
+        channel: followUps.channel,
+        assignedToUserId: followUps.assignedToUserId,
         status: followUps.status,
+        dueAt: followUps.dueAt,
+        recurrence: followUps.recurrence,
+        recurrenceCount: followUps.recurrenceCount,
+        recurrenceLimit: followUps.recurrenceLimit,
       })
       .from(followUps)
       .where(
-        and(eq(followUps.id, followUpId), eq(followUps.businessId, businessId)),
+        and(
+          eq(followUps.id, followUpId),
+          eq(followUps.businessId, businessId),
+          isNull(followUps.deletedAt),
+        ),
       )
       .limit(1);
 
@@ -243,6 +264,61 @@ export async function completeFollowUpForBusiness({
       updatedAt: now,
     });
 
+    // Auto-create next recurring follow-up if applicable
+    if (
+      shouldRecur({
+        recurrence: existingFollowUp.recurrence as FollowUpRecurrence,
+        recurrenceCount: existingFollowUp.recurrenceCount,
+        recurrenceLimit: existingFollowUp.recurrenceLimit,
+      })
+    ) {
+      const nextDueAt = getNextRecurrenceDueDate(
+        existingFollowUp.dueAt,
+        existingFollowUp.recurrence as Exclude<FollowUpRecurrence, "none">,
+      );
+      const nextFollowUpId = createFollowUpId();
+
+      await tx.insert(followUps).values({
+        id: nextFollowUpId,
+        businessId,
+        inquiryId: existingFollowUp.inquiryId,
+        quoteId: existingFollowUp.quoteId,
+        assignedToUserId: existingFollowUp.assignedToUserId,
+        title: existingFollowUp.title,
+        reason: existingFollowUp.reason,
+        channel: existingFollowUp.channel as typeof followUps.$inferInsert.channel,
+        recurrence: existingFollowUp.recurrence,
+        recurrenceCount: existingFollowUp.recurrenceCount + 1,
+        recurrenceLimit: existingFollowUp.recurrenceLimit,
+        parentFollowUpId: followUpId,
+        dueAt: nextDueAt,
+        status: "pending",
+        createdByUserId: actorUserId,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await tx.insert(activityLogs).values({
+        id: createActivityId(),
+        businessId,
+        inquiryId: existingFollowUp.inquiryId,
+        quoteId: existingFollowUp.quoteId,
+        actorUserId,
+        type: "follow_up.created",
+        summary: `Recurring follow-up created for ${formatFollowUpDate(nextDueAt)}.`,
+        metadata: {
+          followUpId: nextFollowUpId,
+          title: existingFollowUp.title,
+          reason: existingFollowUp.reason,
+          channel: existingFollowUp.channel,
+          dueAt: nextDueAt.toISOString(),
+          parentFollowUpId: followUpId,
+        },
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
     return {
       changed: true,
       locked: false,
@@ -272,7 +348,11 @@ export async function skipFollowUpForBusiness({
       })
       .from(followUps)
       .where(
-        and(eq(followUps.id, followUpId), eq(followUps.businessId, businessId)),
+        and(
+          eq(followUps.id, followUpId),
+          eq(followUps.businessId, businessId),
+          isNull(followUps.deletedAt),
+        ),
       )
       .limit(1);
 
@@ -364,7 +444,11 @@ export async function rescheduleFollowUpForBusiness({
       })
       .from(followUps)
       .where(
-        and(eq(followUps.id, followUpId), eq(followUps.businessId, businessId)),
+        and(
+          eq(followUps.id, followUpId),
+          eq(followUps.businessId, businessId),
+          isNull(followUps.deletedAt),
+        ),
       )
       .limit(1);
 
@@ -387,6 +471,7 @@ export async function rescheduleFollowUpForBusiness({
       .update(followUps)
       .set({
         dueAt,
+        reminderSentAt: null,
         updatedAt: now,
       })
       .where(
@@ -418,6 +503,263 @@ export async function rescheduleFollowUpForBusiness({
       inquiryId: existingFollowUp.inquiryId,
       quoteId: existingFollowUp.quoteId,
       status: "pending" as const,
+    };
+  });
+}
+
+export async function editFollowUpForBusiness({
+  businessId,
+  followUpId,
+  actorUserId,
+  followUp,
+}: UpdateFollowUpRecordInput & {
+  followUp: FollowUpEditInput;
+}) {
+  const now = new Date();
+  const dueAt = parseFollowUpDueDateInput(followUp.dueDate);
+
+  return db.transaction(async (tx) => {
+    const [existingFollowUp] = await tx
+      .select({
+        id: followUps.id,
+        inquiryId: followUps.inquiryId,
+        quoteId: followUps.quoteId,
+        status: followUps.status,
+        title: followUps.title,
+      })
+      .from(followUps)
+      .where(
+        and(
+          eq(followUps.id, followUpId),
+          eq(followUps.businessId, businessId),
+          isNull(followUps.deletedAt),
+        ),
+      )
+      .limit(1);
+
+    if (!existingFollowUp) {
+      return null;
+    }
+
+    if (existingFollowUp.status !== "pending") {
+      return {
+        changed: false,
+        locked: true,
+        followUpId,
+        inquiryId: existingFollowUp.inquiryId,
+        quoteId: existingFollowUp.quoteId,
+        status: existingFollowUp.status,
+      } as const;
+    }
+
+    await tx
+      .update(followUps)
+      .set({
+        title: followUp.title,
+        reason: followUp.reason,
+        channel: followUp.channel,
+        dueAt,
+        recurrence: followUp.recurrence ?? "none",
+        recurrenceLimit: followUp.recurrenceLimit ?? null,
+        reminderSentAt: null,
+        updatedAt: now,
+      })
+      .where(
+        and(eq(followUps.id, followUpId), eq(followUps.businessId, businessId)),
+      );
+
+    await tx.insert(activityLogs).values({
+      id: createActivityId(),
+      businessId,
+      inquiryId: existingFollowUp.inquiryId,
+      quoteId: existingFollowUp.quoteId,
+      actorUserId,
+      type: "follow_up.edited",
+      summary: `Follow-up edited: "${followUp.title}".`,
+      metadata: {
+        followUpId,
+        title: followUp.title,
+        reason: followUp.reason,
+        channel: followUp.channel,
+        dueAt: dueAt.toISOString(),
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      changed: true,
+      locked: false,
+      followUpId,
+      inquiryId: existingFollowUp.inquiryId,
+      quoteId: existingFollowUp.quoteId,
+      status: "pending" as const,
+    };
+  });
+}
+
+export async function deleteFollowUpForBusiness({
+  businessId,
+  followUpId,
+  actorUserId,
+}: UpdateFollowUpRecordInput) {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [existingFollowUp] = await tx
+      .select({
+        id: followUps.id,
+        inquiryId: followUps.inquiryId,
+        quoteId: followUps.quoteId,
+        title: followUps.title,
+        deletedAt: followUps.deletedAt,
+      })
+      .from(followUps)
+      .where(
+        and(eq(followUps.id, followUpId), eq(followUps.businessId, businessId)),
+      )
+      .limit(1);
+
+    if (!existingFollowUp) {
+      return null;
+    }
+
+    if (existingFollowUp.deletedAt) {
+      return {
+        changed: false,
+        followUpId,
+        inquiryId: existingFollowUp.inquiryId,
+        quoteId: existingFollowUp.quoteId,
+      } as const;
+    }
+
+    await tx
+      .update(followUps)
+      .set({
+        deletedAt: now,
+        deletedByUserId: actorUserId,
+        updatedAt: now,
+      })
+      .where(
+        and(eq(followUps.id, followUpId), eq(followUps.businessId, businessId)),
+      );
+
+    await tx.insert(activityLogs).values({
+      id: createActivityId(),
+      businessId,
+      inquiryId: existingFollowUp.inquiryId,
+      quoteId: existingFollowUp.quoteId,
+      actorUserId,
+      type: "follow_up.deleted",
+      summary: `Follow-up deleted: "${existingFollowUp.title}".`,
+      metadata: {
+        followUpId,
+        title: existingFollowUp.title,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      changed: true,
+      followUpId,
+      inquiryId: existingFollowUp.inquiryId,
+      quoteId: existingFollowUp.quoteId,
+    };
+  });
+}
+
+export async function reassignFollowUpForBusiness({
+  businessId,
+  followUpId,
+  actorUserId,
+  reassign,
+}: UpdateFollowUpRecordInput & {
+  reassign: FollowUpReassignInput;
+}) {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [existingFollowUp] = await tx
+      .select({
+        id: followUps.id,
+        inquiryId: followUps.inquiryId,
+        quoteId: followUps.quoteId,
+        title: followUps.title,
+        status: followUps.status,
+        assignedToUserId: followUps.assignedToUserId,
+      })
+      .from(followUps)
+      .where(
+        and(
+          eq(followUps.id, followUpId),
+          eq(followUps.businessId, businessId),
+          isNull(followUps.deletedAt),
+        ),
+      )
+      .limit(1);
+
+    if (!existingFollowUp) {
+      return null;
+    }
+
+    if (existingFollowUp.status !== "pending") {
+      return {
+        changed: false,
+        locked: true,
+        followUpId,
+        inquiryId: existingFollowUp.inquiryId,
+        quoteId: existingFollowUp.quoteId,
+        status: existingFollowUp.status,
+      } as const;
+    }
+
+    if (existingFollowUp.assignedToUserId === reassign.assignedToUserId) {
+      return {
+        changed: false,
+        locked: false,
+        followUpId,
+        inquiryId: existingFollowUp.inquiryId,
+        quoteId: existingFollowUp.quoteId,
+        status: existingFollowUp.status,
+      } as const;
+    }
+
+    await tx
+      .update(followUps)
+      .set({
+        assignedToUserId: reassign.assignedToUserId,
+        updatedAt: now,
+      })
+      .where(
+        and(eq(followUps.id, followUpId), eq(followUps.businessId, businessId)),
+      );
+
+    await tx.insert(activityLogs).values({
+      id: createActivityId(),
+      businessId,
+      inquiryId: existingFollowUp.inquiryId,
+      quoteId: existingFollowUp.quoteId,
+      actorUserId,
+      type: "follow_up.reassigned",
+      summary: `Follow-up reassigned.`,
+      metadata: {
+        followUpId,
+        title: existingFollowUp.title,
+        previousAssignedToUserId: existingFollowUp.assignedToUserId,
+        assignedToUserId: reassign.assignedToUserId,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      changed: true,
+      locked: false,
+      followUpId,
+      inquiryId: existingFollowUp.inquiryId,
+      quoteId: existingFollowUp.quoteId,
+      status: existingFollowUp.status,
     };
   });
 }
