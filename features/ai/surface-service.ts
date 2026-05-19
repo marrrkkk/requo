@@ -650,8 +650,8 @@ async function buildDashboardContext(input: {
     "",
     "IMPORTANT: You MUST call tools to answer any question about data. Do NOT use the business knowledge above to answer count/status/detail questions — it is background context only.",
     `Use this slug for building links: ${business.slug}`,
-    "Link format for inquiries: /businesses/SLUG/inquiries/INQUIRY_ID",
-    "Link format for quotes: /businesses/SLUG/quotes/QUOTE_ID",
+    "Link format for inquiries: /businesses/{slug}/inquiries/{INQUIRY_ID} — MUST start with /",
+    "Link format for quotes: /businesses/{slug}/quotes/{QUOTE_ID} — MUST start with /",
   ].filter((line): line is string => line !== null).join("\n");
 }
 
@@ -706,8 +706,8 @@ export function getSurfaceInstructions(surface: AiSurface) {
     "",
     "RESPONSE RULES:",
     "- Simple factual questions: ONE sentence, no headers. E.g. 'The status of Q-1006 is **Draft**.'",
-    "- Link inquiries using the URL from tool output: [Name](/businesses/SLUG/inquiries/ID)",
-    "- Link quotes using the URL from tool output: [Q-XXXX](/businesses/SLUG/quotes/ID)",
+    "- Link inquiries using the URL from tool output: [Name](/businesses/{slug}/inquiries/ID) — always use the full absolute path starting with /",
+    "- Link quotes using the URL from tool output: [Q-XXXX](/businesses/{slug}/quotes/ID) — always use the full absolute path starting with /",
     "- Only present data from context or tool output. Never invent records. If not found, say so.",
     "",
     "TEMPLATES:",
@@ -746,6 +746,22 @@ export function getSurfaceInstructions(surface: AiSurface) {
     "- Use the URLs returned by tools in your links. Do not construct URLs from memory — only use URLs from tool output.",
     "- When referencing counts, use the EXACT numbers from tool output. Do not round, approximate, or add to them.",
     "- Available tools: count_inquiries, count_quotes, list_inquiries, list_quotes, search_inquiries, search_quotes, get_inquiry_details, get_quote_details, get_business_stats, get_analytics_overview, get_revenue_summary, get_follow_ups, get_recent_activity, get_stale_inquiries, get_expiring_quotes, get_customer_history, get_service_categories, get_pricing_library, get_inquiry_notes, get_inquiry_conversation, get_inquiry_attachments, get_job_pipeline, get_response_times, get_period_comparison, get_business_knowledge, get_quote_customer_response.",
+    "",
+    "ACTION TOOLS (write operations):",
+    "- draft_inquiry: Use when the user asks to create/log/draft a new inquiry. Returns an action proposal the user must confirm.",
+    "- draft_quote: Use when the user asks to create/prepare/draft a quote. Returns an action proposal the user must confirm.",
+    "- schedule_follow_up: Use when the user asks to schedule a follow-up/reminder. Requires an inquiryId or quoteId. Returns an action proposal the user must confirm.",
+    "- update_inquiry_status: Use when the user asks to change an inquiry's status. Returns an action proposal the user must confirm.",
+    "",
+    "ACTION TOOL CRITICAL RULES:",
+    "- The action tool call itself IS the confirmation UI. When you call draft_quote, draft_inquiry, schedule_follow_up, or update_inquiry_status, a confirmation button automatically appears for the user. You do NOT need to write any [ACTION_PROPOSAL] text manually.",
+    "- NEVER write [ACTION_PROPOSAL] blocks yourself. NEVER describe or simulate a confirmation dialog. Just call the tool — the UI handles the rest.",
+    "- ALWAYS fetch real data first before calling an action tool. For draft_quote: call get_inquiry_details or search_inquiries first to get correct customer name, email, contact method, service details, and inquiry ID. For schedule_follow_up: call get_inquiry_details or get_quote_details first to get the correct entity ID.",
+    "- NEVER invent or guess customer names, emails, contact handles, prices, or IDs when calling action tools. Every field must come from tool output or explicit user instructions.",
+    "- If the user says 'create a quote for [inquiry]', your steps are: (1) search/get the inquiry details, (2) use those details to fill the draft_quote tool call with real data.",
+    "- For quotes, calculate unitPriceInCents as dollars × 100 (e.g. $50 = 5000 cents). If the user specifies prices, use those. If not, check get_pricing_library for standard pricing.",
+    "- After calling an action tool, write a SHORT one-line confirmation like 'Here's the quote draft — confirm to create it.' Do NOT repeat all the details (the UI card shows them).",
+    "- NEVER say 'the action proposal should appear' or 'you should see a confirmation button'. The tool output IS the button. Just say 'Confirm below to create it.'",
   ].join("\n");
 }
 

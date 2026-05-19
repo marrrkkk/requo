@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 
 import { hasFeatureAccess } from "@/lib/plans";
@@ -13,7 +13,6 @@ import type {
 import { AIChatPanel } from "@/features/ai/components/ai-chat-panel";
 import {
   fetchDashboardConversations,
-  getJsonErrorMessage,
   mergeDashboardConversationSummary,
   type ConversationMessagesSnapshot,
   type EntityConversationSnapshot,
@@ -50,49 +49,7 @@ export function AssistantFullPage({
     () => new Map<string, EntityConversationSnapshot>(),
   );
 
-  const initRef = useRef(false);
-
-  // Always create a fresh conversation on mount
-  useEffect(() => {
-    if (!hasAccess || initRef.current) return;
-    initRef.current = true;
-
-    const controller = new AbortController();
-
-    (async () => {
-      try {
-        const response = await fetch("/api/ai/conversations", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            businessSlug,
-            surface: "dashboard",
-            entityId: "global",
-          }),
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error(
-            await getJsonErrorMessage(response, "Could not create a new chat."),
-          );
-        }
-
-        const payload = (await response.json()) as { conversation: AiConversation };
-        setActiveDashboardConversation(payload.conversation);
-        messagesCache.set(payload.conversation.id, {
-          messages: [],
-          nextCursor: null,
-          hasMore: false,
-        });
-      } catch {
-        // Will show empty state; user can retry via New Chat button
-      }
-    })();
-
-    return () => controller.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [businessSlug, hasAccess]);
+  // No eager conversation creation — the panel creates one lazily on first send.
 
   // Fetch conversation list in the background (for history panel)
   useEffect(() => {

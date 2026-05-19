@@ -32,7 +32,7 @@ import {
   buildAiSurfaceContext,
   getSurfaceInstructions,
 } from "@/features/ai/surface-service";
-import { createDashboardTools } from "@/features/ai/tools";
+import { createDashboardTools, createActionTools } from "@/features/ai/tools";
 import type { AiChatStreamEvent } from "@/features/ai/types";
 import type { AiProviderName } from "@/lib/ai";
 import { registry } from "@/lib/ai/registry";
@@ -579,11 +579,18 @@ export async function createAiChatRouteResponse(request: Request) {
         // For inquiry/quote surfaces, stream without tools (context-only)
         const tools =
           parsedBody.data.surface === "dashboard" && authorizedBusinessId
-            ? createDashboardTools({
-                businessId: authorizedBusinessId,
-                businessSlug: access.businessContext.business.slug,
-                userId: user.id,
-              })
+            ? {
+                ...createDashboardTools({
+                  businessId: authorizedBusinessId,
+                  businessSlug: access.businessContext.business.slug,
+                  userId: user.id,
+                }),
+                ...createActionTools({
+                  businessId: authorizedBusinessId,
+                  businessSlug: access.businessContext.business.slug,
+                  userId: user.id,
+                }),
+              }
             : undefined;
 
         // Build the model ID for the registry

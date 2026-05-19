@@ -81,6 +81,11 @@ import {
   autoAiModelOptionValue,
   getAllAiModelOptions,
 } from "@/lib/ai/model-options";
+import {
+  AiActionButton,
+  parseActionProposals,
+  stripActionProposals,
+} from "@/features/ai/components/ai-action-button";
 
 type AiChatPanelProps = {
   businessSlug: string;
@@ -132,14 +137,22 @@ const aiChatDevModelOptions = getAllAiModelOptions();
 const markdownComponents: Components = {
   a({ href, children, ...props }) {
     const isExternal = href ? /^https?:\/\//i.test(href) : false;
-    const isInternalRoute = href && !isExternal && href.startsWith("/");
+
+    // Normalize relative business paths that are missing the leading slash.
+    // The AI model sometimes outputs `businesses/slug/...` instead of `/businesses/slug/...`.
+    let normalizedHref = href;
+    if (normalizedHref && !isExternal && !normalizedHref.startsWith("/") && normalizedHref.startsWith("businesses/")) {
+      normalizedHref = `/${normalizedHref}`;
+    }
+
+    const isInternalRoute = normalizedHref && !isExternal && normalizedHref.startsWith("/");
 
     // Internal app links render as pill-style inline links
     if (isInternalRoute) {
       return (
         <a
           {...props}
-          href={href}
+          href={normalizedHref}
           className="inline-flex items-center gap-0.5 rounded-md bg-primary/8 px-1.5 py-0.5 text-primary no-underline transition-colors hover:bg-primary/15"
         >
           {children}
@@ -150,7 +163,7 @@ const markdownComponents: Components = {
     return (
       <a
         {...props}
-        href={href}
+        href={normalizedHref}
         rel={isExternal ? "noreferrer" : props.rel}
         target={isExternal ? "_blank" : props.target}
       >
@@ -277,15 +290,24 @@ const AssistantMessageBody = memo(function AssistantMessageBody({
   content: string;
   isStreaming: boolean;
 }) {
+  const proposals = isStreaming ? [] : parseActionProposals(content);
+  // Always strip proposal blocks from displayed content (even during streaming)
+  const displayContent = stripActionProposals(content);
+
   return (
     <div className="ai-prose text-sm leading-7 text-foreground">
-      <ReactMarkdown
-        components={markdownComponents}
-        remarkPlugins={[remarkGfm]}
-      >
-        {content}
-      </ReactMarkdown>
+      {displayContent ? (
+        <ReactMarkdown
+          components={markdownComponents}
+          remarkPlugins={[remarkGfm]}
+        >
+          {displayContent}
+        </ReactMarkdown>
+      ) : null}
       {isStreaming ? <StreamingIndicator /> : null}
+      {proposals.map((proposal, index) => (
+        <AiActionButton key={`${proposal.action}-${index}`} proposal={proposal} />
+      ))}
     </div>
   );
 });
@@ -1787,81 +1809,29 @@ export function AIChatPanel({
       return;
     }
 
-    setIsCreatingChat(true);
-
-    try {
-      const response = await fetch("/api/ai/conversations", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          businessSlug,
-          surface: "dashboard",
-          entityId,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          await getJsonErrorMessage(
-            response,
-            "A new dashboard chat could not be created.",
-          ),
-        );
-      }
-
-      const payload = (await response.json()) as {
-        conversation: AiConversation;
-      };
-
-      setComposerValue("");
-      setConversation(payload.conversation);
-      setHistoryOpen(false);
-      setMessages([]);
-      setNextCursor(null);
-      setHasMore(false);
-      setHydrateError(null);
-      setPaginationError(null);
-      setIsHydrating(false);
-      shouldScrollToBottomRef.current = true;
-      onActiveDashboardConversationChange?.(payload.conversation);
-      onMessagesCacheUpdate?.(payload.conversation.id, {
-        messages: [],
-        nextCursor: null,
-        hasMore: false,
-      });
-      upsertDashboardConversationSummary(
-        createDashboardConversationSummary({
-          conversation: payload.conversation,
-          messages: [],
-        }),
-      );
-    } catch (error) {
-      appendAssistantNote(
-        error instanceof Error
-          ? error.message
-          : "A new dashboard chat could not be created.",
-        true,
-      );
-    } finally {
-      setIsCreatingChat(false);
-    }
+    // Reset to a fresh "new chat" state without creating a server-side conversation.
+    // The conversation will be created lazily when the user sends their first message.
+    setComposerValue("");
+    setConversation(null);
+    setHistoryOpen(false);
+    setMessages([]);
+    setNextCursor(null);
+    setHasMore(false);
+    setHydrateError(null);
+    setPaginationError(null);
+    setIsHydrating(false);
+    shouldScrollToBottomRef.current = true;
+    onActiveDashboardConversationChange?.(null);
   }, [
-    appendAssistantNote,
-    businessSlug,
-    entityId,
     isCreatingChat,
     isPending,
     onActiveDashboardConversationChange,
-    onMessagesCacheUpdate,
     surface,
-    upsertDashboardConversationSummary,
   ]);
 
   const runMessage = useCallback(
     async (messageText: string) => {
-      if (isPending || !conversation) {
+      if (isPending) {
         return;
       }
 
@@ -1871,13 +1841,69 @@ export function AIChatPanel({
         return;
       }
 
+      // Lazy conversation creation for dashboard surface when no conversation exists yet.
+      let activeConversation = conversation;
+
+      if (!activeConversation && surface === "dashboard") {
+        setIsCreatingChat(true);
+
+        try {
+          const response = await fetch("/api/ai/conversations", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              businessSlug,
+              surface: "dashboard",
+              entityId,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(
+              await getJsonErrorMessage(
+                response,
+                "A new chat could not be created.",
+              ),
+            );
+          }
+
+          const payload = (await response.json()) as {
+            conversation: AiConversation;
+          };
+
+          activeConversation = payload.conversation;
+          setConversation(activeConversation);
+          onActiveDashboardConversationChange?.(activeConversation);
+          onMessagesCacheUpdate?.(activeConversation.id, {
+            messages: [],
+            nextCursor: null,
+            hasMore: false,
+          });
+        } catch (error) {
+          appendAssistantNote(
+            error instanceof Error
+              ? error.message
+              : "A new chat could not be created.",
+            true,
+          );
+          setIsCreatingChat(false);
+          return;
+        } finally {
+          setIsCreatingChat(false);
+        }
+      }
+
+      if (!activeConversation) {
+        return;
+      }
+
       const userMessageId = createMessageId();
       let assistantMessageId = createMessageId();
       let renderedContent = "";
       let terminalEvent: AssistantTerminalEvent | null = null;
-      let currentConversation = conversation;
+      let currentConversation = activeConversation;
 
-      streamingConversationIdRef.current = conversation.id;
+      streamingConversationIdRef.current = activeConversation.id;
       prepareIncomingMessageScroll(true);
       setMessages((currentMessages) => [
         ...currentMessages,
@@ -1993,7 +2019,7 @@ export function AIChatPanel({
           },
           body: JSON.stringify({
             businessSlug,
-            conversationId: conversation.id,
+            conversationId: activeConversation.id,
             surface,
             entityId,
             message: trimmedMessage,
@@ -2150,6 +2176,7 @@ export function AIChatPanel({
     },
     [
       activeDashboardConversation,
+      appendAssistantNote,
       businessSlug,
       conversation,
       devModel,
@@ -2190,7 +2217,7 @@ export function AIChatPanel({
   );
 
   const canOpenHistory = surface === "dashboard" && !historyOpen;
-  const isInputDisabled = isPending || isCreatingChat || !conversation;
+  const isInputDisabled = isPending || isCreatingChat || (surface !== "dashboard" && !conversation);
   const hasAiAccess = hasFeatureAccess(plan, "aiAssistant");
 
   const panelContent = (
