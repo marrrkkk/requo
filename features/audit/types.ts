@@ -13,6 +13,7 @@ export const auditActionLabels = {
   "request.archived": "Inquiry archived",
   "request.trashed": "Inquiry moved to trash",
   "request.restored": "Inquiry restored",
+  "request.deleted": "Inquiry permanently deleted",
   "request.updated": "Inquiry updated",
   "quote.created": "Quote created",
   "quote.sent": "Quote sent",
