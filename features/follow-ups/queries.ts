@@ -496,6 +496,34 @@ export function getPendingFollowUpCount(items: FollowUpView[]) {
   return items.filter((item) => item.status === "pending").length;
 }
 
+export async function getFollowUpForBusiness({
+  businessId,
+  followUpId,
+}: {
+  businessId: string;
+  followUpId: string;
+}): Promise<FollowUpView | null> {
+  "use cache";
+  cacheLife("seconds");
+  cacheTag(...getBusinessFollowUpListCacheTags(businessId));
+
+  const rows = await getFollowUpBaseQuery()
+    .where(
+      and(
+        eq(followUps.id, followUpId),
+        eq(followUps.businessId, businessId),
+        isNull(followUps.deletedAt),
+      ),
+    )
+    .limit(1);
+
+  if (!rows.length) {
+    return null;
+  }
+
+  return mapFollowUpRow(rows[0]);
+}
+
 export function getNextPendingFollowUp(items: FollowUpView[]) {
   return items
     .filter((item) => item.status === "pending")

@@ -4,10 +4,17 @@ import { BellRing } from "lucide-react";
 import { DataListPagination } from "@/components/shared/data-list-pagination";
 import {
   DashboardEmptyState,
-  DashboardSection,
 } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  completeFollowUpAction,
+  deleteFollowUpAction,
+  editFollowUpAction,
+  reassignFollowUpAction,
+  rescheduleFollowUpAction,
+  skipFollowUpAction,
+} from "@/features/follow-ups/actions";
 import { FollowUpItem } from "@/features/follow-ups/components/follow-up-item";
 import type { TeamMemberOption } from "@/features/follow-ups/components/follow-up-reassign-dialog";
 import { FollowUpListFilters } from "@/features/follow-ups/components/follow-up-list-filters";
@@ -101,15 +108,21 @@ export async function FollowUpListContentSection({
   }
 
   return (
-    <DashboardSection contentClassName="flex flex-col gap-4" title="Follow-ups">
-      <div className="flex flex-col gap-3">
+    <>
+      <div className="flex flex-col gap-2">
         {followUps.map((followUp) => (
           <FollowUpItem
+            key={followUp.id}
             businessName={businessName}
             businessSlug={businessSlug}
             followUp={followUp}
-            key={followUp.id}
             members={members}
+            completeAction={completeFollowUpAction.bind(null, followUp.id)}
+            skipAction={skipFollowUpAction.bind(null, followUp.id)}
+            rescheduleAction={rescheduleFollowUpAction.bind(null, followUp.id)}
+            editAction={editFollowUpAction.bind(null, followUp.id)}
+            deleteAction={deleteFollowUpAction.bind(null, followUp.id)}
+            reassignAction={reassignFollowUpAction.bind(null, followUp.id)}
           />
         ))}
       </div>
@@ -120,7 +133,7 @@ export async function FollowUpListContentSection({
         totalItems={totalItems}
         totalPages={totalPages}
       />
-    </DashboardSection>
+    </>
   );
 }
 
@@ -145,20 +158,20 @@ export function FollowUpListControlsFallback() {
 
 export function FollowUpListContentFallback() {
   return (
-    <DashboardSection title="Follow-ups">
-      <div className="flex flex-col gap-3">
-        {Array.from({ length: 4 }).map((_, index) => (
-          <div
-            className="soft-panel flex flex-col gap-3 px-4 py-4 shadow-none"
-            key={index}
-          >
-            <Skeleton className="h-4 w-40 rounded-md" />
-            <Skeleton className="h-4 w-full rounded-md" />
-            <Skeleton className="h-4 w-64 rounded-md" />
-            <Skeleton className="h-9 w-32 rounded-lg" />
+    <div className="flex flex-col gap-2">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div
+          className="flex items-center gap-3 rounded-xl border border-border/50 bg-background px-4 py-3 sm:px-5"
+          key={index}
+        >
+          <Skeleton className="size-8 shrink-0 rounded-full" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <Skeleton className="h-3.5 w-32 rounded-md" />
+            <Skeleton className="h-3 w-48 rounded-md" />
           </div>
-        ))}
-      </div>
-    </DashboardSection>
+          <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
+        </div>
+      ))}
+    </div>
   );
 }

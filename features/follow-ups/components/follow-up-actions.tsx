@@ -57,7 +57,7 @@ export function FollowUpActions({
         icon={CheckCircle2}
         label="Mark done"
         pendingLabel="Marking done..."
-        variant="outline"
+        variant="default"
       />
       <FollowUpRescheduleDialog
         action={rescheduleAction}

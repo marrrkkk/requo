@@ -61,6 +61,10 @@ export function getBusinessFollowUpsPath(slug: string) {
   return `${getBusinessPath(slug)}/follow-ups`;
 }
 
+export function getBusinessFollowUpPath(slug: string, followUpId: string) {
+  return `${getBusinessFollowUpsPath(slug)}/${followUpId}`;
+}
+
 export function getBusinessAssistantPath(slug: string) {
   return `${getBusinessPath(slug)}/assistant`;
 }

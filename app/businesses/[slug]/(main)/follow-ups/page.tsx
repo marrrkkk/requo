@@ -100,7 +100,6 @@ export default async function FollowUpsPage({
   const members = await getBusinessMembersForReassign(
     businessContext.business.id,
   );
-  const businessName = businessContext.business.name;
 
   return (
     <DashboardPage>
@@ -124,7 +123,7 @@ export default async function FollowUpsPage({
 
       <Suspense fallback={<FollowUpListContentFallback />}>
         <FollowUpListContent
-          businessName={businessName}
+          businessName={businessContext.business.name}
           businessSlug={businessSlug}
           clearFiltersPath={clearFiltersPath}
           filters={filters}

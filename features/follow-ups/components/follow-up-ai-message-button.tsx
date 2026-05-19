@@ -71,23 +71,23 @@ export function FollowUpAiMessageButton({
 
   if (message) {
     return (
-      <div className="rounded-lg border border-border/60 bg-muted/30 px-3.5 py-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground/70">
-          AI-generated message
-        </p>
-        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-          {message}
-        </p>
-        <div className="mt-2.5 flex items-center gap-2">
+      <div className="soft-panel flex flex-col gap-2.5 px-4 py-3.5 shadow-none">
+        <p className="meta-label">AI-generated message</p>
+        <p className="text-sm leading-6 text-foreground">{message}</p>
+        <div className="flex flex-wrap items-center gap-2">
           <FollowUpMessageCopyButton message={message} />
           <Button
+            disabled={loading}
             onClick={generateMessage}
             size="sm"
             type="button"
             variant="ghost"
-            disabled={loading}
           >
-            {loading ? <Spinner data-icon="inline-start" aria-hidden="true" /> : <Sparkles data-icon="inline-start" />}
+            {loading ? (
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+            ) : (
+              <Sparkles data-icon="inline-start" />
+            )}
             Regenerate
           </Button>
         </div>
@@ -111,9 +111,7 @@ export function FollowUpAiMessageButton({
         )}
         {loading ? "Generating..." : "Generate AI message"}
       </Button>
-      {error && (
-        <p className="text-xs text-destructive">{error}</p>
-      )}
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );
 }
