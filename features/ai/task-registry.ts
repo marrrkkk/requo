@@ -11,6 +11,7 @@ export const aiTaskTypes = [
   "quote_improvement",
   "form_suggestion",
   "business_memory_summary",
+  "intent_classification",
 ] as const;
 
 export type AiTaskType = (typeof aiTaskTypes)[number];
@@ -22,7 +23,7 @@ export type AiTaskType = (typeof aiTaskTypes)[number];
 export const taskConfigSchema = z.object({
   taskType: z.enum(aiTaskTypes),
   qualityTier: z.enum(["balanced", "cheap", "best", "coding"]),
-  maxOutputTokens: z.number().int().min(256).max(16384),
+  maxOutputTokens: z.number().int().min(64).max(16384),
   temperature: z.number().min(0.0).max(2.0),
   requiredContextFields: z.array(z.string().min(1)),
   cacheTTL: z.number().int().min(0).max(86400),
@@ -131,6 +132,17 @@ export const AI_TASK_REGISTRY: Record<AiTaskType, AiTaskConfig> = {
     priorityWeight: 1,
     streamingPermitted: false,
     maxContextCharacters: 4000,
+  },
+  intent_classification: {
+    taskType: "intent_classification",
+    qualityTier: "cheap",
+    maxOutputTokens: 128,
+    temperature: 0.1,
+    requiredContextFields: ["message"],
+    cacheTTL: 60,
+    priorityWeight: 1,
+    streamingPermitted: false,
+    maxContextCharacters: 800,
   },
 };
 
