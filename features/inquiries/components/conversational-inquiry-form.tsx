@@ -13,10 +13,11 @@ import {
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import {
   AlertTriangle,
   ArrowUp,
-  RotateCcw,
+  MessageSquarePlus,
   Send,
 } from "lucide-react";
 
@@ -32,6 +33,7 @@ import {
 } from "@/features/inquiries/form-config";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
 import type {
+  PublicInquiryChatDebugInfo,
   PublicInquiryChatExtractedFields,
   PublicInquiryChatStreamEvent,
 } from "@/features/inquiries/public-inquiry-chat-schemas";
@@ -46,11 +48,14 @@ import { cn } from "@/lib/utils";
 // the dashboard AI assistant style.
 // ---------------------------------------------------------------------------
 
+const showDebug = process.env.NODE_ENV === "development";
+
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
   isError?: boolean;
+  debugInfo?: PublicInquiryChatDebugInfo;
 };
 
 type ConversationPhase = "chatting" | "confirming" | "submitting" | "submitted";
@@ -139,6 +144,66 @@ function getChatbotConfig(business: PublicInquiryBusiness) {
   };
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Local storage persistence                                                  */
+/* -------------------------------------------------------------------------- */
+
+type CachedChatState = {
+  messages: ChatMessage[];
+  phase: ConversationPhase;
+  extractedFields: PublicInquiryChatExtractedFields | null;
+  editedFields: PublicInquiryChatExtractedFields | null;
+  savedAt: number;
+};
+
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+function getCacheKey(business: PublicInquiryBusiness) {
+  return `requo:inquiry-chat:v2:${business.slug}:${business.form.slug}`;
+}
+
+function loadCachedChat(business: PublicInquiryBusiness): CachedChatState | null {
+  try {
+    const raw = localStorage.getItem(getCacheKey(business));
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as CachedChatState;
+
+    // Expire stale caches
+    if (Date.now() - parsed.savedAt > CACHE_TTL_MS) {
+      localStorage.removeItem(getCacheKey(business));
+      return null;
+    }
+
+    // Don't restore if no messages or if already submitted
+    if (!parsed.messages?.length || parsed.phase === "submitting") return null;
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveChatToCache(
+  business: PublicInquiryBusiness,
+  state: Omit<CachedChatState, "savedAt">,
+) {
+  try {
+    const payload: CachedChatState = { ...state, savedAt: Date.now() };
+    localStorage.setItem(getCacheKey(business), JSON.stringify(payload));
+  } catch {
+    // Silently ignore storage errors (quota, private browsing, etc.)
+  }
+}
+
+function clearChatCache(business: PublicInquiryBusiness) {
+  try {
+    localStorage.removeItem(getCacheKey(business));
+  } catch {
+    // Silently ignore
+  }
+}
+
 
 /* -------------------------------------------------------------------------- */
 /*  Main component                                                             */
@@ -148,7 +213,10 @@ export function ConversationalInquiryForm({
   business,
   action,
 }: ConversationalInquiryFormProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    // Will be properly hydrated in useEffect to avoid SSR mismatch
+    return [];
+  });
   const [inputValue, setInputValue] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [phase, setPhase] = useState<ConversationPhase>("chatting");
@@ -160,7 +228,7 @@ export function ConversationalInquiryForm({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const hasInitialized = useRef(false);
+  const hasHydrated = useRef(false);
 
   const customFieldMeta = getCustomFieldMeta(business);
   const chatbot = getChatbotConfig(business);
@@ -171,13 +239,33 @@ export function ConversationalInquiryForm({
     });
   }, []);
 
-  // Send the initial greeting on mount
+  // Hydrate from localStorage on mount (client-only)
   useEffect(() => {
-    if (hasInitialized.current) return;
-    hasInitialized.current = true;
-    void sendToApi([]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (hasHydrated.current) return;
+    hasHydrated.current = true;
+
+    const cached = loadCachedChat(business);
+    if (cached) {
+      setMessages(cached.messages);
+      setPhase(cached.phase);
+      setExtractedFields(cached.extractedFields);
+      setEditedFields(cached.editedFields);
+    }
+  }, [business]);
+
+  // Persist to localStorage whenever messages or phase change
+  useEffect(() => {
+    if (!hasHydrated.current) return;
+    // Only persist if there's something worth saving
+    if (messages.length === 0) return;
+
+    saveChatToCache(business, {
+      messages,
+      phase,
+      extractedFields: _extractedFields,
+      editedFields,
+    });
+  }, [messages, phase, _extractedFields, editedFields, business]);
 
   async function sendToApi(currentMessages: ChatMessage[]) {
     setIsStreaming(true);
@@ -192,10 +280,12 @@ export function ConversationalInquiryForm({
     setMessages((prev) => [...prev, assistantMessage]);
 
     try {
-      const apiMessages = currentMessages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
+      const apiMessages = currentMessages
+        .filter((m) => m.content.trim().length > 0)
+        .map((m) => ({
+          role: m.role,
+          content: m.content,
+        }));
 
       const response = await fetch("/api/public/inquiry-chat", {
         method: "POST",
@@ -263,12 +353,24 @@ export function ConversationalInquiryForm({
                     .replace(/```json:extraction[\s\S]*?```/g, "")
                     .trim();
 
-                  return { ...m, content: cleaned };
+                  // If the AI called the tool without any text, show a default message
+                  const displayContent = cleaned || "I've captured your inquiry details. Please review below.";
+
+                  return { ...m, content: displayContent };
                 }),
               );
               setExtractedFields(event.extracted);
               setEditedFields({ ...event.extracted });
               setPhase("confirming");
+              scrollToBottom();
+            } else if (event.type === "debug") {
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantMessageId
+                    ? { ...m, debugInfo: event.info }
+                    : m,
+                ),
+              );
             } else if (event.type === "error") {
               setMessages((prev) =>
                 prev.map((m) =>
@@ -315,15 +417,21 @@ export function ConversationalInquiryForm({
 
     if (!trimmed || isStreaming) return;
 
+    runMessage(trimmed);
+    setInputValue("");
+  }
+
+  function runMessage(text: string) {
+    if (!text.trim() || isStreaming) return;
+
     const userMessage: ChatMessage = {
       id: createMessageId(),
       role: "user",
-      content: trimmed,
+      content: text.trim(),
     };
 
     const nextMessages = [...messages, userMessage];
     setMessages(nextMessages);
-    setInputValue("");
     scrollToBottom();
 
     void sendToApi(nextMessages);
@@ -334,6 +442,7 @@ export function ConversationalInquiryForm({
 
     setPhase("submitting");
     setSubmitError(null);
+    clearChatCache(business);
 
     try {
       const formData = new FormData();
@@ -413,12 +522,7 @@ export function ConversationalInquiryForm({
     setEditedFields(null);
     setPhase("chatting");
     setSubmitError(null);
-    hasInitialized.current = false;
-
-    requestAnimationFrame(() => {
-      hasInitialized.current = true;
-      void sendToApi([]);
-    });
+    clearChatCache(business);
   }
 
   // Detect streaming with no content yet (for thinking indicator)
@@ -427,97 +531,151 @@ export function ConversationalInquiryForm({
     isStreaming && lastMsg?.role === "assistant" && !lastMsg?.content;
 
   const hasMessages = messages.length > 0;
+  const isInputDisabled = isStreaming || phase !== "chatting";
 
   return (
-    <div className="relative flex min-h-[70vh] w-full flex-col">
-      {/* Brand identity — top-left corner, always visible */}
-      <div className="flex items-center gap-2.5">
-        <BrandAvatar business={business} />
-        <div className="flex min-w-0 flex-col gap-0">
-          <span className="font-heading text-sm font-semibold tracking-tight text-foreground leading-tight">
-            {business.name}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {business.inquiryPageConfig.brandTagline?.trim() ||
-              business.shortDescription?.trim() ||
-              chatbot.assistantName}
-          </span>
-        </div>
-        {messages.length > 2 && !isStreaming && phase === "chatting" && (
-          <Button
-            onClick={handleReset}
-            size="icon-sm"
-            variant="ghost"
-            className="ml-auto shrink-0 text-muted-foreground"
-            title="Start over"
-          >
-            <RotateCcw className="size-3.5" />
-            <span className="sr-only">Start over</span>
-          </Button>
-        )}
-      </div>
+    <LayoutGroup>
+      <div className="relative flex min-h-[70vh] w-full flex-col">
+        {/* Header bar — only visible after messages start */}
+        <AnimatePresence>
+          {hasMessages && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="flex items-center gap-2.5 border-b border-border/50 pb-3"
+            >
+              <motion.div layoutId="brand-avatar" layout="position" transition={{ layout: { duration: 0.4, ease: [0.4, 0, 0.2, 1] } }}>
+                <BrandAvatar business={business} />
+              </motion.div>
+              <motion.div layoutId="brand-text" layout="position" transition={{ layout: { duration: 0.4, ease: [0.4, 0, 0.2, 1] } }} className="flex min-w-0 flex-col gap-0">
+                <span className="font-heading text-sm font-semibold tracking-tight text-foreground leading-tight">
+                  {business.name}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {business.shortDescription?.trim() || chatbot.assistantName}
+                </span>
+              </motion.div>
+              {!isStreaming && phase === "chatting" && (
+                <Button
+                  onClick={handleReset}
+                  size="sm"
+                  variant="ghost"
+                  className="ml-auto shrink-0 gap-1.5 text-muted-foreground"
+                >
+                  <MessageSquarePlus className="size-3.5" />
+                  Start over
+                </Button>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      {/* Centered chat area */}
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center">
-        {/* Greeting heading — only before conversation starts */}
+        {/* Centered initial state — greeting + input + pills */}
         {!hasMessages && (
-          <h2 className="pb-5 text-center font-heading text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-            Where should we begin?
-          </h2>
+          <div className="flex flex-1 flex-col items-center justify-center px-4">
+            <div className="mx-auto w-full max-w-2xl">
+              {/* Brand + greeting */}
+              <div className="mb-6 flex flex-col items-center gap-3 text-center">
+                <motion.div layoutId="brand-avatar" layout="position" transition={{ layout: { duration: 0.4, ease: [0.4, 0, 0.2, 1] } }}>
+                  <BrandAvatar business={business} />
+                </motion.div>
+                <motion.div layoutId="brand-text" layout="position" transition={{ layout: { duration: 0.4, ease: [0.4, 0, 0.2, 1] } }} className="flex flex-col gap-1">
+                  <h1 className="font-heading text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+                    {business.inquiryPageConfig.brandTagline?.trim() ||
+                      `How can ${business.name} help?`}
+                  </h1>
+                  <p className="text-sm text-muted-foreground">
+                    {business.shortDescription?.trim() || "Describe what you need and we'll take it from there."}
+                  </p>
+                </motion.div>
+              </div>
+
+              {/* Composer */}
+              <motion.div layoutId="chat-input" layout="position" transition={{ layout: { duration: 0.4, ease: [0.4, 0, 0.2, 1] } }}>
+                <ChatComposer
+                  disabled={isInputDisabled}
+                  isGenerating={isStreaming}
+                  placeholder="Type your message…"
+                  value={inputValue}
+                  onChange={setInputValue}
+                  onSubmit={handleSend}
+                />
+              </motion.div>
+            </div>
+          </div>
         )}
 
         {/* Messages area — once conversation starts */}
         {hasMessages && (
-          <div
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, delay: 0.15 }}
             ref={scrollContainerRef}
-            className="mb-3 flex w-full max-h-[38rem] flex-1 flex-col gap-4 overflow-y-auto ai-chat-scrollbar"
+            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto py-4 ai-chat-scrollbar"
           >
-            {messages.map((msg) => (
-              <MessageRow
-                key={msg.id}
-                message={msg}
-              />
-            ))}
+            <div className="mx-auto flex w-full max-w-2xl flex-col gap-3">
+              {messages.map((msg, index) => {
+                const isLastAssistant =
+                  msg.role === "assistant" &&
+                  index === messages.length - 1;
+                return (
+                  <MessageRow
+                    key={msg.id}
+                    message={msg}
+                    isLastAssistant={isLastAssistant}
+                    isStreaming={isStreaming}
+                  />
+                );
+              })}
 
-            {showThinkingIndicator ? <ThinkingIndicator /> : null}
+              {showThinkingIndicator ? <ThinkingIndicator /> : null}
 
-            <div ref={messagesEndRef} />
-          </div>
+              <div ref={messagesEndRef} />
+            </div>
+          </motion.div>
         )}
 
-        {/* Confirmation / submitting / composer */}
-        {phase === "confirming" && editedFields ? (
-          <ConfirmationPanel
-            fields={editedFields}
-            business={business}
-            customFieldMeta={customFieldMeta}
-            submitError={submitError}
-            onEdit={handleEditField}
-            onEditCustomField={handleEditCustomField}
-            onSubmit={handleSubmit}
-            onBack={() => setPhase("chatting")}
-          />
-        ) : phase === "submitting" ? (
-          <div className="flex items-center justify-center gap-2 py-6">
-            <Spinner aria-hidden="true" />
-            <span className="text-sm text-muted-foreground">
-              Submitting your inquiry…
-            </span>
-          </div>
-        ) : (
-          <div className="w-full">
-            <ChatComposer
-              disabled={isStreaming || phase !== "chatting"}
-              isGenerating={isStreaming}
-              placeholder="Type your message…"
-              value={inputValue}
-              onChange={setInputValue}
-              onSubmit={handleSend}
-            />
+        {/* Input area — pinned at bottom once conversation starts */}
+        {hasMessages && (
+          <div className="mx-auto w-full max-w-2xl border-t border-border/50 pt-3">
+            {phase === "confirming" && editedFields ? (
+              <ConfirmationPanel
+                fields={editedFields}
+                business={business}
+                customFieldMeta={customFieldMeta}
+                submitError={submitError}
+                onEdit={handleEditField}
+                onEditCustomField={handleEditCustomField}
+                onSubmit={handleSubmit}
+                onBack={() => setPhase("chatting")}
+              />
+            ) : phase === "submitting" ? (
+              <div className="flex items-center justify-center gap-2 py-6">
+                <Spinner aria-hidden="true" />
+                <span className="text-sm text-muted-foreground">
+                  Submitting your inquiry…
+                </span>
+              </div>
+            ) : (
+              <>
+                <motion.div layoutId="chat-input" layout="position" transition={{ layout: { duration: 0.4, ease: [0.4, 0, 0.2, 1] } }}>
+                  <ChatComposer
+                    disabled={isInputDisabled}
+                    isGenerating={isStreaming}
+                    placeholder="Type your message…"
+                    value={inputValue}
+                    onChange={setInputValue}
+                    onSubmit={handleSend}
+                  />
+                </motion.div>
+              </>
+            )}
           </div>
         )}
       </div>
-    </div>
+    </LayoutGroup>
   );
 }
 
@@ -640,8 +798,12 @@ const StreamingCursor = memo(function StreamingCursor() {
 
 function MessageRow({
   message,
+  isLastAssistant,
+  isStreaming,
 }: {
   message: ChatMessage;
+  isLastAssistant?: boolean;
+  isStreaming?: boolean;
 }) {
   if (message.role === "user") {
     return <UserBubble message={message} />;
@@ -650,6 +812,7 @@ function MessageRow({
   return (
     <AssistantBubble
       message={message}
+      isActivelyStreaming={isLastAssistant && isStreaming}
     />
   );
 }
@@ -665,7 +828,7 @@ const UserBubble = memo(function UserBubble({
 }) {
   return (
     <div className="flex w-full justify-end">
-      <div className="max-w-[85%] rounded-2xl bg-muted/60 px-4 py-2.5">
+      <div className="max-w-[85%] rounded-2xl bg-black/[0.06] dark:bg-white/[0.08] px-4 py-2.5">
         <p className="whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
           {message.content}
         </p>
@@ -680,11 +843,12 @@ const UserBubble = memo(function UserBubble({
 
 const AssistantBubble = memo(function AssistantBubble({
   message,
+  isActivelyStreaming,
 }: {
   message: ChatMessage;
+  isActivelyStreaming?: boolean;
 }) {
   const hasContent = message.content.trim().length > 0;
-  const isStreaming = !hasContent && !message.isError;
 
   if (message.isError) {
     return (
@@ -707,7 +871,51 @@ const AssistantBubble = memo(function AssistantBubble({
           >
             {message.content}
           </ReactMarkdown>
-          {isStreaming ? <StreamingCursor /> : null}
+          {isActivelyStreaming ? <StreamingCursor /> : null}
+        </div>
+      ) : null}
+
+      {showDebug && message.debugInfo ? (
+        <div className="mt-2 rounded-lg border border-dashed border-border/80 bg-muted/30 px-3 py-2 font-mono text-[0.65rem] leading-relaxed text-muted-foreground">
+          <div className="mb-1 text-[0.7rem] font-semibold text-foreground/70">Debug</div>
+          <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+            <span>Provider</span>
+            <span>{message.debugInfo.provider}</span>
+            <span>Model</span>
+            <span>{message.debugInfo.model}</span>
+            <span>Latency</span>
+            <span>{message.debugInfo.latencyMs}ms</span>
+            {message.debugInfo.inputTokens != null && (
+              <>
+                <span>Input tokens</span>
+                <span>{message.debugInfo.inputTokens.toLocaleString()}</span>
+              </>
+            )}
+            {message.debugInfo.outputTokens != null && (
+              <>
+                <span>Output tokens</span>
+                <span>{message.debugInfo.outputTokens.toLocaleString()}</span>
+              </>
+            )}
+            {message.debugInfo.totalTokens != null && (
+              <>
+                <span>Total tokens</span>
+                <span>{message.debugInfo.totalTokens.toLocaleString()}</span>
+              </>
+            )}
+            {message.debugInfo.steps != null && message.debugInfo.steps > 1 && (
+              <>
+                <span>Steps</span>
+                <span>{message.debugInfo.steps}</span>
+              </>
+            )}
+            {message.debugInfo.toolCalls && message.debugInfo.toolCalls.length > 0 && (
+              <>
+                <span>Tools used</span>
+                <span>{message.debugInfo.toolCalls.map((t) => t.name).join(", ")}</span>
+              </>
+            )}
+          </div>
         </div>
       ) : null}
     </div>

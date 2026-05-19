@@ -28,11 +28,7 @@ import {
   aiConversationQuerySchema,
   aiCreateConversationSchema,
 } from "@/features/ai/schemas";
-import {
-  buildAiSurfaceContext,
-  getSurfaceInstructions,
-} from "@/features/ai/surface-service";
-import { createDashboardTools, createActionTools } from "@/features/ai/tools";
+import { orchestrate } from "@/features/ai/orchestrator";
 import type { AiChatStreamEvent } from "@/features/ai/types";
 import type { AiProviderName } from "@/lib/ai";
 import { registry } from "@/lib/ai/registry";
@@ -45,7 +41,6 @@ import {
 } from "@/lib/ai/capacity-selector";
 import {
   classifyMessageComplexity,
-  getHistoryLimitForComplexity,
 } from "@/lib/ai/message-complexity";
 import {
   autoAiModelOptionValue,
@@ -75,12 +70,6 @@ function getQueryObject(request: Request) {
 
 function getSanitizedErrorType(error: unknown) {
   return error instanceof Error ? error.name : "unknown";
-}
-
-function truncateText(value: string | null | undefined, maxLength: number) {
-  const normalized = value?.replace(/\r\n?/g, "\n").trim() ?? "";
-  if (normalized.length <= maxLength) return normalized;
-  return `${normalized.slice(0, maxLength).trimEnd()}...`;
 }
 
 function getVisibleText(text: string): string {
@@ -455,7 +444,7 @@ export async function createAiChatRouteResponse(request: Request) {
   const authorizedBusinessId =
     parsedBody.data.surface === "dashboard"
       ? access.businessContext.business.id
-      : authorization.businessId;
+      : authorization.businessId ?? access.businessContext.business.id;
 
   const isAllowed = await assertPublicActionRateLimit({
     action: "ai-chat",
@@ -521,88 +510,47 @@ export async function createAiChatRouteResponse(request: Request) {
       }
 
       try {
-        // History and surface context are independent — fetch in parallel.
-        // Use complexity classifier to determine how much history to load.
-        const messageComplexity = classifyMessageComplexity(parsedBody.data.message);
-        const historyLimit = getHistoryLimitForComplexity(
-          messageComplexity,
-          parsedBody.data.surface,
-        );
-
-        const [historyMessages, surfaceContext] = await Promise.all([
-          getRecentCompletedAiMessages({
+        // ---------------------------------------------------------------------------
+        // Orchestrate: classify intent, retrieve memory, compose prompt, select tools.
+        // Replaces inline context building, prompt assembly, and tool selection.
+        // ---------------------------------------------------------------------------
+        const history = toGenericAiChatHistory(
+          await getRecentCompletedAiMessages({
             conversationId: authorizedConversation.id,
             userId: user.id,
-            limit: historyLimit,
+            limit: 20,
           }),
-          buildAiSurfaceContext({
-            surface: parsedBody.data.surface,
-            entityId: parsedBody.data.entityId,
-            businessId: authorizedBusinessId,
-            userMessage: parsedBody.data.message,
-          }),
-        ]);
+          userMessage.id,
+        );
 
-        if (!surfaceContext) {
-          const message = "The assistant context could not be loaded.";
+        const orchestrateResult = await orchestrate({
+          userId: user.id,
+          businessId: authorizedBusinessId,
+          conversationId: authorizedConversation.id,
+          message: parsedBody.data.message,
+          surface: parsedBody.data.surface,
+          entityId: parsedBody.data.entityId,
+          businessSlug: access.businessContext.business.slug,
+          conversationHistory: history,
+        });
 
+        if (!orchestrateResult.ok) {
+          const message = `The assistant could not prepare a response: ${orchestrateResult.failedPhase}.`;
           await markAssistantFailed(message);
           controller.enqueue(encodeStreamEvent({ type: "error", message }));
           return;
         }
 
-        const history = toGenericAiChatHistory(historyMessages, userMessage.id);
+        const { systemPrompt, tools, messages: aiMessages, onStreamComplete } = orchestrateResult;
 
-        // Build system prompt with surface instructions + context
-        const systemPrompt = [
-          getSurfaceInstructions(parsedBody.data.surface),
-          "",
-          "Current Requo context",
-          surfaceContext,
-        ].join("\n");
-
-        // Build message history for the AI SDK
-        // Strip any reasoning content from history — reasoning blocks are model-internal
-        // and cause errors when sent to providers that don't support them.
-        const aiMessages = [
-          ...history.map((msg) => ({
-            role: msg.role as "user" | "assistant",
-            content: msg.content.replace(/<think(?:ing)?>[\s\S]*?<\/think(?:ing)?>/g, "").trim(),
-          })),
-          {
-            role: "user" as const,
-            content: truncateText(parsedBody.data.message, 4000),
-          },
-        ];
-
-        // For dashboard surface, use streamText with native tool calling
-        // For inquiry/quote surfaces, stream without tools (context-only)
-        const tools =
-          parsedBody.data.surface === "dashboard" && authorizedBusinessId
-            ? {
-                ...createDashboardTools({
-                  businessId: authorizedBusinessId,
-                  businessSlug: access.businessContext.business.slug,
-                  userId: user.id,
-                }),
-                ...createActionTools({
-                  businessId: authorizedBusinessId,
-                  businessSlug: access.businessContext.business.slug,
-                  userId: user.id,
-                }),
-              }
-            : undefined;
+        // Use complexity classifier for model selection and output budget
+        const messageComplexity = classifyMessageComplexity(parsedBody.data.message);
 
         // Build the model ID for the registry
         // Use capacity-aware selector: picks best model with headroom, avoids exhausted ones
-        // If dev model is selected, put it first but include fallbacks after it
+        // If dev model is selected, use ONLY that model (no fallback) for accurate debugging
         const modelsToTry = modelSelection
-          ? [resolveExplicitModelId(modelSelection), ...(tools
-              ? selectToolCallingModels()
-              : messageComplexity === "simple"
-                ? selectSimpleTextModels()
-                : selectComplexTextModels()
-            ).filter((m) => m !== resolveExplicitModelId(modelSelection))]
+          ? [resolveExplicitModelId(modelSelection)]
           : tools
             ? selectToolCallingModels()
             : messageComplexity === "simple"
@@ -624,13 +572,19 @@ export async function createAiChatRouteResponse(request: Request) {
         for (const modelId of modelsToTry) {
           try {
             const baseModel = registry.languageModel(modelId);
-            const wrappedModel = wrapLanguageModel({
-              model: baseModel,
-              middleware: extractReasoningMiddleware({ tagName: "think" }),
-            });
+            // Only apply reasoning extraction for models known to use <think> tags
+            // (Qwen3, DeepSeek). NVIDIA Nemotron models may produce reasoning in
+            // a different format that causes empty output when stripped.
+            const needsReasoningExtraction = modelId.includes("qwen") || modelId.includes("deepseek");
+            const modelToUse = needsReasoningExtraction
+              ? wrapLanguageModel({
+                  model: baseModel,
+                  middleware: extractReasoningMiddleware({ tagName: "think" }),
+                })
+              : baseModel;
 
             const streamResult = streamText({
-              model: wrappedModel,
+              model: modelToUse,
               system: systemPrompt,
               messages: aiMessages,
               tools,
@@ -673,7 +627,9 @@ export async function createAiChatRouteResponse(request: Request) {
         }
 
         if (!result) {
-          const message = "The assistant is busy right now. Please try again in a moment.";
+          const message = modelSelection
+            ? `[Dev] ${resolveExplicitModelId(modelSelection)} failed to start. Check API key and model availability.`
+            : "The assistant is busy right now. Please try again in a moment.";
           await markAssistantFailed(message);
           controller.enqueue(encodeStreamEvent({ type: "error", message }));
           return;
@@ -737,6 +693,16 @@ export async function createAiChatRouteResponse(request: Request) {
 
           if (isRateLimit && selectedModelId) {
             markModelExhausted(selectedModelId);
+
+            // If a specific dev model was selected, don't fallback — report clearly
+            if (modelSelection) {
+              const message = `[Dev] ${selectedModelId} rate limited. Try a different model or wait.`;
+              await markAssistantFailed(message);
+              controller.enqueue(encodeStreamEvent({ type: "error", message }));
+              controller.close();
+              return;
+            }
+
             console.warn(`[ai-chat] ${selectedModelId} failed during stream (${errorName || "unknown"}), retrying with next model...`);
 
             // Find next model to try
@@ -746,13 +712,16 @@ export async function createAiChatRouteResponse(request: Request) {
             for (const fallbackModelId of remainingModels) {
               try {
                 const baseModel = registry.languageModel(fallbackModelId);
-                const wrappedModel = wrapLanguageModel({
-                  model: baseModel,
-                  middleware: extractReasoningMiddleware({ tagName: "think" }),
-                });
+                const needsReasoning = fallbackModelId.includes("qwen") || fallbackModelId.includes("deepseek");
+                const fallbackModel = needsReasoning
+                  ? wrapLanguageModel({
+                      model: baseModel,
+                      middleware: extractReasoningMiddleware({ tagName: "think" }),
+                    })
+                  : baseModel;
 
                 const retryResult = streamText({
-                  model: wrappedModel,
+                  model: fallbackModel,
                   system: systemPrompt,
                   messages: aiMessages,
                   tools,
@@ -828,9 +797,19 @@ export async function createAiChatRouteResponse(request: Request) {
 
         // If the stream completed but produced no content, the model likely
         // failed silently (e.g., 429 handled internally by the SDK).
-        // Retry with next available model.
+        // In dev mode with a pinned model, report the failure directly.
+        // Otherwise, retry with next available model.
         if (!streamFailed && !assistantContent.trim()) {
           markModelExhausted(selectedModelId!);
+
+          // If a specific dev model was selected, don't fallback — report clearly
+          if (modelSelection) {
+            const message = `[Dev] ${selectedModelId} returned empty output. The model may not support this request or is temporarily unavailable.`;
+            await markAssistantFailed(message);
+            controller.enqueue(encodeStreamEvent({ type: "error", message }));
+            return;
+          }
+
           console.warn(`[ai-chat] ${selectedModelId} produced empty output, retrying with next model...`);
 
           const currentIndex = modelsToTry.indexOf(selectedModelId as `${string}:${string}`);
@@ -839,13 +818,16 @@ export async function createAiChatRouteResponse(request: Request) {
           for (const fallbackModelId of remainingModels) {
             try {
               const baseModel = registry.languageModel(fallbackModelId);
-              const wrappedModel = wrapLanguageModel({
-                model: baseModel,
-                middleware: extractReasoningMiddleware({ tagName: "think" }),
-              });
+              const needsReasoning = fallbackModelId.includes("qwen") || fallbackModelId.includes("deepseek");
+              const fallbackModel = needsReasoning
+                ? wrapLanguageModel({
+                    model: baseModel,
+                    middleware: extractReasoningMiddleware({ tagName: "think" }),
+                  })
+                : baseModel;
 
               const retryResult = streamText({
-                model: wrappedModel,
+                model: fallbackModel,
                 system: systemPrompt,
                 messages: aiMessages,
                 tools,
@@ -934,6 +916,31 @@ export async function createAiChatRouteResponse(request: Request) {
         // Clean up assistantContent to only visible text
         assistantContent = getVisibleText(assistantContent);
 
+        // Extract ACTION_PROPOSAL blocks from tool results and append to content.
+        // Tool results are not included in textStream, so we need to pull them
+        // from steps so the client can render confirmation cards.
+        try {
+          const steps = await result.steps;
+          if (steps) {
+            /* eslint-disable @typescript-eslint/no-explicit-any */
+            for (const step of steps as any[]) {
+              const toolResults = step.toolResults ?? [];
+              for (const tr of toolResults) {
+                // The SDK uses "output" for the tool result text
+                const resultText = typeof tr.output === "string" ? tr.output
+                  : typeof tr.result === "string" ? tr.result : "";
+                if (resultText.includes("[ACTION_PROPOSAL]")) {
+                  assistantContent += "\n" + resultText;
+                  controller.enqueue(encodeStreamEvent({ type: "delta", value: "\n" + resultText }));
+                }
+              }
+            }
+            /* eslint-enable @typescript-eslint/no-explicit-any */
+          }
+        } catch {
+          // Non-critical — if steps aren't available, proceed without proposals
+        }
+
         controller.enqueue(encodeStreamEvent({ type: "done", truncated }));
 
         // Emit debug info in development mode
@@ -947,12 +954,16 @@ export async function createAiChatRouteResponse(request: Request) {
               .map((tc: any) => ({ name: tc.toolName })) ?? [];
             /* eslint-enable @typescript-eslint/no-explicit-any */
 
+            // Use the final provider/model (may have changed due to fallback)
+            const finalProvider = provider;
+            const finalModel = model;
+
             controller.enqueue(
               encodeStreamEvent({
                 type: "debug",
                 info: {
-                  model: modelName,
-                  provider: providerName,
+                  model: finalModel,
+                  provider: finalProvider,
                   latencyMs: Date.now() - startedAt,
                   inputTokens: usage?.inputTokens ?? undefined,
                   outputTokens: usage?.outputTokens ?? undefined,
@@ -983,6 +994,24 @@ export async function createAiChatRouteResponse(request: Request) {
             latencyMs: Date.now() - startedAt,
           },
         });
+
+        // Post-stream async operations: conversation compression + orchestration logging.
+        // Fire-and-forget — errors are logged internally, never surfaced to client.
+        if (assistantContent.trim()) {
+          try {
+            const usage = await result.usage;
+            const inputTokens = usage?.inputTokens ?? 0;
+            const outputTokens = usage?.outputTokens ?? 0;
+            onStreamComplete(assistantContent, inputTokens, outputTokens).catch((err) => {
+              console.error(
+                "[ai-chat] onStreamComplete failed:",
+                err instanceof Error ? err.message : err,
+              );
+            });
+          } catch {
+            // usage may throw if stream was incomplete — skip post-stream ops
+          }
+        }
       } catch (error) {
         console.error(
           `Failed to stream AI output. errorType="${getSanitizedErrorType(error)}"`,

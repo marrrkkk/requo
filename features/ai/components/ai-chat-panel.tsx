@@ -39,6 +39,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { BusinessPlan } from "@/lib/plans/plans";
@@ -444,6 +445,18 @@ const AssistantBubble = memo(function AssistantBubble({
                     <span>{message.debugInfo.outputTokens.toLocaleString()}</span>
                   </>
                 )}
+                {message.debugInfo.totalTokens != null && (
+                  <>
+                    <span>Total tokens</span>
+                    <span>{message.debugInfo.totalTokens.toLocaleString()}</span>
+                  </>
+                )}
+                {message.debugInfo.steps != null && message.debugInfo.steps > 1 && (
+                  <>
+                    <span>Steps</span>
+                    <span>{message.debugInfo.steps}</span>
+                  </>
+                )}
                 {message.debugInfo.toolCalls && message.debugInfo.toolCalls.length > 0 && (
                   <>
                     <span>Tools used</span>
@@ -519,7 +532,7 @@ const UserBubble = memo(function UserBubble({
 }) {
   return (
     <div className="flex w-full justify-end">
-      <div className="max-w-[85%] rounded-2xl bg-muted/60 px-4 py-2.5">
+      <div className="max-w-[85%] rounded-2xl bg-black/[0.06] dark:bg-white/[0.08] px-4 py-2.5">
         <p className="whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
           {message.content}
         </p>
@@ -630,9 +643,22 @@ export function ChatMessageList({
 
   if (isHydrating) {
     return (
-      <div className="flex min-h-[17rem] flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-        <Spinner aria-hidden="true" />
-        {loadingLabel ?? "Loading saved assistant history..."}
+      <div className="flex flex-col gap-4 px-1 py-4">
+        {/* Skeleton assistant message */}
+        <div className="flex w-full flex-col gap-2">
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+        </div>
+        {/* Skeleton user message */}
+        <div className="flex w-full justify-end">
+          <Skeleton className="h-10 w-2/5 rounded-2xl" />
+        </div>
+        {/* Skeleton assistant message */}
+        <div className="flex w-full flex-col gap-2">
+          <Skeleton className="h-4 w-4/5" />
+          <Skeleton className="h-4 w-3/5" />
+          <Skeleton className="h-4 w-2/5" />
+        </div>
       </div>
     );
   }
@@ -1845,8 +1871,7 @@ export function AIChatPanel({
       let activeConversation = conversation;
 
       if (!activeConversation && surface === "dashboard") {
-        setIsCreatingChat(true);
-
+        // Show user's message immediately — don't block on conversation creation
         try {
           const response = await fetch("/api/ai/conversations", {
             method: "POST",
@@ -1886,10 +1911,7 @@ export function AIChatPanel({
               : "A new chat could not be created.",
             true,
           );
-          setIsCreatingChat(false);
           return;
-        } finally {
-          setIsCreatingChat(false);
         }
       }
 

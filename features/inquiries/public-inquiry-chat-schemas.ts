@@ -13,8 +13,11 @@ const MAX_MESSAGE_LENGTH = 2000;
 
 export const publicInquiryChatMessageSchema = z.object({
   role: z.enum(["user", "assistant"]),
-  content: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH),
-});
+  content: z.string().trim().max(MAX_MESSAGE_LENGTH),
+}).refine(
+  (msg) => msg.role === "assistant" || msg.content.length >= 1,
+  { message: "User messages cannot be empty." },
+);
 
 export type PublicInquiryChatMessage = z.infer<
   typeof publicInquiryChatMessageSchema
@@ -34,6 +37,17 @@ export type PublicInquiryChatRequest = z.infer<
 
 // -- Stream events sent back to the client via SSE --
 
+export type PublicInquiryChatDebugInfo = {
+  model: string;
+  provider: string;
+  latencyMs: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  steps?: number;
+  toolCalls?: Array<{ name: string }>;
+};
+
 export type PublicInquiryChatStreamEvent =
   | { type: "delta"; value: string }
   | {
@@ -41,6 +55,7 @@ export type PublicInquiryChatStreamEvent =
       /** Populated when the AI has collected enough data to extract fields. */
       extracted: PublicInquiryChatExtractedFields | null;
     }
+  | { type: "debug"; info: PublicInquiryChatDebugInfo }
   | { type: "error"; message: string };
 
 /**
