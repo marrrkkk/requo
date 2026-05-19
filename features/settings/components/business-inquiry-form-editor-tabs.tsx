@@ -179,7 +179,7 @@ export function BusinessInquiryFormEditorTabs({
 
   return (
     <Tabs
-      className="flex flex-col gap-4"
+      className="flex flex-col gap-5"
       onValueChange={handleTabChange}
       value={activeSection}
     >
@@ -215,7 +215,7 @@ export function BusinessInquiryFormEditorTabs({
           })}
         </TabsList>
 
-        <Button asChild className="w-full sm:w-auto" type="button">
+        <Button asChild variant="outline" size="sm" className="w-full sm:w-auto" type="button">
           <Link
             href={isPublicLive ? publicInquiryHref : previewHref}
             rel="noreferrer"
