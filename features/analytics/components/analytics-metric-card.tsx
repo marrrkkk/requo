@@ -2,16 +2,17 @@ import type { LucideIcon } from "lucide-react";
 
 import { HelpTooltip } from "@/components/shared/help-tooltip";
 import { Card, CardContent } from "@/components/ui/card";
-import type { PeriodDeltaDirection } from "@/features/analytics/types";
+import type { PeriodDelta, PeriodDeltaDirection } from "@/features/analytics/types";
 
-type MetricDelta = {
+function DeltaBadge({
+  label,
+  direction,
+  inverted,
+}: {
   label: string;
   direction: PeriodDeltaDirection;
-  /** For duration metrics, a decrease is good. */
   inverted?: boolean;
-};
-
-function DeltaBadge({ label, direction, inverted }: MetricDelta) {
+}) {
   if (direction === "flat") {
     return (
       <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
@@ -20,14 +21,14 @@ function DeltaBadge({ label, direction, inverted }: MetricDelta) {
     );
   }
 
-  const isPositive = inverted
-    ? direction === "down"
-    : direction === "up";
+  const isPositive = inverted ? direction === "down" : direction === "up";
 
   return (
     <span
       className={`inline-flex items-center gap-1 text-xs font-medium ${
-        isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"
+        isPositive
+          ? "text-emerald-600 dark:text-emerald-400"
+          : "text-red-500 dark:text-red-400"
       }`}
     >
       {direction === "up" ? "▲" : "▼"} {label}
@@ -48,7 +49,7 @@ export function AnalyticsMetricCard({
   description?: string;
   tooltip?: string;
   icon: LucideIcon;
-  delta?: MetricDelta | null;
+  delta?: { label: string; direction: PeriodDeltaDirection; inverted?: boolean } | null;
 }) {
   return (
     <Card className="h-full border-border/75 bg-card/97" size="sm">
@@ -57,9 +58,7 @@ export function AnalyticsMetricCard({
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <p className="meta-label">{title}</p>
-              {tooltip ? (
-                <HelpTooltip content={tooltip} label={title} />
-              ) : null}
+              {tooltip ? <HelpTooltip content={tooltip} label={title} /> : null}
             </div>
             <p className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
               {value}

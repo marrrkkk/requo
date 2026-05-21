@@ -17,27 +17,27 @@ import {
 import { cacheLife, cacheTag } from "next/cache";
 
 import type {
+  AiUsageSummary,
   BusinessAnalyticsData,
-  BusinessAnalyticsStatusCount,
-  BusinessAnalyticsTrendPoint,
-  ConversionAnalyticsData,
-  ConversionTrendPoint,
-  FormPerformanceAnalyticsRow,
-  RevenueTrendPoint,
-  WorkflowAnalyticsData,
+  FollowUpSummary,
+  FormPerformanceRow,
+  FreeAnalyticsData,
+  FunnelStep,
+  OperationalAlerts,
+  ProAnalyticsData,
+  RevenueSummary,
+  TrendPoint,
+  WorkflowTimingData,
 } from "@/features/analytics/types";
-import { formatAnalyticsWeekRangeLabel } from "@/features/analytics/utils";
-import { inquiryFilterableStatuses } from "@/features/inquiries/types";
-import { quoteStatuses } from "@/features/quotes/types";
+import { formatWeekLabel } from "@/features/analytics/utils";
+import {
+  getNonDeletedQuoteCondition,
+  getOperationalQuoteCondition,
+} from "@/features/quotes/queries";
 import {
   getEffectiveInquiryStatus,
   getOperationalInquiryCondition,
 } from "@/features/inquiries/queries";
-import {
-  getNonDeletedQuoteCondition,
-  getOperationalQuoteCondition,
-  getEffectiveQuoteStatus,
-} from "@/features/quotes/queries";
 import {
   getBusinessAnalyticsCacheTags,
   hotBusinessCacheLife,
@@ -45,6 +45,7 @@ import {
 import { db } from "@/lib/db/client";
 import {
   activityLogs,
+  aiTokenLogs,
   analyticsEvents,
   businessInquiryForms,
   followUps,
@@ -52,84 +53,67 @@ import {
   quotes,
 } from "@/lib/db/schema";
 
-const summaryWindowDays = 30;
-const trendWeekCount = 12;
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const SUMMARY_DAYS = 30;
+const TREND_WEEKS = 12;
+
+function subtractDays(date: Date, days: number) {
+  const d = new Date(date);
+  d.setUTCDate(d.getUTCDate() - days);
+  return d;
+}
 
 function startOfUtcWeek(date: Date) {
-  const weekStart = new Date(date);
-  const day = weekStart.getUTCDay();
-  const offset = (day + 6) % 7;
-
-  weekStart.setUTCHours(0, 0, 0, 0);
-  weekStart.setUTCDate(weekStart.getUTCDate() - offset);
-
-  return weekStart;
+  const d = new Date(date);
+  const day = d.getUTCDay();
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() - ((day + 6) % 7));
+  return d;
 }
 
 function addUtcWeeks(date: Date, weeks: number) {
-  const next = new Date(date);
-  next.setUTCDate(next.getUTCDate() + weeks * 7);
-  return next;
+  const d = new Date(date);
+  d.setUTCDate(d.getUTCDate() + weeks * 7);
+  return d;
 }
 
-function subtractDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setUTCDate(next.getUTCDate() - days);
-  return next;
+function toIso(date: Date) {
+  return date.toISOString().slice(0, 10);
 }
 
-function toIsoDate(value: Date) {
-  return value.toISOString().slice(0, 10);
+function roundHours(v: number | string | null | undefined) {
+  if (v === null || v === undefined) return null;
+  return Math.round(Number(v) * 10) / 10;
 }
 
-function roundHours(value: number | string | null | undefined) {
-  if (value === null || value === undefined) {
-    return null;
-  }
-
-  return Math.round(Number(value) * 10) / 10;
-}
-
-function toCountMap(
-  rows: Array<{
-    status: (typeof inquiryFilterableStatuses)[number];
-    count: number | string;
-  }>,
-) {
-  const map = new Map<(typeof inquiryFilterableStatuses)[number], number>();
-
-  for (const status of inquiryFilterableStatuses) {
-    map.set(status, 0);
-  }
-
-  for (const row of rows) {
-    map.set(row.status, Number(row.count));
-  }
-
-  return map;
-}
-
-function buildFirstResponseSubquery(businessId: string) {
+function buildDedupedFormViews(businessId: string, since?: Date) {
   return db
     .select({
-      inquiryId: activityLogs.inquiryId,
-      firstResponseAt: sql<Date>`min(${activityLogs.createdAt})`.as(
-        "first_response_at",
-      ),
+      businessInquiryFormId: analyticsEvents.businessInquiryFormId,
+      visitorHash: analyticsEvents.visitorHash,
+      occurredAt: sql<Date>`min(${analyticsEvents.occurredAt})`.as("occurred_at"),
     })
-    .from(activityLogs)
+    .from(analyticsEvents)
     .where(
       and(
-        eq(activityLogs.businessId, businessId),
-        isNotNull(activityLogs.inquiryId),
-        isNotNull(activityLogs.actorUserId),
+        eq(analyticsEvents.businessId, businessId),
+        eq(analyticsEvents.eventType, "inquiry_form_viewed"),
+        isNotNull(analyticsEvents.businessInquiryFormId),
+        since ? gte(analyticsEvents.occurredAt, since) : undefined,
       ),
     )
-    .groupBy(activityLogs.inquiryId)
-    .as("first_response_by_inquiry");
+    .groupBy(
+      analyticsEvents.businessInquiryFormId,
+      analyticsEvents.visitorHash,
+      sql`date_trunc('second', ${analyticsEvents.occurredAt})`,
+    )
+    .as("deduped_form_views");
 }
 
-function buildFirstQuoteSubquery(businessId: string) {
+function buildFirstQuoteSq(businessId: string) {
   return db
     .select({
       inquiryId: quotes.inquiryId,
@@ -144,251 +128,62 @@ function buildFirstQuoteSubquery(businessId: string) {
       ),
     )
     .groupBy(quotes.inquiryId)
-    .as("first_quote_by_inquiry");
+    .as("first_quote_sq");
 }
 
-function buildDedupedInquiryFormViewEventsSubquery(
-  businessId: string,
-  occurredAtGte?: Date,
-) {
+function buildFirstResponseSq(businessId: string) {
   return db
     .select({
-      businessInquiryFormId: analyticsEvents.businessInquiryFormId,
-      visitorHash: analyticsEvents.visitorHash,
-      occurredAt: sql<Date>`min(${analyticsEvents.occurredAt})`.as("occurred_at"),
+      inquiryId: activityLogs.inquiryId,
+      firstResponseAt: sql<Date>`min(${activityLogs.createdAt})`.as("first_response_at"),
     })
-    .from(analyticsEvents)
+    .from(activityLogs)
     .where(
       and(
-        eq(analyticsEvents.businessId, businessId),
-        eq(analyticsEvents.eventType, "inquiry_form_viewed"),
-        isNotNull(analyticsEvents.businessInquiryFormId),
-        occurredAtGte ? gte(analyticsEvents.occurredAt, occurredAtGte) : undefined,
+        eq(activityLogs.businessId, businessId),
+        isNotNull(activityLogs.inquiryId),
+        isNotNull(activityLogs.actorUserId),
       ),
     )
-    .groupBy(
-      analyticsEvents.businessInquiryFormId,
-      analyticsEvents.visitorHash,
-      sql`date_trunc('second', ${analyticsEvents.occurredAt})`,
-    )
-    .as("deduped_inquiry_form_views");
+    .groupBy(activityLogs.inquiryId)
+    .as("first_response_sq");
 }
 
-function buildDedupedQuoteViewEventsSubquery(
-  businessId: string,
-  occurredAtGte?: Date,
-) {
-  return db
-    .select({
-      quoteId: analyticsEvents.quoteId,
-      visitorHash: analyticsEvents.visitorHash,
-      occurredAt: sql<Date>`min(${analyticsEvents.occurredAt})`.as("occurred_at"),
-    })
-    .from(analyticsEvents)
-    .where(
-      and(
-        eq(analyticsEvents.businessId, businessId),
-        eq(analyticsEvents.eventType, "quote_public_viewed"),
-        isNotNull(analyticsEvents.quoteId),
-        occurredAtGte ? gte(analyticsEvents.occurredAt, occurredAtGte) : undefined,
-      ),
-    )
-    .groupBy(
-      analyticsEvents.quoteId,
-      analyticsEvents.visitorHash,
-      sql`date_trunc('second', ${analyticsEvents.occurredAt})`,
-    )
-    .as("deduped_quote_public_views");
-}
+// ---------------------------------------------------------------------------
+// Free tier query
+// ---------------------------------------------------------------------------
 
-function buildOverviewTrendPoints(
-  trendStart: Date,
-  formViewTrendRows: Array<{ weekStart: string; formViews: number }>,
-  inquiryTrendRows: Array<{ weekStart: string; inquirySubmissions: number }>,
-  quoteSentTrendRows: Array<{ weekStart: string; quotesSent: number }>,
-  acceptedQuoteTrendRows: Array<{ weekStart: string; acceptedQuotes: number }>,
-): BusinessAnalyticsTrendPoint[] {
-  const formViewMap = new Map(
-    formViewTrendRows.map((row) => [row.weekStart, Number(row.formViews)]),
-  );
-  const inquiryMap = new Map(
-    inquiryTrendRows.map((row) => [
-      row.weekStart,
-      Number(row.inquirySubmissions),
-    ]),
-  );
-  const quoteSentMap = new Map(
-    quoteSentTrendRows.map((row) => [row.weekStart, Number(row.quotesSent)]),
-  );
-  const acceptedMap = new Map(
-    acceptedQuoteTrendRows.map((row) => [
-      row.weekStart,
-      Number(row.acceptedQuotes),
-    ]),
-  );
-
-  return Array.from({ length: trendWeekCount }).map((_, index) => {
-    const weekStart = addUtcWeeks(startOfUtcWeek(trendStart), index);
-    const isoDate = toIsoDate(weekStart);
-
-    return {
-      label: formatAnalyticsWeekRangeLabel(weekStart),
-      weekStart: isoDate,
-      formViews: formViewMap.get(isoDate) ?? 0,
-      inquirySubmissions: inquiryMap.get(isoDate) ?? 0,
-      quotesSent: quoteSentMap.get(isoDate) ?? 0,
-      acceptedQuotes: acceptedMap.get(isoDate) ?? 0,
-    };
-  });
-}
-
-function buildConversionTrendPoints(
-  trendStart: Date,
-  sentRows: Array<{ weekStart: string; quotesSent: number }>,
-  viewRows: Array<{ weekStart: string; quoteViews: number }>,
-  acceptedRows: Array<{ weekStart: string; acceptedQuotes: number }>,
-  rejectedRows: Array<{ weekStart: string; rejectedQuotes: number }>,
-): ConversionTrendPoint[] {
-  const sentMap = new Map(
-    sentRows.map((row) => [row.weekStart, Number(row.quotesSent)]),
-  );
-  const viewMap = new Map(
-    viewRows.map((row) => [row.weekStart, Number(row.quoteViews)]),
-  );
-  const acceptedMap = new Map(
-    acceptedRows.map((row) => [row.weekStart, Number(row.acceptedQuotes)]),
-  );
-  const rejectedMap = new Map(
-    rejectedRows.map((row) => [row.weekStart, Number(row.rejectedQuotes)]),
-  );
-
-  return Array.from({ length: trendWeekCount }).map((_, index) => {
-    const weekStart = addUtcWeeks(startOfUtcWeek(trendStart), index);
-    const isoDate = toIsoDate(weekStart);
-
-    return {
-      label: formatAnalyticsWeekRangeLabel(weekStart),
-      weekStart: isoDate,
-      quotesSent: sentMap.get(isoDate) ?? 0,
-      quoteViews: viewMap.get(isoDate) ?? 0,
-      acceptedQuotes: acceptedMap.get(isoDate) ?? 0,
-      rejectedQuotes: rejectedMap.get(isoDate) ?? 0,
-    };
-  });
-}
-
-async function buildRevenueTrendPoints(
-  trendStart: Date,
-  _acceptedRows: Array<{ weekStart: string; acceptedQuotes: number }>,
-  businessId: string,
-): Promise<RevenueTrendPoint[]> {
-  const revenueRows = await db
-    .select({
-      weekStart:
-        sql<string>`to_char(date_trunc('week', ${quotes.acceptedAt}), 'YYYY-MM-DD')`,
-      acceptedValueInCents: sql<number>`coalesce(sum(${quotes.totalInCents}), 0)`,
-    })
-    .from(quotes)
-    .where(
-      and(
-        eq(quotes.businessId, businessId),
-        getNonDeletedQuoteCondition(),
-        eq(quotes.status, "accepted"),
-        isNotNull(quotes.acceptedAt),
-        gte(quotes.acceptedAt, trendStart),
-      ),
-    )
-    .groupBy(sql`date_trunc('week', ${quotes.acceptedAt})`)
-    .orderBy(sql`date_trunc('week', ${quotes.acceptedAt})`);
-
-  const revenueMap = new Map(
-    revenueRows.map((row) => [row.weekStart, Number(row.acceptedValueInCents)]),
-  );
-
-  return Array.from({ length: trendWeekCount }).map((_, index) => {
-    const weekStart = addUtcWeeks(startOfUtcWeek(trendStart), index);
-    const isoDate = toIsoDate(weekStart);
-
-    return {
-      label: formatAnalyticsWeekRangeLabel(weekStart),
-      weekStart: isoDate,
-      acceptedValueInCents: revenueMap.get(isoDate) ?? 0,
-    };
-  });
-}
-
-export async function getBusinessAnalyticsData(
-  businessId: string,
-): Promise<BusinessAnalyticsData> {
+export async function getFreeAnalytics(businessId: string): Promise<FreeAnalyticsData> {
   "use cache";
 
   cacheLife(hotBusinessCacheLife);
   cacheTag(...getBusinessAnalyticsCacheTags(businessId));
 
   const now = new Date();
-  const summaryStart = subtractDays(now, summaryWindowDays);
-  const priorStart = subtractDays(now, summaryWindowDays * 2);
-  const trendStart = addUtcWeeks(startOfUtcWeek(now), -(trendWeekCount - 1));
-  const staleCutoff = subtractDays(now, 2);
-  const pendingCutoff = subtractDays(now, 7);
-  const firstResponse = buildFirstResponseSubquery(businessId);
-  const firstQuote = buildFirstQuoteSubquery(businessId);
-  const priorFirstResponse = buildFirstResponseSubquery(businessId);
-  const priorFirstQuote = buildFirstQuoteSubquery(businessId);
-  const formViewsInSummary = buildDedupedInquiryFormViewEventsSubquery(
-    businessId,
-    summaryStart,
-  );
-  const formViewsInPrior = buildDedupedInquiryFormViewEventsSubquery(
-    businessId,
-    priorStart,
-  );
-  const formViewsInTrend = buildDedupedInquiryFormViewEventsSubquery(
-    businessId,
-    trendStart,
-  );
+  const since = subtractDays(now, SUMMARY_DAYS);
+  const formViews = buildDedupedFormViews(businessId, since);
 
-  const [formViewSummaryRows, inquirySummaryRows, quoteSummaryRows] =
-    await Promise.all([
+  const [viewRows, inquiryRows, quoteRows] = await Promise.all([
     db
       .select({
         formViews: sql<number>`count(*)`,
-        uniqueVisitors: sql<number>`count(distinct ${formViewsInSummary.visitorHash})`,
+        uniqueVisitors: sql<number>`count(distinct ${formViews.visitorHash})`,
       })
-      .from(formViewsInSummary),
+      .from(formViews),
     db
       .select({
-        inquirySubmissions: sql<number>`count(distinct ${inquiries.id})`,
-        respondedInquiries:
-          sql<number>`count(distinct ${inquiries.id}) filter (where ${firstResponse.firstResponseAt} is not null)`,
-        inquiriesWithQuote:
-          sql<number>`count(distinct ${inquiries.id}) filter (where ${firstQuote.firstQuoteAt} is not null)`,
-        avgTimeToFirstQuoteHours:
-          sql<number | null>`avg(extract(epoch from (${firstQuote.firstQuoteAt} - ${inquiries.submittedAt})) / 3600) filter (where ${firstQuote.firstQuoteAt} is not null)`,
-        avgFirstResponseHours:
-          sql<number | null>`avg(extract(epoch from (${firstResponse.firstResponseAt} - ${inquiries.submittedAt})) / 3600) filter (where ${firstResponse.firstResponseAt} is not null)`,
+        submissions: sql<number>`count(distinct ${inquiries.id})`,
+        withQuote: sql<number>`count(distinct ${inquiries.id}) filter (where ${buildFirstQuoteSq(businessId).firstQuoteAt} is not null)`,
       })
       .from(inquiries)
-      .leftJoin(firstResponse, eq(firstResponse.inquiryId, inquiries.id))
-      .leftJoin(firstQuote, eq(firstQuote.inquiryId, inquiries.id))
-      .where(
-        and(
-          eq(inquiries.businessId, businessId),
-          gte(inquiries.submittedAt, summaryStart),
-        ),
-      ),
+      .leftJoin(buildFirstQuoteSq(businessId), eq(buildFirstQuoteSq(businessId).inquiryId, inquiries.id))
+      .where(and(eq(inquiries.businessId, businessId), gte(inquiries.submittedAt, since))),
     db
       .select({
-        quotesSent:
-          sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.sentAt} is not null and ${quotes.sentAt} >= ${summaryStart.toISOString()})`,
-        quotesViewed:
-          sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.publicViewedAt} is not null and ${quotes.publicViewedAt} >= ${summaryStart.toISOString()})`,
-        quotesAccepted:
-          sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'accepted' and ${quotes.acceptedAt} is not null and ${quotes.acceptedAt} >= ${summaryStart.toISOString()})`,
-        quotesRejected:
-          sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'rejected' and ${quotes.customerRespondedAt} is not null and ${quotes.customerRespondedAt} >= ${summaryStart.toISOString()})`,
-        avgTimeSentToDecisionHours:
-          sql<number | null>`avg(extract(epoch from (${quotes.customerRespondedAt} - ${quotes.sentAt})) / 3600) filter (where ${quotes.customerRespondedAt} is not null and ${quotes.sentAt} is not null and ${quotes.customerRespondedAt} >= ${summaryStart.toISOString()})`,
+        sent: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.sentAt} is not null and ${quotes.sentAt} >= ${since.toISOString()})`,
+        viewed: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.publicViewedAt} is not null and ${quotes.publicViewedAt} >= ${since.toISOString()})`,
+        accepted: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'accepted' and ${quotes.acceptedAt} >= ${since.toISOString()})`,
+        rejected: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'rejected' and ${quotes.customerRespondedAt} >= ${since.toISOString()})`,
       })
       .from(quotes)
       .where(
@@ -396,58 +191,116 @@ export async function getBusinessAnalyticsData(
           eq(quotes.businessId, businessId),
           getNonDeletedQuoteCondition(),
           or(
-            gte(quotes.createdAt, summaryStart),
-            gte(quotes.sentAt, summaryStart),
-            gte(quotes.publicViewedAt, summaryStart),
-            gte(quotes.acceptedAt, summaryStart),
-            gte(quotes.customerRespondedAt, summaryStart),
+            gte(quotes.sentAt, since),
+            gte(quotes.publicViewedAt, since),
+            gte(quotes.acceptedAt, since),
+            gte(quotes.customerRespondedAt, since),
           ),
         ),
       ),
   ]);
 
-  const statusRows = await db
-    .select({
-      status: getEffectiveInquiryStatus,
-      count: count(),
-    })
-    .from(inquiries)
-    .where(and(eq(inquiries.businessId, businessId), ))
-    .groupBy(getEffectiveInquiryStatus);
+  const fv = Number(viewRows[0]?.formViews ?? 0);
+  const uv = Number(viewRows[0]?.uniqueVisitors ?? 0);
+  const submissions = Number(inquiryRows[0]?.submissions ?? 0);
+  const withQuote = Number(inquiryRows[0]?.withQuote ?? 0);
+  const sent = Number(quoteRows[0]?.sent ?? 0);
+  const viewed = Number(quoteRows[0]?.viewed ?? 0);
+  const accepted = Number(quoteRows[0]?.accepted ?? 0);
+  const rejected = Number(quoteRows[0]?.rejected ?? 0);
 
-  const [formViewTrendRows, inquiryTrendRows] = await Promise.all([
+  return {
+    formViews: fv,
+    uniqueVisitors: uv,
+    inquirySubmissions: submissions,
+    inquiriesWithQuote: withQuote,
+    quotesSent: sent,
+    quotesViewed: viewed,
+    quotesAccepted: accepted,
+    quotesRejected: rejected,
+    formConversionRate: uv ? submissions / uv : 0,
+    inquiryToQuoteRate: submissions ? withQuote / submissions : 0,
+    quoteAcceptanceRate: sent ? accepted / sent : 0,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Pro tier query
+// ---------------------------------------------------------------------------
+
+export async function getProAnalytics(businessId: string): Promise<ProAnalyticsData> {
+  "use cache";
+
+  cacheLife(hotBusinessCacheLife);
+  cacheTag(...getBusinessAnalyticsCacheTags(businessId));
+
+  const now = new Date();
+  const since = subtractDays(now, SUMMARY_DAYS);
+  const priorStart = subtractDays(now, SUMMARY_DAYS * 2);
+  const trendStart = addUtcWeeks(startOfUtcWeek(now), -(TREND_WEEKS - 1));
+  const formViewsTrend = buildDedupedFormViews(businessId, trendStart);
+  const formViewsPrior = buildDedupedFormViews(businessId, priorStart);
+  const firstQuote = buildFirstQuoteSq(businessId);
+
+  // Prior period
+  const [priorFormRows, priorInqRows, priorQuoteRows] = await Promise.all([
     db
       .select({
-        weekStart:
-          sql<string>`to_char(date_trunc('week', ${formViewsInTrend.occurredAt}), 'YYYY-MM-DD')`,
         formViews: sql<number>`count(*)`,
       })
-      .from(formViewsInTrend)
-      .groupBy(sql`date_trunc('week', ${formViewsInTrend.occurredAt})`)
-      .orderBy(sql`date_trunc('week', ${formViewsInTrend.occurredAt})`),
+      .from(formViewsPrior)
+      .where(lt(formViewsPrior.occurredAt, sql`${since.toISOString()}::timestamp`)),
     db
-      .select({
-        weekStart:
-          sql<string>`to_char(date_trunc('week', ${inquiries.submittedAt}), 'YYYY-MM-DD')`,
-        inquirySubmissions: sql<number>`count(*)`,
-      })
+      .select({ count: sql<number>`count(distinct ${inquiries.id})` })
       .from(inquiries)
       .where(
         and(
           eq(inquiries.businessId, businessId),
-          gte(inquiries.submittedAt, trendStart),
+          gte(inquiries.submittedAt, priorStart),
+          lt(inquiries.submittedAt, since),
         ),
-      )
-      .groupBy(sql`date_trunc('week', ${inquiries.submittedAt})`)
-      .orderBy(sql`date_trunc('week', ${inquiries.submittedAt})`),
-  ]);
-
-  const [quoteSentTrendRows, acceptedQuoteTrendRows] = await Promise.all([
+      ),
     db
       .select({
-        weekStart:
-          sql<string>`to_char(date_trunc('week', ${quotes.sentAt}), 'YYYY-MM-DD')`,
-        quotesSent: sql<number>`count(*)`,
+        sent: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.sentAt} >= ${priorStart.toISOString()} and ${quotes.sentAt} < ${since.toISOString()})`,
+        accepted: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'accepted' and ${quotes.acceptedAt} >= ${priorStart.toISOString()} and ${quotes.acceptedAt} < ${since.toISOString()})`,
+      })
+      .from(quotes)
+      .where(
+        and(
+          eq(quotes.businessId, businessId),
+          getNonDeletedQuoteCondition(),
+          or(
+            and(gte(quotes.sentAt, priorStart), lt(quotes.sentAt, since)),
+            and(gte(quotes.acceptedAt, priorStart), lt(quotes.acceptedAt, since)),
+          ),
+        ),
+      ),
+  ]);
+
+  // Trends
+  const [formViewTrend, inqTrend, sentTrend, acceptedTrend] = await Promise.all([
+    db
+      .select({
+        weekStart: sql<string>`to_char(date_trunc('week', ${formViewsTrend.occurredAt}), 'YYYY-MM-DD')`,
+        count: sql<number>`count(*)`,
+      })
+      .from(formViewsTrend)
+      .groupBy(sql`date_trunc('week', ${formViewsTrend.occurredAt})`)
+      .orderBy(sql`date_trunc('week', ${formViewsTrend.occurredAt})`),
+    db
+      .select({
+        weekStart: sql<string>`to_char(date_trunc('week', ${inquiries.submittedAt}), 'YYYY-MM-DD')`,
+        count: sql<number>`count(*)`,
+      })
+      .from(inquiries)
+      .where(and(eq(inquiries.businessId, businessId), gte(inquiries.submittedAt, trendStart)))
+      .groupBy(sql`date_trunc('week', ${inquiries.submittedAt})`)
+      .orderBy(sql`date_trunc('week', ${inquiries.submittedAt})`),
+    db
+      .select({
+        weekStart: sql<string>`to_char(date_trunc('week', ${quotes.sentAt}), 'YYYY-MM-DD')`,
+        count: sql<number>`count(*)`,
       })
       .from(quotes)
       .where(
@@ -462,9 +315,8 @@ export async function getBusinessAnalyticsData(
       .orderBy(sql`date_trunc('week', ${quotes.sentAt})`),
     db
       .select({
-        weekStart:
-          sql<string>`to_char(date_trunc('week', ${quotes.acceptedAt}), 'YYYY-MM-DD')`,
-        acceptedQuotes: sql<number>`count(*)`,
+        weekStart: sql<string>`to_char(date_trunc('week', ${quotes.acceptedAt}), 'YYYY-MM-DD')`,
+        count: sql<number>`count(*)`,
       })
       .from(quotes)
       .where(
@@ -479,223 +331,71 @@ export async function getBusinessAnalyticsData(
       .orderBy(sql`date_trunc('week', ${quotes.acceptedAt})`),
   ]);
 
-  const [staleRows, pendingRows] = await Promise.all([
+  const fvMap = new Map(formViewTrend.map((r) => [r.weekStart, Number(r.count)]));
+  const iqMap = new Map(inqTrend.map((r) => [r.weekStart, Number(r.count)]));
+  const stMap = new Map(sentTrend.map((r) => [r.weekStart, Number(r.count)]));
+  const acMap = new Map(acceptedTrend.map((r) => [r.weekStart, Number(r.count)]));
+
+  const trend: TrendPoint[] = Array.from({ length: TREND_WEEKS }).map((_, i) => {
+    const ws = addUtcWeeks(startOfUtcWeek(trendStart), i);
+    const iso = toIso(ws);
+    return {
+      label: formatWeekLabel(ws),
+      weekStart: iso,
+      formViews: fvMap.get(iso) ?? 0,
+      inquirySubmissions: iqMap.get(iso) ?? 0,
+      quotesSent: stMap.get(iso) ?? 0,
+      acceptedQuotes: acMap.get(iso) ?? 0,
+    };
+  });
+
+  // Funnel (reuse free data or compute fresh — here we compute inline)
+  const freeFormViews = buildDedupedFormViews(businessId, since);
+  const [funnelView, funnelInq, funnelQuote] = await Promise.all([
+    db.select({ uv: sql<number>`count(distinct ${freeFormViews.visitorHash})` }).from(freeFormViews),
     db
-      .select({ count: count() })
+      .select({
+        submissions: sql<number>`count(distinct ${inquiries.id})`,
+        withQuote: sql<number>`count(distinct ${inquiries.id}) filter (where ${firstQuote.firstQuoteAt} is not null)`,
+      })
       .from(inquiries)
-      .leftJoin(firstResponse, eq(firstResponse.inquiryId, inquiries.id))
-      .where(
-        and(
-          eq(inquiries.businessId, businessId),
-          getOperationalInquiryCondition(),
-          sql`${getEffectiveInquiryStatus} in ('new', 'waiting')`,
-          lt(inquiries.submittedAt, staleCutoff),
-          isNull(firstResponse.firstResponseAt),
-        ),
-      ),
+      .leftJoin(firstQuote, eq(firstQuote.inquiryId, inquiries.id))
+      .where(and(eq(inquiries.businessId, businessId), gte(inquiries.submittedAt, since))),
     db
-      .select({ count: count() })
+      .select({
+        accepted: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'accepted' and ${quotes.acceptedAt} >= ${since.toISOString()})`,
+      })
       .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, businessId),
-          getOperationalQuoteCondition(),
-          eq(quotes.status, "sent"),
-          isNotNull(quotes.sentAt),
-          lte(quotes.sentAt, pendingCutoff),
-          isNull(quotes.customerRespondedAt),
-        ),
-      ),
+      .where(and(eq(quotes.businessId, businessId), getNonDeletedQuoteCondition())),
   ]);
 
-  const inquirySummary = inquirySummaryRows[0];
-  const quoteSummary = quoteSummaryRows[0];
-  const formViews = Number(formViewSummaryRows[0]?.formViews ?? 0);
-  const uniqueVisitors = Number(formViewSummaryRows[0]?.uniqueVisitors ?? 0);
-  const inquirySubmissions = Number(inquirySummary?.inquirySubmissions ?? 0);
-  const respondedInquiries = Number(inquirySummary?.respondedInquiries ?? 0);
-  const inquiriesWithQuote = Number(inquirySummary?.inquiriesWithQuote ?? 0);
-  const quotesSent = Number(quoteSummary?.quotesSent ?? 0);
-  const quotesViewed = Number(quoteSummary?.quotesViewed ?? 0);
-  const quotesAccepted = Number(quoteSummary?.quotesAccepted ?? 0);
-  const quotesRejected = Number(quoteSummary?.quotesRejected ?? 0);
-  const avgFirstResponseHours = roundHours(inquirySummary?.avgFirstResponseHours);
-  const avgTimeToFirstQuoteHours = roundHours(
-    inquirySummary?.avgTimeToFirstQuoteHours,
-  );
-  const avgTimeSentToDecisionHours = roundHours(quoteSummary?.avgTimeSentToDecisionHours);
+  const funnel: FunnelStep[] = [
+    { label: "Visitors", count: Number(funnelView[0]?.uv ?? 0) },
+    { label: "Submissions", count: Number(funnelInq[0]?.submissions ?? 0) },
+    { label: "Quoted", count: Number(funnelInq[0]?.withQuote ?? 0) },
+    { label: "Accepted", count: Number(funnelQuote[0]?.accepted ?? 0) },
+  ];
 
-  const inquiryStatusCountsMap = toCountMap(
-    statusRows as Array<{
-      status: (typeof inquiryFilterableStatuses)[number];
-      count: number | string;
-    }>,
-  );
-  const inquiryStatusCounts: BusinessAnalyticsStatusCount[] =
-    inquiryFilterableStatuses.map((status) => ({
-      status,
-      count: inquiryStatusCountsMap.get(status) ?? 0,
-    }));
-
-  // Prior period queries (days 31-60) for delta comparison
-  const [priorFormViewRows, priorInquiryRows, priorQuoteRows] =
-    await Promise.all([
-      db
-        .select({
-          formViews: sql<number>`count(*)`,
-          uniqueVisitors: sql<number>`count(distinct ${formViewsInPrior.visitorHash})`,
-        })
-        .from(formViewsInPrior)
-        .where(lt(formViewsInPrior.occurredAt, sql`${summaryStart.toISOString()}::timestamp`)),
-      db
-        .select({
-          inquirySubmissions: sql<number>`count(distinct ${inquiries.id})`,
-          avgFirstResponseHours:
-            sql<number | null>`avg(extract(epoch from (${priorFirstResponse.firstResponseAt} - ${inquiries.submittedAt})) / 3600) filter (where ${priorFirstResponse.firstResponseAt} is not null)`,
-          avgTimeToFirstQuoteHours:
-            sql<number | null>`avg(extract(epoch from (${priorFirstQuote.firstQuoteAt} - ${inquiries.submittedAt})) / 3600) filter (where ${priorFirstQuote.firstQuoteAt} is not null)`,
-        })
-        .from(inquiries)
-        .leftJoin(priorFirstResponse, eq(priorFirstResponse.inquiryId, inquiries.id))
-        .leftJoin(priorFirstQuote, eq(priorFirstQuote.inquiryId, inquiries.id))
-        .where(
-          and(
-            eq(inquiries.businessId, businessId),
-            gte(inquiries.submittedAt, priorStart),
-            lt(inquiries.submittedAt, summaryStart),
-          ),
-        ),
-      db
-        .select({
-          quotesSent:
-            sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.sentAt} is not null and ${quotes.sentAt} >= ${priorStart.toISOString()} and ${quotes.sentAt} < ${summaryStart.toISOString()})`,
-          quotesAccepted:
-            sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'accepted' and ${quotes.acceptedAt} is not null and ${quotes.acceptedAt} >= ${priorStart.toISOString()} and ${quotes.acceptedAt} < ${summaryStart.toISOString()})`,
-        })
-        .from(quotes)
-        .where(
-          and(
-            eq(quotes.businessId, businessId),
-            getNonDeletedQuoteCondition(),
-            or(
-              and(gte(quotes.sentAt, priorStart), lt(quotes.sentAt, summaryStart)),
-              and(gte(quotes.acceptedAt, priorStart), lt(quotes.acceptedAt, summaryStart)),
-            ),
-          ),
-        ),
-    ]);
-
-  const priorInquiry = priorInquiryRows[0];
-  const priorQuote = priorQuoteRows[0];
-
-  return {
-    summary: {
-      formViews,
-      uniqueVisitors,
-      inquirySubmissions,
-      inquiriesWithQuote,
-      formConversionRate: uniqueVisitors ? inquirySubmissions / uniqueVisitors : 0,
-      inquiryToQuoteRate: inquirySubmissions
-        ? inquiriesWithQuote / inquirySubmissions
-        : 0,
-      quotesSent,
-      quotesViewed,
-      quotesAccepted,
-      quotesRejected,
-      quoteAcceptanceRate: quotesSent ? quotesAccepted / quotesSent : 0,
-      responseRate: inquirySubmissions ? respondedInquiries / inquirySubmissions : 0,
-      avgFirstResponseHours,
-      avgTimeToFirstQuoteHours,
-      avgTimeSentToDecisionHours,
-    },
-    funnel: {
-      uniqueVisitors,
-      inquirySubmissions,
-      inquiriesWithQuote,
-      acceptedQuotes: quotesAccepted,
-    },
-    inquiryStatusCounts,
-    recentTrend: buildOverviewTrendPoints(
-      trendStart,
-      formViewTrendRows,
-      inquiryTrendRows,
-      quoteSentTrendRows,
-      acceptedQuoteTrendRows,
-    ),
-    backlog: {
-      staleInquiryCount: Number(staleRows[0]?.count ?? 0),
-      pendingQuotesOverSevenDays: Number(pendingRows[0]?.count ?? 0),
-    },
-    priorPeriod: {
-      formViews: Number(priorFormViewRows[0]?.formViews ?? 0),
-      uniqueVisitors: Number(priorFormViewRows[0]?.uniqueVisitors ?? 0),
-      inquirySubmissions: Number(priorInquiry?.inquirySubmissions ?? 0),
-      quotesSent: Number(priorQuote?.quotesSent ?? 0),
-      quotesAccepted: Number(priorQuote?.quotesAccepted ?? 0),
-      avgFirstResponseHours: roundHours(priorInquiry?.avgFirstResponseHours),
-      avgTimeToFirstQuoteHours: roundHours(priorInquiry?.avgTimeToFirstQuoteHours),
-    },
-  };
-}
-
-export async function getConversionAnalyticsData(
-  businessId: string,
-): Promise<ConversionAnalyticsData> {
-  "use cache";
-
-  cacheLife(hotBusinessCacheLife);
-  cacheTag(...getBusinessAnalyticsCacheTags(businessId));
-
-  const now = new Date();
-  const summaryStart = subtractDays(now, summaryWindowDays);
-  const trendStart = addUtcWeeks(startOfUtcWeek(now), -(trendWeekCount - 1));
-  const firstQuote = buildFirstQuoteSubquery(businessId);
-  const formViewsInSummary = buildDedupedInquiryFormViewEventsSubquery(
-    businessId,
-    summaryStart,
-  );
-  const quoteViewsInSummary = buildDedupedQuoteViewEventsSubquery(
-    businessId,
-    summaryStart,
-  );
-  const quoteViewsInTrend = buildDedupedQuoteViewEventsSubquery(
-    businessId,
-    trendStart,
-  );
-
-  const formViewStats = db
+  // Form performance
+  const formViewStats = buildDedupedFormViews(businessId, since);
+  const fvStatsSq = db
     .select({
-      businessInquiryFormId: formViewsInSummary.businessInquiryFormId,
+      formId: formViewStats.businessInquiryFormId,
       viewCount: sql<number>`count(*)`.as("view_count"),
-      uniqueVisitorCount:
-        sql<number>`count(distinct ${formViewsInSummary.visitorHash})`.as(
-          "unique_visitor_count",
-        ),
+      uvCount: sql<number>`count(distinct ${formViewStats.visitorHash})`.as("uv_count"),
     })
-    .from(formViewsInSummary)
-    .groupBy(formViewsInSummary.businessInquiryFormId)
-    .as("form_view_stats");
+    .from(formViewStats)
+    .groupBy(formViewStats.businessInquiryFormId)
+    .as("fv_stats");
 
-  const formPipelineStats = db
+  const formPipeline = db
     .select({
-      businessInquiryFormId: inquiries.businessInquiryFormId,
-      submissionCount:
-        sql<number>`count(distinct ${inquiries.id})`.as("submission_count"),
-      inquiriesWithQuoteCount:
-        sql<number>`count(distinct ${inquiries.id}) filter (where ${firstQuote.firstQuoteAt} is not null)`.as(
-          "inquiries_with_quote_count",
-        ),
-      sentQuoteCount:
-        sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.sentAt} is not null)`.as(
-          "sent_quote_count",
-        ),
-      acceptedQuoteCount:
-        sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'accepted')`.as(
-          "accepted_quote_count",
-        ),
+      formId: inquiries.businessInquiryFormId,
+      submissionCount: sql<number>`count(distinct ${inquiries.id})`.as("sub_count"),
+      sentCount: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.sentAt} is not null)`.as("sent_count"),
+      acceptedCount: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'accepted')`.as("acc_count"),
     })
     .from(inquiries)
-    .leftJoin(firstQuote, eq(firstQuote.inquiryId, inquiries.id))
     .leftJoin(
       quotes,
       and(
@@ -704,131 +404,9 @@ export async function getConversionAnalyticsData(
         getNonDeletedQuoteCondition(),
       ),
     )
-    .where(
-      and(
-        eq(inquiries.businessId, businessId),
-        gte(inquiries.submittedAt, summaryStart),
-      ),
-    )
+    .where(and(eq(inquiries.businessId, businessId), gte(inquiries.submittedAt, since)))
     .groupBy(inquiries.businessInquiryFormId)
-    .as("form_pipeline_stats");
-
-  const [summaryRows, quoteViewRows] = await Promise.all([
-    db
-      .select({
-        inquirySubmissions: sql<number>`count(distinct ${inquiries.id})`,
-        inquiriesWithQuote:
-          sql<number>`count(distinct ${inquiries.id}) filter (where ${firstQuote.firstQuoteAt} is not null)`,
-        quotesSent:
-          sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.sentAt} is not null)`,
-        quotesViewed:
-          sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.publicViewedAt} is not null)`,
-        quotesAccepted:
-          sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'accepted')`,
-        quotesRejected:
-          sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'rejected')`,
-        quotesCompleted:
-          sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'accepted' and ${quotes.completedAt} is not null)`,
-        quotesCanceledAfterAcceptance:
-          sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'accepted' and ${quotes.canceledAt} is not null)`,
-        acceptedValueInCents:
-          sql<number>`coalesce(sum(${quotes.totalInCents}) filter (where ${quotes.status} = 'accepted'), 0)`,
-        avgAcceptedValueInCents:
-          sql<number>`coalesce(avg(${quotes.totalInCents}) filter (where ${quotes.status} = 'accepted'), 0)`,
-        completedValueInCents:
-          sql<number>`coalesce(sum(${quotes.totalInCents}) filter (where ${quotes.status} = 'accepted' and ${quotes.completedAt} is not null), 0)`,
-        canceledAfterAcceptanceValueInCents:
-          sql<number>`coalesce(sum(${quotes.totalInCents}) filter (where ${quotes.status} = 'accepted' and ${quotes.canceledAt} is not null), 0)`,
-      })
-      .from(inquiries)
-      .leftJoin(firstQuote, eq(firstQuote.inquiryId, inquiries.id))
-      .leftJoin(
-        quotes,
-        and(
-          eq(quotes.businessId, businessId),
-          eq(quotes.inquiryId, inquiries.id),
-          getNonDeletedQuoteCondition(),
-        ),
-      )
-      .where(
-        and(
-          eq(inquiries.businessId, businessId),
-          gte(inquiries.submittedAt, summaryStart),
-        ),
-      ),
-    db
-      .select({
-        quotePageViews: sql<number>`count(*)`,
-      })
-      .from(quoteViewsInSummary),
-  ]);
-
-  const [sentTrendRows, quoteViewTrendRows] = await Promise.all([
-    db
-      .select({
-        weekStart:
-          sql<string>`to_char(date_trunc('week', ${quotes.sentAt}), 'YYYY-MM-DD')`,
-        quotesSent: sql<number>`count(*)`,
-      })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, businessId),
-          getNonDeletedQuoteCondition(),
-          isNotNull(quotes.sentAt),
-          gte(quotes.sentAt, trendStart),
-        ),
-      )
-      .groupBy(sql`date_trunc('week', ${quotes.sentAt})`)
-      .orderBy(sql`date_trunc('week', ${quotes.sentAt})`),
-    db
-      .select({
-        weekStart:
-          sql<string>`to_char(date_trunc('week', ${quoteViewsInTrend.occurredAt}), 'YYYY-MM-DD')`,
-        quoteViews: sql<number>`count(*)`,
-      })
-      .from(quoteViewsInTrend)
-      .groupBy(sql`date_trunc('week', ${quoteViewsInTrend.occurredAt})`)
-      .orderBy(sql`date_trunc('week', ${quoteViewsInTrend.occurredAt})`),
-  ]);
-
-  const [acceptedTrendRows, rejectedTrendRows] = await Promise.all([
-    db
-      .select({
-        weekStart:
-          sql<string>`to_char(date_trunc('week', ${quotes.acceptedAt}), 'YYYY-MM-DD')`,
-        acceptedQuotes: sql<number>`count(*)`,
-      })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, businessId),
-          getNonDeletedQuoteCondition(),
-          isNotNull(quotes.acceptedAt),
-          gte(quotes.acceptedAt, trendStart),
-        ),
-      )
-      .groupBy(sql`date_trunc('week', ${quotes.acceptedAt})`)
-      .orderBy(sql`date_trunc('week', ${quotes.acceptedAt})`),
-    db
-      .select({
-        weekStart:
-          sql<string>`to_char(date_trunc('week', ${quotes.customerRespondedAt}), 'YYYY-MM-DD')`,
-        rejectedQuotes: sql<number>`count(*)`,
-      })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, businessId),
-          getNonDeletedQuoteCondition(),
-          eq(quotes.status, "rejected"),
-          isNotNull(quotes.customerRespondedAt),
-          gte(quotes.customerRespondedAt, trendStart),
-        ),
-      )
-      .groupBy(sql`date_trunc('week', ${quotes.customerRespondedAt})`)
-      .orderBy(sql`date_trunc('week', ${quotes.customerRespondedAt})`),
-  ]);
+    .as("form_pipeline");
 
   const formRows = await db
     .select({
@@ -838,179 +416,91 @@ export async function getConversionAnalyticsData(
       isDefault: businessInquiryForms.isDefault,
       publicInquiryEnabled: businessInquiryForms.publicInquiryEnabled,
       archivedAt: businessInquiryForms.archivedAt,
-      viewCount: sql<number>`coalesce(${formViewStats.viewCount}, 0)`,
-      uniqueVisitorCount:
-        sql<number>`coalesce(${formViewStats.uniqueVisitorCount}, 0)`,
-      submissionCount:
-        sql<number>`coalesce(${formPipelineStats.submissionCount}, 0)`,
-      inquiriesWithQuoteCount:
-        sql<number>`coalesce(${formPipelineStats.inquiriesWithQuoteCount}, 0)`,
-      sentQuoteCount:
-        sql<number>`coalesce(${formPipelineStats.sentQuoteCount}, 0)`,
-      acceptedQuoteCount:
-        sql<number>`coalesce(${formPipelineStats.acceptedQuoteCount}, 0)`,
+      viewCount: sql<number>`coalesce(${fvStatsSq.viewCount}, 0)`,
+      uvCount: sql<number>`coalesce(${fvStatsSq.uvCount}, 0)`,
+      subCount: sql<number>`coalesce(${formPipeline.submissionCount}, 0)`,
+      sentCount: sql<number>`coalesce(${formPipeline.sentCount}, 0)`,
+      accCount: sql<number>`coalesce(${formPipeline.acceptedCount}, 0)`,
     })
     .from(businessInquiryForms)
-    .leftJoin(
-      formViewStats,
-      eq(formViewStats.businessInquiryFormId, businessInquiryForms.id),
-    )
-    .leftJoin(
-      formPipelineStats,
-      eq(formPipelineStats.businessInquiryFormId, businessInquiryForms.id),
-    )
+    .leftJoin(fvStatsSq, eq(fvStatsSq.formId, businessInquiryForms.id))
+    .leftJoin(formPipeline, eq(formPipeline.formId, businessInquiryForms.id))
     .where(eq(businessInquiryForms.businessId, businessId))
     .orderBy(
       asc(businessInquiryForms.archivedAt),
-      sql`coalesce(${formPipelineStats.submissionCount}, 0) desc`,
-      sql`coalesce(${formViewStats.viewCount}, 0) desc`,
+      sql`coalesce(${formPipeline.submissionCount}, 0) desc`,
       desc(businessInquiryForms.isDefault),
-      asc(businessInquiryForms.name),
     );
 
-  const summary = summaryRows[0];
-  const inquirySubmissions = Number(summary?.inquirySubmissions ?? 0);
-  const inquiriesWithQuote = Number(summary?.inquiriesWithQuote ?? 0);
-  const quotesSent = Number(summary?.quotesSent ?? 0);
-  const quotesViewed = Number(summary?.quotesViewed ?? 0);
-  const quotesAccepted = Number(summary?.quotesAccepted ?? 0);
-  const quotesRejected = Number(summary?.quotesRejected ?? 0);
-  const quotesCompleted = Number(summary?.quotesCompleted ?? 0);
-  const quotesCanceledAfterAcceptance = Number(summary?.quotesCanceledAfterAcceptance ?? 0);
-  const quotePageViews = Number(quoteViewRows[0]?.quotePageViews ?? 0);
-
-  const formPerformance: FormPerformanceAnalyticsRow[] = formRows.map((row) => {
-    const submissionCount = Number(row.submissionCount);
-    const sentQuoteCount = Number(row.sentQuoteCount);
-    const viewCount = Number(row.viewCount);
-    const uniqueVisitorCount = Number(row.uniqueVisitorCount);
-    const inquiriesWithQuoteCount = Number(row.inquiriesWithQuoteCount);
-    const acceptedQuoteCount = Number(row.acceptedQuoteCount);
-
+  const formPerformance: FormPerformanceRow[] = formRows.map((r) => {
+    const vc = Number(r.viewCount);
+    const uv = Number(r.uvCount);
+    const sub = Number(r.subCount);
+    const sent = Number(r.sentCount);
+    const acc = Number(r.accCount);
     return {
-      formId: row.formId,
-      formName: row.formName,
-      formSlug: row.formSlug,
-      isDefault: row.isDefault,
-      publicInquiryEnabled: row.publicInquiryEnabled,
-      archivedAt: row.archivedAt,
-      viewCount,
-      uniqueVisitorCount,
-      submissionCount,
-      inquiriesWithQuoteCount,
-      sentQuoteCount,
-      acceptedQuoteCount,
-      formConversionRate: uniqueVisitorCount ? submissionCount / uniqueVisitorCount : 0,
-      inquiryToQuoteRate: submissionCount ? inquiriesWithQuoteCount / submissionCount : 0,
-      quoteAcceptanceRate: sentQuoteCount ? acceptedQuoteCount / sentQuoteCount : 0,
+      formId: r.formId,
+      formName: r.formName,
+      formSlug: r.formSlug,
+      isDefault: r.isDefault,
+      publicInquiryEnabled: r.publicInquiryEnabled,
+      archivedAt: r.archivedAt,
+      viewCount: vc,
+      uniqueVisitorCount: uv,
+      submissionCount: sub,
+      sentQuoteCount: sent,
+      acceptedQuoteCount: acc,
+      formConversionRate: uv ? sub / uv : 0,
+      quoteAcceptanceRate: sent ? acc / sent : 0,
     };
   });
 
   return {
-    summary: {
-      inquirySubmissions,
-      inquiriesWithQuote,
-      quotesSent,
-      quotesViewed,
-      quotePageViews,
-      quotesAccepted,
-      quotesRejected,
-      quotesCompleted,
-      quotesCanceledAfterAcceptance,
-      inquiryToQuoteRate: inquirySubmissions
-        ? inquiriesWithQuote / inquirySubmissions
-        : 0,
-      quoteViewRate: quotesSent ? quotesViewed / quotesSent : 0,
-      quoteAcceptanceRate: quotesSent ? quotesAccepted / quotesSent : 0,
-      acceptedToCompletedRate: quotesAccepted ? quotesCompleted / quotesAccepted : 0,
-      acceptedToCanceledRate: quotesAccepted ? quotesCanceledAfterAcceptance / quotesAccepted : 0,
-      acceptedValueInCents: Number(summary?.acceptedValueInCents ?? 0),
-      averageAcceptedValueInCents: Math.round(
-        Number(summary?.avgAcceptedValueInCents ?? 0),
-      ),
-      completedValueInCents: Number(summary?.completedValueInCents ?? 0),
-      canceledAfterAcceptanceValueInCents: Number(summary?.canceledAfterAcceptanceValueInCents ?? 0),
+    priorPeriod: {
+      formViews: Number(priorFormRows[0]?.formViews ?? 0),
+      inquirySubmissions: Number(priorInqRows[0]?.count ?? 0),
+      quotesSent: Number(priorQuoteRows[0]?.sent ?? 0),
+      quotesAccepted: Number(priorQuoteRows[0]?.accepted ?? 0),
     },
-    funnel: {
-      inquirySubmissions,
-      inquiriesWithQuote,
-      quotesSent,
-      quotesViewed,
-      quotesAccepted,
-    },
-    quotesTrend: buildConversionTrendPoints(
-      trendStart,
-      sentTrendRows,
-      quoteViewTrendRows,
-      acceptedTrendRows,
-      rejectedTrendRows,
-    ),
-    revenueTrend: await buildRevenueTrendPoints(
-      trendStart,
-      acceptedTrendRows,
-      businessId,
-    ),
+    trend,
+    funnel,
     formPerformance,
   };
 }
 
-export async function getWorkflowAnalyticsData(
-  businessId: string,
-): Promise<WorkflowAnalyticsData> {
+// ---------------------------------------------------------------------------
+// Business tier query
+// ---------------------------------------------------------------------------
+
+export async function getBusinessAnalytics(businessId: string): Promise<BusinessAnalyticsData> {
   "use cache";
 
   cacheLife(hotBusinessCacheLife);
   cacheTag(...getBusinessAnalyticsCacheTags(businessId));
 
   const now = new Date();
-  const summaryStart = subtractDays(now, summaryWindowDays);
+  const since = subtractDays(now, SUMMARY_DAYS);
   const staleCutoff = subtractDays(now, 2);
   const pendingCutoff = subtractDays(now, 7);
-  const firstResponse = buildFirstResponseSubquery(businessId);
-  const firstQuote = buildFirstQuoteSubquery(businessId);
+  const firstResponse = buildFirstResponseSq(businessId);
+  const firstQuote = buildFirstQuoteSq(businessId);
 
-  const [inquiryTimingRows, quoteTimingRows, quoteStatusRows] = await Promise.all([
+  // Timing
+  const [timingRows, quoteTimingRows] = await Promise.all([
     db
       .select({
-        inquirySubmissions: sql<number>`count(distinct ${inquiries.id})`,
-        respondedInquiries:
-          sql<number>`count(distinct ${inquiries.id}) filter (where ${firstResponse.firstResponseAt} is not null)`,
-        inquiriesWithQuote:
-          sql<number>`count(distinct ${inquiries.id}) filter (where ${firstQuote.firstQuoteAt} is not null)`,
-        avgFirstResponseHours:
-          sql<number | null>`avg(extract(epoch from (${firstResponse.firstResponseAt} - ${inquiries.submittedAt})) / 3600) filter (where ${firstResponse.firstResponseAt} is not null)`,
-        avgTimeToFirstQuoteHours:
-          sql<number | null>`avg(extract(epoch from (${firstQuote.firstQuoteAt} - ${inquiries.submittedAt})) / 3600) filter (where ${firstQuote.firstQuoteAt} is not null)`,
+        submissions: sql<number>`count(distinct ${inquiries.id})`,
+        responded: sql<number>`count(distinct ${inquiries.id}) filter (where ${firstResponse.firstResponseAt} is not null)`,
+        avgFirstResponse: sql<number | null>`avg(extract(epoch from (${firstResponse.firstResponseAt} - ${inquiries.submittedAt})) / 3600) filter (where ${firstResponse.firstResponseAt} is not null)`,
+        avgToQuote: sql<number | null>`avg(extract(epoch from (${firstQuote.firstQuoteAt} - ${inquiries.submittedAt})) / 3600) filter (where ${firstQuote.firstQuoteAt} is not null)`,
       })
       .from(inquiries)
       .leftJoin(firstResponse, eq(firstResponse.inquiryId, inquiries.id))
       .leftJoin(firstQuote, eq(firstQuote.inquiryId, inquiries.id))
-      .where(
-        and(
-          eq(inquiries.businessId, businessId),
-          gte(inquiries.submittedAt, summaryStart),
-        ),
-      ),
+      .where(and(eq(inquiries.businessId, businessId), gte(inquiries.submittedAt, since))),
     db
       .select({
-        quotesSent:
-          sql<number>`count(*) filter (where ${quotes.sentAt} is not null)`,
-        quotesViewed:
-          sql<number>`count(*) filter (where ${quotes.publicViewedAt} is not null)`,
-        quotesAccepted:
-          sql<number>`count(*) filter (where ${quotes.status} = 'accepted')`,
-        quotesRejected:
-          sql<number>`count(*) filter (where ${quotes.status} = 'rejected')`,
-        quotesVoided:
-          sql<number>`count(*) filter (where ${quotes.status} = 'voided')`,
-        quotesCompleted:
-          sql<number>`count(*) filter (where ${quotes.status} = 'accepted' and ${quotes.completedAt} is not null)`,
-        quotesCanceledAfterAcceptance:
-          sql<number>`count(*) filter (where ${quotes.status} = 'accepted' and ${quotes.canceledAt} is not null)`,
-        acceptedNeedingNextStepCount:
-          sql<number>`count(*) filter (where ${quotes.status} = 'accepted' and ${quotes.completedAt} is null and ${quotes.canceledAt} is null)`,
-        avgTimeSentToDecisionHours:
-          sql<number | null>`avg(extract(epoch from (${quotes.customerRespondedAt} - ${quotes.sentAt})) / 3600) filter (where ${quotes.customerRespondedAt} is not null and ${quotes.sentAt} is not null)`,
+        avgToDecision: sql<number | null>`avg(extract(epoch from (${quotes.customerRespondedAt} - ${quotes.sentAt})) / 3600) filter (where ${quotes.customerRespondedAt} is not null and ${quotes.sentAt} is not null)`,
       })
       .from(quotes)
       .where(
@@ -1018,24 +508,23 @@ export async function getWorkflowAnalyticsData(
           eq(quotes.businessId, businessId),
           getNonDeletedQuoteCondition(),
           isNotNull(quotes.sentAt),
-          gte(quotes.sentAt, summaryStart),
+          gte(quotes.sentAt, since),
         ),
       ),
-    db
-      .select({
-        status: getEffectiveQuoteStatus,
-        count: count(),
-      })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, businessId),
-          getNonDeletedQuoteCondition(),
-        ),
-      )
-      .groupBy(getEffectiveQuoteStatus),
   ]);
 
+  const tRow = timingRows[0];
+  const submissions = Number(tRow?.submissions ?? 0);
+  const responded = Number(tRow?.responded ?? 0);
+
+  const timing: WorkflowTimingData = {
+    avgFirstResponseHours: roundHours(tRow?.avgFirstResponse),
+    avgTimeToFirstQuoteHours: roundHours(tRow?.avgToQuote),
+    avgTimeSentToDecisionHours: roundHours(quoteTimingRows[0]?.avgToDecision),
+    responseRate: submissions ? responded / submissions : 0,
+  };
+
+  // Alerts
   const [staleRows, pendingRows] = await Promise.all([
     db
       .select({ count: count() })
@@ -1065,93 +554,79 @@ export async function getWorkflowAnalyticsData(
       ),
   ]);
 
-  const inquiryTiming = inquiryTimingRows[0];
-  const quoteTiming = quoteTimingRows[0];
-  const inquirySubmissions = Number(inquiryTiming?.inquirySubmissions ?? 0);
-  const respondedInquiries = Number(inquiryTiming?.respondedInquiries ?? 0);
-  const inquiriesWithQuote = Number(inquiryTiming?.inquiriesWithQuote ?? 0);
-  const quotesSent = Number(quoteTiming?.quotesSent ?? 0);
-  const quotesViewed = Number(quoteTiming?.quotesViewed ?? 0);
-  const quotesAccepted = Number(quoteTiming?.quotesAccepted ?? 0);
-  const quotesRejected = Number(quoteTiming?.quotesRejected ?? 0);
-  const quotesVoided = Number(quoteTiming?.quotesVoided ?? 0);
-  const quotesCompleted = Number(quoteTiming?.quotesCompleted ?? 0);
-  const quotesCanceledAfterAcceptance = Number(quoteTiming?.quotesCanceledAfterAcceptance ?? 0);
-  const acceptedNeedingNextStepCount = Number(quoteTiming?.acceptedNeedingNextStepCount ?? 0);
-  const quoteStatusCountMap = new Map(
-    quoteStatusRows.map((row) => [row.status, Number(row.count)]),
-  );
+  const alerts: OperationalAlerts = {
+    staleInquiryCount: Number(staleRows[0]?.count ?? 0),
+    pendingQuotesOverSevenDays: Number(pendingRows[0]?.count ?? 0),
+  };
 
-  // Follow-up activity summary for the same 30-day window
-  const [followUpRows] = await Promise.all([
+  // Follow-ups
+  const [fuRows] = await Promise.all([
     db
       .select({
         created: sql<number>`count(*)`,
-        completed:
-          sql<number>`count(*) filter (where ${followUps.status} = 'completed')`,
-        skipped:
-          sql<number>`count(*) filter (where ${followUps.status} = 'skipped')`,
-        overdue:
-          sql<number>`count(*) filter (where ${followUps.status} = 'pending' and ${followUps.dueAt} < now())`,
-        avgDaysToComplete:
-          sql<number | null>`avg(extract(epoch from (${followUps.completedAt} - ${followUps.createdAt})) / 86400) filter (where ${followUps.completedAt} is not null)`,
+        completed: sql<number>`count(*) filter (where ${followUps.status} = 'completed')`,
+        skipped: sql<number>`count(*) filter (where ${followUps.status} = 'skipped')`,
+        overdue: sql<number>`count(*) filter (where ${followUps.status} = 'pending' and ${followUps.dueAt} < now())`,
+        avgDays: sql<number | null>`avg(extract(epoch from (${followUps.completedAt} - ${followUps.createdAt})) / 86400) filter (where ${followUps.completedAt} is not null)`,
       })
       .from(followUps)
+      .where(and(eq(followUps.businessId, businessId), gte(followUps.createdAt, since))),
+  ]);
+
+  const fu = fuRows[0];
+  const fuCreated = Number(fu?.created ?? 0);
+  const fuCompleted = Number(fu?.completed ?? 0);
+
+  const followUpSummary: FollowUpSummary = {
+    created: fuCreated,
+    completed: fuCompleted,
+    skipped: Number(fu?.skipped ?? 0),
+    overdue: Number(fu?.overdue ?? 0),
+    completionRate: fuCreated > 0 ? fuCompleted / fuCreated : 0,
+    avgDaysToComplete: fu?.avgDays != null ? Math.round(Number(fu.avgDays) * 10) / 10 : null,
+  };
+
+  // Revenue
+  const [revRows] = await Promise.all([
+    db
+      .select({
+        acceptedValue: sql<number>`coalesce(sum(${quotes.totalInCents}) filter (where ${quotes.status} = 'accepted'), 0)`,
+        avgAccepted: sql<number>`coalesce(avg(${quotes.totalInCents}) filter (where ${quotes.status} = 'accepted'), 0)`,
+        completedValue: sql<number>`coalesce(sum(${quotes.totalInCents}) filter (where ${quotes.status} = 'accepted' and ${quotes.completedAt} is not null), 0)`,
+      })
+      .from(quotes)
       .where(
         and(
-          eq(followUps.businessId, businessId),
-          gte(followUps.createdAt, summaryStart),
+          eq(quotes.businessId, businessId),
+          getNonDeletedQuoteCondition(),
+          gte(quotes.acceptedAt, since),
         ),
       ),
   ]);
 
-  const fuRow = followUpRows[0];
-  const fuCreated = Number(fuRow?.created ?? 0);
-  const fuCompleted = Number(fuRow?.completed ?? 0);
-  const fuSkipped = Number(fuRow?.skipped ?? 0);
-  const fuOverdue = Number(fuRow?.overdue ?? 0);
-  const fuAvgDays = fuRow?.avgDaysToComplete !== null && fuRow?.avgDaysToComplete !== undefined
-    ? Math.round(Number(fuRow.avgDaysToComplete) * 10) / 10
-    : null;
-
-  return {
-    summary: {
-      responseRate: inquirySubmissions ? respondedInquiries / inquirySubmissions : 0,
-      avgFirstResponseHours: roundHours(inquiryTiming?.avgFirstResponseHours),
-      avgTimeToFirstQuoteHours: roundHours(
-        inquiryTiming?.avgTimeToFirstQuoteHours,
-      ),
-      avgTimeSentToDecisionHours: roundHours(
-        quoteTiming?.avgTimeSentToDecisionHours,
-      ),
-      inquiryToQuoteRate: inquirySubmissions
-        ? inquiriesWithQuote / inquirySubmissions
-        : 0,
-      quotesSent,
-      quotesViewed,
-      quotesAccepted,
-      quotesRejected,
-      quotesVoided,
-      quotesCompleted,
-      quotesCanceledAfterAcceptance,
-      acceptedNeedingNextStepCount,
-      quoteAcceptanceRate: quotesSent ? quotesAccepted / quotesSent : 0,
-    },
-    statusCounts: quoteStatuses.map((status) => ({
-      status,
-      count: quoteStatusCountMap.get(status) ?? 0,
-    })),
-    alerts: {
-      staleInquiryCount: Number(staleRows[0]?.count ?? 0),
-      pendingQuotesOverSevenDays: Number(pendingRows[0]?.count ?? 0),
-    },
-    followUpSummary: {
-      created: fuCreated,
-      completed: fuCompleted,
-      skipped: fuSkipped,
-      overdue: fuOverdue,
-      completionRate: fuCreated > 0 ? fuCompleted / fuCreated : 0,
-      avgDaysToComplete: fuAvgDays,
-    },
+  const revenue: RevenueSummary = {
+    acceptedValueInCents: Number(revRows[0]?.acceptedValue ?? 0),
+    averageAcceptedValueInCents: Math.round(Number(revRows[0]?.avgAccepted ?? 0)),
+    completedValueInCents: Number(revRows[0]?.completedValue ?? 0),
   };
+
+  // AI
+  const [aiRows] = await Promise.all([
+    db
+      .select({
+        invocations: sql<number>`count(*)`,
+        tokens: sql<number>`coalesce(sum(${aiTokenLogs.totalTokens}), 0)`,
+        cost: sql<number>`coalesce(sum(${aiTokenLogs.estimatedCostCents}), 0)`,
+      })
+      .from(aiTokenLogs)
+      .where(and(eq(aiTokenLogs.businessId, businessId), gte(aiTokenLogs.createdAt, since))),
+  ]);
+
+  const ai: AiUsageSummary = {
+    totalInvocations: Number(aiRows[0]?.invocations ?? 0),
+    totalTokens: Number(aiRows[0]?.tokens ?? 0),
+    estimatedCostCents: Number(aiRows[0]?.cost ?? 0),
+  };
+
+  return { timing, alerts, followUps: followUpSummary, revenue, ai };
 }
