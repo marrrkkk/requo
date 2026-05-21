@@ -33,6 +33,7 @@ function expectInvalidSubmission(result: InquiryValidationResult) {
 function validFormData() {
   const formData = new FormData();
   formData.set("customerName", "Taylor Nguyen");
+  formData.set("customerEmail", "taylor@example.com");
   formData.set("customerContactMethod", "email");
   formData.set("customerContactHandle", "taylor@example.com");
   formData.set("serviceCategory", "Window graphics");
@@ -79,7 +80,7 @@ describe("inquiry validation schemas", () => {
 
   it("rejects invalid email contact details before inquiry creation", () => {
     const formData = validFormData();
-    formData.set("customerContactHandle", "not-an-email");
+    formData.set("customerEmail", "not-an-email");
 
     const result = validatePublicInquirySubmission(baseConfig, formData);
     const error = expectInvalidSubmission(result);
@@ -87,7 +88,7 @@ describe("inquiry validation schemas", () => {
     expect(error.issues).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          path: ["customerContactHandle"],
+          path: ["customerEmail"],
           message: "Enter a valid email address.",
         }),
       ]),
@@ -112,7 +113,7 @@ describe("inquiry validation schemas", () => {
       ),
     ).toEqual(
       expect.objectContaining({
-        customerEmail: null,
+        customerEmail: "taylor@example.com",
         customerContactMethod: "facebook",
         customerContactHandle: "https://facebook.com/brightside.print",
       }),
@@ -123,7 +124,7 @@ describe("inquiry validation schemas", () => {
       ),
     ).toEqual(
       expect.objectContaining({
-        customerEmail: null,
+        customerEmail: "taylor@example.com",
         customerContactMethod: "instagram",
         customerContactHandle: "https://instagram.com/brightside.print",
       }),

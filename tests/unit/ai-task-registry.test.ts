@@ -96,6 +96,8 @@ describe("validateInvocationPayload", () => {
         pricingBlocks: "Block A",
         tonePreference: "balanced",
         businessMemorySummary: "We do renovations",
+        revisionContext: "fresh",
+        currentItems: "none",
       }),
     ).not.toThrow();
   });

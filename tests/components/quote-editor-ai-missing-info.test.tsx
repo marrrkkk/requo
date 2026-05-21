@@ -27,13 +27,37 @@ vi.mock("next/dynamic", () => ({
   },
 }));
 
-vi.mock("framer-motion", () => ({
-  AnimatePresence: ({ children }: { children: ReactNode }) => <>{children}</>,
-  Reorder: {
-    Group: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-    Item: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  },
-  useDragControls: () => ({ start: vi.fn() }),
+vi.mock("@dnd-kit/core", () => ({
+  closestCenter: vi.fn(),
+  DndContext: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  KeyboardSensor: vi.fn(),
+  PointerSensor: vi.fn(),
+  useSensor: vi.fn(),
+  useSensors: vi.fn(() => []),
+}));
+
+vi.mock("@dnd-kit/sortable", () => ({
+  SortableContext: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  arrayMove: vi.fn((arr: unknown[], from: number, to: number) => {
+    const result = [...arr];
+    const [item] = result.splice(from, 1);
+    result.splice(to, 0, item);
+    return result;
+  }),
+  sortableKeyboardCoordinates: vi.fn(),
+  useSortable: () => ({
+    attributes: {},
+    listeners: {},
+    setNodeRef: vi.fn(),
+    transform: null,
+    transition: null,
+    isDragging: false,
+  }),
+  verticalListSortingStrategy: vi.fn(),
+}));
+
+vi.mock("@dnd-kit/utilities", () => ({
+  CSS: { Transform: { toString: () => undefined } },
 }));
 
 import { AiMissingInfoPanel } from "@/features/quotes/components/ai-missing-info-panel";
@@ -56,9 +80,13 @@ function renderQuoteEditor() {
         customerContactMethod: "email",
         customerContactHandle: "taylor@example.com",
         notes: "",
+        terms: "",
         validUntil: "2026-06-15",
         discount: "",
         discountType: "amount",
+        tax: "",
+        taxType: "amount",
+        taxLabel: "",
         items: [
           {
             id: "draft_item_1",
@@ -75,6 +103,7 @@ function renderQuoteEditor() {
         customerContactMethod: "email",
         customerContactHandle: "taylor@example.com",
         serviceCategory: "Event catering",
+        requestedDeadline: null,
         status: "new",
         recordState: "active",
       }}

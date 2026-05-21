@@ -15,9 +15,9 @@ vi.mock("next/cache", () => ({
 }));
 
 import {
-  getBusinessAnalyticsData,
-  getConversionAnalyticsData,
-  getWorkflowAnalyticsData,
+  getFreeAnalytics,
+  getProAnalytics,
+  getBusinessAnalytics,
 } from "@/features/analytics/queries";
 import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
 import {
@@ -493,144 +493,74 @@ describe("features/analytics/queries", () => {
     await closeTestDb();
   });
 
-  it("returns business analytics for the public inquiry funnel", async () => {
-    const data = await getBusinessAnalyticsData(businessId);
-    const trendTotals = data.recentTrend.reduce(
+  it("returns free tier analytics for the inquiry-to-quote pipeline", async () => {
+    const data = await getFreeAnalytics(businessId);
+
+    expect(data.formViews).toBe(9);
+    expect(data.uniqueVisitors).toBe(5);
+    expect(data.inquirySubmissions).toBe(4);
+    expect(data.formConversionRate).toBeCloseTo(0.8);
+    expect(data.quotesSent).toBe(3);
+    expect(data.quotesViewed).toBe(3);
+    expect(data.quotesAccepted).toBe(1);
+    expect(data.quotesRejected).toBe(1);
+    expect(data.quoteAcceptanceRate).toBeCloseTo(1 / 3);
+  });
+
+  it("returns pro tier analytics with trends and form performance", async () => {
+    const data = await getProAnalytics(businessId);
+
+    // Trend totals
+    const trendTotals = data.trend.reduce(
       (totals, point) => ({
         formViews: totals.formViews + point.formViews,
         inquirySubmissions: totals.inquirySubmissions + point.inquirySubmissions,
         quotesSent: totals.quotesSent + point.quotesSent,
         acceptedQuotes: totals.acceptedQuotes + point.acceptedQuotes,
       }),
-      {
-        formViews: 0,
-        inquirySubmissions: 0,
-        quotesSent: 0,
-        acceptedQuotes: 0,
-      },
-    );
-    const statusCounts = Object.fromEntries(
-      data.inquiryStatusCounts.map((row) => [row.status, row.count]),
+      { formViews: 0, inquirySubmissions: 0, quotesSent: 0, acceptedQuotes: 0 },
     );
 
-    expect(data.summary.formViews).toBe(9);
-    expect(data.summary.uniqueVisitors).toBe(5);
-    expect(data.summary.inquirySubmissions).toBe(4);
-    expect(data.summary.formConversionRate).toBeCloseTo(0.8);
-    expect(data.summary.responseRate).toBeCloseTo(0.75);
-    expect(data.summary.avgFirstResponseHours).toBe(14);
-    expect(data.summary.quotesSent).toBe(3);
-    expect(data.summary.quotesViewed).toBe(3);
-    expect(data.summary.quotesAccepted).toBe(1);
-    expect(data.summary.quotesRejected).toBe(1);
-    expect(data.summary.quoteAcceptanceRate).toBeCloseTo(1 / 3);
-    expect(data.summary.avgTimeSentToDecisionHours).toBe(72);
-    expect(data.funnel).toEqual({
-      uniqueVisitors: 5,
-      inquirySubmissions: 4,
-      inquiriesWithQuote: 3,
-      acceptedQuotes: 1,
-    });
-    expect(statusCounts).toMatchObject({
-      won: 1,
-      quoted: 1,
-      waiting: 1,
-      lost: 1,
-    });
-    expect(data.backlog).toEqual({
-      staleInquiryCount: 1,
-      pendingQuotesOverSevenDays: 1,
-    });
     expect(trendTotals).toEqual({
       formViews: 9,
       inquirySubmissions: 4,
       quotesSent: 3,
       acceptedQuotes: 1,
     });
-  });
 
-  it("returns conversion analytics with per-form performance", async () => {
-    const data = await getConversionAnalyticsData(businessId);
-    const trendTotals = data.quotesTrend.reduce(
-      (totals, point) => ({
-        quotesSent: totals.quotesSent + point.quotesSent,
-        quoteViews: totals.quoteViews + point.quoteViews,
-        acceptedQuotes: totals.acceptedQuotes + point.acceptedQuotes,
-        rejectedQuotes: totals.rejectedQuotes + point.rejectedQuotes,
-      }),
-      {
-        quotesSent: 0,
-        quoteViews: 0,
-        acceptedQuotes: 0,
-        rejectedQuotes: 0,
-      },
-    );
+    // Funnel
+    expect(data.funnel).toHaveLength(4);
+    expect(data.funnel[0]).toEqual({ label: "Visitors", count: 5 });
+    expect(data.funnel[1]).toEqual({ label: "Submissions", count: 4 });
+    expect(data.funnel[2]).toEqual({ label: "Quoted", count: 3 });
+    expect(data.funnel[3]).toEqual({ label: "Accepted", count: 1 });
 
-    expect(data.summary).toMatchObject({
-      inquirySubmissions: 4,
-      inquiriesWithQuote: 3,
-      quotesSent: 3,
-      quotesViewed: 3,
-      quotePageViews: 4,
-      quotesAccepted: 1,
-      quotesRejected: 1,
-      acceptedValueInCents: 15000,
-      averageAcceptedValueInCents: 15000,
-    });
-    expect(data.summary.inquiryToQuoteRate).toBeCloseTo(0.75);
-    expect(data.summary.quoteViewRate).toBeCloseTo(1);
-    expect(data.summary.quoteAcceptanceRate).toBeCloseTo(1 / 3);
-    expect(data.funnel).toEqual({
-      inquirySubmissions: 4,
-      inquiriesWithQuote: 3,
-      quotesSent: 3,
-      quotesViewed: 3,
-      quotesAccepted: 1,
-    });
-    expect(trendTotals).toEqual({
-      quotesSent: 3,
-      quoteViews: 4,
-      acceptedQuotes: 1,
-      rejectedQuotes: 1,
-    });
+    // Form performance
     expect(data.formPerformance).toHaveLength(2);
     expect(data.formPerformance[0]).toMatchObject({
       formId: primaryFormId,
       viewCount: 5,
       uniqueVisitorCount: 3,
       submissionCount: 2,
-      inquiriesWithQuoteCount: 2,
       sentQuoteCount: 2,
       acceptedQuoteCount: 1,
     });
     expect(data.formPerformance[0].formConversionRate).toBeCloseTo(2 / 3);
-    expect(data.formPerformance[0].inquiryToQuoteRate).toBeCloseTo(1);
     expect(data.formPerformance[0].quoteAcceptanceRate).toBeCloseTo(0.5);
-    expect(data.formPerformance[1]).toMatchObject({
-      formId: secondaryFormId,
-      viewCount: 4,
-      uniqueVisitorCount: 2,
-      submissionCount: 2,
-      inquiriesWithQuoteCount: 1,
-      sentQuoteCount: 1,
-      acceptedQuoteCount: 0,
-    });
-    expect(data.formPerformance[1].formConversionRate).toBeCloseTo(1);
-    expect(data.formPerformance[1].inquiryToQuoteRate).toBeCloseTo(0.5);
-    expect(data.formPerformance[1].quoteAcceptanceRate).toBeCloseTo(0);
   });
 
-  it("returns workflow metrics from activity and quote history", async () => {
-    const data = await getWorkflowAnalyticsData(businessId);
+  it("returns business tier analytics with timing and alerts", async () => {
+    const data = await getBusinessAnalytics(businessId);
 
-    expect(data.summary.responseRate).toBeCloseTo(0.75);
-    expect(data.summary.avgFirstResponseHours).toBe(14);
-    expect(data.summary.avgTimeToFirstQuoteHours).toBe(36);
-    expect(data.summary.avgTimeSentToDecisionHours).toBe(72);
+    expect(data.timing.responseRate).toBeCloseTo(0.75);
+    expect(data.timing.avgFirstResponseHours).toBe(14);
+    expect(data.timing.avgTimeToFirstQuoteHours).toBe(36);
+    expect(data.timing.avgTimeSentToDecisionHours).toBe(72);
     expect(data.alerts).toEqual({
       staleInquiryCount: 1,
       pendingQuotesOverSevenDays: 1,
     });
+    expect(data.revenue.acceptedValueInCents).toBe(15000);
   });
 
   it("excludes deleted records from metrics while preserving voided quote lifecycle history", async () => {
@@ -706,15 +636,13 @@ describe("features/analytics/queries", () => {
     ]);
 
     try {
-      const businessAnalytics = await getBusinessAnalyticsData(businessId);
-      const conversionAnalytics = await getConversionAnalyticsData(businessId);
+      const freeAnalytics = await getFreeAnalytics(businessId);
 
-      expect(businessAnalytics.summary.inquirySubmissions).toBe(4);
-      expect(conversionAnalytics.summary.inquirySubmissions).toBe(4);
-      expect(conversionAnalytics.summary.quotesAccepted).toBe(1);
-      expect(conversionAnalytics.summary.quotesRejected).toBe(1);
-      expect(conversionAnalytics.summary.quotesSent).toBe(4);
-      expect(conversionAnalytics.summary.quotesViewed).toBe(4);
+      expect(freeAnalytics.inquirySubmissions).toBe(4);
+      expect(freeAnalytics.quotesAccepted).toBe(1);
+      expect(freeAnalytics.quotesRejected).toBe(1);
+      expect(freeAnalytics.quotesSent).toBe(4);
+      expect(freeAnalytics.quotesViewed).toBe(4);
     } finally {
       await testDb
         .delete(quotes)
