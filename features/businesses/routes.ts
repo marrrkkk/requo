@@ -200,6 +200,22 @@ export function getBusinessInquiryFormPreviewPath(
   return `${getBusinessPath(slug)}/preview/inquiry/${formSlug}`;
 }
 
+export function getBusinessJobsPath(slug: string) {
+  return `${getBusinessPath(slug)}/jobs`;
+}
+
+export function getBusinessJobPath(slug: string, jobId: string) {
+  return `${getBusinessJobsPath(slug)}/${jobId}`;
+}
+
+export function getBusinessInvoicesPath(slug: string) {
+  return `${getBusinessPath(slug)}/invoices`;
+}
+
+export function getBusinessInvoicePath(slug: string, invoiceId: string) {
+  return `${getBusinessInvoicesPath(slug)}/${invoiceId}`;
+}
+
 export function getBusinessKnowledgeCompatibilityPath(slug: string) {
   return `${getBusinessPath(slug)}/knowledge`;
 }

@@ -48,9 +48,13 @@ export function BusinessQuoteSettingsForm({
   const [defaultQuoteNotes, setDefaultQuoteNotes] = useState(
     settings.defaultQuoteNotes ?? "",
   );
+  const [defaultQuoteTerms, setDefaultQuoteTerms] = useState(
+    settings.defaultQuoteTerms ?? "",
+  );
   const hasUnsavedChanges =
     defaultQuoteValidityDays !== String(settings.defaultQuoteValidityDays) ||
-    defaultQuoteNotes !== (settings.defaultQuoteNotes ?? "");
+    defaultQuoteNotes !== (settings.defaultQuoteNotes ?? "") ||
+    defaultQuoteTerms !== (settings.defaultQuoteTerms ?? "");
   const { shouldRenderFloatingActions, floatingActionsState } =
     useFloatingUnsavedChanges(hasUnsavedChanges);
 
@@ -65,6 +69,7 @@ export function BusinessQuoteSettingsForm({
   function handleCancelChanges() {
     setDefaultQuoteValidityDays(String(settings.defaultQuoteValidityDays));
     setDefaultQuoteNotes(settings.defaultQuoteNotes ?? "");
+    setDefaultQuoteTerms(settings.defaultQuoteTerms ?? "");
   }
 
   return (
@@ -136,7 +141,7 @@ export function BusinessQuoteSettingsForm({
                   maxLength={1600}
                   name="defaultQuoteNotes"
                   onChange={(event) => setDefaultQuoteNotes(event.currentTarget.value)}
-                  placeholder="e.g., Payment terms, warranty info, or next steps..."
+                  placeholder="e.g., Delivery timeline, scope assumptions, or next steps..."
                   rows={6}
                   value={defaultQuoteNotes}
                 />
@@ -148,6 +153,37 @@ export function BusinessQuoteSettingsForm({
                   errors={
                     state.fieldErrors?.defaultQuoteNotes?.[0]
                       ? [{ message: state.fieldErrors.defaultQuoteNotes[0] }]
+                      : undefined
+                  }
+                />
+              </FieldContent>
+            </Field>
+
+            <div className="border-t border-border" />
+
+            <Field data-invalid={Boolean(state.fieldErrors?.defaultQuoteTerms) || undefined}>
+              <FieldLabel htmlFor="quote-settings-default-terms">
+                Default terms & conditions
+              </FieldLabel>
+              <FieldContent>
+                <Textarea
+                  disabled={isPending}
+                  id="quote-settings-default-terms"
+                  maxLength={4000}
+                  name="defaultQuoteTerms"
+                  onChange={(event) => setDefaultQuoteTerms(event.currentTarget.value)}
+                  placeholder="e.g., Payment due within 30 days. 50% deposit required to begin work. Cancellation policy applies."
+                  rows={6}
+                  value={defaultQuoteTerms}
+                />
+                <FieldDescription>
+                  Automatically included in the terms section of every new quote.
+                  Displayed below line items on the public quote page.
+                </FieldDescription>
+                <FieldError
+                  errors={
+                    state.fieldErrors?.defaultQuoteTerms?.[0]
+                      ? [{ message: state.fieldErrors.defaultQuoteTerms[0] }]
                       : undefined
                   }
                 />

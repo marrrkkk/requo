@@ -321,6 +321,7 @@ export async function updateBusinessQuoteSettingsAction(
   const { user, businessContext } = ownerAccess;
   const validationResult = businessQuoteSettingsSchema.safeParse({
     defaultQuoteNotes: formData.get("defaultQuoteNotes"),
+    defaultQuoteTerms: formData.get("defaultQuoteTerms"),
     defaultQuoteValidityDays: formData.get("defaultQuoteValidityDays"),
   });
 

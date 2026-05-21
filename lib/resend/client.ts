@@ -90,6 +90,8 @@ type SendQuoteEmailInput = {
   validUntil: string;
   subtotalInCents: number;
   discountInCents: number;
+  taxInCents?: number;
+  taxLabel?: string | null;
   totalInCents: number;
   notes?: string | null;
   emailSignature?: string | null;
@@ -489,6 +491,8 @@ export async function sendQuoteEmail({
   validUntil,
   subtotalInCents,
   discountInCents,
+  taxInCents,
+  taxLabel,
   totalInCents,
   notes,
   emailSignature,
@@ -522,6 +526,8 @@ export async function sendQuoteEmail({
     validUntil,
     subtotalInCents,
     discountInCents,
+    taxInCents,
+    taxLabel,
     totalInCents,
     notes,
     emailSignature,
@@ -548,6 +554,77 @@ export async function sendQuoteEmail({
     tags: {
       type: "quote",
       event: "quote_sent",
+    },
+  });
+}
+
+export async function sendQuoteAutoFollowUpEmail({
+  quoteId,
+  businessName,
+  customerName,
+  customerEmail,
+  quoteNumber,
+  title,
+  publicQuoteUrl,
+  attemptNumber,
+  emailSignature,
+  replyToEmail,
+  businessId,
+}: {
+  quoteId: string;
+  businessName: string;
+  customerName: string;
+  customerEmail: string;
+  quoteNumber: string;
+  title: string;
+  publicQuoteUrl: string;
+  attemptNumber: number;
+  emailSignature?: string | null;
+  replyToEmail?: string;
+  businessId?: string | null;
+}) {
+  if (!isEmailConfigured) {
+    return;
+  }
+
+  const senderConfigurationError = getConfigurationError("quote");
+
+  if (senderConfigurationError) {
+    throw new Error(senderConfigurationError);
+  }
+
+  const { renderQuoteFollowUpEmail } = await import(
+    "@/emails/templates/quote-follow-up-email"
+  );
+
+  const template = renderQuoteFollowUpEmail({
+    businessName,
+    customerName,
+    quoteNumber,
+    title,
+    publicQuoteUrl,
+    attemptNumber,
+    emailSignature,
+  });
+
+  await sendBrandedEmail({
+    emailType: "quote",
+    to: customerEmail,
+    replyTo: getFallbackReplyTo(replyToEmail),
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+    idempotencyKey: `auto-followup:${quoteId}:attempt:${attemptNumber}:${getRecipientKey(customerEmail)}`,
+    businessId,
+    metadata: {
+      quoteId,
+      quoteNumber,
+      businessId,
+      autoFollowUpAttempt: String(attemptNumber),
+    },
+    tags: {
+      type: "quote",
+      event: "auto_follow_up",
     },
   });
 }

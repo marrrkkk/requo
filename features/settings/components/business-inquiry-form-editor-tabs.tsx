@@ -33,8 +33,7 @@ import { BusinessInquiryFormManageCard } from "@/features/settings/components/bu
 import { BusinessInquiryFormPresetCard } from "@/features/settings/components/business-inquiry-form-preset-card";
 import { BusinessInquiryPreviewOverlay } from "@/features/settings/components/business-inquiry-preview-overlay";
 import { BusinessInquiryPageForm } from "@/features/settings/components/business-inquiry-page-form";
-import { BusinessInquiryIntakeModeCard } from "@/features/settings/components/business-inquiry-intake-mode-card";
-import { BusinessInquiryChatbotSettingsCard } from "@/features/settings/components/business-inquiry-chatbot-settings-card";
+
 
 type BusinessInquiryFormEditorTabsProps = {
   settings: BusinessInquiryFormEditorView;
@@ -57,8 +56,7 @@ type BusinessInquiryFormEditorTabsProps = {
   setDefaultAction: Parameters<typeof BusinessInquiryFormManageCard>[0]["setDefaultAction"];
   togglePublicAction: Parameters<typeof BusinessInquiryFormManageCard>[0]["togglePublicAction"];
 
-  toggleConversationalAction: Parameters<typeof BusinessInquiryIntakeModeCard>[0]["toggleConversationalAction"];
-  saveChatbotSettingsAction: Parameters<typeof BusinessInquiryChatbotSettingsCard>[0]["saveChatbotSettingsAction"];
+
   archiveAction: Parameters<typeof BusinessInquiryFormDangerZone>[0]["archiveAction"];
   deleteAction: Parameters<typeof BusinessInquiryFormDangerZone>[0]["deleteAction"];
 };
@@ -111,8 +109,6 @@ export function BusinessInquiryFormEditorTabs({
   duplicateAction,
   setDefaultAction,
   togglePublicAction,
-  toggleConversationalAction,
-  saveChatbotSettingsAction,
   archiveAction,
   deleteAction,
 }: BusinessInquiryFormEditorTabsProps) {
@@ -235,23 +231,6 @@ export function BusinessInquiryFormEditorTabs({
         >
           <DashboardSidebarStack>
             <div className="flex flex-col gap-5">
-              <BusinessInquiryIntakeModeCard
-                conversationalModeEnabled={Boolean(settings.inquiryFormConfig.conversationalMode?.enabled)}
-                formId={settings.formId}
-                plan={settings.plan}
-                toggleConversationalAction={toggleConversationalAction}
-              />
-
-              {Boolean(settings.inquiryFormConfig.conversationalMode?.enabled) ? (
-                <BusinessInquiryChatbotSettingsCard
-                  assistantName={settings.inquiryFormConfig.conversationalMode?.assistantName ?? ""}
-                  avatarStyle={settings.inquiryFormConfig.conversationalMode?.avatarStyle ?? "brand"}
-                  businessName={settings.name}
-                  formId={settings.formId}
-                  openingMessage={settings.inquiryFormConfig.conversationalMode?.openingMessage ?? ""}
-                  saveChatbotSettingsAction={saveChatbotSettingsAction}
-                />
-              ) : (
                 <BusinessInquiryFormForm
                   key={`${settings.updatedAt.getTime()}-${settings.formId}-form`}
                   draft={formDraft}
@@ -261,7 +240,6 @@ export function BusinessInquiryFormEditorTabs({
                   saveAction={saveFormAction}
                   settings={settings}
                 />
-              )}
             </div>
           </DashboardSidebarStack>
         </TabsContent>

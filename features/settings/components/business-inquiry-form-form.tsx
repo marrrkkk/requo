@@ -785,16 +785,19 @@ export function BusinessInquiryFormForm({
                 <FormSection title={groupLabels.contact}>
                   <FieldGroup>
                     <div className="grid gap-5 sm:grid-cols-2">
-                      {inquiryContactFieldKeys.map((contactKey) => (
-                        <ContactFieldCard
-                          contactKey={contactKey}
-                          field={contactFields[contactKey]}
-                          isPending={isFieldInteractionLocked}
-                          key={contactKey}
-                          onUpdate={updateContactField}
-                        />
-                      ))}
-                      <ContactHandlePreviewField />
+                      {inquiryContactFieldKeys.map((contactKey) => {
+                        const field = contactFields[contactKey];
+                        if (!field) return null;
+                        return (
+                          <ContactFieldCard
+                            contactKey={contactKey}
+                            field={field}
+                            isPending={isFieldInteractionLocked}
+                            key={contactKey}
+                            onUpdate={updateContactField}
+                          />
+                        );
+                      })}
                     </div>
                   </FieldGroup>
                 </FormSection>
@@ -1012,7 +1015,11 @@ function ContactFieldCard({
   ) => void;
 }) {
   const fieldId =
-    contactKey === "customerName" ? "inquiry-customerName" : "inquiry-contactMethod";
+    contactKey === "customerName"
+      ? "inquiry-customerName"
+      : contactKey === "email"
+        ? "inquiry-customerEmail"
+        : "inquiry-contactMethod";
 
   return (
     <Field>
@@ -1035,6 +1042,20 @@ function ContactFieldCard({
             options={contactMethodOptions}
             placeholder={field.placeholder ?? "Choose how to reach you"}
             value=""
+          />
+        ) : contactKey === "email" ? (
+          <Input
+            autoComplete="email"
+            className="text-muted-foreground"
+            disabled={isPending}
+            id={fieldId}
+            maxLength={320}
+            onChange={(event) =>
+              onUpdate(contactKey, { placeholder: event.currentTarget.value })
+            }
+            placeholder="you@example.com"
+            type="email"
+            value={field.placeholder ?? ""}
           />
         ) : (
           <Input
@@ -1059,27 +1080,7 @@ function ContactFieldCard({
   );
 }
 
-function ContactHandlePreviewField() {
-  return (
-    <Field className="sm:col-span-2">
-      <FieldTitle>
-        <span className="inline-flex items-center gap-2">
-          <span>{inquiryContactMethodLabels.email}</span>
-          <Badge variant="secondary">Required</Badge>
-        </span>
-      </FieldTitle>
-      <FieldContent>
-        <Input
-          id="inquiry-contactHandle-preview"
-          inputMode="email"
-          placeholder="you@example.com"
-          readOnly
-          type="email"
-        />
-      </FieldContent>
-    </Field>
-  );
-}
+
 
 function ProjectFieldCard({
   cardRef,

@@ -452,9 +452,13 @@ function createPublicInquirySubmissionSchema(
     });
   }
 
+  if (config.contactFields.email?.enabled) {
+    shape.customerEmail = z.string().trim().min(1, "Enter your email address.").email("Enter a valid email address.");
+  }
+
   if (config.contactFields.preferredContact.enabled) {
     shape.customerContactMethod = z.string().trim().min(1, "Choose a preferred contact method.");
-    shape.customerContactHandle = z.string().trim().min(1, "Enter your contact details.");
+    shape.customerContactHandle = z.string().trim().optional().default("");
   }
 
   for (const field of config.projectFields) {
@@ -502,12 +506,14 @@ function createPublicInquirySubmissionSchema(
   }
 
   return z.object(shape).superRefine((data, ctx) => {
-    if (data.customerContactMethod === "email") {
-      const result = z.string().email("Enter a valid email address.").safeParse(data.customerContactHandle);
-      if (!result.success) {
+    // When preferred contact method is email, the dedicated email field covers it.
+    // When it's something else, require the contact handle.
+    if (data.customerContactMethod && data.customerContactMethod !== "email") {
+      const handle = typeof data.customerContactHandle === "string" ? data.customerContactHandle.trim() : "";
+      if (handle.length === 0) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Enter a valid email address.",
+          message: "Enter your contact details.",
           path: ["customerContactHandle"],
         });
       }
@@ -571,7 +577,7 @@ function buildSubmittedFieldSnapshot(
   for (const contactKey of inquiryContactFieldKeys) {
     const field = config.contactFields[contactKey];
 
-    if (!field.enabled) {
+    if (!field || !field.enabled) {
       continue;
     }
 
@@ -620,6 +626,10 @@ export function validatePublicInquirySubmission(
   if (config.contactFields.customerName.enabled) {
     candidate.customerName = getRawFormValue(formData, "customerName");
   }
+
+  if (config.contactFields.email?.enabled) {
+    candidate.customerEmail = getRawFormValue(formData, "customerEmail");
+  }
   
   if (config.contactFields.preferredContact.enabled) {
     candidate.customerContactMethod = getRawFormValue(formData, "customerContactMethod");
@@ -648,14 +658,20 @@ export function validatePublicInquirySubmission(
   }
 
   const parsedValues = validationResult.data as Record<string, unknown>;
+  const customerEmail = parsedValues.customerEmail ? String(parsedValues.customerEmail) : (parsedValues.customerContactMethod === "email" ? String(parsedValues.customerContactHandle || "") : null);
+  const customerContactMethod = String(parsedValues.customerContactMethod ?? "email");
+  // When method is email, use the dedicated email field value as the contact handle
+  const customerContactHandle = customerContactMethod === "email"
+    ? (customerEmail ?? "")
+    : String(parsedValues.customerContactHandle ?? "");
 
   return {
     success: true as const,
     data: {
       customerName: String(parsedValues.customerName ?? ""),
-      customerEmail: parsedValues.customerContactMethod === "email" ? String(parsedValues.customerContactHandle) : null,
-      customerContactMethod: String(parsedValues.customerContactMethod ?? "email"),
-      customerContactHandle: String(parsedValues.customerContactHandle ?? ""),
+      customerEmail,
+      customerContactMethod,
+      customerContactHandle,
       serviceCategory: String(parsedValues.serviceCategory ?? ""),
       requestedDeadline:
         typeof parsedValues.requestedDeadline === "string"
@@ -702,6 +718,11 @@ export function createManualQuickInquiryFormConfig(
       ...config.contactFields,
       customerName: {
         ...config.contactFields.customerName,
+        enabled: true,
+        required: true,
+      },
+      email: {
+        ...(config.contactFields.email ?? { label: "Email", placeholder: "you@example.com" }),
         enabled: true,
         required: true,
       },

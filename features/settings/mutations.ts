@@ -447,6 +447,7 @@ export async function updateBusinessQuoteSettings({
       .update(businesses)
       .set({
         defaultQuoteNotes: values.defaultQuoteNotes ?? null,
+        defaultQuoteTerms: values.defaultQuoteTerms ?? null,
         defaultQuoteValidityDays: values.defaultQuoteValidityDays,
         updatedAt: now,
       })
@@ -461,6 +462,7 @@ export async function updateBusinessQuoteSettings({
       metadata: {
         defaultQuoteValidityDays: values.defaultQuoteValidityDays,
         hasDefaultQuoteNotes: Boolean(values.defaultQuoteNotes?.trim()),
+        hasDefaultQuoteTerms: Boolean(values.defaultQuoteTerms?.trim()),
       },
       createdAt: now,
       updatedAt: now,

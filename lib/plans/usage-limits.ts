@@ -26,6 +26,7 @@ export const usageLimitKeys = [
   "pricingEntriesPerBusiness",
   "customFieldsPerForm",
   "activeFollowUps",
+  "activeJobsPerBusiness",
   "publicInquiryAttachmentMaxBytes",
 ] as const;
 
@@ -50,6 +51,7 @@ const planUsageLimits: Record<BusinessPlan, PlanUsageLimits> = {
     pricingEntriesPerBusiness: 0,
     customFieldsPerForm: 3,
     activeFollowUps: 3,
+    activeJobsPerBusiness: 5,
     publicInquiryAttachmentMaxBytes: 5 * 1024 * 1024,
   },
   pro: {
@@ -68,6 +70,7 @@ const planUsageLimits: Record<BusinessPlan, PlanUsageLimits> = {
     pricingEntriesPerBusiness: 20,
     customFieldsPerForm: 10,
     activeFollowUps: null,
+    activeJobsPerBusiness: null,
     publicInquiryAttachmentMaxBytes: 25 * 1024 * 1024,
   },
   business: {
@@ -86,6 +89,7 @@ const planUsageLimits: Record<BusinessPlan, PlanUsageLimits> = {
     pricingEntriesPerBusiness: null,
     customFieldsPerForm: 24,
     activeFollowUps: null,
+    activeJobsPerBusiness: null,
     publicInquiryAttachmentMaxBytes: 50 * 1024 * 1024,
   },
 };
@@ -127,6 +131,7 @@ export const usageLimitLabels: Record<UsageLimitKey, string> = {
   pricingEntriesPerBusiness: "Pricing entries per business",
   customFieldsPerForm: "Custom fields per form",
   activeFollowUps: "Active follow-ups",
+  activeJobsPerBusiness: "Active jobs per business",
   publicInquiryAttachmentMaxBytes: "Public inquiry upload size",
 };
 

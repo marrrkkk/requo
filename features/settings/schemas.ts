@@ -254,6 +254,7 @@ export type BusinessNotificationSettingsInput = z.infer<
 
 export const businessQuoteSettingsSchema = z.object({
   defaultQuoteNotes: optionalText(1600),
+  defaultQuoteTerms: optionalText(4000),
   defaultQuoteValidityDays: z.preprocess(
     (value) => {
       if (typeof value === "number") {

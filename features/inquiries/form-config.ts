@@ -43,6 +43,7 @@ export type InquiryFieldKind = (typeof inquiryFieldKinds)[number];
 
 export const inquiryContactFieldKeys = [
   "customerName",
+  "email",
   "preferredContact",
 ] as const;
 
@@ -55,6 +56,7 @@ export type InquiryContactFieldKey = (typeof inquiryContactFieldKeys)[number];
  */
 export const contactFieldFixedLabels: Record<InquiryContactFieldKey, string> = {
   customerName: "Name",
+  email: "Email",
   preferredContact: "Preferred Contact Method",
 };
 
@@ -262,11 +264,17 @@ export type InquiryFormConversationalMode = {
   avatarStyle?: InquiryFormConversationalAvatarStyle;
 };
 
+export type InquiryFormContactFields = {
+  customerName: InquiryContactFieldConfig;
+  email?: InquiryContactFieldConfig;
+  preferredContact: InquiryContactFieldConfig;
+};
+
 export type InquiryFormConfig = {
   version: 1;
   businessType: BusinessType;
   groupLabels: InquiryFormGroupLabels;
-  contactFields: Record<InquiryContactFieldKey, InquiryContactFieldConfig>;
+  contactFields: InquiryFormContactFields;
   projectFields: InquiryFormFieldDefinition[];
   /** Optional conversational AI intake mode. Undefined means disabled. */
   conversationalMode?: InquiryFormConversationalMode;
@@ -398,6 +406,7 @@ export const inquiryFormConfigSchema = z
     groupLabels: inquiryFormGroupLabelsSchema.optional(),
     contactFields: z.object({
       customerName: inquiryContactFieldConfigSchema,
+      email: inquiryContactFieldConfigSchema.optional(),
       preferredContact: inquiryContactFieldConfigSchema,
     }),
     projectFields: z.array(inquiryFormFieldSchema).max(24),
@@ -450,6 +459,14 @@ export const inquiryFormConfigSchema = z
           path: ["contactFields", contactKey],
         });
       }
+    }
+
+    if (value.contactFields.email && (!value.contactFields.email.enabled || !value.contactFields.email.required)) {
+      context.addIssue({
+        code: "custom",
+        message: "Email must stay enabled and required.",
+        path: ["contactFields", "email"],
+      });
     }
 
     const ids = new Set<string>();
@@ -576,6 +593,12 @@ function createContactFieldConfig(): Record<InquiryContactFieldKey, InquiryConta
     customerName: {
       label: "Your name",
       placeholder: "e.g. Alicia Cruz",
+      enabled: true,
+      required: true,
+    },
+    email: {
+      label: "Email",
+      placeholder: "you@example.com",
       enabled: true,
       required: true,
     },
@@ -811,6 +834,9 @@ export function getNormalizedInquiryFormConfig(
       customerName: normalizeLegacyContactFieldLabel(
         parsed.data.contactFields.customerName,
       ),
+      email: parsed.data.contactFields.email
+        ? normalizeLegacyContactFieldLabel(parsed.data.contactFields.email)
+        : { label: "Email", placeholder: "you@example.com", enabled: true, required: true },
       preferredContact: normalizeLegacyContactFieldLabel(
         parsed.data.contactFields.preferredContact,
       ),
