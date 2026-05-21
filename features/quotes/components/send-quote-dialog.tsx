@@ -89,6 +89,11 @@ type SendQuoteDialogProps = {
   pdfExportLocked?: boolean;
   disabled?: boolean;
   /**
+   * Whether auto follow-up is available (plan-gated).
+   * When false, the auto follow-up toggle is hidden.
+   */
+  canAutoFollowUp?: boolean;
+  /**
    * Number of line items that still need a price (unit price <= 0).
    * When > 0 the dialog shows a warning and blocks the send buttons.
    */
@@ -110,6 +115,7 @@ export function SendQuoteDialog({
   pdfExportHref,
   pdfExportLocked = false,
   disabled = false,
+  canAutoFollowUp = false,
   unpricedItemCount = 0,
 }: SendQuoteDialogProps) {
   const [open, setOpen] = useState(false);
@@ -135,6 +141,9 @@ export function SendQuoteDialog({
   const primaryMessage = getChannelMessage(detectedChannel, templateInput);
   const [editedMessage, setEditedMessage] = useState(primaryMessage);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [autoFollowUp, setAutoFollowUp] = useState(true);
+  const [autoFollowUpDelay, setAutoFollowUpDelay] = useState(3);
+  const [autoFollowUpMax, setAutoFollowUpMax] = useState(2);
 
   const isEmailContact = detectedChannel === "email";
   const showRequoOption =
@@ -314,6 +323,13 @@ export function SendQuoteDialog({
                   type="submit"
                   value="manual"
                 />
+                {autoFollowUp && showRequoOption && canAutoFollowUp && (
+                  <>
+                    <input type="hidden" name="autoFollowUp" value="on" />
+                    <input type="hidden" name="autoFollowUpDelay" value={String(autoFollowUpDelay)} />
+                    <input type="hidden" name="autoFollowUpMax" value={String(autoFollowUpMax)} />
+                  </>
+                )}
               </form>
 
               {/* Message preview */}
@@ -379,6 +395,53 @@ export function SendQuoteDialog({
                   </ProFeatureNoticeButton>
                 ) : null}
               </div>
+
+              {/* Auto follow-up toggle (only for Requo email sends) */}
+              {showRequoOption && canAutoFollowUp ? (
+                <div className="rounded-lg border border-border/60 px-4 py-3">
+                  <label className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <BellRing className="size-4 text-muted-foreground" />
+                      <span className="text-sm font-medium text-foreground">
+                        Auto follow-up
+                      </span>
+                    </div>
+                    <input
+                      checked={autoFollowUp}
+                      className="h-4 w-4 rounded border-input accent-primary"
+                      onChange={(e) => setAutoFollowUp(e.target.checked)}
+                      type="checkbox"
+                    />
+                  </label>
+                  {autoFollowUp ? (
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      Send a reminder email after{" "}
+                      <select
+                        className="inline-block rounded border border-input bg-background px-1.5 py-0.5 text-xs"
+                        onChange={(e) => setAutoFollowUpDelay(Number(e.target.value))}
+                        value={autoFollowUpDelay}
+                      >
+                        <option value={1}>1 day</option>
+                        <option value={2}>2 days</option>
+                        <option value={3}>3 days</option>
+                        <option value={5}>5 days</option>
+                        <option value={7}>7 days</option>
+                      </select>
+                      {" "}with no reply, up to{" "}
+                      <select
+                        className="inline-block rounded border border-input bg-background px-1.5 py-0.5 text-xs"
+                        onChange={(e) => setAutoFollowUpMax(Number(e.target.value))}
+                        value={autoFollowUpMax}
+                      >
+                        <option value={1}>1 time</option>
+                        <option value={2}>2 times</option>
+                        <option value={3}>3 times</option>
+                      </select>
+                      . Stops when the customer views or responds.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </ResponsiveOverlayBody>
 
             <ResponsiveOverlayFooter className="flex-col gap-2 sm:flex-col">

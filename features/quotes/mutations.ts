@@ -51,12 +51,14 @@ function calculateQuoteTotals(input: QuoteEditorInput) {
     (sum, item) => sum + item.lineTotalInCents,
     0,
   );
-  const totalInCents = subtotalInCents - input.discountInCents;
+  const taxInCents = input.taxInCents ?? 0;
+  const totalInCents = subtotalInCents - input.discountInCents + taxInCents;
 
   return {
     items,
     subtotalInCents,
     discountInCents: input.discountInCents,
+    taxInCents,
     totalInCents,
   };
 }
@@ -372,8 +374,11 @@ export async function createQuoteForBusiness({
           customerContactHandle: quote.customerContactHandle,
           currency,
           notes: quote.notes ?? null,
+          terms: quote.terms ?? null,
           subtotalInCents: totals.subtotalInCents,
           discountInCents: totals.discountInCents,
+          taxInCents: totals.taxInCents,
+          taxLabel: quote.taxLabel?.trim() || null,
           totalInCents: totals.totalInCents,
           validUntil: quote.validUntil,
           createdAt: now,
@@ -500,8 +505,11 @@ export async function updateQuoteForBusiness({
         customerContactMethod: quote.customerContactMethod,
         customerContactHandle: quote.customerContactHandle,
         notes: quote.notes ?? null,
+        terms: quote.terms ?? null,
         subtotalInCents: totals.subtotalInCents,
         discountInCents: totals.discountInCents,
+        taxInCents: totals.taxInCents,
+        taxLabel: quote.taxLabel?.trim() || null,
         totalInCents: totals.totalInCents,
         validUntil: quote.validUntil,
         updatedAt: now,
@@ -1093,12 +1101,13 @@ export async function recordQuotePublicViewAt(quoteId: string) {
     .update(quotes)
     .set({
       publicViewedAt: now,
+      autoFollowUpStoppedAt: now,
     })
     .where(
       and(
         eq(quotes.id, quoteId),
         isNull(quotes.deletedAt),
-        inArray(quotes.status, ["sent", "accepted", "rejected", "expired", "voided"]),
+        inArray(quotes.status, ["sent", "revision_requested", "accepted", "rejected", "expired", "voided"]),
       ),
     );
 
@@ -1209,6 +1218,7 @@ export async function respondToPublicQuoteByToken({
           nextStatus === "accepted"
             ? existingQuote.postAcceptanceStatus
             : "none",
+        autoFollowUpStoppedAt: now,
         updatedAt: now,
       })
       .where(eq(quotes.id, existingQuote.id));
@@ -1944,4 +1954,338 @@ export async function createPostWinChecklistItem({
       position: nextPosition,
     };
   });
+}
+
+// ---------------------------------------------------------------------------
+// Quote Revision Requests
+// ---------------------------------------------------------------------------
+
+import { quoteVersions, quoteRevisionRequests } from "@/lib/db/schema/quotes";
+import type { PublicQuoteRevisionRequestInput } from "@/features/quotes/schemas";
+import { asc } from "drizzle-orm";
+
+type RequestQuoteRevisionByTokenInput = {
+  token: string;
+  message?: string;
+  itemComments?: Array<{
+    itemId: string;
+    itemDescription: string;
+    comment: string;
+  }>;
+};
+
+export async function requestQuoteRevisionByToken({
+  token,
+  message,
+  itemComments = [],
+}: RequestQuoteRevisionByTokenInput) {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [existingQuote] = await tx
+      .select({
+        id: quotes.id,
+        businessId: quotes.businessId,
+        businessSlug: businesses.slug,
+        quoteNumber: quotes.quoteNumber,
+        status: quotes.status,
+        version: quotes.version,
+        validUntil: quotes.validUntil,
+        customerName: quotes.customerName,
+        inquiryId: quotes.inquiryId,
+        deletedAt: quotes.deletedAt,
+        businessPlan: businesses.plan,
+        notifyOnQuoteResponse: businesses.notifyOnQuoteResponse,
+        notifyInAppOnQuoteResponse: businesses.notifyInAppOnQuoteResponse,
+        notifyPushOnQuoteResponse: businesses.notifyPushOnQuoteResponse,
+      })
+      .from(quotes)
+      .innerJoin(businesses, eq(quotes.businessId, businesses.id))
+      .where(
+        and(
+          getQuotePublicTokenLookupCondition(token),
+          isNull(quotes.deletedAt),
+          isNull(businesses.deletedAt),
+        ),
+      )
+      .limit(1);
+
+    if (!existingQuote) {
+      return null;
+    }
+
+    // Only allow revision requests on sent or revision_requested quotes
+    if (existingQuote.status !== "sent" && existingQuote.status !== "revision_requested") {
+      return {
+        updated: false,
+        status: existingQuote.status,
+        quoteNumber: existingQuote.quoteNumber,
+        businessId: existingQuote.businessId,
+        businessSlug: existingQuote.businessSlug,
+        quoteId: existingQuote.id,
+        inquiryId: existingQuote.inquiryId,
+        customerName: existingQuote.customerName,
+        businessPlan: existingQuote.businessPlan,
+        notifyPushOnQuoteResponse: existingQuote.notifyPushOnQuoteResponse,
+      };
+    }
+
+    // Create the revision request
+    const revisionId = createId("rev");
+    await tx.insert(quoteRevisionRequests).values({
+      id: revisionId,
+      businessId: existingQuote.businessId,
+      quoteId: existingQuote.id,
+      version: existingQuote.version,
+      message: message?.trim() || null,
+      itemComments: itemComments.length > 0 ? itemComments : [],
+      status: "pending",
+      createdAt: now,
+    });
+
+    // Update quote status to revision_requested
+    await tx
+      .update(quotes)
+      .set({
+        status: "revision_requested",
+        updatedAt: now,
+      })
+      .where(eq(quotes.id, existingQuote.id));
+
+    // Log activity
+    await insertQuoteActivity(tx, {
+      businessId: existingQuote.businessId,
+      inquiryId: existingQuote.inquiryId,
+      quoteId: existingQuote.id,
+      actorUserId: null,
+      type: "quote.revision_requested",
+      summary: `${existingQuote.customerName} requested changes to quote ${existingQuote.quoteNumber}.`,
+      metadata: {
+        version: existingQuote.version,
+        hasMessage: Boolean(message?.trim()),
+        itemCommentCount: itemComments.length,
+      },
+      now,
+    });
+
+    // Create in-app notification
+    if (existingQuote.notifyInAppOnQuoteResponse) {
+      await insertBusinessNotification(tx, {
+        businessId: existingQuote.businessId,
+        quoteId: existingQuote.id,
+        type: "quote_revision_requested",
+        title: "Revision requested",
+        summary: `${existingQuote.customerName} requested changes to ${existingQuote.quoteNumber}.`,
+        metadata: {
+          quoteNumber: existingQuote.quoteNumber,
+          customerName: existingQuote.customerName,
+          message: truncateNotificationMessage(message),
+        },
+        now,
+      });
+    }
+
+    return {
+      updated: true,
+      status: "revision_requested" as const,
+      quoteNumber: existingQuote.quoteNumber,
+      businessId: existingQuote.businessId,
+      businessSlug: existingQuote.businessSlug,
+      quoteId: existingQuote.id,
+      inquiryId: existingQuote.inquiryId,
+      customerName: existingQuote.customerName,
+      businessPlan: existingQuote.businessPlan,
+      notifyPushOnQuoteResponse: existingQuote.notifyPushOnQuoteResponse,
+    };
+  });
+}
+
+/**
+ * Archives the current quote state as a version snapshot, bumps the version,
+ * and resets the status to draft so the owner can edit and re-send.
+ */
+type ArchiveQuoteVersionAndReviseInput = {
+  businessId: string;
+  quoteId: string;
+  actorUserId: string;
+};
+
+export async function archiveQuoteVersionAndRevise({
+  businessId,
+  quoteId,
+  actorUserId,
+}: ArchiveQuoteVersionAndReviseInput) {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [existingQuote] = await tx
+      .select({
+        id: quotes.id,
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+        version: quotes.version,
+        status: quotes.status,
+        title: quotes.title,
+        customerName: quotes.customerName,
+        customerEmail: quotes.customerEmail,
+        customerContactMethod: quotes.customerContactMethod,
+        customerContactHandle: quotes.customerContactHandle,
+        currency: quotes.currency,
+        notes: quotes.notes,
+        terms: quotes.terms,
+        subtotalInCents: quotes.subtotalInCents,
+        discountInCents: quotes.discountInCents,
+        totalInCents: quotes.totalInCents,
+        validUntil: quotes.validUntil,
+        archivedAt: quotes.archivedAt,
+        deletedAt: quotes.deletedAt,
+      })
+      .from(quotes)
+      .where(and(eq(quotes.id, quoteId), eq(quotes.businessId, businessId)))
+      .limit(1);
+
+    if (!existingQuote || existingQuote.deletedAt || existingQuote.archivedAt) {
+      return null;
+    }
+
+    // Only revision_requested or sent quotes can be revised
+    if (existingQuote.status !== "revision_requested" && existingQuote.status !== "sent") {
+      return {
+        revised: false,
+        locked: true,
+        status: existingQuote.status,
+      } as const;
+    }
+
+    // Get current items to archive
+    const currentItems = await tx
+      .select({
+        id: quoteItems.id,
+        description: quoteItems.description,
+        quantity: quoteItems.quantity,
+        unitPriceInCents: quoteItems.unitPriceInCents,
+        lineTotalInCents: quoteItems.lineTotalInCents,
+        position: quoteItems.position,
+      })
+      .from(quoteItems)
+      .where(and(eq(quoteItems.quoteId, quoteId), eq(quoteItems.businessId, businessId)))
+      .orderBy(asc(quoteItems.position));
+
+    // Archive current version
+    await tx.insert(quoteVersions).values({
+      id: createId("qv"),
+      businessId,
+      quoteId,
+      version: existingQuote.version,
+      title: existingQuote.title,
+      customerName: existingQuote.customerName,
+      customerEmail: existingQuote.customerEmail,
+      customerContactMethod: existingQuote.customerContactMethod,
+      customerContactHandle: existingQuote.customerContactHandle,
+      currency: existingQuote.currency,
+      notes: existingQuote.notes,
+      terms: existingQuote.terms,
+      subtotalInCents: existingQuote.subtotalInCents,
+      discountInCents: existingQuote.discountInCents,
+      totalInCents: existingQuote.totalInCents,
+      validUntil: existingQuote.validUntil,
+      items: currentItems,
+      createdAt: now,
+      archivedAt: now,
+    });
+
+    // Resolve any pending revision requests
+    await tx
+      .update(quoteRevisionRequests)
+      .set({ status: "resolved", resolvedAt: now })
+      .where(
+        and(
+          eq(quoteRevisionRequests.quoteId, quoteId),
+          eq(quoteRevisionRequests.status, "pending"),
+        ),
+      );
+
+    // Bump version and reset to draft
+    const nextVersion = existingQuote.version + 1;
+    await tx
+      .update(quotes)
+      .set({
+        version: nextVersion,
+        status: "draft",
+        sentAt: null,
+        acceptedAt: null,
+        customerRespondedAt: null,
+        customerResponseMessage: null,
+        publicViewedAt: null,
+        updatedAt: now,
+      })
+      .where(eq(quotes.id, quoteId));
+
+    await insertQuoteActivity(tx, {
+      businessId,
+      inquiryId: existingQuote.inquiryId,
+      quoteId,
+      actorUserId,
+      type: "quote.revised",
+      summary: `Quote ${existingQuote.quoteNumber} moved to v${nextVersion} for revision.`,
+      metadata: {
+        previousVersion: existingQuote.version,
+        newVersion: nextVersion,
+      },
+      now,
+    });
+
+    return {
+      revised: true,
+      locked: false,
+      status: "draft" as const,
+      previousVersion: existingQuote.version,
+      newVersion: nextVersion,
+      inquiryId: existingQuote.inquiryId,
+      quoteNumber: existingQuote.quoteNumber,
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Auto follow-up management
+// ---------------------------------------------------------------------------
+
+type EnableAutoFollowUpInput = {
+  quoteId: string;
+  delayDays: number;
+  maxAttempts: number;
+};
+
+export async function enableAutoFollowUpForQuote({
+  quoteId,
+  delayDays,
+  maxAttempts,
+}: EnableAutoFollowUpInput) {
+  const now = new Date();
+
+  await db
+    .update(quotes)
+    .set({
+      autoFollowUpEnabled: true,
+      autoFollowUpDelayDays: delayDays,
+      autoFollowUpMaxAttempts: maxAttempts,
+      autoFollowUpAttempts: 0,
+      autoFollowUpLastSentAt: null,
+      autoFollowUpStoppedAt: null,
+      updatedAt: now,
+    })
+    .where(eq(quotes.id, quoteId));
+}
+
+export async function stopAutoFollowUpForQuote(quoteId: string) {
+  const now = new Date();
+
+  await db
+    .update(quotes)
+    .set({
+      autoFollowUpStoppedAt: now,
+      updatedAt: now,
+    })
+    .where(eq(quotes.id, quoteId));
 }

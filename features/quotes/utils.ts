@@ -22,6 +22,7 @@ import type {
 export const quoteStatusLabels: Record<QuoteStatus, string> = {
   draft: "Draft",
   sent: "Sent",
+  revision_requested: "Revision requested",
   accepted: "Accepted",
   rejected: "Rejected",
   expired: "Expired",
@@ -32,6 +33,8 @@ export const quoteStatusClassNames: Record<QuoteStatus, string> = {
   draft:
     "!border-indigo-500/30 !bg-indigo-500/15 !text-indigo-800 dark:!border-indigo-500/25 dark:!bg-indigo-500/12 dark:!text-indigo-200",
   sent: "!border-cyan-500/30 !bg-cyan-500/15 !text-cyan-800 dark:!border-cyan-500/25 dark:!bg-cyan-500/12 dark:!text-cyan-200",
+  revision_requested:
+    "!border-amber-500/30 !bg-amber-500/15 !text-amber-800 dark:!border-amber-500/25 dark:!bg-amber-500/12 dark:!text-amber-200",
   accepted:
     "!border-emerald-500/30 !bg-emerald-500/15 !text-emerald-800 dark:!border-emerald-500/25 dark:!bg-emerald-500/12 dark:!text-emerald-200",
   rejected:
@@ -45,6 +48,7 @@ export const quoteStatusClassNames: Record<QuoteStatus, string> = {
 export const quoteStatusIcons = {
   draft: FileText,
   sent: Send,
+  revision_requested: Clock3,
   accepted: CircleCheck,
   rejected: CircleX,
   expired: Clock3,
@@ -243,6 +247,8 @@ export function calculateQuoteEditorTotals(
   items: QuoteEditorLineItemValue[],
   discountValue: string,
   discountType: "amount" | "percentage" = "amount",
+  taxValue: string = "",
+  taxType: "amount" | "percentage" = "amount",
 ) {
   const subtotalInCents = items.reduce((sum, item) => {
     const quantity = Number.parseInt(item.quantity.trim(), 10);
@@ -263,11 +269,25 @@ export function calculateQuoteEditorTotals(
   }
 
   const discountInCents = Math.min(subtotalInCents, parsedDiscount);
+  const taxableAmount = subtotalInCents - discountInCents;
+
+  let parsedTax = 0;
+  if (taxType === "percentage") {
+    const percentage = Number.parseFloat(taxValue.trim());
+    if (Number.isFinite(percentage) && percentage > 0) {
+      parsedTax = Math.round(taxableAmount * (percentage / 100));
+    }
+  } else {
+    parsedTax = parseCurrencyInputToCents(taxValue);
+  }
+
+  const taxInCents = Math.max(0, parsedTax);
 
   return {
     subtotalInCents,
     discountInCents,
-    totalInCents: subtotalInCents - discountInCents,
+    taxInCents,
+    totalInCents: subtotalInCents - discountInCents + taxInCents,
   };
 }
 
@@ -295,33 +315,24 @@ export function getQuoteEditorInitialValuesFromInquiry(
   inquiry: QuoteInquiryPrefill,
   options?: {
     defaultQuoteNotes?: string | null;
+    defaultQuoteTerms?: string | null;
     defaultQuoteValidityDays?: number;
   },
 ) {
-  const defaultQuoteNotes = options?.defaultQuoteNotes?.trim();
-
   return {
     title: buildQuoteTitleFromInquiry(inquiry),
     customerName: inquiry.customerName,
     customerEmail: inquiry.customerEmail,
     customerContactMethod: inquiry.customerContactMethod,
     customerContactHandle: inquiry.customerContactHandle,
-    notes: [
-      `Service/category: ${inquiry.serviceCategory}`,
-      inquiry.requestedDeadline
-        ? `Requested deadline: ${formatQuoteDate(inquiry.requestedDeadline)}`
-        : null,
-      inquiry.budgetText ? `Budget note: ${inquiry.budgetText}` : null,
-      "",
-      inquiry.details,
-      defaultQuoteNotes ? "" : null,
-      defaultQuoteNotes || null,
-    ]
-      .filter(Boolean)
-      .join("\n"),
+    notes: options?.defaultQuoteNotes?.trim() ?? "",
+    terms: options?.defaultQuoteTerms?.trim() ?? "",
     validUntil: getDefaultQuoteValidityDate(options?.defaultQuoteValidityDays),
     discount: "",
     discountType: "amount" as const,
+    tax: "",
+    taxType: "percentage" as const,
+    taxLabel: "",
     items: [createQuoteEditorLineItem()],
   };
 }
@@ -336,9 +347,13 @@ export function getQuoteEditorInitialValuesFromDetail(
     customerContactMethod: quote.customerContactMethod,
     customerContactHandle: quote.customerContactHandle,
     notes: quote.notes ?? "",
+    terms: quote.terms ?? "",
     validUntil: quote.validUntil,
     discount: centsToMoneyInput(quote.discountInCents),
     discountType: "amount" as const,
+    tax: centsToMoneyInput(quote.taxInCents),
+    taxType: "percentage" as const,
+    taxLabel: quote.taxLabel ?? "",
     items: quote.items.length
       ? quote.items.map((item) => ({
           id: item.id,

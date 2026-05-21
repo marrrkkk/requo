@@ -1,6 +1,7 @@
 export const quoteStatuses = [
   "draft",
   "sent",
+  "revision_requested",
   "accepted",
   "rejected",
   "expired",
@@ -135,6 +136,7 @@ export type QuoteLinkedInquirySummary = {
   customerContactMethod: string;
   customerContactHandle: string;
   serviceCategory: string;
+  requestedDeadline: string | null;
   status: InquiryStatus;
   recordState: InquiryRecordState;
 };
@@ -166,10 +168,14 @@ export type DashboardQuoteDetail = {
   customerContactHandle: string;
   currency: string;
   notes: string | null;
+  terms: string | null;
   subtotalInCents: number;
   discountInCents: number;
+  taxInCents: number;
+  taxLabel: string | null;
   totalInCents: number;
   validUntil: string;
+  version: number;
   status: QuoteStatus;
   archivedAt: Date | null;
   voidedAt: Date | null;
@@ -179,6 +185,12 @@ export type DashboardQuoteDetail = {
   publicViewedAt: Date | null;
   customerRespondedAt: Date | null;
   customerResponseMessage: string | null;
+  autoFollowUpEnabled: boolean;
+  autoFollowUpDelayDays: number;
+  autoFollowUpMaxAttempts: number;
+  autoFollowUpAttempts: number;
+  autoFollowUpLastSentAt: Date | null;
+  autoFollowUpStoppedAt: Date | null;
   completedAt: Date | null;
   canceledAt: Date | null;
   cancellationReason: string | null;
@@ -204,8 +216,11 @@ export type QuoteSendPayload = {
   customerContactHandle: string;
   currency: string;
   notes: string | null;
+  terms: string | null;
   subtotalInCents: number;
   discountInCents: number;
+  taxInCents: number;
+  taxLabel: string | null;
   totalInCents: number;
   validUntil: string;
   status: QuoteStatus;
@@ -231,10 +246,14 @@ export type PublicQuoteView = {
   customerContactHandle: string;
   currency: string;
   notes: string | null;
+  terms: string | null;
   validUntil: string;
+  version: number;
   status: QuoteStatus;
   subtotalInCents: number;
   discountInCents: number;
+  taxInCents: number;
+  taxLabel: string | null;
   totalInCents: number;
   sentAt: Date | null;
   acceptedAt: Date | null;
@@ -283,9 +302,13 @@ export type QuoteEditorValues = {
   customerContactMethod: string;
   customerContactHandle: string;
   notes: string;
+  terms: string;
   validUntil: string;
   discount: string;
   discountType: "amount" | "percentage";
+  tax: string;
+  taxType: "amount" | "percentage";
+  taxLabel: string;
   items: QuoteEditorLineItemValue[];
 };
 
@@ -296,8 +319,10 @@ export type QuoteEditorFieldName =
   | "customerContactMethod"
   | "customerContactHandle"
   | "notes"
+  | "terms"
   | "validUntil"
   | "discount"
+  | "tax"
   | "items";
 
 export type QuoteEditorFieldErrors = Partial<
@@ -393,4 +418,51 @@ export type PublicQuoteResponseActionState = {
   fieldErrors?: PublicQuoteResponseFieldErrors;
   /** Set after a successful accept/decline so the customer view can update immediately. */
   resolvedQuote?: PublicQuoteResolvedSnapshot;
+};
+
+export type QuoteRevisionItemComment = {
+  itemId: string;
+  itemDescription: string;
+  comment: string;
+};
+
+export type QuoteRevisionRequest = {
+  id: string;
+  quoteId: string;
+  version: number;
+  message: string | null;
+  itemComments: QuoteRevisionItemComment[];
+  status: "pending" | "resolved";
+  createdAt: Date;
+  resolvedAt: Date | null;
+};
+
+export type QuoteVersionSnapshot = {
+  id: string;
+  version: number;
+  title: string;
+  customerName: string;
+  currency: string;
+  notes: string | null;
+  terms: string | null;
+  subtotalInCents: number;
+  discountInCents: number;
+  totalInCents: number;
+  validUntil: string;
+  items: {
+    id: string;
+    description: string;
+    quantity: number;
+    unitPriceInCents: number;
+    lineTotalInCents: number;
+    position: number;
+  }[];
+  createdAt: Date;
+  archivedAt: Date;
+};
+
+export type PublicQuoteRevisionRequestActionState = {
+  error?: string;
+  success?: string;
+  fieldErrors?: Partial<Record<"message" | "itemComments", string[] | undefined>>;
 };

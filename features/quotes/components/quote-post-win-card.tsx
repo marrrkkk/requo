@@ -52,6 +52,8 @@ type QuotePostWinCardProps = {
     state: QuoteCancellationActionState,
     formData: FormData,
   ) => Promise<QuoteCancellationActionState>;
+  /** Optional slot rendered below the completed badge (e.g. generate invoice button). */
+  completedActions?: React.ReactNode;
   className?: string;
 };
 
@@ -83,6 +85,7 @@ export function QuotePostWinCard({
   cancellationNote,
   completeAction,
   cancelAction,
+  completedActions,
   className,
 }: QuotePostWinCardProps) {
   const isCompleted = postAcceptanceStatus === "completed";
@@ -109,7 +112,9 @@ export function QuotePostWinCard({
       }
     >
       <div className="flex flex-wrap items-center gap-2">
-        <QuotePostAcceptanceStatusBadge status={postAcceptanceStatus} />
+        {!isCompleted && (
+          <QuotePostAcceptanceStatusBadge status={postAcceptanceStatus} />
+        )}
         {isCompleted && completedAt ? (
           <span className="text-xs text-muted-foreground">
             {formatQuoteDateTime(completedAt)}
@@ -123,24 +128,27 @@ export function QuotePostWinCard({
       </div>
 
       {isTerminal ? (
-        isCanceled && cancellationReason ? (
-          <div className="soft-panel px-4 py-4 shadow-none">
-            <p className="meta-label">Cancellation reason</p>
-            <p className="mt-2 text-sm text-foreground">
-              {cancellationReasonLabels[
-                cancellationReason as (typeof quoteCancellationReasons)[number]
-              ] ?? cancellationReason}
-            </p>
-            {cancellationNote ? (
-              <>
-                <p className="meta-label mt-3">Notes</p>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-normal sm:leading-7 text-foreground">
-                  {cancellationNote}
-                </p>
-              </>
-            ) : null}
-          </div>
-        ) : null
+        <>
+          {isCanceled && cancellationReason ? (
+            <div className="soft-panel px-4 py-4 shadow-none">
+              <p className="meta-label">Cancellation reason</p>
+              <p className="mt-2 text-sm text-foreground">
+                {cancellationReasonLabels[
+                  cancellationReason as (typeof quoteCancellationReasons)[number]
+                ] ?? cancellationReason}
+              </p>
+              {cancellationNote ? (
+                <>
+                  <p className="meta-label mt-3">Notes</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-normal sm:leading-7 text-foreground">
+                    {cancellationNote}
+                  </p>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+          {isCompleted && completedActions ? completedActions : null}
+        </>
       ) : (
         <OutcomePicker
           quoteNumber={quoteNumber}

@@ -20,9 +20,12 @@ type QuotePreviewProps = {
   currency: string;
   validUntil: string;
   notes?: string | null;
+  terms?: string | null;
   items: QuotePreviewItem[];
   subtotalInCents: number;
   discountInCents: number;
+  taxInCents?: number;
+  taxLabel?: string | null;
   totalInCents: number;
   metaLabel?: string;
   businessLogoStoragePath?: string | null;
@@ -41,9 +44,12 @@ export function QuotePreview({
   currency,
   validUntil,
   notes,
+  terms,
   items,
   subtotalInCents,
   discountInCents,
+  taxInCents = 0,
+  taxLabel,
   totalInCents,
   metaLabel: _metaLabel = "Quote preview",
   businessLogoStoragePath,
@@ -220,6 +226,10 @@ export function QuotePreview({
             label="Discount"
             value={`-${formatQuoteMoney(discountInCents, currency)}`}
           />
+          <SummaryRow
+            label="Tax"
+            value={formatQuoteMoney(taxInCents, currency)}
+          />
           <div className="border-t pt-3">
             <SummaryRow
               label="Total"
@@ -229,13 +239,13 @@ export function QuotePreview({
           </div>
         </div>
 
-        {notes ? (
+        {terms ? (
           <div className="soft-panel px-4 py-4 shadow-none">
-            <p className="meta-label">Notes</p>
+            <p className="meta-label">Terms & conditions</p>
             <TruncatedTextWithTooltip
-              className="mt-3 whitespace-pre-wrap text-sm leading-normal sm:leading-7 text-foreground"
-              lines={6}
-              text={notes}
+              className="mt-3 whitespace-pre-wrap text-xs leading-normal sm:leading-6 text-muted-foreground"
+              lines={4}
+              text={terms}
             />
           </div>
         ) : null}

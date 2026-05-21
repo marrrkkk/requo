@@ -112,8 +112,10 @@ function mapQuoteEditorFieldErrors(fieldErrors: Record<string, string[] | undefi
     customerContactMethod: fieldErrors.customerContactMethod,
     customerContactHandle: fieldErrors.customerContactHandle,
     notes: fieldErrors.notes,
+    terms: fieldErrors.terms,
     validUntil: fieldErrors.validUntil,
     discount: fieldErrors.discountInCents,
+    tax: fieldErrors.taxInCents,
     items: fieldErrors.items,
   };
 }
@@ -154,6 +156,7 @@ export async function createQuoteAction(
     customerContactMethod: formData.get("customerContactMethod"),
     customerContactHandle: formData.get("customerContactHandle"),
     notes: formData.get("notes"),
+    terms: formData.get("terms"),
     validUntil: formData.get("validUntil"),
     discountInCents: formData.get("discount"),
     items: formData.get("items"),
@@ -236,6 +239,7 @@ export async function updateQuoteAction(
     customerContactMethod: formData.get("customerContactMethod"),
     customerContactHandle: formData.get("customerContactHandle"),
     notes: formData.get("notes"),
+    terms: formData.get("terms"),
     validUntil: formData.get("validUntil"),
     discountInCents: formData.get("discount"),
     items: formData.get("items"),
@@ -565,6 +569,8 @@ export async function sendQuoteAction(
         validUntil: quote.validUntil,
         subtotalInCents: quote.subtotalInCents,
         discountInCents: quote.discountInCents,
+        taxInCents: quote.taxInCents,
+        taxLabel: quote.taxLabel,
         totalInCents: quote.totalInCents,
         notes: quote.notes,
         emailSignature: businessSettings.defaultEmailSignature,
@@ -598,6 +604,31 @@ export async function sendQuoteAction(
       return {
         error: "Only active draft quotes can be sent.",
       };
+    }
+
+    // Enable auto follow-up if requested and sent via Requo email
+    if (
+      deliveryMethod === "requo" &&
+      formData.get("autoFollowUp") === "on" &&
+      hasFeatureAccess(businessContext.business.plan, "autoFollowUps")
+    ) {
+      const delayDays = Math.max(1, Math.min(14, Number(formData.get("autoFollowUpDelay")) || 3));
+      const maxAttempts = Math.max(1, Math.min(5, Number(formData.get("autoFollowUpMax")) || 2));
+
+      after(async () => {
+        try {
+          const { enableAutoFollowUpForQuote } = await import(
+            "@/features/quotes/mutations"
+          );
+          await enableAutoFollowUpForQuote({
+            quoteId,
+            delayDays,
+            maxAttempts,
+          });
+        } catch (error) {
+          console.error("Failed to enable auto follow-up for quote.", error);
+        }
+      });
     }
 
     if (businessSettings.notifyPushOnQuoteSent &&
@@ -674,6 +705,34 @@ export async function logQuoteSendEventAction(
     console.error("Failed to log quote send event.", error);
 
     return { error: "We couldn't log that action right now." };
+  }
+}
+
+export async function stopAutoFollowUpAction(
+  quoteId: string,
+): Promise<{ error?: string; success?: string }> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return { error: ownerAccess.error };
+  }
+
+  const { businessContext } = ownerAccess;
+
+  try {
+    const { stopAutoFollowUpForQuote } = await import(
+      "@/features/quotes/mutations"
+    );
+    await stopAutoFollowUpForQuote(quoteId);
+
+    updateCacheTags(
+      getQuoteMutationCacheTags(businessContext.business.id, quoteId),
+    );
+
+    return { success: "Auto follow-up stopped." };
+  } catch (error) {
+    console.error("Failed to stop auto follow-up.", error);
+    return { error: "Couldn't stop auto follow-up right now." };
   }
 }
 
@@ -1111,6 +1170,167 @@ export async function createPostWinChecklistItemAction(
 
     return {
       error: "We couldn't add that checklist item right now.",
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Public: Request Revision
+// ---------------------------------------------------------------------------
+
+import {
+  publicQuoteRevisionRequestSchema,
+} from "@/features/quotes/schemas";
+import {
+  archiveQuoteVersionAndRevise,
+  requestQuoteRevisionByToken,
+} from "@/features/quotes/mutations";
+import type { PublicQuoteRevisionRequestActionState } from "@/features/quotes/types";
+
+const initialRevisionRequestState: PublicQuoteRevisionRequestActionState = {};
+
+export async function requestQuoteRevisionAction(
+  token: string,
+  prevState: PublicQuoteRevisionRequestActionState = initialRevisionRequestState,
+  formData: FormData,
+): Promise<PublicQuoteRevisionRequestActionState> {
+  void prevState;
+
+  const validationResult = publicQuoteRevisionRequestSchema.safeParse({
+    message: formData.get("message"),
+    itemComments: formData.get("itemComments"),
+  });
+
+  if (!validationResult.success) {
+    return getValidationActionState(validationResult.error, "Check your request and try again.");
+  }
+
+  const allowed = await assertPublicActionRateLimit({
+    action: "public-quote-revision",
+    scope: token,
+    limit: 4,
+    windowMs: 15 * 60 * 1000,
+  });
+
+  if (!allowed) {
+    return {
+      error: "Too many revision requests. Please try again later.",
+    };
+  }
+
+  try {
+    const result = await requestQuoteRevisionByToken({
+      token,
+      message: validationResult.data.message,
+      itemComments: validationResult.data.itemComments ?? [],
+    });
+
+    if (!result) {
+      return {
+        error: "This quote is unavailable.",
+      };
+    }
+
+    if (!result.updated) {
+      return {
+        error: "This quote is not accepting revision requests right now.",
+      };
+    }
+
+    revalidateCacheTags(
+      getQuoteMutationCacheTags(
+        result.businessId,
+        result.quoteId,
+        result.inquiryId,
+      ),
+    );
+
+    if (result.notifyPushOnQuoteResponse &&
+      hasFeatureAccess(result.businessPlan, "pushNotifications")
+    ) {
+      after(async () => {
+        try {
+          const { sendPushToBusinessSubscribers } = await import("@/lib/push/send");
+          await sendPushToBusinessSubscribers(result.businessId, {
+            title: "Revision requested",
+            body: `${result.customerName} requested changes to quote ${result.quoteNumber}.`,
+            url: getBusinessQuotePath(result.businessSlug, result.quoteId),
+          });
+        } catch (error) {
+          console.error("Push notification failed for revision request.", error);
+        }
+      });
+    }
+
+    return {
+      success: "Your revision request has been sent. The business will review your feedback.",
+    };
+  } catch (error) {
+    console.error("Failed to request quote revision.", error);
+
+    return {
+      error: "We couldn't submit that revision request right now. Please try again.",
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Dashboard: Revise Quote (archive current version and bump)
+// ---------------------------------------------------------------------------
+
+export async function reviseQuoteAction(
+  quoteId: string,
+  _prevState: QuoteRecordActionState,
+  _formData: FormData,
+): Promise<QuoteRecordActionState> {
+  void _prevState;
+  void _formData;
+
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+
+  try {
+    const result = await archiveQuoteVersionAndRevise({
+      businessId: businessContext.business.id,
+      quoteId,
+      actorUserId: user.id,
+    });
+
+    if (!result) {
+      return {
+        error: "That quote could not be found.",
+      };
+    }
+
+    if (result.locked) {
+      return {
+        error: "This quote cannot be revised in its current state.",
+      };
+    }
+
+    updateCacheTags(
+      getQuoteMutationCacheTags(
+        businessContext.business.id,
+        quoteId,
+        result.inquiryId,
+      ),
+    );
+
+    return {
+      success: `Quote moved to v${result.newVersion}. Edit and re-send when ready.`,
+    };
+  } catch (error) {
+    console.error("Failed to revise quote.", error);
+
+    return {
+      error: "We couldn't create the new revision right now.",
     };
   }
 }

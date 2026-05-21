@@ -28,6 +28,8 @@ type QuoteEmailTemplateInput = {
   validUntil: string;
   subtotalInCents: number;
   discountInCents: number;
+  taxInCents?: number;
+  taxLabel?: string | null;
   totalInCents: number;
   notes?: string | null;
   emailSignature?: string | null;
@@ -89,11 +91,15 @@ function renderLineItemsTable(items: QuoteEmailLineItem[], currency: string) {
 function renderTotals({
   subtotalInCents,
   discountInCents,
+  taxInCents,
+  taxLabel,
   totalInCents,
   currency,
 }: {
   subtotalInCents: number;
   discountInCents: number;
+  taxInCents?: number;
+  taxLabel?: string | null;
   totalInCents: number;
   currency: string;
 }) {
@@ -109,6 +115,14 @@ function renderTotals({
             ? `<tr>
                 <td style="padding: 4px 0; color: ${emailBrand.mutedTextColor}; font-size: 13px; line-height: 18px;">Discount</td>
                 <td align="right" style="padding: 4px 0; color: ${emailBrand.foregroundColor}; font-size: 13px; line-height: 18px; font-weight: 600;">-${escapeHtml(formatMoney(discountInCents, currency))}</td>
+              </tr>`
+            : ""
+        }
+        ${
+          taxInCents
+            ? `<tr>
+                <td style="padding: 4px 0; color: ${emailBrand.mutedTextColor}; font-size: 13px; line-height: 18px;">${escapeHtml(taxLabel || "Tax")}</td>
+                <td align="right" style="padding: 4px 0; color: ${emailBrand.foregroundColor}; font-size: 13px; line-height: 18px; font-weight: 600;">${escapeHtml(formatMoney(taxInCents, currency))}</td>
               </tr>`
             : ""
         }
@@ -131,6 +145,8 @@ export function renderQuoteEmail({
   validUntil,
   subtotalInCents,
   discountInCents,
+  taxInCents,
+  taxLabel,
   totalInCents,
   notes,
   emailSignature,
@@ -161,6 +177,9 @@ export function renderQuoteEmail({
     `Subtotal: ${formatMoney(subtotalInCents, currency)}`,
     discountInCents
       ? `Discount: -${formatMoney(discountInCents, currency)}`
+      : null,
+    taxInCents
+      ? `${taxLabel || "Tax"}: ${formatMoney(taxInCents, currency)}`
       : null,
     `Total: ${formatMoney(totalInCents, currency)}`,
     "",
@@ -193,7 +212,7 @@ export function renderQuoteEmail({
         { label: "Total", value: formatMoney(totalInCents, currency) },
       ])}
       ${renderLineItemsTable(items, currency)}
-      ${renderTotals({ subtotalInCents, discountInCents, totalInCents, currency })}
+      ${renderTotals({ subtotalInCents, discountInCents, taxInCents, taxLabel, totalInCents, currency })}
       ${notes ? renderNoteCard("Notes", notes) : ""}
       ${
         emailSignature

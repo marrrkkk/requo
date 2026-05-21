@@ -397,10 +397,14 @@ async function getCachedQuoteDetailForBusiness({
       customerContactHandle: quotes.customerContactHandle,
       currency: quotes.currency,
       notes: quotes.notes,
+      terms: quotes.terms,
       subtotalInCents: quotes.subtotalInCents,
       discountInCents: quotes.discountInCents,
+      taxInCents: quotes.taxInCents,
+      taxLabel: quotes.taxLabel,
       totalInCents: quotes.totalInCents,
       validUntil: quotes.validUntil,
+      version: quotes.version,
       status: getEffectiveQuoteStatus,
       archivedAt: quotes.archivedAt,
       voidedAt: quotes.voidedAt,
@@ -414,6 +418,12 @@ async function getCachedQuoteDetailForBusiness({
       publicViewedAt: quotes.publicViewedAt,
       customerRespondedAt: quotes.customerRespondedAt,
       customerResponseMessage: quotes.customerResponseMessage,
+      autoFollowUpEnabled: quotes.autoFollowUpEnabled,
+      autoFollowUpDelayDays: quotes.autoFollowUpDelayDays,
+      autoFollowUpMaxAttempts: quotes.autoFollowUpMaxAttempts,
+      autoFollowUpAttempts: quotes.autoFollowUpAttempts,
+      autoFollowUpLastSentAt: quotes.autoFollowUpLastSentAt,
+      autoFollowUpStoppedAt: quotes.autoFollowUpStoppedAt,
       createdAt: quotes.createdAt,
       updatedAt: quotes.updatedAt,
       linkedInquiryId: inquiries.id,
@@ -422,6 +432,7 @@ async function getCachedQuoteDetailForBusiness({
       linkedInquiryCustomerContactMethod: inquiries.customerContactMethod,
       linkedInquiryCustomerContactHandle: inquiries.customerContactHandle,
       linkedInquiryServiceCategory: inquiries.serviceCategory,
+      linkedInquiryRequestedDeadline: inquiries.requestedDeadline,
       linkedInquiryStatus: getEffectiveInquiryStatus,
       linkedInquiryRecordState: getInquiryRecordState,
     })
@@ -505,10 +516,14 @@ async function getCachedQuoteDetailForBusiness({
     customerContactHandle: quote.customerContactHandle,
     currency: quote.currency,
     notes: quote.notes,
+    terms: quote.terms,
     subtotalInCents: quote.subtotalInCents,
     discountInCents: quote.discountInCents,
+    taxInCents: quote.taxInCents,
+    taxLabel: quote.taxLabel,
     totalInCents: quote.totalInCents,
     validUntil: quote.validUntil,
+    version: quote.version,
     status: quote.status,
     archivedAt: quote.archivedAt,
     voidedAt: quote.voidedAt,
@@ -522,6 +537,12 @@ async function getCachedQuoteDetailForBusiness({
     publicViewedAt: quote.publicViewedAt,
     customerRespondedAt: quote.customerRespondedAt,
     customerResponseMessage: quote.customerResponseMessage,
+    autoFollowUpEnabled: quote.autoFollowUpEnabled,
+    autoFollowUpDelayDays: quote.autoFollowUpDelayDays,
+    autoFollowUpMaxAttempts: quote.autoFollowUpMaxAttempts,
+    autoFollowUpAttempts: quote.autoFollowUpAttempts,
+    autoFollowUpLastSentAt: quote.autoFollowUpLastSentAt,
+    autoFollowUpStoppedAt: quote.autoFollowUpStoppedAt,
     createdAt: quote.createdAt,
     updatedAt: quote.updatedAt,
     items,
@@ -534,6 +555,7 @@ async function getCachedQuoteDetailForBusiness({
           customerContactMethod: quote.linkedInquiryCustomerContactMethod!,
           customerContactHandle: quote.linkedInquiryCustomerContactHandle!,
           serviceCategory: quote.linkedInquiryServiceCategory!,
+          requestedDeadline: quote.linkedInquiryRequestedDeadline ?? null,
           status: quote.linkedInquiryStatus!,
           recordState: quote.linkedInquiryRecordState!,
         }
@@ -582,8 +604,11 @@ async function getCachedQuoteSendPayloadForBusiness({
       customerContactHandle: quotes.customerContactHandle,
       currency: quotes.currency,
       notes: quotes.notes,
+      terms: quotes.terms,
       subtotalInCents: quotes.subtotalInCents,
       discountInCents: quotes.discountInCents,
+      taxInCents: quotes.taxInCents,
+      taxLabel: quotes.taxLabel,
       totalInCents: quotes.totalInCents,
       validUntil: quotes.validUntil,
       status: getEffectiveQuoteStatus,
@@ -628,9 +653,12 @@ async function getCachedQuoteSendPayloadForBusiness({
     customerContactHandle: quote.customerContactHandle,
     customerName: quote.customerName,
     discountInCents: quote.discountInCents,
+    taxInCents: quote.taxInCents,
+    taxLabel: quote.taxLabel,
     id: quote.id,
     inquiryId: quote.inquiryId,
     notes: quote.notes,
+    terms: quote.terms,
     publicToken: tryResolveStoredQuotePublicToken(quote),
     quoteNumber: quote.quoteNumber,
     status: quote.status,
@@ -666,10 +694,14 @@ async function getPublicQuoteByTokenImpl(
       customerContactHandle: quotes.customerContactHandle,
       currency: quotes.currency,
       notes: quotes.notes,
+      terms: quotes.terms,
       validUntil: quotes.validUntil,
+      version: quotes.version,
       status: getEffectiveQuoteStatus,
       subtotalInCents: quotes.subtotalInCents,
       discountInCents: quotes.discountInCents,
+      taxInCents: quotes.taxInCents,
+      taxLabel: quotes.taxLabel,
       totalInCents: quotes.totalInCents,
       sentAt: quotes.sentAt,
       acceptedAt: quotes.acceptedAt,
@@ -724,8 +756,12 @@ async function getPublicQuoteByTokenImpl(
     customerRespondedAt: quote.customerRespondedAt,
     customerResponseMessage: quote.customerResponseMessage,
     discountInCents: quote.discountInCents,
+    taxInCents: quote.taxInCents,
+    taxLabel: quote.taxLabel,
     id: quote.id,
     notes: quote.notes,
+    terms: quote.terms,
+    version: quote.version,
     publicViewedAt: quote.publicViewedAt,
     quoteNumber: quote.quoteNumber,
     sentAt: quote.sentAt,
@@ -779,4 +815,113 @@ export async function getInquiryQuotePrefillForBusiness({
     .limit(1);
 
   return inquiry ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Quote Versions & Revision Requests
+// ---------------------------------------------------------------------------
+
+import { quoteVersions, quoteRevisionRequests } from "@/lib/db/schema/quotes";
+import type { QuoteRevisionRequest, QuoteVersionSnapshot } from "@/features/quotes/types";
+
+export async function getQuoteVersionsForBusiness(
+  businessId: string,
+  quoteId: string,
+): Promise<QuoteVersionSnapshot[]> {
+  const versions = await db
+    .select({
+      id: quoteVersions.id,
+      version: quoteVersions.version,
+      title: quoteVersions.title,
+      customerName: quoteVersions.customerName,
+      currency: quoteVersions.currency,
+      notes: quoteVersions.notes,
+      terms: quoteVersions.terms,
+      subtotalInCents: quoteVersions.subtotalInCents,
+      discountInCents: quoteVersions.discountInCents,
+      totalInCents: quoteVersions.totalInCents,
+      validUntil: quoteVersions.validUntil,
+      items: quoteVersions.items,
+      createdAt: quoteVersions.createdAt,
+      archivedAt: quoteVersions.archivedAt,
+    })
+    .from(quoteVersions)
+    .where(
+      and(
+        eq(quoteVersions.quoteId, quoteId),
+        eq(quoteVersions.businessId, businessId),
+      ),
+    )
+    .orderBy(desc(quoteVersions.version));
+
+  return versions;
+}
+
+export async function getRevisionRequestsForQuote(
+  businessId: string,
+  quoteId: string,
+): Promise<QuoteRevisionRequest[]> {
+  const requests = await db
+    .select({
+      id: quoteRevisionRequests.id,
+      quoteId: quoteRevisionRequests.quoteId,
+      version: quoteRevisionRequests.version,
+      message: quoteRevisionRequests.message,
+      itemComments: quoteRevisionRequests.itemComments,
+      status: quoteRevisionRequests.status,
+      createdAt: quoteRevisionRequests.createdAt,
+      resolvedAt: quoteRevisionRequests.resolvedAt,
+    })
+    .from(quoteRevisionRequests)
+    .where(
+      and(
+        eq(quoteRevisionRequests.quoteId, quoteId),
+        eq(quoteRevisionRequests.businessId, businessId),
+      ),
+    )
+    .orderBy(desc(quoteRevisionRequests.createdAt));
+
+  return requests as QuoteRevisionRequest[];
+}
+
+export async function getPublicQuoteVersionsByToken(
+  token: string,
+): Promise<QuoteVersionSnapshot[]> {
+  const [quote] = await db
+    .select({ id: quotes.id })
+    .from(quotes)
+    .where(
+      and(
+        getQuotePublicTokenLookupCondition(token),
+        isNull(quotes.deletedAt),
+      ),
+    )
+    .limit(1);
+
+  if (!quote) {
+    return [];
+  }
+
+  const versions = await db
+    .select({
+      id: quoteVersions.id,
+      version: quoteVersions.version,
+      title: quoteVersions.title,
+      customerName: quoteVersions.customerName,
+      currency: quoteVersions.currency,
+      notes: quoteVersions.notes,
+      terms: quoteVersions.terms,
+      subtotalInCents: quoteVersions.subtotalInCents,
+      discountInCents: quoteVersions.discountInCents,
+      totalInCents: quoteVersions.totalInCents,
+      validUntil: quoteVersions.validUntil,
+      items: quoteVersions.items,
+      createdAt: quoteVersions.createdAt,
+      archivedAt: quoteVersions.archivedAt,
+    })
+    .from(quoteVersions)
+    .where(eq(quoteVersions.quoteId, quote.id))
+    .orderBy(desc(quoteVersions.version));
+
+  return versions;
 }

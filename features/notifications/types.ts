@@ -2,6 +2,7 @@ export const businessNotificationTypes = [
   "public_inquiry_submitted",
   "quote_customer_accepted",
   "quote_customer_rejected",
+  "quote_revision_requested",
   "business_member_invite_accepted",
   "business_member_invite_declined",
 ] as const;
