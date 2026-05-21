@@ -6,6 +6,7 @@ import { businessesHubPath } from "@/features/businesses/routes";
 export default function BusinessesLoading() {
   return (
     <div className="min-h-svh w-full bg-background">
+      {/* Header renders immediately with real brand + static text */}
       <header className="sticky top-0 z-10 flex h-[4.5rem] w-full shrink-0 items-center justify-between border-b border-border/70 bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/60 sm:px-6 lg:px-8">
         <div className="flex items-center gap-4">
           <BrandMark subtitle="Businesses" href={businessesHubPath} />
@@ -17,46 +18,18 @@ export default function BusinessesLoading() {
       </header>
 
       <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col px-4 py-8 sm:px-6 lg:px-8">
+        {/* Real heading text renders immediately — no skeleton for known copy */}
         <div className="space-y-2 pb-8">
-          <Skeleton className="h-10 w-64 rounded-md" />
-          <Skeleton className="h-5 w-96 rounded-md" />
+          <h1 className="font-heading text-[2rem] font-semibold tracking-tight text-foreground sm:text-[2.35rem]">
+            Your businesses
+          </h1>
+          <p className="max-w-2xl text-sm leading-normal sm:leading-7 text-muted-foreground sm:text-[0.96rem]">
+            Manage your businesses, settings, and team access.
+          </p>
         </div>
 
+        {/* Only dynamic content is skeletonized */}
         <div className="w-full space-y-6">
-          <section className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <Skeleton className="size-3.5 rounded-sm" />
-              <Skeleton className="h-4 w-32 rounded-md" />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 2 }).map((_, index) => (
-                <Card className="border-border/60 bg-card/80" key={`recent-${index}`}>
-                  <CardHeader className="gap-0 pb-3">
-                    <div className="flex items-start gap-3">
-                      <Skeleton className="size-10 rounded-lg" />
-                      <div className="min-w-0 flex-1 space-y-2">
-                        <Skeleton className="h-5 w-40 max-w-full rounded-md" />
-                        <Skeleton className="h-4 w-28 max-w-full rounded-md" />
-                      </div>
-                      <Skeleton className="mt-0.5 h-4 w-4 shrink-0 rounded-sm" />
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex flex-col gap-2.5 pt-0">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <Skeleton className="h-6 w-16 rounded-md" />
-                      <Skeleton className="h-6 w-28 rounded-md" />
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Skeleton className="h-3 w-3 rounded-sm" />
-                      <Skeleton className="h-3 w-44 rounded-md" />
-                      <Skeleton className="ml-auto h-3 w-16 rounded-md" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </section>
-
           <section className="space-y-4">
             <Skeleton className="h-4 w-32 rounded-md" />
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
