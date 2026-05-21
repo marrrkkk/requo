@@ -274,6 +274,7 @@ async function executeCreateQuote(
         notes: payload.notes ?? undefined,
         validUntil: payload.validUntil,
         discountInCents: payload.discountInCents ?? 0,
+        taxInCents: 0,
         items: payload.items.map((item, index) => ({
           id: `ai-item-${index + 1}`,
           description: item.description,

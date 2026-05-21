@@ -41,6 +41,9 @@ export async function generateQuoteDraftAction(
     businessSlug,
     inquiryId: formData.get("inquiryId"),
     brief: formData.get("brief"),
+    revisionComment: formData.get("revisionComment"),
+    currentItems: formData.get("currentItems"),
+    currentItemsJson: formData.get("currentItemsJson"),
   });
 
   if (!parsed.success) {
@@ -98,11 +101,37 @@ export async function generateQuoteDraftAction(
   }
 
   // 5. Invoke the quote generator (handles context building, AI call, response parsing)
+  // 5. Invoke the quote generator (handles context building, AI call, response parsing)
+  let currentItemsData: Array<{
+    description: string;
+    quantity: number;
+    unitPriceInCents: number;
+  }> | null = null;
+  if (parsed.data.currentItemsJson) {
+    try {
+      const parsed_items = JSON.parse(parsed.data.currentItemsJson);
+      if (Array.isArray(parsed_items)) {
+        currentItemsData = parsed_items.filter(
+          (item) =>
+            item &&
+            typeof item.description === "string" &&
+            typeof item.quantity === "number" &&
+            typeof item.unitPriceInCents === "number",
+        );
+      }
+    } catch {
+      // Ignore parse errors - fall back to text-only revision
+    }
+  }
+
   const result = await generateQuoteDraftForBusiness({
     businessId,
     userId,
     inquiryId: parsed.data.inquiryId ?? null,
     brief: parsed.data.brief ?? null,
+    revisionComment: parsed.data.revisionComment ?? null,
+    currentItems: parsed.data.currentItems ?? null,
+    currentItemsData,
   });
 
   if (!result.ok) {

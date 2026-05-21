@@ -9,9 +9,12 @@ export function buildQuoteDraftPrompt(
   context: Record<string, string>,
 ): string {
   const tone = context.tonePreference ?? "professional";
+  const isRevision = Boolean(context.revisionContext);
 
   const lines = [
-    "Generate a quote draft for the customer inquiry below.",
+    isRevision
+      ? "Revise an existing quote based on the customer's feedback below."
+      : "Generate a quote draft for the customer inquiry below.",
     `Use a ${tone} tone. All prices in cents (integer). No currency symbols.`,
     "",
     "PRICING RULES:",
@@ -21,6 +24,28 @@ export function buildQuoteDraftPrompt(
     "- For entries marked (package): list EACH line item from the package as a SEPARATE item in the items array. Use the exact unitPriceInCents and quantity from each package line item. Set pricingSource to \"pricing_library_package\" and pricingSourceLabel to the package name. Do NOT create a single summary row for the whole package.",
     "- For entries marked (block): use the block's price directly. Set pricingSource to \"pricing_library_block\" and pricingSourceLabel to the block name.",
     "",
+  ];
+
+  if (isRevision) {
+    lines.push(
+      "REVISION RULES (HIGHEST PRIORITY):",
+      "- You are modifying an EXISTING quote. The current line items are listed below.",
+      "- Output ALL current items with their original descriptions, prices, and quantities — unless the customer asked to change them.",
+      "- To fulfill the customer's request, CHANGE the quantity/price of the specific item mentioned.",
+      "- Do NOT output package names (like \"Starter package\"). Output EACH individual line item separately (e.g. \"Discovery and creative direction\", \"Design production\", \"Revision round\").",
+      "- Do NOT add new items that duplicate existing items. If an item already exists in current items, just adjust its quantity.",
+      "- Example: if current items has \"Revision round (qty: 1, unit price: $450.00)\" and customer says \"add 3 more revision round\", output \"Revision round\" with quantity=4 and unitPriceInCents=45000.",
+      "",
+      "CUSTOMER REVISION REQUEST:",
+      context.revisionContext ?? "",
+      "",
+      "CURRENT QUOTE LINE ITEMS (output these with modifications):",
+      context.currentItems ?? "None.",
+      "",
+    );
+  }
+
+  lines.push(
     "Output JSON matching this shape:",
     `{`,
     `  "title": "string (2-160 chars, quote title)",`,
@@ -56,7 +81,7 @@ export function buildQuoteDraftPrompt(
     "",
     "Business memory:",
     context.businessMemorySummary ?? "None available.",
-  ];
+  );
 
   return lines.filter(Boolean).join("\n");
 }

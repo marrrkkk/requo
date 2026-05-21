@@ -227,6 +227,15 @@ function formatInquiryContextLines(
   // Customer details
   sections.push("", "Details", truncate(context.inquiry.details, 2000));
 
+  // Conversation messages (inquiry thread)
+  if (context.messages.length > 0) {
+    const messageLines = context.messages
+      .slice(0, 10)
+      .map((msg) => `[${msg.role}]: ${truncate(msg.content, 400)}`)
+      .join("\n");
+    sections.push("", "Conversation", messageLines);
+  }
+
   // Notes (compact)
   if (context.notes.length) {
     sections.push(
@@ -416,6 +425,7 @@ function normaliseDraftItem(
     libraryNameById: Map<string, string>;
     libraryIdsByName: Map<string, string>;
     quoteLabelById: Map<string, string>;
+    hasMemory?: boolean;
   },
 ): AiQuoteDraftItem {
   let description = truncate(item.description, 400);
@@ -492,21 +502,73 @@ function normaliseDraftItem(
     PRICED_REVIEW_STATUSES.has(reviewStatus) &&
     pricingSource === "pricing_library_block"
   ) {
-    if (!pricingSourceLabel || !context.pricingLibraryIds.size) {
+    // Verify the cited label actually matches a real pricing library entry name.
+    const labelMatchesEntry = pricingSourceLabel &&
+      context.pricingLibraryIds.size > 0 &&
+      context.libraryNameById &&
+      Array.from(context.libraryNameById.values()).some(
+        (name) => name.toLowerCase() === pricingSourceLabel!.toLowerCase(),
+      );
+
+    if (!labelMatchesEntry) {
       reviewStatus = "needs_review";
       unitPriceInCents = 0;
       pricingSource = "none";
+      pricingSourceLabel = null;
     }
   }
 
   if (
     PRICED_REVIEW_STATUSES.has(reviewStatus) &&
-    pricingSource === "past_quote" &&
-    !context.pastQuoteIds.size
+    pricingSource === "pricing_library_package"
   ) {
-    reviewStatus = "needs_review";
-    unitPriceInCents = 0;
-    pricingSource = "none";
+    // Verify the cited label actually matches a real package entry name.
+    const labelMatchesEntry = pricingSourceLabel &&
+      context.pricingLibraryIds.size > 0 &&
+      context.libraryNameById &&
+      Array.from(context.libraryNameById.values()).some(
+        (name) => name.toLowerCase() === pricingSourceLabel!.toLowerCase(),
+      );
+
+    if (!labelMatchesEntry) {
+      reviewStatus = "needs_review";
+      unitPriceInCents = 0;
+      pricingSource = "none";
+      pricingSourceLabel = null;
+    }
+  }
+
+  if (
+    PRICED_REVIEW_STATUSES.has(reviewStatus) &&
+    pricingSource === "past_quote"
+  ) {
+    // Verify past quotes actually exist and the label references one.
+    const labelMatchesQuote = pricingSourceLabel &&
+      context.pastQuoteIds.size > 0 &&
+      context.quoteLabelById &&
+      Array.from(context.quoteLabelById.values()).some(
+        (label) => label.toLowerCase() === pricingSourceLabel!.toLowerCase(),
+      );
+
+    if (!context.pastQuoteIds.size || !labelMatchesQuote) {
+      reviewStatus = "needs_review";
+      unitPriceInCents = 0;
+      pricingSource = "none";
+      pricingSourceLabel = null;
+    }
+  }
+
+  if (
+    PRICED_REVIEW_STATUSES.has(reviewStatus) &&
+    pricingSource === "business_memory"
+  ) {
+    // Business memory is the weakest source — if there's no memory context at all, reject.
+    if (!context.hasMemory) {
+      reviewStatus = "needs_review";
+      unitPriceInCents = 0;
+      pricingSource = "none";
+      pricingSourceLabel = null;
+    }
   }
 
   const confidence: AiQuoteDraftItemConfidence = PRICED_REVIEW_STATUSES.has(
@@ -545,7 +607,177 @@ type GenerateQuoteDraftInput = {
   userId: string;
   inquiryId?: string | null;
   brief?: string | null;
+  revisionComment?: string | null;
+  currentItems?: string | null;
+  /** Structured current items for revision merging. */
+  currentItemsData?: Array<{
+    description: string;
+    quantity: number;
+    unitPriceInCents: number;
+  }> | null;
 };
+
+/**
+ * For revisions: start with the original current items as the base, then
+ * apply the AI's quantity/price changes on top. Filter out package summary
+ * rows and duplicates of existing items.
+ */
+function mergeRevisionWithCurrentItems(
+  aiItems: AiQuoteDraftItem[],
+  currentItemsData: Array<{
+    description: string;
+    quantity: number;
+    unitPriceInCents: number;
+  }>,
+  packageNames: Set<string>,
+  revisionComment: string | null,
+  libraryEntryByName?: Map<string, DashboardQuoteLibraryEntry>,
+): AiQuoteDraftItem[] {
+  // Build lookup of current items
+  const currentItemsByDesc = new Map<
+    string,
+    { description: string; quantity: number; unitPriceInCents: number }
+  >();
+  for (const item of currentItemsData) {
+    const key = item.description.trim().toLowerCase();
+    if (key) currentItemsByDesc.set(key, item);
+  }
+
+  // Try to parse quantity changes from revision comment
+  // Patterns: "add 3 more X", "change X to 4", "X qty 3", "3 X", "3 more X"
+  const quantityOverrides = new Map<string, number>();
+  if (revisionComment) {
+    const comment = revisionComment.toLowerCase();
+    for (const [desc] of currentItemsByDesc) {
+      const descLower = desc.toLowerCase();
+      // "add N more <item>"
+      const addMoreMatch = comment.match(
+        new RegExp(`add\\s+(\\d+)\\s+more\\s+${escapeRegex(descLower)}`, "i"),
+      );
+      if (addMoreMatch) {
+        const currentQty = currentItemsByDesc.get(desc)?.quantity ?? 1;
+        quantityOverrides.set(desc, currentQty + parseInt(addMoreMatch[1], 10));
+        continue;
+      }
+      // "N more <item>"
+      const nMoreMatch = comment.match(
+        new RegExp(`(\\d+)\\s+more\\s+${escapeRegex(descLower)}`, "i"),
+      );
+      if (nMoreMatch) {
+        const currentQty = currentItemsByDesc.get(desc)?.quantity ?? 1;
+        quantityOverrides.set(desc, currentQty + parseInt(nMoreMatch[1], 10));
+        continue;
+      }
+      // "<item> to N" or "<item> qty N"
+      const toNMatch = comment.match(
+        new RegExp(`${escapeRegex(descLower)}\\s+(?:to|qty|quantity|=)\\s+(\\d+)`, "i"),
+      );
+      if (toNMatch) {
+        quantityOverrides.set(desc, parseInt(toNMatch[1], 10));
+      }
+    }
+  }
+
+  // Start with current items, apply overrides
+  const result: AiQuoteDraftItem[] = [];
+  const seenDescriptions = new Set<string>();
+
+  for (const currentItem of currentItemsData) {
+    const key = currentItem.description.trim().toLowerCase();
+    if (seenDescriptions.has(key)) continue;
+    seenDescriptions.add(key);
+
+    const overriddenQty = quantityOverrides.get(key);
+    const finalQty = overriddenQty ?? currentItem.quantity;
+
+    // Verify item actually matches a pricing library entry before marking as "matched".
+    // Check if the item description matches any library entry name or any item within
+    // a library entry. Without a verified match, mark as "needs_review".
+    let verifiedSource: AiQuoteDraftItemPricingSource = "none";
+    let verifiedSourceLabel: string | null = null;
+    let verifiedReviewStatus: AiQuoteDraftItemReviewStatus = "needs_review";
+    let verifiedConfidence: AiQuoteDraftItemConfidence = "low";
+
+    if (libraryEntryByName) {
+      // Check if the description matches a library entry name directly
+      const directEntry = libraryEntryByName.get(key);
+      if (directEntry) {
+        verifiedSource = directEntry.kind === "package"
+          ? "pricing_library_package"
+          : "pricing_library_block";
+        verifiedSourceLabel = directEntry.name;
+        verifiedReviewStatus = "matched";
+        verifiedConfidence = "high";
+      } else {
+        // Check if the description matches any item within any library entry
+        for (const [, entry] of libraryEntryByName) {
+          const matchingItem = entry.items.find(
+            (item) => item.description.trim().toLowerCase() === key,
+          );
+          if (matchingItem) {
+            verifiedSource = entry.kind === "package"
+              ? "pricing_library_package"
+              : "pricing_library_block";
+            verifiedSourceLabel = entry.name;
+            verifiedReviewStatus = "matched";
+            verifiedConfidence = "high";
+            break;
+          }
+        }
+      }
+    }
+
+    result.push({
+      name: currentItem.description.slice(0, 120),
+      description: currentItem.description,
+      quantity: finalQty,
+      unitPriceInCents: verifiedReviewStatus === "matched"
+        ? currentItem.unitPriceInCents
+        : 0,
+      pricingSource: verifiedSource,
+      pricingSourceLabel: verifiedSourceLabel,
+      confidence: verifiedConfidence,
+      reviewStatus: verifiedReviewStatus,
+      reason: overriddenQty
+        ? `Quantity updated per customer revision request.`
+        : "Carried over from previous version.",
+    });
+  }
+
+  // Only add genuinely new AI items that:
+  // 1. Don't duplicate existing items
+  // 2. Aren't package summary rows
+  // 3. Have a meaningful description
+  for (const aiItem of aiItems) {
+    const descLower = aiItem.description.trim().toLowerCase();
+    const nameLower = (aiItem.name || "").trim().toLowerCase();
+
+    // Skip empty
+    if (!descLower) continue;
+    // Skip duplicates
+    if (seenDescriptions.has(descLower)) continue;
+    // Skip package summary rows
+    if (packageNames.has(descLower) || packageNames.has(nameLower)) continue;
+    // Skip if it's too similar to an existing item (fuzzy match)
+    let tooSimilar = false;
+    for (const existing of seenDescriptions) {
+      if (existing.includes(descLower) || descLower.includes(existing)) {
+        tooSimilar = true;
+        break;
+      }
+    }
+    if (tooSimilar) continue;
+
+    seenDescriptions.add(descLower);
+    result.push(aiItem);
+  }
+
+  return result;
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 /**
  * Replace any "matched" library-package line item with the package's actual
@@ -822,6 +1054,11 @@ export async function generateQuoteDraftForBusiness(
 
   // Build context via context builder to enforce character budget (Requirement 2.2)
   const taskType = "quote_draft" as const;
+
+  // Build revision-specific context if applicable
+  const revisionContext = input.revisionComment?.trim() || null;
+  const currentItemsText = input.currentItems?.trim() || null;
+
   const contextResult = buildTaskContext({
     taskType,
     availableData: {
@@ -831,6 +1068,8 @@ export async function generateQuoteDraftForBusiness(
       pricingBlocks: pricingBlocksText,
       tonePreference: businessRow.aiTonePreference,
       businessMemorySummary: businessMemorySummaryText,
+      revisionContext,
+      currentItems: currentItemsText,
     },
   });
 
@@ -863,6 +1102,11 @@ export async function generateQuoteDraftForBusiness(
       ? pricingLibrary.map((e) => e.id).sort().join(",")
       : null,
     brief: input.brief ?? null,
+    revisionComment: input.revisionComment ?? null,
+    currentItems: input.currentItems ?? null,
+    currentItemsData: input.currentItemsData
+      ? JSON.stringify(input.currentItemsData)
+      : null,
   };
 
   // Check cache (non-streaming path for quote_draft uses cache)
@@ -912,6 +1156,7 @@ export async function generateQuoteDraftForBusiness(
                   libraryNameById,
                   libraryIdsByName,
                   quoteLabelById,
+                  hasMemory: memory.memories.length > 0,
                 }),
               )
               .filter((item) => item.description.length > 0),
@@ -995,20 +1240,34 @@ export async function generateQuoteDraftForBusiness(
       };
     }
 
-    const items = expandPackageItems(
-      validation.data.items
-        .map((item) =>
-          normaliseDraftItem(item, {
-            pricingLibraryIds,
-            pastQuoteIds,
-            libraryNameById,
-            libraryIdsByName,
-            quoteLabelById,
-          }),
-        )
-        .filter((item) => item.description.length > 0),
-      { libraryEntryById, libraryEntryByName },
-    ).slice(0, MAX_DRAFT_ITEMS);
+    const normalisedItems = validation.data.items
+      .map((item) =>
+        normaliseDraftItem(item, {
+                  pricingLibraryIds,
+                  pastQuoteIds,
+                  libraryNameById,
+                  libraryIdsByName,
+                  quoteLabelById,
+                  hasMemory: memory.memories.length > 0,
+                }),
+      )
+      .filter((item) => item.description.length > 0);
+
+    // For revisions: merge AI's changes against current items (delta-merge approach).
+    // For fresh drafts: use the standard expansion which uses library quantities.
+    const items =
+      revisionContext && input.currentItemsData && input.currentItemsData.length > 0
+        ? mergeRevisionWithCurrentItems(
+            normalisedItems,
+            input.currentItemsData,
+            new Set([...libraryEntryByName.keys()]),
+            input.revisionComment ?? null,
+            libraryEntryByName,
+          ).slice(0, MAX_DRAFT_ITEMS)
+        : expandPackageItems(
+            normalisedItems,
+            { libraryEntryById, libraryEntryByName },
+          ).slice(0, MAX_DRAFT_ITEMS);
 
     if (!items.length) {
       return {
@@ -1352,6 +1611,7 @@ export async function generateQuoteImprovementForBusiness(
                   libraryNameById,
                   libraryIdsByName,
                   quoteLabelById,
+                  hasMemory: memory.memories.length > 0,
                 }),
               )
               .filter((item) => item.description.length > 0),
@@ -1436,12 +1696,13 @@ export async function generateQuoteImprovementForBusiness(
       validation.data.items
         .map((item) =>
           normaliseDraftItem(item, {
-            pricingLibraryIds,
-            pastQuoteIds,
-            libraryNameById,
-            libraryIdsByName,
-            quoteLabelById,
-          }),
+                  pricingLibraryIds,
+                  pastQuoteIds,
+                  libraryNameById,
+                  libraryIdsByName,
+                  quoteLabelById,
+                  hasMemory: memory.memories.length > 0,
+                }),
         )
         .filter((item) => item.description.length > 0),
       { libraryEntryById, libraryEntryByName },

@@ -60,6 +60,8 @@ export const AI_TASK_REGISTRY: Record<AiTaskType, AiTaskConfig> = {
     maxOutputTokens: 4096,
     temperature: 0.1,
     requiredContextFields: [
+      "revisionContext",
+      "currentItems",
       "inquiryText",
       "customerName",
       "customerEmail",

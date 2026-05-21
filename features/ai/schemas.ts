@@ -90,6 +90,18 @@ export const aiGenerateQuoteDraftSchema = z
       (value) => emptyToUndefined(firstString(value)),
       z.string().trim().max(2000).optional(),
     ),
+    revisionComment: z.preprocess(
+      (value) => emptyToUndefined(firstString(value)),
+      z.string().trim().max(2000).optional(),
+    ),
+    currentItems: z.preprocess(
+      (value) => emptyToUndefined(firstString(value)),
+      z.string().trim().max(4000).optional(),
+    ),
+    currentItemsJson: z.preprocess(
+      (value) => emptyToUndefined(firstString(value)),
+      z.string().trim().max(20_000).optional(),
+    ),
   })
   .superRefine((value, ctx) => {
     if (!value.inquiryId && !value.brief) {

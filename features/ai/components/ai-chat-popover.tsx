@@ -317,8 +317,10 @@ export function AIChatPopover({
     [entityCache],
   );
 
-  // Hide the floating popover on the dedicated assistant page
-  if (isAssistantPage) {
+  // Only show the floating popover on inquiry/quote detail pages
+  const isEntityDetail = aiContext.surface !== "dashboard";
+
+  if (isAssistantPage || !isEntityDetail) {
     return null;
   }
 

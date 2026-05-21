@@ -230,6 +230,12 @@ export type InquiryAssistantContext = {
     }>;
   }>;
   memory: BusinessMemoryContext;
+  messages: Array<{
+    id: string;
+    role: "user" | "assistant" | "system";
+    content: string;
+    createdAt: Date;
+  }>;
 };
 
 /**
