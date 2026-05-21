@@ -163,6 +163,8 @@ export async function getFreeAnalytics(businessId: string): Promise<FreeAnalytic
   const since = subtractDays(now, SUMMARY_DAYS);
   const formViews = buildDedupedFormViews(businessId, since);
 
+  const firstQuoteSq = buildFirstQuoteSq(businessId);
+
   const [viewRows, inquiryRows, quoteRows] = await Promise.all([
     db
       .select({
@@ -173,10 +175,10 @@ export async function getFreeAnalytics(businessId: string): Promise<FreeAnalytic
     db
       .select({
         submissions: sql<number>`count(distinct ${inquiries.id})`,
-        withQuote: sql<number>`count(distinct ${inquiries.id}) filter (where ${buildFirstQuoteSq(businessId).firstQuoteAt} is not null)`,
+        withQuote: sql<number>`count(distinct ${inquiries.id}) filter (where ${firstQuoteSq.firstQuoteAt} is not null)`,
       })
       .from(inquiries)
-      .leftJoin(buildFirstQuoteSq(businessId), eq(buildFirstQuoteSq(businessId).inquiryId, inquiries.id))
+      .leftJoin(firstQuoteSq, eq(firstQuoteSq.inquiryId, inquiries.id))
       .where(and(eq(inquiries.businessId, businessId), gte(inquiries.submittedAt, since))),
     db
       .select({
