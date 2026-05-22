@@ -19,6 +19,10 @@ ALTER TABLE "payment_attempts" ALTER COLUMN "provider" SET DATA TYPE text;--> st
 ALTER TABLE "refunds" ALTER COLUMN "provider" SET DATA TYPE text;--> statement-breakpoint
 DROP TYPE "public"."billing_provider";--> statement-breakpoint
 CREATE TYPE "public"."billing_provider" AS ENUM('dodo');--> statement-breakpoint
+UPDATE "account_subscriptions" SET "billing_provider" = 'dodo' WHERE "billing_provider" IS NOT NULL;--> statement-breakpoint
+UPDATE "billing_events" SET "provider" = 'dodo' WHERE "provider" IS NOT NULL;--> statement-breakpoint
+UPDATE "payment_attempts" SET "provider" = 'dodo' WHERE "provider" IS NOT NULL;--> statement-breakpoint
+UPDATE "refunds" SET "provider" = 'dodo' WHERE "provider" IS NOT NULL;--> statement-breakpoint
 ALTER TABLE "account_subscriptions" ALTER COLUMN "billing_provider" SET DATA TYPE "public"."billing_provider" USING "billing_provider"::"public"."billing_provider";--> statement-breakpoint
 ALTER TABLE "billing_events" ALTER COLUMN "provider" SET DATA TYPE "public"."billing_provider" USING "provider"::"public"."billing_provider";--> statement-breakpoint
 ALTER TABLE "payment_attempts" ALTER COLUMN "provider" SET DATA TYPE "public"."billing_provider" USING "provider"::"public"."billing_provider";--> statement-breakpoint
