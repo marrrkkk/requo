@@ -21,7 +21,7 @@ type CompleteOnboardingForUserInput = {
   };
   firstName: string;
   lastName: string;
-  jobTitle: string;
+  jobTitle?: string;
   companySize?: string;
   referralSource?: string;
   businessName: string;
@@ -68,7 +68,7 @@ export async function completeOnboardingForUser({
         fullName,
         firstName,
         lastName,
-        jobTitle,
+        ...(jobTitle ? { jobTitle } : {}),
         ...(companySize ? { companySize } : {}),
         ...(referralSource ? { referralSource } : {}),
         ...(avatarUpload

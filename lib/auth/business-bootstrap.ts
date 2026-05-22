@@ -68,12 +68,15 @@ export async function ensureProfileForUser(user: BootstrapUser) {
     return;
   }
 
-  await db.insert(profiles).values({
-    userId: user.id,
-    fullName: user.name,
-    createdAt: now,
-    updatedAt: now,
-  });
+  await db
+    .insert(profiles)
+    .values({
+      userId: user.id,
+      fullName: user.name,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoNothing({ target: profiles.userId });
 }
 
 export async function bootstrapBusinessForUser(
@@ -94,12 +97,15 @@ export async function bootstrapBusinessForUser(
       .limit(1);
 
     if (!existingProfile) {
-      await tx.insert(profiles).values({
-        userId: user.id,
-        fullName: user.name,
-        createdAt: now,
-        updatedAt: now,
-      });
+      await tx
+        .insert(profiles)
+        .values({
+          userId: user.id,
+          fullName: user.name,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .onConflictDoNothing({ target: profiles.userId });
     }
 
     const [existingMembership] = await tx

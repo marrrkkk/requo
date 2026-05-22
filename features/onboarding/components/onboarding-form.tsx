@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Camera, CheckCircle2 } from "lucide-react";
+import { Camera, CheckCircle2, PartyPopper } from "lucide-react";
 import { toast } from "sonner";
 
 import { BrandMark } from "@/components/shared/brand-mark";
@@ -28,7 +28,6 @@ import {
   starterTemplateBusinessTypes,
 } from "@/features/businesses/starter-templates";
 import {
-  businessTypeMeta,
   businessTypeOptions,
   type BusinessType,
 } from "@/features/inquiries/business-types";
@@ -36,20 +35,20 @@ import { cn } from "@/lib/utils";
 import { slugifyPublicName } from "@/lib/slugs";
 import {
   createEmptyOnboardingDraft,
-  createOnboardingPreviewBusiness,
   getRecommendedStarterTemplateForBusinessType,
   onboardingSessionStorageKey,
   resolveOnboardingCurrencyChange,
   type OnboardingDraft,
 } from "@/features/onboarding/helpers";
-import { PublicInquiryForm } from "@/features/inquiries/components/public-inquiry-form";
 import { OnboardingStepper } from "@/features/onboarding/components/onboarding-stepper";
 import {
   customerContactChannelOptions,
+  companySizeOptions,
   jobTitleOptions,
   onboardingBusinessContextSchema,
   onboardingOwnerProfileSchema,
   onboardingTemplateSchema,
+  referralSourceOptions,
 } from "@/features/onboarding/schemas";
 import type {
   OnboardingActionState,
@@ -69,21 +68,9 @@ type OnboardingFormProps = {
   };
 };
 
-type OnboardingStepId = "profile" | "business" | "template";
+type OnboardingStepId = "business" | "template" | "profile";
 
 const onboardingSteps = [
-  {
-    id: "profile" as const,
-    label: "Profile",
-    description: "Your avatar, name, and role.",
-    title: "Set up your profile",
-    body: "Add your photo and name so your team and clients can recognize you.",
-    fields: [
-      "firstName",
-      "lastName",
-      "jobTitle",
-    ] as const satisfies readonly OnboardingFieldName[],
-  },
   {
     id: "business" as const,
     label: "Business",
@@ -109,6 +96,17 @@ const onboardingSteps = [
       "starterTemplateBusinessType",
     ] as const satisfies readonly OnboardingFieldName[],
   },
+  {
+    id: "profile" as const,
+    label: "Profile",
+    description: "Your avatar, name, and role.",
+    title: "Finish your profile",
+    body: "Add your photo and name so your team and clients can recognize you.",
+    fields: [
+      "firstName",
+      "lastName",
+    ] as const satisfies readonly OnboardingFieldName[],
+  },
 ] satisfies ReadonlyArray<{
   id: OnboardingStepId;
   label: string;
@@ -120,10 +118,6 @@ const onboardingSteps = [
 
 const initialState: OnboardingActionState = {};
 const lastOnboardingStepIndex = onboardingSteps.length - 1;
-
-async function noopPreviewAction() {
-  return {};
-}
 const onboardingInputClassName =
   "h-9 text-sm focus-visible:ring-0 focus-visible:ring-transparent focus-visible:border-border aria-invalid:border-input/95 aria-invalid:ring-0 aria-invalid:ring-transparent";
 const onboardingComboboxButtonClassName =
@@ -164,10 +158,6 @@ export function OnboardingForm({ action, initialProfile }: OnboardingFormProps) 
   const recommendedTemplate = useMemo(
     () => getRecommendedStarterTemplateForBusinessType(draft.businessType),
     [draft.businessType],
-  );
-  const previewBusiness = useMemo(
-    () => createOnboardingPreviewBusiness(draft),
-    [draft],
   );
 
   useEffect(() => {
@@ -620,7 +610,7 @@ export function OnboardingForm({ action, initialProfile }: OnboardingFormProps) 
                         data-invalid={Boolean(fieldErrors.jobTitle) || undefined}
                       >
                         <FieldLabel htmlFor="onboarding-job-title">
-                          Role
+                          Role <span className="text-muted-foreground font-normal">(optional)</span>
                         </FieldLabel>
                         <FieldContent>
                           <Combobox
@@ -636,6 +626,44 @@ export function OnboardingForm({ action, initialProfile }: OnboardingFormProps) 
                             options={jobTitleOptions}
                             placeholder="Choose your role"
                             value={draft.jobTitle}
+                          />
+                        </FieldContent>
+                      </Field>
+
+                      <Field>
+                        <FieldLabel htmlFor="onboarding-company-size">
+                          Team size <span className="text-muted-foreground font-normal">(optional)</span>
+                        </FieldLabel>
+                        <FieldContent>
+                          <Combobox
+                            buttonClassName={onboardingComboboxButtonClassName}
+                            disabled={isPending}
+                            id="onboarding-company-size"
+                            onValueChange={(value) =>
+                              updateField("companySize", value)
+                            }
+                            options={companySizeOptions}
+                            placeholder="How big is your team?"
+                            value={draft.companySize}
+                          />
+                        </FieldContent>
+                      </Field>
+
+                      <Field>
+                        <FieldLabel htmlFor="onboarding-referral-source">
+                          How did you find us? <span className="text-muted-foreground font-normal">(optional)</span>
+                        </FieldLabel>
+                        <FieldContent>
+                          <Combobox
+                            buttonClassName={onboardingComboboxButtonClassName}
+                            disabled={isPending}
+                            id="onboarding-referral-source"
+                            onValueChange={(value) =>
+                              updateField("referralSource", value)
+                            }
+                            options={referralSourceOptions}
+                            placeholder="Choose a source"
+                            value={draft.referralSource}
                           />
                         </FieldContent>
                       </Field>
@@ -746,9 +774,7 @@ export function OnboardingForm({ action, initialProfile }: OnboardingFormProps) 
                           )}
                         >
                           <span className="shrink-0 select-none text-sm text-muted-foreground">
-                            {typeof window !== "undefined"
-                              ? `${window.location.origin}/businesses/`
-                              : "/businesses/"}
+                            /businesses/
                           </span>
                           <input
                             aria-invalid={
@@ -845,10 +871,7 @@ export function OnboardingForm({ action, initialProfile }: OnboardingFormProps) 
             ) : null}
 
             {currentStepId === "template" ? (
-              <div className="w-full py-4">
-                <div className="grid gap-12 lg:grid-cols-[1fr_minmax(0,2fr)]">
-                  <div className="flex justify-end">
-                    <div className="w-full max-w-[280px]">
+              <div className="mx-auto w-full max-w-md py-4">
                       <FieldGroup>
                     <Field
                       data-invalid={Boolean(fieldErrors.businessType) || undefined}
@@ -876,7 +899,7 @@ export function OnboardingForm({ action, initialProfile }: OnboardingFormProps) 
 
                     <Field>
                       <FieldLabel htmlFor="onboarding-customer-contact">
-                        Contact channel
+                        Contact channel <span className="text-muted-foreground font-normal">(optional)</span>
                       </FieldLabel>
                       <FieldContent>
                         <Combobox
@@ -896,7 +919,7 @@ export function OnboardingForm({ action, initialProfile }: OnboardingFormProps) 
                     <Field>
                       <FieldLabel>Template</FieldLabel>
                       <FieldContent>
-                        <div className="flex flex-col gap-1">
+                        <div className="flex flex-col gap-1.5">
                           {starterTemplateBusinessTypes.map((templateType) => {
                             const def = starterTemplateDefinitions[templateType];
                             const isSelected =
@@ -908,10 +931,10 @@ export function OnboardingForm({ action, initialProfile }: OnboardingFormProps) 
                               <button
                                 key={templateType}
                                 className={cn(
-                                  "flex items-center gap-2.5 rounded-md border px-2.5 py-2 text-left text-xs transition-colors",
+                                  "flex flex-col gap-1 rounded-lg border px-3 py-2.5 text-left text-xs transition-colors",
                                   isSelected
                                     ? "border-primary bg-primary/5 text-foreground"
-                                    : "border-transparent hover:bg-accent/30",
+                                    : "border-border/60 hover:bg-accent/30",
                                   isPending && "pointer-events-none opacity-60",
                                 )}
                                 disabled={isPending}
@@ -923,26 +946,31 @@ export function OnboardingForm({ action, initialProfile }: OnboardingFormProps) 
                                 }
                                 type="button"
                               >
-                                <span
-                                  className={cn(
-                                    "flex size-3.5 shrink-0 items-center justify-center rounded-full border-2",
-                                    isSelected
-                                      ? "border-primary bg-primary"
-                                      : "border-border",
-                                  )}
-                                >
-                                  {isSelected ? (
-                                    <span className="size-1 rounded-full bg-white" />
-                                  ) : null}
-                                </span>
-                                <span className="min-w-0 flex-1 font-medium">
-                                  {def.label}
-                                </span>
-                                {isRecommended ? (
-                                  <span className="shrink-0 text-[10px] text-primary">
-                                    ★
+                                <div className="flex items-center gap-2.5">
+                                  <span
+                                    className={cn(
+                                      "flex size-3.5 shrink-0 items-center justify-center rounded-full border-2",
+                                      isSelected
+                                        ? "border-primary bg-primary"
+                                        : "border-border",
+                                    )}
+                                  >
+                                    {isSelected ? (
+                                      <span className="size-1 rounded-full bg-white" />
+                                    ) : null}
                                   </span>
-                                ) : null}
+                                  <span className="min-w-0 flex-1 font-medium">
+                                    {def.label}
+                                  </span>
+                                  {isRecommended ? (
+                                    <span className="shrink-0 text-[10px] text-primary">
+                                      ★
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <p className="ml-6 text-[11px] leading-relaxed text-muted-foreground">
+                                  {def.recommendedFields.join(" · ")}
+                                </p>
                               </button>
                             );
                           })}
@@ -950,26 +978,6 @@ export function OnboardingForm({ action, initialProfile }: OnboardingFormProps) 
                       </FieldContent>
                     </Field>
                   </FieldGroup>
-                    </div>
-                  </div>
-
-                  <div className="hidden lg:block">
-                    <div className="sticky top-4 overflow-hidden rounded-lg border border-border/75 bg-card/50">
-                      <div className="border-b border-border/50 px-4 py-2">
-                        <p className="text-xs font-medium text-muted-foreground">
-                          Form preview
-                        </p>
-                      </div>
-                      <div className="origin-top-left scale-[0.85] px-4 py-3 pointer-events-none opacity-80">
-                        <PublicInquiryForm
-                          business={previewBusiness}
-                          action={noopPreviewAction}
-                          previewMode
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
             ) : null}
           </div>
@@ -1041,6 +1049,7 @@ function getFieldValidationError(
       return result.success ? undefined : result.error.issues[0]?.message;
     }
     case "jobTitle": {
+      if (!draft.jobTitle) return undefined;
       const result = onboardingOwnerProfileSchema.shape.jobTitle.safeParse(
         draft.jobTitle,
       );
@@ -1156,6 +1165,7 @@ const setupLoadingSteps = [
   "Creating your business…",
   "Setting up your business…",
   "Building your inquiry form…",
+  "You're all set!",
 ];
 
 function SetupLoadingOverlay() {
@@ -1166,13 +1176,17 @@ function SetupLoadingOverlay() {
       return;
     }
 
+    const delay = activeStep === setupLoadingSteps.length - 2 ? 1400 : 1200;
+
     const timeout = window.setTimeout(
       () => setActiveStep((step) => Math.min(step + 1, setupLoadingSteps.length - 1)),
-      1200,
+      delay,
     );
 
     return () => window.clearTimeout(timeout);
   }, [activeStep]);
+
+  const isComplete = activeStep === setupLoadingSteps.length - 1;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
@@ -1190,8 +1204,10 @@ function SetupLoadingOverlay() {
             >
               {index < activeStep ? (
                 <CheckCircle2 className="size-5 shrink-0 text-primary" />
-              ) : index === activeStep ? (
+              ) : index === activeStep && !isComplete ? (
                 <Spinner className="size-5 shrink-0" />
+              ) : index === activeStep && isComplete ? (
+                <PartyPopper className="size-5 shrink-0 text-primary" />
               ) : (
                 <div className="size-5 shrink-0" />
               )}
@@ -1201,6 +1217,7 @@ function SetupLoadingOverlay() {
                   index <= activeStep
                     ? "text-foreground"
                     : "text-muted-foreground",
+                  index === activeStep && isComplete && "text-primary",
                 )}
               >
                 {step}
