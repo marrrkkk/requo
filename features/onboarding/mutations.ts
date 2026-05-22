@@ -19,16 +19,20 @@ type CompleteOnboardingForUserInput = {
     name: string;
     email: string;
   };
+  firstName: string;
+  lastName: string;
   jobTitle: string;
-  companySize: string;
-  referralSource: string;
+  companySize?: string;
+  referralSource?: string;
   businessName: string;
-  businessType: BusinessType;
+  businessSlug?: string;
+  businessType?: BusinessType;
   starterTemplateBusinessType: StarterTemplateBusinessType;
   countryCode: string;
   defaultCurrency: string;
-  customerContactChannel: string;
+  customerContactChannel?: string;
   inquiryFormConfigOverride?: InquiryFormConfig;
+  avatarUpload?: { storagePath: string; contentType: string } | null;
 };
 
 function createId(prefix: string) {
@@ -37,28 +41,42 @@ function createId(prefix: string) {
 
 export async function completeOnboardingForUser({
   user,
+  firstName,
+  lastName,
   jobTitle,
   companySize,
   referralSource,
   businessName,
+  businessSlug,
   businessType,
   starterTemplateBusinessType,
   countryCode,
   defaultCurrency,
   customerContactChannel,
   inquiryFormConfigOverride,
+  avatarUpload,
 }: CompleteOnboardingForUserInput) {
   await ensureProfileForUser(user);
 
   const now = new Date();
+  const fullName = `${firstName} ${lastName}`.trim();
 
   return db.transaction(async (tx) => {
     await tx
       .update(profiles)
       .set({
+        fullName,
+        firstName,
+        lastName,
         jobTitle,
-        companySize,
-        referralSource,
+        ...(companySize ? { companySize } : {}),
+        ...(referralSource ? { referralSource } : {}),
+        ...(avatarUpload
+          ? {
+              avatarStoragePath: avatarUpload.storagePath,
+              avatarContentType: avatarUpload.contentType,
+            }
+          : {}),
         onboardingCompletedAt: now,
         updatedAt: now,
       })
@@ -88,10 +106,11 @@ export async function completeOnboardingForUser({
       countryCode,
       user,
       name: businessName,
-      businessType,
+      preferredSlug: businessSlug,
+      businessType: businessType ?? "general_project_services",
       starterTemplateBusinessType,
       shortDescription: null,
-      customerContactChannel,
+      customerContactChannel: customerContactChannel ?? "email",
       inquiryFormConfigOverride,
       plan: currentPlan,
       activitySource: "onboarding",
