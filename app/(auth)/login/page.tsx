@@ -9,7 +9,7 @@ import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { getSafeAuthRedirectPath } from "@/lib/auth/redirects";
 import { getOptionalSession } from "@/lib/auth/session";
 import { onboardingPath } from "@/features/onboarding/routes";
-import { businessesHubPath } from "@/features/businesses/routes";
+import { dashboardPath } from "@/features/businesses/routes";
 import { isEmailConfigured } from "@/lib/env";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
@@ -32,7 +32,7 @@ export default async function LoginPage({
 }) {
   const { next } = await searchParams;
   const rawNext = typeof next === "string" ? next : next?.[0];
-  const nextPath = getSafeAuthRedirectPath(rawNext, businessesHubPath);
+  const nextPath = getSafeAuthRedirectPath(rawNext, dashboardPath);
 
   // Server-side redirect for already-authenticated users — avoids client-side flash
   const session = await getOptionalSession();

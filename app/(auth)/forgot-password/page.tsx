@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { AuthShell } from "@/components/shell/auth-shell";
 import { AuthenticatedPageRedirect } from "@/features/auth/components/authenticated-page-redirect";
-import { businessesHubPath } from "@/features/businesses/routes";
+import { dashboardPath } from "@/features/businesses/routes";
 import { ForgotPasswordForm } from "@/features/auth/components/forgot-password-form";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
@@ -19,7 +19,7 @@ export const unstable_instant = {
 export default function ForgotPasswordPage() {
   return (
     <AuthShell badge="Recovery" title="Reset password" layout="centered">
-      <AuthenticatedPageRedirect redirectTo={businessesHubPath} />
+      <AuthenticatedPageRedirect redirectTo={dashboardPath} />
       <ForgotPasswordForm />
     </AuthShell>
   );

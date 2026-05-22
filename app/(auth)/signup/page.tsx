@@ -7,7 +7,7 @@ import type { SocialAuthProvider } from "@/features/auth/components/social-auth-
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
 import { onboardingPath } from "@/features/onboarding/routes";
-import { businessesHubPath } from "@/features/businesses/routes";
+import { dashboardPath } from "@/features/businesses/routes";
 import { getOptionalSession } from "@/lib/auth/session";
 import { isEmailConfigured } from "@/lib/env";
 import { createNoIndexMetadata } from "@/lib/seo/site";
@@ -33,7 +33,7 @@ export default async function SignupPage() {
     ]);
     const hasOnboarded =
       memberships.length > 0 || Boolean(profile?.onboardingCompletedAt);
-    redirect(hasOnboarded ? businessesHubPath : onboardingPath);
+    redirect(hasOnboarded ? dashboardPath : onboardingPath);
   }
 
   const socialProviders: SocialAuthProvider[] = ["google"];
