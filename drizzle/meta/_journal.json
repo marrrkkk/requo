@@ -106,6 +106,13 @@
       "when": 1779800000000,
       "tag": "0014_jobs_and_invoices",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1779426431688,
+      "tag": "0015_sparkling_fixer",
+      "breakpoints": true
     }
   ]
 }
