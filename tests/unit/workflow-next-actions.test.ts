@@ -24,7 +24,7 @@ describe("features/businesses/workflow-next-actions", () => {
       expect(action?.key).toBe("inquiry-create-quote");
       expect(action?.label).toBe("Create quote");
       expect(action?.href).toBe(
-        "/businesses/acme/quotes/new?inquiryId=inq_1",
+        "/acme/quotes/new?inquiryId=inq_1",
       );
     });
 
@@ -41,7 +41,7 @@ describe("features/businesses/workflow-next-actions", () => {
       });
 
       expect(action?.key).toBe("inquiry-open-quote");
-      expect(action?.href).toBe("/businesses/acme/quotes/quote_1");
+      expect(action?.href).toBe("/acme/quotes/quote_1");
     });
 
     it("prioritizes pending follow-ups before quote creation", () => {
@@ -59,7 +59,7 @@ describe("features/businesses/workflow-next-actions", () => {
 
       expect(action?.key).toBe("inquiry-follow-up");
       expect(action?.priority).toBe("high");
-      expect(action?.href).toBe("/businesses/acme/inquiries/inq_1#follow-ups");
+      expect(action?.href).toBe("/acme/inquiries/inq_1#follow-ups");
     });
 
     it("does not suggest next actions for inactive inquiry records", () => {
@@ -90,7 +90,7 @@ describe("features/businesses/workflow-next-actions", () => {
       });
 
       expect(action?.key).toBe("quote-send");
-      expect(action?.href).toBe("/businesses/acme/quotes/quote_1#send-quote");
+      expect(action?.href).toBe("/acme/quotes/quote_1#send-quote");
     });
 
     it("follows up on viewed sent quotes without a response", () => {
@@ -124,7 +124,7 @@ describe("features/businesses/workflow-next-actions", () => {
 
       expect(action?.key).toBe("quote-post-win");
       expect(action?.href).toBe(
-        "/businesses/acme/quotes/quote_1#post-acceptance",
+        "/acme/quotes/quote_1#post-acceptance",
       );
     });
 

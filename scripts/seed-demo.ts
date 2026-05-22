@@ -2235,8 +2235,8 @@ async function seedStableAiFixtures(input: {
     "Hi! Thanks for your inquiry. Before I send the final quote, may I confirm the event date and number of guests?",
     "",
     "Sources:",
-    `- [Foundry Labs booth kit](/businesses/${primaryBusinessSlug}/inquiries/${input.inquiryId})`,
-    `- [Q-SMOKE-1002](/businesses/${primaryBusinessSlug}/quotes/${input.quoteId})`,
+    `- [Foundry Labs booth kit](/${primaryBusinessSlug}/inquiries/${input.inquiryId})`,
+    `- [Q-SMOKE-1002](/${primaryBusinessSlug}/quotes/${input.quoteId})`,
   ].join("\n");
 
   await db.insert(aiConversations).values([
@@ -2288,8 +2288,8 @@ async function seedStableAiFixtures(input: {
       metadata: {
         format: "markdown",
         sources: [
-          `/businesses/${primaryBusinessSlug}/inquiries/${input.inquiryId}`,
-          `/businesses/${primaryBusinessSlug}/quotes/${input.quoteId}`,
+          `/${primaryBusinessSlug}/inquiries/${input.inquiryId}`,
+          `/${primaryBusinessSlug}/quotes/${input.quoteId}`,
         ],
       },
       createdAt: daysAgo(1),
@@ -2499,7 +2499,7 @@ async function main() {
 
     for (const business of account.businesses) {
       const dashboardUrl = new URL(
-        `/businesses/${business.slug}/dashboard`,
+        `/${business.slug}/dashboard`,
         env.BETTER_AUTH_URL,
       ).toString();
 

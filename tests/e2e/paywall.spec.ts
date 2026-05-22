@@ -18,9 +18,9 @@ async function signIn(page: Page) {
 }
 
 async function openDemoBusiness(page: Page) {
-  await page.goto(`/businesses/${demoBusinessSlug}/dashboard`);
+  await page.goto(`/${demoBusinessSlug}/dashboard`);
   await expect(page).toHaveURL(
-    new RegExp(`/businesses/${demoBusinessSlug}/dashboard$`),
+    new RegExp(`/${demoBusinessSlug}/dashboard$`),
     { timeout: 20_000 },
   );
 }
@@ -37,7 +37,7 @@ test.describe("Paywall & Free Plan Gating", () => {
     await page.getByRole("link", { name: "Analytics" }).click();
 
     await expect(page).toHaveURL(
-      new RegExp(`/businesses/${demoBusinessSlug}/analytics$`),
+      new RegExp(`/${demoBusinessSlug}/analytics$`),
     );
 
     // Click the "Conversion" tab which is gated for Free plans
@@ -59,7 +59,7 @@ test.describe("Paywall & Free Plan Gating", () => {
   }) => {
     await openDemoBusiness(page);
     await page.goto(
-      `/businesses/${demoBusinessSlug}/settings/knowledge`,
+      `/${demoBusinessSlug}/settings/knowledge`,
     );
 
     // Verify the full page lock component
@@ -78,7 +78,7 @@ test.describe("Paywall & Free Plan Gating", () => {
   }) => {
     // The landing after sign in is /businesses, where we should see the created business
     // and the "Create another business" card
-    await page.goto("/businesses");
+    await page.goto("/dashboard");
 
     // The free plan locks the multi-business feature via dialog submission intercept
     await page.getByLabel("Business name").fill("Test Business 2");
@@ -94,7 +94,7 @@ test.describe("Paywall & Free Plan Gating", () => {
   test("owner sees Free plan badge in general settings", async ({ page }) => {
     await openDemoBusiness(page);
     await page.goto(
-      `/businesses/${demoBusinessSlug}/settings/general`,
+      `/${demoBusinessSlug}/settings/general`,
     );
 
     // Check for the header PlanBadge outputting "Free"
@@ -106,7 +106,7 @@ test.describe("Paywall & Free Plan Gating", () => {
   }) => {
     await openDemoBusiness(page);
     await page.goto(
-      `/businesses/${demoBusinessSlug}/settings/pricing`,
+      `/${demoBusinessSlug}/settings/pricing`,
     );
 
     // Verify the full page lock component
@@ -125,7 +125,7 @@ test.describe("Paywall & Free Plan Gating", () => {
     await page.getByRole("link", { name: "Analytics" }).click();
 
     await expect(page).toHaveURL(
-      new RegExp(`/businesses/${demoBusinessSlug}/analytics$`),
+      new RegExp(`/${demoBusinessSlug}/analytics$`),
     );
 
     // Click the "Workflow" tab which is gated for Free plans
@@ -145,7 +145,7 @@ test.describe("Paywall & Free Plan Gating", () => {
   test("owner sees LockedFeaturePage when accessing team members", async ({ page }) => {
     await openDemoBusiness(page);
     await page.goto(
-      `/businesses/${demoBusinessSlug}/members`,
+      `/${demoBusinessSlug}/members`,
     );
 
     // Verify the full page lock component
@@ -162,7 +162,7 @@ test.describe("Paywall & Free Plan Gating", () => {
   test("free plan hides branding on public inquiry page", async ({ page }) => {
     await openDemoBusiness(page);
     await page.goto(
-      `/businesses/${demoBusinessSlug}/settings/inquiry-page`,
+      `/${demoBusinessSlug}/settings/inquiry-page`,
     );
 
     // Branding section should be locked or hidden
