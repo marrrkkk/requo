@@ -13,6 +13,7 @@ import { requireAdminUser } from "@/features/admin/access";
 import { wrapAdminRouteWithViewLog } from "@/features/admin/audit";
 import { AdminUserActions } from "@/features/admin/components/admin-user-actions";
 import { AdminUserDetail } from "@/features/admin/components/admin-user-detail";
+import { AdminUserPlanOverride } from "@/features/admin/components/admin-user-plan-override";
 import { ADMIN_USERS_PATH } from "@/features/admin/navigation";
 import { getAdminUserDetail } from "@/features/admin/queries";
 import { timed } from "@/lib/dev/server-timing";
@@ -119,6 +120,12 @@ async function renderDetail(userId: string, adminUserId: string) {
       />
 
       <AdminUserDetail user={user} />
+
+      <AdminUserPlanOverride
+        targetUserId={user.id}
+        targetEmail={user.email}
+        currentPlan={user.subscription?.plan ?? "free"}
+      />
 
       <div className="flex justify-start">
         <Button asChild variant="ghost">
