@@ -17,7 +17,7 @@ export const PUBLIC_ROUTE_PREFIXES = [
   "/privacy",
   "/terms",
   "/refund-policy",
-  "/businesses",
+  "/b",
 ] as const;
 
 export const PRIVATE_ROUTE_PREFIXES = [

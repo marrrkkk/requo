@@ -521,7 +521,7 @@ export async function listPublicBusinessSitemapEntries(): Promise<
 
     return rows.map((row) => ({
       slug: row.slug,
-      pathname: `/businesses/${row.slug}`,
+      pathname: `/b/${row.slug}`,
       lastModified: row.updatedAt,
       noIndex:
         row.archivedAt !== null

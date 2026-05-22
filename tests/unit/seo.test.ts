@@ -452,7 +452,7 @@ describe("Sitemap", () => {
               slug: fc.constant(slug),
               lastModified: fc.date({ min: new Date("2020-01-01"), max: new Date("2030-01-01") }),
               noIndex: fc.boolean(),
-            }).map((row) => ({ ...row, pathname: `/businesses/${row.slug}` })),
+            }).map((row) => ({ ...row, pathname: `/b/${row.slug}` })),
           ),
         ),
       );
@@ -472,7 +472,7 @@ describe("Sitemap", () => {
 
         const businessUrls = entries
           .map((e) => new URL(e.url).pathname)
-          .filter((p) => p.startsWith("/businesses/"));
+          .filter((p) => p.startsWith("/b/"));
 
         const expectedPublicPaths = businessRows
           .filter((r) => !r.noIndex)
@@ -573,7 +573,7 @@ describe("Business slug metadata", () => {
     vi.resetModules();
   });
 
-  it("Property 4: public business profile has title with name, description ≤ 160 chars, canonical = /businesses/<slug>", async () => {
+  it("Property 4: public business profile has title with name, description ≤ 160 chars, canonical = /b/<slug>", async () => {
     vi.resetModules();
     process.env.BETTER_AUTH_URL = "https://example.com";
 
@@ -605,8 +605,8 @@ describe("Business slug metadata", () => {
         expect(meta.description).toBeDefined();
         expect(meta.description!.length).toBeLessThanOrEqual(160);
 
-        // Canonical = /businesses/<slug>
-        expect(meta.alternates?.canonical).toBe(`/businesses/${profile.slug}`);
+        // Canonical = /b/<slug>
+        expect(meta.alternates?.canonical).toBe(`/b/${profile.slug}`);
       }),
       { numRuns: 10 },
     );

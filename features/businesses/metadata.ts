@@ -17,11 +17,11 @@ const META_DESCRIPTION_MAX_LENGTH = 160;
 
 /**
  * Pathname of the public business profile. Matches the route at
- * `app/businesses/[slug]/page.tsx`; keep the two in sync so
+ * `app/(public)/b/[slug]/page.tsx`; keep the two in sync so
  * `alternates.canonical` resolves to the same URL the page renders at.
  */
 export function getPublicBusinessPagePath(slug: string) {
-  return `/businesses/${slug}`;
+  return `/b/${slug}`;
 }
 
 /**
