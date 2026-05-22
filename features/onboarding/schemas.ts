@@ -118,9 +118,7 @@ export const onboardingBusinessContextSchema = z.object({
     .min(1, "Choose a currency.")
     .transform(normalizeBusinessCurrencyCode)
     .refine(isSupportedBusinessCurrencyCode, "Choose a supported currency."),
-  customerContactChannel: z.enum(customerContactChannelValues, {
-    message: "Choose how customers usually contact you.",
-  }).optional(),
+  customerContactChannel: z.enum(customerContactChannelValues).optional(),
 });
 
 export const onboardingTemplateSchema = z.object({
@@ -138,9 +136,7 @@ export const onboardingOwnerProfileSchema = z.object({
     .trim()
     .min(1, "Enter your last name.")
     .max(60, "Use 60 characters or fewer."),
-  jobTitle: z.enum(jobTitleValues, {
-    message: "Choose your role.",
-  }),
+  jobTitle: z.enum(jobTitleValues).optional(),
 });
 
 export const completeOnboardingSchema = z.object({
