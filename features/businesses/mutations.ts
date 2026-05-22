@@ -24,6 +24,7 @@ import {
   businesses,
   } from "@/lib/db/schema";
 import { appendRandomSlugSuffix, slugifyPublicName } from "@/lib/slugs";
+import { validateBusinessSlug } from "@/features/businesses/validation";
 
 type CreateBusinessForUserInput = {
   user: {
@@ -114,6 +115,12 @@ export async function createBusinessRecordForUser({
   const baseSlug = preferredSlug?.trim() || slugifyPublicName(trimmedName, {
     fallback: "business",
   });
+
+  const slugValidation = validateBusinessSlug(baseSlug);
+  if (!slugValidation.valid) {
+    throw new Error(slugValidation.error ?? "Invalid business slug.");
+  }
+
   const slug = await getAvailableBusinessSlug(tx, baseSlug);
   const defaultInquiryForm = createInquiryFormPreset({
     businessType: starterTemplateBusinessType,

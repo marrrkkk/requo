@@ -1,6 +1,7 @@
 export const activeBusinessSlugCookieName = "requo-active-business";
 
-export const businessesHubPath = "/businesses";
+export const dashboardPath = "/dashboard";
+export const newBusinessPath = "/new";
 
 export type BusinessSettingsSection =
   | "general"
@@ -17,7 +18,7 @@ export type BusinessSettingsSection =
   | "audit-log";
 
 export function getBusinessPath(slug: string) {
-  return `/businesses/${slug}`;
+  return `/${slug}`;
 }
 
 export function getBusinessDashboardPath(slug: string) {
@@ -221,7 +222,7 @@ export function getBusinessKnowledgeCompatibilityPath(slug: string) {
 }
 
 export function getBusinessDashboardSlugFromPathname(pathname: string) {
-  const match = /^\/businesses\/([^/]+)(?:\/|$)/.exec(pathname);
+  const match = /^\/([^/]+)(?:\/|$)/.exec(pathname);
 
   return match ? decodeURIComponent(match[1]) : null;
 }
