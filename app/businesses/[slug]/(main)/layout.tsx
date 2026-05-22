@@ -17,6 +17,7 @@ import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { getBusinessBillingShellOverview } from "@/features/billing/queries";
 import { getBusinessNotificationBellView } from "@/features/notifications/queries";
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
+import { SidebarChecklistSection } from "@/features/onboarding/components/sidebar-checklist-section";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
@@ -106,6 +107,16 @@ export default async function BusinessDashboardLayout({
     </Suspense>
   );
 
+  const checklistSlot = (
+    <Suspense fallback={null}>
+      <SidebarChecklistSection
+        businessId={businessContext.business.id}
+        businessSlug={businessContext.business.slug}
+        publicInquiryEnabled={businessContext.business.publicInquiryEnabled}
+      />
+    </Suspense>
+  );
+
   return (
     <>
       <RecentBusinessTracker businessSlug={businessContext.business.slug} />
@@ -127,6 +138,7 @@ export default async function BusinessDashboardLayout({
           bannerSlot={archivedBusinessBanner}
           notificationSlot={notificationSlot}
           upgradeSlot={upgradeSlot}
+          checklistSlot={checklistSlot}
         >
           {children}
         </DashboardShell>

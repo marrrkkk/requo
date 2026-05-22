@@ -259,6 +259,10 @@ type DashboardShellProps = {
 
   upgradeSlot: ReactNode;
 
+  /** Pre-rendered getting started checklist for the sidebar. */
+
+  checklistSlot?: ReactNode;
+
 };
 
 
@@ -280,6 +284,8 @@ export function DashboardShell({
   notificationSlot,
 
   upgradeSlot,
+
+  checklistSlot,
 
 }: DashboardShellProps) {
 
@@ -455,6 +461,8 @@ export function DashboardShell({
         </SidebarContent>
 
 
+
+        {checklistSlot}
 
         <SidebarSeparator />
 

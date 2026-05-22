@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardActivationChecklist } from "@/features/businesses/components/dashboard-activation-checklist";
-import { NeedsAttentionSeeMore, type NeedsAttentionIconName } from "@/features/businesses/components/needs-attention-see-more";
+import { NeedsAttentionTabs, type NeedsAttentionItemData, type NeedsAttentionIconName } from "@/features/businesses/components/needs-attention-tabs";
 import {
   getBusinessInquiriesPath,
   getBusinessInquiryPath,
@@ -88,10 +88,12 @@ export async function DashboardOverviewChecklistSection({
 }
 
 type DashboardOverviewStatsSectionProps = {
+  businessSlug: string;
   overviewPromise: DashboardOverviewDataPromise;
 };
 
 export async function DashboardOverviewStatsSection({
+  businessSlug,
   overviewPromise,
 }: DashboardOverviewStatsSectionProps) {
   const overview = await overviewPromise;
@@ -99,26 +101,31 @@ export async function DashboardOverviewStatsSection({
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       <OverviewActionStat
+        href={`${getBusinessInquiriesPath(businessSlug)}?status=overdue`}
         label="Overdue inquiries"
         tooltip="Past deadline"
         value={overview.counts.overdueInquiries}
       />
       <OverviewActionStat
+        href={`${getBusinessInquiriesPath(businessSlug)}?status=new`}
         label="New inquiries"
         tooltip="Last 48h"
         value={overview.counts.newInquiries}
       />
       <OverviewActionStat
+        href={`${getBusinessQuotesPath(businessSlug)}?status=sent`}
         label="Expiring soon"
         tooltip="Quotes expiring in the next 7 days"
         value={overview.counts.expiringSoonQuotes}
       />
       <OverviewActionStat
+        href={`${getBusinessQuotesPath(businessSlug)}?status=draft`}
         label="Draft quotes"
         tooltip="Not sent yet"
         value={overview.counts.draftQuotes}
       />
       <OverviewActionStat
+        href={`${getBusinessQuotesPath(businessSlug)}?status=accepted`}
         label="Needs next step"
         tooltip="Accepted quotes awaiting scheduling or follow-up"
         value={overview.counts.recentAcceptedQuotes}
@@ -222,7 +229,20 @@ export async function DashboardNeedsAttentionSection({
     })),
   ];
   const attentionCount = items.length;
-  const visibleItems = items.slice(0, 3);
+
+  // Map to the client component's data type (strip React elements from badges)
+  const tabItems: NeedsAttentionItemData[] = items.map((item) => ({
+    href: item.href,
+    key: item.key,
+    label: item.label,
+    title: item.title,
+    description: item.description,
+    meta: item.meta,
+    actionLabel: item.actionLabel,
+    tone: item.tone,
+    iconName: item.iconName,
+    category: item.category,
+  }));
 
   return (
     <DashboardSection
@@ -231,15 +251,11 @@ export async function DashboardNeedsAttentionSection({
           <Badge variant="secondary">{attentionCount} open</Badge>
         ) : null
       }
-      description="Quotes and inquiries waiting on the next step."
+      description="Quotes, inquiries, and follow-ups waiting on the next step."
       title="Needs attention"
     >
-      {visibleItems.length ? (
-        <div className="flex flex-col divide-y divide-border/70">
-          {visibleItems.map((item) => (
-            <NeedsAttentionRow item={item} key={item.key} />
-          ))}
-        </div>
+      {tabItems.length ? (
+        <NeedsAttentionTabs items={tabItems} />
       ) : (
         <DashboardEmptyState
           className="px-5 py-10 sm:px-6"
@@ -249,10 +265,6 @@ export async function DashboardNeedsAttentionSection({
           variant="flat"
         />
       )}
-
-      {attentionCount > 3 ? (
-        <NeedsAttentionSeeMore items={items} />
-      ) : null}
     </DashboardSection>
   );
 }
@@ -281,6 +293,7 @@ export async function DashboardOverviewQueuesSection({
 
   return (
     <>
+      {/* #3 Reduced to 4 queue cards in a 2x2 grid — removed standalone declined card */}
       <div className="grid gap-5 xl:grid-cols-2">
         <OverviewQueueCard
           action={
@@ -313,40 +326,6 @@ export async function DashboardOverviewQueuesSection({
               description="Inquiries with a passed deadline show up here."
               icon={Inbox}
               title="No overdue inquiries"
-              variant="flat"
-            />
-          )}
-        </OverviewQueueCard>
-
-        <OverviewQueueCard
-          action={
-            <Button asChild size="sm" variant="ghost">
-              <Link href={getBusinessQuotesPath(businessSlug)} prefetch={true}>
-                All quotes
-                <ArrowRight data-icon="inline-end" />
-              </Link>
-            </Button>
-          }
-          count={overview.counts.expiringSoonQuotes}
-          title="Quotes expiring soon"
-        >
-          {overview.expiringSoonQuotes.length ? (
-            <div className="flex flex-col divide-y divide-border/70">
-              {overview.expiringSoonQuotes.map((quote) => (
-                <OverviewQuoteRow
-                  key={quote.id}
-                  meta={`Expires ${formatQuoteDate(quote.validUntil)}`}
-                  quote={quote}
-                  businessSlug={businessSlug}
-                />
-              ))}
-            </div>
-          ) : (
-            <DashboardEmptyState
-              className="px-5 py-12 sm:px-6"
-              description="No sent quotes are due to expire in the next 7 days."
-              icon={FileText}
-              title="Nothing expiring soon"
               variant="flat"
             />
           )}
@@ -398,6 +377,40 @@ export async function DashboardOverviewQueuesSection({
         <OverviewQueueCard
           action={
             <Button asChild size="sm" variant="ghost">
+              <Link href={getBusinessQuotesPath(businessSlug)} prefetch={true}>
+                All quotes
+                <ArrowRight data-icon="inline-end" />
+              </Link>
+            </Button>
+          }
+          count={overview.counts.expiringSoonQuotes}
+          title="Quotes expiring soon"
+        >
+          {overview.expiringSoonQuotes.length ? (
+            <div className="flex flex-col divide-y divide-border/70">
+              {overview.expiringSoonQuotes.map((quote) => (
+                <OverviewQuoteRow
+                  key={quote.id}
+                  meta={`Expires ${formatQuoteDate(quote.validUntil)}`}
+                  quote={quote}
+                  businessSlug={businessSlug}
+                />
+              ))}
+            </div>
+          ) : (
+            <DashboardEmptyState
+              className="px-5 py-12 sm:px-6"
+              description="No sent quotes are due to expire in the next 7 days."
+              icon={FileText}
+              title="Nothing expiring soon"
+              variant="flat"
+            />
+          )}
+        </OverviewQueueCard>
+
+        <OverviewQueueCard
+          action={
+            <Button asChild size="sm" variant="ghost">
               <Link
                 href={`${getBusinessQuotesPath(businessSlug)}?status=draft`}
                 prefetch={true}
@@ -431,83 +444,28 @@ export async function DashboardOverviewQueuesSection({
             />
           )}
         </OverviewQueueCard>
-
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-2">
-        <OverviewQueueCard
-          action={
-            <Button asChild size="sm" variant="ghost">
-              <Link
-                href={`${getBusinessQuotesPath(businessSlug)}?status=accepted`}
-                prefetch={true}
-              >
-                Accepted quotes
-                <ArrowRight data-icon="inline-end" />
-              </Link>
-            </Button>
-          }
-          count={overview.counts.recentAcceptedQuotes}
-          title="Accepted"
-        >
-          {overview.recentAcceptedQuotes.length ? (
-            <div className="flex flex-col divide-y divide-border/70">
-              {overview.recentAcceptedQuotes.map((quote) => (
-                <OverviewQuoteRow
-                  key={quote.id}
-                  meta={`Accepted ${formatQuoteDate(quote.acceptedAt ?? quote.updatedAt)}`}
-                  quote={quote}
-                  businessSlug={businessSlug}
-                />
-              ))}
-            </div>
-          ) : (
-            <DashboardEmptyState
-              className="px-5 py-12 sm:px-6"
-              description="Accepted quotes that still need scheduling, deposit, or follow-up show up here."
-              icon={CheckCircle2}
-              title="All caught up"
-              variant="flat"
-            />
-          )}
-        </OverviewQueueCard>
-
-        <OverviewQueueCard
-          action={
-            <Button asChild size="sm" variant="ghost">
-              <Link
-                href={`${getBusinessQuotesPath(businessSlug)}?status=rejected`}
-                prefetch={true}
-              >
-                Declined quotes
-                <ArrowRight data-icon="inline-end" />
-              </Link>
-            </Button>
-          }
-          count={overview.counts.declinedQuotes}
-          title="Declined"
-        >
-          {overview.declinedQuotes.length ? (
-            <div className="flex flex-col divide-y divide-border/70">
-              {overview.declinedQuotes.map((quote) => (
-                <OverviewQuoteRow
-                  key={quote.id}
-                  meta={`Declined ${formatQuoteDate(quote.customerRespondedAt ?? quote.updatedAt)}`}
-                  quote={quote}
-                  businessSlug={businessSlug}
-                />
-              ))}
-            </div>
-          ) : (
-            <DashboardEmptyState
-              className="px-5 py-12 sm:px-6"
-              description="Quotes that customers have declined show up here."
-              icon={CircleX}
-              title="No declined quotes"
-              variant="flat"
-            />
-          )}
-        </OverviewQueueCard>
+      {/* Compact summary links for accepted & declined — no full card */}
+      <div className="flex flex-wrap items-center gap-3 px-1">
+        <Button asChild size="sm" variant="outline">
+          <Link
+            href={`${getBusinessQuotesPath(businessSlug)}?status=accepted`}
+            prefetch={true}
+          >
+            <CheckCircle2 data-icon="inline-start" />
+            Accepted ({overview.counts.recentAcceptedQuotes})
+          </Link>
+        </Button>
+        <Button asChild size="sm" variant="outline">
+          <Link
+            href={`${getBusinessQuotesPath(businessSlug)}?status=rejected`}
+            prefetch={true}
+          >
+            <CircleX data-icon="inline-start" />
+            Declined ({overview.counts.declinedQuotes})
+          </Link>
+        </Button>
       </div>
     </>
   );
@@ -598,9 +556,9 @@ export function DashboardOverviewQueuesFallback() {
           <OverviewQueueCardSkeleton key={index} />
         ))}
       </div>
-
-      <div className="grid gap-5 xl:grid-cols-2">
-        <OverviewQueueCardSkeleton />
+      <div className="flex flex-wrap items-center gap-3 px-1">
+        <Skeleton className="h-9 w-32 rounded-lg" />
+        <Skeleton className="h-9 w-32 rounded-lg" />
       </div>
     </>
   );
@@ -610,13 +568,19 @@ function OverviewActionStat({
   label,
   value,
   tooltip,
+  href,
 }: {
   label: string;
   value: number;
   tooltip: string;
+  href: string;
 }) {
   return (
-    <div className="soft-panel px-4 py-4">
+    <Link
+      href={href}
+      prefetch={true}
+      className="soft-panel px-4 py-4 transition-colors hover:bg-accent/40"
+    >
       <div className="flex items-center gap-1.5">
         <p className="meta-label">{label}</p>
         <HelpTooltip content={tooltip} label={label} />
@@ -629,7 +593,7 @@ function OverviewActionStat({
       >
         {value}
       </p>
-    </div>
+    </Link>
   );
 }
 
@@ -736,66 +700,6 @@ function createFollowUpAttentionItem(
     iconName: "bell-ring",
     category: "Follow-up",
   };
-}
-
-const attentionIconMap: Record<NeedsAttentionIconName, typeof ArrowRight> = {
-  "inbox": Inbox,
-  "file-text": FileText,
-  "bell-ring": BellRing,
-  "check-circle": CheckCircle2,
-};
-
-function NeedsAttentionRow({ item }: { item: NeedsAttentionItem }) {
-  const Icon = attentionIconMap[item.iconName];
-
-  return (
-    <Link
-      className="group flex items-center gap-4 px-1 py-3.5 transition-colors hover:bg-accent/22 sm:px-2"
-      href={item.href}
-      prefetch={true}
-    >
-      <div
-        className={cn(
-          "flex size-9 shrink-0 items-center justify-center rounded-full",
-          item.tone === "urgent" && "bg-destructive/10 text-destructive",
-          item.tone === "normal" && "bg-primary/10 text-primary",
-          item.tone === "positive" && "bg-green-500/10 text-green-600 dark:text-green-400",
-        )}
-      >
-        <Icon className="size-4" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="truncate text-sm font-semibold text-foreground">
-                {item.title}
-              </p>
-              <span className="shrink-0 text-[0.68rem] font-medium uppercase tracking-wider text-muted-foreground/70">
-                {item.category}
-              </span>
-            </div>
-            <p className="truncate text-sm text-muted-foreground">
-              {item.description}
-            </p>
-          </div>
-          {item.badge ? <NeedsAttentionBadgeDisplay badge={item.badge} /> : null}
-        </div>
-      </div>
-      <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
-    </Link>
-  );
-}
-
-function NeedsAttentionBadgeDisplay({ badge }: { badge: NeedsAttentionBadge }) {
-  switch (badge.kind) {
-    case "inquiry":
-      return <InquiryStatusBadge status={badge.status} />;
-    case "quote":
-      return <QuoteStatusBadge status={badge.status} />;
-    case "reminder":
-      return <QuoteReminderBadge kind={badge.reminderKind} />;
-  }
 }
 
 function getBusinessInquiriesStatusPath(

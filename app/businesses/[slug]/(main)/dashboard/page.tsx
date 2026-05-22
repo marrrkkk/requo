@@ -10,11 +10,8 @@ import {
   DashboardActionsRow,
   DashboardPage,
 } from "@/components/shared/dashboard-layout";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  DashboardOverviewChecklistFallback,
-  DashboardOverviewChecklistSection,
   DashboardNeedsAttentionFallback,
   DashboardNeedsAttentionSection,
   DashboardOverviewQueuesFallback,
@@ -23,9 +20,15 @@ import {
   DashboardOverviewStatsSection,
 } from "@/features/businesses/components/dashboard-overview-sections";
 import {
+  DashboardVelocitySection,
+  DashboardVelocitySectionFallback,
+} from "@/features/businesses/components/dashboard-velocity-section";
+import { DashboardGreeting } from "@/features/businesses/components/dashboard-greeting";
+import {
   getBusinessDashboardSummaryData,
   getBusinessOverviewData,
 } from "@/features/businesses/queries";
+import { getFreeAnalytics } from "@/features/analytics/queries";
 import {
   FollowUpDashboardSection,
   FollowUpDashboardSectionFallback,
@@ -63,51 +66,31 @@ async function DashboardOverviewContent({
   params,
 }: DashboardOverviewPageProps) {
   const { slug } = await params;
-  const { businessContext } = await getAppShellContext(slug);
+  const { user, businessContext } = await getAppShellContext(slug);
 
   const businessSlug = businessContext.business.slug;
-  const summaryPromise = getBusinessDashboardSummaryData(
-    businessContext.business.id,
-  );
-  const overviewPromise = getBusinessOverviewData(
-    businessContext.business.id,
-  );
-  const followUpOverviewPromise = getFollowUpOverviewForBusiness(
-    businessContext.business.id,
-  );
+  const businessId = businessContext.business.id;
+
+  const summaryPromise = getBusinessDashboardSummaryData(businessId);
+  const overviewPromise = getBusinessOverviewData(businessId);
+  const followUpOverviewPromise = getFollowUpOverviewForBusiness(businessId);
+  const analyticsPromise = getFreeAnalytics(businessId);
 
   return (
     <DashboardPage className="gap-5 xl:gap-6">
-      <Suspense fallback={<DashboardOverviewChecklistFallback />}>
-        <DashboardOverviewChecklistSection
-          businessName={businessContext.business.name}
-          businessSlug={businessSlug}
-          publicInquiryEnabled={businessContext.business.publicInquiryEnabled}
-          summaryPromise={summaryPromise}
-        />
-      </Suspense>
-
-      <Suspense fallback={<DashboardNeedsAttentionFallback />}>
-        <DashboardNeedsAttentionSection
-          businessSlug={businessSlug}
-          overviewPromise={overviewPromise}
-          followUpOverviewPromise={followUpOverviewPromise}
-        />
-      </Suspense>
-
+      {/* #4 Time-based greeting + #5 Compact business header */}
       <section className="section-panel overflow-hidden">
-        <div className="flex flex-col gap-6 px-5 py-5 sm:px-6 sm:py-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-5 px-5 py-5 sm:px-6 sm:py-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary">/{businessContext.business.slug}</Badge>
-                <Badge variant="outline">
-                  {businessContext.business.defaultCurrency}
-                </Badge>
-              </div>
-              <h1 className="mt-3 font-heading text-[1.8rem] font-semibold tracking-tight text-foreground sm:text-[2.1rem]">
-                {businessContext.business.name}
-              </h1>
+              <Suspense fallback={<GreetingFallback userName={user.name} />}>
+                <GreetingWithData
+                  userName={user.name}
+                  overviewPromise={overviewPromise}
+                  followUpOverviewPromise={followUpOverviewPromise}
+                />
+              </Suspense>
+
             </div>
 
             <DashboardActionsRow className="w-full [&>*]:w-full sm:[&>*]:w-auto lg:w-auto lg:justify-end">
@@ -126,12 +109,42 @@ async function DashboardOverviewContent({
             </DashboardActionsRow>
           </div>
 
+          {/* #2 Clickable stats */}
           <Suspense fallback={<DashboardOverviewStatsFallback />}>
-            <DashboardOverviewStatsSection overviewPromise={overviewPromise} />
+            <DashboardOverviewStatsSection
+              businessSlug={businessSlug}
+              overviewPromise={overviewPromise}
+            />
           </Suspense>
         </div>
       </section>
 
+      {/* #1 Needs attention with category tabs */}
+      <Suspense fallback={<DashboardNeedsAttentionFallback />}>
+        <DashboardNeedsAttentionSection
+          businessSlug={businessSlug}
+          overviewPromise={overviewPromise}
+          followUpOverviewPromise={followUpOverviewPromise}
+        />
+      </Suspense>
+
+      {/* #7 Follow-ups promoted higher (before queue cards) */}
+      <Suspense fallback={<FollowUpDashboardSectionFallback />}>
+        <FollowUpDashboardSection
+          businessSlug={businessSlug}
+          overviewPromise={followUpOverviewPromise}
+        />
+      </Suspense>
+
+      {/* #6 Velocity/conversion signals */}
+      <Suspense fallback={<DashboardVelocitySectionFallback />}>
+        <DashboardVelocitySection
+          businessSlug={businessSlug}
+          analyticsPromise={analyticsPromise}
+        />
+      </Suspense>
+
+      {/* #3 Reduced queue cards */}
       <Suspense fallback={<DashboardOverviewQueuesFallback />}>
         <DashboardOverviewQueuesSection
           businessSlug={businessSlug}
@@ -141,14 +154,43 @@ async function DashboardOverviewContent({
         />
       </Suspense>
 
-      <Suspense fallback={<FollowUpDashboardSectionFallback />}>
-        <FollowUpDashboardSection
-          businessSlug={businessSlug}
-          overviewPromise={followUpOverviewPromise}
-        />
-      </Suspense>
-
-      <DashboardTour businessId={businessContext.business.id} />
+      <DashboardTour businessId={businessId} />
     </DashboardPage>
+  );
+}
+
+async function GreetingWithData({
+  userName,
+  overviewPromise,
+  followUpOverviewPromise,
+}: {
+  userName: string;
+  overviewPromise: Promise<Awaited<ReturnType<typeof getBusinessOverviewData>>>;
+  followUpOverviewPromise: Promise<Awaited<ReturnType<typeof getFollowUpOverviewForBusiness>>>;
+}) {
+  const [overview, followUpOverview] = await Promise.all([
+    overviewPromise,
+    followUpOverviewPromise,
+  ]);
+
+  return (
+    <DashboardGreeting
+      userName={userName}
+      counts={overview.counts}
+      followUpCounts={followUpOverview.counts}
+    />
+  );
+}
+
+function GreetingFallback({ userName }: { userName: string }) {
+  const firstName = userName.split(" ")[0] || userName;
+
+  return (
+    <div className="flex flex-col gap-1">
+      <h1 className="font-heading text-[1.5rem] font-semibold tracking-tight text-foreground sm:text-[1.75rem]">
+        Welcome back, {firstName}
+      </h1>
+      <p className="text-sm text-muted-foreground">Loading your overview...</p>
+    </div>
   );
 }
