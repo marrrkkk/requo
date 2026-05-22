@@ -38,7 +38,6 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { getAccountProfilePath } from "@/features/account/routes";
 import {
   getBusinessAnalyticsPath,
   getBusinessDashboardPath,
@@ -52,7 +51,6 @@ import {
   getBusinessQuotesPath,
   getBusinessPath,
   getBusinessSettingsPath,
-  businessesHubPath,
 } from "@/features/businesses/routes";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { useTheme } from "@/components/theme-provider";
@@ -458,14 +456,8 @@ export function CommandMenu({
                   <span>Business overview</span>
                 </CommandItem>
                 <CommandItem
-                  onSelect={() => runCommand(() => router.push(businessesHubPath))}
-                >
-                  <LayoutGrid className="mr-2 h-4 w-4" />
-                  <span>All businesses</span>
-                </CommandItem>
-                <CommandItem
                   onSelect={() =>
-                    runCommand(() => router.push(getAccountProfilePath()))
+                    runCommand(() => router.push(getBusinessSettingsPath(businessSlug, "profile")))
                   }
                 >
                   <User className="mr-2 h-4 w-4" />

@@ -19,7 +19,7 @@ export function DashboardAccessFallback({
       actions={
         <>
           <Button asChild>
-            <Link href="/businesses">Open businesses</Link>
+            <Link href="/dashboard">Open businesses</Link>
           </Button>
           <LogoutButton variant="ghost" />
         </>

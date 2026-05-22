@@ -2,14 +2,13 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
   BellRing,
+  BookOpen,
   ClipboardList,
   FormInput,
   FileText,
   Inbox,
   LayoutDashboard,
   Receipt,
-  Settings2,
-  Users,
 } from "lucide-react";
 
 import { RequoIcon } from "@/components/shared/requo-icon";
@@ -18,7 +17,6 @@ import { RequoIcon } from "@/components/shared/requo-icon";
 import {
   canManageOperationalBusinessSettings,
   canViewBusinessAnalytics,
-  canViewBusinessMembers,
   type BusinessMemberRole,
 } from "@/lib/business-members";
 import {
@@ -37,7 +35,6 @@ import {
   getBusinessQuotesPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
-import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
 
 export type DashboardNavigationItem = {
   href: string;
@@ -80,24 +77,6 @@ export function getDashboardNavigation(
       description: "See who needs contact next and when.",
       icon: BellRing,
     },
-    {
-      href: getBusinessJobsPath(slug),
-      label: "Jobs",
-      description: "Track accepted work from start to finish.",
-      icon: ClipboardList,
-    },
-    {
-      href: getBusinessInvoicesPath(slug),
-      label: "Invoices",
-      description: "Generate, send, and track payment for completed work.",
-      icon: Receipt,
-    },
-    {
-      href: getBusinessAssistantPath(slug),
-      label: "Ask",
-      description: "Ask questions about your business data and get insights.",
-      icon: RequoIcon as unknown as LucideIcon,
-    },
     ...(canViewBusinessAnalytics(role)
       ? [
           {
@@ -118,26 +97,30 @@ export function getDashboardNavigation(
           },
         ]
       : []),
-    ...(canViewBusinessMembers(role)
-      ? [
-          {
-            href: getBusinessMembersPath(slug),
-            label: "Members",
-            description: "Manage who has access to this business.",
-            icon: Users,
-          },
-        ]
-      : []),
-    ...(canManageOperationalBusinessSettings(role)
-      ? [
-          {
-            href: getDefaultBusinessSettingsPath(slug, role),
-            label: "Settings",
-            description: "Manage business setup, knowledge, and quote defaults.",
-            icon: Settings2,
-          },
-        ]
-      : []),
+    {
+      href: getBusinessJobsPath(slug),
+      label: "Jobs",
+      description: "Track accepted work from start to finish.",
+      icon: ClipboardList,
+    },
+    {
+      href: getBusinessInvoicesPath(slug),
+      label: "Invoices",
+      description: "Generate, send, and track payment for completed work.",
+      icon: Receipt,
+    },
+    {
+      href: getBusinessAssistantPath(slug),
+      label: "Ask",
+      description: "Ask questions about your business data and get insights.",
+      icon: RequoIcon as unknown as LucideIcon,
+    },
+    {
+      href: getBusinessKnowledgeCompatibilityPath(slug),
+      label: "Knowledge",
+      description: "Manage business knowledge files and context for AI assistance.",
+      icon: BookOpen,
+    },
   ];
 }
 
@@ -148,15 +131,7 @@ function resolveDashboardActivePathname(pathname: string) {
     return pathname;
   }
 
-  const knowledgeCompatibilityPath = getBusinessKnowledgeCompatibilityPath(slug);
   const membersSettingsPath = getBusinessSettingsPath(slug, "members");
-
-  if (
-    pathname === knowledgeCompatibilityPath ||
-    pathname.startsWith(`${knowledgeCompatibilityPath}/`)
-  ) {
-    return getBusinessSettingsPath(slug, "knowledge");
-  }
 
   // Old settings/members → top-level members
   if (

@@ -35,9 +35,13 @@ import {
 
   PanelsTopLeft,
 
+  Plus,
+
   Settings2,
 
   User,
+
+  Users,
 
 } from "lucide-react";
 
@@ -46,8 +50,6 @@ import { usePathname } from "next/navigation";
 
 
 import { authClient } from "@/lib/auth/client";
-
-import { getAccountProfilePath } from "@/features/account/routes";
 
 import { AppearanceMenuSubmenu } from "@/features/theme/components/appearance-menu";
 
@@ -167,7 +169,7 @@ import { useBusinessCheckout } from "@/features/billing/components/business-chec
 
 import {
 
-  businessesHubPath,
+  getBusinessMembersPath,
 
   getBusinessPath,
 
@@ -930,7 +932,7 @@ function DashboardUserMenu({
 
                 <Link
 
-                  href={getAccountProfilePath()}
+                  href={getBusinessSettingsPath(businessSlug, "profile")}
 
                   prefetch={true}
 
@@ -1082,6 +1084,8 @@ function BusinessSwitcher({
 
 }) {
 
+  const [isPending, startTransition] = useTransition();
+
   const { isMobile, setOpenMobile } = useSidebar();
 
   const business = currentBusiness.business;
@@ -1095,6 +1099,26 @@ function BusinessSwitcher({
       setOpenMobile(false);
 
     }
+
+  }
+
+
+
+  function handleSignOut() {
+
+    startTransition(async () => {
+
+      const result = await authClient.signOut();
+
+      if (result.error) return;
+
+      window.localStorage.removeItem(themeUserStorageKey);
+
+      clearPersistedThemePreference();
+
+      window.location.assign("/login");
+
+    });
 
   }
 
@@ -1179,6 +1203,8 @@ function BusinessSwitcher({
 
       >
 
+        {/* Business list section */}
+
         <DropdownMenuLabel className="px-2 py-2.5">
 
           Switch business
@@ -1257,25 +1283,141 @@ function BusinessSwitcher({
 
         </DropdownMenuGroup>
 
+        {/* New business action */}
+
         <DropdownMenuSeparator />
 
-        <DropdownMenuItem asChild>
+        <DropdownMenuGroup>
 
-          <Link
+          <DropdownMenuItem asChild>
 
-            href={businessesHubPath}
+            <Link
 
-            onClick={closeMobileSidebar}
+              href="/new"
 
-            prefetch={true}
+              onClick={closeMobileSidebar}
 
-          >
+              prefetch={true}
 
-            <PanelsTopLeft data-icon="inline-start" />
+            >
 
-            Manage businesses
+              <Plus data-icon="inline-start" />
 
-          </Link>
+              New business
+
+            </Link>
+
+          </DropdownMenuItem>
+
+        </DropdownMenuGroup>
+
+        {/* Settings & account actions */}
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuGroup>
+
+          <DropdownMenuItem asChild>
+
+            <Link
+
+              href={getBusinessSettingsPath(business.slug, "general")}
+
+              prefetch={true}
+
+              onClick={closeMobileSidebar}
+
+            >
+
+              <Settings2 data-icon="inline-start" />
+
+              Business settings
+
+            </Link>
+
+          </DropdownMenuItem>
+
+          <DropdownMenuItem asChild>
+
+            <Link
+
+              href={getBusinessSettingsPath(business.slug, "profile")}
+
+              prefetch={true}
+
+              onClick={closeMobileSidebar}
+
+            >
+
+              <User data-icon="inline-start" />
+
+              Account settings
+
+            </Link>
+
+          </DropdownMenuItem>
+
+          <DropdownMenuItem asChild>
+
+            <Link
+
+              href={getBusinessMembersPath(business.slug)}
+
+              prefetch={true}
+
+              onClick={closeMobileSidebar}
+
+            >
+
+              <Users data-icon="inline-start" />
+
+              Invite team members
+
+            </Link>
+
+          </DropdownMenuItem>
+
+        </DropdownMenuGroup>
+
+        {/* Sign out */}
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem
+
+          disabled={isPending}
+
+          onSelect={(event) => {
+
+            event.preventDefault();
+
+            handleSignOut();
+
+          }}
+
+        >
+
+          {isPending ? (
+
+            <>
+
+              <Spinner data-icon="inline-start" aria-hidden="true" />
+
+              Signing out...
+
+            </>
+
+          ) : (
+
+            <>
+
+              <LogOut data-icon="inline-start" />
+
+              Sign out
+
+            </>
+
+          )}
 
         </DropdownMenuItem>
 
