@@ -11,6 +11,7 @@ import type {
   AiSurface,
 } from "@/features/ai/types";
 import { aiAssistantTruncationMessage } from "@/features/ai/types";
+import { getBusinessPath } from "@/features/businesses/routes";
 
 export type ChatMessage = {
   id: string;
@@ -442,7 +443,7 @@ export function getAiChatSources(input: {
   entityId: string;
   surface: AiSurface;
 }): AiChatSource[] {
-  const businessPath = `/businesses/${encodeURIComponent(input.businessSlug)}`;
+  const businessPath = getBusinessPath(input.businessSlug);
 
   switch (input.surface) {
     case "inquiry":

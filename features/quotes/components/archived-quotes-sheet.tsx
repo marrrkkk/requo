@@ -22,6 +22,7 @@ import type {
   DashboardQuoteListItem,
   QuoteStatus,
 } from "@/features/quotes/types";
+import { getBusinessQuotePath } from "@/features/businesses/routes";
 
 type QuoteRecordActionState = { error?: string; success?: string };
 
@@ -142,7 +143,7 @@ export function ArchivedQuotesSheet({
                   <div className="min-w-0 flex-1">
                     <Link
                       className="block truncate text-sm font-medium text-foreground hover:underline"
-                      href={`/businesses/${businessSlug}/quotes/${item.id}`}
+                      href={getBusinessQuotePath(businessSlug, item.id)}
                     >
                       {item.quoteNumber} · {item.customerName}
                     </Link>

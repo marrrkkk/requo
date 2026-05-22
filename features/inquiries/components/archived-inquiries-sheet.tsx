@@ -22,6 +22,7 @@ import type {
   InquiryRecordActionState,
   InquiryStatus,
 } from "@/features/inquiries/types";
+import { getBusinessInquiryPath } from "@/features/businesses/routes";
 
 const statusFilterOptions: { label: string; value: InquiryStatus | "all" }[] = [
   { label: "All statuses", value: "all" },
@@ -185,7 +186,7 @@ export function ArchivedInquiriesSheet({
                   <div className="min-w-0 flex-1">
                     <Link
                       className="block truncate text-sm font-medium text-foreground hover:underline"
-                      href={`/businesses/${businessSlug}/inquiries/${item.id}`}
+                      href={getBusinessInquiryPath(businessSlug, item.id)}
                     >
                       {item.customerName}
                     </Link>

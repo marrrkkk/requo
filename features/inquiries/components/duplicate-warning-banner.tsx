@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import type { DuplicateFlag } from "@/features/inquiries/qualification/types";
+import { getBusinessInquiryPath } from "@/features/businesses/routes";
 
 type DuplicateWarningBannerProps = {
   duplicate: DuplicateFlag & { dismissed?: boolean };
@@ -42,7 +43,7 @@ export function DuplicateWarningBanner({
       <AlertDescription>
         {reasonMessages[duplicate.reason]}.{" "}
         <Link
-          href={`/businesses/${businessSlug}/inquiries/${duplicate.originalInquiryId}`}
+          href={getBusinessInquiryPath(businessSlug, duplicate.originalInquiryId)}
         >
           View original inquiry
         </Link>

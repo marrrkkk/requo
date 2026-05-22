@@ -271,7 +271,7 @@ export async function acceptInviteFromHubAction(
     sameSite: "lax",
   });
 
-  revalidatePath("/businesses");
+  revalidatePath("/dashboard");
   redirect(getBusinessDashboardPath(result.businessSlug));
 }
 
@@ -307,7 +307,7 @@ export async function declineInviteFromHubAction(
 
   updateCacheTags(getUserPendingInvitesCacheTags(session.user.id));
   updateCacheTags(getBusinessMembersCacheTags(row.businessId));
-  revalidatePath("/businesses");
+  revalidatePath("/dashboard");
 
   return {};
 }

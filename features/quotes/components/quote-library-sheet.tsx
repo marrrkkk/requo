@@ -31,8 +31,8 @@ import type {
 import {
   getBusinessDashboardSlugFromPathname,
   getBusinessSettingsPath,
+  dashboardPath,
 } from "@/features/businesses/routes";
-import { businessesHubPath } from "@/features/businesses/routes";
 import {
   formatQuoteMoney,
   getQuoteLibraryEntryKindLabel,
@@ -136,7 +136,7 @@ export function QuoteLibrarySheet({
                     href={
                       businessSlug
                         ? getBusinessSettingsPath(businessSlug, "pricing")
-                        : businessesHubPath
+                        : dashboardPath
                     }
                   >
                     Open pricing

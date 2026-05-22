@@ -13,6 +13,7 @@ import { createFollowUpForBusiness } from "@/features/follow-ups/mutations";
 import { changeInquiryStatusForBusiness } from "@/features/inquiries/mutations";
 import type { InquirySubmittedFieldSnapshot } from "@/features/inquiries/form-config";
 import type { BusinessType } from "@/features/inquiries/business-types";
+import { getBusinessInquiryPath, getBusinessQuotePath } from "@/features/businesses/routes";
 import { db } from "@/lib/db/client";
 import { businesses, businessInquiryForms } from "@/lib/db/schema";
 
@@ -215,7 +216,7 @@ async function executeCreateInquiry(
       action: "create_inquiry",
       message: `Inquiry created for ${payload.customerName}.`,
       entityId: result.inquiryId,
-      entityUrl: `/businesses/${businessContext.business.slug}/inquiries/${result.inquiryId}`,
+      entityUrl: getBusinessInquiryPath(businessContext.business.slug, result.inquiryId),
     };
   } catch (error) {
     console.error("AI action: create inquiry failed.", error);
@@ -293,7 +294,7 @@ async function executeCreateQuote(
       action: "create_quote",
       message: `Quote "${payload.title}" created for ${payload.customerName}.`,
       entityId: createdQuote.id,
-      entityUrl: `/businesses/${businessContext.business.slug}/quotes/${createdQuote.id}`,
+      entityUrl: getBusinessQuotePath(businessContext.business.slug, createdQuote.id),
     };
   } catch (error) {
     console.error("AI action: create quote failed.", error);
@@ -379,7 +380,7 @@ async function executeUpdateInquiryStatus(
       action: "update_inquiry_status",
       message: `Inquiry status updated to "${payload.status}".`,
       entityId: payload.inquiryId,
-      entityUrl: `/businesses/${businessContext.business.slug}/inquiries/${payload.inquiryId}`,
+      entityUrl: getBusinessInquiryPath(businessContext.business.slug, payload.inquiryId),
     };
   } catch (error) {
     console.error("AI action: update inquiry status failed.", error);
