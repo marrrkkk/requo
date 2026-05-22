@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { BrandMark } from "@/components/shared/brand-mark";
 import { getAccountProfileForUser } from "@/features/account/queries";
-import { businessesHubPath } from "@/features/businesses/routes";
+import { dashboardPath } from "@/features/businesses/routes";
 import { completeOnboardingAction } from "@/features/onboarding/actions";
 import { OnboardingForm } from "@/features/onboarding/components/onboarding-form";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
@@ -43,7 +43,7 @@ export default async function OnboardingPage() {
   );
 
   if (memberships.length > 0 || profile?.onboardingCompletedAt) {
-    redirect(businessesHubPath);
+    redirect(dashboardPath);
   }
 
   return (

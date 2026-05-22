@@ -13,7 +13,7 @@ import {
 } from "@/components/marketing/marketing-data";
 import { Button } from "@/components/ui/button";
 import { useOverlayPresence } from "@/components/ui/overlay-state";
-import { businessesHubPath } from "@/features/businesses/routes";
+import { dashboardPath } from "@/features/businesses/routes";
 
 type MarketingMobileNavProps = {
   isAuthenticated: boolean;
@@ -174,7 +174,7 @@ export function MarketingMobileNav({
       <div className="mobile-nav-actions">
         {isAuthenticated ? (
           <Button asChild className="h-14 w-full rounded-full text-lg">
-            <Link href={businessesHubPath} onClick={closeMenu}>
+            <Link href={dashboardPath} onClick={closeMenu}>
               Visit app
               <ArrowRight data-icon="inline-end" />
             </Link>

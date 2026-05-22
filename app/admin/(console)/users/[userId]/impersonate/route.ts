@@ -37,7 +37,7 @@ export async function POST(
   });
 
   if (result.ok) {
-    return NextResponse.redirect(new URL("/businesses", request.url), 303);
+    return NextResponse.redirect(new URL("/dashboard", request.url), 303);
   }
 
   const failureUrl = new URL(

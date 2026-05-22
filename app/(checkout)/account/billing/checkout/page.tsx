@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { businessesHubPath } from "@/features/businesses/routes";
+import { dashboardPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
 import { getUserBillingCacheTags } from "@/lib/cache/shell-tags";
 import { createNoIndexMetadata } from "@/lib/seo/site";
@@ -35,14 +35,14 @@ function readParam(value: string | string[] | undefined): string | null {
  * origin after a successful checkout.
  */
 function resolveReturnTo(value: string | null): string {
-  if (!value) return businessesHubPath;
+  if (!value) return dashboardPath;
 
   const trimmed = value.trim();
 
   // Must be a relative path, must not be protocol-relative or `/api/*`.
-  if (!trimmed.startsWith("/")) return businessesHubPath;
-  if (trimmed.startsWith("//")) return businessesHubPath;
-  if (trimmed.startsWith("/api/")) return businessesHubPath;
+  if (!trimmed.startsWith("/")) return dashboardPath;
+  if (trimmed.startsWith("//")) return dashboardPath;
+  if (trimmed.startsWith("/api/")) return dashboardPath;
 
   return trimmed;
 }

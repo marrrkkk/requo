@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, LayoutDashboard } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { businessesHubPath } from "@/features/businesses/routes";
+import { dashboardPath } from "@/features/businesses/routes";
 
 export default function NotFound() {
   return (
@@ -30,9 +30,9 @@ export default function NotFound() {
             </Link>
           </Button>
           <Button asChild size="lg">
-            <Link href={businessesHubPath}>
+            <Link href={dashboardPath}>
               <LayoutDashboard data-icon="inline-start" />
-              Open businesses
+              Go to dashboard
             </Link>
           </Button>
         </div>
