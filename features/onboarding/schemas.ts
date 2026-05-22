@@ -105,7 +105,7 @@ export const onboardingBusinessContextSchema = z.object({
     .trim()
     .min(2, "Enter a business name.")
     .max(80, "Use 80 characters or fewer."),
-  businessType: z.enum(businessTypes),
+  businessType: z.enum(businessTypes).optional(),
   countryCode: z
     .string()
     .trim()
@@ -120,7 +120,7 @@ export const onboardingBusinessContextSchema = z.object({
     .refine(isSupportedBusinessCurrencyCode, "Choose a supported currency."),
   customerContactChannel: z.enum(customerContactChannelValues, {
     message: "Choose how customers usually contact you.",
-  }),
+  }).optional(),
 });
 
 export const onboardingTemplateSchema = z.object({
@@ -128,14 +128,18 @@ export const onboardingTemplateSchema = z.object({
 });
 
 export const onboardingOwnerProfileSchema = z.object({
+  firstName: z
+    .string()
+    .trim()
+    .min(1, "Enter your first name.")
+    .max(60, "Use 60 characters or fewer."),
+  lastName: z
+    .string()
+    .trim()
+    .min(1, "Enter your last name.")
+    .max(60, "Use 60 characters or fewer."),
   jobTitle: z.enum(jobTitleValues, {
     message: "Choose your role.",
-  }),
-  companySize: z.enum(companySizeValues, {
-    message: "Choose your company size.",
-  }),
-  referralSource: z.enum(referralSourceValues, {
-    message: "Choose where you found Requo.",
   }),
 });
 
@@ -143,6 +147,15 @@ export const completeOnboardingSchema = z.object({
   ...onboardingBusinessContextSchema.shape,
   ...onboardingTemplateSchema.shape,
   ...onboardingOwnerProfileSchema.shape,
+  businessSlug: z
+    .string()
+    .trim()
+    .min(2, "Enter a URL slug.")
+    .max(60, "Use 60 characters or fewer.")
+    .regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/, "Use only lowercase letters, numbers, and hyphens.")
+    .optional(),
+  companySize: z.string().optional(),
+  referralSource: z.string().optional(),
 });
 
 export type OnboardingBusinessType = BusinessType;

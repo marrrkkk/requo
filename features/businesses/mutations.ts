@@ -34,6 +34,7 @@ type CreateBusinessForUserInput = {
   businessId: string;
   defaultCurrency: string;
   name: string;
+  preferredSlug?: string;
   businessType: BusinessType;
   starterTemplateBusinessType?: BusinessType;
   countryCode?: string | null;
@@ -85,6 +86,7 @@ export async function createBusinessRecordForUser({
   defaultCurrency,
   user,
   name,
+  preferredSlug,
   businessType,
   starterTemplateBusinessType = businessType,
   countryCode = null,
@@ -109,12 +111,10 @@ export async function createBusinessRecordForUser({
   const starterTemplate = getStarterTemplateDefinition(
     starterTemplateBusinessType,
   );
-  const slug = await getAvailableBusinessSlug(
-    tx,
-    slugifyPublicName(trimmedName, {
-      fallback: "business",
-    }),
-  );
+  const baseSlug = preferredSlug?.trim() || slugifyPublicName(trimmedName, {
+    fallback: "business",
+  });
+  const slug = await getAvailableBusinessSlug(tx, baseSlug);
   const defaultInquiryForm = createInquiryFormPreset({
     businessType: starterTemplateBusinessType,
     businessName: trimmedName,

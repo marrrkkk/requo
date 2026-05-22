@@ -40,6 +40,8 @@ export const profiles = pgTable("profiles", {
     .primaryKey()
     .references(() => user.id, { onDelete: "cascade" }),
   fullName: text("full_name").notNull(),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
   phone: text("phone"),
   jobTitle: text("job_title"),
   companySize: text("company_size"),

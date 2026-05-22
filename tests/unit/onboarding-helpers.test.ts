@@ -11,7 +11,10 @@ function createDraft(
   overrides: Partial<OnboardingDraft> = {},
 ): OnboardingDraft {
   return {
+    firstName: "Alicia",
+    lastName: "Cruz",
     businessName: "Northline Studio",
+    businessSlug: "northline-studio",
     businessType: "web_it_services",
     starterTemplateBusinessType: "creative_marketing_services",
     countryCode: "US",

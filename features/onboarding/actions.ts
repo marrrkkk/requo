@@ -26,6 +26,16 @@ import {
 import { completeOnboardingForUser } from "@/features/onboarding/mutations";
 import { completeOnboardingSchema } from "@/features/onboarding/schemas";
 import type { OnboardingActionState } from "@/features/onboarding/types";
+import {
+  profileAvatarBucket,
+  profileAvatarExtensionToMimeType,
+  profileAvatarAllowedExtensions,
+  profileAvatarAllowedMimeTypes,
+  profileAvatarMaxSize,
+  sanitizeProfileAvatarFileName,
+} from "@/features/account/utils";
+import { isAcceptedFileType, resolveSafeContentType } from "@/lib/files";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 const initialState: OnboardingActionState = {};
 
@@ -70,7 +80,10 @@ export async function completeOnboardingAction(
 
   const user = await requireUser();
   const validationResult = completeOnboardingSchema.safeParse({
+    firstName: formData.get("firstName"),
+    lastName: formData.get("lastName"),
     businessName: formData.get("businessName"),
+    businessSlug: formData.get("businessSlug"),
     businessType: formData.get("businessType"),
     countryCode: formData.get("countryCode"),
     defaultCurrency: formData.get("defaultCurrency"),
@@ -92,15 +105,58 @@ export async function completeOnboardingAction(
     formData.get("inquiryFormConfigOverride"),
   );
 
+  // Handle avatar upload
+  const avatarFile = formData.get("avatar");
+  let avatarUpload: { storagePath: string; contentType: string } | null = null;
+
+  if (avatarFile instanceof File && avatarFile.size > 0 && avatarFile.name.trim()) {
+    if (avatarFile.size > profileAvatarMaxSize) {
+      return { error: "Profile photo must be under 2 MB." };
+    }
+
+    if (
+      !isAcceptedFileType(avatarFile, {
+        allowedExtensions: profileAvatarAllowedExtensions,
+        allowedMimeTypes: profileAvatarAllowedMimeTypes,
+      })
+    ) {
+      return { error: "Upload a JPG, PNG, or WEBP profile photo." };
+    }
+
+    const contentType = resolveSafeContentType(avatarFile, {
+      extensionToMimeType: profileAvatarExtensionToMimeType,
+      fallback: "application/octet-stream",
+    });
+    const storagePath = `${user.id}/avatar/onboarding-${crypto.randomUUID()}-${sanitizeProfileAvatarFileName(avatarFile.name)}`;
+    const storageClient = createSupabaseAdminClient();
+
+    const { error: uploadError } = await storageClient.storage
+      .from(profileAvatarBucket)
+      .upload(storagePath, avatarFile, {
+        contentType,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("Failed to upload onboarding avatar.", uploadError);
+      return { error: "We couldn't upload your profile photo right now." };
+    }
+
+    avatarUpload = { storagePath, contentType };
+  }
+
   let dashboardPath: string | null = null;
 
   try {
     const business = await completeOnboardingForUser({
       user,
+      firstName: validationResult.data.firstName,
+      lastName: validationResult.data.lastName,
       jobTitle: validationResult.data.jobTitle,
       companySize: validationResult.data.companySize,
       referralSource: validationResult.data.referralSource,
       businessName: validationResult.data.businessName,
+      businessSlug: validationResult.data.businessSlug,
       businessType: validationResult.data.businessType,
       countryCode: validationResult.data.countryCode,
       defaultCurrency: validationResult.data.defaultCurrency,
@@ -108,6 +164,7 @@ export async function completeOnboardingAction(
       starterTemplateBusinessType:
         validationResult.data.starterTemplateBusinessType,
       inquiryFormConfigOverride,
+      avatarUpload,
     });
 
     updateOnboardingCacheTags({

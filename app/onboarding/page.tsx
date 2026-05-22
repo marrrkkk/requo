@@ -6,7 +6,6 @@ import { getAccountProfileForUser } from "@/features/account/queries";
 import { businessesHubPath } from "@/features/businesses/routes";
 import { completeOnboardingAction } from "@/features/onboarding/actions";
 import { OnboardingForm } from "@/features/onboarding/components/onboarding-form";
-import { AppearanceMenu } from "@/features/theme/components/appearance-menu";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
@@ -54,17 +53,33 @@ export default async function OnboardingPage() {
         userId={session.user.id}
       />
       <div className="min-h-svh">
-        <div className="mx-auto flex min-h-svh w-full max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-8">
-          <header className="flex flex-col gap-4 border-b border-border/70 pb-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto flex min-h-svh w-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-8">
+          <div className="fixed top-4 left-4 z-10 sm:left-6 lg:left-8">
             <BrandMark subtitle={null} />
-            <AppearanceMenu userId={session.user.id} />
-          </header>
+          </div>
 
-          <div className="flex flex-1 items-center justify-center py-10 sm:py-14">
-            <OnboardingForm action={completeOnboardingAction} />
+          <div className="flex flex-1 items-center justify-center pt-12 pb-6 sm:pt-8">
+            <OnboardingForm
+              action={completeOnboardingAction}
+              initialProfile={{
+                firstName: extractFirstName(session.user.name),
+                lastName: extractLastName(session.user.name),
+                avatarUrl: session.user.image ?? null,
+              }}
+            />
           </div>
         </div>
       </div>
     </>
   );
+}
+
+function extractFirstName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  return parts[0] ?? "";
+}
+
+function extractLastName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  return parts.length > 1 ? parts.slice(1).join(" ") : "";
 }
