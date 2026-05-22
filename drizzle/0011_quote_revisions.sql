@@ -5,10 +5,10 @@ ALTER TYPE "quote_status" ADD VALUE IF NOT EXISTS 'revision_requested';
 ALTER TYPE "business_notification_type" ADD VALUE IF NOT EXISTS 'quote_revision_requested';
 
 -- Add version tracking to quotes
-ALTER TABLE "quotes" ADD COLUMN "version" integer NOT NULL DEFAULT 1;
+ALTER TABLE "quotes" ADD COLUMN IF NOT EXISTS "version" integer NOT NULL DEFAULT 1;
 
 -- Quote versions table: stores archived snapshots
-CREATE TABLE "quote_versions" (
+CREATE TABLE IF NOT EXISTS "quote_versions" (
   "id" text PRIMARY KEY,
   "business_id" text NOT NULL REFERENCES "businesses"("id") ON DELETE CASCADE,
   "quote_id" text NOT NULL REFERENCES "quotes"("id") ON DELETE CASCADE,
@@ -30,12 +30,12 @@ CREATE TABLE "quote_versions" (
   "archived_at" timestamp with time zone NOT NULL DEFAULT now()
 );
 
-CREATE INDEX "quote_versions_quote_id_idx" ON "quote_versions"("quote_id");
-CREATE INDEX "quote_versions_business_id_idx" ON "quote_versions"("business_id");
-CREATE UNIQUE INDEX "quote_versions_quote_version_unique" ON "quote_versions"("quote_id", "version");
+CREATE INDEX IF NOT EXISTS "quote_versions_quote_id_idx" ON "quote_versions"("quote_id");
+CREATE INDEX IF NOT EXISTS "quote_versions_business_id_idx" ON "quote_versions"("business_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "quote_versions_quote_version_unique" ON "quote_versions"("quote_id", "version");
 
 -- Quote revision requests table
-CREATE TABLE "quote_revision_requests" (
+CREATE TABLE IF NOT EXISTS "quote_revision_requests" (
   "id" text PRIMARY KEY,
   "business_id" text NOT NULL REFERENCES "businesses"("id") ON DELETE CASCADE,
   "quote_id" text NOT NULL REFERENCES "quotes"("id") ON DELETE CASCADE,
@@ -47,5 +47,5 @@ CREATE TABLE "quote_revision_requests" (
   "resolved_at" timestamp with time zone
 );
 
-CREATE INDEX "quote_revision_requests_quote_id_idx" ON "quote_revision_requests"("quote_id");
-CREATE INDEX "quote_revision_requests_business_id_idx" ON "quote_revision_requests"("business_id");
+CREATE INDEX IF NOT EXISTS "quote_revision_requests_quote_id_idx" ON "quote_revision_requests"("quote_id");
+CREATE INDEX IF NOT EXISTS "quote_revision_requests_business_id_idx" ON "quote_revision_requests"("business_id");
