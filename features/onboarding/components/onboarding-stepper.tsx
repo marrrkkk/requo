@@ -2,7 +2,6 @@
 
 import { Check } from "lucide-react";
 
-import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
 export type OnboardingStepperItem = {
@@ -22,81 +21,79 @@ export function OnboardingStepper({
   currentStep,
   onStepSelect,
 }: OnboardingStepperProps) {
-  const progressValue = ((currentStep + 1) / items.length) * 100;
-
   return (
-    <nav aria-label="Onboarding progress" className="flex flex-col gap-4">
-      <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <nav aria-label="Onboarding progress" className="mx-auto w-full max-w-md">
+      <ol className="flex items-center">
         {items.map((item, index) => {
           const isCompleted = index < currentStep;
           const isCurrent = index === currentStep;
-          const isUpcoming = index > currentStep;
           const isInteractive = isCompleted;
-
-          const content = (
-            <>
-              <span
-                aria-hidden="true"
-                className={cn(
-                  "flex size-10 shrink-0 items-center justify-center rounded-full border text-sm font-semibold transition-colors",
-                  isCompleted &&
-                    "border-primary/20 bg-primary text-primary-foreground",
-                  isCurrent &&
-                    "border-primary/30 bg-primary/[0.08] text-primary shadow-[var(--surface-shadow-sm)]",
-                  isUpcoming && "border-border bg-background text-muted-foreground",
-                )}
-              >
-                {isCompleted ? <Check /> : index + 1}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-foreground">
-                  {item.label}
-                </span>
-                <span className="mt-1 block text-sm leading-6 text-muted-foreground">
-                  {item.description}
-                </span>
-              </span>
-            </>
-          );
+          const isLast = index === items.length - 1;
 
           return (
-            <li key={item.id}>
-              {isInteractive ? (
-                <button
-                  className={cn(
-                    "soft-panel flex h-full w-full items-start gap-3 px-4 py-4 text-left transition-colors",
-                    "hover:border-foreground/15 hover:bg-accent/40",
-                    isCurrent && "border-primary/20 bg-primary/[0.05]",
-                    isUpcoming && "opacity-80",
-                  )}
-                  onClick={() => onStepSelect(index)}
-                  type="button"
-                >
-                  {content}
-                </button>
-              ) : (
-                <div
-                  aria-current={isCurrent ? "step" : undefined}
-                  className={cn(
-                    "soft-panel flex h-full items-start gap-3 px-4 py-4",
-                    isCurrent && "border-primary/20 bg-primary/[0.05]",
-                    isUpcoming && "opacity-80",
-                  )}
-                >
-                  {content}
+            <li
+              key={item.id}
+              className={cn("flex items-center", !isLast && "flex-1")}
+            >
+              <div className="flex flex-col items-center gap-1.5">
+                {isInteractive ? (
+                  <button
+                    className="group flex flex-col items-center gap-1.5"
+                    onClick={() => onStepSelect(index)}
+                    type="button"
+                  >
+                    <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground transition-all duration-500 ease-out group-hover:scale-110 group-hover:bg-primary/80">
+                      <Check className="size-4" />
+                    </span>
+                    <span className="text-xs font-medium text-primary transition-colors duration-300 group-hover:text-primary/80">
+                      {item.label}
+                    </span>
+                  </button>
+                ) : (
+                  <div
+                    aria-current={isCurrent ? "step" : undefined}
+                    className="flex flex-col items-center gap-1.5"
+                  >
+                    <span
+                      className={cn(
+                        "flex size-8 items-center justify-center rounded-full border-2 text-xs font-semibold transition-all duration-500 ease-out",
+                        isCurrent &&
+                          "scale-110 border-primary bg-primary/10 text-primary shadow-[0_0_0_4px_var(--color-primary)/0.1]",
+                        !isCurrent &&
+                          !isCompleted &&
+                          "border-border text-muted-foreground",
+                      )}
+                    >
+                      {index + 1}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-xs font-medium transition-colors duration-300",
+                        isCurrent
+                          ? "text-foreground"
+                          : "text-muted-foreground/60",
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {!isLast ? (
+                <div className="relative mx-2 h-0.5 flex-1 overflow-hidden rounded-full bg-border">
+                  <div
+                    className={cn(
+                      "absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-500 ease-out",
+                      isCompleted ? "w-full" : "w-0",
+                    )}
+                  />
                 </div>
-              )}
+              ) : null}
             </li>
           );
         })}
       </ol>
-
-      <div className="flex items-center gap-3">
-        <Progress aria-hidden="true" className="flex-1" value={progressValue} />
-        <p className="shrink-0 text-sm text-muted-foreground">
-          Step {currentStep + 1} of {items.length}
-        </p>
-      </div>
     </nav>
   );
 }
