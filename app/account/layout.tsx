@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
-import { ArrowLeft } from "lucide-react";
 
+import { BackButton } from "@/components/shared/back-button";
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { BrandMark } from "@/components/shared/brand-mark";
 import { PageHeader } from "@/components/shared/page-header";
 import { ImpersonationBanner } from "@/components/shell/impersonation-banner";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AccountSettingsNav } from "@/features/account/components/account-settings-nav";
 import { AccountUserMenu } from "@/features/account/components/account-user-menu";
@@ -70,12 +68,7 @@ async function AccountSettingsShell({
           <div className="flex items-center gap-4">
             <BrandMark href={businessesHubPath} subtitle="Account" />
             <div className="h-4 w-px bg-border max-sm:hidden" />
-            <Button asChild className="max-sm:hidden" size="sm" variant="ghost">
-              <Link href={businessesHubPath}>
-                <ArrowLeft data-icon="inline-start" className="size-4" />
-                Back to businesses
-              </Link>
-            </Button>
+            <BackButton />
           </div>
           <div className="flex items-center gap-3">
             <AccountUserMenu

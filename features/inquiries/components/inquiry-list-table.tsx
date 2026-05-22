@@ -18,6 +18,7 @@ import {
 import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
+import { Copy } from "lucide-react";
 
 type InquiryListTableProps = {
   inquiries: DashboardInquiryListItem[];
@@ -49,12 +50,20 @@ export function InquiryListTable({
               <TableRow className="group/row" key={inquiry.id}>
                 <TableCell className="w-[17rem]">
                   <div className="table-meta-stack max-w-full">
-                    <TruncatedTextWithTooltip
-                      className="table-link"
-                      href={inquiryHref}
-                      prefetch={true}
-                      text={inquiry.customerName}
-                    />
+                    <div className="flex items-center gap-1.5">
+                      <TruncatedTextWithTooltip
+                        className="table-link"
+                        href={inquiryHref}
+                        prefetch={true}
+                        text={inquiry.customerName}
+                      />
+                      {inquiry.hasDuplicateFlag ? (
+                        <Copy
+                          aria-label="Potential duplicate"
+                          className="size-3.5 shrink-0 text-amber-500"
+                        />
+                      ) : null}
+                    </div>
                     <TruncatedTextWithTooltip
                       className="table-supporting-text"
                       href={inquiryHref}

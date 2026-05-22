@@ -29,7 +29,7 @@ export default async function BusinessNotificationSettingsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Business"
+        eyebrow="Settings"
         title="Notifications"
         description="Choose how you get notified — in-app or push."
       />

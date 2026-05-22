@@ -9,6 +9,7 @@ import {
   getMarketingNavHref,
   getMarketingNavKey,
   navItems,
+  resourceLinks,
 } from "@/components/marketing/marketing-data";
 import { Button } from "@/components/ui/button";
 import { useOverlayPresence } from "@/components/ui/overlay-state";
@@ -151,6 +152,23 @@ export function MarketingMobileNav({
             {item.label}
           </Link>
         ))}
+        <span className="mobile-nav-divider" />
+        <span className="mobile-nav-section-label">Resources</span>
+        {resourceLinks.map((link, index) => (
+          <Link
+            className="mobile-nav-link"
+            href={link.href}
+            key={link.href}
+            onClick={closeMenu}
+            style={
+              {
+                "--item-index": navItems.length + index + 1,
+              } as React.CSSProperties
+            }
+          >
+            {link.label}
+          </Link>
+        ))}
       </nav>
 
       <div className="mobile-nav-actions">
@@ -174,7 +192,7 @@ export function MarketingMobileNav({
             </Button>
             <Button asChild className="h-14 w-full rounded-full text-lg">
               <Link href="/signup" onClick={closeMenu}>
-                Start free
+                Send your first quote
                 <ArrowRight data-icon="inline-end" />
               </Link>
             </Button>

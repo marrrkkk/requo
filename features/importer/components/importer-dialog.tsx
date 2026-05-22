@@ -7,14 +7,14 @@ import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  ResponsiveOverlay,
+  ResponsiveOverlayBody,
+  ResponsiveOverlayContent,
+  ResponsiveOverlayDescription,
+  ResponsiveOverlayFooter,
+  ResponsiveOverlayHeader,
+  ResponsiveOverlayTitle,
+} from "@/components/ui/responsive-overlay";
 import { Spinner } from "@/components/ui/spinner";
 import {
   ImporterKnowledgeReview,
@@ -257,14 +257,14 @@ export function ImporterDialog({
       : "Upload a pricing sheet and AI will extract pricing entries you can review before saving.";
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
+    <ResponsiveOverlay open={open} onOpenChange={handleClose}>
+      <ResponsiveOverlayContent className="sm:max-w-3xl">
+        <ResponsiveOverlayHeader>
+          <ResponsiveOverlayTitle>{title}</ResponsiveOverlayTitle>
+          <ResponsiveOverlayDescription>{description}</ResponsiveOverlayDescription>
+        </ResponsiveOverlayHeader>
 
-        <DialogBody className="max-h-[65vh] overflow-y-auto">
+        <ResponsiveOverlayBody className="max-h-[65vh] overflow-y-auto">
           {step === "upload" ? (
             <UploadStep
               file={file}
@@ -301,9 +301,9 @@ export function ImporterDialog({
               />
             )
           ) : null}
-        </DialogBody>
+        </ResponsiveOverlayBody>
 
-        <DialogFooter>
+        <ResponsiveOverlayFooter>
           {step === "upload" ? (
             <>
               <Button
@@ -352,9 +352,9 @@ export function ImporterDialog({
               </Button>
             </>
           ) : null}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveOverlayFooter>
+      </ResponsiveOverlayContent>
+    </ResponsiveOverlay>
   );
 }
 

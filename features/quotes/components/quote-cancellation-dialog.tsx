@@ -8,13 +8,13 @@ import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  ResponsiveOverlay,
+  ResponsiveOverlayContent,
+  ResponsiveOverlayDescription,
+  ResponsiveOverlayHeader,
+  ResponsiveOverlayTitle,
+  ResponsiveOverlayTrigger,
+} from "@/components/ui/responsive-overlay";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -68,21 +68,21 @@ export function QuoteCancellationDialog({
   );
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+    <ResponsiveOverlay open={open} onOpenChange={setOpen}>
+      <ResponsiveOverlayTrigger asChild>
         <Button variant="destructive">
           <Ban data-icon="inline-start" />
           Mark as canceled
         </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Cancel accepted work?</DialogTitle>
-          <DialogDescription>
+      </ResponsiveOverlayTrigger>
+      <ResponsiveOverlayContent>
+        <ResponsiveOverlayHeader>
+          <ResponsiveOverlayTitle>Cancel accepted work?</ResponsiveOverlayTitle>
+          <ResponsiveOverlayDescription>
             This marks quote {quoteNumber} as canceled after acceptance. The
             quote record stays accepted for historical accuracy.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveOverlayDescription>
+        </ResponsiveOverlayHeader>
 
         <form action={formAction} className="form-stack">
           <input
@@ -171,7 +171,7 @@ export function QuoteCancellationDialog({
             </Button>
           </FormActions>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveOverlayContent>
+    </ResponsiveOverlay>
   );
 }

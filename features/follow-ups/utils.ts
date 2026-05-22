@@ -1,6 +1,7 @@
 import type {
   FollowUpChannel,
   FollowUpDueBucket,
+  FollowUpRecurrence,
   FollowUpStatus,
 } from "@/features/follow-ups/types";
 
@@ -27,6 +28,23 @@ export const followUpDueBucketLabels: Record<FollowUpDueBucket, string> = {
   done: "Done",
 };
 
+export const followUpRecurrenceLabels: Record<FollowUpRecurrence, string> = {
+  none: "No repeat",
+  daily: "Every day",
+  every_3_days: "Every 3 days",
+  weekly: "Every week",
+  biweekly: "Every 2 weeks",
+  monthly: "Every month",
+};
+
+export const followUpRecurrenceDays: Record<Exclude<FollowUpRecurrence, "none">, number> = {
+  daily: 1,
+  every_3_days: 3,
+  weekly: 7,
+  biweekly: 14,
+  monthly: 30,
+};
+
 export function createFollowUpId() {
   return `fup_${crypto.randomUUID().replace(/-/g, "")}`;
 }
@@ -37,6 +55,25 @@ export function createActivityId() {
 
 export function getTodayUtcDateString(now = new Date()) {
   return now.toISOString().slice(0, 10);
+}
+
+/**
+ * Get today's date string in a specific timezone (IANA format).
+ * Falls back to UTC if the timezone is invalid.
+ */
+export function getTodayDateStringInTimezone(timezone: string, now = new Date()) {
+  try {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+
+    return formatter.format(now);
+  } catch {
+    return now.toISOString().slice(0, 10);
+  }
 }
 
 export function getFutureUtcDateString(daysAhead: number, now = new Date()) {
@@ -78,13 +115,16 @@ export function getFollowUpDueBucket(
     dueAt: Date;
   },
   now = new Date(),
+  timezone?: string,
 ): FollowUpDueBucket {
   if (input.status !== "pending") {
     return "done";
   }
 
   const dueDate = getDateInputValue(input.dueAt);
-  const today = getTodayUtcDateString(now);
+  const today = timezone
+    ? getTodayDateStringInTimezone(timezone, now)
+    : getTodayUtcDateString(now);
 
   if (dueDate < today) {
     return "overdue";
@@ -181,4 +221,83 @@ export function buildFollowUpSuggestedMessage(input: {
   }
 
   return `Hi ${customerName}, just following up on the quote we sent. Let us know if you have any questions.`;
+}
+
+
+export function getNextRecurrenceDueDate(
+  currentDueAt: Date,
+  recurrence: Exclude<FollowUpRecurrence, "none">,
+): Date {
+  const days = followUpRecurrenceDays[recurrence];
+  const next = new Date(currentDueAt.getTime() + days * 24 * 60 * 60 * 1000);
+
+  return next;
+}
+
+export function shouldRecur(input: {
+  recurrence: FollowUpRecurrence;
+  recurrenceCount: number;
+  recurrenceLimit: number | null;
+}): boolean {
+  if (input.recurrence === "none") {
+    return false;
+  }
+
+  if (input.recurrenceLimit !== null && input.recurrenceCount >= input.recurrenceLimit) {
+    return false;
+  }
+
+  return true;
+}
+
+export function getFollowUpRecurrenceLabel(recurrence: FollowUpRecurrence) {
+  return followUpRecurrenceLabels[recurrence];
+}
+
+/**
+ * Compute due bucket using business timezone instead of UTC.
+ */
+export function getFollowUpDueBucketWithTimezone(
+  input: {
+    status: FollowUpStatus;
+    dueAt: Date;
+  },
+  timezone: string,
+  now = new Date(),
+): FollowUpDueBucket {
+  if (input.status !== "pending") {
+    return "done";
+  }
+
+  const dueDate = getDateInputValue(input.dueAt);
+  const today = getLocalDateString(now, timezone);
+
+  if (dueDate < today) {
+    return "overdue";
+  }
+
+  if (dueDate === today) {
+    return "today";
+  }
+
+  return "upcoming";
+}
+
+/**
+ * Get today's date string in the given IANA timezone.
+ */
+export function getLocalDateString(now: Date, timezone: string): string {
+  try {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+
+    return formatter.format(now);
+  } catch {
+    // Fallback to UTC if timezone is invalid
+    return getTodayUtcDateString(now);
+  }
 }

@@ -1,40 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { CheckCircle2, Sparkles } from "lucide-react";
+import { Camera, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { BrandMark } from "@/components/shared/brand-mark";
 import { CountryCombobox } from "@/components/shared/country-combobox";
 import { FormActions } from "@/components/shared/form-layout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Combobox } from "@/components/ui/combobox";
 import {
   Field,
   FieldContent,
-  FieldDescription,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import { StarterTemplateChoiceGrid } from "@/features/businesses/components/starter-template-choice-grid";
 import {
   businessCurrencyOptions,
-  getBusinessCountryOption,
-  getBusinessCurrencyOption,
 } from "@/features/businesses/locale";
 import {
-  starterTemplateSelectionDescription,
+  starterTemplateDefinitions,
+  starterTemplateBusinessTypes,
 } from "@/features/businesses/starter-templates";
 import {
   businessTypeMeta,
@@ -42,22 +33,23 @@ import {
   type BusinessType,
 } from "@/features/inquiries/business-types";
 import { cn } from "@/lib/utils";
+import { slugifyPublicName } from "@/lib/slugs";
 import {
   createEmptyOnboardingDraft,
+  createOnboardingPreviewBusiness,
   getRecommendedStarterTemplateForBusinessType,
   onboardingSessionStorageKey,
   resolveOnboardingCurrencyChange,
   type OnboardingDraft,
 } from "@/features/onboarding/helpers";
+import { PublicInquiryForm } from "@/features/inquiries/components/public-inquiry-form";
 import { OnboardingStepper } from "@/features/onboarding/components/onboarding-stepper";
 import {
-  companySizeOptions,
   customerContactChannelOptions,
   jobTitleOptions,
   onboardingBusinessContextSchema,
   onboardingOwnerProfileSchema,
   onboardingTemplateSchema,
-  referralSourceOptions,
 } from "@/features/onboarding/schemas";
 import type {
   OnboardingActionState,
@@ -70,6 +62,11 @@ type OnboardingFormProps = {
     state: OnboardingActionState,
     formData: FormData,
   ) => Promise<OnboardingActionState>;
+  initialProfile?: {
+    firstName: string;
+    lastName: string;
+    avatarUrl: string | null;
+  };
 };
 
 type OnboardingStepId = "profile" | "business" | "template";
@@ -78,13 +75,13 @@ const onboardingSteps = [
   {
     id: "profile" as const,
     label: "Profile",
-    description: "Your role, company size, and source.",
-    title: "A few details first",
-    body: "Tell us your role, company size, and how you found Requo.",
+    description: "Your avatar, name, and role.",
+    title: "Set up your profile",
+    body: "Add your photo and name so your team and clients can recognize you.",
     fields: [
+      "firstName",
+      "lastName",
       "jobTitle",
-      "companySize",
-      "referralSource",
     ] as const satisfies readonly OnboardingFieldName[],
   },
   {
@@ -93,22 +90,21 @@ const onboardingSteps = [
     description: "Add the core details for your first business.",
     title: "Add your first business",
     body:
-      "This sets the business context and helps Requo suggest the best starting workflow.",
+      "Set up your business identity so clients recognize you.",
     fields: [
       "businessName",
-      "businessType",
+      "businessSlug",
       "countryCode",
       "defaultCurrency",
-      "customerContactChannel",
     ] as const satisfies readonly OnboardingFieldName[],
   },
   {
     id: "template" as const,
     label: "Template",
     description: "Choose the fastest path to a usable inquiry form.",
-    title: "Start with a template",
+    title: "Configure your workflow",
     body:
-      "Pick the structure that gets you closest to a live inquiry workflow. You can customize it later.",
+      "Pick your business type and starting template. You can customize everything later.",
     fields: [
       "starterTemplateBusinessType",
     ] as const satisfies readonly OnboardingFieldName[],
@@ -124,20 +120,41 @@ const onboardingSteps = [
 
 const initialState: OnboardingActionState = {};
 const lastOnboardingStepIndex = onboardingSteps.length - 1;
-const onboardingInputClassName =
-  "h-12 text-base aria-invalid:border-input/95 aria-invalid:ring-0 aria-invalid:ring-transparent";
-const onboardingComboboxButtonClassName =
-  "h-12 text-base aria-invalid:border-border/85 aria-invalid:ring-0 aria-invalid:ring-transparent";
 
-export function OnboardingForm({ action }: OnboardingFormProps) {
+async function noopPreviewAction() {
+  return {};
+}
+const onboardingInputClassName =
+  "h-9 text-sm focus-visible:ring-0 focus-visible:ring-transparent focus-visible:border-border aria-invalid:border-input/95 aria-invalid:ring-0 aria-invalid:ring-transparent";
+const onboardingComboboxButtonClassName =
+  "h-9 text-sm focus-visible:ring-0 focus-visible:ring-transparent focus-visible:border-border aria-invalid:border-border/85 aria-invalid:ring-0 aria-invalid:ring-transparent";
+
+export function OnboardingForm({ action, initialProfile }: OnboardingFormProps) {
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
   );
   const [currentStep, setCurrentStep] = useState(0);
-  const [draft, setDraft] = useState<OnboardingDraft>(() =>
-    createEmptyOnboardingDraft(),
+  const [draft, setDraft] = useState<OnboardingDraft>(() => ({
+    ...createEmptyOnboardingDraft(),
+    ...(initialProfile
+      ? {
+          firstName: initialProfile.firstName,
+          lastName: initialProfile.lastName,
+        }
+      : {}),
+  }));
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(
+    initialProfile?.avatarUrl ?? null,
   );
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const businessAvatarInputRef = useRef<HTMLInputElement>(null);
+  const [businessAvatarPreviewUrl, setBusinessAvatarPreviewUrl] = useState<string | null>(null);
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const [slugAvailability, setSlugAvailability] = useState<
+    "idle" | "checking" | "available" | "taken"
+  >("idle");
+  const slugCheckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<OnboardingFieldName, string>>
   >({});
@@ -148,11 +165,10 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
     () => getRecommendedStarterTemplateForBusinessType(draft.businessType),
     [draft.businessType],
   );
-  const selectedBusinessTypeMeta = draft.businessType
-    ? businessTypeMeta[draft.businessType]
-    : null;
-  const selectedCountry = getBusinessCountryOption(draft.countryCode);
-  const selectedCurrency = getBusinessCurrencyOption(draft.defaultCurrency);
+  const previewBusiness = useMemo(
+    () => createOnboardingPreviewBusiness(draft),
+    [draft],
+  );
 
   useEffect(() => {
     try {
@@ -226,6 +242,20 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
     });
   }
 
+  function handleCountryChange(countryCode: string) {
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      countryCode,
+      defaultCurrency: resolveOnboardingCurrencyChange({
+        currentCurrency: currentDraft.defaultCurrency,
+        previousCountryCode: currentDraft.countryCode,
+        nextCountryCode: countryCode,
+      }),
+    }));
+
+    clearFieldErrors("countryCode", "defaultCurrency");
+  }
+
   function handleBusinessTypeChange(value: string) {
     const nextBusinessType = value as BusinessType;
     const previousRecommendation = getRecommendedStarterTemplateForBusinessType(
@@ -245,20 +275,6 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
     }));
 
     clearFieldErrors("businessType", "starterTemplateBusinessType");
-  }
-
-  function handleCountryChange(countryCode: string) {
-    setDraft((currentDraft) => ({
-      ...currentDraft,
-      countryCode,
-      defaultCurrency: resolveOnboardingCurrencyChange({
-        currentCurrency: currentDraft.defaultCurrency,
-        previousCountryCode: currentDraft.countryCode,
-        nextCountryCode: countryCode,
-      }),
-    }));
-
-    clearFieldErrors("countryCode", "defaultCurrency");
   }
 
   function clearFieldErrors(...fields: OnboardingFieldName[]) {
@@ -317,6 +333,11 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
       return;
     }
 
+    if (currentStepId === "business" && slugAvailability === "taken") {
+      toast.error("That URL is already taken. Choose a different one.");
+      return;
+    }
+
     setCurrentStep((step) => Math.min(step + 1, lastOnboardingStepIndex));
   }
 
@@ -332,11 +353,80 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
     setCurrentStep(nextStep);
   }
 
+  function handleAvatarSelection(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Profile photo must be under 2 MB.");
+      event.currentTarget.value = "";
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+    setAvatarPreviewUrl((prev) => {
+      if (prev && prev.startsWith("blob:")) {
+        URL.revokeObjectURL(prev);
+      }
+      return url;
+    });
+  }
+
+  function handleBusinessAvatarSelection(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.currentTarget.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Business logo must be under 2 MB.");
+      event.currentTarget.value = "";
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+    setBusinessAvatarPreviewUrl((prev) => {
+      if (prev && prev.startsWith("blob:")) {
+        URL.revokeObjectURL(prev);
+      }
+      return url;
+    });
+  }
+
+  function checkSlugAvailability(slug: string) {
+    if (slugCheckTimeoutRef.current) {
+      clearTimeout(slugCheckTimeoutRef.current);
+    }
+
+    if (!slug || slug.length < 2) {
+      setSlugAvailability("idle");
+      return;
+    }
+
+    setSlugAvailability("checking");
+
+    slugCheckTimeoutRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `/api/business/check-slug?slug=${encodeURIComponent(slug)}`,
+        );
+        const data = await response.json();
+        setSlugAvailability(data.available ? "available" : "taken");
+      } catch {
+        setSlugAvailability("idle");
+      }
+    }, 400);
+  }
+
   return (
     <>
       <form
         action={formAction}
-        className="mx-auto w-full max-w-6xl"
+        className="mx-auto w-full max-w-5xl"
         onSubmit={(event) => {
           if (currentStep < lastOnboardingStepIndex) {
             event.preventDefault();
@@ -352,7 +442,10 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
           }
         }}
       >
+        <input name="firstName" type="hidden" value={draft.firstName} />
+        <input name="lastName" type="hidden" value={draft.lastName} />
         <input name="businessName" type="hidden" value={draft.businessName} />
+        <input name="businessSlug" type="hidden" value={draft.businessSlug} />
         <input name="businessType" type="hidden" value={draft.businessType} />
         <input name="countryCode" type="hidden" value={draft.countryCode} />
         <input
@@ -378,17 +471,14 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
           value={draft.referralSource}
         />
 
-        <div className="section-panel flex w-full flex-col gap-6 px-5 py-5 sm:px-6 sm:py-6">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <p className="meta-label">Onboarding</p>
-            <div className="min-w-0 max-w-2xl">
-              <h1 className="font-heading text-[2rem] font-semibold tracking-tight text-foreground sm:text-[2.35rem]">
-                {currentStepMeta.title}
-              </h1>
-              <p className="mt-2 text-sm leading-normal sm:leading-7 text-muted-foreground sm:text-[0.96rem]">
-                {currentStepMeta.body}
-              </p>
-            </div>
+        <div className="flex w-full flex-col gap-5">
+          <div className="flex flex-col items-center gap-1.5 text-center">
+            <h1 className="font-heading text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+              {currentStepMeta.title}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {currentStepMeta.body}
+            </p>
           </div>
 
           <OnboardingStepper
@@ -404,18 +494,128 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
             </Alert>
           ) : null}
 
-          <div className="min-w-0">
+          <div className="min-w-0 animate-in fade-in slide-in-from-bottom-3 duration-300" key={currentStepId}>
             {currentStepId === "profile" ? (
-              <div className="mx-auto w-full max-w-2xl">
-                <Card className="border-border/75 bg-card/97">
-                  <CardHeader>
-                    <CardTitle>Business profile</CardTitle>
-                    <CardDescription>
-                      A few details so we can tailor your starting setup.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <FieldGroup>
+              <div className="mx-auto w-full max-w-md py-4">
+                <FieldGroup>
+                      <Field>
+                        <FieldLabel>Profile photo</FieldLabel>
+                        <FieldContent>
+                          <div className="flex items-center gap-5">
+                            <div className="group relative">
+                              <input
+                                ref={avatarInputRef}
+                                accept="image/jpeg,image/png,image/webp"
+                                className="sr-only"
+                                disabled={isPending}
+                                id="onboarding-avatar"
+                                name="avatar"
+                                onChange={handleAvatarSelection}
+                                type="file"
+                              />
+                              <Avatar className="size-20 border border-border/75 shadow-sm">
+                                <AvatarImage
+                                  alt="Profile photo preview"
+                                  src={avatarPreviewUrl ?? undefined}
+                                />
+                                <AvatarFallback className="text-lg">
+                                  {getInitials(
+                                    draft.firstName || draft.lastName
+                                      ? `${draft.firstName} ${draft.lastName}`
+                                      : "?",
+                                  )}
+                                </AvatarFallback>
+                              </Avatar>
+                              <label
+                                className={cn(
+                                  "absolute inset-0 flex cursor-pointer items-end justify-end rounded-full focus-within:outline-none",
+                                  isPending &&
+                                    "pointer-events-none cursor-default opacity-60",
+                                )}
+                                htmlFor="onboarding-avatar"
+                                role="button"
+                                tabIndex={isPending ? -1 : 0}
+                              >
+                                <span className="absolute inset-0 rounded-full bg-foreground/0 transition-colors duration-150 sm:group-hover:bg-foreground/10" />
+                                <span className="relative mr-0.5 mb-0.5 inline-flex size-8 items-center justify-center rounded-full border border-border/80 bg-background/94 text-foreground shadow-sm">
+                                  <Camera className="size-3.5" />
+                                  <span className="sr-only">Upload photo</span>
+                                </span>
+                              </label>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              <p>Upload a profile photo.</p>
+                              <p>JPG, PNG, or WEBP. Max 2 MB.</p>
+                            </div>
+                          </div>
+                        </FieldContent>
+                      </Field>
+
+                      <div className="grid gap-5 sm:grid-cols-2">
+                        <Field
+                          data-invalid={
+                            Boolean(fieldErrors.firstName) || undefined
+                          }
+                        >
+                          <FieldLabel htmlFor="onboarding-first-name">
+                            First name
+                          </FieldLabel>
+                          <FieldContent>
+                            <Input
+                              aria-invalid={
+                                Boolean(fieldErrors.firstName) || undefined
+                              }
+                              autoFocus={isDraftHydrated && !draft.firstName}
+                              className={onboardingInputClassName}
+                              disabled={isPending}
+                              id="onboarding-first-name"
+                              maxLength={60}
+                              minLength={1}
+                              onChange={(event) =>
+                                updateField(
+                                  "firstName",
+                                  event.currentTarget.value,
+                                )
+                              }
+                              placeholder="Alicia"
+                              required
+                              value={draft.firstName}
+                            />
+                          </FieldContent>
+                        </Field>
+
+                        <Field
+                          data-invalid={
+                            Boolean(fieldErrors.lastName) || undefined
+                          }
+                        >
+                          <FieldLabel htmlFor="onboarding-last-name">
+                            Last name
+                          </FieldLabel>
+                          <FieldContent>
+                            <Input
+                              aria-invalid={
+                                Boolean(fieldErrors.lastName) || undefined
+                              }
+                              className={onboardingInputClassName}
+                              disabled={isPending}
+                              id="onboarding-last-name"
+                              maxLength={60}
+                              minLength={1}
+                              onChange={(event) =>
+                                updateField(
+                                  "lastName",
+                                  event.currentTarget.value,
+                                )
+                              }
+                              placeholder="Cruz"
+                              required
+                              value={draft.lastName}
+                            />
+                          </FieldContent>
+                        </Field>
+                      </div>
+
                       <Field
                         data-invalid={Boolean(fieldErrors.jobTitle) || undefined}
                       >
@@ -427,84 +627,75 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
                             aria-invalid={
                               Boolean(fieldErrors.jobTitle) || undefined
                             }
-                            autoFocus={isDraftHydrated}
                             buttonClassName={onboardingComboboxButtonClassName}
                             disabled={isPending}
                             id="onboarding-job-title"
-                            onValueChange={(value) => updateField("jobTitle", value)}
+                            onValueChange={(value) =>
+                              updateField("jobTitle", value)
+                            }
                             options={jobTitleOptions}
                             placeholder="Choose your role"
                             value={draft.jobTitle}
                           />
                         </FieldContent>
                       </Field>
-
-                      <Field
-                        data-invalid={Boolean(fieldErrors.companySize) || undefined}
-                      >
-                        <FieldLabel htmlFor="onboarding-company-size">
-                          Company size
-                        </FieldLabel>
-                        <FieldContent>
-                          <Combobox
-                            aria-invalid={
-                              Boolean(fieldErrors.companySize) || undefined
-                            }
-                            buttonClassName={onboardingComboboxButtonClassName}
-                            disabled={isPending}
-                            id="onboarding-company-size"
-                            onValueChange={(value) =>
-                              updateField("companySize", value)
-                            }
-                            options={companySizeOptions}
-                            placeholder="Choose your company size"
-                            value={draft.companySize}
-                          />
-                        </FieldContent>
-                      </Field>
-
-                      <Field
-                        data-invalid={Boolean(fieldErrors.referralSource) || undefined}
-                      >
-                        <FieldLabel htmlFor="onboarding-referral-source">
-                          Where did you find us?
-                        </FieldLabel>
-                        <FieldContent>
-                          <Combobox
-                            aria-invalid={
-                              Boolean(fieldErrors.referralSource) || undefined
-                            }
-                            buttonClassName={onboardingComboboxButtonClassName}
-                            disabled={isPending}
-                            id="onboarding-referral-source"
-                            onValueChange={(value) =>
-                              updateField("referralSource", value)
-                            }
-                            options={referralSourceOptions}
-                            placeholder="Choose a source"
-                            searchPlaceholder="Search sources"
-                            searchable
-                            value={draft.referralSource}
-                          />
-                        </FieldContent>
-                      </Field>
                     </FieldGroup>
-                  </CardContent>
-                </Card>
               </div>
             ) : null}
 
             {currentStepId === "business" ? (
-              <Card className="border-border/75 bg-card/97">
-                <CardHeader>
-                  <CardTitle>Business context</CardTitle>
-                  <CardDescription>
-                    Set the basics customers will see, then we&apos;ll suggest a
-                    template that fits.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
+              <div className="mx-auto w-full max-w-md py-4">
                   <FieldGroup>
+                    <Field>
+                      <FieldLabel>Business logo</FieldLabel>
+                      <FieldContent>
+                        <div className="flex items-center gap-5">
+                          <div className="group relative">
+                            <input
+                              ref={businessAvatarInputRef}
+                              accept="image/jpeg,image/png,image/webp"
+                              className="sr-only"
+                              disabled={isPending}
+                              id="onboarding-business-avatar"
+                              name="businessAvatar"
+                              onChange={handleBusinessAvatarSelection}
+                              type="file"
+                            />
+                            <Avatar className="size-20 rounded-xl border border-border/75 shadow-sm">
+                              <AvatarImage
+                                alt="Business logo preview"
+                                className="rounded-xl"
+                                src={businessAvatarPreviewUrl ?? undefined}
+                              />
+                              <AvatarFallback className="rounded-xl text-lg">
+                                {getInitials(draft.businessName || "?")}
+                              </AvatarFallback>
+                            </Avatar>
+                            <label
+                              className={cn(
+                                "absolute inset-0 flex cursor-pointer items-end justify-end rounded-xl focus-within:outline-none",
+                                isPending &&
+                                  "pointer-events-none cursor-default opacity-60",
+                              )}
+                              htmlFor="onboarding-business-avatar"
+                              role="button"
+                              tabIndex={isPending ? -1 : 0}
+                            >
+                              <span className="absolute inset-0 rounded-xl bg-foreground/0 transition-colors duration-150 sm:group-hover:bg-foreground/10" />
+                              <span className="relative mr-0.5 mb-0.5 inline-flex size-8 items-center justify-center rounded-full border border-border/80 bg-background/94 text-foreground shadow-sm">
+                                <Camera className="size-3.5" />
+                                <span className="sr-only">Upload logo</span>
+                              </span>
+                            </label>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            <p>Upload a business logo.</p>
+                            <p>JPG, PNG, or WEBP. Max 2 MB.</p>
+                          </div>
+                        </div>
+                      </FieldContent>
+                    </Field>
+
                     <Field
                       data-invalid={Boolean(fieldErrors.businessName) || undefined}
                     >
@@ -522,12 +713,17 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
                           id="onboarding-business-name"
                           maxLength={80}
                           minLength={2}
-                          onChange={(event) =>
-                            updateField(
-                              "businessName",
-                              event.currentTarget.value,
-                            )
-                          }
+                          onChange={(event) => {
+                            const name = event.currentTarget.value;
+                            updateField("businessName", name);
+                            if (!slugManuallyEdited) {
+                              const autoSlug = name.trim()
+                                ? slugifyPublicName(name)
+                                : "";
+                              updateField("businessSlug", autoSlug);
+                              checkSlugAvailability(autoSlug);
+                            }
+                          }}
                           placeholder="Northline Print Studio"
                           required
                           value={draft.businessName}
@@ -536,41 +732,55 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
                     </Field>
 
                     <Field
-                      data-invalid={Boolean(fieldErrors.businessType) || undefined}
+                      data-invalid={Boolean(fieldErrors.businessSlug) || slugAvailability === "taken" || undefined}
                     >
-                      <FieldLabel htmlFor="onboarding-business-type">
-                        Business category
+                      <FieldLabel htmlFor="onboarding-business-slug">
+                        Public URL
                       </FieldLabel>
                       <FieldContent>
-                        <Combobox
-                          aria-invalid={
-                            Boolean(fieldErrors.businessType) || undefined
-                          }
-                          autoFocus={false}
-                          buttonClassName={onboardingComboboxButtonClassName}
-                          disabled={isPending}
-                          id="onboarding-business-type"
-                          onValueChange={handleBusinessTypeChange}
-                          options={businessTypeOptions}
-                          placeholder="Choose a category"
-                          renderOption={(option) => (
-                            <div className="flex min-w-0 flex-col gap-0.5 py-0.5">
-                              <p className="truncate font-medium">
-                                {option.label}
-                              </p>
-                              <p className="text-xs leading-5 text-muted-foreground">
-                                {option.description}
-                              </p>
-                            </div>
+                        <div
+                          className={cn(
+                            "flex h-9 items-center rounded-md border border-border bg-background px-3 text-sm transition-colors",
+                            (Boolean(fieldErrors.businessSlug) || slugAvailability === "taken") && "border-destructive",
+                            isPending && "opacity-60",
                           )}
-                          searchPlaceholder="Search categories"
-                          searchable
-                          value={draft.businessType}
-                        />
-                        <FieldDescription>
-                          We&apos;ll use this to recommend the best starting template
-                          next.
-                        </FieldDescription>
+                        >
+                          <span className="shrink-0 select-none text-sm text-muted-foreground">
+                            {typeof window !== "undefined"
+                              ? `${window.location.origin}/businesses/`
+                              : "/businesses/"}
+                          </span>
+                          <input
+                            aria-invalid={
+                              Boolean(fieldErrors.businessSlug) || slugAvailability === "taken" || undefined
+                            }
+                            className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/50"
+                            disabled={isPending}
+                            id="onboarding-business-slug"
+                            maxLength={60}
+                            onChange={(event) => {
+                              setSlugManuallyEdited(true);
+                              const nextSlug = event.currentTarget.value
+                                .toLowerCase()
+                                .replace(/[^a-z0-9-]/g, "-")
+                                .replace(/--+/g, "-")
+                                .replace(/^-|-$/g, "");
+                              updateField("businessSlug", nextSlug);
+                              checkSlugAvailability(nextSlug);
+                            }}
+                            placeholder="your-business"
+                            value={draft.businessSlug}
+                          />
+                        </div>
+                        {slugAvailability === "taken" ? (
+                          <p className="mt-1.5 text-sm text-destructive">
+                            This URL is already taken. Try a different one.
+                          </p>
+                        ) : slugAvailability === "available" && draft.businessSlug.length >= 2 ? (
+                          <p className="mt-1.5 text-sm text-primary">
+                            Available
+                          </p>
+                        ) : null}
                       </FieldContent>
                     </Field>
 
@@ -595,11 +805,6 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
                             showFlags={false}
                             value={draft.countryCode}
                           />
-                          <FieldDescription>
-                            {selectedCountry
-                              ? `Quotes and public inquiry details will start from ${selectedCountry.label}.`
-                              : "Use the country your business mainly operates from."}
-                          </FieldDescription>
                         </FieldContent>
                       </Field>
 
@@ -632,30 +837,49 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
                             searchable
                             value={draft.defaultCurrency}
                           />
-                          <FieldDescription>
-                            {selectedCurrency
-                              ? `New quotes will start in ${selectedCurrency.code}.`
-                              : "You can change this later in business settings."}
-                          </FieldDescription>
                         </FieldContent>
                       </Field>
                     </div>
+                  </FieldGroup>
+              </div>
+            ) : null}
 
+            {currentStepId === "template" ? (
+              <div className="w-full py-4">
+                <div className="grid gap-12 lg:grid-cols-[1fr_minmax(0,2fr)]">
+                  <div className="flex justify-end">
+                    <div className="w-full max-w-[280px]">
+                      <FieldGroup>
                     <Field
-                      data-invalid={
-                        Boolean(fieldErrors.customerContactChannel) ||
-                        undefined
-                      }
+                      data-invalid={Boolean(fieldErrors.businessType) || undefined}
                     >
-                      <FieldLabel htmlFor="onboarding-customer-contact">
-                        How do customers usually contact you?
+                      <FieldLabel htmlFor="onboarding-business-type">
+                        Business type
                       </FieldLabel>
                       <FieldContent>
                         <Combobox
                           aria-invalid={
-                            Boolean(fieldErrors.customerContactChannel) ||
-                            undefined
+                            Boolean(fieldErrors.businessType) || undefined
                           }
+                          buttonClassName={onboardingComboboxButtonClassName}
+                          disabled={isPending}
+                          id="onboarding-business-type"
+                          onValueChange={handleBusinessTypeChange}
+                          options={businessTypeOptions}
+                          placeholder="Choose a type"
+                          searchPlaceholder="Search types"
+                          searchable
+                          value={draft.businessType}
+                        />
+                      </FieldContent>
+                    </Field>
+
+                    <Field>
+                      <FieldLabel htmlFor="onboarding-customer-contact">
+                        Contact channel
+                      </FieldLabel>
+                      <FieldContent>
+                        <Combobox
                           buttonClassName={onboardingComboboxButtonClassName}
                           disabled={isPending}
                           id="onboarding-customer-contact"
@@ -663,58 +887,89 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
                             updateField("customerContactChannel", value)
                           }
                           options={customerContactChannelOptions}
-                          placeholder="Choose a contact channel"
+                          placeholder="Choose a channel"
                           value={draft.customerContactChannel}
                         />
-                        <FieldDescription>
-                          Helps tailor defaults for inquiry capture and reminders.
-                        </FieldDescription>
+                      </FieldContent>
+                    </Field>
+
+                    <Field>
+                      <FieldLabel>Template</FieldLabel>
+                      <FieldContent>
+                        <div className="flex flex-col gap-1">
+                          {starterTemplateBusinessTypes.map((templateType) => {
+                            const def = starterTemplateDefinitions[templateType];
+                            const isSelected =
+                              draft.starterTemplateBusinessType === templateType;
+                            const isRecommended =
+                              recommendedTemplate === templateType;
+
+                            return (
+                              <button
+                                key={templateType}
+                                className={cn(
+                                  "flex items-center gap-2.5 rounded-md border px-2.5 py-2 text-left text-xs transition-colors",
+                                  isSelected
+                                    ? "border-primary bg-primary/5 text-foreground"
+                                    : "border-transparent hover:bg-accent/30",
+                                  isPending && "pointer-events-none opacity-60",
+                                )}
+                                disabled={isPending}
+                                onClick={() =>
+                                  updateField(
+                                    "starterTemplateBusinessType",
+                                    templateType,
+                                  )
+                                }
+                                type="button"
+                              >
+                                <span
+                                  className={cn(
+                                    "flex size-3.5 shrink-0 items-center justify-center rounded-full border-2",
+                                    isSelected
+                                      ? "border-primary bg-primary"
+                                      : "border-border",
+                                  )}
+                                >
+                                  {isSelected ? (
+                                    <span className="size-1 rounded-full bg-white" />
+                                  ) : null}
+                                </span>
+                                <span className="min-w-0 flex-1 font-medium">
+                                  {def.label}
+                                </span>
+                                {isRecommended ? (
+                                  <span className="shrink-0 text-[10px] text-primary">
+                                    ★
+                                  </span>
+                                ) : null}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </FieldContent>
                     </Field>
                   </FieldGroup>
-                </CardContent>
-              </Card>
-            ) : null}
+                    </div>
+                  </div>
 
-            {currentStepId === "template" ? (
-              <div className="flex flex-col gap-5">
-                <Alert>
-                  <Sparkles data-icon="inline-start" />
-                  <AlertTitle>
-                    {selectedBusinessTypeMeta
-                      ? `Recommended for ${selectedBusinessTypeMeta.label}`
-                      : "Pick the best starting point"}
-                  </AlertTitle>
-                  <AlertDescription>
-                    {starterTemplateSelectionDescription}
-                  </AlertDescription>
-                </Alert>
-
-                <Card className="border-border/75 bg-card/97">
-                  <CardHeader>
-                    <CardTitle>Starter templates</CardTitle>
-                    <CardDescription>
-                      Choose the structure that gets your inquiry form close to
-                      usable from day one.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <StarterTemplateChoiceGrid
-                      ariaLabel="Starter template"
-                      disabled={isPending}
-                      inputName="onboarding-starter-template"
-                      onChange={(value) =>
-                        updateField(
-                          "starterTemplateBusinessType",
-                          value as OnboardingDraft["starterTemplateBusinessType"],
-                        )
-                      }
-                      recommendedValue={recommendedTemplate}
-                      showHelperText
-                      value={draft.starterTemplateBusinessType}
-                    />
-                  </CardContent>
-                </Card>
+                  <div className="hidden lg:block">
+                    <div className="sticky top-4 overflow-hidden rounded-lg border border-border/75 bg-card/50">
+                      <div className="border-b border-border/50 px-4 py-2">
+                        <p className="text-xs font-medium text-muted-foreground">
+                          Form preview
+                        </p>
+                      </div>
+                      <div className="origin-top-left scale-[0.85] px-4 py-3 pointer-events-none opacity-80">
+                        <PublicInquiryForm
+                          business={previewBusiness}
+                          action={noopPreviewAction}
+                          previewMode
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : null}
           </div>
@@ -727,9 +982,9 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
               <Button
                 disabled={isPending}
                 onClick={handleBack}
-                size="lg"
+                size="sm"
                 type="button"
-                variant="outline"
+                variant="ghost"
               >
                 Back
               </Button>
@@ -740,13 +995,13 @@ export function OnboardingForm({ action }: OnboardingFormProps) {
                 key="continue"
                 disabled={isPending}
                 onClick={handleContinue}
-                size="lg"
+                size="sm"
                 type="button"
               >
                 Continue
               </Button>
             ) : (
-              <Button key="finish" disabled={isPending} size="lg" type="submit">
+              <Button key="finish" disabled={isPending} size="sm" type="submit">
                 {isPending ? (
                   <>
                     <Spinner data-icon="inline-start" aria-hidden="true" />
@@ -773,11 +1028,37 @@ function getFieldValidationError(
   draft: OnboardingDraft,
 ) {
   switch (field) {
+    case "firstName": {
+      const result = onboardingOwnerProfileSchema.shape.firstName.safeParse(
+        draft.firstName,
+      );
+      return result.success ? undefined : result.error.issues[0]?.message;
+    }
+    case "lastName": {
+      const result = onboardingOwnerProfileSchema.shape.lastName.safeParse(
+        draft.lastName,
+      );
+      return result.success ? undefined : result.error.issues[0]?.message;
+    }
+    case "jobTitle": {
+      const result = onboardingOwnerProfileSchema.shape.jobTitle.safeParse(
+        draft.jobTitle,
+      );
+      return result.success ? undefined : result.error.issues[0]?.message;
+    }
     case "businessName": {
       const result = onboardingBusinessContextSchema.shape.businessName.safeParse(
         draft.businessName,
       );
       return result.success ? undefined : result.error.issues[0]?.message;
+    }
+    case "businessSlug": {
+      const slug = draft.businessSlug.trim();
+      if (!slug) return "Enter a URL slug.";
+      if (slug.length < 2) return "Use at least 2 characters.";
+      if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(slug))
+        return "Use only lowercase letters, numbers, and hyphens.";
+      return undefined;
     }
     case "businessType": {
       const result = onboardingBusinessContextSchema.shape.businessType.safeParse(
@@ -812,25 +1093,9 @@ function getFieldValidationError(
         );
       return result.success ? undefined : result.error.issues[0]?.message;
     }
-    case "jobTitle": {
-      const result = onboardingOwnerProfileSchema.shape.jobTitle.safeParse(
-        draft.jobTitle,
-      );
-      return result.success ? undefined : result.error.issues[0]?.message;
-    }
-    case "companySize": {
-      const result = onboardingOwnerProfileSchema.shape.companySize.safeParse(
-        draft.companySize,
-      );
-      return result.success ? undefined : result.error.issues[0]?.message;
-    }
-    case "referralSource": {
-      const result =
-        onboardingOwnerProfileSchema.shape.referralSource.safeParse(
-          draft.referralSource,
-        );
-      return result.success ? undefined : result.error.issues[0]?.message;
-    }
+    case "companySize":
+    case "referralSource":
+      return undefined;
   }
 }
 
@@ -842,8 +1107,13 @@ function sanitizeDraft(
   }
 
   return {
+    firstName: typeof value.firstName === "string" ? value.firstName : "",
+    lastName: typeof value.lastName === "string" ? value.lastName : "",
+    jobTitle: typeof value.jobTitle === "string" ? value.jobTitle : "",
     businessName:
       typeof value.businessName === "string" ? value.businessName : "",
+    businessSlug:
+      typeof value.businessSlug === "string" ? value.businessSlug : "",
     businessType:
       typeof value.businessType === "string"
         ? (value.businessType as OnboardingDraft["businessType"])
@@ -859,7 +1129,6 @@ function sanitizeDraft(
       typeof value.customerContactChannel === "string"
         ? value.customerContactChannel
         : "",
-    jobTitle: typeof value.jobTitle === "string" ? value.jobTitle : "",
     companySize:
       typeof value.companySize === "string" ? value.companySize : "",
     referralSource:
@@ -942,4 +1211,13 @@ function SetupLoadingOverlay() {
       </div>
     </div>
   );
+}
+
+function getInitials(value: string) {
+  return value
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((segment) => segment[0]?.toUpperCase())
+    .join("");
 }

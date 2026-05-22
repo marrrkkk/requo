@@ -5,22 +5,22 @@ import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
   Field,
   FieldContent,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  ResponsiveOverlay,
+  ResponsiveOverlayBody,
+  ResponsiveOverlayContent,
+  ResponsiveOverlayDescription,
+  ResponsiveOverlayFooter,
+  ResponsiveOverlayHeader,
+  ResponsiveOverlayTitle,
+  ResponsiveOverlayTrigger,
+} from "@/components/ui/responsive-overlay";
 
 type AddLineItemDialogProps = {
   disabled?: boolean;
@@ -54,7 +54,7 @@ export function AddLineItemDialog({ disabled, onAdd }: AddLineItemDialogProps) {
   }
 
   return (
-    <Dialog
+    <ResponsiveOverlay
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
@@ -64,21 +64,21 @@ export function AddLineItemDialog({ disabled, onAdd }: AddLineItemDialogProps) {
         }
       }}
     >
-      <DialogTrigger asChild>
+      <ResponsiveOverlayTrigger asChild>
         <Button type="button" variant="outline" disabled={disabled}>
           <Plus data-icon="inline-start" />
           Add item
         </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Add line item</DialogTitle>
-          <DialogDescription>
+      </ResponsiveOverlayTrigger>
+      <ResponsiveOverlayContent className="sm:max-w-md">
+        <ResponsiveOverlayHeader>
+          <ResponsiveOverlayTitle>Add line item</ResponsiveOverlayTitle>
+          <ResponsiveOverlayDescription>
             Enter the item details. You can edit them later.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveOverlayDescription>
+        </ResponsiveOverlayHeader>
         <form onSubmit={handleSubmit}>
-          <DialogBody className="flex flex-col gap-5 pt-1">
+          <ResponsiveOverlayBody className="flex flex-col gap-5 pt-1">
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="add-item-description">
@@ -136,15 +136,15 @@ export function AddLineItemDialog({ disabled, onAdd }: AddLineItemDialogProps) {
                 </Field>
               </div>
             </FieldGroup>
-          </DialogBody>
-          <DialogFooter>
+          </ResponsiveOverlayBody>
+          <ResponsiveOverlayFooter>
             <Button type="submit" disabled={!description.trim()}>
               <Plus data-icon="inline-start" />
               Add item
             </Button>
-          </DialogFooter>
+          </ResponsiveOverlayFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveOverlayContent>
+    </ResponsiveOverlay>
   );
 }

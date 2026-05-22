@@ -48,8 +48,8 @@ keeping the core experience focused on this workflow rather than generic configu
 - Knowledge and FAQ management for business-specific reference material
 - AI-assisted response drafting through Groq, Gemini, and OpenRouter fallback routing
 - Transactional email flows through Resend, with Mailtrap and Brevo fallback
-- Subscription billing with Paddle inline checkout (USD)
-- Self-serve refund requests through Paddle adjustments, with webhook-tracked approval status
+- Subscription billing with Polar hosted checkout (USD, merchant of record)
+- Self-serve refund requests through Polar refunds, with webhook-tracked approval status
 - Analytics and notification foundations for operational visibility
 
 ## Tech Stack
@@ -64,7 +64,7 @@ keeping the core experience focused on this workflow rather than generic configu
 - Supabase for storage and realtime-backed notification plumbing
 - Resend, Mailtrap, and Brevo for transactional email fallback
 - Groq, Gemini, and OpenRouter for AI-assisted drafting
-- Paddle for card/global payments
+- Polar for subscription billing (USD, merchant of record)
 
 ## Getting Started
 
@@ -187,15 +187,13 @@ The demo seed also creates two additional sample businesses, three inquiry forms
 
 ### Billing providers
 
-- `PADDLE_API_KEY`
-- `PADDLE_WEBHOOK_SECRET`
-- `PADDLE_PRO_PRICE_ID`
-- `PADDLE_PRO_YEARLY_PRICE_ID`
-- `PADDLE_BUSINESS_PRICE_ID`
-- `PADDLE_BUSINESS_YEARLY_PRICE_ID`
-- `PADDLE_ENVIRONMENT`
-- `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN`
-- `NEXT_PUBLIC_PADDLE_ENVIRONMENT`
+- `POLAR_ACCESS_TOKEN`
+- `POLAR_WEBHOOK_SECRET`
+- `POLAR_SERVER` (`sandbox` or `production`)
+- `POLAR_PRO_PRODUCT_ID`
+- `POLAR_PRO_YEARLY_PRODUCT_ID`
+- `POLAR_BUSINESS_PRODUCT_ID`
+- `POLAR_BUSINESS_YEARLY_PRODUCT_ID`
 
 For full setup expectations, read:
 
@@ -241,7 +239,7 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 | `npm run db:studio` | Open Drizzle Studio |
 | `npm run db:seed-demo` | Seed the demo business |
 
-## Testing And CI
+## Testing And Validation
 
 Requo uses a layered, risk-based test strategy:
 
@@ -252,15 +250,18 @@ Requo uses a layered, risk-based test strategy:
 
 The browser suite is intentionally split:
 
-- `npm run test:e2e:smoke` is the fast CI slice for critical sign-in, authorization, public inquiry, and public quote flows
+- `npm run test:e2e:smoke` is the fast validation slice for critical sign-in, authorization, public inquiry, and public quote flows
 - `npm run test:e2e` runs the fuller browser suite for broader regression coverage
 
-Deployment and CI responsibilities are intentionally split:
+Deployment and validation responsibilities are intentionally split:
 
 - Vercel handles preview and production deployments
-- GitHub Actions handles merge gates:
-  - `verify`: install, lint, typecheck, unit/component tests, and build
-  - `server-tests`: Postgres-backed integration tests plus the Playwright smoke suite
+- Local/manual commands handle validation before push:
+  - `npm run check`: lint, typecheck, and repo audits
+  - `npm run test`: unit and component tests
+  - `npm run test:integration`: Postgres-backed integration tests
+  - `npm run test:e2e:smoke`: critical browser smoke flows
+  - `npm run build`: production build verification
 
 ## Repository Map
 
@@ -277,11 +278,11 @@ Deployment and CI responsibilities are intentionally split:
 
 ### Billing
 
-- `lib/billing/` billing domain types, plan pricing, subscription service, webhook processing, Paddle provider client, and refund service
-- `lib/billing/providers/` Paddle REST client with webhook signature verification and refund adjustments
+- `lib/billing/` billing domain types, plan pricing, subscription service, webhook processing, Polar provider client, and refund service
+- `lib/billing/providers/` Polar SDK client wrapping `BillingProviderInterface` for outbound API calls (webhook signature verification and event parsing live in the route handler via the `@polar-sh/nextjs` adapter)
 - `lib/db/schema/subscriptions.ts` account_subscriptions, billing_events, payment_attempts, and refunds tables
 - `features/billing/` checkout dialog, billing status card, upgrade button, payment history with refund requests, server actions, and queries
-- `app/api/billing/` webhook route for Paddle and refund request route
+- `app/api/billing/` Polar webhook and customer-portal routes plus the refund request route
 - `features/follow-ups/` follow-up creation, rescheduling, completion, skipping, and reminders
 - `features/analytics/` conversion/workflow analytics plus public inquiry and quote view tracking
 - `features/business-members/` business role management
@@ -297,10 +298,12 @@ Deployment and CI responsibilities are intentionally split:
 - AI drafting stays server-side and uses business context plus uploaded knowledge, with provider fallback ordered Groq -> Gemini -> OpenRouter
 - Marketing, onboarding, starter templates, and in-app copy are aligned around the inquiry -> quote -> share/send -> follow-up -> viewed/accepted/rejected workflow
 - Starter templates are opinionated defaults, not rigid vertical product modes
-- Subscriptions are account-scoped with Paddle; all businesses owned by a user inherit the plan from the user's account subscription
+- Subscriptions are account-scoped with Polar; all businesses owned by a user inherit the plan from the user's account subscription
 - The `businesses.plan` column is a denormalized read cache; the authoritative state lives in `account_subscriptions`
 - Billing mutations go through `lib/billing/subscription-service.ts`; webhooks go through `lib/billing/webhook-processor.ts`
 - Opaque lookup tokens are hashed with `APP_TOKEN_HASH_SECRET` or `BETTER_AUTH_SECRET`
+- State and data defaults stay server-first: prefer cached server reads, Server Actions, route refreshes, and local component state before adding client-state libraries
+- Do not add app-wide Zustand, TanStack Query, or Redis by default; introduce them only for measured bottlenecks such as complex client-only islands, background refetch pressure, or distributed rate limiting/queueing needs
 - See [docs/setup/billing.md](./docs/setup/billing.md) for provider setup instructions
 
 Detailed architecture guidance lives in [docs/architecture/requo-architecture.md](./docs/architecture/requo-architecture.md).
@@ -316,6 +319,8 @@ npm run test:integration
 npm run build
 npm run test:e2e:smoke
 ```
+
+Vercel Git integration is the deployment path for this repository: push a branch to create a preview deployment, then merge to the production branch configured in Vercel for the production deploy.
 
 For broader browser coverage before larger merges, also run:
 

@@ -30,7 +30,10 @@ describe("AI surface completion request", () => {
       role: "system",
     });
     expect(request.messages[0]?.content).toContain(
-      "Resolve follow-up questions, pronouns, and omitted subjects from the recent chat history",
+      "Use ONLY the provided context, tool results, and chat history",
+    );
+    expect(request.messages[0]?.content).toContain(
+      "Format as GitHub-flavored Markdown",
     );
     expect(request.messages.slice(1, 3)).toEqual([
       {
@@ -49,5 +52,20 @@ describe("AI surface completion request", () => {
       "- Created: 2026-04-01T00:00:00.000Z",
     );
     expect(request.messages.at(-1)?.content).toContain("When was it created?");
+  });
+
+  it("passes a selected development model through to the router request", () => {
+    const request = buildAiSurfaceCompletionRequest({
+      surface: "dashboard",
+      context: "Surface: dashboard",
+      message: "Summarize this.",
+      modelSelection: {
+        provider: "gemini",
+        model: "gemini-2.5-pro",
+      },
+    });
+
+    expect(request.provider).toBe("gemini");
+    expect(request.model).toBe("gemini-2.5-pro");
   });
 });

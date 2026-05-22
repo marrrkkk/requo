@@ -1,16 +1,19 @@
 import "server-only";
 
-// ---------------------------------------------------------------------------
-// AI Provider Abstraction — shared types
-//
-// Every provider (Groq, Cerebras, Gemini) normalizes its SDK-specific
-// inputs and outputs into these shapes. The router in `router.ts` works
-// exclusively with these types so adding a new provider later only requires
-// implementing the `AiProvider` interface.
-// ---------------------------------------------------------------------------
+import type {
+  AiProviderName,
+  AiQualityTier,
+} from "@/lib/ai/model-options";
 
-/** Identifiers for each supported AI provider. */
-export type AiProviderName = "groq" | "cerebras" | "gemini" | "openrouter";
+export type { AiProviderName, AiQualityTier } from "@/lib/ai/model-options";
+
+// ---------------------------------------------------------------------------
+// AI Types — shared type definitions for the AI layer
+//
+// These types are used by the router, pipeline, surface service, and
+// consuming features. The Vercel AI SDK handles provider communication;
+// these types normalize the interface for internal app logic.
+// ---------------------------------------------------------------------------
 
 /**
  * Quality tier controls which models are preferred within each provider.
@@ -20,8 +23,6 @@ export type AiProviderName = "groq" | "cerebras" | "gemini" | "openrouter";
  * - "best"     — prefer strongest models first.
  * - "coding"   — prefer coding-capable models.
  */
-export type AiQualityTier = "balanced" | "cheap" | "best" | "coding";
-
 /** Normalized chat message shape sent to every provider. */
 export type AiChatMessage = {
   role: "system" | "user" | "assistant";
@@ -30,6 +31,7 @@ export type AiChatMessage = {
 
 /** Normalized request shape passed to each provider. */
 export type AiCompletionRequest = {
+  provider?: AiProviderName;
   model: string;
   messages: AiChatMessage[];
   temperature: number;
@@ -64,11 +66,9 @@ export type AiStreamResponse = {
 };
 
 /**
- * Provider interface — each provider implements this contract.
- *
- * `isConfigured()` gates whether the router will attempt the provider.
- * `generateCompletion()` returns the full response in one shot.
- * `generateStream()` returns an async iterable of text deltas.
+ * @deprecated Legacy provider interface — no longer used by the router.
+ * The Vercel AI SDK registry handles provider management directly.
+ * Retained for backward compatibility with test utilities.
  */
 export type AiProvider = {
   name: AiProviderName;

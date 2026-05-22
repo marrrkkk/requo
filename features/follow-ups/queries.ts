@@ -8,6 +8,7 @@ import {
   eq,
   gte,
   ilike,
+  isNull,
   lt,
   or,
   sql,
@@ -47,6 +48,7 @@ type FollowUpRow = {
   id: string;
   businessId: string;
   businessName: string;
+  businessTimezone: string;
   inquiryId: string | null;
   quoteId: string | null;
   assignedToUserId: string | null;
@@ -55,6 +57,9 @@ type FollowUpRow = {
   reason: string;
   channel: FollowUpView["channel"];
   category: string;
+  recurrence: string;
+  recurrenceCount: number;
+  recurrenceLimit: number | null;
   dueAt: Date;
   completedAt: Date | null;
   skippedAt: Date | null;
@@ -116,6 +121,9 @@ function mapFollowUpRow(row: FollowUpRow): FollowUpView {
     reason: row.reason,
     category: (row.category === "post_win" ? "post_win" : "sales") as FollowUpView["category"],
     channel: row.channel,
+    recurrence: (row.recurrence ?? "none") as FollowUpView["recurrence"],
+    recurrenceCount: row.recurrenceCount ?? 0,
+    recurrenceLimit: row.recurrenceLimit ?? null,
     dueAt: row.dueAt,
     completedAt: row.completedAt,
     skippedAt: row.skippedAt,
@@ -125,7 +133,7 @@ function mapFollowUpRow(row: FollowUpRow): FollowUpView {
     dueBucket: getFollowUpDueBucket({
       status: row.status,
       dueAt: row.dueAt,
-    }),
+    }, undefined, row.businessTimezone),
     customerName,
     customerEmail,
     customerContactMethod,
@@ -166,6 +174,7 @@ function getFollowUpSelection() {
     id: followUps.id,
     businessId: followUps.businessId,
     businessName: businesses.name,
+    businessTimezone: businesses.timezone,
     inquiryId: followUps.inquiryId,
     quoteId: followUps.quoteId,
     assignedToUserId: followUps.assignedToUserId,
@@ -174,6 +183,9 @@ function getFollowUpSelection() {
     reason: followUps.reason,
     category: followUps.category,
     channel: followUps.channel,
+    recurrence: followUps.recurrence,
+    recurrenceCount: followUps.recurrenceCount,
+    recurrenceLimit: followUps.recurrenceLimit,
     dueAt: followUps.dueAt,
     completedAt: followUps.completedAt,
     skippedAt: followUps.skippedAt,
@@ -216,7 +228,7 @@ function getFollowUpListConditions({
   const tomorrow = getTomorrowUtcDateString();
   const todayStart = getUtcDayStart(today);
   const tomorrowStart = getUtcDayStart(tomorrow);
-  const conditions = [eq(followUps.businessId, businessId)];
+  const conditions = [eq(followUps.businessId, businessId), isNull(followUps.deletedAt)];
 
   if (filters.status !== "all") {
     conditions.push(eq(followUps.status, filters.status));
@@ -291,7 +303,7 @@ export async function getFollowUpsForInquiry({
 
   const rows = await getFollowUpBaseQuery()
     .where(
-      and(eq(followUps.businessId, businessId), eq(followUps.inquiryId, inquiryId)),
+      and(eq(followUps.businessId, businessId), eq(followUps.inquiryId, inquiryId), isNull(followUps.deletedAt)),
     )
     .orderBy(
       sql`case when ${followUps.status} = 'pending' then 0 else 1 end`,
@@ -319,7 +331,7 @@ export async function getFollowUpsForQuote({
 
   const rows = await getFollowUpBaseQuery()
     .where(
-      and(eq(followUps.businessId, businessId), eq(followUps.quoteId, quoteId)),
+      and(eq(followUps.businessId, businessId), eq(followUps.quoteId, quoteId), isNull(followUps.deletedAt)),
     )
     .orderBy(
       sql`case when ${followUps.status} = 'pending' then 0 else 1 end`,
@@ -370,6 +382,7 @@ async function queryFollowUpOverviewForBusiness(
         and(
           eq(followUps.businessId, businessId),
           eq(followUps.status, "pending"),
+          isNull(followUps.deletedAt),
           lt(followUps.dueAt, todayStart),
         ),
       )
@@ -388,6 +401,7 @@ async function queryFollowUpOverviewForBusiness(
         and(
           eq(followUps.businessId, businessId),
           eq(followUps.status, "pending"),
+          isNull(followUps.deletedAt),
           gte(followUps.dueAt, todayStart),
           lt(followUps.dueAt, tomorrowStart),
         ),
@@ -407,6 +421,7 @@ async function queryFollowUpOverviewForBusiness(
         and(
           eq(followUps.businessId, businessId),
           eq(followUps.status, "pending"),
+          isNull(followUps.deletedAt),
           gte(followUps.dueAt, tomorrowStart),
         ),
       )
@@ -481,10 +496,123 @@ export function getPendingFollowUpCount(items: FollowUpView[]) {
   return items.filter((item) => item.status === "pending").length;
 }
 
+export async function getFollowUpForBusiness({
+  businessId,
+  followUpId,
+}: {
+  businessId: string;
+  followUpId: string;
+}): Promise<FollowUpView | null> {
+  "use cache";
+  cacheLife("seconds");
+  cacheTag(...getBusinessFollowUpListCacheTags(businessId));
+
+  const rows = await getFollowUpBaseQuery()
+    .where(
+      and(
+        eq(followUps.id, followUpId),
+        eq(followUps.businessId, businessId),
+        isNull(followUps.deletedAt),
+      ),
+    )
+    .limit(1);
+
+  if (!rows.length) {
+    return null;
+  }
+
+  return mapFollowUpRow(rows[0]);
+}
+
 export function getNextPendingFollowUp(items: FollowUpView[]) {
   return items
     .filter((item) => item.status === "pending")
     .sort((left, right) =>
       getDateInputValue(left.dueAt).localeCompare(getDateInputValue(right.dueAt)),
     )[0] ?? null;
+}
+
+
+/**
+ * Returns recent inquiries and quotes for the quick-create follow-up picker.
+ * Limited to 20 most recent open records.
+ */
+export async function getRecentRecordsForFollowUpCreate(
+  businessId: string,
+): Promise<{ kind: "inquiry" | "quote"; id: string; label: string }[]> {
+  const [recentInquiries, recentQuotes] = await Promise.all([
+    db
+      .select({
+        id: inquiries.id,
+        customerName: inquiries.customerName,
+        serviceCategory: inquiries.serviceCategory,
+        createdAt: inquiries.createdAt,
+      })
+      .from(inquiries)
+      .where(eq(inquiries.businessId, businessId))
+      .orderBy(desc(inquiries.createdAt))
+      .limit(10),
+    db
+      .select({
+        id: quotes.id,
+        customerName: quotes.customerName,
+        quoteNumber: quotes.quoteNumber,
+        title: quotes.title,
+        createdAt: quotes.createdAt,
+      })
+      .from(quotes)
+      .where(and(eq(quotes.businessId, businessId), isNull(quotes.deletedAt)))
+      .orderBy(desc(quotes.createdAt))
+      .limit(10),
+  ]);
+
+  const results: { kind: "inquiry" | "quote"; id: string; label: string; createdAt: Date }[] = [];
+
+  for (const inquiry of recentInquiries) {
+    const label = inquiry.customerName
+      ? `Inquiry: ${inquiry.customerName}${inquiry.serviceCategory ? ` — ${inquiry.serviceCategory}` : ""}`
+      : `Inquiry${inquiry.serviceCategory ? `: ${inquiry.serviceCategory}` : ""}`;
+    results.push({ kind: "inquiry", id: inquiry.id, label, createdAt: inquiry.createdAt });
+  }
+
+  for (const quote of recentQuotes) {
+    const label = quote.quoteNumber
+      ? `Quote ${quote.quoteNumber}${quote.customerName ? ` — ${quote.customerName}` : ""}`
+      : quote.title
+        ? `Quote: ${quote.title}`
+        : `Quote${quote.customerName ? `: ${quote.customerName}` : ""}`;
+    results.push({ kind: "quote", id: quote.id, label, createdAt: quote.createdAt });
+  }
+
+  return results
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, 20)
+    .map(({ kind, id, label }) => ({ kind, id, label }));
+}
+
+
+/**
+ * Returns business members (userId, name, email) for the reassign picker.
+ */
+export async function getBusinessMembersForReassign(
+  businessId: string,
+): Promise<{ userId: string; name: string; email: string }[]> {
+  const { businessMembers, user } = await import("@/lib/db/schema");
+
+  const rows = await db
+    .select({
+      userId: businessMembers.userId,
+      name: user.name,
+      email: user.email,
+    })
+    .from(businessMembers)
+    .innerJoin(user, eq(businessMembers.userId, user.id))
+    .where(eq(businessMembers.businessId, businessId))
+    .orderBy(asc(user.name));
+
+  return rows.map((row) => ({
+    userId: row.userId,
+    name: row.name,
+    email: row.email,
+  }));
 }

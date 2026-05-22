@@ -16,7 +16,7 @@ import type {
   BusinessSettingsNavigationIcon,
   BusinessSettingsNavigationGroup,
 } from "@/features/settings/navigation";
-import { SettingsTabsNav } from "@/features/settings/components/settings-tabs-nav";
+import { SettingsSidebarNav } from "@/features/settings/components/settings-sidebar-nav";
 
 type BusinessSettingsNavProps = {
   groups: BusinessSettingsNavigationGroup[];
@@ -36,7 +36,7 @@ const settingsNavigationIcons: Record<BusinessSettingsNavigationIcon, typeof Set
 
 export function BusinessSettingsNav({ groups }: BusinessSettingsNavProps) {
   return (
-    <SettingsTabsNav
+    <SettingsSidebarNav
       ariaLabel="Business settings"
       groups={groups}
       icons={settingsNavigationIcons}

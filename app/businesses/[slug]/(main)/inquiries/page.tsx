@@ -15,6 +15,7 @@ import {
   getInquiryListCountForBusiness,
   getInquiryListPageForBusiness,
 } from "@/features/inquiries/queries";
+import { unarchiveInquiryAction } from "@/features/inquiries/actions";
 import {
   getBusinessInquiriesPath,
 } from "@/features/businesses/routes";
@@ -131,6 +132,12 @@ export default async function InquiriesPage({
   const inquiryFormOptionsPromise = getBusinessInquiryFormOptionsForBusiness(
     businessContext.business.id,
   );
+  const archivedItemsPromise = getInquiryListPageForBusiness({
+    businessId: businessContext.business.id,
+    filters: { view: "archived", status: "all", form: "all", sort: "newest" },
+    page: 1,
+    pageSize: 50,
+  });
   const businessSlug = businessContext.business.slug;
   const canExport = hasFeatureAccess(
     businessContext.business.plan,
@@ -167,6 +174,8 @@ export default async function InquiriesPage({
           canExport={canExport}
           filters={filters}
           formOptionsPromise={inquiryFormOptionsPromise}
+          archivedItemsPromise={archivedItemsPromise}
+          unarchiveAction={unarchiveInquiryAction}
           searchParams={resolvedSearchParams}
           totalItemsPromise={inquiryCountPromise}
         />

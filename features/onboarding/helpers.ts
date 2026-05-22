@@ -10,30 +10,36 @@ import { createInquiryFormPreset } from "@/features/inquiries/inquiry-forms";
 import { createPublicInquiryPreviewBusiness } from "@/features/inquiries/preview-business";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
 
-export const onboardingSessionStorageKey = "requo-onboarding-draft-v5";
+export const onboardingSessionStorageKey = "requo-onboarding-draft-v6";
 
 export type OnboardingDraft = {
+  firstName: string;
+  lastName: string;
+  jobTitle: string;
   businessName: string;
+  businessSlug: string;
   businessType: BusinessType | "";
   starterTemplateBusinessType: StarterTemplateBusinessType | "";
   countryCode: string;
   defaultCurrency: string;
   /** Matches `customerContactChannelValues` in onboarding/schemas when set. */
   customerContactChannel: string;
-  jobTitle: string;
   companySize: string;
   referralSource: string;
 };
 
 export function createEmptyOnboardingDraft(): OnboardingDraft {
   return {
+    firstName: "",
+    lastName: "",
+    jobTitle: "",
     businessName: "",
+    businessSlug: "",
     businessType: "",
     starterTemplateBusinessType: "",
     countryCode: "",
     defaultCurrency: "",
     customerContactChannel: "",
-    jobTitle: "",
     companySize: "",
     referralSource: "",
   };

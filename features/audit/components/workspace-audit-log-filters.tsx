@@ -78,12 +78,12 @@ export function BusinessAuditLogFilters({
 
   return (
     <DashboardSection
-      description="Filter by actor, business, action, entity, or date range to find meaningful accountability events."
+      description="Filter by actor, action, entity, or date range to find meaningful accountability events."
       title="Filters"
     >
       <form
         action={action}
-        className="grid gap-4 lg:grid-cols-3"
+        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
         onSubmit={(e) => {
           e.preventDefault();
           const formData = new FormData(e.currentTarget);
@@ -103,12 +103,6 @@ export function BusinessAuditLogFilters({
           value={filters.actor}
         />
         <FilterCombobox
-          name="business"
-          options={options.businesses}
-          placeholder="All businesses"
-          value={filters.business}
-        />
-        <FilterCombobox
           name="entity"
           options={options.entities}
           placeholder="All entities"
@@ -123,7 +117,7 @@ export function BusinessAuditLogFilters({
         <FilterDatePicker name="from" placeholder="From date" value={filters.from} />
         <FilterDatePicker name="to" placeholder="To date" value={filters.to} />
         <input name="page" type="hidden" value="1" />
-        <DashboardActionsRow className="lg:col-span-3 lg:justify-end">
+        <DashboardActionsRow className="sm:col-span-2 lg:col-span-3 lg:justify-end">
           <Button type="submit">Apply filters</Button>
           <Button asChild variant="ghost" disabled={!hasFilters}>
             <Link href={action} prefetch={true} className={!hasFilters ? "pointer-events-none opacity-50" : ""}>

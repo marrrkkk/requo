@@ -16,15 +16,15 @@ import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-b
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  ResponsiveOverlay,
+  ResponsiveOverlayBody,
+  ResponsiveOverlayContent,
+  ResponsiveOverlayDescription,
+  ResponsiveOverlayFooter,
+  ResponsiveOverlayHeader,
+  ResponsiveOverlayTitle,
+  ResponsiveOverlayTrigger,
+} from "@/components/ui/responsive-overlay";
 import { Spinner } from "@/components/ui/spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type {
@@ -88,6 +88,16 @@ type SendQuoteDialogProps = {
   pdfExportHref?: string;
   pdfExportLocked?: boolean;
   disabled?: boolean;
+  /**
+   * Whether auto follow-up is available (plan-gated).
+   * When false, the auto follow-up toggle is hidden.
+   */
+  canAutoFollowUp?: boolean;
+  /**
+   * Number of line items that still need a price (unit price <= 0).
+   * When > 0 the dialog shows a warning and blocks the send buttons.
+   */
+  unpricedItemCount?: number;
 };
 
 const initialSendState: QuoteSendActionState = {};
@@ -105,6 +115,8 @@ export function SendQuoteDialog({
   pdfExportHref,
   pdfExportLocked = false,
   disabled = false,
+  canAutoFollowUp = false,
+  unpricedItemCount = 0,
 }: SendQuoteDialogProps) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"ready" | "sent">("ready");
@@ -120,6 +132,7 @@ export function SendQuoteDialog({
   const detectedChannel = getDefaultSendChannel(quote.customerContactMethod);
   const [selectedChannel, setSelectedChannel] =
     useState<QuoteSendChannel>(detectedChannel);
+  const sendBlocked = unpricedItemCount > 0;
   const templateInput = {
     customerName: quote.customerName,
     businessName,
@@ -128,6 +141,9 @@ export function SendQuoteDialog({
   const primaryMessage = getChannelMessage(detectedChannel, templateInput);
   const [editedMessage, setEditedMessage] = useState(primaryMessage);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [autoFollowUp, setAutoFollowUp] = useState(true);
+  const [autoFollowUpDelay, setAutoFollowUpDelay] = useState(3);
+  const [autoFollowUpMax, setAutoFollowUpMax] = useState(2);
 
   const isEmailContact = detectedChannel === "email";
   const showRequoOption =
@@ -188,11 +204,27 @@ export function SendQuoteDialog({
 
   function handleSendWithRequo() {
     if (disabled || isPending) return;
+    if (unpricedItemCount > 0) {
+      toast.error(
+        unpricedItemCount === 1
+          ? "1 line item still needs pricing. Set a price before sending."
+          : `${unpricedItemCount} line items still need pricing. Set prices before sending.`,
+      );
+      return;
+    }
     formRef.current?.requestSubmit(reqSubmitRef.current ?? undefined);
   }
 
   function handleMarkAsSent() {
     if (disabled || isPending) return;
+    if (unpricedItemCount > 0) {
+      toast.error(
+        unpricedItemCount === 1
+          ? "1 line item still needs pricing. Set a price before sending."
+          : `${unpricedItemCount} line items still need pricing. Set prices before sending.`,
+      );
+      return;
+    }
     formRef.current?.requestSubmit(manSubmitRef.current ?? undefined);
   }
 
@@ -222,25 +254,40 @@ export function SendQuoteDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
+    <ResponsiveOverlay open={open} onOpenChange={handleOpenChange}>
+      <ResponsiveOverlayTrigger asChild>
         <Button disabled={disabled} type="button">
           <SendHorizontal data-icon="inline-start" />
           Send quote
         </Button>
-      </DialogTrigger>
+      </ResponsiveOverlayTrigger>
 
-      <DialogContent className="sm:max-w-md">
+      <ResponsiveOverlayContent className="sm:max-w-md">
         {step === "ready" ? (
           <>
-            <DialogHeader>
-              <DialogTitle>Send quote</DialogTitle>
-              <DialogDescription>
+            <ResponsiveOverlayHeader>
+              <ResponsiveOverlayTitle>Send quote</ResponsiveOverlayTitle>
+              <ResponsiveOverlayDescription>
                 Deliver {quote.quoteNumber} to {quote.customerName}.
-              </DialogDescription>
-            </DialogHeader>
+              </ResponsiveOverlayDescription>
+            </ResponsiveOverlayHeader>
 
-            <DialogBody className="flex flex-col gap-5 pt-1">
+            <ResponsiveOverlayBody className="flex flex-col gap-5 pt-1">
+              {unpricedItemCount > 0 ? (
+                <Alert className="border-amber-500/30 bg-amber-500/10">
+                  <AlertTitle>
+                    {unpricedItemCount === 1
+                      ? "1 line item still needs pricing review"
+                      : `${unpricedItemCount} line items still need pricing review`}
+                  </AlertTitle>
+                  <AlertDescription>
+                    Set a price for every line item before sending this quote.
+                    The assistant won&apos;t pick a price for items it
+                    can&apos;t match to your saved pricing.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+
               {/* Quote summary row */}
               <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 px-4 py-3">
                 <div className="min-w-0">
@@ -276,6 +323,13 @@ export function SendQuoteDialog({
                   type="submit"
                   value="manual"
                 />
+                {autoFollowUp && showRequoOption && canAutoFollowUp && (
+                  <>
+                    <input type="hidden" name="autoFollowUp" value="on" />
+                    <input type="hidden" name="autoFollowUpDelay" value={String(autoFollowUpDelay)} />
+                    <input type="hidden" name="autoFollowUpMax" value={String(autoFollowUpMax)} />
+                  </>
+                )}
               </form>
 
               {/* Message preview */}
@@ -341,15 +395,62 @@ export function SendQuoteDialog({
                   </ProFeatureNoticeButton>
                 ) : null}
               </div>
-            </DialogBody>
 
-            <DialogFooter className="flex-col gap-2 sm:flex-col">
+              {/* Auto follow-up toggle (only for Requo email sends) */}
+              {showRequoOption && canAutoFollowUp ? (
+                <div className="rounded-lg border border-border/60 px-4 py-3">
+                  <label className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <BellRing className="size-4 text-muted-foreground" />
+                      <span className="text-sm font-medium text-foreground">
+                        Auto follow-up
+                      </span>
+                    </div>
+                    <input
+                      checked={autoFollowUp}
+                      className="h-4 w-4 rounded border-input accent-primary"
+                      onChange={(e) => setAutoFollowUp(e.target.checked)}
+                      type="checkbox"
+                    />
+                  </label>
+                  {autoFollowUp ? (
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      Send a reminder email after{" "}
+                      <select
+                        className="inline-block rounded border border-input bg-background px-1.5 py-0.5 text-xs"
+                        onChange={(e) => setAutoFollowUpDelay(Number(e.target.value))}
+                        value={autoFollowUpDelay}
+                      >
+                        <option value={1}>1 day</option>
+                        <option value={2}>2 days</option>
+                        <option value={3}>3 days</option>
+                        <option value={5}>5 days</option>
+                        <option value={7}>7 days</option>
+                      </select>
+                      {" "}with no reply, up to{" "}
+                      <select
+                        className="inline-block rounded border border-input bg-background px-1.5 py-0.5 text-xs"
+                        onChange={(e) => setAutoFollowUpMax(Number(e.target.value))}
+                        value={autoFollowUpMax}
+                      >
+                        <option value={1}>1 time</option>
+                        <option value={2}>2 times</option>
+                        <option value={3}>3 times</option>
+                      </select>
+                      . Stops when the customer views or responds.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </ResponsiveOverlayBody>
+
+            <ResponsiveOverlayFooter className="flex-col gap-2 sm:flex-col">
               {/* Primary send action */}
               {showRequoOption ? (
                 <>
                   <Button
                     className="w-full"
-                    disabled={disabled || isPending}
+                    disabled={disabled || isPending || sendBlocked}
                     onClick={handleSendWithRequo}
                     type="button"
                   >
@@ -376,7 +477,7 @@ export function SendQuoteDialog({
                     ) : null}
                     <Button
                       className="flex-1"
-                      disabled={disabled || isPending}
+                      disabled={disabled || isPending || sendBlocked}
                       onClick={handleMarkAsSent}
                       type="button"
                       variant="outline"
@@ -402,7 +503,7 @@ export function SendQuoteDialog({
                   ) : null}
                   <Button
                     className="flex-1"
-                    disabled={disabled || isPending}
+                    disabled={disabled || isPending || sendBlocked}
                     onClick={handleMarkAsSent}
                     type="button"
                     variant={isEmailContact && mailtoUrl ? "outline" : "default"}
@@ -416,19 +517,19 @@ export function SendQuoteDialog({
                   </Button>
                 </div>
               )}
-            </DialogFooter>
+            </ResponsiveOverlayFooter>
           </>
         ) : (
           /* --- Sent confirmation step --- */
           <>
-            <DialogHeader>
-              <DialogTitle>Quote sent</DialogTitle>
-              <DialogDescription>
+            <ResponsiveOverlayHeader>
+              <ResponsiveOverlayTitle>Quote sent</ResponsiveOverlayTitle>
+              <ResponsiveOverlayDescription>
                 {sendState?.success ?? `${quote.quoteNumber} marked as sent.`}
-              </DialogDescription>
-            </DialogHeader>
+              </ResponsiveOverlayDescription>
+            </ResponsiveOverlayHeader>
 
-            <DialogBody className="flex flex-col gap-5">
+            <ResponsiveOverlayBody className="flex flex-col gap-5">
               <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3.5">
                 <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/15">
                   <Check className="size-4 text-primary" />
@@ -452,17 +553,17 @@ export function SendQuoteDialog({
                   selectedChannel={selectedChannel}
                 />
               ) : null}
-            </DialogBody>
+            </ResponsiveOverlayBody>
 
-            <DialogFooter>
+            <ResponsiveOverlayFooter>
               <Button className="w-full" onClick={() => setOpen(false)} type="button">
                 Done
               </Button>
-            </DialogFooter>
+            </ResponsiveOverlayFooter>
           </>
         )}
-      </DialogContent>
-    </Dialog>
+      </ResponsiveOverlayContent>
+    </ResponsiveOverlay>
   );
 }
 

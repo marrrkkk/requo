@@ -41,7 +41,21 @@ export function getReloadLoadingInitScript() {
       }
 
       const clearReloadLoadingState = () => {
-        document.documentElement.removeAttribute(attributeName);
+        const currentValue = document.documentElement.getAttribute(attributeName);
+        if (!currentValue) return;
+
+        document.documentElement.setAttribute(attributeName, "fade-out");
+
+        const overlay = document.querySelector("[data-reload-loading-overlay]");
+        if (overlay) {
+          overlay.addEventListener("animationend", () => {
+            document.documentElement.removeAttribute(attributeName);
+          }, { once: true });
+        } else {
+          setTimeout(() => {
+            document.documentElement.removeAttribute(attributeName);
+          }, 300);
+        }
       };
 
       document.documentElement.setAttribute(attributeName, "true");

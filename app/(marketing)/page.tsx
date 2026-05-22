@@ -14,10 +14,10 @@ import {
 } from "@/lib/seo/site";
 
 const marketingDescription =
-  "Requo is quote software for owner-led service businesses. Capture inquiries, send professional quotes, follow up, and track accepted and rejected deals.";
+  "Quote software for owner-led service businesses. Capture inquiries, send professional quotes, follow up automatically, and track every deal from viewed to accepted.";
 
 export const metadata: Metadata = createPageMetadata({
-  absoluteTitle: "Requo — Manage inquiries, send quotes, follow up",
+  absoluteTitle: "Requo | Quote Software for Service Businesses",
   description: marketingDescription,
   pathname: "/",
 });

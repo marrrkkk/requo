@@ -134,11 +134,11 @@ describe("commitPricingImportAction — plan limit enforcement", () => {
   });
 
   it("rejects when importing would exceed the plan limit", async () => {
-    // Pro plan: pricingEntriesPerBusiness = 10. User already has 9.
+    // Pro plan: pricingEntriesPerBusiness = 20. User already has 19.
     getQuoteLibrarySummaryForBusinessMock.mockResolvedValue({
-      entryCount: 9,
-      blockCount: 5,
-      packageCount: 4,
+      entryCount: 19,
+      blockCount: 10,
+      packageCount: 9,
     });
 
     const result = await commitPricingImportAction({
@@ -160,7 +160,7 @@ describe("commitPricingImportAction — plan limit enforcement", () => {
     expect(result.created).toBe(0);
     expect(result.skipped).toBe(2);
     expect(result.error).toContain("over your plan limit");
-    expect(result.error).toContain("10");
+    expect(result.error).toContain("20");
     expect(createQuoteLibraryEntryForBusinessMock).not.toHaveBeenCalled();
   });
 

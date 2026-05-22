@@ -149,6 +149,7 @@ export function PublicInquiryForm({
   const inquiryFormConfig = business.inquiryFormConfig;
   const attachmentHelpText = getPublicInquiryAttachmentHelpText(business.plan);
   const customerNameField = inquiryFormConfig.contactFields.customerName;
+  const emailField = inquiryFormConfig.contactFields.email;
   const preferredContactField = inquiryFormConfig.contactFields.preferredContact;
   const attachmentField = useMemo<InquiryFormSystemFieldDefinition | null>(
     () =>
@@ -238,6 +239,28 @@ export function PublicInquiryForm({
                 </FieldContent>
               </Field>
 
+              <Field data-invalid={Boolean(getFieldMessage("customerEmail")) || undefined}>
+                <FieldLabel htmlFor="inquiry-customerEmail">
+                  <FieldLabelText
+                    label={emailField?.label ?? "Email"}
+                    required
+                  />
+                </FieldLabel>
+                <FieldContent>
+                  <Input
+                    autoComplete="email"
+                    disabled={isPending}
+                    id="inquiry-customerEmail"
+                    maxLength={320}
+                    name="customerEmail"
+                    placeholder={emailField?.placeholder ?? "you@example.com"}
+                    required
+                    type="email"
+                  />
+                  <FieldError errors={getFieldMessage("customerEmail") ? [{ message: getFieldMessage("customerEmail")! }] : undefined} />
+                </FieldContent>
+              </Field>
+
               <Field data-invalid={Boolean(getFieldMessage("customerContactMethod")) || undefined}>
                 <FieldLabel htmlFor="inquiry-contactMethod">
                   <FieldLabelText
@@ -267,59 +290,60 @@ export function PublicInquiryForm({
                 </FieldContent>
               </Field>
 
-              <Field
-                className="sm:col-span-2"
-                data-invalid={Boolean(getFieldMessage("customerContactHandle")) || undefined}
-              >
-                <FieldLabel htmlFor="inquiry-contactHandle">
-                  <FieldLabelText label={inquiryContactMethodLabels[contactMethod]} required />
-                </FieldLabel>
-                <FieldContent>
-                  {contactHandlePrefix ? (
-                    <PrefixedContactHandleInput
-                      ariaInvalid={Boolean(getFieldMessage("customerContactHandle"))}
-                      disabled={isPending}
-                      id="inquiry-contactHandle"
-                      inputMode={getContactHandleInputMode(contactMethod)}
-                      maxLength={320}
-                      name="customerContactHandle"
-                      onBlur={() =>
-                        setNormalizedContactHandle(contactMethod, contactHandle)
-                      }
-                      onChange={setContactHandle}
-                      onPaste={(value) =>
-                        setNormalizedContactHandle(contactMethod, value)
-                      }
-                      placeholder={getContactHandlePlaceholder(contactMethod)}
-                      prefix={contactHandlePrefix}
-                      required={preferredContactField.required}
-                      value={contactHandle}
-                    />
-                  ) : (
-                    <Input
-                      disabled={isPending}
-                      id="inquiry-contactHandle"
-                      inputMode={getContactHandleInputMode(contactMethod)}
-                      maxLength={320}
-                      name="customerContactHandle"
-                      onBlur={(event) =>
-                        setNormalizedContactHandle(
-                          contactMethod,
-                          event.currentTarget.value,
-                        )
-                      }
-                      onChange={(event) =>
-                        setContactHandle(event.currentTarget.value)
-                      }
-                      placeholder={getContactHandlePlaceholder(contactMethod)}
-                      required={preferredContactField.required}
-                      type={getContactHandleInputType(contactMethod)}
-                      value={contactHandle}
-                    />
-                  )}
-                  <FieldError errors={getFieldMessage("customerContactHandle") ? [{ message: getFieldMessage("customerContactHandle")! }] : undefined} />
-                </FieldContent>
-              </Field>
+              {contactMethod !== "email" ? (
+                <Field
+                  data-invalid={Boolean(getFieldMessage("customerContactHandle")) || undefined}
+                >
+                  <FieldLabel htmlFor="inquiry-contactHandle">
+                    <FieldLabelText label={inquiryContactMethodLabels[contactMethod]} required />
+                  </FieldLabel>
+                  <FieldContent>
+                    {contactHandlePrefix ? (
+                      <PrefixedContactHandleInput
+                        ariaInvalid={Boolean(getFieldMessage("customerContactHandle"))}
+                        disabled={isPending}
+                        id="inquiry-contactHandle"
+                        inputMode={getContactHandleInputMode(contactMethod)}
+                        maxLength={320}
+                        name="customerContactHandle"
+                        onBlur={() =>
+                          setNormalizedContactHandle(contactMethod, contactHandle)
+                        }
+                        onChange={setContactHandle}
+                        onPaste={(value) =>
+                          setNormalizedContactHandle(contactMethod, value)
+                        }
+                        placeholder={getContactHandlePlaceholder(contactMethod)}
+                        prefix={contactHandlePrefix}
+                        required={preferredContactField.required}
+                        value={contactHandle}
+                      />
+                    ) : (
+                      <Input
+                        disabled={isPending}
+                        id="inquiry-contactHandle"
+                        inputMode={getContactHandleInputMode(contactMethod)}
+                        maxLength={320}
+                        name="customerContactHandle"
+                        onBlur={(event) =>
+                          setNormalizedContactHandle(
+                            contactMethod,
+                            event.currentTarget.value,
+                          )
+                        }
+                        onChange={(event) =>
+                          setContactHandle(event.currentTarget.value)
+                        }
+                        placeholder={getContactHandlePlaceholder(contactMethod)}
+                        required={preferredContactField.required}
+                        type={getContactHandleInputType(contactMethod)}
+                        value={contactHandle}
+                      />
+                    )}
+                    <FieldError errors={getFieldMessage("customerContactHandle") ? [{ message: getFieldMessage("customerContactHandle")! }] : undefined} />
+                  </FieldContent>
+                </Field>
+              ) : null}
             </div>
           </FieldGroup>
         </FormSection>
@@ -567,6 +591,22 @@ function renderProjectInput({
           placeholder={field.placeholder}
           required={field.required}
           rows={7}
+        />
+      );
+    }
+
+    if (field.key === "budgetText") {
+      return (
+        <Input
+          disabled={isPending}
+          id={inputId}
+          inputMode="numeric"
+          min={0}
+          name={inputName}
+          placeholder={field.placeholder}
+          required={field.required}
+          step={1}
+          type="number"
         />
       );
     }

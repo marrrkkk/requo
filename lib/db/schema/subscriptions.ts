@@ -9,12 +9,11 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-import { businesses } from "@/lib/db/schema/businesses";
 import { user } from "@/lib/db/schema/auth";
 
 /* ── Enums ────────────────────────────────────────────────────────────────── */
 
-export const billingProviders = ["paddle"] as const;
+export const billingProviders = ["polar"] as const;
 export type BillingProvider = (typeof billingProviders)[number];
 
 export const billingProviderEnum = pgEnum("billing_provider", [
@@ -36,7 +35,7 @@ export const subscriptionStatusEnum = pgEnum("subscription_status", [
   ...subscriptionStatuses,
 ]);
 
-export const billingCurrencies = ["USD"] as const;
+export const billingCurrencies = ["USD", "PHP"] as const;
 export type BillingCurrency = (typeof billingCurrencies)[number];
 
 export const billingCurrencyEnum = pgEnum("billing_currency", [
@@ -55,12 +54,7 @@ export const paymentAttemptStatusEnum = pgEnum("payment_attempt_status", [
   ...paymentAttemptStatuses,
 ]);
 
-export const refundStatuses = [
-  "pending_approval",
-  "approved",
-  "rejected",
-  "failed",
-] as const;
+export const refundStatuses = ["pending", "approved", "failed"] as const;
 export type RefundStatus = (typeof refundStatuses)[number];
 
 export const refundStatusEnum = pgEnum("refund_status", [...refundStatuses]);
@@ -101,56 +95,9 @@ export const accountSubscriptions = pgTable(
       .defaultNow(),
   },
   (table) => [
-    uniqueIndex("account_subscriptions_user_id_unique").on(
-      table.userId,
-    ),
+    uniqueIndex("account_subscriptions_user_id_unique").on(table.userId),
     index("account_subscriptions_status_idx").on(table.status),
     index("account_subscriptions_provider_subscription_id_idx").on(
-      table.providerSubscriptionId,
-    ),
-  ],
-);
-
-/* ── business_subscriptions (DEPRECATED) ─────────────────────────────────── */
-
-/**
- * @deprecated Use `accountSubscriptions` instead. Kept for rollback safety.
- * One row per business. The billing source of truth for subscription state.
- * Businesses without a row are implicitly on the free plan.
- */
-export const businessSubscriptions = pgTable(
-  "business_subscriptions",
-  {
-    id: text("id").primaryKey(),
-    businessId: text("business_id")
-      .notNull()
-      .references(() => businesses.id, { onDelete: "cascade" }),
-    status: subscriptionStatusEnum("status").notNull().default("free"),
-    plan: text("plan").notNull(), // "pro" | "business"
-    billingProvider: billingProviderEnum("billing_provider").notNull(),
-    billingCurrency: billingCurrencyEnum("billing_currency").notNull(),
-    providerCustomerId: text("provider_customer_id"),
-    providerSubscriptionId: text("provider_subscription_id"),
-    providerCheckoutId: text("provider_checkout_id"),
-    currentPeriodStart: timestamp("current_period_start", {
-      withTimezone: true,
-    }),
-    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
-    canceledAt: timestamp("canceled_at", { withTimezone: true }),
-    trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (table) => [
-    uniqueIndex("business_subscriptions_business_id_unique").on(
-      table.businessId,
-    ),
-    index("business_subscriptions_status_idx").on(table.status),
-    index("business_subscriptions_provider_subscription_id_idx").on(
       table.providerSubscriptionId,
     ),
   ],
@@ -160,8 +107,11 @@ export const businessSubscriptions = pgTable(
 
 /**
  * Idempotent webhook event log. Every incoming provider event is recorded
- * before processing. `processedAt` is set once the event produces a
- * side-effect. Duplicate events (same `providerEventId`) are skipped.
+ * before processing. `status` tracks the processing lifecycle. `processedAt`
+ * is set once the event produces a side-effect. Duplicate events (same
+ * `providerEventId`) are skipped.
+ *
+ * `status` values: "processing" | "processed" | "failed" | "ignored".
  */
 export const billingEvents = pgTable(
   "billing_events",
@@ -173,10 +123,9 @@ export const billingEvents = pgTable(
     userId: text("user_id").references(() => user.id, {
       onDelete: "set null",
     }),
-    businessId: text("business_id").references(() => businesses.id, {
-      onDelete: "set null",
-    }),
     payload: jsonb("payload").notNull(),
+    status: text("status").notNull().default("processing"),
+    errorMessage: text("error_message"),
     processedAt: timestamp("processed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -187,7 +136,6 @@ export const billingEvents = pgTable(
       table.providerEventId,
     ),
     index("billing_events_user_id_idx").on(table.userId),
-    index("billing_events_business_id_idx").on(table.businessId),
     index("billing_events_provider_idx").on(table.provider),
   ],
 );
@@ -204,8 +152,6 @@ export const paymentAttempts = pgTable(
     userId: text("user_id").references(() => user.id, {
       onDelete: "set null",
     }),
-    businessId: text("business_id")
-      .references(() => businesses.id, { onDelete: "set null" }),
     plan: text("plan").notNull(),
     provider: billingProviderEnum("provider").notNull(),
     providerPaymentId: text("provider_payment_id").notNull(),
@@ -218,7 +164,6 @@ export const paymentAttempts = pgTable(
   },
   (table) => [
     index("payment_attempts_user_id_idx").on(table.userId),
-    index("payment_attempts_business_id_idx").on(table.businessId),
     index("payment_attempts_provider_payment_id_idx").on(
       table.providerPaymentId,
     ),
@@ -228,14 +173,24 @@ export const paymentAttempts = pgTable(
 /* ── refunds ─────────────────────────────────────────────────────────────── */
 
 /**
- * Refund requests for completed payments.
+ * Refund records.
  *
- * A refund is created when an owner requests a refund for a paid transaction.
- * Status transitions through `pending_approval` → `approved` | `rejected`
- * based on the provider's `adjustment.updated` webhook events.
+ * As of the canonical-Polar refactor, this table is **read-only** at the
+ * application layer. Refunds are issued exclusively through the Polar
+ * customer portal, and the Polar webhook route no longer reacts to
+ * `refund.*` events — those events fall through to the catch-all
+ * handler and are recorded in `billing_events` with status `ignored`.
+ * Subscription state changes that follow a refund (e.g. cancellation
+ * at period end, immediate revocation) are reflected via
+ * `subscription.canceled` / `subscription.revoked` webhooks and the
+ * subscription handlers, not via this table.
  *
- * Duplicate refund requests for the same payment are prevented by
- * application-level checks before inserting a new row.
+ * Existing rows are historical: they were written by the previous
+ * self-serve refund flow (`requestRefundForPayment` +
+ * `app/api/billing/refund/route.ts`) and the previous `refund.*`
+ * webhook handlers, both removed. The table is preserved so historical
+ * refund context remains queryable by support and audit tooling, but
+ * no application code path inserts new rows.
  */
 export const refunds = pgTable(
   "refunds",
@@ -244,25 +199,13 @@ export const refunds = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    paymentAttemptId: text("payment_attempt_id")
-      .notNull()
-      .references(() => paymentAttempts.id, { onDelete: "cascade" }),
-    subscriptionId: text("subscription_id").references(
-      () => accountSubscriptions.id,
-      { onDelete: "set null" },
-    ),
-    businessId: text("business_id").references(() => businesses.id, {
-      onDelete: "set null",
-    }),
     provider: billingProviderEnum("provider").notNull(),
-    providerTransactionId: text("provider_transaction_id").notNull(),
-    providerAdjustmentId: text("provider_adjustment_id"),
-    status: refundStatusEnum("status").notNull().default("pending_approval"),
+    providerRefundId: text("provider_refund_id"),
+    providerPaymentId: text("provider_payment_id").notNull(),
+    amount: integer("amount").notNull(), // in smallest currency unit (centavos / cents)
+    currency: billingCurrencyEnum("currency").notNull(),
+    status: refundStatusEnum("status").notNull().default("pending"),
     reason: text("reason"),
-    requestedByUserId: text("requested_by_user_id").references(
-      () => user.id,
-      { onDelete: "set null" },
-    ),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -272,8 +215,7 @@ export const refunds = pgTable(
   },
   (table) => [
     index("refunds_user_id_idx").on(table.userId),
-    index("refunds_payment_attempt_id_idx").on(table.paymentAttemptId),
-    index("refunds_provider_adjustment_id_idx").on(table.providerAdjustmentId),
+    index("refunds_provider_payment_id_idx").on(table.providerPaymentId),
     index("refunds_status_idx").on(table.status),
   ],
 );

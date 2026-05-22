@@ -12,7 +12,6 @@ vi.mock('@/lib/db/schema/businesses', () => ({
 }));
 vi.mock('@/lib/db/schema/subscriptions', () => ({
   accountSubscriptions: { userId: 'userId', id: 'id' },
-  businessSubscriptions: { businessId: 'businessId', id: 'id' },
 }));
 
 import { resolveEffectivePlanFromSubscription } from '@/lib/billing/subscription-service';
@@ -31,7 +30,7 @@ function mockSubscription(overrides: Partial<{
     userId: 'user_test123',
     status: overrides.status ?? 'active',
     plan: overrides.plan ?? 'pro',
-    billingProvider: 'paddle' as const,
+    billingProvider: 'polar' as const,
     billingCurrency: 'USD' as const,
     providerCustomerId: null,
     providerSubscriptionId: null,

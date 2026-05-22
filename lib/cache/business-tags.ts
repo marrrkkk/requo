@@ -181,3 +181,51 @@ export function getPublicBusinessProfileCacheTags(slug: string) {
     `business-public-profile:${slug}`,
   ]);
 }
+
+export function getBusinessJobListCacheTags(businessId: string) {
+  const scopeTag = getBusinessScopeTag(businessId);
+
+  return uniqueCacheTags([
+    scopeTag,
+    `${scopeTag}:dashboard`,
+    `${scopeTag}:jobs`,
+  ]);
+}
+
+export function getBusinessJobDetailCacheTags(
+  businessId: string,
+  jobId: string,
+) {
+  const scopeTag = getBusinessScopeTag(businessId);
+
+  return uniqueCacheTags([
+    scopeTag,
+    `${scopeTag}:dashboard`,
+    `${scopeTag}:jobs`,
+    `${scopeTag}:job:${jobId}`,
+  ]);
+}
+
+export function getBusinessInvoiceListCacheTags(businessId: string) {
+  const scopeTag = getBusinessScopeTag(businessId);
+
+  return uniqueCacheTags([
+    scopeTag,
+    `${scopeTag}:dashboard`,
+    `${scopeTag}:invoices`,
+  ]);
+}
+
+export function getBusinessInvoiceDetailCacheTags(
+  businessId: string,
+  invoiceId: string,
+) {
+  const scopeTag = getBusinessScopeTag(businessId);
+
+  return uniqueCacheTags([
+    scopeTag,
+    `${scopeTag}:dashboard`,
+    `${scopeTag}:invoices`,
+    `${scopeTag}:invoice:${invoiceId}`,
+  ]);
+}

@@ -212,7 +212,7 @@ export function DataListToolbar({
             <DashboardActionsRow className="data-list-toolbar-actions">
               <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
                 <SheetTrigger asChild>
-                  <Button className="w-full sm:hidden" type="button" variant="outline">
+                  <Button className="flex-1 sm:hidden" type="button" variant="outline">
                     <ListFilter data-icon="inline-start" />
                     Filters
                   </Button>
@@ -227,7 +227,7 @@ export function DataListToolbar({
                   <SheetBody className="gap-4">{filterFields}</SheetBody>
                 </SheetContent>
               </Sheet>
-              <Button className="w-full sm:w-auto" disabled={!canClear} onClick={onClear} type="button" variant="ghost">
+              <Button className="shrink-0 sm:w-auto" disabled={!canClear} onClick={onClear} type="button" variant="ghost">
                 <X data-icon="inline-start" />
                 Clear
               </Button>

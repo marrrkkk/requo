@@ -9,9 +9,25 @@ import {
   useRef,
   useState,
 } from "react";
-import { Sparkles, Trash2, GripVertical } from "lucide-react";
+import { GripVertical, Sparkles, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { AnimatePresence, Reorder, useDragControls } from "framer-motion";
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 import {
   DashboardMetaPill,
@@ -61,6 +77,8 @@ import {
   parseCurrencyInputToCents,
 } from "@/features/quotes/utils";
 import { AddLineItemDialog } from "@/features/quotes/components/add-line-item-dialog";
+import { AiMissingInfoPanel } from "@/features/quotes/components/ai-missing-info-panel";
+import { AiPricingReviewPanel } from "@/features/quotes/components/ai-pricing-review-panel";
 import { generateQuoteDraftAction } from "@/features/ai/actions";
 import type { AiQuoteDraft } from "@/features/ai/types";
 import { cn } from "@/lib/utils";
@@ -77,6 +95,7 @@ type QuoteEditorProps = {
   linkedInquiry: QuoteLinkedInquirySummary | null;
   pricingLibrary: DashboardQuoteLibraryEntry[];
   quoteNumber?: string;
+  revisionComment?: string | null;
   showFloatingUnsavedChanges?: boolean;
   submitLabel: string;
   submitPendingLabel: string;
@@ -92,7 +111,6 @@ const LazyQuoteLibrarySheet = dynamic(() =>
 );
 
 type EditorLineItem = QuoteEditorLineItemValue & {
-  motionState?: "entering" | "exiting";
   isAiGenerated?: boolean;
 };
 
@@ -127,9 +145,13 @@ function areQuoteEditorValuesEqual(
     left.customerContactMethod !== right.customerContactMethod ||
     left.customerContactHandle !== right.customerContactHandle ||
     left.notes !== right.notes ||
+    left.terms !== right.terms ||
     left.validUntil !== right.validUntil ||
     left.discount !== right.discount ||
     left.discountType !== right.discountType ||
+    left.tax !== right.tax ||
+    left.taxType !== right.taxType ||
+    left.taxLabel !== right.taxLabel ||
     left.items.length !== right.items.length
   ) {
     return false;
@@ -158,6 +180,7 @@ function getVisibleEditorItems(items: EditorLineItem[]): QuoteEditorLineItemValu
     description: item.description,
     quantity: item.quantity,
     unitPrice: item.unitPrice,
+    aiReview: item.aiReview,
   }));
 }
 
@@ -187,25 +210,37 @@ export function QuoteEditor({
   linkedInquiry,
   pricingLibrary,
   quoteNumber,
+  revisionComment,
   showFloatingUnsavedChanges = false,
   submitLabel,
   submitPendingLabel,
   canUseAiGenerator = false,
 }: QuoteEditorProps) {
+  const customerFieldsLocked = !!linkedInquiry;
   const [title, setTitle] = useState(initialValues.title);
   const [customerName, setCustomerName] = useState(initialValues.customerName);
   const [customerEmail, setCustomerEmail] = useState(initialValues.customerEmail ?? "");
   const [customerContactMethod, setCustomerContactMethod] = useState(initialValues.customerContactMethod);
   const [customerContactHandle, setCustomerContactHandle] = useState(initialValues.customerContactHandle);
-  const [notes, setNotes] = useState(initialValues.notes);
+  const [notes, setNotes] = useState("");
+  const [terms, setTerms] = useState(initialValues.terms);
   const [validUntil, setValidUntil] = useState(initialValues.validUntil);
   const [discount, setDiscount] = useState(initialValues.discount);
   const [discountType, setDiscountType] = useState(initialValues.discountType);
+  const [tax, setTax] = useState(initialValues.tax);
+  const [taxType, setTaxType] = useState(initialValues.taxType);
+  const [taxLabel, setTaxLabel] = useState(initialValues.taxLabel);
   const lineItemTimersRef = useRef<Map<string, number>>(new Map());
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [items, setItems] = useState<EditorLineItem[]>(
     initialValues.items.map((item) => ({ ...item })),
   );
+  const [aiMissingInfo, setAiMissingInfo] = useState<
+    AiQuoteDraft["missingInfo"]
+  >([]);
+  const [aiClarificationMessage, setAiClarificationMessage] = useState<
+    string | null
+  >(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [hasLoadedLibrary, setHasLoadedLibrary] = useState(false);
   const [isAiGenerating, setIsAiGenerating] = useState(false);
@@ -219,6 +254,8 @@ export function QuoteEditor({
   const deferredVisibleItems = useDeferredValue(visibleItems);
   const deferredDiscount = useDeferredValue(discount);
   const deferredDiscountType = useDeferredValue(discountType);
+  const deferredTax = useDeferredValue(tax);
+  const deferredTaxType = useDeferredValue(taxType);
   const serializedItems = useMemo(
     () =>
       visibleItems.map((item) => ({
@@ -234,9 +271,21 @@ export function QuoteEditor({
     [deferredVisibleItems],
   );
   const totals = useMemo(
-    () => calculateQuoteEditorTotals(deferredVisibleItems, deferredDiscount, deferredDiscountType),
-    [deferredDiscount, deferredDiscountType, deferredVisibleItems],
+    () => calculateQuoteEditorTotals(deferredVisibleItems, deferredDiscount, deferredDiscountType, deferredTax, deferredTaxType),
+    [deferredDiscount, deferredDiscountType, deferredTax, deferredTaxType, deferredVisibleItems],
   );
+  const itemsNeedingReview = useMemo(
+    () =>
+      visibleItems.filter((item) => {
+        if (!item.aiReview?.reviewStatus) return false;
+        return (
+          item.aiReview.reviewStatus === "needs_review" ||
+          item.aiReview.reviewStatus === "no_pricing_found"
+        );
+      }),
+    [visibleItems],
+  );
+  const hasItemsNeedingReview = itemsNeedingReview.length > 0;
   const currentValues = useMemo<QuoteEditorValues>(
     () => ({
       title,
@@ -249,12 +298,16 @@ export function QuoteEditor({
       customerContactMethod,
       customerContactHandle,
       notes,
+      terms,
       validUntil,
       discount,
       discountType,
+      tax,
+      taxType,
+      taxLabel,
       items: visibleItems,
     }),
-    [customerEmail, customerContactMethod, customerContactHandle, customerName, discount, discountType, notes, title, validUntil, visibleItems],
+    [customerEmail, customerContactMethod, customerContactHandle, customerName, discount, discountType, tax, taxType, taxLabel, notes, terms, title, validUntil, visibleItems],
   );
   const effectiveCustomerEmail = currentValues.customerEmail;
   const hasUnsavedChanges =
@@ -327,7 +380,12 @@ export function QuoteEditor({
     setValidUntil(values.validUntil);
     setDiscount(values.discount);
     setDiscountType(values.discountType);
+    setTax(values.tax);
+    setTaxType(values.taxType);
+    setTaxLabel(values.taxLabel);
     setItems(values.items.map((item) => ({ ...item })));
+    setAiMissingInfo([]);
+    setAiClarificationMessage(null);
   }
 
   function handleCancelChanges() {
@@ -365,12 +423,10 @@ export function QuoteEditor({
   function scheduleItemEnter(itemId: string) {
     scheduleLineItemTimeout(
       itemId,
-      () =>
-        setItems((currentItems) =>
-          currentItems.map((item) =>
-            item.id === itemId ? { ...item, motionState: undefined } : item,
-          ),
-        ),
+      () => {
+        // No-op: previously cleared animation motionState.
+        // Kept to preserve timer cleanup on unmount.
+      },
       LINE_ITEM_ENTER_DURATION_MS,
     );
   }
@@ -380,9 +436,33 @@ export function QuoteEditor({
     patch: Partial<EditorLineItem>,
   ) {
     setItems((currentItems) =>
-      currentItems.map((item) =>
-        item.id === itemId ? { ...item, ...patch } : item,
-      ),
+      currentItems.map((item) => {
+        if (item.id !== itemId) {
+          return item;
+        }
+
+        const nextItem: EditorLineItem = { ...item, ...patch };
+
+        // If the owner gives a needs-review item a non-zero price, treat that
+        // line as resolved by the owner so the send guard stops blocking.
+        if (nextItem.aiReview && patch.unitPrice !== undefined) {
+          const needsReview =
+            nextItem.aiReview.reviewStatus === "needs_review" ||
+            nextItem.aiReview.reviewStatus === "no_pricing_found";
+          const priceCents = parseCurrencyInputToCents(nextItem.unitPrice);
+
+          if (needsReview && priceCents > 0) {
+            nextItem.aiReview = {
+              ...nextItem.aiReview,
+              reviewStatus: "matched",
+              pricingSource: "owner_brief",
+              pricingSourceLabel: "Owner-set price",
+            };
+          }
+        }
+
+        return nextItem;
+      }),
     );
   }
 
@@ -403,7 +483,6 @@ export function QuoteEditor({
 
     const copiedItems = entry.items.map((item) => ({
       ...createQuoteEditorLineItemFromLibraryItem(item),
-      motionState: "entering" as const,
     }));
 
     for (const item of copiedItems) {
@@ -431,11 +510,30 @@ export function QuoteEditor({
             description: item.description,
             quantity: String(item.quantity),
             unitPrice: centsToMoneyInput(item.unitPriceInCents),
+            aiReview: {
+              name: item.name,
+              pricingSource: item.pricingSource,
+              pricingSourceLabel: item.pricingSourceLabel,
+              confidence: item.confidence,
+              reviewStatus: item.reviewStatus,
+              reason: item.reason,
+            },
           }),
         )
       : [createQuoteEditorLineItem()];
 
-    setItems(draftItems.map((item) => ({ ...item, motionState: "entering" as const, isAiGenerated: true })));
+    setItems(draftItems.map((item) => ({ ...item, isAiGenerated: true })));
+    // Preserve previously-surfaced missing info on regeneration: if the model
+    // returns nothing this round, the older list is still relevant for the
+    // owner. Only replace when the new draft brings its own list.
+    if (draft.missingInfo.length) {
+      setAiMissingInfo(draft.missingInfo);
+    }
+    if (draft.clarificationMessage || draft.missingInfo.length) {
+      setAiClarificationMessage(
+        draft.clarificationMessage ?? aiClarificationMessage,
+      );
+    }
 
     for (const item of draftItems) {
       scheduleItemEnter(item.id);
@@ -456,9 +554,57 @@ export function QuoteEditor({
     if (linkedInquiry) {
       formData.set("inquiryId", linkedInquiry.id);
     }
-    // Use current title as brief context when no linked inquiry
-    if (!linkedInquiry && title.trim()) {
-      formData.set("brief", title.trim());
+
+    // Combine the quote title and notes into the brief so the assistant has
+    // the owner's full context, not just the title. Works for both manual
+    // quotes and ones linked to an inquiry (notes there add extra context on
+    // top of the inquiry record).
+    const briefParts: string[] = [];
+    if (title.trim()) {
+      briefParts.push(`Quote title: ${title.trim()}`);
+    }
+    if (notes.trim()) {
+      briefParts.push(`Owner notes:\n${notes.trim()}`);
+    }
+    // The brief field is capped at 2000 chars by the server schema.
+    // Trim from the start of the notes section if needed; the title is short.
+    const MAX_BRIEF_LENGTH = 2000;
+    let brief = briefParts.join("\n\n");
+    if (brief.length > MAX_BRIEF_LENGTH) {
+      brief = brief.slice(0, MAX_BRIEF_LENGTH);
+    }
+
+    if (brief) {
+      formData.set("brief", brief);
+    }
+
+    if (revisionComment) {
+      formData.set("revisionComment", revisionComment);
+
+      // Pass current line items as both text (for prompt) and JSON (for merge logic)
+      const validItems = items.filter((item) => item.description.trim());
+
+      const currentItemsSummary = validItems
+        .map((item) => {
+          const qty = parseInt(item.quantity, 10) || 1;
+          const price = item.unitPrice.trim() || "0";
+          return `- ${item.description.trim()} (qty: ${qty}, unit price: $${price})`;
+        })
+        .join("\n");
+
+      if (currentItemsSummary) {
+        formData.set("currentItems", currentItemsSummary);
+      }
+
+      const currentItemsJson = validItems.map((item) => ({
+        description: item.description.trim(),
+        quantity: parseInt(item.quantity, 10) || 1,
+        unitPriceInCents: parseCurrencyInputToCents(item.unitPrice),
+      }));
+
+      if (currentItemsJson.length > 0) {
+        formData.set("currentItemsJson", JSON.stringify(currentItemsJson));
+      }
     }
 
     const result = await generateQuoteDraftAction(businessSlug, {}, formData);
@@ -472,7 +618,18 @@ export function QuoteEditor({
 
     if (result.draft) {
       applyAiDraft(result.draft);
-      toast.success("Line items generated.");
+      const { itemsNeedingReview, missingInfo } = result.draft;
+      if (itemsNeedingReview > 0) {
+        toast.warning(
+          itemsNeedingReview === 1
+            ? "Line items generated. 1 item needs your pricing review."
+            : `Line items generated. ${itemsNeedingReview} items need your pricing review.`,
+        );
+      } else if (missingInfo.length) {
+        toast.success("Line items generated. Missing details found.");
+      } else {
+        toast.success("Line items generated.");
+      }
     }
   }
 
@@ -542,6 +699,12 @@ export function QuoteEditor({
             </Field>
 
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1.5fr]">
+              {customerFieldsLocked ? (
+                <>
+                  <input type="hidden" name="customerName" value={customerName} />
+                  <input type="hidden" name="customerContactHandle" value={customerContactHandle} />
+                </>
+              ) : null}
               <Field
                 data-invalid={Boolean(state.fieldErrors?.customerName) || undefined}
               >
@@ -553,14 +716,14 @@ export function QuoteEditor({
                     id="quote-customer-name"
                     maxLength={120}
                     minLength={2}
-                    name="customerName"
+                    name={customerFieldsLocked ? undefined : "customerName"}
                     value={customerName}
                     onChange={(event) =>
                       setCustomerName(event.currentTarget.value)
                     }
                     placeholder="Jordan Rivera"
                     required
-                    disabled={isPending}
+                    disabled={isPending || customerFieldsLocked}
                   />
                   <FieldError
                     errors={
@@ -583,7 +746,7 @@ export function QuoteEditor({
                 <FieldContent>
                   <input type="hidden" name="customerContactMethod" value={customerContactMethod} />
                   <Combobox
-                    disabled={isPending}
+                    disabled={isPending || customerFieldsLocked}
                     id="quote-customer-contact-method"
                     onValueChange={(value) => {
                       if (value) {
@@ -618,10 +781,10 @@ export function QuoteEditor({
                 <FieldContent>
                   <Input
                     key={customerContactMethod} // Force re-render on method change
-                    disabled={isPending}
+                    disabled={isPending || customerFieldsLocked}
                     id="quote-customer-contact-handle"
                     maxLength={320}
-                    name="customerContactHandle"
+                    name={customerFieldsLocked ? undefined : "customerContactHandle"}
                     type={customerContactMethod === "email" ? "email" : "text"}
                     autoComplete={customerContactMethod === "email" ? "email" : "off"}
                     inputMode={customerContactMethod === "phone" || customerContactMethod === "whatsapp" ? "tel" : "text"}
@@ -653,7 +816,7 @@ export function QuoteEditor({
               </Field>
             </div>
 
-            <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_14rem]">
+            <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_11rem_11rem]">
               <Field
                 data-invalid={Boolean(state.fieldErrors?.validUntil) || undefined}
               >
@@ -731,25 +894,83 @@ export function QuoteEditor({
                   />
                 </FieldContent>
               </Field>
+
+              <Field
+                data-invalid={Boolean(state.fieldErrors?.tax) || undefined}
+              >
+                <FieldLabel htmlFor="quote-tax">Tax</FieldLabel>
+                <FieldContent>
+                  <input
+                    name="tax"
+                    type="hidden"
+                    value={centsToMoneyInput(totals.taxInCents)}
+                  />
+                  <input
+                    name="taxLabel"
+                    type="hidden"
+                    value={taxLabel}
+                  />
+                  <div className="relative">
+                    <Input
+                      id="quote-tax"
+                      className="pr-14"
+                      inputMode="decimal"
+                      max={taxType === "percentage" ? "100" : "1000000"}
+                      placeholder={taxType === "percentage" ? "10" : "0.00"}
+                      type="number"
+                      min="0"
+                      step={taxType === "percentage" ? "1" : "0.01"}
+                      value={tax}
+                      onChange={(event) => setTax(event.currentTarget.value)}
+                      disabled={isPending}
+                    />
+                    <div className="absolute inset-y-1 right-1 flex items-center">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setTaxType((prev) =>
+                            prev === "percentage" ? "amount" : "percentage",
+                          )
+                        }
+                        className="flex h-full w-10 items-center justify-center rounded bg-muted/60 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        aria-label="Toggle tax type"
+                      >
+                        {taxType === "percentage"
+                          ? "%"
+                          : currency === "USD"
+                            ? "$"
+                            : currency}
+                      </button>
+                    </div>
+                  </div>
+                  <FieldError
+                    errors={
+                      state.fieldErrors?.tax?.[0]
+                        ? [{ message: state.fieldErrors.tax[0] }]
+                        : undefined
+                    }
+                  />
+                </FieldContent>
+              </Field>
             </div>
 
-            <Field data-invalid={Boolean(state.fieldErrors?.notes) || undefined}>
-              <FieldLabel htmlFor="quote-notes">Notes</FieldLabel>
+            <Field data-invalid={Boolean(state.fieldErrors?.terms) || undefined}>
+              <FieldLabel htmlFor="quote-terms">Terms & conditions</FieldLabel>
               <FieldContent>
                 <Textarea
-                  id="quote-notes"
+                  id="quote-terms"
                   maxLength={4000}
-                  name="notes"
-                  rows={5}
-                  value={notes}
-                  onChange={(event) => setNotes(event.currentTarget.value)}
-                  placeholder="Optional delivery notes, scope assumptions, or follow-up instructions."
+                  name="terms"
+                  rows={4}
+                  value={terms}
+                  onChange={(event) => setTerms(event.currentTarget.value)}
+                  placeholder="Payment terms, warranty, cancellation policy, or other conditions."
                   disabled={isPending}
                 />
                 <FieldError
                   errors={
-                    state.fieldErrors?.notes?.[0]
-                      ? [{ message: state.fieldErrors.notes[0] }]
+                    state.fieldErrors?.terms?.[0]
+                      ? [{ message: state.fieldErrors.terms[0] }]
                       : undefined
                   }
                 />
@@ -766,7 +987,11 @@ export function QuoteEditor({
                 <Button
                   type="button"
                   onClick={generateWithAi}
-                  disabled={isPending || isAiGenerating || (!linkedInquiry && !title.trim())}
+                  disabled={
+                    isPending ||
+                    isAiGenerating ||
+                    (!linkedInquiry && !title.trim() && !notes.trim())
+                  }
                 >
                   {isAiGenerating ? (
                     <>
@@ -797,7 +1022,6 @@ export function QuoteEditor({
                     description: newItem.description,
                     quantity: newItem.quantity,
                     unitPrice: newItem.unitPrice,
-                    motionState: "entering" as const,
                   };
 
                   setItems((currentItems) => [...currentItems, nextItem]);
@@ -810,13 +1034,24 @@ export function QuoteEditor({
           description="Add priced rows. The preview and totals update while you edit."
           title="Line items"
         >
-          <Reorder.Group
-            axis="y"
-            values={items}
+          {aiMissingInfo.length ? (
+            <AiMissingInfoPanel
+              clarificationMessage={aiClarificationMessage}
+              missingInfo={aiMissingInfo}
+            />
+          ) : null}
+
+          {hasItemsNeedingReview ? (
+            <AiPricingReviewPanel
+              itemCount={itemsNeedingReview.length}
+              items={itemsNeedingReview}
+            />
+          ) : null}
+
+          <QuoteLineItemsReorderGroup
+            items={items}
             onReorder={setItems}
-            className="flex flex-col gap-4"
           >
-            <AnimatePresence mode="popLayout" initial={false}>
             {items.map((item, index) => {
               const unitPriceInCents = parseCurrencyInputToCents(item.unitPrice);
               const quantity = Number.parseInt(item.quantity.trim(), 10);
@@ -839,8 +1074,7 @@ export function QuoteEditor({
                 />
               );
             })}
-            </AnimatePresence>
-          </Reorder.Group>
+          </QuoteLineItemsReorderGroup>
         </DashboardSection>
 
         <DashboardSection
@@ -862,10 +1096,10 @@ export function QuoteEditor({
             )
           }
           footerClassName="w-full sm:justify-between"
-          title="Totals"
+          title="Summary"
         >
           <div className="soft-panel flex flex-col gap-4 px-4 py-4 shadow-none">
-            <span className="text-sm font-medium text-foreground">Totals</span>
+            <span className="meta-label">Summary</span>
             <div className="flex flex-col gap-3">
               <TotalsRow
                 label="Subtotal"
@@ -874,6 +1108,10 @@ export function QuoteEditor({
               <TotalsRow
                 label="Discount"
                 value={`-${formatQuoteMoney(totals.discountInCents, currency)}`}
+              />
+              <TotalsRow
+                label="Tax"
+                value={formatQuoteMoney(totals.taxInCents, currency)}
               />
               <Separator />
               <TotalsRow
@@ -917,9 +1155,12 @@ export function QuoteEditor({
         currency={currency}
         validUntil={validUntil}
         notes={notes}
+        terms={terms}
         items={previewItems}
         subtotalInCents={totals.subtotalInCents}
         discountInCents={totals.discountInCents}
+        taxInCents={totals.taxInCents}
+        taxLabel={taxLabel || undefined}
         totalInCents={totals.totalInCents}
         className="xl:sticky xl:top-[5.5rem] xl:self-start"
       />
@@ -974,6 +1215,51 @@ function getQuoteContactHandleLabel(method: string) {
   return "Contact details";
 }
 
+function QuoteLineItemsReorderGroup({
+  items,
+  onReorder,
+  children,
+}: {
+  items: EditorLineItem[];
+  onReorder: (items: EditorLineItem[]) => void;
+  children: React.ReactNode;
+}) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = items.findIndex((item) => item.id === active.id);
+      const newIndex = items.findIndex((item) => item.id === over.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        onReorder(arrayMove(items, oldIndex, newIndex));
+      }
+    }
+  }
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext
+        items={items.map((item) => item.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        <div className="flex flex-col gap-4">{children}</div>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
 function LineItemCard({
   item,
   index,
@@ -997,18 +1283,26 @@ function LineItemCard({
   onRemove: (id: string) => void;
   formatMoney: (cents: number, currency: string) => string;
 }) {
-  const dragControls = useDragControls();
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
 
   return (
-    <Reorder.Item
-      value={item}
-      dragListener={false}
-      dragControls={dragControls}
-      initial={{ opacity: 0, y: 12, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -8, scale: 0.97 }}
-      transition={{ type: "spring", stiffness: 400, damping: 30 }}
-      layout
+    <div
+      ref={setNodeRef}
+      style={style}
       className={cn(
         "soft-panel relative overflow-hidden rounded-xl p-5",
         item.isAiGenerated && "ai-glow-border",
@@ -1020,14 +1314,18 @@ function LineItemCard({
             <button
               aria-label={`Reorder item ${index + 1}`}
               className="shrink-0 cursor-grab touch-none text-muted-foreground/50 transition-colors hover:text-muted-foreground active:cursor-grabbing"
-              onPointerDown={(e) => dragControls.start(e)}
               type="button"
+              {...attributes}
+              {...listeners}
             >
               <GripVertical className="size-4" />
             </button>
             <p className="text-sm font-medium text-foreground">
               Item {index + 1}
             </p>
+            {item.aiReview?.reviewStatus ? (
+              <AiReviewBadge review={item.aiReview} />
+            ) : null}
           </div>
           <Button
             type="button"
@@ -1040,6 +1338,13 @@ function LineItemCard({
             <span className="sr-only">Remove line item</span>
           </Button>
         </div>
+
+        {item.aiReview && item.aiReview.reason ? (
+          <p className="text-xs leading-5 text-muted-foreground">
+            <span className="meta-label mr-1">AI</span>
+            {item.aiReview.reason}
+          </p>
+        ) : null}
 
         <FieldGroup>
           <Field>
@@ -1122,6 +1427,46 @@ function LineItemCard({
           </div>
         </FieldGroup>
       </div>
-    </Reorder.Item>
+    </div>
+  );
+}
+
+type AiReview = NonNullable<EditorLineItem["aiReview"]>;
+
+const REVIEW_BADGE_LABELS: Record<AiReview["reviewStatus"], string> = {
+  matched: "Matched",
+  calculated: "Calculated",
+  needs_review: "Needs pricing",
+  no_pricing_found: "Needs pricing",
+};
+
+const REVIEW_BADGE_CLASS_NAMES: Record<AiReview["reviewStatus"], string> = {
+  matched:
+    "border-emerald-500/30 bg-emerald-500/15 text-emerald-800 dark:border-emerald-500/25 dark:bg-emerald-500/12 dark:text-emerald-200",
+  calculated:
+    "border-blue-500/30 bg-blue-500/15 text-blue-800 dark:border-blue-500/25 dark:bg-blue-500/12 dark:text-blue-200",
+  needs_review:
+    "border-amber-500/30 bg-amber-500/15 text-amber-800 dark:border-amber-500/25 dark:bg-amber-500/12 dark:text-amber-200",
+  no_pricing_found:
+    "border-amber-500/30 bg-amber-500/15 text-amber-800 dark:border-amber-500/25 dark:bg-amber-500/12 dark:text-amber-200",
+};
+
+function AiReviewBadge({ review }: { review: AiReview }) {
+  const baseLabel = REVIEW_BADGE_LABELS[review.reviewStatus];
+  const sourceHint = review.pricingSourceLabel
+    ? ` · ${review.pricingSourceLabel}`
+    : null;
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+        REVIEW_BADGE_CLASS_NAMES[review.reviewStatus],
+      )}
+      title={review.reason || undefined}
+    >
+      {baseLabel}
+      {sourceHint}
+    </span>
   );
 }

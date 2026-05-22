@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import Script from "next/script";
 import { Suspense } from "react";
 import { Analytics } from "@vercel/analytics/next";
@@ -16,6 +17,7 @@ import { ScrollToTop } from "@/components/shared/scroll-to-top";
 import { WebMCPProvider } from "@/components/shared/webmcp-provider";
 import { StructuredData } from "@/components/seo/structured-data";
 import { Toaster } from "@/components/ui/sonner";
+import { DevTools } from "@/features/dev-tools/dev-tools";
 import { getThemeInitScript } from "@/features/theme/init-script";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { legalConfig } from "@/features/legal/config";
@@ -43,6 +45,13 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
   display: "swap",
+});
+
+const brandFont = localFont({
+  src: "../public/fonts/ApfelGrotezk-Fett.woff2",
+  variable: "--font-brand",
+  display: "swap",
+  weight: "700",
 });
 
 export const viewport: Viewport = {
@@ -138,7 +147,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${brandFont.variable} h-full antialiased`}
     >
       <body suppressHydrationWarning className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
         <ReloadLoadingOverlay />
@@ -173,6 +182,7 @@ export default function RootLayout({
             </Suspense>
             <TooltipProvider>{children}</TooltipProvider>
             <Toaster />
+            <DevTools />
           </ThemeProvider>
           <Analytics />
           <SpeedInsights />

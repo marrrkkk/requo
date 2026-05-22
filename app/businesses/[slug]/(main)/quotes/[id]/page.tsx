@@ -13,6 +13,7 @@ import {
   DashboardSection,
   DashboardSidebarStack,
 } from "@/components/shared/dashboard-layout";
+import { ArchivedRecordBanner } from "@/components/shared/archived-record-banner";
 import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
 import { InfoTile } from "@/components/shared/info-tile";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
@@ -36,6 +37,7 @@ import {
   logQuoteSendEventAction,
   restoreArchivedQuoteAction,
   sendQuoteAction,
+  stopAutoFollowUpAction,
   updateQuoteAction,
   voidQuoteAction,
 } from "@/features/quotes/actions";
@@ -53,20 +55,27 @@ import { CopyQuoteLinkButton } from "@/features/quotes/components/copy-quote-lin
 import { WorkflowNextActionCallout } from "@/features/businesses/components/workflow-next-action";
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";
 import { QuoteExportPopover } from "@/features/quotes/components/quote-export-popover";
-import { QuoteManageDialog } from "@/features/quotes/components/quote-manage-dialog";
+import { QuoteManageDropdown } from "@/features/quotes/components/quote-manage-dropdown";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
 import { QuotePostWinCard } from "@/features/quotes/components/quote-post-win-card";
+import { QuotePostAcceptanceActions } from "@/features/quotes/components/quote-post-acceptance-actions";
+import { QuoteGenerateInvoiceButton } from "@/features/quotes/components/quote-generate-invoice-button";
 import { QuotePreview } from "@/features/quotes/components/quote-preview";
 import { QuoteRecordStateBadge } from "@/features/quotes/components/quote-record-state-badge";
 import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
+import { ReviseQuoteButton } from "@/features/quotes/components/revise-quote-button";
+import { RevisionRequestFeedback } from "@/features/quotes/components/revision-request-feedback";
 import { DismissibleQuoteAlert } from "@/features/quotes/components/dismissible-quote-alert";
 import { SendQuoteDialog } from "@/features/quotes/components/send-quote-dialog";
+import { AutoFollowUpStatus } from "@/features/quotes/components/auto-follow-up-status";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
 import { getQuoteNextAction } from "@/features/businesses/workflow-next-actions";
 import { getFollowUpsForQuote } from "@/features/follow-ups/queries";
 import { getQuoteLibraryForBusiness } from "@/features/quotes/quote-library-queries";
-import { getQuoteDetailForBusiness } from "@/features/quotes/queries";
+import { getQuoteDetailForBusiness, getRevisionRequestsForQuote } from "@/features/quotes/queries";
+import { hasJobForQuote } from "@/features/jobs/queries-light";
+import { getInvoiceIdForQuote } from "@/features/invoices/queries-light";
 import { quoteRouteParamsSchema } from "@/features/quotes/schemas";
 import type { DashboardQuoteActivity } from "@/features/quotes/types";
 import {
@@ -78,6 +87,7 @@ import {
 import {
   getBusinessInquiryPath,
   getBusinessQuoteExportPath,
+  getBusinessQuotePath,
   getBusinessQuotesPath,
 } from "@/features/businesses/routes";
 import { env, isEmailConfigured } from "@/lib/env";
@@ -140,6 +150,15 @@ async function QuoteDetailContent({
     notFound();
   }
 
+  const revisionRequests = (quote.status === "revision_requested" || quote.status === "draft")
+    ? await getRevisionRequestsForQuote(businessContext.business.id, quote.id)
+    : [];
+
+  // For accepted quotes, check if a job/invoice already exists
+  const [quoteHasJob, quoteInvoiceId] = quote.status === "accepted"
+    ? await Promise.all([hasJobForQuote(quote.id), getInvoiceIdForQuote(quote.id)])
+    : [false, null];
+
   const updateAction = updateQuoteAction.bind(null, quote.id);
   const archiveAction = archiveQuoteAction.bind(null, quote.id);
   const deleteDraftAction = deleteDraftQuoteAction.bind(null, quote.id);
@@ -150,6 +169,7 @@ async function QuoteDetailContent({
   const logEventAction = logQuoteSendEventAction.bind(null, quote.id);
   const createFollowUpAction = createQuoteFollowUpAction.bind(null, quote.id);
   const voidAction = voidQuoteAction.bind(null, quote.id);
+  const stopAutoFollowUp = stopAutoFollowUpAction.bind(null, quote.id);
   const customerQuotePath = quote.publicToken
     ? getPublicQuoteUrl(quote.publicToken)
     : null;
@@ -177,6 +197,7 @@ async function QuoteDetailContent({
         customerContactHandle: quote.linkedInquiry.customerContactHandle,
         recordState: quote.linkedInquiry.recordState,
         serviceCategory: quote.linkedInquiry.serviceCategory,
+        requestedDeadline: quote.linkedInquiry.requestedDeadline,
         status: quote.linkedInquiry.status,
       }
     : null;
@@ -237,6 +258,10 @@ async function QuoteDetailContent({
     "exports",
   );
 
+  const unpricedItemCount = quote.items.filter(
+    (item) => item.unitPriceInCents <= 0,
+  ).length;
+
   const linkedInquirySection = (
     <DashboardSection
       description="Original inquiry context."
@@ -286,7 +311,7 @@ async function QuoteDetailContent({
           </DashboardDetailFeed>
           <div className="grid gap-3 sm:grid-cols-2">
             <InfoTile label="Category" value={quote.linkedInquiry.serviceCategory} />
-            <InfoTile label="Inquiry status" value={quote.linkedInquiry.status} />
+            <InfoTile label="Deadline" value={quote.linkedInquiry.requestedDeadline ?? "No deadline"} />
           </div>
         </div>
       ) : (
@@ -301,6 +326,13 @@ async function QuoteDetailContent({
 
   return (
     <DashboardPage className="pb-24">
+      {isArchived ? (
+        <ArchivedRecordBanner
+          recordLabel="quote"
+          redirectHref={getBusinessQuotePath(businessSlug, quote.id)}
+          unarchiveAction={restoreArchivedAction}
+        />
+      ) : null}
       <DashboardDetailHeader
         eyebrow="Quote"
         title={quote.title}
@@ -317,7 +349,7 @@ async function QuoteDetailContent({
         actions={
           <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center [&_[data-slot=button]]:w-full sm:[&_[data-slot=button]]:w-auto">
 
-            <QuoteManageDialog
+            <QuoteManageDropdown
               archiveAction={archiveAction}
               businessQuoteListHref={getBusinessQuotesPath(businessSlug)}
               deleteDraftAction={deleteDraftAction}
@@ -350,6 +382,8 @@ async function QuoteDetailContent({
                     : undefined
                 }
                 pdfExportLocked={!canExportData}
+                canAutoFollowUp={hasFeatureAccess(businessContext.business.plan, "autoFollowUps")}
+                unpricedItemCount={unpricedItemCount}
               />
             ) : null}
           </div>
@@ -360,6 +394,15 @@ async function QuoteDetailContent({
 
       {quote.status === "draft" ? (
         <>
+          {revisionRequests.length > 0 ? (
+            <DashboardSection
+              description="Customer feedback from the previous version. Use this to guide your edits."
+              title="Revision feedback"
+            >
+              <RevisionRequestFeedback requests={revisionRequests} />
+            </DashboardSection>
+          ) : null}
+
           <QuoteEditor
             action={updateAction}
             businessName={businessContext.business.name}
@@ -374,6 +417,7 @@ async function QuoteDetailContent({
             linkedInquiry={linkedInquiry}
             pricingLibrary={pricingLibrary}
             quoteNumber={quote.quoteNumber}
+            revisionComment={revisionRequests[0]?.message ?? null}
             showFloatingUnsavedChanges
             submitLabel="Save changes"
             submitPendingLabel="Saving changes..."
@@ -411,11 +455,24 @@ async function QuoteDetailContent({
                         : undefined
                     }
                     pdfExportLocked={!canExportData}
+                    canAutoFollowUp={hasFeatureAccess(businessContext.business.plan, "autoFollowUps")}
+                    unpricedItemCount={unpricedItemCount}
                   />
                 </DashboardSection>
               </div>
 
               <div id="follow-ups">
+                {quote.autoFollowUpEnabled ? (
+                  <AutoFollowUpStatus
+                    enabled={quote.autoFollowUpEnabled}
+                    attempts={quote.autoFollowUpAttempts}
+                    maxAttempts={quote.autoFollowUpMaxAttempts}
+                    delayDays={quote.autoFollowUpDelayDays}
+                    lastSentAt={quote.autoFollowUpLastSentAt}
+                    stoppedAt={quote.autoFollowUpStoppedAt}
+                    stopAction={stopAutoFollowUp}
+                  />
+                ) : null}
                 <FollowUpPanel
                   businessSlug={businessSlug}
                   createAction={createFollowUpAction}
@@ -445,9 +502,12 @@ async function QuoteDetailContent({
               currency={quote.currency}
               validUntil={quote.validUntil}
               notes={quote.notes}
+              terms={quote.terms}
               items={quote.items}
               subtotalInCents={quote.subtotalInCents}
               discountInCents={quote.discountInCents}
+              taxInCents={quote.taxInCents}
+              taxLabel={quote.taxLabel}
               totalInCents={quote.totalInCents}
             />
 
@@ -462,19 +522,48 @@ async function QuoteDetailContent({
           </DashboardSidebarStack>
 
           <DashboardSidebarStack>
+            {quote.status === "revision_requested" ? (
+              <DashboardSection
+                description="The customer has requested changes. Review their feedback, then create a new version to edit and re-send."
+                title="Revision requested"
+              >
+                <RevisionRequestFeedback requests={revisionRequests} />
+                <div className="mt-4">
+                  <ReviseQuoteButton quoteId={quote.id} />
+                </div>
+              </DashboardSection>
+            ) : null}
+
             {quote.status === "accepted" ? (
               <div id="post-acceptance">
-                <QuotePostWinCard
-                  key={quote.postAcceptanceStatus}
-                  quoteNumber={quote.quoteNumber}
-                  postAcceptanceStatus={quote.postAcceptanceStatus}
-                  completedAt={quote.completedAt}
-                  canceledAt={quote.canceledAt}
-                  cancellationReason={quote.cancellationReason}
-                  cancellationNote={quote.cancellationNote}
-                  completeAction={completeAction}
-                  cancelAction={cancelAction}
-                />
+                {(quote.postAcceptanceStatus === "completed" || quote.postAcceptanceStatus === "canceled") ? (
+                  <QuotePostWinCard
+                    key={quote.postAcceptanceStatus}
+                    quoteNumber={quote.quoteNumber}
+                    postAcceptanceStatus={quote.postAcceptanceStatus}
+                    completedAt={quote.completedAt}
+                    canceledAt={quote.canceledAt}
+                    cancellationReason={quote.cancellationReason}
+                    cancellationNote={quote.cancellationNote}
+                    completeAction={completeAction}
+                    cancelAction={cancelAction}
+                    completedActions={
+                      <QuoteGenerateInvoiceButton
+                        quoteId={quote.id}
+                        businessSlug={businessSlug}
+                        existingInvoiceId={quoteInvoiceId}
+                      />
+                    }
+                  />
+                ) : (
+                  <QuotePostAcceptanceActions
+                    quoteId={quote.id}
+                    businessSlug={businessSlug}
+                    hasJob={quoteHasJob}
+                    existingInvoiceId={quoteInvoiceId}
+                    postAcceptanceStatus={quote.postAcceptanceStatus}
+                  />
+                )}
               </div>
             ) : null}
 

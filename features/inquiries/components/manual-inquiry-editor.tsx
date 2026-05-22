@@ -76,6 +76,7 @@ export function ManualInquiryEditor({
 }: ManualInquiryEditorProps) {
   const [selectedFormSlug, setSelectedFormSlug] = useState(initialFormSlug);
   const [customerName, setCustomerName] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
   const [customerContactMethod, setCustomerContactMethod] =
     useState<InquiryContactMethod>("email");
   const [customerContactHandle, setCustomerContactHandle] = useState("");
@@ -83,6 +84,7 @@ export function ManualInquiryEditor({
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [fileInputResetKey, setFileInputResetKey] = useState(0);
   const deferredCustomerName = useDeferredValue(customerName);
+  const deferredCustomerEmail = useDeferredValue(customerEmail);
   const deferredCustomerContactMethod = useDeferredValue(customerContactMethod);
   const deferredCustomerContactHandle = useDeferredValue(customerContactHandle);
   const deferredProjectValues = useDeferredValue(projectValues);
@@ -239,6 +241,33 @@ export function ManualInquiryEditor({
                 </FieldContent>
               </Field>
 
+              <Field data-invalid={Boolean(getFieldMessage("customerEmail")) || undefined}>
+                <FieldLabel htmlFor="manual-inquiry-customer-email">
+                  <FieldLabelText label="Email" required />
+                </FieldLabel>
+                <FieldContent>
+                  <Input
+                    autoComplete="email"
+                    disabled={isPending}
+                    id="manual-inquiry-customer-email"
+                    maxLength={320}
+                    name="customerEmail"
+                    onChange={(event) => setCustomerEmail(event.currentTarget.value)}
+                    placeholder="jordan@example.com"
+                    required
+                    type="email"
+                    value={customerEmail}
+                  />
+                  <FieldError
+                    errors={
+                      getFieldMessage("customerEmail")
+                        ? [{ message: getFieldMessage("customerEmail")! }]
+                        : undefined
+                    }
+                  />
+                </FieldContent>
+              </Field>
+
               <Field
                 data-invalid={
                   Boolean(getFieldMessage("customerContactMethod")) || undefined
@@ -274,34 +303,35 @@ export function ManualInquiryEditor({
                 </FieldContent>
               </Field>
 
-              <Field
-                className="sm:col-span-2"
-                data-invalid={
-                  Boolean(getFieldMessage("customerContactHandle")) || undefined
-                }
-              >
-                <FieldLabel htmlFor="manual-inquiry-contact-handle">
-                  <FieldLabelText
-                    label={inquiryContactMethodLabels[customerContactMethod]}
-                    required
-                  />
-                </FieldLabel>
-                <FieldContent>
-                  <ContactHandleInput
-                    contactMethod={customerContactMethod}
-                    disabled={isPending}
-                    onChange={setCustomerContactHandle}
-                    value={customerContactHandle}
-                  />
-                  <FieldError
-                    errors={
-                      getFieldMessage("customerContactHandle")
-                        ? [{ message: getFieldMessage("customerContactHandle")! }]
-                        : undefined
-                    }
-                  />
-                </FieldContent>
-              </Field>
+              {customerContactMethod !== "email" ? (
+                <Field
+                  data-invalid={
+                    Boolean(getFieldMessage("customerContactHandle")) || undefined
+                  }
+                >
+                  <FieldLabel htmlFor="manual-inquiry-contact-handle">
+                    <FieldLabelText
+                      label={inquiryContactMethodLabels[customerContactMethod]}
+                      required
+                    />
+                  </FieldLabel>
+                  <FieldContent>
+                    <ContactHandleInput
+                      contactMethod={customerContactMethod}
+                      disabled={isPending}
+                      onChange={setCustomerContactHandle}
+                      value={customerContactHandle}
+                    />
+                    <FieldError
+                      errors={
+                        getFieldMessage("customerContactHandle")
+                          ? [{ message: getFieldMessage("customerContactHandle")! }]
+                          : undefined
+                      }
+                    />
+                  </FieldContent>
+                </Field>
+              ) : null}
             </div>
           </FieldGroup>
         </DashboardSection>
@@ -420,6 +450,7 @@ export function ManualInquiryEditor({
       <ManualInquiryPreview
         customerContactHandle={deferredCustomerContactHandle}
         customerContactMethod={deferredCustomerContactMethod}
+        customerEmail={deferredCustomerEmail}
         customerName={deferredCustomerName}
         projectFields={projectFields}
         projectValues={deferredProjectValues}
@@ -534,10 +565,17 @@ function renderProjectInput({
 
     if (field.key === "budgetText") {
       return (
-        <BudgetRangeInput
+        <Input
           disabled={isPending}
-          inputName={inputName}
-          onChange={onValueChange}
+          id={inputId}
+          inputMode="numeric"
+          min={0}
+          name={inputName}
+          onChange={(event) => onValueChange(event.currentTarget.value)}
+          placeholder={field.placeholder}
+          required={field.required}
+          step={1}
+          type="number"
           value={stringValue}
         />
       );
@@ -808,6 +846,7 @@ function ProjectBooleanSelectInput({
 
 function ManualInquiryPreview({
   customerName,
+  customerEmail,
   customerContactMethod,
   customerContactHandle,
   projectFields,
@@ -816,6 +855,7 @@ function ManualInquiryPreview({
   selectedForm,
 }: {
   customerName: string;
+  customerEmail: string;
   customerContactMethod: InquiryContactMethod;
   customerContactHandle: string;
   projectFields: InquiryFormFieldDefinition[];
@@ -875,13 +915,6 @@ function ManualInquiryPreview({
                 Saved with the {selectedForm.name} form.
               </p>
             </div>
-            <div className="soft-panel flex min-w-[12rem] flex-col gap-2 px-4 py-4 shadow-none">
-              <p className="meta-label">Workflow</p>
-              <p className="text-sm font-medium text-foreground">New inquiry</p>
-              <p className="text-sm leading-6 text-muted-foreground">
-                Created manually from the dashboard.
-              </p>
-            </div>
           </div>
 
           <div className="dashboard-detail-header-meta">
@@ -894,6 +927,10 @@ function ManualInquiryPreview({
           <InfoTile
             label="Customer"
             value={customerName.trim() || "Customer name"}
+          />
+          <InfoTile
+            label="Email"
+            value={customerEmail.trim() || "Not provided"}
           />
           <InfoTile
             label="Preferred contact"
@@ -1119,51 +1156,3 @@ function ContactHandleInput({
   );
 }
 
-function BudgetRangeInput({
-  disabled,
-  inputName,
-  onChange,
-  value,
-}: {
-  disabled: boolean;
-  inputName: string;
-  onChange: (value: string) => void;
-  value: string;
-}) {
-  const parts = value.split("-").map((p) => p.trim());
-  const minValue = parts[0] ?? "";
-  const maxValue = parts[1] ?? "";
-
-  function combine(min: string, max: string) {
-    if (min && max) return `${min} - ${max}`;
-    if (min) return min;
-    if (max) return `0 - ${max}`;
-    return "";
-  }
-
-  return (
-    <>
-      <input type="hidden" name={inputName} value={value} />
-      <div className="grid grid-cols-2 gap-3">
-        <Input
-          disabled={disabled}
-          inputMode="numeric"
-          min={0}
-          onChange={(event) => onChange(combine(event.currentTarget.value, maxValue))}
-          placeholder="Min"
-          type="number"
-          value={minValue}
-        />
-        <Input
-          disabled={disabled}
-          inputMode="numeric"
-          min={0}
-          onChange={(event) => onChange(combine(minValue, event.currentTarget.value))}
-          placeholder="Max"
-          type="number"
-          value={maxValue}
-        />
-      </div>
-    </>
-  );
-}

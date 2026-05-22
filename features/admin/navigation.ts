@@ -21,11 +21,11 @@ export type AdminNavigationItem = {
   icon: LucideIcon;
 };
 
-export const ADMIN_ROOT_PATH = "/admin";
-export const ADMIN_USERS_PATH = "/admin/users";
-export const ADMIN_BUSINESSES_PATH = "/admin/businesses";
-export const ADMIN_SUBSCRIPTIONS_PATH = "/admin/subscriptions";
-export const ADMIN_AUDIT_LOGS_PATH = "/admin/audit-logs";
+export const ADMIN_ROOT_PATH = "/";
+export const ADMIN_USERS_PATH = "/users";
+export const ADMIN_BUSINESSES_PATH = "/businesses";
+export const ADMIN_SUBSCRIPTIONS_PATH = "/subscriptions";
+export const ADMIN_AUDIT_LOGS_PATH = "/audit-logs";
 
 export const adminNavigation: readonly AdminNavigationItem[] = [
   {
@@ -76,7 +76,7 @@ export function getAdminStartImpersonationPath(userId: string) {
   return `${ADMIN_USERS_PATH}/${userId}/impersonate`;
 }
 
-export const ADMIN_STOP_IMPERSONATING_PATH = "/admin/stop-impersonating";
+export const ADMIN_STOP_IMPERSONATING_PATH = "/stop-impersonating";
 
 export function isAdminNavigationItemActive(pathname: string, href: string) {
   if (href === ADMIN_ROOT_PATH) {

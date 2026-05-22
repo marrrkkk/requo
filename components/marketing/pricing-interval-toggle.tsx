@@ -1,18 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import {
   getYearlySavingsPercent,
   getMonthlyEquivalentLabel,
   getPlanPriceLabel,
 } from "@/lib/billing/plans";
-import type { BillingCurrency, BillingInterval } from "@/lib/billing/types";
+import { startPolarCheckout } from "@/features/billing/start-checkout";
+import { getAuthPathWithNext } from "@/lib/auth/redirects";
+import type {
+  BillingCurrency,
+  BillingInterval,
+  PaidPlan,
+} from "@/lib/billing/types";
 
 export function PricingIntervalToggle({
   currency,
@@ -20,7 +28,36 @@ export function PricingIntervalToggle({
   currency: BillingCurrency;
 }) {
   const [interval, setInterval] = useState<BillingInterval>("monthly");
+  const [pendingPlan, setPendingPlan] = useState<PaidPlan | null>(null);
+  const [isPending, startTransition] = useTransition();
   const savingsPercent = getYearlySavingsPercent("pro", currency);
+
+  function handleSubscribe(plan: PaidPlan) {
+    if (isPending) return;
+    setPendingPlan(plan);
+    startTransition(async () => {
+      const result = await startPolarCheckout({ plan, interval });
+      if (result.ok) {
+        setPendingPlan(null);
+        return;
+      }
+
+      if (result.reason === "unauthorized") {
+        const next = `/pricing?plan=${plan}&interval=${interval}`;
+        window.location.assign(getAuthPathWithNext("/login", next));
+        return;
+      }
+
+      if (result.reason === "already_subscribed") {
+        toast.info(result.message);
+        setPendingPlan(null);
+        return;
+      }
+
+      toast.error(result.message);
+      setPendingPlan(null);
+    });
+  }
 
   const proPrice = getPlanPriceLabel("pro", currency, interval).replace(
     interval === "monthly" ? "/mo" : "/yr",
@@ -81,7 +118,7 @@ export function PricingIntervalToggle({
             Free
           </p>
           <p className="mt-4 font-heading text-4xl font-semibold tracking-tight text-foreground">
-            $0
+            {currency === "PHP" ? "₱" : "$"}0
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             No card required
@@ -91,7 +128,7 @@ export function PricingIntervalToggle({
           </p>
 
           <Button asChild variant="outline" size="lg" className="mt-6 w-full">
-            <Link href="/businesses">Start free</Link>
+            <Link href="/businesses">Start with inquiries</Link>
           </Button>
 
           <ul className="mt-7 flex flex-col gap-2.5 border-t border-border/50 pt-6">
@@ -129,15 +166,26 @@ export function PricingIntervalToggle({
             More quotes, AI drafts, multiple forms, and advanced branding for growing operators.
           </p>
 
-          <Button asChild size="lg" className="mt-6 w-full">
-            <Link href={`/account/billing/checkout?plan=pro&interval=${interval}`}>
-              Start with Pro
-            </Link>
+          <Button
+            className="mt-6 w-full"
+            disabled={isPending}
+            onClick={() => handleSubscribe("pro")}
+            size="lg"
+            type="button"
+          >
+            {isPending && pendingPlan === "pro" ? (
+              <>
+                <Spinner data-icon="inline-start" aria-hidden="true" />
+                Opening checkout…
+              </>
+            ) : (
+              "Start with Pro"
+            )}
           </Button>
 
           <ul className="mt-7 flex flex-col gap-2.5 border-t border-border/50 pt-6">
             <Feature>Unlimited quotes & follow-ups</Feature>
-            <Feature>AI assistant — 100 generations / mo</Feature>
+            <Feature>AI assistant: 100 generations / mo</Feature>
             <Feature>Workflow analytics</Feature>
             <Feature>5 inquiry forms, 5 businesses</Feature>
             <Feature>Page customization & branding</Feature>
@@ -168,15 +216,27 @@ export function PricingIntervalToggle({
             Team roles, higher AI and email caps, audit logs, and priority support.
           </p>
 
-          <Button asChild variant="outline" size="lg" className="mt-6 w-full">
-            <Link href={`/account/billing/checkout?plan=business&interval=${interval}`}>
-              Start with Business
-            </Link>
+          <Button
+            className="mt-6 w-full"
+            disabled={isPending}
+            onClick={() => handleSubscribe("business")}
+            size="lg"
+            type="button"
+            variant="outline"
+          >
+            {isPending && pendingPlan === "business" ? (
+              <>
+                <Spinner data-icon="inline-start" aria-hidden="true" />
+                Opening checkout…
+              </>
+            ) : (
+              "Start with Business"
+            )}
           </Button>
 
           <ul className="mt-7 flex flex-col gap-2.5 border-t border-border/50 pt-6">
             <Feature>Everything in Pro</Feature>
-            <Feature>Team members — up to 25</Feature>
+            <Feature>Team members: up to 25</Feature>
             <Feature>500 AI generations / mo</Feature>
             <Feature>500 Requo email sends / mo</Feature>
             <Feature>Unlimited businesses & forms</Feature>

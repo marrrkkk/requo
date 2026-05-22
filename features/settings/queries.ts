@@ -50,6 +50,7 @@ export async function getBusinessSettingsForBusiness(
       logoContentType: businesses.logoContentType,
       defaultEmailSignature: businesses.defaultEmailSignature,
       defaultQuoteNotes: businesses.defaultQuoteNotes,
+      defaultQuoteTerms: businesses.defaultQuoteTerms,
       quoteEmailTemplate: businesses.quoteEmailTemplate,
       defaultQuoteValidityDays: businesses.defaultQuoteValidityDays,
       aiTonePreference: businesses.aiTonePreference,

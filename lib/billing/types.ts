@@ -14,14 +14,19 @@ export type {
   PaymentAttemptStatus,
 } from "@/lib/db/schema/subscriptions";
 
-export type BillingRegion = "global";
-
 export type BillingInterval = "monthly" | "yearly";
 
 export type PaidPlan = Exclude<BusinessPlan, "free">;
 
 export type PlanPricing = {
   USD: number; // cents
+  /**
+   * Optional PHP approximation in centavos. Display-only — the
+   * authoritative billing currency is USD and Polar handles any
+   * local-currency conversion at checkout. Populated by display
+   * helpers, never used as a base price.
+   */
+  PHP?: number;
 };
 
 export type CheckoutResult =

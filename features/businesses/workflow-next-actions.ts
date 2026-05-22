@@ -59,8 +59,7 @@ export function getInquiryNextAction({
 
   if (
     inquiry.status === "archived" ||
-    inquiry.recordState === "archived" ||
-    inquiry.recordState === "trash"
+    inquiry.recordState === "archived"
   ) {
     return null;
   }

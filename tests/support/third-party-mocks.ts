@@ -8,9 +8,8 @@
  * sits behind the wrapper.
  *
  * Usage:
- *   import { mockResend, mockPaddle } from "@/tests/support/third-party-mocks";
+ *   import { mockResend } from "@/tests/support/third-party-mocks";
  *   mockResend();
- *   mockPaddle();
  *   // ...then normal imports of the code under test.
  *
  * Tests that need a specific response per case can override the mock with
@@ -126,35 +125,6 @@ export function mockCerebras(): void {
 }
 
 /**
- * Mocks `@/lib/billing/providers/paddle` — the card-payment provider module
- * that owns transaction creation, adjustments/refunds, subscription reads,
- * lifecycle mutations, and webhook signature verification.
- *
- * Call at the top of the test file, outside any `beforeEach`.
- */
-export function mockPaddle(): void {
-  vi.mock("@/lib/billing/providers/paddle", () => ({
-    createPaddleTransaction: vi.fn(async () => ({
-      type: "redirect" as const,
-      url: "txn_test",
-    })),
-    getPaddleTransaction: vi.fn(async () => null),
-    createPaddleAdjustment: vi.fn(async () => ({
-      type: "ok" as const,
-      adjustmentId: "adj_test",
-      status: "pending_approval" as const,
-    })),
-    getPaddleAdjustment: vi.fn(async () => null),
-    mapPaddleAdjustmentStatus: vi.fn(() => "pending_approval" as const),
-    getPaddleSubscription: vi.fn(async () => null),
-    cancelPaddleSubscription: vi.fn(async () => true),
-    resumePaddleSubscription: vi.fn(async () => true),
-    verifyPaddleWebhookSignature: vi.fn(() => true),
-    mapPaddleStatus: vi.fn(() => "active" as const),
-  }));
-}
-
-/**
  * Mocks `@/lib/supabase/admin` — the app's service-role Supabase client
  * factory, which is used exclusively for storage operations (logo uploads,
  * avatar uploads, inquiry attachments). The returned client exposes the
@@ -199,6 +169,5 @@ export function mockAllThirdParties(): void {
   mockGroq();
   mockGemini();
   mockCerebras();
-  mockPaddle();
   mockSupabaseStorage();
 }

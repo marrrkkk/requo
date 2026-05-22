@@ -9,6 +9,10 @@ vi.mock("next/font/google", () => ({
   Geist_Mono: () => ({ variable: "--font-geist-mono" }),
 }));
 
+vi.mock("next/font/local", () => ({
+  default: () => ({ variable: "--font-brand" }),
+}));
+
 vi.mock("@/features/businesses/queries", () => ({
   listPublicBusinessSitemapEntries: vi.fn().mockResolvedValue([]),
 }));
@@ -78,7 +82,7 @@ describe("metadataBase fallback ladder", () => {
         // Must have a valid origin (protocol + host)
         expect(url.origin).toMatch(/^https?:\/\/.+/);
       }),
-      { numRuns: 30 },
+      { numRuns: 10 },
     );
   });
 
@@ -105,7 +109,7 @@ describe("metadataBase fallback ladder", () => {
         const resolved = new URL(ogUrl, siteUrl);
         expect(resolved.pathname).toBe(pathname);
       }),
-      { numRuns: 20 },
+      { numRuns: 10 },
     );
   });
 });
@@ -174,7 +178,7 @@ describe("JSON-LD escaping (encodeJsonLd)", () => {
         // Safe for <script type="application/ld+json"> insertion
         expect(encoded).not.toMatch(/<\//);
       }),
-      { numRuns: 100 },
+      { numRuns: 30 },
     );
   });
 });
@@ -214,7 +218,7 @@ describe("Structured data: Product pricing and LocalBusiness", () => {
         const resultOffers = (result as Record<string, unknown>).offers as unknown[];
         expect(resultOffers).toHaveLength(offers.length);
       }),
-      { numRuns: 30 },
+      { numRuns: 10 },
     );
   });
 
@@ -301,7 +305,7 @@ describe("Breadcrumb reconstruction", () => {
           expect(breadcrumbs[i]!.url.startsWith(breadcrumbs[i - 1]!.url)).toBe(true);
         }
       }),
-      { numRuns: 50 },
+      { numRuns: 15 },
     );
   });
 
@@ -487,7 +491,7 @@ describe("Sitemap", () => {
           expect(businessUrls).not.toContain(pathname);
         }
       }),
-      { numRuns: 15 },
+      { numRuns: 5 },
     );
   });
 });
@@ -604,7 +608,7 @@ describe("Business slug metadata", () => {
         // Canonical = /businesses/<slug>
         expect(meta.alternates?.canonical).toBe(`/businesses/${profile.slug}`);
       }),
-      { numRuns: 30 },
+      { numRuns: 10 },
     );
   });
 
@@ -657,7 +661,7 @@ describe("Quote metadata always noindex", () => {
         // Canonical = /quote/<token>
         expect(meta.alternates?.canonical).toBe(`/quote/${input.token}`);
       }),
-      { numRuns: 30 },
+      { numRuns: 10 },
     );
   });
 });

@@ -24,6 +24,7 @@ import {
   DashboardSection,
   DashboardSidebarStack,
 } from "@/components/shared/dashboard-layout";
+import { ArchivedRecordBanner } from "@/components/shared/archived-record-banner";
 import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -54,17 +55,17 @@ import {
   addInquiryNoteAction,
   archiveInquiryAction,
   changeInquiryStatusAction,
-  restoreInquiryFromTrashAction,
-  trashInquiryAction,
+  deleteInquiryAction,
   unarchiveInquiryAction,
 } from "@/features/inquiries/actions";
 import { CopyEmailButton } from "@/features/inquiries/components/copy-email-button";
+import { InquiryDuplicateBanner } from "@/features/inquiries/components/inquiry-duplicate-banner";
 import { InquiryNoteForm } from "@/features/inquiries/components/inquiry-note-form";
 import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
 import { InquiryExportPopover } from "@/features/inquiries/components/inquiry-export-popover";
-import { InquiryManageDialog } from "@/features/inquiries/components/inquiry-manage-dialog";
+import { InquiryManageDropdown } from "@/features/inquiries/components/inquiry-manage-dropdown";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
-import { getInquiryDetailForBusiness } from "@/features/inquiries/queries";
+import { getInquiryDetailForBusiness, getInquiryDuplicateForBusiness } from "@/features/inquiries/queries";
 import { inquiryRouteParamsSchema } from "@/features/inquiries/schemas";
 import {
   formatFileSize,
@@ -77,9 +78,13 @@ import {
   type InquiryNoteActionState,
   type InquiryWorkflowStatus,
 } from "@/features/inquiries/types";
+import type { DuplicateFlag } from "@/features/inquiries/qualification/types";
+import { dismissDuplicateWarningAction } from "@/features/inquiries/qualification/actions";
 import { formatQuoteMoney } from "@/features/quotes/utils";
 import {
+  getBusinessInquiriesPath,
   getBusinessInquiryExportPath,
+  getBusinessInquiryPath,
   getBusinessNewQuotePath,
   getBusinessQuotePath,
 } from "@/features/businesses/routes";
@@ -130,6 +135,10 @@ async function InquiryDetailContent({
     businessId: businessContext.business.id,
     inquiryId: parsedParams.data.id,
   });
+  const duplicatePromise = getInquiryDuplicateForBusiness({
+    businessId: businessContext.business.id,
+    inquiryId: parsedParams.data.id,
+  });
   const inquiry = await getInquiryDetailForBusiness({
     businessId: businessContext.business.id,
     inquiryId: parsedParams.data.id,
@@ -139,12 +148,13 @@ async function InquiryDetailContent({
     notFound();
   }
 
+  const duplicateRecord = await duplicatePromise;
+
   const noteAction = addInquiryNoteAction.bind(null, inquiry.id);
   const statusAction = changeInquiryStatusAction.bind(null, inquiry.id);
   const archiveAction = archiveInquiryAction.bind(null, inquiry.id);
   const unarchiveAction = unarchiveInquiryAction.bind(null, inquiry.id);
-  const trashAction = trashInquiryAction.bind(null, inquiry.id);
-  const restoreAction = restoreInquiryFromTrashAction.bind(null, inquiry.id);
+  const deleteAction = deleteInquiryAction.bind(null, inquiry.id);
   const createFollowUpAction = createInquiryFollowUpAction.bind(null, inquiry.id);
   const customFields = getCustomSubmittedFields(
     inquiry.submittedFieldSnapshot,
@@ -168,7 +178,7 @@ async function InquiryDetailContent({
       })
     : Promise.resolve(null);
 
-  const canGenerateQuote = inquiry.recordState !== "trash";
+  const canGenerateQuote = inquiry.recordState !== "archived";
   const workflowStatus: InquiryWorkflowStatus =
     inquiry.status === "quoted" ||
     inquiry.status === "won" ||
@@ -187,6 +197,29 @@ async function InquiryDetailContent({
 
   return (
     <DashboardPage className="pb-24">
+      {duplicateRecord && !duplicateRecord.dismissedAt ? (
+        <InquiryDuplicateBanner
+          duplicate={{
+            originalInquiryId: duplicateRecord.originalInquiryId,
+            reason: duplicateRecord.reason as DuplicateFlag["reason"],
+            tokenOverlap: duplicateRecord.tokenOverlap,
+          }}
+          businessSlug={businessSlug}
+          dismissAction={dismissDuplicateWarningAction.bind(
+            null,
+            duplicateRecord.id,
+            businessContext.business.id,
+            inquiry.id,
+          )}
+        />
+      ) : null}
+      {inquiry.recordState === "archived" ? (
+        <ArchivedRecordBanner
+          recordLabel="inquiry"
+          redirectHref={getBusinessInquiryPath(businessSlug, inquiry.id)}
+          unarchiveAction={unarchiveAction}
+        />
+      ) : null}
       <DashboardDetailHeader
         eyebrow="Inquiry"
         title={inquiry.customerName}
@@ -201,14 +234,14 @@ async function InquiryDetailContent({
         }
         actions={
           <div className="grid w-full gap-2.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center [&_[data-slot=button]]:w-full sm:[&_[data-slot=button]]:w-auto">
-            <InquiryManageDialog
+            <InquiryManageDropdown
               workflowStatus={workflowStatus}
               recordState={inquiry.recordState}
+              businessInquiryListHref={getBusinessInquiriesPath(businessSlug)}
               statusAction={statusAction}
               archiveAction={archiveAction}
               unarchiveAction={unarchiveAction}
-              trashAction={trashAction}
-              restoreAction={restoreAction}
+              deleteAction={deleteAction}
             />
             <InquiryExportPopover
               canExport={canExportData}

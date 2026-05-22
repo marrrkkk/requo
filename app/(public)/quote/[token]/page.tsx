@@ -14,7 +14,7 @@ import { PublicQuoteViewTracker } from "@/features/analytics/components/public-p
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import { Button } from "@/components/ui/button";
 import { PublicQuoteInteractiveColumn } from "@/features/quotes/components/public-quote-interactive-column";
-import { respondToPublicQuoteAction } from "@/features/quotes/actions";
+import { respondToPublicQuoteAction, requestQuoteRevisionAction } from "@/features/quotes/actions";
 import {
   getMissingPublicQuoteMetadata,
   getPublicQuotePageMetadata,
@@ -77,7 +77,7 @@ export default async function PublicQuotePage({
   const user = await getCurrentUser();
   const isCreator = !!user;
   const respondAction = respondToPublicQuoteAction.bind(null, quote.token);
-  const hasDiscount = quote.discountInCents > 0;
+  const revisionAction = requestQuoteRevisionAction.bind(null, quote.token);
 
   return (
     <>
@@ -92,115 +92,115 @@ export default async function PublicQuotePage({
             </Button>
           ) : undefined
         }
+        headerClassName="border-transparent bg-transparent [&::before]:opacity-0"
       >
-        <PublicHeroSurface className="flex justify-center py-6 sm:py-10 lg:py-14">
-          <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
-            {/* Header: Business + Quote title */}
-            <header className="flex flex-col gap-5 pb-6 sm:pb-8">
-              <div className="flex items-center gap-3">
-                {quote.businessLogoStoragePath && quote.businessSlug ? (
-                  <Image
-                    src={`/api/business/${quote.businessSlug}/logo`}
-                    alt={`${quote.businessName} logo`}
-                    width={36}
-                    height={36}
-                    unoptimized
-                    className="size-9 rounded-lg border border-border/60 bg-background/50 object-cover"
-                  />
-                ) : null}
-                <span className="text-sm font-medium text-muted-foreground">
-                  {quote.businessName}
-                </span>
-              </div>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
+          {/* Left card — Quote content */}
+          <PublicHeroSurface className="py-6 sm:py-8 lg:py-10">
+            <div className="px-4 sm:px-6 lg:px-8">
+              {/* Header: Business + Quote title */}
+              <header className="flex flex-col gap-5 pb-6 sm:pb-8">
+                <div className="flex items-center gap-3">
+                  {quote.businessLogoStoragePath && quote.businessSlug ? (
+                    <Image
+                      src={`/api/business/${quote.businessSlug}/logo`}
+                      alt={`${quote.businessName} logo`}
+                      width={36}
+                      height={36}
+                      unoptimized
+                      className="size-9 rounded-lg border border-border/60 bg-background/50 object-cover"
+                    />
+                  ) : null}
+                  <span className="text-sm font-medium text-muted-foreground">
+                    {quote.businessName}
+                  </span>
+                </div>
 
-              <div className="flex flex-col gap-2">
-                <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                  {quote.title}
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  For {quote.customerName} · {quote.quoteNumber} · Valid until{" "}
-                  {formatQuoteDate(quote.validUntil)}
-                </p>
-              </div>
-            </header>
-
-            {/* Total highlight */}
-            <div className="flex items-baseline justify-between gap-4 border-y border-border/60 py-4 sm:py-5">
-              <span className="text-sm font-medium text-muted-foreground">
-                Total
-              </span>
-              <span className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-                {formatQuoteMoney(quote.totalInCents, quote.currency)}
-              </span>
-            </div>
-
-            {/* Line items */}
-            <div className="flex flex-col divide-y divide-border/50 py-2">
-              {quote.items.map((item) => (
-                <div
-                  className="flex items-start justify-between gap-4 py-4"
-                  key={item.id}
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-foreground">
-                      {item.description}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {item.quantity} × {formatQuoteMoney(item.unitPriceInCents, quote.currency)}
-                    </p>
-                  </div>
-                  <p className="shrink-0 text-sm font-medium text-foreground">
-                    {formatQuoteMoney(item.lineTotalInCents, quote.currency)}
+                <div className="flex flex-col gap-2">
+                  <h1 className="font-heading text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                    {quote.title}
+                  </h1>
+                  <p className="text-sm text-muted-foreground">
+                    For {quote.customerName} · {quote.quoteNumber}
+                    {quote.version > 1 ? ` · v${quote.version}` : ""} · Valid until{" "}
+                    {formatQuoteDate(quote.validUntil)}
                   </p>
                 </div>
-              ))}
-            </div>
+              </header>
 
-            {/* Subtotals */}
-            <div className="flex flex-col gap-2 border-t border-border/60 pt-4 pb-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span className="text-foreground">
-                  {formatQuoteMoney(quote.subtotalInCents, quote.currency)}
-                </span>
+              {/* Line items */}
+              <div className="flex flex-col divide-y divide-border/50 border-t border-border/60 py-2">
+                {quote.items.map((item) => (
+                  <div
+                    className="flex items-start justify-between gap-4 py-4"
+                    key={item.id}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground">
+                        {item.description}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {item.quantity} × {formatQuoteMoney(item.unitPriceInCents, quote.currency)}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-sm font-medium text-foreground">
+                      {formatQuoteMoney(item.lineTotalInCents, quote.currency)}
+                    </p>
+                  </div>
+                ))}
               </div>
-              {hasDiscount ? (
+
+              {/* Subtotals */}
+              <div className="flex flex-col gap-2 border-t border-border/60 pt-4 pb-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span className="text-foreground">
+                    {formatQuoteMoney(quote.subtotalInCents, quote.currency)}
+                  </span>
+                </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Discount</span>
-                  <span className="text-emerald-600 dark:text-emerald-400">
+                  <span className="text-foreground">
                     -{formatQuoteMoney(quote.discountInCents, quote.currency)}
                   </span>
                 </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Tax</span>
+                  <span className="text-foreground">
+                    {formatQuoteMoney(quote.taxInCents, quote.currency)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-t border-border/40 pt-2 text-base font-semibold">
+                  <span className="text-foreground">Total</span>
+                  <span className="text-foreground">
+                    {formatQuoteMoney(quote.totalInCents, quote.currency)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Terms & conditions */}
+              {quote.terms ? (
+                <div className="mt-4 rounded-xl border border-border/50 px-4 py-4 sm:px-5">
+                  <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                    Terms & conditions
+                  </p>
+                  <p className="mt-2.5 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
+                    {quote.terms}
+                  </p>
+                </div>
               ) : null}
-              <div className="flex items-center justify-between border-t border-border/40 pt-2 text-base font-semibold">
-                <span className="text-foreground">Total</span>
-                <span className="text-foreground">
-                  {formatQuoteMoney(quote.totalInCents, quote.currency)}
-                </span>
-              </div>
             </div>
+          </PublicHeroSurface>
 
-            {/* Notes */}
-            {quote.notes ? (
-              <div className="mt-4 rounded-xl border border-border/50 px-4 py-4 sm:px-5">
-                <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                  Notes
-                </p>
-                <p className="mt-2.5 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                  {quote.notes}
-                </p>
-              </div>
-            ) : null}
-
-            {/* Response section */}
-            <div className="mt-8 sm:mt-10">
-              <PublicQuoteInteractiveColumn
-                quote={quote}
-                respondAction={respondAction}
-              />
-            </div>
-          </div>
-        </PublicHeroSurface>
+          {/* Right column — Actions (no card) */}
+          <aside className="lg:sticky lg:top-8 lg:self-start">
+            <PublicQuoteInteractiveColumn
+              quote={quote}
+              respondAction={respondAction}
+              revisionAction={revisionAction}
+            />
+          </aside>
+        </div>
 
         {!hasFeatureAccess(quote.businessPlan, "branding") ? (
           <MadeWithRequo />

@@ -28,6 +28,7 @@ import { inquirySources } from "@/features/inquiries/types";
 import { getInquiryStatusLabel } from "@/features/inquiries/utils";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
 import { and, eq } from "drizzle-orm";
+import { qualifyInquiry } from "./qualification/qualify-inquiry";
 
 type InquirySubmissionBusinessRef = Pick<
   PublicInquiryBusiness,
@@ -218,6 +219,28 @@ async function createInquirySubmission({
     throw error;
   }
 
+  // Run qualification after the transaction commits.
+  // Wrapped in try/catch so failures never block inquiry creation.
+  try {
+    await qualifyInquiry({
+      inquiryId,
+      businessId: business.id,
+      inquiry: {
+        customerName: submission.customerName,
+        customerEmail: submission.customerEmail ?? null,
+        serviceCategory: submission.serviceCategory,
+        requestedDeadline: submission.requestedDeadline ?? null,
+        budgetText: submission.budgetText ?? null,
+        details: submission.details,
+        subject: submission.serviceCategory,
+        submittedAt: now,
+      },
+    });
+  } catch (error) {
+    console.error("Inquiry qualification failed:", error);
+    // Inquiry is still created successfully
+  }
+
   return {
     inquiryId,
     attachmentName: preparedAttachment?.fileName ?? null,
@@ -354,7 +377,6 @@ export async function changeInquiryStatusForBusiness({
         id: inquiries.id,
         status: inquiries.status,
         archivedAt: inquiries.archivedAt,
-        deletedAt: inquiries.deletedAt,
         businessId: businesses.id,
         customerName: inquiries.customerName,
         serviceCategory: inquiries.serviceCategory,
@@ -366,16 +388,6 @@ export async function changeInquiryStatusForBusiness({
 
     if (!existingInquiry) {
       return null;
-    }
-
-    if (existingInquiry.deletedAt) {
-      return {
-        changed: false,
-        locked: true,
-        lockedReason: "trash" as const,
-        previousStatus: existingInquiry.status,
-        nextStatus: existingInquiry.status,
-      };
     }
 
     if (existingInquiry.archivedAt) {
@@ -471,7 +483,6 @@ export async function updateInquiryFieldsForBusiness({
       .select({
         id: inquiries.id,
         archivedAt: inquiries.archivedAt,
-        deletedAt: inquiries.deletedAt,
         businessId: businesses.id,
         customerName: inquiries.customerName,
         serviceCategory: inquiries.serviceCategory,
@@ -485,11 +496,11 @@ export async function updateInquiryFieldsForBusiness({
       return null;
     }
 
-    if (existingInquiry.deletedAt || existingInquiry.archivedAt) {
+    if (existingInquiry.archivedAt) {
       return {
         updated: false,
         locked: true,
-        lockedReason: existingInquiry.deletedAt ? "trash" : "archived",
+        lockedReason: "archived",
       } as const;
     }
 
@@ -555,7 +566,6 @@ export async function archiveInquiryForBusiness({
         id: inquiries.id,
         status: inquiries.status,
         archivedAt: inquiries.archivedAt,
-        deletedAt: inquiries.deletedAt,
         businessId: businesses.id,
         customerName: inquiries.customerName,
         serviceCategory: inquiries.serviceCategory,
@@ -567,14 +577,6 @@ export async function archiveInquiryForBusiness({
 
     if (!existingInquiry) {
       return null;
-    }
-
-    if (existingInquiry.deletedAt) {
-      return {
-        changed: false,
-        locked: true,
-        lockedReason: "trash" as const,
-      };
     }
 
     if (existingInquiry.archivedAt) {
@@ -589,8 +591,6 @@ export async function archiveInquiryForBusiness({
       .set({
         archivedAt: now,
         archivedBy: actorUserId,
-        deletedAt: null,
-        deletedBy: null,
         updatedAt: now,
       })
       .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)));
@@ -642,7 +642,6 @@ export async function unarchiveInquiryForBusiness({
         id: inquiries.id,
         status: inquiries.status,
         archivedAt: inquiries.archivedAt,
-        deletedAt: inquiries.deletedAt,
         businessId: businesses.id,
         customerName: inquiries.customerName,
         serviceCategory: inquiries.serviceCategory,
@@ -654,14 +653,6 @@ export async function unarchiveInquiryForBusiness({
 
     if (!existingInquiry) {
       return null;
-    }
-
-    if (existingInquiry.deletedAt) {
-      return {
-        changed: false,
-        locked: true,
-        lockedReason: "trash" as const,
-      };
     }
 
     const nextStatus = normalizeLegacyArchivedInquiryStatus(existingInquiry.status);
@@ -706,7 +697,8 @@ export async function unarchiveInquiryForBusiness({
   });
 }
 
-export async function trashInquiryForBusiness({
+
+export async function deleteInquiryForBusiness({
   businessId,
   inquiryId,
   actorUserId,
@@ -736,17 +728,13 @@ export async function trashInquiryForBusiness({
     if (existingInquiry.deletedAt) {
       return {
         changed: false,
+        locked: false,
       };
     }
-
-    const nextStatus = normalizeLegacyArchivedInquiryStatus(existingInquiry.status);
 
     await tx
       .update(inquiries)
       .set({
-        status: nextStatus,
-        archivedAt: null,
-        archivedBy: null,
         deletedAt: now,
         deletedBy: actorUserId,
         updatedAt: now,
@@ -758,12 +746,10 @@ export async function trashInquiryForBusiness({
       businessId,
       inquiryId,
       actorUserId,
-      type: "inquiry.trashed",
-      summary: "Inquiry moved to trash.",
+      type: "inquiry.deleted",
+      summary: "Inquiry deleted.",
       metadata: {
         previousStatus: existingInquiry.status,
-        restoredStatus: nextStatus,
-        wasArchived: Boolean(existingInquiry.archivedAt),
       },
       createdAt: now,
       updatedAt: now,
@@ -774,7 +760,7 @@ export async function trashInquiryForBusiness({
       actorUserId,
       entityType: "request",
       entityId: inquiryId,
-      action: "request.trashed",
+      action: "request.deleted",
       metadata: {
         customerName: existingInquiry.customerName,
         serviceCategory: existingInquiry.serviceCategory,
@@ -784,85 +770,7 @@ export async function trashInquiryForBusiness({
 
     return {
       changed: true,
-    };
-  });
-}
-
-export async function restoreInquiryFromTrashForBusiness({
-  businessId,
-  inquiryId,
-  actorUserId,
-}: UpdateInquiryRecordStateForBusinessInput) {
-  const now = new Date();
-
-  return db.transaction(async (tx) => {
-    const [existingInquiry] = await tx
-      .select({
-        id: inquiries.id,
-        status: inquiries.status,
-        deletedAt: inquiries.deletedAt,
-        businessId: businesses.id,
-        customerName: inquiries.customerName,
-        serviceCategory: inquiries.serviceCategory,
-      })
-      .from(inquiries)
-      .innerJoin(businesses, eq(inquiries.businessId, businesses.id))
-      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)))
-      .limit(1);
-
-    if (!existingInquiry) {
-      return null;
-    }
-
-    if (!existingInquiry.deletedAt) {
-      return {
-        changed: false,
-      };
-    }
-
-    const nextStatus = normalizeLegacyArchivedInquiryStatus(existingInquiry.status);
-
-    await tx
-      .update(inquiries)
-      .set({
-        status: nextStatus,
-        deletedAt: null,
-        deletedBy: null,
-        updatedAt: now,
-      })
-      .where(and(eq(inquiries.id, inquiryId), eq(inquiries.businessId, businessId)));
-
-    await tx.insert(activityLogs).values({
-      id: createId("act"),
-      businessId,
-      inquiryId,
-      actorUserId,
-      type: "inquiry.restored_from_trash",
-      summary: "Inquiry restored from trash.",
-      metadata: {
-        previousStatus: existingInquiry.status,
-        restoredStatus: nextStatus,
-      },
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await writeAuditLog(tx, {
-      businessId: existingInquiry.businessId,
-      actorUserId,
-      entityType: "request",
-      entityId: inquiryId,
-      action: "request.restored",
-      metadata: {
-        customerName: existingInquiry.customerName,
-        serviceCategory: existingInquiry.serviceCategory,
-      },
-      createdAt: now,
-    });
-
-    return {
-      changed: true,
-      status: nextStatus,
+      locked: false,
     };
   });
 }

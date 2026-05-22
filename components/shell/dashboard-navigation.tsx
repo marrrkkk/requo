@@ -2,13 +2,17 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
   BellRing,
+  ClipboardList,
   FormInput,
   FileText,
   Inbox,
   LayoutDashboard,
+  Receipt,
   Settings2,
   Users,
 } from "lucide-react";
+
+import { RequoIcon } from "@/components/shared/requo-icon";
 
 
 import {
@@ -19,11 +23,14 @@ import {
 } from "@/lib/business-members";
 import {
   getBusinessAnalyticsPath,
+  getBusinessAssistantPath,
   getBusinessDashboardPath,
   getBusinessDashboardSlugFromPathname,
   getBusinessFollowUpsPath,
   getBusinessFormsPath,
   getBusinessInquiriesPath,
+  getBusinessInvoicesPath,
+  getBusinessJobsPath,
   getBusinessKnowledgeCompatibilityPath,
   getBusinessMembersPath,
   getBusinessNewInquiryPath,
@@ -72,6 +79,24 @@ export function getDashboardNavigation(
       label: "Follow-ups",
       description: "See who needs contact next and when.",
       icon: BellRing,
+    },
+    {
+      href: getBusinessJobsPath(slug),
+      label: "Jobs",
+      description: "Track accepted work from start to finish.",
+      icon: ClipboardList,
+    },
+    {
+      href: getBusinessInvoicesPath(slug),
+      label: "Invoices",
+      description: "Generate, send, and track payment for completed work.",
+      icon: Receipt,
+    },
+    {
+      href: getBusinessAssistantPath(slug),
+      label: "Ask",
+      description: "Ask questions about your business data and get insights.",
+      icon: RequoIcon as unknown as LucideIcon,
     },
     ...(canViewBusinessAnalytics(role)
       ? [
@@ -291,6 +316,11 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
 
   if (pathname === followUpsPath || pathname.startsWith(`${followUpsPath}/`)) {
     return withDashboardHome(slug, [{ label: "Follow-ups" }]);
+  }
+
+  const assistantPath = getBusinessAssistantPath(slug);
+  if (pathname === assistantPath || pathname.startsWith(`${assistantPath}/`)) {
+    return withDashboardHome(slug, [{ label: "Ask" }]);
   }
 
   if (pathname === `${quotesPath}/new`) {

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { connection } from "next/server";
 
-import { DashboardSettingsSkeleton } from "@/components/shell/dashboard-settings-skeleton";
+import AccountProfileLoading from "./loading";
 import { updateAccountProfileAction } from "@/features/account/actions";
 import { ProfileSettingsForm } from "@/features/account/components/profile-settings-form";
 import { getAccountProfileForUser } from "@/features/account/queries";
@@ -20,7 +20,7 @@ export const unstable_instant = { prefetch: 'static', unstable_disableValidation
 
 export default function AccountProfilePage() {
   return (
-    <Suspense fallback={<DashboardSettingsSkeleton />}>
+    <Suspense fallback={<AccountProfileLoading />}>
       <AccountProfileContent />
     </Suspense>
   );

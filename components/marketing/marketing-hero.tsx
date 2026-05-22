@@ -10,6 +10,7 @@ import {
   navItems,
 } from "@/components/marketing/marketing-data";
 import { InViewReveal } from "@/components/marketing/in-view-reveal";
+import { MarketingResourcesNav } from "@/components/marketing/marketing-resources-nav";
 import { MarketingShowcase } from "@/components/marketing/marketing-showcase";
 import {
   PublicHeaderActions,
@@ -31,12 +32,12 @@ import { Button } from "@/components/ui/button";
 const workflowSteps = [
   {
     title: "Capture the inquiry",
-    description: "Public form or add it manually. One record holds the request, files, and notes.",
+    description: "Public form or add it manually. One record holds the request, files, and conversation.",
     icon: Inbox,
   },
   {
-    title: "Build a clear quote",
-    description: "Start from the inquiry. Reuse pricing, line items, and notes from past jobs.",
+    title: "Generate the quote",
+    description: "AI drafts line items from your pricing library. Review, adjust, and send in minutes.",
     icon: FileText,
   },
   {
@@ -45,8 +46,8 @@ const workflowSteps = [
     icon: Send,
   },
   {
-    title: "Follow up on time",
-    description: "See viewed, accepted, and rejected. Get nudged before a job goes quiet.",
+    title: "Track and follow up",
+    description: "See viewed, accepted, and rejected. Get nudged and follow up before a job goes cold.",
     icon: BellRing,
   },
 ] as const;
@@ -91,9 +92,11 @@ function WorkflowArtifact({ step }: { step: number }) {
         </div>
         <div className="mt-1.5 flex items-center gap-1 text-[9px] text-muted-foreground">
           <span className="inline-flex items-center gap-0.5">
-            <span className="size-1 rounded-full bg-border" />
-            3 line items
+            <span className="size-1 rounded-full bg-primary/60" />
+            AI drafted
           </span>
+          <span aria-hidden="true">·</span>
+          <span>3 matched items</span>
           <span aria-hidden="true">·</span>
           <span>Valid 30 days</span>
         </div>
@@ -135,20 +138,20 @@ const whyRequoStages = [
   {
     stage: "Capture",
     icon: Inbox,
-    pain: "A single request lives across email, DMs, calls, and your notes app.",
-    fix: "One inquiry record with the form answers, files, and notes attached.",
+    pain: "A single request lives across email, DMs, calls, and your notes app. Context gets lost before you even start.",
+    fix: "One inquiry record holds the form answers, files, conversation, and AI-detected details, ready to quote.",
   },
   {
     stage: "Quote",
     icon: FileText,
-    pain: "Every quote starts from scratch. Ready buyers cool off while you rebuild the request.",
-    fix: "Turn inquiries into quotes in minutes. Reuse pricing and notes from past jobs.",
+    pain: "Every quote starts from scratch. Ready buyers cool off while you rebuild the request and look up old pricing.",
+    fix: "AI drafts from your pricing library and past quotes. Review, adjust, and send in minutes, not hours.",
   },
   {
-    stage: "Close",
+    stage: "Win & Deliver",
     icon: BellRing,
-    pain: "Sent quotes go quiet. Follow-ups depend on memory, or don't happen at all.",
-    fix: "See who viewed the quote. Get nudged before the follow-up slips.",
+    pain: "After acceptance, tracking happens in your head. Work items, invoicing, and follow-ups live nowhere useful.",
+    fix: "Track work items, generate an invoice from the accepted quote, and keep the customer loop closed end-to-end.",
   },
 ] as const;
 
@@ -156,8 +159,8 @@ const whyRequoStages = [
 // Keep these ranges in sync if the list changes.
 const faqGroups = [
   { label: "The basics", indexes: [0, 8, 9] },
-  { label: "Your workflow", indexes: [2, 3, 4, 6] },
-  { label: "Customers & team", indexes: [1, 5, 7] },
+  { label: "Your workflow", indexes: [3, 4, 5, 6] },
+  { label: "Customers & team", indexes: [1, 2, 7] },
 ] as const;
 
 export function MarketingHero() {
@@ -176,7 +179,7 @@ export function MarketingHero() {
       links: [
         { label: "Inquiries", href: "/#inquiries" },
         { label: "Quotes", href: "/#quotes" },
-        { label: "Follow-ups", href: "/#follow-ups" },
+        { label: "AI Assistant", href: "/#ai" },
         { label: "Analytics", href: "/#analytics" },
       ],
     },
@@ -194,6 +197,7 @@ export function MarketingHero() {
     <div className="overflow-x-clip">
       <PublicPageShell
         brandSubtitle={null}
+        brandSize="lg"
         className="pb-28 lg:pb-40"
         headerRevealOnScroll
         headerAction={
@@ -201,7 +205,7 @@ export function MarketingHero() {
             <PublicHeaderActions />
           </Suspense>
         }
-        headerClassName="bg-background/92 py-3 shadow-none backdrop-blur-xl supports-backdrop-filter:bg-background/88 sm:py-3.5"
+        headerClassName="public-page-header--integrated bg-background/92 py-2 shadow-none backdrop-blur-xl supports-backdrop-filter:bg-background/88 sm:py-2.5"
         headerNav={
           <nav className="public-page-header-nav">
             {navItems.map((item) => (
@@ -213,10 +217,11 @@ export function MarketingHero() {
                 {item.label}
               </Link>
             ))}
+            <MarketingResourcesNav />
           </nav>
         }
       >
-      <section className="surface-grid relative overflow-hidden border-b border-border/70 px-5 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-20 xl:px-10 xl:py-24">
+      <section className="relative overflow-hidden border-b border-border/70 px-5 py-12 sm:px-6 sm:py-14 lg:px-8 lg:py-20 xl:px-10 xl:py-24">
         <div className="flex flex-col gap-12 lg:gap-14">
           <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-6 text-center">
             <div className="flex flex-col items-center gap-4">
@@ -224,14 +229,14 @@ export function MarketingHero() {
                 Turn inquiries into accepted quotes.
               </h1>
               <p className="max-w-2xl text-[0.95rem] leading-relaxed text-muted-foreground text-balance sm:text-base sm:leading-8 lg:text-lg">
-                Capture every customer request, send professional quotes, know when they&apos;re opened, and follow up at the right time before promising leads go quiet.
+                Capture requests, send quotes, follow up, and track every deal from inquiry to invoice.
               </p>
             </div>
 
             <div className="flex w-full max-w-sm flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row">
               <Button asChild className="w-full sm:w-auto" size="lg">
                 <Link href="/signup">
-                  Start free
+                  Send your first quote
                   <ArrowRight data-icon="inline-end" />
                 </Link>
               </Button>
@@ -260,10 +265,10 @@ export function MarketingHero() {
               Most jobs aren&apos;t lost at the price.
             </h2>
             <p className="text-base leading-normal sm:leading-8 text-muted-foreground sm:text-lg">
-              They&apos;re lost between inquiry and follow-up. Scattered notes, slow quotes, silent replies. Requo closes that gap.
+              They&apos;re lost between inquiry and follow-up. Scattered notes, slow quotes, silent replies, and no clear next step after acceptance. Requo closes the whole loop.
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-[0.72rem] font-medium text-muted-foreground">
-              {["Capture", "Quote", "Close"].map((label, index, arr) => (
+              {["Capture", "Quote", "Win & Deliver"].map((label, index, arr) => (
                 <span className="flex items-center gap-2" key={label}>
                   <span className="inline-flex items-center rounded-full border border-border/70 bg-background/60 px-2.5 py-1 text-foreground shadow-sm">
                     {label}
@@ -347,10 +352,10 @@ export function MarketingHero() {
         <InViewReveal className="flex flex-col items-start gap-4">
           <p className="eyebrow">HOW IT WORKS</p>
           <h2 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl lg:text-5xl">
-            From inquiry to accepted, without the scramble.
+            From inquiry to invoice, without the scramble.
           </h2>
           <p className="max-w-2xl text-base leading-normal sm:leading-8 text-muted-foreground sm:text-lg">
-            Every customer request stays connected from the first message to the follow-up.
+            Every customer request stays connected from the first message through quoting, acceptance, work tracking, and invoicing.
           </p>
         </InViewReveal>
 
@@ -494,41 +499,21 @@ export function MarketingHero() {
         className="mx-auto mt-32 w-full max-w-4xl px-5 sm:mt-40 sm:px-6 lg:mt-48 lg:px-8 xl:px-0"
         delay={120}
       >
-        <section className="flex flex-col items-center gap-6 text-center">
-          <h2 className="max-w-2xl font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl lg:text-5xl">
-            Stop losing jobs to slow follow-up.
+        <section className="flex flex-col items-center gap-8 py-12 text-center sm:py-16">
+          <h2 className="max-w-3xl font-heading text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl xl:text-7xl">
+            Your next quote is one click away.
           </h2>
 
-          <p className="max-w-xl text-base leading-relaxed text-muted-foreground text-balance sm:text-lg sm:leading-8">
-            Set up in minutes. Capture your first inquiry, send a quote, and see the moment it&apos;s opened.
+          <Button asChild size="lg" className="rounded-full px-6 text-base font-semibold">
+            <Link href="/signup">
+              Get started
+              <ArrowRight data-icon="inline-end" />
+            </Link>
+          </Button>
+
+          <p className="text-sm text-muted-foreground">
+            Free plan available. No credit card required.
           </p>
-
-          <div className="mt-2 flex w-full max-w-sm flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row">
-            <Button asChild className="w-full sm:w-auto" size="lg">
-              <Link href="/signup">
-                Get started free
-                <ArrowRight data-icon="inline-end" />
-              </Link>
-            </Button>
-            <Button asChild className="w-full sm:w-auto" size="lg" variant="outline">
-              <Link href="/pricing">See pricing</Link>
-            </Button>
-          </div>
-
-          <div className="mt-1 flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <Check className="size-3 text-primary" />
-              Free plan available
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Check className="size-3 text-primary" />
-              No credit card required
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Check className="size-3 text-primary" />
-              Cancel anytime
-            </span>
-          </div>
         </section>
       </InViewReveal>
 

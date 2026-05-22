@@ -22,7 +22,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
-import type { BillingCurrency, BillingRegion } from "@/lib/billing/types";
 import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
 
 type UpgradeActionProps = {
@@ -30,8 +29,6 @@ type UpgradeActionProps = {
   businessId: string;
   businessSlug: string;
   currentPlan: plan;
-  region: BillingRegion;
-  defaultCurrency: BillingCurrency;
   ctaLabel?: string;
 };
 
@@ -149,8 +146,6 @@ export function LockedFeatureCard({
         {upgradeAction ? (
           <UpgradeButton
             currentPlan={upgradeAction.currentPlan}
-            defaultCurrency={upgradeAction.defaultCurrency}
-            region={upgradeAction.region}
             size="sm"
             userId={upgradeAction.userId}
             businessId={upgradeAction.businessId}
@@ -303,8 +298,6 @@ export function LockedFeaturePage({
           upgradeAction ? (
             <UpgradeButton
               currentPlan={upgradeAction.currentPlan}
-              defaultCurrency={upgradeAction.defaultCurrency}
-              region={upgradeAction.region}
               size="sm"
               userId={upgradeAction.userId}
               businessId={upgradeAction.businessId}

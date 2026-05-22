@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   followUpChannels,
   followUpDueFilterValues,
+  followUpRecurrences,
   followUpSortValues,
   followUpStatusFilterValues,
 } from "@/features/follow-ups/types";
@@ -81,6 +82,55 @@ export const followUpCreateSchema = z
       .string()
       .trim()
       .refine(isValidDateInput, "Enter a valid due date."),
+    recurrence: z.enum(followUpRecurrences).default("none"),
+    recurrenceLimit: z.preprocess(
+      (value) => {
+        if (value == null || value === "") return null;
+        const num = Number(value);
+        return Number.isNaN(num) ? value : num;
+      },
+      z.number().int().min(1).max(100).nullable().default(null),
+    ),
+  })
+  .strict();
+
+export const followUpEditSchema = z
+  .object({
+    title: z
+      .string()
+      .trim()
+      .min(2, "Enter a follow-up title.")
+      .max(160, "Follow-up titles must be 160 characters or fewer."),
+    reason: z
+      .string()
+      .trim()
+      .min(2, "Enter why this follow-up is needed.")
+      .max(500, "Follow-up reasons must be 500 characters or fewer."),
+    channel: z.enum(followUpChannels, {
+      error: () => "Choose a follow-up channel.",
+    }),
+    dueDate: z
+      .string()
+      .trim()
+      .refine(isValidDateInput, "Enter a valid due date."),
+    recurrence: z.enum(followUpRecurrences).default("none"),
+    recurrenceLimit: z.preprocess(
+      (value) => {
+        if (value == null || value === "") return null;
+        const num = Number(value);
+        return Number.isNaN(num) ? value : num;
+      },
+      z.number().int().min(1).max(100).nullable().default(null),
+    ),
+  })
+  .strict();
+
+export const followUpReassignSchema = z
+  .object({
+    assignedToUserId: z
+      .string()
+      .trim()
+      .min(1, "Choose a team member to assign."),
   })
   .strict();
 
@@ -126,4 +176,6 @@ export const followUpListFiltersSchema = z.object({
 });
 
 export type FollowUpCreateInput = z.infer<typeof followUpCreateSchema>;
+export type FollowUpEditInput = z.infer<typeof followUpEditSchema>;
 export type FollowUpRescheduleInput = z.infer<typeof followUpRescheduleSchema>;
+export type FollowUpReassignInput = z.infer<typeof followUpReassignSchema>;

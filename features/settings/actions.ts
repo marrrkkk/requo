@@ -39,7 +39,9 @@ import {
   createBusinessInquiryForm,
   deleteBusinessInquiryForm,
   duplicateBusinessInquiryForm,
+  setBusinessInquiryFormConversationalMode,
   setBusinessInquiryFormPublicState,
+  updateBusinessInquiryFormChatbotSettings,
   applyBusinessInquiryFormPreset,
   setDefaultBusinessInquiryForm,
   updateBusinessEmailTemplateSettings,
@@ -319,6 +321,7 @@ export async function updateBusinessQuoteSettingsAction(
   const { user, businessContext } = ownerAccess;
   const validationResult = businessQuoteSettingsSchema.safeParse({
     defaultQuoteNotes: formData.get("defaultQuoteNotes"),
+    defaultQuoteTerms: formData.get("defaultQuoteTerms"),
     defaultQuoteValidityDays: formData.get("defaultQuoteValidityDays"),
   });
 
@@ -1153,6 +1156,141 @@ export async function toggleBusinessInquiryFormPublicAction(
 
     return {
       error: "We couldn't update the form availability right now.",
+    };
+  }
+}
+
+export async function toggleBusinessInquiryFormConversationalAction(
+  _prevState: BusinessInquiryFormsActionState,
+  formData: FormData,
+): Promise<BusinessInquiryFormsActionState> {
+  const ownerAccess = await getOperationalBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+  const validationResult = businessInquiryFormTargetSchema.safeParse({
+    targetFormId: formData.get("targetFormId"),
+  });
+
+  if (!validationResult.success) {
+    return getValidationActionState(validationResult.error, "Choose a form and try again.");
+  }
+
+  const conversationalModeEnabled =
+    formData.get("conversationalModeEnabled") === "true";
+
+  try {
+    const result = await setBusinessInquiryFormConversationalMode({
+      businessId: businessContext.business.id,
+      actorUserId: user.id,
+      targetFormId: validationResult.data.targetFormId,
+      conversationalModeEnabled,
+    });
+
+    if (!result.ok) {
+      return {
+        error: "That inquiry form could not be found.",
+      };
+    }
+
+    updateCacheTags(
+      uniqueCacheTags([
+        ...getBusinessInquiryFormsCacheTags(businessContext.business.id),
+        ...getBusinessInquiryFormCacheTags(
+          businessContext.business.id,
+          result.formSlug,
+        ),
+      ]),
+    );
+    after(() => {
+      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+      revalidateBusinessDefaultInquiryPaths(result.businessSlug);
+    });
+
+    return {
+      success: conversationalModeEnabled
+        ? "AI conversational intake enabled."
+        : "AI conversational intake disabled.",
+    };
+  } catch (error) {
+    console.error("Failed to toggle conversational mode.", error);
+
+    return {
+      error: "We couldn't update the conversational mode right now.",
+    };
+  }
+}
+
+export async function updateBusinessInquiryFormChatbotSettingsAction(
+  _formSlug: string,
+  _prevState: BusinessInquiryFormsActionState,
+  formData: FormData,
+): Promise<BusinessInquiryFormsActionState> {
+  const ownerAccess = await getOperationalBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+  const validationResult = businessInquiryFormTargetSchema.safeParse({
+    targetFormId: formData.get("targetFormId"),
+  });
+
+  if (!validationResult.success) {
+    return getValidationActionState(validationResult.error, "Choose a form and try again.");
+  }
+
+  const assistantName = String(formData.get("assistantName") ?? "").trim();
+  const avatarStyle =
+    formData.get("avatarStyle") === "initials" ? "initials" as const : "brand" as const;
+  const openingMessage = String(formData.get("openingMessage") ?? "").trim();
+
+  try {
+    const result = await updateBusinessInquiryFormChatbotSettings({
+      businessId: businessContext.business.id,
+      actorUserId: user.id,
+      targetFormId: validationResult.data.targetFormId,
+      assistantName,
+      avatarStyle,
+      openingMessage,
+    });
+
+    if (!result.ok) {
+      return {
+        error: "That inquiry form could not be found.",
+      };
+    }
+
+    updateCacheTags(
+      uniqueCacheTags([
+        ...getBusinessInquiryFormsCacheTags(businessContext.business.id),
+        ...getBusinessInquiryFormCacheTags(
+          businessContext.business.id,
+          result.formSlug,
+        ),
+      ]),
+    );
+    after(() => {
+      revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
+      revalidateBusinessDefaultInquiryPaths(result.businessSlug);
+    });
+
+    return {
+      success: "Chatbot settings saved.",
+    };
+  } catch (error) {
+    console.error("Failed to update chatbot settings.", error);
+
+    return {
+      error: "We couldn't save the chatbot settings right now.",
     };
   }
 }

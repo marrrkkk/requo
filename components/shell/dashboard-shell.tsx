@@ -11,10 +11,12 @@ import Link from "next/link";
 import {
 
   Fragment,
+  memo,
 
   type CSSProperties,
 
   type ReactNode,
+  useMemo,
 
 } from "react";
 
@@ -349,14 +351,11 @@ export function DashboardShell({
 
     : businessMemberships;
 
-  const breadcrumbs = getDashboardBreadcrumbs(pathname);
+  const breadcrumbs = useMemo(() => getDashboardBreadcrumbs(pathname), [pathname]);
 
-  const dashboardNavigation = getDashboardNavigation(
-
-    business.slug,
-
-    businessContext.role,
-
+  const dashboardNavigation = useMemo(
+    () => getDashboardNavigation(business.slug, businessContext.role),
+    [business.slug, businessContext.role],
   );
 
   const currentPageLabel = breadcrumbs.at(-1)?.label ?? business.name;
@@ -645,7 +644,7 @@ type DashboardNavigationItemProps = {
 
 
 
-function DashboardNavigationItem({
+const DashboardNavigationItem = memo(function DashboardNavigationItem({
 
   isActive,
 
@@ -723,7 +722,7 @@ function DashboardNavigationItem({
 
   );
 
-}
+});
 
 
 

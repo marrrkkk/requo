@@ -10,6 +10,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 import { user } from "@/lib/db/schema/auth";
@@ -80,6 +81,10 @@ export const inquiries = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    qualificationScore: integer("qualification_score"),
+    qualificationTemperature: text("qualification_temperature"),
+    qualificationSignals: jsonb("qualification_signals"),
+    qualifiedAt: timestamp("qualified_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -110,6 +115,10 @@ export const inquiries = pgTable(
     index("inquiries_business_service_category_idx").on(
       table.businessId,
       table.serviceCategory,
+    ),
+    index("inquiries_business_qualification_score_idx").on(
+      table.businessId,
+      table.qualificationScore,
     ),
   ],
 );
@@ -217,5 +226,37 @@ export const inquiryNotes = pgTable(
       table.inquiryId,
     ),
     index("inquiry_notes_author_user_id_idx").on(table.authorUserId),
+  ],
+);
+
+export const inquiryDuplicates = pgTable(
+  "inquiry_duplicates",
+  {
+    id: text("id").primaryKey(),
+    businessId: text("business_id")
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    inquiryId: text("inquiry_id")
+      .notNull()
+      .references(() => inquiries.id, { onDelete: "cascade" }),
+    originalInquiryId: text("original_inquiry_id")
+      .notNull()
+      .references(() => inquiries.id, { onDelete: "cascade" }),
+    reason: text("reason").notNull(),
+    tokenOverlap: integer("token_overlap"),
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+    dismissedBy: text("dismissed_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("inquiry_duplicates_business_id_idx").on(table.businessId),
+    uniqueIndex("inquiry_duplicates_inquiry_id_idx").on(table.inquiryId),
+    index("inquiry_duplicates_original_inquiry_id_idx").on(
+      table.originalInquiryId,
+    ),
   ],
 );

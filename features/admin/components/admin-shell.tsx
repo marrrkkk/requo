@@ -69,7 +69,7 @@ export function AdminShell({
             <BrandMark
               collapseLabel
               className="min-w-0 px-2 py-1.5"
-              href="/admin"
+              href="/"
               subtitle="Admin"
             />
           </div>

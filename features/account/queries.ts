@@ -18,7 +18,7 @@ import {
   account,
   businesses,
   profiles,
-  businessSubscriptions,
+  accountSubscriptions,
 } from "@/lib/db/schema";
 
 async function getCachedAccountProfile(
@@ -102,16 +102,16 @@ export async function getAccountDeletionPreflight(
         id: businesses.id,
         name: businesses.name,
         slug: businesses.slug,
-        subscriptionStatus: businessSubscriptions.status,
-        canceledAt: businessSubscriptions.canceledAt,
-        currentPeriodEnd: businessSubscriptions.currentPeriodEnd,
-        billingProvider: businessSubscriptions.billingProvider,
-        providerSubscriptionId: businessSubscriptions.providerSubscriptionId,
+        subscriptionStatus: accountSubscriptions.status,
+        canceledAt: accountSubscriptions.canceledAt,
+        currentPeriodEnd: accountSubscriptions.currentPeriodEnd,
+        billingProvider: accountSubscriptions.billingProvider,
+        providerSubscriptionId: accountSubscriptions.providerSubscriptionId,
       })
       .from(businesses)
       .leftJoin(
-        businessSubscriptions,
-        eq(businessSubscriptions.businessId, businesses.id),
+        accountSubscriptions,
+        eq(accountSubscriptions.userId, businesses.ownerUserId),
       )
       .where(
         and(

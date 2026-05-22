@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { getInquiryAssistantContextForBusiness } from "@/features/ai/queries";
 import type {
@@ -9,26 +9,26 @@ import type {
   InquiryAssistantContext,
 } from "@/features/ai/types";
 import {
-  getFollowUpOverviewForBusinessUncached,
   getFollowUpsForQuote,
 } from "@/features/follow-ups/queries";
 import type { FollowUpOverviewData, FollowUpView } from "@/features/follow-ups/types";
 import { getAdditionalInquirySubmittedFields } from "@/features/inquiries/form-config";
-import { buildBusinessMemoryContext } from "@/features/memory/queries";
+import { retrieveRelevantMemories } from "@/features/memory/rag-retriever";
 import {
-  getEffectiveQuoteStatus,
   getQuoteDetailForBusiness,
 } from "@/features/quotes/queries";
 import { formatQuoteMoney } from "@/features/quotes/utils";
 import { streamWithFallback } from "@/lib/ai";
 import type { AiChatMessage, AiCompletionRequest } from "@/lib/ai";
+import { summarizeDroppedMessages } from "@/lib/ai/history-summarizer";
+import {
+  classifyMessageComplexity,
+  getContextBudgetForComplexity,
+} from "@/lib/ai/message-complexity";
+import type { AiModelSelection } from "@/lib/ai/model-options";
 import { db } from "@/lib/db/client";
 import {
-  activityLogs,
   businesses,
-  inquiries,
-  quotes,
-  user,
 } from "@/lib/db/schema";
 
 function truncateText(value: string | null | undefined, maxLength: number) {
@@ -95,17 +95,6 @@ function formatFileSize(bytes: number) {
   }
 
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatMemoryLines(memory: Awaited<ReturnType<typeof buildBusinessMemoryContext>>) {
-  if (!memory.memories.length) {
-    return "- No saved business knowledge.";
-  }
-
-  return memory.memories
-    .slice(0, 6)
-    .map((item) => `- ${item.title}: ${truncateText(item.content, 400)}`)
-    .join("\n");
 }
 
 function formatActivityLines(
@@ -393,6 +382,8 @@ function formatBusinessProfileLines(profile: {
 async function buildInquiryContext(input: {
   businessId: string;
   entityId: string;
+  /** User message for RAG-based memory retrieval */
+  userMessage?: string;
 }) {
   const context = await getInquiryAssistantContextForBusiness({
     businessId: input.businessId,
@@ -403,86 +394,99 @@ async function buildInquiryContext(input: {
     return null;
   }
 
+  // Use RAG for memory retrieval — only load relevant memories
+  const queryText = input.userMessage
+    ? `${input.userMessage} ${context.inquiry.serviceCategory} ${context.inquiry.customerName}`
+    : `${context.inquiry.details} ${context.inquiry.serviceCategory}`;
+
+  const memoryResult = await retrieveRelevantMemories({
+    businessId: input.businessId,
+    queryText,
+    topK: 3,
+  });
+
   const additionalFields = getAdditionalInquirySubmittedFields(
     context.inquiry.submittedFieldSnapshot,
   );
 
+  // Compact business line
+  const businessLine = `Business: ${context.business.name} (${context.business.businessType}); slug: ${context.business.slug}; currency ${context.business.defaultCurrency}; tone ${context.business.aiTonePreference}`;
+
+  // Compact inquiry header — only include non-null fields
+  const inquiryFields = compactFields([
+    ["", context.inquiry.customerName],
+    ["email", context.inquiry.customerEmail],
+    ["category", context.inquiry.serviceCategory],
+    ["status", context.inquiry.status],
+    ["subject", context.inquiry.subject],
+    ["deadline", context.inquiry.requestedDeadline],
+    ["budget", context.inquiry.budgetText],
+    ["submitted", formatDateOrNull(context.inquiry.submittedAt)],
+  ]);
+
   return [
     "Surface: inquiry",
     "",
-    formatBusinessProfileLines({
-      name: context.business.name,
-      slug: context.business.slug,
-      businessType: context.business.businessType,
-      shortDescription: context.business.shortDescription,
-      contactEmail: context.business.contactEmail,
-      defaultCurrency: context.business.defaultCurrency,
-      aiTonePreference: context.business.aiTonePreference,
-      defaultEmailSignature: context.business.defaultEmailSignature,
-      defaultQuoteNotes: context.business.defaultQuoteNotes,
-      createdAt: context.business.createdAt,
-    }),
+    businessLine,
+    context.business.shortDescription ? `Description: ${context.business.shortDescription}` : null,
     "",
-    "Inquiry",
-    `- ID: ${context.inquiry.id}`,
-    `- Customer: ${context.inquiry.customerName}`,
-    `- Email: ${context.inquiry.customerEmail ?? "Not provided"}`,
-    `- Contact: ${context.inquiry.customerContactMethod} ${context.inquiry.customerContactHandle}`,
-    `- Category: ${context.inquiry.serviceCategory}`,
-    `- Subject: ${context.inquiry.subject ?? "Not provided"}`,
-    `- Status: ${context.inquiry.status}`,
-    `- Deadline: ${context.inquiry.requestedDeadline ?? "Not provided"}`,
-    `- Budget: ${context.inquiry.budgetText ?? "Not provided"}`,
-    `- Submitted: ${formatDate(context.inquiry.submittedAt)}`,
+    `Inquiry: ${inquiryFields}`,
     "",
     "Customer message",
     truncateText(context.inquiry.details, 3000),
-    "",
-    "Additional submitted fields",
     additionalFields.length
-      ? additionalFields
-          .map((field) => `- ${field.label}: ${field.displayValue}`)
-          .join("\n")
-      : "- None.",
-    "",
-    "Attachments",
+      ? [
+          "",
+          "Additional fields",
+          ...additionalFields.map((field) => `- ${field.label}: ${field.displayValue}`),
+        ].join("\n")
+      : null,
     context.attachments.length
-      ? context.attachments
-          .map(
-            (attachment) =>
-              `- ${attachment.fileName}; ${attachment.contentType}; ${formatFileSize(
-                attachment.fileSize,
-              )}; uploaded ${formatDate(attachment.createdAt)}`,
-          )
-          .join("\n")
-      : "- No attachments.",
-    "",
-    "Internal notes",
+      ? [
+          "",
+          "Attachments",
+          ...context.attachments.map(
+            (a) => `- ${a.fileName} (${a.contentType}, ${formatFileSize(a.fileSize)})`,
+          ),
+        ].join("\n")
+      : null,
     context.notes.length
-      ? context.notes
-          .map((note) => `- ${note.authorName ?? "Owner"}: ${truncateText(note.body, 320)}`)
-          .join("\n")
-      : "- No notes yet.",
+      ? [
+          "",
+          "Internal notes",
+          ...context.notes.map((note) => `- ${note.authorName ?? "Owner"}: ${truncateText(note.body, 280)}`),
+        ].join("\n")
+      : null,
     "",
     "Follow-ups",
     formatFollowUpLines(context.followUps),
     "",
     "Related quotes",
     formatRelatedQuoteLines(context.relatedQuotes),
-    "",
-    "Inquiry activity timeline",
-    formatActivityLines(context.activities),
+    context.activities.length
+      ? [
+          "",
+          "Activity",
+          ...context.activities.slice(0, 8).map(
+            (a) => `- ${formatDateOrNull(a.createdAt)} ${a.summary}`,
+          ),
+        ].join("\n")
+      : null,
     "",
     "Business knowledge",
-    formatMemoryLines(context.memory),
-  ].join("\n");
+    memoryResult.combinedText
+      ? memoryResult.memories.map((m) => `- ${m.title}: ${truncateText(m.content, 400)}`).join("\n")
+      : "- No saved business knowledge.",
+  ].filter((line): line is string => line !== null).join("\n");
 }
 
 async function buildQuoteContext(input: {
   businessId: string;
   entityId: string;
+  /** User message for RAG-based memory retrieval */
+  userMessage?: string;
 }) {
-  const [businessRows, quote, quoteFollowUps, memory] = await Promise.all([
+  const [businessRows, quote, quoteFollowUps] = await Promise.all([
     db
       .select({
         name: businesses.name,
@@ -507,7 +511,6 @@ async function buildQuoteContext(input: {
       businessId: input.businessId,
       quoteId: input.entityId,
     }),
-    buildBusinessMemoryContext(input.businessId),
   ]);
   const business = businessRows[0];
 
@@ -515,94 +518,89 @@ async function buildQuoteContext(input: {
     return null;
   }
 
-  const linkedInquiryContext = quote.inquiryId
-    ? await getInquiryAssistantContextForBusiness({
-        businessId: input.businessId,
-        inquiryId: quote.inquiryId,
-      })
-    : null;
+  // Use RAG for memory retrieval — only load relevant memories
+  const queryText = input.userMessage
+    ? `${input.userMessage} ${quote.title} ${quote.customerName}`
+    : `${quote.title} ${quote.customerName} ${quote.notes ?? ""}`;
+
+  const [memoryResult, linkedInquiryContext] = await Promise.all([
+    retrieveRelevantMemories({
+      businessId: input.businessId,
+      queryText,
+      topK: 3,
+    }),
+    quote.inquiryId
+      ? getInquiryAssistantContextForBusiness({
+          businessId: input.businessId,
+          inquiryId: quote.inquiryId,
+        })
+      : Promise.resolve(null),
+  ]);
 
   return [
     "Surface: quote",
     "",
-    formatBusinessProfileLines({
-      name: business.name,
-      slug: business.slug,
-      businessType: business.businessType,
-      shortDescription: business.shortDescription,
-      contactEmail: business.contactEmail,
-      defaultCurrency: business.defaultCurrency,
-      aiTonePreference: business.aiTonePreference,
-      defaultEmailSignature: business.defaultEmailSignature,
-      defaultQuoteNotes: business.defaultQuoteNotes,
-      createdAt: business.createdAt,
-    }),
+    `Business: ${business.name} (${business.businessType}); slug: ${business.slug}; currency ${business.defaultCurrency}; tone ${business.aiTonePreference}`,
+    business.shortDescription ? `Description: ${business.shortDescription}` : null,
     "",
-    "Quote",
-    `- ID: ${quote.id}`,
-    `- Number: ${quote.quoteNumber}`,
-    `- Title: ${quote.title}`,
-    `- Customer: ${quote.customerName}`,
-    `- Email: ${quote.customerEmail ?? "Not provided"}`,
-    `- Contact: ${quote.customerContactMethod} ${quote.customerContactHandle}`,
-    `- Status: ${quote.status}`,
-    `- Subtotal: ${formatQuoteMoney(quote.subtotalInCents, quote.currency)}`,
-    `- Discount: ${formatQuoteMoney(quote.discountInCents, quote.currency)}`,
-    `- Valid until: ${quote.validUntil}`,
-    `- Total: ${formatQuoteMoney(quote.totalInCents, quote.currency)}`,
-    `- Sent: ${formatDate(quote.sentAt)}`,
-    `- Viewed: ${formatDate(quote.publicViewedAt)}`,
-    `- Accepted: ${formatDate(quote.acceptedAt)}`,
-    `- Customer responded: ${formatDate(quote.customerRespondedAt)}`,
-    `- Customer response: ${truncateText(quote.customerResponseMessage, 600) || "None"}`,
-    `- Post-acceptance status: ${quote.postAcceptanceStatus}`,
-    `- Archived: ${formatDate(quote.archivedAt)}`,
-    `- Voided: ${formatDate(quote.voidedAt)}`,
-    `- Notes: ${truncateText(quote.notes, 1600) || "Not set"}`,
+    `Quote: ${quote.quoteNumber} "${quote.title}"`,
+    `Customer: ${compactFields([
+      ["", quote.customerName],
+      ["email", quote.customerEmail],
+    ])}`,
+    `Status: ${compactFields([
+      ["", quote.status],
+      ["total", formatQuoteMoney(quote.totalInCents, quote.currency)],
+      ["valid-until", quote.validUntil],
+      ["sent", formatDateOrNull(quote.sentAt)],
+      ["accepted", formatDateOrNull(quote.acceptedAt)],
+      ["post-acceptance", quote.postAcceptanceStatus === "none" ? null : quote.postAcceptanceStatus],
+    ])}`,
+    quote.customerResponseMessage
+      ? `Customer response: ${truncateText(quote.customerResponseMessage, 400)}`
+      : null,
+    quote.notes ? `Notes: ${truncateText(quote.notes, 800)}` : null,
     "",
     "Line items",
     quote.items.length
       ? quote.items
           .map(
             (item) =>
-              `- ${item.description}; quantity ${item.quantity}; unit ${formatQuoteMoney(
-                item.unitPriceInCents,
-                quote.currency,
-              )}; line total ${formatQuoteMoney(item.lineTotalInCents, quote.currency)}`,
+              `- ${item.description} x${item.quantity} @${formatQuoteMoney(item.unitPriceInCents, quote.currency)} = ${formatQuoteMoney(item.lineTotalInCents, quote.currency)}`,
           )
           .join("\n")
       : "- No line items.",
     "",
-    "Quote follow-ups",
+    "Follow-ups",
     formatFollowUpViewLines(quoteFollowUps),
     "",
-    "Linked inquiry context",
+    "Linked inquiry",
     formatLinkedInquiryContext(linkedInquiryContext),
-    "",
-    "Recent quote activity",
     quote.activities.length
-      ? quote.activities
-          .slice(0, 8)
-          .map((activity) => `- ${formatDate(activity.createdAt)}: ${activity.summary}`)
-          .join("\n")
-      : "- No activity yet.",
+      ? [
+          "",
+          "Activity",
+          ...quote.activities.slice(0, 6).map(
+            (a) => `- ${formatDate(a.createdAt)}: ${a.summary}`,
+          ),
+        ].join("\n")
+      : null,
     "",
     "Business knowledge",
-    formatMemoryLines(memory),
-  ].join("\n");
+    memoryResult.combinedText
+      ? memoryResult.memories.map((m) => `- ${m.title}: ${truncateText(m.content, 400)}`).join("\n")
+      : "- No saved business knowledge.",
+  ].filter((line): line is string => line !== null).join("\n");
 }
 
 async function buildDashboardContext(input: {
   businessId: string;
+  /** User message for RAG-based memory retrieval */
+  userMessage?: string;
 }) {
-  const [
-    businessRow,
-    memory,
-    recentInquiries,
-    recentQuotes,
-    followUpOverview,
-    recentActivity,
-  ] = await Promise.all([
+  // Minimal context for dashboard — tools handle all data queries.
+  // Only load business identity and relevant knowledge (RAG-filtered).
+  const [businessRow, memoryResult] = await Promise.all([
     db
       .select({
         id: businesses.id,
@@ -613,8 +611,6 @@ async function buildDashboardContext(input: {
         contactEmail: businesses.contactEmail,
         defaultCurrency: businesses.defaultCurrency,
         aiTonePreference: businesses.aiTonePreference,
-        defaultEmailSignature: businesses.defaultEmailSignature,
-        defaultQuoteNotes: businesses.defaultQuoteNotes,
         createdAt: businesses.createdAt,
       })
       .from(businesses)
@@ -625,82 +621,11 @@ async function buildDashboardContext(input: {
         ),
       )
       .limit(1),
-    buildBusinessMemoryContext(input.businessId),
-    db
-      .select({
-        id: inquiries.id,
-        customerName: inquiries.customerName,
-        customerEmail: inquiries.customerEmail,
-        customerContactMethod: inquiries.customerContactMethod,
-        customerContactHandle: inquiries.customerContactHandle,
-        serviceCategory: inquiries.serviceCategory,
-        subject: inquiries.subject,
-        status: inquiries.status,
-        source: inquiries.source,
-        submittedAt: inquiries.submittedAt,
-        createdAt: inquiries.createdAt,
-        requestedDeadline: inquiries.requestedDeadline,
-        budgetText: inquiries.budgetText,
-        details: inquiries.details,
-      })
-      .from(inquiries)
-      .where(
-        and(
-          eq(inquiries.businessId, input.businessId),
-          isNull(inquiries.deletedAt),
-        ),
-      )
-      .orderBy(desc(inquiries.submittedAt))
-      .limit(5),
-    db
-      .select({
-        id: quotes.id,
-        quoteNumber: quotes.quoteNumber,
-        title: quotes.title,
-        customerName: quotes.customerName,
-        customerEmail: quotes.customerEmail,
-        customerContactMethod: quotes.customerContactMethod,
-        customerContactHandle: quotes.customerContactHandle,
-        status: getEffectiveQuoteStatus,
-        subtotalInCents: quotes.subtotalInCents,
-        discountInCents: quotes.discountInCents,
-        totalInCents: quotes.totalInCents,
-        currency: quotes.currency,
-        validUntil: quotes.validUntil,
-        sentAt: quotes.sentAt,
-        acceptedAt: quotes.acceptedAt,
-        publicViewedAt: quotes.publicViewedAt,
-        customerRespondedAt: quotes.customerRespondedAt,
-        customerResponseMessage: quotes.customerResponseMessage,
-        postAcceptanceStatus: quotes.postAcceptanceStatus,
-        inquiryId: quotes.inquiryId,
-        createdAt: quotes.createdAt,
-      })
-      .from(quotes)
-      .where(
-        and(
-          eq(quotes.businessId, input.businessId),
-          isNull(quotes.deletedAt),
-        ),
-      )
-      .orderBy(desc(quotes.createdAt))
-      .limit(5),
-    getFollowUpOverviewForBusinessUncached(input.businessId),
-    db
-      .select({
-        id: activityLogs.id,
-        type: activityLogs.type,
-        summary: activityLogs.summary,
-        createdAt: activityLogs.createdAt,
-        actorName: user.name,
-        inquiryId: activityLogs.inquiryId,
-        quoteId: activityLogs.quoteId,
-      })
-      .from(activityLogs)
-      .leftJoin(user, eq(activityLogs.actorUserId, user.id))
-      .where(eq(activityLogs.businessId, input.businessId))
-      .orderBy(desc(activityLogs.createdAt))
-      .limit(10),
+    retrieveRelevantMemories({
+      businessId: input.businessId,
+      queryText: input.userMessage ?? "",
+      topK: 3,
+    }),
   ]);
   const business = businessRow[0];
 
@@ -708,88 +633,34 @@ async function buildDashboardContext(input: {
     return null;
   }
 
+  const memoryLines = memoryResult.combinedText
+    ? memoryResult.memories.map((m) => `- ${m.title}: ${truncateText(m.content, 400)}`).join("\n")
+    : "- No saved business knowledge.";
+
   return [
     "Surface: dashboard",
     "",
-    formatBusinessProfileLines({
-      name: business.name,
-      slug: business.slug,
-      businessType: business.businessType,
-      shortDescription: business.shortDescription,
-      contactEmail: business.contactEmail,
-      defaultCurrency: business.defaultCurrency,
-      aiTonePreference: business.aiTonePreference,
-      defaultEmailSignature: business.defaultEmailSignature,
-      defaultQuoteNotes: business.defaultQuoteNotes,
-      createdAt: business.createdAt,
-    }),
-    "",
-    `Recent inquiries (showing up to 5 most recent)`,
-    recentInquiries.length
-      ? [
-          ...recentInquiries.map((inquiry) =>
-            `- ${compactFields([
-              ["", inquiry.customerName],
-              ["email", inquiry.customerEmail],
-              ["via", `${inquiry.customerContactMethod} ${inquiry.customerContactHandle}`.trim()],
-              ["category", inquiry.serviceCategory],
-              ["status", inquiry.status],
-              ["subject", inquiry.subject],
-              ["source", inquiry.source],
-              ["submitted", formatDateOrNull(inquiry.submittedAt)],
-              ["deadline", inquiry.requestedDeadline],
-              ["budget", inquiry.budgetText],
-              ["details", truncateText(inquiry.details, 180) || null],
-            ])}`,
-          ),
-          ...(recentInquiries.length >= 5
-            ? ["(More inquiries available in the Inquiries page)"]
-            : []),
-        ].join("\n")
-      : "- No recent inquiries.",
-    "",
-    `Recent quotes (showing up to 5 most recent)`,
-    recentQuotes.length
-      ? [
-          ...recentQuotes.map((quote) =>
-            `- ${compactFields([
-              ["", quote.quoteNumber],
-              ["title", quote.title],
-              ["customer", quote.customerName],
-              ["email", quote.customerEmail],
-              ["status", quote.status],
-              ["total", formatQuoteMoney(quote.totalInCents, quote.currency)],
-              ["valid-until", quote.validUntil],
-              ["linked-inquiry", quote.inquiryId],
-              ["sent", formatDateOrNull(quote.sentAt)],
-              ["viewed", formatDateOrNull(quote.publicViewedAt)],
-              ["accepted", formatDateOrNull(quote.acceptedAt)],
-              ["responded", formatDateOrNull(quote.customerRespondedAt)],
-              ["response", truncateText(quote.customerResponseMessage, 120) || null],
-              ["post-acceptance", quote.postAcceptanceStatus === "none" ? null : quote.postAcceptanceStatus],
-            ])}`,
-          ),
-          ...(recentQuotes.length >= 5
-            ? ["(More quotes available in the Quotes page)"]
-            : []),
-        ].join("\n")
-      : "- No recent quotes.",
-    "",
-    "Follow-up overview",
-    formatFollowUpOverviewLines(followUpOverview),
-    "",
-    "Recent business activity",
-    formatBusinessActivityLines(recentActivity),
+    `Business: ${business.name} (${business.businessType}); slug: /${business.slug}; currency ${business.defaultCurrency}; tone ${business.aiTonePreference}`,
+    business.shortDescription ? `Description: ${business.shortDescription}` : null,
+    business.contactEmail ? `Contact email: ${business.contactEmail}` : null,
+    `Created: ${business.createdAt.toISOString().slice(0, 10)}`,
     "",
     "Business knowledge",
-    formatMemoryLines(memory),
-  ].join("\n");
+    memoryLines,
+    "",
+    "IMPORTANT: You MUST call tools to answer any question about data. Do NOT use the business knowledge above to answer count/status/detail questions — it is background context only.",
+    `Use this slug for building links: ${business.slug}`,
+    "Link format for inquiries: /businesses/{slug}/inquiries/{INQUIRY_ID} — MUST start with /",
+    "Link format for quotes: /businesses/{slug}/quotes/{QUOTE_ID} — MUST start with /",
+  ].filter((line): line is string => line !== null).join("\n");
 }
 
 export async function buildAiSurfaceContext(input: {
   surface: AiSurface;
   entityId: string;
   businessId: string | null;
+  /** User message for RAG-based memory retrieval */
+  userMessage?: string;
 }) {
   switch (input.surface) {
     case "inquiry":
@@ -797,6 +668,7 @@ export async function buildAiSurfaceContext(input: {
         ? buildInquiryContext({
             businessId: input.businessId,
             entityId: input.entityId,
+            userMessage: input.userMessage,
           })
         : null;
     case "quote":
@@ -804,52 +676,92 @@ export async function buildAiSurfaceContext(input: {
         ? buildQuoteContext({
             businessId: input.businessId,
             entityId: input.entityId,
+            userMessage: input.userMessage,
           })
         : null;
     case "dashboard":
       return input.businessId
         ? buildDashboardContext({
             businessId: input.businessId,
+            userMessage: input.userMessage,
           })
         : null;
   }
 }
 
-function getSurfaceInstructions(surface: AiSurface) {
+export function getSurfaceInstructions(surface: AiSurface) {
   const shared = [
-    "You are Requo's internal assistant for an owner-led service business.",
-    "Use only the provided Requo business context and chat history.",
-    "Resolve follow-up questions, pronouns, and omitted subjects from the recent chat history before asking the user to repeat themselves.",
-    "If the last part of the conversation was about the current business profile, treat short follow-ups such as 'when was it created' or 'what is its email' as referring to that business unless the user redirects.",
-    "Stay focused on inquiries, quotes, tickets, reports, cases, complaints, incidents, customer issues, support workflows, follow-ups, and operational summaries.",
-    "Never claim that you changed the database, sent a message, or updated a record.",
-    "If the user asks to create, update, save, send, close, reopen, assign, or otherwise modify app records, explain that chat can draft or guide the change but the saved change must be done with the app controls.",
-    "If exact pricing, policy, availability, or terms are missing, say what is missing instead of inventing details.",
-    "Do not include <think> or <thinking> tags, internal thought process, or reasoning blocks.",
-    "Keep the answer concise and directly usable.",
+    "You are Requo's assistant for an owner-led service business.",
+    "Use ONLY the provided context, tool results, and chat history. Never invent, assume, or hallucinate data.",
+    "Stay focused on inquiries, quotes, follow-ups, and operational summaries.",
+    "Never claim you changed the database or sent a message. Modifications require app controls.",
+    "If pricing/policy/terms are missing, say what's missing instead of inventing details.",
+    "Format as GitHub-flavored Markdown. Be concise.",
+    "",
+    "STRICT DATA RULES:",
+    "- Every number, count, name, status, date, and amount you mention MUST come directly from context or tool output.",
+    "- NEVER fabricate records, IDs, quote numbers, customer names, or statistics.",
+    "- If data is not available in context or tool results, explicitly state that. Do not estimate or approximate.",
+    "- When tool results include IDs, use them to construct accurate links.",
+    "",
+    "RESPONSE RULES:",
+    "- Simple factual questions: ONE sentence, no headers. E.g. 'The status of Q-1006 is **Draft**.'",
+    "- Link inquiries using the URL from tool output: [Name](/businesses/{slug}/inquiries/ID) — always use the full absolute path starting with /",
+    "- Link quotes using the URL from tool output: [Q-XXXX](/businesses/{slug}/quotes/ID) — always use the full absolute path starting with /",
+    "- Only present data from context or tool output. Never invent records. If not found, say so.",
+    "",
+    "TEMPLATES:",
+    "Inquiry: **[Name](link)** — [Category] `[status]` with bullet details",
+    "Quote: [**Q-XXXX**](link) — [Title] `[status]` | Customer | Total | line items table",
+    "Follow-up: ⏰ **[Title]** — due [date] `[status]` — [reason]",
   ];
 
   if (surface === "inquiry") {
     return [
       ...shared,
-      "Inquiry surface: help with the current inquiry, related customer workflow, summaries, replies, follow-ups, notes, status explanations, and quote preparation.",
+      "",
+      "Inquiry surface: help with the current inquiry, summaries, replies, follow-ups, notes, status, and quote preparation.",
     ].join("\n");
   }
 
   if (surface === "quote") {
     return [
       ...shared,
-      "Quote surface: prioritize quote drafting, wording improvements, terms, notes, exclusions, assumptions, customer-facing messages, follow-ups, linked inquiry context, and missing-information checks.",
-      "Drafting quote text is allowed when it is only shown to the user.",
-      "Saving quote text, changing quote status, sending externally, or changing quote totals must be done with the quote page controls.",
+      "",
+      "Quote surface: help with quote drafting, wording, terms, notes, follow-ups, linked inquiry context, and missing-info checks.",
+      "Drafting text is allowed. Saving/sending/changing status requires app controls.",
     ].join("\n");
   }
 
   return [
     ...shared,
-    "Dashboard surface: help across the current business. Be read-heavy by default and summarize this business's inquiries, quotes, follow-ups, recent activity, and operational workload.",
-    "Only the most recent items are included in context. If the user asks for a full list or more items than shown, tell them to check the Inquiries or Quotes page for the complete list.",
-    "Avoid broad or destructive write guidance from dashboard. Any database modification must be done with the app controls.",
+    "",
+    "Dashboard surface: answer questions across the business using tools.",
+    "CRITICAL RULES — NO HALLUCINATION:",
+    "- ALWAYS call a tool before answering any question about data, counts, statuses, records, or business metrics.",
+    "- NEVER guess or estimate counts, totals, statuses, names, emails, dates, or amounts. If you don't have tool output, call the tool first.",
+    "- NEVER fabricate inquiry IDs, quote numbers, customer names, or any identifiers. Only reference data returned by tools.",
+    "- If a tool returns 'not found' or empty results, report that honestly. Do not invent alternative results.",
+    "- If the user's question cannot be answered with available tools, say so clearly. Do not approximate.",
+    "- Use the URLs returned by tools in your links. Do not construct URLs from memory — only use URLs from tool output.",
+    "- When referencing counts, use the EXACT numbers from tool output. Do not round, approximate, or add to them.",
+    "- Available tools: count_inquiries, count_quotes, list_inquiries, list_quotes, search_inquiries, search_quotes, get_inquiry_details, get_quote_details, get_business_stats, get_analytics_overview, get_revenue_summary, get_follow_ups, get_recent_activity, get_stale_inquiries, get_expiring_quotes, get_customer_history, get_service_categories, get_pricing_library, get_inquiry_notes, get_inquiry_conversation, get_inquiry_attachments, get_job_pipeline, get_response_times, get_period_comparison, get_business_knowledge, get_quote_customer_response.",
+    "",
+    "ACTION TOOLS (write operations):",
+    "- draft_inquiry: Use when the user asks to create/log/draft a new inquiry. Returns an action proposal the user must confirm.",
+    "- draft_quote: Use when the user asks to create/prepare/draft a quote. Returns an action proposal the user must confirm.",
+    "- schedule_follow_up: Use when the user asks to schedule a follow-up/reminder. Requires an inquiryId or quoteId. Returns an action proposal the user must confirm.",
+    "- update_inquiry_status: Use when the user asks to change an inquiry's status. Returns an action proposal the user must confirm.",
+    "",
+    "ACTION TOOL CRITICAL RULES:",
+    "- The action tool call itself IS the confirmation UI. When you call draft_quote, draft_inquiry, schedule_follow_up, or update_inquiry_status, a confirmation button automatically appears for the user. You do NOT need to write any [ACTION_PROPOSAL] text manually.",
+    "- NEVER write [ACTION_PROPOSAL] blocks yourself. NEVER describe or simulate a confirmation dialog. Just call the tool — the UI handles the rest.",
+    "- ALWAYS fetch real data first before calling an action tool. For draft_quote: call get_inquiry_details or search_inquiries first to get correct customer name, email, contact method, service details, and inquiry ID. For schedule_follow_up: call get_inquiry_details or get_quote_details first to get the correct entity ID.",
+    "- NEVER invent or guess customer names, emails, contact handles, prices, or IDs when calling action tools. Every field must come from tool output or explicit user instructions.",
+    "- If the user says 'create a quote for [inquiry]', your steps are: (1) search/get the inquiry details, (2) use those details to fill the draft_quote tool call with real data.",
+    "- For quotes, calculate unitPriceInCents as dollars × 100 (e.g. $50 = 5000 cents). If the user specifies prices, use those. If not, check get_pricing_library for standard pricing.",
+    "- After calling an action tool, write a SHORT one-line confirmation like 'Here's the quote draft — confirm to create it.' Do NOT repeat all the details (the UI card shows them).",
+    "- NEVER say 'the action proposal should appear' or 'you should see a confirmation button'. The tool output IS the button. Just say 'Confirm below to create it.'",
   ].join("\n");
 }
 
@@ -859,6 +771,7 @@ export function buildAiSurfaceCompletionRequest(input: {
   message: string;
   history?: AiChatMessage[];
   qualityTier?: AiCompletionRequest["qualityTier"];
+  modelSelection?: AiModelSelection | null;
 }): AiCompletionRequest {
   const systemContent = getSurfaceInstructions(input.surface);
   const userContent = [
@@ -869,16 +782,18 @@ export function buildAiSurfaceCompletionRequest(input: {
     truncateText(input.message, 4000),
   ].join("\n");
 
-  // Rough token estimate: ~4 chars per token for English text.
-  // Reserve budget for output tokens and leave headroom for model overhead.
+  // Classify message complexity for dynamic budget allocation
+  const complexity = classifyMessageComplexity(input.message);
+  const maxInputChars = getContextBudgetForComplexity(complexity);
+
   const maxOutputTokens = input.surface === "quote" ? 2200 : 1700;
-  const maxInputChars = 16_000; // ~4000 tokens input budget for smaller models
   const fixedChars = systemContent.length + userContent.length;
   const availableForHistory = Math.max(0, maxInputChars - fixedChars);
 
   const history = trimHistoryToFit(input.history ?? [], availableForHistory);
 
   return {
+    provider: input.modelSelection?.provider,
     model: "",
     messages: [
       {
@@ -893,7 +808,8 @@ export function buildAiSurfaceCompletionRequest(input: {
     ],
     temperature: 0.2,
     maxOutputTokens,
-    qualityTier: input.qualityTier ?? "balanced",
+    qualityTier: input.qualityTier ?? (complexity === "simple" ? "cheap" : "balanced"),
+    ...(input.modelSelection ? { model: input.modelSelection.model } : {}),
   };
 }
 
@@ -904,8 +820,8 @@ export function buildAiSurfaceCompletionRequest(input: {
  * 1. If everything fits, return as-is.
  * 2. Otherwise, keep the most recent messages (for continuity) and optionally the
  *    first user message (as a topic anchor), dropping messages from the middle.
- * 3. When messages are dropped from the middle, inject a system breadcrumb so the
- *    model knows there was earlier context it didn't see.
+ * 3. When messages are dropped from the middle, generate a heuristic summary
+ *    so the model knows there was earlier context it didn't see.
  * 4. As a last resort, truncate the oldest remaining message's content.
  */
 function trimHistoryToFit(
@@ -927,10 +843,10 @@ function trimHistoryToFit(
   const firstUser = firstUserIndex >= 0 ? history[firstUserIndex] : null;
 
   // Collect recent messages (from newest), stopping when we'd exceed budget.
-  // Reserve room for the topic anchor + breadcrumb.
-  const breadcrumbCost = 120; // approx chars for "[Earlier messages omitted...]"
+  // Reserve room for the topic anchor + summary breadcrumb.
+  const summaryBudget = 300; // chars for the summary message
   const anchorCost = firstUser ? Math.min(firstUser.content.length, 400) + 20 : 0;
-  const recentBudget = Math.max(200, maxChars - anchorCost - breadcrumbCost);
+  const recentBudget = Math.max(200, maxChars - anchorCost - summaryBudget);
 
   const recent: AiChatMessage[] = [];
   let recentChars = 0;
@@ -949,11 +865,11 @@ function trimHistoryToFit(
     recentChars += cost;
   }
 
-  // If we consumed everything after the anchor, no breadcrumb needed.
+  // Determine which messages were dropped
   const firstRecentIndex =
     recent.length > 0 ? history.indexOf(recent[0]) : history.length;
-  const droppedCount =
-    firstRecentIndex - (firstUserIndex >= 0 ? firstUserIndex + 1 : 0);
+  const droppedStartIndex = firstUserIndex >= 0 ? firstUserIndex + 1 : 0;
+  const droppedMessages = history.slice(droppedStartIndex, firstRecentIndex);
 
   const result: AiChatMessage[] = [];
 
@@ -968,11 +884,15 @@ function trimHistoryToFit(
     });
   }
 
-  if (droppedCount > 0) {
-    result.push({
-      role: "system",
-      content: `[Earlier ${droppedCount} message${droppedCount === 1 ? "" : "s"} omitted for brevity. Ask if you need earlier context.]`,
-    });
+  if (droppedMessages.length > 0) {
+    // Generate a heuristic summary of dropped messages instead of just "[omitted]"
+    const summary = summarizeDroppedMessages(droppedMessages);
+    if (summary) {
+      result.push({
+        role: "system",
+        content: summary,
+      });
+    }
   }
 
   result.push(...recent);
@@ -1069,6 +989,7 @@ export async function* createAiSurfaceAssistantStream(input: {
   message: string;
   history?: AiChatMessage[];
   qualityTier?: AiCompletionRequest["qualityTier"];
+  modelSelection?: AiModelSelection | null;
 }): AsyncGenerator<AiChatStreamEvent> {
   const title =
     input.surface === "inquiry"
@@ -1100,10 +1021,7 @@ export async function* createAiSurfaceAssistantStream(input: {
   }
 
   if (emittedFallbackStatus) {
-    yield {
-      type: "status",
-      message: "Switching to another model, one moment...",
-    };
+    // Silently switch — no user-facing message needed
   }
 
   yield {

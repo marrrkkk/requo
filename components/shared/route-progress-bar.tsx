@@ -19,12 +19,12 @@ import {
 } from "@/lib/navigation/route-progress";
 import { cn } from "@/lib/utils";
 
-const SHOW_DELAY_MS = 150;
+const SHOW_DELAY_MS = 280;
 const INCREMENT_INTERVAL_MS = 140;
-const COMPLETE_DELAY_MS = 160;
-const RESET_DELAY_MS = 260;
+const COMPLETE_DELAY_MS = 140;
+const RESET_DELAY_MS = 220;
 const STALL_TIMEOUT_MS = 15000;
-const MIN_VISIBLE_MS = 160;
+const MIN_VISIBLE_MS = 120;
 const INITIAL_PROGRESS = 16;
 const MAX_PROGRESS = 90;
 

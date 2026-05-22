@@ -7,15 +7,15 @@ import { ServerActionButton } from "@/components/shared/server-action-button";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  ResponsiveOverlay,
+  ResponsiveOverlayClose,
+  ResponsiveOverlayContent,
+  ResponsiveOverlayDescription,
+  ResponsiveOverlayFooter,
+  ResponsiveOverlayHeader,
+  ResponsiveOverlayTitle,
+  ResponsiveOverlayTrigger,
+} from "@/components/ui/responsive-overlay";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
@@ -57,7 +57,7 @@ export function FollowUpActions({
         icon={CheckCircle2}
         label="Mark done"
         pendingLabel="Marking done..."
-        variant="outline"
+        variant="default"
       />
       <FollowUpRescheduleDialog
         action={rescheduleAction}
@@ -103,7 +103,7 @@ function FollowUpRescheduleDialog({
   );
 
   return (
-    <Dialog
+    <ResponsiveOverlay
       open={open}
       onOpenChange={(nextOpen) => {
         if (nextOpen) {
@@ -113,19 +113,19 @@ function FollowUpRescheduleDialog({
         setOpen(nextOpen);
       }}
     >
-      <DialogTrigger asChild>
+      <ResponsiveOverlayTrigger asChild>
         <Button disabled={disabled} type="button" variant="outline">
           <CalendarClock data-icon="inline-start" />
           Reschedule
         </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Reschedule follow-up</DialogTitle>
-          <DialogDescription>
+      </ResponsiveOverlayTrigger>
+      <ResponsiveOverlayContent className="sm:max-w-md">
+        <ResponsiveOverlayHeader>
+          <ResponsiveOverlayTitle>Reschedule follow-up</ResponsiveOverlayTitle>
+          <ResponsiveOverlayDescription>
             Pick the next date you want this reminder to show up.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveOverlayDescription>
+        </ResponsiveOverlayHeader>
         <form action={formAction}>
           <div className="px-4 pb-4 sm:px-6 sm:pb-6">
             <Field data-invalid={Boolean(state.fieldErrors?.dueDate?.[0])}>
@@ -142,21 +142,21 @@ function FollowUpRescheduleDialog({
               </FieldContent>
             </Field>
           </div>
-          <DialogFooter>
-            <DialogClose asChild>
+          <ResponsiveOverlayFooter>
+            <ResponsiveOverlayClose asChild>
               <Button disabled={isPending} type="button" variant="ghost">
                 Cancel
               </Button>
-            </DialogClose>
+            </ResponsiveOverlayClose>
             <Button disabled={isPending} type="submit">
               {isPending ? (
                 <Spinner data-icon="inline-start" aria-hidden="true" />
               ) : null}
               {isPending ? "Rescheduling..." : "Reschedule"}
             </Button>
-          </DialogFooter>
+          </ResponsiveOverlayFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveOverlayContent>
+    </ResponsiveOverlay>
   );
 }

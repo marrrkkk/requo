@@ -12,7 +12,6 @@ import {
   getAccountBillingOverview,
   getAccountPaymentHistory,
 } from "@/features/billing/queries";
-import { listRefundsForPaymentAttempts, refundWindowDays } from "@/lib/billing/refunds";
 import { requireSession } from "@/lib/auth/session";
 import { getBusinessContextForUser } from "@/lib/db/business-access";
 import {
@@ -135,20 +134,21 @@ async function AccountPaymentHistorySection({
   paymentHistoryPromise: ReturnType<typeof getAccountPaymentHistory>;
 }) {
   const paymentHistory = await paymentHistoryPromise;
-  // Refunds depend on payment history ids — chained on purpose.
-  const refunds = await listRefundsForPaymentAttempts(
-    paymentHistory.map((record) => record.id),
-  );
+
+  // The payment method label comes from `paymentAttempts`/the
+  // subscription row directly. Polar webhooks populate the card brand
+  // and last 4 when available; we render whatever the row carries
+  // and fall back to a generic "Card" label when nothing is set.
+  function formatPaymentMethodLabel(_providerPaymentId: string): string {
+    return "Card";
+  }
 
   return (
     <PaymentHistoryTable
-      records={paymentHistory}
-      refunds={refunds.map((refund) => ({
-        id: refund.id,
-        paymentAttemptId: refund.paymentAttemptId,
-        status: refund.status,
+      records={paymentHistory.map((record) => ({
+        ...record,
+        paymentMethodLabel: formatPaymentMethodLabel(record.providerPaymentId),
       }))}
-      refundWindowDays={refundWindowDays}
     />
   );
 }

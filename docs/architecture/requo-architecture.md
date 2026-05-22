@@ -100,6 +100,26 @@ docs/
 - Keep provider-specific code in `lib/auth`, `lib/supabase`, `lib/resend`, `lib/ai`, and `lib/billing`.
 - Keep database schema and relational modeling in `lib/db/schema`, with Drizzle migrations in `drizzle/`.
 
+## State And Data Defaults
+
+- Prefer server-first data flow: server components, Server Actions, cached query helpers, `router.refresh()`, and targeted Suspense boundaries before introducing client data infrastructure.
+- Keep most UI state local to the feature component tree. Form drafts, dialogs, filters, editors, and transient interaction state should stay in component state unless the same workflow becomes difficult to manage across many siblings.
+- Reuse the current two-layer cache pattern for hot server reads: inner `"use cache"` functions for cross-request caching plus `React.cache()` wrappers for within-request deduplication.
+- Use cache tags and `revalidateTag()` for invalidation instead of layering a second app-wide cache on top of the existing Next.js 16 model.
+- When client state must persist across navigations, prefer route state, existing preserved UI behavior, or feature-scoped browser storage before introducing a global store.
+
+### Dependency Defaults
+
+- `Zustand`: not an app-wide default. Only add it for a clearly bounded client workflow with real cross-component coordination pressure.
+- `TanStack Query`: not a default data layer for this app. The current server-first query and invalidation model should remain primary. Consider it only for client-heavy islands that need background refetching, pagination cache management, or optimistic client coordination that becomes awkward with local state.
+- `Redis`: not a baseline dependency. Postgres-backed persistence, Next cache primitives, and Supabase realtime are the default stack. Add Redis only for measured cross-instance needs such as high-volume rate limiting, distributed locks, queues, or pub/sub.
+
+### Revisit Triggers
+
+- Add a small feature-scoped store when a single client workflow accumulates excessive prop drilling or duplicated coordination logic.
+- Reconsider a client query library if AI chat, notifications, or another interactive island starts carrying substantial manual cache bookkeeping, retry handling, or background refresh complexity.
+- Reconsider Redis when DB-backed public rate limiting, idempotency, or cross-instance coordination becomes a measurable bottleneck under production traffic.
+
 ## Design System And UI Composition
 
 - `DESIGN.md` is the canonical UI system.
@@ -157,16 +177,17 @@ Feature responsibilities:
 - Email: transactional delivery is centralized in `lib/email`, with Resend first and Mailtrap/Brevo fallback for retryable provider failures.
 - AI providers: Groq, Gemini, and OpenRouter are routed server-side through `lib/ai`.
 - Better Auth: sessions, password flows, and user lifecycle hooks.
-- Paddle: recurring card subscriptions and inline checkout in USD.
+- Polar: recurring card subscriptions in USD, hosted checkout, customer self-service portal, and refunds (merchant of record).
 
 ## Billing Architecture
 
-- Subscriptions are business-scoped. Each business has at most one `business_subscriptions` row.
-- `businesses.plan` is a denormalized read cache. `business_subscriptions` is authoritative.
-- `lib/billing/subscription-service.ts` is the single write path for subscription mutations and keeps `businesses.plan` in sync.
+- Subscriptions are account-scoped. Each user account has at most one `account_subscriptions` row.
+- `businesses.plan` is a denormalized read cache. `account_subscriptions` is authoritative.
+- All businesses owned by a user inherit the plan from the user's account subscription.
+- `lib/billing/subscription-service.ts` is the single write path for subscription mutations and keeps `businesses.plan` in sync across all owned businesses.
 - `lib/billing/webhook-processor.ts` records provider events in `billing_events` for idempotency.
-- Paddle is the only billing provider and handles recurring card subscriptions.
-- Billing webhook route lives in `app/api/billing/paddle/webhook/route.ts`.
+- Polar is the only billing provider and handles recurring card subscriptions in USD as a merchant of record.
+- Billing webhook route lives in `app/api/billing/polar/webhook/route.ts`. The customer self-service portal route is `app/api/billing/polar/customer-portal/route.ts`. The refund request route is `app/api/billing/refund/route.ts`.
 
 ## Testing Architecture
 

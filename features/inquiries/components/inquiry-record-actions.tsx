@@ -1,11 +1,8 @@
 "use client";
 
-import { Archive, RotateCcw, Trash2 } from "lucide-react";
+import { Archive, RotateCcw } from "lucide-react";
 
-import {
-  ServerActionButton,
-  ServerActionConfirmDialog,
-} from "@/components/shared/server-action-button";
+import { ServerActionButton } from "@/components/shared/server-action-button";
 import type {
   InquiryRecordActionState,
   InquiryRecordState,
@@ -17,14 +14,6 @@ type InquiryRecordActionsProps = {
     formData: FormData,
   ) => Promise<InquiryRecordActionState>;
   recordState: InquiryRecordState;
-  restoreAction: (
-    state: InquiryRecordActionState,
-    formData: FormData,
-  ) => Promise<InquiryRecordActionState>;
-  trashAction: (
-    state: InquiryRecordActionState,
-    formData: FormData,
-  ) => Promise<InquiryRecordActionState>;
   unarchiveAction: (
     state: InquiryRecordActionState,
     formData: FormData,
@@ -34,23 +23,8 @@ type InquiryRecordActionsProps = {
 export function InquiryRecordActions({
   archiveAction,
   recordState,
-  restoreAction,
-  trashAction,
   unarchiveAction,
 }: InquiryRecordActionsProps) {
-  if (recordState === "trash") {
-    return (
-      <div className="dashboard-actions">
-        <ServerActionButton
-          action={restoreAction}
-          icon={RotateCcw}
-          label="Restore inquiry"
-          pendingLabel="Restoring..."
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="dashboard-actions">
       {recordState === "archived" ? (
@@ -68,16 +42,6 @@ export function InquiryRecordActions({
           pendingLabel="Archiving..."
         />
       )}
-      <ServerActionConfirmDialog
-        action={trashAction}
-        confirmLabel="Move to trash"
-        confirmPendingLabel="Moving..."
-        description="This hides the inquiry from active work queues, but you can restore it later from trash."
-        icon={Trash2}
-        title="Move to trash?"
-        triggerLabel="Move to trash"
-        triggerVariant="destructive"
-      />
     </div>
   );
 }

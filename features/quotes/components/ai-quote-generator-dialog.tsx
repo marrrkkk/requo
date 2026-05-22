@@ -6,14 +6,14 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  ResponsiveOverlay,
+  ResponsiveOverlayBody,
+  ResponsiveOverlayContent,
+  ResponsiveOverlayDescription,
+  ResponsiveOverlayFooter,
+  ResponsiveOverlayHeader,
+  ResponsiveOverlayTitle,
+} from "@/components/ui/responsive-overlay";
 import {
   Field,
   FieldContent,
@@ -96,20 +96,21 @@ export function AiQuoteGeneratorDialog({
         Generate with AI
       </Button>
 
-      <Dialog onOpenChange={handleOpenChange} open={open}>
-        <DialogContent className="sm:max-w-lg">
+      <ResponsiveOverlay onOpenChange={handleOpenChange} open={open}>
+        <ResponsiveOverlayContent className="sm:max-w-lg">
           <form action={formAction}>
-            <DialogHeader>
-              <DialogTitle>Generate this quote with AI</DialogTitle>
-              <DialogDescription>
+            <ResponsiveOverlayHeader>
+              <ResponsiveOverlayTitle>Generate this quote with AI</ResponsiveOverlayTitle>
+              <ResponsiveOverlayDescription>
                 Requo AI will draft a quote title, notes, and line items using
                 this business&apos;s saved knowledge and pricing library
                 {linkedInquiry ? " plus the linked inquiry details." : "."}
-                Review and edit before saving.
-              </DialogDescription>
-            </DialogHeader>
+                Items without approved pricing are flagged for your review
+                instead of priced. Edit before saving.
+              </ResponsiveOverlayDescription>
+            </ResponsiveOverlayHeader>
 
-            <DialogBody className="flex flex-col gap-4">
+            <ResponsiveOverlayBody className="flex flex-col gap-4">
               {linkedInquiry ? (
                 <input
                   name="inquiryId"
@@ -143,14 +144,15 @@ export function AiQuoteGeneratorDialog({
                     <FieldDescription>
                       The assistant only uses saved business knowledge,
                       pricing library entries, and the linked inquiry context.
-                      It will not invent prices that aren&apos;t configured.
+                      Items without approved pricing are marked for your
+                      review instead of priced.
                     </FieldDescription>
                   </FieldContent>
                 </Field>
               </FieldGroup>
-            </DialogBody>
+            </ResponsiveOverlayBody>
 
-            <DialogFooter>
+            <ResponsiveOverlayFooter>
               <Button
                 disabled={isPending}
                 onClick={() => handleOpenChange(false)}
@@ -175,10 +177,10 @@ export function AiQuoteGeneratorDialog({
                   </>
                 )}
               </Button>
-            </DialogFooter>
+            </ResponsiveOverlayFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+        </ResponsiveOverlayContent>
+      </ResponsiveOverlay>
     </>
   );
 }

@@ -1,20 +1,21 @@
 /**
  * Plan pricing definitions for the billing system.
  *
- * USD-only pricing.
+ * USD is the authoritative base currency. Polar handles any
+ * local-currency display natively per product at checkout.
  */
 
 import type { BillingCurrency, BillingInterval, PaidPlan, PlanPricing } from "@/lib/billing/types";
 
-/** Prices in smallest currency unit (USD cents). */
+/** Prices in smallest currency unit (USD cents / PHP centavos). */
 export const planPricing: Record<BillingInterval, Record<PaidPlan, PlanPricing>> = {
   monthly: {
-    pro: { USD: 599 },
-    business: { USD: 1299 },
+    pro: { USD: 699, PHP: 39900 },
+    business: { USD: 1699, PHP: 99900 },
   },
   yearly: {
-    pro: { USD: 5990 },
-    business: { USD: 12990 },
+    pro: { USD: 6990, PHP: 399000 },
+    business: { USD: 16990, PHP: 999000 },
   },
 };
 
@@ -24,15 +25,24 @@ export function getPlanPrice(
   currency: BillingCurrency,
   interval: BillingInterval = "monthly",
 ): number {
-  return planPricing[interval][plan][currency];
+  const pricing = planPricing[interval][plan];
+  // PHP entries are optional (display-only approximation). Fall back to
+  // the USD base price when no explicit PHP entry is configured.
+  return pricing[currency] ?? pricing.USD;
 }
 
-/** Formats a price for display. */
+/** Formats a price for display in the given currency. */
 export function formatPrice(
   amountInSmallestUnit: number,
   currency: BillingCurrency,
 ): string {
-  void currency;
+  if (currency === "PHP") {
+    // PHP amounts are stored in centavos; display as whole pesos
+    // formatted with the en-PH locale (e.g. "₱1,299"), no decimals.
+    const pesos = Math.round(amountInSmallestUnit / 100);
+    if (!Number.isFinite(pesos) || pesos <= 0) return "";
+    return `₱${pesos.toLocaleString("en-PH")}`;
+  }
   const decimal = amountInSmallestUnit / 100;
   return `$${decimal.toFixed(2)}`;
 }
@@ -74,6 +84,6 @@ export function getYearlySavingsPercent(
 
 /** Returns the currency symbol for a billing currency. */
 export function getCurrencySymbol(currency: BillingCurrency): string {
-  void currency;
+  if (currency === "PHP") return "₱";
   return "$";
 }

@@ -76,6 +76,7 @@ export default async function NewQuotePage({
   const initialValues = inquiryPrefill
     ? getQuoteEditorInitialValuesFromInquiry(inquiryPrefill, {
         defaultQuoteNotes: businessSettings.defaultQuoteNotes,
+        defaultQuoteTerms: businessSettings.defaultQuoteTerms,
         defaultQuoteValidityDays: businessSettings.defaultQuoteValidityDays,
       })
     : {
@@ -85,11 +86,15 @@ export default async function NewQuotePage({
         customerContactMethod: "email" as const,
         customerContactHandle: "",
         notes: businessSettings.defaultQuoteNotes ?? "",
+        terms: businessSettings.defaultQuoteTerms ?? "",
         validUntil: getDefaultQuoteValidityDate(
           businessSettings.defaultQuoteValidityDays,
         ),
         discount: "",
         discountType: "amount" as const,
+        tax: "",
+        taxType: "amount" as const,
+        taxLabel: "",
         items: [createQuoteEditorLineItem()],
       };
   const linkedInquiry = inquiryPrefill
@@ -101,6 +106,7 @@ export default async function NewQuotePage({
           customerContactHandle: inquiryPrefill.customerContactHandle,
           recordState: inquiryPrefill.recordState,
           serviceCategory: inquiryPrefill.serviceCategory,
+          requestedDeadline: inquiryPrefill.requestedDeadline,
           status: inquiryPrefill.status,
         }
     : null;

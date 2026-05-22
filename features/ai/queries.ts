@@ -13,6 +13,7 @@ import {
   activityLogs,
   inquiries,
   inquiryAttachments,
+  inquiryMessages,
   inquiryNotes,
   followUps,
   quoteItems,
@@ -31,7 +32,7 @@ export async function getInquiryAssistantContextForBusiness({
   businessId,
   inquiryId,
 }: GetInquiryAssistantContextForBusinessInput): Promise<InquiryAssistantContext | null> {
-  const [businessRow, inquiryRow, notes, attachments, activities, quoteRows, memory] =
+  const [businessRow, inquiryRow, notes, attachments, activities, quoteRows, memory, messages] =
     await Promise.all([
     db
       .select({
@@ -167,6 +168,17 @@ export async function getInquiryAssistantContextForBusiness({
       )
       .orderBy(desc(quotes.createdAt)),
     buildBusinessMemoryContext(businessId),
+    db
+      .select({
+        id: inquiryMessages.id,
+        role: inquiryMessages.role,
+        content: inquiryMessages.content,
+        createdAt: inquiryMessages.createdAt,
+      })
+      .from(inquiryMessages)
+      .where(eq(inquiryMessages.inquiryId, inquiryId))
+      .orderBy(asc(inquiryMessages.createdAt))
+      .limit(20),
   ]);
 
   const business = businessRow[0];
@@ -336,5 +348,6 @@ export async function getInquiryAssistantContextForBusiness({
       ),
     })),
     memory,
+    messages,
   };
 }

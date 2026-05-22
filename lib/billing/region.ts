@@ -1,54 +1,22 @@
 /**
- * Region detection for billing currency and provider selection.
+ * Detect the visitor's display currency from Vercel geo headers.
  *
- * Priority:
- * 1. x-vercel-ip-country header (Vercel Edge Network)
- * 2. cf-ipcountry header (Cloudflare)
- * 3. Explicit country code override (e.g., from user preference)
- * 4. Default: INTL → USD
+ * On Vercel, the `x-vercel-ip-country` header contains the ISO 3166-1
+ * alpha-2 country code. When the visitor is in the Philippines we show
+ * PHP display prices; everywhere else defaults to USD.
+ *
+ * This is display-only — Polar always bills in USD.
  */
 
-import type {
-  BillingCurrency,
-  BillingProvider,
-  BillingRegion,
-} from "@/lib/billing/types";
+import { headers } from "next/headers";
+import type { BillingCurrency } from "@/lib/billing/types";
 
 /**
- * Detects the billing region from request headers.
- * Returns "PH" for Philippines, "INTL" for everywhere else.
+ * Returns `"PHP"` when the visitor appears to be in the Philippines,
+ * otherwise `"USD"`.
  */
-export function getBillingRegion(headers: Headers): BillingRegion {
-  void headers;
-  return "global";
-}
-
-/**
- * Detects billing region from a country code string.
- */
-export function getBillingRegionFromCountry(
-  countryCode: string | null | undefined,
-): BillingRegion {
-  void countryCode;
-  return "global";
-}
-
-/** Maps a billing region to its default currency. */
-export function getDefaultCurrency(region: BillingRegion): BillingCurrency {
-  void region;
-  return "USD";
-}
-
-/** Maps a billing region to its default payment provider. */
-export function getDefaultProvider(region: BillingRegion): BillingProvider {
-  void region;
-  return "paddle";
-}
-
-/** Maps a billing currency to its corresponding provider. */
-export function getProviderForCurrency(
-  currency: BillingCurrency,
-): BillingProvider {
-  void currency;
-  return "paddle";
+export async function detectDisplayCurrency(): Promise<BillingCurrency> {
+  const headerStore = await headers();
+  const country = headerStore.get("x-vercel-ip-country");
+  return country === "PH" ? "PHP" : "USD";
 }

@@ -1,15 +1,17 @@
 import "server-only";
 
-import { OpenRouter } from "@openrouter/sdk";
+// ---------------------------------------------------------------------------
+// Legacy OpenRouter client — DEPRECATED
+//
+// The AI layer now uses @openrouter/ai-sdk-provider via Vercel AI SDK.
+// This file is retained only to avoid breaking imports during transition.
+// It will be removed in a future cleanup pass.
+// ---------------------------------------------------------------------------
 
-import { env, isOpenRouterConfigured } from "@/lib/env";
+import { isOpenRouterConfigured } from "@/lib/env";
 
-export function getOpenRouterClient() {
-  if (!isOpenRouterConfigured || !env.OPENROUTER_API_KEY) {
-    return null;
-  }
-
-  return new OpenRouter({
-    apiKey: env.OPENROUTER_API_KEY,
-  });
+/** @deprecated Use the Vercel AI SDK OpenRouter provider instead. */
+export function getOpenRouterClient(): null {
+  void isOpenRouterConfigured;
+  return null;
 }

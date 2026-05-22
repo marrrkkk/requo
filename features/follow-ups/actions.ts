@@ -15,16 +15,26 @@ import { getWorkspaceBusinessActionContext } from "@/lib/db/business-access";
 import {
   completeFollowUpForBusiness,
   createFollowUpForBusiness,
+  deleteFollowUpForBusiness,
+  editFollowUpForBusiness,
+  reassignFollowUpForBusiness,
   rescheduleFollowUpForBusiness,
   skipFollowUpForBusiness,
 } from "@/features/follow-ups/mutations";
 import {
   followUpCreateSchema,
+  followUpEditSchema,
+  followUpReassignSchema,
   followUpRescheduleSchema,
 } from "@/features/follow-ups/schemas";
 import type {
   FollowUpCreateActionState,
   FollowUpCreateFieldErrors,
+  FollowUpDeleteActionState,
+  FollowUpEditActionState,
+  FollowUpEditFieldErrors,
+  FollowUpReassignActionState,
+  FollowUpReassignFieldErrors,
   FollowUpRecordActionState,
   FollowUpRescheduleActionState,
   FollowUpRescheduleFieldErrors,
@@ -62,6 +72,21 @@ function getCreateFieldErrors(
     reason: fieldErrors.reason,
     channel: fieldErrors.channel,
     dueDate: fieldErrors.dueDate,
+    recurrence: fieldErrors.recurrence,
+    recurrenceLimit: fieldErrors.recurrenceLimit,
+  };
+}
+
+function getEditFieldErrors(
+  fieldErrors: Record<string, string[] | undefined>,
+): FollowUpEditFieldErrors {
+  return {
+    title: fieldErrors.title,
+    reason: fieldErrors.reason,
+    channel: fieldErrors.channel,
+    dueDate: fieldErrors.dueDate,
+    recurrence: fieldErrors.recurrence,
+    recurrenceLimit: fieldErrors.recurrenceLimit,
   };
 }
 
@@ -70,6 +95,14 @@ function getRescheduleFieldErrors(
 ): FollowUpRescheduleFieldErrors {
   return {
     dueDate: fieldErrors.dueDate,
+  };
+}
+
+function getReassignFieldErrors(
+  fieldErrors: Record<string, string[] | undefined>,
+): FollowUpReassignFieldErrors {
+  return {
+    assignedToUserId: fieldErrors.assignedToUserId,
   };
 }
 
@@ -96,6 +129,8 @@ async function createFollowUpActionForRecord({
     reason: formData.get("reason"),
     channel: formData.get("channel"),
     dueDate: formData.get("dueDate"),
+    recurrence: formData.get("recurrence") || "none",
+    recurrenceLimit: formData.get("recurrenceLimit") || null,
   });
 
   if (!validationResult.success) {
@@ -112,7 +147,7 @@ async function createFollowUpActionForRecord({
       inquiryId,
       quoteId,
       actorUserId: user.id,
-      assignedToUserId: user.id,
+      assignedToUserId: formData.get("assignedToUserId") as string || user.id,
       followUp: validationResult.data,
     });
 
@@ -331,6 +366,194 @@ export async function rescheduleFollowUpAction(
 
     return {
       error: "We couldn't reschedule that follow-up right now.",
+    };
+  }
+}
+
+export async function editFollowUpAction(
+  followUpId: string,
+  _prevState: FollowUpEditActionState,
+  formData: FormData,
+): Promise<FollowUpEditActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+  const validationResult = followUpEditSchema.safeParse({
+    title: formData.get("title"),
+    reason: formData.get("reason"),
+    channel: formData.get("channel"),
+    dueDate: formData.get("dueDate"),
+    recurrence: formData.get("recurrence") || "none",
+    recurrenceLimit: formData.get("recurrenceLimit") || null,
+  });
+
+  if (!validationResult.success) {
+    return getValidationActionState(
+      validationResult.error,
+      "Check the follow-up details and try again.",
+      getEditFieldErrors,
+    );
+  }
+
+  try {
+    const result = await editFollowUpForBusiness({
+      businessId: businessContext.business.id,
+      followUpId,
+      actorUserId: user.id,
+      followUp: validationResult.data,
+    });
+
+    if (!result) {
+      return {
+        error: "That follow-up could not be found.",
+      };
+    }
+
+    updateCacheTags(
+      getFollowUpMutationCacheTags({
+        businessId: businessContext.business.id,
+        inquiryId: result.inquiryId,
+        quoteId: result.quoteId,
+      }),
+    );
+
+    if (result.locked) {
+      return {
+        error: "Only pending follow-ups can be edited.",
+      };
+    }
+
+    return {
+      success: "Follow-up updated.",
+    };
+  } catch (error) {
+    console.error("Failed to edit follow-up.", error);
+
+    return {
+      error: "We couldn't update that follow-up right now.",
+    };
+  }
+}
+
+export async function deleteFollowUpAction(
+  followUpId: string,
+  _prevState: FollowUpDeleteActionState,
+  _formData: FormData,
+): Promise<FollowUpDeleteActionState> {
+  void _prevState;
+  void _formData;
+
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+
+  try {
+    const result = await deleteFollowUpForBusiness({
+      businessId: businessContext.business.id,
+      followUpId,
+      actorUserId: user.id,
+    });
+
+    if (!result) {
+      return {
+        error: "That follow-up could not be found.",
+      };
+    }
+
+    updateCacheTags(
+      getFollowUpMutationCacheTags({
+        businessId: businessContext.business.id,
+        inquiryId: result.inquiryId,
+        quoteId: result.quoteId,
+      }),
+    );
+
+    return {
+      success: result.changed ? "Follow-up deleted." : "Follow-up was already deleted.",
+    };
+  } catch (error) {
+    console.error("Failed to delete follow-up.", error);
+
+    return {
+      error: "We couldn't delete that follow-up right now.",
+    };
+  }
+}
+
+export async function reassignFollowUpAction(
+  followUpId: string,
+  _prevState: FollowUpReassignActionState,
+  formData: FormData,
+): Promise<FollowUpReassignActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+  const validationResult = followUpReassignSchema.safeParse({
+    assignedToUserId: formData.get("assignedToUserId"),
+  });
+
+  if (!validationResult.success) {
+    return getValidationActionState(
+      validationResult.error,
+      "Choose a team member to assign.",
+      getReassignFieldErrors,
+    );
+  }
+
+  try {
+    const result = await reassignFollowUpForBusiness({
+      businessId: businessContext.business.id,
+      followUpId,
+      actorUserId: user.id,
+      reassign: validationResult.data,
+    });
+
+    if (!result) {
+      return {
+        error: "That follow-up could not be found.",
+      };
+    }
+
+    updateCacheTags(
+      getFollowUpMutationCacheTags({
+        businessId: businessContext.business.id,
+        inquiryId: result.inquiryId,
+        quoteId: result.quoteId,
+      }),
+    );
+
+    if (result.locked) {
+      return {
+        error: "Only pending follow-ups can be reassigned.",
+      };
+    }
+
+    return {
+      success: result.changed ? "Follow-up reassigned." : "Already assigned to that person.",
+    };
+  } catch (error) {
+    console.error("Failed to reassign follow-up.", error);
+
+    return {
+      error: "We couldn't reassign that follow-up right now.",
     };
   }
 }

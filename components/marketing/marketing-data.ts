@@ -24,6 +24,14 @@ export function getMarketingNavKey(item: MarketingNavItem) {
   return "hash" in item ? `${item.pathname}#${item.hash}` : item.pathname;
 }
 
+export const resourceLinks = [
+  { label: "Privacy Policy", href: "/privacy" },
+  { label: "Terms of Service", href: "/terms" },
+  { label: "Refund Policy", href: "/refund-policy" },
+] as const;
+
+export type ResourceLink = (typeof resourceLinks)[number];
+
 export const whyPoints: readonly {
   icon: LucideIcon;
   title: string;
@@ -39,13 +47,13 @@ export const whyPoints: readonly {
     icon: FileText,
     title: "Quotes slow down",
     description:
-      "Before pricing, you rebuild the job story. That delay gives ready customers time to cool off.",
+      "Before pricing, you rebuild the job story. That delay gives ready customers time to cool off or go elsewhere.",
   },
   {
     icon: Inbox,
-    title: "Follow-up gets missed",
+    title: "After acceptance, nothing connects",
     description:
-      "After sending, viewed and undecided quotes need a next step. Memory is not a good system.",
+      "Work tracking, invoicing, and follow-ups live in separate tools or not at all. Context drops the moment the customer says yes.",
   },
 ] as const;
 
@@ -56,22 +64,22 @@ export const workflowSteps: readonly {
 }[] = [
   {
     title: "Capture",
-    description: "Keep details in one place.",
+    description: "Keep every request in one place.",
     icon: Inbox,
   },
   {
-    title: "Review",
-    description: "See what is missing fast.",
-    icon: Search,
-  },
-  {
     title: "Quote",
-    description: "Build and send a clear quote.",
+    description: "AI drafts, you review and send.",
     icon: FileSignature,
   },
   {
-    title: "Follow up",
-    description: "Keep the next step visible.",
+    title: "Win",
+    description: "Track viewed, accepted, rejected.",
+    icon: Search,
+  },
+  {
+    title: "Deliver",
+    description: "Jobs, invoices, follow-up. All connected.",
     icon: Send,
   },
 ] as const;
@@ -79,7 +87,8 @@ export const workflowSteps: readonly {
 export type LandingFeatureId =
   | "inquiries"
   | "quotes"
-  | "follow-ups"
+  | "jobs"
+  | "ai"
   | "analytics";
 
 export const landingFeatureItems: readonly {
@@ -93,34 +102,43 @@ export const landingFeatureItems: readonly {
     id: "inquiries",
     title: "One inbox for every customer request.",
     description:
-      "Capture inquiries from your public form or add them manually from calls, DMs, and referrals. Filter by status to see what needs attention right now.",
+      "Capture inquiries from your public form or add them manually from calls, DMs, and referrals. AI detects duplicates and extracts key details so you can qualify faster.",
     previewTitle: "Inquiries",
     previewDescription:
       "Filter by status and jump straight into the request.",
   },
   {
     id: "quotes",
-    title: "Turn inquiries into quotes customers can open.",
+    title: "AI-drafted quotes from your pricing library.",
     description:
-      "Build a clear quote with line items, totals, notes, and an expiry. Share it as a link so customers can view, accept, or reject it right from their phone.",
+      "Turn any inquiry into a professional quote in minutes. AI matches line items from your saved pricing, past quotes, and business knowledge. You review and send.",
     previewTitle: "Quote #1042",
     previewDescription:
-      "A live preview that updates as you pick a draft to send.",
+      "AI drafts, you review. Matched pricing shows confidence levels.",
   },
   {
-    id: "follow-ups",
-    title: "Never lose a viewed quote to silence.",
+    id: "jobs",
+    title: "Track work after the customer says yes.",
     description:
-      "Keep the next step visible with scheduled follow-ups, suggested messages, and one-tap complete, reschedule, or skip. Quotes do not cool off quietly.",
-    previewTitle: "Follow-ups due",
+      "Accepted quotes become trackable jobs with work item checklists. Check off progress, mark complete, and generate an invoice, all connected to the original quote.",
+    previewTitle: "Jobs & Invoices",
     previewDescription:
-      "Tap to mark done, reschedule, or skip a reminder.",
+      "From accepted quote to paid invoice in one flow.",
+  },
+  {
+    id: "ai",
+    title: "An AI assistant that knows your business.",
+    description:
+      "Ask anything about your inquiries, quotes, and performance. The assistant uses your pricing library, past quotes, and saved knowledge to draft, answer, and suggest next steps.",
+    previewTitle: "Requo AI",
+    previewDescription:
+      "Ask questions, get insights, and take action from one conversation.",
   },
   {
     id: "analytics",
     title: "See what is working, what is stuck.",
     description:
-      "Track inquiries, quotes sent, accepted, and follow-ups due across 7 days, 30 days, or 12 months. A light analytics layer, not a full BI tool.",
+      "Track inquiries, quotes sent, accepted, follow-ups due, and revenue across 7 days, 30 days, or 12 months. Know which deals need attention before they go cold.",
     previewTitle: "Workflow analytics",
     previewDescription:
       "Switch the range and watch the funnel respond.",
@@ -131,7 +149,7 @@ export const faqItems = [
   {
     question: "What exactly does Requo do?",
     answer:
-      "Requo runs the part between a customer asking and a customer saying yes. You capture inquiries, build a quote, share a link, and track who viewed, accepted, or went quiet so you can follow up.",
+      "Requo runs the full workflow from customer request to paid invoice. Capture inquiries, generate AI-drafted quotes, share a link, track who viewed and accepted, manage work items, and create invoices. All connected.",
   },
   {
     question: "Do my customers need to sign up to open a quote?",
@@ -141,41 +159,41 @@ export const faqItems = [
   {
     question: "Can I add inquiries that came from calls, DMs, or referrals?",
     answer:
-      "Yes. You can post a public form and take in inquiries from anywhere, or add one manually in a few seconds with the customer name, the request, and any files.",
+      "Yes. Post a public form for inbound requests, or add one manually in seconds with the customer name, the request, and any files. AI detects duplicates automatically.",
+  },
+  {
+    question: "How does the AI quote generation work?",
+    answer:
+      "When you start a quote from an inquiry, AI matches line items from your pricing library, past quotes, and saved business knowledge. You review the draft, adjust anything, and send. Items are labeled with confidence levels so you know what was matched vs. estimated.",
   },
   {
     question: "How do I know when a quote is viewed or needs a follow-up?",
     answer:
-      "Each quote tracks viewed, accepted, rejected, expired, and voided states. Follow-ups show up as tasks with suggested copy so you can nudge customers before the job goes cold.",
+      "Each quote tracks viewed, accepted, rejected, expired, and voided states. Follow-ups show up as tasks with suggested timing so you can nudge customers before the job goes cold.",
   },
   {
     question: "Does Requo send emails or do I share the link myself?",
     answer:
-      "Both. You can send the quote through Requo with a hosted email, or copy the link and share it through WhatsApp, Messenger, SMS, or any channel you already use.",
-  },
-  {
-    question: "Can my team work inside the same business?",
-    answer:
-      "Yes on the Team plan. Invite members so everyone sees the same inquiries, quotes, statuses, and follow-ups. Owner-led businesses can stay on the solo plan.",
+      "Both. Send the quote through Requo with a hosted email, or copy the link and share through WhatsApp, Messenger, SMS, or any channel you already use.",
   },
   {
     question: "What happens after a customer accepts?",
     answer:
-      "The quote moves into post-acceptance. You can mark the job as scheduled, request a deposit, or close it out as completed — without bolting on a full project management tool.",
+      "The quote moves into post-acceptance. Track work items with a checklist, mark the job complete, and generate an invoice directly from the accepted quote. All connected without switching tools.",
+  },
+  {
+    question: "Can my team work inside the same business?",
+    answer:
+      "Yes on the Team plan. Invite members so everyone sees the same inquiries, quotes, jobs, and follow-ups. Owner-led businesses can stay on the solo plan.",
   },
   {
     question: "Can I run more than one business from one account?",
     answer:
-      "Yes. One login, separate businesses. Each has its own inquiries, quotes, forms, and branding, with one subscription on your account.",
-  },
-  {
-    question: "Does Requo replace my CRM or invoicing tool?",
-    answer:
-      "No. Requo focuses on inquiry to accepted quote. Keep your invoicing or accounting tool for everything after the deposit — we stay lean on purpose.",
+      "Yes. One login, separate businesses. Each has its own inquiries, quotes, forms, pricing library, and branding, with one subscription on your account.",
   },
   {
     question: "Is there a free plan?",
     answer:
-      "Yes. Start free with enough to run the full workflow end to end. Upgrade when you need higher limits, team access, or advanced follow-up features.",
+      "Yes. Start free with enough to run the full workflow end to end. Upgrade when you need higher limits, team access, or advanced AI features.",
   },
 ] as const;

@@ -206,6 +206,7 @@ export const quoteEditorSchema = z
     customerContactMethod: z.string().trim().min(1, "Select a preferred contact method."),
     customerContactHandle: z.string().trim().min(1, "Enter the contact handle."),
     notes: optionalText(4000),
+    terms: optionalText(4000),
     validUntil: z
       .string()
       .trim()
@@ -225,6 +226,26 @@ export const quoteEditorSchema = z
         .int()
         .min(0, "Discount cannot be negative.")
         .max(100_000_000, "Discount is too large."),
+    ),
+    taxInCents: z.preprocess(
+      (value) => {
+        const normalized = emptyToUndefined(value);
+
+        if (normalized === undefined) {
+          return 0;
+        }
+
+        return currencyStringToCents(normalized);
+      },
+      z
+        .number()
+        .int()
+        .min(0, "Tax cannot be negative.")
+        .max(100_000_000, "Tax is too large."),
+    ),
+    taxLabel: z.preprocess(
+      emptyToUndefined,
+      z.string().trim().max(40, "Tax label must be 40 characters or fewer.").optional(),
     ),
     items: quoteItemsFieldSchema,
   })
@@ -301,3 +322,37 @@ export const publicQuoteResponseSchema = z.object({
 
 export type QuoteEditorInput = z.infer<typeof quoteEditorSchema>;
 export type PublicQuoteResponseInput = z.infer<typeof publicQuoteResponseSchema>;
+
+const revisionItemCommentSchema = z.object({
+  itemId: z.string().trim().min(1).max(128),
+  itemDescription: z.string().trim().max(400),
+  comment: z.string().trim().min(1, "Enter a comment.").max(600, "Comment must be 600 characters or fewer."),
+});
+
+export const publicQuoteRevisionRequestSchema = z.object({
+  message: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .trim()
+      .max(2000, "Revision message must be 2,000 characters or fewer.")
+      .optional(),
+  ),
+  itemComments: z.preprocess((value) => {
+    if (value == null) {
+      return [];
+    }
+
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }, z.array(revisionItemCommentSchema).max(50).default([])),
+});
+
+export type PublicQuoteRevisionRequestInput = z.infer<typeof publicQuoteRevisionRequestSchema>;

@@ -37,6 +37,7 @@ function quoteInput(overrides: Partial<QuoteEditorInput> = {}): QuoteEditorInput
     notes: "Includes design, production, and installation.",
     validUntil: "2026-05-31",
     discountInCents: 5000,
+    taxInCents: 0,
     items: [
       {
         id: "line-design",

@@ -4,6 +4,7 @@ import { and, count, eq, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { businessMemories } from "@/lib/db/schema/memories";
+import { generateEmbedding } from "@/lib/ai/embeddings";
 import type { MemoryInput } from "@/features/memory/schemas";
 
 export async function createMemoryForBusiness({
@@ -24,6 +25,10 @@ export async function createMemoryForBusiness({
 
   const nextPosition = (maxPositionResult[0]?.maxPosition ?? -1) + 1;
 
+  // Generate embedding in background (non-blocking for the create)
+  const embeddingText = `${memory.title}\n${memory.content}`;
+  const embedding = await generateEmbedding(embeddingText).catch(() => null);
+
   const [created] = await db
     .insert(businessMemories)
     .values({
@@ -32,6 +37,7 @@ export async function createMemoryForBusiness({
       title: memory.title,
       content: memory.content,
       position: nextPosition,
+      embedding,
     })
     .returning();
 
@@ -49,12 +55,17 @@ export async function updateMemoryForBusiness({
   memoryId: string;
   memory: MemoryInput;
 }) {
+  // Regenerate embedding on content change
+  const embeddingText = `${memory.title}\n${memory.content}`;
+  const embedding = await generateEmbedding(embeddingText).catch(() => null);
+
   const [updated] = await db
     .update(businessMemories)
     .set({
       title: memory.title,
       content: memory.content,
       updatedAt: new Date(),
+      embedding,
     })
     .where(
       and(

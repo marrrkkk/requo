@@ -37,6 +37,7 @@ export type BusinessSettingsView = {
   logoContentType: string | null;
   defaultEmailSignature: string | null;
   defaultQuoteNotes: string | null;
+  defaultQuoteTerms: string | null;
   quoteEmailTemplate: QuoteEmailTemplateConfig | null;
   defaultQuoteValidityDays: number;
   aiTonePreference: BusinessAiTonePreference;
@@ -99,6 +100,7 @@ export type BusinessNotificationSettingsActionState = {
 
 export type BusinessQuoteSettingsFieldName =
   | "defaultQuoteNotes"
+  | "defaultQuoteTerms"
   | "defaultQuoteValidityDays";
 
 export type BusinessQuoteSettingsFieldErrors = Partial<

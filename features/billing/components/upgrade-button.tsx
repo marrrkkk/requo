@@ -1,17 +1,16 @@
 "use client";
 
 import { ArrowUpRight } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
+import { startPolarCheckout } from "@/features/billing/start-checkout";
+import { getBusinessDashboardPath } from "@/features/businesses/routes";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
-import type {
-  BillingCurrency,
-  BillingInterval,
-  BillingRegion,
-  PaidPlan,
-} from "@/lib/billing/types";
+import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
 import { cn } from "@/lib/utils";
 
 type UpgradeButtonProps = {
@@ -20,8 +19,6 @@ type UpgradeButtonProps = {
   businessSlug: string;
   currentPlan: plan;
   targetPlan?: "pro" | "business";
-  region?: BillingRegion;
-  defaultCurrency?: BillingCurrency;
   variant?: "default" | "outline" | "ghost" | "secondary";
   size?: "default" | "sm" | "lg";
   className?: string;
@@ -38,6 +35,7 @@ function resolveTargetPlan(currentPlan: plan, targetPlan?: PaidPlan): PaidPlan {
 
 export function UpgradeButton({
   businessId,
+  businessSlug,
   currentPlan,
   targetPlan,
   variant = "default",
@@ -46,8 +44,8 @@ export function UpgradeButton({
   children,
   interval = "monthly",
 }: UpgradeButtonProps) {
-  const router = useRouter();
   const businessCheckout = useBusinessCheckout();
+  const [isPending, startTransition] = useTransition();
   const effectiveCurrentPlan =
     businessCheckout?.businessId === businessId
       ? businessCheckout.currentPlan
@@ -63,6 +61,7 @@ export function UpgradeButton({
     <Button
       type="button"
       className={cn(className)}
+      disabled={isPending || !!businessCheckout?.isStartingCheckout}
       onClick={(event) => {
         event.preventDefault();
         if (businessCheckout && businessCheckout.businessId === businessId) {
@@ -70,15 +69,26 @@ export function UpgradeButton({
           return;
         }
 
-        const params = new URLSearchParams({
-          interval,
-          plan: nextPlan,
+        startTransition(async () => {
+          const result = await startPolarCheckout({
+            plan: nextPlan,
+            interval,
+            returnTo: businessSlug
+              ? getBusinessDashboardPath(businessSlug)
+              : undefined,
+          });
+          if (result.ok) return;
+          if (result.reason === "already_subscribed") {
+            toast.info(result.message);
+            return;
+          }
+          toast.error(result.message);
         });
-        router.push(`/account/billing/checkout?${params.toString()}`);
       }}
       size={size}
       variant={variant}
     >
+      {isPending ? <Spinner data-icon="inline-start" aria-hidden="true" /> : null}
       {children ?? (
         <>
           <ArrowUpRight data-icon="inline-start" />

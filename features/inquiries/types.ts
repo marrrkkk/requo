@@ -27,7 +27,7 @@ export const inquiryFilterableStatuses = [
   ...inquiryWorkflowStatuses,
   "overdue",
 ] as const;
-export const inquiryRecordViews = ["active", "archived", "trash"] as const;
+export const inquiryRecordViews = ["active", "archived"] as const;
 export const inquirySources = {
   publicInquiryPage: "public-inquiry-page",
   manualDashboard: "manual-dashboard",
@@ -58,9 +58,9 @@ export type DashboardInquiryListItem = {
   recordState: InquiryRecordState;
   subject: string | null;
   archivedAt: Date | null;
-  deletedAt: Date | null;
   pendingFollowUpCount: number;
   nextFollowUpDueAt: Date | null;
+  hasDuplicateFlag: boolean;
   submittedAt: Date;
   createdAt: Date;
 };
@@ -118,7 +118,6 @@ export type DashboardInquiryDetail = {
   status: InquiryStatus;
   recordState: InquiryRecordState;
   archivedAt: Date | null;
-  deletedAt: Date | null;
   submittedAt: Date;
   createdAt: Date;
   attachments: DashboardInquiryAttachment[];

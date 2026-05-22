@@ -7,7 +7,6 @@ const {
   getPushPermissionMock,
   isPushConfiguredForClientMock,
   isPushSupportedMock,
-  refreshMock,
   removePushSubscriptionMock,
   savePushSubscriptionMock,
   subscribeToPushMock,
@@ -18,7 +17,6 @@ const {
   getPushPermissionMock: vi.fn(),
   isPushConfiguredForClientMock: vi.fn(),
   isPushSupportedMock: vi.fn(),
-  refreshMock: vi.fn(),
   removePushSubscriptionMock: vi.fn(),
   savePushSubscriptionMock: vi.fn(),
   subscribeToPushMock: vi.fn(),
@@ -31,7 +29,7 @@ vi.mock("next/navigation", () => ({
     back: vi.fn(),
     forward: vi.fn(),
     push: vi.fn(),
-    refresh: refreshMock,
+    refresh: vi.fn(),
     replace: vi.fn(),
   }),
 }));
@@ -83,7 +81,7 @@ function renderForm(options?: { settings?: Partial<typeof baseSettings> }) {
   const submitted = {
     current: null as Record<string, FormDataEntryValue> | null,
   };
-  const action = vi.fn(async (_state, formData: FormData) => {
+  const action = vi.fn(async (_state: unknown, formData: FormData) => {
     submitted.current = Object.fromEntries(formData.entries());
     return { success: "Notification settings saved." };
   });
@@ -105,7 +103,6 @@ describe("BusinessNotificationSettingsForm", () => {
     getPushPermissionMock.mockReset();
     isPushConfiguredForClientMock.mockReset();
     isPushSupportedMock.mockReset();
-    refreshMock.mockReset();
     removePushSubscriptionMock.mockReset();
     savePushSubscriptionMock.mockReset();
     subscribeToPushMock.mockReset();
@@ -121,12 +118,18 @@ describe("BusinessNotificationSettingsForm", () => {
     subscribeToPushMock.mockResolvedValue(pushSubscription);
   });
 
-  it("subscribes this browser before enabling a push channel", async () => {
+  it("subscribes this browser and auto-saves when enabling a push toggle", async () => {
     const user = userEvent.setup();
     const { action, submitted } = renderForm();
 
-    await user.click(screen.getAllByRole("button", { name: "None" })[0]);
-    await user.click(await screen.findByRole("switch", { name: "Push" }));
+    // Open the popover for the first event "New inquiry received"
+    await user.click(screen.getAllByRole("button", { name: /Off/i })[0]);
+
+    // Toggle the push switch inside the popover
+    const pushSwitch = await screen.findByRole("switch", {
+      name: "New inquiry received push",
+    });
+    await user.click(pushSwitch);
 
     await waitFor(() =>
       expect(subscribeToPushMock).toHaveBeenCalledTimes(1),
@@ -136,8 +139,7 @@ describe("BusinessNotificationSettingsForm", () => {
       "biz_123",
     );
 
-    await user.click(screen.getByRole("button", { name: "Save notifications" }));
-
+    // Auto-save fires without clicking a save button
     await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
     expect(submitted.current?.notifyPushOnNewInquiry).toBe("on");
   });
@@ -148,35 +150,46 @@ describe("BusinessNotificationSettingsForm", () => {
 
     subscribeToPushMock.mockResolvedValue(null);
 
-    await user.click(screen.getAllByRole("button", { name: "None" })[0]);
-    await user.click(await screen.findByRole("switch", { name: "Push" }));
+    await user.click(screen.getAllByRole("button", { name: /Off/i })[0]);
+
+    const pushSwitch = await screen.findByRole("switch", {
+      name: "New inquiry received push",
+    });
+    await user.click(pushSwitch);
 
     await waitFor(() =>
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "Notification permission was not granted.",
+        "Could not create a push subscription. Try refreshing the page.",
       ),
     );
-    // With FloatingFormActions, the Save button is only rendered when there
-    // are unsaved changes. A failed push registration leaves no changes,
-    // so the button should not be in the DOM at all.
-    expect(screen.queryByRole("button", { name: "Save notifications" })).toBeNull();
+
+    // Switch should remain unchecked since registration failed
+    expect(pushSwitch).not.toBeChecked();
   });
 
-  it("removes this browser when the last push channel is disabled", async () => {
+  it("removes this browser subscription when the last push channel is disabled", async () => {
     const user = userEvent.setup();
 
     getExistingPushSubscriptionMock.mockResolvedValue(pushSubscription);
 
-    renderForm({
+    const { action } = renderForm({
       settings: {
         notifyPushOnNewInquiry: true,
       },
     });
 
-    await user.click(screen.getByRole("button", { name: "Push" }));
-    await user.click(await screen.findByRole("switch", { name: "Push" }));
-    await user.click(screen.getByRole("button", { name: "Save notifications" }));
+    // The trigger should say "Push" since push is enabled
+    await user.click(screen.getAllByRole("button", { name: /Push/i })[0]);
 
+    const pushSwitch = await screen.findByRole("switch", {
+      name: "New inquiry received push",
+    });
+    await user.click(pushSwitch);
+
+    // Auto-save fires
+    await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
+
+    // Push subscription should be removed since no push channels remain
     await waitFor(() =>
       expect(removePushSubscriptionMock).toHaveBeenCalledWith(
         pushSubscription.endpoint,

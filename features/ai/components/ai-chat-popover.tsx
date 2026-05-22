@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from "framer-motion";
 
 import { Button } from "@/components/ui/button";
 import { hasFeatureAccess } from "@/lib/plans";
+import { cn } from "@/lib/utils";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import type {
   AiConversation,
@@ -61,6 +62,9 @@ export {
 const entityDetailPattern =
   /\/businesses\/[^/]+\/(inquiries|quotes)\/(?!new(?:\/|$))([^/?#]+)\/?$/;
 
+/** Matches the dedicated assistant page route. */
+const assistantPagePattern = /\/businesses\/[^/]+\/assistant\/?$/;
+
 type AiContext = {
   surface: AiSurface;
   entityId: string;
@@ -103,6 +107,7 @@ export function AIChatPopover({
   const pathname = usePathname();
   const aiContext = useMemo(() => resolveAiContext(pathname), [pathname]);
   const hasAccess = hasFeatureAccess(plan, "aiAssistant");
+  const isAssistantPage = assistantPagePattern.test(pathname);
   const [isOpen, setIsOpen] = useState(false);
   const [cachedConversations, setCachedConversations] = useState<
     AiConversationSummary[] | null
@@ -312,6 +317,13 @@ export function AIChatPopover({
     [entityCache],
   );
 
+  // Only show the floating popover on inquiry/quote detail pages
+  const isEntityDetail = aiContext.surface !== "dashboard";
+
+  if (isAssistantPage || !isEntityDetail) {
+    return null;
+  }
+
   return (
     <div
       className="fixed bottom-4 right-4 z-40 sm:bottom-5 sm:right-5"
@@ -325,7 +337,7 @@ export function AIChatPopover({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 16 }}
             transition={{ type: "spring", stiffness: 380, damping: 26 }}
-            className="absolute bottom-[calc(100%+1.125rem)] right-0 flex h-[calc(100vh-12rem)] w-[min(calc(100vw-1rem),27rem)] flex-col overflow-hidden rounded-[1.5rem] border bg-popover text-foreground shadow-md ring-1 ring-foreground/10 overlay-surface origin-bottom-right"
+            className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-popover text-foreground sm:absolute sm:inset-auto sm:bottom-[calc(100%+1.125rem)] sm:right-0 sm:z-auto sm:h-[calc(100vh-12rem)] sm:w-[min(calc(100vw-1rem),27rem)] sm:rounded-[1.5rem] sm:border sm:shadow-md sm:ring-1 sm:ring-foreground/10 sm:overlay-surface sm:origin-bottom-right"
             data-testid={`${aiContext.surface}-ai-dialog`}
             role="dialog"
           >
@@ -352,10 +364,13 @@ export function AIChatPopover({
         ) : null}
       </AnimatePresence>
 
-      {/* Trigger button */}
+      {/* Trigger button — hidden on mobile when panel is full-screen open */}
       <Button
         aria-label={isOpen ? `Close ${title}` : `Open ${title}`}
-        className="size-14 rounded-full border-border/70 bg-[var(--surface-elevated-bg)] p-0 shadow-[var(--surface-shadow-lg)] overflow-hidden"
+        className={cn(
+          "size-14 rounded-full border-border/70 bg-[var(--surface-elevated-bg)] p-0 shadow-[var(--surface-shadow-lg)] overflow-hidden",
+          isOpen && "max-sm:hidden",
+        )}
         data-testid={`${aiContext.surface}-ai-launcher`}
         onClick={() => setIsOpen((open) => !open)}
         onFocus={warmupOnOpenIntent}

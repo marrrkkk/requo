@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { headers } from "next/headers";
 import { connection } from "next/server";
 
-import { DashboardSettingsSkeleton } from "@/components/shell/dashboard-settings-skeleton";
+import AccountSecurityLoading from "./loading";
 import {
   changeAccountPasswordAction,
   deleteAccountAction,
@@ -29,7 +29,7 @@ export const unstable_instant = { prefetch: 'static', unstable_disableValidation
 
 export default function AccountSecurityPage() {
   return (
-    <Suspense fallback={<DashboardSettingsSkeleton />}>
+    <Suspense fallback={<AccountSecurityLoading />}>
       <AccountSecurityContent />
     </Suspense>
   );

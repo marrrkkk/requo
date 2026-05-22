@@ -61,6 +61,14 @@ export function getBusinessFollowUpsPath(slug: string) {
   return `${getBusinessPath(slug)}/follow-ups`;
 }
 
+export function getBusinessFollowUpPath(slug: string, followUpId: string) {
+  return `${getBusinessFollowUpsPath(slug)}/${followUpId}`;
+}
+
+export function getBusinessAssistantPath(slug: string) {
+  return `${getBusinessPath(slug)}/assistant`;
+}
+
 export function getBusinessNewQuotePath(
   slug: string,
   inquiryId?: string | null,
@@ -190,6 +198,22 @@ export function getBusinessInquiryFormPreviewPath(
   formSlug: string,
 ) {
   return `${getBusinessPath(slug)}/preview/inquiry/${formSlug}`;
+}
+
+export function getBusinessJobsPath(slug: string) {
+  return `${getBusinessPath(slug)}/jobs`;
+}
+
+export function getBusinessJobPath(slug: string, jobId: string) {
+  return `${getBusinessJobsPath(slug)}/${jobId}`;
+}
+
+export function getBusinessInvoicesPath(slug: string) {
+  return `${getBusinessPath(slug)}/invoices`;
+}
+
+export function getBusinessInvoicePath(slug: string, invoiceId: string) {
+  return `${getBusinessInvoicesPath(slug)}/${invoiceId}`;
 }
 
 export function getBusinessKnowledgeCompatibilityPath(slug: string) {

@@ -6,6 +6,7 @@ import {
   CheckCheck,
   CircleCheckBig,
   CircleX,
+  Edit,
   Inbox,
   MailPlus,
   UserCheck,
@@ -155,12 +156,25 @@ export function DashboardNotificationBell({
   }
 
   useEffect(() => {
-    // Connect realtime immediately on mount. Prior behavior waited for
-    // requestIdleCallback / 1.8s setTimeout, which meant notifications
-    // emitted in that window were missed and the user had to reload.
-    if (!shouldConnectRealtime) {
-      setShouldConnectRealtime(true);
+    // Delay realtime connection until after initial paint + hydration settles.
+    // The server-rendered `initialView` is the source of truth for the first
+    // ~1.5s. Notifications emitted in this brief window will be picked up by
+    // the fallback visibility-change refresh below.
+    if (shouldConnectRealtime) {
+      return;
     }
+
+    const id = window.requestIdleCallback
+      ? window.requestIdleCallback(() => setShouldConnectRealtime(true), { timeout: 1800 })
+      : window.setTimeout(() => setShouldConnectRealtime(true), 1200);
+
+    return () => {
+      if (window.cancelIdleCallback) {
+        window.cancelIdleCallback(id as number);
+      } else {
+        window.clearTimeout(id as number);
+      }
+    };
   }, [shouldConnectRealtime]);
 
   useEffect(() => {
@@ -744,6 +758,8 @@ function getNotificationIcon(type: BusinessNotificationType) {
       return CircleCheckBig;
     case "quote_customer_rejected":
       return CircleX;
+    case "quote_revision_requested":
+      return Edit;
     case "business_member_invite_accepted":
       return UserCheck;
     case "business_member_invite_declined":

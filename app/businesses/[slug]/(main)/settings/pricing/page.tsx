@@ -131,8 +131,6 @@ async function LockedPricingBody({
               businessId: billingOverview.businessId,
               businessSlug: billingOverview.businessSlug,
               currentPlan: billingOverview.currentPlan,
-              region: billingOverview.region,
-              defaultCurrency: billingOverview.defaultCurrency,
               ctaLabel: "Upgrade for pricing library",
             }
           : undefined

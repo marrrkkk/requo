@@ -11,6 +11,7 @@ export type QuoteDocumentData = {
   currency: string;
   validUntil: string;
   notes: string | null;
+  terms: string | null;
   subtotalInCents: number;
   discountInCents: number;
   totalInCents: number;
@@ -35,6 +36,7 @@ export function getQuoteDocumentData({
     currency: quote.currency,
     validUntil: quote.validUntil,
     notes: quote.notes,
+    terms: quote.terms,
     subtotalInCents: quote.subtotalInCents,
     discountInCents: quote.discountInCents,
     totalInCents: quote.totalInCents,

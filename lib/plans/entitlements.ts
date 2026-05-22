@@ -27,13 +27,13 @@ export const planFeatures = [
   "branding",
   "multiBusiness",
   "followUps",
+  "autoFollowUps",
 ] as const;
 
 export type PlanFeature = (typeof planFeatures)[number];
 
 const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
   free: new Set<PlanFeature>([
-    "analyticsConversion",
     "attachments",
     "customerHistory",
     "followUps",
@@ -55,6 +55,7 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "branding",
     "multiBusiness",
     "followUps",
+    "autoFollowUps",
   ]),
   business: new Set<PlanFeature>([
     "analyticsConversion",
@@ -73,6 +74,7 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "branding",
     "multiBusiness",
     "followUps",
+    "autoFollowUps",
   ]),
 };
 
@@ -108,8 +110,8 @@ export function getRequiredPlan(feature: PlanFeature): BusinessPlan | null {
 
 /** Human-readable label for a feature, used in paywall UI. */
 export const planFeatureLabels: Record<PlanFeature, string> = {
-  analyticsConversion: "Conversion analytics",
-  analyticsWorkflow: "Workflow analytics",
+  analyticsConversion: "Performance analytics",
+  analyticsWorkflow: "Operations analytics",
   multipleForms: "Multiple inquiry forms",
   inquiryPageCustomization: "Inquiry page customization",
   attachments: "File attachments",
@@ -124,14 +126,15 @@ export const planFeatureLabels: Record<PlanFeature, string> = {
   branding: "Advanced branding",
   multiBusiness: "Multiple businesses",
   followUps: "Follow-ups",
+  autoFollowUps: "Auto follow-ups",
 };
 
 /** Short value description for use in paywall locked states. */
 export const planFeatureDescriptions: Record<PlanFeature, string> = {
   analyticsConversion:
-    "See how inquiries convert to quotes and acceptances.",
+    "Trend charts, funnel visualization, form-level breakdown, and period comparisons.",
   analyticsWorkflow:
-    "Track response times, stale items, and follow-up gaps.",
+    "Workflow timing, operational alerts, revenue tracking, and follow-up analytics.",
   multipleForms:
     "Create additional inquiry forms for different services or audiences.",
   inquiryPageCustomization:
@@ -160,4 +163,6 @@ export const planFeatureDescriptions: Record<PlanFeature, string> = {
     "Manage more than one total business across your businesses.",
   followUps:
     "Create follow-up reminders to stay on top of inquiries and quotes.",
+  autoFollowUps:
+    "Automatically send follow-up emails when customers haven't responded to a quote.",
 };

@@ -68,6 +68,8 @@ const RETRYABLE_MESSAGE_PATTERNS = [
   "overloaded",
   "service unavailable",
   "model_overloaded",
+  "reasoning_content",
+  "is unsupported",
 ];
 
 /**
@@ -197,10 +199,19 @@ function isRetryableMessage(error: unknown): boolean {
       nested = errWithError.error.message;
     }
 
-    const errWithBody = error as { body?: unknown };
+    const errWithBody = error as { body?: unknown; responseBody?: unknown; data?: { message?: unknown } };
 
     if (typeof errWithBody.body === "string") {
       nested += ` ${errWithBody.body}`;
+    }
+
+    // Vercel AI SDK errors include responseBody and data.message
+    if (typeof errWithBody.responseBody === "string") {
+      nested += ` ${errWithBody.responseBody}`;
+    }
+
+    if (typeof errWithBody.data?.message === "string") {
+      nested += ` ${errWithBody.data.message}`;
     }
   }
 

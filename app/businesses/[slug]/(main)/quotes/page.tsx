@@ -13,6 +13,7 @@ import {
   getQuoteListCountForBusiness,
   getQuoteListPageForBusiness,
 } from "@/features/quotes/queries";
+import { restoreArchivedQuoteAction } from "@/features/quotes/actions";
 import { quoteListFiltersSchema } from "@/features/quotes/schemas";
 import {
   getBusinessQuotesPath,
@@ -125,6 +126,12 @@ export default async function QuotesPage({
     };
   });
   const businessSlug = businessContext.business.slug;
+  const archivedItemsPromise = getQuoteListPageForBusiness({
+    businessId: businessContext.business.id,
+    filters: { view: "archived", status: "all", sort: "newest" },
+    page: 1,
+    pageSize: 50,
+  });
   const canExport = hasFeatureAccess(
     businessContext.business.plan,
     "exports",
@@ -158,6 +165,8 @@ export default async function QuotesPage({
           filters={filters}
           searchParams={resolvedSearchParams}
           totalItemsPromise={quoteCountPromise}
+          archivedItemsPromise={archivedItemsPromise}
+          restoreAction={restoreArchivedQuoteAction}
         />
       </Suspense>
 

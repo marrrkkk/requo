@@ -30,7 +30,6 @@ export const getEffectiveInquiryStatus = sql<InquiryStatus>`case
 end`;
 
 export const getInquiryRecordState = sql<InquiryRecordState>`case
-  when ${inquiries.deletedAt} is not null then 'trash'
   when ${inquiries.archivedAt} is not null then 'archived'
   else 'active'
 end`;
@@ -59,6 +58,7 @@ import {
   followUps,
   inquiries,
   inquiryAttachments,
+  inquiryDuplicates,
   inquiryNotes,
   quotes,
   user,
@@ -442,23 +442,17 @@ type GetInquiryListForBusinessInput = {
   filters: InquiryListQueryFilters;
 };
 
-export function getNonDeletedInquiryCondition() {
-  return isNull(inquiries.deletedAt);
-}
-
 export function getOperationalInquiryCondition() {
-  return and(isNull(inquiries.deletedAt), isNull(inquiries.archivedAt));
+  return isNull(inquiries.archivedAt);
 }
 
 function getInquiryViewCondition(view: InquiryRecordView) {
   switch (view) {
     case "archived":
-      return and(isNull(inquiries.deletedAt), isNotNull(inquiries.archivedAt));
-    case "trash":
-      return isNotNull(inquiries.deletedAt);
+      return isNotNull(inquiries.archivedAt);
     case "active":
     default:
-      return and(isNull(inquiries.deletedAt), isNull(inquiries.archivedAt));
+      return isNull(inquiries.archivedAt);
   }
 }
 
@@ -550,6 +544,9 @@ export async function getInquiryListPageForBusiness({
   const createdAtSort = filters.sort === "oldest" ? asc : desc;
   const offset = Math.max(0, (page - 1) * pageSize);
 
+  const orderByClause =
+    [submittedAtSort(inquiries.submittedAt), createdAtSort(inquiries.createdAt)];
+
   return db
     .select({
       id: inquiries.id,
@@ -564,7 +561,6 @@ export async function getInquiryListPageForBusiness({
       recordState: getInquiryRecordState,
       subject: inquiries.subject,
       archivedAt: inquiries.archivedAt,
-      deletedAt: inquiries.deletedAt,
       pendingFollowUpCount: sql<number>`(
         select count(*)::int
         from ${followUps}
@@ -579,6 +575,11 @@ export async function getInquiryListPageForBusiness({
           and ${followUps.inquiryId} = ${inquiries.id}
           and ${followUps.status} = 'pending'
       )`,
+      hasDuplicateFlag: sql<boolean>`exists(
+        select 1 from inquiry_duplicates
+        where inquiry_duplicates.inquiry_id = ${inquiries.id}
+          and inquiry_duplicates.dismissed_at is null
+      )`,
       submittedAt: inquiries.submittedAt,
       createdAt: inquiries.createdAt,
     })
@@ -588,7 +589,7 @@ export async function getInquiryListPageForBusiness({
       eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
     )
     .where(and(...conditions))
-    .orderBy(submittedAtSort(inquiries.submittedAt), createdAtSort(inquiries.createdAt))
+    .orderBy(...orderByClause)
     .limit(pageSize)
     .offset(offset);
 }
@@ -608,7 +609,6 @@ type InquiryExportRow = {
   status: string;
   recordState: InquiryRecordState;
   archivedAt: Date | null;
-  deletedAt: Date | null;
   submittedAt: Date;
 };
 
@@ -650,7 +650,6 @@ export async function getInquiryExportRowsForBusiness({
       status: getEffectiveInquiryStatus,
       recordState: getInquiryRecordState,
       archivedAt: inquiries.archivedAt,
-      deletedAt: inquiries.deletedAt,
       submittedAt: inquiries.submittedAt,
     })
     .from(inquiries)
@@ -697,7 +696,6 @@ export async function getInquiryDetailForBusiness({
       status: getEffectiveInquiryStatus,
       recordState: getInquiryRecordState,
       archivedAt: inquiries.archivedAt,
-      deletedAt: inquiries.deletedAt,
       submittedAt: inquiries.submittedAt,
       createdAt: inquiries.createdAt,
       submittedFieldSnapshot: inquiries.submittedFieldSnapshot,
@@ -1037,4 +1035,39 @@ export async function listPublicInquirySitemapEntries(): Promise<
       row.formIsDefault ? undefined : row.formSlug,
     ),
   }));
+}
+
+export type InquiryDuplicateRecord = {
+  id: string;
+  originalInquiryId: string;
+  reason: string;
+  tokenOverlap: number | null;
+  dismissedAt: Date | null;
+};
+
+export async function getInquiryDuplicateForBusiness({
+  businessId,
+  inquiryId,
+}: {
+  businessId: string;
+  inquiryId: string;
+}): Promise<InquiryDuplicateRecord | null> {
+  const [duplicate] = await db
+    .select({
+      id: inquiryDuplicates.id,
+      originalInquiryId: inquiryDuplicates.originalInquiryId,
+      reason: inquiryDuplicates.reason,
+      tokenOverlap: inquiryDuplicates.tokenOverlap,
+      dismissedAt: inquiryDuplicates.dismissedAt,
+    })
+    .from(inquiryDuplicates)
+    .where(
+      and(
+        eq(inquiryDuplicates.businessId, businessId),
+        eq(inquiryDuplicates.inquiryId, inquiryId),
+      ),
+    )
+    .limit(1);
+
+  return duplicate ?? null;
 }

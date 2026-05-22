@@ -59,7 +59,7 @@ The app also handles public inquiry intake, public quote pages, business-scoped 
 - Supabase for storage and realtime-backed plumbing
 - Resend for transactional email
 - AI provider routing through Groq, Gemini, and OpenRouter
-- Paddle for card payments (USD, merchant of record)
+- Polar for subscription billing (USD, merchant of record)
 
 ## Working Defaults
 
@@ -115,8 +115,8 @@ Do not add:
 - All businesses owned by a user inherit the plan from the user's account subscription.
 - `lib/billing/subscription-service.ts` is the single write path for all subscription mutations. It keeps `businesses.plan` in sync across all owned businesses.
 - `lib/billing/webhook-processor.ts` provides idempotent event deduplication using `billing_events`.
-- Paddle is the sole payment processor and handles recurring card subscriptions in USD. Refunds are issued through Paddle adjustments (`lib/billing/refunds.ts`).
-- Webhook route lives at `app/api/billing/paddle/webhook/route.ts`. The refund request route is `app/api/billing/refund/route.ts`.
+- Polar is the sole payment processor and handles recurring card subscriptions in USD as a merchant of record. Refunds are issued through Polar refunds (`lib/billing/refunds.ts`).
+- Webhook route lives at `app/api/billing/polar/webhook/route.ts`. The refund request route is `app/api/billing/refund/route.ts`.
 - Plan access is resolved through `getEffectivePlan()` in the subscription service, which checks subscription status, cancellation dates, and grace periods.
 - Do not bypass the subscription service or write directly to `account_subscriptions`.
 
@@ -178,6 +178,10 @@ A task is done when:
 - If demo data or e2e fixtures need refreshing, use `npm run db:migrate` and `npm run db:seed-demo` when the environment supports it.
 - Secret-storage or reversible-credential changes may also require `npm run db:backfill-security-secrets` after keys are configured.
 - Prefer `npm run dev:app` for app-only local work. `npm run dev` also starts `ngrok` for callback and webhook testing.
-- Vercel owns preview and production deployment. GitHub Actions owns merge gates:
-  - `verify`: lint, typecheck, unit/component tests, build
-  - `server-tests`: Postgres-backed integration tests and Playwright smoke coverage
+- Vercel owns preview and production deployment through Git integration.
+- Run local verification before pushing:
+  - `npm run check`
+  - `npm run test`
+  - `npm run test:integration`
+  - `npm run build`
+  - `npm run test:e2e:smoke`

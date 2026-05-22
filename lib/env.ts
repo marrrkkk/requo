@@ -17,6 +17,8 @@ const envSchema = z.object({
   NEXT_PUBLIC_BETTER_AUTH_URL: emptyToUndefined(z.url()),
   APP_TOKEN_HASH_SECRET: emptyToUndefined(z.string().min(32)),
   ADMIN_EMAILS: emptyToUndefined(z.string().min(1)),
+  ADMIN_USERNAME: emptyToUndefined(z.string().min(1)),
+  ADMIN_PASSWORD: emptyToUndefined(z.string().min(1)),
   VERCEL_URL: emptyToUndefined(z.string().min(1)),
 
   GOOGLE_CLIENT_ID: emptyToUndefined(z.string().min(1)),
@@ -43,15 +45,10 @@ const envSchema = z.object({
   GEMINI_API_KEY: emptyToUndefined(z.string().min(1)),
   CEREBRAS_API_KEY: emptyToUndefined(z.string().min(1)),
   OPENROUTER_API_KEY: emptyToUndefined(z.string().min(1)),
-  PADDLE_API_KEY: emptyToUndefined(z.string().min(1)),
-  PADDLE_WEBHOOK_SECRET: emptyToUndefined(z.string().min(1)),
-  PADDLE_PRO_PRICE_ID: emptyToUndefined(z.string().min(1)),
-  PADDLE_PRO_YEARLY_PRICE_ID: emptyToUndefined(z.string().min(1)),
-  PADDLE_BUSINESS_PRICE_ID: emptyToUndefined(z.string().min(1)),
-  PADDLE_BUSINESS_YEARLY_PRICE_ID: emptyToUndefined(z.string().min(1)),
-  PADDLE_ENVIRONMENT: emptyToUndefined(z.enum(["sandbox", "production"])).default("sandbox"),
-  NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: emptyToUndefined(z.string().min(1)),
-  NEXT_PUBLIC_PADDLE_ENVIRONMENT: emptyToUndefined(z.enum(["sandbox", "production"])).default("sandbox"),
+  MISTRAL_API_KEY: emptyToUndefined(z.string().min(1)),
+  CLOUDFLARE_ACCOUNT_ID: emptyToUndefined(z.string().min(1)),
+  CLOUDFLARE_API_TOKEN: emptyToUndefined(z.string().min(1)),
+  NVIDIA_NIM_API_KEY: emptyToUndefined(z.string().min(1)),
   DEMO_OWNER_NAME: emptyToUndefined(z.string().trim().min(1)),
   DEMO_OWNER_EMAIL: emptyToUndefined(z.email()),
   DEMO_OWNER_PASSWORD: emptyToUndefined(z.string().min(8)),
@@ -62,6 +59,17 @@ const envSchema = z.object({
   DEMO_VOIDED_QUOTE_PUBLIC_TOKEN: emptyToUndefined(z.string().trim().min(1)),
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: emptyToUndefined(z.string().min(1)),
   VAPID_PRIVATE_KEY: emptyToUndefined(z.string().min(1)),
+
+  POLAR_ACCESS_TOKEN: emptyToUndefined(z.string().min(1)),
+  POLAR_WEBHOOK_SECRET: emptyToUndefined(z.string().min(1)),
+  POLAR_SERVER: emptyToUndefined(z.enum(["sandbox", "production"])).default(
+    "sandbox",
+  ),
+  POLAR_PRO_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
+  POLAR_BUSINESS_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
+  POLAR_PRO_YEARLY_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
+  POLAR_BUSINESS_YEARLY_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
+  NEXT_PUBLIC_APP_URL: emptyToUndefined(z.url()),
 });
 
 export const env = envSchema.parse(process.env);
@@ -72,8 +80,6 @@ export const supabaseKey =
 export const publicEnv = {
   NEXT_PUBLIC_SUPABASE_URL: env.NEXT_PUBLIC_SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseKey,
-  NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN,
-  NEXT_PUBLIC_PADDLE_ENVIRONMENT: env.NEXT_PUBLIC_PADDLE_ENVIRONMENT,
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
 };
 
@@ -107,13 +113,24 @@ export const isGeminiConfigured = Boolean(env.GEMINI_API_KEY);
 export const isCerebrasConfigured = Boolean(env.CEREBRAS_API_KEY);
 export const isSupabaseRealtimeConfigured = Boolean(env.SUPABASE_JWT_SECRET);
 
-export const isPaddleConfigured = Boolean(
-  env.PADDLE_API_KEY && env.PADDLE_PRO_PRICE_ID,
-);
 export const isOpenRouterConfigured = Boolean(
   (process.env.OPENROUTER_API_KEY ?? "").trim().length > 0,
 );
+export const isMistralConfigured = Boolean(env.MISTRAL_API_KEY);
+export const isCloudflareAiConfigured = Boolean(
+  env.CLOUDFLARE_ACCOUNT_ID && env.CLOUDFLARE_API_TOKEN,
+);
+export const isNvidiaNimConfigured = Boolean(env.NVIDIA_NIM_API_KEY);
 export const isPushConfigured = Boolean(
   env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY,
+);
+
+export const isPolarConfigured = Boolean(
+  env.POLAR_ACCESS_TOKEN &&
+    env.POLAR_WEBHOOK_SECRET &&
+    (env.POLAR_PRO_PRODUCT_ID ||
+      env.POLAR_BUSINESS_PRODUCT_ID ||
+      env.POLAR_PRO_YEARLY_PRODUCT_ID ||
+      env.POLAR_BUSINESS_YEARLY_PRODUCT_ID),
 );
 

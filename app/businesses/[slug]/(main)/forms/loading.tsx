@@ -1,3 +1,5 @@
+import { DashboardPage } from "@/components/shared/dashboard-layout";
+import { PageHeader } from "@/components/shared/page-header";
 import {
   Card,
   CardContent,
@@ -7,11 +9,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function BusinessFormsLoading() {
   return (
-    <>
-      <div className="flex flex-col gap-3">
-        <Skeleton className="h-10 w-32 rounded-2xl" />
-        <Skeleton className="h-4 w-full max-w-2xl rounded-md" />
-      </div>
+    <DashboardPage>
+      <PageHeader
+        title={<Skeleton className="h-11 w-full max-w-[10rem] rounded-2xl" />}
+        description={<Skeleton className="h-4 w-full max-w-2xl rounded-md" />}
+      />
 
       <div className="flex flex-col gap-8">
         <div className="flex justify-end gap-2">
@@ -44,6 +46,6 @@ export default function BusinessFormsLoading() {
           ))}
         </div>
       </div>
-    </>
+    </DashboardPage>
   );
 }

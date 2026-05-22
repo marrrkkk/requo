@@ -1,46 +1,94 @@
 import "server-only";
 
-import { getConfiguredProviders, getModelsForProvider } from "@/lib/ai/config";
+import { generateText, streamText } from "ai";
+
+import { registry, groq, cerebras, google, openrouter, mistral, cloudflare, nvidia } from "@/lib/ai/registry";
 import {
   AiProviderError,
   getSanitizedErrorInfo,
   isRetryableError,
+  wrapProviderError,
 } from "@/lib/ai/errors";
+import { getModelsForProvider } from "@/lib/ai/model-options";
+import {
+  selectModels,
+  recordModelUsage,
+  markModelExhausted,
+} from "@/lib/ai/capacity-selector";
 import type {
   AiCompletionRequest,
   AiCompletionResponse,
+  AiProviderName,
   AiStreamResponse,
+  AiStreamChunk,
 } from "@/lib/ai/types";
 
 // ---------------------------------------------------------------------------
-// AI Provider + Model Fallback Router
+// AI Provider + Model Fallback Router — Vercel AI SDK
 //
-// Two-level fallback: providers (Groq → Cerebras → Gemini), then models
-// within each provider. The quality tier (balanced / cheap / best / coding)
-// selects which model list each provider uses.
+// Two-level fallback: providers (Groq → Cerebras → Gemini → OpenRouter),
+// then models within each provider. The quality tier selects the model list.
 //
-// Loop logic:
-//   for each provider in [groq, cerebras, gemini]:
-//     for each model in provider.models[qualityTier]:
-//       try request
-//       if success → return normalised response
-//       if retryable error → continue to next model/provider
-//       if non-retryable error → stop immediately
+// Uses the Vercel AI SDK's `generateText` and `streamText` with models
+// accessed through the provider registry.
 //
 // Fallback rules:
 // - Retryable errors (408, 409, 429, 5xx, timeout, network) → next model.
 // - Non-retryable errors (400, 401, 403, 404, 422) → stop immediately.
-// - Respects Retry-After header but caps waiting to MAX_RETRY_AFTER_MS.
 // - Logs which provider/model was used and sanitised error info on failure.
-//
-// Adding a new provider:
-//   1. Implement the AiProvider interface in a new file.
-//   2. Add it to ALL_PROVIDERS in config.ts.
-//   3. Add model lists to PROVIDER_MODELS in config.ts.
-//   4. Done — the router picks it up automatically.
 // ---------------------------------------------------------------------------
 
 const MAX_RETRY_AFTER_MS = 5_000;
+
+const PROVIDER_TIMEOUTS: Record<AiProviderName, number> = {
+  groq: 15_000,
+  cerebras: 20_000,
+  gemini: 20_000,
+  mistral: 25_000,
+  cloudflare: 25_000,
+  nvidia: 30_000,
+  openrouter: 30_000,
+};
+
+/** Ordered list of provider names that are configured. */
+function getConfiguredProviderNames(): AiProviderName[] {
+  const names: AiProviderName[] = [];
+  if (groq) names.push("groq");
+  if (cerebras) names.push("cerebras");
+  if (google) names.push("gemini");
+  if (mistral) names.push("mistral");
+  if (cloudflare) names.push("cloudflare");
+  if (nvidia) names.push("nvidia");
+  if (openrouter) names.push("openrouter");
+  return names;
+}
+
+function getProviderCandidates(
+  requestedProvider: AiProviderName | undefined,
+): AiProviderName[] {
+  const all = getConfiguredProviderNames();
+  return requestedProvider
+    ? all.filter((p) => p === requestedProvider)
+    : all;
+}
+
+function getModelCandidates(
+  request: AiCompletionRequest,
+  providerName: AiProviderName,
+): string[] {
+  if (request.provider === providerName && request.model.trim()) {
+    return [request.model];
+  }
+  return getModelsForProvider(providerName, request.qualityTier ?? "balanced");
+}
+
+/** Get the registry model ID string for a provider + model combination. */
+function getRegistryModelId(providerName: AiProviderName, model: string): `${string}:${string}` {
+  // The registry uses the provider key we registered:
+  // groq, cerebras, google (for gemini), mistral, cloudflare, openrouter
+  const registryPrefix = providerName === "gemini" ? "google" : providerName;
+  return `${registryPrefix}:${model}` as `${string}:${string}`;
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
@@ -48,181 +96,378 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
+function buildMessages(request: AiCompletionRequest) {
+  return {
+    system: request.messages
+      .filter((m) => m.role === "system")
+      .map((m) => m.content)
+      .join("\n") || undefined,
+    messages: request.messages
+      .filter((m) => m.role !== "system")
+      .map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      })),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// generateWithFallback
+// ---------------------------------------------------------------------------
+
 /**
- * Generate a completion using the provider + model fallback chain.
+ * Generate a completion using the capacity-aware model selector + fallback chain.
  *
- * Tries each model within each configured provider. Falls back to the next
- * model (or next provider) only for retryable errors. Non-retryable errors
- * stop the chain immediately.
+ * Strategy:
+ * 1. If a specific provider/model is requested, try only that (pinned).
+ * 2. Otherwise, use the capacity selector to get an ordered list of models
+ *    ranked by quality × available headroom.
+ * 3. Try each model in order. On retryable errors (429, 5xx), mark exhausted
+ *    and continue to the next. On non-retryable errors (401, 403), stop.
+ * 4. If ALL models fail, throw.
  */
 export async function generateWithFallback(
   request: AiCompletionRequest,
 ): Promise<AiCompletionResponse> {
-  const providers = getConfiguredProviders();
+  // If a specific provider+model is requested, use the old per-provider path
+  if (request.provider && request.model.trim()) {
+    return generateWithProviderFallback(request);
+  }
 
-  if (providers.length === 0) {
+  // Use capacity selector for smart model ordering
+  const tier = request.qualityTier ?? "balanced";
+  const modelIds = selectModels({
+    needsTools: false,
+    minQuality: tier === "cheap" ? 4 : tier === "best" ? 8 : 6,
+  });
+
+  if (modelIds.length === 0) {
     throw new Error(
-      "No AI providers are configured. Add at least one API key (GROQ_API_KEY, CEREBRAS_API_KEY, or GEMINI_API_KEY) to enable the assistant.",
+      "No AI providers are configured. Add at least one API key to enable the assistant.",
     );
   }
 
-  const tier = request.qualityTier ?? "balanced";
   let lastError: unknown;
+  const { system, messages } = buildMessages(request);
 
-  for (const provider of providers) {
-    const models = getModelsForProvider(provider.name, tier);
+  for (const modelId of modelIds) {
+    const [providerPrefix, ...modelParts] = modelId.split(":");
+    const providerName = (providerPrefix === "google" ? "gemini" : providerPrefix) as AiProviderName;
+    const model = modelParts.join(":");
+    const timeout = PROVIDER_TIMEOUTS[providerName] ?? 25_000;
 
-    for (let m = 0; m < models.length; m += 1) {
-      const model = models[m];
+    try {
+      const result = await generateText({
+        model: registry.languageModel(modelId),
+        system,
+        messages,
+        temperature: request.temperature,
+        maxOutputTokens: request.maxOutputTokens,
+        abortSignal: AbortSignal.timeout(timeout),
+      });
 
-      try {
-        const response = await provider.generateCompletion({
-          ...request,
-          model,
-        });
+      recordModelUsage(modelId);
+      console.info(
+        `[ai-router] Completion succeeded: model="${modelId}"`,
+      );
 
-        console.info(
-          `[ai-router] Completion succeeded: provider="${response.provider}" model="${response.model}"`,
-        );
+      return {
+        provider: providerName,
+        model,
+        text: result.text,
+        usage: {
+          promptTokens: result.usage?.inputTokens ?? undefined,
+          completionTokens: result.usage?.outputTokens ?? undefined,
+          totalTokens: result.usage
+            ? (result.usage.inputTokens ?? 0) + (result.usage.outputTokens ?? 0)
+            : undefined,
+        },
+        raw: result,
+      };
+    } catch (error) {
+      lastError = error;
+      const errorInfo = getSanitizedErrorInfo(error);
 
-        return response;
-      } catch (error) {
-        lastError = error;
+      console.warn(
+        `[ai-router] Failed: model="${modelId}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable} message="${errorInfo.message}"`,
+      );
 
-        const errorInfo = getSanitizedErrorInfo(error);
+      if (!isRetryableError(error)) {
+        throw error instanceof AiProviderError
+          ? error
+          : wrapProviderError(providerName, error);
+      }
 
-        console.warn(
-          `[ai-router] Failed: provider="${provider.name}" model="${model}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable} message="${errorInfo.message}"`,
-        );
+      markModelExhausted(modelId);
 
-        // Non-retryable → stop the entire chain
-        if (!isRetryableError(error)) {
-          console.warn(
-            `[ai-router] Non-retryable error, stopping fallback chain.`,
-          );
-          throw error instanceof AiProviderError
-            ? error
-            : new Error(
-                error instanceof Error
-                  ? error.message
-                  : "All AI providers failed.",
-              );
-        }
-
-        // Honour Retry-After (capped) before trying the next model/provider
-        if (error instanceof AiProviderError && error.retryAfterMs) {
-          const waitMs = Math.min(error.retryAfterMs, MAX_RETRY_AFTER_MS);
-
-          console.info(
-            `[ai-router] Waiting ${waitMs}ms (Retry-After) before next attempt.`,
-          );
-
-          await sleep(waitMs);
-        }
+      if (error instanceof AiProviderError && error.retryAfterMs) {
+        const waitMs = Math.min(error.retryAfterMs, MAX_RETRY_AFTER_MS);
+        await sleep(waitMs);
       }
     }
   }
 
-  // All providers and models exhausted
-  if (lastError instanceof AiProviderError) {
-    throw lastError;
-  }
-
-  throw new Error(
-    lastError instanceof Error
-      ? lastError.message
-      : "All AI providers failed.",
-  );
+  if (lastError instanceof AiProviderError) throw lastError;
+  throw new Error(lastError instanceof Error ? lastError.message : "All AI providers failed.");
 }
 
 /**
- * Start a streaming completion using the provider + model fallback chain.
- *
- * The fallback applies to the initial connection phase. Once a provider
- * starts streaming successfully, we commit to it. If the connection itself
- * fails with a retryable error, we try the next model/provider.
+ * Legacy provider-specific fallback (used when a specific provider is pinned).
+ */
+async function generateWithProviderFallback(
+  request: AiCompletionRequest,
+): Promise<AiCompletionResponse> {
+  const providers = getProviderCandidates(request.provider);
+
+  if (providers.length === 0) {
+    throw new Error(
+      `The selected AI provider "${request.provider}" is not configured.`,
+    );
+  }
+
+  let lastError: unknown;
+  const { system, messages } = buildMessages(request);
+
+  for (const providerName of providers) {
+    const models = getModelCandidates(request, providerName);
+    const timeout = PROVIDER_TIMEOUTS[providerName];
+
+    for (const model of models) {
+      const modelId = getRegistryModelId(providerName, model);
+
+      try {
+        const result = await generateText({
+          model: registry.languageModel(modelId),
+          system,
+          messages,
+          temperature: request.temperature,
+          maxOutputTokens: request.maxOutputTokens,
+          abortSignal: AbortSignal.timeout(timeout),
+        });
+
+        recordModelUsage(modelId);
+        console.info(
+          `[ai-router] Completion succeeded: provider="${providerName}" model="${model}"`,
+        );
+
+        return {
+          provider: providerName,
+          model,
+          text: result.text,
+          usage: {
+            promptTokens: result.usage?.inputTokens ?? undefined,
+            completionTokens: result.usage?.outputTokens ?? undefined,
+            totalTokens: result.usage
+              ? (result.usage.inputTokens ?? 0) + (result.usage.outputTokens ?? 0)
+              : undefined,
+          },
+          raw: result,
+        };
+      } catch (error) {
+        lastError = error;
+        const errorInfo = getSanitizedErrorInfo(error);
+
+        console.warn(
+          `[ai-router] Failed: provider="${providerName}" model="${model}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable}`,
+        );
+
+        if (!isRetryableError(error)) {
+          throw error instanceof AiProviderError
+            ? error
+            : wrapProviderError(providerName, error);
+        }
+
+        markModelExhausted(modelId);
+      }
+    }
+  }
+
+  if (lastError instanceof AiProviderError) throw lastError;
+  throw new Error(lastError instanceof Error ? lastError.message : "All AI providers failed.");
+}
+
+// ---------------------------------------------------------------------------
+// streamWithFallback
+// ---------------------------------------------------------------------------
+
+/**
+ * Start a streaming completion using the capacity-aware model selector + fallback chain.
+ * Same strategy as generateWithFallback but returns an async iterable stream.
  */
 export async function streamWithFallback(
   request: AiCompletionRequest,
   options?: { onFallback?: () => void },
 ): Promise<AiStreamResponse> {
-  const providers = getConfiguredProviders();
+  // If a specific provider+model is requested, use the pinned path
+  if (request.provider && request.model.trim()) {
+    return streamWithProviderFallback(request, options);
+  }
 
-  if (providers.length === 0) {
+  // Use capacity selector for smart model ordering
+  const tier = request.qualityTier ?? "balanced";
+  const modelIds = selectModels({
+    needsTools: false,
+    minQuality: tier === "cheap" ? 4 : tier === "best" ? 8 : 6,
+  });
+
+  if (modelIds.length === 0) {
     throw new Error(
-      "No AI providers are configured. Add at least one API key (GROQ_API_KEY, CEREBRAS_API_KEY, or GEMINI_API_KEY) to enable the assistant.",
+      "No AI providers are configured. Add at least one API key to enable the assistant.",
     );
   }
 
-  const tier = request.qualityTier ?? "balanced";
   let lastError: unknown;
   let attemptCount = 0;
+  const { system, messages } = buildMessages(request);
 
-  for (const provider of providers) {
-    const models = getModelsForProvider(provider.name, tier);
+  for (const modelId of modelIds) {
+    const [providerPrefix, ...modelParts] = modelId.split(":");
+    const providerName = (providerPrefix === "google" ? "gemini" : providerPrefix) as AiProviderName;
+    const model = modelParts.join(":");
+    const timeout = PROVIDER_TIMEOUTS[providerName] ?? 25_000;
 
-    for (let m = 0; m < models.length; m += 1) {
-      const model = models[m];
+    try {
+      const result = streamText({
+        model: registry.languageModel(modelId),
+        system,
+        messages,
+        temperature: request.temperature,
+        maxOutputTokens: request.maxOutputTokens,
+        abortSignal: AbortSignal.timeout(timeout),
+      });
+
+      const textStream = result.textStream;
+
+      recordModelUsage(modelId);
+      console.info(`[ai-router] Stream started: model="${modelId}"`);
+
+      async function* chunks(): AsyncGenerator<AiStreamChunk> {
+        for await (const chunk of textStream) {
+          if (chunk) {
+            yield { delta: chunk, finishReason: null };
+          }
+        }
+        yield { delta: "", finishReason: "stop" };
+      }
+
+      return {
+        provider: providerName,
+        model,
+        stream: chunks(),
+      };
+    } catch (error) {
+      lastError = error;
+      attemptCount += 1;
+      const errorInfo = getSanitizedErrorInfo(error);
+
+      console.warn(
+        `[ai-router] Stream failed: model="${modelId}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable}`,
+      );
+
+      if (!isRetryableError(error)) {
+        throw error instanceof AiProviderError
+          ? error
+          : wrapProviderError(providerName, error);
+      }
+
+      markModelExhausted(modelId);
+
+      if (attemptCount === 1 && options?.onFallback) {
+        options.onFallback();
+      }
+
+      if (error instanceof AiProviderError && error.retryAfterMs) {
+        const waitMs = Math.min(error.retryAfterMs, MAX_RETRY_AFTER_MS);
+        await sleep(waitMs);
+      }
+    }
+  }
+
+  if (lastError instanceof AiProviderError) throw lastError;
+  throw new Error(lastError instanceof Error ? lastError.message : "All AI providers failed.");
+}
+
+/**
+ * Legacy provider-specific streaming fallback (used when a specific provider is pinned).
+ */
+async function streamWithProviderFallback(
+  request: AiCompletionRequest,
+  options?: { onFallback?: () => void },
+): Promise<AiStreamResponse> {
+  const providers = getProviderCandidates(request.provider);
+
+  if (providers.length === 0) {
+    throw new Error(
+      `The selected AI provider "${request.provider}" is not configured.`,
+    );
+  }
+
+  let lastError: unknown;
+  let attemptCount = 0;
+  const { system, messages } = buildMessages(request);
+
+  for (const providerName of providers) {
+    const models = getModelCandidates(request, providerName);
+    const timeout = PROVIDER_TIMEOUTS[providerName];
+
+    for (const model of models) {
+      const modelId = getRegistryModelId(providerName, model);
 
       try {
-        const streamResponse = await provider.generateStream({
-          ...request,
-          model,
+        const result = streamText({
+          model: registry.languageModel(modelId),
+          system,
+          messages,
+          temperature: request.temperature,
+          maxOutputTokens: request.maxOutputTokens,
+          abortSignal: AbortSignal.timeout(timeout),
         });
 
+        const textStream = result.textStream;
+
+        recordModelUsage(modelId);
         console.info(
-          `[ai-router] Stream started: provider="${streamResponse.provider}" model="${streamResponse.model}"`,
+          `[ai-router] Stream started: provider="${providerName}" model="${model}"`,
         );
 
-        return streamResponse;
+        async function* chunks(): AsyncGenerator<AiStreamChunk> {
+          for await (const chunk of textStream) {
+            if (chunk) {
+              yield { delta: chunk, finishReason: null };
+            }
+          }
+          yield { delta: "", finishReason: "stop" };
+        }
+
+        return {
+          provider: providerName,
+          model,
+          stream: chunks(),
+        };
       } catch (error) {
         lastError = error;
         attemptCount += 1;
-
         const errorInfo = getSanitizedErrorInfo(error);
 
         console.warn(
-          `[ai-router] Stream failed: provider="${provider.name}" model="${model}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable} message="${errorInfo.message}"`,
+          `[ai-router] Stream failed: provider="${providerName}" model="${model}" status=${errorInfo.statusCode ?? "N/A"} retryable=${errorInfo.retryable}`,
         );
 
         if (!isRetryableError(error)) {
-          console.warn(
-            `[ai-router] Non-retryable stream error, stopping fallback chain.`,
-          );
           throw error instanceof AiProviderError
             ? error
-            : new Error(
-                error instanceof Error
-                  ? error.message
-                  : "All AI providers failed.",
-              );
+            : wrapProviderError(providerName, error);
         }
 
-        // Notify the caller that we're switching to a fallback model.
+        markModelExhausted(modelId);
+
         if (attemptCount === 1 && options?.onFallback) {
           options.onFallback();
-        }
-
-        if (error instanceof AiProviderError && error.retryAfterMs) {
-          const waitMs = Math.min(error.retryAfterMs, MAX_RETRY_AFTER_MS);
-
-          console.info(
-            `[ai-router] Waiting ${waitMs}ms (Retry-After) before next attempt.`,
-          );
-
-          await sleep(waitMs);
         }
       }
     }
   }
 
-  if (lastError instanceof AiProviderError) {
-    throw lastError;
-  }
-
-  throw new Error(
-    lastError instanceof Error
-      ? lastError.message
-      : "All AI providers failed.",
-  );
+  if (lastError instanceof AiProviderError) throw lastError;
+  throw new Error(lastError instanceof Error ? lastError.message : "All AI providers failed.");
 }

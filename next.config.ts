@@ -57,10 +57,8 @@ const nextConfig: NextConfig = {
   // Populate entries here only when `ANALYZE=true npm run build` shows a measurable
   // bundle-size win for a specific package. Keep the block present and documented so
   // future wins (e.g., barrel-heavy icon libraries) have a clear home.
-  // Example (only add after verifying the subpath pattern in node_modules):
-  //   "lucide-react": {
-  //     transform: "lucide-react/dist/esm/icons/{{kebabCase member}}",
-  //   },
+  // NOTE: lucide-react uses dual export names (e.g. ChevronDown + ChevronDownIcon)
+  // which breaks modularizeImports transforms. Tree-shaking handles it fine without.
   modularizeImports: {},
   images: {
     // Only add hosts here when a new <Image src="https://..."> is introduced.

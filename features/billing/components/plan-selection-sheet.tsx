@@ -28,7 +28,7 @@ import {
   getPlanPriceLabel,
   getYearlySavingsPercent,
 } from "@/lib/billing/plans";
-import type { BillingCurrency, BillingInterval, BillingRegion, PaidPlan } from "@/lib/billing/types";
+import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
 import { planMeta } from "@/lib/plans";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
@@ -50,8 +50,6 @@ type PlanSelectionSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentPlan: plan;
-  defaultCurrency: BillingCurrency;
-  region: BillingRegion;
   targetPlan?: PaidPlan;
   onSelectPlan: (plan: PaidPlan, interval: BillingInterval) => void;
 };
@@ -60,8 +58,6 @@ export function PlanSelectionSheet({
   open,
   onOpenChange,
   currentPlan,
-  defaultCurrency,
-  region: _region,
   targetPlan,
   onSelectPlan,
 }: PlanSelectionSheetProps) {
@@ -111,7 +107,7 @@ export function PlanSelectionSheet({
                 <TabsTrigger value="yearly">
                   Yearly
                   <Badge variant="secondary" className="ml-1.5 px-1 font-medium text-[10px]">
-                    -{getYearlySavingsPercent("pro", defaultCurrency)}%
+                    -{getYearlySavingsPercent("pro", "USD")}%
                   </Badge>
                 </TabsTrigger>
               </TabsList>
@@ -170,11 +166,11 @@ export function PlanSelectionSheet({
                           {interval === "yearly" ? "Yearly price" : "Monthly price"}
                         </p>
                         <p className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-                          {getPlanPriceLabel(plan, defaultCurrency, interval)}
+                          {getPlanPriceLabel(plan, "USD", interval)}
                         </p>
                         {interval === "yearly" ? (
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            {getMonthlyEquivalentLabel(plan, defaultCurrency)} per month
+                            {getMonthlyEquivalentLabel(plan, "USD")} per month
                           </p>
                         ) : null}
                       </div>

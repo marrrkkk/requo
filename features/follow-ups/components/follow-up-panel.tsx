@@ -40,6 +40,7 @@ type FollowUpCreateAction = (
 ) => Promise<FollowUpCreateActionState>;
 
 export function FollowUpPanel({
+  businessName,
   businessSlug,
   createAction,
   ctaDescription,
@@ -47,8 +48,10 @@ export function FollowUpPanel({
   defaultReason,
   defaultTitle,
   followUps,
+  members = [],
   sharedQuoteWithoutFollowUp = false,
 }: {
+  businessName?: string;
   businessSlug: string;
   createAction: FollowUpCreateAction;
   ctaDescription?: string;
@@ -56,6 +59,7 @@ export function FollowUpPanel({
   defaultReason: string;
   defaultTitle: string;
   followUps: FollowUpView[];
+  members?: { userId: string; name: string; email: string }[];
   sharedQuoteWithoutFollowUp?: boolean;
 }) {
   const pendingFollowUps = followUps.filter((followUp) => followUp.status === "pending");
@@ -92,8 +96,10 @@ export function FollowUpPanel({
         <div className="flex flex-col gap-3">
           <p className="meta-label">Next pending follow-up</p>
           <FollowUpItem
+            businessName={businessName}
             businessSlug={businessSlug}
             followUp={nextFollowUp}
+            members={members}
             showMessage
           />
         </div>
@@ -117,31 +123,29 @@ export function FollowUpPanel({
 
       {history.length ? (
         <div className="flex flex-col gap-3">
-          <p className="meta-label">Follow-up history</p>
+          <p className="meta-label">Previous ({history.length})</p>
           <DashboardDetailFeed>
-            {history.slice(0, 1).map((followUp) => (
+            {history.slice(0, 2).map((followUp) => (
               <DashboardDetailFeedItem
                 key={followUp.id}
                 action={<FollowUpStatusBadge status={followUp.status} />}
                 meta={
                   <>
                     <span>Due {formatFollowUpDate(followUp.dueAt)}</span>
-                    <span aria-hidden="true">|</span>
+                    <span aria-hidden="true">·</span>
                     <span>{followUp.related.label}</span>
                   </>
                 }
                 title={followUp.title}
-              >
-                <p>{followUp.reason}</p>
-              </DashboardDetailFeedItem>
+              />
             ))}
           </DashboardDetailFeed>
 
-          {history.length > 1 && (
+          {history.length > 2 && (
             <Sheet>
               <SheetTrigger asChild>
                 <Button className="w-full" type="button" variant="outline">
-                  View all follow-ups
+                  View all follow-ups ({history.length})
                 </Button>
               </SheetTrigger>
               <SheetContent className="w-full sm:max-w-md">
@@ -161,13 +165,13 @@ export function FollowUpPanel({
                           meta={
                             <>
                               <span>Due {formatFollowUpDate(followUp.dueAt)}</span>
-                              <span aria-hidden="true">|</span>
+                              <span aria-hidden="true">·</span>
                               <span>{followUp.related.label}</span>
                             </>
                           }
                           title={followUp.title}
                         >
-                          <p>{followUp.reason}</p>
+                          <p className="text-sm text-muted-foreground">{followUp.reason}</p>
                         </DashboardDetailFeedItem>
                       ))}
                     </DashboardDetailFeed>

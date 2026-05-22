@@ -52,6 +52,7 @@ describe('features/quotes/utils', () => {
       expect(result).toEqual({
         subtotalInCents: 2550, // 2*1000 + 1*550
         discountInCents: 0,
+        taxInCents: 0,
         totalInCents: 2550
       });
     });
@@ -65,6 +66,7 @@ describe('features/quotes/utils', () => {
       expect(result).toEqual({
         subtotalInCents: 10000,
         discountInCents: 1000,
+        taxInCents: 0,
         totalInCents: 9000
       });
     });
@@ -79,6 +81,7 @@ describe('features/quotes/utils', () => {
       expect(result).toEqual({
         subtotalInCents: 5000,
         discountInCents: 5000,
+        taxInCents: 0,
         totalInCents: 0
       });
     });

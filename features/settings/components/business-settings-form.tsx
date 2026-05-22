@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import Cropper, { type Area } from "react-easy-crop";
 import {
   useEffect,
@@ -25,7 +24,6 @@ import { Combobox } from "@/components/ui/combobox";
 import {
   Field,
   FieldContent,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -54,7 +52,6 @@ import type {
 } from "@/features/settings/types";
 import type { BusinessRecordActionState } from "@/features/businesses/types";
 import {
-  getBusinessPublicInquiryUrl,
   businessLogoAccept,
   businessLogoAllowedMimeTypes,
   businessLogoMaxSize,
@@ -148,10 +145,6 @@ export function BusinessSettingsForm({
   const [logoResetSignal, setLogoResetSignal] = useState(0);
   const countryCodeError = getFieldError(state.fieldErrors, "countryCode");
   const defaultCurrencyError = getFieldError(state.fieldErrors, "defaultCurrency");
-  const publicInquiryUrl = useMemo(
-    () => getBusinessPublicInquiryUrl(draftValues.slug || settings.slug),
-    [draftValues.slug, settings.slug],
-  );
   const hasTextInputChanges =
     draftValues.name !== savedValues.name ||
     draftValues.slug !== savedValues.slug ||
@@ -228,233 +221,225 @@ export function BusinessSettingsForm({
         />
 
         <section className="section-panel p-5 sm:p-6">
-          <div className="flex flex-col gap-6">
-            <div className="grid gap-7 xl:grid-cols-[14rem_minmax(0,1fr)] xl:gap-8">
-              <BusinessLogoField
-                businessName={businessNamePreview}
-                disabled={isPending}
-                fieldError={state.fieldErrors?.logo?.[0]}
-                initialPreviewUrl={logoPreviewUrl}
-                onPendingChange={setHasPendingLogo}
-                onRemoveLogoChange={setRemoveLogo}
-                removeLogo={removeLogo}
-                resetSignal={logoResetSignal}
-                showRemoveToggle={Boolean(settings.logoStoragePath)}
-              />
+          <div className="flex flex-col gap-7">
+            {/* Logo + identity row */}
+            <FormSection
+              description="Use the same name and reply address customers recognize."
+              title="Identity & contact"
+            >
+              <FieldGroup>
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
+                  <BusinessLogoField
+                    businessName={businessNamePreview}
+                    disabled={isPending}
+                    fieldError={state.fieldErrors?.logo?.[0]}
+                    initialPreviewUrl={logoPreviewUrl}
+                    onPendingChange={setHasPendingLogo}
+                    onRemoveLogoChange={setRemoveLogo}
+                    removeLogo={removeLogo}
+                    resetSignal={logoResetSignal}
+                    showRemoveToggle={Boolean(settings.logoStoragePath)}
+                  />
 
-              <div className="flex min-w-0 flex-col gap-7">
-                <FormSection
-                  description="Use the same name and reply address customers recognize."
-                  title="Identity & contact"
-                >
-                    <FieldGroup>
-                      <Field data-invalid={Boolean(state.fieldErrors?.name) || undefined}>
-                        <FieldLabel htmlFor="settings-name">Business name</FieldLabel>
-                        <FieldContent>
-                          <Input
-                            value={draftValues.name}
-                            disabled={isPending}
-                            id="settings-name"
-                            maxLength={120}
-                            minLength={2}
-                            name="name"
-                            onChange={(event) =>
-                              updateDraftValue("name", event.currentTarget.value)
-                            }
-                            placeholder="Northline Print Studio"
-                            required
-                          />
-                          <FieldError
-                            errors={
-                              state.fieldErrors?.name?.[0]
-                                ? [{ message: state.fieldErrors.name[0] }]
-                                : undefined
-                            }
-                          />
-                        </FieldContent>
-                      </Field>
+                  <div className="grid min-w-0 flex-1 gap-5 sm:grid-cols-2">
+                    <Field data-invalid={Boolean(state.fieldErrors?.name) || undefined}>
+                      <FieldLabel htmlFor="settings-name">Business name</FieldLabel>
+                      <FieldContent>
+                        <Input
+                          value={draftValues.name}
+                          disabled={isPending}
+                          id="settings-name"
+                          maxLength={120}
+                          minLength={2}
+                          name="name"
+                          onChange={(event) =>
+                            updateDraftValue("name", event.currentTarget.value)
+                          }
+                          placeholder="Northline Print Studio"
+                          required
+                        />
+                        <FieldError
+                          errors={
+                            state.fieldErrors?.name?.[0]
+                              ? [{ message: state.fieldErrors.name[0] }]
+                              : undefined
+                          }
+                        />
+                      </FieldContent>
+                    </Field>
 
-                      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                        <Field data-invalid={Boolean(state.fieldErrors?.slug) || undefined}>
-                          <FieldLabel htmlFor="settings-slug">Public slug</FieldLabel>
-                          <FieldContent>
-                            <Input
-                              value={draftValues.slug}
-                              disabled={isPending}
-                              id="settings-slug"
-                              maxLength={businessSlugMaxLength}
-                              minLength={2}
-                              name="slug"
-                              onChange={(event) =>
-                                updateDraftValue("slug", event.currentTarget.value)
-                              }
-                              pattern={businessSlugPattern}
-                              placeholder="northline-print"
-                              required
-                              spellCheck={false}
-                            />
-                            <FieldDescription>
-                              Public inquiry URL:{" "}
-                              <Link
-                                className="underline underline-offset-4"
-                                href={publicInquiryUrl}
-                                rel="noreferrer"
-                                target="_blank"
-                              >
-                                {publicInquiryUrl}
-                              </Link>
-                            </FieldDescription>
-                            <FieldError
-                              errors={
-                                state.fieldErrors?.slug?.[0]
-                                  ? [{ message: state.fieldErrors.slug[0] }]
-                                  : undefined
-                              }
-                            />
-                          </FieldContent>
-                        </Field>
-
-                        <Field
-                          data-invalid={Boolean(state.fieldErrors?.contactEmail) || undefined}
-                        >
-                          <FieldLabel htmlFor="settings-contact-email">
-                            Contact email
-                          </FieldLabel>
-                          <FieldContent>
-                            <Input
-                              value={draftValues.contactEmail}
-                              disabled={isPending}
-                              id="settings-contact-email"
-                              maxLength={320}
-                              name="contactEmail"
-                              onChange={(event) =>
-                                updateDraftValue(
-                                  "contactEmail",
-                                  event.currentTarget.value,
-                                )
-                              }
-                              placeholder="hello@example.com"
-                              type="email"
-                            />
-                            <FieldError
-                              errors={
-                                state.fieldErrors?.contactEmail?.[0]
-                                  ? [{ message: state.fieldErrors.contactEmail[0] }]
-                                  : undefined
-                              }
-                            />
-                          </FieldContent>
-                        </Field>
-                      </div>
-                    </FieldGroup>
-                </FormSection>
-
-                <FormSection
-                  className="border-t border-border/70 pt-6"
-                  description="Keep this short so public inquiry pages stay easy to scan."
-                  title="Business summary"
-                >
-                      <Field
-                        data-invalid={Boolean(state.fieldErrors?.shortDescription) || undefined}
-                      >
-                        <FieldLabel htmlFor="settings-short-description">
-                          Short description
-                        </FieldLabel>
-                        <FieldContent>
-                          <Textarea
-                            value={draftValues.shortDescription}
-                            disabled={isPending}
-                            id="settings-short-description"
-                            maxLength={280}
-                            name="shortDescription"
-                            onChange={(event) =>
-                              updateDraftValue(
-                                "shortDescription",
-                                event.currentTarget.value,
+                    <Field
+                      data-invalid={Boolean(state.fieldErrors?.contactEmail) || undefined}
+                    >
+                      <FieldLabel htmlFor="settings-contact-email">
+                        Contact email
+                      </FieldLabel>
+                      <FieldContent>
+                        <Input
+                          value={draftValues.contactEmail}
+                          disabled={isPending}
+                          id="settings-contact-email"
+                          maxLength={320}
+                          name="contactEmail"
+                          onChange={(event) =>
+                            updateDraftValue(
+                              "contactEmail",
+                              event.currentTarget.value,
                             )
                           }
-                          placeholder="Reliable repair, install, and recurring maintenance work for homes and small property portfolios."
-                          rows={6}
+                          placeholder="hello@example.com"
+                          type="email"
                         />
-                          <FieldError
-                            errors={
-                              state.fieldErrors?.shortDescription?.[0]
-                                ? [{ message: state.fieldErrors.shortDescription[0] }]
-                                : undefined
-                            }
-                          />
-                        </FieldContent>
-                      </Field>
-                </FormSection>
+                        <FieldError
+                          errors={
+                            state.fieldErrors?.contactEmail?.[0]
+                              ? [{ message: state.fieldErrors.contactEmail[0] }]
+                              : undefined
+                          }
+                        />
+                      </FieldContent>
+                    </Field>
+                  </div>
+                </div>
 
-                <FormSection
-                  className="border-t border-border/70 pt-6"
-                  description="Used for quote amounts, public forms, and saved customer-facing defaults."
-                  title="Regional defaults"
-                >
-                      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                        <Field data-invalid={Boolean(countryCodeError) || undefined}>
-                          <FieldLabel htmlFor="settings-country-code">Country</FieldLabel>
-                          <FieldContent>
-                            <CountryCombobox
-                              aria-invalid={Boolean(countryCodeError) || undefined}
-                              disabled={isPending}
-                              id="settings-country-code"
-                              onValueChange={(value) => {
-                                const nextCurrency = resolveCurrencyForCountry(value);
-                                setDraftValues((current) => ({
-                                  ...current,
-                                  countryCode: value,
-                                  defaultCurrency: nextCurrency ?? current.defaultCurrency,
-                                }));
-                              }}
-                              placeholder="Choose a country"
-                              searchPlaceholder="Search country"
-                              showFlags={false}
-                              value={draftValues.countryCode}
-                            />
-                            <FieldError
-                              errors={
-                                countryCodeError ? [{ message: countryCodeError }] : undefined
-                              }
-                            />
-                          </FieldContent>
-                        </Field>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <Field data-invalid={Boolean(state.fieldErrors?.slug) || undefined}>
+                    <FieldLabel htmlFor="settings-slug">Public slug</FieldLabel>
+                    <FieldContent>
+                      <Input
+                        value={draftValues.slug}
+                        disabled={isPending}
+                        id="settings-slug"
+                        maxLength={businessSlugMaxLength}
+                        minLength={2}
+                        name="slug"
+                        onChange={(event) =>
+                          updateDraftValue("slug", event.currentTarget.value)
+                        }
+                        pattern={businessSlugPattern}
+                        placeholder="northline-print"
+                        required
+                        spellCheck={false}
+                      />
+                      <FieldError
+                        errors={
+                          state.fieldErrors?.slug?.[0]
+                            ? [{ message: state.fieldErrors.slug[0] }]
+                            : undefined
+                        }
+                      />
+                    </FieldContent>
+                  </Field>
+                </div>
+              </FieldGroup>
+            </FormSection>
 
-                        <Field data-invalid={Boolean(defaultCurrencyError) || undefined}>
-                          <FieldLabel htmlFor="settings-default-currency">
-                            Default currency
-                          </FieldLabel>
-                          <FieldContent>
-                            <Combobox
-                              aria-invalid={Boolean(defaultCurrencyError) || undefined}
-                              disabled={isPending}
-                              id="settings-default-currency"
-                              onValueChange={(value) =>
-                                updateDraftValue("defaultCurrency", value)
-                              }
-                              options={businessCurrencyOptions.map((currencyOption) => ({
-                                label: currencyOption.label,
-                                searchText: `${currencyOption.code} ${currencyOption.name}`,
-                                value: currencyOption.code,
-                              }))}
-                              placeholder="Choose a currency"
-                              searchPlaceholder="Search currency"
-                              value={draftValues.defaultCurrency}
-                            />
-                            <FieldError
-                              errors={
-                                defaultCurrencyError
-                                  ? [{ message: defaultCurrencyError }]
-                                  : undefined
-                              }
-                            />
-                          </FieldContent>
-                        </Field>
-                      </div>
-                </FormSection>
+            <div className="border-t border-border/70" />
+
+            <FormSection
+              description="Keep this short so public inquiry pages stay easy to scan."
+              title="Business summary"
+            >
+              <Field
+                data-invalid={Boolean(state.fieldErrors?.shortDescription) || undefined}
+              >
+                <FieldLabel htmlFor="settings-short-description">
+                  Short description
+                </FieldLabel>
+                <FieldContent>
+                  <Textarea
+                    value={draftValues.shortDescription}
+                    disabled={isPending}
+                    id="settings-short-description"
+                    maxLength={280}
+                    name="shortDescription"
+                    onChange={(event) =>
+                      updateDraftValue(
+                        "shortDescription",
+                        event.currentTarget.value,
+                      )
+                    }
+                    placeholder="Reliable repair, install, and recurring maintenance work for homes and small property portfolios."
+                    rows={4}
+                  />
+                  <FieldError
+                    errors={
+                      state.fieldErrors?.shortDescription?.[0]
+                        ? [{ message: state.fieldErrors.shortDescription[0] }]
+                        : undefined
+                    }
+                  />
+                </FieldContent>
+              </Field>
+            </FormSection>
+
+            <div className="border-t border-border/70" />
+
+            <FormSection
+              description="Applied to new quotes and pricing entries. Existing quotes keep their original currency."
+              title="Regional defaults"
+            >
+              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <Field data-invalid={Boolean(countryCodeError) || undefined}>
+                  <FieldLabel htmlFor="settings-country-code">Country</FieldLabel>
+                  <FieldContent>
+                    <CountryCombobox
+                      aria-invalid={Boolean(countryCodeError) || undefined}
+                      disabled={isPending}
+                      id="settings-country-code"
+                      onValueChange={(value) => {
+                        const nextCurrency = resolveCurrencyForCountry(value);
+                        setDraftValues((current) => ({
+                          ...current,
+                          countryCode: value,
+                          defaultCurrency: nextCurrency ?? current.defaultCurrency,
+                        }));
+                      }}
+                      placeholder="Choose a country"
+                      searchPlaceholder="Search country"
+                      showFlags={false}
+                      value={draftValues.countryCode}
+                    />
+                    <FieldError
+                      errors={
+                        countryCodeError ? [{ message: countryCodeError }] : undefined
+                      }
+                    />
+                  </FieldContent>
+                </Field>
+
+                <Field data-invalid={Boolean(defaultCurrencyError) || undefined}>
+                  <FieldLabel htmlFor="settings-default-currency">
+                    Default currency
+                  </FieldLabel>
+                  <FieldContent>
+                    <Combobox
+                      aria-invalid={Boolean(defaultCurrencyError) || undefined}
+                      disabled={isPending}
+                      id="settings-default-currency"
+                      onValueChange={(value) =>
+                        updateDraftValue("defaultCurrency", value)
+                      }
+                      options={businessCurrencyOptions.map((currencyOption) => ({
+                        label: currencyOption.label,
+                        searchText: `${currencyOption.code} ${currencyOption.name}`,
+                        value: currencyOption.code,
+                      }))}
+                      placeholder="Choose a currency"
+                      searchPlaceholder="Search currency"
+                      value={draftValues.defaultCurrency}
+                    />
+                    <FieldError
+                      errors={
+                        defaultCurrencyError
+                          ? [{ message: defaultCurrencyError }]
+                          : undefined
+                      }
+                    />
+                  </FieldContent>
+                </Field>
               </div>
-            </div>
+            </FormSection>
           </div>
         </section>
 
@@ -677,121 +662,94 @@ function BusinessLogoField({
 
   return (
     <>
-      <div className="flex min-w-0 flex-col gap-4">
-        <div className="flex min-w-0 flex-col items-center text-center gap-4 xl:flex-col xl:items-center xl:text-center">
-          <div className="group relative shrink-0">
-            <input
-              ref={inputRef}
-              accept={businessLogoAccept}
-              className="sr-only"
-              disabled={disabled}
-              id="settings-logo"
-              name="logo"
-              onChange={handleLogoSelection}
-              type="file"
-            />
-            <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/75 bg-muted/35 xl:size-28">
-              {currentPreviewUrl ? (
-                <Image
-                  alt={`${businessName} logo`}
-                  className="h-full w-full object-cover"
-                  height={112}
-                  src={currentPreviewUrl}
-                  unoptimized
-                  width={112}
-                />
-              ) : (
-                <span className="text-lg font-semibold uppercase text-foreground">
-                  {getInitials(businessName)}
-                </span>
-              )}
-            </div>
-            <label
-              className={cn(
-                "absolute inset-0 flex cursor-pointer items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/15",
-                disabled && "pointer-events-none cursor-default opacity-60",
-              )}
-              htmlFor="settings-logo"
-              onKeyDown={(event) => {
-                if (
-                  disabled ||
-                  (event.key !== "Enter" && event.key !== " ")
-                ) {
-                  return;
-                }
-
-                event.preventDefault();
-                inputRef.current?.click();
-              }}
-              role="button"
-              tabIndex={disabled ? -1 : 0}
-            >
-              <span className="absolute inset-0 rounded-xl bg-foreground/0 transition-colors duration-150 sm:group-hover:bg-foreground/20 sm:group-focus-within:bg-foreground/20" />
-              <span className="relative inline-flex size-9 items-center justify-center rounded-full border border-border/80 bg-background/95 text-foreground shadow-[var(--surface-shadow-sm)] transition-[transform,opacity] duration-150 opacity-100 sm:scale-95 sm:opacity-0 sm:group-hover:scale-100 sm:group-hover:opacity-100 sm:group-focus-within:scale-100 sm:group-focus-within:opacity-100">
-                <Camera aria-hidden="true" className="size-4" />
-                <span className="sr-only">
-                  {currentPreviewUrl ? "Update logo" : "Upload logo"}
-                </span>
+      <div className="flex shrink-0 flex-col items-center gap-2">
+        <div className="group relative shrink-0">
+          <input
+            ref={inputRef}
+            accept={businessLogoAccept}
+            className="sr-only"
+            disabled={disabled}
+            id="settings-logo"
+            name="logo"
+            onChange={handleLogoSelection}
+            type="file"
+          />
+          <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border/75 bg-muted/35 sm:size-24">
+            {currentPreviewUrl ? (
+              <Image
+                alt={`${businessName} logo`}
+                className="h-full w-full object-cover"
+                height={96}
+                src={currentPreviewUrl}
+                unoptimized
+                width={96}
+              />
+            ) : (
+              <span className="text-lg font-semibold uppercase text-foreground">
+                {getInitials(businessName)}
               </span>
-            </label>
+            )}
           </div>
+          <label
+            className={cn(
+              "absolute inset-0 flex cursor-pointer items-center justify-center rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-ring/15",
+              disabled && "pointer-events-none cursor-default opacity-60",
+            )}
+            htmlFor="settings-logo"
+            onKeyDown={(event) => {
+              if (
+                disabled ||
+                (event.key !== "Enter" && event.key !== " ")
+              ) {
+                return;
+              }
 
-          <div className="flex min-w-0 flex-col items-center gap-1.5">
-            <p className="meta-label">Logo</p>
-            <h3 className="text-[0.95rem] font-semibold tracking-tight text-foreground">
-              Business logo
-            </h3>
-            <p className="text-sm leading-6 text-muted-foreground">
-              Appears on public inquiry pages and quote previews.
-            </p>
-          </div>
+              event.preventDefault();
+              inputRef.current?.click();
+            }}
+            role="button"
+            tabIndex={disabled ? -1 : 0}
+          >
+            <span className="absolute inset-0 rounded-xl bg-foreground/0 transition-colors duration-150 sm:group-hover:bg-foreground/20 sm:group-focus-within:bg-foreground/20" />
+            <span className="relative inline-flex size-8 items-center justify-center rounded-full border border-border/80 bg-background/95 text-foreground shadow-[var(--surface-shadow-sm)] transition-[transform,opacity] duration-150 opacity-100 sm:scale-95 sm:opacity-0 sm:group-hover:scale-100 sm:group-hover:opacity-100 sm:group-focus-within:scale-100 sm:group-focus-within:opacity-100">
+              <Camera aria-hidden="true" className="size-3.5" />
+              <span className="sr-only">
+                {currentPreviewUrl ? "Update logo" : "Upload logo"}
+              </span>
+            </span>
+          </label>
         </div>
 
-        <div className="flex flex-col gap-3 text-sm">
-          {previewUrl ? (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between xl:flex-col xl:items-start">
-              <div className="min-w-0">
-                <p className="font-medium text-foreground">Cropped logo ready</p>
-                <p className="text-muted-foreground">Uploads after save.</p>
-              </div>
-              <Button
-                disabled={disabled}
-                onClick={clearPendingLogo}
-                size="sm"
-                type="button"
-                variant="outline"
-              >
-                Clear
-              </Button>
-            </div>
-          ) : null}
-          {showRemoveToggle && !previewUrl ? (
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  aria-pressed={removeLogo}
-                  disabled={disabled}
-                  onClick={() => onRemoveLogoChange(!removeLogo)}
-                  size="sm"
-                  type="button"
-                  variant="outline"
-                >
-                  {removeLogo ? "Keep logo" : "Remove logo"}
-                </Button>
-              </div>
-              {removeLogo ? (
-                <p className="text-muted-foreground">
-                  Falls back to initials after save.
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-          {localError || fieldError ? (
-            <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-destructive">
-              {localError || fieldError}
-            </div>
-          ) : null}
-        </div>
+        {previewUrl ? (
+          <Button
+            disabled={disabled}
+            onClick={clearPendingLogo}
+            size="sm"
+            type="button"
+            variant="ghost"
+            className="h-auto px-2 py-1 text-xs"
+          >
+            Clear
+          </Button>
+        ) : showRemoveToggle ? (
+          <Button
+            aria-pressed={removeLogo}
+            disabled={disabled}
+            onClick={() => onRemoveLogoChange(!removeLogo)}
+            size="sm"
+            type="button"
+            variant="ghost"
+            className="h-auto px-2 py-1 text-xs"
+          >
+            {removeLogo ? "Keep" : "Remove"}
+          </Button>
+        ) : null}
+
+        {localError || fieldError ? (
+          <p className="max-w-[10rem] text-center text-xs text-destructive">
+            {localError || fieldError}
+          </p>
+        ) : null}
       </div>
 
       <Dialog

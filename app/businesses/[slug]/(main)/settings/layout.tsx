@@ -35,9 +35,9 @@ async function BusinessSettingsShell({
 
   return (
     <DashboardPage>
-      <div className="flex min-w-0 flex-col gap-6">
+      <div className="flex min-w-0 flex-col gap-6 sm:flex-row sm:gap-8 lg:gap-10">
         <BusinessSettingsNav groups={navigationGroups} />
-        <div className="min-w-0 w-full">
+        <div className="min-w-0 flex-1">
           <div className="flex flex-col gap-6 pb-24 sm:gap-7 xl:pb-28">
             {children}
           </div>
@@ -50,13 +50,32 @@ async function BusinessSettingsShell({
 function BusinessSettingsLayoutFallback() {
   return (
     <DashboardPage>
-      <div className="flex min-w-0 flex-col gap-6">
-        <div className="flex flex-wrap gap-2">
-          <Skeleton className="h-9 w-28 rounded-md" />
-          <Skeleton className="h-9 w-32 rounded-md" />
-          <Skeleton className="h-9 w-24 rounded-md" />
+      <div className="flex min-w-0 flex-col gap-6 sm:flex-row sm:gap-8 lg:gap-10">
+        {/* Sidebar skeleton */}
+        <div className="hidden shrink-0 sm:block sm:w-48 lg:w-52">
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-1">
+              <Skeleton className="mx-3 mb-1 h-3 w-16 rounded-md" />
+              <Skeleton className="h-9 w-full rounded-lg" />
+              <Skeleton className="h-9 w-full rounded-lg" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Skeleton className="mx-3 mb-1 h-3 w-20 rounded-md" />
+              <Skeleton className="h-9 w-full rounded-lg" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Skeleton className="mx-3 mb-1 h-3 w-14 rounded-md" />
+              <Skeleton className="h-9 w-full rounded-lg" />
+              <Skeleton className="h-9 w-full rounded-lg" />
+              <Skeleton className="h-9 w-full rounded-lg" />
+            </div>
+          </div>
         </div>
-        <div className="min-w-0 w-full">
+        {/* Mobile skeleton */}
+        <div className="sm:hidden">
+          <Skeleton className="h-10 w-full rounded-lg" />
+        </div>
+        <div className="min-w-0 flex-1">
           <div className="flex flex-col gap-6 pb-24 sm:gap-7 xl:pb-28">
             <DashboardSettingsSkeleton />
           </div>

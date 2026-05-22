@@ -4,6 +4,7 @@ import { admin, magicLink } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
 
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
+import { getAdminHost } from "@/lib/admin/subdomain-config";
 import { db } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { env } from "@/lib/env";
@@ -32,6 +33,14 @@ function buildTrustedOrigins() {
     origins.add(getTrustedVercelOrigin(env.VERCEL_URL));
   }
 
+  // Vercel auto-sets VERCEL_BRANCH_URL and VERCEL_PROJECT_PRODUCTION_URL
+  if (process.env.VERCEL_BRANCH_URL) {
+    origins.add(getTrustedVercelOrigin(process.env.VERCEL_BRANCH_URL));
+  }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    origins.add(getTrustedVercelOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL));
+  }
+
   if (env.NODE_ENV !== "production") {
     for (const origin of Array.from(origins)) {
       const url = new URL(origin);
@@ -47,6 +56,11 @@ function buildTrustedOrigins() {
       }
     }
   }
+
+  // Add admin subdomain to trusted origins
+  const adminHost = getAdminHost();
+  const adminProtocol = env.NODE_ENV === "production" ? "https" : "http";
+  origins.add(`${adminProtocol}://${adminHost}`);
 
   return Array.from(origins);
 }

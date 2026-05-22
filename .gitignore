@@ -45,3 +45,5 @@ next-env.d.ts
 
 # editor
 .vscode
+# Remotion video project
+/requo-video/

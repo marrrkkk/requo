@@ -12,6 +12,8 @@ import {
 import {
   getFollowUpListCountForBusiness,
   getFollowUpListPageForBusiness,
+  getBusinessMembersForReassign,
+  getRecentRecordsForFollowUpCreate,
 } from "@/features/follow-ups/queries";
 import { followUpListFiltersSchema } from "@/features/follow-ups/schemas";
 import type { FollowUpListFilters } from "@/features/follow-ups/types";
@@ -92,6 +94,12 @@ export default async function FollowUpsPage({
       baseFilters.sort !== "due_asc",
   );
   const clearFiltersPath = getBusinessFollowUpsPath(businessSlug);
+  const recentRecords = await getRecentRecordsForFollowUpCreate(
+    businessContext.business.id,
+  );
+  const members = await getBusinessMembersForReassign(
+    businessContext.business.id,
+  );
 
   return (
     <DashboardPage>
@@ -101,7 +109,7 @@ export default async function FollowUpsPage({
         title="Follow-ups"
         actions={
           <LockedAction feature="followUps" plan={businessContext.business.plan}>
-            <CreateFollowUpButton businessSlug={businessSlug} />
+            <CreateFollowUpButton businessSlug={businessSlug} records={recentRecords} />
           </LockedAction>
         }
       />
@@ -115,10 +123,12 @@ export default async function FollowUpsPage({
 
       <Suspense fallback={<FollowUpListContentFallback />}>
         <FollowUpListContent
+          businessName={businessContext.business.name}
           businessSlug={businessSlug}
           clearFiltersPath={clearFiltersPath}
           filters={filters}
           hasFilters={hasFilters}
+          members={members}
           pageDataPromise={pageDataPromise}
           searchParams={resolvedSearchParams}
           totalItemsPromise={totalItemsPromise}
@@ -129,18 +139,22 @@ export default async function FollowUpsPage({
 }
 
 async function FollowUpListContent({
+  businessName,
   businessSlug,
   clearFiltersPath,
   filters,
   hasFilters,
+  members,
   pageDataPromise,
   searchParams,
   totalItemsPromise,
 }: {
+  businessName: string;
   businessSlug: string;
   clearFiltersPath: string;
   filters: FollowUpListFilters;
   hasFilters: boolean;
+  members: { userId: string; name: string; email: string }[];
   pageDataPromise: Promise<{
     currentPage: number;
     followUps: Awaited<ReturnType<typeof getFollowUpListPageForBusiness>>;
@@ -153,12 +167,14 @@ async function FollowUpListContent({
 
   return (
     <FollowUpListContentSection
+      businessName={businessName}
       businessSlug={businessSlug}
       clearFiltersPath={clearFiltersPath}
       currentPage={pageData.currentPage}
       filters={filters}
       followUpsPromise={Promise.resolve(pageData.followUps)}
       hasFilters={hasFilters}
+      members={members}
       searchParams={searchParams}
       totalItemsPromise={totalItemsPromise}
       totalPages={pageData.totalPages}

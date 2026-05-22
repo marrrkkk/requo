@@ -1,13 +1,22 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { Layers, Plus, Trash2 } from "lucide-react";
 
 import { FormActions } from "@/components/shared/form-layout";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Combobox } from "@/components/ui/combobox";
+import { DialogBody, DialogFooter } from "@/components/ui/dialog";
 import {
   Field,
   FieldContent,
@@ -16,6 +25,11 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import type {
   QuoteEditorLineItemValue,
@@ -24,11 +38,26 @@ import type {
   QuoteLibraryEntryKind,
 } from "@/features/quotes/types";
 import {
+  centsToMoneyInput,
   createQuoteEditorLineItem,
   createQuoteEditorLineItemValue,
+  formatQuoteMoney,
   getQuoteLibraryEntryKindLabel,
 } from "@/features/quotes/utils";
 import { cn } from "@/lib/utils";
+
+export type QuoteLibraryBlockReference = {
+  id: string;
+  name: string;
+  currency: string;
+  totalInCents: number;
+  items: ReadonlyArray<{
+    id: string;
+    description: string;
+    quantity: number;
+    unitPriceInCents: number;
+  }>;
+};
 
 type QuoteLibraryEntryFormProps = {
   action: (
@@ -40,7 +69,12 @@ type QuoteLibraryEntryFormProps = {
   submitLabel: string;
   submitPendingLabel: string;
   onSuccess?: () => void;
+  onCancel?: () => void;
+  cancelLabel?: string;
   idPrefix?: string;
+  layout?: "inline" | "dialog";
+  aboveFields?: ReactNode;
+  availableBlocks?: ReadonlyArray<QuoteLibraryBlockReference>;
 };
 
 const initialState: QuoteLibraryActionState = {};
@@ -69,7 +103,12 @@ export function QuoteLibraryEntryForm({
   submitLabel,
   submitPendingLabel,
   onSuccess,
+  onCancel,
+  cancelLabel = "Cancel",
   idPrefix = "quote-library-entry",
+  layout = "inline",
+  aboveFields,
+  availableBlocks,
 }: QuoteLibraryEntryFormProps) {
   const router = useProgressRouter();
   const [state, formAction, isPending] = useActionStateWithSonner(
@@ -95,13 +134,21 @@ export function QuoteLibraryEntryForm({
   }, [onSuccess, router, state.success]);
 
   return (
-    <form action={formAction} className="form-stack">
+    <form
+      action={formAction}
+      className={layout === "dialog" ? "flex min-h-0 flex-1 flex-col" : "form-stack"}
+    >
       <QuoteLibraryEntryFormFields
         key={initialValues ? idPrefix : state.success ?? "quote-library-create"}
+        aboveFields={aboveFields}
+        availableBlocks={availableBlocks}
+        cancelLabel={cancelLabel}
         fixedKind={fixedKind}
         idPrefix={idPrefix}
         initialValues={initialValues}
         isPending={isPending}
+        layout={layout}
+        onCancel={onCancel}
         state={state}
         submitLabel={submitLabel}
         submitPendingLabel={submitPendingLabel}
@@ -111,18 +158,28 @@ export function QuoteLibraryEntryForm({
 }
 
 function QuoteLibraryEntryFormFields({
+  aboveFields,
+  availableBlocks,
+  cancelLabel,
   fixedKind,
   idPrefix,
   initialValues,
   isPending,
+  layout,
+  onCancel,
   state,
   submitLabel,
   submitPendingLabel,
 }: {
+  aboveFields?: ReactNode;
+  availableBlocks?: ReadonlyArray<QuoteLibraryBlockReference>;
+  cancelLabel: string;
   fixedKind?: QuoteLibraryEntryKind;
   idPrefix: string;
   initialValues?: QuoteLibraryEditorValues;
   isPending: boolean;
+  layout: "inline" | "dialog";
+  onCancel?: () => void;
   state: QuoteLibraryActionState;
   submitLabel: string;
   submitPendingLabel: string;
@@ -252,6 +309,44 @@ function QuoteLibraryEntryFormFields({
     scheduleItemEnter(nextItem.id);
   }
 
+  function appendItemsFromBlock(block: QuoteLibraryBlockReference) {
+    if (block.items.length === 0) {
+      return;
+    }
+
+    const newItems: EditorLineItem[] = block.items.map((item) => ({
+      ...createQuoteEditorLineItemValue({
+        description: item.description,
+        quantity: String(item.quantity),
+        unitPrice: centsToMoneyInput(item.unitPriceInCents),
+      }),
+      motionState: "entering",
+    }));
+
+    setItems((currentItems) => {
+      // Drop the trailing blank line item (a brand-new package always seeds one
+      // empty row) so the imported block lands cleanly without an empty row
+      // before it. Existing filled rows are preserved.
+      const trailing = currentItems[currentItems.length - 1];
+      const trailingIsBlank =
+        trailing &&
+        trailing.motionState !== "exiting" &&
+        !trailing.description.trim() &&
+        !trailing.unitPrice.trim() &&
+        currentItems.filter((it) => it.motionState !== "exiting").length === 1;
+
+      const base = trailingIsBlank
+        ? currentItems.slice(0, -1)
+        : currentItems;
+
+      return [...base, ...newItems];
+    });
+
+    for (const item of newItems) {
+      scheduleItemEnter(item.id);
+    }
+  }
+
   function handleKindChange(nextKind: "block" | "package") {
     setKind(nextKind);
 
@@ -278,11 +373,33 @@ function QuoteLibraryEntryFormFields({
     });
   }
 
-  return (
+  const submitButton = (
+    <Button disabled={isPending} type="submit">
+      {isPending ? (
+        <>
+          <Spinner data-icon="inline-start" aria-hidden="true" />
+          {submitPendingLabel}
+        </>
+      ) : (
+        submitLabel
+      )}
+    </Button>
+  );
+
+  const cancelButton = onCancel ? (
+    <Button
+      disabled={isPending}
+      onClick={onCancel}
+      type="button"
+      variant="outline"
+    >
+      {cancelLabel}
+    </Button>
+  ) : null;
+
+  const fieldsContent = (
     <>
-      <input name="kind" type="hidden" value={kind} />
-      <input name="description" type="hidden" value="" />
-      <input name="items" type="hidden" value={JSON.stringify(serializedItems)} />
+      {aboveFields}
 
       <div className="grid gap-5">
         <div
@@ -344,20 +461,36 @@ function QuoteLibraryEntryFormFields({
       </div>
 
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm font-medium text-foreground">
-            {kind === "block" ? "Saved item" : "Saved items"}
-          </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-0.5">
+            <p className="text-sm font-medium text-foreground">
+              {kind === "block" ? "Saved item" : "Saved items"}
+            </p>
+            {kind === "package" ? (
+              <p className="text-xs text-muted-foreground">
+                Add items manually or pull them in from a saved block.
+              </p>
+            ) : null}
+          </div>
           {kind === "package" ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={addItem}
-              disabled={isPending || visibleItems.length >= 25}
-            >
-              <Plus data-icon="inline-start" />
-              Add item
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {availableBlocks && availableBlocks.length > 0 ? (
+                <BlockPicker
+                  blocks={availableBlocks}
+                  disabled={isPending || visibleItems.length >= 25}
+                  onSelect={appendItemsFromBlock}
+                />
+              ) : null}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={addItem}
+                disabled={isPending || visibleItems.length >= 25}
+              >
+                <Plus data-icon="inline-start" />
+                Add item
+              </Button>
+            </div>
           ) : null}
         </div>
 
@@ -479,19 +612,109 @@ function QuoteLibraryEntryFormFields({
           })}
         </div>
       </div>
+    </>
+  );
+
+  if (layout === "dialog") {
+    return (
+      <>
+        <input name="kind" type="hidden" value={kind} />
+        <input name="description" type="hidden" value="" />
+        <input
+          name="items"
+          type="hidden"
+          value={JSON.stringify(serializedItems)}
+        />
+
+        <DialogBody className="flex flex-col gap-6">{fieldsContent}</DialogBody>
+
+        <DialogFooter>
+          {cancelButton}
+          {submitButton}
+        </DialogFooter>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <input name="kind" type="hidden" value={kind} />
+      <input name="description" type="hidden" value="" />
+      <input name="items" type="hidden" value={JSON.stringify(serializedItems)} />
+
+      {fieldsContent}
 
       <FormActions>
-        <Button disabled={isPending} type="submit">
-          {isPending ? (
-            <>
-              <Spinner data-icon="inline-start" aria-hidden="true" />
-              {submitPendingLabel}
-            </>
-          ) : (
-            submitLabel
-          )}
-        </Button>
+        {cancelButton}
+        {submitButton}
       </FormActions>
     </>
+  );
+}
+
+function BlockPicker({
+  blocks,
+  disabled,
+  onSelect,
+}: {
+  blocks: ReadonlyArray<QuoteLibraryBlockReference>;
+  disabled: boolean;
+  onSelect: (block: QuoteLibraryBlockReference) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const sortedBlocks = useMemo(
+    () => [...blocks].sort((a, b) => a.name.localeCompare(b.name)),
+    [blocks],
+  );
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button disabled={disabled} type="button" variant="outline">
+          <Layers data-icon="inline-start" />
+          Add from block
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-[min(20rem,calc(100vw-1rem))] p-0"
+      >
+        <Command>
+          <CommandInput placeholder="Search blocks" />
+          <CommandList>
+            <CommandEmpty>No blocks match.</CommandEmpty>
+            <CommandGroup heading="Saved blocks">
+              {sortedBlocks.map((block) => {
+                const itemCount = block.items.length;
+
+                return (
+                  <CommandItem
+                    key={block.id}
+                    keywords={[block.name]}
+                    onSelect={() => {
+                      onSelect(block);
+                      setOpen(false);
+                    }}
+                    value={block.id}
+                  >
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="truncate font-medium text-foreground">
+                        {block.name}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {itemCount} {itemCount === 1 ? "item" : "items"}
+                      </span>
+                    </div>
+                    <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+                      {formatQuoteMoney(block.totalInCents, block.currency)}
+                    </span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }

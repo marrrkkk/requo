@@ -37,12 +37,12 @@ describe("features/inquiries/plan-rules", () => {
       "free",
     );
 
-    expect(countInquiryCustomFields(resolved)).toBe(4);
+    expect(countInquiryCustomFields(resolved)).toBe(3);
     expect(
       resolved.projectFields
         .filter((field) => field.kind === "custom")
         .map((field) => field.id),
-    ).toEqual(["site-location", "custom_1", "custom_2", "custom_3"]);
+    ).toEqual(["site-location", "custom_1", "custom_2"]);
   });
 
   it("forces free inquiry pages to the no supporting cards layout", () => {

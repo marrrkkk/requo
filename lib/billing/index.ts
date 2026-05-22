@@ -1,8 +1,8 @@
 export {
   type BillingProvider,
   type BillingCurrency,
+  type BillingInterval,
   type SubscriptionStatus,
-  type BillingRegion,
   type PaidPlan,
   type PlanPricing,
   type CheckoutResult,
@@ -18,9 +18,12 @@ export {
 } from "./plans";
 
 export {
-  getBillingRegion,
-  getBillingRegionFromCountry,
-  getDefaultCurrency,
-  getDefaultProvider,
-  getProviderForCurrency,
-} from "./region";
+  getCurrentPlan,
+  hasActiveSubscription,
+  canCreateBusiness,
+  canUseFeature,
+  canAccessBillingFeature,
+  canRequestRefund,
+} from "./feature-gate";
+
+export { isPolarConfigured } from "@/lib/env";

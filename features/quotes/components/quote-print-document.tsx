@@ -10,7 +10,6 @@ export function QuotePrintDocument({
   businessName,
   quote,
 }: QuotePrintDocumentProps) {
-  const notes = quote.notes?.trim() ? quote.notes.trim() : null;
 
   return (
     <article
@@ -125,15 +124,6 @@ export function QuotePrintDocument({
               </tbody>
             </table>
           </section>
-
-          {notes ? (
-            <section className="soft-panel px-4 py-4 shadow-none print:border-border/70">
-              <p className="meta-label">Notes</p>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-normal sm:leading-7 text-foreground">
-                {notes}
-              </p>
-            </section>
-          ) : null}
         </div>
 
         <aside className="flex flex-col gap-4">

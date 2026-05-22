@@ -34,6 +34,7 @@ import { BusinessInquiryFormPresetCard } from "@/features/settings/components/bu
 import { BusinessInquiryPreviewOverlay } from "@/features/settings/components/business-inquiry-preview-overlay";
 import { BusinessInquiryPageForm } from "@/features/settings/components/business-inquiry-page-form";
 
+
 type BusinessInquiryFormEditorTabsProps = {
   settings: BusinessInquiryFormEditorView;
   logoPreviewUrl: string | null;
@@ -54,6 +55,7 @@ type BusinessInquiryFormEditorTabsProps = {
   duplicateAction: Parameters<typeof BusinessInquiryFormManageCard>[0]["duplicateAction"];
   setDefaultAction: Parameters<typeof BusinessInquiryFormManageCard>[0]["setDefaultAction"];
   togglePublicAction: Parameters<typeof BusinessInquiryFormManageCard>[0]["togglePublicAction"];
+
 
   archiveAction: Parameters<typeof BusinessInquiryFormDangerZone>[0]["archiveAction"];
   deleteAction: Parameters<typeof BusinessInquiryFormDangerZone>[0]["deleteAction"];
@@ -173,7 +175,7 @@ export function BusinessInquiryFormEditorTabs({
 
   return (
     <Tabs
-      className="flex flex-col gap-4"
+      className="flex flex-col gap-5"
       onValueChange={handleTabChange}
       value={activeSection}
     >
@@ -209,7 +211,7 @@ export function BusinessInquiryFormEditorTabs({
           })}
         </TabsList>
 
-        <Button asChild className="w-full sm:w-auto" type="button">
+        <Button asChild variant="outline" size="sm" className="w-full sm:w-auto" type="button">
           <Link
             href={isPublicLive ? publicInquiryHref : previewHref}
             rel="noreferrer"
@@ -228,15 +230,17 @@ export function BusinessInquiryFormEditorTabs({
           value="fields"
         >
           <DashboardSidebarStack>
-            <BusinessInquiryFormForm
-              key={`${settings.updatedAt.getTime()}-${settings.formId}-form`}
-              draft={formDraft}
-              isActive={activeSection === "fields"}
-              onDraftChange={handleFormDraftChange}
-              onPreview={handleOpenPreview}
-              saveAction={saveFormAction}
-              settings={settings}
-            />
+            <div className="flex flex-col gap-5">
+                <BusinessInquiryFormForm
+                  key={`${settings.updatedAt.getTime()}-${settings.formId}-form`}
+                  draft={formDraft}
+                  isActive={activeSection === "fields"}
+                  onDraftChange={handleFormDraftChange}
+                  onPreview={handleOpenPreview}
+                  saveAction={saveFormAction}
+                  settings={settings}
+                />
+            </div>
           </DashboardSidebarStack>
         </TabsContent>
 
@@ -264,8 +268,8 @@ export function BusinessInquiryFormEditorTabs({
           forceMount
           value="publishing"
         >
-          <section className="flex flex-col gap-5 sm:gap-6">
-            <div className="flex flex-col gap-1.5 sm:px-2">
+          <section className="flex flex-col gap-6 sm:gap-7">
+            <div className="flex flex-col gap-1.5">
               <h2 className="font-heading text-lg font-semibold tracking-tight text-foreground">
                 Publishing
               </h2>
@@ -274,7 +278,7 @@ export function BusinessInquiryFormEditorTabs({
               </p>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 md:items-start">
+            <div className="grid gap-5 md:grid-cols-2 md:items-start">
               <BusinessInquiryFormManageCard
                 duplicateAction={duplicateAction}
                 formId={settings.formId}
@@ -290,15 +294,17 @@ export function BusinessInquiryFormEditorTabs({
               />
             </div>
 
-            <BusinessInquiryFormDangerZone
-              activeFormCount={settings.activeFormCount}
-              archiveAction={archiveAction}
-              deleteAction={deleteAction}
-              formId={settings.formId}
-              inquiryListHref={inquiryListHref}
-              isDefault={settings.isDefault}
-              submittedInquiryCount={settings.submittedInquiryCount}
-            />
+            <div className="border-t border-border/70 pt-6">
+              <BusinessInquiryFormDangerZone
+                activeFormCount={settings.activeFormCount}
+                archiveAction={archiveAction}
+                deleteAction={deleteAction}
+                formId={settings.formId}
+                inquiryListHref={inquiryListHref}
+                isDefault={settings.isDefault}
+                submittedInquiryCount={settings.submittedInquiryCount}
+              />
+            </div>
           </section>
         </TabsContent>
       </div>

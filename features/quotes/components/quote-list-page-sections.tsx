@@ -5,9 +5,9 @@ import { DashboardListResultsSkeleton } from "@/components/shared/dashboard-list
 import {
   DashboardEmptyState,
 } from "@/components/shared/dashboard-layout";
-import { ListViewSwitcher } from "@/components/shared/list-view-switcher";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { ArchivedQuotesSheet } from "@/features/quotes/components/archived-quotes-sheet";
 import { QuoteExportCsvDropdown } from "@/features/quotes/components/quote-export-csv-dropdown";
 import { QuoteListFilters } from "@/features/quotes/components/quote-list-filters";
 import { QuoteListResults } from "@/features/quotes/components/quote-list-results";
@@ -30,45 +30,56 @@ type QuoteListResultsData = {
   totalPages: number;
 };
 
+type QuoteRecordActionState = { error?: string; success?: string };
+
 type QuoteListControlsSectionProps = {
   businessSlug: string;
   canExport: boolean;
   filters: QuoteListFiltersValue;
   searchParams: SearchParamsRecord;
   totalItemsPromise: Promise<number>;
+  archivedItemsPromise: Promise<DashboardQuoteListItem[]>;
+  restoreAction: (
+    quoteId: string,
+    state: QuoteRecordActionState,
+    formData: FormData,
+  ) => Promise<QuoteRecordActionState>;
 };
 
 export async function QuoteListControlsSection({
   businessSlug,
   canExport,
   filters,
-  searchParams,
+  searchParams: _searchParams,
   totalItemsPromise,
+  archivedItemsPromise,
+  restoreAction,
 }: QuoteListControlsSectionProps) {
-  const totalItems = await totalItemsPromise;
+  const [totalItems, archivedItems] = await Promise.all([
+    totalItemsPromise,
+    archivedItemsPromise,
+  ]);
 
   return (
     <>
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <ListViewSwitcher
-          currentValue={filters.view}
-          defaultValue="active"
-          options={[
-            { label: "Active", value: "active" },
-            { label: "Archived", value: "archived" },
-          ]}
-          pathname={getBusinessQuotesPath(businessSlug)}
-          searchParams={searchParams}
-        />
+        <div />
 
-        <div className="dashboard-actions w-full [&>*]:w-full sm:[&>*]:w-auto xl:w-auto xl:justify-end">
-          <QuoteExportCsvDropdown
-            businessSlug={businessSlug}
-            canExport={canExport}
-            filters={filters}
-            resultCount={totalItems}
-          />
-          <Button asChild>
+        <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end xl:w-auto">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-2 [&>*]:w-full sm:[&>*]:w-auto">
+            <QuoteExportCsvDropdown
+              businessSlug={businessSlug}
+              canExport={canExport}
+              filters={filters}
+              resultCount={totalItems}
+            />
+            <ArchivedQuotesSheet
+              businessSlug={businessSlug}
+              items={archivedItems}
+              restoreAction={restoreAction}
+            />
+          </div>
+          <Button asChild className="w-full sm:w-auto">
             <Link href={getBusinessNewQuotePath(businessSlug)} prefetch={true}>
               <ReceiptText data-icon="inline-start" />
               Create quote
@@ -165,10 +176,13 @@ export function QuoteListControlsFallback() {
   return (
     <>
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-        <Skeleton className="h-10 w-40 rounded-xl" />
+        <Skeleton className="hidden h-10 w-40 rounded-xl xl:block" />
 
-        <div className="dashboard-actions w-full [&>*]:w-full sm:[&>*]:w-auto xl:w-auto xl:justify-end">
-          <Skeleton className="h-10 w-full rounded-xl sm:w-28" />
+        <div className="flex w-full flex-col-reverse gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end xl:w-auto">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:gap-2">
+            <Skeleton className="h-10 w-full rounded-xl sm:w-32" />
+            <Skeleton className="h-10 w-full rounded-xl sm:w-32" />
+          </div>
           <Skeleton className="h-10 w-full rounded-xl sm:w-36" />
         </div>
       </div>
@@ -192,8 +206,8 @@ export function QuoteListControlsFallback() {
             </div>
 
             <div className="data-list-toolbar-actions">
-              <Skeleton className="h-10 w-full rounded-xl sm:hidden" />
-              <Skeleton className="hidden h-10 w-20 rounded-xl sm:block" />
+              <Skeleton className="h-10 flex-1 rounded-xl sm:hidden" />
+              <Skeleton className="h-10 w-20 rounded-xl" />
               <Skeleton className="hidden size-5 rounded-full sm:block" />
             </div>
           </div>

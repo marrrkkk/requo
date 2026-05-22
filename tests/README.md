@@ -25,7 +25,7 @@ npm run test:components
 
 ### `tests/integration/`
 
-Postgres-backed server actions, queries, and route handlers. Each test runs in the node environment against the live Test_Database reached through `DATABASE_URL`, with `npm run db:migrate` applied before the first test. Coverage includes authorization (owner, manager, staff, outsider, archived business), the full quote lifecycle, billing webhook idempotency for Paddle and PayMongo, and public analytics rate limiting.
+Postgres-backed server actions, queries, and route handlers. Each test runs in the node environment against the live Test_Database reached through `DATABASE_URL`, with `npm run db:migrate` applied before the first test. Coverage includes authorization (owner, manager, staff, outsider, archived business), the full quote lifecycle, billing webhook idempotency, and public analytics rate limiting.
 
 ```bash
 npm run test:integration
@@ -33,7 +33,7 @@ npm run test:integration
 
 ### `tests/e2e/`
 
-Playwright smoke coverage for the five critical user flows: owner sign-in, non-member denial, public inquiry submission, quote creation and sending, and public quote response. The default `@smoke` set runs on every merge; the full suite is available for broader browser journeys.
+Playwright smoke coverage for the five critical user flows: owner sign-in, non-member denial, public inquiry submission, quote creation and sending, and public quote response. The default `@smoke` set is the fast validation slice for local work and Vercel preview checks; the full suite is available for broader browser journeys.
 
 ```bash
 npm run test:e2e:smoke
@@ -96,10 +96,8 @@ At the end of every integration run, `tests/integration/zzz-residue.test.ts` sca
 | `GROQ_API_KEY` | empty string |
 | `GEMINI_API_KEY` | empty string |
 | `OPENROUTER_API_KEY` | empty string |
-| `PADDLE_API_KEY` | empty string |
-| `PADDLE_WEBHOOK_SECRET` | empty string |
 
-Unit, component, integration, and local smoke runs all complete successfully with every third-party credential set to an empty string or a placeholder — network calls to Resend, Groq, Gemini, OpenRouter, Paddle, and Supabase storage are mocked through `tests/support/third-party-mocks.ts` and blocked at the global `fetch` level by `tests/support/fetch-guard.ts`.
+Unit, component, integration, and local smoke runs all complete successfully with every third-party credential set to an empty string or a placeholder — network calls to Resend, Groq, Gemini, OpenRouter, and Supabase storage are mocked through `tests/support/third-party-mocks.ts` and blocked at the global `fetch` level by `tests/support/fetch-guard.ts`.
 
 ### Required only for local integration and e2e against a live database
 
@@ -127,5 +125,4 @@ Each guard lives next to the tests it protects and runs as part of the normal Vi
 
 - Design document: [`.kiro/specs/test-infrastructure-cicd/design.md`](../.kiro/specs/test-infrastructure-cicd/design.md)
 - Requirements document: [`.kiro/specs/test-infrastructure-cicd/requirements.md`](../.kiro/specs/test-infrastructure-cicd/requirements.md)
-- CI/CD operations: [`docs/ci-cd.md`](../docs/ci-cd.md)
 - Root agent guide: [`AGENTS.md`](../AGENTS.md)

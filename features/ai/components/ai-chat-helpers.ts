@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  AiChatDebugInfo,
   AiChatStreamEvent,
   AiConversation,
   AiConversationSummary,
@@ -27,6 +28,12 @@ export type ChatMessage = {
     content: string;
     tone: "muted" | "error";
   };
+  debugInfo?: AiChatDebugInfo;
+};
+
+export type AiChatSource = {
+  label: string;
+  href: string;
 };
 
 export type ConversationMessagesSnapshot = {
@@ -276,7 +283,8 @@ function parseStreamEvent(line: string) {
     parsed.type !== "status" &&
     parsed.type !== "delta" &&
     parsed.type !== "done" &&
-    parsed.type !== "error"
+    parsed.type !== "error" &&
+    parsed.type !== "debug"
   ) {
     throw new Error("Unexpected AI stream event.");
   }
@@ -427,6 +435,43 @@ export function getEntityConversationCacheKey(
   entityId: string,
 ) {
   return `${surface}:${entityId}`;
+}
+
+export function getAiChatSources(input: {
+  businessSlug: string;
+  entityId: string;
+  surface: AiSurface;
+}): AiChatSource[] {
+  const businessPath = `/businesses/${encodeURIComponent(input.businessSlug)}`;
+
+  switch (input.surface) {
+    case "inquiry":
+      return [
+        {
+          label: "Current inquiry",
+          href: `${businessPath}/inquiries/${encodeURIComponent(input.entityId)}`,
+        },
+        { label: "Quotes", href: `${businessPath}/quotes` },
+        { label: "Knowledge", href: `${businessPath}/knowledge` },
+      ];
+    case "quote":
+      return [
+        {
+          label: "Current quote",
+          href: `${businessPath}/quotes/${encodeURIComponent(input.entityId)}`,
+        },
+        { label: "Inquiries", href: `${businessPath}/inquiries` },
+        { label: "Knowledge", href: `${businessPath}/knowledge` },
+      ];
+    case "dashboard":
+      return [
+        { label: "Dashboard", href: `${businessPath}/dashboard` },
+        { label: "Inquiries", href: `${businessPath}/inquiries` },
+        { label: "Quotes", href: `${businessPath}/quotes` },
+        { label: "Follow-ups", href: `${businessPath}/follow-ups` },
+        { label: "Knowledge", href: `${businessPath}/knowledge` },
+      ];
+  }
 }
 
 export function shouldWarmupEntityConversation(options: {

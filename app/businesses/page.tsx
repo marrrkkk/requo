@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { ArrowRight, Archive, CalendarClock, Lock } from "lucide-react";
 
@@ -31,6 +32,7 @@ import { planMeta } from "@/lib/plans/plans";
 import { getPendingInvitesForUser } from "@/features/business-members/queries";
 import { acceptInviteFromHubAction, declineInviteFromHubAction } from "@/features/business-members/actions";
 import { PendingInvitesBanner } from "@/features/business-members/components/pending-invites-banner";
+import { UpgradeSuccessToast } from "@/features/billing/components/upgrade-success-toast";
 
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
 import { getThemePreferenceForUser } from "@/features/theme/queries";
@@ -53,24 +55,13 @@ export const unstable_instant = {
 export default async function BusinessesPage() {
   const session = await requireSession();
 
-  const [
-    themePreference,
-    profile,
-    memberships,
-    recentlyOpenedBusinesses,
-    businessQuota,
-    pendingInvites,
-  ] = await timed(
-    "businessesHub.parallelShellFetches",
+  // Fast path: shell data needed to render the page frame immediately
+  const [themePreference, profile, memberships] = await timed(
+    "businessesHub.shellFetches",
     Promise.all([
       getThemePreferenceForUser(session.user.id),
       getAccountProfileForUser(session.user.id),
       getBusinessMembershipsForUser(session.user.id, "all"),
-      getRecentlyOpenedBusinessesForUser(session.user.id),
-      getBusinessQuotaForUser({
-        ownerUserId: session.user.id,
-      }),
-      getPendingInvitesForUser(session.user.id, session.user.email),
     ]),
   );
 
@@ -90,6 +81,7 @@ export default async function BusinessesPage() {
         themePreference={themePreference}
         userId={session.user.id}
       />
+      <UpgradeSuccessToast />
       <div className="min-h-svh w-full bg-background">
         <header className="sticky top-0 z-10 flex h-[4.5rem] w-full shrink-0 items-center justify-between border-b border-border/70 bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/60 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
@@ -119,21 +111,23 @@ export default async function BusinessesPage() {
           </div>
 
           <div className="w-full space-y-6">
-            <PendingInvitesBanner
-              invites={pendingInvites}
-              acceptAction={acceptInviteFromHubAction}
-              declineAction={declineInviteFromHubAction}
-            />
-
-            <RecentlyOpenedBusinesses businesses={recentlyOpenedBusinesses} />
-
-            {!businessQuota.allowed && businessQuota.upgradePlan && (
-              <UpgradePrompt
-                variant="banner"
-                plan={businessQuota.plan}
-                description={`Your ${planMeta[businessQuota.plan].label} plan supports ${businessQuota.limit === 1 ? "1 business" : `${businessQuota.limit} businesses`}. Upgrade to ${planMeta[businessQuota.upgradePlan].label} to add more.`}
+            {/* Streamed: pending invites can be slow on cold cache */}
+            <Suspense fallback={null}>
+              <PendingInvitesStreamedSection
+                userId={session.user.id}
+                email={session.user.email}
               />
-            )}
+            </Suspense>
+
+            {/* Streamed: recently opened relies on a separate query */}
+            <Suspense fallback={null}>
+              <RecentlyOpenedStreamedSection userId={session.user.id} />
+            </Suspense>
+
+            {/* Streamed: quota check */}
+            <Suspense fallback={null}>
+              <QuotaWarningStreamedSection userId={session.user.id} />
+            </Suspense>
 
             <section className="space-y-4">
               <div className="flex items-center justify-between gap-3">
@@ -209,17 +203,22 @@ export default async function BusinessesPage() {
                         name={ws.name}
                         logoUrl={ws.logoStoragePath ? `/api/business/${ws.slug}/logo` : null}
                         size="lg"
-                        className="pointer-events-none absolute right-4 bottom-4 opacity-50 transition-opacity group-hover:opacity-90"
+                        className="pointer-events-none absolute right-4 bottom-20 opacity-70 sm:hidden"
+                      />
+                      <BusinessAvatar
+                        name={ws.name}
+                        logoUrl={ws.logoStoragePath ? `/api/business/${ws.slug}/logo` : null}
+                        size="lg"
+                        className="pointer-events-none absolute right-4 bottom-4 hidden opacity-50 transition-opacity sm:block group-hover:opacity-90"
                       />
                     </Card>
                   );
                 })}
 
-                <CreateBusinessDialog
-                  action={createBusinessAction}
-                  businessQuota={businessQuota}
-                  triggerVariant="hub-card"
-                />
+                {/* Streamed: CreateBusinessDialog needs quota, stream it */}
+                <Suspense fallback={null}>
+                  <CreateBusinessDialogStreamedSection userId={session.user.id} />
+                </Suspense>
               </div>
             </section>
 
@@ -280,5 +279,69 @@ export default async function BusinessesPage() {
         </main>
       </div>
     </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Streamed sections — each isolates one slower dependency from the shell     */
+/* -------------------------------------------------------------------------- */
+
+async function PendingInvitesStreamedSection({
+  userId,
+  email,
+}: {
+  userId: string;
+  email: string;
+}) {
+  const pendingInvites = await getPendingInvitesForUser(userId, email);
+
+  if (!pendingInvites.length) {
+    return null;
+  }
+
+  return (
+    <PendingInvitesBanner
+      invites={pendingInvites}
+      acceptAction={acceptInviteFromHubAction}
+      declineAction={declineInviteFromHubAction}
+    />
+  );
+}
+
+async function RecentlyOpenedStreamedSection({ userId }: { userId: string }) {
+  const recentlyOpenedBusinesses = await getRecentlyOpenedBusinessesForUser(userId);
+
+  return <RecentlyOpenedBusinesses businesses={recentlyOpenedBusinesses} />;
+}
+
+async function QuotaWarningStreamedSection({
+  userId,
+}: {
+  userId: string;
+}) {
+  const businessQuota = await getBusinessQuotaForUser({ ownerUserId: userId });
+
+  if (businessQuota.allowed || !businessQuota.upgradePlan) {
+    return null;
+  }
+
+  return (
+    <UpgradePrompt
+      variant="banner"
+      plan={businessQuota.plan}
+      description={`Your ${planMeta[businessQuota.plan].label} plan supports ${businessQuota.limit === 1 ? "1 business" : `${businessQuota.limit} businesses`}. Upgrade to ${planMeta[businessQuota.upgradePlan].label} to add more.`}
+    />
+  );
+}
+
+async function CreateBusinessDialogStreamedSection({ userId }: { userId: string }) {
+  const businessQuota = await getBusinessQuotaForUser({ ownerUserId: userId });
+
+  return (
+    <CreateBusinessDialog
+      action={createBusinessAction}
+      businessQuota={businessQuota}
+      triggerVariant="hub-card"
+    />
   );
 }

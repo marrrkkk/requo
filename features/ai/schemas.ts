@@ -71,6 +71,7 @@ export const aiChatRequestSchema = z.object({
   entityId: z.string().trim().min(1).max(128),
   message: z.string().trim().min(1).max(6000),
   qualityTier: aiQualityTierSchema.optional(),
+  devModel: z.string().trim().min(1).max(240).optional(),
 });
 
 /**
@@ -88,6 +89,18 @@ export const aiGenerateQuoteDraftSchema = z
     brief: z.preprocess(
       (value) => emptyToUndefined(firstString(value)),
       z.string().trim().max(2000).optional(),
+    ),
+    revisionComment: z.preprocess(
+      (value) => emptyToUndefined(firstString(value)),
+      z.string().trim().max(2000).optional(),
+    ),
+    currentItems: z.preprocess(
+      (value) => emptyToUndefined(firstString(value)),
+      z.string().trim().max(4000).optional(),
+    ),
+    currentItemsJson: z.preprocess(
+      (value) => emptyToUndefined(firstString(value)),
+      z.string().trim().max(20_000).optional(),
     ),
   })
   .superRefine((value, ctx) => {

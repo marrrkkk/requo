@@ -1,20 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
-  BellRing,
+  ArrowUp,
+  BarChart3,
   Calendar,
   Check,
-  CheckCircle2,
   CircleDot,
   Clock3,
   Copy,
   Eye,
   FileText,
-  MessageCircle,
   Send,
-  SkipForward,
   Timer,
   Trophy,
 } from "lucide-react";
@@ -32,7 +30,8 @@ export function MarketingFeatureMock({
 }) {
   if (featureId === "inquiries") return <InquiriesPreviewMock />;
   if (featureId === "quotes") return <QuotePreviewMock />;
-  if (featureId === "follow-ups") return <FollowUpsPreviewMock />;
+  if (featureId === "jobs") return <JobsPreviewMock />;
+  if (featureId === "ai") return <AIChatPreviewMock />;
   if (featureId === "analytics") return <AnalyticsPreviewMock />;
   return null;
 }
@@ -460,256 +459,366 @@ function QuotePreviewMock() {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                 Follow-ups                                 */
+/*                                  AI Chat                                   */
 /* -------------------------------------------------------------------------- */
 
-type FollowUpTask = {
-  id: string;
-  title: string;
-  reason: string;
-  customer: string;
-  relatedLabel: string;
-  dueLabel: string;
-  dueBucket: "overdue" | "today" | "soon";
-  channel: string;
-  suggestedMessage: string;
-};
-
-const followUpSeed: readonly FollowUpTask[] = [
+const quickActions = [
   {
-    id: "fu-1",
-    title: "Nudge Sarah on the remodel quote",
-    reason: "Viewed 2 days ago, no reply.",
-    customer: "Sarah Jenkins",
-    relatedLabel: "Q-1042",
-    dueLabel: "Overdue · 2d",
-    dueBucket: "overdue",
-    channel: "Email",
-    suggestedMessage:
-      "Hi Sarah, following up on the kitchen remodel quote. Happy to walk through the cabinet options if helpful.",
+    label: "Open inquiries",
+    color: "blue" as const,
+    prompt: "Summarize open inquiries",
+    response: [
+      "You have **5 open inquiries** right now:",
+      "",
+      "• **Sarah Jenkins**: Kitchen remodel. New, submitted today.",
+      "• **Leo Park**: Tile repair. Quoted, awaiting reply.",
+      "• **Maya Fields**: Studio fit-out. Waiting on scope details.",
+      "• **Jordan Kim**: Built-in shelving. New, 3 days old.",
+      "• **Ana Cruz**: Countertop. Won, ready to schedule.",
+      "",
+      "2 are new and need a first reply. Want me to prioritize them?",
+    ],
   },
   {
-    id: "fu-2",
-    title: "Check in with Maya",
-    reason: "Quote expires this Friday.",
-    customer: "Maya Fields",
-    relatedLabel: "Q-1043",
-    dueLabel: "Due today",
-    dueBucket: "today",
-    channel: "WhatsApp",
-    suggestedMessage:
-      "Hey Maya, a quick check-in on the studio fit-out quote before it expires Friday.",
+    label: "Quote follow-ups",
+    color: "purple" as const,
+    prompt: "Which quotes need follow-up?",
+    response: [
+      "**3 quotes** need attention this week:",
+      "",
+      "• **Q-1042**: Kitchen remodel for Sarah. Viewed 2 days ago, no reply.",
+      "• **Q-1044**: Tile repair for Leo. Sent yesterday, not yet opened.",
+      "• **Q-1043**: Studio fit-out for Maya. Expires Friday.",
+      "",
+      "Want me to draft a follow-up for any of these?",
+    ],
   },
   {
-    id: "fu-3",
-    title: "Send install window to Ana",
-    reason: "Accepted last week.",
-    customer: "Ana Cruz",
-    relatedLabel: "Q-1038",
-    dueLabel: "Due Fri",
-    dueBucket: "soon",
-    channel: "SMS",
-    suggestedMessage:
-      "Hi Ana, confirming the countertop install window for next week. I will share two options shortly.",
+    label: "Urgent work",
+    color: "orange" as const,
+    prompt: "What's urgent today?",
+    response: [
+      "Here's what needs action today:",
+      "",
+      "• **Q-1042** is going cold. Viewed but no reply in 2 days. Follow up before the weekend.",
+      "• **Maya's fit-out** quote expires Friday. Send a reminder now.",
+      "• **Jordan Kim's** inquiry is 3 days old with no quote yet.",
+      "",
+      "I'd suggest starting with Sarah's follow-up since she already viewed the quote.",
+    ],
+  },
+  {
+    label: "Weekly summary",
+    color: "teal" as const,
+    prompt: "Give me a weekly summary",
+    response: [
+      "**This week at BrightSide:**",
+      "",
+      "• **4 new inquiries** captured (↑ 2 vs last week)",
+      "• **8 quotes sent**: 6 viewed, 3 accepted",
+      "• **75% view rate** (↑ 6 pts)",
+      "• **$14,650 total quoted** this week",
+      "",
+      "Top win: Ana Cruz accepted the countertop job ($1,200). Your average time-to-quote improved to 4 hours.",
+    ],
   },
 ];
 
-type FollowUpState = "pending" | "completed" | "skipped";
+const quickActionColors: Record<string, string> = {
+  blue: "border-blue-200/80 bg-blue-100/50 text-blue-800 shadow-sm shadow-blue-100/50 hover:bg-blue-100 dark:border-blue-700/40 dark:bg-blue-900/30 dark:text-blue-200 dark:shadow-blue-900/20 dark:hover:bg-blue-900/50",
+  purple: "border-purple-200/80 bg-purple-100/50 text-purple-800 shadow-sm shadow-purple-100/50 hover:bg-purple-100 dark:border-purple-700/40 dark:bg-purple-900/30 dark:text-purple-200 dark:shadow-purple-900/20 dark:hover:bg-purple-900/50",
+  orange: "border-orange-200/80 bg-orange-100/50 text-orange-800 shadow-sm shadow-orange-100/50 hover:bg-orange-100 dark:border-orange-700/40 dark:bg-orange-900/30 dark:text-orange-200 dark:shadow-orange-900/20 dark:hover:bg-orange-900/50",
+  teal: "border-teal-200/80 bg-teal-100/50 text-teal-800 shadow-sm shadow-teal-100/50 hover:bg-teal-100 dark:border-teal-700/40 dark:bg-teal-900/30 dark:text-teal-200 dark:shadow-teal-900/20 dark:hover:bg-teal-900/50",
+};
 
-function FollowUpDuePill({ bucket }: { bucket: FollowUpTask["dueBucket"] }) {
-  const label =
-    bucket === "overdue" ? "Overdue" : bucket === "today" ? "Today" : "Soon";
-  return (
-    <Badge
-      className="shrink-0 rounded-full"
-      variant={
-        bucket === "overdue"
-          ? "destructive"
-          : bucket === "today"
-            ? "default"
-            : "outline"
-      }
-    >
-      <Timer data-icon="inline-start" />
-      {label}
-    </Badge>
-  );
-}
+type VisibleMessage = {
+  id: string;
+  role: "user" | "assistant";
+  lines: string[];
+  isTyping?: boolean;
+};
 
-function FollowUpsPreviewMock() {
-  const [states, setStates] = useState<Record<string, FollowUpState>>({
-    "fu-1": "pending",
-    "fu-2": "pending",
-    "fu-3": "pending",
-  });
-  const [copied, setCopied] = useState<string | null>(null);
+function AIChatPreviewMock() {
+  const [messages, setMessages] = useState<VisibleMessage[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const idCounter = useRef(0);
 
-  function setState(id: string, next: FollowUpState) {
-    setStates((prev) => ({ ...prev, [id]: next }));
+  function nextId(prefix: string) {
+    idCounter.current += 1;
+    return `${prefix}-${idCounter.current}`;
   }
 
-  function handleCopy(id: string) {
-    setCopied(id);
-    window.setTimeout(() => {
-      setCopied((current) => (current === id ? null : current));
-    }, 1200);
+  function scrollToBottom() {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
   }
 
-  const pendingCount = Object.values(states).filter(
-    (value) => value === "pending",
-  ).length;
+  function sendMessage(prompt: string, responseLines: string[]) {
+    if (isTyping) return;
+
+    // Add user message
+    const userMsg: VisibleMessage = {
+      id: nextId("u"),
+      role: "user",
+      lines: [prompt],
+    };
+    const typingId = nextId("t");
+    setMessages((prev) => [...prev, userMsg]);
+    setIsTyping(true);
+
+    // Scroll after user message
+    setTimeout(scrollToBottom, 50);
+
+    // Add typing indicator
+    const typingMsg: VisibleMessage = {
+      id: typingId,
+      role: "assistant",
+      lines: [],
+      isTyping: true,
+    };
+    const typingDelay = setTimeout(() => {
+      setMessages((prev) => [...prev, typingMsg]);
+      setTimeout(scrollToBottom, 50);
+    }, 400);
+
+    // Replace with actual response
+    const responseDelay = setTimeout(() => {
+      const assistantMsg: VisibleMessage = {
+        id: nextId("a"),
+        role: "assistant",
+        lines: responseLines,
+      };
+      setMessages((prev) =>
+        prev.filter((m) => m.id !== typingId).concat(assistantMsg),
+      );
+      setIsTyping(false);
+      setTimeout(scrollToBottom, 50);
+    }, 1400);
+
+    typingTimeoutRef.current = responseDelay;
+
+    return () => {
+      clearTimeout(typingDelay);
+      clearTimeout(responseDelay);
+    };
+  }
+
+  function handleQuickAction(action: (typeof quickActions)[number]) {
+    sendMessage(action.prompt, action.response);
+  }
+
+  const showEmptyState = messages.length === 0 && !isTyping;
 
   return (
-    <div className="grid gap-3">
-      <div className="flex items-center justify-between gap-2 px-1">
-        <p className="meta-label">
-          Pending · {pendingCount} of {followUpSeed.length}
-        </p>
-        <span className="hidden shrink-0 items-center gap-1.5 text-[10px] text-muted-foreground sm:inline-flex">
-          <BellRing className="size-3" />
-          Reminders keep quotes from going cold
-        </span>
-        <span className="inline-flex shrink-0 items-center gap-1.5 text-[10px] text-muted-foreground sm:hidden">
-          <BellRing className="size-3" />
-          Reminders
-        </span>
-      </div>
+    <div className="flex h-full flex-col overflow-hidden">
+      {showEmptyState ? (
+        /* Empty state — greeting + centered input */
+        <div className="flex flex-1 flex-col items-center justify-center px-4">
+          <div className="mx-auto w-full max-w-md text-center">
+            <h3 className="mb-1 font-heading text-lg font-semibold tracking-tight text-foreground sm:text-2xl">
+              Good morning, Jamie
+            </h3>
+            <p className="mb-5 text-[11px] text-muted-foreground sm:text-sm">
+              How can I help with your business today?
+            </p>
 
-      <div className="flex flex-col gap-2.5">
-        {followUpSeed.map((task, index) => {
-          const state = states[task.id] ?? "pending";
-          const isDone = state === "completed";
-          const isSkipped = state === "skipped";
-          const hiddenOnMobile = index >= 2;
+            <div className="flex items-center rounded-2xl bg-muted/70 px-3.5 py-2.5 sm:px-4 sm:py-3">
+              <span className="min-w-0 flex-1 truncate text-left text-[11px] text-muted-foreground/70 sm:text-sm">
+                Ask about inquiries, quotes, and follow-ups...
+              </span>
+              <span className="ml-2 flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground sm:size-8">
+                <ArrowUp className="size-3.5 sm:size-4" />
+              </span>
+            </div>
 
-          return (
-            <div
-              className={cn(
-                "soft-panel flex flex-col gap-2.5 px-3 py-3 shadow-none transition-colors sm:px-4",
-                isDone && "border-primary/40 bg-primary/5",
-                isSkipped && "opacity-60",
-                hiddenOnMobile && "hidden sm:flex",
-              )}
-              key={task.id}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <p
-                      className={cn(
-                        "min-w-0 truncate text-xs font-semibold text-foreground sm:text-sm",
-                        (isDone || isSkipped) && "line-through",
-                      )}
-                    >
-                      {task.title}
-                    </p>
-                    {state === "pending" ? (
-                      <FollowUpDuePill bucket={task.dueBucket} />
-                    ) : (
-                      <Badge
-                        className="shrink-0 rounded-full"
-                        variant={isDone ? "default" : "outline"}
-                      >
-                        {isDone ? (
-                          <>
-                            <CheckCircle2 data-icon="inline-start" />
-                            Done
-                          </>
-                        ) : (
-                          <>
-                            <SkipForward data-icon="inline-start" />
-                            Skipped
-                          </>
-                        )}
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">
-                    {task.reason}
+            <div className="mt-3.5 flex flex-wrap justify-center gap-1.5 sm:mt-4 sm:gap-2">
+              {quickActions.map((action) => (
+                <button
+                  className={cn(
+                    "rounded-full border px-2.5 py-1 text-[10px] font-medium transition-colors sm:px-3.5 sm:py-1.5 sm:text-[0.8rem]",
+                    quickActionColors[action.color],
+                  )}
+                  key={action.label}
+                  onClick={() => handleQuickAction(action)}
+                  type="button"
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Active chat — messages */
+        <div
+          className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-4 sm:px-5 sm:py-5"
+          ref={scrollRef}
+        >
+          {messages.map((msg) =>
+            msg.isTyping ? (
+              <div className="flex w-full gap-2.5" key={msg.id}>
+                <div className="flex items-center gap-1.5 rounded-2xl bg-muted/40 px-4 py-3">
+                  <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:0ms]" />
+                  <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:150ms]" />
+                  <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:300ms]" />
+                </div>
+              </div>
+            ) : msg.role === "user" ? (
+              <div className="flex w-full justify-end" key={msg.id}>
+                <div className="max-w-[80%] rounded-2xl bg-black/[0.06] px-3.5 py-2 dark:bg-white/[0.08]">
+                  <p className="whitespace-pre-wrap text-[11px] leading-5 text-foreground sm:text-sm sm:leading-6">
+                    {msg.lines[0]}
                   </p>
                 </div>
               </div>
-
-              <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
-                <Badge className="shrink-0 rounded-full" variant="outline">
-                  {task.customer}
-                </Badge>
-                <Badge
-                  className="hidden shrink-0 rounded-full sm:inline-flex"
-                  variant="outline"
-                >
-                  {task.relatedLabel}
-                </Badge>
-                <span className="inline-flex items-center gap-1">
-                  <Clock3 className="size-3" />
-                  {task.dueLabel}
-                </span>
-                <span aria-hidden="true" className="hidden sm:inline">
-                  ·
-                </span>
-                <span className="hidden items-center gap-1 sm:inline-flex">
-                  <MessageCircle className="size-3" />
-                  {task.channel}
-                </span>
+            ) : (
+              <div className="flex w-full gap-2.5" key={msg.id}>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] leading-5 text-foreground sm:text-sm sm:leading-6">
+                    {msg.lines.map((line, i) => {
+                      if (line === "") return <div className="h-1.5" key={i} />;
+                      if (line.startsWith(">")) {
+                        return (
+                          <p
+                            className="my-1.5 border-l-2 border-primary/40 pl-2.5 text-muted-foreground italic"
+                            key={i}
+                          >
+                            {line.slice(2)}
+                          </p>
+                        );
+                      }
+                      if (line.startsWith("•")) {
+                        return (
+                          <p className="pl-1" key={i}>
+                            {renderBold(line)}
+                          </p>
+                        );
+                      }
+                      return <p key={i}>{renderBold(line)}</p>;
+                    })}
+                  </div>
+                </div>
               </div>
+            ),
+          )}
+        </div>
+      )}
 
-              {state === "pending" ? (
-                <>
-                  <div className="hidden rounded-md border border-border/60 bg-muted/30 px-2.5 py-2 text-[11px] leading-5 text-muted-foreground sm:block">
-                    {task.suggestedMessage}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <Button
-                      className="hidden h-7 px-2.5 text-[11px] sm:inline-flex"
-                      onClick={() => handleCopy(task.id)}
-                      size="sm"
-                      variant="outline"
-                    >
-                      {copied === task.id ? (
-                        <>
-                          <Check data-icon="inline-start" />
-                          Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy data-icon="inline-start" />
-                          Copy message
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      className="h-7 px-2.5 text-[11px]"
-                      onClick={() => setState(task.id, "completed")}
-                      size="sm"
-                    >
-                      <Check data-icon="inline-start" />
-                      Mark done
-                    </Button>
-                    <Button
-                      className="h-7 px-2.5 text-[11px]"
-                      onClick={() => setState(task.id, "skipped")}
-                      size="sm"
-                      variant="ghost"
-                    >
-                      <SkipForward data-icon="inline-start" />
-                      Skip
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <Button
-                  className="h-7 w-fit px-2.5 text-[11px]"
-                  onClick={() => setState(task.id, "pending")}
-                  size="sm"
-                  variant="ghost"
-                >
-                  <ArrowRight data-icon="inline-start" />
-                  Undo
-                </Button>
-              )}
+      {/* Input area — always visible when chat is active */}
+      {!showEmptyState ? (
+        <div className="shrink-0 border-t border-border/70 px-3 pb-3 pt-2 sm:px-5 sm:pb-4 sm:pt-3">
+          <div className="flex items-center rounded-2xl bg-muted/70 px-3.5 py-2.5 sm:px-4 sm:py-3">
+            <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground/70 sm:text-sm">
+              Ask a follow-up question...
+            </span>
+            <span className="ml-2 flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground sm:size-8">
+              <ArrowUp className="size-3.5 sm:size-4" />
+            </span>
+          </div>
+          {/* Quick actions below input */}
+          <div className="mt-2.5 flex flex-wrap gap-1.5 sm:mt-3">
+            {quickActions.map((action) => (
+              <button
+                className={cn(
+                  "rounded-full border px-2 py-0.5 text-[9px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:py-1 sm:text-[0.75rem]",
+                  quickActionColors[action.color],
+                )}
+                disabled={isTyping}
+                key={action.label}
+                onClick={() => handleQuickAction(action)}
+                type="button"
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function renderBold(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <span className="font-semibold" key={i}>
+          {part.slice(2, -2)}
+        </span>
+      );
+    }
+    return part;
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                    Jobs                                    */
+/* -------------------------------------------------------------------------- */
+
+const jobItems = [
+  { id: "ji-1", description: "Discovery and creative direction", completed: true, price: "$825" },
+  { id: "ji-2", description: "Design production", completed: true, price: "$1,650" },
+  { id: "ji-3", description: "Revision round", completed: false, price: "$450" },
+] as const;
+
+function JobsPreviewMock() {
+  const completedCount = jobItems.filter((i) => i.completed).length;
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Job header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-foreground">Landing Page Design</h3>
+          <Badge variant="default" className="text-[10px]">In Progress</Badge>
+        </div>
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {completedCount}/{jobItems.length} complete
+        </span>
+      </div>
+
+      {/* Progress bar */}
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
+        <div
+          className="h-full rounded-full bg-primary transition-all"
+          style={{ width: `${Math.round((completedCount / jobItems.length) * 100)}%` }}
+        />
+      </div>
+
+      {/* Work items */}
+      <div className="flex flex-col divide-y divide-border/50">
+        {jobItems.map((item) => (
+          <div key={item.id} className="flex items-center gap-3 py-2.5">
+            <div className={cn(
+              "flex size-4 shrink-0 items-center justify-center rounded-full",
+              item.completed ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "border border-border text-transparent",
+            )}>
+              {item.completed && <Check className="size-2.5" />}
             </div>
-          );
-        })}
+            <span className={cn(
+              "flex-1 text-sm",
+              item.completed ? "text-muted-foreground line-through" : "text-foreground",
+            )}>
+              {item.description}
+            </span>
+            <span className="text-xs tabular-nums text-muted-foreground">{item.price}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Invoice CTA */}
+      <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[11px] font-medium text-foreground">Ready to invoice</span>
+          <span className="text-[10px] text-muted-foreground">Quote Q-2011 · $4,275</span>
+        </div>
+        <Button size="sm" className="h-7 text-xs">
+          Generate invoice
+        </Button>
       </div>
     </div>
   );

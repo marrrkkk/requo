@@ -1,5 +1,4 @@
 import type { BusinessPlan } from "@/lib/plans";
-import type { BillingCurrency, BillingRegion } from "@/lib/billing";
 
 /**
  * Layout variant for the UpgradePrompt component.
@@ -33,6 +32,4 @@ export type UpgradeActionProps = {
   businessId: string;
   businessSlug: string;
   currentPlan: BusinessPlan;
-  region: BillingRegion;
-  defaultCurrency: BillingCurrency;
 };

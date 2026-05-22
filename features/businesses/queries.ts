@@ -22,7 +22,6 @@ import type {
 } from "@/features/businesses/types";
 import {
   getEffectiveInquiryStatus,
-  getNonDeletedInquiryCondition,
   getOperationalInquiryCondition,
 } from "@/features/inquiries/queries";
 import {
@@ -393,7 +392,7 @@ async function getCachedBusinessDashboardSummaryData(
           ),
       })
       .from(inquiries)
-      .where(and(eq(inquiries.businessId, businessId), getNonDeletedInquiryCondition())),
+      .where(and(eq(inquiries.businessId, businessId), )),
     db
       .select({
         totalQuotes: sql<number>`count(*)`.as("total_quotes"),

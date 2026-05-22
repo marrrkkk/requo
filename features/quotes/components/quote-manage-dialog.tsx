@@ -4,14 +4,14 @@ import { Archive, Ban, RotateCcw, Settings, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  ResponsiveOverlay,
+  ResponsiveOverlayBody,
+  ResponsiveOverlayContent,
+  ResponsiveOverlayDescription,
+  ResponsiveOverlayHeader,
+  ResponsiveOverlayTitle,
+  ResponsiveOverlayTrigger,
+} from "@/components/ui/responsive-overlay";
 import {
   ServerActionButton,
   ServerActionConfirmDialog,
@@ -53,8 +53,8 @@ export function QuoteManageDialog({
   voidAction,
 }: QuoteManageDialogProps) {
   return (
-    <Dialog>
-      <DialogTrigger asChild>
+    <ResponsiveOverlay>
+      <ResponsiveOverlayTrigger asChild>
         <Button
           type="button"
           variant="outline"
@@ -63,17 +63,17 @@ export function QuoteManageDialog({
           <Settings data-icon="inline-start" className="sm:!m-0" />
           <span className="sm:hidden">Manage</span>
         </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-[26rem]">
-        <DialogHeader>
-          <DialogTitle>Manage quote</DialogTitle>
-          <DialogDescription>
+      </ResponsiveOverlayTrigger>
+      <ResponsiveOverlayContent className="sm:max-w-[26rem]">
+        <ResponsiveOverlayHeader>
+          <ResponsiveOverlayTitle>Manage quote</ResponsiveOverlayTitle>
+          <ResponsiveOverlayDescription>
             {status === "draft"
               ? "Delete this draft if it's no longer needed."
               : "Archive or void this quote."}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogBody className="flex flex-col gap-5 pt-1">
+          </ResponsiveOverlayDescription>
+        </ResponsiveOverlayHeader>
+        <ResponsiveOverlayBody className="flex flex-col gap-5 pt-1">
           {status === "draft" ? (
             <section className="flex flex-col gap-3">
               <p className="meta-label">Draft actions</p>
@@ -125,8 +125,8 @@ export function QuoteManageDialog({
               </div>
             </section>
           )}
-        </DialogBody>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveOverlayBody>
+      </ResponsiveOverlayContent>
+    </ResponsiveOverlay>
   );
 }

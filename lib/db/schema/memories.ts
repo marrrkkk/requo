@@ -3,6 +3,7 @@ import {
   check,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -26,12 +27,20 @@ export const businessMemories = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    /** Embedding vector stored as JSONB array for semantic search. Null if not yet generated. */
+    embedding: jsonb("embedding").$type<number[] | null>().default(null),
+    /** Memory category for intent-based retrieval filtering. */
+    category: text("category").notNull().default("business_rules"),
   },
   (table) => [
     index("business_memories_business_id_idx").on(table.businessId),
     index("business_memories_business_position_idx").on(
       table.businessId,
       table.position,
+    ),
+    index("business_memories_business_category_idx").on(
+      table.businessId,
+      table.category,
     ),
     check(
       "business_memories_position_nonnegative",
@@ -44,6 +53,10 @@ export const businessMemories = pgTable(
     check(
       "business_memories_content_length",
       sql`char_length(${table.content}) <= 4000`,
+    ),
+    check(
+      "business_memories_category_check",
+      sql`${table.category} IN ('business_rules', 'pricing_knowledge', 'customer_context', 'workflow_preferences')`,
     ),
   ],
 );

@@ -17,6 +17,14 @@ export const followUpChannels = [
   "other",
 ] as const;
 export const followUpCategories = ["sales", "post_win"] as const;
+export const followUpRecurrences = [
+  "none",
+  "daily",
+  "every_3_days",
+  "weekly",
+  "biweekly",
+  "monthly",
+] as const;
 
 export type FollowUpStatus = (typeof followUpStatuses)[number];
 export type FollowUpStatusFilterValue =
@@ -25,6 +33,7 @@ export type FollowUpDueFilterValue = (typeof followUpDueFilterValues)[number];
 export type FollowUpSortValue = (typeof followUpSortValues)[number];
 export type FollowUpChannel = (typeof followUpChannels)[number];
 export type FollowUpCategory = (typeof followUpCategories)[number];
+export type FollowUpRecurrence = (typeof followUpRecurrences)[number];
 
 export type FollowUpRelatedKind = "inquiry" | "quote";
 export type FollowUpDueBucket = "overdue" | "today" | "upcoming" | "done";
@@ -50,6 +59,9 @@ export type FollowUpView = {
   reason: string;
   category: FollowUpCategory;
   channel: FollowUpChannel;
+  recurrence: FollowUpRecurrence;
+  recurrenceCount: number;
+  recurrenceLimit: number | null;
   dueAt: Date;
   completedAt: Date | null;
   skippedAt: Date | null;
@@ -85,11 +97,19 @@ export type FollowUpOverviewData = {
 };
 
 export type FollowUpCreateFieldErrors = Partial<
-  Record<"title" | "reason" | "channel" | "dueDate", string[] | undefined>
+  Record<"title" | "reason" | "channel" | "dueDate" | "recurrence" | "recurrenceLimit", string[] | undefined>
+>;
+
+export type FollowUpEditFieldErrors = Partial<
+  Record<"title" | "reason" | "channel" | "dueDate" | "recurrence" | "recurrenceLimit", string[] | undefined>
 >;
 
 export type FollowUpRescheduleFieldErrors = Partial<
   Record<"dueDate", string[] | undefined>
+>;
+
+export type FollowUpReassignFieldErrors = Partial<
+  Record<"assignedToUserId", string[] | undefined>
 >;
 
 export type FollowUpCreateActionState = {
@@ -97,6 +117,12 @@ export type FollowUpCreateActionState = {
   success?: string;
   fieldErrors?: FollowUpCreateFieldErrors;
   followUpId?: string;
+};
+
+export type FollowUpEditActionState = {
+  error?: string;
+  success?: string;
+  fieldErrors?: FollowUpEditFieldErrors;
 };
 
 export type FollowUpRecordActionState = {
@@ -108,4 +134,15 @@ export type FollowUpRescheduleActionState = {
   error?: string;
   success?: string;
   fieldErrors?: FollowUpRescheduleFieldErrors;
+};
+
+export type FollowUpReassignActionState = {
+  error?: string;
+  success?: string;
+  fieldErrors?: FollowUpReassignFieldErrors;
+};
+
+export type FollowUpDeleteActionState = {
+  error?: string;
+  success?: string;
 };

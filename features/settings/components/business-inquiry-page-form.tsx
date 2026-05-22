@@ -1857,12 +1857,12 @@ function PageSectionToc({
   return (
     <nav
       aria-label="Page sections"
-      className="-mx-4 mb-2 px-4 sm:-mx-6 sm:px-6"
+      className="sticky top-0 z-10 -mx-4 px-4 sm:-mx-6 sm:px-6"
     >
-      <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto rounded-lg border border-border/70 bg-muted/25 p-1.5">
+      <div className="no-scrollbar flex items-center gap-1 overflow-x-auto border-b border-border pb-px">
         {items.map((item) => (
           <a
-            className="inline-flex shrink-0 items-center rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex shrink-0 items-center rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             href={`#${item.id}`}
             key={item.id}
           >

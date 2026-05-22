@@ -40,6 +40,8 @@ export const profiles = pgTable("profiles", {
     .primaryKey()
     .references(() => user.id, { onDelete: "cascade" }),
   fullName: text("full_name").notNull(),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
   phone: text("phone"),
   jobTitle: text("job_title"),
   companySize: text("company_size"),
@@ -84,6 +86,8 @@ export const businesses = pgTable(
       .notNull()
       .default("general_project_services"),
     countryCode: text("country_code"),
+    /** IANA timezone identifier (e.g. "America/New_York"). Defaults to UTC. */
+    timezone: text("timezone").notNull().default("UTC"),
     shortDescription: text("short_description"),
     /** How inbound customers typically reach this business (onboarding insight). */
     customerContactChannel: text("customer_contact_channel"),
@@ -98,6 +102,7 @@ export const businesses = pgTable(
     inquiryPageConfig: jsonb("inquiry_page_config").$type<InquiryPageConfig>(),
     defaultEmailSignature: text("default_email_signature"),
     defaultQuoteNotes: text("default_quote_notes"),
+    defaultQuoteTerms: text("default_quote_terms"),
     quoteEmailTemplate:
       jsonb("quote_email_template").$type<QuoteEmailTemplateConfig>(),
     defaultQuoteValidityDays: integer("default_quote_validity_days")

@@ -464,7 +464,7 @@ export function AdminAuditTable({
                 >
                   <SheetTrigger asChild>
                     <Button
-                      className="w-full sm:hidden"
+                      className="flex-1 sm:hidden"
                       type="button"
                       variant="outline"
                     >
@@ -484,7 +484,7 @@ export function AdminAuditTable({
                   </SheetContent>
                 </Sheet>
                 <Button
-                  className="w-full sm:w-auto"
+                  className="shrink-0 sm:w-auto"
                   disabled={!canClear}
                   onClick={clearFilters}
                   type="button"
