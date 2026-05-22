@@ -1,10 +1,10 @@
 -- Add tax columns to quotes table
-ALTER TABLE "quotes" ADD COLUMN "tax_amount_in_cents" integer NOT NULL DEFAULT 0;
-ALTER TABLE "quotes" ADD COLUMN "tax_label" text;
+ALTER TABLE "quotes" ADD COLUMN IF NOT EXISTS "tax_amount_in_cents" integer NOT NULL DEFAULT 0;
+ALTER TABLE "quotes" ADD COLUMN IF NOT EXISTS "tax_label" text;
 
 -- Add tax columns to quote_versions table
-ALTER TABLE "quote_versions" ADD COLUMN "tax_amount_in_cents" integer NOT NULL DEFAULT 0;
-ALTER TABLE "quote_versions" ADD COLUMN "tax_label" text;
+ALTER TABLE "quote_versions" ADD COLUMN IF NOT EXISTS "tax_amount_in_cents" integer NOT NULL DEFAULT 0;
+ALTER TABLE "quote_versions" ADD COLUMN IF NOT EXISTS "tax_label" text;
 
 -- Update the totals check constraint: total = subtotal - discount + tax
 ALTER TABLE "quotes" DROP CONSTRAINT IF EXISTS "quotes_totals_valid";
