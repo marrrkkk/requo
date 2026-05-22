@@ -1,0 +1,122 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { Suspense } from "react";
+
+import { PageHeader } from "@/components/shared/page-header";
+import {
+  applyBusinessInquiryFormPresetAction,
+  archiveBusinessInquiryFormFromDetailAction,
+  deleteBusinessInquiryFormAction,
+  duplicateBusinessInquiryFormAction,
+  setDefaultBusinessInquiryFormAction,
+  toggleBusinessInquiryFormPublicAction,
+  updateBusinessInquiryFormAction,
+  updateBusinessInquiryPageAction,
+} from "@/features/settings/actions";
+import { BusinessInquiryFormEditorTabs } from "@/features/settings/components/business-inquiry-form-editor-tabs";
+import { getBusinessInquiryFormEditorForBusiness } from "@/features/settings/queries";
+import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
+import {
+  getBusinessInquiryFormPreviewPath,
+  getBusinessInquiryFormsPath,
+  getBusinessSettingsPath,
+} from "@/features/businesses/routes";
+import { canManageBusinessAdministration } from "@/lib/business-members";
+import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
+import { FormEditorTour } from "@/features/onboarding/components/form-editor-tour";
+import { getAccountProfileForUser } from "@/features/account/queries";
+import { requireSession } from "@/lib/auth/session";
+import { createNoIndexMetadata } from "@/lib/seo/site";
+import { getBusinessOperationalPageContext } from "@/app/(business)/[businessSlug]/settings/_lib/page-context";
+
+export const metadata: Metadata = createNoIndexMetadata({
+  title: "Form editor",
+  description: "Edit fields, public page, preview, and publishing for an inquiry form.",
+});
+
+export const unstable_instant = {
+  prefetch: 'static',
+  unstable_disableValidation: true,
+};
+
+export default async function BusinessFormPage({
+  params,
+}: {
+  params: Promise<{ formSlug: string }>;
+}) {
+  const [session, { businessContext }, { formSlug }] = await Promise.all([
+    requireSession(),
+    getBusinessOperationalPageContext(),
+    params,
+  ]);
+  const settings = await getBusinessInquiryFormEditorForBusiness(
+    businessContext.business.id,
+    formSlug,
+  );
+
+  if (!settings) {
+    notFound();
+  }
+
+  const logoPreviewUrl = settings.logoStoragePath
+    ? `/api/business/logo?v=${settings.updatedAt.getTime()}`
+    : null;
+  const previewHref = getBusinessInquiryFormPreviewPath(
+    settings.slug,
+    settings.formSlug,
+  );
+  const inquiryListHref = getBusinessInquiryFormsPath(settings.slug);
+  const generalSettingsHref = canManageBusinessAdministration(businessContext.role)
+    ? getBusinessSettingsPath(settings.slug, "general")
+    : null;
+  const settingsHref = getDefaultBusinessSettingsPath(
+    settings.slug,
+    businessContext.role,
+  );
+  const publicInquiryHref = settings.isDefault
+    ? getBusinessPublicInquiryUrl(settings.slug)
+    : getBusinessPublicInquiryUrl(settings.slug, settings.formSlug);
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="Forms"
+        title={settings.formName}
+        description="Edit the fields, public page, preview, and publishing controls for this inquiry workflow."
+      />
+
+      <BusinessInquiryFormEditorTabs
+        key={`${settings.formId}-${settings.updatedAt.getTime()}`}
+        settings={settings}
+        logoPreviewUrl={logoPreviewUrl}
+        generalSettingsHref={generalSettingsHref}
+        settingsHref={settingsHref}
+        previewHref={previewHref}
+        publicInquiryHref={publicInquiryHref}
+        inquiryListHref={inquiryListHref}
+        isPublicLive={settings.publicInquiryEnabled}
+        applyPresetAction={applyBusinessInquiryFormPresetAction.bind(
+          null,
+          settings.formSlug,
+        )}
+        saveFormAction={updateBusinessInquiryFormAction.bind(null, settings.formSlug)}
+        updatePageAction={updateBusinessInquiryPageAction.bind(null, settings.formSlug)}
+        duplicateAction={duplicateBusinessInquiryFormAction}
+        setDefaultAction={setDefaultBusinessInquiryFormAction}
+        togglePublicAction={toggleBusinessInquiryFormPublicAction}
+        archiveAction={archiveBusinessInquiryFormFromDetailAction}
+        deleteAction={deleteBusinessInquiryFormAction}
+      />
+      <Suspense fallback={null}>
+        <FormEditorTourSection userId={session.user.id} />
+      </Suspense>
+    </>
+  );
+}
+
+async function FormEditorTourSection({ userId }: { userId: string }) {
+  const profile = await getAccountProfileForUser(userId);
+  const showTour = Boolean(profile && !profile.formEditorTourCompletedAt);
+
+  return <FormEditorTour show={showTour} />;
+}
