@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,9 +25,11 @@ import {
 import {
   starterTemplateOptions,
 } from "@/features/businesses/starter-templates";
+import { validateBusinessSlug } from "@/features/businesses/validation";
 import type { CreateBusinessActionState } from "@/features/businesses/types";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
+import { slugifyPublicName } from "@/lib/slugs";
 
 type CreateBusinessFormProps = {
   action: (
@@ -35,6 +37,8 @@ type CreateBusinessFormProps = {
     formData: FormData,
   ) => Promise<CreateBusinessActionState>;
   businessId: string;
+  /** When true, renders without dialog wrappers for standalone page use. */
+  standalone?: boolean;
 };
 
 const initialState: CreateBusinessActionState = {};
@@ -42,6 +46,7 @@ const initialState: CreateBusinessActionState = {};
 export function CreateBusinessForm({
   action,
   businessId,
+  standalone = false,
 }: CreateBusinessFormProps) {
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
@@ -51,10 +56,175 @@ export function CreateBusinessForm({
     "general_project_services",
   );
   const [defaultCurrency, setDefaultCurrency] = useState("USD");
+  const [slugPreview, setSlugPreview] = useState<string>("");
+  const [slugError, setSlugError] = useState<string | undefined>(undefined);
   const nameError = state.fieldErrors?.name?.[0];
   const businessTypeError = state.fieldErrors?.businessType?.[0];
   const defaultCurrencyError = state.fieldErrors?.defaultCurrency?.[0];
   const selectedCurrency = getBusinessCurrencyOption(defaultCurrency);
+
+  const handleNameChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const name = e.target.value;
+      if (!name.trim()) {
+        setSlugPreview("");
+        setSlugError(undefined);
+        return;
+      }
+      const generated = slugifyPublicName(name, { fallback: "business" });
+      setSlugPreview(generated);
+      const validation = validateBusinessSlug(generated);
+      setSlugError(validation.valid ? undefined : validation.error);
+    },
+    [],
+  );
+
+  const handleNameBlur = useCallback(
+    (e: React.FocusEvent<HTMLInputElement>) => {
+      const name = e.target.value;
+      if (!name.trim()) {
+        setSlugPreview("");
+        setSlugError(undefined);
+        return;
+      }
+      const generated = slugifyPublicName(name, { fallback: "business" });
+      setSlugPreview(generated);
+      const validation = validateBusinessSlug(generated);
+      setSlugError(validation.valid ? undefined : validation.error);
+    },
+    [],
+  );
+
+  const fields = (
+    <FieldGroup>
+      <Field data-invalid={Boolean(nameError || slugError) || undefined}>
+        <FieldLabel htmlFor="business-name">Business name</FieldLabel>
+        <FieldContent>
+          <Input
+            id="business-name"
+            name="name"
+            maxLength={80}
+            minLength={2}
+            placeholder="Northside Signs"
+            required
+            aria-invalid={Boolean(nameError || slugError) || undefined}
+            disabled={isPending}
+            onChange={handleNameChange}
+            onBlur={handleNameBlur}
+          />
+          {slugPreview && !slugError && (
+            <FieldDescription>
+              URL slug: <span className="font-mono text-xs">{slugPreview}</span>
+            </FieldDescription>
+          )}
+          <FieldError
+            errors={
+              nameError
+                ? [{ message: nameError }]
+                : slugError
+                  ? [{ message: slugError }]
+                  : undefined
+            }
+          />
+        </FieldContent>
+      </Field>
+
+      <Field data-invalid={Boolean(defaultCurrencyError) || undefined}>
+        <FieldLabel htmlFor="business-default-currency">
+          Currency
+        </FieldLabel>
+        <FieldContent>
+          <Combobox
+            aria-invalid={Boolean(defaultCurrencyError) || undefined}
+            disabled={isPending}
+            id="business-default-currency"
+            onValueChange={setDefaultCurrency}
+            options={businessCurrencyOptions.map((opt) => ({
+              value: opt.code,
+              label: opt.label,
+              searchText: `${opt.code} ${opt.name}`,
+            }))}
+            placeholder="Choose a currency"
+            searchPlaceholder="Search currency"
+            searchable
+            value={defaultCurrency}
+          />
+          <FieldDescription>
+            New quotes and pricing entries start with{" "}
+            {selectedCurrency?.code ?? defaultCurrency}.
+          </FieldDescription>
+          <FieldError
+            errors={
+              defaultCurrencyError ? [{ message: defaultCurrencyError }] : undefined
+            }
+          />
+        </FieldContent>
+      </Field>
+
+      <Field data-invalid={Boolean(businessTypeError) || undefined}>
+        <FieldLabel htmlFor="business-starter-template">
+          Starter template
+        </FieldLabel>
+        <FieldContent>
+          <Combobox
+            aria-invalid={Boolean(businessTypeError) || undefined}
+            disabled={isPending}
+            id="business-starter-template"
+            onValueChange={(value) => setBusinessType(value as BusinessType)}
+            options={starterTemplateOptions}
+            placeholder="Choose a starter template"
+            renderOption={(option) => (
+              <div className="min-w-0">
+                <p className="truncate font-medium">{option.label}</p>
+                <p className="text-xs text-muted-foreground">
+                  {option.description}
+                </p>
+              </div>
+            )}
+            searchPlaceholder="Search starter template"
+            value={businessType}
+          />
+          <FieldError
+            errors={
+              businessTypeError ? [{ message: businessTypeError }] : undefined
+            }
+          />
+        </FieldContent>
+      </Field>
+    </FieldGroup>
+  );
+
+  const submitButton = (
+    <Button disabled={isPending || Boolean(slugError)} type="submit">
+      {isPending ? (
+        <>
+          <Spinner data-icon="inline-start" aria-hidden="true" />
+          Creating...
+        </>
+      ) : (
+        "Create business"
+      )}
+    </Button>
+  );
+
+  if (standalone) {
+    return (
+      <form
+        action={formAction}
+        className="flex min-h-0 flex-1 flex-col gap-6"
+      >
+        <input name="businessType" type="hidden" value={businessType} />
+        <input name="defaultCurrency" type="hidden" value={defaultCurrency} />
+        <input name="businessId" type="hidden" value={businessId} />
+
+        {fields}
+
+        <div className="flex items-center justify-end pt-2">
+          {submitButton}
+        </div>
+      </form>
+    );
+  }
 
   return (
     <form
@@ -66,103 +236,11 @@ export function CreateBusinessForm({
         <input name="businessId" type="hidden" value={businessId} />
 
         <DialogBody className="overflow-y-auto">
-          <FieldGroup>
-
-            <Field data-invalid={Boolean(nameError) || undefined}>
-              <FieldLabel htmlFor="business-name">Business name</FieldLabel>
-              <FieldContent>
-                <Input
-                  id="business-name"
-                  name="name"
-                  maxLength={80}
-                  minLength={2}
-                  placeholder="Northside Signs"
-                  required
-                  aria-invalid={Boolean(nameError) || undefined}
-                  disabled={isPending}
-                />
-                <FieldError
-                  errors={nameError ? [{ message: nameError }] : undefined}
-                />
-              </FieldContent>
-            </Field>
-
-            <Field data-invalid={Boolean(defaultCurrencyError) || undefined}>
-              <FieldLabel htmlFor="business-default-currency">
-                Currency
-              </FieldLabel>
-              <FieldContent>
-                <Combobox
-                  aria-invalid={Boolean(defaultCurrencyError) || undefined}
-                  disabled={isPending}
-                  id="business-default-currency"
-                  onValueChange={setDefaultCurrency}
-                  options={businessCurrencyOptions.map((opt) => ({
-                    value: opt.code,
-                    label: opt.label,
-                    searchText: `${opt.code} ${opt.name}`,
-                  }))}
-                  placeholder="Choose a currency"
-                  searchPlaceholder="Search currency"
-                  searchable
-                  value={defaultCurrency}
-                />
-                <FieldDescription>
-                  New quotes and pricing entries start with{" "}
-                  {selectedCurrency?.code ?? defaultCurrency}.
-                </FieldDescription>
-                <FieldError
-                  errors={
-                    defaultCurrencyError ? [{ message: defaultCurrencyError }] : undefined
-                  }
-                />
-              </FieldContent>
-            </Field>
-
-            <Field data-invalid={Boolean(businessTypeError) || undefined}>
-              <FieldLabel htmlFor="business-starter-template">
-                Starter template
-              </FieldLabel>
-              <FieldContent>
-                <Combobox
-                  aria-invalid={Boolean(businessTypeError) || undefined}
-                  disabled={isPending}
-                  id="business-starter-template"
-                  onValueChange={(value) => setBusinessType(value as BusinessType)}
-                  options={starterTemplateOptions}
-                  placeholder="Choose a starter template"
-                  renderOption={(option) => (
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{option.label}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {option.description}
-                      </p>
-                    </div>
-                  )}
-                  searchPlaceholder="Search starter template"
-                  value={businessType}
-                />
-                <FieldError
-                  errors={
-                    businessTypeError ? [{ message: businessTypeError }] : undefined
-                  }
-                />
-              </FieldContent>
-            </Field>
-          </FieldGroup>
+          {fields}
         </DialogBody>
 
         <DialogFooter>
-          <Button disabled={isPending} type="submit">
-            {isPending ? (
-              <>
-                <Spinner data-icon="inline-start" aria-hidden="true" />
-                Creating...
-              </>
-            ) : (
-              "Create business"
-            )}
-          </Button>
+          {submitButton}
         </DialogFooter>
       </form>
   );
