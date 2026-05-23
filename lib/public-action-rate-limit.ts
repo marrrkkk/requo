@@ -113,11 +113,21 @@ export async function assertPublicActionRateLimit({
 
     return true;
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : String(error);
+    const errorType =
+      error instanceof Error ? error.constructor.name : typeof error;
+
     console.error(
-      "Failed to check public action rate limit. Allowing the request to proceed.",
-      error,
+      "Rate limiter fail-closed: denying request due to database error",
+      {
+        error_type: errorType,
+        action,
+        timestamp: new Date().toISOString(),
+        error_message: errorMessage,
+      },
     );
 
-    return true;
+    return false;
   }
 }
