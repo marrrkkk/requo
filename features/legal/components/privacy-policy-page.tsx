@@ -424,12 +424,627 @@ const privacySections: LegalDocumentSection[] = [
     ),
   },
   {
-    id: "children-and-changes",
-    title: "14. Children's Privacy And Policy Changes",
+    id: "lawful-basis",
+    title: "14. Lawful Basis For Processing",
     content: (
       <>
         <LegalSectionHeading>
-          14. Children&rsquo;s Privacy And Policy Changes
+          14. Lawful Basis For Processing
+        </LegalSectionHeading>
+        <LegalParagraph>
+          Under GDPR Article 6, we rely on the following lawful bases for each
+          processing activity:
+        </LegalParagraph>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/70">
+                <th className="pb-3 pr-4 text-left font-medium text-foreground">
+                  Processing Activity
+                </th>
+                <th className="pb-3 text-left font-medium text-foreground">
+                  Lawful Basis (Article 6)
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Account creation and management
+                </td>
+                <td className="py-3 text-muted-foreground">
+                  Performance of a contract
+                </td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Inquiry form processing
+                </td>
+                <td className="py-3 text-muted-foreground">
+                  Legitimate interest
+                </td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  AI-assisted drafting
+                </td>
+                <td className="py-3 text-muted-foreground">
+                  Legitimate interest
+                </td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Conversational AI intake
+                </td>
+                <td className="py-3 text-muted-foreground">
+                  Legitimate interest (with notice)
+                </td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Transactional email
+                </td>
+                <td className="py-3 text-muted-foreground">
+                  Performance of a contract
+                </td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Internal analytics
+                </td>
+                <td className="py-3 text-muted-foreground">
+                  Legitimate interest
+                </td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Billing and subscription
+                </td>
+                <td className="py-3 text-muted-foreground">
+                  Performance of a contract
+                </td>
+              </tr>
+              <tr className="border-b border-border/40 last:border-b-0">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Security logging and rate limiting
+                </td>
+                <td className="py-3 text-muted-foreground">
+                  Legitimate interest
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <LegalParagraph>
+          Where we rely on legitimate interest, we have conducted balancing
+          assessments to ensure our interests do not override your fundamental
+          rights and freedoms.
+        </LegalParagraph>
+      </>
+    ),
+  },
+  {
+    id: "data-retention-schedule",
+    title: "15. Data Retention Schedule",
+    content: (
+      <>
+        <LegalSectionHeading>
+          15. Data Retention Schedule
+        </LegalSectionHeading>
+        <LegalParagraph>
+          We retain different categories of data for different periods based on
+          their purpose and applicable legal requirements:
+        </LegalParagraph>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/70">
+                <th className="pb-3 pr-4 text-left font-medium text-foreground">
+                  Data Category
+                </th>
+                <th className="pb-3 text-left font-medium text-foreground">
+                  Retention Period
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Account data
+                </td>
+                <td className="py-3 text-muted-foreground">
+                  Duration of account plus 30 days after deletion
+                </td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Business content
+                </td>
+                <td className="py-3 text-muted-foreground">
+                  Duration of business plus 90 days
+                </td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  AI token logs
+                </td>
+                <td className="py-3 text-muted-foreground">90 days</td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Billing records
+                </td>
+                <td className="py-3 text-muted-foreground">7 years</td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Session and security logs
+                </td>
+                <td className="py-3 text-muted-foreground">90 days</td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Webhook events
+                </td>
+                <td className="py-3 text-muted-foreground">1 year</td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Public action rate limit events
+                </td>
+                <td className="py-3 text-muted-foreground">30 days</td>
+              </tr>
+              <tr className="border-b border-border/40 last:border-b-0">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Analytics events
+                </td>
+                <td className="py-3 text-muted-foreground">
+                  Duration of business
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <LegalParagraph>
+          After the applicable retention period expires, data is deleted or
+          anonymized in accordance with our data management procedures.
+        </LegalParagraph>
+      </>
+    ),
+  },
+  {
+    id: "international-data-transfers",
+    title: "16. International Data Transfers",
+    content: (
+      <>
+        <LegalSectionHeading>
+          16. International Data Transfers
+        </LegalSectionHeading>
+        <LegalParagraph>
+          Your data may be transferred to and processed in countries outside
+          your jurisdiction. The following table lists the third-party providers
+          we use, their data locations, and their roles:
+        </LegalParagraph>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/70">
+                <th className="pb-3 pr-4 text-left font-medium text-foreground">
+                  Provider
+                </th>
+                <th className="pb-3 pr-4 text-left font-medium text-foreground">
+                  Data Location
+                </th>
+                <th className="pb-3 text-left font-medium text-foreground">
+                  Role
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Vercel
+                </td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  United States
+                </td>
+                <td className="py-3 text-muted-foreground">Hosting</td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Supabase
+                </td>
+                <td className="py-3 pr-4 text-muted-foreground">Singapore</td>
+                <td className="py-3 text-muted-foreground">
+                  Database and storage
+                </td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Resend
+                </td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  United States
+                </td>
+                <td className="py-3 text-muted-foreground">Email</td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">Groq</td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  United States
+                </td>
+                <td className="py-3 text-muted-foreground">AI inference</td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Cerebras
+                </td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  United States
+                </td>
+                <td className="py-3 text-muted-foreground">AI inference</td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Google / Gemini
+                </td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  United States
+                </td>
+                <td className="py-3 text-muted-foreground">
+                  AI inference and OAuth
+                </td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  OpenRouter
+                </td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  United States
+                </td>
+                <td className="py-3 text-muted-foreground">AI routing</td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Mistral
+                </td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  EU / France
+                </td>
+                <td className="py-3 text-muted-foreground">AI inference</td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Cloudflare
+                </td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  Global edge
+                </td>
+                <td className="py-3 text-muted-foreground">AI inference</td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  NVIDIA
+                </td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  United States
+                </td>
+                <td className="py-3 text-muted-foreground">AI inference</td>
+              </tr>
+              <tr className="border-b border-border/40 last:border-b-0">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Polar
+                </td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  United States
+                </td>
+                <td className="py-3 text-muted-foreground">
+                  Payment processing
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <LegalParagraph>
+          Where personal data is transferred outside the European Economic Area
+          or the United Kingdom to a country not recognized as providing an
+          adequate level of data protection, we rely on Standard Contractual
+          Clauses (SCCs) approved by the European Commission as the transfer
+          mechanism.
+        </LegalParagraph>
+      </>
+    ),
+  },
+  {
+    id: "your-rights",
+    title: "17. Your Rights",
+    content: (
+      <>
+        <LegalSectionHeading>17. Your Rights</LegalSectionHeading>
+        <LegalParagraph>
+          Depending on your jurisdiction, you may have specific rights regarding
+          your personal information. Below we describe the rights available under
+          the laws most relevant to our users.
+        </LegalParagraph>
+        <LegalSubheading>A. EU / EEA / UK (GDPR)</LegalSubheading>
+        <LegalParagraph>
+          If you are located in the European Union, European Economic Area, or
+          United Kingdom, you have the following rights under the General Data
+          Protection Regulation:
+        </LegalParagraph>
+        <LegalList
+          items={[
+            "Right of access — request a copy of the personal data we hold about you.",
+            "Right to rectification — request correction of inaccurate or incomplete personal data.",
+            "Right to erasure — request deletion of your personal data where there is no compelling reason for its continued processing.",
+            "Right to restriction — request that we restrict processing of your personal data in certain circumstances.",
+            "Right to data portability — receive your personal data in a structured, commonly used, machine-readable format.",
+            "Right to object — object to processing based on legitimate interest, including profiling.",
+            "Rights related to automated decision-making — not be subject to decisions based solely on automated processing that produce legal or similarly significant effects.",
+          ]}
+        />
+        <LegalSubheading>B. California (CCPA / CPRA)</LegalSubheading>
+        <LegalParagraph>
+          If you are a California resident, you have the following rights under
+          the California Consumer Privacy Act and California Privacy Rights Act:
+        </LegalParagraph>
+        <LegalList
+          items={[
+            "Right to know — request disclosure of the categories and specific pieces of personal information we have collected about you.",
+            "Right to delete — request deletion of personal information we have collected from you.",
+            "Right to opt-out of sale or sharing — direct us not to sell or share your personal information. Requo does not sell or share personal information as defined under the CCPA/CPRA.",
+            "Right to non-discrimination — not receive discriminatory treatment for exercising your privacy rights.",
+          ]}
+        />
+        <LegalSubheading>C. Philippines (Data Privacy Act)</LegalSubheading>
+        <LegalParagraph>
+          If you are located in the Philippines, you have the following rights
+          under Republic Act No. 10173 (Data Privacy Act of 2012):
+        </LegalParagraph>
+        <LegalList
+          items={[
+            "Right to be informed — be informed of the purpose and extent of data processing before or at the time of collection.",
+            "Right to access — obtain a copy of your personal data being processed.",
+            "Right to correction — dispute and have corrected any inaccuracy or error in your personal data.",
+            "Right to erasure or blocking — suspend, withdraw, or order blocking, removal, or destruction of your personal data.",
+            "Right to data portability — obtain your personal data in an electronic or structured format.",
+            "Right to object — object to the processing of your personal data, including processing for direct marketing, automated processing, or profiling.",
+            "Right to damages — be indemnified for damages sustained due to inaccurate, incomplete, outdated, false, unlawfully obtained, or unauthorized use of personal data.",
+          ]}
+        />
+        <LegalSubheading>D. How to exercise your rights</LegalSubheading>
+        <LegalParagraph>
+          To exercise any of the rights described above, contact us at{" "}
+          <a
+            className="text-foreground underline-offset-4 hover:underline"
+            href={`mailto:${legalConfig.privacyEmail}`}
+          >
+            {legalConfig.privacyEmail}
+          </a>
+          . We will respond to your request within 30 days. In certain
+          circumstances, this period may be extended as permitted by applicable
+          regulation, in which case we will notify you of the extension and the
+          reason for it.
+        </LegalParagraph>
+      </>
+    ),
+  },
+  {
+    id: "ai-provider-data-practices",
+    title: "18. AI Provider Data Practices",
+    content: (
+      <>
+        <LegalSectionHeading>
+          18. AI Provider Data Practices
+        </LegalSectionHeading>
+        <LegalParagraph>
+          Requo uses multiple AI providers as part of its inference and drafting
+          features. None of these providers use Requo customer data submitted
+          through the API to train their models. The following table summarizes
+          the data handling practices of each provider:
+        </LegalParagraph>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border/70">
+                <th className="pb-3 pr-4 text-left font-medium text-foreground">
+                  Provider
+                </th>
+                <th className="pb-3 pr-4 text-left font-medium text-foreground">
+                  Training on Customer Data
+                </th>
+                <th className="pb-3 pr-4 text-left font-medium text-foreground">
+                  Data Retention
+                </th>
+                <th className="pb-3 text-left font-medium text-foreground">
+                  Zero Data Retention (ZDR)
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">Groq</td>
+                <td className="py-3 pr-4 text-muted-foreground">No</td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  Not retained after processing
+                </td>
+                <td className="py-3 text-muted-foreground">Yes (default)</td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Cerebras
+                </td>
+                <td className="py-3 pr-4 text-muted-foreground">No</td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  Not retained after processing
+                </td>
+                <td className="py-3 text-muted-foreground">Yes (default)</td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Google / Gemini
+                </td>
+                <td className="py-3 pr-4 text-muted-foreground">No</td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  Transient processing; not stored beyond request
+                </td>
+                <td className="py-3 text-muted-foreground">
+                  Yes (paid API tier)
+                </td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  OpenRouter
+                </td>
+                <td className="py-3 pr-4 text-muted-foreground">No</td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  Short-term logging for abuse prevention
+                </td>
+                <td className="py-3 text-muted-foreground">
+                  Varies by upstream model
+                </td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Mistral (API / La Plateforme)
+                </td>
+                <td className="py-3 pr-4 text-muted-foreground">No</td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  Not retained for training; 30-day abuse log
+                </td>
+                <td className="py-3 text-muted-foreground">Yes (API)</td>
+              </tr>
+              <tr className="border-b border-border/40">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  Cloudflare Workers AI
+                </td>
+                <td className="py-3 pr-4 text-muted-foreground">No</td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  Not retained after processing
+                </td>
+                <td className="py-3 text-muted-foreground">Yes (default)</td>
+              </tr>
+              <tr className="border-b border-border/40 last:border-b-0">
+                <td className="py-3 pr-4 font-medium text-foreground">
+                  NVIDIA NIM
+                </td>
+                <td className="py-3 pr-4 text-muted-foreground">No</td>
+                <td className="py-3 pr-4 text-muted-foreground">
+                  Not retained after processing
+                </td>
+                <td className="py-3 text-muted-foreground">Yes (default)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <LegalParagraph>
+          Requo accesses all AI providers exclusively through their API services.
+          API terms universally prohibit using customer data for model training.
+          This is distinct from consumer-facing chat products offered by the same
+          companies, which may have different data practices.
+        </LegalParagraph>
+        <LegalSubheading>Mistral: API vs. Consumer Chat</LegalSubheading>
+        <LegalParagraph>
+          Mistral is included in Requo&rsquo;s AI provider fallback chain and is
+          accessed through Mistral&rsquo;s API platform (La Plateforme). Per
+          Mistral&rsquo;s API terms, data sent through the API is not used for
+          model training and is subject to a 30-day retention period for abuse
+          and safety monitoring only. This is separate from Mistral&rsquo;s
+          consumer chat product (Le Chat), which may use conversation data for
+          model improvement under different terms. Requo does not use the
+          consumer chat product.
+        </LegalParagraph>
+      </>
+    ),
+  },
+  {
+    id: "automated-decision-making",
+    title: "19. Automated Decision-Making",
+    content: (
+      <>
+        <LegalSectionHeading>19. Automated Decision-Making</LegalSectionHeading>
+        <LegalParagraph>
+          Requo includes AI-powered features that assist with drafting quotes,
+          generating suggestions, and guiding conversational inquiry intake.
+          These features are designed as assistive tools only.
+        </LegalParagraph>
+        <LegalParagraph>
+          No automated decisions with legal or similarly significant effects are
+          made about you through the Service. All AI-generated outputs, including
+          draft text, suggestions, and extracted inquiry details, require human
+          review before use. A business user must review, edit, and approve any
+          AI-assisted content before it is sent to a customer or used to make a
+          business decision.
+        </LegalParagraph>
+        <LegalParagraph>
+          If you have questions about how AI features are used in the context of
+          a specific business, you may contact that business directly or reach us
+          at{" "}
+          <a
+            className="text-foreground underline-offset-4 hover:underline"
+            href={`mailto:${legalConfig.privacyEmail}`}
+          >
+            {legalConfig.privacyEmail}
+          </a>
+          .
+        </LegalParagraph>
+      </>
+    ),
+  },
+  {
+    id: "breach-notification",
+    title: "20. Breach Notification",
+    content: (
+      <>
+        <LegalSectionHeading>20. Breach Notification</LegalSectionHeading>
+        <LegalParagraph>
+          In the event of a confirmed personal data breach that poses a risk to
+          your rights and freedoms, we will notify affected account holders via
+          email within 72 hours of confirming the breach.
+        </LegalParagraph>
+        <LegalParagraph>
+          Breach notifications will include a description of the nature of the
+          breach, the categories of data affected, the likely consequences, and
+          the measures we have taken or propose to take to address the breach and
+          mitigate its effects.
+        </LegalParagraph>
+        <LegalParagraph>
+          Where required by applicable law, we will also make a public disclosure
+          about the breach and notify relevant supervisory authorities within the
+          timeframes required by those laws.
+        </LegalParagraph>
+      </>
+    ),
+  },
+  {
+    id: "do-not-track-and-gpc",
+    title: "21. Do Not Track And Global Privacy Control",
+    content: (
+      <>
+        <LegalSectionHeading>
+          21. Do Not Track And Global Privacy Control
+        </LegalSectionHeading>
+        <LegalParagraph>
+          Requo does not track users across third-party websites and does not
+          sell or share personal information with third parties for advertising
+          or cross-site tracking purposes.
+        </LegalParagraph>
+        <LegalParagraph>
+          We honor Global Privacy Control (GPC) signals where applicable. Because
+          we do not engage in cross-site tracking or sell personal information,
+          our existing practices are consistent with the choices expressed by
+          Do Not Track (DNT) and GPC signals.
+        </LegalParagraph>
+      </>
+    ),
+  },
+  {
+    id: "children-and-changes",
+    title: "22. Children's Privacy And Policy Changes",
+    content: (
+      <>
+        <LegalSectionHeading>
+          22. Children&rsquo;s Privacy And Policy Changes
         </LegalSectionHeading>
         <LegalParagraph>
           The Service is designed for businesses and business-related customer
