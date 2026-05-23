@@ -3,6 +3,9 @@ import "server-only";
 import { z } from "zod";
 
 import { getInquiryAssistantContextForBusiness } from "@/features/ai/queries";
+import { sanitizeAiInput } from "@/lib/ai/input-sanitizer";
+import { filterAiOutput } from "@/lib/ai/output-filter";
+import { logAiSecurityEvent } from "@/lib/ai/security-events";
 import {
   aiQuoteDraftItemConfidenceLevels,
   aiQuoteDraftItemPricingSources,
@@ -955,6 +958,53 @@ export async function generateQuoteDraftForBusiness(
     };
   }
 
+  // --- AI Input Sanitization ---
+  // Sanitize user-provided text inputs before they reach the AI provider.
+  const userInputText = [input.brief ?? "", input.revisionComment ?? ""]
+    .filter(Boolean)
+    .join(" ");
+
+  if (userInputText.trim()) {
+    const sanitization = sanitizeAiInput(userInputText);
+
+    if (sanitization.status === "rejected") {
+      logAiSecurityEvent({
+        eventType: "injection_rejected",
+        patternMatched: sanitization.patterns.join(", "),
+        userId: input.userId,
+        businessId: input.businessId,
+        rawInput: userInputText,
+      });
+      return {
+        ok: false,
+        error: "Your input could not be processed. Please rephrase your request.",
+      };
+    }
+
+    if (sanitization.status === "sanitized") {
+      logAiSecurityEvent({
+        eventType: "injection_detected",
+        patternMatched: sanitization.patterns.join(", "),
+        userId: input.userId,
+        businessId: input.businessId,
+        rawInput: userInputText,
+      });
+      // Use sanitized versions of the inputs
+      if (input.brief) {
+        const briefSanitization = sanitizeAiInput(input.brief);
+        if (briefSanitization.status !== "rejected") {
+          input = { ...input, brief: briefSanitization.output };
+        }
+      }
+      if (input.revisionComment) {
+        const revisionSanitization = sanitizeAiInput(input.revisionComment);
+        if (revisionSanitization.status !== "rejected") {
+          input = { ...input, revisionComment: revisionSanitization.output };
+        }
+      }
+    }
+  }
+
   const currency = businessRow.defaultCurrency;
 
   // Fetch inquiry context (needed for inquiry text and related quotes)
@@ -1211,10 +1261,29 @@ export async function generateQuoteDraftForBusiness(
     const inputTokens = response.usage?.promptTokens ?? 0;
     const outputTokens = response.usage?.completionTokens ?? 0;
 
-    const rawJson = extractJsonObject(response.text);
+    // --- AI Output Filtering ---
+    const outputFilterResult = filterAiOutput(response.text, [
+      "quote draft",
+      "approved pricing sources",
+      "needs_review",
+      "no_pricing_found",
+      "unitPriceInCents",
+    ]);
+    if (outputFilterResult.status === "redacted") {
+      logAiSecurityEvent({
+        eventType: "output_redacted",
+        patternMatched: outputFilterResult.redactedPatterns.join(", "),
+        userId: input.userId,
+        businessId: input.businessId,
+        rawInput: response.text.slice(0, 200),
+      });
+    }
+    const filteredResponseText = outputFilterResult.output;
+
+    const rawJson = extractJsonObject(filteredResponseText);
 
     if (!rawJson) {
-      console.error("[quote-generator] No JSON found in response. Raw text:", response.text.slice(0, 500));
+      console.error("[quote-generator] No JSON found in response. Raw text:", filteredResponseText.slice(0, 500));
       return {
         ok: false,
         error: "The assistant did not return a valid draft. Try again.",
@@ -1430,6 +1499,37 @@ export async function generateQuoteImprovementForBusiness(
       ok: false,
       error: "That business could not be found.",
     };
+  }
+
+  // --- AI Input Sanitization ---
+  // The existingQuoteDraft is user-provided content that goes into the AI prompt.
+  if (input.existingQuoteDraft.trim()) {
+    const sanitization = sanitizeAiInput(input.existingQuoteDraft);
+
+    if (sanitization.status === "rejected") {
+      logAiSecurityEvent({
+        eventType: "injection_rejected",
+        patternMatched: sanitization.patterns.join(", "),
+        userId: input.userId,
+        businessId: input.businessId,
+        rawInput: input.existingQuoteDraft,
+      });
+      return {
+        ok: false,
+        error: "Your input could not be processed. Please rephrase your request.",
+      };
+    }
+
+    if (sanitization.status === "sanitized") {
+      logAiSecurityEvent({
+        eventType: "injection_detected",
+        patternMatched: sanitization.patterns.join(", "),
+        userId: input.userId,
+        businessId: input.businessId,
+        rawInput: input.existingQuoteDraft,
+      });
+      input = { ...input, existingQuoteDraft: sanitization.output };
+    }
   }
 
   const currency = businessRow.defaultCurrency;
@@ -1666,7 +1766,26 @@ export async function generateQuoteImprovementForBusiness(
     const inputTokens = response.usage?.promptTokens ?? 0;
     const outputTokens = response.usage?.completionTokens ?? 0;
 
-    const rawJson = extractJsonObject(response.text);
+    // --- AI Output Filtering ---
+    const outputFilterResult = filterAiOutput(response.text, [
+      "quote improvement",
+      "approved pricing sources",
+      "needs_review",
+      "no_pricing_found",
+      "unitPriceInCents",
+    ]);
+    if (outputFilterResult.status === "redacted") {
+      logAiSecurityEvent({
+        eventType: "output_redacted",
+        patternMatched: outputFilterResult.redactedPatterns.join(", "),
+        userId: input.userId,
+        businessId: input.businessId,
+        rawInput: response.text.slice(0, 200),
+      });
+    }
+    const filteredResponseText = outputFilterResult.output;
+
+    const rawJson = extractJsonObject(filteredResponseText);
 
     if (!rawJson) {
       return {

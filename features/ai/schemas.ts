@@ -72,6 +72,38 @@ export const aiChatRequestSchema = z.object({
   message: z.string().trim().min(1).max(6000),
   qualityTier: aiQualityTierSchema.optional(),
   devModel: z.string().trim().min(1).max(240).optional(),
+  /** When true, skips creating a new user message (used when replying to an already-persisted message). */
+  replyToExisting: z.boolean().optional(),
+});
+
+/**
+ * Schema for the Vercel AI SDK `useChat` hook request format (v6).
+ * `DefaultChatTransport` sends `{ ...body, id, messages, trigger, messageId }`.
+ */
+export const aiChatUseChatRequestSchema = z.object({
+  // DefaultChatTransport sends UIMessage[] with parts array
+  messages: z.array(z.object({
+    id: z.string().optional(),
+    role: z.enum(["user", "assistant", "system"]),
+    parts: z.array(z.object({
+      type: z.string(),
+      text: z.string().optional(),
+    }).passthrough()).optional(),
+    // Legacy format fallback (content string)
+    content: z.string().optional(),
+  })).min(1),
+  // Chat transport metadata
+  id: z.string().optional(),
+  trigger: z.enum(["submit-message", "regenerate-message"]).optional(),
+  messageId: z.string().optional().nullable(),
+  // Custom body fields sent via transport's `body` option
+  businessSlug: z.string().trim().min(1).max(120).optional(),
+  conversationId: z.string().trim().min(1).max(128),
+  surface: aiSurfaceSchema,
+  entityId: z.string().trim().min(1).max(128),
+  devModel: z.string().trim().min(1).max(240).optional(),
+  /** When true, skips creating a new user message (used when replying to an already-persisted message). */
+  replyToExisting: z.boolean().optional(),
 });
 
 /**

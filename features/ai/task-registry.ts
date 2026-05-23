@@ -12,6 +12,8 @@ export const aiTaskTypes = [
   "form_suggestion",
   "business_memory_summary",
   "intent_classification",
+  "assistant_message",
+  "assistant_tool_call",
 ] as const;
 
 export type AiTaskType = (typeof aiTaskTypes)[number];
@@ -145,6 +147,28 @@ export const AI_TASK_REGISTRY: Record<AiTaskType, AiTaskConfig> = {
     priorityWeight: 1,
     streamingPermitted: false,
     maxContextCharacters: 800,
+  },
+  assistant_message: {
+    taskType: "assistant_message",
+    qualityTier: "balanced",
+    maxOutputTokens: 2048,
+    temperature: 0.2,
+    requiredContextFields: ["message"],
+    cacheTTL: 0,
+    priorityWeight: 1,
+    streamingPermitted: true,
+    maxContextCharacters: 8000,
+  },
+  assistant_tool_call: {
+    taskType: "assistant_tool_call",
+    qualityTier: "balanced",
+    maxOutputTokens: 1024,
+    temperature: 0.1,
+    requiredContextFields: ["message"],
+    cacheTTL: 0,
+    priorityWeight: 1,
+    streamingPermitted: true,
+    maxContextCharacters: 4000,
   },
 };
 

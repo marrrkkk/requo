@@ -31,8 +31,16 @@ export {
   recordUsage,
   startCooldown,
   resetCooldowns,
+  getMonthlyUsageSummary,
 } from "./usage-limiter";
 export type { UsageLimitCheck, UsageLimitResult } from "./usage-limiter";
+export {
+  MAX_TOOL_CALLS_PER_TURN,
+  MAX_STEPS_PER_TURN,
+  checkAssistantBudget,
+  recordAssistantTurn,
+} from "./assistant-usage";
+export type { AssistantBudgetCheck, AssistantBudgetResult, AssistantTurnUsage } from "./assistant-usage";
 export { summarizeDroppedMessages } from "./history-summarizer";
 export {
   classifyMessageComplexity,

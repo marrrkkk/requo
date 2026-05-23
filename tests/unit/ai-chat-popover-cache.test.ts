@@ -8,7 +8,7 @@ import {
   shouldWarmupEntityConversation,
   shouldSkipDashboardConversationHydration,
   type ChatMessage,
-} from "@/features/ai/components/ai-chat-popover";
+} from "@/features/ai/components/ai-chat-helpers";
 import type { AiConversation, AiConversationSummary } from "@/features/ai/types";
 
 function makeConversation(
