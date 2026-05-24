@@ -23,26 +23,28 @@ import type { AiToolExecutionContext } from "./types";
 export function createDashboardTools(ctx: AiToolExecutionContext) {
   return {
     count_inquiries: tool({
-      description: "Count total inquiries for the business, optionally filtered by status. Returns the exact count and breakdown by status. ALWAYS call this before stating any inquiry count.",
+      description: "Count inquiries, optionally by status. Returns count and breakdown.",
       inputSchema: z.object({
         status: z
           .enum(["new", "waiting", "quoted", "won", "lost", "overdue", "archived"])
+          .nullable()
           .optional()
-          .describe("Filter by inquiry status. Omit to get all."),
+          .describe("Filter by status."),
       }),
       execute: async ({ status }) => {
-        const result = await executeToolCall(ctx, { tool: "count_inquiries", args: { status } });
+        const result = await executeToolCall(ctx, { tool: "count_inquiries", args: { status: status ?? undefined } });
         return result.result;
       },
     }),
 
     count_quotes: tool({
-      description: "Count total quotes for the business, optionally filtered by status. Returns the exact count, breakdown by status, and total value. ALWAYS call this before stating any quote count.",
+      description: "Count quotes, optionally by status. Returns count, breakdown, and total value.",
       inputSchema: z.object({
         status: z
           .enum(["draft", "sent", "viewed", "accepted", "rejected", "expired", "voided"])
+          .nullable()
           .optional()
-          .describe("Filter by quote status. Omit to get all."),
+          .describe("Filter by status."),
       }),
       execute: async ({ status }) => {
         const result = await executeToolCall(ctx, { tool: "count_quotes", args: { status } });
@@ -51,14 +53,13 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     search_inquiries: tool({
-      description: "Search inquiries by customer name, email, subject, service category, or details content. Returns matching inquiries with key details.",
+      description: "Search inquiries by name, email, subject, service, or details.",
       inputSchema: z.object({
-        query: z.string().describe("Search term to match against customer name, email, subject, category, or details."),
+        query: z.string().describe("Search term."),
         status: z
-          .enum(["new", "waiting", "quoted", "won", "lost", "overdue", "archived"])
-          .optional()
-          .describe("Optionally filter results by status."),
-        limit: z.number().optional().describe("Maximum results to return (default 10, max 25)."),
+          .enum(["new", "waiting", "quoted", "won", "lost", "overdue", "archived"]).nullable().optional()
+          .describe("Filter by status."),
+        limit: z.number().nullable().optional().describe("Max results (default 10, max 25)."),
       }),
       execute: async ({ query, status, limit }) => {
         const result = await executeToolCall(ctx, { tool: "search_inquiries", args: { query, status, limit } });
@@ -67,14 +68,13 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     search_quotes: tool({
-      description: "Search quotes by customer name, email, quote number, title, or notes. Returns matching quotes with key details.",
+      description: "Search quotes by name, email, number, title, or notes.",
       inputSchema: z.object({
-        query: z.string().describe("Search term to match against customer name, email, quote number, title, or notes."),
+        query: z.string().describe("Search term."),
         status: z
-          .enum(["draft", "sent", "viewed", "accepted", "rejected", "expired", "voided"])
-          .optional()
-          .describe("Optionally filter results by status."),
-        limit: z.number().optional().describe("Maximum results to return (default 10, max 25)."),
+          .enum(["draft", "sent", "viewed", "accepted", "rejected", "expired", "voided"]).nullable().optional()
+          .describe("Filter by status."),
+        limit: z.number().nullable().optional().describe("Max results (default 10, max 25)."),
       }),
       execute: async ({ query, status, limit }) => {
         const result = await executeToolCall(ctx, { tool: "search_quotes", args: { query, status, limit } });
@@ -83,29 +83,31 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_inquiry_details: tool({
-      description: "Get full details of a specific inquiry by ID, including customer info, status, notes, and related quotes.",
+      description: "Get full inquiry details by ID.",
       inputSchema: z.object({
-        inquiry_id: z.string().describe("The inquiry ID to look up."),
+        inquiry_id: z.string().describe("Inquiry ID."),
       }),
       execute: async ({ inquiry_id }) => {
-        const result = await executeToolCall(ctx, { tool: "get_inquiry_details", args: { inquiry_id } });
-        return result.result;
+        const { getInquiryDetailsStructured } = await import("./structured-outputs");
+        const result = await getInquiryDetailsStructured(ctx, { inquiry_id });
+        return typeof result === "string" ? result : result;
       },
     }),
 
     get_quote_details: tool({
-      description: "Get full details of a specific quote by ID or quote number, including line items, status, and customer info.",
+      description: "Get full quote details by ID or number (e.g. Q-1001).",
       inputSchema: z.object({
-        quote_id: z.string().describe("The quote ID or quote number (e.g., Q-1001) to look up."),
+        quote_id: z.string().describe("Quote ID or number."),
       }),
       execute: async ({ quote_id }) => {
-        const result = await executeToolCall(ctx, { tool: "get_quote_details", args: { quote_id } });
-        return result.result;
+        const { getQuoteDetailsStructured } = await import("./structured-outputs");
+        const result = await getQuoteDetailsStructured(ctx, { quote_id });
+        return typeof result === "string" ? result : result;
       },
     }),
 
     get_business_stats: tool({
-      description: "Get comprehensive business statistics including inquiry counts by status, quote counts by status, total quoted value, conversion rates, and recent activity summary. ALWAYS call this for overview questions about the business.",
+      description: "Get business overview: inquiry/quote counts by status, conversion rates, recent activity.",
       inputSchema: z.object({}),
       execute: async () => {
         const result = await executeToolCall(ctx, { tool: "get_business_stats", args: {} });
@@ -116,8 +118,8 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     get_recent_activity: tool({
       description: "Get recent activity log entries for the business. Shows what happened recently (inquiries created, quotes sent, etc.).",
       inputSchema: z.object({
-        limit: z.number().optional().describe("Number of recent activities to return (default 10, max 50)."),
-        type: z.string().optional().describe("Filter by activity type (e.g., inquiry_created, quote_sent, quote_accepted)."),
+        limit: z.number().nullable().optional().describe("Number of recent activities to return (default 10, max 50)."),
+        type: z.string().nullable().optional().describe("Filter by activity type (e.g., inquiry_created, quote_sent, quote_accepted)."),
       }),
       execute: async ({ limit, type }) => {
         const result = await executeToolCall(ctx, { tool: "get_recent_activity", args: { limit, type } });
@@ -128,9 +130,9 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     get_follow_ups: tool({
       description: "Get follow-ups for the business, optionally filtered by status or due date bucket.",
       inputSchema: z.object({
-        status: z.enum(["pending", "completed", "skipped"]).optional().describe("Filter by follow-up status."),
-        bucket: z.enum(["overdue", "today", "upcoming"]).optional().describe("Filter by due date bucket."),
-        limit: z.number().optional().describe("Maximum results to return (default 10, max 25)."),
+        status: z.enum(["pending", "completed", "skipped"]).nullable().optional().describe("Filter by follow-up status."),
+        bucket: z.enum(["overdue", "today", "upcoming"]).nullable().optional().describe("Filter by due date bucket."),
+        limit: z.number().nullable().optional().describe("Maximum results to return (default 10, max 25)."),
       }),
       execute: async ({ status, bucket, limit }) => {
         const result = await executeToolCall(ctx, { tool: "get_follow_ups", args: { status, bucket, limit } });
@@ -139,34 +141,34 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     list_inquiries: tool({
-      description: "List inquiries for the business with pagination, ordered by most recent. Use this when the user wants to see their inquiries without a specific search term.",
+      description: "List inquiries with pagination, most recent first.",
       inputSchema: z.object({
         status: z
-          .enum(["new", "waiting", "quoted", "won", "lost", "overdue", "archived"])
-          .optional()
-          .describe("Filter by inquiry status."),
-        limit: z.number().optional().describe("Maximum results to return (default 10, max 25)."),
-        offset: z.number().optional().describe("Number of records to skip for pagination (default 0)."),
+          .enum(["new", "waiting", "quoted", "won", "lost", "overdue", "archived"]).nullable().optional()
+          .describe("Filter by status."),
+        limit: z.number().nullable().optional().describe("Max results (default 10, max 25)."),
+        offset: z.number().nullable().optional().describe("Skip records for pagination."),
       }),
       execute: async ({ status, limit, offset }) => {
-        const result = await executeToolCall(ctx, { tool: "list_inquiries", args: { status, limit, offset } });
-        return result.result;
+        const { listInquiriesStructured } = await import("./structured-outputs");
+        const result = await listInquiriesStructured(ctx, { status, limit, offset });
+        return typeof result === "string" ? result : result;
       },
     }),
 
     list_quotes: tool({
-      description: "List quotes for the business with pagination, ordered by most recent. Use this when the user wants to see their quotes without a specific search term.",
+      description: "List quotes with pagination, most recent first.",
       inputSchema: z.object({
         status: z
-          .enum(["draft", "sent", "viewed", "accepted", "rejected", "expired", "voided"])
-          .optional()
-          .describe("Filter by quote status."),
-        limit: z.number().optional().describe("Maximum results to return (default 10, max 25)."),
-        offset: z.number().optional().describe("Number of records to skip for pagination (default 0)."),
+          .enum(["draft", "sent", "viewed", "accepted", "rejected", "expired", "voided"]).nullable().optional()
+          .describe("Filter by status."),
+        limit: z.number().nullable().optional().describe("Max results (default 10, max 25)."),
+        offset: z.number().nullable().optional().describe("Skip records for pagination."),
       }),
       execute: async ({ status, limit, offset }) => {
-        const result = await executeToolCall(ctx, { tool: "list_quotes", args: { status, limit, offset } });
-        return result.result;
+        const { listQuotesStructured } = await import("./structured-outputs");
+        const result = await listQuotesStructured(ctx, { status, limit, offset });
+        return typeof result === "string" ? result : result;
       },
     }),
 
@@ -182,7 +184,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     get_revenue_summary: tool({
       description: "Get revenue metrics: total quoted value, accepted value, average deal size, win rate, and completed job value for a given period.",
       inputSchema: z.object({
-        days: z.number().optional().describe("Number of days to look back (default 30, max 365)."),
+        days: z.number().nullable().optional().describe("Number of days to look back (default 30, max 365)."),
       }),
       execute: async ({ days }) => {
         const result = await executeToolCall(ctx, { tool: "get_revenue_summary", args: { days } });
@@ -193,8 +195,8 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     get_stale_inquiries: tool({
       description: "Find inquiries that have not been responded to and are older than a threshold. Useful for identifying leads that need attention.",
       inputSchema: z.object({
-        days: z.number().optional().describe("Minimum age in days to be considered stale (default 2)."),
-        limit: z.number().optional().describe("Maximum results to return (default 10)."),
+        days: z.number().nullable().optional().describe("Minimum age in days to be considered stale (default 2)."),
+        limit: z.number().nullable().optional().describe("Maximum results to return (default 10)."),
       }),
       execute: async ({ days, limit }) => {
         const result = await executeToolCall(ctx, { tool: "get_stale_inquiries", args: { days, limit } });
@@ -205,8 +207,8 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     get_expiring_quotes: tool({
       description: "Find sent quotes that will expire within a given number of days. Useful for follow-up prioritization.",
       inputSchema: z.object({
-        days: z.number().optional().describe("Find quotes expiring within this many days (default 7)."),
-        limit: z.number().optional().describe("Maximum results to return (default 10)."),
+        days: z.number().nullable().optional().describe("Find quotes expiring within this many days (default 7)."),
+        limit: z.number().nullable().optional().describe("Maximum results to return (default 10)."),
       }),
       execute: async ({ days, limit }) => {
         const result = await executeToolCall(ctx, { tool: "get_expiring_quotes", args: { days, limit } });
@@ -237,8 +239,8 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     get_pricing_library: tool({
       description: "Search the pricing library for reusable quote entries (blocks and packages). Shows available pre-configured pricing items.",
       inputSchema: z.object({
-        query: z.string().optional().describe("Search term to filter entries by name or description. Omit to list all."),
-        limit: z.number().optional().describe("Maximum results to return (default 10)."),
+        query: z.string().nullable().optional().describe("Search term to filter entries by name or description. Omit to list all."),
+        limit: z.number().nullable().optional().describe("Maximum results to return (default 10)."),
       }),
       execute: async ({ query, limit }) => {
         const result = await executeToolCall(ctx, { tool: "get_pricing_library", args: { query, limit } });
@@ -282,8 +284,8 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     get_job_pipeline: tool({
       description: "Get accepted quotes by their post-acceptance stage (booked, scheduled, in_progress, completed, canceled). Shows what jobs are in the pipeline.",
       inputSchema: z.object({
-        status: z.enum(["none", "booked", "scheduled", "in_progress", "completed", "canceled"]).optional().describe("Filter by post-acceptance status. Omit to get all accepted quotes."),
-        limit: z.number().optional().describe("Maximum results to return (default 10)."),
+        status: z.enum(["none", "booked", "scheduled", "in_progress", "completed", "canceled"]).nullable().optional().describe("Filter by post-acceptance status. Omit to get all accepted quotes."),
+        limit: z.number().nullable().optional().describe("Maximum results to return (default 10)."),
       }),
       execute: async ({ status, limit }) => {
         const result = await executeToolCall(ctx, { tool: "get_job_pipeline", args: { status, limit } });
@@ -294,7 +296,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     get_response_times: tool({
       description: "Get average and median response times for inquiries. Shows how quickly the business responds to new inquiries.",
       inputSchema: z.object({
-        days: z.number().optional().describe("Number of days to analyze (default 30, max 90)."),
+        days: z.number().nullable().optional().describe("Number of days to analyze (default 30, max 90)."),
       }),
       execute: async ({ days }) => {
         const result = await executeToolCall(ctx, { tool: "get_response_times", args: { days } });
@@ -305,7 +307,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     get_period_comparison: tool({
       description: "Compare current period vs previous period for key metrics (inquiries, quotes, accepted revenue). Answers 'how am I doing compared to before?'",
       inputSchema: z.object({
-        days: z.number().optional().describe("Period length in days to compare (default 30). Compares last N days vs the N days before that."),
+        days: z.number().nullable().optional().describe("Period length in days to compare (default 30). Compares last N days vs the N days before that."),
       }),
       execute: async ({ days }) => {
         const result = await executeToolCall(ctx, { tool: "get_period_comparison", args: { days } });
@@ -316,7 +318,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     get_business_knowledge: tool({
       description: "Search or list saved business knowledge entries (rules, pricing info, preferences). Shows what the AI knows about the business.",
       inputSchema: z.object({
-        query: z.string().optional().describe("Search term to filter knowledge entries. Omit to list all."),
+        query: z.string().nullable().optional().describe("Search term to filter knowledge entries. Omit to list all."),
       }),
       execute: async ({ query }) => {
         const result = await executeToolCall(ctx, { tool: "get_business_knowledge", args: { query } });
@@ -332,6 +334,76 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
       execute: async ({ quote_id }) => {
         const result = await executeToolCall(ctx, { tool: "get_quote_customer_response", args: { quote_id } });
         return result.result;
+      },
+    }),
+
+    get_business_info: tool({
+      description: "Get business profile: name, type, plan, contact email, currency, timezone.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const result = await executeToolCall(ctx, { tool: "get_business_info", args: {} });
+        return result.result;
+      },
+    }),
+
+    get_business_members: tool({
+      description: "List all members of the business with their roles and emails.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const result = await executeToolCall(ctx, { tool: "get_business_members", args: {} });
+        return result.result;
+      },
+    }),
+
+    list_jobs: tool({
+      description: "List jobs with pagination, most recent first.",
+      inputSchema: z.object({
+        status: z.enum(["todo", "in_progress", "done"]).nullable().optional().describe("Filter by status."),
+        limit: z.number().nullable().optional().describe("Max results (default 10, max 25)."),
+        offset: z.number().nullable().optional().describe("Skip records for pagination."),
+      }),
+      execute: async ({ status, limit, offset }) => {
+        const { listJobsStructured } = await import("./structured-outputs");
+        const result = await listJobsStructured(ctx, { status, limit, offset });
+        return typeof result === "string" ? result : result;
+      },
+    }),
+
+    get_job_details: tool({
+      description: "Get full job details by ID including items and progress.",
+      inputSchema: z.object({
+        job_id: z.string().describe("Job ID."),
+      }),
+      execute: async ({ job_id }) => {
+        const { getJobDetailsStructured } = await import("./structured-outputs");
+        const result = await getJobDetailsStructured(ctx, { job_id });
+        return typeof result === "string" ? result : result;
+      },
+    }),
+
+    list_invoices: tool({
+      description: "List invoices with pagination, most recent first.",
+      inputSchema: z.object({
+        status: z.enum(["draft", "sent", "viewed", "paid", "overdue", "voided"]).nullable().optional().describe("Filter by status."),
+        limit: z.number().nullable().optional().describe("Max results (default 10, max 25)."),
+        offset: z.number().nullable().optional().describe("Skip records for pagination."),
+      }),
+      execute: async ({ status, limit, offset }) => {
+        const { listInvoicesStructured } = await import("./structured-outputs");
+        const result = await listInvoicesStructured(ctx, { status, limit, offset });
+        return typeof result === "string" ? result : result;
+      },
+    }),
+
+    get_invoice_details: tool({
+      description: "Get full invoice details by ID or number (e.g. INV-1001).",
+      inputSchema: z.object({
+        invoice_id: z.string().describe("Invoice ID or number."),
+      }),
+      execute: async ({ invoice_id }) => {
+        const { getInvoiceDetailsStructured } = await import("./structured-outputs");
+        const result = await getInvoiceDetailsStructured(ctx, { invoice_id });
+        return typeof result === "string" ? result : result;
       },
     }),
   };

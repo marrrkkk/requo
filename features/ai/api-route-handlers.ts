@@ -1,6 +1,6 @@
 import "server-only";
 
-import { streamText, stepCountIs, extractReasoningMiddleware, wrapLanguageModel } from "ai";
+import { streamText, stepCountIs, wrapLanguageModel } from "ai";
 
 import { sanitizeAiInput } from "@/lib/ai/input-sanitizer";
 import { filterAiOutput } from "@/lib/ai/output-filter";
@@ -40,6 +40,7 @@ import {
 import { orchestrate } from "@/features/ai/orchestrator";
 import type { AiProviderName } from "@/lib/ai";
 import { registry } from "@/lib/ai/registry";
+import { stripReasoningMiddleware } from "@/lib/ai/strip-reasoning-middleware";
 import {
   selectToolCallingModels,
   selectSimpleTextModels,
@@ -435,8 +436,15 @@ export async function createAiChatRouteResponse(request: Request) {
   });
 
   if (!isAllowed) {
+    const errorText = "Too many AI requests. Wait a minute and try again.";
+    await createAiAssistantMessage({
+      conversationId: authorizedConversation.id,
+      status: "failed",
+      content: errorText,
+      metadata: { errorReason: "rate_limit" },
+    });
     return Response.json(
-      { error: "Too many AI requests. Wait a minute and try again." },
+      { error: errorText },
       { status: 429 },
     );
   }
@@ -448,6 +456,12 @@ export async function createAiChatRouteResponse(request: Request) {
   });
 
   if (!budgetCheck.allowed) {
+    await createAiAssistantMessage({
+      conversationId: authorizedConversation.id,
+      status: "failed",
+      content: budgetCheck.message,
+      metadata: { errorReason: "budget_exceeded" },
+    });
     return Response.json(
       { error: budgetCheck.message },
       { status: 429 },
@@ -465,8 +479,15 @@ export async function createAiChatRouteResponse(request: Request) {
       businessId: authorizedBusinessId,
       rawInput: parsedData.message,
     });
+    const errorText = "Your message could not be processed. Please rephrase your request.";
+    await createAiAssistantMessage({
+      conversationId: authorizedConversation.id,
+      status: "failed",
+      content: errorText,
+      metadata: { errorReason: "input_rejected" },
+    });
     return Response.json(
-      { error: "Your message could not be processed. Please rephrase your request." },
+      { error: errorText },
       { status: 400 },
     );
   }
@@ -573,17 +594,17 @@ export async function createAiChatRouteResponse(request: Request) {
   for (const modelId of modelsToTry) {
     try {
       const baseModel = registry.languageModel(modelId);
-      const needsReasoningExtraction =
-        modelId.includes("qwen") || modelId.includes("deepseek");
-      const modelToUse = needsReasoningExtraction
-        ? wrapLanguageModel({
-            model: baseModel,
-            middleware: extractReasoningMiddleware({ tagName: "think" }),
-          })
+
+      // Wrap with stripReasoningMiddleware for providers that reject reasoning_content
+      const needsReasoningStrip =
+        modelId.startsWith("cerebras:") ||
+        modelId.startsWith("mistral:");
+      const model = needsReasoningStrip
+        ? wrapLanguageModel({ model: baseModel, middleware: stripReasoningMiddleware })
         : baseModel;
 
       const result = streamText({
-        model: modelToUse,
+        model,
         system: systemPrompt,
         messages: orchestratedMessages,
         tools,
@@ -599,7 +620,8 @@ export async function createAiChatRouteResponse(request: Request) {
             errorMsg.includes("429") ||
             errorMsg.includes("quota") ||
             errorMsg.includes("RESOURCE_EXHAUSTED") ||
-            errorMsg.includes("rate_limit");
+            errorMsg.includes("rate_limit") ||
+            errorMsg.includes("high traffic");
           if (isRateLimit) markModelExhausted(modelId);
           console.warn(
             `[ai-chat] onError for ${modelId}:`,
@@ -643,6 +665,27 @@ export async function createAiChatRouteResponse(request: Request) {
             metadata: {
               latencyMs: Date.now() - startedAt,
               ...(!finalContent.trim() && { errorReason: "Empty response from model." }),
+              ...(steps && steps.length > 0 && {
+                toolCalls: steps
+                  .flatMap((step) => step.toolCalls ?? [])
+                  .map((tc) => tc.toolName),
+                structuredOutputs: steps
+                  .flatMap((step) => step.toolResults ?? [])
+                  .filter((tr) => typeof tr.output === "object" && tr.output !== null && "structured" in (tr.output as object))
+                  .map((tr) => (tr.output as { structured: unknown }).structured),
+                actionProposals: steps
+                  .flatMap((step) => step.toolResults ?? [])
+                  .filter((tr) => typeof tr.output === "string" && (tr.output as string).includes("[ACTION_PROPOSAL]"))
+                  .flatMap((tr) => {
+                    const regex = /\[ACTION_PROPOSAL\]([\s\S]*?)\[\/ACTION_PROPOSAL\]/g;
+                    const proposals: unknown[] = [];
+                    let match: RegExpExecArray | null;
+                    while ((match = regex.exec(tr.output as string)) !== null) {
+                      try { proposals.push(JSON.parse(match[1])); } catch { /* skip */ }
+                    }
+                    return proposals;
+                  }),
+              }),
             },
           });
 
@@ -671,6 +714,11 @@ export async function createAiChatRouteResponse(request: Request) {
         },
       });
 
+      // Verify the model can be reached by consuming the first text event.
+      // Rate limits from providers (429) surface as stream errors. The onError
+      // callback marks the model exhausted so the NEXT request skips it.
+      // For THIS request, the SDK's built-in error propagation will surface
+      // the error to the client which displays it with a retry button.
       recordModelUsage(modelId);
       return result.toUIMessageStreamResponse();
     } catch (error) {
@@ -680,7 +728,8 @@ export async function createAiChatRouteResponse(request: Request) {
         errorMsg.includes("quota") ||
         errorMsg.includes("RESOURCE_EXHAUSTED") ||
         errorMsg.includes("rate_limit") ||
-        errorMsg.includes("Rate limit");
+        errorMsg.includes("Rate limit") ||
+        errorMsg.includes("high traffic");
 
       if (isRateLimit) {
         markModelExhausted(modelId);

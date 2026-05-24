@@ -43,63 +43,36 @@ type UsageWindow = {
 // ---------------------------------------------------------------------------
 
 const MODEL_CAPACITIES: ModelCapacity[] = [
-  // Groq models — highest throughput
-  // NOTE: Groq streaming + Zod v4 has a known SDK bug (vercel/ai#6687) where
-  // tool call arguments parse as {}. However, all our tools have optional params
-  // and return full/unfiltered data when args are empty — the model still gets
-  // correct information and answers accurately. Keeping toolCapable: true for
-  // maximum throughput. When the SDK fixes this, args will filter correctly too.
-  { modelId: "groq:openai/gpt-oss-120b", rpm: 1000, rpd: 0, quality: 9, toolCapable: true },
-  { modelId: "groq:qwen/qwen3-32b", rpm: 1000, rpd: 0, quality: 8, toolCapable: true },
-  { modelId: "groq:llama-3.3-70b-versatile", rpm: 1000, rpd: 0, quality: 8, toolCapable: true },
-  { modelId: "groq:meta-llama/llama-4-scout-17b-16e-instruct", rpm: 1000, rpd: 0, quality: 7, toolCapable: true },
-  { modelId: "groq:openai/gpt-oss-20b", rpm: 1000, rpd: 0, quality: 7, toolCapable: true },
-  { modelId: "groq:llama-3.1-8b-instant", rpm: 1000, rpd: 0, quality: 5, toolCapable: true },
+  // ─── Primary: Groq ───
+  // Shared 8000 TPM org limit on free tier. Only keep ONE Groq model to avoid
+  // wasting fallback attempts (all share the same TPM budget).
+  { modelId: "groq:openai/gpt-oss-120b", rpm: 30, rpd: 0, quality: 9, toolCapable: true },
 
-  // Cerebras — ultra-fast, separate pool
+  // ─── Secondary: Cerebras ───
+  // Separate TPM pool, ultra-fast inference. Best fallback after Groq.
   { modelId: "cerebras:zai-glm-4.7", rpm: 200, rpd: 0, quality: 9, toolCapable: true },
   { modelId: "cerebras:gpt-oss-120b", rpm: 200, rpd: 0, quality: 8, toolCapable: true },
-  { modelId: "cerebras:qwen-3-235b-a22b-instruct-2507", rpm: 200, rpd: 0, quality: 8, toolCapable: true },
-  { modelId: "cerebras:llama3.1-8b", rpm: 200, rpd: 0, quality: 5, toolCapable: false },
 
-  // Gemini — excellent tool calling but very low free-tier RPD
-  // NOTE: gemini-2.5-pro has 0 RPD on free tier — removed from auto-selection.
-  // Only gemini-2.5-flash and flash-lite are available on the free tier.
-  { modelId: "google:gemini-2.5-flash", rpm: 5, rpd: 20, quality: 9, toolCapable: true },
-  { modelId: "google:gemini-2.5-flash-lite", rpm: 10, rpd: 20, quality: 7, toolCapable: true },
-
-  // Mistral — massive free tier: 500K TPM, 1B tokens/month
-  { modelId: "mistral:mistral-small-latest", rpm: 60, rpd: 0, quality: 8, toolCapable: true },
+  // ─── Tertiary: Mistral ───
+  // 500K TPM free tier, very generous. Reliable tool calling.
   { modelId: "mistral:mistral-medium-latest", rpm: 60, rpd: 0, quality: 9, toolCapable: true },
-  { modelId: "mistral:codestral-latest", rpm: 30, rpd: 2000, quality: 8, toolCapable: true },
+  { modelId: "mistral:mistral-small-latest", rpm: 60, rpd: 0, quality: 8, toolCapable: true },
 
-  // Cloudflare Workers AI — 10K neurons/day free, separate rate pool
-  { modelId: "cloudflare:@cf/openai/gpt-oss-120b", rpm: 40, rpd: 0, quality: 8, toolCapable: true },
-  { modelId: "cloudflare:@cf/moonshotai/kimi-k2.5", rpm: 40, rpd: 0, quality: 8, toolCapable: false },
-  { modelId: "cloudflare:@cf/zai-org/glm-4.7-flash", rpm: 40, rpd: 0, quality: 7, toolCapable: false },
-  { modelId: "cloudflare:@cf/qwen/qwen3-30b-a3b-fp8", rpm: 40, rpd: 0, quality: 7, toolCapable: true },
-  { modelId: "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast", rpm: 40, rpd: 0, quality: 7, toolCapable: false },
+  // ─── Quaternary: OpenRouter free ───
+  // Unlimited RPM/RPD, good quality. Slightly higher latency.
+  { modelId: "openrouter:openai/gpt-oss-120b:free", rpm: 60, rpd: 0, quality: 8, toolCapable: true },
+  { modelId: "openrouter:nvidia/nemotron-3-super-120b-a12b:free", rpm: 60, rpd: 0, quality: 8, toolCapable: true },
+  { modelId: "openrouter:deepseek/deepseek-v4-flash:free", rpm: 60, rpd: 0, quality: 7, toolCapable: true },
 
-  // NVIDIA NIM — free credits (1000 on signup), OpenAI-compatible
-  // Text generation works great. Tool calling via streamText produces empty
-  // textStream in the chat handler (tool call fires but final text doesn't
-  // stream back). Marked toolCapable: false so auto-router uses them for
-  // text-only requests. They still add value as fast text fallbacks.
+  // ─── Reserve: Gemini ───
+  // Excellent quality but very limited (5 RPM, 20 RPD). Last resort.
+  { modelId: "google:gemini-2.5-flash", rpm: 5, rpd: 20, quality: 9, toolCapable: true },
+
+  // ─── Text-only (no tool calling) ───
+  // Used by non-tool requests (simple text, classification fallbacks).
   { modelId: "nvidia:nvidia/llama-3.3-nemotron-super-49b-v1", rpm: 60, rpd: 0, quality: 8, toolCapable: false },
   { modelId: "nvidia:meta/llama-3.3-70b-instruct", rpm: 60, rpd: 0, quality: 8, toolCapable: false },
-  { modelId: "nvidia:meta/llama-3.1-8b-instruct", rpm: 60, rpd: 0, quality: 6, toolCapable: false },
-
-  // OpenRouter free — unlimited but slower, quality varies
-  { modelId: "openrouter:openrouter/owl-alpha", rpm: 60, rpd: 0, quality: 8, toolCapable: true },
-  { modelId: "openrouter:nvidia/nemotron-3-super-120b-a12b:free", rpm: 60, rpd: 0, quality: 8, toolCapable: true },
-  { modelId: "openrouter:openai/gpt-oss-120b:free", rpm: 60, rpd: 0, quality: 8, toolCapable: true },
-  { modelId: "openrouter:deepseek/deepseek-v4-flash:free", rpm: 60, rpd: 0, quality: 7, toolCapable: true },
-  { modelId: "openrouter:z-ai/glm-4.5-air:free", rpm: 60, rpd: 0, quality: 7, toolCapable: true },
-  { modelId: "openrouter:google/gemma-4-31b-it:free", rpm: 60, rpd: 0, quality: 6, toolCapable: true },
-  { modelId: "openrouter:openai/gpt-oss-20b:free", rpm: 60, rpd: 0, quality: 6, toolCapable: true },
-  { modelId: "openrouter:nvidia/nemotron-3-nano-30b-a3b:free", rpm: 60, rpd: 0, quality: 5, toolCapable: true },
-  { modelId: "openrouter:poolside/laguna-m.1:free", rpm: 60, rpd: 0, quality: 7, toolCapable: true },
-  { modelId: "openrouter:minimax/minimax-m2.5:free", rpm: 60, rpd: 0, quality: 7, toolCapable: true },
+  { modelId: "cloudflare:@cf/openai/gpt-oss-120b", rpm: 40, rpd: 0, quality: 8, toolCapable: false },
 ];
 
 // ---------------------------------------------------------------------------
@@ -159,17 +132,27 @@ export function recordModelUsage(modelId: string): void {
 
 /**
  * Mark a model as temporarily exhausted (hit a 429).
- * Adds a large count spike so the selector avoids it for the current window.
+ * Also marks other models from the same provider as exhausted when they share
+ * org-level rate limits (e.g., all Groq models share the same TPM budget).
  */
 export function markModelExhausted(modelId: string): void {
   const now = Date.now();
+  const provider = modelId.split(":")[0];
 
-  // Set minute count to max so it's avoided for the next minute
-  const minuteEntry = minuteUsage.get(modelId);
-  if (minuteEntry && now - minuteEntry.windowStart < MINUTE_MS) {
-    minuteEntry.count = 99999;
-  } else {
-    minuteUsage.set(modelId, { count: 99999, windowStart: now });
+  // Providers with shared org-level TPM — exhaust ALL models from that provider
+  const sharedTpmProviders = new Set(["groq"]);
+
+  const modelsToExhaust = sharedTpmProviders.has(provider)
+    ? MODEL_CAPACITIES.filter((m) => m.modelId.startsWith(provider + ":")).map((m) => m.modelId)
+    : [modelId];
+
+  for (const id of modelsToExhaust) {
+    const minuteEntry = minuteUsage.get(id);
+    if (minuteEntry && now - minuteEntry.windowStart < MINUTE_MS) {
+      minuteEntry.count = 99999;
+    } else {
+      minuteUsage.set(id, { count: 99999, windowStart: now });
+    }
   }
 }
 
@@ -258,14 +241,14 @@ export function selectModels(criteria: SelectionCriteria): `${string}:${string}`
 
 /**
  * Select models for a tool-calling (dashboard) request.
- * Prefers Groq (highest RPM, fastest) → Cerebras → Mistral → OpenRouter → Gemini.
- * All these providers support tool calling with streaming via stopWhen.
+ * Priority: Cerebras (fast, high TPM) → Mistral (500K TPM) → OpenRouter → Groq (low TPM) → Gemini.
+ * Groq deprioritized because its 8K TPM free tier can't reliably handle tool-calling payloads.
  */
 export function selectToolCallingModels(): `${string}:${string}`[] {
   return selectModels({
     needsTools: true,
-    minQuality: 6,
-    preferProviders: ["groq", "cerebras", "mistral", "cloudflare", "openrouter", "google"],
+    minQuality: 7,
+    preferProviders: ["cerebras", "mistral", "openrouter", "groq", "google"],
   });
 }
 

@@ -1632,6 +1632,83 @@ async function executeGetQuoteCustomerResponse(
 }
 
 // ---------------------------------------------------------------------------
+// Tool: get_business_info
+// ---------------------------------------------------------------------------
+
+async function executeGetBusinessInfo(
+  ctx: AiToolExecutionContext,
+  _args: Record<string, unknown>,
+): Promise<string> {
+  const [biz] = await db
+    .select({
+      id: businesses.id,
+      name: businesses.name,
+      slug: businesses.slug,
+      plan: businesses.plan,
+      businessType: businesses.businessType,
+      shortDescription: businesses.shortDescription,
+      contactEmail: businesses.contactEmail,
+      defaultCurrency: businesses.defaultCurrency,
+      timezone: businesses.timezone,
+      countryCode: businesses.countryCode,
+      publicInquiryEnabled: businesses.publicInquiryEnabled,
+      createdAt: businesses.createdAt,
+    })
+    .from(businesses)
+    .where(eq(businesses.id, ctx.businessId))
+    .limit(1);
+
+  if (!biz) return "Business not found.";
+
+  return [
+    `Business: ${biz.name}`,
+    `- Slug: ${biz.slug}`,
+    `- Plan: ${biz.plan}`,
+    `- Type: ${biz.businessType}`,
+    `- Description: ${biz.shortDescription ?? "Not set"}`,
+    `- Contact email: ${biz.contactEmail ?? "Not set"}`,
+    `- Currency: ${biz.defaultCurrency}`,
+    `- Timezone: ${biz.timezone}`,
+    `- Country: ${biz.countryCode ?? "Not set"}`,
+    `- Public inquiry form: ${biz.publicInquiryEnabled ? "Enabled" : "Disabled"}`,
+    `- Created: ${formatDate(biz.createdAt)}`,
+  ].join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Tool: get_business_members
+// ---------------------------------------------------------------------------
+
+async function executeGetBusinessMembers(
+  ctx: AiToolExecutionContext,
+  _args: Record<string, unknown>,
+): Promise<string> {
+  const { businessMembers } = await import("@/lib/db/schema");
+
+  const rows = await db
+    .select({
+      memberId: businessMembers.id,
+      role: businessMembers.role,
+      userId: businessMembers.userId,
+      userName: user.name,
+      userEmail: user.email,
+      joinedAt: businessMembers.createdAt,
+    })
+    .from(businessMembers)
+    .innerJoin(user, eq(businessMembers.userId, user.id))
+    .where(eq(businessMembers.businessId, ctx.businessId))
+    .orderBy(businessMembers.createdAt);
+
+  if (!rows.length) return "No members found for this business.";
+
+  const lines = rows.map(
+    (r) => `- ${r.userName} (${r.userEmail}) — role: ${r.role} — joined: ${formatDate(r.joinedAt)}`,
+  );
+
+  return `Business has ${rows.length} member(s):\n${lines.join("\n")}`;
+}
+
+// ---------------------------------------------------------------------------
 // Main executor dispatcher
 // ---------------------------------------------------------------------------
 
@@ -1665,6 +1742,8 @@ const TOOL_EXECUTORS: Record<
   get_period_comparison: executeGetPeriodComparison,
   get_business_knowledge: executeGetBusinessKnowledge,
   get_quote_customer_response: executeGetQuoteCustomerResponse,
+  get_business_info: executeGetBusinessInfo,
+  get_business_members: executeGetBusinessMembers,
 };
 
 /**
