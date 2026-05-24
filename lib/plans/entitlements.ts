@@ -38,6 +38,7 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "customerHistory",
     "followUps",
     "pushNotifications",
+    "aiAssistant",
   ]),
   pro: new Set<PlanFeature>([
     "analyticsConversion",
