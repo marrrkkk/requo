@@ -235,6 +235,7 @@ export function BillingStatusCard({
             variant === "full" ? (
               <div className="mt-auto flex flex-col gap-2 pt-2">
                 <Button asChild size="sm" className="w-full">
+                  {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- API route redirect, not client navigation */}
                   <a href="/api/billing/polar/customer-portal">
                     <ExternalLink data-icon="inline-start" />
                     Manage billing
