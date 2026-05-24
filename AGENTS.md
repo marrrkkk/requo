@@ -21,13 +21,17 @@ Requo is an owner-led SaaS app for service businesses that handle inbound inquir
 2. turn qualified inquiries into quotes,
 3. share or send professional quotes,
 4. follow up consistently,
-5. track viewed, accepted, rejected, expired, and voided quote states.
+5. track viewed, accepted, rejected, expired, and voided quote states,
+6. convert accepted quotes into jobs,
+7. invoice completed or in-progress jobs,
+8. automate repetitive workflow steps through event-driven automation.
 
-The app also handles public inquiry intake, public quote pages, business-scoped dashboards, manual and Requo email quote delivery, follow-up tasks, analytics, notifications, knowledge files, AI-assisted drafts, transactional email, business membership, and account-level subscription billing.
+The app also handles public inquiry intake, public quote pages, business-scoped dashboards, manual and Requo email quote delivery, follow-up tasks, jobs, invoices, workflow automation, analytics, notifications, knowledge files, AI-assisted drafts, transactional email, business membership, and account-level subscription billing.
 
 ## Product Direction
 
-- Prioritize the inquiry -> quote -> share/send -> follow-up -> viewed/accepted/rejected tracking workflow across marketing, onboarding, defaults, and in-app product copy.
+- Prioritize the inquiry -> quote -> share/send -> follow-up -> accepted/rejected -> job -> invoice workflow across marketing, onboarding, defaults, and in-app product copy.
+- Workflow automation should support both smart defaults and a visual workflow builder for advanced users.
 - Support multiple business types through editable starter templates.
 - Do not over-specialize into a single vertical.
 - Lead with workflow value, not generic configurability.
@@ -43,6 +47,9 @@ The app also handles public inquiry intake, public quote pages, business-scoped 
 - `lib/billing/` owns billing domain types, plan pricing, region detection, subscription service, webhook processing, and provider clients.
 - `features/billing/` owns checkout UI, billing status, server actions, and billing-related queries.
 - `features/follow-ups/` owns follow-up scheduling, reminders, and lifecycle mutations.
+- `features/jobs/` owns job creation from accepted quotes, job lifecycle, and job queries.
+- `features/invoices/` owns invoice generation, PDF rendering, sending, and invoice queries.
+- `features/automations/` owns event-driven workflow automation triggers, actions, and business-scoped automation rules.
 - `features/business-members/` owns business permission surfaces.
 - `features/analytics/` owns conversion/workflow analytics and public view tracking.
 - `features/audit/` owns audit log writes and reads for sensitive business actions.
@@ -92,7 +99,8 @@ Do not add:
 - live chat
 - advanced team collaboration beyond owner-first flows
 - dozens of micro-vertical templates
-- scheduling, routing, payroll, or invoicing unless already present or explicitly requested
+- scheduling, routing, or payroll unless already present or explicitly requested
+- complex branching automation UIs beyond what the workflow builder supports
 - advanced RAG infrastructure unless explicitly requested
 - over-engineered abstractions
 
@@ -119,6 +127,18 @@ Do not add:
 - Webhook route lives at `app/api/billing/polar/webhook/route.ts`. The refund request route is `app/api/billing/refund/route.ts`.
 - Plan access is resolved through `getEffectivePlan()` in the subscription service, which checks subscription status, cancellation dates, and grace periods.
 - Do not bypass the subscription service or write directly to `account_subscriptions`.
+
+### Workflow Automation
+
+- Automations are event-driven, business-scoped rules: a trigger event fires an action automatically.
+- Automations support both simple trigger → action pairs and a visual drag-and-drop workflow builder for composing multi-step flows.
+- Core automation triggers: inquiry received, inquiry qualified, quote sent, quote viewed, quote accepted, quote rejected, quote expired, job created, job completed, invoice sent, invoice paid, follow-up due.
+- Core automation actions: create follow-up, send notification, archive inquiry, generate draft quote, create job from accepted quote, generate invoice, update status, send email.
+- Automations should have sensible defaults set during onboarding (e.g., "follow up 3 days after quote viewed", "expire quotes after 30 days", "create job when quote accepted").
+- Business owners can enable/disable, adjust timing, and add custom automations from settings.
+- The visual builder allows owners to compose workflows by dragging trigger, condition, and action nodes onto a canvas.
+- `features/automations/` owns triggers, actions, rule evaluation, workflow builder UI, and automation-specific components.
+- Automations must respect business scoping and plan entitlements.
 
 ### Performance & Caching
 
@@ -159,7 +179,7 @@ A task is done when:
 
 1. the requested slice is implemented,
 2. messaging is clearer and aligned with the owner-led service business ICP,
-3. the workflow emphasis stays on inquiry -> quote -> share/send -> follow-up -> viewed/accepted/rejected tracking,
+3. the workflow emphasis stays on inquiry -> quote -> share/send -> follow-up -> accepted/rejected -> job -> invoice,
 4. onboarding remains guided through a few starter business paths,
 5. templates and defaults are more opinionated but still editable,
 6. the implementation stays lightweight, maintainable, and consistent with the current architecture and design system,
