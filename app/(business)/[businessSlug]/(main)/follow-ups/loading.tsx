@@ -1,5 +1,6 @@
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   FollowUpListContentFallback,
   FollowUpListControlsFallback,
@@ -12,6 +13,7 @@ export default function FollowUpsLoading() {
         description="See who needs contact next, why, and when. Follow-ups are lightweight reminders tied to inquiries and quotes."
         eyebrow="Follow-ups"
         title="Follow-ups"
+        actions={<Skeleton className="h-10 w-full rounded-xl sm:w-40" />}
       />
       <FollowUpListControlsFallback />
       <FollowUpListContentFallback />

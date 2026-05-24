@@ -1,6 +1,17 @@
-import { DashboardPage } from "@/components/shared/dashboard-layout";
+import {
+  DashboardPage,
+  DashboardTableContainer,
+} from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export default function InvoicesLoading() {
   return (
@@ -11,7 +22,7 @@ export default function InvoicesLoading() {
       />
 
       {/* Mobile skeleton: card list */}
-      <div className="flex flex-col gap-2 sm:hidden">
+      <div className="flex flex-col gap-2 sm:hidden" style={{ minHeight: 320 }}>
         {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}
@@ -29,37 +40,44 @@ export default function InvoicesLoading() {
         ))}
       </div>
 
-      {/* Desktop skeleton: table */}
-      <div className="hidden sm:block">
-        <div className="dashboard-table-shell">
-          <div className="dashboard-table-shell-inner">
-            {/* Table header */}
-            <div className="flex items-center gap-4 border-b border-border/70 px-4 py-3">
-              <Skeleton className="h-3 w-20 rounded-md" />
-              <Skeleton className="h-3 w-20 rounded-md" />
-              <Skeleton className="h-3 w-14 rounded-md" />
-              <Skeleton className="ml-auto h-3 w-16 rounded-md" />
-              <Skeleton className="hidden h-3 w-16 rounded-md lg:block" />
-            </div>
-            {/* Table rows */}
+      {/* Desktop skeleton: real table headers, skeleton rows */}
+      <DashboardTableContainer className="hidden min-h-[360px] sm:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Invoice</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+              <TableHead className="hidden lg:table-cell">Created</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {Array.from({ length: 5 }).map((_, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-4 border-b border-border/40 px-4 py-4"
-              >
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  <Skeleton className="h-4 w-44 max-w-full rounded-md" />
-                  <Skeleton className="h-3 w-20 rounded-md" />
-                </div>
-                <Skeleton className="h-4 w-24 rounded-md" />
-                <Skeleton className="h-5 w-14 rounded-full" />
-                <Skeleton className="h-4 w-16 rounded-md" />
-                <Skeleton className="hidden h-4 w-20 rounded-md lg:block" />
-              </div>
+              <TableRow key={i}>
+                <TableCell>
+                  <div className="flex flex-col gap-1">
+                    <Skeleton className="h-4 w-36 rounded-md" />
+                    <Skeleton className="h-3 w-20 rounded-md" />
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-4 w-24 rounded-md" />
+                </TableCell>
+                <TableCell>
+                  <Skeleton className="h-5 w-14 rounded-full" />
+                </TableCell>
+                <TableCell className="text-right">
+                  <Skeleton className="ml-auto h-4 w-16 rounded-md" />
+                </TableCell>
+                <TableCell className="hidden lg:table-cell">
+                  <Skeleton className="h-4 w-20 rounded-md" />
+                </TableCell>
+              </TableRow>
             ))}
-          </div>
-        </div>
-      </div>
+          </TableBody>
+        </Table>
+      </DashboardTableContainer>
     </DashboardPage>
   );
 }

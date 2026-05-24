@@ -1,5 +1,19 @@
-import { DashboardListPageSkeleton } from "@/components/shell/dashboard-list-page-skeleton";
+import { DashboardPage } from "@/components/shared/dashboard-layout";
+import { DashboardListResultsSkeleton } from "@/components/shared/dashboard-list-results-skeleton";
+import { PageHeader } from "@/components/shared/page-header";
+import {
+  InquiryListControlsFallback,
+} from "@/features/inquiries/components/inquiry-list-page-sections";
 
 export default function BusinessDashboardInquiriesLoading() {
-  return <DashboardListPageSkeleton variant="inquiries" />;
+  return (
+    <DashboardPage>
+      <PageHeader
+        eyebrow="Inquiries"
+        title="Customer inquiries"
+      />
+      <InquiryListControlsFallback />
+      <DashboardListResultsSkeleton variant="inquiries" />
+    </DashboardPage>
+  );
 }

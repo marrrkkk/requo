@@ -10,12 +10,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 type DashboardDetailPageSkeletonProps = {
-  variant?: "inquiry" | "quote";
+  variant?: "inquiry" | "quote" | "job" | "invoice";
 };
 
 export function DashboardDetailPageSkeleton({
   variant = "inquiry",
 }: DashboardDetailPageSkeletonProps) {
+  if (variant === "job") {
+    return <JobDetailSkeleton />;
+  }
+
+  if (variant === "invoice") {
+    return <InvoiceDetailSkeleton />;
+  }
+
   const headerActionWidths =
     variant === "inquiry"
       ? ["sm:w-28", "sm:w-24", "sm:w-40"]
@@ -554,5 +562,161 @@ function InquiryPreviewSkeleton({ className }: { className?: string }) {
         </div>
       </div>
     </article>
+  );
+}
+
+function JobDetailSkeleton() {
+  return (
+    <DashboardPage>
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-11 w-full max-w-sm rounded-2xl" />
+        <Skeleton className="h-6 w-20 rounded-full" />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Main content */}
+        <div className="flex flex-col gap-6 lg:col-span-2">
+          {/* Work items card */}
+          <section className="section-panel p-5 sm:p-6">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-6 w-28 rounded-md" />
+                <Skeleton className="h-4 w-24 rounded-md" />
+              </div>
+              <Skeleton className="h-1.5 w-full rounded-full" />
+              <div className="flex flex-col divide-y">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div className="flex items-center gap-3 py-3" key={index}>
+                    <Skeleton className="size-[1.125rem] shrink-0 rounded-full" />
+                    <Skeleton className="h-4 w-full max-w-xs rounded-md" />
+                    <Skeleton className="ml-auto h-4 w-20 shrink-0 rounded-md" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Notes card */}
+          <section className="section-panel p-5 sm:p-6">
+            <div className="flex flex-col gap-3">
+              <Skeleton className="h-6 w-16 rounded-md" />
+              <Skeleton className="h-4 w-full rounded-md" />
+              <Skeleton className="h-4 w-4/5 rounded-md" />
+            </div>
+          </section>
+        </div>
+
+        {/* Sidebar */}
+        <div className="flex flex-col gap-4">
+          <section className="section-panel p-5 sm:p-6">
+            <div className="flex flex-col gap-3">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div className="flex justify-between" key={index}>
+                  <Skeleton className="h-4 w-20 rounded-md" />
+                  <Skeleton className="h-4 w-28 rounded-md" />
+                </div>
+              ))}
+            </div>
+          </section>
+          <Skeleton className="h-11 w-full rounded-xl" />
+        </div>
+      </div>
+    </DashboardPage>
+  );
+}
+
+function InvoiceDetailSkeleton() {
+  return (
+    <DashboardPage>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_280px]">
+        {/* Invoice document */}
+        <section className="section-panel p-6 sm:p-8">
+          <div className="flex flex-col gap-6">
+            {/* Header */}
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border/80 pb-5">
+              <div className="flex flex-col gap-2">
+                <Skeleton className="h-8 w-36 rounded-lg" />
+                <Skeleton className="h-4 w-24 rounded-md" />
+                <Skeleton className="h-6 w-20 rounded-full" />
+              </div>
+              <div className="flex flex-col items-end gap-1.5">
+                <Skeleton className="h-4 w-32 rounded-md" />
+                <Skeleton className="h-4 w-28 rounded-md" />
+                <Skeleton className="h-4 w-36 rounded-md" />
+              </div>
+            </div>
+
+            {/* Bill to + details */}
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Skeleton className="h-3 w-16 rounded-md" />
+                <Skeleton className="h-5 w-36 rounded-md" />
+                <Skeleton className="h-4 w-44 rounded-md" />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Skeleton className="h-3 w-20 rounded-md" />
+                <Skeleton className="h-4 w-28 rounded-md" />
+                <Skeleton className="h-4 w-24 rounded-md" />
+              </div>
+            </div>
+
+            {/* Line items table */}
+            <div className="overflow-hidden rounded-xl border border-border/75">
+              <div className="grid grid-cols-[minmax(0,1fr)_5rem_7rem_7rem] gap-0 border-b border-border/80 bg-muted/35 px-4 py-3">
+                <Skeleton className="h-4 w-16 rounded-md" />
+                <Skeleton className="mx-auto h-4 w-8 rounded-md" />
+                <Skeleton className="ml-auto h-4 w-12 rounded-md" />
+                <Skeleton className="ml-auto h-4 w-14 rounded-md" />
+              </div>
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div
+                  className="grid grid-cols-[minmax(0,1fr)_5rem_7rem_7rem] gap-0 border-t border-border/80 px-4 py-3 first:border-t-0"
+                  key={index}
+                >
+                  <Skeleton className="h-4 w-28 rounded-md" />
+                  <Skeleton className="mx-auto h-4 w-6 rounded-md" />
+                  <Skeleton className="ml-auto h-4 w-12 rounded-md" />
+                  <Skeleton className="ml-auto h-4 w-14 rounded-md" />
+                </div>
+              ))}
+            </div>
+
+            {/* Totals */}
+            <div className="ml-auto flex w-full max-w-xs flex-col gap-2">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div className="flex items-center justify-between gap-4" key={index}>
+                  <Skeleton className="h-4 w-16 rounded-md" />
+                  <Skeleton className="h-4 w-20 rounded-md" />
+                </div>
+              ))}
+              <div className="mt-1 border-t border-border/80 pt-2">
+                <div className="flex items-center justify-between gap-4">
+                  <Skeleton className="h-5 w-12 rounded-md" />
+                  <Skeleton className="h-5 w-24 rounded-md" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Sidebar */}
+        <div className="flex flex-col gap-4">
+          <section className="section-panel p-5 sm:p-6">
+            <div className="flex flex-col gap-3">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div className="flex justify-between" key={index}>
+                  <Skeleton className="h-4 w-20 rounded-md" />
+                  <Skeleton className="h-4 w-28 rounded-md" />
+                </div>
+              ))}
+            </div>
+          </section>
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-10 w-full rounded-xl" />
+            <Skeleton className="h-10 w-full rounded-xl" />
+          </div>
+        </div>
+      </div>
+    </DashboardPage>
   );
 }

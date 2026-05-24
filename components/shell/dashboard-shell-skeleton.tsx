@@ -24,7 +24,7 @@ export function DashboardShellSkeleton() {
         >
           <div className="flex size-full flex-col bg-sidebar">
             {/* Real brand mark */}
-            <div className="flex h-[4.5rem] items-center px-5">
+            <div className="flex min-h-9 items-center px-5 py-1.5 sm:py-2">
               <BrandMark collapseLabel className="min-w-0 px-2 py-1.5" subtitle={null} />
             </div>
             {/* Business switcher skeleton */}
@@ -68,11 +68,11 @@ export function DashboardShellSkeleton() {
       <main className="relative flex min-w-0 flex-1 flex-col bg-transparent">
         <header className="dashboard-topbar">
           <div className="dashboard-topbar-inner">
-            <div className="flex min-h-11 min-w-0 flex-wrap items-center gap-3 md:flex-nowrap">
-              <Skeleton className="size-10 shrink-0 rounded-lg" />
+            <div className="flex min-h-9 min-w-0 flex-wrap items-center gap-2.5 md:flex-nowrap">
+              <Skeleton className="size-8 shrink-0 rounded-lg" />
               <span
                 aria-hidden="true"
-                className="hidden h-4 w-px shrink-0 self-center bg-border md:block"
+                className="hidden h-3.5 w-px shrink-0 self-center bg-border md:block"
               />
               <div className="min-w-0 flex-1">
                 <Skeleton className="h-4 w-44 rounded-md" />

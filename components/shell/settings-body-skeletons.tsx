@@ -231,27 +231,39 @@ export function BillingStatusCardBodySkeleton() {
 
 export function ManagerBodySkeleton() {
   return (
-    <div className="dashboard-side-stack">
-      <CardSkeleton>
-        <div className="flex items-center justify-between gap-4">
-          <TitleBlock titleWidth="w-32" descriptionWidth="w-48" />
-          <Skeleton className="h-10 w-36 rounded-xl" />
-        </div>
-        <div className="space-y-4">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div className="rounded-2xl border border-border/70 bg-muted/15 p-5" key={index}>
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1 space-y-2">
-                  <Skeleton className="h-5 w-40 rounded-md" />
-                  <Skeleton className="h-4 w-full max-w-md rounded-md" />
-                  <Skeleton className="h-4 w-full max-w-sm rounded-md" />
-                </div>
-                <Skeleton className="size-8 rounded-lg" />
+    <div className="flex flex-col gap-8">
+      {/* Action row */}
+      <div className="flex justify-end gap-2">
+        <Skeleton className="h-10 w-[8.5rem] rounded-xl" />
+      </div>
+
+      {/* Form cards grid */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {Array.from({ length: 2 }).map((_, index) => (
+          <div
+            className="flex h-full flex-col gap-4 rounded-xl border border-border/80 bg-card/98 p-6"
+            key={index}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <Skeleton className="h-5 w-32 rounded-md" />
+                <Skeleton className="h-4 w-44 rounded-md" />
               </div>
+              <Skeleton className="h-5 w-10 rounded-full" />
             </div>
-          ))}
-        </div>
-      </CardSkeleton>
+
+            <div>
+              <Skeleton className="h-5 w-40 rounded-full" />
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Skeleton className="h-10 w-[8.5rem] rounded-xl" />
+              <Skeleton className="h-10 w-[5.5rem] rounded-xl" />
+              <Skeleton className="h-10 w-[4.5rem] rounded-xl" />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

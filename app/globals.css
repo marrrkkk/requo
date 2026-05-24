@@ -178,10 +178,12 @@
     inset 0 -1px 0 rgb(95 24 18 / 0.2),
     0 1px 2px rgb(201 55 44 / 0.14),
     0 14px 24px -16px rgb(201 55 44 / 0.42);
-  --overlay-surface-bg: var(--surface-elevated-bg);
-  --overlay-surface-border: var(--surface-stroke);
-  --overlay-surface-shadow: var(--surface-shadow-lg);
-  --modal-backdrop: rgb(0 0 0 / 0.44);
+  --overlay-surface-bg: rgb(255 255 255);
+  --overlay-surface-border: rgb(214 221 216 / 0.8);
+  --overlay-surface-shadow:
+    0 24px 48px -12px rgb(0 0 0 / 0.12),
+    0 1px 2px rgb(0 0 0 / 0.06);
+  --modal-backdrop: rgb(0 0 0 / 0.5);
   --z-modal-overlay: 100;
   --z-modal-content: 101;
   --z-popover-layer: 110;
@@ -373,13 +375,12 @@ html[data-reload-loading="fade-out"] #app-root-content {
     inset 0 -1px 0 rgb(95 24 18 / 0.2),
     0 1px 2px rgb(201 55 44 / 0.14),
     0 14px 24px -16px rgb(201 55 44 / 0.42);
-  --overlay-surface-bg:
-    linear-gradient(180deg, rgb(29 29 29 / 0.99) 0%, rgb(24 24 24 / 1) 100%);
-  --overlay-surface-border: rgb(255 255 255 / 0.075);
+  --overlay-surface-bg: rgb(22 22 22);
+  --overlay-surface-border: rgb(255 255 255 / 0.1);
   --overlay-surface-shadow:
-    0 26px 56px -28px rgb(0 0 0 / 0.6),
-    0 10px 24px -20px rgb(0 0 0 / 0.35),
-    inset 0 1px 0 rgb(255 255 255 / 0.05);
+    0 24px 48px -12px rgb(0 0 0 / 0.56),
+    inset 0 1px 0 rgb(255 255 255 / 0.04);
+  --modal-backdrop: rgb(0 0 0 / 0.6);
   --tooltip-surface-bg: #202020;
   --tooltip-surface-fg: #ededed;
   --tooltip-surface-border: rgb(255 255 255 / 0.06);
@@ -1091,18 +1092,57 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .dashboard-topbar-inner {
-    @apply mx-auto w-full max-w-[92rem] px-3 py-2.5 sm:px-6 sm:py-3.5 xl:px-8;
+    @apply mx-auto w-full max-w-[92rem] px-3 py-1.5 sm:px-6 sm:py-2 xl:px-8;
   }
 
   .dashboard-main {
     @apply flex flex-1 flex-col px-3 py-5 sm:px-6 sm:py-7 xl:px-8 xl:py-8;
   }
 
+  /* Chat page fills available space.
+     Uses a fixed viewport height so messages scroll internally without
+     affecting the page layout or requiring parent overflow changes.
+     The negative margins cancel the dashboard-main padding so the chat
+     stretches edge-to-edge. */
+  .chat-page-container {
+    @apply -mx-3 -mb-5 sm:-mx-6 sm:-mb-7 xl:-mx-8 xl:-mb-8;
+    @apply -mt-5 sm:-mt-7 xl:-mt-8;
+    @apply flex flex-col overflow-hidden;
+    /* Fill remaining viewport below the topbar.
+       Mobile topbar: min-h-11 (44px) + py-2.5 (20px) + 1px border = 65px
+       sm+ topbar: min-h-11 (44px) + py-3.5 (28px) + 1px border = 73px */
+    height: calc(100svh - 65px);
+  }
+
+  /* Home page fills viewport without page scroll.
+     Cancels dashboard-main padding and takes up remaining height. */
+  .home-page-container {
+    @apply -mx-3 -mb-5 sm:-mx-6 sm:-mb-7 xl:-mx-8 xl:-mb-8;
+    @apply -mt-5 sm:-mt-7 xl:-mt-8;
+    @apply flex flex-col overflow-hidden px-4 pt-6 sm:px-6 sm:pt-8;
+    height: calc(100svh - 65px);
+  }
+
+  @media (min-width: 640px) {
+    .chat-page-container {
+      height: calc(100svh - 73px);
+    }
+
+    .home-page-container {
+      height: calc(100svh - 73px);
+    }
+  }
+
   .dashboard-main[data-archived] button:not([data-allow-archived]),
   .dashboard-main[data-archived] [role="button"]:not([data-allow-archived]),
   .dashboard-main[data-archived] input:not([data-allow-archived]),
   .dashboard-main[data-archived] textarea:not([data-allow-archived]),
-  .dashboard-main[data-archived] select:not([data-allow-archived]) {
+  .dashboard-main[data-archived] select:not([data-allow-archived]),
+  [data-slot="archived-scope"][data-archived] button:not([data-allow-archived]),
+  [data-slot="archived-scope"][data-archived] [role="button"]:not([data-allow-archived]),
+  [data-slot="archived-scope"][data-archived] input:not([data-allow-archived]),
+  [data-slot="archived-scope"][data-archived] textarea:not([data-allow-archived]),
+  [data-slot="archived-scope"][data-archived] select:not([data-allow-archived]) {
     @apply pointer-events-none opacity-50;
   }
 
@@ -1110,7 +1150,12 @@ html[data-reload-loading="fade-out"] #app-root-content {
   .dashboard-main[data-archived] [data-allow-archived] [role="button"],
   .dashboard-main[data-archived] [data-allow-archived] input,
   .dashboard-main[data-archived] [data-allow-archived] textarea,
-  .dashboard-main[data-archived] [data-allow-archived] select {
+  .dashboard-main[data-archived] [data-allow-archived] select,
+  [data-slot="archived-scope"][data-archived] [data-allow-archived] button,
+  [data-slot="archived-scope"][data-archived] [data-allow-archived] [role="button"],
+  [data-slot="archived-scope"][data-archived] [data-allow-archived] input,
+  [data-slot="archived-scope"][data-archived] [data-allow-archived] textarea,
+  [data-slot="archived-scope"][data-archived] [data-allow-archived] select {
     @apply pointer-events-auto opacity-100;
   }
 
@@ -1877,6 +1922,20 @@ html[data-reload-loading="fade-out"] #app-root-content {
     @apply font-medium text-foreground;
   }
 
+  /* Smooth fade-in for streaming text content */
+  .ai-streaming > * {
+    animation: ai-stream-fade-in 0.3s ease-out both;
+  }
+
+  @keyframes ai-stream-fade-in {
+    from {
+      opacity: 0.4;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
   .ai-stream-cursor {
     animation: ai-stream-cursor-blink 1s steps(2, start) infinite;
   }
@@ -1891,6 +1950,10 @@ html[data-reload-loading="fade-out"] #app-root-content {
     .ai-stream-cursor {
       animation: none;
       opacity: 0.6;
+    }
+    .ai-streaming > * {
+      animation: none;
+      opacity: 1;
     }
   }
 }
@@ -1935,6 +1998,28 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
 .ai-thinking-dot {
   animation: ai-thinking-pulse 1.2s ease-in-out infinite;
+}
+
+/* prompt-kit bounce dots */
+@keyframes bounce-dots {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* prompt-kit text shimmer */
+@keyframes shimmer {
+  from {
+    background-position: 100% center;
+  }
+  to {
+    background-position: -100% center;
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

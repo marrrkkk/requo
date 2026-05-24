@@ -20,13 +20,23 @@ export function PublicRouteSkeleton({
   }
 
   return (
-    <PublicPageShell headerAction={<Skeleton className="h-10 w-36 rounded-lg" />}>
-      <PublicHeroSurface className="lg:py-12 flex justify-center">
-        <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-8">
-          <QuotePreviewSkeleton />
+    <PublicPageShell
+      headerAction={<Skeleton className="h-10 w-36 rounded-lg" />}
+      headerClassName="border-transparent bg-transparent [&::before]:opacity-0"
+    >
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
+        {/* Left column — Quote content skeleton */}
+        <PublicHeroSurface className="py-6 sm:py-8 lg:py-10">
+          <div className="px-4 sm:px-6 lg:px-8">
+            <QuotePreviewSkeleton />
+          </div>
+        </PublicHeroSurface>
+
+        {/* Right column — Actions skeleton */}
+        <aside className="lg:sticky lg:top-8 lg:self-start">
           <QuoteInteractiveColumnSkeleton />
-        </div>
-      </PublicHeroSurface>
+        </aside>
+      </div>
     </PublicPageShell>
   );
 }
@@ -115,91 +125,80 @@ function InquiryFormSkeleton({ className }: { className?: string }) {
 
 function QuotePreviewSkeleton() {
   return (
-    <article className="section-panel overflow-hidden p-5 sm:p-6 w-full">
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-4 border-b border-border/80 pb-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="flex flex-col gap-2">
-              <Skeleton className="h-4 w-24 rounded-md" />
-              <Skeleton className="h-10 w-48 rounded-xl" />
-              <Skeleton className="h-4 w-24 rounded-md" />
-            </div>
-            <div className="soft-panel px-4 py-3 shadow-none">
-              <div className="flex flex-col gap-2">
-                <Skeleton className="h-4 w-20 rounded-md" />
-                <Skeleton className="h-4 w-28 rounded-md" />
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            {Array.from({ length: 2 }).map((_, index) => (
-              <div className="info-tile h-full shadow-none" key={index}>
-                <div className="flex flex-col gap-2">
-                  <Skeleton className="h-3 w-20 rounded-md" />
-                  <Skeleton className="h-5 w-32 rounded-md" />
-                  <Skeleton className="h-4 w-24 rounded-md" />
-                </div>
-              </div>
-            ))}
-          </div>
+    <div className="flex flex-col gap-5">
+      {/* Header: Business + Quote title */}
+      <header className="flex flex-col gap-5 pb-6 sm:pb-8">
+        <div className="flex items-center gap-3">
+          <Skeleton className="size-9 rounded-lg" />
+          <Skeleton className="h-4 w-28 rounded-md" />
         </div>
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-8 w-64 rounded-lg sm:h-9" />
+          <Skeleton className="h-4 w-56 rounded-md" />
+        </div>
+      </header>
 
-        <div className="overflow-hidden rounded-[1.2rem] border border-border/75 bg-background/92">
-          <div className="grid grid-cols-[minmax(0,1fr)_4rem_7rem_7rem] gap-0 border-b border-border/80 bg-muted/35 px-4 py-3">
+      {/* Line items */}
+      <div className="flex min-h-[12rem] flex-col divide-y divide-border/50 border-t border-border/60 py-2">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            className="flex items-start justify-between gap-4 py-4"
+            key={index}
+          >
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-4 w-40 rounded-md" />
+              <Skeleton className="h-3 w-24 rounded-md" />
+            </div>
+            <Skeleton className="h-4 w-16 shrink-0 rounded-md" />
+          </div>
+        ))}
+      </div>
+
+      {/* Subtotals */}
+      <div className="flex min-h-[7rem] flex-col gap-2 border-t border-border/60 pt-4 pb-2">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div className="flex items-center justify-between text-sm" key={index}>
             <Skeleton className="h-4 w-16 rounded-md" />
-            <Skeleton className="mx-auto h-4 w-8 rounded-md" />
-            <Skeleton className="ml-auto h-4 w-14 rounded-md" />
-            <Skeleton className="ml-auto h-4 w-14 rounded-md" />
+            <Skeleton className="h-4 w-20 rounded-md" />
           </div>
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div
-              className="grid grid-cols-[minmax(0,1fr)_4rem_7rem_7rem] gap-0 border-t border-border/80 px-4 py-3 first:border-t-0"
-              key={index}
-            >
-              <Skeleton className="h-4 w-32 rounded-md" />
-              <Skeleton className="mx-auto h-4 w-6 rounded-md" />
-              <Skeleton className="ml-auto h-4 w-12 rounded-md" />
-              <Skeleton className="ml-auto h-4 w-14 rounded-md" />
-            </div>
-          ))}
-        </div>
-
-        <div className="soft-panel ml-auto flex w-full max-w-sm flex-col gap-3 px-4 py-4 shadow-none">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div className="flex items-center justify-between gap-4" key={index}>
-              <Skeleton className="h-4 w-16 rounded-md" />
-              <Skeleton className="h-4 w-20 rounded-md" />
-            </div>
-          ))}
+        ))}
+        <div className="flex items-center justify-between border-t border-border/40 pt-2">
+          <Skeleton className="h-5 w-12 rounded-md" />
+          <Skeleton className="h-5 w-24 rounded-md" />
         </div>
       </div>
-    </article>
+
+      {/* Terms placeholder */}
+      <div className="min-h-[5rem] rounded-xl border border-border/50 px-4 py-4 sm:px-5">
+        <Skeleton className="h-3 w-32 rounded-md" />
+        <Skeleton className="mt-2.5 h-12 w-full rounded-md" />
+      </div>
+    </div>
   );
 }
 
 function QuoteInteractiveColumnSkeleton() {
   return (
-    <div className="flex w-full flex-col gap-6">
+    <div className="flex w-full flex-col gap-5">
+      {/* Response actions card */}
       <Card className="gap-0 bg-background/94 w-full">
         <CardHeader className="gap-2 pb-5">
-          <Skeleton className="h-7 w-40 rounded-lg" />
-          <Skeleton className="h-5 w-full max-w-md rounded-md" />
+          <Skeleton className="h-6 w-36 rounded-lg" />
+          <Skeleton className="h-4 w-full max-w-xs rounded-md" />
         </CardHeader>
-        <CardContent className="flex flex-col gap-4 pt-0">
-          <div className="flex flex-col gap-3">
-            <Skeleton className="h-11 w-full rounded-xl" />
-            <Skeleton className="h-11 w-full rounded-xl" />
-          </div>
+        <CardContent className="flex flex-col gap-3 pt-0">
+          <Skeleton className="h-11 w-full rounded-xl" />
+          <Skeleton className="h-11 w-full rounded-xl" />
         </CardContent>
       </Card>
 
+      {/* Revision request card */}
       <Card className="gap-0 bg-background/94 w-full">
         <CardHeader className="pb-4">
-          <Skeleton className="h-6 w-56 rounded-lg" />
+          <Skeleton className="h-5 w-48 rounded-lg" />
         </CardHeader>
         <CardContent className="pt-0">
-          <Skeleton className="h-11 w-full rounded-xl sm:w-48" />
+          <Skeleton className="h-11 w-full rounded-xl sm:w-40" />
         </CardContent>
       </Card>
     </div>
