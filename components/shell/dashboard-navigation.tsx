@@ -6,12 +6,11 @@ import {
   ClipboardList,
   FormInput,
   FileText,
+  Home,
   Inbox,
-  LayoutDashboard,
   Receipt,
+  Sparkles,
 } from "lucide-react";
-
-import { RequoIcon } from "@/components/shared/requo-icon";
 
 
 import {
@@ -21,7 +20,8 @@ import {
 } from "@/lib/business-members";
 import {
   getBusinessAnalyticsPath,
-  getBusinessAssistantPath,
+  getBusinessChatNewPath,
+  getBusinessChatPath,
   getBusinessDashboardPath,
   getBusinessDashboardSlugFromPathname,
   getBusinessFollowUpsPath,
@@ -55,9 +55,9 @@ export function getDashboardNavigation(
   return [
     {
       href: getBusinessDashboardPath(slug),
-      label: "Dashboard",
-      description: "Your home base: queues, momentum, and the next actions to take.",
-      icon: LayoutDashboard,
+      label: "Home",
+      description: "Your home base: see what needs attention and ask AI anything.",
+      icon: Home,
     },
     {
       href: getBusinessInquiriesPath(slug),
@@ -110,16 +110,16 @@ export function getDashboardNavigation(
       icon: Receipt,
     },
     {
-      href: getBusinessAssistantPath(slug),
-      label: "Ask",
-      description: "Ask questions about your business data and get insights.",
-      icon: RequoIcon as unknown as LucideIcon,
-    },
-    {
       href: getBusinessKnowledgeCompatibilityPath(slug),
       label: "Knowledge",
       description: "Manage business knowledge files and context for AI assistance.",
       icon: BookOpen,
+    },
+    {
+      href: getBusinessChatNewPath(slug),
+      label: "Chat",
+      description: "Ask questions about your business data and get insights.",
+      icon: Sparkles,
     },
   ];
 }
@@ -222,11 +222,11 @@ function withDashboardHome(
       .replace(/^Request\b/, "Inquiry"),
   }));
 
-  if (normalizedItems[0]?.label === "Dashboard") {
+  if (normalizedItems[0]?.label === "Home") {
     return normalizedItems;
   }
 
-  return [{ label: "Dashboard", href: dashboardPath }, ...normalizedItems];
+  return [{ label: "Home", href: dashboardPath }, ...normalizedItems];
 }
 
 export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbItem[] {
@@ -246,7 +246,7 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
   const settingsPath = getBusinessSettingsPath(slug);
 
   if (pathname === dashboardPath) {
-    return [{ label: "Dashboard" }];
+    return [{ label: "Home" }];
   }
 
   if (pathname === analyticsPath || pathname.startsWith(`${analyticsPath}/`)) {
@@ -291,11 +291,6 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
 
   if (pathname === followUpsPath || pathname.startsWith(`${followUpsPath}/`)) {
     return withDashboardHome(slug, [{ label: "Follow-ups" }]);
-  }
-
-  const assistantPath = getBusinessAssistantPath(slug);
-  if (pathname === assistantPath || pathname.startsWith(`${assistantPath}/`)) {
-    return withDashboardHome(slug, [{ label: "Ask" }]);
   }
 
   if (pathname === `${quotesPath}/new`) {
@@ -390,6 +385,16 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
     ]);
   }
 
-  return [{ label: "Dashboard" }];
+  const chatPath = getBusinessChatPath(slug);
+
+  if (pathname === `${chatPath}/new`) {
+    return [{ label: "New chat" }];
+  }
+
+  if (pathname.startsWith(`${chatPath}/`)) {
+    return [{ label: "Chat" }];
+  }
+
+  return [{ label: "Home" }];
 }
 

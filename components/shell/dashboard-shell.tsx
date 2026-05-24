@@ -30,6 +30,8 @@ import {
 
   ChevronsUpDown,
 
+  Home as HomeIcon,
+
   LogOut,
   Lock,
 
@@ -90,6 +92,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import { Badge } from "@/components/ui/badge";
+
+import { Button } from "@/components/ui/button";
 
 import {
 
@@ -200,26 +204,6 @@ const CommandMenu = dynamic(
       <div className="hidden h-9 w-64 rounded-lg border border-border/60 bg-muted/20 md:block lg:w-80" />
 
     ),
-
-  },
-
-);
-
-
-
-const AIChatPopover = dynamic(
-
-  () =>
-
-    import("@/features/ai/components/ai-chat-popover").then(
-
-      (module) => module.AIChatPopover,
-
-    ),
-
-  {
-
-    loading: () => null,
 
   },
 
@@ -398,11 +382,11 @@ export function DashboardShell({
 
       />
 
-      <Sidebar collapsible="icon">
+      <Sidebar collapsible="offcanvas">
 
         <SidebarHeader className="gap-0 px-0 py-0">
 
-          <div className="flex h-[4.5rem] items-center px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
+          <div className="flex min-h-9 items-center justify-between px-3 py-1.5 sm:py-2">
 
             <BrandMark
 
@@ -416,11 +400,13 @@ export function DashboardShell({
 
             />
 
+            <SidebarTrigger className="size-7 shrink-0" />
+
           </div>
 
           <SidebarSeparator />
 
-          <div className="px-3 py-3 group-data-[collapsible=icon]:hidden">
+          <div className="px-3 py-3">
 
             <BusinessSwitcher
 
@@ -436,9 +422,9 @@ export function DashboardShell({
 
 
 
-        <SidebarContent className="gap-4 px-1 pb-3 group-data-[collapsible=icon]:px-0">
+        <SidebarContent className="gap-4 px-1 pb-3">
 
-          <SidebarGroup className="px-3 pt-3 group-data-[collapsible=icon]:px-2">
+          <SidebarGroup className="px-3 pt-3">
 
             <SidebarMenu>
 
@@ -470,7 +456,7 @@ export function DashboardShell({
 
 
 
-        <SidebarFooter className="p-3 pt-2 group-data-[collapsible=icon]:px-2">
+        <SidebarFooter className="p-3 pt-2">
 
           <DashboardUserMenu
 
@@ -496,31 +482,41 @@ export function DashboardShell({
 
       <SidebarInset className="min-h-svh min-w-0">
 
-        <header className="dashboard-topbar">
+        <header className="dashboard-topbar flex items-center">
 
-          <div className="dashboard-topbar-inner">
+          <DesktopSidebarTrigger />
 
-            <div className="flex min-h-11 min-w-0 items-center gap-2.5 md:gap-3">
+          <div className="dashboard-topbar-inner min-w-0 flex-1">
 
-              <SidebarTrigger className="size-10 shrink-0" />
+            <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
+
+              <Button asChild variant="ghost" size="icon-sm" className="size-8 shrink-0">
+
+                <Link href={getBusinessDashboardPath(business.slug)} aria-label="Home">
+
+                  <HomeIcon className="size-4" />
+
+                </Link>
+
+              </Button>
 
               <span
 
                 aria-hidden="true"
 
-                className="hidden h-4 w-px shrink-0 self-center bg-border md:block"
+                className="hidden h-3.5 w-px shrink-0 self-center bg-border md:block"
 
               />
 
               <div className="min-w-0 flex-1 md:hidden">
 
-                <p className="truncate font-heading text-base font-semibold tracking-tight text-foreground">
+                <p className="truncate font-heading text-sm font-semibold tracking-tight text-foreground">
 
                   {currentPageLabel}
 
                 </p>
 
-                <p className="truncate text-xs text-muted-foreground">
+                <p className="truncate text-[0.7rem] text-muted-foreground">
 
                   {business.name}
 
@@ -624,22 +620,29 @@ export function DashboardShell({
 
         </div>
 
-        <AIChatPopover
-
-          businessSlug={business.slug}
-
-          userName={user.name || "You"}
-
-          plan={business.plan}
-
-        />
-
-      </SidebarInset>
+        </SidebarInset>
 
     </SidebarProvider>
 
   );
 
+}
+
+
+
+/** Shows the sidebar toggle in the topbar only when the sidebar is collapsed on desktop. */
+function DesktopSidebarTrigger() {
+  const { state } = useSidebar();
+
+  if (state === "expanded") {
+    return null;
+  }
+
+  return (
+    <div className="hidden items-center pl-3 lg:flex">
+      <SidebarTrigger className="size-8 shrink-0" />
+    </div>
+  );
 }
 
 
@@ -722,7 +725,7 @@ const DashboardNavigationItem = memo(function DashboardNavigationItem({
 
           />
 
-          <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+          <span>{item.label}</span>
 
         </Link>
 
@@ -854,7 +857,7 @@ function DashboardUserMenu({
 
               </Avatar>
 
-              <div className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
+              <div className="grid min-w-0 flex-1 text-left leading-tight">
 
                 <span className="truncate text-sm font-medium text-sidebar-foreground">
 
@@ -870,7 +873,7 @@ function DashboardUserMenu({
 
               </div>
 
-              <ChevronsUpDown className="ml-auto text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-data-[collapsible=icon]:hidden group-data-[state=open]/menu-button:rotate-180" />
+              <ChevronsUpDown className="ml-auto text-muted-foreground transition-transform [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] group-data-[state=open]/menu-button:rotate-180" />
 
             </SidebarMenuButton>
 

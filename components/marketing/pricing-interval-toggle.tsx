@@ -128,7 +128,7 @@ export function PricingIntervalToggle({
           </p>
 
           <Button asChild variant="outline" size="lg" className="mt-6 w-full">
-            <Link href="/dashboard">Start with inquiries</Link>
+            <Link href="/home">Start with inquiries</Link>
           </Button>
 
           <ul className="mt-7 flex flex-col gap-2.5 border-t border-border/50 pt-6">

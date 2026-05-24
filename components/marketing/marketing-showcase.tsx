@@ -11,8 +11,8 @@ import {
   Eye,
   FileText,
   FormInput,
+  Home,
   Inbox,
-  LayoutDashboard,
   Lock,
   PanelLeft,
   Search,
@@ -37,7 +37,7 @@ type NavItem = {
 };
 
 const navItems: readonly NavItem[] = [
-  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, active: true },
+  { key: "dashboard", label: "Home", icon: Home, active: true },
   { key: "inquiries", label: "Inquiries", icon: Inbox },
   { key: "quotes", label: "Quotes", icon: FileText },
   { key: "follow-ups", label: "Follow-ups", icon: BellRing },
