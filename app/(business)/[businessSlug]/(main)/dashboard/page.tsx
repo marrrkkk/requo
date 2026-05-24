@@ -1,58 +1,37 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import {
-  ArrowRight,
-  ReceiptText,
-} from "lucide-react";
 import { Suspense } from "react";
 
-import {
-  DashboardActionsRow,
-  DashboardPage,
-} from "@/components/shared/dashboard-layout";
-import { Button } from "@/components/ui/button";
-import {
-  DashboardNeedsAttentionFallback,
-  DashboardNeedsAttentionSection,
-  DashboardOverviewQueuesFallback,
-  DashboardOverviewQueuesSection,
-  DashboardOverviewStatsFallback,
-  DashboardOverviewStatsSection,
-} from "@/features/businesses/components/dashboard-overview-sections";
-import {
-  DashboardVelocitySection,
-  DashboardVelocitySectionFallback,
-} from "@/features/businesses/components/dashboard-velocity-section";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardGreeting } from "@/features/businesses/components/dashboard-greeting";
 import {
-  getBusinessDashboardSummaryData,
-  getBusinessOverviewData,
-} from "@/features/businesses/queries";
-import { getFreeAnalytics } from "@/features/analytics/queries";
+  NeedsAttentionTabs,
+  type NeedsAttentionItemData,
+  type NeedsAttentionIconName,
+} from "@/features/businesses/components/needs-attention-tabs";
+import { getBusinessOverviewData } from "@/features/businesses/queries";
 import {
-  FollowUpDashboardSection,
-  FollowUpDashboardSectionFallback,
-} from "@/features/follow-ups/components/follow-up-dashboard-section";
-import { getFollowUpOverviewForBusiness } from "@/features/follow-ups/queries";
-import {
-  getBusinessInquiriesPath,
-  getBusinessNewQuotePath,
+  getBusinessInquiryPath,
+  getBusinessQuotePath,
 } from "@/features/businesses/routes";
+import { getFollowUpOverviewForBusiness } from "@/features/follow-ups/queries";
+import { DashboardChatInput } from "@/features/ai/chat-ui/dashboard-chat-input";
 import { DashboardTour } from "@/features/onboarding/components/dashboard-tour";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
+import { formatQuoteDate } from "@/features/quotes/utils";
 
 type DashboardOverviewPageProps = {
   params: Promise<{ businessSlug: string }>;
 };
 
 export const metadata: Metadata = createNoIndexMetadata({
-  title: "Dashboard",
-  description: "Operational overview for this business.",
+  title: "Home",
+  description: "Your home base for this business.",
 });
 
 export const unstable_instant = {
-  prefetch: 'static',
+  prefetch: "static",
   unstable_disableValidation: true,
 };
 
@@ -70,93 +49,176 @@ async function DashboardOverviewContent({
 
   const businessId = businessContext.business.id;
 
-  const summaryPromise = getBusinessDashboardSummaryData(businessId);
   const overviewPromise = getBusinessOverviewData(businessId);
   const followUpOverviewPromise = getFollowUpOverviewForBusiness(businessId);
-  const analyticsPromise = getFreeAnalytics(businessId);
 
   return (
-    <DashboardPage className="gap-5 xl:gap-6">
-      {/* #4 Time-based greeting + #5 Compact business header */}
-      <section className="section-panel overflow-hidden">
-        <div className="flex flex-col gap-5 px-5 py-5 sm:px-6 sm:py-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0">
-              <Suspense fallback={<GreetingFallback userName={user.name} />}>
-                <GreetingWithData
-                  userName={user.name}
-                  overviewPromise={overviewPromise}
-                  followUpOverviewPromise={followUpOverviewPromise}
-                />
-              </Suspense>
-
-            </div>
-
-            <DashboardActionsRow className="w-full [&>*]:w-full sm:[&>*]:w-auto lg:w-auto lg:justify-end">
-              <Button asChild>
-                <Link href={getBusinessInquiriesPath(businessSlug)} prefetch={true}>
-                  Open inquiries
-                  <ArrowRight data-icon="inline-end" />
-                </Link>
-              </Button>
-              <Button asChild variant="secondary">
-                <Link href={getBusinessNewQuotePath(businessSlug)} prefetch={true}>
-                  <ReceiptText data-icon="inline-start" />
-                  Create quote
-                </Link>
-              </Button>
-            </DashboardActionsRow>
-          </div>
-
-          {/* #2 Clickable stats */}
-          <Suspense fallback={<DashboardOverviewStatsFallback />}>
-            <DashboardOverviewStatsSection
-              businessSlug={businessSlug}
+    <div className="home-page-container">
+      <div className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col">
+        {/* Greeting + AI chat input */}
+        <section className="shrink-0 pb-6">
+          <Suspense fallback={<GreetingFallback userName={user.name} />}>
+            <GreetingWithData
+              userName={user.name}
               overviewPromise={overviewPromise}
+              followUpOverviewPromise={followUpOverviewPromise}
             />
           </Suspense>
-        </div>
-      </section>
 
-      {/* #1 Needs attention with category tabs */}
-      <Suspense fallback={<DashboardNeedsAttentionFallback />}>
-        <DashboardNeedsAttentionSection
-          businessSlug={businessSlug}
-          overviewPromise={overviewPromise}
-          followUpOverviewPromise={followUpOverviewPromise}
-        />
-      </Suspense>
+          <div className="mt-3">
+            <DashboardChatInput
+              businessSlug={businessSlug}
+              userId={user.id}
+              businessId={businessId}
+            />
+          </div>
+        </section>
 
-      {/* #7 Follow-ups promoted higher (before queue cards) */}
-      <Suspense fallback={<FollowUpDashboardSectionFallback />}>
-        <FollowUpDashboardSection
-          businessSlug={businessSlug}
-          overviewPromise={followUpOverviewPromise}
-        />
-      </Suspense>
-
-      {/* #6 Velocity/conversion signals */}
-      <Suspense fallback={<DashboardVelocitySectionFallback />}>
-        <DashboardVelocitySection
-          businessSlug={businessSlug}
-          analyticsPromise={analyticsPromise}
-        />
-      </Suspense>
-
-      {/* #3 Reduced queue cards */}
-      <Suspense fallback={<DashboardOverviewQueuesFallback />}>
-        <DashboardOverviewQueuesSection
-          businessSlug={businessSlug}
-          publicInquiryEnabled={businessContext.business.publicInquiryEnabled}
-          summaryPromise={summaryPromise}
-          overviewPromise={overviewPromise}
-        />
-      </Suspense>
+        {/* Needs attention — minimal header + scrollable list */}
+        <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <Suspense fallback={<NeedsAttentionFallback />}>
+            <NeedsAttentionContent
+              businessSlug={businessSlug}
+              overviewPromise={overviewPromise}
+              followUpOverviewPromise={followUpOverviewPromise}
+            />
+          </Suspense>
+        </section>
+      </div>
 
       <DashboardTour businessId={businessId} />
-    </DashboardPage>
+    </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Needs attention — rendered directly without Card/DashboardSection
+// ---------------------------------------------------------------------------
+
+async function NeedsAttentionContent({
+  businessSlug,
+  overviewPromise,
+  followUpOverviewPromise,
+}: {
+  businessSlug: string;
+  overviewPromise: Promise<Awaited<ReturnType<typeof getBusinessOverviewData>>>;
+  followUpOverviewPromise: Promise<
+    Awaited<ReturnType<typeof getFollowUpOverviewForBusiness>>
+  >;
+}) {
+  const [overview, followUpOverview] = await Promise.all([
+    overviewPromise,
+    followUpOverviewPromise,
+  ]);
+
+  const items: NeedsAttentionItemData[] = [
+    ...followUpOverview.overdue.map((followUp) => ({
+      href: followUp.related.kind === "quote"
+        ? getBusinessQuotePath(businessSlug, followUp.related.id)
+        : getBusinessInquiryPath(businessSlug, followUp.related.id),
+      key: `overdue-followup:${followUp.id}`,
+      label: "Overdue follow-up",
+      title: followUp.title,
+      description: `${followUp.customerName} · ${followUp.reason}`,
+      meta: `Due ${formatQuoteDate(followUp.dueAt)}`,
+      actionLabel: "Follow up now",
+      tone: "urgent" as const,
+      iconName: "bell-ring" as NeedsAttentionIconName,
+      category: "Follow-up" as const,
+    })),
+    ...followUpOverview.dueToday.map((followUp) => ({
+      href: followUp.related.kind === "quote"
+        ? getBusinessQuotePath(businessSlug, followUp.related.id)
+        : getBusinessInquiryPath(businessSlug, followUp.related.id),
+      key: `today-followup:${followUp.id}`,
+      label: "Due today",
+      title: followUp.title,
+      description: `${followUp.customerName} · ${followUp.reason}`,
+      meta: `Due ${formatQuoteDate(followUp.dueAt)}`,
+      actionLabel: "Follow up",
+      tone: "normal" as const,
+      iconName: "bell-ring" as NeedsAttentionIconName,
+      category: "Follow-up" as const,
+    })),
+    ...overview.overdueInquiries.map((inquiry) => ({
+      href: getBusinessInquiryPath(businessSlug, inquiry.id),
+      key: `overdue-inquiry:${inquiry.id}`,
+      label: "Overdue inquiry",
+      title: inquiry.customerName,
+      description: inquiry.serviceCategory,
+      meta: `Submitted ${formatQuoteDate(inquiry.submittedAt)}`,
+      actionLabel: "Create quote",
+      tone: "urgent" as const,
+      iconName: "inbox" as NeedsAttentionIconName,
+      category: "Inquiry" as const,
+    })),
+    ...overview.expiringSoonQuotes.map((quote) => ({
+      href: getBusinessQuotePath(businessSlug, quote.id),
+      key: `expiring-quote:${quote.id}`,
+      label: "Quote expiring",
+      title: quote.title,
+      description: quote.customerName,
+      meta: `Expires ${formatQuoteDate(quote.validUntil)}`,
+      actionLabel: "Follow up before expiry",
+      tone: "urgent" as const,
+      iconName: "file-text" as NeedsAttentionIconName,
+      category: "Quote" as const,
+    })),
+    ...overview.newInquiries.map((inquiry) => ({
+      href: getBusinessInquiryPath(businessSlug, inquiry.id),
+      key: `new-inquiry:${inquiry.id}`,
+      label: "New inquiry",
+      title: inquiry.customerName,
+      description: inquiry.serviceCategory,
+      meta: `Submitted ${formatQuoteDate(inquiry.submittedAt)}`,
+      actionLabel: "Create quote",
+      tone: "normal" as const,
+      iconName: "inbox" as NeedsAttentionIconName,
+      category: "Inquiry" as const,
+    })),
+    ...overview.recentAcceptedQuotes.map((quote) => ({
+      href: getBusinessQuotePath(businessSlug, quote.id),
+      key: `accepted-quote:${quote.id}`,
+      label: "Accepted",
+      title: quote.title,
+      description: quote.customerName,
+      meta: `Accepted ${formatQuoteDate(quote.acceptedAt ?? quote.updatedAt)}`,
+      actionLabel: "Track next work step",
+      tone: "positive" as const,
+      iconName: "check-circle" as NeedsAttentionIconName,
+      category: "Quote" as const,
+    })),
+  ];
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* Minimal header */}
+      <div className="flex shrink-0 items-center justify-between pb-3">
+        <h2 className="text-sm font-semibold text-foreground">
+          Needs attention
+        </h2>
+        {items.length > 0 && (
+          <Badge variant="secondary" className="text-xs">
+            {items.length} open
+          </Badge>
+        )}
+      </div>
+
+      {/* Scrollable list */}
+      {items.length > 0 ? (
+        <NeedsAttentionTabs items={items} />
+      ) : (
+        <p className="py-8 text-center text-sm text-muted-foreground">
+          Nothing urgent right now — you&apos;re all caught up.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Greeting helpers
+// ---------------------------------------------------------------------------
 
 async function GreetingWithData({
   userName,
@@ -165,7 +227,9 @@ async function GreetingWithData({
 }: {
   userName: string;
   overviewPromise: Promise<Awaited<ReturnType<typeof getBusinessOverviewData>>>;
-  followUpOverviewPromise: Promise<Awaited<ReturnType<typeof getFollowUpOverviewForBusiness>>>;
+  followUpOverviewPromise: Promise<
+    Awaited<ReturnType<typeof getFollowUpOverviewForBusiness>>
+  >;
 }) {
   const [overview, followUpOverview] = await Promise.all([
     overviewPromise,
@@ -190,6 +254,23 @@ function GreetingFallback({ userName }: { userName: string }) {
         Welcome back, {firstName}
       </h1>
       <p className="text-sm text-muted-foreground">Loading your overview...</p>
+    </div>
+  );
+}
+
+function NeedsAttentionFallback() {
+  return (
+    <div className="flex flex-col gap-2">
+      <Skeleton className="h-5 w-32" />
+      <div className="flex flex-col gap-1 pt-1">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <div className="flex items-center gap-3 px-1.5 py-2" key={index}>
+            <Skeleton className="size-1.5 shrink-0 rounded-full" />
+            <Skeleton className="h-4 w-36 rounded-md" />
+            <Skeleton className="ml-auto h-3 w-20 rounded-md" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,17 +1,16 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
-  ArrowRight,
+  Inbox,
+  FileText,
   BellRing,
   CheckCircle2,
-  FileText,
-  Inbox,
+  ArrowRight,
   type LucideIcon,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -38,12 +37,7 @@ export type NeedsAttentionItemData = {
 
 type CategoryFilter = "all" | "Inquiry" | "Quote" | "Follow-up";
 
-const iconMap: Record<NeedsAttentionIconName, LucideIcon> = {
-  "inbox": Inbox,
-  "file-text": FileText,
-  "bell-ring": BellRing,
-  "check-circle": CheckCircle2,
-};
+const PAGE_SIZE = 15;
 
 const categoryFilters: { label: string; value: CategoryFilter }[] = [
   { label: "All", value: "all" },
@@ -58,6 +52,8 @@ export function NeedsAttentionTabs({
   items: NeedsAttentionItemData[];
 }) {
   const [activeFilter, setActiveFilter] = useState<CategoryFilter>("all");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { all: items.length };
@@ -75,99 +71,166 @@ export function NeedsAttentionTabs({
     [items, activeFilter],
   );
 
+  const visibleItems = useMemo(
+    () => filteredItems.slice(0, visibleCount),
+    [filteredItems, visibleCount],
+  );
+
+  const hasMore = visibleCount < filteredItems.length;
+
+  const loadMore = useCallback(() => {
+    setVisibleCount((prev) => prev + PAGE_SIZE);
+  }, []);
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: "100px" },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadMore]);
+
   const visibleFilters = categoryFilters.filter(
     (f) => f.value === "all" || (categoryCounts[f.value] ?? 0) > 0,
   );
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col">
       {/* Category filter tabs */}
-      <div className="flex flex-wrap items-center gap-2 px-1 sm:px-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-1.5 pb-2">
         {visibleFilters.map((filter) => (
           <Button
             key={filter.value}
-            onClick={() => setActiveFilter(filter.value)}
+            onClick={() => {
+              setActiveFilter(filter.value);
+              setVisibleCount(PAGE_SIZE);
+            }}
             size="sm"
             type="button"
             variant={activeFilter === filter.value ? "secondary" : "ghost"}
             className={cn(
-              "h-8 gap-1.5 text-xs",
+              "h-7 gap-1 px-2.5 text-xs",
               activeFilter === filter.value && "font-semibold",
             )}
           >
             {filter.label}
             {(categoryCounts[filter.value] ?? 0) > 0 ? (
-              <Badge
-                variant="outline"
-                className="ml-0.5 h-5 min-w-5 px-1.5 text-[0.65rem]"
-              >
+              <span className="text-[0.6rem] text-muted-foreground">
                 {categoryCounts[filter.value]}
-              </Badge>
+              </span>
             ) : null}
           </Button>
         ))}
       </div>
 
-      {/* Filtered items */}
-      <div className="flex flex-col divide-y divide-border/70">
-        {filteredItems.length ? (
-          filteredItems.slice(0, 6).map((item) => (
-            <NeedsAttentionFilteredRow item={item} key={item.key} />
-          ))
-        ) : (
-          <p className="px-2 py-6 text-center text-sm text-muted-foreground">
-            No items in this category.
-          </p>
-        )}
+      {/* Filtered items — scrollable with infinite scroll */}
+      <div className="hover-scrollbar min-h-0 flex-1 overflow-y-auto pr-1">
+        <div className="flex flex-col">
+          {visibleItems.length ? (
+            visibleItems.map((item) => (
+              <NeedsAttentionMinimalRow item={item} key={item.key} />
+            ))
+          ) : (
+            <p className="px-2 py-6 text-center text-sm text-muted-foreground">
+              No items in this category.
+            </p>
+          )}
+          {/* Infinite scroll sentinel */}
+          {hasMore && (
+            <div
+              ref={sentinelRef}
+              className="flex shrink-0 items-center justify-center py-2"
+            >
+              <span className="text-xs text-muted-foreground/60">Loading…</span>
+            </div>
+          )}
+        </div>
       </div>
-
-      {filteredItems.length > 6 ? (
-        <p className="px-2 text-center text-xs text-muted-foreground">
-          +{filteredItems.length - 6} more — view the full list from the relevant section.
-        </p>
-      ) : null}
     </div>
   );
 }
 
-function NeedsAttentionFilteredRow({ item }: { item: NeedsAttentionItemData }) {
+// ---------------------------------------------------------------------------
+// Action-oriented Row
+// ---------------------------------------------------------------------------
+
+const iconMap: Record<NeedsAttentionIconName, LucideIcon> = {
+  "inbox": Inbox,
+  "file-text": FileText,
+  "bell-ring": BellRing,
+  "check-circle": CheckCircle2,
+};
+
+const iconStyles: Record<NeedsAttentionIconName, string> = {
+  "inbox": "bg-sky-500/10 text-sky-600 dark:text-sky-400", // blue for inquiries
+  "file-text": "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400", // emerald for quotes
+  "bell-ring": "bg-amber-500/10 text-amber-600 dark:text-amber-400", // amber for follow-ups
+  "check-circle": "bg-green-500/10 text-green-600 dark:text-green-400", // green for accepted/success
+};
+
+function NeedsAttentionMinimalRow({ item }: { item: NeedsAttentionItemData }) {
   const Icon = iconMap[item.iconName];
+  const iconStyle = iconStyles[item.iconName] || "bg-muted text-muted-foreground";
+  const isUrgent = item.tone === "urgent";
 
   return (
     <Link
-      className="group flex items-center gap-4 px-1 py-3.5 transition-colors hover:bg-accent/22 sm:px-2"
+      className="group flex items-center justify-between gap-4 border-b border-border/40 py-2.5 transition-colors hover:bg-accent/15 px-2 first:pt-2 last:border-b-0"
       href={item.href}
       prefetch={true}
     >
-      <div
-        className={cn(
-          "flex size-9 shrink-0 items-center justify-center rounded-full",
-          item.tone === "urgent" && "bg-destructive/10 text-destructive",
-          item.tone === "normal" && "bg-primary/10 text-primary",
-          item.tone === "positive" && "bg-green-500/10 text-green-600 dark:text-green-400",
-        )}
-      >
-        <Icon className="size-4" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="truncate text-sm font-semibold text-foreground">
-                {item.title}
-              </p>
-              <span className="shrink-0 text-[0.68rem] font-medium uppercase tracking-wider text-muted-foreground/70">
-                {item.category}
-              </span>
-            </div>
-            <p className="truncate text-sm text-muted-foreground">
-              {item.description}
-            </p>
-          </div>
+      <div className="flex min-w-0 flex-1 items-center gap-3.5">
+        {/* Soft category-specific icon instead of stark solid red dot */}
+        <div
+          className={cn(
+            "flex size-9 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105",
+            iconStyle
+          )}
+        >
+          <Icon className="size-4.5" />
         </div>
-        <p className="mt-0.5 text-xs text-muted-foreground">{item.meta}</p>
+
+        {/* Neat text stack */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="truncate text-sm font-semibold tracking-tight text-foreground">
+              {item.title}
+            </span>
+            <span className="shrink-0 rounded-md bg-secondary/80 px-1.5 py-0.5 text-[0.62rem] font-medium text-muted-foreground uppercase tracking-wider">
+              {item.category}
+            </span>
+          </div>
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+            {item.description}
+            <span className="mx-1.5 text-muted-foreground/40">·</span>
+            <span
+              className={cn(
+                isUrgent ? "text-destructive font-medium" : "text-muted-foreground/80"
+              )}
+            >
+              {item.meta}
+            </span>
+          </p>
+        </div>
       </div>
-      <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+
+      {/* Action link on the right side */}
+      <div className="flex shrink-0 items-center gap-1.5">
+        <span className="hidden text-xs font-semibold text-primary/95 transition-colors group-hover:text-primary group-hover:underline sm:inline-flex">
+          {item.actionLabel}
+        </span>
+        <ArrowRight className="size-3.5 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+      </div>
     </Link>
   );
 }

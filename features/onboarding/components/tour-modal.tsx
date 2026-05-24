@@ -6,8 +6,8 @@ import {
   BarChart3,
   BellRing,
   FileText,
+  Home,
   Inbox,
-  LayoutDashboard,
   type LucideIcon,
 } from "lucide-react";
 
@@ -204,7 +204,7 @@ function PreviewNavItem({
 
 function PreviewSidebar({ highlight }: { highlight?: string }) {
   const items = [
-    { icon: LayoutDashboard, label: "Dashboard" },
+    { icon: Home, label: "Home" },
     { icon: Inbox, label: "Inquiries" },
     { icon: FileText, label: "Quotes" },
     { icon: BellRing, label: "Follow-ups" },
@@ -272,7 +272,7 @@ function PreviewAttentionRow({
 export function BusinessSwitcherPreview() {
   return (
     <div className="flex gap-3">
-      <PreviewSidebar highlight="Dashboard" />
+      <PreviewSidebar highlight="Home" />
       <div className="flex flex-1 flex-col gap-2">
         <div className="rounded-lg border border-border/50 bg-background p-3">
           <p className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">NEEDS ATTENTION</p>

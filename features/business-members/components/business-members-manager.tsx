@@ -814,7 +814,7 @@ function getInitials(name: string) {
 
 export function BusinessMembersManagerFallback() {
   return (
-    <div className="grid gap-4">
+    <div className="grid min-h-[200px] gap-4">
       {Array.from({ length: 2 }).map((_, index) => (
         <div
           className="rounded-xl border border-border bg-background/50 p-6"

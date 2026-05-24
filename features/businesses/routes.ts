@@ -1,6 +1,6 @@
 export const activeBusinessSlugCookieName = "requo-active-business";
 
-export const dashboardPath = "/dashboard";
+export const dashboardPath = "/home";
 export const newBusinessPath = "/new";
 
 export type BusinessSettingsSection =
@@ -68,6 +68,18 @@ export function getBusinessFollowUpPath(slug: string, followUpId: string) {
 
 export function getBusinessAssistantPath(slug: string) {
   return `${getBusinessPath(slug)}/assistant`;
+}
+
+export function getBusinessChatPath(slug: string) {
+  return `${getBusinessPath(slug)}/chat`;
+}
+
+export function getBusinessChatNewPath(slug: string) {
+  return `${getBusinessChatPath(slug)}/new`;
+}
+
+export function getBusinessChatConversationPath(slug: string, conversationId: string) {
+  return `${getBusinessChatPath(slug)}/${conversationId}`;
 }
 
 export function getBusinessNewQuotePath(

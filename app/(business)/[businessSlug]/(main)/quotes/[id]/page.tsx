@@ -233,20 +233,14 @@ async function QuoteDetailContent({
   const customerViewCopy =
     quote.status === "sent"
       ? {
-          title: "Waiting for a customer response",
-          description:
-            "The customer can review the quote and respond from the secure public page.",
+          title: "Waiting for customer response",
         }
       : quote.status === "voided"
         ? {
             title: "Quote voided",
-            description:
-              "The public quote stays readable for reference, but it is no longer accepting online responses.",
           }
         : {
             title: `Quote ${quote.status}`,
-            description:
-              "The public quote remains available for review, but it is no longer accepting a new online response.",
           };
   const quoteContactEmail = getCustomerContactEmail(quote);
   const showQuotePreferredContact = shouldShowPreferredContactTile(quote);
@@ -568,7 +562,7 @@ async function QuoteDetailContent({
             ) : null}
 
             <DashboardSection
-              contentClassName="flex flex-col gap-4"
+              contentClassName="flex flex-col gap-3"
               description="Share, open, and track the secure quote page."
               title="Customer view"
             >
@@ -583,24 +577,51 @@ async function QuoteDetailContent({
                     <p className="text-sm font-medium text-foreground">
                       {customerViewCopy.title}
                     </p>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      {customerViewCopy.description}
-                    </p>
-                    {quote.sentAt ? (
-                      <p className="mt-3 text-xs text-muted-foreground">
-                        Sent on {formatQuoteDateTime(quote.sentAt)}.
-                      </p>
-                    ) : null}
+                    <div className="mt-2 flex flex-col gap-1 text-xs text-muted-foreground">
+                      {quote.sentAt ? (
+                        <span>Sent {formatQuoteDateTime(quote.sentAt)}</span>
+                      ) : null}
+                      <span>
+                        {quote.publicViewedAt
+                          ? `Viewed ${formatQuoteDateTime(quote.publicViewedAt)}`
+                          : "Not viewed yet"}
+                      </span>
+                      {quote.customerRespondedAt ? (
+                        <span>Responded {formatQuoteDateTime(quote.customerRespondedAt)}</span>
+                      ) : null}
+                    </div>
                   </div>
 
-                  <div className="soft-panel px-4 py-4 shadow-none">
-                    <p className="meta-label">Public quote URL</p>
-                    <TruncatedTextWithTooltip
-                      className="mt-2 break-all text-sm text-muted-foreground"
-                      lines={2}
-                      text={customerQuoteUrl}
-                    />
-                  </div>
+                  {quote.customerResponseMessage ? (
+                    <div className="soft-panel px-4 py-4 shadow-none">
+                      <p className="meta-label">Customer message</p>
+                      <TruncatedTextWithTooltip
+                        className="mt-2 whitespace-pre-wrap text-sm leading-7 text-foreground"
+                        lines={4}
+                        text={quote.customerResponseMessage}
+                      />
+                    </div>
+                  ) : null}
+
+                  {visibleQuoteReminders.length ? (
+                    <div className="flex flex-wrap gap-2">
+                      {visibleQuoteReminders.map((reminder) => (
+                        <QuoteReminderBadge key={reminder} kind={reminder} />
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {customerQuotePath ? (
+                    <div className="flex items-center gap-2">
+                      <CopyQuoteLinkButton url={customerQuoteUrl} />
+                      <Button asChild size="sm" variant="ghost">
+                        <Link href={customerQuotePath} target="_blank">
+                          Open
+                          <ExternalLink data-icon="inline-end" />
+                        </Link>
+                      </Button>
+                    </div>
+                  ) : null}
                 </>
               ) : (
                 <Alert>
@@ -611,56 +632,6 @@ async function QuoteDetailContent({
                   </AlertDescription>
                 </Alert>
               )}
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <InfoTile
-                  label="Last viewed"
-                  value={
-                    quote.publicViewedAt
-                      ? formatQuoteDateTime(quote.publicViewedAt)
-                      : "Not viewed yet"
-                  }
-                />
-                <InfoTile
-                  label="Customer response"
-                  value={
-                    quote.customerRespondedAt
-                      ? formatQuoteDateTime(quote.customerRespondedAt)
-                      : "No response yet"
-                  }
-                />
-              </div>
-
-              {visibleQuoteReminders.length ? (
-                <div className="flex flex-wrap gap-2">
-                  {visibleQuoteReminders.map((reminder) => (
-                    <QuoteReminderBadge key={reminder} kind={reminder} />
-                  ))}
-                </div>
-              ) : null}
-
-              {quote.customerResponseMessage ? (
-                <div className="soft-panel px-4 py-4 shadow-none">
-                  <p className="meta-label">Customer message</p>
-                  <TruncatedTextWithTooltip
-                    className="mt-3 whitespace-pre-wrap text-sm leading-7 text-foreground"
-                    lines={6}
-                    text={quote.customerResponseMessage}
-                  />
-                </div>
-              ) : null}
-
-              {customerQuoteUrl && customerQuotePath ? (
-                <div className="dashboard-actions [&>*]:w-full sm:[&>*]:w-auto">
-                  <CopyQuoteLinkButton url={customerQuoteUrl} />
-                  <Button asChild variant="outline">
-                    <Link href={customerQuotePath} target="_blank">
-                      Open customer view
-                      <ExternalLink data-icon="inline-end" />
-                    </Link>
-                  </Button>
-                </div>
-              ) : null}
             </DashboardSection>
 
             <DashboardSection
@@ -900,13 +871,19 @@ function getCustomerContactEmail(contact: {
 }
 
 function shouldShowPreferredContactTile(contact: {
+  customerEmail?: string | null;
   customerContactMethod: string;
   customerContactHandle: string;
 }) {
-  return (
-    contact.customerContactHandle.trim().length > 0 &&
-    contact.customerContactMethod.trim().toLowerCase() !== "email"
-  );
+  const handle = contact.customerContactHandle.trim();
+  if (!handle) return false;
+
+  const normalizedMethod = contact.customerContactMethod.trim().toLowerCase();
+  if (normalizedMethod === "email") {
+    // Hide when the handle is the same email already shown in the Email tile
+    return handle.toLowerCase() !== (contact.customerEmail?.trim().toLowerCase() ?? "");
+  }
+  return true;
 }
 
 function getContactHandleUrl(method: string, handle: string): string | null {

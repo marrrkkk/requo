@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
+import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail-page-skeleton";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { getInvoiceDetailForBusiness } from "@/features/invoices/queries";
 import { InvoiceDetail } from "@/features/invoices/components/invoice-detail";
@@ -22,11 +24,24 @@ export async function generateMetadata({
   };
 }
 
-export default async function InvoiceDetailPage({
-  params,
-}: {
+export const unstable_instant = {
+  prefetch: "static",
+  unstable_disableValidation: true,
+};
+
+type InvoiceDetailPageProps = {
   params: Promise<{ businessSlug: string; id: string }>;
-}) {
+};
+
+export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
+  return (
+    <Suspense fallback={<DashboardDetailPageSkeleton variant="invoice" />}>
+      <InvoiceDetailContent params={params} />
+    </Suspense>
+  );
+}
+
+async function InvoiceDetailContent({ params }: InvoiceDetailPageProps) {
   const { businessSlug, id } = await params;
   const { businessContext } = await getAppShellContext(businessSlug);
   const invoice = await getInvoiceDetailForBusiness(

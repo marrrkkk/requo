@@ -811,8 +811,9 @@ function shouldShowPreferredContactTile(inquiry: {
   if (!inquiry.customerContactHandle || !inquiry.customerContactMethod) {
     return false;
   }
-  if (inquiry.customerContactMethod === "email") {
-    return inquiry.customerContactHandle !== inquiry.customerEmail;
+  const normalizedMethod = inquiry.customerContactMethod.trim().toLowerCase();
+  if (normalizedMethod === "email") {
+    return inquiry.customerContactHandle.trim().toLowerCase() !== inquiry.customerEmail?.trim().toLowerCase();
   }
   return true;
 }

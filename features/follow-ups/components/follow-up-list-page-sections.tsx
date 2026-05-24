@@ -158,7 +158,7 @@ export function FollowUpListControlsFallback() {
 
 export function FollowUpListContentFallback() {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex min-h-[320px] flex-col gap-2">
       {Array.from({ length: 5 }).map((_, index) => (
         <div
           className="flex items-center gap-3 rounded-xl border border-border/50 bg-background px-4 py-3 sm:px-5"

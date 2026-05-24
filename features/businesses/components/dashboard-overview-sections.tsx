@@ -138,6 +138,7 @@ type DashboardNeedsAttentionSectionProps = {
   businessSlug: string;
   overviewPromise: DashboardOverviewDataPromise;
   followUpOverviewPromise: FollowUpOverviewDataPromise;
+  className?: string;
 };
 
 type NeedsAttentionBadge =
@@ -163,6 +164,7 @@ export async function DashboardNeedsAttentionSection({
   businessSlug,
   overviewPromise,
   followUpOverviewPromise,
+  className,
 }: DashboardNeedsAttentionSectionProps) {
   const [overview, followUpOverview] = await Promise.all([
     overviewPromise,
@@ -253,6 +255,8 @@ export async function DashboardNeedsAttentionSection({
       }
       description="Quotes, inquiries, and follow-ups waiting on the next step."
       title="Needs attention"
+      className={className}
+      contentClassName="min-h-0 flex-1 overflow-hidden"
     >
       {tabItems.length ? (
         <NeedsAttentionTabs items={tabItems} />
