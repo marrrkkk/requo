@@ -12,7 +12,6 @@ import {
   getReloadLoadingInitScript,
   ReloadLoadingOverlay,
 } from "@/components/shared/reload-loading-overlay";
-import { RouteProgressBar } from "@/components/shared/route-progress-bar";
 import { ScrollToTop } from "@/components/shared/scroll-to-top";
 import { WebMCPProvider } from "@/components/shared/webmcp-provider";
 import { StructuredData } from "@/components/seo/structured-data";
@@ -177,7 +176,6 @@ export default function RootLayout({
           >
             <Suspense fallback={null}>
               <ScrollToTop />
-              <RouteProgressBar />
               <WebMCPProvider />
             </Suspense>
             <TooltipProvider>{children}</TooltipProvider>
