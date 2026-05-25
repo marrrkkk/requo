@@ -213,6 +213,10 @@ export function getBusinessInquiryFormPreviewPath(
   return `${getBusinessPath(slug)}/preview/inquiry/${formSlug}`;
 }
 
+export function getBusinessAutomationsPath(slug: string) {
+  return `${getBusinessPath(slug)}/automations`;
+}
+
 export function getBusinessJobsPath(slug: string) {
   return `${getBusinessPath(slug)}/jobs`;
 }

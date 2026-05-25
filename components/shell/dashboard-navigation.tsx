@@ -8,6 +8,7 @@ import {
   Home,
   Inbox,
   Receipt,
+  Zap,
 } from "lucide-react";
 
 
@@ -18,6 +19,7 @@ import {
 } from "@/lib/business-members";
 import {
   getBusinessAnalyticsPath,
+  getBusinessAutomationsPath,
   getBusinessChatPath,
   getBusinessDashboardPath,
   getBusinessDashboardSlugFromPathname,
@@ -84,6 +86,12 @@ export function getDashboardNavigation(
       label: "Invoices",
       description: "Generate, send, and track payment for completed work.",
       icon: Receipt,
+    },
+    {
+      href: getBusinessAutomationsPath(slug),
+      label: "Automations",
+      description: "Event-driven rules that automate your workflow.",
+      icon: Zap,
     },
     ...(canManageOperationalBusinessSettings(role)
       ? [
