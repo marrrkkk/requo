@@ -22,7 +22,7 @@ export function getBusinessPath(slug: string) {
 }
 
 export function getBusinessDashboardPath(slug: string) {
-  return `${getBusinessPath(slug)}/dashboard`;
+  return `${getBusinessPath(slug)}/home`;
 }
 
 export function getBusinessAnalyticsPath(slug: string) {

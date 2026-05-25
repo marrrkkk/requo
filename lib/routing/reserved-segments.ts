@@ -17,7 +17,7 @@ export const RESERVED_ROUTE_SEGMENTS = new Set([
   "invite",
   "account",
   "verify-email",
-  "dashboard",
+  "home",
   "new",
   "b",
   // Public routes

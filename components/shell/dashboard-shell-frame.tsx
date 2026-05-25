@@ -15,6 +15,7 @@ import { usePathname } from "next/navigation";
 
 import { BrandMark } from "@/components/shared/brand-mark";
 import {
+  getActiveDashboardNavigationItem,
   getDashboardBreadcrumbs,
   getDashboardNavigation,
   isDashboardNavigationItemActive,
@@ -119,6 +120,8 @@ export function DashboardShellFrame({
 
   const currentPageLabel = breadcrumbs.at(-1)?.label ?? businessSlug;
   const dashboardPath = getBusinessDashboardPath(businessSlug);
+  const activeNavItem = getActiveDashboardNavigationItem(pathname);
+  const ActiveIcon = activeNavItem?.icon ?? HomeIcon;
 
   return (
     <SidebarProvider
@@ -179,8 +182,8 @@ export function DashboardShellFrame({
             <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
               <SidebarTrigger className="size-8 shrink-0 lg:hidden" />
               <Button asChild variant="ghost" size="icon-sm" className="hidden size-8 shrink-0 lg:inline-flex">
-                <Link href={dashboardPath} aria-label="Home">
-                  <HomeIcon className="size-4" />
+                <Link href={activeNavItem?.href ?? dashboardPath} aria-label={activeNavItem?.label ?? "Home"}>
+                  <ActiveIcon className="size-4" />
                 </Link>
               </Button>
               <span

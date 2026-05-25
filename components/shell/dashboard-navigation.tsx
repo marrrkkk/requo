@@ -8,7 +8,7 @@ import {
   Home,
   Inbox,
   Receipt,
-  Zap,
+  Workflow,
 } from "lucide-react";
 
 
@@ -23,6 +23,7 @@ import {
   getBusinessChatPath,
   getBusinessDashboardPath,
   getBusinessDashboardSlugFromPathname,
+  getBusinessPath,
   getBusinessFollowUpsPath,
   getBusinessFormsPath,
   getBusinessInquiriesPath,
@@ -91,7 +92,7 @@ export function getDashboardNavigation(
       href: getBusinessAutomationsPath(slug),
       label: "Automations",
       description: "Event-driven rules that automate your workflow.",
-      icon: Zap,
+      icon: Workflow,
     },
     ...(canManageOperationalBusinessSettings(role)
       ? [
@@ -133,6 +134,13 @@ function resolveDashboardActivePathname(pathname: string) {
     return getBusinessMembersPath(slug);
   }
 
+  const legacyDashboardPath = `${getBusinessPath(slug)}/dashboard`;
+  const homePath = getBusinessDashboardPath(slug);
+
+  if (pathname === legacyDashboardPath) {
+    return homePath;
+  }
+
   return pathname;
 }
 
@@ -151,7 +159,7 @@ export function isDashboardNavigationItemActive(
     );
   }
 
-  if (href.endsWith("/dashboard")) {
+  if (href.endsWith("/home")) {
     return activePathname === href;
   }
 
@@ -203,10 +211,9 @@ function formatRecordHint(value: string) {
 }
 
 function withDashboardHome(
-  slug: string,
+  _slug: string,
   items: DashboardBreadcrumbItem[],
 ): DashboardBreadcrumbItem[] {
-  const dashboardPath = getBusinessDashboardPath(slug);
   const normalizedItems = items.map((item) => ({
     ...item,
     label: item.label
@@ -214,11 +221,7 @@ function withDashboardHome(
       .replace(/^Request\b/, "Inquiry"),
   }));
 
-  if (normalizedItems[0]?.label === "Home") {
-    return normalizedItems;
-  }
-
-  return [{ label: "Home", href: dashboardPath }, ...normalizedItems];
+  return normalizedItems;
 }
 
 export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbItem[] {
