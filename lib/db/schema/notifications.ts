@@ -21,6 +21,7 @@ export const businessNotificationTypeEnum = pgEnum("business_notification_type",
   "quote_revision_requested",
   "business_member_invite_accepted",
   "business_member_invite_declined",
+  "automation",
 ]);
 
 export const businessNotifications = pgTable(

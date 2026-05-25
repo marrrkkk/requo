@@ -466,7 +466,7 @@ export function getAiChatSources(input: {
       ];
     case "dashboard":
       return [
-        { label: "Home", href: `${businessPath}/dashboard` },
+        { label: "Home", href: `${businessPath}/home` },
         { label: "Inquiries", href: `${businessPath}/inquiries` },
         { label: "Quotes", href: `${businessPath}/quotes` },
         { label: "Follow-ups", href: `${businessPath}/follow-ups` },

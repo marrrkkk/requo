@@ -16,6 +16,7 @@ import {
   Moon,
   Paintbrush,
   RefreshCw,
+  GraduationCap,
   RotateCcw,
   Settings,
   Sun,
@@ -26,6 +27,12 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getBusinessDashboardPath, getBusinessDashboardSlugFromPathname } from "@/features/businesses/routes";
+import { resetDashboardTourForDevAction } from "@/features/onboarding/tour-actions";
+import {
+  clearDashboardTourLocalStorage,
+  DASHBOARD_TOUR_DEV_SHOW_EVENT,
+} from "@/features/onboarding/tour-keys";
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -325,6 +332,7 @@ export function DevToolsPanel() {
             )}
             {tab === "tools" && (
               <ToolsTab
+                context={context}
                 onRevalidate={revalidateAll}
                 onToggleTheme={toggleTheme}
                 settings={settings}
@@ -511,17 +519,87 @@ function ContextTab({
 /* -------------------------------------------------------------------------- */
 
 function ToolsTab({
+  context,
   onRevalidate,
   onToggleTheme,
   settings,
   onUpdateSettings,
 }: {
+  context: UserContext | null;
   onRevalidate: () => void;
   onToggleTheme: () => void;
   settings: DevSettings;
   onUpdateSettings: (patch: Partial<DevSettings>) => void;
 }) {
   const [responseTime, setResponseTime] = useState<number | null>(null);
+  const [resettingTour, setResettingTour] = useState(false);
+
+  const activeBusiness = (() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    const slug = getBusinessDashboardSlugFromPathname(window.location.pathname);
+    if (!slug || !context) {
+      return null;
+    }
+
+    const business = context.businesses.find((entry) => entry.slug === slug);
+    return business ? { ...business, slug } : null;
+  })();
+
+  const showDashboardTour = () => {
+    if (!activeBusiness) {
+      toast.error("Open a business you own (e.g. /your-slug/home) first.");
+      return;
+    }
+
+    clearDashboardTourLocalStorage(activeBusiness.id);
+
+    const homePath = getBusinessDashboardPath(activeBusiness.slug);
+    const onHome =
+      window.location.pathname === homePath ||
+      window.location.pathname === `/${activeBusiness.slug}`;
+
+    if (!onHome) {
+      try {
+        sessionStorage.setItem(
+          "requo:dev:pending-dashboard-tour",
+          activeBusiness.id,
+        );
+      } catch {
+        // sessionStorage unavailable
+      }
+      window.location.href = homePath;
+      return;
+    }
+
+    window.dispatchEvent(new CustomEvent(DASHBOARD_TOUR_DEV_SHOW_EVENT));
+    toast.success("Opening dashboard tour");
+  };
+
+  const resetDashboardTour = async () => {
+    if (!activeBusiness) {
+      toast.error("Open a business you own to reset its tour.");
+      return;
+    }
+
+    setResettingTour(true);
+    try {
+      clearDashboardTourLocalStorage(activeBusiness.id);
+      await resetDashboardTourForDevAction({
+        businessId: activeBusiness.id,
+        businessSlug: activeBusiness.slug,
+      });
+      toast.success("Dashboard tour reset for this business");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to reset tour",
+      );
+    } finally {
+      setResettingTour(false);
+    }
+  };
 
   const measureLatency = async () => {
     const start = performance.now();
@@ -599,6 +677,42 @@ function ToolsTab({
           >
             <X className="size-3" />
             Clear Session
+          </Button>
+        </div>
+      </section>
+
+      {/* Onboarding tour (dev) */}
+      <section className="space-y-1.5">
+        <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+          <GraduationCap className="size-3" />
+          Onboarding tour
+        </div>
+        <p className="text-[10px] leading-5 text-muted-foreground">
+          {activeBusiness
+            ? `Active: ${activeBusiness.name} (/${activeBusiness.slug})`
+            : "Navigate to a business home page you own."}
+        </p>
+        <div className="grid grid-cols-2 gap-1.5">
+          <Button
+            className="gap-1.5"
+            onClick={showDashboardTour}
+            size="xs"
+            type="button"
+            variant="outline"
+          >
+            <GraduationCap className="size-3" />
+            Show tour
+          </Button>
+          <Button
+            className="gap-1.5"
+            disabled={resettingTour || !activeBusiness}
+            onClick={resetDashboardTour}
+            size="xs"
+            type="button"
+            variant="outline"
+          >
+            <RotateCcw className="size-3" />
+            Reset tour
           </Button>
         </div>
       </section>

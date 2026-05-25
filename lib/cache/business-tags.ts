@@ -142,13 +142,18 @@ export function getBusinessMemoryCacheTags(businessId: string) {
   ]);
 }
 
-export function getBusinessAnalyticsCacheTags(businessId: string) {
+export function getBusinessAnalyticsCacheTags(
+  businessId: string,
+  rangeSuffix?: string,
+) {
   const scopeTag = getBusinessScopeTag(businessId);
 
   return uniqueCacheTags([
     scopeTag,
     `${scopeTag}:dashboard`,
-    `${scopeTag}:analytics`,
+    rangeSuffix
+      ? `${scopeTag}:analytics:${rangeSuffix}`
+      : `${scopeTag}:analytics`,
     `${scopeTag}:inquiries`,
     `${scopeTag}:quotes`,
   ]);

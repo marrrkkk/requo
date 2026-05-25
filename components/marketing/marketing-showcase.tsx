@@ -182,7 +182,7 @@ export function MarketingShowcase() {
           <div className="mx-auto flex h-5.5 max-w-xs flex-1 items-center gap-1.5 rounded-md border border-border/50 bg-background/60 px-2.5 text-[10px] text-muted-foreground sm:text-[11px]">
             <Lock className="size-2.5" />
             <span className="truncate font-mono">
-              app.requo.com/brightside/dashboard
+              app.requo.com/brightside/home
             </span>
           </div>
           <span aria-hidden="true" className="hidden w-8 sm:block" />
