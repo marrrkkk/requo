@@ -1,16 +1,16 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import { ArrowUpRight } from "lucide-react";
-import { useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
+import { PlanSelectionSheet } from "@/features/billing/components/plan-selection-sheet";
 import { startPolarCheckout } from "@/features/billing/start-checkout";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
-import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
 
 type UpgradeButtonProps = {
@@ -23,7 +23,6 @@ type UpgradeButtonProps = {
   size?: "default" | "sm" | "lg";
   className?: string;
   children?: React.ReactNode;
-  interval?: BillingInterval;
 };
 
 function resolveTargetPlan(currentPlan: plan, targetPlan?: PaidPlan): PaidPlan {
@@ -33,6 +32,18 @@ function resolveTargetPlan(currentPlan: plan, targetPlan?: PaidPlan): PaidPlan {
   return currentPlan === "pro" ? "business" : "pro";
 }
 
+/**
+ * UpgradeButton renders a button that opens the plan selection sheet.
+ *
+ * When mounted inside a `BusinessCheckoutProvider`, it delegates open/close
+ * and checkout state to the provider so multiple UpgradeButtons on the same
+ * page share a single sheet and a single in-flight checkout transition.
+ *
+ * When rendered outside the provider (settings routes, paywall popovers in
+ * deep layouts, etc.), it falls back to a self-contained PlanSelectionSheet
+ * using the props it already receives. This guarantees every UpgradeButton
+ * opens the plan sheet, regardless of where it's mounted.
+ */
 export function UpgradeButton({
   businessId,
   businessSlug,
@@ -42,61 +53,99 @@ export function UpgradeButton({
   size = "sm",
   className,
   children,
-  interval = "monthly",
 }: UpgradeButtonProps) {
   const businessCheckout = useBusinessCheckout();
-  const [isPending, startTransition] = useTransition();
-  const effectiveCurrentPlan =
-    businessCheckout?.businessId === businessId
-      ? businessCheckout.currentPlan
-      : currentPlan;
+  const usingProvider =
+    businessCheckout != null && businessCheckout.businessId === businessId;
 
+  // When attached to the provider, mirror its state. Otherwise own it locally.
+  const [localOpen, setLocalOpen] = useState(false);
+  const [localTargetPlan, setLocalTargetPlan] = useState<PaidPlan | undefined>(
+    targetPlan,
+  );
+  const [isLocalPending, startLocalTransition] = useTransition();
+
+  const effectiveCurrentPlan = usingProvider
+    ? businessCheckout.currentPlan
+    : currentPlan;
+
+  // No upgrade available for the highest plan — render nothing.
   if (effectiveCurrentPlan === "business") {
     return null;
   }
 
   const nextPlan = resolveTargetPlan(effectiveCurrentPlan, targetPlan);
 
-  return (
-    <Button
-      type="button"
-      className={cn(className)}
-      disabled={isPending || !!businessCheckout?.isStartingCheckout}
-      onClick={(event) => {
-        event.preventDefault();
-        if (businessCheckout && businessCheckout.businessId === businessId) {
-          businessCheckout.openPlanSelection(nextPlan);
-          return;
-        }
+  function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    if (usingProvider) {
+      businessCheckout.openPlanSelection(nextPlan);
+      return;
+    }
+    setLocalTargetPlan(nextPlan);
+    setLocalOpen(true);
+  }
 
-        startTransition(async () => {
-          const result = await startPolarCheckout({
-            plan: nextPlan,
-            interval,
-            returnTo: businessSlug
-              ? getBusinessDashboardPath(businessSlug)
-              : undefined,
-          });
-          if (result.ok) return;
-          if (result.reason === "already_subscribed") {
-            toast.info(result.message);
-            return;
-          }
-          toast.error(result.message);
-        });
-      }}
-      size={size}
-      variant={variant}
-    >
-      {isPending ? <Spinner data-icon="inline-start" aria-hidden="true" /> : null}
-      {children ?? (
-        <>
-          <ArrowUpRight data-icon="inline-start" />
-          {effectiveCurrentPlan === "free"
-            ? "Upgrade to Pro"
-            : "Upgrade to Business"}
-        </>
-      )}
-    </Button>
+  function handleSelectLocalPlan(
+    selected: PaidPlan,
+    interval: BillingInterval,
+  ) {
+    setLocalOpen(false);
+    const returnTo = businessSlug
+      ? getBusinessDashboardPath(businessSlug)
+      : undefined;
+
+    startLocalTransition(async () => {
+      const result = await startPolarCheckout({
+        plan: selected,
+        interval,
+        returnTo,
+      });
+
+      if (result.ok) {
+        return;
+      }
+
+      if (result.reason === "already_subscribed") {
+        toast.info(result.message);
+        return;
+      }
+
+      toast.error(result.message);
+    });
+  }
+
+  const isPending = usingProvider
+    ? !!businessCheckout.isStartingCheckout
+    : isLocalPending;
+
+  return (
+    <>
+      <Button
+        type="button"
+        className={cn(className)}
+        disabled={isPending}
+        onClick={handleClick}
+        size={size}
+        variant={variant}
+      >
+        {children ?? (
+          <>
+            <ArrowUpRight data-icon="inline-start" />
+            Upgrade Plan
+          </>
+        )}
+      </Button>
+
+      {!usingProvider ? (
+        <PlanSelectionSheet
+          currentPlan={effectiveCurrentPlan}
+          onOpenChange={setLocalOpen}
+          onSelectPlan={handleSelectLocalPlan}
+          open={localOpen}
+          targetPlan={localTargetPlan}
+        />
+      ) : null}
+    </>
   );
 }

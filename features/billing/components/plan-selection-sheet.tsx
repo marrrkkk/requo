@@ -1,28 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { ArrowUpRight, Briefcase, Building2, XIcon } from "lucide-react";
+import { ArrowUpRight, Check } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   getMonthlyEquivalentLabel,
   getPlanPriceLabel,
@@ -30,26 +19,52 @@ import {
 } from "@/lib/billing/plans";
 import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
 import { planMeta } from "@/lib/plans";
-import type { BusinessPlan as plan } from "@/lib/plans/plans";
+import type { BusinessPlan } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
 
-const paidPlans: PaidPlan[] = ["pro", "business"];
-
-const planHighlights: Record<PaidPlan, string[]> = {
-  pro: [
-    "Unlimited inquiries and quotes",
-    "Follow-up reminders and quote tracking",
-  ],
-  business: [
-    "Everything in Pro",
-    "Team members and roles",
-  ],
+type PlanCard = {
+  id: BusinessPlan;
+  tagline: string;
+  highlights: string[];
 };
+
+const planCards: PlanCard[] = [
+  {
+    id: "free",
+    tagline: "For solo operators",
+    highlights: [
+      "Inquiries and quotes",
+      "Follow-up reminders",
+      "AI assistant",
+      "Basic automations",
+    ],
+  },
+  {
+    id: "pro",
+    tagline: "For growing businesses",
+    highlights: [
+      "Unlimited inquiries and quotes",
+      "Auto follow-ups",
+      "Workflow automations",
+      "Multiple businesses",
+    ],
+  },
+  {
+    id: "business",
+    tagline: "For teams",
+    highlights: [
+      "Everything in Pro",
+      "Team members and roles",
+      "Visual workflow builder",
+      "Advanced branding",
+    ],
+  },
+];
 
 type PlanSelectionSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  currentPlan: plan;
+  currentPlan: BusinessPlan;
   targetPlan?: PaidPlan;
   onSelectPlan: (plan: PaidPlan, interval: BillingInterval) => void;
 };
@@ -62,160 +77,161 @@ export function PlanSelectionSheet({
   onSelectPlan,
 }: PlanSelectionSheetProps) {
   const [interval, setInterval] = useState<BillingInterval>("monthly");
-  const preferredPlan =
-    targetPlan && targetPlan !== currentPlan
-      ? targetPlan
-      : currentPlan === "pro"
-        ? "business"
-        : "pro";
 
   return (
-    <Drawer direction="bottom" open={open} onOpenChange={onOpenChange}>
-      <DrawerContent
-        className="fixed inset-x-0 bottom-0 z-50 max-h-[88vh] w-full overflow-hidden rounded-t-2xl border border-border/70 border-b-0 bg-card/95 sm:mx-auto sm:w-[calc(100%-1.5rem)] sm:max-w-[52rem] lg:max-w-[68rem] xl:max-w-[76rem]"
-      >
-        <DrawerHeader className="border-b border-border/70 px-5 py-4 pr-14 sm:px-6 sm:py-4">
-          <DrawerTitle>Choose a plan</DrawerTitle>
-          <DrawerDescription>
-            Compare Pro and Business, then continue to checkout.
-          </DrawerDescription>
-        </DrawerHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[780px] lg:max-w-[860px]">
+        <DialogHeader className="border-b-0">
+          <DialogTitle>Upgrade Plan</DialogTitle>
+          <DialogDescription>
+            Choose the plan that fits your workflow.
+          </DialogDescription>
+        </DialogHeader>
 
-        <DrawerClose asChild>
-          <Button
-            className="absolute top-4 right-4 sm:top-5 sm:right-5"
-            size="icon-sm"
-            variant="ghost"
-          >
-            <XIcon />
-            <span className="sr-only">Close</span>
-          </Button>
-        </DrawerClose>
-
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 pb-5 pt-3 sm:px-6 sm:pb-6 sm:pt-4">
+        <div className="flex flex-col gap-5 px-5 pb-5 sm:px-6 sm:pb-6">
           {/* Billing interval toggle */}
           <div className="flex justify-center">
-            <Tabs
-              onValueChange={(value) =>
-                setInterval(value === "yearly" ? "yearly" : "monthly")
-              }
-              value={interval}
-              className="w-full max-w-[280px]"
-            >
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="monthly">Monthly</TabsTrigger>
-                <TabsTrigger value="yearly">
-                  Yearly
-                  <Badge variant="secondary" className="ml-1.5 px-1 font-medium text-[10px]">
-                    -{getYearlySavingsPercent("pro", "USD")}%
-                  </Badge>
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <div className="inline-flex items-center rounded-lg border border-border/70 bg-muted/50 p-0.5">
+              <button
+                type="button"
+                onClick={() => setInterval("yearly")}
+                className={cn(
+                  "relative inline-flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
+                  interval === "yearly"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Annual
+                <Badge variant="secondary" className="px-1 font-medium text-[10px]">
+                  -{getYearlySavingsPercent("pro", "USD")}%
+                </Badge>
+              </button>
+              <button
+                type="button"
+                onClick={() => setInterval("monthly")}
+                className={cn(
+                  "relative inline-flex items-center rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
+                  interval === "monthly"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                Monthly
+              </button>
+            </div>
           </div>
 
-          <div className="grid gap-5 md:grid-cols-2">
-            {paidPlans.map((plan) => {
-              const isCurrentPlan = currentPlan === plan;
-              const isPreferredPlan = preferredPlan === plan && !isCurrentPlan;
-              const PlanIcon = plan === "pro" ? Briefcase : Building2;
+          {/* Plan cards */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            {planCards.map((card) => {
+              const isCurrentPlan = currentPlan === card.id;
+              const isPreferredPlan =
+                !isCurrentPlan &&
+                (targetPlan === card.id ||
+                  (!targetPlan && card.id === "pro" && currentPlan === "free") ||
+                  (!targetPlan && card.id === "business" && currentPlan === "pro"));
+              const isPaidPlan = card.id !== "free";
 
               return (
-                <Card
+                <div
                   className={cn(
-                    "flex h-full flex-col border-border/70 bg-card/80",
+                    "flex flex-col rounded-xl border border-border/70 bg-card/80 p-4",
                     isPreferredPlan &&
                       "border-primary/30 bg-accent/20 shadow-[0_0_0_1px_hsl(var(--primary)/0.08)]",
                   )}
-                  key={plan}
+                  key={card.id}
                 >
-                  <CardHeader className="gap-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border/70 bg-background/90">
-                          <PlanIcon
-                            className={cn(
-                              "size-4",
-                              plan === "pro"
-                                ? "text-primary"
-                                : "text-foreground",
-                            )}
-                          />
-                        </div>
-                        <div className="min-w-0">
-                          <CardTitle>{planMeta[plan].label}</CardTitle>
-                          <CardDescription className="mt-1 min-h-[40px] line-clamp-2">
-                            {planMeta[plan].description}
-                          </CardDescription>
-                        </div>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        {isCurrentPlan ? (
-                          <Badge variant="secondary">Current plan</Badge>
-                        ) : null}
-                        {isPreferredPlan ? (
-                          <Badge variant="outline">Recommended</Badge>
-                        ) : null}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex flex-1 flex-col gap-4">
-                    <div className="flex items-end justify-between gap-3">
-                      <div>
-                        <p className="meta-label">
-                          {interval === "yearly" ? "Yearly price" : "Monthly price"}
-                        </p>
-                        <p className="font-heading text-2xl font-semibold tracking-tight text-foreground">
-                          {getPlanPriceLabel(plan, "USD", interval)}
+                  {/* Plan name */}
+                  <h3 className="font-heading text-base font-semibold text-foreground">
+                    {planMeta[card.id].label}
+                  </h3>
+
+                  {/* Price */}
+                  <div className="mt-1.5">
+                    {isPaidPlan ? (
+                      <>
+                        <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
+                          {getPlanPriceLabel(card.id as PaidPlan, "USD", interval)}
                         </p>
                         {interval === "yearly" ? (
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            {getMonthlyEquivalentLabel(plan, "USD")} per month
+                            {getMonthlyEquivalentLabel(card.id as PaidPlan, "USD")} per month
                           </p>
-                        ) : null}
-                      </div>
-                    </div>
-                    <div className="grid gap-2">
-                      {planHighlights[plan].map((highlight) => (
-                        <div className="flex items-start gap-2" key={highlight}>
-                          <p className="text-sm text-muted-foreground">
-                            {highlight}
+                        ) : (
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            billed monthly
                           </p>
-                        </div>
-                      ))}
-                      <Link
-                        href="/pricing"
-                        target="_blank"
-                        className="mt-1 text-sm font-medium text-primary hover:underline"
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-heading text-xl font-semibold tracking-tight text-foreground">
+                          $0
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          free forever
+                        </p>
+                      </>
+                    )}
+                  </div>
+
+                  {/* CTA */}
+                  <div className="mt-3">
+                    {isCurrentPlan ? (
+                      <Button
+                        className="w-full"
+                        disabled
+                        variant="outline"
+                        size="sm"
+                        type="button"
                       >
-                        See all features &rarr;
-                      </Link>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="mt-auto">
-                    <Button
-                      className="w-full"
-                      disabled={isCurrentPlan}
-                      onClick={() => onSelectPlan(plan, interval)}
-                      size="lg"
-                      type="button"
-                    >
-                      {isCurrentPlan ? (
-                        "Current plan"
-                      ) : (
-                        <>
-                          <ArrowUpRight data-icon="inline-start" />
-                          {plan === "pro" ? "Upgrade to Pro" : "Upgrade to Business"}
-                        </>
-                      )}
-                    </Button>
-                  </CardFooter>
-                </Card>
+                        Current plan
+                      </Button>
+                    ) : isPaidPlan ? (
+                      <Button
+                        className="w-full"
+                        onClick={() => onSelectPlan(card.id as PaidPlan, interval)}
+                        variant={isPreferredPlan ? "default" : "outline"}
+                        size="sm"
+                        type="button"
+                      >
+                        <ArrowUpRight data-icon="inline-start" />
+                        {card.id === "pro" ? "Upgrade to Pro" : "Upgrade to Business"}
+                      </Button>
+                    ) : (
+                      <Button
+                        className="w-full"
+                        disabled
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                      >
+                        Free plan
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Features */}
+                  <p className="mt-4 text-xs font-medium text-muted-foreground">
+                    {card.tagline}
+                  </p>
+                  <ul className="mt-2 grid gap-1.5">
+                    {card.highlights.map((highlight) => (
+                      <li className="flex items-start gap-2" key={highlight}>
+                        <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                        <span className="text-sm text-muted-foreground">
+                          {highlight}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               );
             })}
           </div>
         </div>
-      </DrawerContent>
-    </Drawer>
+      </DialogContent>
+    </Dialog>
   );
 }

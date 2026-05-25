@@ -1,10 +1,8 @@
 "use client";
 
 import { ArrowUpRight, Sparkles } from "lucide-react";
-import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -86,29 +84,26 @@ function UpgradeCta({
   const buttonSize = sizeButtonSize[size];
   const touchTargetClasses = "min-h-11 min-w-11 md:min-h-0 md:min-w-0";
 
-  if (upgradeAction) {
-    return (
-      <UpgradeButton
-        userId={upgradeAction.userId}
-        businessId={upgradeAction.businessId}
-        businessSlug={upgradeAction.businessSlug}
-        currentPlan={upgradeAction.currentPlan}
-        size={buttonSize}
-        className={touchTargetClasses}
-      >
-        <ArrowUpRight data-icon="inline-start" />
-        {ctaText}
-      </UpgradeButton>
-    );
+  // Without upgradeAction we can't render an UpgradeButton (it needs ids and
+  // current plan). Render nothing rather than a dead link to a non-existent
+  // /account/billing route. Callers should always pass upgradeAction; the
+  // optional type is preserved only for in-flight migration callers.
+  if (!upgradeAction) {
+    return null;
   }
 
   return (
-    <Button asChild size={buttonSize} className={touchTargetClasses}>
-      <Link href="/account/billing">
-        <ArrowUpRight data-icon="inline-start" />
-        {ctaText}
-      </Link>
-    </Button>
+    <UpgradeButton
+      userId={upgradeAction.userId}
+      businessId={upgradeAction.businessId}
+      businessSlug={upgradeAction.businessSlug}
+      currentPlan={upgradeAction.currentPlan}
+      size={buttonSize}
+      className={touchTargetClasses}
+    >
+      <ArrowUpRight data-icon="inline-start" />
+      {ctaText}
+    </UpgradeButton>
   );
 }
 
