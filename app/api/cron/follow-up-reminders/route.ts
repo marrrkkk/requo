@@ -74,7 +74,7 @@ export async function GET(request: Request) {
               businessId: row.businessId,
               inquiryId: row.inquiryId,
               quoteId: row.quoteId,
-              type: "public_inquiry_submitted", // Reuse closest type until we add a dedicated one
+              type: "automation",
               title: `Follow-up due: ${row.followUpTitle}`,
               summary: `Reminder to follow up with ${customerName} about ${recordLabel}.`,
             });
