@@ -229,3 +229,27 @@ export function getBusinessInvoiceDetailCacheTags(
     `${scopeTag}:invoice:${invoiceId}`,
   ]);
 }
+
+export function getBusinessAutomationListCacheTags(businessId: string) {
+  const scopeTag = getBusinessScopeTag(businessId);
+
+  return uniqueCacheTags([
+    scopeTag,
+    `${scopeTag}:settings`,
+    `${scopeTag}:automations`,
+  ]);
+}
+
+export function getBusinessAutomationDetailCacheTags(
+  businessId: string,
+  automationId: string,
+) {
+  const scopeTag = getBusinessScopeTag(businessId);
+
+  return uniqueCacheTags([
+    scopeTag,
+    `${scopeTag}:settings`,
+    `${scopeTag}:automations`,
+    `${scopeTag}:automation:${automationId}`,
+  ]);
+}

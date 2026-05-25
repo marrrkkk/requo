@@ -28,6 +28,8 @@ export const planFeatures = [
   "multiBusiness",
   "followUps",
   "autoFollowUps",
+  "automations",
+  "workflowBuilder",
 ] as const;
 
 export type PlanFeature = (typeof planFeatures)[number];
@@ -39,6 +41,7 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "followUps",
     "pushNotifications",
     "aiAssistant",
+    "automations",
   ]),
   pro: new Set<PlanFeature>([
     "analyticsConversion",
@@ -57,6 +60,8 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "multiBusiness",
     "followUps",
     "autoFollowUps",
+    "automations",
+    "workflowBuilder",
   ]),
   business: new Set<PlanFeature>([
     "analyticsConversion",
@@ -76,6 +81,8 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "multiBusiness",
     "followUps",
     "autoFollowUps",
+    "automations",
+    "workflowBuilder",
   ]),
 };
 
@@ -128,6 +135,8 @@ export const planFeatureLabels: Record<PlanFeature, string> = {
   multiBusiness: "Multiple businesses",
   followUps: "Follow-ups",
   autoFollowUps: "Auto follow-ups",
+  automations: "Automations",
+  workflowBuilder: "Visual workflow builder",
 };
 
 /** Short value description for use in paywall locked states. */
@@ -166,4 +175,8 @@ export const planFeatureDescriptions: Record<PlanFeature, string> = {
     "Create follow-up reminders to stay on top of inquiries and quotes.",
   autoFollowUps:
     "Automatically send follow-up emails when customers haven't responded to a quote.",
+  automations:
+    "Automate repetitive workflow steps with event-driven rules that fire actions on triggers.",
+  workflowBuilder:
+    "Compose multi-step automations visually with a drag-and-drop canvas builder.",
 };

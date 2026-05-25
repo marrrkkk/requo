@@ -22,3 +22,4 @@ export * from "./memories";
 export * from "./subscriptions";
 export * from "./push-subscriptions";
 export * from "./compliance";
+export * from "./automations";
