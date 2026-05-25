@@ -58,6 +58,7 @@
     "@thesvg/react": "^2.1.3",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
+    "@xyflow/react": "12.10.2",
     "ai": "^6.0.184",
     "better-auth": "^1.6.10",
     "class-variance-authority": "^0.7.1",

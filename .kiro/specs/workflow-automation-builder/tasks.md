@@ -162,7 +162,7 @@ Implement a full workflow automation system for Requo: database schema, event di
     - All mutations validate session + business membership
     - _Requirements: 5.5, 10.1, 10.5, 3.7_
 
-- [ ] 9. Quick Automation UI
+- [x] 9. Quick Automation UI
   - [x] 9.1 Create automation list page at `app/(business)/[businessSlug]/settings/automations/page.tsx`
     - Server component fetching business automations
     - Show automation list with name, trigger, action, enabled toggle, last triggered
@@ -170,33 +170,33 @@ Implement a full workflow automation system for Requo: database schema, event di
     - Plan limit indicator
     - _Requirements: 6.4_
 
-  - [-] 9.2 Create quick automation presets component at `features/automations/components/quick-automation-presets.tsx`
+  - [x] 9.2 Create quick automation presets component at `features/automations/components/quick-automation-presets.tsx`
     - Preset cards: follow-up after quote viewed, expire quotes, create job on acceptance, notify on inquiry, archive stale inquiries, follow-up overdue reminders
     - One-click enable with customizable timing
     - Uses Card, Badge, Button from shared UI
     - _Requirements: 6.1, 6.2, 6.3, 6.6_
 
-  - [~] 9.3 Create automation form (sheet-based) at `features/automations/components/automation-form.tsx`
+  - [x] 9.3 Create automation form (sheet-based) at `features/automations/components/automation-form.tsx`
     - Sheet with trigger selection, condition builder, action configuration, delay setting
     - Zod-validated form with inline errors
     - Supports both create and edit modes
     - _Requirements: 6.3, 6.7_
 
-  - [~] 9.4 Create automation history view at `features/automations/components/automation-history.tsx`
+  - [x] 9.4 Create automation history view at `features/automations/components/automation-history.tsx`
     - Table showing execution logs: timestamp, status badge, trigger context, duration
     - Filter by success/failure
     - Accessible from automation detail
     - _Requirements: 6.5, 9.2_
 
-- [ ] 10. Visual Workflow Builder
-  - [~] 10.1 Install React Flow and set up builder infrastructure
+- [x] 10. Visual Workflow Builder
+  - [x] 10.1 Install React Flow and set up builder infrastructure
     - Install `@xyflow/react` package
     - Create `features/automations/components/builder/` directory structure
     - Create workflow state hook at `use-workflow-state.ts` managing nodes, edges, selection
     - Create undo/redo hook at `use-undo-redo.ts` with 20-step history
     - _Requirements: 7.1, 7.8_
 
-  - [~] 10.2 Create custom node components
+  - [x] 10.2 Create custom node components
     - `trigger-node.tsx`: Entry point node with trigger type icon and label
     - `condition-node.tsx`: Diamond/branching node with true/false handles
     - `delay-node.tsx`: Timer node showing delay duration
@@ -204,14 +204,14 @@ Implement a full workflow automation system for Requo: database schema, event di
     - All nodes styled with Requo design tokens (surface-card, border, primary accent)
     - _Requirements: 7.2, 7.3_
 
-  - [~] 10.3 Create workflow canvas and toolbar
+  - [x] 10.3 Create workflow canvas and toolbar
     - `workflow-canvas.tsx`: React Flow canvas with custom nodes, pan/zoom, minimap
     - `workflow-toolbar.tsx`: Add-node buttons, save, validate, undo/redo controls
     - `automation-edge.tsx`: Custom edge with animated flow indicator
     - Edge validation rules (single trigger, condition branching, no orphans)
     - _Requirements: 7.4, 7.10_
 
-  - [~] 10.4 Create node configuration panel
+  - [x] 10.4 Create node configuration panel
     - `node-config-panel.tsx`: Right-side panel opening on node selection
     - Trigger config: select trigger type
     - Condition config: field, operator, value inputs
@@ -219,56 +219,56 @@ Implement a full workflow automation system for Requo: database schema, event di
     - Action config: action type selector + type-specific fields
     - _Requirements: 7.6_
 
-  - [~] 10.5 Implement serialization and validation
+  - [x] 10.5 Implement serialization and validation
     - `serializer.ts`: Convert React Flow state ↔ JSON for database storage
     - `validator.ts`: Validate workflow (single trigger, connected graph, no orphans, configs complete)
     - Show inline error indicators on invalid nodes
     - _Requirements: 7.5, 7.7_
 
-  - [~] 10.6 Create builder page and paywall
+  - [x] 10.6 Create builder page and paywall
     - Builder page at `app/(business)/[businessSlug]/automations/[automationId]/builder/page.tsx`
     - Full-page canvas with save/cancel actions
     - Paywall state for users without `workflowBuilder` access showing preview
     - _Requirements: 7.9, 5.6_
 
-- [ ] 11. Onboarding defaults
-  - [~] 11.1 Create onboarding default templates at `features/automations/onboarding-defaults.ts`
+- [x] 11. Onboarding defaults
+  - [x] 11.1 Create onboarding default templates at `features/automations/onboarding-defaults.ts`
     - Define default automation templates per business type
     - Include: follow-up 3 days after quote viewed, expire quotes 30 days, create job on acceptance, notify on new inquiry
     - Mark as "Suggested" source
     - _Requirements: 8.1, 8.2, 8.3, 8.5_
 
-  - [~] 11.2 Integrate defaults into onboarding flow
+  - [x] 11.2 Integrate defaults into onboarding flow
     - After business creation, call automation defaults creator
     - Present defaults in onboarding with adjust/disable controls
     - Respect plan limits (disable excess with upgrade note)
     - _Requirements: 8.3, 8.4_
 
-- [ ] 12. Observability and auto-disable
-  - [~] 12.1 Implement failure tracking and auto-disable
+- [x] 12. Observability and auto-disable
+  - [x] 12.1 Implement failure tracking and auto-disable
     - Track consecutive failures per automation rule
     - Auto-disable after 5 consecutive failures
     - Send owner notification on auto-disable
     - _Requirements: 9.3_
 
-  - [~] 12.2 Add automation logs to data export
+  - [x] 12.2 Add automation logs to data export
     - Include automation logs in existing export feature
     - Respect `exports` plan feature gate
     - _Requirements: 9.4_
 
-  - [~] 12.3 Implement log retention cleanup
+  - [x] 12.3 Implement log retention cleanup
     - Add cleanup logic to cron processor: delete logs older than 90 days
     - Run as low-priority task after job processing
     - _Requirements: 9.5_
 
-- [ ] 13. Security hardening and rate limiting
-  - [~] 13.1 Add rate limiting to automation endpoints
+- [x] 13. Security hardening and rate limiting
+  - [x] 13.1 Add rate limiting to automation endpoints
     - 50 automation creates per business per hour
     - 200 event emissions per business per minute
     - Use existing rate limiter pattern
     - _Requirements: 10.6_
 
-  - [~] 13.2 Security review and validation pass
+  - [x] 13.2 Security review and validation pass
     - Verify all queries include businessId filter
     - Verify all mutations validate session + membership
     - Verify event dispatcher scopes to emitting business
@@ -276,7 +276,7 @@ Implement a full workflow automation system for Requo: database schema, event di
     - Verify action executors reject cross-business references
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
 
-- [~] 14. Final verification
+- [x] 14. Final verification
   - Run `npm run check` (lint + typecheck)
   - Run `npm run build` to verify no build errors
   - Verify migration applies cleanly
