@@ -4,6 +4,7 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import {
+  activityLogs,
   jobItems,
   jobs,
   quoteItems,
@@ -16,13 +17,19 @@ function createId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
 }
 
+const jobStatusLabels: Record<JobStatus, string> = {
+  todo: "To do",
+  in_progress: "In progress",
+  done: "Done",
+};
+
 /**
  * Create a job from an accepted quote. Copies quote line items into job items.
  */
 export async function createJobFromQuoteForBusiness({
   businessId,
   quoteId,
-  userId: _userId,
+  userId,
 }: {
   businessId: string;
   quoteId: string;
@@ -41,6 +48,7 @@ export async function createJobFromQuoteForBusiness({
         totalInCents: quotes.totalInCents,
         status: quotes.status,
         quoteNumber: quotes.quoteNumber,
+        inquiryId: quotes.inquiryId,
       })
       .from(quotes)
       .where(
@@ -133,6 +141,26 @@ export async function createJobFromQuoteForBusiness({
       .set({ postAcceptanceStatus: "in_progress", updatedAt: now })
       .where(eq(quotes.id, quoteId));
 
+    // Activity log on the inquiry/quote timeline so post-acceptance progress
+    // is visible alongside the rest of the workflow history.
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      inquiryId: quote.inquiryId,
+      quoteId,
+      actorUserId: userId,
+      type: "job.created",
+      summary: `Job created from quote ${quote.quoteNumber}.`,
+      metadata: {
+        jobId,
+        quoteNumber: quote.quoteNumber,
+        title: quote.title,
+        itemCount: items.length,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
     // Emit job.created automation event
     emitEvent(businessId, "job.created", {
       jobId,
@@ -159,51 +187,104 @@ export async function updateJobStatusForBusiness({
   userId: string;
 }) {
   const now = new Date();
-  const updates: Record<string, unknown> = {
-    status,
-    updatedAt: now,
-  };
 
-  if (status === "in_progress" && !updates.startedAt) {
-    updates.startedAt = now;
-  }
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({
+        id: jobs.id,
+        quoteId: jobs.quoteId,
+        status: jobs.status,
+        startedAt: jobs.startedAt,
+        completedAt: jobs.completedAt,
+        title: jobs.title,
+      })
+      .from(jobs)
+      .where(
+        and(
+          eq(jobs.id, jobId),
+          eq(jobs.businessId, businessId),
+          isNull(jobs.deletedAt),
+        ),
+      )
+      .limit(1);
 
-  if (status === "done") {
-    updates.completedAt = now;
-    updates.completedBy = userId;
-  }
+    if (!existing) {
+      return { error: "Job not found." };
+    }
 
-  const [updated] = await db
-    .update(jobs)
-    .set(updates)
-    .where(
-      and(
-        eq(jobs.id, jobId),
-        eq(jobs.businessId, businessId),
-        isNull(jobs.deletedAt),
-      ),
-    )
-    .returning({ id: jobs.id, quoteId: jobs.quoteId });
+    if (existing.status === status) {
+      // No-op: same status. Don't write an activity log or re-emit events
+      // for an unchanged transition.
+      return { jobId: existing.id };
+    }
 
-  if (!updated) {
-    return { error: "Job not found." };
-  }
+    const updates: Record<string, unknown> = {
+      status,
+      updatedAt: now,
+    };
 
-  // Sync quote post-acceptance status
-  if (status === "done") {
-    await db
-      .update(quotes)
-      .set({ postAcceptanceStatus: "completed", updatedAt: now })
-      .where(eq(quotes.id, updated.quoteId));
+    if (status === "in_progress" && !existing.startedAt) {
+      updates.startedAt = now;
+    }
 
-    // Emit job.completed automation event
-    emitEvent(businessId, "job.completed", {
-      jobId: updated.id,
-      completedAt: now.toISOString(),
+    if (status === "done") {
+      updates.completedAt = now;
+      updates.completedBy = userId;
+    }
+
+    await tx
+      .update(jobs)
+      .set(updates)
+      .where(eq(jobs.id, jobId));
+
+    // Pull the linked quote (for the inquiry id and number) so the activity
+    // log is anchored on the same timeline as the rest of the workflow.
+    const [linkedQuote] = await tx
+      .select({
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+      })
+      .from(quotes)
+      .where(eq(quotes.id, existing.quoteId))
+      .limit(1);
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      inquiryId: linkedQuote?.inquiryId ?? null,
+      quoteId: existing.quoteId,
+      actorUserId: userId,
+      type: status === "done" ? "job.completed" : "job.status_changed",
+      summary:
+        status === "done"
+          ? `Job "${existing.title}" marked done.`
+          : `Job "${existing.title}" moved to ${jobStatusLabels[status]}.`,
+      metadata: {
+        jobId,
+        previousStatus: existing.status,
+        newStatus: status,
+        quoteNumber: linkedQuote?.quoteNumber ?? null,
+      },
+      createdAt: now,
+      updatedAt: now,
     });
-  }
 
-  return { jobId: updated.id };
+    // Sync quote post-acceptance status
+    if (status === "done") {
+      await tx
+        .update(quotes)
+        .set({ postAcceptanceStatus: "completed", updatedAt: now })
+        .where(eq(quotes.id, existing.quoteId));
+
+      // Emit job.completed automation event
+      emitEvent(businessId, "job.completed", {
+        jobId: existing.id,
+        completedAt: now.toISOString(),
+      });
+    }
+
+    return { jobId: existing.id };
+  });
 }
 
 /**
@@ -261,21 +342,57 @@ export async function deleteJobForBusiness({
 }) {
   const now = new Date();
 
-  const [deleted] = await db
-    .update(jobs)
-    .set({ deletedAt: now, deletedBy: userId, updatedAt: now })
-    .where(
-      and(
-        eq(jobs.id, jobId),
-        eq(jobs.businessId, businessId),
-        isNull(jobs.deletedAt),
-      ),
-    )
-    .returning({ id: jobs.id });
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({
+        id: jobs.id,
+        quoteId: jobs.quoteId,
+        title: jobs.title,
+      })
+      .from(jobs)
+      .where(
+        and(
+          eq(jobs.id, jobId),
+          eq(jobs.businessId, businessId),
+          isNull(jobs.deletedAt),
+        ),
+      )
+      .limit(1);
 
-  if (!deleted) {
-    return { error: "Job not found." };
-  }
+    if (!existing) {
+      return { error: "Job not found." };
+    }
 
-  return { jobId: deleted.id };
+    await tx
+      .update(jobs)
+      .set({ deletedAt: now, deletedBy: userId, updatedAt: now })
+      .where(eq(jobs.id, jobId));
+
+    const [linkedQuote] = await tx
+      .select({
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+      })
+      .from(quotes)
+      .where(eq(quotes.id, existing.quoteId))
+      .limit(1);
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      inquiryId: linkedQuote?.inquiryId ?? null,
+      quoteId: existing.quoteId,
+      actorUserId: userId,
+      type: "job.deleted",
+      summary: `Job "${existing.title}" deleted.`,
+      metadata: {
+        jobId,
+        quoteNumber: linkedQuote?.quoteNumber ?? null,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return { jobId: existing.id };
+  });
 }

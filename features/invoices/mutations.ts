@@ -27,6 +27,19 @@ function getNextInvoiceNumberFromSequence(sequence: number | null | undefined) {
   return `INV-${String(safeSequence + 1).padStart(4, "0")}`;
 }
 
+/** Default Net 14 payment term used when no offset is provided. */
+const DEFAULT_INVOICE_DUE_OFFSET_DAYS = 14;
+
+function computeDueAt(now: Date, dueOffsetDays?: number) {
+  const offset =
+    typeof dueOffsetDays === "number" &&
+    Number.isFinite(dueOffsetDays) &&
+    dueOffsetDays > 0
+      ? Math.floor(dueOffsetDays)
+      : DEFAULT_INVOICE_DUE_OFFSET_DAYS;
+  return new Date(now.getTime() + offset * 24 * 60 * 60 * 1000);
+}
+
 /**
  * Generate an invoice from a completed job.
  * Copies job items (which may differ from quote if work changed).
@@ -35,10 +48,13 @@ export async function createInvoiceFromJobForBusiness({
   businessId,
   jobId,
   userId: _userId,
+  dueOffsetDays,
 }: {
   businessId: string;
   jobId: string;
   userId: string;
+  /** Days from creation to mark the invoice due. Defaults to 14. */
+  dueOffsetDays?: number;
 }) {
   return db.transaction(async (tx) => {
     const [job] = await tx
@@ -106,6 +122,7 @@ export async function createInvoiceFromJobForBusiness({
     const invoiceNumber = getNextInvoiceNumberFromSequence(maxInvoice?.maxNum);
     const invoiceId = createId("inv");
     const now = new Date();
+    const dueAt = computeDueAt(now, dueOffsetDays);
 
     const subtotalInCents = items.reduce((sum, i) => sum + i.lineTotalInCents, 0);
 
@@ -147,6 +164,7 @@ export async function createInvoiceFromJobForBusiness({
       notes: linkedQuote?.notes ?? null,
       terms: linkedQuote?.terms ?? null,
       issuedAt: now,
+      dueAt,
       createdAt: now,
       updatedAt: now,
     });
@@ -179,10 +197,13 @@ export async function createInvoiceFromQuoteForBusiness({
   businessId,
   quoteId,
   userId: _userId,
+  dueOffsetDays,
 }: {
   businessId: string;
   quoteId: string;
   userId: string;
+  /** Days from creation to mark the invoice due. Defaults to 14. */
+  dueOffsetDays?: number;
 }) {
   return db.transaction(async (tx) => {
     const [quote] = await tx
@@ -260,6 +281,7 @@ export async function createInvoiceFromQuoteForBusiness({
     const invoiceNumber = getNextInvoiceNumberFromSequence(maxInvoice?.maxNum);
     const invoiceId = createId("inv");
     const now = new Date();
+    const dueAt = computeDueAt(now, dueOffsetDays);
 
     await tx.insert(invoices).values({
       id: invoiceId,
@@ -282,6 +304,7 @@ export async function createInvoiceFromQuoteForBusiness({
       taxLabel: quote.taxLabel,
       totalInCents: quote.totalInCents,
       issuedAt: now,
+      dueAt,
       createdAt: now,
       updatedAt: now,
     });
@@ -309,6 +332,12 @@ export async function createInvoiceFromQuoteForBusiness({
 
 /**
  * Update invoice status (send, mark paid, void, etc.)
+ *
+ * Only writes and emits when the status actually changes. Without this
+ * guard, calling the action twice (e.g. once via the email-send flow that
+ * already flips status to `sent`, again via a manual UI status update)
+ * would re-emit `invoice.sent`/`invoice.paid` automation events and
+ * double-trigger any downstream rules.
  */
 export async function updateInvoiceStatusForBusiness({
   businessId,
@@ -322,6 +351,38 @@ export async function updateInvoiceStatusForBusiness({
   userId: string;
 }) {
   const now = new Date();
+
+  // Read current state first so we can detect no-op transitions before
+  // writing or emitting events.
+  const [existing] = await db
+    .select({
+      id: invoices.id,
+      status: invoices.status,
+      jobId: invoices.jobId,
+      totalInCents: invoices.totalInCents,
+      customerEmail: invoices.customerEmail,
+    })
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.id, invoiceId),
+        eq(invoices.businessId, businessId),
+        isNull(invoices.deletedAt),
+      ),
+    )
+    .limit(1);
+
+  if (!existing) {
+    return { error: "Invoice not found." };
+  }
+
+  if (existing.status === status) {
+    // Already at target status — skip the write and the event so we don't
+    // double-emit invoice.sent / invoice.paid for callers that race or
+    // retry. Treat as a successful no-op.
+    return { invoiceId: existing.id, changed: false };
+  }
+
   const updates: Record<string, unknown> = { status, updatedAt: now };
 
   switch (status) {

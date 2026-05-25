@@ -280,6 +280,70 @@ export async function syncExpiredQuotesForBusiness(businessId: string) {
   return count;
 }
 
+/**
+ * Sweep all sent quotes whose validity date has passed across every business.
+ *
+ * Called from the daily cron to keep automation triggers (`quote.expired`)
+ * firing on time even when nobody opens the quote list. The per-business
+ * helper still runs on read paths as a fast secondary reconciliation.
+ *
+ * Processed in batches to keep transactions bounded; iterates until no rows
+ * remain so a one-off backlog after a cron outage still drains.
+ */
+export async function syncExpiredQuotesGlobal({
+  batchSize = 200,
+  maxBatches = 50,
+}: {
+  batchSize?: number;
+  maxBatches?: number;
+} = {}) {
+  const today = getTodayUtcDateString();
+  let totalExpired = 0;
+  let batches = 0;
+
+  while (batches < maxBatches) {
+    const rows = await db
+      .select({
+        id: quotes.id,
+        businessId: quotes.businessId,
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+      })
+      .from(quotes)
+      .where(
+        and(
+          eq(quotes.status, "sent"),
+          isNull(quotes.deletedAt),
+          lt(quotes.validUntil, today),
+        ),
+      )
+      .limit(batchSize);
+
+    if (rows.length === 0) {
+      break;
+    }
+
+    await db.transaction((tx) => expireQuoteRows(tx, rows));
+
+    const expiredAt = new Date().toISOString();
+    for (const row of rows) {
+      emitEvent(row.businessId, "quote.expired", {
+        quoteId: row.id,
+        expiredAt,
+      });
+    }
+
+    totalExpired += rows.length;
+    batches += 1;
+
+    if (rows.length < batchSize) {
+      break;
+    }
+  }
+
+  return { expired: totalExpired, batches };
+}
+
 export async function syncExpiredQuoteForPublicToken(token: string) {
   const today = getTodayUtcDateString();
   const rows = await db
@@ -337,7 +401,7 @@ export async function createQuoteForBusiness({
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
-      return await db.transaction(async (tx) => {
+      const created = await db.transaction(async (tx) => {
         const [business] = await tx
           .select({
             businessId: businesses.id,
@@ -453,6 +517,18 @@ export async function createQuoteForBusiness({
           quoteNumber,
         };
       });
+
+      if (created) {
+        // Emit automation event after the transaction commits so subscribers
+        // see consistent state. emitEvent itself is non-blocking via after().
+        emitEvent(businessId, "quote.created", {
+          quoteId: created.id,
+          inquiryId: inquiryId ?? "",
+          amount: totals.totalInCents,
+        });
+      }
+
+      return created;
     } catch (error) {
       if (attempt < 4 && isRetryableUniqueConflict(error)) {
         continue;
