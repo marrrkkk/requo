@@ -44,11 +44,10 @@ export function getUnifiedSettingsNavigation(
         { href: `/${slug}/settings/general`, label: "General", icon: "building" },
         { href: `/${slug}/settings/members`, label: "Members", icon: "users" },
         {
-          href: `/${slug}/settings/plans`,
-          label: "Plans",
-          icon: "credit-card",
+          href: `/${slug}/settings/billing`,
+          label: "Billing",
+          icon: "receipt",
         },
-        { href: `/${slug}/settings/billing`, label: "Billing", icon: "receipt" },
         {
           href: `/${slug}/settings/quote`,
           label: "Quote defaults",
@@ -60,11 +59,6 @@ export function getUnifiedSettingsNavigation(
           href: `/${slug}/settings/knowledge`,
           label: "Knowledge",
           icon: "book",
-        },
-        {
-          href: `/${slug}/settings/integrations`,
-          label: "Integrations",
-          icon: "plug",
         },
         {
           href: `/${slug}/settings/audit-log`,

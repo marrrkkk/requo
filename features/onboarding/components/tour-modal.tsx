@@ -5,9 +5,14 @@ import {
   ArrowRight,
   BarChart3,
   BellRing,
+  ClipboardList,
   FileText,
+  FormInput,
   Home,
   Inbox,
+  Receipt,
+  Sparkles,
+  Workflow,
   type LucideIcon,
 } from "lucide-react";
 
@@ -38,36 +43,55 @@ type TourModalProps = {
   onComplete: () => Promise<void>;
   /** localStorage key for client-side dismissal. */
   storageKey?: string;
+  /** When true, never auto-open (server says tour already completed). */
+  completed?: boolean;
+  /** Bump to force-open for dev preview (ignores localStorage once). */
+  replayToken?: number;
 };
 
 /* -------------------------------------------------------------------------- */
 /*  Tour Modal                                                                */
 /* -------------------------------------------------------------------------- */
 
-export function TourModal({ show, steps, onComplete, storageKey }: TourModalProps) {
+export function TourModal({
+  show,
+  steps,
+  onComplete,
+  storageKey,
+  completed = false,
+  replayToken = 0,
+}: TourModalProps) {
   const [open, setOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    if (!show) return;
+    if (!show || completed) {
+      return;
+    }
 
     // Skip on mobile viewports
     const mq = window.matchMedia("(min-width: 768px)");
-    if (!mq.matches) return;
+    if (!mq.matches) {
+      return;
+    }
 
-    // Skip if already completed for this storageKey
-    if (storageKey) {
+    const isReplay = replayToken > 0;
+
+    if (!isReplay && storageKey) {
       try {
-        if (localStorage.getItem(storageKey)) return;
+        if (localStorage.getItem(storageKey)) {
+          return;
+        }
       } catch {
         // localStorage unavailable — show tour anyway
       }
     }
 
+    setCurrentStep(0);
     const timer = window.setTimeout(() => setOpen(true), 600);
     return () => window.clearTimeout(timer);
-  }, [show, storageKey]);
+  }, [show, completed, storageKey, replayToken]);
 
   const completeTour = useCallback(() => {
     setOpen(false);
@@ -208,6 +232,10 @@ function PreviewSidebar({ highlight }: { highlight?: string }) {
     { icon: Inbox, label: "Inquiries" },
     { icon: FileText, label: "Quotes" },
     { icon: BellRing, label: "Follow-ups" },
+    { icon: ClipboardList, label: "Jobs" },
+    { icon: Receipt, label: "Invoices" },
+    { icon: Workflow, label: "Automations" },
+    { icon: FormInput, label: "Forms" },
     { icon: BarChart3, label: "Analytics" },
   ];
 
@@ -269,11 +297,21 @@ function PreviewAttentionRow({
 /*  Exported preview scenes                                                   */
 /* -------------------------------------------------------------------------- */
 
-export function BusinessSwitcherPreview() {
+export function HomeOverviewPreview() {
   return (
     <div className="flex gap-3">
       <PreviewSidebar highlight="Home" />
       <div className="flex flex-1 flex-col gap-2">
+        <div className="rounded-lg border border-border/50 bg-background p-2.5">
+          <p className="text-[11px] font-semibold text-foreground">Welcome back, Alex</p>
+          <p className="text-[10px] text-muted-foreground">3 items need attention today.</p>
+          <div className="mt-2 flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-2.5 py-2">
+            <Sparkles className="size-3.5 shrink-0 text-primary" />
+            <span className="text-[10px] text-muted-foreground">
+              Ask Requo to draft a follow-up or summarize an inquiry…
+            </span>
+          </div>
+        </div>
         <div className="rounded-lg border border-border/50 bg-background p-3">
           <p className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground">NEEDS ATTENTION</p>
           <p className="mt-0.5 text-[9px] text-muted-foreground">Quotes and inquiries waiting on the next step.</p>
@@ -296,6 +334,9 @@ export function BusinessSwitcherPreview() {
     </div>
   );
 }
+
+/** @deprecated Use {@link HomeOverviewPreview} */
+export const BusinessSwitcherPreview = HomeOverviewPreview;
 
 export function InquiriesPreview() {
   return (
@@ -432,6 +473,132 @@ export function FollowUpsPreview() {
                 <p className="truncate text-[10px] text-muted-foreground">Leo Park · Accepted</p>
               </div>
               <span className="text-[9px] text-muted-foreground">In 3 days</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function JobsPreview() {
+  return (
+    <div className="flex gap-3">
+      <PreviewSidebar highlight="Jobs" />
+      <div className="flex flex-1 flex-col gap-2">
+        <div className="rounded-lg border border-border/50 bg-background p-3">
+          <p className="text-[11px] font-medium text-foreground">Jobs</p>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">
+            Turn accepted quotes into work you can track.
+          </p>
+          <div className="mt-2 flex flex-col divide-y divide-border/50">
+            <div className="flex items-center gap-2.5 py-2">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                <ClipboardList className="size-3 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[11px] font-semibold text-foreground">Kitchen remodel</p>
+                <p className="truncate text-[10px] text-muted-foreground">Sarah Jenkins · In progress</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5 py-2">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted">
+                <ClipboardList className="size-3 text-muted-foreground" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[11px] font-semibold text-foreground">Tile repair</p>
+                <p className="truncate text-[10px] text-muted-foreground">Leo Park · Scheduled</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function InvoicesPreview() {
+  return (
+    <div className="flex gap-3">
+      <PreviewSidebar highlight="Invoices" />
+      <div className="flex flex-1 flex-col gap-2">
+        <div className="rounded-lg border border-border/50 bg-background p-3">
+          <p className="text-[11px] font-medium text-foreground">Invoices</p>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">
+            Bill for completed work and track payment status.
+          </p>
+          <div className="mt-2 flex flex-col divide-y divide-border/50">
+            <div className="flex items-center gap-2.5 py-2">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                <Receipt className="size-3 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[11px] font-semibold text-foreground">INV-1048</p>
+                <p className="truncate text-[10px] text-muted-foreground">Studio fit-out · $12,200</p>
+              </div>
+              <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[8px] font-medium text-primary">Sent</span>
+            </div>
+            <div className="flex items-center gap-2.5 py-2">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted">
+                <Receipt className="size-3 text-muted-foreground" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[11px] font-semibold text-foreground">INV-1042</p>
+                <p className="truncate text-[10px] text-muted-foreground">Tile repair · $1,350</p>
+              </div>
+              <span className="rounded-full border border-border/60 bg-muted/50 px-1.5 py-0.5 text-[8px] font-medium text-muted-foreground">Paid</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AutomationsPreview() {
+  return (
+    <div className="flex gap-3">
+      <PreviewSidebar highlight="Automations" />
+      <div className="flex flex-1 flex-col gap-2">
+        <div className="rounded-lg border border-border/50 bg-background p-3">
+          <p className="text-[11px] font-medium text-foreground">Automations</p>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">
+            Event-driven rules that run your follow-ups for you.
+          </p>
+          <div className="mt-2 flex flex-col gap-1.5">
+            <div className="rounded-md border border-border/50 px-2.5 py-2">
+              <p className="text-[10px] font-medium text-foreground">Quote viewed → follow up in 3 days</p>
+              <p className="text-[9px] text-muted-foreground">Runs when a customer opens the link</p>
+            </div>
+            <div className="rounded-md border border-border/50 px-2.5 py-2">
+              <p className="text-[10px] font-medium text-foreground">Quote accepted → create job</p>
+              <p className="text-[9px] text-muted-foreground">Keeps delivery moving without manual steps</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function FormsPreview() {
+  return (
+    <div className="flex gap-3">
+      <PreviewSidebar highlight="Forms" />
+      <div className="flex flex-1 flex-col gap-2">
+        <div className="rounded-lg border border-border/50 bg-background p-3">
+          <p className="text-[11px] font-medium text-foreground">Inquiry forms</p>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">
+            Customize fields, publish your page, and share one link.
+          </p>
+          <div className="mt-2 space-y-1.5">
+            <div className="flex items-center justify-between rounded-md border border-border/50 px-2.5 py-2">
+              <span className="text-[10px] font-medium text-foreground">Project request</span>
+              <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[8px] font-medium text-primary">Live</span>
+            </div>
+            <div className="flex items-center justify-between rounded-md border border-border/50 px-2.5 py-2">
+              <span className="text-[10px] font-medium text-foreground">Quick quote</span>
+              <span className="rounded-full border border-border/60 px-1.5 py-0.5 text-[8px] text-muted-foreground">Draft</span>
             </div>
           </div>
         </div>

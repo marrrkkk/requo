@@ -268,17 +268,17 @@ export function BusinessInquiryFormEditorTabs({
           forceMount
           value="publishing"
         >
-          <section className="flex flex-col gap-6 sm:gap-7">
-            <div className="flex flex-col gap-1.5">
-              <h2 className="font-heading text-lg font-semibold tracking-tight text-foreground">
+          <section className="flex flex-col gap-4">
+            <div>
+              <h2 className="font-heading text-base font-semibold tracking-tight text-foreground">
                 Publishing
               </h2>
-              <p className="text-sm leading-6 text-muted-foreground">
-                Control who sees this form, reset it, or remove it when you&rsquo;re done.
+              <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                Visibility, defaults, and lifecycle for this form.
               </p>
             </div>
 
-            <div className="grid gap-5 md:grid-cols-2 md:items-start">
+            <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
               <BusinessInquiryFormManageCard
                 duplicateAction={duplicateAction}
                 formId={settings.formId}
@@ -294,8 +294,7 @@ export function BusinessInquiryFormEditorTabs({
               />
             </div>
 
-            <div className="border-t border-border/70 pt-6">
-              <BusinessInquiryFormDangerZone
+            <BusinessInquiryFormDangerZone
                 activeFormCount={settings.activeFormCount}
                 archiveAction={archiveAction}
                 deleteAction={deleteAction}
@@ -304,7 +303,6 @@ export function BusinessInquiryFormEditorTabs({
                 isDefault={settings.isDefault}
                 submittedInquiryCount={settings.submittedInquiryCount}
               />
-            </div>
           </section>
         </TabsContent>
       </div>

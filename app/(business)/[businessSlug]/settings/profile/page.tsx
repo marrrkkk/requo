@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { connection } from "next/server";
 
+import { PageHeader } from "@/components/shared/page-header";
 import { DashboardSettingsProfileSkeleton } from "@/components/shell/dashboard-settings-skeleton";
 import { updateAccountProfileAction } from "@/features/account/actions";
 import { ProfileSettingsForm } from "@/features/account/components/profile-settings-form";
@@ -23,9 +24,16 @@ export const unstable_instant = {
 
 export default function SettingsProfilePage() {
   return (
-    <Suspense fallback={<DashboardSettingsProfileSkeleton />}>
-      <SettingsProfileContent />
-    </Suspense>
+    <>
+      <PageHeader
+        eyebrow="Settings"
+        title="Profile"
+        description="Update your personal details shown across your account."
+      />
+      <Suspense fallback={<DashboardSettingsProfileSkeleton />}>
+        <SettingsProfileContent />
+      </Suspense>
+    </>
   );
 }
 
