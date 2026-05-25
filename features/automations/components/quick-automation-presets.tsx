@@ -122,6 +122,7 @@ const presets: AutomationPreset[] = [
 type QuickAutomationPresetsProps = {
   existingTriggerTypes: string[];
   disabled?: boolean;
+  businessSlug: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -131,6 +132,7 @@ type QuickAutomationPresetsProps = {
 export function QuickAutomationPresets({
   existingTriggerTypes,
   disabled,
+  businessSlug,
 }: QuickAutomationPresetsProps) {
   return (
     <DashboardSection
@@ -144,6 +146,7 @@ export function QuickAutomationPresets({
             preset={preset}
             alreadyExists={existingTriggerTypes.includes(preset.triggerType)}
             disabled={disabled}
+            businessSlug={businessSlug}
           />
         ))}
       </div>
@@ -159,16 +162,18 @@ function PresetCard({
   preset,
   alreadyExists,
   disabled,
+  businessSlug,
 }: {
   preset: AutomationPreset;
   alreadyExists: boolean;
   disabled?: boolean;
+  businessSlug: string;
 }) {
   const [isPending, startTransition] = useTransition();
 
   function handleEnable() {
     startTransition(async () => {
-      await createAutomation({
+      const result = await createAutomation({
         name: preset.name,
         triggerType: preset.triggerType,
         actions: preset.actions,
@@ -176,6 +181,9 @@ function PresetCard({
         enabled: true,
         priority: 0,
       });
+      if (result.id) {
+        window.location.href = `/${businessSlug}/automations?id=${result.id}`;
+      }
     });
   }
 

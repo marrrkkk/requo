@@ -9,6 +9,7 @@ import {
   Copy,
   Pencil,
   Trash2,
+  GitBranch,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -119,7 +120,7 @@ export function AutomationList({
       >
         <div className="divide-y divide-border/70 overflow-hidden rounded-xl border border-border/70">
           {automations.map((automation) => (
-            <AutomationRow key={automation.id} automation={automation} />
+            <AutomationRow key={automation.id} automation={automation} businessSlug={businessSlug} />
           ))}
         </div>
       </DashboardSection>
@@ -131,7 +132,7 @@ export function AutomationList({
 // Automation Row
 // ---------------------------------------------------------------------------
 
-function AutomationRow({ automation }: { automation: AutomationListItem }) {
+function AutomationRow({ automation, businessSlug }: { automation: AutomationListItem; businessSlug: string }) {
   const [optimisticEnabled, setOptimisticEnabled] = useOptimistic(
     automation.enabled,
   );
@@ -206,6 +207,12 @@ function AutomationRow({ automation }: { automation: AutomationListItem }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link href={`/${businessSlug}/automations/${automation.id}/builder`}>
+                <GitBranch className="size-4" />
+                Open builder
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={handleDuplicate}>
               <Copy className="size-4" />
               Duplicate
