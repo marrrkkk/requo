@@ -43,6 +43,7 @@ export function AnalyticsMetricCard({
   tooltip,
   icon: Icon,
   delta,
+  sparkline,
 }: {
   title: string;
   value: string;
@@ -50,6 +51,7 @@ export function AnalyticsMetricCard({
   tooltip?: string;
   icon: LucideIcon;
   delta?: { label: string; direction: PeriodDeltaDirection; inverted?: boolean } | null;
+  sparkline?: React.ReactNode;
 }) {
   return (
     <Card className="h-full border-border/75 bg-card/97" size="sm">
@@ -78,6 +80,7 @@ export function AnalyticsMetricCard({
             <Icon className="size-4 shrink-0" />
           </div>
         </div>
+        {sparkline ? <div className="mt-3">{sparkline}</div> : null}
       </CardContent>
     </Card>
   );

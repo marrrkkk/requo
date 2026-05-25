@@ -6,6 +6,21 @@ import type { PublicAnalyticsEventInput } from "@/features/analytics/schemas";
 
 const publicAnalyticsEndpoint = "/api/public/analytics";
 
+function getTrackingMetadata() {
+  const referrer = document.referrer || undefined;
+
+  const params = new URLSearchParams(window.location.search);
+  const utmSource = params.get("utm_source") || undefined;
+  const utmMedium = params.get("utm_medium") || undefined;
+  const utmCampaign = params.get("utm_campaign") || undefined;
+
+  if (!referrer && !utmSource && !utmMedium && !utmCampaign) {
+    return undefined;
+  }
+
+  return { referrer, utmSource, utmMedium, utmCampaign };
+}
+
 function trackPublicAnalyticsEvent(payload: PublicAnalyticsEventInput) {
   const body = JSON.stringify(payload);
 
@@ -46,6 +61,7 @@ export function PublicInquiryFormViewTracker({
       eventType: "inquiry_form_viewed",
       businessId,
       businessInquiryFormId,
+      metadata: getTrackingMetadata(),
     });
   }, [businessId, businessInquiryFormId]);
 
@@ -64,6 +80,7 @@ export function PublicQuoteViewTracker({
       eventType: "quote_public_viewed",
       businessId,
       quoteId,
+      metadata: getTrackingMetadata(),
     });
   }, [businessId, quoteId]);
 

@@ -1,7 +1,6 @@
 import {
   AlertTriangle,
   Banknote,
-  Bot,
   CalendarCheck,
   Clock,
   Hourglass,
@@ -18,20 +17,35 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AISummaryCard } from "@/features/analytics/components/ai-summary-card";
 import { AnalyticsMetricCard } from "@/features/analytics/components/analytics-metric-card";
-import type { BusinessAnalyticsData } from "@/features/analytics/types";
+import { CohortAnalysisSection } from "@/features/analytics/components/cohort-analysis-section";
+import { DrillDownLink } from "@/features/analytics/components/drill-down-link";
+import type { BusinessAnalyticsData, CohortRow } from "@/features/analytics/types";
 import { formatDuration, formatMoney, formatPercent } from "@/features/analytics/utils";
+import {
+  getBusinessInquiriesPath,
+  getBusinessQuotesPath,
+} from "@/features/businesses/routes";
 
 export function AnalyticsBusinessPanel({
   data,
   currency,
+  aiSummary,
+  businessSlug,
+  cohorts,
 }: {
   data: BusinessAnalyticsData;
   currency: string;
+  aiSummary?: string | null;
+  businessSlug?: string;
+  cohorts?: CohortRow[];
 }) {
-  const { timing, alerts, followUps: fu, revenue, ai } = data;
+  const { timing, alerts, followUps: fu, revenue } = data;
   const hasFollowUps = fu.created > 0;
-  const hasAi = ai.totalInvocations > 0;
+  const hasDrillDown = !!businessSlug;
+  const inquiriesPath = businessSlug ? getBusinessInquiriesPath(businessSlug) : "";
+  const quotesPath = businessSlug ? getBusinessQuotesPath(businessSlug) : "";
 
   return (
     <div className="flex flex-col gap-6">
@@ -75,18 +89,28 @@ export function AnalyticsBusinessPanel({
           </CardHeader>
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2">
-              <AnalyticsMetricCard
-                icon={Inbox}
-                title="Stale inquiries"
-                value={`${alerts.staleInquiryCount}`}
-                description="No response for 48+ hours"
-              />
-              <AnalyticsMetricCard
-                icon={AlertTriangle}
-                title="Pending quotes"
-                value={`${alerts.pendingQuotesOverSevenDays}`}
-                description="Sent 7+ days ago, no response"
-              />
+              <DrillDownLink
+                href={hasDrillDown ? `${inquiriesPath}?status=stale` : ""}
+                enabled={hasDrillDown}
+              >
+                <AnalyticsMetricCard
+                  icon={Inbox}
+                  title="Stale inquiries"
+                  value={`${alerts.staleInquiryCount}`}
+                  description="No response for 48+ hours"
+                />
+              </DrillDownLink>
+              <DrillDownLink
+                href={hasDrillDown ? `${quotesPath}?status=pending` : ""}
+                enabled={hasDrillDown}
+              >
+                <AnalyticsMetricCard
+                  icon={AlertTriangle}
+                  title="Pending quotes"
+                  value={`${alerts.pendingQuotesOverSevenDays}`}
+                  description="Sent 7+ days ago, no response"
+                />
+              </DrillDownLink>
             </div>
           </CardContent>
         </Card>
@@ -138,12 +162,17 @@ export function AnalyticsBusinessPanel({
                 value={fu.avgDaysToComplete !== null ? `${fu.avgDaysToComplete}d` : "—"}
               />
               {fu.overdue > 0 ? (
-                <AnalyticsMetricCard
-                  icon={AlertTriangle}
-                  title="Overdue"
-                  value={`${fu.overdue}`}
-                  description="Past due date"
-                />
+                <DrillDownLink
+                  href={hasDrillDown ? `/${businessSlug}/follow-ups?status=overdue` : ""}
+                  enabled={hasDrillDown}
+                >
+                  <AnalyticsMetricCard
+                    icon={AlertTriangle}
+                    title="Overdue"
+                    value={`${fu.overdue}`}
+                    description="Past due date"
+                  />
+                </DrillDownLink>
               ) : null}
               {fu.skipped > 0 ? (
                 <AnalyticsMetricCard
@@ -161,34 +190,11 @@ export function AnalyticsBusinessPanel({
         </CardContent>
       </Card>
 
-      {/* AI usage */}
-      {hasAi ? (
-        <Card className="gap-0 bg-background/72">
-          <CardHeader className="gap-2">
-            <CardTitle>AI usage</CardTitle>
-            <CardDescription>Assistant activity (last 30 days).</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <AnalyticsMetricCard
-                icon={Bot}
-                title="Invocations"
-                value={`${ai.totalInvocations}`}
-              />
-              <AnalyticsMetricCard
-                icon={Bot}
-                title="Tokens"
-                value={`${(ai.totalTokens / 1000).toFixed(1)}k`}
-              />
-              <AnalyticsMetricCard
-                icon={Bot}
-                title="Est. cost"
-                value={formatMoney(ai.estimatedCostCents)}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
+      {/* AI Insight */}
+      <AISummaryCard summary={aiSummary ?? null} />
+
+      {/* Cohort Analysis */}
+      {cohorts ? <CohortAnalysisSection cohorts={cohorts} /> : null}
     </div>
   );
 }

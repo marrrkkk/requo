@@ -3,7 +3,6 @@ import { PremiumContentBlur } from "@/features/paywall";
 import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { getFreeAnalytics, getProAnalytics } from "@/features/analytics/queries";
 import { hasFeatureAccess } from "@/lib/plans";
-import { Skeleton } from "@/components/ui/skeleton";
 import type { BusinessPlan } from "@/lib/plans/plans";
 
 type Props = {
@@ -12,19 +11,6 @@ type Props = {
   plan: BusinessPlan;
 };
 
-function ProPlaceholder() {
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-28 rounded-xl" />
-        ))}
-      </div>
-      <Skeleton className="h-[280px] rounded-xl" />
-    </div>
-  );
-}
-
 export async function AnalyticsProSection({ businessId, businessSlug, plan }: Props) {
   if (!hasFeatureAccess(plan, "analyticsConversion")) {
     const billingOverview = await getBusinessBillingOverview(businessId);
@@ -32,7 +18,6 @@ export async function AnalyticsProSection({ businessId, businessSlug, plan }: Pr
       <PremiumContentBlur
         feature="analyticsConversion"
         plan={plan}
-        placeholder={<ProPlaceholder />}
         upgradeAction={
           billingOverview
             ? {
