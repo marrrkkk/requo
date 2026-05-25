@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import {
   ResponsiveOverlay,
+  ResponsiveOverlayBody,
   ResponsiveOverlayClose,
   ResponsiveOverlayContent,
   ResponsiveOverlayDescription,
@@ -136,15 +137,15 @@ export function CreateFollowUpButton({
           Create follow-up
         </Button>
       </ResponsiveOverlayTrigger>
-      <ResponsiveOverlayContent className="sm:max-w-lg">
+      <ResponsiveOverlayContent className="sm:max-w-lg flex flex-col">
         <ResponsiveOverlayHeader>
           <ResponsiveOverlayTitle>Create follow-up</ResponsiveOverlayTitle>
           <ResponsiveOverlayDescription>
             Pick an inquiry or quote and set a follow-up reminder.
           </ResponsiveOverlayDescription>
         </ResponsiveOverlayHeader>
-        <form action={formAction}>
-          <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+        <form action={formAction} className="flex min-h-0 flex-1 flex-col">
+          <ResponsiveOverlayBody>
             <FieldGroup>
               {records.length > 0 && (
                 <Field>
@@ -188,7 +189,7 @@ export function CreateFollowUpButton({
                     onChange={(event) => setReason(event.currentTarget.value)}
                     placeholder="Why does this need a follow-up?"
                     required
-                    rows={3}
+                    rows={2}
                     value={reason}
                   />
                 </FieldContent>
@@ -290,7 +291,7 @@ export function CreateFollowUpButton({
                 )}
               </div>
             </FieldGroup>
-          </div>
+          </ResponsiveOverlayBody>
           <ResponsiveOverlayFooter>
             <ResponsiveOverlayClose asChild>
               <Button disabled={isPending} type="button" variant="ghost">

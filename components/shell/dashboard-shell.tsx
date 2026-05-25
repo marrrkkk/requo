@@ -490,7 +490,9 @@ export function DashboardShell({
 
             <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
 
-              <Button asChild variant="ghost" size="icon-sm" className="size-8 shrink-0">
+              <SidebarTrigger className="size-8 shrink-0 lg:hidden" />
+
+              <Button asChild variant="ghost" size="icon-sm" className="hidden size-8 shrink-0 md:inline-flex">
 
                 <Link href={getBusinessDashboardPath(business.slug)} aria-label="Home">
 

@@ -151,7 +151,7 @@ export async function POST(request: Request) {
     visitorHash,
   });
 
-  await recordQuotePublicViewAt(parsedBody.data.quoteId);
+  await recordQuotePublicViewAt(parsedBody.data.quoteId, parsedBody.data.businessId);
 
   return NextResponse.json(
     {

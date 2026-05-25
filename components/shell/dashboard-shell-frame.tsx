@@ -177,7 +177,8 @@ export function DashboardShellFrame({
           <DesktopSidebarTrigger />
           <div className="dashboard-topbar-inner min-w-0 flex-1">
             <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
-              <Button asChild variant="ghost" size="icon-sm" className="size-8 shrink-0">
+              <SidebarTrigger className="size-8 shrink-0 lg:hidden" />
+              <Button asChild variant="ghost" size="icon-sm" className="hidden size-8 shrink-0 lg:inline-flex">
                 <Link href={dashboardPath} aria-label="Home">
                   <HomeIcon className="size-4" />
                 </Link>
@@ -187,9 +188,6 @@ export function DashboardShellFrame({
                 className="hidden h-3.5 w-px shrink-0 self-center bg-border md:block"
               />
               <div className="min-w-0 flex-1 md:hidden">
-                <p className="truncate font-heading text-sm font-semibold tracking-tight text-foreground">
-                  {currentPageLabel}
-                </p>
               </div>
               <div className="hidden min-w-0 flex-1 md:block">
                 <Breadcrumb>

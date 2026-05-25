@@ -2,14 +2,12 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
   BellRing,
-  BookOpen,
   ClipboardList,
   FormInput,
   FileText,
   Home,
   Inbox,
   Receipt,
-  Sparkles,
 } from "lucide-react";
 
 
@@ -20,7 +18,6 @@ import {
 } from "@/lib/business-members";
 import {
   getBusinessAnalyticsPath,
-  getBusinessChatNewPath,
   getBusinessChatPath,
   getBusinessDashboardPath,
   getBusinessDashboardSlugFromPathname,
@@ -29,7 +26,6 @@ import {
   getBusinessInquiriesPath,
   getBusinessInvoicesPath,
   getBusinessJobsPath,
-  getBusinessKnowledgeCompatibilityPath,
   getBusinessMembersPath,
   getBusinessNewInquiryPath,
   getBusinessQuotesPath,
@@ -56,7 +52,7 @@ export function getDashboardNavigation(
     {
       href: getBusinessDashboardPath(slug),
       label: "Home",
-      description: "Your home base: see what needs attention and ask AI anything.",
+      description: "Your home base: see what needs attention.",
       icon: Home,
     },
     {
@@ -77,26 +73,6 @@ export function getDashboardNavigation(
       description: "See who needs contact next and when.",
       icon: BellRing,
     },
-    ...(canViewBusinessAnalytics(role)
-      ? [
-          {
-            href: getBusinessAnalyticsPath(slug),
-            label: "Analytics",
-            description: "Track form performance, quote outcomes, and workflow timing.",
-            icon: BarChart3,
-          },
-        ]
-      : []),
-    ...(canManageOperationalBusinessSettings(role)
-      ? [
-          {
-            href: getBusinessFormsPath(slug),
-            label: "Forms",
-            description: "Manage inquiry forms, public pages, and live intake flows.",
-            icon: FormInput,
-          },
-        ]
-      : []),
     {
       href: getBusinessJobsPath(slug),
       label: "Jobs",
@@ -109,18 +85,26 @@ export function getDashboardNavigation(
       description: "Generate, send, and track payment for completed work.",
       icon: Receipt,
     },
-    {
-      href: getBusinessKnowledgeCompatibilityPath(slug),
-      label: "Knowledge",
-      description: "Manage business knowledge files and context for AI assistance.",
-      icon: BookOpen,
-    },
-    {
-      href: getBusinessChatNewPath(slug),
-      label: "Chat",
-      description: "Ask questions about your business data and get insights.",
-      icon: Sparkles,
-    },
+    ...(canManageOperationalBusinessSettings(role)
+      ? [
+          {
+            href: getBusinessFormsPath(slug),
+            label: "Forms",
+            description: "Manage inquiry forms, public pages, and live intake flows.",
+            icon: FormInput,
+          },
+        ]
+      : []),
+    ...(canViewBusinessAnalytics(role)
+      ? [
+          {
+            href: getBusinessAnalyticsPath(slug),
+            label: "Analytics",
+            description: "Track form performance, quote outcomes, and workflow timing.",
+            icon: BarChart3,
+          },
+        ]
+      : []),
   ];
 }
 
