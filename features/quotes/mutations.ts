@@ -3,6 +3,7 @@ import "server-only";
 import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 
 import { writeAuditLog } from "@/features/audit/mutations";
+import { emitEvent } from "@/features/automations/dispatcher";
 import { db } from "@/lib/db/client";
 import {
   activityLogs,
@@ -266,7 +267,17 @@ export async function syncExpiredQuotesForBusiness(businessId: string) {
     return 0;
   }
 
-  return db.transaction((tx) => expireQuoteRows(tx, rows));
+  const count = await db.transaction((tx) => expireQuoteRows(tx, rows));
+
+  // Emit quote.expired events after successful transaction
+  for (const row of rows) {
+    emitEvent(row.businessId, "quote.expired", {
+      quoteId: row.id,
+      expiredAt: new Date().toISOString(),
+    });
+  }
+
+  return count;
 }
 
 export async function syncExpiredQuoteForPublicToken(token: string) {
@@ -293,7 +304,17 @@ export async function syncExpiredQuoteForPublicToken(token: string) {
     return 0;
   }
 
-  return db.transaction((tx) => expireQuoteRows(tx, rows));
+  const count = await db.transaction((tx) => expireQuoteRows(tx, rows));
+
+  // Emit quote.expired event after successful transaction
+  for (const row of rows) {
+    emitEvent(row.businessId, "quote.expired", {
+      quoteId: row.id,
+      expiredAt: new Date().toISOString(),
+    });
+  }
+
+  return count;
 }
 
 type CreateQuoteForBusinessInput = {
@@ -1094,7 +1115,7 @@ export async function logQuoteSendEvent({
   });
 }
 
-export async function recordQuotePublicViewAt(quoteId: string) {
+export async function recordQuotePublicViewAt(quoteId: string, businessId?: string) {
   const now = new Date();
 
   await db
@@ -1110,6 +1131,14 @@ export async function recordQuotePublicViewAt(quoteId: string) {
         inArray(quotes.status, ["sent", "revision_requested", "accepted", "rejected", "expired", "voided"]),
       ),
     );
+
+  // Emit quote.viewed event if businessId is available
+  if (businessId) {
+    emitEvent(businessId, "quote.viewed", {
+      quoteId,
+      viewedAt: now.toISOString(),
+    });
+  }
 
   return now;
 }
@@ -1147,6 +1176,7 @@ export async function respondToPublicQuoteByToken({
         validUntil: quotes.validUntil,
         sentAt: quotes.sentAt,
         postAcceptanceStatus: quotes.postAcceptanceStatus,
+        totalInCents: quotes.totalInCents,
         notifyOnQuoteResponse: businesses.notifyOnQuoteResponse,
         notifyInAppOnQuoteResponse: businesses.notifyInAppOnQuoteResponse,
         notifyPushOnQuoteResponse: businesses.notifyPushOnQuoteResponse,
@@ -1305,6 +1335,7 @@ export async function respondToPublicQuoteByToken({
       quoteNumber: existingQuote.quoteNumber,
       status: nextStatus,
       title: existingQuote.title,
+      totalInCents: existingQuote.totalInCents,
       updatedAt: now,
     };
   });

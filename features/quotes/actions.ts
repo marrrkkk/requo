@@ -4,6 +4,7 @@ import { revalidateTag, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
+import { emitEvent } from "@/features/automations/dispatcher";
 import {
   getValidationActionState,
 } from "@/lib/action-state";
@@ -606,6 +607,13 @@ export async function sendQuoteAction(
       };
     }
 
+    // Emit quote.sent automation event
+    emitEvent(businessContext.business.id, "quote.sent", {
+      quoteId,
+      sentAt: new Date().toISOString(),
+      recipientEmail: quote.customerEmail ?? "",
+    });
+
     // Enable auto follow-up if requested and sent via Requo email
     if (
       deliveryMethod === "requo" &&
@@ -894,6 +902,21 @@ export async function respondToPublicQuoteAction(
       return {
         error: "This quote is not accepting responses right now.",
       };
+    }
+
+    // Emit quote.accepted or quote.rejected automation event
+    if (result.status === "accepted") {
+      emitEvent(result.businessId, "quote.accepted", {
+        quoteId: result.quoteId,
+        acceptedAt: new Date().toISOString(),
+        amount: result.totalInCents ?? 0,
+      });
+    } else if (result.status === "rejected") {
+      emitEvent(result.businessId, "quote.rejected", {
+        quoteId: result.quoteId,
+        rejectedAt: new Date().toISOString(),
+        reason: result.customerResponseMessage ?? undefined,
+      });
     }
 
     if (result.notifyPushOnQuoteResponse &&
