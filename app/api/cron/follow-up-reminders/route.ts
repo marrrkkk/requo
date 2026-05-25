@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { and, eq, isNull, lte } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, lt, lte } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { businesses, followUps, inquiries, quotes } from "@/lib/db/schema";
+import { emitEvent } from "@/features/automations/dispatcher";
 import { insertBusinessNotification } from "@/features/notifications/mutations";
 import { sendEmailWithFallback } from "@/lib/email";
 import { env } from "@/lib/env";
@@ -107,6 +108,13 @@ export async function GET(request: Request) {
         }
       }
 
+      // Emit follow_up.due automation event
+      emitEvent(row.businessId, "follow_up.due", {
+        followUpId: row.followUpId,
+        quoteId: row.quoteId ?? undefined,
+        inquiryId: row.inquiryId ?? undefined,
+      });
+
       // Mark reminder as sent
       await db
         .update(followUps)
@@ -114,6 +122,42 @@ export async function GET(request: Request) {
         .where(eq(followUps.id, row.followUpId));
 
       processed++;
+    }
+
+    // -----------------------------------------------------------------------
+    // Overdue follow-ups: already reminded (reminderSentAt is set) but still
+    // pending past their due date. Emit follow_up.overdue for automations.
+    // -----------------------------------------------------------------------
+    const overdueFollowUps = await db
+      .select({
+        followUpId: followUps.id,
+        businessId: followUps.businessId,
+        dueAt: followUps.dueAt,
+        quoteId: followUps.quoteId,
+        inquiryId: followUps.inquiryId,
+      })
+      .from(followUps)
+      .where(
+        and(
+          eq(followUps.status, "pending"),
+          isNull(followUps.deletedAt),
+          isNotNull(followUps.reminderSentAt),
+          lt(followUps.dueAt, now),
+        ),
+      )
+      .limit(100);
+
+    for (const overdue of overdueFollowUps) {
+      const overdueBy = Math.floor(
+        (now.getTime() - overdue.dueAt.getTime()) / (1000 * 60 * 60 * 24),
+      );
+
+      if (overdueBy >= 1) {
+        emitEvent(overdue.businessId, "follow_up.overdue", {
+          followUpId: overdue.followUpId,
+          overdueBy,
+        });
+      }
     }
 
     return NextResponse.json({
