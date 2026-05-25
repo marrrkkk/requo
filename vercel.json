@@ -5,8 +5,36 @@
       "schedule": "0 8 * * *"
     },
     {
+      "path": "/api/cron/auto-follow-ups",
+      "schedule": "0 * * * *"
+    },
+    {
       "path": "/api/cron/automations",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/invoice-overdue",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/expire-quotes",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/expire-subscriptions",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/analytics-digest",
+      "schedule": "0 9 * * 1"
+    },
+    {
+      "path": "/api/cron/analytics-scheduled-reports",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/analytics-benchmarks",
+      "schedule": "0 3 1 * *"
     }
   ]
 }

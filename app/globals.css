@@ -28,6 +28,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -89,6 +90,7 @@
   --accent: #e5f5ee;
   --accent-foreground: #173128;
   --destructive: #c9372c;
+  --success: #059669;
   --border: #d6ddd8;
   --input: #d6ddd8;
   --ring: #1b9b79;
@@ -272,6 +274,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --accent: #e5f5ee;
   --accent-foreground: #173128;
   --destructive: #c9372c;
+  --success: #059669;
   --border: #d6ddd8;
   --input: #d6ddd8;
   --ring: #1b9b79;
@@ -293,6 +296,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --accent: #242424;
   --accent-foreground: #ededed;
   --destructive: #c9372c;
+  --success: #34d399;
   --border: rgb(255 255 255 / 0.07);
   --input: rgb(255 255 255 / 0.08);
   --ring: #1b9b79;
@@ -1131,6 +1135,19 @@ html[data-reload-loading="fade-out"] #app-root-content {
     .home-page-container {
       height: calc(100svh - 73px);
     }
+
+    .automations-builder-container {
+      height: calc(100svh - 73px);
+    }
+  }
+
+  /* Automations builder fills viewport without page scroll.
+     Cancels dashboard-main padding so the builder stretches edge-to-edge. */
+  .automations-builder-container {
+    @apply -mx-3 -mb-5 sm:-mx-6 sm:-mb-7 xl:-mx-8 xl:-mb-8;
+    @apply -mt-5 sm:-mt-7 xl:-mt-8;
+    @apply flex overflow-hidden;
+    height: calc(100svh - 65px);
   }
 
   .dashboard-main[data-archived] button:not([data-allow-archived]),

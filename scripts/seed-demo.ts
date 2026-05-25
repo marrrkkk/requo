@@ -992,6 +992,7 @@ async function createBusiness(
     businessId,
     userId: ownerUserId,
     role: "owner",
+    dashboardTourCompletedAt: daysAgo(44),
     createdAt,
     updatedAt: seedNow,
   });
@@ -2499,7 +2500,7 @@ async function main() {
 
     for (const business of account.businesses) {
       const dashboardUrl = new URL(
-        `/${business.slug}/dashboard`,
+        `/${business.slug}/home`,
         env.BETTER_AUTH_URL,
       ).toString();
 

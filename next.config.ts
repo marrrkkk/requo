@@ -76,6 +76,20 @@ const nextConfig: NextConfig = {
     },
     inlineCss: true,
   },
+  async redirects() {
+    return [
+      {
+        source: "/dashboard",
+        destination: "/home",
+        permanent: true,
+      },
+      {
+        source: "/:businessSlug/dashboard",
+        destination: "/:businessSlug/home",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

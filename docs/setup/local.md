@@ -180,12 +180,12 @@ npm run test:e2e:smoke
 
 Use one canonical route set in docs and tests:
 
-- Dashboard home: `/businesses/<slug>/dashboard`
-- Inquiries: `/businesses/<slug>/dashboard/inquiries`
-- Quotes: `/businesses/<slug>/dashboard/quotes`
-- Forms: `/businesses/<slug>/dashboard/forms`
-- Members: `/businesses/<slug>/dashboard/members`
-- Settings hub: `/businesses/<slug>/dashboard/settings`
+- Business home: `/<slug>/home` (or `/<slug>` redirects here)
+- Inquiries: `/<slug>/inquiries`
+- Quotes: `/<slug>/quotes`
+- Forms: `/<slug>/forms`
+- Members: `/<slug>/members`
+- Settings hub: `/<slug>/settings`
 - Settings sections:
   - General: `/settings/general`
   - Profile: `/settings/profile`
