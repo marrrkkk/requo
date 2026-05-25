@@ -1,182 +1,93 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
-import {
-  FollowUpListContentFallback,
-  FollowUpListContentSection,
-  FollowUpListControlsFallback,
-  FollowUpListControlsSection,
-} from "@/features/follow-ups/components/follow-up-list-page-sections";
-import {
-  getFollowUpListCountForBusiness,
-  getFollowUpListPageForBusiness,
-  getBusinessMembersForReassign,
-  getRecentRecordsForFollowUpCreate,
-} from "@/features/follow-ups/queries";
-import { followUpListFiltersSchema } from "@/features/follow-ups/schemas";
-import type { FollowUpListFilters } from "@/features/follow-ups/types";
-import { getBusinessFollowUpsPath } from "@/features/businesses/routes";
-import { LockedAction } from "@/features/paywall";
-import { CreateFollowUpButton } from "@/features/follow-ups/components/create-follow-up-button";
 import { getAppShellContext } from "@/lib/app-shell/context";
+import { getFollowUpOverviewForBusiness } from "@/features/follow-ups/queries";
+import { FollowUpBoard } from "@/features/follow-ups/components/follow-up-board";
+import { getRecentRecordsForFollowUpCreate } from "@/features/follow-ups/queries";
+import { CreateFollowUpButton } from "@/features/follow-ups/components/create-follow-up-button";
+import { LockedAction } from "@/features/paywall";
 import { createNoIndexMetadata } from "@/lib/seo/site";
-
-type FollowUpsPageProps = {
-  params: Promise<{ businessSlug: string }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-};
-
-const ITEMS_PER_PAGE = 10;
 
 export const metadata: Metadata = createNoIndexMetadata({
   title: "Follow-ups",
-  description: "List, filter, and resolve follow-up tasks for this business.",
+  description: "See who needs contact next and when.",
 });
 
 export const unstable_instant = {
-  prefetch: 'static',
+  prefetch: "static",
   unstable_disableValidation: true,
 };
 
 export default async function FollowUpsPage({
   params,
-  searchParams,
-}: FollowUpsPageProps) {
-  const [{ businessSlug }, resolvedSearchParams] = await Promise.all([
-    params,
-    searchParams,
-  ]);
-  const { businessContext } = await getAppShellContext(businessSlug);
-
-  const parsedFilters = followUpListFiltersSchema.safeParse(resolvedSearchParams);
-  const filters = parsedFilters.success
-    ? parsedFilters.data
-    : {
-        q: undefined,
-        status: "pending" as const,
-        due: "all" as const,
-        sort: "due_asc" as const,
-        page: 1,
-      };
-  const baseFilters = {
-    q: filters.q,
-    status: filters.status,
-    due: filters.due,
-    sort: filters.sort,
-  };
-  const totalItemsPromise = getFollowUpListCountForBusiness({
-    businessId: businessContext.business.id,
-    filters: baseFilters,
-  });
-  const pageDataPromise = totalItemsPromise.then(async (totalItems) => {
-    const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
-    const currentPage = Math.min(Math.max(1, filters.page), totalPages);
-    const followUps = await getFollowUpListPageForBusiness({
-      businessId: businessContext.business.id,
-      filters: baseFilters,
-      page: currentPage,
-      pageSize: ITEMS_PER_PAGE,
-    });
-
-    return {
-      currentPage,
-      followUps,
-      totalPages,
-    };
-  });
-  const hasFilters = Boolean(
-    baseFilters.q ||
-      baseFilters.status !== "pending" ||
-      baseFilters.due !== "all" ||
-      baseFilters.sort !== "due_asc",
-  );
-  const clearFiltersPath = getBusinessFollowUpsPath(businessSlug);
-  const recentRecords = await getRecentRecordsForFollowUpCreate(
-    businessContext.business.id,
-  );
-  const members = await getBusinessMembersForReassign(
-    businessContext.business.id,
-  );
+}: {
+  params: Promise<{ businessSlug: string }>;
+}) {
+  const { businessSlug } = await params;
 
   return (
-    <DashboardPage>
-      <PageHeader
-        description="See who needs contact next, why, and when. Follow-ups are lightweight reminders tied to inquiries and quotes."
-        eyebrow="Follow-ups"
-        title="Follow-ups"
-        actions={
-          <LockedAction feature="followUps" plan={businessContext.business.plan}>
-            <CreateFollowUpButton businessSlug={businessSlug} records={recentRecords} />
-          </LockedAction>
-        }
-      />
-
-      <Suspense fallback={<FollowUpListControlsFallback />}>
-        <FollowUpListControlsSection
-          filters={filters}
-          totalItemsPromise={totalItemsPromise}
-        />
-      </Suspense>
-
-      <Suspense fallback={<FollowUpListContentFallback />}>
-        <FollowUpListContent
-          businessName={businessContext.business.name}
-          businessSlug={businessSlug}
-          clearFiltersPath={clearFiltersPath}
-          filters={filters}
-          hasFilters={hasFilters}
-          members={members}
-          pageDataPromise={pageDataPromise}
-          searchParams={resolvedSearchParams}
-          totalItemsPromise={totalItemsPromise}
-        />
-      </Suspense>
-    </DashboardPage>
+    <Suspense fallback={<FollowUpsPageSkeleton />}>
+      <StreamedFollowUpBoard businessSlug={businessSlug} />
+    </Suspense>
   );
 }
 
-async function FollowUpListContent({
-  businessName,
-  businessSlug,
-  clearFiltersPath,
-  filters,
-  hasFilters,
-  members,
-  pageDataPromise,
-  searchParams,
-  totalItemsPromise,
-}: {
-  businessName: string;
-  businessSlug: string;
-  clearFiltersPath: string;
-  filters: FollowUpListFilters;
-  hasFilters: boolean;
-  members: { userId: string; name: string; email: string }[];
-  pageDataPromise: Promise<{
-    currentPage: number;
-    followUps: Awaited<ReturnType<typeof getFollowUpListPageForBusiness>>;
-    totalPages: number;
-  }>;
-  searchParams: Record<string, string | string[] | undefined>;
-  totalItemsPromise: Promise<number>;
-}) {
-  const pageData = await pageDataPromise;
+async function StreamedFollowUpBoard({ businessSlug }: { businessSlug: string }) {
+  const { businessContext } = await getAppShellContext(businessSlug);
+  const [overview, recentRecords] = await Promise.all([
+    getFollowUpOverviewForBusiness(businessContext.business.id),
+    getRecentRecordsForFollowUpCreate(businessContext.business.id),
+  ]);
 
   return (
-    <FollowUpListContentSection
-      businessName={businessName}
+    <FollowUpBoard
+      overdue={overview.overdue}
+      dueToday={overview.dueToday}
+      upcoming={overview.upcoming}
       businessSlug={businessSlug}
-      clearFiltersPath={clearFiltersPath}
-      currentPage={pageData.currentPage}
-      filters={filters}
-      followUpsPromise={Promise.resolve(pageData.followUps)}
-      hasFilters={hasFilters}
-      members={members}
-      searchParams={searchParams}
-      totalItemsPromise={totalItemsPromise}
-      totalPages={pageData.totalPages}
+      createButton={
+        <LockedAction feature="followUps" plan={businessContext.business.plan}>
+          <CreateFollowUpButton businessSlug={businessSlug} records={recentRecords} />
+        </LockedAction>
+      }
     />
+  );
+}
+
+function FollowUpsPageSkeleton() {
+  return (
+    <DashboardPage>
+      <PageHeader
+        title="Follow-ups"
+        description="See who needs contact next and when."
+      />
+
+      <div className="relative max-w-sm">
+        <Skeleton className="h-10 w-full rounded-xl" />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex min-h-48 flex-col gap-3 rounded-xl bg-muted/50 p-4"
+          >
+            <div className="flex items-center gap-2">
+              <Skeleton className="size-4 rounded-full" />
+              <Skeleton className="h-4 w-20 rounded-md" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-20 w-full rounded-lg" />
+              <Skeleton className="h-20 w-full rounded-lg" />
+              <Skeleton className="h-20 w-full rounded-lg" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </DashboardPage>
   );
 }
