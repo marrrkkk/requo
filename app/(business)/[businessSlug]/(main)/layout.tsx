@@ -187,16 +187,18 @@ async function UpgradeSlot({ businessSlug }: { businessSlug: string }) {
   }
 
   return (
-    <div className="shrink-0">
-      <UpgradeButton
-        className="whitespace-nowrap"
-        currentPlan={billing.currentPlan}
-        size="sm"
-        userId={billing.userId}
-        businessId={billing.businessId}
-        businessSlug={businessContext.business.slug}
-      />
-    </div>
+    <BusinessCheckoutProvider billing={billing}>
+      <div className="shrink-0">
+        <UpgradeButton
+          className="whitespace-nowrap"
+          currentPlan={billing.currentPlan}
+          size="sm"
+          userId={billing.userId}
+          businessId={billing.businessId}
+          businessSlug={businessContext.business.slug}
+        />
+      </div>
+    </BusinessCheckoutProvider>
   );
 }
 
