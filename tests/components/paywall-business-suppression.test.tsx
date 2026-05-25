@@ -190,7 +190,6 @@ describe("Business plan suppression", () => {
         <PremiumContentBlur
           feature="analyticsConversion"
           plan={BUSINESS_PLAN}
-          placeholder={<div>Placeholder content</div>}
         >
           <div data-testid="premium-data">Real premium data</div>
         </PremiumContentBlur>,
@@ -200,8 +199,6 @@ describe("Business plan suppression", () => {
       expect(screen.getByTestId("premium-data")).toBeInTheDocument();
       expect(screen.getByText("Real premium data")).toBeInTheDocument();
 
-      // Placeholder is NOT rendered
-      expect(screen.queryByText("Placeholder content")).not.toBeInTheDocument();
       // No blur class
       expect(container.querySelector("[class*='blur']")).toBeNull();
       // No upgrade prompt overlay
@@ -214,7 +211,6 @@ describe("Business plan suppression", () => {
           <PremiumContentBlur
             feature={feature}
             plan={BUSINESS_PLAN}
-            placeholder={<div>Placeholder for {feature}</div>}
           >
             <div data-testid={`premium-${feature}`}>
               Premium content for {feature}
@@ -223,9 +219,6 @@ describe("Business plan suppression", () => {
         );
 
         expect(screen.getByTestId(`premium-${feature}`)).toBeInTheDocument();
-        expect(
-          screen.queryByText(`Placeholder for ${feature}`),
-        ).not.toBeInTheDocument();
         expect(screen.queryByText(/Upgrade to/)).not.toBeInTheDocument();
 
         unmount();
@@ -266,7 +259,6 @@ describe("Business plan suppression", () => {
           <PremiumContentBlur
             feature="aiAssistant"
             plan={BUSINESS_PLAN}
-            placeholder={<div>AI placeholder</div>}
           >
             <div data-testid="ai-content">AI-generated suggestions</div>
           </PremiumContentBlur>

@@ -69,7 +69,7 @@ test("invited user can sign in from the invite and accept access", async ({
   await page.getByRole("button", { name: "Accept invite" }).click();
 
   await expect(page).toHaveURL(
-    new RegExp(`/${demoBusinessSlug}/dashboard$`),
+    new RegExp(`/${demoBusinessSlug}/home$`),
     { timeout: 20_000 },
   );
   await expect(
@@ -96,7 +96,7 @@ test("manager can access operational settings but not members", async ({
 
   await page.goto(`/${demoBusinessSlug}/settings/members`);
   await expect(page).toHaveURL(
-    new RegExp(`/${demoBusinessSlug}/dashboard$`),
+    new RegExp(`/${demoBusinessSlug}/home$`),
     { timeout: 20_000 },
   );
 });
@@ -115,13 +115,13 @@ test("staff can access inquiry work but not forms or operational settings", asyn
 
   await page.goto(`/${demoBusinessSlug}/forms`);
   await expect(page).toHaveURL(
-    new RegExp(`/${demoBusinessSlug}/dashboard$`),
+    new RegExp(`/${demoBusinessSlug}/home$`),
     { timeout: 20_000 },
   );
 
   await page.goto(`/${demoBusinessSlug}/settings/knowledge`);
   await expect(page).toHaveURL(
-    new RegExp(`/${demoBusinessSlug}/dashboard$`),
+    new RegExp(`/${demoBusinessSlug}/home$`),
     { timeout: 20_000 },
   );
 
@@ -138,7 +138,7 @@ test("non-members cannot open another business dashboard @smoke", async ({ page 
     page.getByRole("heading", { name: "Your businesses" }),
   ).toBeVisible();
 
-  await page.goto(`/${demoBusinessSlug}/dashboard`);
+  await page.goto(`/${demoBusinessSlug}/home`);
   await expect(page).toHaveURL(/\/businesses$/, { timeout: 20_000 });
   await expect(
     page.getByRole("heading", { name: "Your businesses" }),

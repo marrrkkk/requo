@@ -24,9 +24,9 @@ async function signIn(page: Page) {
 }
 
 async function openDemoBusiness(page: Page) {
-  await page.goto(`/${demoBusinessSlug}/dashboard`);
+  await page.goto(`/${demoBusinessSlug}/home`);
   await expect(page).toHaveURL(
-    new RegExp(`/${demoBusinessSlug}/dashboard$`),
+    new RegExp(`/${demoBusinessSlug}/home$`),
     { timeout: 20_000 },
   );
   await expect(page.locator("h1")).toBeVisible({ timeout: 20_000 });

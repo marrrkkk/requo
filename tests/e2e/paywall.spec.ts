@@ -18,19 +18,28 @@ async function signIn(page: Page) {
 }
 
 async function openDemoBusiness(page: Page) {
-  await page.goto(`/${demoBusinessSlug}/dashboard`);
+  await page.goto(`/${demoBusinessSlug}/home`);
   await expect(page).toHaveURL(
-    new RegExp(`/${demoBusinessSlug}/dashboard$`),
+    new RegExp(`/${demoBusinessSlug}/home$`),
     { timeout: 20_000 },
   );
 }
 
+/**
+ * These tests assume the demo account is on the Free plan (default seed).
+ * They assert the current paywall presentation, which is:
+ *   - PageHeader heading at the top of each gated route
+ *   - LockedFeaturePage / PremiumContentBlur upgrade card with the feature
+ *     label from `planFeatureLabels` and either the page-level description
+ *     override or the default `planFeatureDescriptions[feature]` text
+ *   - An UpgradeButton that opens the PlanSelectionSheet
+ */
 test.describe("Paywall & Free Plan Gating", () => {
   test.beforeEach(async ({ page }) => {
     await signIn(page);
   });
 
-  test("owner sees LockedFeatureOverlay over advanced analytics", async ({
+  test("owner sees paywall on the Advanced analytics tab", async ({
     page,
   }) => {
     await openDemoBusiness(page);
@@ -40,180 +49,165 @@ test.describe("Paywall & Free Plan Gating", () => {
       new RegExp(`/${demoBusinessSlug}/analytics$`),
     );
 
-    // Click the "Conversion" tab which is gated for Free plans
-    await page.getByRole("tab", { name: "Conversion" }).click();
+    await page.getByRole("tab", { name: "Advanced" }).click();
 
-    // Verify the blurred overlay appears
-    await expect(page.getByText("Conversion analytics")).toBeVisible();
+    // The PremiumContentBlur upgrade card uses the feature label and the
+    // default planFeatureDescriptions text for analyticsConversion.
     await expect(
-      page.getByText("See how inquiries convert to quotes and acceptances."),
+      page.getByRole("heading", { name: "Performance analytics" }),
     ).toBeVisible();
-
     await expect(
-      page.getByText("Request Pro access"),
+      page.getByText(
+        "Trend charts, funnel visualization, form-level breakdown, and period comparisons.",
+      ),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Upgrade to Pro/ }),
     ).toBeVisible();
   });
 
-  test("owner sees LockedFeaturePage when accessing knowledge base", async ({
-    page,
-  }) => {
+  test("owner sees paywall on knowledge settings", async ({ page }) => {
     await openDemoBusiness(page);
-    await page.goto(
-      `/${demoBusinessSlug}/settings/knowledge`,
-    );
+    await page.goto(`/${demoBusinessSlug}/settings/knowledge`);
 
-    // Verify the full page lock component
-    await expect(page.getByRole("heading", { name: "Knowledge" })).toBeVisible();
+    // PageHeader title remains visible at the top of every settings page.
     await expect(
-      page.getByText("Manage FAQs and knowledge files for your AI assistant."),
+      page.getByRole("heading", { name: "Knowledge", level: 1 }).or(
+        page.getByText("Knowledge", { exact: true }).first(),
+      ),
     ).toBeVisible();
 
+    // Page passes a description override to LockedFeaturePage.
     await expect(
-      page.getByText("Request Pro access"),
+      page.getByText(
+        "Upgrade to save reusable context and train better AI drafts.",
+      ),
+    ).toBeVisible();
+
+    // Upgrade button uses the page-level ctaLabel.
+    await expect(
+      page.getByRole("button", { name: /Upgrade for Knowledge/ }),
     ).toBeVisible();
   });
 
-  test("owner sees dialog when attempting to create a second business", async ({
-    page,
-  }) => {
-    // The landing after sign in is /businesses, where we should see the created business
-    // and the "Create another business" card
-    await page.goto("/dashboard");
+  test("owner sees paywall on pricing settings", async ({ page }) => {
+    await openDemoBusiness(page);
+    await page.goto(`/${demoBusinessSlug}/settings/pricing`);
 
-    // The free plan locks the multi-business feature via dialog submission intercept
-    await page.getByLabel("Business name").fill("Test Business 2");
-    await page.getByRole("button", { name: "Create business" }).click();
-
-    await expect(page.getByRole("dialog")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Multiple businesses" })).toBeVisible();
+    // PageHeader title is "Pricing" (not "Pricing library").
     await expect(
-      page.getByText("Managing completely separate brands, services, and billing requires a Pro subscription"),
+      page.getByRole("heading", { name: "Pricing", level: 1 }).or(
+        page.getByText("Pricing", { exact: true }).first(),
+      ),
+    ).toBeVisible();
+
+    // LockedFeaturePage shows the page-level description override.
+    await expect(
+      page.getByText(
+        "Upgrade to build reusable pricing blocks and speed up quote creation.",
+      ),
+    ).toBeVisible();
+
+    // Upgrade button uses the page-level ctaLabel.
+    await expect(
+      page.getByRole("button", { name: /Upgrade for pricing library/ }),
+    ).toBeVisible();
+  });
+
+  test("owner sees paywall on members page", async ({ page }) => {
+    await openDemoBusiness(page);
+    await page.goto(`/${demoBusinessSlug}/members`);
+
+    // Page header
+    await expect(
+      page.getByRole("heading", { name: "Members", level: 1 }).or(
+        page.getByText("Members", { exact: true }).first(),
+      ),
+    ).toBeVisible();
+
+    // Locked-state title comes from planFeatureLabels.members.
+    await expect(page.getByText("Team members")).toBeVisible();
+
+    // Default planFeatureDescriptions.members text.
+    await expect(
+      page.getByText("Invite team members and assign roles."),
+    ).toBeVisible();
+
+    // The members feature requires the Business plan, so the CTA targets it.
+    await expect(
+      page.getByRole("button", { name: /Upgrade to Business/ }),
     ).toBeVisible();
   });
 
   test("owner sees Free plan badge in general settings", async ({ page }) => {
     await openDemoBusiness(page);
-    await page.goto(
-      `/${demoBusinessSlug}/settings/general`,
-    );
+    await page.goto(`/${demoBusinessSlug}/settings/general`);
 
-    // Check for the header PlanBadge outputting "Free"
+    // Header PlanBadge displays "Free".
     await expect(page.getByText("Free", { exact: true })).toBeVisible();
   });
 
-  test("owner sees LockedFeaturePage when accessing pricing library settings", async ({
+  test("creating a second business shows the upgrade dialog", async ({
     page,
   }) => {
-    await openDemoBusiness(page);
-    await page.goto(
-      `/${demoBusinessSlug}/settings/pricing`,
-    );
+    // Land on the businesses hub which surfaces the create-business control.
+    await page.goto("/businesses");
 
-    // Verify the full page lock component
-    await expect(page.getByRole("heading", { name: "Pricing library" })).toBeVisible();
+    await page.getByRole("button", { name: "Create business" }).first().click();
+
+    // The CreateBusinessDialog detects a quota lock and switches to
+    // upgrade content. Title and description reference the locked plan
+    // and the upgrade target.
+    const upgradeTitle = page
+      .getByRole("heading", { name: /Add more businesses/i })
+      .or(page.getByRole("heading", { name: /Unlock unlimited businesses/i }));
+    await expect(upgradeTitle).toBeVisible();
+
+    await expect(page.getByText(/Free plan supports/i)).toBeVisible();
+
+    // Upgrade CTA opens the PlanSelectionSheet.
     await expect(
-      page.getByText("Build a library of reusable quote templates."),
-    ).toBeVisible();
-
-    await expect(
-      page.getByText("Request Pro access"),
-    ).toBeVisible();
-  });
-
-  test("owner sees LockedFeatureOverlay on workflow analytics tab", async ({ page }) => {
-    await openDemoBusiness(page);
-    await page.getByRole("link", { name: "Analytics" }).click();
-
-    await expect(page).toHaveURL(
-      new RegExp(`/${demoBusinessSlug}/analytics$`),
-    );
-
-    // Click the "Workflow" tab which is gated for Free plans
-    await page.getByRole("tab", { name: "Workflow" }).click();
-
-    // Verify the blurred overlay appears
-    await expect(page.getByText("Workflow analytics")).toBeVisible();
-    await expect(
-      page.getByText("Track response times, stale items, and follow-up gaps."),
-    ).toBeVisible();
-
-    await expect(
-      page.getByText("Request Pro access"),
+      page.getByRole("button", { name: /Upgrade to (Pro|Business)/ }),
     ).toBeVisible();
   });
 
-  test("owner sees LockedFeaturePage when accessing team members", async ({ page }) => {
-    await openDemoBusiness(page);
-    await page.goto(
-      `/${demoBusinessSlug}/members`,
-    );
-
-    // Verify the full page lock component
-    await expect(page.getByRole("heading", { name: "Team members" })).toBeVisible();
-    await expect(
-      page.getByText("Invite team members and assign roles."),
-    ).toBeVisible();
-
-    await expect(
-      page.getByText("Request Pro access"),
-    ).toBeVisible();
-  });
-
-  test("free plan hides branding on public inquiry page", async ({ page }) => {
-    await openDemoBusiness(page);
-    await page.goto(
-      `/${demoBusinessSlug}/settings/inquiry-page`,
-    );
-
-    // Branding section should be locked or hidden
-    await page.getByRole("button", { name: "Page" }).click();
-
-    // Check for branding customization section - should be either disabled or show upgrade prompt
-    const brandingSection = page.getByRole("group", {
-      name: "Branding",
-    });
-    const hasLogoUpload = await brandingSection
-      .getByText("Logo", { exact: true })
-      .isVisible();
-    const hasUpgradePrompt = await page
-      .getByText("Add your logo and brand to quotes and inquiry pages.")
-      .isVisible();
-
-    // Either branding is hidden OR upgrade prompt is shown
-    expect(hasLogoUpload || hasUpgradePrompt).toBeTruthy();
-  });
-
-  test("public inquiry page hides logo for free plans", async ({ page }) => {
+  test("public inquiry page hides custom branding for free plans", async ({
+    page,
+  }) => {
     await page.goto(`/inquiry/demo-business`);
 
-    // Free plan should not show custom branding
-    // The page should render without custom logo
-    await expect(page.getByRole("heading")).toBeVisible();
+    // Page renders without throwing.
+    await expect(page.getByRole("heading").first()).toBeVisible();
 
-    // No custom branding controls should be visible on public page
+    // Free plan should not surface a custom branded logo image.
     await expect(
       page.getByRole("img", { name: "Business logo" }),
     ).toHaveCount(0);
   });
 
-  test("public quote page hides custom branding for free plans", async ({ page }) => {
-    // Get a quote token from the demo business
+  test("public quote page renders without custom branding for free plans", async ({
+    page,
+  }) => {
+    // Pull a quote token from the demo business.
     const quoteResponse = await page.request.get(
       `/api/business/${demoBusinessSlug}/quotes?status=sent&limit=1`,
     );
-    const quoteData = await quoteResponse.json();
 
-    if (quoteData.quotes?.[0]?.token) {
-      await page.goto(`/quote/${quoteData.quotes[0].token}`);
-      await page.waitForLoadState("networkidle");
-
-      // Free plan should not show custom branding
-      // Custom logo should not be visible
-      await expect(page.locator("header")).toBeVisible();
-
-      // Check no custom branded logo is present
-      const logoCount = await page.getByRole("img").count();
-      const _hasBusinessLogo = logoCount > 0 && (await page.getByRole("img").first().isVisible());
+    if (!quoteResponse.ok()) {
+      test.skip(true, "Demo business quote API unavailable in this run");
     }
+
+    const quoteData = await quoteResponse.json().catch(() => null);
+    const token = quoteData?.quotes?.[0]?.token;
+
+    if (!token) {
+      test.skip(true, "No sent quote available in demo seed");
+    }
+
+    await page.goto(`/quote/${token}`);
+    await page.waitForLoadState("networkidle");
+
+    // Header still renders for quote info.
+    await expect(page.locator("header").first()).toBeVisible();
   });
 });

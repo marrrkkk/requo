@@ -88,7 +88,7 @@ describe("auth forms", () => {
 
   it("submits the login form with a safe callback and redirects after success", async () => {
     searchParamsMock.mockReturnValue(
-      new URLSearchParams("next=/businesses/demo/dashboard&verified=success"),
+      new URLSearchParams("next=/demo/home&verified=success"),
     );
 
     const user = userEvent.setup();
@@ -112,17 +112,17 @@ describe("auth forms", () => {
       expect(signInEmailMock).toHaveBeenCalledWith({
         email: "owner@example.com",
         password: "Password123!",
-        callbackURL: "/businesses/demo/dashboard",
+        callbackURL: "/demo/home",
       }),
     );
     await waitFor(() =>
-      expect(assignMock).toHaveBeenCalledWith("/businesses/demo/dashboard"),
+      expect(assignMock).toHaveBeenCalledWith("/demo/home"),
     );
   });
 
   it("submits signup with the verification callback and shows the inbox state", async () => {
     searchParamsMock.mockReturnValue(
-      new URLSearchParams("next=/businesses/demo/dashboard"),
+      new URLSearchParams("next=/demo/home"),
     );
 
     const user = userEvent.setup();

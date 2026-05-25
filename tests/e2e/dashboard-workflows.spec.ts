@@ -116,7 +116,7 @@ test("dashboard and detail pages surface follow-up, expiring-soon, and customer 
 }) => {
   await signIn(page);
 
-  await openBusinessesPage(page, "/dashboard");
+  await openBusinessesPage(page, "/home");
 
   await expect(
     page.getByText("Needs attention today", { exact: true }).first(),
