@@ -8,6 +8,7 @@ import { renderInvoiceEmail } from "@/emails/templates/invoice-email";
 import { isEmailConfigured } from "@/lib/env";
 import { sendEmailWithFallback } from "@/lib/email/send-email";
 import { getEmailSender } from "@/lib/email/senders";
+import { emitEvent } from "@/features/automations/dispatcher";
 
 /**
  * Send an invoice email to the customer and mark it as "sent".
@@ -26,6 +27,7 @@ export async function sendInvoiceEmailForBusiness({
   const [invoice] = await db
     .select({
       id: invoices.id,
+      jobId: invoices.jobId,
       invoiceNumber: invoices.invoiceNumber,
       title: invoices.title,
       customerName: invoices.customerName,
@@ -120,6 +122,14 @@ export async function sendInvoiceEmailForBusiness({
     .update(invoices)
     .set({ status: "sent", sentAt: now, updatedAt: now })
     .where(eq(invoices.id, invoiceId));
+
+  // Emit invoice.sent automation event
+  emitEvent(businessId, "invoice.sent", {
+    invoiceId,
+    jobId: invoice.jobId ?? "",
+    amount: invoice.totalInCents,
+    recipientEmail: invoice.customerEmail,
+  });
 
   return { success: true };
 }

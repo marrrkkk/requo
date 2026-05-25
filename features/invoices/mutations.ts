@@ -11,6 +11,7 @@ import {
   quoteItems,
   quotes,
 } from "@/lib/db/schema";
+import { emitEvent } from "@/features/automations/dispatcher";
 import type { InvoiceStatus } from "@/features/invoices/types";
 
 function createId(prefix: string) {
@@ -347,10 +348,28 @@ export async function updateInvoiceStatusForBusiness({
         isNull(invoices.deletedAt),
       ),
     )
-    .returning({ id: invoices.id });
+    .returning({ id: invoices.id, jobId: invoices.jobId, totalInCents: invoices.totalInCents, customerEmail: invoices.customerEmail });
 
   if (!updated) {
     return { error: "Invoice not found." };
+  }
+
+  // Emit automation events for status transitions
+  if (status === "sent") {
+    emitEvent(businessId, "invoice.sent", {
+      invoiceId: updated.id,
+      jobId: updated.jobId ?? "",
+      amount: updated.totalInCents,
+      recipientEmail: updated.customerEmail ?? "",
+    });
+  }
+
+  if (status === "paid") {
+    emitEvent(businessId, "invoice.paid", {
+      invoiceId: updated.id,
+      paidAt: now.toISOString(),
+      amount: updated.totalInCents,
+    });
   }
 
   return { invoiceId: updated.id };
