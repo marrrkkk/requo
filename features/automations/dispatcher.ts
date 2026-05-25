@@ -8,6 +8,7 @@ import {
   automationLogs,
   businessAutomations,
 } from "@/lib/db/schema/automations";
+import { assertBusinessActionRateLimit } from "@/lib/public-action-rate-limit";
 
 import type {
   ActionConfig,
@@ -61,6 +62,21 @@ async function dispatchEvent<T extends TriggerType>(
   payload: TriggerPayload[T],
 ): Promise<void> {
   const startTime = performance.now();
+
+  // Requirement 10.6: Rate limit — 200 event emissions per business per minute
+  const rateLimitAllowed = await assertBusinessActionRateLimit({
+    action: "automation-event-emit",
+    scope: businessId,
+    limit: 200,
+    windowMs: 60 * 1000, // 1 minute
+  });
+
+  if (!rateLimitAllowed) {
+    console.warn(
+      `[automations] Event emission rate limit exceeded for business ${businessId} (trigger: ${triggerType}). Skipping dispatch.`,
+    );
+    return;
+  }
 
   // Requirement 2.2: Query enabled rules matching businessId + triggerType, ordered by priority desc
   const matchingRules = await db
@@ -146,6 +162,10 @@ async function dispatchEvent<T extends TriggerType>(
                 .join("; ")
             : undefined,
         });
+
+        // Requirement 9.3: Track consecutive failures for auto-disable
+        const { trackExecutionResult } = await import("./failure-tracker");
+        await trackExecutionResult(rule.id, !allFailed);
       }
     } catch (error) {
       // Requirement 2.8: Log failure, don't throw
@@ -232,10 +252,14 @@ function extractActions(actions: unknown): ActionConfig[] {
     "nodes" in actions &&
     Array.isArray((actions as { nodes: unknown[] }).nodes)
   ) {
-    const graph = actions as { nodes: Array<{ type: string; data: unknown }> };
+    const graph = actions as { nodes: Array<{ type: string; data: Record<string, unknown> }> };
     return graph.nodes
       .filter((node) => node.type === "action")
-      .map((node) => node.data as ActionConfig);
+      .map((node) => {
+        const { label: _label, actionType, ...rest } = node.data;
+        // The workspace stores actionType in data, but ActionConfig uses `type`
+        return { type: actionType, ...rest } as ActionConfig;
+      });
   }
 
   return [];

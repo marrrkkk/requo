@@ -270,7 +270,7 @@ export const createAutomationSchema = z.object({
   }),
   triggerConfig: z.record(z.string(), z.unknown()).optional(),
   conditions: z.array(conditionSchema).optional(),
-  actions: z.union([z.array(actionConfigSchema).min(1), workflowGraphSchema]),
+  actions: z.union([z.array(actionConfigSchema), workflowGraphSchema]),
   delay: delayConfigSchema.optional(),
   enabled: z.boolean().default(true),
   priority: z.number().int().min(0).default(0),

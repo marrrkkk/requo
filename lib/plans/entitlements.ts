@@ -166,7 +166,7 @@ export const planFeatureDescriptions: Record<PlanFeature, string> = {
   members:
     "Invite team members and assign roles.",
   exports:
-    "Export inquiries, quotes, and audit logs.",
+    "Export inquiries, quotes, audit logs, and automation logs.",
   branding:
     "Remove Requo branding and unlock advanced brand controls.",
   multiBusiness:

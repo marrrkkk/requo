@@ -11,6 +11,7 @@ import {
   uniqueCacheTags,
 } from "@/lib/cache/business-tags";
 import { getWorkspaceBusinessActionContext } from "@/lib/db/business-access";
+import { assertBusinessActionRateLimit } from "@/lib/public-action-rate-limit";
 
 import { canCreateAutomation } from "./entitlements";
 import { cancelPendingJobs } from "./scheduler";
@@ -26,6 +27,7 @@ import {
 type MutationResult = {
   success?: string;
   error?: string;
+  id?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -73,6 +75,20 @@ export async function createAutomation(
     return { error: firstError };
   }
 
+  // Requirement 10.6: Rate limit — 50 automation creates per business per hour
+  const rateLimitAllowed = await assertBusinessActionRateLimit({
+    action: "automation-create",
+    scope: businessId,
+    limit: 50,
+    windowMs: 60 * 60 * 1000, // 1 hour
+  });
+
+  if (!rateLimitAllowed) {
+    return {
+      error: "Rate limit exceeded. Maximum 50 automations per hour.",
+    };
+  }
+
   const { allowed, limit, plan } = await canCreateAutomation(businessId);
 
   if (!allowed && parsed.data.enabled) {
@@ -101,7 +117,7 @@ export async function createAutomation(
 
     updateCacheTags(getAutomationMutationCacheTags(businessId, id));
 
-    return { success: "Automation created." };
+    return { success: "Automation created.", id };
   } catch (error) {
     console.error("Failed to create automation.", error);
     return { error: "We couldn't create that automation right now." };

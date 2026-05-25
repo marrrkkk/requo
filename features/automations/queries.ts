@@ -21,6 +21,7 @@ export type AutomationListItem = {
   triggerType: string;
   enabled: boolean;
   priority: number;
+  actions: unknown;
   createdAt: Date;
   updatedAt: Date;
   lastTriggeredAt: Date | null;
@@ -124,6 +125,7 @@ export const getBusinessAutomations = cache(
         triggerType: businessAutomations.triggerType,
         enabled: businessAutomations.enabled,
         priority: businessAutomations.priority,
+        actions: businessAutomations.actions,
         createdAt: businessAutomations.createdAt,
         updatedAt: businessAutomations.updatedAt,
         lastTriggeredAt: lastTriggeredSubquery,
@@ -297,3 +299,61 @@ export const getAutomationStats = cache(
     };
   },
 );
+
+// ---------------------------------------------------------------------------
+// Automation log export
+// ---------------------------------------------------------------------------
+
+export type AutomationLogExportRow = {
+  id: string;
+  triggerType: string;
+  triggerPayload: unknown;
+  actionsExecuted: unknown;
+  status: string;
+  durationMs: number;
+  error: string | null;
+  createdAt: Date;
+};
+
+/**
+ * Fetch automation logs for CSV export. Scoped by businessId.
+ * Called from the export route which already validates session + plan access.
+ */
+export async function getAutomationLogExportRowsForBusiness({
+  businessId,
+  from,
+  to,
+}: {
+  businessId: string;
+  from?: string;
+  to?: string;
+}): Promise<AutomationLogExportRow[]> {
+  const conditions = [eq(automationLogs.businessId, businessId)];
+
+  if (from) {
+    conditions.push(
+      gte(automationLogs.createdAt, new Date(`${from}T00:00:00.000Z`)),
+    );
+  }
+
+  if (to) {
+    conditions.push(
+      lte(automationLogs.createdAt, new Date(`${to}T23:59:59.999Z`)),
+    );
+  }
+
+  return db
+    .select({
+      id: automationLogs.id,
+      triggerType: automationLogs.triggerType,
+      triggerPayload: automationLogs.triggerPayload,
+      actionsExecuted: automationLogs.actionsExecuted,
+      status: automationLogs.status,
+      durationMs: automationLogs.durationMs,
+      error: automationLogs.error,
+      createdAt: automationLogs.createdAt,
+    })
+    .from(automationLogs)
+    .where(and(...conditions))
+    .orderBy(desc(automationLogs.createdAt));
+}

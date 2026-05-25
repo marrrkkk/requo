@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, lte } from "drizzle-orm";
+import { and, asc, eq, lte, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import {
@@ -237,6 +237,10 @@ export async function processScheduledJobs(): Promise<{
           : undefined,
       });
 
+      // Requirement 9.3: Track consecutive failures for auto-disable
+      const { trackExecutionResult } = await import("./failure-tracker");
+      await trackExecutionResult(job.automationId, !allFailed);
+
       processed++;
     } catch (error) {
       // Unexpected error — handle retry logic
@@ -471,5 +475,62 @@ async function writeLog(entry: {
     });
   } catch (error) {
     console.error("[automations/processor] Failed to write automation log:", error);
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+// Log Retention Cleanup (Requirement 9.5)
+// ---------------------------------------------------------------------------
+
+/** Maximum number of log rows to delete per cleanup run to avoid long queries. */
+const CLEANUP_BATCH_LIMIT = 500;
+
+/** Retention period in days. Logs older than this are eligible for deletion. */
+const LOG_RETENTION_DAYS = 90;
+
+/**
+ * Deletes automation logs older than 90 days.
+ * Runs as a low-priority task after job processing to avoid impacting
+ * time-sensitive scheduled job execution.
+ *
+ * Uses a batch limit (500 rows per run) to prevent long-running queries.
+ * Returns the number of deleted rows.
+ */
+export async function cleanupExpiredLogs(): Promise<{ deleted: number }> {
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - LOG_RETENTION_DAYS);
+
+    // Find IDs of expired logs (batch limited)
+    const expiredIds = await db
+      .select({ id: automationLogs.id })
+      .from(automationLogs)
+      .where(lte(automationLogs.createdAt, cutoffDate))
+      .limit(CLEANUP_BATCH_LIMIT);
+
+    if (expiredIds.length === 0) {
+      return { deleted: 0 };
+    }
+
+    // Delete by IDs
+    const idsToDelete = expiredIds.map((row) => row.id);
+    await db.execute(
+      sql`DELETE FROM automation_logs WHERE id = ANY(${idsToDelete})`,
+    );
+
+    const deletedCount = idsToDelete.length;
+
+    console.log(
+      `[automations/cleanup] Deleted ${deletedCount} expired automation logs (older than ${LOG_RETENTION_DAYS} days)`,
+    );
+
+    return { deleted: deletedCount };
+  } catch (error) {
+    console.error(
+      "[automations/cleanup] Failed to clean up expired logs:",
+      error,
+    );
+    return { deleted: 0 };
   }
 }
