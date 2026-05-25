@@ -14,6 +14,8 @@ import { executeArchiveInquiry } from "./archive-inquiry";
 import { executeCreateJobFromQuote } from "./create-job-from-quote";
 import { executeGenerateInvoice } from "./generate-invoice";
 import { executeGenerateDraftQuote } from "./generate-draft-quote";
+import { executeAddInternalNote } from "./add-internal-note";
+import { executeDuplicateQuote } from "./duplicate-quote";
 
 // ---------------------------------------------------------------------------
 // Action Executor Registry (Requirements 4.1, 4.2, 4.9)
@@ -37,6 +39,8 @@ const executorRegistry: Record<ActionType, ActionExecutor> = {
   create_job_from_quote: executeCreateJobFromQuote,
   generate_invoice: executeGenerateInvoice,
   generate_draft_quote: executeGenerateDraftQuote,
+  add_internal_note: executeAddInternalNote,
+  duplicate_quote: executeDuplicateQuote,
 };
 
 /**

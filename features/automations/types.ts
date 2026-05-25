@@ -132,6 +132,8 @@ export const actionTypes = [
   "create_job_from_quote",
   "generate_invoice",
   "generate_draft_quote",
+  "add_internal_note",
+  "duplicate_quote",
 ] as const;
 
 export type ActionType = (typeof actionTypes)[number];
@@ -188,6 +190,17 @@ export const generateDraftQuoteConfigSchema = z.object({
   useAi: z.boolean().default(true),
 });
 
+export const addInternalNoteConfigSchema = z.object({
+  type: z.literal("add_internal_note"),
+  note: z.string().min(1, "Note text is required.").max(2000, "Note must be 2000 characters or fewer."),
+});
+
+export const duplicateQuoteConfigSchema = z.object({
+  type: z.literal("duplicate_quote"),
+  // Optional override for the duplicated quote's title; defaults to "{title} (copy)".
+  titleSuffix: z.string().max(60).default("(copy)"),
+});
+
 export const actionConfigSchema = z.discriminatedUnion("type", [
   createFollowUpConfigSchema,
   sendNotificationConfigSchema,
@@ -198,6 +211,8 @@ export const actionConfigSchema = z.discriminatedUnion("type", [
   createJobFromQuoteConfigSchema,
   generateInvoiceConfigSchema,
   generateDraftQuoteConfigSchema,
+  addInternalNoteConfigSchema,
+  duplicateQuoteConfigSchema,
 ]);
 
 export type ActionConfig = z.infer<typeof actionConfigSchema>;

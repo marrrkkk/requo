@@ -371,3 +371,25 @@ export async function duplicateAutomation(
     return { error: "We couldn't duplicate that automation right now." };
   }
 }
+
+// ---------------------------------------------------------------------------
+// fetchAutomationRuns (read-only server action for the Runs tab)
+// ---------------------------------------------------------------------------
+
+export async function fetchAutomationRuns(
+  automationId: string,
+  filters: { status?: "success" | "partial_failure" | "failure"; limit?: number; offset?: number } = {},
+): Promise<{ entries: Array<{ id: string; triggerType: string; triggerPayload: unknown; actionsExecuted: unknown; status: string; durationMs: number; error: string | null; createdAt: Date }>; total: number } | { error: string }> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return { error: ownerAccess.error };
+  }
+
+  const { user, businessContext } = ownerAccess;
+  const businessId = businessContext.business.id;
+
+  const { getAutomationHistory } = await import("./queries");
+  const result = await getAutomationHistory(automationId, businessId, user.id, filters);
+  return result;
+}

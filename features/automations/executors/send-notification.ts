@@ -24,7 +24,7 @@ export async function executeSendNotification(
       businessId: input.businessId,
       inquiryId,
       quoteId,
-      type: "public_inquiry_submitted", // generic notification type for automations
+      type: "automation",
       title: config.title,
       summary: config.body ?? config.title,
       metadata: {

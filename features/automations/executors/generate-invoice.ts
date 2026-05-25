@@ -12,6 +12,10 @@ import { and, eq, isNull } from "drizzle-orm";
 export async function executeGenerateInvoice(
   input: ActionInput,
 ): Promise<ActionResult> {
+  const config = input.actionConfig as Extract<
+    typeof input.actionConfig,
+    { type: "generate_invoice" }
+  >;
   const payload = input.triggerPayload as Record<string, unknown>;
 
   const jobId = (payload.jobId as string) ?? null;
@@ -58,6 +62,7 @@ export async function executeGenerateInvoice(
     businessId: input.businessId,
     jobId,
     userId: business.ownerUserId,
+    dueOffsetDays: config.dueOffsetDays,
   });
 
   if ("error" in result && result.error) {

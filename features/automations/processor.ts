@@ -424,7 +424,11 @@ async function executeActionsSequentially(
 
 /**
  * Extracts a flat array of ActionConfig from the automation's actions field.
- * Handles both flat arrays and workflow graph format.
+ * Handles both flat arrays and workflow graph format. For graph format, the
+ * builder stores `actionType` (plus a `label`) on the node data instead of
+ * `type`, so we translate that into the canonical `ActionConfig` shape that
+ * the executor registry validates with Zod. Must stay in sync with
+ * `dispatcher.ts:extractActions`.
  */
 function extractActions(actions: unknown): ActionConfig[] {
   if (Array.isArray(actions)) {
@@ -438,10 +442,15 @@ function extractActions(actions: unknown): ActionConfig[] {
     "nodes" in actions &&
     Array.isArray((actions as { nodes: unknown[] }).nodes)
   ) {
-    const graph = actions as { nodes: Array<{ type: string; data: unknown }> };
+    const graph = actions as {
+      nodes: Array<{ type: string; data: Record<string, unknown> }>;
+    };
     return graph.nodes
       .filter((node) => node.type === "action")
-      .map((node) => node.data as ActionConfig);
+      .map((node) => {
+        const { label: _label, actionType, ...rest } = node.data ?? {};
+        return { type: actionType, ...rest } as ActionConfig;
+      });
   }
 
   return [];

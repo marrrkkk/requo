@@ -22,6 +22,8 @@ export type AutomationListItem = {
   enabled: boolean;
   priority: number;
   actions: unknown;
+  conditions: unknown;
+  delay: unknown;
   createdAt: Date;
   updatedAt: Date;
   lastTriggeredAt: Date | null;
@@ -126,6 +128,8 @@ export const getBusinessAutomations = cache(
         enabled: businessAutomations.enabled,
         priority: businessAutomations.priority,
         actions: businessAutomations.actions,
+        conditions: businessAutomations.conditions,
+        delay: businessAutomations.delay,
         createdAt: businessAutomations.createdAt,
         updatedAt: businessAutomations.updatedAt,
         lastTriggeredAt: lastTriggeredSubquery,

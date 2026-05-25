@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 
+import { ArrowLeft } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
@@ -27,8 +31,14 @@ export default async function AutomationPresetsPage({
       <PageHeader
         title="Automation Presets"
         description="Common automation patterns you can enable with one click."
-        backHref={`/${businessSlug}/automations`}
-        backLabel="Automations"
+        actions={
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/${businessSlug}/automations`}>
+              <ArrowLeft className="size-3.5" />
+              Automations
+            </Link>
+          </Button>
+        }
       />
       <Suspense fallback={<PresetsPageSkeleton />}>
         <StreamedPresets businessSlug={businessSlug} />

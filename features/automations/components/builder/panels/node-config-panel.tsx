@@ -72,6 +72,8 @@ const actionTypeLabels: Record<ActionType, string> = {
   create_job_from_quote: "Create job from quote",
   generate_invoice: "Generate invoice",
   generate_draft_quote: "Generate draft quote",
+  add_internal_note: "Add internal note",
+  duplicate_quote: "Duplicate quote",
 };
 
 const operatorLabels: Record<ConditionOperator, string> = {

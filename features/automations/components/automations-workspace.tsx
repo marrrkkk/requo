@@ -13,6 +13,37 @@ import {
   LayoutTemplate,
   Search,
   Trash2,
+  Inbox,
+  CheckCircle2,
+  Archive,
+  FileText,
+  Send,
+  Eye,
+  ThumbsUp,
+  ThumbsDown,
+  TimerOff,
+  Briefcase,
+  CircleCheck,
+  Receipt,
+  CreditCard,
+  AlertTriangle,
+  Bell,
+  Mail,
+  ArrowRightLeft,
+  CalendarPlus,
+  Phone,
+  Globe,
+  Tag,
+  DollarSign,
+  User,
+  CalendarClock,
+  Paperclip,
+  UserCheck,
+  Building2,
+  StickyNote,
+  Copy,
+  Hourglass,
+  AlarmClock,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -85,6 +116,7 @@ type WorkflowNode = {
   type: "trigger" | "condition" | "delay" | "action";
   label: string;
   config: Record<string, unknown>;
+  position?: { x: number; y: number };
 };
 
 type WorkflowEdge = {
@@ -125,43 +157,58 @@ const edgeTypes: EdgeTypes = {
 // Trigger & Block Definitions
 // ---------------------------------------------------------------------------
 
-const triggers: { id: TriggerType; label: string; group: string }[] = [
-  { id: "inquiry.received", label: "Inquiry received", group: "Inquiries" },
-  { id: "inquiry.qualified", label: "Inquiry qualified", group: "Inquiries" },
-  { id: "inquiry.archived", label: "Inquiry archived", group: "Inquiries" },
-  { id: "quote.created", label: "Quote created", group: "Quotes" },
-  { id: "quote.sent", label: "Quote sent", group: "Quotes" },
-  { id: "quote.viewed", label: "Quote viewed", group: "Quotes" },
-  { id: "quote.accepted", label: "Quote accepted", group: "Quotes" },
-  { id: "quote.rejected", label: "Quote rejected", group: "Quotes" },
-  { id: "quote.expired", label: "Quote expired", group: "Quotes" },
-  { id: "job.created", label: "Job created", group: "Jobs" },
-  { id: "job.completed", label: "Job completed", group: "Jobs" },
-  { id: "invoice.sent", label: "Invoice sent", group: "Invoices" },
-  { id: "invoice.paid", label: "Invoice paid", group: "Invoices" },
-  { id: "invoice.overdue", label: "Invoice overdue", group: "Invoices" },
-  { id: "follow_up.due", label: "Follow-up due", group: "Follow-ups" },
-  { id: "follow_up.overdue", label: "Follow-up overdue", group: "Follow-ups" },
+const triggers: { id: TriggerType; label: string; group: string; icon: typeof Play }[] = [
+  { id: "inquiry.received", label: "Inquiry received", group: "Inquiries", icon: Inbox },
+  { id: "inquiry.qualified", label: "Inquiry qualified", group: "Inquiries", icon: CheckCircle2 },
+  { id: "inquiry.archived", label: "Inquiry archived", group: "Inquiries", icon: Archive },
+  { id: "quote.created", label: "Quote created", group: "Quotes", icon: FileText },
+  { id: "quote.sent", label: "Quote sent", group: "Quotes", icon: Send },
+  { id: "quote.viewed", label: "Quote viewed", group: "Quotes", icon: Eye },
+  { id: "quote.accepted", label: "Quote accepted", group: "Quotes", icon: ThumbsUp },
+  { id: "quote.rejected", label: "Quote rejected", group: "Quotes", icon: ThumbsDown },
+  { id: "quote.expired", label: "Quote expired", group: "Quotes", icon: TimerOff },
+  { id: "job.created", label: "Job created", group: "Jobs", icon: Briefcase },
+  { id: "job.completed", label: "Job completed", group: "Jobs", icon: CircleCheck },
+  { id: "invoice.sent", label: "Invoice sent", group: "Invoices", icon: Receipt },
+  { id: "invoice.paid", label: "Invoice paid", group: "Invoices", icon: CreditCard },
+  { id: "invoice.overdue", label: "Invoice overdue", group: "Invoices", icon: AlertTriangle },
+  { id: "follow_up.due", label: "Follow-up due", group: "Follow-ups", icon: Bell },
+  { id: "follow_up.overdue", label: "Follow-up overdue", group: "Follow-ups", icon: Clock },
 ];
 
 const actionBlocks: { id: ActionType; label: string; icon: typeof Play; group: string }[] = [
-  { id: "create_follow_up", label: "Create follow-up", icon: Play, group: "Actions" },
-  { id: "send_email", label: "Send email", icon: Play, group: "Actions" },
-  { id: "send_notification", label: "Send notification", icon: Play, group: "Actions" },
-  { id: "update_inquiry_status", label: "Update inquiry status", icon: Play, group: "Actions" },
-  { id: "update_quote_status", label: "Update quote status", icon: Play, group: "Actions" },
-  { id: "archive_inquiry", label: "Archive inquiry", icon: Play, group: "Actions" },
-  { id: "create_job_from_quote", label: "Create job from quote", icon: Play, group: "Actions" },
-  { id: "generate_invoice", label: "Generate invoice", icon: Play, group: "Actions" },
-  { id: "generate_draft_quote", label: "Generate draft quote", icon: Play, group: "Actions" },
+  { id: "create_follow_up", label: "Create follow-up", icon: CalendarPlus, group: "Tasks" },
+  { id: "send_email", label: "Send email", icon: Mail, group: "Communication" },
+  { id: "send_notification", label: "Send notification", icon: Bell, group: "Communication" },
+  { id: "add_internal_note", label: "Add internal note", icon: StickyNote, group: "Communication" },
+  { id: "update_inquiry_status", label: "Update inquiry status", icon: ArrowRightLeft, group: "Status" },
+  { id: "update_quote_status", label: "Update quote status", icon: ArrowRightLeft, group: "Status" },
+  { id: "archive_inquiry", label: "Archive inquiry", icon: Archive, group: "Status" },
+  { id: "create_job_from_quote", label: "Create job from quote", icon: Briefcase, group: "Workflow" },
+  { id: "generate_invoice", label: "Generate invoice", icon: Receipt, group: "Workflow" },
+  { id: "generate_draft_quote", label: "Generate draft quote", icon: FileText, group: "Workflow" },
+  { id: "duplicate_quote", label: "Duplicate quote", icon: Copy, group: "Workflow" },
 ];
 
 const conditionBlocks = [
-  { id: "condition", label: "If / else", icon: Filter, group: "Conditions" },
+  { id: "condition", label: "If / else", icon: Filter, group: "Logic" },
+  { id: "condition_source", label: "Inquiry source is", icon: Globe, group: "Filters" },
+  { id: "condition_contact_method", label: "Contact method is", icon: Phone, group: "Filters" },
+  { id: "condition_form", label: "From form", icon: FileText, group: "Filters" },
+  { id: "condition_name_contains", label: "Name contains", icon: User, group: "Filters" },
+  { id: "condition_tag", label: "Has tag", icon: Tag, group: "Filters" },
+  { id: "condition_amount", label: "Quote amount above/below", icon: DollarSign, group: "Filters" },
+  { id: "condition_days_inactive", label: "Days since last activity", icon: CalendarClock, group: "Filters" },
+  { id: "condition_quote_viewed", label: "Quote has been viewed", icon: Eye, group: "Filters" },
+  { id: "condition_has_attachment", label: "Inquiry has attachment", icon: Paperclip, group: "Filters" },
+  { id: "condition_repeat_customer", label: "Repeat customer", icon: UserCheck, group: "Filters" },
+  { id: "condition_business_hours", label: "Business hours", icon: Building2, group: "Filters" },
 ];
 
 const delayBlocks = [
-  { id: "delay", label: "Delay", icon: Clock, group: "Delays" },
+  { id: "delay", label: "Delay", icon: Clock, group: "Timing" },
+  { id: "wait_until", label: "Wait until", icon: Hourglass, group: "Timing" },
+  { id: "schedule_for", label: "Schedule for", icon: AlarmClock, group: "Timing" },
 ];
 
 const triggerLabels: Record<string, string> = Object.fromEntries(
@@ -181,7 +228,7 @@ function serializeGraph(nodes: WorkflowNode[], edges: WorkflowEdge[]): unknown {
     nodes: nodes.map((n, idx) => ({
       id: n.id,
       type: n.type,
-      position: { x: 0, y: idx * 150 },
+      position: n.position ?? { x: 0, y: idx * 150 },
       data: { label: n.label, ...n.config },
     })),
     edges: edges.map((e, idx) => ({
@@ -197,8 +244,8 @@ function deserializeGraph(actions: unknown): { nodes: WorkflowNode[]; edges: Wor
   const graph = actions as { nodes?: unknown[]; edges?: unknown[] };
   if (!Array.isArray(graph.nodes) || graph.nodes.length === 0) return { nodes: [], edges: [] };
 
-  const nodes: WorkflowNode[] = graph.nodes.map((raw: unknown) => {
-    const n = raw as { id?: string; type?: string; data?: Record<string, unknown> };
+  const nodes: WorkflowNode[] = graph.nodes.map((raw: unknown, idx: number) => {
+    const n = raw as { id?: string; type?: string; position?: { x: number; y: number }; data?: Record<string, unknown> };
     const nodeType = (n.type ?? "trigger") as WorkflowNode["type"];
     const data = n.data ?? {};
     const label = (data.label as string) ?? (data.triggerType as string) ?? (data.actionType as string) ?? nodeType;
@@ -208,6 +255,7 @@ function deserializeGraph(actions: unknown): { nodes: WorkflowNode[]; edges: Wor
       type: nodeType,
       label,
       config,
+      position: n.position ?? { x: 0, y: idx * 180 },
     };
   });
 
@@ -228,12 +276,149 @@ function buildEdges(nodes: WorkflowNode[]): WorkflowEdge[] {
   }));
 }
 
+/**
+ * Pull conditions out of condition nodes in the graph so the dispatcher
+ * can evaluate them against the trigger payload at runtime. Only well-formed
+ * { field, operator, value } entries are kept; partially configured nodes
+ * are skipped silently while the user finishes editing.
+ */
+function extractConditionsFromNodes(
+  nodes: WorkflowNode[],
+): Array<{ field: string; operator: string; value: string | number | boolean }> | null {
+  const out: Array<{
+    field: string;
+    operator: string;
+    value: string | number | boolean;
+  }> = [];
+
+  for (const node of nodes) {
+    if (node.type !== "condition") continue;
+    const field = (node.config?.field as string | undefined)?.trim();
+    const operator = (node.config?.operator as string | undefined) ?? "eq";
+    const rawValue = node.config?.value;
+    if (!field || rawValue === undefined || rawValue === null || rawValue === "") {
+      continue;
+    }
+    let value: string | number | boolean = String(rawValue);
+    if (typeof rawValue === "number" || typeof rawValue === "boolean") {
+      value = rawValue;
+    } else if (typeof rawValue === "string" && rawValue !== "" && !Number.isNaN(Number(rawValue))) {
+      // Coerce numeric-looking strings so gt/gte/lt/lte work as expected.
+      value = Number(rawValue);
+    }
+    out.push({ field, operator, value });
+  }
+
+  return out.length > 0 ? out : null;
+}
+
+/**
+ * Pull the first delay node's config so the dispatcher schedules execution
+ * via the scheduled jobs queue. Multiple delay nodes are not supported by
+ * the current rule schema (single delay column), so only the first valid
+ * delay is honored.
+ */
+function extractDelayFromNodes(
+  nodes: WorkflowNode[],
+): { unit: "minutes" | "hours" | "days"; value: number } | null {
+  for (const node of nodes) {
+    if (node.type !== "delay") continue;
+    const unit = node.config?.unit as string | undefined;
+    const valueRaw = node.config?.value;
+    const value =
+      typeof valueRaw === "number"
+        ? valueRaw
+        : typeof valueRaw === "string"
+          ? Number(valueRaw)
+          : NaN;
+    if (
+      (unit === "minutes" || unit === "hours" || unit === "days") &&
+      Number.isFinite(value) &&
+      value >= 1
+    ) {
+      return { unit, value: Math.floor(value) };
+    }
+  }
+  return null;
+}
+
+/**
+ * Reconstructs visual builder nodes from a rule stored in the legacy flat
+ * format (actions = ActionConfig[] plus optional `conditions` and `delay`
+ * columns). Used when opening a preset/onboarding-default rule in the
+ * visual builder so existing config is visible and editable.
+ */
+function reconstructNodesFromFlatRule(automation: {
+  triggerType: string;
+  actions: unknown;
+  conditions: unknown;
+  delay: unknown;
+}): WorkflowNode[] {
+  const nodes: WorkflowNode[] = [];
+  let idx = 0;
+
+  nodes.push({
+    id: `trigger-${idx++}`,
+    type: "trigger",
+    label: triggerLabels[automation.triggerType] ?? automation.triggerType,
+    config: { triggerType: automation.triggerType },
+  });
+
+  if (Array.isArray(automation.conditions)) {
+    for (const raw of automation.conditions) {
+      const c = raw as { field?: unknown; operator?: unknown; value?: unknown };
+      if (typeof c?.field !== "string") continue;
+      nodes.push({
+        id: `condition-${idx++}`,
+        type: "condition",
+        label: "Condition",
+        config: {
+          field: c.field,
+          operator: typeof c.operator === "string" ? c.operator : "eq",
+          value: c.value as string | number | boolean | undefined,
+        },
+      });
+    }
+  }
+
+  if (
+    automation.delay &&
+    typeof automation.delay === "object" &&
+    "unit" in (automation.delay as Record<string, unknown>) &&
+    "value" in (automation.delay as Record<string, unknown>)
+  ) {
+    const d = automation.delay as { unit: string; value: number };
+    nodes.push({
+      id: `delay-${idx++}`,
+      type: "delay",
+      label: `${d.value} ${d.unit}`,
+      config: { unit: d.unit, value: d.value },
+    });
+  }
+
+  if (Array.isArray(automation.actions)) {
+    for (const raw of automation.actions) {
+      const a = raw as { type?: unknown } & Record<string, unknown>;
+      if (typeof a?.type !== "string") continue;
+      const { type, ...rest } = a;
+      nodes.push({
+        id: `action-${idx++}`,
+        type: "action",
+        label: actionLabels[type] ?? type,
+        config: { actionType: type, ...rest },
+      });
+    }
+  }
+
+  return nodes;
+}
+
 /** Convert internal WorkflowNode[] to React Flow Node[] format */
 function toFlowNodes(nodes: WorkflowNode[], selectedNodeId: string | null): Node[] {
   const flowNodes: Node[] = nodes.map((n, idx) => ({
     id: n.id,
     type: n.type,
-    position: { x: 0, y: idx * 180 },
+    position: n.position ?? { x: 0, y: idx * 180 },
     selected: n.id === selectedNodeId,
     data: {
       label: n.label,
@@ -243,10 +428,12 @@ function toFlowNodes(nodes: WorkflowNode[], selectedNodeId: string | null): Node
   }));
 
   // Add the "+" button as a special node at the end
+  const lastNode = nodes[nodes.length - 1];
+  const addNodeY = lastNode?.position ? lastNode.position.y + 180 : nodes.length * 180;
   flowNodes.push({
     id: "__add_node__",
     type: "add",
-    position: { x: 0, y: nodes.length * 180 },
+    position: { x: lastNode?.position?.x ?? 0, y: addNodeY },
     data: {},
     selectable: false,
     draggable: false,
@@ -352,9 +539,16 @@ export function AutomationsWorkspace({
         const graph = serializeGraph(updatedNodes, edges);
         const triggerNode = updatedNodes.find((n) => n.type === "trigger");
         const triggerType = triggerNode?.config?.triggerType as string | undefined;
+        const conditions = extractConditionsFromNodes(updatedNodes);
+        const delay = extractDelayFromNodes(updatedNodes);
 
         startTransition(async () => {
-          const data: Record<string, unknown> = { actions: graph };
+          const data: Record<string, unknown> = {
+            actions: graph,
+            // Send null explicitly so the backend clears removed conditions/delays.
+            conditions,
+            delay,
+          };
           if (name !== undefined) data.name = name;
           if (enabled !== undefined) data.enabled = enabled;
           if (triggerType) data.triggerType = triggerType;
@@ -389,14 +583,12 @@ export function AutomationsWorkspace({
       setNodes(savedNodes);
       setSidebarPanel({ type: "node-config", nodeId: savedNodes[0]!.id });
     } else {
-      const triggerNode: WorkflowNode = {
-        id: "trigger-1",
-        type: "trigger",
-        label: triggerLabels[automation.triggerType] ?? automation.triggerType,
-        config: { triggerType: automation.triggerType },
-      };
-      setNodes([triggerNode]);
-      setSidebarPanel({ type: "node-config", nodeId: "trigger-1" });
+      // Rule was stored in flat-array form (e.g. presets/onboarding defaults).
+      // Reconstruct trigger + condition + delay + action nodes so the user
+      // can see and edit them in the visual builder without losing data.
+      const reconstructed = reconstructNodesFromFlatRule(automation);
+      setNodes(reconstructed);
+      setSidebarPanel({ type: "node-config", nodeId: reconstructed[0]!.id });
     }
     setBuilderTab("editor");
     setView("builder");
@@ -466,11 +658,46 @@ export function AutomationsWorkspace({
   }
 
   function handleSelectBlock(blockType: string, label: string, nodeType: WorkflowNode["type"]) {
+    let config: Record<string, unknown>;
+    if (nodeType === "action") {
+      config = { actionType: blockType };
+    } else if (blockType === "delay") {
+      config = { unit: "hours", value: 1 };
+    } else if (blockType === "wait_until") {
+      config = { waitFor: "quote.viewed", unit: "event" };
+    } else if (blockType === "schedule_for") {
+      config = { time: "09:00", timezone: "local" };
+    } else if (blockType === "condition_source") {
+      config = { field: "inquiry.source", operator: "eq", value: "" };
+    } else if (blockType === "condition_contact_method") {
+      config = { field: "inquiry.contactMethod", operator: "eq", value: "" };
+    } else if (blockType === "condition_form") {
+      config = { field: "inquiry.formId", operator: "eq", value: "" };
+    } else if (blockType === "condition_name_contains") {
+      config = { field: "inquiry.name", operator: "contains", value: "" };
+    } else if (blockType === "condition_tag") {
+      config = { field: "inquiry.tag", operator: "eq", value: "" };
+    } else if (blockType === "condition_amount") {
+      config = { field: "quote.amount", operator: "gte", value: "" };
+    } else if (blockType === "condition_days_inactive") {
+      config = { field: "lastActivity.daysAgo", operator: "gte", value: "3" };
+    } else if (blockType === "condition_quote_viewed") {
+      config = { field: "quote.viewed", operator: "eq", value: "true" };
+    } else if (blockType === "condition_has_attachment") {
+      config = { field: "inquiry.hasAttachment", operator: "eq", value: "true" };
+    } else if (blockType === "condition_repeat_customer") {
+      config = { field: "contact.isRepeat", operator: "eq", value: "true" };
+    } else if (blockType === "condition_business_hours") {
+      config = { field: "time.isBusinessHours", operator: "eq", value: "true" };
+    } else {
+      config = { field: "", operator: "eq", value: "" };
+    }
+
     const newNode: WorkflowNode = {
       id: `${nodeType}-${Date.now()}`,
       type: nodeType,
       label,
-      config: nodeType === "action" ? { actionType: blockType } : nodeType === "delay" ? { unit: "hours", value: 1 } : { field: "", operator: "eq", value: "" },
+      config,
     };
     setNodes((prev) => {
       const updated = [...prev, newNode];
@@ -499,7 +726,10 @@ export function AutomationsWorkspace({
 
   function handleNameBlur() {
     if (editingId && workflowName.trim().length >= 2) {
-      autoSave(nodes, workflowName.trim());
+      // Save name immediately (not debounced) to prevent losing the rename
+      startTransition(async () => {
+        await updateAutomation(editingId, { name: workflowName.trim() });
+      });
     }
   }
 
@@ -564,20 +794,62 @@ export function AutomationsWorkspace({
 
   // Memoize flow nodes and edges
   const selectedNodeId = sidebarPanel?.type === "node-config" ? sidebarPanel.nodeId : null;
-  const flowNodes = useMemo(() => toFlowNodes(nodes, selectedNodeId), [nodes, selectedNodeId]);
   const flowEdges = useMemo(() => toFlowEdges(buildEdges(nodes), nodes), [nodes]);
 
   // React Flow controlled nodes state (for drag/position changes)
-  const [rfNodes, setRfNodes] = useState<Node[]>(flowNodes);
+  const [rfNodes, setRfNodes] = useState<Node[]>(() => toFlowNodes(nodes, selectedNodeId));
 
-  // Sync rfNodes when our internal nodes change
+  // Track whether a drag is in progress to avoid clobbering rfNodes mid-drag
+  const isDraggingRef = useRef(false);
+
+  // Sync rfNodes when our internal nodes change (but not during drag)
   useEffect(() => {
-    setRfNodes(toFlowNodes(nodes, selectedNodeId));
+    if (!isDraggingRef.current) {
+      setRfNodes(toFlowNodes(nodes, selectedNodeId));
+    }
   }, [nodes, selectedNodeId]);
 
   const onNodesChange: OnNodesChange = useCallback((changes) => {
     setRfNodes((nds) => applyNodeChanges(changes, nds));
-  }, []);
+
+    // Detect drag start/end
+    const positionChanges = changes.filter(
+      (c): c is Extract<typeof c, { type: "position" }> =>
+        c.type === "position",
+    );
+    const relevantChanges = positionChanges.filter(
+      (c) => c.id !== "__add_node__",
+    );
+
+    if (relevantChanges.length > 0) {
+      // Track dragging state
+      const anyDragging = relevantChanges.some((c) => c.dragging === true);
+      const hasDragEnd = relevantChanges.some((c) => c.dragging === false);
+
+      if (anyDragging) {
+        isDraggingRef.current = true;
+      }
+
+      // Only sync positions to internal state on drag end
+      if (hasDragEnd) {
+        isDraggingRef.current = false;
+        const changesWithPosition = relevantChanges.filter((c) => c.position);
+        if (changesWithPosition.length > 0) {
+          setNodes((prev) => {
+            const updated = prev.map((n) => {
+              const change = changesWithPosition.find((c) => c.id === n.id);
+              if (change && change.position) {
+                return { ...n, position: change.position };
+              }
+              return n;
+            });
+            autoSave(updated);
+            return updated;
+          });
+        }
+      }
+    }
+  }, [autoSave]);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -595,11 +867,11 @@ export function AutomationsWorkspace({
   }
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
+    <div className="automations-builder-container flex overflow-hidden">
       {/* Canvas area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar */}
-        <div className="flex h-11 shrink-0 items-center justify-between border-b border-border bg-surface-card px-4">
+        <div className="flex h-11 shrink-0 items-center justify-between bg-surface-card px-4">
           <div className="flex items-center gap-3">
             <Button
               size="icon-sm"
@@ -657,8 +929,8 @@ export function AutomationsWorkspace({
               <Switch checked={isEnabled} onCheckedChange={handleTogglePublish} />
             </div>
             {!isEnabled && (
-              <Button size="sm" onClick={handlePublish} disabled={nodes.length === 0 || isPending}>
-                Publish workflow
+              <Button size="xs" onClick={handlePublish} disabled={nodes.length === 0 || isPending}>
+                Publish
               </Button>
             )}
           </div>
@@ -710,7 +982,7 @@ export function AutomationsWorkspace({
             )}
           </div>
         ) : (
-          <RunsTabContent />
+          <RunsTabContent automationId={editingId} businessSlug={businessSlug} />
         )}
       </div>
 
@@ -750,18 +1022,294 @@ export function AutomationsWorkspace({
 // Runs Tab Content
 // ---------------------------------------------------------------------------
 
-function RunsTabContent() {
-  return (
-    <div className="flex flex-1 flex-col items-center justify-center p-12 text-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="flex size-12 items-center justify-center rounded-full bg-muted/50">
-          <Clock className="size-5 text-muted-foreground" />
+type RunsTabContentProps = {
+  automationId: string | null;
+  businessSlug: string;
+};
+
+function formatRelativeTime(date: Date): string {
+  const now = Date.now();
+  const d = new Date(date);
+  const diffMs = now - d.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return "just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDays = Math.floor(diffHr / 24);
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function formatRunDuration(ms: number): string {
+  if (ms === 0) return "—";
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s`;
+}
+
+function summarizeActions(actionsExecuted: unknown): string {
+  if (!Array.isArray(actionsExecuted) || actionsExecuted.length === 0) return "No actions";
+  const types = actionsExecuted
+    .map((a: unknown) => {
+      if (typeof a === "object" && a !== null && "type" in a) {
+        return String((a as { type: string }).type).replace(/_/g, " ");
+      }
+      return null;
+    })
+    .filter(Boolean);
+  if (types.length === 0) return `${actionsExecuted.length} action${actionsExecuted.length > 1 ? "s" : ""}`;
+  if (types.length === 1) return types[0]!;
+  return `${types[0]} +${types.length - 1}`;
+}
+
+const statusMeta: Record<string, { label: string; dotClass: string; rowClass: string }> = {
+  success: { label: "Completed", dotClass: "bg-emerald-500", rowClass: "" },
+  partial_failure: { label: "Partial failure", dotClass: "bg-amber-500", rowClass: "border-amber-500/20 bg-amber-500/[0.03]" },
+  failure: { label: "Failed", dotClass: "bg-destructive", rowClass: "border-destructive/20 bg-destructive/[0.03]" },
+};
+
+function RunsTabContent({ automationId }: RunsTabContentProps) {
+  const [entries, setEntries] = useState<Array<{
+    id: string;
+    triggerType: string;
+    triggerPayload: unknown;
+    actionsExecuted: unknown;
+    status: string;
+    durationMs: number;
+    error: string | null;
+    createdAt: Date;
+  }>>([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<"all" | "success" | "partial_failure" | "failure">("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [isLoading, startTransition] = useTransition();
+
+  const PAGE_SIZE = 20;
+
+  const loadRuns = useCallback(
+    (filter: typeof statusFilter, newOffset: number) => {
+      if (!automationId) return;
+      startTransition(async () => {
+        const { fetchAutomationRuns } = await import("../mutations");
+        const result = await fetchAutomationRuns(automationId, {
+          status: filter === "all" ? undefined : filter,
+          limit: PAGE_SIZE,
+          offset: newOffset,
+        });
+        if ("error" in result) {
+          toast.error(result.error);
+          return;
+        }
+        setEntries(result.entries);
+        setTotal(result.total);
+      });
+    },
+    [automationId, startTransition],
+  );
+
+  useEffect(() => {
+    loadRuns(statusFilter, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [automationId]);
+
+  if (!automationId) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center p-12 text-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex size-12 items-center justify-center rounded-full bg-muted/50">
+            <Clock className="size-5 text-muted-foreground" />
+          </div>
+          <h3 className="text-sm font-medium">Save to see runs</h3>
+          <p className="max-w-xs text-xs text-muted-foreground">
+            Save this workflow first to view its execution history.
+          </p>
         </div>
-        <h3 className="text-sm font-medium">No runs yet</h3>
-        <p className="max-w-xs text-xs text-muted-foreground">
-          This workflow hasn&apos;t been triggered. Execution history will appear here once it runs.
-        </p>
       </div>
+    );
+  }
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
+
+  const filterOptions: { value: typeof statusFilter; label: string; count?: number }[] = [
+    { value: "all", label: "All" },
+    { value: "success", label: "Completed" },
+    { value: "partial_failure", label: "Partial" },
+    { value: "failure", label: "Failed" },
+  ];
+
+  if (entries.length === 0 && !isLoading && statusFilter === "all") {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center p-12 text-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex size-12 items-center justify-center rounded-full bg-muted/50">
+            <Play className="size-5 text-muted-foreground" />
+          </div>
+          <h3 className="text-sm font-medium">No runs yet</h3>
+          <p className="max-w-xs text-xs text-muted-foreground">
+            Execution history will appear here once this workflow is triggered.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-1 flex-col overflow-hidden">
+      {/* Header bar */}
+      <div className="flex items-center gap-2 border-b border-border/70 px-4 py-3">
+        {filterOptions.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            className={cn(
+              "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+              statusFilter === opt.value
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+            )}
+            onClick={() => {
+              setStatusFilter(opt.value);
+              setOffset(0);
+              loadRuns(opt.value, 0);
+            }}
+            aria-pressed={statusFilter === opt.value}
+          >
+            {opt.label}
+          </button>
+        ))}
+        <span className="ml-auto text-xs tabular-nums text-muted-foreground">
+          {total} run{total !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      {/* Entries list */}
+      <div className="flex flex-1 flex-col gap-0 overflow-y-auto">
+        {entries.length === 0 && !isLoading && (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <p className="text-xs text-muted-foreground">No runs match this filter.</p>
+          </div>
+        )}
+        {entries.map((entry) => {
+          const meta = statusMeta[entry.status] ?? statusMeta.failure;
+          const isExpanded = expandedId === entry.id;
+          return (
+            <button
+              key={entry.id}
+              type="button"
+              onClick={() => setExpandedId(isExpanded ? null : entry.id)}
+              className={cn(
+                "group flex w-full flex-col border-b border-border/50 px-4 py-3 text-left transition-colors hover:bg-muted/30",
+                meta.rowClass,
+              )}
+            >
+              <div className="flex items-center gap-3">
+                {/* Status dot */}
+                <span
+                  className={cn("size-2 shrink-0 rounded-full", meta.dotClass)}
+                  aria-label={meta.label}
+                />
+                {/* Main content */}
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <span className="truncate text-[13px] font-medium text-foreground">
+                    {summarizeActions(entry.actionsExecuted)}
+                  </span>
+                  <span className="shrink-0 text-[11px] text-muted-foreground">
+                    {formatRunDuration(entry.durationMs)}
+                  </span>
+                </div>
+                {/* Time */}
+                <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground" suppressHydrationWarning>
+                  {formatRelativeTime(entry.createdAt)}
+                </span>
+              </div>
+
+              {/* Expanded details */}
+              {isExpanded && (
+                <div className="mt-2 flex flex-col gap-1.5 pl-5">
+                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <span className="font-medium">Trigger:</span>
+                    <span>{entry.triggerType.replace(".", " → ")}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <span className="font-medium">Status:</span>
+                    <span className={cn(
+                      entry.status === "success" && "text-emerald-600",
+                      entry.status === "partial_failure" && "text-amber-600",
+                      entry.status === "failure" && "text-destructive",
+                    )}>
+                      {meta.label}
+                    </span>
+                  </div>
+                  {entry.error && (
+                    <div className="mt-1 rounded-md bg-destructive/[0.06] px-2.5 py-1.5 text-[11px] leading-relaxed text-destructive">
+                      {entry.error}
+                    </div>
+                  )}
+                  {Array.isArray(entry.actionsExecuted) && entry.actionsExecuted.length > 1 && (
+                    <div className="mt-1 flex flex-col gap-1">
+                      {entry.actionsExecuted.map((action: unknown, i: number) => {
+                        const a = action as { type?: string; success?: boolean; error?: string };
+                        return (
+                          <div key={i} className="flex items-center gap-2 text-[11px]">
+                            <span className={cn(
+                              "size-1.5 rounded-full",
+                              a.success ? "bg-emerald-500" : "bg-destructive",
+                            )} />
+                            <span className="text-muted-foreground">
+                              {a.type?.replace(/_/g, " ") ?? `Action ${i + 1}`}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-border/70 px-4 py-2.5">
+          <span className="text-[11px] tabular-nums text-muted-foreground">
+            {currentPage}/{totalPages}
+          </span>
+          <div className="flex gap-1.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              disabled={currentPage <= 1 || isLoading}
+              onClick={() => {
+                const newOffset = Math.max(0, offset - PAGE_SIZE);
+                setOffset(newOffset);
+                loadRuns(statusFilter, newOffset);
+              }}
+            >
+              Prev
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              disabled={currentPage >= totalPages || isLoading}
+              onClick={() => {
+                const newOffset = offset + PAGE_SIZE;
+                setOffset(newOffset);
+                loadRuns(statusFilter, newOffset);
+              }}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -801,59 +1349,109 @@ function AutomationListView({
   }
 
   return (
-    <div className="flex flex-col gap-0 p-0">
+    <div className="flex flex-col gap-0">
+      {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-6 py-4">
-        <h1 className="text-lg font-semibold">Automations</h1>
+        <div className="flex flex-col gap-0.5">
+          <h1 className="text-lg font-semibold">Automations</h1>
+          <p className="text-xs text-muted-foreground">
+            {automations.length} workflow{automations.length !== 1 ? "s" : ""}
+          </p>
+        </div>
         <Button size="sm" onClick={onNew}>
           <Plus className="size-3.5" />
           New workflow
         </Button>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
-              <th className="px-6 py-3 text-left font-medium">Workflow</th>
-              <th className="px-6 py-3 text-left font-medium">Trigger</th>
-              <th className="px-6 py-3 text-left font-medium">Status</th>
-              <th className="px-6 py-3 text-left font-medium">Last run</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/70">
-            {automations.map((automation) => (
-              <tr
-                key={automation.id}
-                onClick={() => onEdit(automation)}
-                className="cursor-pointer transition-colors hover:bg-muted/30"
-              >
-                <td className="px-6 py-3">
-                  <span className="font-medium text-foreground">
+
+      {/* Automation rows */}
+      <div className="flex flex-col divide-y divide-border/60">
+        {automations.map((automation) => {
+          const TriggerIcon = triggers.find((t) => t.id === automation.triggerType)?.icon ?? Zap;
+          const triggerLabel = triggerLabels[automation.triggerType] ?? automation.triggerType;
+          const actionCount = countActions(automation.actions);
+          const lastRun = automation.lastTriggeredAt
+            ? formatRelativeTime(automation.lastTriggeredAt)
+            : null;
+
+          return (
+            <button
+              key={automation.id}
+              type="button"
+              onClick={() => onEdit(automation)}
+              className="group flex items-center gap-4 px-6 py-4 text-left transition-colors hover:bg-muted/30"
+            >
+              {/* Icon */}
+              <div className={cn(
+                "flex size-9 shrink-0 items-center justify-center rounded-lg border transition-colors",
+                automation.enabled
+                  ? "border-primary/20 bg-primary/[0.06] text-primary"
+                  : "border-border bg-muted/50 text-muted-foreground",
+              )}>
+                <TriggerIcon className="size-4" />
+              </div>
+
+              {/* Main content */}
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-medium text-foreground">
                     {automation.name}
                   </span>
-                </td>
-                <td className="px-6 py-3 text-muted-foreground">
-                  {triggerLabels[automation.triggerType] ?? automation.triggerType}
-                </td>
-                <td className="px-6 py-3">
-                  <Badge
-                    variant={automation.enabled ? "default" : "secondary"}
-                    className="text-[0.65rem]"
-                  >
-                    {automation.enabled ? "Active" : "Draft"}
-                  </Badge>
-                </td>
-                <td className="px-6 py-3 text-muted-foreground">
-                  {automation.lastTriggeredAt
-                    ? new Date(automation.lastTriggeredAt).toLocaleDateString()
-                    : "Never"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  {!automation.enabled && (
+                    <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      Draft
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span>{triggerLabel}</span>
+                  {actionCount > 0 && (
+                    <>
+                      <span className="text-border">→</span>
+                      <span>{actionCount} action{actionCount !== 1 ? "s" : ""}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Right side: status + last run */}
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <div className="flex items-center gap-1.5">
+                  <span className={cn(
+                    "size-1.5 rounded-full",
+                    automation.enabled ? "bg-emerald-500" : "bg-muted-foreground/40",
+                  )} />
+                  <span className={cn(
+                    "text-xs font-medium",
+                    automation.enabled ? "text-emerald-600" : "text-muted-foreground",
+                  )}>
+                    {automation.enabled ? "Active" : "Inactive"}
+                  </span>
+                </div>
+                {lastRun && (
+                  <span className="text-[11px] text-muted-foreground" suppressHydrationWarning>
+                    Last run {lastRun}
+                  </span>
+                )}
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
+}
+
+/** Count action nodes from an automation's actions field */
+function countActions(actions: unknown): number {
+  if (Array.isArray(actions)) return actions.length;
+  if (actions && typeof actions === "object" && "nodes" in actions) {
+    const graph = actions as { nodes: Array<{ type: string }> };
+    if (Array.isArray(graph.nodes)) {
+      return graph.nodes.filter((n) => n.type === "action").length;
+    }
+  }
+  return 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -901,17 +1499,20 @@ function TriggerPickerPanel({
             <div className="flex flex-col gap-1">
               {filtered
                 .filter((t) => t.group === group)
-                .map((trigger) => (
-                  <button
-                    key={trigger.id}
-                    type="button"
-                    onClick={() => onSelect(trigger.id)}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/50"
-                  >
-                    <Zap className="size-4 text-primary" />
-                    {trigger.label}
-                  </button>
-                ))}
+                .map((trigger) => {
+                  const Icon = trigger.icon;
+                  return (
+                    <button
+                      key={trigger.id}
+                      type="button"
+                      onClick={() => onSelect(trigger.id)}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/50"
+                    >
+                      <Icon className="size-4 text-primary" />
+                      {trigger.label}
+                    </button>
+                  );
+                })}
             </div>
           </div>
         ))}
@@ -1281,6 +1882,35 @@ function ActionConfigFields({
               id="ai-toggle"
               checked={(node.config?.useAi as boolean) ?? true}
               onCheckedChange={(checked) => update("useAi", checked)}
+            />
+          </FieldContent>
+        </Field>
+      )}
+
+      {actionType === "add_internal_note" && (
+        <Field>
+          <FieldLabel htmlFor="note-body">Note</FieldLabel>
+          <FieldContent>
+            <Textarea
+              id="note-body"
+              placeholder="Internal note text..."
+              rows={4}
+              defaultValue={(node.config?.note as string) ?? ""}
+              onBlur={(e) => update("note", e.target.value)}
+            />
+          </FieldContent>
+        </Field>
+      )}
+
+      {actionType === "duplicate_quote" && (
+        <Field>
+          <FieldLabel htmlFor="duplicate-suffix">Title suffix</FieldLabel>
+          <FieldContent>
+            <Input
+              id="duplicate-suffix"
+              placeholder="(copy)"
+              defaultValue={(node.config?.titleSuffix as string) ?? "(copy)"}
+              onBlur={(e) => update("titleSuffix", e.target.value)}
             />
           </FieldContent>
         </Field>

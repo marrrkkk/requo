@@ -7,43 +7,52 @@ import type { WorkflowNode } from "../hooks/use-workflow-state";
 
 export function DelayNode({ data, selected }: NodeProps<WorkflowNode>) {
   const hasErrors = data.errors && data.errors.length > 0;
-  const config = data.config as
-    | { unit?: string; value?: number }
-    | undefined;
+  const config = data.config as { unit?: string; value?: number } | undefined;
   const duration =
     config?.value && config?.unit
-      ? `${config.value} ${config.unit}`
+      ? `Wait ${config.value} ${config.unit}`
       : "Not configured";
 
   return (
     <div
-      className={`rounded-lg border bg-surface-card px-4 py-3 shadow-sm transition-shadow ${
-        selected ? "ring-2 ring-primary" : ""
-      } ${hasErrors ? "border-destructive" : ""}`}
+      className={`w-64 rounded-xl border bg-surface-card shadow-sm transition-all ${
+        selected ? "ring-2 ring-blue-500 shadow-md" : ""
+      } ${hasErrors ? "border-destructive" : "border-border"}`}
     >
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="!size-3 !border-2 !border-border !bg-surface-card"
-      />
-      <div className="flex items-center gap-2">
-        <div className="flex size-8 items-center justify-center rounded-md bg-blue-500/10 text-blue-600">
-          <Clock className="size-4" />
+      {/* Category chip */}
+      <div className="flex items-center gap-1.5 px-3 pt-2.5 pb-1.5">
+        <div className="flex size-5 items-center justify-center rounded bg-blue-500/10 text-blue-600">
+          <Clock className="size-3" />
         </div>
-        <div>
-          <div className="text-sm font-medium">{data.label || "Delay"}</div>
-          <div className="text-xs text-muted-foreground">{duration}</div>
-        </div>
+        <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-blue-600">
+          Delay
+        </span>
         {hasErrors && (
           <div className="ml-auto text-destructive" title={data.errors!.join("\n")}>
-            <AlertCircle className="size-4" />
+            <AlertCircle className="size-3.5" />
           </div>
         )}
       </div>
+
+      {/* Body */}
+      <div className="flex items-center gap-2.5 border-t border-border/50 px-3 py-2.5">
+        <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-blue-500/10 text-blue-600">
+          <Clock className="size-3.5" />
+        </div>
+        <span className="text-sm font-medium text-foreground">
+          {data.label || "Delay"}
+        </span>
+      </div>
+
+      <Handle
+        type="target"
+        position={Position.Top}
+        className="!size-3 !rounded-full !border-2 !border-border !bg-surface-card"
+      />
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!size-3 !border-2 !border-primary !bg-surface-card"
+        className="!size-3 !rounded-full !border-2 !border-blue-500 !bg-surface-card"
       />
     </div>
   );
