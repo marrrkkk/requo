@@ -9,6 +9,7 @@ import {
   quoteItems,
   quotes,
 } from "@/lib/db/schema";
+import { emitEvent } from "@/features/automations/dispatcher";
 import type { JobStatus } from "@/features/jobs/types";
 
 function createId(prefix: string) {
@@ -132,6 +133,13 @@ export async function createJobFromQuoteForBusiness({
       .set({ postAcceptanceStatus: "in_progress", updatedAt: now })
       .where(eq(quotes.id, quoteId));
 
+    // Emit job.created automation event
+    emitEvent(businessId, "job.created", {
+      jobId,
+      quoteId,
+      title: quote.title,
+    });
+
     return { jobId, quoteNumber: quote.quoteNumber };
   });
 }
@@ -187,6 +195,12 @@ export async function updateJobStatusForBusiness({
       .update(quotes)
       .set({ postAcceptanceStatus: "completed", updatedAt: now })
       .where(eq(quotes.id, updated.quoteId));
+
+    // Emit job.completed automation event
+    emitEvent(businessId, "job.completed", {
+      jobId: updated.id,
+      completedAt: now.toISOString(),
+    });
   }
 
   return { jobId: updated.id };
