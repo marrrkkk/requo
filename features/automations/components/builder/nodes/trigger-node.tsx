@@ -51,7 +51,7 @@ export function TriggerNode({ data, selected }: NodeProps<WorkflowNode>) {
 
   return (
     <div
-      className={`w-64 rounded-xl border bg-surface-card shadow-sm transition-all ${
+      className={`w-64 rounded-xl border bg-card shadow-sm transition-all ${
         selected ? "ring-2 ring-primary shadow-md" : ""
       } ${hasErrors ? "border-destructive" : "border-border"}`}
     >
@@ -88,7 +88,7 @@ export function TriggerNode({ data, selected }: NodeProps<WorkflowNode>) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!size-3 !rounded-full !border-2 !border-primary !bg-surface-card"
+        className="!size-3 !rounded-full !border-2 !border-primary !bg-card"
       />
     </div>
   );

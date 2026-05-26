@@ -222,10 +222,10 @@ export function WorkflowCanvas({
       >
         <Background />
         <MiniMap
-          className="!border !border-border !bg-surface-card"
+          className="!border !border-border !bg-card"
           maskColor="rgba(0, 0, 0, 0.1)"
         />
-        <Controls className="!border !border-border !bg-surface-card !shadow-sm" />
+        <Controls className="!border !border-border !bg-card !shadow-sm" />
       </ReactFlow>
     </div>
   );

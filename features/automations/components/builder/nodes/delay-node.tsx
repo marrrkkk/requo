@@ -15,7 +15,7 @@ export function DelayNode({ data, selected }: NodeProps<WorkflowNode>) {
 
   return (
     <div
-      className={`w-64 rounded-xl border bg-surface-card shadow-sm transition-all ${
+      className={`w-64 rounded-xl border bg-card shadow-sm transition-all ${
         selected ? "ring-2 ring-blue-500 shadow-md" : ""
       } ${hasErrors ? "border-destructive" : "border-border"}`}
     >
@@ -47,12 +47,12 @@ export function DelayNode({ data, selected }: NodeProps<WorkflowNode>) {
       <Handle
         type="target"
         position={Position.Top}
-        className="!size-3 !rounded-full !border-2 !border-border !bg-surface-card"
+        className="!size-3 !rounded-full !border-2 !border-border !bg-card"
       />
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!size-3 !rounded-full !border-2 !border-blue-500 !bg-surface-card"
+        className="!size-3 !rounded-full !border-2 !border-blue-500 !bg-card"
       />
     </div>
   );

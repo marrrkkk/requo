@@ -111,6 +111,31 @@ const delayUnitOptions = delayUnits.map((u) => ({
   label: u.charAt(0).toUpperCase() + u.slice(1),
 }));
 
+const inquiryStatusOptions = [
+  { value: "new", label: "New" },
+  { value: "quoted", label: "Quoted" },
+  { value: "waiting", label: "Waiting" },
+  { value: "won", label: "Won" },
+  { value: "lost", label: "Lost" },
+];
+
+const quoteStatusOptions = [
+  { value: "draft", label: "Draft" },
+  { value: "sent", label: "Sent" },
+  { value: "expired", label: "Expired" },
+  { value: "voided", label: "Voided" },
+];
+
+const followUpChannelOptions = [
+  { value: "email", label: "Email" },
+  { value: "phone", label: "Phone" },
+  { value: "sms", label: "SMS" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "messenger", label: "Messenger" },
+  { value: "instagram", label: "Instagram" },
+  { value: "other", label: "Other" },
+];
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -426,12 +451,7 @@ function ActionTypeFields({
               <Combobox
                 id="action-follow-up-channel"
                 placeholder="Channel"
-                options={[
-                  { value: "email", label: "Email" },
-                  { value: "phone", label: "Phone" },
-                  { value: "sms", label: "SMS" },
-                  { value: "other", label: "Other" },
-                ]}
+                options={followUpChannelOptions}
                 value={(config.channel as string) ?? "email"}
                 onValueChange={(v) => onUpdate({ channel: v })}
               />
@@ -518,11 +538,12 @@ function ActionTypeFields({
             Target status
           </FieldLabel>
           <FieldContent>
-            <Input
+            <Combobox
               id="action-inquiry-status"
-              placeholder="e.g. qualified"
+              placeholder="Select status"
+              options={inquiryStatusOptions}
               value={(config.status as string) ?? ""}
-              onChange={(e) => onUpdate({ status: e.target.value })}
+              onValueChange={(v) => onUpdate({ status: v })}
             />
           </FieldContent>
         </Field>
@@ -533,11 +554,12 @@ function ActionTypeFields({
         <Field>
           <FieldLabel htmlFor="action-quote-status">Target status</FieldLabel>
           <FieldContent>
-            <Input
+            <Combobox
               id="action-quote-status"
-              placeholder="e.g. expired"
+              placeholder="Select status"
+              options={quoteStatusOptions}
               value={(config.status as string) ?? ""}
-              onChange={(e) => onUpdate({ status: e.target.value })}
+              onValueChange={(v) => onUpdate({ status: v })}
             />
           </FieldContent>
         </Field>
