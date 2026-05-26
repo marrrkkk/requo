@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BellRing, Check, ChevronRight, Copy, Eye, FileText, Inbox, Send, X } from "lucide-react";
+import { ArrowRight, BellRing, Briefcase, Check, ChevronRight, Eye, FileText, Inbox, Receipt, X } from "lucide-react";
 import { Suspense } from "react";
 
 import {
@@ -31,24 +31,24 @@ import { Button } from "@/components/ui/button";
 
 const workflowSteps = [
   {
-    title: "Capture the inquiry",
-    description: "Public form or add it manually. One record holds the request, files, and conversation.",
+    title: "Capture",
+    description: "Intake form or manual entry. Every detail in one place.",
     icon: Inbox,
   },
   {
-    title: "Generate the quote",
-    description: "AI drafts line items from your pricing library. Review, adjust, and send in minutes.",
+    title: "Quote",
+    description: "AI drafts from your pricing. Review and send in minutes.",
     icon: FileText,
   },
   {
-    title: "Share or send",
-    description: "Copy the link for WhatsApp, SMS, and DMs, or send it by email from Requo.",
-    icon: Send,
+    title: "Win",
+    description: "Track views, follow up on time, close the deal.",
+    icon: BellRing,
   },
   {
-    title: "Track and follow up",
-    description: "See viewed, accepted, and rejected. Get nudged and follow up before a job goes cold.",
-    icon: BellRing,
+    title: "Deliver",
+    description: "Convert to a job, track progress, invoice when done.",
+    icon: Briefcase,
   },
 ] as const;
 
@@ -106,29 +106,29 @@ function WorkflowArtifact({ step }: { step: number }) {
 
   if (step === 3) {
     return (
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-2 py-1 text-[10px] font-medium text-foreground shadow-sm">
-          <Send className="size-3 text-primary" />
-          Sent by email
+      <div className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-background/70 px-2.5 py-2 shadow-sm">
+        <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+          <Eye className="size-3" />
+          Viewed
         </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2 py-1 text-[10px] font-medium text-muted-foreground shadow-sm">
-          <Copy className="size-3" />
-          Link copied
+        <ArrowRight className="size-3 text-muted-foreground/60" />
+        <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+          <Check className="size-3" />
+          Accepted
         </span>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-background/70 px-2.5 py-2 shadow-sm">
-      <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-        <Eye className="size-3" />
-        Viewed
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-2 py-1 text-[10px] font-medium text-foreground shadow-sm">
+        <Briefcase className="size-3 text-primary" />
+        Job created
       </span>
-      <ArrowRight className="size-3 text-muted-foreground/60" />
-      <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-        <Check className="size-3" />
-        Accepted
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2 py-1 text-[10px] font-medium text-muted-foreground shadow-sm">
+        <Receipt className="size-3" />
+        Invoiced
       </span>
     </div>
   );
@@ -138,20 +138,20 @@ const whyRequoStages = [
   {
     stage: "Capture",
     icon: Inbox,
-    pain: "A single request lives across email, DMs, calls, and your notes app. Context gets lost before you even start.",
-    fix: "One inquiry record holds the form answers, files, conversation, and AI-detected details, ready to quote.",
+    pain: "Requests scattered across email, DMs, and notes. Context lost before you start.",
+    fix: "One record. Form answers, files, conversation, and AI-detected details — ready to quote.",
   },
   {
     stage: "Quote",
     icon: FileText,
-    pain: "Every quote starts from scratch. Ready buyers cool off while you rebuild the request and look up old pricing.",
-    fix: "AI drafts from your pricing library and past quotes. Review, adjust, and send in minutes, not hours.",
+    pain: "Every quote rebuilt from scratch. Buyers cool off waiting.",
+    fix: "AI drafts from your pricing library. Review, adjust, send in minutes.",
   },
   {
     stage: "Win & Deliver",
     icon: BellRing,
-    pain: "After acceptance, tracking happens in your head. Work items, invoicing, and follow-ups live nowhere useful.",
-    fix: "Track work items, generate an invoice from the accepted quote, and keep the customer loop closed end-to-end.",
+    pain: "After acceptance, everything lives in your head.",
+    fix: "Jobs, invoices, and follow-ups — connected from quote to completion.",
   },
 ] as const;
 
@@ -262,10 +262,10 @@ export function MarketingHero() {
           <InViewReveal className="flex flex-col items-start gap-5 lg:sticky lg:top-32 lg:h-fit">
             <p className="eyebrow">WHY REQUO</p>
             <h2 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl lg:text-5xl">
-              Most jobs aren&apos;t lost at the price.
+              You lose work between the cracks, not at the price.
             </h2>
             <p className="text-base leading-normal sm:leading-8 text-muted-foreground sm:text-lg">
-              They&apos;re lost between inquiry and follow-up. Scattered notes, slow quotes, silent replies, and no clear next step after acceptance. Requo closes the whole loop.
+              Slow replies, forgotten follow-ups, no clear next step. Requo keeps every inquiry moving toward revenue.
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-[0.72rem] font-medium text-muted-foreground">
               {["Capture", "Quote", "Win & Deliver"].map((label, index, arr) => (
@@ -352,10 +352,10 @@ export function MarketingHero() {
         <InViewReveal className="flex flex-col items-start gap-4">
           <p className="eyebrow">HOW IT WORKS</p>
           <h2 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl lg:text-5xl">
-            From inquiry to invoice, without the scramble.
+            Inquiry to invoice. No scramble.
           </h2>
           <p className="max-w-2xl text-base leading-normal sm:leading-8 text-muted-foreground sm:text-lg">
-            Every customer request stays connected from the first message through quoting, acceptance, work tracking, and invoicing.
+            Inquiry to invoice, connected the whole way.
           </p>
         </InViewReveal>
 
@@ -371,14 +371,14 @@ export function MarketingHero() {
             className="absolute bottom-3 left-[1.125rem] top-3 w-px bg-gradient-to-b from-transparent via-border/80 to-transparent lg:hidden"
           />
 
-          <ol className="grid gap-6 lg:grid-cols-4 lg:gap-5">
+          <ol className="grid gap-8 sm:gap-10 lg:grid-cols-4 lg:gap-0">
             {workflowSteps.map((step, index) => {
               const Icon = step.icon;
               const stepNumber = index + 1;
 
               return (
                 <li
-                  className="relative flex gap-4 pl-10 lg:flex-col lg:gap-4 lg:pl-0"
+                  className="relative flex gap-4 pl-10 lg:flex-col lg:gap-4 lg:border-l lg:border-border/50 lg:pl-6 lg:first:border-l-0 lg:first:pl-0"
                   key={step.title}
                 >
                   {/* Step badge — sits on top of the connector line */}

@@ -2,23 +2,24 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  ArrowRight,
-  BarChart3,
-  Bell,
   BellRing,
   ChevronsUpDown,
-  Clock3,
-  Eye,
   FileText,
-  FormInput,
   Home,
   Inbox,
+  BarChart3,
+  FormInput,
   Lock,
   PanelLeft,
   Search,
-  Settings2,
   Sparkles,
-  Users,
+  Bell,
+  CheckCircle,
+  ArrowRight,
+  Send,
+  ClipboardList,
+  Receipt,
+  Workflow,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -37,70 +38,67 @@ type NavItem = {
 };
 
 const navItems: readonly NavItem[] = [
-  { key: "dashboard", label: "Home", icon: Home, active: true },
+  { key: "home", label: "Home", icon: Home, active: true },
   { key: "inquiries", label: "Inquiries", icon: Inbox },
   { key: "quotes", label: "Quotes", icon: FileText },
   { key: "follow-ups", label: "Follow-ups", icon: BellRing },
-  { key: "ask", label: "Ask", icon: Sparkles },
-  { key: "analytics", label: "Analytics", icon: BarChart3 },
+  { key: "jobs", label: "Jobs", icon: ClipboardList },
+  { key: "invoices", label: "Invoices", icon: Receipt },
+  { key: "automations", label: "Automations", icon: Workflow },
   { key: "forms", label: "Forms", icon: FormInput },
-  { key: "members", label: "Members", icon: Users },
-  { key: "settings", label: "Settings", icon: Settings2 },
+  { key: "analytics", label: "Analytics", icon: BarChart3 },
 ];
 
-const dashboardStats: readonly {
-  label: string;
-  value: string;
-  delta: string;
-  up: boolean;
-}[] = [
-  { label: "New inquiries", value: "4", delta: "+2", up: true },
-  { label: "Quotes sent", value: "8", delta: "+3", up: true },
-  { label: "Viewed rate", value: "75%", delta: "+6 pts", up: true },
-  { label: "Won this week", value: "3", delta: "+1", up: true },
-];
-
-type DashboardAlert = {
-  tone: "overdue" | "due" | "fresh";
+type AttentionItem = {
+  tone: "urgent" | "normal" | "positive";
   icon: LucideIcon;
+  label: string;
   title: string;
-  detail: string;
-  status?: string;
+  description: string;
+  meta: string;
 };
 
-const dashboardAlerts: readonly DashboardAlert[] = [
+const attentionItems: readonly AttentionItem[] = [
   {
-    tone: "overdue",
-    icon: Clock3,
-    title: "Q-1042 viewed, no reply in 2 days",
-    detail: "Sarah Jenkins · Kitchen remodel",
-    status: "Follow up",
-  },
-  {
-    tone: "due",
+    tone: "urgent",
     icon: BellRing,
-    title: "Follow-up due today",
-    detail: "Maya Fields · Studio fit-out",
-    status: "Due today",
+    label: "Overdue follow-up",
+    title: "Kitchen remodel follow-up",
+    description: "Sarah Jenkins · No reply in 3 days",
+    meta: "Due May 22",
   },
   {
-    tone: "fresh",
-    icon: Inbox,
-    title: "New inquiry from Leo Park",
-    detail: "Tile repair · 9:02 AM",
-    status: "New",
+    tone: "urgent",
+    icon: FileText,
+    label: "Quote expiring",
+    title: "Studio fit-out",
+    description: "Maya Fields · $6,200",
+    meta: "Expires tomorrow",
   },
-];
-
-const weeklyProgress: readonly {
-  label: string;
-  value: number;
-  pct: number;
-}[] = [
-  { label: "Inquiries captured", value: 14, pct: 100 },
-  { label: "Quotes sent", value: 8, pct: 57 },
-  { label: "Quotes viewed", value: 6, pct: 43 },
-  { label: "Jobs won", value: 3, pct: 21 },
+  {
+    tone: "normal",
+    icon: Inbox,
+    label: "New inquiry",
+    title: "Leo Park",
+    description: "Tile repair · Bathroom regrout",
+    meta: "9:02 AM",
+  },
+  {
+    tone: "normal",
+    icon: BellRing,
+    label: "Due today",
+    title: "Deck staining check-in",
+    description: "Carlos Rivera · Quote viewed",
+    meta: "Due today",
+  },
+  {
+    tone: "positive",
+    icon: CheckCircle,
+    label: "Accepted",
+    title: "Office painting Q-1038",
+    description: "Brightwork Co · $3,400",
+    meta: "Accepted May 24",
+  },
 ];
 
 /* -------------------------------------------------------------------------- */
@@ -124,7 +122,6 @@ function useShowcaseAnimation() {
           timers.push(setTimeout(() => setPhase(1), 200));
           timers.push(setTimeout(() => setPhase(2), 600));
           timers.push(setTimeout(() => setPhase(3), 1000));
-          timers.push(setTimeout(() => setPhase(4), 1400));
           return () => timers.forEach(clearTimeout);
         }
       },
@@ -167,20 +164,21 @@ export function MarketingShowcase() {
 
   return (
     <div className="mx-auto w-full max-w-6xl" ref={containerRef}>
+      {/* Laptop frame — thin bezel using border + ring */}
       <div
         aria-label="Preview of the Requo dashboard"
-        className="relative w-full overflow-hidden rounded-2xl border border-border/60 bg-background shadow-[0_8px_40px_rgba(0,0,0,0.08),0_1px_3px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_40px_rgba(0,0,0,0.4)]"
+        className="relative w-full overflow-hidden rounded-xl border border-border/70 bg-background ring-1 ring-border/30 ring-offset-2 ring-offset-background shadow-[0_20px_60px_rgba(0,0,0,0.1),0_4px_16px_rgba(0,0,0,0.05)] dark:border-white/10 dark:ring-white/5 dark:shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
         role="img"
       >
         {/* Browser chrome */}
-        <div className="flex h-9 shrink-0 items-center gap-3 border-b border-border/50 bg-muted/30 px-3 sm:h-10 sm:px-4">
+        <div className="flex h-8 shrink-0 items-center gap-3 border-b border-border/40 bg-muted/20 px-3.5 sm:h-9">
           <div aria-hidden="true" className="flex items-center gap-1.5">
-            <span className="size-2 rounded-full bg-border/80" />
-            <span className="size-2 rounded-full bg-border/80" />
-            <span className="size-2 rounded-full bg-border/80" />
+            <span className="size-[9px] rounded-full bg-[#ff5f57]" />
+            <span className="size-[9px] rounded-full bg-[#febc2e]" />
+            <span className="size-[9px] rounded-full bg-[#28c840]" />
           </div>
-          <div className="mx-auto flex h-5.5 max-w-xs flex-1 items-center gap-1.5 rounded-md border border-border/50 bg-background/60 px-2.5 text-[10px] text-muted-foreground sm:text-[11px]">
-            <Lock className="size-2.5" />
+          <div className="mx-auto flex h-5 max-w-xs flex-1 items-center gap-1.5 rounded-md border border-border/40 bg-background/50 px-2.5 text-[10px] text-muted-foreground">
+            <Lock className="size-2.5 text-muted-foreground/60" />
             <span className="truncate font-mono">
               app.requo.com/brightside/home
             </span>
@@ -189,12 +187,12 @@ export function MarketingShowcase() {
         </div>
 
         <div className="flex h-[30rem] min-h-0 sm:h-[32rem] lg:h-[34rem]">
-          {/* ─── Sidebar (mirrors DashboardShell sidebar) ─── */}
+          {/* ─── Sidebar ─── */}
           <aside
             aria-hidden="true"
             className="flex w-14 shrink-0 flex-col border-r border-border/50 bg-sidebar sm:w-[16rem]"
           >
-            {/* Sidebar Header — BrandMark */}
+            {/* Sidebar Header */}
             <div className="flex h-[3.5rem] items-center px-2 sm:px-3">
               <div className="flex items-center gap-2 px-2 py-1.5">
                 <span className="flex size-6 shrink-0 items-center justify-center text-primary sm:size-7">
@@ -208,14 +206,12 @@ export function MarketingShowcase() {
               </div>
             </div>
 
-            {/* Separator */}
             <div className="mx-2.5 h-px bg-border/40" />
 
             {/* Business Switcher */}
             <div className="hidden px-3 py-2.5 sm:block">
               <div className="w-full rounded-xl border border-sidebar-border/70 bg-background/80 p-3 text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:border-white/6 dark:bg-card/70">
                 <div className="flex items-center gap-3">
-                  {/* Business Avatar */}
                   <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-sidebar-border/70 bg-muted/50 text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/80 dark:border-white/6">
                     BS
                   </div>
@@ -240,7 +236,7 @@ export function MarketingShowcase() {
               </div>
             </div>
 
-            {/* Navigation Items */}
+            {/* Navigation */}
             <div className="flex-1 overflow-hidden px-1 pb-3 sm:px-2.5">
               <div className="flex flex-col gap-px pt-2">
                 {navItems.map((item) => {
@@ -268,10 +264,9 @@ export function MarketingShowcase() {
               </div>
             </div>
 
-            {/* Separator */}
             <div className="mx-2.5 h-px bg-border/50" />
 
-            {/* User Menu Footer */}
+            {/* User footer */}
             <div className="hidden p-2.5 pt-2 sm:block">
               <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
                 <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted/60 text-[9px] font-semibold text-foreground/80">
@@ -289,12 +284,11 @@ export function MarketingShowcase() {
             </div>
           </aside>
 
-          {/* ─── Main Content (mirrors SidebarInset) ─── */}
+          {/* ─── Main Content ─── */}
           <div className="flex min-w-0 flex-1 flex-col bg-background">
-            {/* Top bar — mirrors dashboard-topbar */}
+            {/* Top bar */}
             <div className="sticky top-0 z-30 border-b border-border/50 bg-background/95 backdrop-blur-sm">
               <div className="flex min-h-10 items-center gap-2 px-3 py-2 sm:px-5 sm:py-3 md:gap-2.5">
-                {/* SidebarTrigger */}
                 <button
                   type="button"
                   className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/70"
@@ -302,27 +296,17 @@ export function MarketingShowcase() {
                 >
                   <PanelLeft className="size-3.5" />
                 </button>
-                {/* Separator */}
-                <span
-                  aria-hidden="true"
-                  className="hidden h-4 w-px shrink-0 self-center bg-border md:block"
-                />
-                {/* Breadcrumbs */}
+                <span aria-hidden="true" className="hidden h-4 w-px shrink-0 self-center bg-border md:block" />
                 <div className="hidden min-w-0 flex-1 md:block">
                   <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <span className="text-foreground font-medium">Dashboard</span>
+                    <span className="font-medium text-foreground">Home</span>
                   </nav>
                 </div>
-                {/* Mobile page label */}
                 <div className="min-w-0 flex-1 md:hidden">
                   <p className="truncate font-heading text-base font-semibold tracking-tight text-foreground">
-                    Dashboard
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    BrightSide
+                    Home
                   </p>
                 </div>
-                {/* Command menu + notification bell */}
                 <div className="flex shrink-0 items-center gap-1.5">
                   <span
                     aria-hidden="true"
@@ -332,207 +316,139 @@ export function MarketingShowcase() {
                     <span>Search quotes, inquiries...</span>
                     <kbd className="ml-auto rounded border border-border/50 bg-background/60 px-1.5 py-0.5 font-mono text-[9px]">⌘K</kbd>
                   </span>
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      "relative flex size-8 items-center justify-center rounded-md transition-all duration-300",
-                      phase >= 4
-                        ? "bg-primary/8 text-primary"
-                        : "text-muted-foreground",
-                    )}
-                  >
+                  <span className="relative flex size-8 items-center justify-center rounded-md text-muted-foreground">
                     <Bell className="size-3.5" />
-                    <span
-                      className={cn(
-                        "absolute right-1.5 top-1.5 size-1.5 rounded-full bg-primary transition-transform duration-300",
-                        phase >= 4 ? "scale-100" : "scale-0",
-                      )}
-                    />
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Dashboard content area */}
-            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-3 py-4 sm:gap-5 sm:px-5 sm:py-5">
-              {/* Stat tiles */}
-              <div className="grid shrink-0 grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5">
-                {dashboardStats.map((stat, index) => (
-                  <div
-                    className={cn(
-                      "info-tile min-w-0 px-2.5 py-2.5 shadow-none sm:px-3 sm:py-3 transition-all duration-500",
-                      phase >= 1
-                        ? "translate-y-0 opacity-100"
-                        : "translate-y-2 opacity-0",
-                    )}
-                    key={stat.label}
-                    style={{
-                      transitionDelay: phase >= 1 ? `${index * 80}ms` : "0ms",
-                    }}
-                  >
-                    <p className="truncate text-[9px] font-medium uppercase tracking-[0.12em] text-muted-foreground sm:text-[10px]">
-                      {stat.label}
-                    </p>
-                    <p className="mt-1 truncate font-heading text-base font-semibold tracking-tight text-foreground sm:mt-1.5 sm:text-xl">
-                      {stat.value}
-                    </p>
-                    <p
-                      className={cn(
-                        "mt-0.5 truncate text-[9px] font-medium sm:text-[10px]",
-                        stat.up ? "text-primary" : "text-muted-foreground",
-                      )}
-                    >
-                      {stat.up ? "▲" : "▼"} {stat.delta} this week
-                    </p>
-                  </div>
-                ))}
-              </div>
+            {/* Home content — centered like the real page */}
+            <div className="flex min-h-0 flex-1 flex-col items-center overflow-hidden px-4 py-6 sm:px-6 sm:py-8">
+              <div className="flex w-full max-w-md flex-col gap-5">
+                {/* Greeting */}
+                <div
+                  className={cn(
+                    "flex flex-col gap-1 transition-all duration-500",
+                    phase >= 1
+                      ? "translate-y-0 opacity-100"
+                      : "translate-y-2 opacity-0",
+                  )}
+                >
+                  <h1 className="font-heading text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+                    Good morning, Jamie
+                  </h1>
+                  <p className="text-xs text-muted-foreground sm:text-sm">
+                    2 new inquiries · 1 follow-up due · 3 quotes sent this week
+                  </p>
+                </div>
 
-              {/* Needs attention */}
-              <div
-                className={cn(
-                  "soft-panel flex shrink-0 flex-col gap-2 px-3 py-3 shadow-none sm:px-4 sm:py-4 transition-all duration-500",
-                  phase >= 2
-                    ? "translate-y-0 opacity-100"
-                    : "translate-y-3 opacity-0",
-                )}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="meta-label">Needs attention</p>
-                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                      Quotes and inquiries waiting on the next step.
-                    </p>
+                {/* AI Chat Input */}
+                <div
+                  className={cn(
+                    "transition-all duration-500",
+                    phase >= 1
+                      ? "translate-y-0 opacity-100"
+                      : "translate-y-2 opacity-0",
+                  )}
+                  style={{ transitionDelay: phase >= 1 ? "100ms" : "0ms" }}
+                >
+                  <div className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/20 px-3.5 py-2.5 shadow-sm">
+                    <Sparkles className="size-3.5 shrink-0 text-muted-foreground/60" />
+                    <span className="flex-1 text-[11px] text-muted-foreground sm:text-xs">
+                      Ask anything about your business...
+                    </span>
+                    <span className="flex size-6 items-center justify-center rounded-md bg-primary/10 text-primary">
+                      <Send className="size-3" />
+                    </span>
                   </div>
-                  <Badge className="shrink-0 rounded-full" variant="outline">
-                    {dashboardAlerts.length} open
+                </div>
+
+                {/* Needs attention header */}
+                <div
+                  className={cn(
+                    "flex items-center justify-between transition-all duration-500",
+                    phase >= 2
+                      ? "translate-y-0 opacity-100"
+                      : "translate-y-2 opacity-0",
+                  )}
+                >
+                  <h2 className="text-sm font-semibold text-foreground">
+                    Needs attention
+                  </h2>
+                  <Badge variant="secondary" className="text-[10px]">
+                    {attentionItems.length} open
                   </Badge>
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  {dashboardAlerts.map((alert, index) => {
-                    const Icon = alert.icon;
+
+                {/* Attention items list */}
+                <div className="flex flex-col gap-1">
+                  {attentionItems.map((item, index) => {
+                    const Icon = item.icon;
                     return (
                       <div
                         className={cn(
-                          "flex items-center gap-2.5 rounded-md border border-border/60 bg-background/70 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-400",
+                          "flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-all duration-400",
+                          "hover:bg-muted/30",
                           phase >= 2
-                            ? "translate-x-0 opacity-100"
-                            : "translate-x-3 opacity-0",
+                            ? "translate-y-0 opacity-100"
+                            : "translate-y-2 opacity-0",
                         )}
                         key={index}
                         style={{
                           transitionDelay:
-                            phase >= 2 ? `${index * 100 + 100}ms` : "0ms",
+                            phase >= 2 ? `${index * 80 + 100}ms` : "0ms",
                         }}
                       >
                         <span
                           className={cn(
-                            "flex size-7 shrink-0 items-center justify-center rounded-md",
-                            alert.tone === "overdue" &&
-                              "bg-destructive/10 text-destructive",
-                            alert.tone === "due" &&
-                              "bg-primary/12 text-primary",
-                            alert.tone === "fresh" &&
-                              "bg-muted/60 text-foreground",
+                            "flex size-1.5 shrink-0 rounded-full",
+                            item.tone === "urgent" && "bg-destructive",
+                            item.tone === "normal" && "bg-primary",
+                            item.tone === "positive" && "bg-emerald-500",
                           )}
-                        >
-                          <Icon className="size-3.5" />
-                        </span>
+                        />
+                        <Icon
+                          className={cn(
+                            "size-3.5 shrink-0",
+                            item.tone === "urgent" && "text-destructive/70",
+                            item.tone === "normal" && "text-muted-foreground",
+                            item.tone === "positive" && "text-emerald-500/70",
+                          )}
+                        />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[11px] font-medium text-foreground sm:text-xs">
-                            {alert.title}
+                            {item.title}
                           </p>
                           <p className="truncate text-[10px] text-muted-foreground">
-                            {alert.detail}
+                            {item.description}
                           </p>
                         </div>
-                        {alert.status ? (
-                          <span
-                            className={cn(
-                              "hidden shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium sm:inline-flex",
-                              alert.tone === "overdue" &&
-                                "bg-destructive/10 text-destructive",
-                              alert.tone === "due" &&
-                                "border border-primary/30 bg-primary/10 text-primary",
-                              alert.tone === "fresh" &&
-                                "border border-border/70 bg-muted/40 text-muted-foreground",
-                            )}
-                          >
-                            {alert.status}
-                          </span>
-                        ) : (
-                          <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
-                        )}
+                        <span className="hidden shrink-0 text-[10px] text-muted-foreground sm:block">
+                          {item.meta}
+                        </span>
+                        <ArrowRight className="size-3 shrink-0 text-muted-foreground/40" />
                       </div>
                     );
                   })}
                 </div>
-              </div>
 
-              {/* This week */}
-              <div
-                className={cn(
-                  "soft-panel flex shrink-0 flex-col gap-2 px-3 py-3 shadow-none sm:px-4 sm:py-4 transition-all duration-500",
-                  phase >= 3
-                    ? "translate-y-0 opacity-100"
-                    : "translate-y-3 opacity-0",
-                )}
-                style={{ transitionDelay: phase >= 3 ? "100ms" : "0ms" }}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="meta-label">This week</p>
-                  <span className="text-[10px] text-muted-foreground">
-                    Last 7 days
+                {/* Live activity */}
+                <div
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 transition-all duration-500",
+                    phase >= 3
+                      ? "translate-y-0 opacity-100"
+                      : "translate-y-2 opacity-0",
+                  )}
+                >
+                  <span className="relative flex size-2">
+                    <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary/60" />
+                    <span className="relative inline-flex size-2 rounded-full bg-primary" />
                   </span>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  {weeklyProgress.map((row, index) => (
-                    <div
-                      className="grid grid-cols-[minmax(0,1fr)_2.5rem] items-center gap-3"
-                      key={row.label}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="w-28 truncate text-[11px] text-muted-foreground">
-                          {row.label}
-                        </span>
-                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted/40">
-                          <div
-                            className="h-full rounded-full bg-primary/70 transition-all duration-700 ease-out"
-                            style={{
-                              width: phase >= 3 ? `${row.pct}%` : "0%",
-                              transitionDelay:
-                                phase >= 3 ? `${index * 120}ms` : "0ms",
-                            }}
-                          />
-                        </div>
-                      </div>
-                      <span className="text-right text-xs font-semibold text-foreground">
-                        {phase >= 3 ? row.value : 0}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Live activity indicator */}
-              <div
-                className={cn(
-                  "flex shrink-0 items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 transition-all duration-500",
-                  phase >= 4
-                    ? "translate-y-0 opacity-100"
-                    : "translate-y-2 opacity-0",
-                )}
-              >
-                <span className="relative flex size-2">
-                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary/60" />
-                  <span className="relative inline-flex size-2 rounded-full bg-primary" />
-                </span>
-                <p className="truncate text-[10px] font-medium text-primary sm:text-[11px]">
-                  Quote Q-1042 just viewed by Sarah Jenkins
-                </p>
-                <div className="ml-auto flex shrink-0 items-center gap-1 text-[9px] text-primary/70">
-                  <Eye className="size-3" />
-                  <span className="hidden sm:inline">Just now</span>
+                  <p className="truncate text-[10px] font-medium text-primary sm:text-[11px]">
+                    Quote Q-1042 just viewed by Sarah Jenkins
+                  </p>
                 </div>
               </div>
             </div>

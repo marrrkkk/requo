@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import {
+  ArrowUpRight,
   BriefcaseBusiness,
   Check,
   ChevronsUpDown,
@@ -41,6 +42,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 import {
   getBusinessDashboardPath,
   getBusinessMembersPath,
@@ -48,7 +50,6 @@ import {
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
 import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
-import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 
 /* -------------------------------------------------------------------------- */
 /*  Business Switcher                                                          */
@@ -277,6 +278,7 @@ export function DashboardUserMenu({
 }) {
   const [isPending, startTransition] = useTransition();
   const { isMobile, setOpenMobile } = useSidebar();
+  const businessCheckout = useBusinessCheckout();
 
   function closeMobileSidebar() {
     if (isMobile) {
@@ -393,6 +395,23 @@ export function DashboardUserMenu({
                   <PlanBadge plan={plan} className="ml-auto" />
                 </Link>
               </DropdownMenuItem>
+              {plan === "pro" ? (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    closeMobileSidebar();
+                    if (businessCheckout) {
+                      businessCheckout.openPlanSelection("business");
+                    } else {
+                      window.location.assign(
+                        getBusinessSettingsPath(businessSlug, "billing"),
+                      );
+                    }
+                  }}
+                >
+                  <ArrowUpRight data-icon="inline-start" />
+                  Upgrade to Business
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem asChild>
                 <Link
                   href={getBusinessPath(businessSlug)}
