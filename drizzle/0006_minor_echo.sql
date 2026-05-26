@@ -1,1 +1,0 @@
-ALTER TABLE "business_memories" ADD COLUMN "embedding" jsonb DEFAULT 'null'::jsonb;
