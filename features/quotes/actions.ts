@@ -160,6 +160,8 @@ export async function createQuoteAction(
     terms: formData.get("terms"),
     validUntil: formData.get("validUntil"),
     discountInCents: formData.get("discount"),
+    taxInCents: formData.get("tax"),
+    taxLabel: formData.get("taxLabel"),
     items: formData.get("items"),
   });
 
@@ -243,6 +245,8 @@ export async function updateQuoteAction(
     terms: formData.get("terms"),
     validUntil: formData.get("validUntil"),
     discountInCents: formData.get("discount"),
+    taxInCents: formData.get("tax"),
+    taxLabel: formData.get("taxLabel"),
     items: formData.get("items"),
   });
 

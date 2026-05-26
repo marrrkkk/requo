@@ -222,7 +222,7 @@ export function QuoteEditor({
   const [customerEmail, setCustomerEmail] = useState(initialValues.customerEmail ?? "");
   const [customerContactMethod, setCustomerContactMethod] = useState(initialValues.customerContactMethod);
   const [customerContactHandle, setCustomerContactHandle] = useState(initialValues.customerContactHandle);
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState(initialValues.notes);
   const [terms, setTerms] = useState(initialValues.terms);
   const [validUntil, setValidUntil] = useState(initialValues.validUntil);
   const [discount, setDiscount] = useState(initialValues.discount);
@@ -646,6 +646,7 @@ export function QuoteEditor({
     >
       <input name="items" type="hidden" value={JSON.stringify(serializedItems)} />
       <input name="customerEmail" type="hidden" value={effectiveCustomerEmail ?? ""} />
+      <input name="notes" type="hidden" value={notes} />
 
       <DashboardSidebarStack className="min-w-0">
         <DashboardSection
@@ -953,6 +954,28 @@ export function QuoteEditor({
                 </FieldContent>
               </Field>
             </div>
+
+            <Field data-invalid={Boolean(state.fieldErrors?.notes) || undefined}>
+              <FieldLabel htmlFor="quote-notes">Notes</FieldLabel>
+              <FieldContent>
+                <Textarea
+                  id="quote-notes"
+                  maxLength={4000}
+                  rows={3}
+                  value={notes}
+                  onChange={(event) => setNotes(event.currentTarget.value)}
+                  placeholder="Additional context or instructions for the customer."
+                  disabled={isPending}
+                />
+                <FieldError
+                  errors={
+                    state.fieldErrors?.notes?.[0]
+                      ? [{ message: state.fieldErrors.notes[0] }]
+                      : undefined
+                  }
+                />
+              </FieldContent>
+            </Field>
 
             <Field data-invalid={Boolean(state.fieldErrors?.terms) || undefined}>
               <FieldLabel htmlFor="quote-terms">Terms & conditions</FieldLabel>
