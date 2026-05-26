@@ -79,7 +79,7 @@ export async function acceptBusinessMemberInvite({
   userId: string;
   userEmail: string;
 }): Promise<
-  | { ok: true; businessSlug: string }
+  | { ok: true; businessId: string; businessSlug: string }
   | { ok: false; error: string }
 > {
   const tokenHash = hashOpaqueToken(inviteToken);
@@ -130,7 +130,7 @@ export async function acceptBusinessMemberInvite({
   // Consume invite
   await db.delete(businessMemberInvites).where(eq(businessMemberInvites.id, invite.inviteId));
 
-  return { ok: true, businessSlug: invite.businessSlug };
+  return { ok: true, businessId: invite.businessId, businessSlug: invite.businessSlug };
 }
 
 export async function updateBusinessMemberRole({

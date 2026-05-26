@@ -623,6 +623,12 @@ function MemberActionsMenu({
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
         <DropdownMenuGroup>
+          {!isCurrentUser ? (
+            <DropdownMenuItem onSelect={handleManageAccess}>
+              <UserCog />
+              Manage access
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem
             disabled={disabled}
             variant="destructive"

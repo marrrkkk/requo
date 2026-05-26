@@ -61,6 +61,7 @@ type OnboardingFormProps = {
     state: OnboardingActionState,
     formData: FormData,
   ) => Promise<OnboardingActionState>;
+  detectedCountryCode?: string;
   initialProfile?: {
     firstName: string;
     lastName: string;
@@ -123,7 +124,7 @@ const onboardingInputClassName =
 const onboardingComboboxButtonClassName =
   "h-9 text-sm focus-visible:ring-0 focus-visible:ring-transparent focus-visible:border-border aria-invalid:border-border/85 aria-invalid:ring-0 aria-invalid:ring-transparent";
 
-export function OnboardingForm({ action, initialProfile }: OnboardingFormProps) {
+export function OnboardingForm({ action, detectedCountryCode, initialProfile }: OnboardingFormProps) {
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
@@ -131,6 +132,16 @@ export function OnboardingForm({ action, initialProfile }: OnboardingFormProps) 
   const [currentStep, setCurrentStep] = useState(0);
   const [draft, setDraft] = useState<OnboardingDraft>(() => ({
     ...createEmptyOnboardingDraft(),
+    ...(detectedCountryCode
+      ? {
+          countryCode: detectedCountryCode,
+          defaultCurrency: resolveOnboardingCurrencyChange({
+            currentCurrency: "",
+            previousCountryCode: "",
+            nextCountryCode: detectedCountryCode,
+          }),
+        }
+      : {}),
     ...(initialProfile
       ? {
           firstName: initialProfile.firstName,
@@ -1191,7 +1202,7 @@ function SetupLoadingOverlay() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-10 px-6">
-        <BrandMark subtitle={null} />
+        <BrandMark subtitle={null} size="xl" />
         <div className="flex flex-col gap-4">
           {setupLoadingSteps.map((step, index) => (
             <div
