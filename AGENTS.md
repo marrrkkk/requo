@@ -140,6 +140,21 @@ Do not add:
 - `features/automations/` owns triggers, actions, rule evaluation, workflow builder UI, and automation-specific components.
 - Automations must respect business scoping and plan entitlements.
 
+### Database & Migrations
+
+- Drizzle ORM with sequential SQL migrations in `drizzle/`. One migration history shared across all environments.
+- Schema source of truth: `lib/db/schema/index.ts` (barrel exporting all domain schema modules).
+- Config: `drizzle.config.ts` uses `DATABASE_MIGRATION_URL` (direct connection, never pooler).
+- App runtime uses `DATABASE_URL` (pooler for Supabase). Migrations use `DATABASE_MIGRATION_URL` (direct connection, port 5432).
+- **Development workflow**: edit schema → `npm run db:generate -- --name descriptive_name` → `npm run db:migrate` → commit migration + schema together.
+- **Production workflow**: `vercel-build` runs `npm run db:migrate && next build`. Production only applies existing migrations. Never generate or push in production.
+- **Never edit a committed migration file.** Always create a new migration.
+- **Never run `db:generate` or `db:push` against production.**
+- `npm run db:reset` drops and re-migrates a local database. Refuses to run against remote DBs by default.
+- `scripts/mark-migrations-applied.ts` marks migrations as applied without running them. Used once when a database already has the schema but lacks Drizzle metadata (e.g., after a migration history reset on an existing prod database).
+- If the production database is brand new (empty), just run `npm run db:migrate` — no need for `mark-migrations-applied`.
+- See `docs/database-migrations.md` for the full workflow reference.
+
 ### Performance & Caching
 
 - **Two-layer caching pattern.** High-frequency queries use `React.cache()` for within-request deduplication AND a `"use cache"` inner function for cross-request caching. Keep both layers — they serve different purposes.
@@ -196,6 +211,7 @@ A task is done when:
 - Route, layout, or system changes: also run `npm run build`.
 - Covered user-flow changes: run the relevant `npm run test:e2e:smoke`; use `npm run test:e2e` when the change touches broader browser journeys.
 - If demo data or e2e fixtures need refreshing, use `npm run db:migrate` and `npm run db:seed-demo` when the environment supports it.
+- After schema changes, always run `npm run db:generate` then `npm run db:migrate` before other checks.
 - Secret-storage or reversible-credential changes may also require `npm run db:backfill-security-secrets` after keys are configured.
 - Prefer `npm run dev:app` for app-only local work. `npm run dev` also starts `ngrok` for callback and webhook testing.
 - Vercel owns preview and production deployment through Git integration.
