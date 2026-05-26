@@ -1,107 +1,48 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
-import {
-  closestCenter,
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import {
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
-  type ReactNode,
 } from "react";
-import Cropper from "react-easy-crop";
-import {
-  Check,
-  ChevronDown,
-  Crop,
-  Eye,
-  GripVertical,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { Eye } from "lucide-react";
 
 import { FloatingFormActions } from "@/components/shared/floating-form-actions";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import { Button } from "@/components/ui/button";
-import { Combobox } from "@/components/ui/combobox";
-import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  getStarterTemplateDefinition,
-  getStarterTemplateBusinessType,
-  starterTemplateOptions,
-} from "@/features/businesses/starter-templates";
 import type { BusinessType } from "@/features/inquiries/business-types";
-import {
-  InquiryShowcaseImageSurface,
-} from "@/features/inquiries/components/inquiry-showcase-image-surface";
 import { getFieldError } from "@/lib/action-state";
 import {
   createInquiryPageBusinessContact,
-  inquiryPageBusinessContactSocialMeta,
-  inquiryPageMobileLayoutMeta,
-  inquiryPageShowcaseImageFrameMeta,
-  inquiryPageShowcaseImageSizeMeta,
-  maxInquiryPageCardDescriptionLength,
-  maxInquiryPageCardTitleLength,
-  inquiryPageTemplateMeta,
   maxInquiryPageCards,
   type InquiryPageCard,
-  type InquiryPageCardIcon,
   type InquiryPageMobileLayout,
   type InquiryPageShowcaseImageCrop,
   type InquiryPageShowcaseImageFrame,
   type InquiryPageShowcaseImageSize,
   type InquiryPageTemplate,
 } from "@/features/inquiries/page-config";
-import { inquiryPageCardIconMeta } from "@/features/inquiries/components/inquiry-page-card-icon-meta";
 import type {
   BusinessInquiryPageActionState,
   BusinessInquiryPagePreviewDraft,
   BusinessInquiryPageSettingsView,
 } from "@/features/settings/types";
 import { isInquiryPageCustomizationLocked } from "@/features/inquiries/plan-rules";
-import { LockedAction } from "@/features/paywall";
-import { publicSlugMaxLength, publicSlugPattern } from "@/lib/slugs";
 import { cn } from "@/lib/utils";
+import type { DragEndEvent } from "@dnd-kit/core";
+import { arrayMove } from "@dnd-kit/sortable";
+
+import {
+  BasicsSection,
+  ContentSection,
+  LayoutSection,
+  CardsSection,
+  ShowcaseSection,
+  ContactSection,
+  CropDialog,
+} from "./inquiry-page-form";
 
 type BusinessInquiryPageFormProps = {
   action: (
@@ -117,12 +58,6 @@ type BusinessInquiryPageFormProps = {
 };
 
 const initialState: BusinessInquiryPageActionState = {};
-const inquiryPageCardsDndContextId = "business-inquiry-page-cards-dnd";
-const inquiryPageCardsSortableContextId = "business-inquiry-page-cards-sortable";
-const inquiryPageSortableTransition = {
-  duration: 160,
-  easing: "cubic-bezier(0.25, 1, 0.5, 1)",
-} as const;
 
 export function BusinessInquiryPageForm({
   action,
@@ -222,14 +157,6 @@ export function BusinessInquiryPageForm({
       },
     );
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
-  const [cropDraft, setCropDraft] = useState({ x: 0, y: 0 });
-  const [cropZoomDraft, setCropZoomDraft] = useState(1);
-  const [cropViewportSize, setCropViewportSize] = useState<{
-    width: number;
-    height: number;
-  } | null>(null);
-  const [cropError, setCropError] = useState<string | null>(null);
-  const cropViewportRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   const fieldErrors = state.fieldErrors;
@@ -275,7 +202,6 @@ export function BusinessInquiryPageForm({
   const showcaseImageCropYError = getFieldError(fieldErrors, "showcaseImageCropY");
   const showcaseImageCropZoomError = getFieldError(fieldErrors, "showcaseImageCropZoom");
   const cardsError = getFieldError(fieldErrors, "cards");
-  const starterTemplate = getStarterTemplateDefinition(businessType);
   const effectiveTemplate = pageCustomizationLocked
     ? "no_supporting_cards"
     : template;
@@ -361,49 +287,6 @@ export function BusinessInquiryPageForm({
     mediaQuery.addEventListener("change", update);
     return () => mediaQuery.removeEventListener("change", update);
   }, []);
-
-  useLayoutEffect(() => {
-    if (!isCropDialogOpen) {
-      return;
-    }
-
-    const node = cropViewportRef.current;
-
-    if (!node) {
-      return;
-    }
-
-    const updateSize = () => {
-      setCropViewportSize({
-        width: node.clientWidth,
-        height: node.clientHeight,
-      });
-    };
-
-    updateSize();
-
-    const observer = new ResizeObserver(() => updateSize());
-    observer.observe(node);
-
-    return () => observer.disconnect();
-  }, [isCropDialogOpen]);
-
-  useEffect(() => {
-    if (!isCropDialogOpen || !cropViewportSize) {
-      return;
-    }
-
-    const nextCropDraft = {
-      x: showcaseImageCrop.x * cropViewportSize.width,
-      y: showcaseImageCrop.y * cropViewportSize.height,
-    };
-    const frame = window.requestAnimationFrame(() => {
-      setCropDraft(nextCropDraft);
-      setCropZoomDraft(showcaseImageCrop.zoom);
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [cropViewportSize, isCropDialogOpen, showcaseImageCrop]);
 
   useEffect(() => {
     if (hasUnsavedChanges) {
@@ -509,16 +392,7 @@ export function BusinessInquiryPageForm({
     onDraftChange,
     settings.publicInquiryEnabled,
   ]);
-  const cardSensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 6,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
+
   const hasReachedCardLimit = cards.length >= maxInquiryPageCards;
 
   function updateCard(
@@ -579,34 +453,11 @@ export function BusinessInquiryPageForm({
       return;
     }
 
-    setCropError(null);
-    setCropViewportSize(null);
     setIsCropDialogOpen(true);
   }
 
-  function closeCropDialog() {
-    setIsCropDialogOpen(false);
-    setCropViewportSize(null);
-  }
-
-  function applyCropDraft() {
-    const nextViewportWidth =
-      cropViewportSize?.width ?? cropViewportRef.current?.clientWidth ?? 0;
-    const nextViewportHeight =
-      cropViewportSize?.height ?? cropViewportRef.current?.clientHeight ?? 0;
-
-    if (nextViewportWidth <= 0 || nextViewportHeight <= 0) {
-      setCropError("Wait a moment for the crop area to finish loading.");
-      return;
-    }
-
-    setShowcaseImageCrop({
-      x: cropDraft.x / nextViewportWidth,
-      y: cropDraft.y / nextViewportHeight,
-      zoom: cropZoomDraft,
-    });
-    setCropError(null);
-    closeCropDialog();
+  function handleCropApply(crop: InquiryPageShowcaseImageCrop) {
+    setShowcaseImageCrop(crop);
   }
 
   function handleCancelChanges() {
@@ -671,9 +522,7 @@ export function BusinessInquiryPageForm({
         zoom: 1,
       },
     );
-    setCropError(null);
     setIsCropDialogOpen(false);
-    setCropViewportSize(null);
   }
 
   return (
@@ -751,990 +600,136 @@ export function BusinessInquiryPageForm({
         />
 
         {activeSection === "basics" && (
-        <section
-          className="section-panel scroll-mt-20 p-5 sm:p-6"
-          id="basics"
-        >
-          <SectionHeading
-            description="Name, link, and starter template for this form."
-            title="Basics"
+          <BasicsSection
+            formName={formName}
+            formSlug={formSlug}
+            businessType={businessType}
+            isPending={isPending}
+            nameError={nameError}
+            slugError={slugError}
+            businessTypeError={businessTypeError}
+            settingsSlug={settings.slug}
+            onFormNameChange={setFormName}
+            onFormSlugChange={setFormSlug}
+            onBusinessTypeChange={setBusinessType}
           />
-
-          <div className="mt-6 flex flex-col gap-6">
-            <DetailsPanel
-              description="Shown to customers and used to build the public URL."
-              eyebrow="Identity"
-              title="Form details"
-            >
-              <div className="grid gap-5 lg:grid-cols-2">
-                <Field data-invalid={Boolean(nameError) || undefined}>
-                  <FieldLabel htmlFor="inquiry-page-form-name">Form name</FieldLabel>
-                  <FieldContent>
-                    <Input
-                      aria-invalid={Boolean(nameError) || undefined}
-                      disabled={isPending}
-                      id="inquiry-page-form-name"
-                      maxLength={80}
-                      minLength={2}
-                      name="name"
-                      onChange={(event) => setFormName(event.currentTarget.value)}
-                      required
-                      value={formName}
-                    />
-                    <FieldError
-                      errors={nameError ? [{ message: nameError }] : undefined}
-                    />
-                  </FieldContent>
-                </Field>
-
-                  <Field data-invalid={Boolean(slugError) || undefined}>
-                    <FieldLabel htmlFor="inquiry-page-form-slug">Form slug</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        aria-invalid={Boolean(slugError) || undefined}
-                        disabled={isPending}
-                        id="inquiry-page-form-slug"
-                        maxLength={publicSlugMaxLength}
-                        minLength={2}
-                        name="slug"
-                        onChange={(event) => setFormSlug(event.currentTarget.value)}
-                        pattern={publicSlugPattern}
-                        required
-                        spellCheck={false}
-                        value={formSlug}
-                      />
-                      <FieldDescription>
-                        `/inquire/{settings.slug}/{formSlug || "form-slug"}`
-                      </FieldDescription>
-                      <FieldError
-                        errors={slugError ? [{ message: slugError }] : undefined}
-                      />
-                    </FieldContent>
-                  </Field>
-                </div>
-              </DetailsPanel>
-
-              <DetailsPanel
-                description="Pick the best starting point."
-                eyebrow="Template"
-                title="Starter template"
-              >
-                <Field data-invalid={Boolean(businessTypeError) || undefined}>
-                  <FieldLabel htmlFor="inquiry-page-business-type">
-                    Starter template
-                  </FieldLabel>
-                  <FieldContent>
-                    <Combobox
-                      aria-invalid={Boolean(businessTypeError) || undefined}
-                      disabled={isPending}
-                      id="inquiry-page-business-type"
-                      onValueChange={(value) =>
-                        setBusinessType(value as BusinessType)
-                      }
-                      options={starterTemplateOptions}
-                      placeholder="Choose a starter template"
-                      renderOption={(option) => (
-                        <div className="min-w-0">
-                          <p className="truncate font-medium">{option.label}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {option.description}
-                          </p>
-                        </div>
-                      )}
-                      searchPlaceholder="Search starter template"
-                      value={getStarterTemplateBusinessType(businessType)}
-                    />
-                    <FieldDescription>
-                      {starterTemplate.helperText}
-                    </FieldDescription>
-                    <FieldError
-                      errors={
-                        businessTypeError
-                          ? [{ message: businessTypeError }]
-                          : undefined
-                      }
-                    />
-                  </FieldContent>
-                </Field>
-              </DetailsPanel>
-
-            </div>
-        </section>
         )}
 
         {activeSection === "content" && (
-        <section
-          className="section-panel scroll-mt-20 p-5 sm:p-6"
-          id="content"
-        >
-          <SectionHeading
-            description="Copy shown at the top of the page and directly above the form."
-            title="Content"
+          <ContentSection
+            headline={headline}
+            formTitle={formTitle}
+            thankYouMessage={thankYouMessage}
+            eyebrow={eyebrow}
+            brandTagline={brandTagline}
+            description={description}
+            formDescription={formDescription}
+            isPending={isPending}
+            pageCustomizationLocked={pageCustomizationLocked}
+            plan={settings.plan}
+            businessName={settings.name}
+            shortDescription={settings.shortDescription}
+            headlineError={headlineError}
+            formTitleError={formTitleError}
+            thankYouMessageError={thankYouMessageError}
+            eyebrowError={eyebrowError}
+            brandTaglineError={brandTaglineError}
+            descriptionError={descriptionError}
+            formDescriptionError={formDescriptionError}
+            onHeadlineChange={setHeadline}
+            onFormTitleChange={setFormTitle}
+            onThankYouMessageChange={setThankYouMessage}
+            onEyebrowChange={setEyebrow}
+            onBrandTaglineChange={setBrandTagline}
+            onDescriptionChange={setDescription}
+            onFormDescriptionChange={setFormDescription}
           />
-
-          <div className="mt-6 flex flex-col gap-6">
-              <DetailsPanel
-                description="Shown above the form."
-                eyebrow="Form"
-                title="Heading and note"
-              >
-                <FieldGroup>
-                  <Field data-invalid={Boolean(headlineError) || undefined}>
-                    <FieldLabel htmlFor="inquiry-page-headline">Headline</FieldLabel>
-                    <FieldContent>
-                      <Textarea
-                        disabled={isPending}
-                        id="inquiry-page-headline"
-                        maxLength={120}
-                        name="headline"
-                        onChange={(event) => setHeadline(event.currentTarget.value)}
-                        placeholder={`Tell ${settings.name} what you need.`}
-                        required
-                        rows={3}
-                        value={headline}
-                      />
-                      <FieldError
-                        errors={headlineError ? [{ message: headlineError }] : undefined}
-                      />
-                    </FieldContent>
-                  </Field>
-
-                  <Field data-invalid={Boolean(formTitleError) || undefined}>
-                    <FieldLabel htmlFor="inquiry-page-form-title">Form heading</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        aria-invalid={Boolean(formTitleError) || undefined}
-                        disabled={isPending}
-                        id="inquiry-page-form-title"
-                        maxLength={80}
-                        name="formTitle"
-                        onChange={(event) => setFormTitle(event.currentTarget.value)}
-                        required
-                        value={formTitle}
-                      />
-                      <FieldDescription>
-                        Shown directly above the inquiry form fields.
-                      </FieldDescription>
-                      <FieldError
-                        errors={
-                          formTitleError ? [{ message: formTitleError }] : undefined
-                        }
-                      />
-                    </FieldContent>
-                  </Field>
-                </FieldGroup>
-              </DetailsPanel>
-
-              <DisclosureSection
-                label="Customize page copy"
-                description="Eyebrow, description, tagline, form note, and thank-you message."
-              >
-                <DetailsPanel
-                  description="Shown after a customer submits an inquiry."
-                  eyebrow="Confirmation"
-                  title="Thank you message"
-                >
-                  <FieldGroup>
-                    <Field data-invalid={Boolean(thankYouMessageError) || undefined}>
-                      <FieldLabel htmlFor="inquiry-page-thank-you-message">
-                        Custom message
-                      </FieldLabel>
-                      <FieldContent>
-                        <LockedAction feature="inquiryPageCustomization" plan={settings.plan}>
-                          <Textarea
-                            aria-invalid={Boolean(thankYouMessageError) || undefined}
-                            disabled={isPending || pageCustomizationLocked}
-                            id="inquiry-page-thank-you-message"
-                            maxLength={280}
-                            name="thankYouMessage"
-                            onChange={(event) =>
-                              setThankYouMessage(event.currentTarget.value)
-                            }
-                            placeholder={`${settings.name} will review your inquiry and follow up with a quote via your preferred contact method. Keep an eye on your inbox.`}
-                            rows={3}
-                            value={thankYouMessage}
-                          />
-                        </LockedAction>
-                        <FieldDescription>
-                          Leave blank to use the default message. Customers see this after submitting.
-                        </FieldDescription>
-                        <FieldError
-                          errors={
-                            thankYouMessageError
-                              ? [{ message: thankYouMessageError }]
-                              : undefined
-                          }
-                        />
-                      </FieldContent>
-                    </Field>
-                  </FieldGroup>
-                </DetailsPanel>
-
-                <DetailsPanel
-                  description="Shown at the top of the page and above the form."
-                  eyebrow="Page copy"
-                  title="Intro and form note"
-                >
-                  <FieldGroup>
-                    <div className="grid gap-5 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1fr)]">
-                      <Field data-invalid={Boolean(eyebrowError) || undefined}>
-                        <FieldLabel htmlFor="inquiry-page-eyebrow">Eyebrow</FieldLabel>
-                        <FieldContent>
-                          <Input
-                            disabled={isPending}
-                            id="inquiry-page-eyebrow"
-                            maxLength={48}
-                            name="eyebrow"
-                            onChange={(event) => setEyebrow(event.currentTarget.value)}
-                            placeholder="Inquiry page"
-                            value={eyebrow}
-                          />
-                          <FieldError
-                            errors={eyebrowError ? [{ message: eyebrowError }] : undefined}
-                          />
-                        </FieldContent>
-                      </Field>
-
-                      <Field data-invalid={Boolean(brandTaglineError) || undefined}>
-                        <FieldLabel htmlFor="inquiry-page-brand-tagline">
-                          Page tagline override
-                        </FieldLabel>
-                        <FieldContent>
-                          <Input
-                            disabled={isPending}
-                            id="inquiry-page-brand-tagline"
-                            maxLength={120}
-                            name="brandTagline"
-                            onChange={(event) =>
-                              setBrandTagline(event.currentTarget.value)
-                            }
-                            placeholder="Optional page tagline"
-                            value={brandTagline}
-                          />
-                          <FieldDescription>
-                            {brandTagline.trim()
-                              ? "Only this inquiry page uses this tagline."
-                              : settings.shortDescription
-                                ? "Leaving this blank uses the business description from General Settings."
-                                : "Leave blank to use the business description from General Settings."}
-                          </FieldDescription>
-                          <FieldError
-                            errors={
-                              brandTaglineError
-                                ? [{ message: brandTaglineError }]
-                                : undefined
-                            }
-                          />
-                        </FieldContent>
-                      </Field>
-                    </div>
-
-                    <Field data-invalid={Boolean(descriptionError) || undefined}>
-                      <FieldLabel htmlFor="inquiry-page-description">
-                        Description
-                      </FieldLabel>
-                      <FieldContent>
-                        <Textarea
-                          disabled={isPending}
-                          id="inquiry-page-description"
-                          maxLength={280}
-                          name="description"
-                          onChange={(event) =>
-                            setDescription(event.currentTarget.value)
-                          }
-                          placeholder="Tell customers what helps you review the request."
-                          rows={4}
-                          value={description}
-                        />
-                        <FieldError
-                          errors={
-                            descriptionError ? [{ message: descriptionError }] : undefined
-                          }
-                        />
-                      </FieldContent>
-                    </Field>
-
-                    <Field data-invalid={Boolean(formDescriptionError) || undefined}>
-                      <FieldLabel htmlFor="inquiry-page-form-description">
-                        Form note
-                      </FieldLabel>
-                      <FieldContent>
-                        <Textarea
-                          aria-invalid={Boolean(formDescriptionError) || undefined}
-                          disabled={isPending}
-                          id="inquiry-page-form-description"
-                          maxLength={200}
-                          name="formDescription"
-                          onChange={(event) =>
-                            setFormDescription(event.currentTarget.value)
-                          }
-                          placeholder="Optional note above the form"
-                          rows={3}
-                          value={formDescription}
-                        />
-                        <FieldDescription>
-                          Leave blank if the heading is enough on its own.
-                        </FieldDescription>
-                        <FieldError
-                          errors={
-                            formDescriptionError
-                              ? [{ message: formDescriptionError }]
-                              : undefined
-                          }
-                        />
-                      </FieldContent>
-                    </Field>
-                  </FieldGroup>
-                </DetailsPanel>
-              </DisclosureSection>
-
-            </div>
-        </section>
         )}
 
         {activeSection === "layout" && (
-        <section
-          className="section-panel scroll-mt-20 p-5 sm:p-6"
-          id="layout"
-        >
-          <SectionHeading
-            description="Choose how the page is arranged on desktop and mobile."
-            title="Layout"
+          <LayoutSection
+            effectiveTemplate={effectiveTemplate}
+            mobileLayout={mobileLayout}
+            isPending={isPending}
+            pageCustomizationLocked={pageCustomizationLocked}
+            plan={settings.plan}
+            templateError={templateError}
+            logoPreviewUrl={logoPreviewUrl}
+            generalSettingsHref={generalSettingsHref}
+            settingsHref={settingsHref}
+            businessName={settings.name}
+            onTemplateChange={setTemplate}
+            onMobileLayoutChange={setMobileLayout}
           />
-
-          <div className="mt-6 flex flex-col gap-6">
-            <div className="grid gap-4 xl:grid-cols-3">
-              {(
-                Object.keys(inquiryPageTemplateMeta) as InquiryPageTemplate[]
-              ).map((templateId) => {
-                const templateMeta = inquiryPageTemplateMeta[templateId];
-                const isSelected = effectiveTemplate === templateId;
-                const isLockedTemplate =
-                  pageCustomizationLocked && templateId !== "no_supporting_cards";
-
-                const templateButton = (
-                  <button
-                    key={templateId}
-                    className={cn(
-                      "soft-panel flex min-h-44 flex-col gap-4 px-4 py-4 text-left transition-colors",
-                      isSelected
-                        ? "border-primary/20 bg-accent/52"
-                        : "hover:bg-accent/30",
-                    )}
-                    disabled={isPending}
-                    onClick={() => setTemplate(templateId)}
-                    type="button"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold tracking-tight text-foreground">
-                        {templateMeta.label}
-                      </p>
-                      <span className="flex items-center gap-2">
-                        {isSelected ? (
-                          <span className="dashboard-meta-pill min-h-0 px-3 py-1">
-                            Selected
-                          </span>
-                        ) : null}
-                      </span>
-                    </div>
-                    <div className="grid flex-1 gap-2">
-                      <TemplateMiniPreview template={templateId} />
-                    </div>
-                    <p className="text-sm leading-6 text-muted-foreground">
-                      {templateMeta.description}
-                    </p>
-                  </button>
-                );
-
-                if (isLockedTemplate) {
-                  return (
-                    <LockedAction
-                      key={templateId}
-                      feature="inquiryPageCustomization"
-                      plan={settings.plan}
-                    >
-                      {templateButton}
-                    </LockedAction>
-                  );
-                }
-
-                return templateButton;
-              })}
-            </div>
-
-            <div className="mt-4">
-              <FieldError
-                errors={templateError ? [{ message: templateError }] : undefined}
-              />
-            </div>
-
-            <DisclosureSection
-              label="Mobile layout"
-              description="Control what customers see on phones."
-            >
-              <div className="grid gap-3 sm:grid-cols-2">
-                {(
-                  Object.keys(inquiryPageMobileLayoutMeta) as InquiryPageMobileLayout[]
-                ).map((layoutId) => {
-                  const layoutMeta = inquiryPageMobileLayoutMeta[layoutId];
-                  const isSelected = mobileLayout === layoutId;
-
-                  return (
-                    <OptionTile
-                      description={layoutMeta.description}
-                      disabled={isPending}
-                      isSelected={isSelected}
-                      key={layoutId}
-                      label={layoutMeta.label}
-                      selectedLabel="Selected"
-                      onClick={() => setMobileLayout(layoutId)}
-                    />
-                  );
-                })}
-              </div>
-            </DisclosureSection>
-
-            <div className="mt-6 border-t border-border/70 pt-6" role="group" aria-label="Branding">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                <div className="space-y-1">
-                  <p className="meta-label">Brand assets</p>
-                  <p className="text-[0.95rem] font-semibold tracking-tight text-foreground">
-                    Business brand
-                  </p>
-                  <p className="text-sm leading-6 text-muted-foreground">
-                    Logo comes from the business profile. Add a page tagline only if you want different text here.
-                  </p>
-                </div>
-
-                {generalSettingsHref ? (
-                  <LockedAction feature="branding" plan={settings.plan}>
-                    <Button asChild className="w-full sm:w-auto" variant="outline">
-                      <Link href={generalSettingsHref}>Open business profile</Link>
-                    </Button>
-                  </LockedAction>
-                ) : (
-                  <LockedAction feature="branding" plan={settings.plan}>
-                    <Button asChild className="w-full sm:w-auto" variant="outline">
-                      <Link href={settingsHref}>Open settings</Link>
-                    </Button>
-                  </LockedAction>
-                )}
-              </div>
-
-              <div className="mt-4 soft-panel flex items-center gap-4 px-5 py-5 shadow-none">
-                <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border/70 bg-background/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
-                  {logoPreviewUrl ? (
-                    <Image
-                      src={logoPreviewUrl}
-                      alt={`${settings.name} logo`}
-                      width={64}
-                      height={64}
-                      className="h-full w-full object-cover"
-                      unoptimized
-                    />
-                  ) : (
-                    <span className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground">
-                      {getInitials(settings.name)}
-                    </span>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="meta-label">Current business brand</p>
-                  <p className="mt-1 truncate font-heading text-xl font-semibold tracking-tight text-foreground">
-                    {settings.name}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    Update the logo and brand line from the business profile.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
         )}
 
         {activeSection === "cards" && (pageCustomizationLocked || effectiveTemplate !== "no_supporting_cards") ? (
-          <section
-            className="section-panel scroll-mt-20 p-5 sm:p-6"
-            id="cards"
-          >
-            <SectionHeading
-              description="Short prompts shown beside the inquiry form."
-              title="Supporting cards"
-            />
-
-            <div className="mt-6">
-              <BuilderSection
-              action={
-                <LockedAction feature="inquiryPageCustomization" plan={settings.plan}>
-                  <Button
-                    className="w-full sm:w-auto"
-                    disabled={isPending || hasReachedCardLimit}
-                    onClick={addCard}
-                    type="button"
-                    variant="outline"
-                  >
-                    <Plus data-icon="inline-start" />
-                    Add card
-                  </Button>
-                </LockedAction>
-              }
-              title="Cards"
-            >
-              <SectionVisibilityToggle
-                checked={effectiveShowSupportingCards}
-                description="Keep the cards saved, but hide them from the public page when this is off."
-                disabled={isPending || pageCustomizationLocked}
-                label="Show supporting cards"
-                locked={pageCustomizationLocked}
-                plan={settings.plan}
-                onCheckedChange={setShowSupportingCards}
-              />
-
-              {cards.length ? (
-                <DndContext
-                  collisionDetection={closestCenter}
-                  id={inquiryPageCardsDndContextId}
-                  onDragEnd={handleCardDragEnd}
-                  sensors={cardSensors}
-                >
-                  <SortableContext
-                    id={inquiryPageCardsSortableContextId}
-                    items={cards.map((card) => card.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    <div className="flex flex-col gap-4">
-                      {cards.map((card, index) => (
-                        <SortableInquiryPageCard
-                          card={card}
-                          index={index}
-                          isPending={isPending || pageCustomizationLocked}
-                          key={card.id}
-                          prefersReducedMotion={prefersReducedMotion}
-                          onRemove={removeCard}
-                          onUpdate={updateCard}
-                        />
-                      ))}
-                    </div>
-                  </SortableContext>
-                </DndContext>
-              ) : (
-                <div className="soft-panel px-5 py-6">
-                  <p className="text-sm font-medium text-foreground">
-                    No supporting cards saved
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                    Add cards if you want to highlight what customers should send,
-                    what files help most, or how the owner reviews new inquiries.
-                  </p>
-                </div>
-              )}
-
-              <FieldError
-                errors={cardsError ? [{ message: cardsError }] : undefined}
-              />
-            </BuilderSection>
-            </div>
-          </section>
+          <CardsSection
+            cards={cards}
+            effectiveShowSupportingCards={effectiveShowSupportingCards}
+            isPending={isPending}
+            pageCustomizationLocked={pageCustomizationLocked}
+            plan={settings.plan}
+            hasReachedCardLimit={hasReachedCardLimit}
+            prefersReducedMotion={prefersReducedMotion}
+            cardsError={cardsError}
+            onAddCard={addCard}
+            onRemoveCard={removeCard}
+            onUpdateCard={updateCard}
+            onCardDragEnd={handleCardDragEnd}
+            onShowSupportingCardsChange={setShowSupportingCards}
+          />
         ) : null}
 
         {activeSection === "showcase" && (
-        <section
-          className="section-panel scroll-mt-20 p-5 sm:p-6"
-          id="showcase"
-        >
-          <SectionHeading
-            description="Add an optional image to the top of the page."
-            title="Showcase image"
+          <ShowcaseSection
+            showcaseImageUrl={showcaseImageUrl}
+            showcaseImageFrame={showcaseImageFrame}
+            showcaseImageSize={showcaseImageSize}
+            showcaseImageCrop={showcaseImageCrop}
+            effectiveShowShowcaseImage={effectiveShowShowcaseImage}
+            isPending={isPending}
+            pageCustomizationLocked={pageCustomizationLocked}
+            plan={settings.plan}
+            showcaseImageUrlError={showcaseImageUrlError}
+            showcaseImageFrameError={showcaseImageFrameError}
+            showcaseImageSizeError={showcaseImageSizeError}
+            cropError={null}
+            showcaseImageCropXError={showcaseImageCropXError}
+            showcaseImageCropYError={showcaseImageCropYError}
+            showcaseImageCropZoomError={showcaseImageCropZoomError}
+            onShowcaseImageUrlChange={setShowcaseImageUrl}
+            onShowcaseImageFrameChange={setShowcaseImageFrame}
+            onShowcaseImageSizeChange={setShowcaseImageSize}
+            onShowShowcaseImageChange={setShowShowcaseImage}
+            onOpenCropDialog={handleOpenCropDialog}
           />
-
-          <div className="mt-6 flex flex-col gap-6">
-            <SectionVisibilityToggle
-              checked={effectiveShowShowcaseImage}
-              description="Keep the image settings saved, but hide the showcase image on the public page when this is off."
-              disabled={isPending || pageCustomizationLocked}
-              label="Show showcase image"
-              locked={pageCustomizationLocked}
-              plan={settings.plan}
-              onCheckedChange={setShowShowcaseImage}
-            />
-
-            <Field data-invalid={Boolean(showcaseImageUrlError) || undefined}>
-              <FieldLabel htmlFor="inquiry-page-showcase-image-url">
-                Image URL
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  aria-invalid={Boolean(showcaseImageUrlError) || undefined}
-                  disabled={isPending || pageCustomizationLocked}
-                  id="inquiry-page-showcase-image-url"
-                  maxLength={2000}
-                  name="showcaseImageUrlInput"
-                  onChange={(event) =>
-                    setShowcaseImageUrl(event.currentTarget.value)
-                  }
-                  placeholder="https://example.com/image.jpg"
-                  type="url"
-                  value={showcaseImageUrl}
-                />
-                <FieldDescription>
-                  Paste a public image URL. Leave blank to remove.
-                </FieldDescription>
-                <FieldError
-                  errors={
-                    showcaseImageUrlError
-                      ? [{ message: showcaseImageUrlError }]
-                      : undefined
-                  }
-                />
-              </FieldContent>
-            </Field>
-
-            {showcaseImageUrl.trim() ? (
-              <DisclosureSection
-                label="Frame, size, and crop"
-                description="Fine-tune how the image displays."
-              >
-                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
-                  <div className="grid gap-5">
-                    <div className="grid gap-5 lg:grid-cols-2">
-                      <Field data-invalid={Boolean(showcaseImageFrameError) || undefined}>
-                        <FieldLabel>Frame</FieldLabel>
-                        <FieldContent>
-                          <OptionTileGrid>
-                            {(Object.keys(
-                              inquiryPageShowcaseImageFrameMeta,
-                            ) as InquiryPageShowcaseImageFrame[]).map((frame) => {
-                              const option = inquiryPageShowcaseImageFrameMeta[frame];
-                              const isSelected = showcaseImageFrame === frame;
-
-                              return (
-                                <OptionTile
-                                  description={option.description}
-                                  disabled={isPending}
-                                  isSelected={isSelected}
-                                  key={frame}
-                                  label={option.label}
-                                  selectedLabel="Selected"
-                                  onClick={() => setShowcaseImageFrame(frame)}
-                                  locked={pageCustomizationLocked}
-                                  plan={settings.plan}
-                                />
-                              );
-                            })}
-                          </OptionTileGrid>
-                          <FieldError
-                            errors={
-                              showcaseImageFrameError
-                                ? [{ message: showcaseImageFrameError }]
-                                : undefined
-                            }
-                          />
-                        </FieldContent>
-                      </Field>
-
-                      <Field data-invalid={Boolean(showcaseImageSizeError) || undefined}>
-                        <FieldLabel>Size</FieldLabel>
-                        <FieldContent>
-                          <OptionTileGrid>
-                            {(Object.keys(
-                              inquiryPageShowcaseImageSizeMeta,
-                            ) as InquiryPageShowcaseImageSize[]).map((size) => {
-                              const option = inquiryPageShowcaseImageSizeMeta[size];
-                              const isSelected = showcaseImageSize === size;
-
-                              return (
-                                <OptionTile
-                                  description={option.description}
-                                  disabled={isPending}
-                                  isSelected={isSelected}
-                                  key={size}
-                                  label={option.label}
-                                  selectedLabel="Selected"
-                                  onClick={() => setShowcaseImageSize(size)}
-                                  locked={pageCustomizationLocked}
-                                  plan={settings.plan}
-                                />
-                              );
-                            })}
-                          </OptionTileGrid>
-                          <FieldError
-                            errors={
-                              showcaseImageSizeError
-                                ? [{ message: showcaseImageSizeError }]
-                                : undefined
-                            }
-                          />
-                        </FieldContent>
-                      </Field>
-                    </div>
-                  </div>
-
-                  <ShowcaseImageEditorPreview
-                    crop={showcaseImageCrop}
-                    frame={showcaseImageFrame}
-                    onCrop={
-                      pageCustomizationLocked
-                        ? undefined
-                        : () => void handleOpenCropDialog()
-                    }
-                    size={showcaseImageSize}
-                    url={showcaseImageUrl}
-                  />
-                </div>
-              </DisclosureSection>
-            ) : null}
-
-            {cropError ||
-            showcaseImageCropXError ||
-            showcaseImageCropYError ||
-            showcaseImageCropZoomError ? (
-              <div className="mt-5">
-                <FieldError
-                  errors={[
-                    ...(cropError ? [{ message: cropError }] : []),
-                    ...(showcaseImageCropXError
-                      ? [{ message: showcaseImageCropXError }]
-                      : []),
-                    ...(showcaseImageCropYError
-                      ? [{ message: showcaseImageCropYError }]
-                      : []),
-                    ...(showcaseImageCropZoomError
-                      ? [{ message: showcaseImageCropZoomError }]
-                      : []),
-                  ]}
-                />
-              </div>
-            ) : null}
-          </div>
-        </section>
         )}
 
         {activeSection === "contact" && (
-        <section
-          className="section-panel scroll-mt-20 p-5 sm:p-6"
-          id="contact"
-        >
-          <SectionHeading
-            description="Shown in the public form area when at least one detail is filled in."
-            title="Business contact"
+          <ContactSection
+            showBusinessContact={showBusinessContact}
+            businessContactPhone={businessContactPhone}
+            businessContactEmail={businessContactEmail}
+            businessFacebookUrl={businessFacebookUrl}
+            businessInstagramUrl={businessInstagramUrl}
+            businessTwitterXUrl={businessTwitterXUrl}
+            businessLinkedinUrl={businessLinkedinUrl}
+            isPending={isPending}
+            businessContactPhoneError={businessContactPhoneError}
+            businessContactEmailError={businessContactEmailError}
+            businessFacebookUrlError={businessFacebookUrlError}
+            businessInstagramUrlError={businessInstagramUrlError}
+            businessTwitterXUrlError={businessTwitterXUrlError}
+            businessLinkedinUrlError={businessLinkedinUrlError}
+            onShowBusinessContactChange={setShowBusinessContact}
+            onBusinessContactPhoneChange={setBusinessContactPhone}
+            onBusinessContactEmailChange={setBusinessContactEmail}
+            onBusinessFacebookUrlChange={setBusinessFacebookUrl}
+            onBusinessInstagramUrlChange={setBusinessInstagramUrl}
+            onBusinessTwitterXUrlChange={setBusinessTwitterXUrl}
+            onBusinessLinkedinUrlChange={setBusinessLinkedinUrl}
           />
-
-          <div className="mt-6 flex flex-col gap-6">
-            <SectionVisibilityToggle
-              checked={showBusinessContact}
-              description="Keep the contact details saved, but hide the business contact block on the public form when this is off."
-              disabled={isPending}
-              label="Show business contact"
-              onCheckedChange={setShowBusinessContact}
-            />
-
-            <DetailsPanel
-              description="Phone, email, and social links appear when visibility is on."
-              eyebrow="Contact"
-              title="Details"
-            >
-              <FieldGroup>
-                <div className="grid gap-5 lg:grid-cols-2">
-                  <Field
-                    data-invalid={Boolean(businessContactPhoneError) || undefined}
-                  >
-                    <FieldLabel htmlFor="inquiry-page-business-contact-phone">
-                      Phone number
-                    </FieldLabel>
-                    <FieldContent>
-                      <Input
-                        aria-invalid={Boolean(businessContactPhoneError) || undefined}
-                        disabled={isPending}
-                        id="inquiry-page-business-contact-phone"
-                        inputMode="tel"
-                        maxLength={40}
-                        name="businessContactPhone"
-                        onChange={(event) =>
-                          setBusinessContactPhone(event.currentTarget.value)
-                        }
-                        placeholder="+1 (555) 123-4567"
-                        value={businessContactPhone}
-                      />
-                      <FieldError
-                        errors={
-                          businessContactPhoneError
-                            ? [{ message: businessContactPhoneError }]
-                            : undefined
-                        }
-                      />
-                    </FieldContent>
-                  </Field>
-
-                  <Field
-                    data-invalid={Boolean(businessContactEmailError) || undefined}
-                  >
-                    <FieldLabel htmlFor="inquiry-page-business-contact-email">
-                      Email
-                    </FieldLabel>
-                    <FieldContent>
-                      <Input
-                        aria-invalid={Boolean(businessContactEmailError) || undefined}
-                        disabled={isPending}
-                        id="inquiry-page-business-contact-email"
-                        maxLength={320}
-                        name="businessContactEmail"
-                        onChange={(event) =>
-                          setBusinessContactEmail(event.currentTarget.value)
-                        }
-                        placeholder="hello@example.com"
-                        type="email"
-                        value={businessContactEmail}
-                      />
-                      <FieldError
-                        errors={
-                          businessContactEmailError
-                            ? [{ message: businessContactEmailError }]
-                            : undefined
-                        }
-                      />
-                    </FieldContent>
-                  </Field>
-                </div>
-
-                <DisclosureSection
-                  label="Social links"
-                  description="Add links to your social profiles."
-                >
-                  <div className="grid gap-5 lg:grid-cols-2">
-                    <Field
-                      data-invalid={Boolean(businessFacebookUrlError) || undefined}
-                    >
-                      <FieldLabel htmlFor="inquiry-page-business-facebook-url">
-                        {inquiryPageBusinessContactSocialMeta.facebook.label}
-                      </FieldLabel>
-                      <FieldContent>
-                        <Input
-                          aria-invalid={Boolean(businessFacebookUrlError) || undefined}
-                          disabled={isPending}
-                          id="inquiry-page-business-facebook-url"
-                          maxLength={2000}
-                          name="businessFacebookUrl"
-                          onChange={(event) =>
-                            setBusinessFacebookUrl(event.currentTarget.value)
-                          }
-                          placeholder={
-                            inquiryPageBusinessContactSocialMeta.facebook.placeholder
-                          }
-                          type="url"
-                          value={businessFacebookUrl}
-                        />
-                        <FieldError
-                          errors={
-                            businessFacebookUrlError
-                              ? [{ message: businessFacebookUrlError }]
-                              : undefined
-                          }
-                        />
-                      </FieldContent>
-                    </Field>
-
-                    <Field
-                      data-invalid={Boolean(businessInstagramUrlError) || undefined}
-                    >
-                      <FieldLabel htmlFor="inquiry-page-business-instagram-url">
-                        {inquiryPageBusinessContactSocialMeta.instagram.label}
-                      </FieldLabel>
-                      <FieldContent>
-                        <Input
-                          aria-invalid={Boolean(businessInstagramUrlError) || undefined}
-                          disabled={isPending}
-                          id="inquiry-page-business-instagram-url"
-                          maxLength={2000}
-                          name="businessInstagramUrl"
-                          onChange={(event) =>
-                            setBusinessInstagramUrl(event.currentTarget.value)
-                          }
-                          placeholder={
-                            inquiryPageBusinessContactSocialMeta.instagram.placeholder
-                          }
-                          type="url"
-                          value={businessInstagramUrl}
-                        />
-                        <FieldError
-                          errors={
-                            businessInstagramUrlError
-                              ? [{ message: businessInstagramUrlError }]
-                              : undefined
-                          }
-                        />
-                      </FieldContent>
-                    </Field>
-
-                    <Field
-                      data-invalid={Boolean(businessTwitterXUrlError) || undefined}
-                    >
-                      <FieldLabel htmlFor="inquiry-page-business-twitter-x-url">
-                        {inquiryPageBusinessContactSocialMeta.twitterX.label}
-                      </FieldLabel>
-                      <FieldContent>
-                        <Input
-                          aria-invalid={Boolean(businessTwitterXUrlError) || undefined}
-                          disabled={isPending}
-                          id="inquiry-page-business-twitter-x-url"
-                          maxLength={2000}
-                          name="businessTwitterXUrl"
-                          onChange={(event) =>
-                            setBusinessTwitterXUrl(event.currentTarget.value)
-                          }
-                          placeholder={
-                            inquiryPageBusinessContactSocialMeta.twitterX.placeholder
-                          }
-                          type="url"
-                          value={businessTwitterXUrl}
-                        />
-                        <FieldError
-                          errors={
-                            businessTwitterXUrlError
-                              ? [{ message: businessTwitterXUrlError }]
-                              : undefined
-                          }
-                        />
-                      </FieldContent>
-                    </Field>
-
-                    <Field
-                      data-invalid={Boolean(businessLinkedinUrlError) || undefined}
-                    >
-                      <FieldLabel htmlFor="inquiry-page-business-linkedin-url">
-                        {inquiryPageBusinessContactSocialMeta.linkedin.label}
-                      </FieldLabel>
-                      <FieldContent>
-                        <Input
-                          aria-invalid={Boolean(businessLinkedinUrlError) || undefined}
-                          disabled={isPending}
-                          id="inquiry-page-business-linkedin-url"
-                          maxLength={2000}
-                          name="businessLinkedinUrl"
-                          onChange={(event) =>
-                            setBusinessLinkedinUrl(event.currentTarget.value)
-                          }
-                          placeholder={
-                            inquiryPageBusinessContactSocialMeta.linkedin.placeholder
-                          }
-                          type="url"
-                          value={businessLinkedinUrl}
-                        />
-                        <FieldError
-                          errors={
-                            businessLinkedinUrlError
-                              ? [{ message: businessLinkedinUrlError }]
-                              : undefined
-                          }
-                        />
-                      </FieldContent>
-                    </Field>
-                  </div>
-                </DisclosureSection>
-              </FieldGroup>
-            </DetailsPanel>
-          </div>
-        </section>
         )}
       </div>
 
@@ -1752,109 +747,15 @@ export function BusinessInquiryPageForm({
         visible={shouldRenderFloatingActions}
       />
 
-      <Dialog
-        open={isCropDialogOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            closeCropDialog();
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-5xl" onInteractOutside={(e) => e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle>Crop image</DialogTitle>
-            <DialogDescription>
-              Adjust the image inside the selected frame.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogBody className="grid min-h-0 flex-1 gap-6 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_16rem]">
-            <div className="flex flex-col gap-4">
-              <div
-                className="soft-panel relative min-h-[26rem] overflow-hidden bg-muted/25"
-                ref={cropViewportRef}
-              >
-                {showcaseImageUrl.trim() ? (
-                  <Cropper
-                    aspect={getCropAspectRatio(showcaseImageFrame)}
-                    crop={cropDraft}
-                    cropShape="rect"
-                    image={showcaseImageUrl.trim()}
-                    objectFit="cover"
-                    onCropChange={setCropDraft}
-                    onZoomChange={setCropZoomDraft}
-                    showGrid={false}
-                    zoom={cropZoomDraft}
-                  />
-                ) : null}
-              </div>
-
-              <p className="text-sm text-muted-foreground">Drag and zoom to fit.</p>
-              {cropError ? (
-                <FieldError errors={[{ message: cropError }]} />
-              ) : null}
-            </div>
-
-            <div className="flex flex-col gap-5">
-              <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="showcase-image-crop-zoom">Zoom</FieldLabel>
-                  <FieldContent>
-                    <input
-                      className="h-10 w-full accent-primary"
-                      id="showcase-image-crop-zoom"
-                      max="4"
-                      min="1"
-                      onChange={(event) =>
-                        setCropZoomDraft(Number(event.currentTarget.value))
-                      }
-                      step="0.01"
-                      type="range"
-                      value={cropZoomDraft}
-                    />
-                  </FieldContent>
-                </Field>
-              </FieldGroup>
-
-              <div className="soft-panel px-4 py-4 text-sm shadow-none">
-                <p className="font-medium text-foreground">Crop</p>
-                <p className="mt-1 text-muted-foreground">
-                  Uses the frame selected above.
-                </p>
-              </div>
-            </div>
-          </DialogBody>
-
-          <DialogFooter>
-            <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
-              <Button onClick={closeCropDialog} type="button" variant="outline">
-                Cancel
-              </Button>
-              <Button onClick={applyCropDraft} type="button">
-                Crop
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CropDialog
+        isOpen={isCropDialogOpen}
+        showcaseImageUrl={showcaseImageUrl}
+        showcaseImageFrame={showcaseImageFrame}
+        showcaseImageCrop={showcaseImageCrop}
+        onClose={() => setIsCropDialogOpen(false)}
+        onApply={handleCropApply}
+      />
     </form>
-  );
-}
-
-function SectionHeading({
-  description,
-  title,
-}: {
-  description: string;
-  title: string;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <h2 className="font-heading text-lg font-semibold tracking-tight text-foreground">
-        {title}
-      </h2>
-      <p className="text-sm leading-6 text-muted-foreground">{description}</p>
-    </div>
   );
 }
 
@@ -1910,533 +811,7 @@ function PageSectionToc({
   );
 }
 
-function SectionVisibilityToggle({
-  checked,
-  description,
-  disabled,
-  label,
-  locked,
-  plan,
-  onCheckedChange,
-}: {
-  checked: boolean;
-  description: string;
-  disabled: boolean;
-  label: string;
-  locked?: boolean;
-  plan?: import("@/lib/plans/plans").BusinessPlan;
-  onCheckedChange: (nextValue: boolean) => void;
-}) {
-  const switchElement = (
-    <Switch
-      checked={checked}
-      disabled={disabled}
-      onCheckedChange={onCheckedChange}
-    />
-  );
-
-  return (
-    <label className="soft-panel flex flex-col gap-5 px-5 py-5 shadow-none sm:flex-row sm:items-center sm:justify-between sm:p-7">
-      <div className="min-w-0 space-y-1.5">
-        <p className="text-[0.95rem] font-semibold text-foreground">{label}</p>
-        <p className="text-sm leading-6 text-muted-foreground">{description}</p>
-      </div>
-      {locked && plan ? (
-        <LockedAction feature="inquiryPageCustomization" plan={plan}>
-          {switchElement}
-        </LockedAction>
-      ) : (
-        switchElement
-      )}
-    </label>
-  );
-}
-
-function DetailsPanel({
-  children,
-  description,
-  eyebrow,
-  title,
-}: {
-  children: ReactNode;
-  description: string;
-  eyebrow: string;
-  title: string;
-}) {
-  return (
-    <div className="soft-panel px-5 py-6 shadow-none sm:p-8">
-      <div className="space-y-1.5">
-        <p className="meta-label">{eyebrow}</p>
-        <p className="font-heading text-lg font-semibold tracking-tight text-foreground">
-          {title}
-        </p>
-        <p className="text-sm leading-6 text-muted-foreground">{description}</p>
-      </div>
-
-      <div className="mt-7">{children}</div>
-    </div>
-  );
-}
-
-function OptionTileGrid({ children }: { children: ReactNode }) {
-  return <div className="grid gap-3 sm:grid-cols-2">{children}</div>;
-}
-
-function OptionTile({
-  description,
-  disabled,
-  isSelected,
-  label,
-  locked,
-  plan,
-  selectedLabel,
-  onClick,
-}: {
-  description: string;
-  disabled: boolean;
-  isSelected: boolean;
-  label: string;
-  locked?: boolean;
-  plan?: import("@/lib/plans/plans").BusinessPlan;
-  selectedLabel: string;
-  onClick: () => void;
-}) {
-  const tile = (
-    <button
-      aria-pressed={isSelected}
-      className={cn(
-        "soft-panel flex min-h-24 w-full flex-col items-start justify-between gap-3 px-4 py-3 text-left shadow-none transition-[border-color,background-color,box-shadow]",
-        isSelected
-          ? "border-primary/30 bg-accent/50 ring-1 ring-primary/15"
-          : "hover:bg-accent/25",
-      )}
-      disabled={disabled}
-      onClick={onClick}
-      type="button"
-    >
-      <div className="flex w-full min-w-0 items-center gap-3">
-        <span className="min-w-0 flex-1 text-sm font-semibold tracking-tight text-foreground">
-          {label}
-        </span>
-        {isSelected ? (
-          <>
-            <span className="sr-only">{selectedLabel}</span>
-            <span
-              aria-hidden="true"
-              className="inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-background/90 text-primary"
-            >
-              <Check className="size-3" />
-            </span>
-          </>
-        ) : null}
-      </div>
-      <span className="text-xs leading-5 text-muted-foreground">
-        {description}
-      </span>
-    </button>
-  );
-
-  if (locked && plan) {
-    return (
-      <LockedAction feature="inquiryPageCustomization" plan={plan}>
-        {tile}
-      </LockedAction>
-    );
-  }
-
-  return tile;
-}
-
-function ShowcaseImageEditorPreview({
-  crop,
-  frame,
-  onCrop,
-  size,
-  url,
-}: {
-  crop: InquiryPageShowcaseImageCrop;
-  frame: InquiryPageShowcaseImageFrame;
-  onCrop?: () => void;
-  size: InquiryPageShowcaseImageSize;
-  url: string;
-}) {
-  const trimmedUrl = url.trim();
-
-  return (
-    <div className="soft-panel h-full px-4 py-4 shadow-none sm:px-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <p className="meta-label">Preview</p>
-          <p className="text-[0.95rem] font-semibold tracking-tight text-foreground">
-            Showcase image
-          </p>
-          <p className="text-sm leading-6 text-muted-foreground">
-            {trimmedUrl ? "Shown below the supporting content." : "No image added yet."}
-          </p>
-        </div>
-
-        {trimmedUrl ? (
-          <Button
-            className="w-full sm:w-auto"
-            disabled={!onCrop}
-            onClick={onCrop}
-            size="sm"
-            type="button"
-            variant="secondary"
-          >
-            <Crop data-icon="inline-start" />
-            Crop
-          </Button>
-        ) : null}
-      </div>
-
-      <div className="mt-5">
-        {trimmedUrl ? (
-          <InquiryShowcaseImageSurface
-            alt=""
-            className={cn(
-              "transition-[width,max-width] duration-200",
-              getShowcaseImagePreviewSizeClass(size),
-            )}
-            crop={crop}
-            frame={frame}
-            url={trimmedUrl}
-          />
-        ) : (
-          <div className="flex min-h-52 items-center justify-center rounded-[1.5rem] border border-dashed border-border/70 bg-background/70 px-6 text-center">
-            <p className="text-sm leading-6 text-muted-foreground">
-              Add an image URL to show a preview here.
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function BuilderSection({
-  action,
-  children,
-  title,
-}: {
-  action?: ReactNode;
-  children: ReactNode;
-  title: string;
-}) {
-  return (
-    <div className="flex flex-col gap-5">
-      {action ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="meta-label">{title}</p>
-          <div className="w-full shrink-0 sm:w-auto">{action}</div>
-        </div>
-      ) : (
-        <p className="meta-label">{title}</p>
-      )}
-      <div className="flex flex-col gap-5">{children}</div>
-    </div>
-  );
-}
-
-function SortableInquiryPageCard({
-  card,
-  index,
-  isPending,
-  prefersReducedMotion,
-  onRemove,
-  onUpdate,
-}: {
-  card: InquiryPageCard;
-  index: number;
-  isPending: boolean;
-  prefersReducedMotion: boolean;
-  onRemove: (cardId: string) => void;
-  onUpdate: (cardId: string, key: keyof InquiryPageCard, nextValue: string) => void;
-}) {
-  const {
-    attributes,
-    listeners,
-    setActivatorNodeRef,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id: card.id,
-    disabled: isPending,
-    transition: prefersReducedMotion ? null : inquiryPageSortableTransition,
-  });
-  const sortableStyle = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    willChange: isDragging ? "transform" : undefined,
-  } satisfies CSSProperties;
-  const Icon = inquiryPageCardIconMeta[card.icon].icon;
-  const dragHandleLabel = card.title.trim()
-    ? `Reorder ${card.title}`
-    : `Reorder card ${index + 1}`;
-
-  return (
-    <div
-      className={cn(
-        "soft-panel overflow-hidden p-4 shadow-none sm:p-5",
-        isDragging && "relative z-10 ring-2 ring-primary/20 shadow-lg",
-      )}
-      ref={setNodeRef}
-      style={sortableStyle}
-    >
-      <div className="flex flex-col gap-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex min-w-0 items-start gap-4">
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-accent/85 text-accent-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]">
-              <Icon className="size-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold tracking-tight text-foreground">
-                Card {index + 1}
-              </p>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Supporting detail shown beside the inquiry form.
-              </p>
-            </div>
-          </div>
-
-          <div className="dashboard-actions self-start">
-            <Button
-              aria-label={dragHandleLabel}
-              className="cursor-grab touch-none active:cursor-grabbing"
-              disabled={isPending}
-              ref={setActivatorNodeRef}
-              size="icon-sm"
-              type="button"
-              variant="outline"
-              {...attributes}
-              {...listeners}
-            >
-              <GripVertical />
-            </Button>
-            <Button
-              disabled={isPending}
-              onClick={() => onRemove(card.id)}
-              size="icon-sm"
-              type="button"
-              variant="outline"
-            >
-              <Trash2 />
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid gap-5">
-          <div className="grid gap-5 lg:grid-cols-[12rem_minmax(0,1fr)]">
-            <Field>
-              <FieldLabel>Icon</FieldLabel>
-              <FieldContent>
-                <div onPointerDownCapture={(event) => event.stopPropagation()}>
-                  <Combobox
-                    disabled={isPending}
-                    id={`inquiry-card-icon-${card.id}`}
-                    onValueChange={(value) => onUpdate(card.id, "icon", value)}
-                    options={(
-                      Object.keys(inquiryPageCardIconMeta) as InquiryPageCardIcon[]
-                    ).map((iconKey) => ({
-                      icon: inquiryPageCardIconMeta[iconKey].icon,
-                      label: inquiryPageCardIconMeta[iconKey].label,
-                      searchText: inquiryPageCardIconMeta[iconKey].label,
-                      value: iconKey,
-                    }))}
-                    placeholder="Choose an icon"
-                    renderOption={(option) => {
-                      const OptionIcon = option.icon;
-
-                      return (
-                        <span className="inline-flex items-center gap-2">
-                          <OptionIcon className="size-4" />
-                          {option.label}
-                        </span>
-                      );
-                    }}
-                    renderValue={(option) => {
-                      const OptionIcon = option.icon;
-
-                      return (
-                        <span className="inline-flex min-w-0 items-center gap-2 text-left">
-                          <OptionIcon className="size-4 shrink-0" />
-                          <span className="truncate">{option.label}</span>
-                        </span>
-                      );
-                    }}
-                    searchPlaceholder="Search icon"
-                    value={card.icon}
-                  />
-                </div>
-              </FieldContent>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor={`inquiry-card-title-${card.id}`}>Title</FieldLabel>
-              <FieldContent>
-                <Input
-                  disabled={isPending}
-                  id={`inquiry-card-title-${card.id}`}
-                  maxLength={maxInquiryPageCardTitleLength}
-                  onChange={(event) =>
-                    onUpdate(card.id, "title", event.currentTarget.value)
-                  }
-                  onPointerDownCapture={(event) => event.stopPropagation()}
-                  placeholder="Clear details"
-                  required
-                  value={card.title}
-                />
-              </FieldContent>
-            </Field>
-          </div>
-
-          <Field>
-            <FieldLabel htmlFor={`inquiry-card-description-${card.id}`}>
-              Description
-            </FieldLabel>
-            <FieldContent>
-              <Textarea
-                disabled={isPending}
-                id={`inquiry-card-description-${card.id}`}
-                maxLength={maxInquiryPageCardDescriptionLength}
-                onChange={(event) =>
-                  onUpdate(card.id, "description", event.currentTarget.value)
-                }
-                onPointerDownCapture={(event) => event.stopPropagation()}
-                placeholder="Explain why this detail matters and what customers should include."
-                rows={3}
-                required
-                value={card.description}
-              />
-            </FieldContent>
-          </Field>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function normalizeOptionalTextDraft(value: string) {
   const trimmedValue = value.trim();
   return trimmedValue ? trimmedValue : undefined;
-}
-
-function DisclosureSection({
-  children,
-  description,
-  label,
-}: {
-  children: ReactNode;
-  description?: string;
-  label: string;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <div className="mt-2 border-t border-border/70 pt-4">
-      <button
-        className="group flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-accent/40"
-        onClick={() => setIsOpen((prev) => !prev)}
-        type="button"
-      >
-        <div className="min-w-0 space-y-0.5">
-          <p className="text-[0.95rem] font-semibold tracking-tight text-foreground">
-            {label}
-          </p>
-          {description ? (
-            <p className="text-sm leading-6 text-muted-foreground">
-              {description}
-            </p>
-          ) : null}
-        </div>
-        <ChevronDown
-          className={cn(
-            "size-4 shrink-0 text-muted-foreground transition-transform duration-200",
-            isOpen && "rotate-180",
-          )}
-        />
-      </button>
-      {isOpen ? (
-        <div className="mt-4 flex flex-col gap-6">{children}</div>
-      ) : null}
-    </div>
-  );
-}
-
-function getCropAspectRatio(frame: InquiryPageShowcaseImageFrame) {
-  switch (frame) {
-    case "wide":
-      return 16 / 9;
-    case "square":
-      return 1;
-    case "portrait":
-      return 4 / 5;
-    case "landscape":
-    default:
-      return 4 / 3;
-  }
-}
-
-function getShowcaseImagePreviewSizeClass(size: InquiryPageShowcaseImageSize) {
-  switch (size) {
-    case "compact":
-      return "max-w-xs";
-    case "large":
-      return "w-full";
-    case "standard":
-    default:
-      return "max-w-sm";
-  }
-}
-
-function TemplateMiniPreview({
-  template,
-}: {
-  template: InquiryPageTemplate;
-}) {
-  if (template === "no_supporting_cards") {
-    return (
-      <div className="grid flex-1 gap-2">
-        <div className="soft-panel h-8 bg-secondary/70 shadow-none" />
-        <div className="soft-panel h-20 bg-background/95 shadow-none" />
-      </div>
-    );
-  }
-
-  if (template === "showcase") {
-    return (
-      <div className="grid flex-1 gap-2 md:grid-cols-[0.8fr_1.2fr]">
-        <div className="soft-panel h-full min-h-20 bg-background/95 shadow-none" />
-        <div className="grid gap-2">
-          <div className="soft-panel h-10 bg-secondary/70 shadow-none" />
-          <div className="grid gap-2 md:grid-cols-2">
-            <div className="soft-panel h-9 bg-background/95 shadow-none" />
-            <div className="soft-panel h-9 bg-background/95 shadow-none" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="grid flex-1 gap-2 md:grid-cols-[1.15fr_0.85fr]">
-      <div className="grid gap-2">
-        <div className="soft-panel h-7 bg-secondary/70 shadow-none" />
-        <div className="soft-panel h-10 bg-background/95 shadow-none" />
-        <div className="soft-panel h-10 bg-background/95 shadow-none" />
-      </div>
-      <div className="soft-panel h-full min-h-20 bg-background/95 shadow-none" />
-    </div>
-  );
-}
-
-function getInitials(value: string) {
-  return value
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((segment) => segment[0]?.toUpperCase())
-    .join("");
 }
