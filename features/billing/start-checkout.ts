@@ -151,6 +151,21 @@ export async function startPolarCheckout(
     };
   }
 
+  // If the checkout URL is same-origin (upgrade via subscription update,
+  // no Polar hosted checkout needed), open in new tab like normal checkouts.
+  const isSameOrigin =
+    payload.checkoutUrl.startsWith("/") ||
+    payload.checkoutUrl.startsWith(window.location.origin);
+
+  if (isSameOrigin) {
+    if (newTab) {
+      navigateNewTab(newTab, payload.checkoutUrl);
+      return { ok: true, openedInNewTab: true };
+    }
+    window.location.assign(payload.checkoutUrl);
+    return { ok: true, openedInNewTab: false };
+  }
+
   if (newTab) {
     navigateNewTab(newTab, payload.checkoutUrl);
     return { ok: true, openedInNewTab: true };

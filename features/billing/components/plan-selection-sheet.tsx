@@ -33,20 +33,26 @@ const planCards: PlanCard[] = [
     id: "free",
     tagline: "For solo operators",
     highlights: [
-      "Inquiries and quotes",
+      "Unlimited inquiries",
+      "30 quotes per month",
       "Follow-up reminders",
       "AI assistant",
       "Basic automations",
+      "3 Requo quote sends/day",
     ],
   },
   {
     id: "pro",
     tagline: "For growing businesses",
     highlights: [
-      "Unlimited inquiries and quotes",
+      "Unlimited quotes",
       "Auto follow-ups",
-      "Workflow automations",
-      "Multiple businesses",
+      "Multiple inquiry forms",
+      "Quote library & knowledge base",
+      "Workflow builder",
+      "Multiple businesses (up to 5)",
+      "Analytics & exports",
+      "20 Requo quote sends/day",
     ],
   },
   {
@@ -54,9 +60,11 @@ const planCards: PlanCard[] = [
     tagline: "For teams",
     highlights: [
       "Everything in Pro",
-      "Team members and roles",
-      "Visual workflow builder",
-      "Advanced branding",
+      "Team members & roles (up to 25)",
+      "Unlimited businesses & forms",
+      "50 Requo quote sends/day",
+      "500 AI generations/month",
+      "Highest volume limits",
     ],
   },
 ];
@@ -77,9 +85,33 @@ export function PlanSelectionSheet({
   onSelectPlan,
 }: PlanSelectionSheetProps) {
   const [interval, setInterval] = useState<BillingInterval>("monthly");
+  const [confirmingPlan, setConfirmingPlan] = useState<PaidPlan | null>(null);
+
+  const isUpgrade = currentPlan !== "free";
+
+  function handleSelectPlan(plan: PaidPlan) {
+    if (isUpgrade) {
+      // Show inline confirmation for paid→paid upgrades
+      setConfirmingPlan(plan);
+    } else {
+      onSelectPlan(plan, interval);
+    }
+  }
+
+  function handleConfirmUpgrade() {
+    if (confirmingPlan) {
+      onSelectPlan(confirmingPlan, interval);
+      setConfirmingPlan(null);
+    }
+  }
+
+  function handleOpenChange(value: boolean) {
+    if (!value) setConfirmingPlan(null);
+    onOpenChange(value);
+  }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[780px] lg:max-w-[860px]">
         <DialogHeader className="border-b-0">
           <DialogTitle>Upgrade Plan</DialogTitle>
@@ -89,6 +121,45 @@ export function PlanSelectionSheet({
         </DialogHeader>
 
         <div className="flex flex-col gap-5 px-5 pb-5 sm:px-6 sm:pb-6">
+          {/* Upgrade confirmation */}
+          {confirmingPlan ? (
+            <div className="flex flex-col items-center gap-4 rounded-xl border border-border/70 bg-muted/30 p-6 text-center">
+              <div>
+                <p className="text-base font-semibold text-foreground">
+                  Upgrade to {planMeta[confirmingPlan].label}?
+                </p>
+                <p className="mt-1.5 text-sm text-muted-foreground max-w-[40ch]">
+                  Your plan will change immediately. The price difference will be
+                  prorated on your next billing cycle.
+                </p>
+                <p className="mt-3 font-heading text-lg font-semibold text-foreground">
+                  {getPlanPriceLabel(confirmingPlan, "USD", interval)}
+                  <span className="text-sm font-normal text-muted-foreground">
+                    {" "}/{interval === "monthly" ? "mo" : "yr"}
+                  </span>
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirmingPlan(null)}
+                  type="button"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleConfirmUpgrade}
+                  type="button"
+                >
+                  <ArrowUpRight data-icon="inline-start" />
+                  Confirm upgrade
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
           {/* Billing interval toggle */}
           <div className="flex justify-center">
             <div className="inline-flex items-center rounded-lg border border-border/70 bg-muted/50 p-0.5">
@@ -132,6 +203,7 @@ export function PlanSelectionSheet({
                   (!targetPlan && card.id === "pro" && currentPlan === "free") ||
                   (!targetPlan && card.id === "business" && currentPlan === "pro"));
               const isPaidPlan = card.id !== "free";
+              const isDowngrade = isPaidPlan && currentPlan === "business" && card.id === "pro";
 
               return (
                 <div
@@ -188,16 +260,26 @@ export function PlanSelectionSheet({
                       >
                         Current plan
                       </Button>
-                    ) : isPaidPlan ? (
+                    ) : isPaidPlan && !isDowngrade ? (
                       <Button
                         className="w-full"
-                        onClick={() => onSelectPlan(card.id as PaidPlan, interval)}
+                        onClick={() => handleSelectPlan(card.id as PaidPlan)}
                         variant={isPreferredPlan ? "default" : "outline"}
                         size="sm"
                         type="button"
                       >
                         <ArrowUpRight data-icon="inline-start" />
                         {card.id === "pro" ? "Upgrade to Pro" : "Upgrade to Business"}
+                      </Button>
+                    ) : isPaidPlan && isDowngrade ? (
+                      <Button
+                        className="w-full"
+                        disabled
+                        variant="outline"
+                        size="sm"
+                        type="button"
+                      >
+                        Downgrade
                       </Button>
                     ) : (
                       <Button
@@ -230,6 +312,8 @@ export function PlanSelectionSheet({
               );
             })}
           </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

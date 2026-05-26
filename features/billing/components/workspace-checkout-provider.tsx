@@ -57,8 +57,7 @@ export function BusinessCheckoutProvider({
       startTransition(async () => {
         const result = await startPolarCheckout({ plan, interval, returnTo });
         if (result.ok) {
-          // Checkout opened in a new tab (or same-tab fallback).
-          // Either way we don't need to do anything further here.
+          // Checkout opened in a new tab or redirected in same tab (upgrade).
           return;
         }
 

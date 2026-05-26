@@ -48,14 +48,25 @@ function readId(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
-function deriveStableId(payload: IdempotencyPayload): string {
+function deriveStableId(payload: IdempotencyPayload, eventType: string): string {
   const topLevel = readId(payload.id);
   if (topLevel) return topLevel;
 
   const data = payload.data;
   if (data && typeof data === "object" && "id" in data) {
     const nested = readId((data as { id?: unknown }).id);
-    if (nested) return nested;
+    if (nested) {
+      // For subscription.updated events, the data.id is the subscription ID
+      // which is the same across all updates. We need to differentiate by
+      // including the productId so plan upgrades aren't treated as duplicates.
+      if (eventType === "subscription.updated" && "productId" in data) {
+        const productId = (data as { productId?: unknown }).productId;
+        if (typeof productId === "string" && productId.length > 0) {
+          return `${nested}:${productId}`;
+        }
+      }
+      return nested;
+    }
   }
 
   return randomUUID();
@@ -77,7 +88,7 @@ export async function withIdempotency<TPayload extends IdempotencyPayload>(
   resolveUserId: ResolveUserId<TPayload>,
   handler: IdempotencyHandler,
 ): Promise<void> {
-  const stableId = deriveStableId(payload);
+  const stableId = deriveStableId(payload, eventType);
   const providerEventId = `${eventType}:${stableId}`;
 
   const userId = await resolveUserId(payload);

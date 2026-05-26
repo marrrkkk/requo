@@ -27,7 +27,7 @@ export function UpgradeSuccessToast() {
     firedRef.current = true;
 
     toast.success(
-      "Your subscription is being activated — paid features will appear in a moment.",
+      "Upgraded successfully — your new plan is now active.",
     );
 
     // Strip the flag so refreshes don't re-toast.
@@ -37,6 +37,9 @@ export function UpgradeSuccessToast() {
     router.replace(query ? `${pathname}?${query}` : pathname, {
       scroll: false,
     });
+
+    // Refresh server data so the UI reflects the new plan immediately.
+    router.refresh();
   }, [pathname, router, searchParams]);
 
   return null;

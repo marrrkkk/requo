@@ -216,6 +216,52 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  // ── Upgrade path: update the existing subscription's product ──────────
+  // When the user already has an active subscription on a different plan,
+  // Polar won't allow a new checkout. Instead, we update the existing
+  // subscription's product via the Polar API.
+  if (
+    existing &&
+    (existing.status === "active" || existing.status === "past_due") &&
+    existing.providerSubscriptionId &&
+    existing.plan !== plan
+  ) {
+    if (!env.POLAR_ACCESS_TOKEN) {
+      return NextResponse.json(
+        { error: "Billing is not configured." },
+        { status: 503 },
+      );
+    }
+
+    const { Polar } = await import("@polar-sh/sdk");
+    const polar = new Polar({
+      accessToken: env.POLAR_ACCESS_TOKEN,
+      server: env.POLAR_SERVER,
+    });
+
+    try {
+      await polar.subscriptions.update({
+        id: existing.providerSubscriptionId,
+        subscriptionUpdate: {
+          productId,
+        },
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Subscription update failed.";
+      console.error("[billing] Polar subscription upgrade failed:", message);
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
+
+    // Return a success response — the webhook will handle the plan change.
+    // Redirect to the return path with upgrade flag.
+    const origin = resolveAppOrigin();
+    const successUrl = new URL(returnTo || "/", origin ?? request.url);
+    successUrl.searchParams.set("upgrade", "success");
+
+    return NextResponse.json({ checkoutUrl: successUrl.toString() });
+  }
+
   const origin = resolveAppOrigin();
 
   if (!origin) {

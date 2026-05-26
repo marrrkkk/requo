@@ -13,10 +13,13 @@ import {
   getBusinessBillingOverview,
 } from "@/features/billing/queries";
 import {
+  getBusinessLiveFormsCount,
+  getBusinessMemberCount,
   getMonthlyInquiryCount,
   getMonthlyQuoteCount,
   getMonthlyRequoQuoteSendCount,
 } from "@/lib/plans/usage";
+import { getMonthlyUsageSummary } from "@/lib/ai/usage-limiter";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOwnerPageContext } from "../_lib/page-context";
 
@@ -31,13 +34,15 @@ export default async function BillingSettingsPage() {
   const { user, businessContext } = await getBusinessOwnerPageContext();
   const businessId = businessContext.business.id;
 
-  // Start all four fetches up front. Two Suspense boundaries consume
+  // Start all fetches up front. Two Suspense boundaries consume
   // them so each section can paint independently.
   const billingOverviewPromise = getBusinessBillingOverview(businessId);
   const inquiriesThisMonthPromise = getMonthlyInquiryCount(businessId);
   const quotesThisMonthPromise = getMonthlyQuoteCount(businessId);
   const requoQuoteEmailsThisMonthPromise =
     getMonthlyRequoQuoteSendCount(businessId);
+  const membersPromise = getBusinessMemberCount(businessId);
+  const liveFormsPromise = getBusinessLiveFormsCount(businessId);
   const paymentHistoryPromise = getAccountPaymentHistory(user.id);
 
   return (
@@ -52,10 +57,13 @@ export default async function BillingSettingsPage() {
         <div className="flex flex-col gap-10">
           <Suspense fallback={<BillingStatusCardBodySkeleton />}>
             <BillingStatusSection
+              userId={user.id}
               billingOverviewPromise={billingOverviewPromise}
               inquiriesThisMonthPromise={inquiriesThisMonthPromise}
               quotesThisMonthPromise={quotesThisMonthPromise}
               requoQuoteEmailsThisMonthPromise={requoQuoteEmailsThisMonthPromise}
+              membersPromise={membersPromise}
+              liveFormsPromise={liveFormsPromise}
             />
           </Suspense>
 
@@ -76,37 +84,50 @@ export default async function BillingSettingsPage() {
 }
 
 async function BillingStatusSection({
+  userId,
   billingOverviewPromise,
   inquiriesThisMonthPromise,
   quotesThisMonthPromise,
   requoQuoteEmailsThisMonthPromise,
+  membersPromise,
+  liveFormsPromise,
 }: {
+  userId: string;
   billingOverviewPromise: ReturnType<typeof getBusinessBillingOverview>;
   inquiriesThisMonthPromise: ReturnType<typeof getMonthlyInquiryCount>;
   quotesThisMonthPromise: ReturnType<typeof getMonthlyQuoteCount>;
   requoQuoteEmailsThisMonthPromise: ReturnType<
     typeof getMonthlyRequoQuoteSendCount
   >;
+  membersPromise: ReturnType<typeof getBusinessMemberCount>;
+  liveFormsPromise: ReturnType<typeof getBusinessLiveFormsCount>;
 }) {
   const [
     billingOverview,
     inquiriesThisMonth,
     quotesThisMonth,
     requoQuoteEmailsThisMonth,
+    members,
+    liveForms,
   ] = await Promise.all([
     billingOverviewPromise,
     inquiriesThisMonthPromise,
     quotesThisMonthPromise,
     requoQuoteEmailsThisMonthPromise,
+    membersPromise,
+    liveFormsPromise,
   ]);
 
   if (!billingOverview) return null;
+
+  const plan = billingOverview.currentPlan;
+  const aiUsage = await getMonthlyUsageSummary(userId, plan);
 
   return (
     <BillingStatusCard
       billing={billingOverview}
       freePlanUsage={
-        billingOverview.currentPlan === "free"
+        plan === "free"
           ? {
               inquiries: inquiriesThisMonth,
               quotes: quotesThisMonth,
@@ -114,6 +135,13 @@ async function BillingStatusSection({
             }
           : undefined
       }
+      planUsage={{
+        quotes: quotesThisMonth,
+        requoQuoteEmailsThisMonth,
+        aiCredits: { used: aiUsage.used, limit: aiUsage.limit },
+        members,
+        liveForms,
+      }}
     />
   );
 }
