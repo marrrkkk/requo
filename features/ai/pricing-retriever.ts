@@ -80,10 +80,12 @@ function jaccardSimilarity(setA: Set<string>, setB: Set<string>): number {
  * Score a pricing entry against the inquiry text.
  * Combines the entry name, description, and item descriptions into a single
  * text corpus and computes Jaccard similarity against the inquiry tokens.
+ * Also applies a substring boost for partial word matches.
  */
 function scoreEntry(
   entry: DashboardQuoteLibraryEntry,
   inquiryTokens: Set<string>,
+  inquiryTextLower: string,
 ): number {
   const entryParts: string[] = [entry.name];
 
@@ -97,9 +99,28 @@ function scoreEntry(
     }
   }
 
-  const entryTokens = tokenize(entryParts.join(" "));
+  const entryText = entryParts.join(" ");
+  const entryTokens = tokenize(entryText);
 
-  return jaccardSimilarity(inquiryTokens, entryTokens);
+  const jaccardScore = jaccardSimilarity(inquiryTokens, entryTokens);
+
+  // Substring boost: if the entry name appears as a substring in the inquiry
+  // text (or vice versa), give a significant boost. This catches cases where
+  // "kitchen renovation" in the inquiry matches a "Kitchen Renovation Package".
+  let substringBoost = 0;
+  const entryNameLower = entry.name.toLowerCase();
+  if (inquiryTextLower.includes(entryNameLower) || entryNameLower.includes(inquiryTextLower.slice(0, 40))) {
+    substringBoost = 0.3;
+  } else {
+    // Check individual words from the entry name against the inquiry
+    const entryWords = entryNameLower.split(/\s+/).filter((w) => w.length > 3);
+    const matchingWords = entryWords.filter((w) => inquiryTextLower.includes(w));
+    if (entryWords.length > 0 && matchingWords.length > 0) {
+      substringBoost = 0.15 * (matchingWords.length / entryWords.length);
+    }
+  }
+
+  return Math.min(1, jaccardScore + substringBoost);
 }
 
 // ---------------------------------------------------------------------------
@@ -107,7 +128,7 @@ function scoreEntry(
 // ---------------------------------------------------------------------------
 
 const DEFAULT_MAX_RESULTS = 7;
-const MIN_SIMILARITY_THRESHOLD = 0.1;
+const MIN_SIMILARITY_THRESHOLD = 0.05;
 const SMALL_LIBRARY_THRESHOLD = 10;
 
 // ---------------------------------------------------------------------------
@@ -150,11 +171,12 @@ export async function retrieveRelevantPricing(
 
   // Tokenize the inquiry text
   const inquiryTokens = tokenize(input.inquiryText);
+  const inquiryTextLower = input.inquiryText.toLowerCase();
 
   // Score each entry
   const scoredEntries = currencyEntries.map((entry) => ({
     entry,
-    score: scoreEntry(entry, inquiryTokens),
+    score: scoreEntry(entry, inquiryTokens, inquiryTextLower),
   }));
 
   // Filter entries scoring ≥ threshold

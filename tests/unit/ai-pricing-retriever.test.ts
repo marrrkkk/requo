@@ -158,10 +158,9 @@ describe("scoreEntry", () => {
     });
 
     // Use text with high token overlap with the entry
-    const inquiryTokens = tokenize(
-      "interior painting service wall room professional",
-    );
-    const score = scoreEntry(entry, inquiryTokens);
+    const inquiryText = "interior painting service wall room professional";
+    const inquiryTokens = tokenize(inquiryText);
+    const score = scoreEntry(entry, inquiryTokens, inquiryText.toLowerCase());
     expect(score).toBeGreaterThan(0.3);
   });
 
@@ -181,8 +180,9 @@ describe("scoreEntry", () => {
       ],
     });
 
-    const inquiryTokens = tokenize("I need a wedding photography package");
-    const score = scoreEntry(entry, inquiryTokens);
+    const inquiryText = "I need a wedding photography package";
+    const inquiryTokens = tokenize(inquiryText);
+    const score = scoreEntry(entry, inquiryTokens, inquiryText.toLowerCase());
     expect(score).toBeLessThan(0.3);
   });
 });

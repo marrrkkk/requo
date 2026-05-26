@@ -78,8 +78,10 @@ export function createActionTools(ctx: AiToolExecutionContext) {
     draft_quote: tool({
       description:
         "Propose creating a new quote with line items. " +
-        "IMPORTANT: Before calling this tool, you MUST first call get_inquiry_details (if linked to an inquiry) or get_pricing_library to get real pricing data. " +
-        "Never guess customer names, emails, or prices — use data from previous tool calls. " +
+        "IMPORTANT: Before calling this tool, you MUST first call get_pricing_library to check available pricing. " +
+        "Then call get_inquiry_details (if linked to an inquiry) to get customer data. " +
+        "NEVER invent prices — only use prices found in the pricing library or past quotes. " +
+        "If no matching price exists, use 0 for unitPriceInCents and note that the owner needs to set the price. " +
         "The tool output renders as an interactive confirmation card — do NOT write any [ACTION_PROPOSAL] text manually.",
       inputSchema: z.object({
         title: z.string().describe("Quote title (e.g. 'Kitchen renovation quote')."),
