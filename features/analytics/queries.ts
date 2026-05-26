@@ -224,7 +224,7 @@ async function getFreeAnalyticsUncached(
 
   const firstQuoteSq = buildFirstQuoteSq(businessId);
 
-  const [viewRows, inquiryRows, quoteRows] = await Promise.all([
+  const [viewRows, inquiryRows, quoteRows, followUpRows] = await Promise.all([
     db
       .select({
         formViews: sql<number>`count(*)`,
@@ -245,6 +245,7 @@ async function getFreeAnalyticsUncached(
         viewed: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.publicViewedAt} is not null and ${quotes.publicViewedAt} >= ${since.toISOString()})`,
         accepted: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'accepted' and ${quotes.acceptedAt} >= ${since.toISOString()})`,
         rejected: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'rejected' and ${quotes.customerRespondedAt} >= ${since.toISOString()})`,
+        expired: sql<number>`count(distinct ${quotes.id}) filter (where ${quotes.status} = 'expired')`,
       })
       .from(quotes)
       .where(
@@ -259,6 +260,13 @@ async function getFreeAnalyticsUncached(
           ),
         ),
       ),
+    db
+      .select({
+        active: sql<number>`count(*) filter (where ${followUps.status} = 'pending')`,
+        overdue: sql<number>`count(*) filter (where ${followUps.status} = 'pending' and ${followUps.dueAt} < now())`,
+      })
+      .from(followUps)
+      .where(eq(followUps.businessId, businessId)),
   ]);
 
   const fv = Number(viewRows[0]?.formViews ?? 0);
@@ -269,6 +277,10 @@ async function getFreeAnalyticsUncached(
   const viewed = Number(quoteRows[0]?.viewed ?? 0);
   const accepted = Number(quoteRows[0]?.accepted ?? 0);
   const rejected = Number(quoteRows[0]?.rejected ?? 0);
+  const expired = Number(quoteRows[0]?.expired ?? 0);
+  const activeFollowUps = Number(followUpRows[0]?.active ?? 0);
+  const overdueFollowUps = Number(followUpRows[0]?.overdue ?? 0);
+  const totalDecisions = accepted + rejected;
 
   return {
     formViews: fv,
@@ -279,9 +291,14 @@ async function getFreeAnalyticsUncached(
     quotesViewed: viewed,
     quotesAccepted: accepted,
     quotesRejected: rejected,
+    quotesExpired: expired,
     formConversionRate: uv ? submissions / uv : 0,
     inquiryToQuoteRate: submissions ? withQuote / submissions : 0,
     quoteAcceptanceRate: sent ? accepted / sent : 0,
+    quoteViewRate: sent ? viewed / sent : 0,
+    winRate: totalDecisions ? accepted / totalDecisions : 0,
+    activeFollowUps,
+    overdueFollowUps,
   };
 }
 

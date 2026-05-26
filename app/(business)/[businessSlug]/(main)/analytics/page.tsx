@@ -137,6 +137,7 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
     proData = results[1];
     businessData = results[2];
     sparklineData = results[3];
+    console.log("[analytics] Data fetched successfully for", businessId);
 
     // Generate AI summary for operations tier (gated behind analyticsWorkflow)
     if (hasOperations && freeData) {
@@ -146,7 +147,8 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
         proData?.priorPeriod,
       );
     }
-  } catch {
+  } catch (err) {
+    console.error("[analytics] Failed to load analytics data:", err);
     fetchError = true;
   }
 
@@ -201,6 +203,7 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
       <AnalyticsTabbedDashboard
         basicContent={basicContent}
         advancedContent={advancedContent}
+        defaultTab={hasPerformance ? "advanced" : "basic"}
       />
     </DashboardPage>
   );

@@ -1,9 +1,13 @@
 import {
+  BellRing,
   CheckCircle2,
+  Clock3,
   Eye,
   FileText,
   GitCompareArrows,
   Inbox,
+  Target,
+  TrendingUp,
   XCircle,
 } from "lucide-react";
 
@@ -17,6 +21,7 @@ import type {
 } from "@/features/analytics/types";
 import { formatPercent } from "@/features/analytics/utils";
 import {
+  getBusinessFollowUpsPath,
   getBusinessInquiriesPath,
   getBusinessQuotesPath,
 } from "@/features/businesses/routes";
@@ -42,12 +47,82 @@ export function BasicAnalyticsView({
   const hasDrillDown = !!businessSlug;
   const inquiriesPath = businessSlug ? getBusinessInquiriesPath(businessSlug) : "";
   const quotesPath = businessSlug ? getBusinessQuotesPath(businessSlug) : "";
+  const followUpsPath = businessSlug ? getBusinessFollowUpsPath(businessSlug) : "";
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Traffic */}
+    <div className="flex flex-col gap-8">
+      {/* Pipeline summary */}
       <div>
-        <h2 className="meta-label mb-4">Traffic (last 30 days)</h2>
+        <h2 className="meta-label mb-4">Pipeline</h2>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          <AnalyticsMetricCard
+            icon={Inbox}
+            title="Inquiries"
+            value={`${data.inquirySubmissions}`}
+            tooltip="Total inquiries received this period."
+            compact
+            sparkline={
+              sparklines ? (
+                <MiniSparkline
+                  points={sparklines.inquirySubmissions}
+                  direction={getDirection(sparklines.inquirySubmissions)}
+                />
+              ) : undefined
+            }
+          />
+          <AnalyticsMetricCard
+            icon={FileText}
+            title="Quotes sent"
+            value={`${data.quotesSent}`}
+            tooltip="Quotes sent to customers."
+            compact
+            sparkline={
+              sparklines ? (
+                <MiniSparkline
+                  points={sparklines.quotesSent}
+                  direction={getDirection(sparklines.quotesSent)}
+                />
+              ) : undefined
+            }
+          />
+          <AnalyticsMetricCard
+            icon={Eye}
+            title="Viewed"
+            value={`${data.quotesViewed}`}
+            description={`${formatPercent(data.quoteViewRate)} view rate`}
+            tooltip="Quotes opened by customers."
+            compact
+          />
+          <AnalyticsMetricCard
+            icon={CheckCircle2}
+            title="Won"
+            value={`${data.quotesAccepted}`}
+            description={`${formatPercent(data.winRate)} win rate`}
+            tooltip="Quotes accepted by customers (of those that got a decision)."
+            compact
+            sparkline={
+              sparklines ? (
+                <MiniSparkline
+                  points={sparklines.quotesAccepted}
+                  direction={getDirection(sparklines.quotesAccepted)}
+                />
+              ) : undefined
+            }
+          />
+          <AnalyticsMetricCard
+            icon={XCircle}
+            title="Lost"
+            value={`${data.quotesRejected + data.quotesExpired}`}
+            description={`${data.quotesRejected} rejected · ${data.quotesExpired} expired`}
+            tooltip="Quotes rejected or expired without a response."
+            compact
+          />
+        </div>
+      </div>
+
+      {/* Conversion rates */}
+      <div>
+        <h2 className="meta-label mb-4">Conversion</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <DrillDownLink href={inquiriesPath} enabled={hasDrillDown}>
             <AnalyticsMetricCard
@@ -66,95 +141,49 @@ export function BasicAnalyticsView({
               }
             />
           </DrillDownLink>
-          <DrillDownLink href={inquiriesPath} enabled={hasDrillDown}>
-            <AnalyticsMetricCard
-              icon={Inbox}
-              title="Inquiries"
-              value={`${data.inquirySubmissions}`}
-              description={`${formatPercent(data.formConversionRate)} form conversion`}
-              tooltip="Inquiries submitted through your forms."
-              sparkline={
-                sparklines ? (
-                  <MiniSparkline
-                    points={sparklines.inquirySubmissions}
-                    direction={getDirection(sparklines.inquirySubmissions)}
-                  />
-                ) : undefined
-              }
-            />
-          </DrillDownLink>
-          <DrillDownLink href="" enabled={false}>
-            <AnalyticsMetricCard
-              icon={GitCompareArrows}
-              title="Inquiry → quote"
-              value={formatPercent(data.inquiryToQuoteRate)}
-              description={`${data.inquiriesWithQuote} quoted of ${data.inquirySubmissions}`}
-              tooltip="Percentage of inquiries that got at least one quote."
-            />
-          </DrillDownLink>
+          <AnalyticsMetricCard
+            icon={TrendingUp}
+            title="Form conversion"
+            value={formatPercent(data.formConversionRate)}
+            description={`${data.inquirySubmissions} submissions from ${data.uniqueVisitors} visitors`}
+            tooltip="Percentage of unique visitors who submitted an inquiry."
+          />
+          <AnalyticsMetricCard
+            icon={GitCompareArrows}
+            title="Inquiry → quote"
+            value={formatPercent(data.inquiryToQuoteRate)}
+            description={`${data.inquiriesWithQuote} quoted of ${data.inquirySubmissions}`}
+            tooltip="Percentage of inquiries that received at least one quote."
+          />
         </div>
       </div>
 
-      {/* Quotes */}
+      {/* Quote outcomes */}
       <div>
-        <h2 className="meta-label mb-4">Quotes (last 30 days)</h2>
+        <h2 className="meta-label mb-4">Quote outcomes</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <DrillDownLink
-            href={hasDrillDown ? `${quotesPath}?status=sent` : ""}
-            enabled={hasDrillDown}
-          >
-            <AnalyticsMetricCard
-              icon={FileText}
-              title="Sent"
-              value={`${data.quotesSent}`}
-              tooltip="Quotes sent to customers."
-              sparkline={
-                sparklines ? (
-                  <MiniSparkline
-                    points={sparklines.quotesSent}
-                    direction={getDirection(sparklines.quotesSent)}
-                  />
-                ) : undefined
-              }
-            />
-          </DrillDownLink>
-          <DrillDownLink
-            href={hasDrillDown ? `${quotesPath}?status=viewed` : ""}
-            enabled={hasDrillDown}
-          >
-            <AnalyticsMetricCard
-              icon={Eye}
-              title="Viewed"
-              value={`${data.quotesViewed}`}
-              tooltip="Sent quotes opened by customers."
-              sparkline={
-                sparklines ? (
-                  <MiniSparkline
-                    points={sparklines.quotesViewed}
-                    direction={getDirection(sparklines.quotesViewed)}
-                  />
-                ) : undefined
-              }
-            />
-          </DrillDownLink>
           <DrillDownLink
             href={hasDrillDown ? `${quotesPath}?status=accepted` : ""}
             enabled={hasDrillDown}
           >
             <AnalyticsMetricCard
-              icon={CheckCircle2}
-              title="Accepted"
-              value={`${data.quotesAccepted}`}
-              description={`${formatPercent(data.quoteAcceptanceRate)} acceptance rate`}
-              tooltip="Quotes accepted by customers."
-              sparkline={
-                sparklines ? (
-                  <MiniSparkline
-                    points={sparklines.quotesAccepted}
-                    direction={getDirection(sparklines.quotesAccepted)}
-                  />
-                ) : undefined
-              }
+              icon={Target}
+              title="Acceptance rate"
+              value={formatPercent(data.quoteAcceptanceRate)}
+              description={`${data.quotesAccepted} accepted of ${data.quotesSent} sent`}
+              tooltip="Percentage of sent quotes that were accepted."
+            />
+          </DrillDownLink>
+          <DrillDownLink
+            href={hasDrillDown ? `${quotesPath}?status=sent` : ""}
+            enabled={hasDrillDown}
+          >
+            <AnalyticsMetricCard
+              icon={Eye}
+              title="View rate"
+              value={formatPercent(data.quoteViewRate)}
+              description={`${data.quotesViewed} viewed of ${data.quotesSent} sent`}
+              tooltip="Percentage of sent quotes that were opened by customers."
             />
           </DrillDownLink>
           <DrillDownLink
@@ -165,7 +194,6 @@ export function BasicAnalyticsView({
               icon={XCircle}
               title="Rejected"
               value={`${data.quotesRejected}`}
-              tooltip="Quotes rejected by customers."
               sparkline={
                 sparklines ? (
                   <MiniSparkline
@@ -174,6 +202,32 @@ export function BasicAnalyticsView({
                   />
                 ) : undefined
               }
+              tooltip="Quotes explicitly rejected by customers."
+            />
+          </DrillDownLink>
+        </div>
+      </div>
+
+      {/* Follow-ups */}
+      <div>
+        <h2 className="meta-label mb-4">Follow-ups</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <DrillDownLink href={followUpsPath} enabled={hasDrillDown}>
+            <AnalyticsMetricCard
+              icon={BellRing}
+              title="Active follow-ups"
+              value={`${data.activeFollowUps}`}
+              description={data.overdueFollowUps > 0 ? `${data.overdueFollowUps} overdue` : "None overdue"}
+              tooltip="Follow-up reminders currently pending."
+            />
+          </DrillDownLink>
+          <DrillDownLink href={followUpsPath} enabled={hasDrillDown}>
+            <AnalyticsMetricCard
+              icon={Clock3}
+              title="Overdue"
+              value={`${data.overdueFollowUps}`}
+              description={data.overdueFollowUps > 0 ? "Need attention now" : "You're on track"}
+              tooltip="Follow-ups past their due date."
             />
           </DrillDownLink>
         </div>
