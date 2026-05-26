@@ -39,8 +39,7 @@ import {
 } from "@/components/ui/sheet";
 import { InfoTile } from "@/components/shared/info-tile";
 import { CustomerHistoryPanel } from "@/features/customers/components/customer-history-panel";
-import { WorkflowNextActionCallout } from "@/features/businesses/components/workflow-next-action";
-import { getInquiryNextAction } from "@/features/businesses/workflow-next-actions";
+import { InquiryWorkflowSteps } from "@/features/businesses/components/workflow-steps";
 import { getCustomerHistoryForBusiness } from "@/features/customers/queries";
 import { createInquiryFollowUpAction } from "@/features/follow-ups/actions";
 import { FollowUpPanel } from "@/features/follow-ups/components/follow-up-panel";
@@ -190,10 +189,6 @@ async function InquiryDetailContent({
   const preferredContactLabel = getContactMethodLabel(
     inquiry.customerContactMethod,
   );
-  const inquiryNextAction = getInquiryNextAction({
-    businessSlug,
-    inquiry,
-  });
 
   return (
     <DashboardPage className="pb-24">
@@ -268,7 +263,7 @@ async function InquiryDetailContent({
         }
       />
 
-      <WorkflowNextActionCallout action={inquiryNextAction} />
+      <InquiryWorkflowSteps status={inquiry.status} />
 
       <DashboardDetailLayout className="xl:grid-cols-[1.45fr_0.95fr]">
         <DashboardSidebarStack>

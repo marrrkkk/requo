@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import {
   BellRing,
   ChevronsUpDown,
@@ -12,14 +12,18 @@ import {
   Lock,
   PanelLeft,
   Search,
-  Sparkles,
   Bell,
-  CheckCircle,
+  CheckCircle2,
   ArrowRight,
-  Send,
+  ArrowUp,
   ClipboardList,
   Receipt,
   Workflow,
+  Sparkles,
+  Plus,
+  History,
+  MoreHorizontal,
+  Database,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -49,60 +53,116 @@ const navItems: readonly NavItem[] = [
   { key: "analytics", label: "Analytics", icon: BarChart3 },
 ];
 
+/* -------------------------------------------------------------------------- */
+/*                     Attention items — mirrors real home page                */
+/* -------------------------------------------------------------------------- */
+
+type AttentionCategory = "Inquiry" | "Quote" | "Follow-up";
+
 type AttentionItem = {
   tone: "urgent" | "normal" | "positive";
-  icon: LucideIcon;
+  iconName: "inbox" | "file-text" | "bell-ring" | "check-circle";
   label: string;
   title: string;
   description: string;
   meta: string;
+  actionLabel: string;
+  category: AttentionCategory;
 };
 
 const attentionItems: readonly AttentionItem[] = [
   {
     tone: "urgent",
-    icon: BellRing,
+    iconName: "bell-ring",
     label: "Overdue follow-up",
     title: "Kitchen remodel follow-up",
     description: "Sarah Jenkins · No reply in 3 days",
     meta: "Due May 22",
+    actionLabel: "Follow up now",
+    category: "Follow-up",
   },
   {
     tone: "urgent",
-    icon: FileText,
+    iconName: "file-text",
     label: "Quote expiring",
     title: "Studio fit-out",
     description: "Maya Fields · $6,200",
     meta: "Expires tomorrow",
+    actionLabel: "Follow up before expiry",
+    category: "Quote",
   },
   {
     tone: "normal",
-    icon: Inbox,
+    iconName: "inbox",
     label: "New inquiry",
     title: "Leo Park",
     description: "Tile repair · Bathroom regrout",
     meta: "9:02 AM",
+    actionLabel: "Create quote",
+    category: "Inquiry",
   },
   {
     tone: "normal",
-    icon: BellRing,
+    iconName: "bell-ring",
     label: "Due today",
     title: "Deck staining check-in",
     description: "Carlos Rivera · Quote viewed",
     meta: "Due today",
+    actionLabel: "Follow up",
+    category: "Follow-up",
   },
   {
     tone: "positive",
-    icon: CheckCircle,
+    iconName: "check-circle",
     label: "Accepted",
     title: "Office painting Q-1038",
     description: "Brightwork Co · $3,400",
     meta: "Accepted May 24",
+    actionLabel: "Track next work step",
+    category: "Quote",
   },
 ];
 
+const iconMap: Record<string, LucideIcon> = {
+  inbox: Inbox,
+  "file-text": FileText,
+  "bell-ring": BellRing,
+  "check-circle": CheckCircle2,
+};
+
+const iconStyles: Record<string, string> = {
+  inbox: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
+  "file-text": "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  "bell-ring": "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  "check-circle": "bg-green-500/10 text-green-600 dark:text-green-400",
+};
+
+const categoryFilters: readonly { label: string; value: "all" | AttentionCategory }[] = [
+  { label: "All", value: "all" },
+  { label: "Inquiries", value: "Inquiry" },
+  { label: "Quotes", value: "Quote" },
+  { label: "Follow-ups", value: "Follow-up" },
+];
+
 /* -------------------------------------------------------------------------- */
-/*                            Animation hook                                   */
+/*                          AI Chat Animation Data                            */
+/* -------------------------------------------------------------------------- */
+
+const AI_PROMPT = "Draft a follow-up for Sarah's kitchen remodel quote";
+
+const AI_RESPONSE_LINES = [
+  "Hi Sarah,",
+  "",
+  "Just checking in on the kitchen remodel quote I sent over last week. I know choosing the right contractor is a big decision — happy to answer any questions or adjust the scope.",
+  "",
+  "The quote is valid until June 5. Would you like to schedule a quick call?",
+  "",
+  "Best,",
+  "Jamie",
+];
+
+/* -------------------------------------------------------------------------- */
+/*                        Animation hooks                                      */
 /* -------------------------------------------------------------------------- */
 
 function useShowcaseAnimation() {
@@ -135,6 +195,84 @@ function useShowcaseAnimation() {
   return { phase, containerRef };
 }
 
+type ChatState =
+  | "idle"
+  | "typing-input"
+  | "sending"
+  | "thinking"
+  | "responding"
+  | "done";
+
+function useAIChatAnimation(startDelay: number) {
+  const [chatState, setChatState] = useState<ChatState>("idle");
+  const [typedChars, setTypedChars] = useState(0);
+  const [visibleLines, setVisibleLines] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hasStarted = useRef(false);
+
+  const startDelayRef = useRef(startDelay);
+  startDelayRef.current = startDelay;
+
+  const cleanup = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+  }, []);
+
+  const startCycle = useCallback(() => {
+    cleanup();
+    setTypedChars(0);
+    setVisibleLines(0);
+    setChatState("typing-input");
+
+    let charIndex = 0;
+    intervalRef.current = setInterval(() => {
+      charIndex++;
+      setTypedChars(charIndex);
+      if (charIndex >= AI_PROMPT.length) {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+
+        timerRef.current = setTimeout(() => {
+          setChatState("sending");
+
+          timerRef.current = setTimeout(() => {
+            setChatState("thinking");
+
+            timerRef.current = setTimeout(() => {
+              setChatState("responding");
+              let lineIndex = 0;
+              intervalRef.current = setInterval(() => {
+                lineIndex++;
+                setVisibleLines(lineIndex);
+                if (lineIndex >= AI_RESPONSE_LINES.length) {
+                  if (intervalRef.current) clearInterval(intervalRef.current);
+                  setChatState("done");
+                }
+              }, 180);
+            }, 1200);
+          }, 400);
+        }, 800);
+      }
+    }, 45);
+  }, [cleanup]);
+
+  useEffect(() => {
+    if (hasStarted.current) return;
+    hasStarted.current = true;
+
+    timerRef.current = setTimeout(() => {
+      startCycle();
+    }, startDelayRef.current);
+
+    return () => {
+      cleanup();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return { chatState, typedChars, visibleLines };
+}
+
 /* -------------------------------------------------------------------------- */
 /*                            Requo Logo SVG                                   */
 /* -------------------------------------------------------------------------- */
@@ -156,11 +294,113 @@ function RequoLogoIcon({ className }: { className?: string }) {
 }
 
 /* -------------------------------------------------------------------------- */
+/*                          AI Chat Overlay                                    */
+/* -------------------------------------------------------------------------- */
+
+function AIChatOverlay({
+  chatState,
+  visibleLines,
+}: {
+  chatState: ChatState;
+  visibleLines: number;
+}) {
+  const isVisible =
+    chatState === "thinking" ||
+    chatState === "responding" ||
+    chatState === "done";
+
+  if (!isVisible) return null;
+
+  const showThinking = chatState === "thinking";
+  const showResponse = chatState === "responding" || chatState === "done";
+
+  return (
+    <div className="absolute inset-0 z-20 flex flex-col bg-background animate-in fade-in duration-200">
+      <div className="flex shrink-0 items-center justify-between border-b border-border/40 px-4 py-2 sm:px-5">
+        <div className="flex size-7 items-center justify-center rounded-md text-muted-foreground/60">
+          <Plus className="size-4" />
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="flex size-7 items-center justify-center rounded-md text-muted-foreground/60">
+            <History className="size-4" />
+          </div>
+          <div className="flex size-7 items-center justify-center rounded-md text-muted-foreground/60">
+            <MoreHorizontal className="size-4" />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-6 sm:px-6">
+        <div className="mx-auto w-full max-w-lg flex flex-col gap-6">
+          
+          <div className="flex justify-end">
+            <div className="max-w-[80%] rounded-2xl bg-foreground/10 px-4 py-2.5 text-xs text-foreground leading-relaxed shadow-sm">
+              {AI_PROMPT}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2.5">
+            {showThinking ? (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground/80 font-medium animate-in fade-in duration-200">
+                <Database className="size-3.5 text-primary animate-pulse" />
+                <span className="animate-pulse">Searching knowledge base...</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground/80 font-medium animate-in fade-in duration-200">
+                <Database className="size-3.5 text-muted-foreground/60" />
+                <span>Used 1 source</span>
+              </div>
+            )}
+
+            {showResponse && (
+              <div className="text-[11px] leading-relaxed text-foreground sm:text-xs max-w-none break-words whitespace-pre-line font-normal animate-in fade-in duration-300">
+                {AI_RESPONSE_LINES.slice(0, visibleLines).map((line, i) => (
+                  <span key={i}>
+                    {line}
+                    {i < visibleLines - 1 && "\n"}
+                  </span>
+                ))}
+                {chatState === "responding" && (
+                  <span className="ml-0.5 inline-block h-3.5 w-[2px] animate-pulse bg-primary align-middle" />
+                )}
+              </div>
+            )}
+          </div>
+
+        </div>
+      </div>
+
+      <div className="shrink-0 pb-6 pt-2">
+        <div className="mx-auto w-full max-w-lg px-4 sm:px-6">
+          <div className="rounded-2xl border border-border bg-background p-2.5 shadow-sm">
+            <div className="min-h-[36px] w-full bg-transparent px-2 py-1 text-[11px] text-muted-foreground/60 sm:text-xs">
+              Ask about your inquiries, quotes...
+            </div>
+            <div className="flex items-center justify-between pt-1 px-2">
+              <div className="flex items-center gap-1 rounded-md border border-border/80 bg-muted/30 px-2 py-0.5 text-[9px] font-medium text-muted-foreground/80">
+                <Sparkles className="size-2.5 text-primary" />
+                <span>Auto</span>
+              </div>
+              <span className="flex size-6 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/40 scale-95">
+                <ArrowUp className="size-3" />
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /*                            Component                                        */
 /* -------------------------------------------------------------------------- */
 
 export function MarketingShowcase() {
   const { phase, containerRef } = useShowcaseAnimation();
+  const { chatState, typedChars, visibleLines } = useAIChatAnimation(3000);
+
+  const activeFilter = "all";
 
   return (
     <div className="mx-auto w-full max-w-6xl" ref={containerRef}>
@@ -285,7 +525,7 @@ export function MarketingShowcase() {
           </aside>
 
           {/* ─── Main Content ─── */}
-          <div className="flex min-w-0 flex-1 flex-col bg-background">
+          <div className="relative flex min-w-0 flex-1 flex-col bg-background">
             {/* Top bar */}
             <div className="sticky top-0 z-30 border-b border-border/50 bg-background/95 backdrop-blur-sm">
               <div className="flex min-h-10 items-center gap-2 px-3 py-2 sm:px-5 sm:py-3 md:gap-2.5">
@@ -325,7 +565,7 @@ export function MarketingShowcase() {
 
             {/* Home content — centered like the real page */}
             <div className="flex min-h-0 flex-1 flex-col items-center overflow-hidden px-4 py-6 sm:px-6 sm:py-8">
-              <div className="flex w-full max-w-md flex-col gap-5">
+              <div className="flex w-full max-w-lg flex-col gap-5">
                 {/* Greeting */}
                 <div
                   className={cn(
@@ -335,15 +575,15 @@ export function MarketingShowcase() {
                       : "translate-y-2 opacity-0",
                   )}
                 >
-                  <h1 className="font-heading text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+                  <h1 className="font-heading text-[1.1rem] font-semibold tracking-tight text-foreground sm:text-[1.35rem] lg:text-[1.5rem]">
                     Good morning, Jamie
                   </h1>
-                  <p className="text-xs text-muted-foreground sm:text-sm">
-                    2 new inquiries · 1 follow-up due · 3 quotes sent this week
+                  <p className="text-[10px] text-muted-foreground sm:text-xs">
+                    2 urgent items and 3 new items since your last visit.
                   </p>
                 </div>
 
-                {/* AI Chat Input */}
+                {/* AI Chat Input — matches real PromptInput layout */}
                 <div
                   className={cn(
                     "transition-all duration-500",
@@ -353,14 +593,34 @@ export function MarketingShowcase() {
                   )}
                   style={{ transitionDelay: phase >= 1 ? "100ms" : "0ms" }}
                 >
-                  <div className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/20 px-3.5 py-2.5 shadow-sm">
-                    <Sparkles className="size-3.5 shrink-0 text-muted-foreground/60" />
-                    <span className="flex-1 text-[11px] text-muted-foreground sm:text-xs">
-                      Ask anything about your business...
-                    </span>
-                    <span className="flex size-6 items-center justify-center rounded-md bg-primary/10 text-primary">
-                      <Send className="size-3" />
-                    </span>
+                  <div className="rounded-xl border border-border bg-background p-2 shadow-sm transition-all duration-300 focus-within:border-primary/50">
+                    <div className="min-h-[44px] px-2 py-1.5 text-[11px] leading-relaxed sm:text-xs">
+                      {chatState === "typing-input" || chatState === "sending" ? (
+                        <span className="text-foreground">
+                          {AI_PROMPT.slice(0, typedChars)}
+                          {chatState === "typing-input" && (
+                            <span className="ml-0.5 inline-block h-3.5 w-[1.5px] animate-pulse bg-foreground/70 align-middle" />
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/70">
+                          Ask anything...
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-end px-2 pt-1">
+                      <span
+                        className={cn(
+                          "flex size-6 items-center justify-center rounded-full transition-all duration-300",
+                          (chatState === "typing-input" || chatState === "sending")
+                            ? "bg-primary text-primary-foreground scale-100 shadow-sm"
+                            : "bg-muted/60 text-muted-foreground/40 scale-95",
+                          chatState === "sending" && "scale-90 opacity-80"
+                        )}
+                      >
+                        <ArrowUp className="size-3" />
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -381,15 +641,50 @@ export function MarketingShowcase() {
                   </Badge>
                 </div>
 
-                {/* Attention items list */}
-                <div className="flex flex-col gap-1">
+                {/* Category filter tabs — matches real NeedsAttentionTabs */}
+                <div
+                  className={cn(
+                    "flex flex-wrap items-center gap-1.5 transition-all duration-400",
+                    phase >= 2
+                      ? "translate-y-0 opacity-100"
+                      : "translate-y-2 opacity-0",
+                  )}
+                  style={{ transitionDelay: phase >= 2 ? "60ms" : "0ms" }}
+                >
+                  {categoryFilters.map((filter) => (
+                    <span
+                      className={cn(
+                        "inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-[11px] font-medium",
+                        activeFilter === filter.value
+                          ? "bg-secondary font-semibold text-secondary-foreground"
+                          : "text-muted-foreground",
+                      )}
+                      key={filter.value}
+                    >
+                      {filter.label}
+                      <span className="text-[9px] text-muted-foreground">
+                        {filter.value === "all"
+                          ? attentionItems.length
+                          : attentionItems.filter(
+                              (i) => i.category === filter.value,
+                            ).length}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+
+                {/* Attention items list — action-oriented rows matching real UI */}
+                <div className="flex flex-col">
                   {attentionItems.map((item, index) => {
-                    const Icon = item.icon;
+                    const Icon = iconMap[item.iconName] ?? Inbox;
+                    const style =
+                      iconStyles[item.iconName] ?? "bg-muted text-muted-foreground";
+                    const isUrgent = item.tone === "urgent";
+
                     return (
                       <div
                         className={cn(
-                          "flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-all duration-400",
-                          "hover:bg-muted/30",
+                          "group flex items-center justify-between gap-3 border-b border-border/40 px-2 py-2.5 transition-all duration-400 first:pt-1.5 last:border-b-0",
                           phase >= 2
                             ? "translate-y-0 opacity-100"
                             : "translate-y-2 opacity-0",
@@ -397,37 +692,53 @@ export function MarketingShowcase() {
                         key={index}
                         style={{
                           transitionDelay:
-                            phase >= 2 ? `${index * 80 + 100}ms` : "0ms",
+                            phase >= 2 ? `${index * 70 + 120}ms` : "0ms",
                         }}
                       >
-                        <span
-                          className={cn(
-                            "flex size-1.5 shrink-0 rounded-full",
-                            item.tone === "urgent" && "bg-destructive",
-                            item.tone === "normal" && "bg-primary",
-                            item.tone === "positive" && "bg-emerald-500",
-                          )}
-                        />
-                        <Icon
-                          className={cn(
-                            "size-3.5 shrink-0",
-                            item.tone === "urgent" && "text-destructive/70",
-                            item.tone === "normal" && "text-muted-foreground",
-                            item.tone === "positive" && "text-emerald-500/70",
-                          )}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-[11px] font-medium text-foreground sm:text-xs">
-                            {item.title}
-                          </p>
-                          <p className="truncate text-[10px] text-muted-foreground">
-                            {item.description}
-                          </p>
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                          {/* Category icon container — matches real needs-attention-tabs */}
+                          <div
+                            className={cn(
+                              "flex size-8 shrink-0 items-center justify-center rounded-lg sm:size-9",
+                              style,
+                            )}
+                          >
+                            <Icon className="size-3.5 sm:size-4" />
+                          </div>
+
+                          {/* Text stack */}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate text-[11px] font-semibold tracking-tight text-foreground sm:text-xs">
+                                {item.title}
+                              </span>
+                              <span className="hidden shrink-0 rounded-md bg-secondary/80 px-1.5 py-0.5 text-[8px] font-medium uppercase tracking-wider text-muted-foreground sm:inline-flex">
+                                {item.category}
+                              </span>
+                            </div>
+                            <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                              {item.description}
+                              <span className="mx-1 text-muted-foreground/40">·</span>
+                              <span
+                                className={cn(
+                                  isUrgent
+                                    ? "font-medium text-destructive"
+                                    : "text-muted-foreground/80",
+                                )}
+                              >
+                                {item.meta}
+                              </span>
+                            </p>
+                          </div>
                         </div>
-                        <span className="hidden shrink-0 text-[10px] text-muted-foreground sm:block">
-                          {item.meta}
-                        </span>
-                        <ArrowRight className="size-3 shrink-0 text-muted-foreground/40" />
+
+                        {/* Action link */}
+                        <div className="flex shrink-0 items-center gap-1">
+                          <span className="hidden text-[10px] font-semibold text-primary/90 sm:inline-flex">
+                            {item.actionLabel}
+                          </span>
+                          <ArrowRight className="size-3 shrink-0 text-muted-foreground/40" />
+                        </div>
                       </div>
                     );
                   })}
@@ -452,6 +763,12 @@ export function MarketingShowcase() {
                 </div>
               </div>
             </div>
+
+            {/* AI Chat Animation Overlay */}
+            <AIChatOverlay
+              chatState={chatState}
+              visibleLines={visibleLines}
+            />
           </div>
         </div>
       </div>

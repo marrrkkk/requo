@@ -52,7 +52,7 @@ import {
 } from "@/features/inquiries/form-config";
 import { getCustomerHistoryForBusiness } from "@/features/customers/queries";
 import { CopyQuoteLinkButton } from "@/features/quotes/components/copy-quote-link-button";
-import { WorkflowNextActionCallout } from "@/features/businesses/components/workflow-next-action";
+import { QuoteWorkflowSteps } from "@/features/businesses/components/workflow-steps";
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";
 import { QuoteExportPopover } from "@/features/quotes/components/quote-export-popover";
 import { QuoteManageDropdown } from "@/features/quotes/components/quote-manage-dropdown";
@@ -70,7 +70,6 @@ import { DismissibleQuoteAlert } from "@/features/quotes/components/dismissible-
 import { SendQuoteDialog } from "@/features/quotes/components/send-quote-dialog";
 import { AutoFollowUpStatus } from "@/features/quotes/components/auto-follow-up-status";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
-import { getQuoteNextAction } from "@/features/businesses/workflow-next-actions";
 import { getFollowUpsForQuote } from "@/features/follow-ups/queries";
 import { getQuoteLibraryForBusiness } from "@/features/quotes/quote-library-queries";
 import { getQuoteDetailForBusiness, getRevisionRequestsForQuote } from "@/features/quotes/queries";
@@ -205,12 +204,6 @@ async function QuoteDetailContent({
   const hasPendingFollowUp = followUps.some(
     (followUp) => followUp.status === "pending",
   );
-  const nextFollowUpDueAt =
-    followUps
-      .filter((followUp) => followUp.status === "pending")
-      .slice()
-      .sort((left, right) => left.dueAt.getTime() - right.dueAt.getTime())[0]
-      ?.dueAt ?? null;
   const viewedWithoutResponse = Boolean(
     quote.status === "sent" &&
       quote.publicViewedAt &&
@@ -219,17 +212,6 @@ async function QuoteDetailContent({
   const visibleQuoteReminders = quote.reminders.filter(
     (reminder) => reminder !== "follow_up_due",
   );
-  const quoteNextAction = getQuoteNextAction({
-    businessSlug,
-    quote: {
-      ...quote,
-      pendingFollowUpCount: followUps.filter(
-        (followUp) => followUp.status === "pending",
-      ).length,
-      nextFollowUpDueAt,
-    },
-  });
-
   const customerViewCopy =
     quote.status === "sent"
       ? {
@@ -384,7 +366,11 @@ async function QuoteDetailContent({
         }
       />
 
-      <WorkflowNextActionCallout action={quoteNextAction} />
+      <QuoteWorkflowSteps
+        status={quote.status}
+        postAcceptanceStatus={quote.postAcceptanceStatus}
+        publicViewedAt={quote.publicViewedAt}
+      />
 
       {quote.status === "draft" ? (
         <>

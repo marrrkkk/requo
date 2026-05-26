@@ -1,15 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { memo, type CSSProperties, type ReactNode, useMemo } from "react";
-import { Home as HomeIcon } from "lucide-react";
+import { memo, type CSSProperties, type ReactNode, useTransition } from "react";
 import {
   Bell,
   BookOpen,
   Building2,
+  ChevronsUpDown,
   FileText,
+  Home as HomeIcon,
+  LogOut,
   Mail,
   Palette,
+  PanelsTopLeft,
   Receipt,
   ScrollText,
   Tag,
@@ -19,8 +22,22 @@ import {
 import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 
+import { authClient } from "@/lib/auth/client";
+import { AppearanceMenuSubmenu } from "@/features/theme/components/appearance-menu";
+import { clearPersistedThemePreference } from "@/features/theme/persistence";
+import { themeUserStorageKey } from "@/features/theme/types";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { BrandMark } from "@/components/shared/brand-mark";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -37,7 +54,8 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { getBusinessDashboardPath } from "@/features/businesses/routes";
+import { Spinner } from "@/components/ui/spinner";
+import { dashboardPath, getBusinessDashboardPath } from "@/features/businesses/routes";
 import type { SettingsNavigationGroup } from "@/features/settings/navigation";
 import { cn } from "@/lib/utils";
 
@@ -55,11 +73,19 @@ const settingsIcons: Record<string, LucideIcon> = {
   scroll: ScrollText,
 };
 
+export type SettingsUserData = {
+  id: string;
+  name: string;
+  email: string;
+  avatarSrc: string | null;
+};
+
 export type SettingsShellFrameProps = {
   children: ReactNode;
   businessSlug: string;
   groups: SettingsNavigationGroup[];
-  userMenuSlot: ReactNode;
+  user: SettingsUserData;
+  userMenuSlot?: ReactNode;
   businessNameSlot: ReactNode;
 };
 
@@ -72,10 +98,10 @@ export function SettingsShellFrame({
   children,
   businessSlug,
   groups,
-  userMenuSlot,
+  user,
   businessNameSlot,
 }: SettingsShellFrameProps) {
-  const dashboardPath = getBusinessDashboardPath(businessSlug);
+  const businessDashboardPath = getBusinessDashboardPath(businessSlug);
 
   return (
     <SidebarProvider
@@ -94,7 +120,7 @@ export function SettingsShellFrame({
               collapseLabel
               className="min-w-0 px-2 py-1.5"
               subtitle="Settings"
-              href={dashboardPath}
+              href={businessDashboardPath}
             />
             <SidebarTrigger className="size-7 shrink-0" />
           </div>
@@ -126,7 +152,7 @@ export function SettingsShellFrame({
         <SidebarSeparator />
 
         <SidebarFooter className="p-3 pt-2">
-          {userMenuSlot}
+          <SettingsUserMenu user={user} />
         </SidebarFooter>
 
         <SidebarRail />
@@ -144,7 +170,7 @@ export function SettingsShellFrame({
                 size="icon-sm"
                 className="hidden size-8 shrink-0 lg:inline-flex"
               >
-                <Link href={dashboardPath} aria-label="Home">
+                <Link href={businessDashboardPath} aria-label="Home">
                   <HomeIcon className="size-4" />
                 </Link>
               </Button>
@@ -228,3 +254,138 @@ const SettingsNavigationItem = memo(function SettingsNavigationItem({
     </SidebarMenuItem>
   );
 });
+
+function SettingsUserMenu({ user }: { user: SettingsUserData }) {
+  const [isPending, startTransition] = useTransition();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  function closeMobileSidebar() {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }
+
+  function handleLogout() {
+    startTransition(async () => {
+      const result = await authClient.signOut();
+      if (result.error) return;
+      window.localStorage.removeItem(themeUserStorageKey);
+      clearPersistedThemePreference();
+      window.location.assign("/login");
+    });
+  }
+
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuButton
+              className="data-[state=open]:bg-sidebar-accent"
+              size="lg"
+            >
+              <Avatar className="size-8 rounded-lg">
+                {user.avatarSrc ? (
+                  <AvatarImage
+                    alt={`${user.name} avatar`}
+                    src={user.avatarSrc}
+                    loading="eager"
+                    decoding="async"
+                    fetchPriority="high"
+                  />
+                ) : null}
+                <AvatarFallback className="rounded-lg">
+                  {getInitials(user.name)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="grid min-w-0 flex-1 text-left leading-tight">
+                <span className="truncate text-sm font-medium text-sidebar-foreground">
+                  {user.name}
+                </span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {user.email}
+                </span>
+              </div>
+              <ChevronsUpDown className="ml-auto text-muted-foreground" />
+            </SidebarMenuButton>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="w-[min(16rem,calc(100vw-2rem))] rounded-xl"
+            side="top"
+          >
+            <DropdownMenuLabel className="px-2 py-2.5">
+              <div className="flex items-center gap-3">
+                <Avatar className="size-8 rounded-lg">
+                  {user.avatarSrc ? (
+                    <AvatarImage
+                      alt={`${user.name} avatar`}
+                      src={user.avatarSrc}
+                      loading="eager"
+                      decoding="async"
+                      fetchPriority="high"
+                    />
+                  ) : null}
+                  <AvatarFallback className="rounded-lg">
+                    {getInitials(user.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {user.name}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem asChild>
+                <Link
+                  href={dashboardPath}
+                  prefetch={true}
+                  onClick={closeMobileSidebar}
+                >
+                  <PanelsTopLeft data-icon="inline-start" />
+                  Manage businesses
+                </Link>
+              </DropdownMenuItem>
+              <AppearanceMenuSubmenu userId={user.id} />
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={isPending}
+              onSelect={(event) => {
+                event.preventDefault();
+                handleLogout();
+              }}
+            >
+              {isPending ? (
+                <>
+                  <Spinner data-icon="inline-start" aria-hidden="true" />
+                  Signing out...
+                </>
+              ) : (
+                <>
+                  <LogOut data-icon="inline-start" />
+                  Sign out
+                </>
+              )}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
+}
+
+function getInitials(value: string) {
+  return value
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((segment) => segment[0]?.toUpperCase())
+    .join("");
+}

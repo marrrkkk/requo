@@ -3,7 +3,6 @@ import { Suspense } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { BusinessAvatar } from "@/components/shared/business-avatar";
-import { AccountUserMenu } from "@/features/account/components/account-user-menu";
 import { getAccountProfileForUser } from "@/features/account/queries";
 import { resolveUserAvatarSrc } from "@/features/account/utils";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
@@ -35,6 +34,7 @@ export default async function SettingsLayout({
 }) {
   const { businessSlug } = await params;
   const groups = getUnifiedSettingsNavigation(businessSlug);
+  const userData = await resolveSettingsUser(businessSlug);
 
   return (
     <>
@@ -44,13 +44,7 @@ export default async function SettingsLayout({
       <SettingsShellFrame
         businessSlug={businessSlug}
         groups={groups}
-        userMenuSlot={
-          <Suspense
-            fallback={<Skeleton className="size-9 rounded-full" />}
-          >
-            <UserMenuSlot businessSlug={businessSlug} />
-          </Suspense>
-        }
+        user={userData}
         businessNameSlot={
           <Suspense
             fallback={
@@ -136,7 +130,7 @@ async function BusinessNameSlot({ businessSlug }: { businessSlug: string }) {
   );
 }
 
-async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
+async function resolveSettingsUser(businessSlug: string) {
   const session = await requireSession();
   const [shellContext, profile] = await Promise.all([
     getAppShellContext(businessSlug),
@@ -151,14 +145,10 @@ async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
     oauthImage: user.image ?? null,
   });
 
-  return (
-    <AccountUserMenu
-      user={{
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        avatarSrc,
-      }}
-    />
-  );
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    avatarSrc,
+  };
 }
