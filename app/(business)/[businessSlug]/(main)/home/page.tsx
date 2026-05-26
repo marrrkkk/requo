@@ -58,7 +58,7 @@ async function DashboardOverviewContent({
 
   return (
     <div className="home-page-container">
-      <div className="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col">
+      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col px-2 sm:px-4 lg:px-6">
         {/* Greeting + AI chat input */}
         <section className="shrink-0 pb-6">
           <Suspense fallback={<GreetingFallback userName={user.name} />}>

@@ -182,7 +182,7 @@ async function UpgradeSlot({ businessSlug }: { businessSlug: string }) {
     businessContext.business.id,
   ).catch(() => null);
 
-  if (!billing || billing.currentPlan === "business") {
+  if (!billing || billing.currentPlan !== "free") {
     return null;
   }
 
