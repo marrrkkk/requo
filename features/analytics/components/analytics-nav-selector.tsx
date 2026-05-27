@@ -14,9 +14,10 @@ type AnalyticsTab = "basic" | "advanced";
 type AnalyticsNavSelectorProps = {
   activeTab: AnalyticsTab;
   onTabChange: (tab: AnalyticsTab) => void;
+  canAccessAdvanced?: boolean;
 };
 
-const TAB_OPTIONS: { value: AnalyticsTab; label: string }[] = [
+const ALL_TAB_OPTIONS: { value: AnalyticsTab; label: string }[] = [
   { value: "basic", label: "Basic" },
   { value: "advanced", label: "Advanced" },
 ];
@@ -24,7 +25,15 @@ const TAB_OPTIONS: { value: AnalyticsTab; label: string }[] = [
 export function AnalyticsNavSelector({
   activeTab,
   onTabChange,
+  canAccessAdvanced = true,
 }: AnalyticsNavSelectorProps) {
+  const tabOptions = canAccessAdvanced
+    ? ALL_TAB_OPTIONS
+    : ALL_TAB_OPTIONS.filter((option) => option.value !== "advanced");
+
+  // No selector needed when only one tab is available.
+  if (tabOptions.length <= 1) return null;
+
   return (
     <div className="bg-section-panel rounded-lg p-1">
       {/* Desktop: Tabs (≥ 640px) */}
@@ -34,7 +43,7 @@ export function AnalyticsNavSelector({
           onValueChange={(value) => onTabChange(value as AnalyticsTab)}
         >
           <TabsList>
-            {TAB_OPTIONS.map((option) => (
+            {tabOptions.map((option) => (
               <TabsTrigger
                 key={option.value}
                 value={option.value}
@@ -61,7 +70,7 @@ export function AnalyticsNavSelector({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {TAB_OPTIONS.map((option) => (
+            {tabOptions.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
               </SelectItem>

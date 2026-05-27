@@ -25,11 +25,10 @@ function DeltaBadge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1 text-xs font-medium ${
-        isPositive
+      className={`inline-flex items-center gap-1 text-xs font-medium ${isPositive
           ? "text-emerald-600 dark:text-emerald-400"
           : "text-red-500 dark:text-red-400"
-      }`}
+        }`}
     >
       {direction === "up" ? "▲" : "▼"} {label}
     </span>
@@ -55,7 +54,7 @@ export function AnalyticsMetricCard({
 }) {
   return (
     <Card className="h-full border-border/75 bg-card/97" size="sm">
-      <CardContent className="p-5">
+      <CardContent className="flex flex-1 flex-col p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
@@ -80,7 +79,7 @@ export function AnalyticsMetricCard({
             <Icon className="size-4 shrink-0" />
           </div>
         </div>
-        {sparkline ? <div className="mt-3">{sparkline}</div> : null}
+        {sparkline ? <div className="mt-auto pt-3">{sparkline}</div> : null}
       </CardContent>
     </Card>
   );

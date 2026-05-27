@@ -122,6 +122,11 @@ export type RevenueForecast = {
   averageQuoteValueCents: number;
 };
 
+export type ReferrerSource = {
+  domain: string;
+  count: number;
+};
+
 export type CohortRow = {
   /** YYYY-MM month label of the customer's first inquiry. */
   cohortMonth: string;

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { AdvancedAnalyticsView } from "@/features/analytics/components/advanced-analytics-view";
-import { AnalyticsTabbedDashboard } from "@/features/analytics/components/analytics-tabbed-dashboard";
+import { AnalyticsTabsShell } from "@/features/analytics/components/analytics-tabs-shell";
 import { BasicAnalyticsView } from "@/features/analytics/components/basic-analytics-view";
 import {
   DateRangeSelector,
@@ -17,6 +17,8 @@ import {
   getBusinessAnalytics,
   getFreeAnalytics,
   getProAnalytics,
+  getRevenueForecast,
+  getTopSources,
 } from "@/features/analytics/queries";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
 import { getAppShellContext } from "@/lib/app-shell/context";
@@ -123,6 +125,8 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
   let proData = null;
   let businessData = null;
   let sparklineData = null;
+  let topSourcesData = null;
+  let revenueForecastData = null;
   let aiSummary: string | null = null;
   let fetchError = false;
 
@@ -132,11 +136,15 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
       hasPerformance ? getProAnalytics(businessId, since, until) : Promise.resolve(null),
       hasOperations ? getBusinessAnalytics(businessId, since, until) : Promise.resolve(null),
       getBasicSparklineData(businessId, since, until),
+      hasPerformance ? getTopSources(businessId, since, until) : Promise.resolve(null),
+      hasOperations ? getRevenueForecast(businessId) : Promise.resolve(null),
     ]);
     freeData = results[0];
     proData = results[1];
     businessData = results[2];
     sparklineData = results[3];
+    topSourcesData = results[4];
+    revenueForecastData = results[5];
     console.log("[analytics] Data fetched successfully for", businessId);
 
     // Generate AI summary for operations tier (gated behind analyticsWorkflow)
@@ -158,15 +166,23 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
     </div>
   );
 
+  const canViewAdvanced = hasPerformance || hasOperations;
+
   const basicContent = fetchError ? (
     errorFallback
   ) : (
-    <BasicAnalyticsView data={freeData!} sparklines={sparklineData} businessSlug={business.slug} />
+    <BasicAnalyticsView
+      data={freeData!}
+      sparklines={sparklineData}
+      businessSlug={business.slug}
+      since={since}
+      until={until}
+    />
   );
 
   const advancedContent = fetchError ? (
     errorFallback
-  ) : (
+  ) : canViewAdvanced ? (
     <AdvancedAnalyticsView
       plan={plan}
       businessId={businessId}
@@ -174,6 +190,8 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
       currency={business.defaultCurrency}
       data={{ free: freeData!, pro: proData, business: businessData }}
       aiSummary={aiSummary}
+      revenueForecast={revenueForecastData}
+      topSources={topSourcesData}
       upgradeAction={{
         userId: user.id,
         businessId,
@@ -181,6 +199,10 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
         currentPlan: plan,
       }}
     />
+  ) : (
+    <div className="rounded-xl bg-surface-muted p-6 text-sm text-muted-foreground">
+      Upgrade to unlock advanced analytics.
+    </div>
   );
 
   return (
@@ -200,10 +222,11 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
 
       <LastUpdatedTimestamp lastUpdatedAt={new Date()} />
 
-      <AnalyticsTabbedDashboard
+      <AnalyticsTabsShell
         basicContent={basicContent}
         advancedContent={advancedContent}
-        defaultTab={hasPerformance ? "advanced" : "basic"}
+        defaultTab={canViewAdvanced ? "advanced" : "basic"}
+        canAccessAdvanced={canViewAdvanced}
       />
     </DashboardPage>
   );

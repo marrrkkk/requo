@@ -23,6 +23,7 @@ import type {
   FormPerformanceRow,
   FreeAnalyticsData,
   FunnelStep,
+  ReferrerSource,
   RevenueForecast,
   MetricSparklineData,
   OperationalAlerts,
@@ -994,10 +995,7 @@ export async function getRevenueForecast(
 // Top Sources (Referrer Domains)
 // ---------------------------------------------------------------------------
 
-export type ReferrerSource = {
-  domain: string;
-  count: number;
-};
+export type { ReferrerSource };
 
 /**
  * Returns the top 5 referrer domains from analytics event metadata within

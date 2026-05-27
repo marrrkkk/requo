@@ -11,7 +11,10 @@ import {
   XCircle,
 } from "lucide-react";
 
+import { AnalyticsChartCard } from "@/features/analytics/components/analytics-chart-card";
 import { AnalyticsMetricCard } from "@/features/analytics/components/analytics-metric-card";
+import { AnalyticsSection } from "@/features/analytics/components/analytics-section";
+import { BasicTrendChart } from "@/features/analytics/components/basic-trend-chart";
 import { DrillDownLink } from "@/features/analytics/components/drill-down-link";
 import { MiniSparkline } from "@/features/analytics/components/mini-sparkline";
 import type {
@@ -39,10 +42,14 @@ export function BasicAnalyticsView({
   data,
   sparklines,
   businessSlug,
+  since,
+  until,
 }: {
   data: FreeAnalyticsData;
   sparklines?: MetricSparklineData | null;
   businessSlug?: string;
+  since: Date;
+  until: Date;
 }) {
   const hasDrillDown = !!businessSlug;
   const inquiriesPath = businessSlug ? getBusinessInquiriesPath(businessSlug) : "";
@@ -50,10 +57,12 @@ export function BasicAnalyticsView({
   const followUpsPath = businessSlug ? getBusinessFollowUpsPath(businessSlug) : "";
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* Pipeline summary */}
-      <div>
-        <h2 className="meta-label mb-4">Pipeline</h2>
+    <div className="flex flex-col gap-6">
+      <AnalyticsSection
+        eyebrow="Basic"
+        title="Pipeline overview"
+        description="A quick read on inquiries → quotes → outcomes for the selected time range."
+      >
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           <AnalyticsMetricCard
             icon={Inbox}
@@ -113,49 +122,61 @@ export function BasicAnalyticsView({
             tooltip="Quotes rejected or expired without a response."
           />
         </div>
-      </div>
+      </AnalyticsSection>
 
-      {/* Conversion rates */}
-      <div>
-        <h2 className="meta-label mb-4">Conversion</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <DrillDownLink href={inquiriesPath} enabled={hasDrillDown}>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <AnalyticsChartCard
+          title="Trend"
+          description="Daily inquiries and quote activity."
+        >
+          {sparklines ? (
+            <BasicTrendChart since={since} until={until} sparklines={sparklines} />
+          ) : (
+            <div className="h-full min-h-[280px] w-full flex-1 rounded-xl bg-surface-muted" />
+          )}
+        </AnalyticsChartCard>
+
+        <AnalyticsChartCard
+          title="Conversion health"
+          description="Key conversion rates for this period."
+        >
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <DrillDownLink href={inquiriesPath} enabled={hasDrillDown}>
+              <AnalyticsMetricCard
+                icon={Eye}
+                title="Form views"
+                value={`${data.formViews}`}
+                description={`${data.uniqueVisitors} unique visitors`}
+                tooltip="Times your public inquiry forms were viewed."
+                sparkline={
+                  sparklines ? (
+                    <MiniSparkline
+                      points={sparklines.formViews}
+                      direction={getDirection(sparklines.formViews)}
+                    />
+                  ) : undefined
+                }
+              />
+            </DrillDownLink>
             <AnalyticsMetricCard
-              icon={Eye}
-              title="Form views"
-              value={`${data.formViews}`}
-              description={`${data.uniqueVisitors} unique visitors`}
-              tooltip="Times your public inquiry forms were viewed."
-              sparkline={
-                sparklines ? (
-                  <MiniSparkline
-                    points={sparklines.formViews}
-                    direction={getDirection(sparklines.formViews)}
-                  />
-                ) : undefined
-              }
+              icon={TrendingUp}
+              title="Form conversion"
+              value={formatPercent(data.formConversionRate)}
+              description={`${data.inquirySubmissions} submissions from ${data.uniqueVisitors} visitors`}
+              tooltip="Percentage of unique visitors who submitted an inquiry."
             />
-          </DrillDownLink>
-          <AnalyticsMetricCard
-            icon={TrendingUp}
-            title="Form conversion"
-            value={formatPercent(data.formConversionRate)}
-            description={`${data.inquirySubmissions} submissions from ${data.uniqueVisitors} visitors`}
-            tooltip="Percentage of unique visitors who submitted an inquiry."
-          />
-          <AnalyticsMetricCard
-            icon={GitCompareArrows}
-            title="Inquiry → quote"
-            value={formatPercent(data.inquiryToQuoteRate)}
-            description={`${data.inquiriesWithQuote} quoted of ${data.inquirySubmissions}`}
-            tooltip="Percentage of inquiries that received at least one quote."
-          />
-        </div>
+            <AnalyticsMetricCard
+              icon={GitCompareArrows}
+              title="Inquiry → quote"
+              value={formatPercent(data.inquiryToQuoteRate)}
+              description={`${data.inquiriesWithQuote} quoted of ${data.inquirySubmissions}`}
+              tooltip="Percentage of inquiries that received at least one quote."
+            />
+          </div>
+        </AnalyticsChartCard>
       </div>
 
-      {/* Quote outcomes */}
-      <div>
-        <h2 className="meta-label mb-4">Quote outcomes</h2>
+      <AnalyticsSection eyebrow="Basic" title="Quote outcomes">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <DrillDownLink
             href={hasDrillDown ? `${quotesPath}?status=accepted` : ""}
@@ -201,11 +222,9 @@ export function BasicAnalyticsView({
             />
           </DrillDownLink>
         </div>
-      </div>
+      </AnalyticsSection>
 
-      {/* Follow-ups */}
-      <div>
-        <h2 className="meta-label mb-4">Follow-ups</h2>
+      <AnalyticsSection eyebrow="Basic" title="Follow-ups">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <DrillDownLink href={followUpsPath} enabled={hasDrillDown}>
             <AnalyticsMetricCard
@@ -226,7 +245,7 @@ export function BasicAnalyticsView({
             />
           </DrillDownLink>
         </div>
-      </div>
+      </AnalyticsSection>
     </div>
   );
 }
