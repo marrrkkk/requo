@@ -167,14 +167,14 @@ function StatusBadge({ status }: { status: string }) {
 
 function InquiryListCard({ items }: { items: InquiryListItem[] }) {
   return (
-    <div className="space-y-1">
+    <div className="divide-y divide-border/40 overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm">
       {items.map((item) => (
         <a
           key={item.id}
           href={item.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
+          className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-muted/50"
         >
           <RequoIcon className="size-4 shrink-0 text-primary" />
           <div className="min-w-0 flex-1">
@@ -200,14 +200,14 @@ function InquiryListCard({ items }: { items: InquiryListItem[] }) {
 
 function QuoteListCard({ items }: { items: QuoteListItem[] }) {
   return (
-    <div className="space-y-1">
+    <div className="divide-y divide-border/40 overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm">
       {items.map((item) => (
         <a
           key={item.id}
           href={item.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
+          className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-muted/50"
         >
           <RequoIcon className="size-4 shrink-0 text-primary" />
           <div className="min-w-0 flex-1">
@@ -238,7 +238,7 @@ function InquiryDetailCard({ data }: { data: InquiryDetail }) {
       href={data.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block rounded-lg border border-border/60 p-4 transition-colors hover:bg-muted/50"
+      className="block rounded-xl border border-border/80 bg-card p-4 shadow-sm transition-all hover:bg-muted/50"
     >
       <div className="flex items-center gap-2">
         <RequoIcon className="size-4 text-primary" />
@@ -266,7 +266,7 @@ function QuoteDetailCard({ data }: { data: QuoteDetail }) {
       href={data.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block rounded-lg border border-border/60 p-4 transition-colors hover:bg-muted/50"
+      className="block rounded-xl border border-border/80 bg-card p-4 shadow-sm transition-all hover:bg-muted/50"
     >
       <div className="flex items-center gap-2">
         <RequoIcon className="size-4 text-primary" />
@@ -303,14 +303,14 @@ function QuoteDetailCard({ data }: { data: QuoteDetail }) {
 
 function JobListCard({ items }: { items: JobListItem[] }) {
   return (
-    <div className="space-y-1">
+    <div className="divide-y divide-border/40 overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm">
       {items.map((item) => (
         <a
           key={item.id}
           href={item.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
+          className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-muted/50"
         >
           <RequoIcon className="size-4 shrink-0 text-primary" />
           <div className="min-w-0 flex-1">
@@ -340,7 +340,7 @@ function JobDetailCard({ data }: { data: JobDetail }) {
       href={data.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block rounded-lg border border-border/60 p-4 transition-colors hover:bg-muted/50"
+      className="block rounded-xl border border-border/80 bg-card p-4 shadow-sm transition-all hover:bg-muted/50"
     >
       <div className="flex items-center gap-2">
         <RequoIcon className="size-4 text-primary" />
@@ -377,14 +377,14 @@ function JobDetailCard({ data }: { data: JobDetail }) {
 
 function InvoiceListCard({ items }: { items: InvoiceListItem[] }) {
   return (
-    <div className="space-y-1">
+    <div className="divide-y divide-border/40 overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm">
       {items.map((item) => (
         <a
           key={item.id}
           href={item.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
+          className="flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-muted/50"
         >
           <RequoIcon className="size-4 shrink-0 text-primary" />
           <div className="min-w-0 flex-1">
@@ -415,7 +415,7 @@ function InvoiceDetailCard({ data }: { data: InvoiceDetail }) {
       href={data.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block rounded-lg border border-border/60 p-4 transition-colors hover:bg-muted/50"
+      className="block rounded-xl border border-border/80 bg-card p-4 shadow-sm transition-all hover:bg-muted/50"
     >
       <div className="flex items-center gap-2">
         <RequoIcon className="size-4 text-primary" />

@@ -64,6 +64,31 @@ const PRICED_REVIEW_STATUSES = new Set<AiQuoteDraftItemReviewStatus>([
   "calculated",
 ]);
 
+function coerceAiQuoteDraftItemReviewStatus(
+  value: unknown,
+): AiQuoteDraftItemReviewStatus {
+  if (typeof value !== "string") return "needs_review";
+
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    // Common AI variations: "needs review" vs "needs_review"
+    .replace(/\s+/g, "_");
+
+  switch (normalized) {
+    case "matched":
+      return "matched";
+    case "calculated":
+      return "calculated";
+    case "needs_review":
+      return "needs_review";
+    case "no_pricing_found":
+      return "no_pricing_found";
+    default:
+      return "needs_review";
+  }
+}
+
 const quoteDraftResponseSchema = z.object({
   title: z.string().trim().min(2).max(160),
   notes: z
@@ -104,7 +129,10 @@ const quoteDraftResponseSchema = z.object({
           .optional()
           .default("low"),
         reviewStatus: z
-          .enum(aiQuoteDraftItemReviewStatuses)
+          .preprocess(
+            (value) => coerceAiQuoteDraftItemReviewStatus(value),
+            z.enum(aiQuoteDraftItemReviewStatuses),
+          )
           .optional()
           .default("needs_review"),
         reason: z.string().trim().min(1).max(600).optional().default(""),

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, count, desc, eq, isNull } from "drizzle-orm";
 
 import { getInquiryAssistantContextForBusiness } from "@/features/ai/queries";
 import type {
@@ -29,6 +29,7 @@ import type { AiModelSelection } from "@/lib/ai/model-options";
 import { db } from "@/lib/db/client";
 import {
   businesses,
+  inquiries,
 } from "@/lib/db/schema";
 
 function truncateText(value: string | null | undefined, maxLength: number) {
@@ -409,8 +410,13 @@ async function buildInquiryContext(input: {
     context.inquiry.submittedFieldSnapshot,
   );
 
-  // Compact business line
+  // Compact business lines
   const businessLine = `Business: ${context.business.name} (${context.business.businessType}); slug: ${context.business.slug}; currency ${context.business.defaultCurrency}; tone ${context.business.aiTonePreference}`;
+  const businessExtras = [
+    context.business.industryCategory ? `Industry: ${context.business.industryCategory}` : null,
+    context.business.defaultQuoteTerms ? `Default terms: ${truncateText(context.business.defaultQuoteTerms, 200)}` : null,
+    context.business.inquiryHeadline ? `Inquiry headline: ${context.business.inquiryHeadline}` : null,
+  ].filter(Boolean);
 
   // Compact inquiry header — only include non-null fields
   const inquiryFields = compactFields([
@@ -429,6 +435,7 @@ async function buildInquiryContext(input: {
     "",
     businessLine,
     context.business.shortDescription ? `Description: ${context.business.shortDescription}` : null,
+    ...businessExtras,
     "",
     `Inquiry: ${inquiryFields}`,
     "",
@@ -497,6 +504,9 @@ async function buildQuoteContext(input: {
         defaultCurrency: businesses.defaultCurrency,
         defaultEmailSignature: businesses.defaultEmailSignature,
         defaultQuoteNotes: businesses.defaultQuoteNotes,
+        defaultQuoteTerms: businesses.defaultQuoteTerms,
+        industryCategory: businesses.industryCategory,
+        inquiryHeadline: businesses.inquiryHeadline,
         aiTonePreference: businesses.aiTonePreference,
         createdAt: businesses.createdAt,
       })
@@ -537,11 +547,20 @@ async function buildQuoteContext(input: {
       : Promise.resolve(null),
   ]);
 
+  const quoteBusinessExtras = [
+    business.industryCategory ? `Industry: ${business.industryCategory}` : null,
+    business.defaultQuoteTerms ? `Default terms: ${truncateText(business.defaultQuoteTerms, 200)}` : null,
+    business.defaultQuoteNotes ? `Default notes: ${truncateText(business.defaultQuoteNotes, 200)}` : null,
+    business.defaultEmailSignature ? `Email signature: ${truncateText(business.defaultEmailSignature, 150)}` : null,
+    business.inquiryHeadline ? `Inquiry headline: ${business.inquiryHeadline}` : null,
+  ].filter(Boolean);
+
   return [
     "Surface: quote",
     "",
     `Business: ${business.name} (${business.businessType}); slug: ${business.slug}; currency ${business.defaultCurrency}; tone ${business.aiTonePreference}`,
     business.shortDescription ? `Description: ${business.shortDescription}` : null,
+    ...quoteBusinessExtras,
     "",
     `Quote: ${quote.quoteNumber} "${quote.title}"`,
     `Customer: ${compactFields([
@@ -598,9 +617,10 @@ async function buildDashboardContext(input: {
   /** User message for RAG-based memory retrieval */
   userMessage?: string;
 }) {
-  // Minimal context for dashboard — tools handle all data queries.
-  // Only load business identity and relevant knowledge (RAG-filtered).
-  const [businessRow, memoryResult] = await Promise.all([
+  // Load business identity, top service categories, and relevant knowledge.
+  // Service categories give the AI ambient knowledge of what services the
+  // business offers, so it can provide contextually relevant examples.
+  const [businessRow, memoryResult, topCategories] = await Promise.all([
     db
       .select({
         id: businesses.id,
@@ -611,6 +631,11 @@ async function buildDashboardContext(input: {
         contactEmail: businesses.contactEmail,
         defaultCurrency: businesses.defaultCurrency,
         aiTonePreference: businesses.aiTonePreference,
+        industryCategory: businesses.industryCategory,
+        defaultQuoteNotes: businesses.defaultQuoteNotes,
+        defaultQuoteTerms: businesses.defaultQuoteTerms,
+        defaultEmailSignature: businesses.defaultEmailSignature,
+        inquiryHeadline: businesses.inquiryHeadline,
         createdAt: businesses.createdAt,
       })
       .from(businesses)
@@ -626,6 +651,21 @@ async function buildDashboardContext(input: {
       queryText: input.userMessage ?? "",
       topK: 3,
     }),
+    db
+      .select({
+        category: inquiries.serviceCategory,
+        inquiryCount: count(),
+      })
+      .from(inquiries)
+      .where(
+        and(
+          eq(inquiries.businessId, input.businessId),
+          isNull(inquiries.deletedAt),
+        ),
+      )
+      .groupBy(inquiries.serviceCategory)
+      .orderBy(desc(count()))
+      .limit(5),
   ]);
   const business = businessRow[0];
 
@@ -637,6 +677,18 @@ async function buildDashboardContext(input: {
     ? memoryResult.memories.map((m) => `- ${m.title}: ${truncateText(m.content, 400)}`).join("\n")
     : "- No saved business knowledge.";
 
+  // Build compact business profile extras
+  const dashboardExtras = [
+    business.industryCategory ? `Industry: ${business.industryCategory}` : null,
+    topCategories.length
+      ? `Services offered: ${topCategories.map((c) => c.category).join(", ")}`
+      : null,
+    business.defaultQuoteTerms ? `Default terms: ${truncateText(business.defaultQuoteTerms, 200)}` : null,
+    business.defaultQuoteNotes ? `Default notes: ${truncateText(business.defaultQuoteNotes, 200)}` : null,
+    business.defaultEmailSignature ? `Email signature: ${truncateText(business.defaultEmailSignature, 150)}` : null,
+    business.inquiryHeadline ? `Inquiry headline: ${business.inquiryHeadline}` : null,
+  ].filter(Boolean);
+
   return [
     "Surface: dashboard",
     "",
@@ -644,11 +696,12 @@ async function buildDashboardContext(input: {
     business.shortDescription ? `Description: ${business.shortDescription}` : null,
     business.contactEmail ? `Contact email: ${business.contactEmail}` : null,
     `Created: ${business.createdAt.toISOString().slice(0, 10)}`,
+    ...dashboardExtras,
     "",
     "Business knowledge",
     memoryLines,
     "",
-    "IMPORTANT: You MUST call tools to answer any question about data. Do NOT use the business knowledge above to answer count/status/detail questions — it is background context only.",
+    "IMPORTANT: You MUST call tools to answer any question about data. Do NOT use the business profile and knowledge above to answer count/status/detail questions — it is background context only. When giving examples or suggestions, use the business's actual services and industry rather than generic placeholders.",
     `Use this slug for building links: ${business.slug}`,
     "Link format for inquiries: /businesses/{slug}/inquiries/{INQUIRY_ID} — MUST start with /",
     "Link format for quotes: /businesses/{slug}/quotes/{QUOTE_ID} — MUST start with /",

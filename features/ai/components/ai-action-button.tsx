@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   CheckCircle2,
   FileText,
@@ -13,6 +13,11 @@ import {
   RefreshCw,
 } from "lucide-react";
 
+import {
+  validateAiActionProposal,
+  type AiActionType,
+  type CreateQuotePayload,
+} from "@/features/ai/action-proposal-schemas";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +30,7 @@ import { cn } from "@/lib/utils";
 // ---------------------------------------------------------------------------
 
 export type AiActionProposal = {
-  action: "create_inquiry" | "create_quote" | "create_follow_up" | "update_inquiry_status";
+  action: AiActionType;
   businessId: string;
   businessSlug: string;
   payload: Record<string, unknown>;
@@ -46,56 +51,78 @@ const actionMeta: Record<
     label: "Create Inquiry",
     description: "Add a new inquiry to your pipeline",
     icon: FileText,
-    color: "border-border/60 bg-surface-card dark:bg-surface-card",
+    color: "",
     iconColor: "text-blue-600 dark:text-blue-400",
   },
   create_quote: {
     label: "Create Quote",
     description: "Generate a new quote for this customer",
     icon: Receipt,
-    color: "border-border/60 bg-surface-card dark:bg-surface-card",
+    color: "",
     iconColor: "text-purple-600 dark:text-purple-400",
   },
   create_follow_up: {
     label: "Schedule Follow-up",
     description: "Set a reminder to follow up",
     icon: CalendarClock,
-    color: "border-border/60 bg-surface-card dark:bg-surface-card",
+    color: "",
     iconColor: "text-orange-600 dark:text-orange-400",
   },
   update_inquiry_status: {
     label: "Update Status",
     description: "Change the inquiry status",
     icon: FileText,
-    color: "border-border/60 bg-surface-card dark:bg-surface-card",
+    color: "",
     iconColor: "text-teal-600 dark:text-teal-400",
   },
 };
 
-type SummaryField = { label: string; value: string };
+type SummaryField = { label: string; value: string; wide?: boolean };
 
-function getProposalFields(proposal: AiActionProposal): SummaryField[] {
-  const { action, payload } = proposal;
+function getProposalFields(
+  action: AiActionType,
+  payload: Record<string, unknown>,
+): SummaryField[] {
   const fields: SummaryField[] = [];
 
   switch (action) {
     case "create_inquiry": {
-      fields.push({ label: "Customer", value: String(payload.customerName) });
-      if (payload.customerEmail) fields.push({ label: "Email", value: String(payload.customerEmail) });
-      fields.push({ label: "Category", value: String(payload.serviceCategory) });
+      fields.push({ label: "Customer", value: String(payload.customerName ?? "") });
+      if (payload.customerEmail) {
+        fields.push({ label: "Email", value: String(payload.customerEmail) });
+      }
+      fields.push({ label: "Category", value: String(payload.serviceCategory ?? "") });
+      fields.push({
+        label: "Contact",
+        value: `${String(payload.customerContactMethod ?? "")} · ${String(payload.customerContactHandle ?? "")}`,
+        wide: true,
+      });
       const details = String(payload.details ?? "");
       if (details) {
-        fields.push({ label: "Details", value: details.length > 100 ? details.slice(0, 100) + "..." : details });
+        fields.push({
+          label: "Details",
+          value: details.length > 100 ? `${details.slice(0, 100)}...` : details,
+          wide: true,
+        });
       }
       break;
     }
     case "create_quote": {
-      fields.push({ label: "Title", value: String(payload.title) });
-      fields.push({ label: "Customer", value: String(payload.customerName) });
-      const items = payload.items as Array<{ description: string; quantity: number; unitPriceInCents: number }> | undefined;
+      const quotePayload = payload as CreateQuotePayload;
+      fields.push({ label: "Title", value: String(quotePayload.title ?? "") });
+      fields.push({ label: "Customer", value: String(quotePayload.customerName ?? "") });
+      fields.push({ label: "Valid until", value: String(quotePayload.validUntil ?? "") });
+      const items = quotePayload.items;
       if (items?.length) {
-        fields.push({ label: "Line items", value: `${items.length} item${items.length > 1 ? "s" : ""}` });
-        const totalCents = items.reduce((sum, i) => sum + i.quantity * i.unitPriceInCents, 0) - (Number(payload.discountInCents) || 0);
+        fields.push({
+          label: "Line items",
+          value: `${items.length} item${items.length > 1 ? "s" : ""}`,
+        });
+        const totalCents =
+          items.reduce(
+            (sum, item) => sum + item.quantity * item.unitPriceInCents,
+            0,
+          ) - (quotePayload.discountInCents ?? 0);
         fields.push({ label: "Total", value: `$${(totalCents / 100).toFixed(2)}` });
       }
       break;
@@ -106,13 +133,13 @@ function getProposalFields(proposal: AiActionProposal): SummaryField[] {
       fields.push({ label: "Due", value: String(payload.dueDate) });
       if (payload.reason) {
         const reason = String(payload.reason);
-        fields.push({ label: "Reason", value: reason.length > 80 ? reason.slice(0, 80) + "..." : reason });
+        fields.push({ label: "Reason", value: reason.length > 80 ? reason.slice(0, 80) + "..." : reason, wide: true });
       }
       break;
     }
     case "update_inquiry_status": {
       fields.push({ label: "New status", value: String(payload.status) });
-      if (payload.reason) fields.push({ label: "Reason", value: String(payload.reason) });
+      if (payload.reason) fields.push({ label: "Reason", value: String(payload.reason), wide: true });
       break;
     }
   }
@@ -126,11 +153,33 @@ export function AiActionButton({ proposal, onDecline }: AiActionButtonProps) {
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const validation = useMemo(
+    () => validateAiActionProposal(proposal),
+    [proposal],
+  );
+
+  const confirmedProposal = useMemo(() => {
+    if (!validation.ok) {
+      return null;
+    }
+
+    return {
+      ...proposal,
+      payload: validation.payload,
+    };
+  }, [proposal, validation]);
+
   const meta = actionMeta[proposal.action];
   const Icon = meta.icon;
-  const fields = getProposalFields(proposal);
+  const fields = confirmedProposal
+    ? getProposalFields(confirmedProposal.action, confirmedProposal.payload)
+    : getProposalFields(proposal.action, proposal.payload);
 
   const handleConfirm = useCallback(async () => {
+    if (!confirmedProposal) {
+      return;
+    }
+
     setState("executing");
     setErrorMessage(null);
 
@@ -139,9 +188,9 @@ export function AiActionButton({ proposal, onDecline }: AiActionButtonProps) {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          businessSlug: proposal.businessSlug,
-          action: proposal.action,
-          payload: proposal.payload,
+          businessSlug: confirmedProposal.businessSlug,
+          action: confirmedProposal.action,
+          payload: confirmedProposal.payload,
         }),
       });
 
@@ -160,7 +209,7 @@ export function AiActionButton({ proposal, onDecline }: AiActionButtonProps) {
       setErrorMessage("Network error. Please try again.");
       setState("error");
     }
-  }, [proposal]);
+  }, [confirmedProposal]);
 
   const handleDecline = useCallback(() => {
     setState("declined");
@@ -181,7 +230,7 @@ export function AiActionButton({ proposal, onDecline }: AiActionButtonProps) {
   return (
     <div
       className={cn(
-        "my-2 overflow-hidden rounded-xl border shadow-sm transition-all",
+        "my-3 overflow-hidden rounded-xl border border-border/80 bg-card shadow-md transition-all",
         meta.color,
       )}
     >
@@ -198,15 +247,38 @@ export function AiActionButton({ proposal, onDecline }: AiActionButtonProps) {
 
       {/* Summary fields */}
       <div className="px-4 py-3">
-        <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
+        {!validation.ok ? (
+          <div
+            className="mb-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5"
+            role="alert"
+          >
+            <p className="text-xs font-medium text-destructive">
+              This draft has invalid data
+            </p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              Ask the assistant to fix the draft and try again. Confirm is
+              disabled until the fields below pass validation.
+            </p>
+            <ul className="mt-2 space-y-1 text-xs text-destructive">
+              {validation.issues.map((issue) => (
+                <li key={`${issue.field}-${issue.message}`}>
+                  <span className="font-medium">{issue.field}:</span>{" "}
+                  {issue.message}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
           {fields.map((field, i) => (
-            <div key={i} className="contents">
-              <span className="text-[0.7rem] font-medium text-muted-foreground whitespace-nowrap">
+            <div key={i} className={cn(field.wide && "col-span-2")}>
+              <div className="text-[0.65rem] font-medium uppercase tracking-wide text-muted-foreground">
                 {field.label}
-              </span>
-              <span className="text-xs text-foreground truncate">
+              </div>
+              <div className="mt-0.5 text-xs text-foreground">
                 {field.value}
-              </span>
+              </div>
             </div>
           ))}
         </div>
@@ -220,6 +292,7 @@ export function AiActionButton({ proposal, onDecline }: AiActionButtonProps) {
               size="sm"
               onClick={handleConfirm}
               type="button"
+              disabled={!validation.ok}
               className="gap-1.5 h-7 text-xs"
             >
               Confirm
@@ -290,9 +363,11 @@ export function parseActionProposals(content: string): AiActionProposal[] {
   while ((match = ACTION_PROPOSAL_REGEX.exec(content)) !== null) {
     try {
       const parsed = JSON.parse(match[1]) as AiActionProposal;
-      if (parsed.action && parsed.businessSlug && parsed.payload) {
-        proposals.push(parsed);
+      if (!parsed.action || !parsed.businessSlug || !parsed.payload) {
+        continue;
       }
+
+      proposals.push(parsed);
     } catch {
       // Skip malformed proposals
     }

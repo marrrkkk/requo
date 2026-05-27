@@ -1,6 +1,13 @@
 import { tool } from "ai";
-import { z } from "zod";
 
+import {
+  draftInquiryToolInputSchema,
+  draftQuoteToolInputSchema,
+  scheduleFollowUpToolInputSchema,
+  updateInquiryStatusToolInputSchema,
+  validateAiActionProposal,
+  type AiActionType,
+} from "@/features/ai/action-proposal-schemas";
 import type { AiToolExecutionContext } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -14,6 +21,33 @@ import type { AiToolExecutionContext } from "./types";
 // proposal block that the user must explicitly confirm.
 // ---------------------------------------------------------------------------
 
+function buildActionProposalBlock(proposal: {
+  action: AiActionType;
+  businessId: string;
+  businessSlug: string;
+  payload: Record<string, unknown>;
+}) {
+  const validated = validateAiActionProposal(proposal);
+
+  if (!validated.ok) {
+    const summary = validated.issues
+      .slice(0, 4)
+      .map((issue) => `${issue.field}: ${issue.message}`)
+      .join("; ");
+    return (
+      `Error: Draft data failed validation and cannot be shown for confirmation. ` +
+      `Fix these fields and call the tool again: ${summary}`
+    );
+  }
+
+  return `[ACTION_PROPOSAL]${JSON.stringify({
+    action: proposal.action,
+    businessId: proposal.businessId,
+    businessSlug: proposal.businessSlug,
+    payload: validated.payload,
+  })}[/ACTION_PROPOSAL]`;
+}
+
 /**
  * Creates action tools (write-intent) bound to a specific business context.
  * Results are embedded as `[ACTION_PROPOSAL]...[/ACTION_PROPOSAL]` blocks
@@ -26,52 +60,26 @@ export function createActionTools(ctx: AiToolExecutionContext) {
         "Propose creating a new inquiry from information discussed in the conversation. " +
         "IMPORTANT: Before calling this tool, you MUST first fetch real data using search_inquiries, get_customer_history, or get the details from the user directly. " +
         "Never guess customer info. " +
+        "Use supported contact methods: email, phone, facebook, instagram, whatsapp, or other. " +
+        "Dates must be YYYY-MM-DD. " +
         "The tool output renders as an interactive confirmation card — do NOT write any [ACTION_PROPOSAL] text manually.",
-      inputSchema: z.object({
-        customerName: z.string().describe("Customer's full name."),
-        customerEmail: z
-          .string()
-          .optional()
-          .describe("Customer's email address (optional)."),
-        customerContactMethod: z
-          .string()
-          .describe("Preferred contact method: email, phone, sms, whatsapp, messenger, instagram, or other."),
-        customerContactHandle: z
-          .string()
-          .describe("The contact handle (email address, phone number, etc)."),
-        serviceCategory: z
-          .string()
-          .describe("Service category for the inquiry."),
-        details: z
-          .string()
-          .describe("Description of what the customer needs."),
-        budgetText: z
-          .string()
-          .optional()
-          .describe("Customer's budget if mentioned."),
-        requestedDeadline: z
-          .string()
-          .optional()
-          .describe("Requested deadline if mentioned (ISO date string)."),
-      }),
+      inputSchema: draftInquiryToolInputSchema,
       execute: async (args) => {
-        const proposal = {
-          action: "create_inquiry" as const,
+        return buildActionProposalBlock({
+          action: "create_inquiry",
           businessId: ctx.businessId,
           businessSlug: ctx.businessSlug,
           payload: {
             customerName: args.customerName,
-            customerEmail: args.customerEmail || null,
+            customerEmail: args.customerEmail ?? null,
             customerContactMethod: args.customerContactMethod,
             customerContactHandle: args.customerContactHandle,
             serviceCategory: args.serviceCategory,
             details: args.details,
-            budgetText: args.budgetText || undefined,
-            requestedDeadline: args.requestedDeadline || undefined,
+            budgetText: args.budgetText,
+            requestedDeadline: args.requestedDeadline,
           },
-        };
-
-        return `[ACTION_PROPOSAL]${JSON.stringify(proposal)}[/ACTION_PROPOSAL]`;
+        });
       },
     }),
 
@@ -82,62 +90,28 @@ export function createActionTools(ctx: AiToolExecutionContext) {
         "Then call get_inquiry_details (if linked to an inquiry) to get customer data. " +
         "NEVER invent prices — only use prices found in the pricing library or past quotes. " +
         "If no matching price exists, use 0 for unitPriceInCents and note that the owner needs to set the price. " +
+        "Use supported contact methods: email, phone, facebook, instagram, whatsapp, or other. " +
+        "validUntil must be YYYY-MM-DD. Quantities must be whole numbers >= 1. Prices are in cents. " +
         "The tool output renders as an interactive confirmation card — do NOT write any [ACTION_PROPOSAL] text manually.",
-      inputSchema: z.object({
-        title: z.string().describe("Quote title (e.g. 'Kitchen renovation quote')."),
-        customerName: z.string().describe("Customer's full name."),
-        customerEmail: z
-          .string()
-          .optional()
-          .describe("Customer's email address (optional)."),
-        customerContactMethod: z
-          .string()
-          .describe("Preferred contact method."),
-        customerContactHandle: z
-          .string()
-          .describe("Contact handle (email, phone, etc)."),
-        notes: z.string().optional().describe("Internal notes for this quote."),
-        validUntil: z
-          .string()
-          .describe("Quote validity date as ISO date string (e.g. 2025-02-15)."),
-        inquiryId: z
-          .string()
-          .optional()
-          .describe("Link to an existing inquiry ID if this quote is for a specific inquiry."),
-        items: z.array(
-          z.object({
-            description: z.string().describe("Line item description."),
-            quantity: z.number().describe("Quantity."),
-            unitPriceInCents: z
-              .number()
-              .describe("Unit price in cents (e.g. 5000 = $50.00)."),
-          }),
-        ).describe("Quote line items."),
-        discountInCents: z
-          .number()
-          .optional()
-          .describe("Total discount in cents (optional, default 0)."),
-      }),
+      inputSchema: draftQuoteToolInputSchema,
       execute: async (args) => {
-        const proposal = {
-          action: "create_quote" as const,
+        return buildActionProposalBlock({
+          action: "create_quote",
           businessId: ctx.businessId,
           businessSlug: ctx.businessSlug,
           payload: {
             title: args.title,
             customerName: args.customerName,
-            customerEmail: args.customerEmail || null,
+            customerEmail: args.customerEmail ?? null,
             customerContactMethod: args.customerContactMethod,
             customerContactHandle: args.customerContactHandle,
-            notes: args.notes || null,
+            notes: args.notes ?? null,
             validUntil: args.validUntil,
-            inquiryId: args.inquiryId || null,
+            inquiryId: args.inquiryId ?? null,
             items: args.items,
-            discountInCents: args.discountInCents || 0,
+            discountInCents: args.discountInCents ?? 0,
           },
-        };
-
-        return `[ACTION_PROPOSAL]${JSON.stringify(proposal)}[/ACTION_PROPOSAL]`;
+        });
       },
     }),
 
@@ -146,38 +120,16 @@ export function createActionTools(ctx: AiToolExecutionContext) {
         "Propose scheduling a follow-up for an inquiry or quote. " +
         "IMPORTANT: Before calling this tool, you MUST first call get_inquiry_details or get_quote_details to get the correct entity ID. " +
         "Never guess IDs. Requires either inquiryId or quoteId from a previous tool call. " +
+        "dueDate must be YYYY-MM-DD. " +
         "The tool output renders as an interactive confirmation card — do NOT write any [ACTION_PROPOSAL] text manually.",
-      inputSchema: z.object({
-        title: z.string().describe("Short title for the follow-up (e.g. 'Check in on quote Q-1042')."),
-        reason: z
-          .string()
-          .describe("Why this follow-up is needed (e.g. 'Customer hasn't responded to the quote')."),
-        channel: z
-          .enum(["email", "phone", "sms", "whatsapp", "messenger", "instagram", "other"])
-          .describe("Communication channel for the follow-up."),
-        dueDate: z
-          .string()
-          .describe("Due date as ISO date string (e.g. 2025-02-15)."),
-        inquiryId: z
-          .string()
-          .optional()
-          .describe("The inquiry ID this follow-up is for (provide either inquiryId or quoteId)."),
-        quoteId: z
-          .string()
-          .optional()
-          .describe("The quote ID this follow-up is for (provide either inquiryId or quoteId)."),
-        recurrence: z
-          .enum(["none", "daily", "every_3_days", "weekly", "biweekly", "monthly"])
-          .optional()
-          .describe("Recurrence pattern (default: none)."),
-      }),
+      inputSchema: scheduleFollowUpToolInputSchema,
       execute: async (args) => {
         if (!args.inquiryId && !args.quoteId) {
           return "Error: Either inquiryId or quoteId must be provided for a follow-up.";
         }
 
-        const proposal = {
-          action: "create_follow_up" as const,
+        return buildActionProposalBlock({
+          action: "create_follow_up",
           businessId: ctx.businessId,
           businessSlug: ctx.businessSlug,
           payload: {
@@ -185,13 +137,11 @@ export function createActionTools(ctx: AiToolExecutionContext) {
             reason: args.reason,
             channel: args.channel,
             dueDate: args.dueDate,
-            inquiryId: args.inquiryId || null,
-            quoteId: args.quoteId || null,
-            recurrence: args.recurrence || "none",
+            inquiryId: args.inquiryId ?? null,
+            quoteId: args.quoteId ?? null,
+            recurrence: args.recurrence ?? "none",
           },
-        };
-
-        return `[ACTION_PROPOSAL]${JSON.stringify(proposal)}[/ACTION_PROPOSAL]`;
+        });
       },
     }),
 
@@ -201,29 +151,18 @@ export function createActionTools(ctx: AiToolExecutionContext) {
         "IMPORTANT: Before calling this tool, you MUST first call get_inquiry_details to verify the inquiry exists and get its current status. " +
         "Never guess inquiry IDs. " +
         "The tool output renders as an interactive confirmation card — do NOT write any [ACTION_PROPOSAL] text manually.",
-      inputSchema: z.object({
-        inquiryId: z.string().describe("The inquiry ID to update."),
-        status: z
-          .enum(["new", "waiting", "quoted", "won", "lost"])
-          .describe("The new status to set."),
-        reason: z
-          .string()
-          .optional()
-          .describe("Optional reason for the status change."),
-      }),
+      inputSchema: updateInquiryStatusToolInputSchema,
       execute: async (args) => {
-        const proposal = {
-          action: "update_inquiry_status" as const,
+        return buildActionProposalBlock({
+          action: "update_inquiry_status",
           businessId: ctx.businessId,
           businessSlug: ctx.businessSlug,
           payload: {
             inquiryId: args.inquiryId,
             status: args.status,
-            reason: args.reason || null,
+            reason: args.reason ?? null,
           },
-        };
-
-        return `[ACTION_PROPOSAL]${JSON.stringify(proposal)}[/ACTION_PROPOSAL]`;
+        });
       },
     }),
   };

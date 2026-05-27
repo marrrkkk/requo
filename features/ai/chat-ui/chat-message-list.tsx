@@ -163,6 +163,8 @@ const TOOL_LABELS: Record<string, string> = {
   get_period_comparison: "Comparing periods",
   get_business_knowledge: "Searching knowledge base",
   get_quote_customer_response: "Loading customer response",
+  get_business_info: "Loading business profile",
+  get_business_members: "Loading team members",
   draft_inquiry: "Drafting inquiry",
   draft_quote: "Drafting quote",
   schedule_follow_up: "Scheduling follow-up",

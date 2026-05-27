@@ -116,7 +116,7 @@ export function ChatNewPageView({
             onSubmit={handleSubmit}
             isLoading={isPending}
             disabled={isPending}
-            className="rounded-2xl border-0 bg-muted/40 shadow-none"
+            className="rounded-2xl border border-border/80 bg-card shadow-md focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10 transition-all duration-200"
           >
             <PromptInputTextarea
               placeholder={getPanelPlaceholder("dashboard")}

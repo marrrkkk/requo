@@ -127,6 +127,9 @@ export type InquiryAssistantContext = {
     defaultCurrency: string;
     defaultEmailSignature: string | null;
     defaultQuoteNotes: string | null;
+    defaultQuoteTerms: string | null;
+    industryCategory: string | null;
+    inquiryHeadline: string | null;
     aiTonePreference: "balanced" | "warm" | "direct" | "formal";
     createdAt: Date;
     inquiryPageHeadline: string;

@@ -1651,6 +1651,11 @@ async function executeGetBusinessInfo(
       defaultCurrency: businesses.defaultCurrency,
       timezone: businesses.timezone,
       countryCode: businesses.countryCode,
+      industryCategory: businesses.industryCategory,
+      inquiryHeadline: businesses.inquiryHeadline,
+      defaultQuoteTerms: businesses.defaultQuoteTerms,
+      defaultQuoteNotes: businesses.defaultQuoteNotes,
+      defaultEmailSignature: businesses.defaultEmailSignature,
       publicInquiryEnabled: businesses.publicInquiryEnabled,
       createdAt: businesses.createdAt,
     })
@@ -1660,19 +1665,33 @@ async function executeGetBusinessInfo(
 
   if (!biz) return "Business not found.";
 
-  return [
+  const lines = [
     `Business: ${biz.name}`,
     `- Slug: ${biz.slug}`,
     `- Plan: ${biz.plan}`,
     `- Type: ${biz.businessType}`,
     `- Description: ${biz.shortDescription ?? "Not set"}`,
+    `- Industry: ${biz.industryCategory ?? "Not set"}`,
     `- Contact email: ${biz.contactEmail ?? "Not set"}`,
     `- Currency: ${biz.defaultCurrency}`,
     `- Timezone: ${biz.timezone}`,
     `- Country: ${biz.countryCode ?? "Not set"}`,
     `- Public inquiry form: ${biz.publicInquiryEnabled ? "Enabled" : "Disabled"}`,
+    `- Inquiry headline: ${biz.inquiryHeadline ?? "Not set"}`,
     `- Created: ${formatDate(biz.createdAt)}`,
-  ].join("\n");
+  ];
+
+  if (biz.defaultQuoteTerms) {
+    lines.push(`- Default quote terms: ${truncate(biz.defaultQuoteTerms, 200)}`);
+  }
+  if (biz.defaultQuoteNotes) {
+    lines.push(`- Default quote notes: ${truncate(biz.defaultQuoteNotes, 200)}`);
+  }
+  if (biz.defaultEmailSignature) {
+    lines.push(`- Default email signature: ${truncate(biz.defaultEmailSignature, 200)}`);
+  }
+
+  return lines.join("\n");
 }
 
 // ---------------------------------------------------------------------------

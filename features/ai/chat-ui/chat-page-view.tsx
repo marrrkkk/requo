@@ -474,7 +474,7 @@ export function ChatPageView({
             onValueChange={setInputValue}
             onSubmit={handleSend}
             isLoading={isStreaming}
-            className="rounded-2xl border border-border bg-background"
+            className="rounded-2xl border border-border/80 bg-card shadow-md focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10 transition-all duration-200"
           >
             <PromptInputTextarea
               placeholder={getPanelPlaceholder(surface)}

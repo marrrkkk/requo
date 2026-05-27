@@ -60,7 +60,7 @@ export function DashboardChatInput({
       onSubmit={handleSubmit}
       isLoading={isPending}
       disabled={isPending}
-      className="rounded-xl border border-border bg-background shadow-sm"
+      className="rounded-xl border border-border/80 bg-card shadow-md focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10 transition-all duration-200"
     >
       <PromptInputTextarea
         placeholder="Ask anything..."

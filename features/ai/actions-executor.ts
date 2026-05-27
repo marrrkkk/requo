@@ -1,8 +1,16 @@
 import "server-only";
 
-import { z } from "zod";
 import { and, eq, isNull } from "drizzle-orm";
 
+import {
+  aiActionRequestSchema,
+  type AiActionRequest,
+  type CreateFollowUpPayload,
+  type CreateInquiryPayload,
+  type CreateQuotePayload,
+  type UpdateInquiryStatusPayload,
+  validateActionProposalPayload,
+} from "@/features/ai/action-proposal-schemas";
 import { getBusinessActionContext } from "@/lib/db/business-access";
 import { hasFeatureAccess } from "@/lib/plans";
 import type { BusinessPlan } from "@/lib/plans/plans";
@@ -17,6 +25,8 @@ import { getBusinessInquiryPath, getBusinessQuotePath } from "@/features/busines
 import { db } from "@/lib/db/client";
 import { businesses, businessInquiryForms } from "@/lib/db/schema";
 
+export { aiActionRequestSchema, type AiActionRequest };
+
 // ---------------------------------------------------------------------------
 // AI Action Executor
 //
@@ -24,60 +34,6 @@ import { businesses, businessInquiryForms } from "@/lib/db/schema";
 // re-checks authentication, business membership, and plan access before
 // performing any write operation.
 // ---------------------------------------------------------------------------
-
-const createInquiryPayloadSchema = z.object({
-  customerName: z.string().min(1),
-  customerEmail: z.string().email().nullable().optional(),
-  customerContactMethod: z.string().min(1),
-  customerContactHandle: z.string().min(1),
-  serviceCategory: z.string().min(1),
-  details: z.string().min(1),
-  budgetText: z.string().optional(),
-  requestedDeadline: z.string().optional(),
-});
-
-const createQuotePayloadSchema = z.object({
-  title: z.string().min(2).max(160),
-  customerName: z.string().min(2).max(120),
-  customerEmail: z.string().email().nullable().optional(),
-  customerContactMethod: z.string().min(1),
-  customerContactHandle: z.string().min(1),
-  notes: z.string().max(4000).nullable().optional(),
-  validUntil: z.string().min(1),
-  inquiryId: z.string().nullable().optional(),
-  items: z.array(
-    z.object({
-      description: z.string().min(1),
-      quantity: z.number().int().min(1),
-      unitPriceInCents: z.number().int().min(0),
-    }),
-  ).min(1),
-  discountInCents: z.number().int().min(0).optional(),
-});
-
-const createFollowUpPayloadSchema = z.object({
-  title: z.string().min(2).max(160),
-  reason: z.string().min(2).max(500),
-  channel: z.enum(["email", "phone", "sms", "whatsapp", "messenger", "instagram", "other"]),
-  dueDate: z.string().min(1),
-  inquiryId: z.string().nullable().optional(),
-  quoteId: z.string().nullable().optional(),
-  recurrence: z.enum(["none", "daily", "every_3_days", "weekly", "biweekly", "monthly"]).optional(),
-});
-
-const updateInquiryStatusPayloadSchema = z.object({
-  inquiryId: z.string().min(1),
-  status: z.enum(["new", "waiting", "quoted", "won", "lost"]),
-  reason: z.string().nullable().optional(),
-});
-
-export const aiActionRequestSchema = z.object({
-  businessSlug: z.string().min(1),
-  action: z.enum(["create_inquiry", "create_quote", "create_follow_up", "update_inquiry_status"]),
-  payload: z.record(z.string(), z.unknown()),
-});
-
-export type AiActionRequest = z.infer<typeof aiActionRequestSchema>;
 
 export type AiActionResult = {
   ok: true;
@@ -138,13 +94,16 @@ async function executeCreateInquiry(
   businessContext: { business: { id: string; slug: string; plan: string; name: string } },
   rawPayload: Record<string, unknown>,
 ): Promise<AiActionResult> {
-  const parsed = createInquiryPayloadSchema.safeParse(rawPayload);
+  const validated = validateActionProposalPayload("create_inquiry", rawPayload);
 
-  if (!parsed.success) {
-    return { ok: false, error: `Invalid inquiry data: ${parsed.error.issues[0]?.message ?? "Check the fields."}` };
+  if (!validated.ok) {
+    return {
+      ok: false,
+      error: formatActionValidationError(validated.issues),
+    };
   }
 
-  const payload = parsed.data;
+  const payload = validated.payload as CreateInquiryPayload;
 
   // Get the default inquiry form for this business
   const [defaultForm] = await db
@@ -229,13 +188,16 @@ async function executeCreateQuote(
   businessContext: { business: { id: string; slug: string; plan: string } },
   rawPayload: Record<string, unknown>,
 ): Promise<AiActionResult> {
-  const parsed = createQuotePayloadSchema.safeParse(rawPayload);
+  const validated = validateActionProposalPayload("create_quote", rawPayload);
 
-  if (!parsed.success) {
-    return { ok: false, error: `Invalid quote data: ${parsed.error.issues[0]?.message ?? "Check the fields."}` };
+  if (!validated.ok) {
+    return {
+      ok: false,
+      error: formatActionValidationError(validated.issues),
+    };
   }
 
-  const payload = parsed.data;
+  const payload = validated.payload as CreateQuotePayload;
 
   // Check usage allowance
   const quoteAllowance = await checkUsageAllowance(
@@ -307,17 +269,16 @@ async function executeCreateFollowUp(
   businessContext: { business: { id: string; slug: string; plan: string } },
   rawPayload: Record<string, unknown>,
 ): Promise<AiActionResult> {
-  const parsed = createFollowUpPayloadSchema.safeParse(rawPayload);
+  const validated = validateActionProposalPayload("create_follow_up", rawPayload);
 
-  if (!parsed.success) {
-    return { ok: false, error: `Invalid follow-up data: ${parsed.error.issues[0]?.message ?? "Check the fields."}` };
+  if (!validated.ok) {
+    return {
+      ok: false,
+      error: formatActionValidationError(validated.issues),
+    };
   }
 
-  const payload = parsed.data;
-
-  if (!payload.inquiryId && !payload.quoteId) {
-    return { ok: false, error: "A follow-up must be linked to an inquiry or quote." };
-  }
+  const payload = validated.payload as CreateFollowUpPayload;
 
   try {
     const result = await createFollowUpForBusiness({
@@ -355,13 +316,16 @@ async function executeUpdateInquiryStatus(
   businessContext: { business: { id: string; slug: string; plan: string } },
   rawPayload: Record<string, unknown>,
 ): Promise<AiActionResult> {
-  const parsed = updateInquiryStatusPayloadSchema.safeParse(rawPayload);
+  const validated = validateActionProposalPayload("update_inquiry_status", rawPayload);
 
-  if (!parsed.success) {
-    return { ok: false, error: `Invalid status change: ${parsed.error.issues[0]?.message ?? "Check the fields."}` };
+  if (!validated.ok) {
+    return {
+      ok: false,
+      error: formatActionValidationError(validated.issues),
+    };
   }
 
-  const payload = parsed.data;
+  const payload = validated.payload as UpdateInquiryStatusPayload;
 
   try {
     const result = await changeInquiryStatusForBusiness({
@@ -386,4 +350,16 @@ async function executeUpdateInquiryStatus(
     console.error("AI action: update inquiry status failed.", error);
     return { ok: false, error: "Could not update the inquiry status right now." };
   }
+}
+
+function formatActionValidationError(
+  issues: { field: string; message: string }[],
+): string {
+  const first = issues[0];
+  if (!first) {
+    return "Check the highlighted fields and try again.";
+  }
+
+  const label = first.field === "payload" ? "Draft" : first.field;
+  return `Invalid draft data (${label}): ${first.message}`;
 }
