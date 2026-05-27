@@ -74,7 +74,7 @@ export function BusinessCheckoutProvider({
         toast.error(result.message);
       });
     },
-    [billing.businessSlug],
+    [billing.businessId, billing.businessSlug],
   );
 
   const openPlanSelection = useCallback((targetPlan?: PaidPlan) => {

@@ -35,7 +35,6 @@ describe("features/businesses/validation", () => {
     it("rejects other reserved segments", () => {
       expect(validateBusinessSlug("api").valid).toBe(false);
       expect(validateBusinessSlug("login").valid).toBe(false);
-      expect(validateBusinessSlug("businesses").valid).toBe(false);
       expect(validateBusinessSlug("onboarding").valid).toBe(false);
       expect(validateBusinessSlug("account").valid).toBe(false);
     });

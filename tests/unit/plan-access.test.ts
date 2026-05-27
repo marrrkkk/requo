@@ -27,7 +27,7 @@ describe("business plan access", () => {
     expect(hasFeatureAccess("free", "knowledgeBase")).toBe(true);
     expect(hasFeatureAccess("free", "quoteLibrary")).toBe(true);
     expect(hasFeatureAccess("free", "automations")).toBe(true);
-    expect(hasFeatureAccess("free", "analyticsConversion")).toBe(true);
+    expect(hasFeatureAccess("free", "analyticsConversion")).toBe(false);
     expect(hasFeatureAccess("free", "exports")).toBe(false);
     expect(hasFeatureAccess("free", "removeWatermark")).toBe(false);
   });

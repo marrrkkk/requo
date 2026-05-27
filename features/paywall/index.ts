@@ -34,6 +34,7 @@ export type {
 } from "./lib/placeholder-data";
 
 // ── Components (exported as they are implemented) ────────────────────────────
+export { FeatureGate } from "./components/feature-gate";
 export { UpgradePrompt } from "./components/upgrade-prompt";
 export { LockedAction } from "./components/locked-action";
 export { FeaturePreviewPaywall } from "./components/feature-preview-paywall";

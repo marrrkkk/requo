@@ -2,7 +2,6 @@
 
 import { revalidateTag, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { after } from "next/server";
 
 import { emitEvent } from "@/features/automations/dispatcher";
 import {
@@ -20,6 +19,11 @@ import {
   getWorkspaceBusinessActionContext,
 } from "@/lib/db/business-access";
 import { env, isEmailConfigured } from "@/lib/env";
+import {
+  sendEnableQuoteAutoFollowUpEvent,
+  sendPushQuoteResponseEvent,
+  sendPushQuoteSentEvent,
+} from "@/lib/inngest/send";
 import { getUsageLimit, hasFeatureAccess } from "@/lib/plans";
 import { checkUsageAllowance } from "@/lib/plans/usage";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
@@ -627,34 +631,24 @@ export async function sendQuoteAction(
       const delayDays = Math.max(1, Math.min(14, Number(formData.get("autoFollowUpDelay")) || 3));
       const maxAttempts = Math.max(1, Math.min(5, Number(formData.get("autoFollowUpMax")) || 2));
 
-      after(async () => {
-        try {
-          const { enableAutoFollowUpForQuote } = await import(
-            "@/features/quotes/mutations"
-          );
-          await enableAutoFollowUpForQuote({
-            quoteId,
-            delayDays,
-            maxAttempts,
-          });
-        } catch (error) {
-          console.error("Failed to enable auto follow-up for quote.", error);
-        }
+      void sendEnableQuoteAutoFollowUpEvent({
+        quoteId,
+        delayDays,
+        maxAttempts,
+      }).catch((error) => {
+        console.error("Failed to queue auto follow-up for quote.", error);
       });
     }
 
     if (businessSettings.notifyPushOnQuoteSent) {
-      after(async () => {
-        try {
-          const { sendPushToBusinessSubscribers } = await import("@/lib/push/send");
-          await sendPushToBusinessSubscribers(businessContext.business.id, {
-            title: "Quote sent",
-            body: `Quote ${result.quoteNumber} sent to ${quote.customerName}.`,
-            url: getBusinessQuotePath(businessContext.business.slug, quote.id),
-          });
-        } catch (error) {
-          console.error("Push notification failed for quote sent.", error);
-        }
+      void sendPushQuoteSentEvent({
+        businessId: businessContext.business.id,
+        businessSlug: businessContext.business.slug,
+        quoteId: quote.id,
+        quoteNumber: result.quoteNumber,
+        customerName: quote.customerName,
+      }).catch((error) => {
+        console.error("Failed to queue push notification for quote sent.", error);
       });
     }
 
@@ -922,18 +916,18 @@ export async function respondToPublicQuoteAction(
     }
 
     if (result.notifyPushOnQuoteResponse) {
-      after(async () => {
-        try {
-          const { sendPushToBusinessSubscribers } = await import("@/lib/push/send");
-          const responseLabel = result.status === "accepted" ? "accepted" : "declined";
-          await sendPushToBusinessSubscribers(result.businessId, {
-            title: `Quote ${responseLabel}`,
-            body: `${result.customerName} ${responseLabel} quote ${result.quoteNumber}.`,
-            url: getBusinessQuotePath(result.businessSlug, result.quoteId),
-          });
-        } catch (error) {
-          console.error("Push notification failed for quote response.", error);
-        }
+      const responseLabel =
+        result.status === "accepted" ? "accepted" : "declined";
+
+      void sendPushQuoteResponseEvent({
+        businessId: result.businessId,
+        businessSlug: result.businessSlug,
+        quoteId: result.quoteId,
+        quoteNumber: result.quoteNumber,
+        customerName: result.customerName,
+        responseLabel,
+      }).catch((error) => {
+        console.error("Failed to queue push notification for quote response.", error);
       });
     }
 
@@ -1269,17 +1263,15 @@ export async function requestQuoteRevisionAction(
     );
 
     if (result.notifyPushOnQuoteResponse) {
-      after(async () => {
-        try {
-          const { sendPushToBusinessSubscribers } = await import("@/lib/push/send");
-          await sendPushToBusinessSubscribers(result.businessId, {
-            title: "Revision requested",
-            body: `${result.customerName} requested changes to quote ${result.quoteNumber}.`,
-            url: getBusinessQuotePath(result.businessSlug, result.quoteId),
-          });
-        } catch (error) {
-          console.error("Push notification failed for revision request.", error);
-        }
+      void sendPushQuoteResponseEvent({
+        businessId: result.businessId,
+        businessSlug: result.businessSlug,
+        quoteId: result.quoteId,
+        quoteNumber: result.quoteNumber,
+        customerName: result.customerName,
+        responseLabel: "revision requested",
+      }).catch((error) => {
+        console.error("Failed to queue push notification for revision request.", error);
       });
     }
 

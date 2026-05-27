@@ -2,7 +2,6 @@
 
 import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { after } from "next/server";
 
 import { getValidationActionState } from "@/lib/action-state";
 import {
@@ -12,7 +11,6 @@ import {
   uniqueCacheTags,
 } from "@/lib/cache/business-tags";
 import {
-  getBusinessMessagingSettings,
   getWorkspaceBusinessActionContext,
 } from "@/lib/db/business-access";
 import { getplanByBusinessId } from "@/lib/plans/queries";
@@ -53,6 +51,7 @@ import {
   resolveInquiryFormConfigForPlan,
 } from "@/features/inquiries/plan-rules";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
+import { sendPushInquiryReceivedEvent } from "@/lib/inngest/send";
 
 function getTextValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -168,22 +167,13 @@ export async function submitPublicInquiryAction(
       ...getBusinessInquiryFormsCacheTags(business.id),
     ]);
 
-    after(async () => {
-      const businessSettings = await getBusinessMessagingSettings(business.id);
-
-      // Push notification
-      if (businessSettings?.notifyPushOnNewInquiry) {
-        try {
-          const { sendPushToBusinessSubscribers } = await import("@/lib/push/send");
-          await sendPushToBusinessSubscribers(business.id, {
-            title: "New inquiry received",
-            body: `${validationResult.data.customerName} submitted an inquiry.`,
-            url: getBusinessInquiryPath(slug, createdInquiry.inquiryId),
-          });
-        } catch (error) {
-          console.error("Push notification failed for new inquiry.", error);
-        }
-      }
+    void sendPushInquiryReceivedEvent({
+      businessId: business.id,
+      inquiryId: createdInquiry.inquiryId,
+      businessSlug: slug,
+      customerName: validationResult.data.customerName,
+    }).catch((error) => {
+      console.error("Failed to queue push notification for new inquiry.", error);
     });
 
   } catch (error) {

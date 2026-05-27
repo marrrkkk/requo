@@ -77,12 +77,14 @@ export function UpgradeSuccessModal() {
 
     firedRef.current = true;
 
+    // Defer state updates to avoid synchronous setState in effect body.
     const planParam = searchParams.get("plan");
-    if (planParam === "pro" || planParam === "business") {
-      setPlan(planParam);
-    }
-
-    setOpen(true);
+    queueMicrotask(() => {
+      if (planParam === "pro" || planParam === "business") {
+        setPlan(planParam);
+      }
+      setOpen(true);
+    });
   }, [searchParams]);
 
   function handleClose() {

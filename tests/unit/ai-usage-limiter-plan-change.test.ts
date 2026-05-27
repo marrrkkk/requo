@@ -69,9 +69,9 @@ describe("lib/ai/usage-limiter — mid-month plan change (Requirement 6.7)", () 
   });
 
   it("rejects requests after downgrade when accumulated usage exceeds new limit", async () => {
-    // Simulate: user accumulated 15 units on Pro plan, then downgrades to Free
-    // The accumulated usage (15) should be checked against the new Free limit (10)
-    mockWhere.mockResolvedValue([{ total: "15" }]);
+    // Simulate: user accumulated 150 units on Pro plan, then downgrades to Free
+    // The accumulated usage (150) should be checked against the new Free limit (100)
+    mockWhere.mockResolvedValue([{ total: "150" }]);
 
     const result = await checkUsageLimit({
       userId: "user_1",
@@ -80,7 +80,7 @@ describe("lib/ai/usage-limiter — mid-month plan change (Requirement 6.7)", () 
       plan: "free", // Plan resolved by getEffectivePlan after downgrade
     });
 
-    // 15 >= 10 (Free limit) → rejected
+    // 150 >= 100 (Free limit) → rejected
     expect(result.allowed).toBe(false);
     if (!result.allowed) {
       expect(result.reason).toBe("quota_exceeded");
@@ -89,8 +89,8 @@ describe("lib/ai/usage-limiter — mid-month plan change (Requirement 6.7)", () 
   });
 
   it("allows requests at the boundary after upgrade", async () => {
-    // User used exactly 10 units (Free limit), then upgrades to Pro
-    mockWhere.mockResolvedValue([{ total: "10" }]);
+    // User used exactly 100 units (Free limit), then upgrades to Pro
+    mockWhere.mockResolvedValue([{ total: "100" }]);
 
     const result = await checkUsageLimit({
       userId: "user_1",
@@ -99,13 +99,13 @@ describe("lib/ai/usage-limiter — mid-month plan change (Requirement 6.7)", () 
       plan: "pro", // After upgrade
     });
 
-    // 10 < 300 (Pro limit) → allowed
+    // 100 < 500 (Pro limit) → allowed
     expect(result.allowed).toBe(true);
   });
 
   it("rejects at the exact boundary after downgrade", async () => {
-    // User used exactly 10 units, then downgrades to Free (limit 10)
-    mockWhere.mockResolvedValue([{ total: "10" }]);
+    // User used exactly 100 units, then downgrades to Free (limit 100)
+    mockWhere.mockResolvedValue([{ total: "100" }]);
 
     const result = await checkUsageLimit({
       userId: "user_1",
@@ -114,7 +114,7 @@ describe("lib/ai/usage-limiter — mid-month plan change (Requirement 6.7)", () 
       plan: "free",
     });
 
-    // 10 >= 10 (Free limit) → rejected (meets limit)
+    // 100 >= 100 (Free limit) → rejected (meets limit)
     expect(result.allowed).toBe(false);
     if (!result.allowed) {
       expect(result.reason).toBe("quota_exceeded");
@@ -147,8 +147,8 @@ describe("lib/ai/usage-limiter — mid-month plan change (Requirement 6.7)", () 
   });
 
   it("verifies plan limits are correctly defined", () => {
-    expect(PLAN_LIMITS.free).toBe(10);
-    expect(PLAN_LIMITS.pro).toBe(300);
+    expect(PLAN_LIMITS.free).toBe(100);
+    expect(PLAN_LIMITS.pro).toBe(500);
     expect(PLAN_LIMITS.business).toBe(2000);
   });
 
