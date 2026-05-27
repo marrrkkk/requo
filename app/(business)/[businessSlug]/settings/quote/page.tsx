@@ -4,6 +4,7 @@ import { Suspense } from "react";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { SettingsFormBodySkeleton } from "@/components/shell/settings-body-skeletons";
+import { isAutoCreateJobOnAcceptanceEnabled } from "@/features/automations/queries";
 import { updateBusinessQuoteSettingsAction } from "@/features/settings/actions";
 import { BusinessQuoteSettingsForm } from "@/features/settings/components/business-quote-settings-form";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
@@ -19,9 +20,9 @@ export const unstable_instant = { prefetch: "static", unstable_disableValidation
 
 export default async function BusinessQuoteSettingsPage() {
   const { businessContext } = await getBusinessOperationalPageContext();
-  const settingsPromise = getBusinessSettingsForBusiness(
-    businessContext.business.id,
-  );
+  const businessId = businessContext.business.id;
+  const settingsPromise = getBusinessSettingsForBusiness(businessId);
+  const autoJobPromise = isAutoCreateJobOnAcceptanceEnabled(businessId);
 
   return (
     <>
@@ -31,7 +32,10 @@ export default async function BusinessQuoteSettingsPage() {
         description="Set the default note and validity window for new quotes."
       />
       <Suspense fallback={<SettingsFormBodySkeleton />}>
-        <BusinessQuoteSettingsBody settingsPromise={settingsPromise} />
+        <BusinessQuoteSettingsBody
+          settingsPromise={settingsPromise}
+          autoJobPromise={autoJobPromise}
+        />
       </Suspense>
     </>
   );
@@ -39,10 +43,12 @@ export default async function BusinessQuoteSettingsPage() {
 
 async function BusinessQuoteSettingsBody({
   settingsPromise,
+  autoJobPromise,
 }: {
   settingsPromise: ReturnType<typeof getBusinessSettingsForBusiness>;
+  autoJobPromise: ReturnType<typeof isAutoCreateJobOnAcceptanceEnabled>;
 }) {
-  const settings = await settingsPromise;
+  const [settings, autoJob] = await Promise.all([settingsPromise, autoJobPromise]);
 
   if (!settings) {
     notFound();
@@ -51,6 +57,7 @@ async function BusinessQuoteSettingsBody({
   return (
     <BusinessQuoteSettingsForm
       action={updateBusinessQuoteSettingsAction}
+      autoCreateJobOnAcceptance={autoJob.enabled}
       key={`business-quote-settings-${settings.updatedAt.getTime()}`}
       settings={settings}
     />

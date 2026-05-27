@@ -11,7 +11,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import { BusinessCheckoutProvider } from "@/features/billing/components/business-checkout-provider";
-import { UpgradeSuccessToast } from "@/features/billing/components/upgrade-success-toast";
+import { UpgradeSuccessModal } from "@/features/billing/components/upgrade-success-modal";
 import { LockedBusinessSurface } from "@/features/businesses/components/locked-business-surface";
 import { ArchivedBusinessBanner } from "@/features/businesses/components/archived-business-banner";
 import { unarchiveBusinessAction } from "@/features/businesses/actions";
@@ -51,7 +51,7 @@ export default async function BusinessMainLayout({
 
   return (
     <>
-      <UpgradeSuccessToast />
+      <UpgradeSuccessModal />
       <PendingMessageProvider>
         <DashboardShellFrame
           businessSlug={businessSlug}
@@ -116,11 +116,15 @@ async function BusinessSwitcherSlot({ businessSlug }: { businessSlug: string }) 
   const memberships = allMemberships.filter(
     (m) => m.business.recordState !== "trash",
   );
+  
+  const { getBusinessQuotaForUser } = await import("@/features/businesses/quota");
+  const businessQuota = await getBusinessQuotaForUser({ ownerUserId: session.user.id });
 
   return (
     <BusinessSwitcher
       currentBusiness={businessContext}
       memberships={memberships}
+      businessQuota={businessQuota}
     />
   );
 }

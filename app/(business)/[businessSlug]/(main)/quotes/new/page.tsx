@@ -108,6 +108,8 @@ export default async function NewQuotePage({
           serviceCategory: inquiryPrefill.serviceCategory,
           requestedDeadline: inquiryPrefill.requestedDeadline,
           status: inquiryPrefill.status,
+          details: inquiryPrefill.details,
+          budgetText: inquiryPrefill.budgetText,
         }
     : null;
   const action = createQuoteAction.bind(null, inquiryPrefill?.id ?? null);
@@ -130,6 +132,10 @@ export default async function NewQuotePage({
         canUseAiGenerator={hasFeatureAccess(
           businessContext.business.plan,
           "aiAssistant",
+        )}
+        canUseQuoteLibrary={hasFeatureAccess(
+          businessContext.business.plan,
+          "quoteLibrary",
         )}
         currency={businessContext.business.defaultCurrency}
         initialValues={initialValues}

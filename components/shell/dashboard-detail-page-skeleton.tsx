@@ -204,13 +204,14 @@ function InquiryDetailSkeleton() {
     <DashboardDetailLayout className="xl:grid-cols-[1.45fr_0.95fr]">
       <DashboardSidebarStack>
         <SectionSkeleton titleWidth="w-32" descriptionWidth="w-48">
-          <DashboardStatsGrid className="xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2">
             {Array.from({ length: 4 }).map((_, index) => (
               <InfoTileSkeleton key={index} />
             ))}
-          </DashboardStatsGrid>
+          </div>
           <ContentPanel lines={1} labelWidth="w-16" />
-          <ContentPanel lines={4} labelWidth="w-16" />
+          <ContentPanel lines={6} labelWidth="w-20" />
+          <Skeleton className="h-11 w-full sm:w-48 rounded-xl" />
         </SectionSkeleton>
 
         <div className="dashboard-detail-support-grid">
@@ -240,12 +241,11 @@ function InquiryDetailSkeleton() {
             <InfoTileSkeleton />
             <InfoTileSkeleton />
           </div>
-          <ActionsSkeleton widths={["sm:w-32", "sm:w-28"]} />
+          <ActionsSkeleton widths={["sm:w-36", "sm:w-11"]} />
         </SectionSkeleton>
 
         <SectionSkeleton titleWidth="w-24" descriptionWidth="w-56">
-          <ContentPanel lines={2} labelWidth="w-24" />
-          <ActionsSkeleton widths={["sm:w-36"]} />
+          <ContentPanel lines={1} labelWidth="w-24" />
         </SectionSkeleton>
 
         <SectionSkeleton titleWidth="w-28" descriptionWidth="w-48">
@@ -255,7 +255,7 @@ function InquiryDetailSkeleton() {
               <InfoTileSkeleton key={index} />
             ))}
           </div>
-          <ActionsSkeleton widths={["sm:w-28"]} />
+          <ActionsSkeleton widths={["sm:w-36"]} />
         </SectionSkeleton>
       </DashboardSidebarStack>
     </DashboardDetailLayout>
@@ -271,10 +271,9 @@ function QuoteDetailSkeleton() {
         <SectionSkeleton titleWidth="w-28" descriptionWidth="w-40">
           <FeedSkeleton count={1} />
           <div className="grid gap-3 sm:grid-cols-2">
-            <InfoTileSkeleton compact />
-            <InfoTileSkeleton compact />
+            <InfoTileSkeleton />
+            <InfoTileSkeleton />
           </div>
-          <ActionsSkeleton widths={["sm:w-28"]} />
         </SectionSkeleton>
 
         <SectionSkeleton titleWidth="w-28" descriptionWidth="w-44">
@@ -284,8 +283,8 @@ function QuoteDetailSkeleton() {
 
         <SectionSkeleton titleWidth="w-36" descriptionWidth="w-48">
           <div className="grid gap-3 sm:grid-cols-2">
-            <InfoTileSkeleton compact />
-            <InfoTileSkeleton compact />
+            <InfoTileSkeleton />
+            <InfoTileSkeleton />
           </div>
           <Skeleton className="h-11 w-full rounded-xl" />
         </SectionSkeleton>
@@ -308,8 +307,7 @@ function QuoteDetailSkeleton() {
         </SectionSkeleton>
 
         <SectionSkeleton titleWidth="w-24" descriptionWidth="w-56">
-          <ContentPanel lines={2} labelWidth="w-24" />
-          <ActionsSkeleton widths={["sm:w-36"]} />
+          <ContentPanel lines={1} labelWidth="w-24" />
         </SectionSkeleton>
       </DashboardSidebarStack>
     </DashboardDetailLayout>

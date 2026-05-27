@@ -93,6 +93,7 @@ function PromptInput({
           className={cn(
             "cursor-text rounded-xl border border-input/60 p-2 transition-[border-color,background-color,box-shadow]",
             disabled && "cursor-not-allowed opacity-50",
+            isLoading && "ai-glow-section",
             className,
           )}
           {...props}

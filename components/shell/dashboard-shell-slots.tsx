@@ -22,6 +22,7 @@ import { clearPersistedThemePreference } from "@/features/theme/persistence";
 import { themeUserStorageKey } from "@/features/theme/types";
 import { canManageOperationalBusinessSettings } from "@/lib/business-members";
 import type { BusinessContext } from "@/lib/db/business-access";
+import type { BusinessQuotaSnapshot } from "@/features/businesses/types";
 import { BusinessAvatar } from "@/components/shared/business-avatar";
 import { PlanBadge } from "@/components/shared/paywall";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -58,9 +59,11 @@ import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
 export function BusinessSwitcher({
   currentBusiness,
   memberships,
+  businessQuota,
 }: {
   currentBusiness: BusinessContext;
   memberships: BusinessContext[];
+  businessQuota: BusinessQuotaSnapshot;
 }) {
   const [isPending, startTransition] = useTransition();
   const { isMobile, setOpenMobile } = useSidebar();
@@ -187,16 +190,33 @@ export function BusinessSwitcher({
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem asChild>
-            <Link
-              href="/new"
-              onClick={closeMobileSidebar}
-              prefetch={true}
-            >
-              <Plus data-icon="inline-start" />
-              New business
-            </Link>
-          </DropdownMenuItem>
+          {businessQuota.allowed ? (
+            <DropdownMenuItem asChild>
+              <Link href="/new" onClick={closeMobileSidebar} prefetch={true}>
+                <Plus data-icon="inline-start" />
+                New business
+              </Link>
+            </DropdownMenuItem>
+          ) : (
+            <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+              <span className="flex items-center gap-2 text-sm text-muted-foreground opacity-60">
+                <Plus data-icon="inline-start" className="size-4" />
+                Limit reached ({businessQuota.current}/{businessQuota.limit})
+              </span>
+              <button
+                type="button"
+                className="inline-flex h-6 items-center justify-center rounded-md bg-primary px-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                onClick={() => {
+                  closeMobileSidebar();
+                  if (businessCheckout) {
+                    businessCheckout.openPlanSelection();
+                  }
+                }}
+              >
+                Upgrade
+              </button>
+            </div>
+          )}
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
@@ -395,21 +415,17 @@ export function DashboardUserMenu({
                   <PlanBadge plan={plan} className="ml-auto" />
                 </Link>
               </DropdownMenuItem>
-              {plan === "pro" ? (
+              {plan !== "business" && businessCheckout ? (
                 <DropdownMenuItem
                   onSelect={() => {
                     closeMobileSidebar();
-                    if (businessCheckout) {
-                      businessCheckout.openPlanSelection("business");
-                    } else {
-                      window.location.assign(
-                        getBusinessSettingsPath(businessSlug, "billing"),
-                      );
-                    }
+                    businessCheckout.openPlanSelection(
+                      plan === "pro" ? "business" : undefined,
+                    );
                   }}
                 >
                   <ArrowUpRight data-icon="inline-start" />
-                  Upgrade to Business
+                  {plan === "pro" ? "Upgrade to Business" : "Upgrade Plan"}
                 </DropdownMenuItem>
               ) : null}
               <DropdownMenuItem asChild>

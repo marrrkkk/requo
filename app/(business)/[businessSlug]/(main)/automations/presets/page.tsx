@@ -15,8 +15,8 @@ import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
-  title: "Automation Presets",
-  description: "One-click automation templates for common workflow patterns.",
+  title: "Workflow templates",
+  description: "Ready-made automation templates for inquiry, quote, job, and invoice workflows.",
 });
 
 export default async function AutomationPresetsPage({
@@ -29,8 +29,8 @@ export default async function AutomationPresetsPage({
   return (
     <DashboardPage>
       <PageHeader
-        title="Automation Presets"
-        description="Common automation patterns you can enable with one click."
+        title="Workflow templates"
+        description="Each template creates a new automation in your list. Customize it in the builder after adding."
         actions={
           <Button asChild variant="outline" size="sm">
             <Link href={`/${businessSlug}/automations`}>
@@ -55,14 +55,15 @@ async function StreamedPresets({ businessSlug }: { businessSlug: string }) {
   const limit = getAutomationLimit(plan);
 
   const automations = await getBusinessAutomations(businessId, user.id);
-  const existingTriggerTypes = automations.map((a) => a.triggerType);
+  const existingAutomationNames = automations.map((a) => a.name);
   const atLimit = automations.length >= limit;
 
   return (
     <QuickAutomationPresets
-      existingTriggerTypes={existingTriggerTypes}
+      existingAutomationNames={existingAutomationNames}
       disabled={atLimit}
       businessSlug={businessSlug}
+      businessType={businessContext.business.businessType ?? undefined}
     />
   );
 }

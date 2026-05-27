@@ -198,6 +198,8 @@ async function QuoteDetailContent({
         serviceCategory: quote.linkedInquiry.serviceCategory,
         requestedDeadline: quote.linkedInquiry.requestedDeadline,
         status: quote.linkedInquiry.status,
+        details: quote.linkedInquiry.details,
+        budgetText: quote.linkedInquiry.budgetText,
       }
     : null;
   const isArchived = quote.archivedAt !== null;
@@ -391,6 +393,10 @@ async function QuoteDetailContent({
               businessContext.business.plan,
               "aiAssistant",
             )}
+            canUseQuoteLibrary={hasFeatureAccess(
+              businessContext.business.plan,
+              "quoteLibrary",
+            )}
             currency={quote.currency}
             initialValues={getQuoteEditorInitialValuesFromDetail(quote)}
             key={quote.id}
@@ -542,6 +548,7 @@ async function QuoteDetailContent({
                     hasJob={quoteHasJob}
                     existingInvoiceId={quoteInvoiceId}
                     postAcceptanceStatus={quote.postAcceptanceStatus}
+                    completeAction={completeAction}
                   />
                 )}
               </div>
