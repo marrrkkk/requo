@@ -1,9 +1,10 @@
 import "server-only";
 
 import { and, desc, eq } from "drizzle-orm";
-import { after } from "next/server";
 
 import { db } from "@/lib/db/client";
+import { inngest } from "@/lib/inngest/client";
+import { inngestEvents } from "@/lib/inngest/events";
 import {
   automationLogs,
   businessAutomations,
@@ -27,7 +28,7 @@ import type {
  *
  * Called from mutations after successful state changes. The dispatch phase
  * (rule lookup + condition evaluation + scheduling) targets < 200ms.
- * Non-critical action execution is deferred via `after()` so it never
+ * Non-critical action execution is queued via Inngest so it never
  * blocks the calling mutation's response.
  *
  * Never throws — all errors are caught and logged.
@@ -37,19 +38,47 @@ export function emitEvent<T extends TriggerType>(
   triggerType: T,
   payload: TriggerPayload[T],
 ): void {
-  // Use after() to avoid blocking the mutation response entirely.
-  // The dispatch logic runs in the background after the response is sent.
-  after(async () => {
-    try {
-      await dispatchEvent(businessId, triggerType, payload);
-    } catch (error) {
-      // Requirement 2.8: Never throw to the calling mutation
-      console.error(
-        `[automations] Unhandled error in dispatchEvent for ${triggerType} (business: ${businessId}):`,
-        error,
-      );
-    }
-  });
+  void queueAutomationDispatch(businessId, triggerType, payload);
+}
+
+async function queueAutomationDispatch<T extends TriggerType>(
+  businessId: string,
+  triggerType: T,
+  payload: TriggerPayload[T],
+): Promise<void> {
+  try {
+    await inngest.send({
+      name: inngestEvents.automationDispatch,
+      data: {
+        businessId,
+        triggerType,
+        payload,
+      },
+    });
+  } catch (error) {
+    console.error(
+      `[automations] Failed to queue dispatch for ${triggerType} (business: ${businessId}):`,
+      error,
+    );
+  }
+}
+
+/**
+ * Runs automation dispatch synchronously. Used by the Inngest worker.
+ */
+export async function runAutomationDispatch<T extends TriggerType>(
+  businessId: string,
+  triggerType: T,
+  payload: TriggerPayload[T],
+): Promise<void> {
+  try {
+    await dispatchEvent(businessId, triggerType, payload);
+  } catch (error) {
+    console.error(
+      `[automations] Unhandled error in dispatchEvent for ${triggerType} (business: ${businessId}):`,
+      error,
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

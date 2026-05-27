@@ -29,7 +29,7 @@ const BACKOFF_BASE_MINUTES = 15;
 /**
  * Processes pending scheduled automation jobs.
  *
- * Called from the cron endpoint (`app/api/cron/automations/route.ts`) every 5 minutes.
+ * Called from the Inngest cron function every 5 minutes.
  * Queries due jobs, executes their actions, handles retries with exponential backoff,
  * and respects a 55-second time budget.
  *

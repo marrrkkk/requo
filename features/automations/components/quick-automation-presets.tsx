@@ -58,6 +58,17 @@ function getTemplateIcon(template: AutomationTemplate): LucideIcon {
   return templateIcons[template.id] ?? FileText;
 }
 
+function TemplateIcon({
+  templateId,
+  className,
+}: {
+  templateId: string;
+  className?: string;
+}) {
+  const Icon = templateIcons[templateId] ?? FileText;
+  return <Icon className={className} />;
+}
+
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
@@ -131,7 +142,6 @@ function TemplateCard({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const Icon = getTemplateIcon(template);
 
   function handleAdd() {
     startTransition(async () => {
@@ -167,7 +177,7 @@ function TemplateCard({
     <Card className="flex flex-col">
       <CardHeader className="flex-1 gap-2 pb-3">
         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Icon className="size-4" />
+          <TemplateIcon templateId={template.id} className="size-5" />
         </div>
         <CardTitle className="text-sm font-medium">{template.name}</CardTitle>
         <CardDescription className="text-xs leading-relaxed">

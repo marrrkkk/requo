@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { LayoutTemplate, Plus, GitBranch, Zap } from "lucide-react";
+import { useProgressiveReveal } from "@/hooks/use-progressive-reveal";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -58,6 +59,13 @@ export function AutomationListView({
   onNew: () => void;
   onEdit: (a: AutomationListItem) => void;
 }) {
+  const { visibleCount, hasMore, sentinelRef } = useProgressiveReveal({
+    total: automations.length,
+    initialBatch: 10,
+    batchSize: 10,
+  });
+  const visibleAutomations = automations.slice(0, visibleCount);
+
   if (automations.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 p-12">
@@ -103,7 +111,7 @@ export function AutomationListView({
 
       {/* Automation rows */}
       <div className="flex flex-col divide-y divide-border/60">
-        {automations.map((automation) => {
+        {visibleAutomations.map((automation) => {
           const TriggerIcon = triggers.find((t) => t.id === automation.triggerType)?.icon ?? Zap;
           const triggerLabel = triggerLabels[automation.triggerType] ?? automation.triggerType;
           const actionCount = countActions(automation.actions);
@@ -174,6 +182,7 @@ export function AutomationListView({
             </button>
           );
         })}
+        {hasMore ? <div ref={sentinelRef} className="h-1" /> : null}
       </div>
     </div>
   );
