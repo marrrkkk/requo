@@ -161,17 +161,13 @@ export function LayoutSection({
             </div>
 
             {generalSettingsHref ? (
-              <LockedAction feature="branding" plan={plan}>
-                <Button asChild className="w-full sm:w-auto" variant="outline">
-                  <Link href={generalSettingsHref}>Open business profile</Link>
-                </Button>
-              </LockedAction>
+              <Button asChild className="w-full sm:w-auto" variant="outline">
+                <Link href={generalSettingsHref}>Open business profile</Link>
+              </Button>
             ) : (
-              <LockedAction feature="branding" plan={plan}>
-                <Button asChild className="w-full sm:w-auto" variant="outline">
-                  <Link href={settingsHref}>Open settings</Link>
-                </Button>
-              </LockedAction>
+              <Button asChild className="w-full sm:w-auto" variant="outline">
+                <Link href={settingsHref}>Open settings</Link>
+              </Button>
             )}
           </div>
 

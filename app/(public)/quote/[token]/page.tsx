@@ -202,7 +202,7 @@ export default async function PublicQuotePage({
           </aside>
         </div>
 
-        {!hasFeatureAccess(quote.businessPlan, "branding") ? (
+        {!hasFeatureAccess(quote.businessPlan, "removeWatermark") ? (
           <MadeWithRequo />
         ) : null}
       </PublicPageShell>

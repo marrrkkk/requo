@@ -84,7 +84,7 @@ export function PublicInquiryPageRenderer({
       </div>
       <InquiryBusinessContact business={business} centered />
 
-      {!hasFeatureAccess(business.plan, "branding") ? (
+      {!hasFeatureAccess(business.plan, "removeWatermark") ? (
         <MadeWithRequo />
       ) : null}
     </div>
