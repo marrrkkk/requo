@@ -13,6 +13,7 @@ type PublicPageShellProps = {
   brandSize?: "default" | "lg";
   headerClassName?: string;
   headerRevealOnScroll?: boolean;
+  headerStickyFullWidth?: boolean;
 };
 
 export function PublicPageShell({
@@ -24,6 +25,7 @@ export function PublicPageShell({
   brandSize = "default",
   headerClassName,
   headerRevealOnScroll = false,
+  headerStickyFullWidth = false,
 }: PublicPageShellProps) {
   const headerContent = (
     <>
@@ -44,6 +46,28 @@ export function PublicPageShell({
       ) : null}
     </>
   );
+
+  if (headerStickyFullWidth) {
+    return (
+      <>
+        <header
+          className={cn(
+            "sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-colors",
+            headerClassName
+          )}
+        >
+          <div className="mx-auto flex h-16 w-full max-w-[90rem] items-center justify-between gap-3 px-4 sm:gap-4 sm:px-6 md:px-6 lg:px-8">
+            {headerContent}
+          </div>
+        </header>
+        <div className={cn("public-page", className)}>
+          <div className="public-page-stack">
+            <main className="contents">{children}</main>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <div className={cn("public-page", className)}>

@@ -108,8 +108,8 @@ describe("validateInvocationPayload", () => {
 // ---------------------------------------------------------------------------
 
 describe("AI_TASK_REGISTRY", () => {
-  it("contains exactly 7 task types", () => {
-    expect(Object.keys(AI_TASK_REGISTRY)).toHaveLength(7);
+  it("contains exactly 9 task types", () => {
+    expect(Object.keys(AI_TASK_REGISTRY)).toHaveLength(9);
   });
 
   it("all entries pass Zod schema validation", () => {
@@ -147,10 +147,15 @@ describe("AI_TASK_REGISTRY", () => {
     }
   });
 
-  it("streaming is only permitted for quote_draft and quote_improvement", () => {
+  it("streaming is only permitted for quote_draft, quote_improvement, assistant_message, and assistant_tool_call", () => {
     for (const taskType of aiTaskTypes) {
       const config = AI_TASK_REGISTRY[taskType];
-      if (taskType === "quote_draft" || taskType === "quote_improvement") {
+      if (
+        taskType === "quote_draft" ||
+        taskType === "quote_improvement" ||
+        taskType === "assistant_message" ||
+        taskType === "assistant_tool_call"
+      ) {
         expect(config.streamingPermitted).toBe(true);
       } else {
         expect(config.streamingPermitted).toBe(false);

@@ -3,13 +3,12 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/shared/page-header";
-import { LockedFeaturePage } from "@/components/shared/paywall";
+import { FeatureGate } from "@/features/paywall";
 import { SettingsFormBodySkeleton } from "@/components/shell/settings-body-skeletons";
 import { getBusinessBillingOverview } from "@/features/billing/queries";
 import { updateBusinessEmailTemplateSettingsAction } from "@/features/settings/actions";
 import { BusinessEmailTemplateForm } from "@/features/settings/components/business-email-template-form";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
-import { hasFeatureAccess } from "@/lib/plans";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { getBusinessOperationalPageContext } from "../_lib/page-context";
 
@@ -21,51 +20,49 @@ export const metadata: Metadata = createNoIndexMetadata({
 export const unstable_instant = { prefetch: "static", unstable_disableValidation: true };
 
 export default async function BusinessEmailTemplateSettingsPage() {
-  const { businessContext } = await getBusinessOperationalPageContext();
-  const hasAccess = hasFeatureAccess(
-    businessContext.business.plan,
-    "emailTemplates",
-  );
+  const { user, businessContext } = await getBusinessOperationalPageContext();
 
-  // Kick off both fetches as soon as we know what we need; each streams
-  // into its own Suspense boundary so the page frame renders immediately.
-  const billingPromise = hasAccess
-    ? null
-    : getBusinessBillingOverview(businessContext.business.id);
-  const settingsPromise = hasAccess
-    ? getBusinessSettingsForBusiness(businessContext.business.id)
-    : null;
+  const billingOverview = await getBusinessBillingOverview(
+    businessContext.business.id,
+  ).catch(() => null);
 
   return (
-    <>
+    <FeatureGate
+      feature="emailTemplates"
+      plan={businessContext.business.plan}
+      variant="page"
+      upgradeAction={
+        billingOverview
+          ? {
+              userId: user.id,
+              businessId: businessContext.business.id,
+              businessSlug: businessContext.business.slug,
+              currentPlan: billingOverview.currentPlan,
+            }
+          : undefined
+      }
+    >
       <PageHeader
         eyebrow="Quotes"
         title="Email templates"
         description="Customize the automated email sent with your quotes."
       />
 
-      {hasAccess && settingsPromise ? (
-        <Suspense fallback={<SettingsFormBodySkeleton />}>
-          <BusinessEmailTemplateSettingsBody settingsPromise={settingsPromise} />
-        </Suspense>
-      ) : billingPromise ? (
-        <Suspense fallback={<SettingsFormBodySkeleton />}>
-          <LockedEmailTemplatesBody
-            plan={businessContext.business.plan}
-            billingPromise={billingPromise}
-          />
-        </Suspense>
-      ) : null}
-    </>
+      <Suspense fallback={<SettingsFormBodySkeleton />}>
+        <BusinessEmailTemplateSettingsBody
+          businessId={businessContext.business.id}
+        />
+      </Suspense>
+    </FeatureGate>
   );
 }
 
 async function BusinessEmailTemplateSettingsBody({
-  settingsPromise,
+  businessId,
 }: {
-  settingsPromise: ReturnType<typeof getBusinessSettingsForBusiness>;
+  businessId: string;
 }) {
-  const settings = await settingsPromise;
+  const settings = await getBusinessSettingsForBusiness(businessId);
 
   if (!settings) {
     notFound();
@@ -76,35 +73,6 @@ async function BusinessEmailTemplateSettingsBody({
       action={updateBusinessEmailTemplateSettingsAction}
       key={`business-email-template-settings-${settings.updatedAt.getTime()}`}
       settings={settings}
-    />
-  );
-}
-
-async function LockedEmailTemplatesBody({
-  plan,
-  billingPromise,
-}: {
-  plan: Awaited<ReturnType<typeof getBusinessOperationalPageContext>>["businessContext"]["business"]["plan"];
-  billingPromise: ReturnType<typeof getBusinessBillingOverview>;
-}) {
-  const billingOverview = await billingPromise;
-
-  return (
-    <LockedFeaturePage
-      feature="emailTemplates"
-      plan={plan}
-      description="Upgrade to customize the email message used when sending quotes through Requo."
-      upgradeAction={
-        billingOverview
-          ? {
-              userId: billingOverview.userId,
-              businessId: billingOverview.businessId,
-              businessSlug: billingOverview.businessSlug,
-              currentPlan: billingOverview.currentPlan,
-              ctaLabel: "Upgrade for email templates",
-            }
-          : undefined
-      }
     />
   );
 }

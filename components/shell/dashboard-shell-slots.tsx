@@ -8,7 +8,6 @@ import {
   ChevronsUpDown,
   Lock,
   LogOut,
-  PanelsTopLeft,
   Plus,
   Settings2,
   User,
@@ -47,7 +46,6 @@ import { useBusinessCheckout } from "@/features/billing/components/business-chec
 import {
   getBusinessDashboardPath,
   getBusinessMembersPath,
-  getBusinessPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
 import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
@@ -428,16 +426,6 @@ export function DashboardUserMenu({
                   {plan === "pro" ? "Upgrade to Business" : "Upgrade Plan"}
                 </DropdownMenuItem>
               ) : null}
-              <DropdownMenuItem asChild>
-                <Link
-                  href={getBusinessPath(businessSlug)}
-                  prefetch={true}
-                  onClick={closeMobileSidebar}
-                >
-                  <PanelsTopLeft data-icon="inline-start" />
-                  Manage businesses
-                </Link>
-              </DropdownMenuItem>
               <AppearanceMenuSubmenu userId={user.id} />
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

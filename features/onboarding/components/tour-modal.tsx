@@ -88,8 +88,10 @@ export function TourModal({
       }
     }
 
-    setCurrentStep(0);
-    const timer = window.setTimeout(() => setOpen(true), 600);
+    const timer = window.setTimeout(() => {
+      setCurrentStep(0);
+      setOpen(true);
+    }, 600);
     return () => window.clearTimeout(timer);
   }, [show, completed, storageKey, replayToken]);
 

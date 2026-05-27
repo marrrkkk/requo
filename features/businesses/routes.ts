@@ -13,6 +13,8 @@ export type BusinessSettingsSection =
   | "email"
   | "pricing"
   | "knowledge"
+  | "support"
+  | "automations"
   | "integrations"
   | "billing"
   | "audit-log";

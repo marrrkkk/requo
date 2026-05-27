@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, describe, beforeEach, expect, it, vi } from "vitest";
 
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
 
@@ -72,8 +72,40 @@ type InquiryInsertHandler = (payload: {
 
 let notificationInsertHandler: NotificationInsertHandler | null = null;
 let inquiryInsertHandler: InquiryInsertHandler | null = null;
+let originalRequestIdleCallback: ((
+  callback: IdleRequestCallback,
+  options?: IdleRequestOptions,
+) => number) | undefined;
+let originalCancelIdleCallback: ((handle: number) => void) | undefined;
 
 describe("DashboardNotificationBell", () => {
+  beforeEach(() => {
+    originalRequestIdleCallback = window.requestIdleCallback;
+    originalCancelIdleCallback = window.cancelIdleCallback;
+    window.requestIdleCallback = ((callback: IdleRequestCallback) => {
+      callback({
+        didTimeout: false,
+        timeRemaining: () => 50,
+      } as IdleDeadline);
+      return 1;
+    }) as typeof window.requestIdleCallback;
+    window.cancelIdleCallback = (() => {}) as typeof window.cancelIdleCallback;
+  });
+
+  afterEach(() => {
+    if (originalRequestIdleCallback) {
+      window.requestIdleCallback = originalRequestIdleCallback;
+    } else {
+      delete window.requestIdleCallback;
+    }
+
+    if (originalCancelIdleCallback) {
+      window.cancelIdleCallback = originalCancelIdleCallback;
+    } else {
+      delete window.cancelIdleCallback;
+    }
+  });
+
   beforeEach(() => {
     notificationInsertHandler = null;
     inquiryInsertHandler = null;
@@ -190,6 +222,15 @@ describe("DashboardNotificationBell", () => {
 
     await user.click(screen.getByRole("button", { name: "Notifications" }));
 
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/business/notifications/realtime-token",
+        { cache: "no-store" },
+      ),
+    );
+    await waitFor(() =>
+      expect(setAuthMock).toHaveBeenCalledWith("test-realtime-token"),
+    );
     await waitFor(() => expect(inquiryInsertHandler).not.toBeNull());
 
     await act(async () => {

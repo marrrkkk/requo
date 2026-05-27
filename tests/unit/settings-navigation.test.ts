@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   getUnifiedSettingsNavigation,
-  type SettingsNavigationGroup,
-  type SettingsNavigationItem,
 } from "@/features/settings/navigation";
 
 describe("getUnifiedSettingsNavigation", () => {
@@ -26,20 +24,19 @@ describe("getUnifiedSettingsNavigation", () => {
     ]);
   });
 
-  it("Business group contains all 10 business settings items", () => {
+  it("Business group contains all current business settings items", () => {
     const [, business] = getUnifiedSettingsNavigation("acme");
 
-    expect(business.items).toHaveLength(10);
+    expect(business.items).toHaveLength(9);
     expect(business.items.map((i) => i.label)).toEqual([
       "General",
       "Members",
-      "Plans",
       "Billing",
       "Quote defaults",
       "Email",
       "Pricing",
       "Knowledge",
-      "Integrations",
+      "Support",
       "Audit log",
     ]);
   });

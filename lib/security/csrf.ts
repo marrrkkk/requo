@@ -16,7 +16,7 @@ export const CSRF_EXEMPT_PATHS = [
   "/api/auth/", // Better Auth handles its own security
   "/api/billing/polar/webhook", // HMAC signature verification
   "/api/public/", // Public-facing endpoints with rate limiting
-  "/api/cron/", // Vercel cron secret authentication
+  "/api/inngest/", // Inngest signing key authentication
   "/.well-known/", // Discovery, OAuth, and MCP endpoints
   "/api/push/", // Push subscription from service workers
 ] as const;

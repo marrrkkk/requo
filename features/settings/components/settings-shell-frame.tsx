@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { memo, type CSSProperties, type ReactNode, useTransition } from "react";
 import {
+  ArrowLeft,
   Bell,
   BookOpen,
   Building2,
   ChevronsUpDown,
   FileText,
   Home as HomeIcon,
+  LifeBuoy,
   LogOut,
   Mail,
   Palette,
-  PanelsTopLeft,
   Receipt,
   ScrollText,
   Tag,
@@ -55,7 +56,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
-import { dashboardPath, getBusinessDashboardPath } from "@/features/businesses/routes";
+import { getBusinessDashboardPath } from "@/features/businesses/routes";
 import type { SettingsNavigationGroup } from "@/features/settings/navigation";
 import { cn } from "@/lib/utils";
 
@@ -70,6 +71,7 @@ const settingsIcons: Record<string, LucideIcon> = {
   mail: Mail,
   tag: Tag,
   book: BookOpen,
+  "life-buoy": LifeBuoy,
   scroll: ScrollText,
 };
 
@@ -152,7 +154,7 @@ export function SettingsShellFrame({
         <SidebarSeparator />
 
         <SidebarFooter className="p-3 pt-2">
-          <SettingsUserMenu user={user} />
+          <SettingsUserMenu user={user} businessSlug={businessSlug} />
         </SidebarFooter>
 
         <SidebarRail />
@@ -255,9 +257,10 @@ const SettingsNavigationItem = memo(function SettingsNavigationItem({
   );
 });
 
-function SettingsUserMenu({ user }: { user: SettingsUserData }) {
+function SettingsUserMenu({ user, businessSlug }: { user: SettingsUserData; businessSlug: string }) {
   const [isPending, startTransition] = useTransition();
   const { isMobile, setOpenMobile } = useSidebar();
+  const businessDashboardPath = getBusinessDashboardPath(businessSlug);
 
   function closeMobileSidebar() {
     if (isMobile) {
@@ -344,12 +347,12 @@ function SettingsUserMenu({ user }: { user: SettingsUserData }) {
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
                 <Link
-                  href={dashboardPath}
+                  href={businessDashboardPath}
                   prefetch={true}
                   onClick={closeMobileSidebar}
                 >
-                  <PanelsTopLeft data-icon="inline-start" />
-                  Manage businesses
+                  <ArrowLeft data-icon="inline-start" />
+                  Back to business
                 </Link>
               </DropdownMenuItem>
               <AppearanceMenuSubmenu userId={user.id} />

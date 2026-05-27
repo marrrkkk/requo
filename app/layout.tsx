@@ -53,6 +53,13 @@ const brandFont = localFont({
   weight: "700",
 });
 
+const mittelFont = localFont({
+  src: "../public/fonts/ApfelGrotezk-Mittel.woff2",
+  variable: "--font-mittel",
+  display: "swap",
+  weight: "500",
+});
+
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
@@ -146,7 +153,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${brandFont.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${brandFont.variable} ${mittelFont.variable} h-full antialiased`}
     >
       <body suppressHydrationWarning className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
         <ReloadLoadingOverlay />

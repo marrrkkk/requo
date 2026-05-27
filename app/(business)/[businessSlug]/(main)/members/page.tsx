@@ -3,8 +3,10 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { PageHeader } from "@/components/shared/page-header";
+import { FeatureGate } from "@/features/paywall";
 import { getBusinessMembersSettingsForBusiness } from "@/features/business-members/queries";
 import { getBusinessSettingsPageContext } from "@/app/(business)/[businessSlug]/settings/_lib/page-context";
+import { getBusinessBillingOverview } from "@/features/billing/queries";
 import {
   cancelBusinessMemberInviteAction,
   createBusinessMemberInviteAction,
@@ -37,17 +39,38 @@ export default async function BusinessMembersPage({
   const { user, businessContext } = await getBusinessSettingsPageContext(businessSlug);
   const canManage = canManageBusinessAdministration(businessContext.role);
 
+  // Get billing overview for upgrade action
+  const billingOverview = await getBusinessBillingOverview(
+    businessContext.business.id,
+  ).catch(() => null);
+
   return (
-    <div className="flex flex-col gap-6 lg:gap-8">
-      <PageHeader title="Members" description="Members with access to this business." />
-      <Suspense fallback={<MemberListFallback />}>
-        <StreamedMemberList
-          userId={user.id}
-          businessContext={businessContext}
-          canManage={canManage}
-        />
-      </Suspense>
-    </div>
+    <FeatureGate
+      feature="members"
+      plan={businessContext.business.plan}
+      variant="page"
+      upgradeAction={
+        billingOverview
+          ? {
+              userId: user.id,
+              businessId: businessContext.business.id,
+              businessSlug: businessContext.business.slug,
+              currentPlan: billingOverview.currentPlan,
+            }
+          : undefined
+      }
+    >
+      <div className="flex flex-col gap-6 lg:gap-8">
+        <PageHeader title="Members" description="Members with access to this business." />
+        <Suspense fallback={<MemberListFallback />}>
+          <StreamedMemberList
+            userId={user.id}
+            businessContext={businessContext}
+            canManage={canManage}
+          />
+        </Suspense>
+      </div>
+    </FeatureGate>
   );
 }
 

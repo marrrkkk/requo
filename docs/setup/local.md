@@ -40,9 +40,15 @@ Optional but commonly needed:
 - `RESEND_FROM_EMAIL` (legacy fallback)
 - `RESEND_REPLY_TO_EMAIL`
 - `GROQ_API_KEY`
+- `CEREBRAS_API_KEY`
 - `GEMINI_API_KEY`
+- `MISTRAL_API_KEY`
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_API_TOKEN`
+- `NVIDIA_NIM_API_KEY`
 - `OPENROUTER_API_KEY`
 - Polar variables from `docs/setup/billing.md` when testing checkout or webhooks
+- `INNGEST_DEV=1` when running background jobs against the local Inngest Dev Server
 
 Generate Web Push VAPID keys with:
 
@@ -107,8 +113,8 @@ Where to get it in Supabase:
 
 ### AI Providers
 
-- The AI router tries configured providers in this order: Groq, Gemini, then OpenRouter.
-- Leave `GROQ_API_KEY`, `GEMINI_API_KEY`, and `OPENROUTER_API_KEY` blank if you do not need live AI locally.
+- The AI router tries configured providers in this order: Groq, Cerebras, Gemini, Mistral, Cloudflare Workers AI, NVIDIA NIM, then OpenRouter.
+- Leave AI provider keys blank if you do not need live AI locally.
 - Configure at least one provider to test AI-assisted inquiry replies or drafting.
 - The inquiry assistant returns a configuration-related error when no AI provider is configured.
 
@@ -152,6 +158,14 @@ The seed supports overriding these values through the `DEMO_*` env variables in 
 ```bash
 npm run dev:app
 ```
+
+For background jobs and cron schedules, run the Inngest Dev Server in a second terminal:
+
+```bash
+npm run dev:inngest
+```
+
+Set `INNGEST_DEV=1` in `.env` so the app sends events to the local Dev Server instead of Inngest Cloud. Open http://localhost:8288 to inspect function runs.
 
 Use `npm run dev` only when you also need an ngrok tunnel for callbacks or webhook testing.
 

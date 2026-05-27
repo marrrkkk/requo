@@ -65,7 +65,7 @@ The app also handles public inquiry intake, public quote pages, business-scoped 
 - Better Auth for authentication and sessions
 - Supabase for storage and realtime-backed plumbing
 - Resend for transactional email
-- AI provider routing through Groq, Gemini, and OpenRouter
+- AI provider routing through Groq, Cerebras, Gemini, Mistral, Cloudflare Workers AI, NVIDIA NIM, and OpenRouter
 - Polar for subscription billing (multi-currency, merchant of record)
 
 ## Working Defaults

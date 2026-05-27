@@ -96,7 +96,7 @@ describe("auth forms", () => {
 
     expect(
       screen.getByRole("link", { name: "Create an account" }),
-    ).toHaveAttribute("href", "/signup?next=%2Fbusinesses%2Fdemo%2Fdashboard");
+    ).toHaveAttribute("href", "/signup?next=%2Fdemo%2Fhome");
     await waitFor(() =>
       expect(toastSuccessMock).toHaveBeenCalledWith(
         "Your email is verified. Sign in to continue.",
@@ -138,8 +138,7 @@ describe("auth forms", () => {
         name: "Alicia Cruz",
         email: "alicia@example.com",
         password: "Password123!",
-        callbackURL:
-          "/login?verified=success&next=%2Fbusinesses%2Fdemo%2Fdashboard",
+        callbackURL: "/login?verified=success&next=%2Fdemo%2Fhome",
       }),
     );
     await waitFor(() =>

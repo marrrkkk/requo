@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 
+// Client-only: dev panel uses browser APIs and should never SSR.
 const DevToolsPanel = dynamic(
   () =>
     import("./dev-tools-panel").then((mod) => ({

@@ -8,6 +8,7 @@ import {
   Home,
   Inbox,
   Receipt,
+  Users,
   Workflow,
 } from "lucide-react";
 
@@ -87,6 +88,12 @@ export function getDashboardNavigation(
       label: "Invoices",
       description: "Generate, send, and track payment for completed work.",
       icon: Receipt,
+    },
+    {
+      href: getBusinessMembersPath(slug),
+      label: "Members",
+      description: "Invite and manage team members for this business.",
+      icon: Users,
     },
     {
       href: getBusinessAutomationsPath(slug),
