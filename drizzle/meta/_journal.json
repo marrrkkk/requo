@@ -8,6 +8,20 @@
       "when": 1779746450290,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1779811792707,
+      "tag": "0001_business_subscriptions",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779813000000,
+      "tag": "0002_fix_quotes_discount_constraint",
+      "breakpoints": true
     }
   ]
 }

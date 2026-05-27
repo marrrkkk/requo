@@ -18,13 +18,46 @@ import postgres from "postgres";
 config({ path: ".env.local" });
 config();
 
-function getDatabaseUrl() {
-  const databaseUrl =
-    process.env.DATABASE_MIGRATION_URL ?? process.env.DATABASE_URL;
+function getCliFlags() {
+  const strict = process.argv.includes("--strict");
+  return { strict };
+}
+
+function isLocalHost(hostname: string) {
+  return ["localhost", "127.0.0.1", "::1"].includes(hostname);
+}
+
+function usesPoolerPort(databaseUrl: string) {
+  try {
+    const parsed = new URL(databaseUrl);
+    return parsed.port === "6543";
+  } catch {
+    return false;
+  }
+}
+
+function getDatabaseUrl({ strict }: { strict: boolean }) {
+  const migrationUrl = process.env.DATABASE_MIGRATION_URL;
+  const runtimeUrl = process.env.DATABASE_URL;
+
+  if (strict && !migrationUrl) {
+    throw new Error(
+      "DATABASE_MIGRATION_URL is required in strict mode.\n" +
+        "Use a direct Postgres connection (Supabase port 5432, not 6543 pooler).",
+    );
+  }
+
+  const databaseUrl = migrationUrl ?? runtimeUrl;
 
   if (!databaseUrl) {
     throw new Error(
       "DATABASE_MIGRATION_URL or DATABASE_URL must be set before running migrations.",
+    );
+  }
+
+  if (usesPoolerPort(databaseUrl)) {
+    throw new Error(
+      "Migration URL points to port 6543 (pooler). Use a direct DB URL for DDL migrations (port 5432).",
     );
   }
 
@@ -40,7 +73,7 @@ function shouldRequireSsl(databaseUrl: string) {
       return false;
     }
 
-    return !["localhost", "127.0.0.1", "::1"].includes(hostname);
+    return !isLocalHost(hostname);
   } catch {
     return true;
   }
@@ -57,7 +90,8 @@ function maskUrl(url: string) {
 }
 
 async function main() {
-  const databaseUrl = getDatabaseUrl();
+  const flags = getCliFlags();
+  const databaseUrl = getDatabaseUrl(flags);
 
   console.log(`Connecting to: ${maskUrl(databaseUrl)}`);
 

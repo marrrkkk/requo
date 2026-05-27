@@ -40,6 +40,7 @@ import {
   businessNotifications,
   businessNotificationStates,
   businesses,
+  businessSubscriptions,
   emailAttempts,
   emailOutbox,
   followUps,
@@ -509,6 +510,7 @@ const resetTableNames = [
   "refunds",
   "billing_events",
   "account_subscriptions",
+  "business_subscriptions",
   "push_subscriptions",
   "profiles",
   "account",
@@ -849,26 +851,30 @@ async function ensureUserAccount(input: {
   return userId;
 }
 
-async function seedAccountBilling(account: AccountSeed, userId: string) {
-  if (account.plan === "free") {
+async function seedBusinessBilling(
+  businessId: string,
+  businessSlug: string,
+  plan: BusinessPlan,
+) {
+  if (plan === "free") {
     return;
   }
 
-  const accountKey = safeAccountKey(account.email);
+  const businessKey = businessSlug.replace(/[^a-z0-9]+/g, "_");
   const periodStart = daysAgo(12);
   const periodEnd = daysFromNow(18);
-  const amount = account.plan === "business" ? 7900 : 2900;
-  const paymentId = `pay_demo_${accountKey}`;
-  const subscriptionId = `sub_demo_${accountKey}`;
+  const amount = plan === "business" ? 7900 : 2900;
+  const paymentId = `pay_demo_${businessKey}`;
+  const subscriptionId = `sub_demo_${businessKey}`;
 
-  await db.insert(accountSubscriptions).values({
+  await db.insert(businessSubscriptions).values({
     id: id("sub"),
-    userId,
+    businessId,
     status: "active",
-    plan: account.plan,
+    plan,
     billingProvider: "polar",
     billingCurrency: "USD",
-    providerCustomerId: `cus_demo_${accountKey}`,
+    providerCustomerId: `cus_demo_${businessKey}`,
     providerSubscriptionId: subscriptionId,
     paymentMethod: "card",
     currentPeriodStart: periodStart,
@@ -879,8 +885,8 @@ async function seedAccountBilling(account: AccountSeed, userId: string) {
 
   await db.insert(paymentAttempts).values({
     id: id("pay"),
-    userId,
-    plan: account.plan,
+    businessId,
+    plan,
     provider: "polar",
     providerPaymentId: paymentId,
     amount,
@@ -891,13 +897,13 @@ async function seedAccountBilling(account: AccountSeed, userId: string) {
 
   await db.insert(billingEvents).values({
     id: id("bill_evt"),
-    providerEventId: `evt_demo_subscription_active_${accountKey}`,
+    providerEventId: `evt_demo_subscription_active_${businessKey}`,
     provider: "polar",
     eventType: "subscription.active",
-    userId,
+    businessId,
     payload: {
       demo: true,
-      plan: account.plan,
+      plan,
       providerPaymentId: paymentId,
       providerSubscriptionId: subscriptionId,
     },
@@ -2416,12 +2422,16 @@ async function main() {
       password: account.password,
     });
 
-    await seedAccountBilling(account, ownerUserId);
-
     const businessSummaries: (typeof summary)[number]["businesses"] = [];
 
     for (const business of account.businesses) {
       const createdBusiness = await createBusiness(account, business, ownerUserId);
+
+      await seedBusinessBilling(
+        createdBusiness.businessId,
+        business.slug,
+        account.plan,
+      );
 
       if (account.teamMembers?.length) {
         await addTeamMembersToBusiness({
