@@ -16,6 +16,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import type {
@@ -28,6 +29,7 @@ type BusinessQuoteSettingsFormProps = {
     state: BusinessQuoteSettingsActionState,
     formData: FormData,
   ) => Promise<BusinessQuoteSettingsActionState>;
+  autoCreateJobOnAcceptance: boolean;
   settings: BusinessSettingsView;
 };
 
@@ -35,6 +37,7 @@ const initialState: BusinessQuoteSettingsActionState = {};
 
 export function BusinessQuoteSettingsForm({
   action,
+  autoCreateJobOnAcceptance,
   settings,
 }: BusinessQuoteSettingsFormProps) {
   const router = useProgressRouter();
@@ -51,10 +54,12 @@ export function BusinessQuoteSettingsForm({
   const [defaultQuoteTerms, setDefaultQuoteTerms] = useState(
     settings.defaultQuoteTerms ?? "",
   );
+  const [autoCreateJob, setAutoCreateJob] = useState(autoCreateJobOnAcceptance);
   const hasUnsavedChanges =
     defaultQuoteValidityDays !== String(settings.defaultQuoteValidityDays) ||
     defaultQuoteNotes !== (settings.defaultQuoteNotes ?? "") ||
-    defaultQuoteTerms !== (settings.defaultQuoteTerms ?? "");
+    defaultQuoteTerms !== (settings.defaultQuoteTerms ?? "") ||
+    autoCreateJob !== autoCreateJobOnAcceptance;
   const { shouldRenderFloatingActions, floatingActionsState } =
     useFloatingUnsavedChanges(hasUnsavedChanges);
 
@@ -70,6 +75,7 @@ export function BusinessQuoteSettingsForm({
     setDefaultQuoteValidityDays(String(settings.defaultQuoteValidityDays));
     setDefaultQuoteNotes(settings.defaultQuoteNotes ?? "");
     setDefaultQuoteTerms(settings.defaultQuoteTerms ?? "");
+    setAutoCreateJob(autoCreateJobOnAcceptance);
   }
 
   return (
@@ -188,6 +194,36 @@ export function BusinessQuoteSettingsForm({
                   }
                 />
               </FieldContent>
+            </Field>
+          </div>
+        </section>
+
+        {/* Automation settings */}
+        <section className="section-panel p-5 sm:p-6">
+          <div className="flex flex-col gap-6">
+            <Field>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col gap-1">
+                  <FieldLabel htmlFor="quote-settings-auto-create-job">
+                    Auto-create job on acceptance
+                  </FieldLabel>
+                  <FieldDescription>
+                    Automatically create a job when a customer accepts a quote.
+                    When off, use the &ldquo;Create job&rdquo; button manually.
+                  </FieldDescription>
+                </div>
+                <Switch
+                  checked={autoCreateJob}
+                  disabled={isPending}
+                  id="quote-settings-auto-create-job"
+                  onCheckedChange={setAutoCreateJob}
+                />
+              </div>
+              <input
+                name="autoCreateJobOnAcceptance"
+                type="hidden"
+                value={autoCreateJob ? "true" : "false"}
+              />
             </Field>
           </div>
         </section>

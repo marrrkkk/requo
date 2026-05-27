@@ -24,7 +24,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -99,17 +98,6 @@ function ChannelIcon({
         <MessageSquare className={cn("size-3", className)} aria-hidden="true" />
       );
   }
-}
-
-function getInitials(value: string) {
-  const initials = value
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("");
-
-  return initials || "?";
 }
 
 type FollowUpItemProps = {
@@ -225,17 +213,15 @@ export function FollowUpItem({
           onClick={() => setExpanded(!expanded)}
           type="button"
         >
-          <Avatar className="shrink-0">
-            <AvatarFallback>{getInitials(followUp.customerName)}</AvatarFallback>
-          </Avatar>
-
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-x-2">
-            <span className="truncate text-sm font-semibold text-foreground">
-              {followUp.customerName}
-            </span>
-            <span className="truncate text-sm text-muted-foreground">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="truncate text-sm font-medium text-foreground">
               {followUp.title}
             </span>
+            {followUp.customerName ? (
+              <span className="truncate text-xs text-muted-foreground">
+                {followUp.customerName}
+              </span>
+            ) : null}
           </div>
 
           <div className="flex shrink-0 items-center gap-2">

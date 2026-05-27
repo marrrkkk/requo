@@ -1,11 +1,11 @@
 "use client";
 
 import {
-  Briefcase,
   Check,
   Eye,
   FileEdit,
   Inbox,
+  Loader,
   Send,
   ThumbsUp,
   X,
@@ -33,7 +33,7 @@ function resolveInquirySteps(status: InquiryStatus): WorkflowStep[] {
     { label: "Quoted", icon: FileEdit },
     { label: "Sent", icon: Send },
     { label: "Accepted", icon: ThumbsUp },
-    { label: "Job", icon: Briefcase },
+    { label: "Completed", icon: Check },
   ];
 
   if (status === "lost") {
@@ -83,7 +83,8 @@ function resolveQuoteSteps(
     { label: "Sent", icon: Send },
     { label: "Viewed", icon: Eye },
     { label: "Accepted", icon: ThumbsUp },
-    { label: "Job", icon: Briefcase },
+    { label: "In progress", icon: Loader },
+    { label: "Completed", icon: Check },
   ];
 
   if (status === "rejected") {
@@ -124,8 +125,9 @@ function resolveQuoteSteps(
       currentIndex = publicViewedAt ? 2 : 1;
       break;
     case "accepted":
-      if (
-        postAcceptanceStatus === "completed" ||
+      if (postAcceptanceStatus === "completed") {
+        currentIndex = 5;
+      } else if (
         postAcceptanceStatus === "in_progress" ||
         postAcceptanceStatus === "booked" ||
         postAcceptanceStatus === "scheduled"

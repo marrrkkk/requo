@@ -9,6 +9,7 @@ import { dashboardPath } from "@/features/businesses/routes";
 import { AppearanceMenuSubmenu } from "@/features/theme/components/appearance-menu";
 import { clearPersistedThemePreference } from "@/features/theme/persistence";
 import { themeUserStorageKey } from "@/features/theme/types";
+import { clearOnboardingDraft } from "@/features/onboarding/helpers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -43,6 +44,7 @@ export function AccountUserMenu({ user }: AccountUserMenuProps) {
 
       window.localStorage.removeItem(themeUserStorageKey);
       clearPersistedThemePreference();
+      clearOnboardingDraft();
 
       window.location.assign("/login");
     });

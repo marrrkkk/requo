@@ -4,6 +4,8 @@ import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
+import { and, eq, sql } from "drizzle-orm";
+
 import { getValidationActionState } from "@/lib/action-state";
 import {
   getBusinessInquiryFormCacheTags,
@@ -66,11 +68,43 @@ import {
 } from "@/features/businesses/routes";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { getBusinessInquiryFormsSettingsForBusiness } from "@/features/settings/queries";
+import { db } from "@/lib/db/client";
+import { businessAutomations } from "@/lib/db/schema/automations";
 
 function updateCacheTags(tags: string[]) {
   for (const tag of uniqueCacheTags(tags)) {
     updateTag(tag);
   }
+}
+
+async function setAutoCreateJobAutomation(
+  businessId: string,
+  enabled: boolean,
+): Promise<void> {
+  const [existing] = await db
+    .select({ id: businessAutomations.id, enabled: businessAutomations.enabled })
+    .from(businessAutomations)
+    .where(
+      and(
+        eq(businessAutomations.businessId, businessId),
+        eq(businessAutomations.triggerType, "quote.accepted"),
+        sql`${businessAutomations.actions}::jsonb @> '[{"type":"create_job_from_quote"}]'::jsonb`,
+      ),
+    )
+    .limit(1);
+
+  if (!existing) {
+    return;
+  }
+
+  if (existing.enabled === enabled) {
+    return;
+  }
+
+  await db
+    .update(businessAutomations)
+    .set({ enabled, updatedAt: new Date() })
+    .where(eq(businessAutomations.id, existing.id));
 }
 
 function revalidateBusinessInquiryFormPaths(
@@ -332,6 +366,9 @@ export async function updateBusinessQuoteSettingsAction(
     );
   }
 
+  const autoCreateJobOnAcceptance =
+    formData.get("autoCreateJobOnAcceptance") === "true";
+
   try {
     const result = await updateBusinessQuoteSettings({
       businessId: businessContext.business.id,
@@ -344,6 +381,11 @@ export async function updateBusinessQuoteSettingsAction(
         error: "That business could not be found.",
       };
     }
+
+    await setAutoCreateJobAutomation(
+      businessContext.business.id,
+      autoCreateJobOnAcceptance,
+    );
 
     updateCacheTags(getBusinessSettingsCacheTags(businessContext.business.id));
 

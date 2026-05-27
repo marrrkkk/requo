@@ -12,6 +12,18 @@ import type { PublicInquiryBusiness } from "@/features/inquiries/types";
 
 export const onboardingSessionStorageKey = "requo-onboarding-draft-v6";
 
+/**
+ * Clears the onboarding draft from sessionStorage.
+ * Should be called when a user logs out to prevent data leaking to the next user.
+ */
+export function clearOnboardingDraft() {
+  try {
+    window.sessionStorage.removeItem(onboardingSessionStorageKey);
+  } catch (error) {
+    console.error("Failed to clear onboarding draft.", error);
+  }
+}
+
 export type OnboardingDraft = {
   firstName: string;
   lastName: string;

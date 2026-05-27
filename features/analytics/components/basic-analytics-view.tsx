@@ -60,7 +60,6 @@ export function BasicAnalyticsView({
             title="Inquiries"
             value={`${data.inquirySubmissions}`}
             tooltip="Total inquiries received this period."
-            compact
             sparkline={
               sparklines ? (
                 <MiniSparkline
@@ -75,7 +74,6 @@ export function BasicAnalyticsView({
             title="Quotes sent"
             value={`${data.quotesSent}`}
             tooltip="Quotes sent to customers."
-            compact
             sparkline={
               sparklines ? (
                 <MiniSparkline
@@ -91,7 +89,6 @@ export function BasicAnalyticsView({
             value={`${data.quotesViewed}`}
             description={`${formatPercent(data.quoteViewRate)} view rate`}
             tooltip="Quotes opened by customers."
-            compact
           />
           <AnalyticsMetricCard
             icon={CheckCircle2}
@@ -99,7 +96,6 @@ export function BasicAnalyticsView({
             value={`${data.quotesAccepted}`}
             description={`${formatPercent(data.winRate)} win rate`}
             tooltip="Quotes accepted by customers (of those that got a decision)."
-            compact
             sparkline={
               sparklines ? (
                 <MiniSparkline
@@ -115,7 +111,6 @@ export function BasicAnalyticsView({
             value={`${data.quotesRejected + data.quotesExpired}`}
             description={`${data.quotesRejected} rejected · ${data.quotesExpired} expired`}
             tooltip="Quotes rejected or expired without a response."
-            compact
           />
         </div>
       </div>

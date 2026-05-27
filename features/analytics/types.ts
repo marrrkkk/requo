@@ -14,9 +14,14 @@ export type FreeAnalyticsData = {
   quotesViewed: number;
   quotesAccepted: number;
   quotesRejected: number;
+  quotesExpired: number;
   formConversionRate: number;
   inquiryToQuoteRate: number;
   quoteAcceptanceRate: number;
+  quoteViewRate: number;
+  winRate: number;
+  activeFollowUps: number;
+  overdueFollowUps: number;
 };
 
 export type MetricSparklineData = {

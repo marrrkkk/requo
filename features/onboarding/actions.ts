@@ -23,7 +23,6 @@ import {
   inquiryFormConfigSchema,
   type InquiryFormConfig,
 } from "@/features/inquiries/form-config";
-import { createOnboardingAutomations } from "@/features/automations/onboarding-defaults";
 import { completeOnboardingForUser } from "@/features/onboarding/mutations";
 import { completeOnboardingSchema } from "@/features/onboarding/schemas";
 import type { OnboardingActionState } from "@/features/onboarding/types";
@@ -166,15 +165,6 @@ export async function completeOnboardingAction(
         validationResult.data.starterTemplateBusinessType,
       inquiryFormConfigOverride,
       avatarUpload,
-    });
-
-    // Create default automation rules for the new business (Req 8.3, 8.4)
-    // New onboarding businesses start on the free plan by default
-    await createOnboardingAutomations({
-      businessId: business.id,
-      userId: user.id,
-      businessType: validationResult.data.businessType,
-      plan: "free",
     });
 
     updateOnboardingCacheTags({

@@ -8,6 +8,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   ResponsiveOverlay,
+  ResponsiveOverlayBody,
   ResponsiveOverlayClose,
   ResponsiveOverlayContent,
   ResponsiveOverlayDescription,
@@ -122,7 +123,7 @@ export function FollowUpCreateDialog({
           {triggerLabel}
         </Button>
       </ResponsiveOverlayTrigger>
-      <ResponsiveOverlayContent className="sm:max-w-lg">
+      <ResponsiveOverlayContent className="sm:max-w-xl">
         <ResponsiveOverlayHeader>
           <ResponsiveOverlayTitle>Set follow-up</ResponsiveOverlayTitle>
           <ResponsiveOverlayDescription>{description}</ResponsiveOverlayDescription>
@@ -155,7 +156,7 @@ export function FollowUpCreateDialog({
                     name="reason"
                     onChange={(event) => setReason(event.currentTarget.value)}
                     required
-                    rows={4}
+                    rows={2}
                     value={reason}
                   />
                 </FieldContent>
@@ -177,55 +178,6 @@ export function FollowUpCreateDialog({
                   </FieldContent>
                 </Field>
 
-                <Field data-invalid={Boolean(state.fieldErrors?.dueDate?.[0])}>
-                  <FieldLabel htmlFor="follow-up-due-date">Due date</FieldLabel>
-                  <FieldContent>
-                    <DatePicker
-                      ariaInvalid={Boolean(state.fieldErrors?.dueDate?.[0])}
-                      id="follow-up-due-date"
-                      name="dueDate"
-                      onChange={setDueDate}
-                      required
-                      value={dueDate}
-                    />
-                  </FieldContent>
-                </Field>
-              </div>
-
-              <Field>
-                <FieldLabel>Quick dates</FieldLabel>
-                <FieldDescription>
-                  Use a common follow-up window or pick a custom date above.
-                </FieldDescription>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    onClick={() => setDueDate(getQuickFollowUpDueDate("tomorrow"))}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    Tomorrow
-                  </Button>
-                  <Button
-                    onClick={() => setDueDate(getQuickFollowUpDueDate("3d"))}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    In 3 days
-                  </Button>
-                  <Button
-                    onClick={() => setDueDate(getQuickFollowUpDueDate("7d"))}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    In 7 days
-                  </Button>
-                </div>
-              </Field>
-
-              <div className="grid gap-4 sm:grid-cols-2">
                 <Field data-invalid={Boolean(state.fieldErrors?.recurrence?.[0])}>
                   <FieldLabel htmlFor="follow-up-recurrence">Repeat</FieldLabel>
                   <FieldContent>
@@ -240,29 +192,73 @@ export function FollowUpCreateDialog({
                     />
                   </FieldContent>
                 </Field>
+              </div>
 
-                {recurrence !== "none" && (
-                  <Field data-invalid={Boolean(state.fieldErrors?.recurrenceLimit?.[0])}>
-                    <FieldLabel htmlFor="follow-up-recurrence-limit">
-                      Max repeats
-                    </FieldLabel>
-                    <FieldDescription>Leave blank for unlimited.</FieldDescription>
+              {recurrence !== "none" && (
+                <Field data-invalid={Boolean(state.fieldErrors?.recurrenceLimit?.[0])}>
+                  <FieldLabel htmlFor="follow-up-recurrence-limit">
+                    Max repeats
+                  </FieldLabel>
+                  <FieldDescription>Leave blank for unlimited.</FieldDescription>
+                  <FieldContent>
+                    <Input
+                      aria-invalid={Boolean(state.fieldErrors?.recurrenceLimit?.[0])}
+                      id="follow-up-recurrence-limit"
+                      max={100}
+                      min={1}
+                      name="recurrenceLimit"
+                      onChange={(event) => setRecurrenceLimit(event.currentTarget.value)}
+                      placeholder="Unlimited"
+                      type="number"
+                      value={recurrenceLimit}
+                    />
+                  </FieldContent>
+                </Field>
+              )}
+
+              <Field data-invalid={Boolean(state.fieldErrors?.dueDate?.[0])}>
+                <FieldLabel htmlFor="follow-up-due-date">Due date</FieldLabel>
+                <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="w-full sm:w-56">
                     <FieldContent>
-                      <Input
-                        aria-invalid={Boolean(state.fieldErrors?.recurrenceLimit?.[0])}
-                        id="follow-up-recurrence-limit"
-                        max={100}
-                        min={1}
-                        name="recurrenceLimit"
-                        onChange={(event) => setRecurrenceLimit(event.currentTarget.value)}
-                        placeholder="Unlimited"
-                        type="number"
-                        value={recurrenceLimit}
+                      <DatePicker
+                        ariaInvalid={Boolean(state.fieldErrors?.dueDate?.[0])}
+                        id="follow-up-due-date"
+                        name="dueDate"
+                        onChange={setDueDate}
+                        required
+                        value={dueDate}
                       />
                     </FieldContent>
-                  </Field>
-                )}
-              </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      onClick={() => setDueDate(getQuickFollowUpDueDate("tomorrow"))}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      Tomorrow
+                    </Button>
+                    <Button
+                      onClick={() => setDueDate(getQuickFollowUpDueDate("3d"))}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      In 3 days
+                    </Button>
+                    <Button
+                      onClick={() => setDueDate(getQuickFollowUpDueDate("7d"))}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      In 7 days
+                    </Button>
+                  </div>
+                </div>
+              </Field>
             </FieldGroup>
           </div>
           <ResponsiveOverlayFooter>
