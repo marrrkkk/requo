@@ -3,12 +3,23 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 
-const { generateQuoteDraftActionMock, toastSuccessMock, toastErrorMock } =
-  vi.hoisted(() => ({
-    generateQuoteDraftActionMock: vi.fn(),
-    toastSuccessMock: vi.fn(),
-    toastErrorMock: vi.fn(),
-  }));
+const {
+  generateQuoteDraftActionMock,
+  routerRefreshMock,
+  toastSuccessMock,
+  toastErrorMock,
+} = vi.hoisted(() => ({
+  generateQuoteDraftActionMock: vi.fn(),
+  routerRefreshMock: vi.fn(),
+  toastSuccessMock: vi.fn(),
+  toastErrorMock: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    refresh: routerRefreshMock,
+  }),
+}));
 
 vi.mock("@/features/ai/actions", () => ({
   generateQuoteDraftAction: generateQuoteDraftActionMock,
@@ -106,6 +117,8 @@ function renderQuoteEditor() {
         requestedDeadline: null,
         status: "new",
         recordState: "active",
+        details: "Catering for 50 guests.",
+        budgetText: null,
       }}
       pricingLibrary={[]}
       submitLabel="Create draft quote"

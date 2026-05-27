@@ -147,23 +147,29 @@ test.describe("Paywall & Free Plan Gating", () => {
     await expect(page.getByText("Free", { exact: true })).toBeVisible();
   });
 
-  test("creating a second business shows the upgrade dialog", async ({
+  test("hitting the free business limit shows the upgrade dialog", async ({
     page,
   }) => {
     // Land on the businesses hub which surfaces the create-business control.
     await page.goto("/businesses");
 
+    // Create the 2nd free business (free tier allows up to 2).
+    await page.getByRole("button", { name: "Create business" }).first().click();
+    await page.getByLabel("Business name").fill("Free Business 2");
+    await page.getByRole("dialog").getByRole("button", { name: "Create business" }).click();
+
+    // After creation, navigate back to the businesses hub.
+    await page.goto("/businesses");
+
+    // Attempt to create one more business -> should show quota lock content.
     await page.getByRole("button", { name: "Create business" }).first().click();
 
-    // The CreateBusinessDialog detects a quota lock and switches to
-    // upgrade content. Title and description reference the locked plan
-    // and the upgrade target.
     const upgradeTitle = page
       .getByRole("heading", { name: /Add more businesses/i })
-      .or(page.getByRole("heading", { name: /Unlock unlimited businesses/i }));
+      .or(page.getByRole("heading", { name: /Unlock more businesses/i }));
     await expect(upgradeTitle).toBeVisible();
 
-    await expect(page.getByText(/Free plan supports/i)).toBeVisible();
+    await expect(page.getByText(/free tier supports up to/i)).toBeVisible();
 
     // Upgrade CTA opens the PlanSelectionSheet.
     await expect(

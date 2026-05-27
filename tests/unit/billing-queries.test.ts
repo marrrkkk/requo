@@ -8,8 +8,8 @@ const {
   dbSelectMock,
   dbSelectWhereMock,
   listLockCandidatesForDowngradeMock,
-  getAccountSubscriptionMock,
-  getCachedAccountSubscriptionMock,
+  getBusinessSubscriptionMock,
+  getCachedBusinessSubscriptionMock,
   resolveEffectivePlanFromSubscriptionMock,
 } = vi.hoisted(() => ({
   cacheLifeMock: vi.fn(),
@@ -19,8 +19,8 @@ const {
   dbSelectMock: vi.fn(),
   dbSelectWhereMock: vi.fn(),
   listLockCandidatesForDowngradeMock: vi.fn(),
-  getAccountSubscriptionMock: vi.fn(),
-  getCachedAccountSubscriptionMock: vi.fn(),
+  getBusinessSubscriptionMock: vi.fn(),
+  getCachedBusinessSubscriptionMock: vi.fn(),
   resolveEffectivePlanFromSubscriptionMock: vi.fn(),
 }));
 
@@ -63,8 +63,8 @@ vi.mock("@/lib/db/schema/subscriptions", () => ({
 }));
 
 vi.mock("@/lib/billing/subscription-service", () => ({
-  getAccountSubscription: getAccountSubscriptionMock,
-  getCachedAccountSubscription: getCachedAccountSubscriptionMock,
+  getBusinessSubscription: getBusinessSubscriptionMock,
+  getCachedBusinessSubscription: getCachedBusinessSubscriptionMock,
   resolveEffectivePlanFromSubscription: resolveEffectivePlanFromSubscriptionMock,
 }));
 
@@ -110,8 +110,8 @@ describe("features/billing/queries", () => {
       },
     ]);
 
-    getAccountSubscriptionMock.mockResolvedValue(null);
-    getCachedAccountSubscriptionMock.mockResolvedValue(null);
+    getBusinessSubscriptionMock.mockResolvedValue(null);
+    getCachedBusinessSubscriptionMock.mockResolvedValue(null);
     listLockCandidatesForDowngradeMock.mockResolvedValue({
       activeBusinessLimit: null,
       activeBusinesses: [],
@@ -126,7 +126,7 @@ describe("features/billing/queries", () => {
   });
 
   it("derives the current plan from the authoritative subscription row", async () => {
-    getAccountSubscriptionMock.mockResolvedValue(
+    getBusinessSubscriptionMock.mockResolvedValue(
       mockSubscription({ plan: "pro", status: "active" }),
     );
 
