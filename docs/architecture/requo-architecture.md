@@ -181,13 +181,13 @@ Feature responsibilities:
 
 ## Billing Architecture
 
-- Subscriptions are account-scoped. Each user account has at most one `account_subscriptions` row.
-- `businesses.plan` is a denormalized read cache. `account_subscriptions` is authoritative.
-- All businesses owned by a user inherit the plan from the user's account subscription.
-- `lib/billing/subscription-service.ts` is the single write path for subscription mutations and keeps `businesses.plan` in sync across all owned businesses.
+- Subscriptions are business-scoped. Each business has at most one `business_subscriptions` row.
+- `businesses.plan` is a denormalized read cache. `business_subscriptions` is authoritative.
+- `lib/billing/subscription-service.ts` is the single write path for subscription mutations and keeps `businesses.plan` in sync.
 - `lib/billing/webhook-processor.ts` records provider events in `billing_events` for idempotency.
-- Polar is the only billing provider and handles recurring card subscriptions in USD as a merchant of record.
-- Billing webhook route lives in `app/api/billing/polar/webhook/route.ts`. The customer self-service portal route is `app/api/billing/polar/customer-portal/route.ts`. The refund request route is `app/api/billing/refund/route.ts`.
+- Polar is the only billing provider and handles recurring card subscriptions as a merchant of record.
+- Webhook identity resolution maps Polar's `customer.externalId` (set to `business.id` at checkout) back to the owning business.
+- Billing webhook route lives in `app/api/billing/polar/webhook/route.ts`. The customer self-service portal route is `app/api/billing/polar/customer-portal/route.ts`.
 
 ## Testing Architecture
 

@@ -26,7 +26,7 @@ Requo is an owner-led SaaS app for service businesses that handle inbound inquir
 7. invoice completed or in-progress jobs,
 8. automate repetitive workflow steps through event-driven automation.
 
-The app also handles public inquiry intake, public quote pages, business-scoped dashboards, manual and Requo email quote delivery, follow-up tasks, jobs, invoices, workflow automation, analytics, notifications, knowledge files, AI-assisted drafts, transactional email, business membership, and account-level subscription billing.
+The app also handles public inquiry intake, public quote pages, business-scoped dashboards, manual and Requo email quote delivery, follow-up tasks, jobs, invoices, workflow automation, analytics, notifications, knowledge files, AI-assisted drafts, transactional email, business membership, and business-scoped subscription billing.
 
 ## Product Direction
 
@@ -66,7 +66,7 @@ The app also handles public inquiry intake, public quote pages, business-scoped 
 - Supabase for storage and realtime-backed plumbing
 - Resend for transactional email
 - AI provider routing through Groq, Gemini, and OpenRouter
-- Polar for subscription billing (USD, merchant of record)
+- Polar for subscription billing (multi-currency, merchant of record)
 
 ## Working Defaults
 
@@ -118,15 +118,14 @@ Do not add:
 
 ### Billing Architecture
 
-- Subscriptions are account-scoped. Each user account has at most one `account_subscriptions` row.
-- The `businesses.plan` column is a denormalized read cache. The authoritative state lives in `account_subscriptions`.
-- All businesses owned by a user inherit the plan from the user's account subscription.
-- `lib/billing/subscription-service.ts` is the single write path for all subscription mutations. It keeps `businesses.plan` in sync across all owned businesses.
+- Subscriptions are business-scoped. Each business has at most one `business_subscriptions` row.
+- The `businesses.plan` column is a denormalized read cache. The authoritative state lives in `business_subscriptions`.
+- `lib/billing/subscription-service.ts` is the single write path for all subscription mutations. It keeps `businesses.plan` in sync.
 - `lib/billing/webhook-processor.ts` provides idempotent event deduplication using `billing_events`.
-- Polar is the sole payment processor and handles recurring card subscriptions in USD as a merchant of record. Refunds are issued through Polar refunds (`lib/billing/refunds.ts`).
-- Webhook route lives at `app/api/billing/polar/webhook/route.ts`. The refund request route is `app/api/billing/refund/route.ts`.
-- Plan access is resolved through `getEffectivePlan()` in the subscription service, which checks subscription status, cancellation dates, and grace periods.
-- Do not bypass the subscription service or write directly to `account_subscriptions`.
+- Polar is the sole payment processor and handles recurring card subscriptions as a merchant of record. Refunds are issued through Polar refunds (`lib/billing/refunds.ts`).
+- Webhook route lives at `app/api/billing/polar/webhook/route.ts`. Identity resolution maps Polar's `customer.externalId` (set to `business.id` at checkout) back to the owning business.
+- Plan access is resolved through `getEffectivePlanForBusiness()` in the subscription service, which checks subscription status, cancellation dates, and grace periods.
+- Do not bypass the subscription service or write directly to `business_subscriptions`.
 
 ### Workflow Automation
 
@@ -134,7 +133,7 @@ Do not add:
 - Automations support both simple trigger → action pairs and a visual drag-and-drop workflow builder for composing multi-step flows.
 - Core automation triggers: inquiry received, inquiry qualified, quote sent, quote viewed, quote accepted, quote rejected, quote expired, job created, job completed, invoice sent, invoice paid, follow-up due.
 - Core automation actions: create follow-up, send notification, archive inquiry, generate draft quote, create job from accepted quote, generate invoice, update status, send email.
-- Automations should have sensible defaults set during onboarding (e.g., "follow up 3 days after quote viewed", "expire quotes after 30 days", "create job when quote accepted").
+- Automations start empty for new businesses. Owners opt in via workflow templates (`features/automations/automation-templates.ts`) or the visual builder — do not auto-create rules on onboarding.
 - Business owners can enable/disable, adjust timing, and add custom automations from settings.
 - The visual builder allows owners to compose workflows by dragging trigger, condition, and action nodes onto a canvas.
 - `features/automations/` owns triggers, actions, rule evaluation, workflow builder UI, and automation-specific components.
@@ -147,12 +146,14 @@ Do not add:
 - Config: `drizzle.config.ts` uses `DATABASE_MIGRATION_URL` (direct connection, never pooler).
 - App runtime uses `DATABASE_URL` (pooler for Supabase). Migrations use `DATABASE_MIGRATION_URL` (direct connection, port 5432).
 - **Development workflow**: edit schema → `npm run db:generate -- --name descriptive_name` → `npm run db:migrate` → commit migration + schema together.
-- **Production workflow**: `vercel-build` runs `npm run db:migrate && next build`. Production only applies existing migrations. Never generate or push in production.
+- **Production workflow**: `vercel-build` runs `npm run db:migrate:strict && next build`. Production only applies existing migrations. Never generate or push in production.
 - **Never edit a committed migration file.** Always create a new migration.
 - **Never run `db:generate` or `db:push` against production.**
 - `npm run db:reset` drops and re-migrates a local database. Refuses to run against remote DBs by default.
 - `scripts/mark-migrations-applied.ts` marks migrations as applied without running them. Used once when a database already has the schema but lacks Drizzle metadata (e.g., after a migration history reset on an existing prod database).
 - If the production database is brand new (empty), just run `npm run db:migrate` — no need for `mark-migrations-applied`.
+- `scripts/migrate.ts` rejects pooler URLs (e.g. Supabase `:6543`) to prevent DDL failures; use a direct migration URL (`:5432`).
+- During migration rebaseline work, follow `docs/database-migrations.md` "Rebaseline / Migration Reset Playbook" and document assumptions in PR notes.
 - See `docs/database-migrations.md` for the full workflow reference.
 
 ### Performance & Caching

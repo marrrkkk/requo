@@ -46,13 +46,12 @@ Read these sources first when relevant:
 
 ## Billing
 
-- Subscriptions are account-scoped.
-- `account_subscriptions` is authoritative; `businesses.plan` is a denormalized read cache.
+- Subscriptions are business-scoped.
+- `business_subscriptions` is authoritative; `businesses.plan` is a denormalized read cache.
 - `lib/billing/subscription-service.ts` is the single write path for subscription mutations.
 - `lib/billing/webhook-processor.ts` records provider events in `billing_events` for idempotency.
-- `lib/billing/refunds.ts` is the single path for Paddle refund requests.
-- Paddle webhook route: `app/api/billing/paddle/webhook/route.ts`.
-- Refund request route: `app/api/billing/refund/route.ts`.
+- `lib/billing/refunds.ts` is the single path for Polar refund requests.
+- Polar webhook route: `app/api/billing/polar/webhook/route.ts`.
 
 ## Testing
 

@@ -2,114 +2,122 @@
 
 ## Overview
 
-Requo uses [Drizzle ORM](https://orm.drizzle.team/) with sequential SQL migrations. A single migration history lives in `drizzle/` and is shared across all environments. Only environment variables differ between dev and production.
+Requo uses [Drizzle ORM](https://orm.drizzle.team/) with sequential SQL migrations in `drizzle/`.
 
-## Architecture
+- `lib/db/schema/*` is the schema source of truth.
+- `drizzle/*.sql` is the migration history that gets applied in all environments.
+- Dev and prod use separate databases, but share the same migration history.
 
-```
-┌─────────────────┐     ┌──────────────────────┐
-│  Schema files   │     │  drizzle/ folder     │
-│  lib/db/schema/ │────▶│  0000_init.sql       │
-│                 │     │  0001_*.sql          │
-│  (source of     │     │  meta/_journal.json  │
-│   truth)        │     │  meta/0000_snap.json │
-└─────────────────┘     └──────────────────────┘
-                               │
-         ┌─────────────────────┼──────────────────────┐
-         ▼                     ▼                      ▼
-   ┌───────────┐        ┌───────────┐         ┌───────────┐
-   │  Dev DB   │        │  Test DB  │         │  Prod DB  │
-   │ localhost │        │ localhost │         │ Supabase  │
-   └───────────┘        └───────────┘         └───────────┘
-```
+## Environment Strategy (Dev vs Prod)
 
-## Environment Variables
+Use separate direct URLs for migrations and runtime:
 
-| Variable | Purpose |
-|----------|---------|
-| `DATABASE_URL` | Runtime connection (pooler for Supabase, direct for local) |
-| `DATABASE_MIGRATION_URL` | Migration connection (always direct, not pooler) |
+| Variable | Used by | Requirement |
+|---|---|---|
+| `DATABASE_URL` | App runtime queries | Pooler is fine in prod |
+| `DATABASE_MIGRATION_URL` | Drizzle migrations (`db:migrate`) | Must be **direct** Postgres URL |
 
-For Supabase, the pooler is port 6543 and direct is port 5432. Migrations must use direct connections because DDL statements don't work through connection poolers.
+For Supabase:
+
+- Pooler: `6543` (runtime)
+- Direct Postgres: `5432` (migrations)
+
+`db:migrate` now rejects pooler URLs on `6543` to prevent broken DDL runs.
 
 ## Commands
 
-| Command | Purpose | When to Use |
-|---------|---------|-------------|
-| `npm run db:generate` | Generate migration SQL from schema diff | After editing schema files (dev only) |
-| `npm run db:migrate` | Apply pending migrations | Dev, CI, and production deploys |
-| `npm run db:push` | Push schema directly (no migration) | Quick local prototyping only |
-| `npm run db:reset` | Drop all tables + re-migrate | Reset dev DB to clean state |
-| `npm run db:studio` | Open Drizzle Studio GUI | Browsing data locally |
+| Command | Purpose |
+|---|---|
+| `npm run db:generate -- --name <name>` | Generate SQL migration from schema changes (dev only) |
+| `npm run db:migrate` | Apply migrations in normal mode |
+| `npm run db:migrate:strict` | Apply migrations and require `DATABASE_MIGRATION_URL` |
+| `npm run db:reset` | Drop local DB objects and re-run migrations |
+| `npm run db:studio` | Open Drizzle Studio |
+| `npx tsx scripts/mark-migrations-applied.ts` | Mark existing migrations as applied without executing SQL |
 
-## Workflow
+## Standard Workflow
 
-### Development (schema changes)
+### 1) Development schema change
 
 ```bash
-# 1. Edit schema files in lib/db/schema/
-# 2. Generate a new migration
+# Edit schema files
+# lib/db/schema/*.ts
+
+# Generate migration
 npm run db:generate -- --name descriptive_name
 
-# 3. Apply it locally
+# Apply locally
 npm run db:migrate
 
-# 4. Commit the migration + schema change together
-git add drizzle/ lib/db/schema/
-git commit -m "feat: add X table"
+# Commit schema + migration together
+git add lib/db/schema drizzle
+git commit -m "feat: ..."
 ```
 
-### Production (deployment)
+### 2) Deploy (preview/prod)
 
-Production **only applies** existing migrations. It never generates new ones.
+Production should never generate new migrations.
+It should only apply committed ones.
 
-The `vercel-build` script handles this automatically:
-```
-npm run db:migrate && next build
-```
-
-### Fresh local setup
+`vercel-build` runs:
 
 ```bash
-# Apply all migrations to a new local database
-npm run db:migrate
-
-# Or reset an existing local database
-npm run db:reset
+npm run db:migrate:strict && next build
 ```
 
-## Rules
+`db:migrate:strict` fails if `DATABASE_MIGRATION_URL` is missing.
 
-1. **Never run `db:generate` or `db:push` against production.**
-2. **Never edit committed migration files** — always create a new migration.
-3. **Always use `DATABASE_MIGRATION_URL`** (direct connection) for migrations.
-4. **Commit migrations with the schema change** so the pair stays in sync.
-5. **One migration per logical change** — don't squash unrelated changes.
+## Rebaseline / Migration Reset Playbook
 
-## Troubleshooting
+Use this when migration history is messy or duplicate/conflicting migrations are causing drift.
 
-### "Migration already applied" errors after reset
+### A) New/empty production database
 
-If production already has the schema but a new migration history:
+1. Keep the cleaned migration history in git.
+2. Set `DATABASE_MIGRATION_URL` to direct prod URL.
+3. Run `npm run db:migrate:strict`.
+
+No marking step is required for empty DBs.
+
+### B) Existing production database with schema already present
+
+If you reset/squash local migration history but prod already has tables:
+
+1. Deploy updated migration files.
+2. Run:
+
 ```bash
 DATABASE_MIGRATION_URL=<prod-direct-url> npx tsx scripts/mark-migrations-applied.ts
 ```
 
-This tells Drizzle the migration was already applied without re-running the SQL.
+3. Verify migration table and app startup.
 
-### Schema drift between environments
+This records migration tags in `drizzle.__drizzle_migrations` without re-running DDL.
 
-If dev and prod have drifted, the only safe resolution is:
-1. Make dev match prod's actual state
-2. Generate a migration from dev
-3. Apply it to prod
+## Guardrails
 
-Never force-push to production or skip migrations.
+1. Never run `db:generate` or `db:push` against production.
+2. Use `DATABASE_MIGRATION_URL` (direct DB URL) for all migrations.
+3. Prefer `db:migrate:strict` in CI/deploy.
+4. Commit schema and migration changes in the same PR.
+5. Avoid editing old migration files unless intentionally doing a rebaseline.
 
-### Local DB is corrupted
+## Troubleshooting
+
+### `invalid input syntax` / DDL errors on deploy
+
+- Check `DATABASE_MIGRATION_URL` points to direct URL, not pooler.
+- Ensure deploy env has `DATABASE_MIGRATION_URL` configured.
+
+### Migration says already applied / relation exists
+
+- Existing DB likely has schema but missing migration metadata.
+- Use `scripts/mark-migrations-applied.ts` once for that environment.
+
+### Local DB drift or corruption
 
 ```bash
 npm run db:reset
 ```
 
-This drops everything and re-applies all migrations from scratch.
+This rebuilds local schema from `drizzle/`.

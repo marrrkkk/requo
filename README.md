@@ -286,7 +286,7 @@ Deployment and validation responsibilities are intentionally split:
 
 - `lib/billing/` billing domain types, plan pricing, subscription service, webhook processing, Polar provider client, and refund service
 - `lib/billing/providers/` Polar SDK client wrapping `BillingProviderInterface` for outbound API calls (webhook signature verification and event parsing live in the route handler via the `@polar-sh/nextjs` adapter)
-- `lib/db/schema/subscriptions.ts` account_subscriptions, billing_events, payment_attempts, and refunds tables
+- `lib/db/schema/subscriptions.ts` business_subscriptions, billing_events, payment_attempts, and refunds tables
 - `features/billing/` checkout dialog, billing status card, upgrade button, payment history with refund requests, server actions, and queries
 - `app/api/billing/` Polar webhook and customer-portal routes plus the refund request route
 - `features/follow-ups/` follow-up creation, rescheduling, completion, skipping, and reminders
@@ -308,8 +308,8 @@ Deployment and validation responsibilities are intentionally split:
 - Marketing, onboarding, starter templates, and in-app copy are aligned around the inquiry -> quote -> share/send -> follow-up -> accepted/rejected -> job -> invoice workflow
 - Workflow automation is event-driven and business-scoped; automations run as background defaults, not complex visual workflow builders
 - Starter templates are opinionated defaults, not rigid vertical product modes
-- Subscriptions are account-scoped with Polar; all businesses owned by a user inherit the plan from the user's account subscription
-- The `businesses.plan` column is a denormalized read cache; the authoritative state lives in `account_subscriptions`
+- Subscriptions are business-scoped with Polar; each business has its own subscription
+- The `businesses.plan` column is a denormalized read cache; the authoritative state lives in `business_subscriptions`
 - Billing mutations go through `lib/billing/subscription-service.ts`; webhooks go through `lib/billing/webhook-processor.ts`
 - Opaque lookup tokens are hashed with `APP_TOKEN_HASH_SECRET` or `BETTER_AUTH_SECRET`
 - State and data defaults stay server-first: prefer cached server reads, Server Actions, route refreshes, and local component state before adding client-state libraries

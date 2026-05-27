@@ -1,6 +1,6 @@
 # Billing Setup
 
-Requo uses Polar (polar.sh) only. Billing is USD-only and Polar acts as the merchant of record.
+Requo uses Polar (polar.sh) only. Polar acts as the merchant of record and supports multiple currencies (USD, PHP, etc.) based on the customer's region.
 
 ## Data model
 
@@ -12,7 +12,7 @@ npm run db:migrate
 
 Billing tables:
 
-- `account_subscriptions`: source of truth for account subscription status
+- `business_subscriptions`: source of truth for business subscription status
 - `billing_events`: idempotent webhook event log
 - `payment_attempts`: checkout and payment history
 - `refunds`: read-only after the canonical-Polar refactor; refunds are issued in the customer portal and reflected via `subscription.canceled` / `subscription.revoked` events
@@ -68,7 +68,7 @@ Always wire sandbox first. Production cutover is documented below; do not skip s
    - `order.updated`
    - `order.refunded`
 
-5. The integration uses the canonical `@polar-sh/nextjs` `Checkout` adapter at `app/api/billing/polar/checkout/route.ts`. Frontend navigates to that adapter URL with `?products=<polarProductId>&customerExternalId=<userId>&customerEmail=<email>`. The thin redirect at `app/api/account/billing/checkout/route.ts` runs eligibility checks (auth, isPolarConfigured, already-active, missing email, product id resolution) before forwarding to the adapter. Webhook payloads are resolved back to a Requo user via `customer.external_id` first, then `account_subscriptions.providerCustomerId`, then `providerSubscriptionId`, with `metadata.userId` as a tertiary legacy fallback.
+5. The integration uses the canonical `@polar-sh/nextjs` `Checkout` adapter at `app/api/billing/polar/checkout/route.ts`. Frontend navigates to that adapter URL with `?products=<polarProductId>&customerExternalId=<businessId>&customerEmail=<email>`. The thin redirect at `app/api/account/billing/checkout/route.ts` runs eligibility checks (auth, isPolarConfigured, already-active, missing email, product id resolution) before forwarding to the adapter. Webhook payloads are resolved back to a Requo business via `customer.externalId` first, then `business_subscriptions.providerCustomerId`, then `providerSubscriptionId`, with `metadata.businessId` as a tertiary legacy fallback.
 
 ## Production cutover
 
@@ -77,8 +77,8 @@ Cut over only after sandbox is fully validated end-to-end (checkout, webhook rec
 ### Pre-cutover checklist
 
 - Sandbox checkout end-to-end works in a local browser via the ngrok webhook endpoint.
-- Sandbox webhook events land in `billing_events` with `status = "processed"` and the expected user id resolution.
-- Sandbox subscription state changes (active, canceled with future period end, revoked) propagate to `account_subscriptions` and the denormalized `businesses.plan` cache.
+- Sandbox webhook events land in `billing_events` with `status = "processed"` and the expected business id resolution.
+- Sandbox subscription state changes (active, canceled with future period end, revoked) propagate to `business_subscriptions` and the denormalized `businesses.plan` cache.
 - Sandbox customer portal redirect from `/api/billing/polar/customer-portal` works for a user with a non-null `providerCustomerId`.
 - The deployment target's public origin is reachable over HTTPS and `NEXT_PUBLIC_APP_URL` is set to that origin (e.g. `https://requo.app`).
 
@@ -103,10 +103,10 @@ Cut over only after sandbox is fully validated end-to-end (checkout, webhook rec
 5. **Deploy and verify.** Trigger a production deploy, then verify the production environment can reach Polar:
    - Hit `/pricing` from the production origin and confirm the upgrade button reaches the Polar checkout page.
    - Run a small test purchase with a real card you own (refund it via the customer portal afterward) and confirm:
-     - `account_subscriptions` row activates for your test user
+     - `business_subscriptions` row activates for the business
      - `payment_attempts` row records the order with `status = "succeeded"`
      - `billing_events` row for `subscription.created` is `processed` with non-null `processedAt`
-     - `businesses.plan` updates across every owned business
+     - `businesses.plan` updates for the subscribed business
    - Open `/api/billing/polar/customer-portal` and confirm the Polar portal redirect works.
 6. **Monitor for the first 24 hours.** Watch `billing_events` for `failed` rows and the application logs for webhook signature errors. Polar's dashboard also shows webhook delivery success and retry counts.
 
@@ -131,4 +131,4 @@ If a production cutover fails, set `POLAR_SERVER=sandbox` plus the sandbox `POLA
 
 ### Customer portal returns "No billing account found"
 
-- The user has no `account_subscriptions` row, or the row's `providerCustomerId` is null. Trigger a checkout first; the `subscription.created` webhook populates `providerCustomerId` on the row.
+- The business has no `business_subscriptions` row, or the row's `providerCustomerId` is null. Trigger a checkout first; the `subscription.created` webhook populates `providerCustomerId` on the row.

@@ -104,7 +104,7 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 
 ## Billing Checklist
 
-- Billing is account-scoped. `account_subscriptions` is authoritative and `businesses.plan` is a read cache. All businesses owned by a user inherit the plan from the user's account subscription.
+- Billing is business-scoped. `business_subscriptions` is authoritative and `businesses.plan` is a read cache. Each business has its own subscription.
 - Configure Polar (https://docs.polar.sh) for recurring USD subscription billing:
   - `POLAR_ACCESS_TOKEN`
   - `POLAR_WEBHOOK_SECRET`
