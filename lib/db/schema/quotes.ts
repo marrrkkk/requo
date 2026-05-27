@@ -57,7 +57,7 @@ export const quotes = pgTable(
     notes: text("message"),
     terms: text("terms"),
     subtotalInCents: integer("subtotal_in_cents").notNull().default(0),
-    discountInCents: integer("tax_in_cents").notNull().default(0),
+    discountInCents: integer("discount_in_cents").notNull().default(0),
     taxInCents: integer("tax_amount_in_cents").notNull().default(0),
     taxLabel: text("tax_label"),
     totalInCents: integer("total_in_cents").notNull().default(0),

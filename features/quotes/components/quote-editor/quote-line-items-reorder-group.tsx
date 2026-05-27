@@ -49,6 +49,7 @@ export function QuoteLineItemsReorderGroup({
 
   return (
     <DndContext
+      id="quote-line-items"
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragEnd={handleDragEnd}

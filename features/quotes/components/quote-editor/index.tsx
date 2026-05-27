@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,7 +22,6 @@ import {
   FloatingFormActions,
   useFloatingUnsavedChanges,
 } from "@/components/shared/floating-form-actions";
-import { InfoTile } from "@/components/shared/info-tile";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -57,6 +57,7 @@ import {
   isQuoteEditorLineItemBlank,
   parseCurrencyInputToCents,
 } from "@/features/quotes/utils";
+import { saveQuoteLineItemToPricingLibrary } from "@/features/quotes/quote-library-actions";
 import { AddLineItemDialog } from "@/features/quotes/components/add-line-item-dialog";
 import { AiMissingInfoPanel } from "@/features/quotes/components/ai-missing-info-panel";
 import { AiPricingReviewPanel } from "@/features/quotes/components/ai-pricing-review-panel";
@@ -75,6 +76,7 @@ import {
   getEffectiveCustomerEmail,
   getQuoteContactHandleLabel,
 } from "./utils";
+import { LinkedInquiryPanel } from "./linked-inquiry-panel";
 import { LineItemCard } from "./line-item-row";
 import { QuoteLineItemsReorderGroup } from "./quote-line-items-reorder-group";
 import { TotalsRow } from "./totals-row";
@@ -100,7 +102,9 @@ export function QuoteEditor({
   submitLabel,
   submitPendingLabel,
   canUseAiGenerator = false,
+  canUseQuoteLibrary = false,
 }: QuoteEditorProps) {
+  const router = useRouter();
   const customerFieldsLocked = !!linkedInquiry;
   const [title, setTitle] = useState(initialValues.title);
   const [customerName, setCustomerName] = useState(initialValues.customerName);
@@ -262,6 +266,7 @@ export function QuoteEditor({
     setCustomerContactMethod(values.customerContactMethod);
     setCustomerContactHandle(values.customerContactHandle);
     setNotes(values.notes);
+    setTerms(values.terms);
     setValidUntil(values.validUntil);
     setDiscount(values.discount);
     setDiscountType(values.discountType);
@@ -359,6 +364,42 @@ export function QuoteEditor({
     setItems((currentItems) =>
       currentItems.filter((item) => item.id !== itemId),
     );
+  }
+
+  async function saveLineItemToPricing(itemId: string) {
+    const item = items.find((row) => row.id === itemId);
+
+    if (!item) {
+      return;
+    }
+
+    const description = item.description.trim();
+    const quantity = Number.parseInt(item.quantity.trim(), 10);
+    const unitPriceInCents = parseCurrencyInputToCents(item.unitPrice);
+
+    const result = await saveQuoteLineItemToPricingLibrary({
+      description,
+      quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
+      unitPriceInCents,
+    });
+
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+
+    updateItem(itemId, {
+      aiReview: {
+        name: result.entryName,
+        pricingSource: "pricing_library_block",
+        pricingSourceLabel: "Pricing library",
+        confidence: "high",
+        reviewStatus: "matched",
+        reason: "Saved to your pricing library for future quotes.",
+      },
+    });
+    toast.success(`Saved "${result.entryName}" to pricing.`);
+    router.refresh();
   }
 
   function insertPricingEntry(entry: DashboardQuoteLibraryEntry) {
@@ -550,12 +591,9 @@ export function QuoteEditor({
           title="Customer and quote details"
         >
           {linkedInquiry ? (
-            <InfoTile
-              label="Linked inquiry"
-              value={linkedInquiry.serviceCategory}
-              description={
-                linkedInquiry.customerEmail ?? linkedInquiry.customerContactHandle
-              }
+            <LinkedInquiryPanel
+              businessSlug={businessSlug}
+              inquiry={linkedInquiry}
             />
           ) : null}
 
@@ -584,7 +622,7 @@ export function QuoteEditor({
               </FieldContent>
             </Field>
 
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1.5fr]">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {customerFieldsLocked ? (
                 <>
                   <input type="hidden" name="customerName" value={customerName} />
@@ -702,7 +740,7 @@ export function QuoteEditor({
               </Field>
             </div>
 
-            <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_11rem_11rem]">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               <Field
                 data-invalid={Boolean(state.fieldErrors?.validUntil) || undefined}
               >
@@ -976,6 +1014,8 @@ export function QuoteEditor({
                   safeQuantity={safeQuantity}
                   isPending={isPending}
                   canRemove={visibleItems.length > 1}
+                  canSaveToPricing={canUseQuoteLibrary}
+                  onSaveToPricing={saveLineItemToPricing}
                   onUpdate={updateItem}
                   onRemove={removeItem}
                   formatMoney={formatQuoteMoney}

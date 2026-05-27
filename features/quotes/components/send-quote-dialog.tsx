@@ -202,6 +202,8 @@ export function SendQuoteDialog({
     });
   }
 
+  const [clickedAction, setClickedAction] = useState<"requo" | "manual" | null>(null);
+
   function handleSendWithRequo() {
     if (disabled || isPending) return;
     if (unpricedItemCount > 0) {
@@ -212,6 +214,7 @@ export function SendQuoteDialog({
       );
       return;
     }
+    setClickedAction("requo");
     formRef.current?.requestSubmit(reqSubmitRef.current ?? undefined);
   }
 
@@ -225,6 +228,7 @@ export function SendQuoteDialog({
       );
       return;
     }
+    setClickedAction("manual");
     formRef.current?.requestSubmit(manSubmitRef.current ?? undefined);
   }
 
@@ -454,12 +458,12 @@ export function SendQuoteDialog({
                     onClick={handleSendWithRequo}
                     type="button"
                   >
-                    {isPending ? (
+                    {isPending && clickedAction === "requo" ? (
                       <Spinner data-icon="inline-start" aria-hidden="true" />
                     ) : (
                       <SendHorizontal data-icon="inline-start" />
                     )}
-                    {isPending ? "Sending..." : "Send with Requo"}
+                    {isPending && clickedAction === "requo" ? "Sending..." : "Send with Requo"}
                   </Button>
                   <div className="flex w-full items-center gap-2">
                     {isEmailContact && mailtoUrl ? (
@@ -482,8 +486,12 @@ export function SendQuoteDialog({
                       type="button"
                       variant="outline"
                     >
-                      <Check data-icon="inline-start" />
-                      Mark as sent
+                      {isPending && clickedAction === "manual" ? (
+                        <Spinner data-icon="inline-start" aria-hidden="true" />
+                      ) : (
+                        <Check data-icon="inline-start" />
+                      )}
+                      {isPending && clickedAction === "manual" ? "Marking..." : "Mark as sent"}
                     </Button>
                   </div>
                 </>
@@ -508,12 +516,12 @@ export function SendQuoteDialog({
                     type="button"
                     variant={isEmailContact && mailtoUrl ? "outline" : "default"}
                   >
-                    {isPending ? (
+                    {isPending && clickedAction === "manual" ? (
                       <Spinner data-icon="inline-start" aria-hidden="true" />
                     ) : (
                       <Check data-icon="inline-start" />
                     )}
-                    {isPending ? "Marking..." : "Mark as sent"}
+                    {isPending && clickedAction === "manual" ? "Marking..." : "Mark as sent"}
                   </Button>
                 </div>
               )}

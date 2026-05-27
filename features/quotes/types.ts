@@ -139,6 +139,8 @@ export type QuoteLinkedInquirySummary = {
   requestedDeadline: string | null;
   status: InquiryStatus;
   recordState: InquiryRecordState;
+  details: string;
+  budgetText: string | null;
 };
 
 export type QuoteInquiryPrefill = {

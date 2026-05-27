@@ -23,6 +23,7 @@ export type QuoteEditorProps = {
   submitLabel: string;
   submitPendingLabel: string;
   canUseAiGenerator?: boolean;
+  canUseQuoteLibrary?: boolean;
 };
 
 export type EditorLineItem = QuoteEditorLineItemValue & {

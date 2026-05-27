@@ -435,6 +435,8 @@ async function getCachedQuoteDetailForBusiness({
       linkedInquiryRequestedDeadline: inquiries.requestedDeadline,
       linkedInquiryStatus: getEffectiveInquiryStatus,
       linkedInquiryRecordState: getInquiryRecordState,
+      linkedInquiryDetails: inquiries.details,
+      linkedInquiryBudgetText: inquiries.budgetText,
     })
     .from(quotes)
     .leftJoin(inquiries, eq(quotes.inquiryId, inquiries.id))
@@ -558,6 +560,8 @@ async function getCachedQuoteDetailForBusiness({
           requestedDeadline: quote.linkedInquiryRequestedDeadline ?? null,
           status: quote.linkedInquiryStatus!,
           recordState: quote.linkedInquiryRecordState!,
+          details: quote.linkedInquiryDetails ?? "",
+          budgetText: quote.linkedInquiryBudgetText ?? null,
         }
       : null,
     reminders: getQuoteReminderKinds({
