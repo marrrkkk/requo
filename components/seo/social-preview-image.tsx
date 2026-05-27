@@ -106,6 +106,7 @@ export function SocialPreviewImage({
         <div
           style={{
             alignItems: "center",
+            alignSelf: "flex-start",
             background: "rgba(23,32,51,0.06)",
             border: "1px solid rgba(23,32,51,0.08)",
             borderRadius: "999px",
@@ -113,7 +114,6 @@ export function SocialPreviewImage({
             fontSize: "22px",
             fontWeight: 600,
             padding: "12px 20px",
-            width: "fit-content",
           }}
         >
           {subtitle}
