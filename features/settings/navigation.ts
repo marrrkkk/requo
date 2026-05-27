@@ -61,6 +61,11 @@ export function getUnifiedSettingsNavigation(
           icon: "book",
         },
         {
+          href: `/${slug}/settings/support`,
+          label: "Support",
+          icon: "life-buoy",
+        },
+        {
           href: `/${slug}/settings/audit-log`,
           label: "Audit log",
           icon: "scroll",

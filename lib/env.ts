@@ -33,6 +33,7 @@ const envSchema = z.object({
   RESEND_API_KEY: emptyToUndefined(z.string().min(1)),
   RESEND_FROM_EMAIL: emptyToUndefined(z.string().trim().min(1)),
   RESEND_REPLY_TO_EMAIL: emptyToUndefined(z.email()),
+  CRISP_WEBSITE_ID: emptyToUndefined(z.string().min(1)),
   MAILTRAP_API_TOKEN: emptyToUndefined(z.string().min(1)),
   BREVO_API_KEY: emptyToUndefined(z.string().min(1)),
   EMAIL_DOMAIN: emptyToUndefined(z.string().trim().min(1)).default("test.requo.app"),
@@ -70,6 +71,10 @@ const envSchema = z.object({
   POLAR_PRO_YEARLY_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
   POLAR_BUSINESS_YEARLY_PRODUCT_ID: emptyToUndefined(z.string().min(1)),
   NEXT_PUBLIC_APP_URL: emptyToUndefined(z.url()),
+
+  INNGEST_DEV: emptyToUndefined(z.enum(["0", "1"]).or(z.literal("true"))),
+  INNGEST_EVENT_KEY: emptyToUndefined(z.string().min(1)),
+  INNGEST_SIGNING_KEY: emptyToUndefined(z.string().min(1)),
 });
 
 export const env = envSchema.parse(process.env);
@@ -132,5 +137,13 @@ export const isPolarConfigured = Boolean(
       env.POLAR_BUSINESS_PRODUCT_ID ||
       env.POLAR_PRO_YEARLY_PRODUCT_ID ||
       env.POLAR_BUSINESS_YEARLY_PRODUCT_ID),
+);
+
+export const isInngestDevMode = Boolean(
+  env.INNGEST_DEV === "1" || env.INNGEST_DEV === "true",
+);
+
+export const isInngestCloudConfigured = Boolean(
+  env.INNGEST_EVENT_KEY && env.INNGEST_SIGNING_KEY,
 );
 
