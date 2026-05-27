@@ -15,7 +15,6 @@ import {
   getBusinessMessagingSettings,
   getWorkspaceBusinessActionContext,
 } from "@/lib/db/business-access";
-import { hasFeatureAccess } from "@/lib/plans";
 import { getplanByBusinessId } from "@/lib/plans/queries";
 import { checkUsageAllowance } from "@/lib/plans/usage";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
@@ -173,10 +172,7 @@ export async function submitPublicInquiryAction(
       const businessSettings = await getBusinessMessagingSettings(business.id);
 
       // Push notification
-      if (
-        businessSettings?.notifyPushOnNewInquiry &&
-        hasFeatureAccess(plan, "pushNotifications")
-      ) {
+      if (businessSettings?.notifyPushOnNewInquiry) {
         try {
           const { sendPushToBusinessSubscribers } = await import("@/lib/push/send");
           await sendPushToBusinessSubscribers(business.id, {

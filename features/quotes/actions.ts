@@ -643,9 +643,7 @@ export async function sendQuoteAction(
       });
     }
 
-    if (businessSettings.notifyPushOnQuoteSent &&
-      hasFeatureAccess(businessContext.business.plan, "pushNotifications")
-    ) {
+    if (businessSettings.notifyPushOnQuoteSent) {
       after(async () => {
         try {
           const { sendPushToBusinessSubscribers } = await import("@/lib/push/send");
@@ -923,9 +921,7 @@ export async function respondToPublicQuoteAction(
       });
     }
 
-    if (result.notifyPushOnQuoteResponse &&
-      hasFeatureAccess(result.businessPlan, "pushNotifications")
-    ) {
+    if (result.notifyPushOnQuoteResponse) {
       after(async () => {
         try {
           const { sendPushToBusinessSubscribers } = await import("@/lib/push/send");
@@ -1272,9 +1268,7 @@ export async function requestQuoteRevisionAction(
       ),
     );
 
-    if (result.notifyPushOnQuoteResponse &&
-      hasFeatureAccess(result.businessPlan, "pushNotifications")
-    ) {
+    if (result.notifyPushOnQuoteResponse) {
       after(async () => {
         try {
           const { sendPushToBusinessSubscribers } = await import("@/lib/push/send");
