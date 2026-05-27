@@ -11,6 +11,35 @@ import {
 } from "@/lib/db/schema";
 
 // ---------------------------------------------------------------------------
+// Lightweight automation state queries (no membership check — caller must scope)
+// ---------------------------------------------------------------------------
+
+export async function isAutoCreateJobOnAcceptanceEnabled(
+  businessId: string,
+): Promise<{ enabled: boolean; automationId: string | null }> {
+  const [row] = await db
+    .select({
+      id: businessAutomations.id,
+      enabled: businessAutomations.enabled,
+    })
+    .from(businessAutomations)
+    .where(
+      and(
+        eq(businessAutomations.businessId, businessId),
+        eq(businessAutomations.triggerType, "quote.accepted"),
+        sql`${businessAutomations.actions}::jsonb @> '[{"type":"create_job_from_quote"}]'::jsonb`,
+      ),
+    )
+    .limit(1);
+
+  if (!row) {
+    return { enabled: false, automationId: null };
+  }
+
+  return { enabled: row.enabled, automationId: row.id };
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 

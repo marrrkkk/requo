@@ -47,11 +47,10 @@ import type { ViewMode, BuilderTab, SidebarPanel, WorkflowNode, AutomationsWorks
 import { triggerLabels } from "./definitions";
 import {
   serializeGraph,
-  deserializeGraph,
   buildEdges,
   extractConditionsFromNodes,
   extractDelayFromNodes,
-  reconstructNodesFromFlatRule,
+  resolveWorkflowNodesFromAutomation,
   toFlowNodes,
   toFlowEdges,
 } from "./graph-utils";
@@ -168,22 +167,17 @@ export function AutomationsWorkspace({
     if (selectedAutomationId) {
       const existing = automations.find((a) => a.id === selectedAutomationId);
       if (existing) {
+        setEditingId(existing.id);
         setWorkflowName(existing.name);
         setIsEnabled(existing.enabled);
-        const { nodes: savedNodes } = deserializeGraph(existing.actions);
-        if (savedNodes.length > 0) {
-          setNodes(savedNodes);
-          setSidebarPanel({ type: "node-config", nodeId: savedNodes[0]!.id });
-        } else {
-          const triggerNode: WorkflowNode = {
-            id: "trigger-1",
-            type: "trigger",
-            label: triggerLabels[existing.triggerType] ?? existing.triggerType,
-            config: { triggerType: existing.triggerType },
-          };
-          setNodes([triggerNode]);
-          setSidebarPanel({ type: "node-config", nodeId: "trigger-1" });
-        }
+        setView("builder");
+        setBuilderTab("editor");
+        const workflowNodes = resolveWorkflowNodesFromAutomation(existing);
+        setNodes(workflowNodes);
+        setSidebarPanel({
+          type: "node-config",
+          nodeId: workflowNodes[0]?.id ?? "trigger-1",
+        });
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -242,18 +236,12 @@ export function AutomationsWorkspace({
     setWorkflowName(automation.name);
     setIsEnabled(automation.enabled);
 
-    const { nodes: savedNodes } = deserializeGraph(automation.actions);
-    if (savedNodes.length > 0) {
-      setNodes(savedNodes);
-      setSidebarPanel({ type: "node-config", nodeId: savedNodes[0]!.id });
-    } else {
-      // Rule was stored in flat-array form (e.g. presets/onboarding defaults).
-      // Reconstruct trigger + condition + delay + action nodes so the user
-      // can see and edit them in the visual builder without losing data.
-      const reconstructed = reconstructNodesFromFlatRule(automation);
-      setNodes(reconstructed);
-      setSidebarPanel({ type: "node-config", nodeId: reconstructed[0]!.id });
-    }
+    const workflowNodes = resolveWorkflowNodesFromAutomation(automation);
+    setNodes(workflowNodes);
+    setSidebarPanel({
+      type: "node-config",
+      nodeId: workflowNodes[0]?.id ?? "trigger-1",
+    });
     setBuilderTab("editor");
     setView("builder");
   }

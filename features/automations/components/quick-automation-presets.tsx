@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   Bell,
   Clock,
@@ -8,10 +9,14 @@ import {
   Mail,
   Archive,
   AlertTriangle,
+  FileText,
+  Briefcase,
+  Receipt,
+  Sparkles,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,108 +26,47 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { DashboardSection } from "@/components/shared/dashboard-layout";
+import {
+  type AutomationTemplate,
+  getAutomationTemplates,
+  groupAutomationTemplatesByCategory,
+} from "@/features/automations/automation-templates";
 import { createAutomation } from "../mutations";
-import type { TriggerType, ActionConfig, DelayConfig } from "../types";
 
 // ---------------------------------------------------------------------------
-// Preset Definitions
+// Icons per template
 // ---------------------------------------------------------------------------
 
-type AutomationPreset = {
-  id: string;
-  name: string;
-  description: string;
-  icon: LucideIcon;
-  triggerType: TriggerType;
-  actions: ActionConfig[];
-  delay?: DelayConfig;
-  badge?: string;
+const templateIcons: Record<string, LucideIcon> = {
+  "notify-new-inquiry": Bell,
+  "follow-up-new-inquiry": Clock,
+  "draft-quote-when-qualified": Sparkles,
+  "archive-stale-inquiries": Archive,
+  "follow-up-quote-viewed": Clock,
+  "follow-up-quote-sent": Mail,
+  "expire-quotes-30d": AlertTriangle,
+  "notify-quote-accepted": FileCheck,
+  "notify-quote-rejected": AlertTriangle,
+  "job-on-acceptance": Briefcase,
+  "generate-invoice-on-job-complete": Receipt,
+  "notify-invoice-overdue": Receipt,
+  "follow-up-overdue-reminder": Bell,
+  "follow-up-due-today": Clock,
 };
 
-const presets: AutomationPreset[] = [
-  {
-    id: "follow-up-quote-viewed",
-    name: "Follow up after quote viewed",
-    description: "Create a follow-up reminder 3 days after a quote is viewed but not responded to.",
-    icon: Clock,
-    triggerType: "quote.viewed",
-    actions: [
-      {
-        type: "create_follow_up",
-        title: "Follow up on viewed quote",
-        reason: "Quote viewed but no response",
-        channel: "email",
-        dueDateOffsetDays: 3,
-      },
-    ],
-    delay: { unit: "days", value: 3 },
-    badge: "Popular",
-  },
-  {
-    id: "expire-quotes",
-    name: "Expire quotes after 30 days",
-    description: "Automatically expire quotes that haven't been accepted within 30 days.",
-    icon: AlertTriangle,
-    triggerType: "quote.sent",
-    actions: [{ type: "update_quote_status", status: "expired" }],
-    delay: { unit: "days", value: 30 },
-  },
-  {
-    id: "job-on-acceptance",
-    name: "Create job when quote accepted",
-    description: "Automatically create a job when a customer accepts a quote.",
-    icon: FileCheck,
-    triggerType: "quote.accepted",
-    actions: [{ type: "create_job_from_quote" }],
-    badge: "Popular",
-  },
-  {
-    id: "notify-new-inquiry",
-    name: "Notify on new inquiry",
-    description: "Get a push notification whenever a new inquiry comes in.",
-    icon: Bell,
-    triggerType: "inquiry.received",
-    actions: [
-      {
-        type: "send_notification",
-        title: "New inquiry received",
-        body: "A new inquiry has been submitted.",
-      },
-    ],
-  },
-  {
-    id: "archive-stale-inquiries",
-    name: "Archive stale inquiries",
-    description: "Archive inquiries that haven't been qualified after 14 days.",
-    icon: Archive,
-    triggerType: "inquiry.received",
-    actions: [{ type: "archive_inquiry", reason: "No response after 14 days" }],
-    delay: { unit: "days", value: 14 },
-  },
-  {
-    id: "follow-up-overdue-reminder",
-    name: "Remind on overdue follow-ups",
-    description: "Send a notification when a follow-up becomes overdue.",
-    icon: Mail,
-    triggerType: "follow_up.overdue",
-    actions: [
-      {
-        type: "send_notification",
-        title: "Follow-up overdue",
-        body: "A follow-up is past its due date.",
-      },
-    ],
-  },
-];
+function getTemplateIcon(template: AutomationTemplate): LucideIcon {
+  return templateIcons[template.id] ?? FileText;
+}
 
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
 type QuickAutomationPresetsProps = {
-  existingTriggerTypes: string[];
+  existingAutomationNames: string[];
   disabled?: boolean;
   businessSlug: string;
+  businessType?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -130,24 +74,40 @@ type QuickAutomationPresetsProps = {
 // ---------------------------------------------------------------------------
 
 export function QuickAutomationPresets({
-  existingTriggerTypes,
+  existingAutomationNames,
   disabled,
   businessSlug,
+  businessType,
 }: QuickAutomationPresetsProps) {
+  const templates = getAutomationTemplates(businessType);
+  const groups = groupAutomationTemplatesByCategory(templates);
+  const existingNames = new Set(
+    existingAutomationNames.map((name) => name.trim().toLowerCase()),
+  );
+
   return (
     <DashboardSection
-      title="Quick automation presets"
-      description="Enable common automations with one click. Customize timing after enabling."
+      title="Workflow templates"
+      description="Each template adds a new automation to your list. You can customize timing and steps in the builder after adding."
     >
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {presets.map((preset) => (
-          <PresetCard
-            key={preset.id}
-            preset={preset}
-            alreadyExists={existingTriggerTypes.includes(preset.triggerType)}
-            disabled={disabled}
-            businessSlug={businessSlug}
-          />
+      <div className="flex flex-col gap-8">
+        {groups.map((group) => (
+          <div key={group.category} className="flex flex-col gap-3">
+            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {group.label}
+            </h3>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {group.templates.map((template) => (
+                <TemplateCard
+                  key={template.id}
+                  template={template}
+                  alreadyEnabled={existingNames.has(template.name.trim().toLowerCase())}
+                  disabled={disabled}
+                  businessSlug={businessSlug}
+                />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     </DashboardSection>
@@ -155,67 +115,78 @@ export function QuickAutomationPresets({
 }
 
 // ---------------------------------------------------------------------------
-// Preset Card
+// Template Card
 // ---------------------------------------------------------------------------
 
-function PresetCard({
-  preset,
-  alreadyExists,
+function TemplateCard({
+  template,
+  alreadyEnabled,
   disabled,
   businessSlug,
 }: {
-  preset: AutomationPreset;
-  alreadyExists: boolean;
+  template: AutomationTemplate;
+  alreadyEnabled: boolean;
   disabled?: boolean;
   businessSlug: string;
 }) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const Icon = getTemplateIcon(template);
 
-  function handleEnable() {
+  function handleAdd() {
     startTransition(async () => {
       const result = await createAutomation({
-        name: preset.name,
-        triggerType: preset.triggerType,
-        actions: preset.actions,
-        delay: preset.delay,
+        name: template.name,
+        description: template.description,
+        triggerType: template.triggerType,
+        actions: template.actions,
+        delay: template.delay,
         enabled: true,
         priority: 0,
       });
-      if (result.id) {
-        window.location.href = `/${businessSlug}/automations?id=${result.id}`;
+
+      if (result.error) {
+        toast.error(result.error);
+        return;
       }
+
+      if (!result.id) {
+        toast.error("We couldn't add that automation right now.");
+        return;
+      }
+
+      toast.success("Automation added", {
+        description: "Opening the builder so you can review or customize it.",
+      });
+      router.push(`/${businessSlug}/automations?id=${result.id}`);
+      router.refresh();
     });
   }
-
-  const Icon = preset.icon;
 
   return (
     <Card className="flex flex-col">
       <CardHeader className="flex-1 gap-2 pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Icon className="size-4" />
-          </div>
-          {preset.badge && (
-            <Badge variant="secondary" className="text-xs">
-              {preset.badge}
-            </Badge>
-          )}
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Icon className="size-4" />
         </div>
-        <CardTitle className="text-sm font-medium">{preset.name}</CardTitle>
+        <CardTitle className="text-sm font-medium">{template.name}</CardTitle>
         <CardDescription className="text-xs leading-relaxed">
-          {preset.description}
+          {template.description}
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
         <Button
           size="sm"
-          variant={alreadyExists ? "secondary" : "default"}
+          variant={alreadyEnabled ? "secondary" : "default"}
           className="w-full"
-          disabled={disabled || isPending || alreadyExists}
-          onClick={handleEnable}
+          disabled={disabled || isPending || alreadyEnabled}
+          onClick={handleAdd}
         >
-          {alreadyExists ? "Already active" : isPending ? "Enabling…" : "Enable"}
+          {alreadyEnabled
+            ? "Already in your list"
+            : isPending
+              ? "Adding…"
+              : "Add automation"}
         </Button>
       </CardContent>
     </Card>

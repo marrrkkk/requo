@@ -128,6 +128,20 @@ export function extractDelayFromNodes(
  * columns). Used when opening a preset/onboarding-default rule in the
  * visual builder so existing config is visible and editable.
  */
+/** Graph nodes for the visual builder from a list item (graph or flat rule). */
+export function resolveWorkflowNodesFromAutomation(automation: {
+  triggerType: string;
+  actions: unknown;
+  conditions: unknown;
+  delay: unknown;
+}): WorkflowNode[] {
+  const { nodes: savedNodes } = deserializeGraph(automation.actions);
+  if (savedNodes.length > 0) {
+    return savedNodes;
+  }
+  return reconstructNodesFromFlatRule(automation);
+}
+
 export function reconstructNodesFromFlatRule(automation: {
   triggerType: string;
   actions: unknown;

@@ -1,6 +1,7 @@
 "use client";
 
-import { Plus, GitBranch, Zap } from "lucide-react";
+import Link from "next/link";
+import { LayoutTemplate, Plus, GitBranch, Zap } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -63,13 +64,21 @@ export function AutomationListView({
         <DashboardEmptyState
           variant="section"
           icon={GitBranch}
-          title="Workflows"
-          description="No workflows yet. Create your first automation to streamline your business."
+          title="No workflows yet"
+          description="Add a workflow from a template or build one from scratch."
           action={
-            <Button size="sm" onClick={onNew}>
-              <Plus className="size-3.5" />
-              New workflow
-            </Button>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button size="sm" onClick={onNew}>
+                <Plus className="size-3.5" />
+                Build from scratch
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/${businessSlug}/automations/presets`}>
+                  <LayoutTemplate className="size-3.5" />
+                  Browse templates
+                </Link>
+              </Button>
+            </div>
           }
         />
       </div>
