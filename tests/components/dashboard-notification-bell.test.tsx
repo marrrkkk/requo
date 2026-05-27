@@ -96,13 +96,19 @@ describe("DashboardNotificationBell", () => {
     if (originalRequestIdleCallback) {
       window.requestIdleCallback = originalRequestIdleCallback;
     } else {
-      delete window.requestIdleCallback;
+      Object.defineProperty(window, "requestIdleCallback", {
+        configurable: true,
+        value: undefined,
+      });
     }
 
     if (originalCancelIdleCallback) {
       window.cancelIdleCallback = originalCancelIdleCallback;
     } else {
-      delete window.cancelIdleCallback;
+      Object.defineProperty(window, "cancelIdleCallback", {
+        configurable: true,
+        value: undefined,
+      });
     }
   });
 
