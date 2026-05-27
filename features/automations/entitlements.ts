@@ -13,7 +13,7 @@ import { hasFeatureAccess } from "@/lib/plans/entitlements";
 // ---------------------------------------------------------------------------
 
 const automationLimits: Record<BusinessPlan, number> = {
-  free: 3,
+  free: 1,
   pro: 20,
   business: 100,
 };

@@ -18,14 +18,12 @@ export const planFeatures = [
   "attachments",
   "emailTemplates",
   "customerHistory",
-  "pushNotifications",
   "quoteLibrary",
   "knowledgeBase",
   "aiAssistant",
   "members",
   "exports",
-  "branding",
-  "multiBusiness",
+  "removeWatermark",
   "followUps",
   "autoFollowUps",
   "automations",
@@ -36,12 +34,14 @@ export type PlanFeature = (typeof planFeatures)[number];
 
 const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
   free: new Set<PlanFeature>([
+    "analyticsConversion",
     "attachments",
     "customerHistory",
     "followUps",
-    "pushNotifications",
     "aiAssistant",
     "automations",
+    "knowledgeBase",
+    "quoteLibrary",
   ]),
   pro: new Set<PlanFeature>([
     "analyticsConversion",
@@ -51,13 +51,11 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "attachments",
     "emailTemplates",
     "customerHistory",
-    "pushNotifications",
     "quoteLibrary",
     "knowledgeBase",
     "aiAssistant",
     "exports",
-    "branding",
-    "multiBusiness",
+    "removeWatermark",
     "followUps",
     "autoFollowUps",
     "automations",
@@ -71,14 +69,12 @@ const planEntitlements: Record<BusinessPlan, ReadonlySet<PlanFeature>> = {
     "attachments",
     "emailTemplates",
     "customerHistory",
-    "pushNotifications",
     "quoteLibrary",
     "knowledgeBase",
     "aiAssistant",
     "members",
     "exports",
-    "branding",
-    "multiBusiness",
+    "removeWatermark",
     "followUps",
     "autoFollowUps",
     "automations",
@@ -125,14 +121,12 @@ export const planFeatureLabels: Record<PlanFeature, string> = {
   attachments: "File attachments",
   emailTemplates: "Email templates",
   customerHistory: "Customer history",
-  pushNotifications: "Push notifications",
   quoteLibrary: "Quote library",
   knowledgeBase: "Knowledge",
   aiAssistant: "AI assistant",
   members: "Team members",
   exports: "Data exports",
-  branding: "Advanced branding",
-  multiBusiness: "Multiple businesses",
+  removeWatermark: "Remove Requo watermark",
   followUps: "Follow-ups",
   autoFollowUps: "Auto follow-ups",
   automations: "Automations",
@@ -155,8 +149,6 @@ export const planFeatureDescriptions: Record<PlanFeature, string> = {
     "Customize the email message used when sending quotes through Requo.",
   customerHistory:
     "Review a customer's prior inquiries and quotes from inquiry and quote detail pages.",
-  pushNotifications:
-    "Receive browser push notifications for important inquiry and quote events.",
   quoteLibrary:
     "Build a library of reusable quote templates.",
   knowledgeBase:
@@ -167,10 +159,8 @@ export const planFeatureDescriptions: Record<PlanFeature, string> = {
     "Invite team members and assign roles.",
   exports:
     "Export inquiries, quotes, audit logs, and automation logs.",
-  branding:
-    "Remove Requo branding and unlock advanced brand controls.",
-  multiBusiness:
-    "Manage more than one total business across your businesses.",
+  removeWatermark:
+    "Remove the Requo watermark from public inquiry and quote pages.",
   followUps:
     "Create follow-up reminders to stay on top of inquiries and quotes.",
   autoFollowUps:
