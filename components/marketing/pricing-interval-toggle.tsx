@@ -36,26 +36,10 @@ export function PricingIntervalToggle({
     if (isPending) return;
     setPendingPlan(plan);
     startTransition(async () => {
-      const result = await startPolarCheckout({ plan, interval });
-      if (result.ok) {
-        setPendingPlan(null);
-        return;
-      }
-
-      if (result.reason === "unauthorized") {
-        const next = `/pricing?plan=${plan}&interval=${interval}`;
-        window.location.assign(getAuthPathWithNext("/login", next));
-        return;
-      }
-
-      if (result.reason === "already_subscribed") {
-        toast.info(result.message);
-        setPendingPlan(null);
-        return;
-      }
-
-      toast.error(result.message);
-      setPendingPlan(null);
+      // Business-scoped billing requires a specific business context to start checkout.
+      // From the marketing pricing page, route visitors through login / onboarding first.
+      const next = `/pricing?plan=${plan}&interval=${interval}`;
+      window.location.assign(getAuthPathWithNext("/login", next));
     });
   }
 
@@ -239,7 +223,7 @@ export function PricingIntervalToggle({
             <Feature>Team members: up to 25</Feature>
             <Feature>500 AI generations / mo</Feature>
             <Feature>500 Requo email sends / mo</Feature>
-            <Feature>Unlimited businesses & forms</Feature>
+            <Feature>Multiple businesses & forms</Feature>
             <Feature>Knowledge base (50 items)</Feature>
             <Feature>Audit logs</Feature>
             <Feature>50 MB uploads</Feature>

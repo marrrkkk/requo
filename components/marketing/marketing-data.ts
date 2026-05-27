@@ -87,61 +87,44 @@ export const workflowSteps: readonly {
 export type LandingFeatureId =
   | "inquiries"
   | "quotes"
-  | "jobs"
   | "ai"
+  | "automations"
   | "analytics";
 
 export const landingFeatureItems: readonly {
   id: LandingFeatureId;
   title: string;
   description: string;
-  previewTitle: string;
-  previewDescription: string;
 }[] = [
   {
     id: "inquiries",
-    title: "One inbox for every customer request.",
+    title: "Every request in one place.",
     description:
-      "Capture inquiries from your public form or add them manually from calls, DMs, and referrals. AI detects duplicates and extracts key details so you can qualify faster.",
-    previewTitle: "Inquiries",
-    previewDescription:
-      "Filter by status and jump straight into the request.",
+      "Capture inquiries from forms, calls, DMs, or referrals. Filter, qualify, and move to quote in seconds.",
   },
   {
     id: "quotes",
-    title: "AI-drafted quotes from your pricing library.",
+    title: "Quote faster with AI.",
     description:
-      "Turn any inquiry into a professional quote in minutes. AI matches line items from your saved pricing, past quotes, and business knowledge. You review and send.",
-    previewTitle: "Quote #1042",
-    previewDescription:
-      "AI drafts, you review. Matched pricing shows confidence levels.",
-  },
-  {
-    id: "jobs",
-    title: "Track work after the customer says yes.",
-    description:
-      "Accepted quotes become trackable jobs with work item checklists. Check off progress, mark complete, and generate an invoice, all connected to the original quote.",
-    previewTitle: "Jobs & Invoices",
-    previewDescription:
-      "From accepted quote to paid invoice in one flow.",
+      "AI drafts line items from your pricing library. Review, adjust, and send a professional quote in minutes.",
   },
   {
     id: "ai",
-    title: "An AI assistant that knows your business.",
+    title: "An assistant that knows your business.",
     description:
-      "Ask anything about your inquiries, quotes, and performance. The assistant uses your pricing library, past quotes, and saved knowledge to draft, answer, and suggest next steps.",
-    previewTitle: "Requo AI",
-    previewDescription:
-      "Ask questions, get insights, and take action from one conversation.",
+      "Ask about open inquiries, stale quotes, or weekly performance. Get answers and take action from one conversation.",
+  },
+  {
+    id: "automations",
+    title: "Automate the repetitive steps.",
+    description:
+      "Follow-ups, reminders, and status changes run on autopilot. Set triggers and let the workflow handle the rest.",
   },
   {
     id: "analytics",
-    title: "See what is working, what is stuck.",
+    title: "See what converts and what stalls.",
     description:
-      "Track inquiries, quotes sent, accepted, follow-ups due, and revenue across 7 days, 30 days, or 12 months. Know which deals need attention before they go cold.",
-    previewTitle: "Workflow analytics",
-    previewDescription:
-      "Switch the range and watch the funnel respond.",
+      "Track your pipeline from inquiry to accepted quote. Spot bottlenecks before deals go cold.",
   },
 ] as const;
 

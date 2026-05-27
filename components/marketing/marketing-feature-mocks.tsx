@@ -1,27 +1,138 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowRight,
+  Background,
+  Controls,
+  ReactFlow,
+  type EdgeTypes,
+  type NodeTypes,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import {
   ArrowUp,
-  BarChart3,
   Calendar,
   Check,
   CircleDot,
   Clock3,
-  Copy,
   Eye,
   FileText,
+  History,
+  Plus,
   Send,
-  Timer,
+  Sparkles,
   Trophy,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import type { LandingFeatureId } from "@/components/marketing/marketing-data";
+import {
+  PromptInput,
+  PromptInputAction,
+  PromptInputActions,
+  PromptInputTextarea,
+} from "@/components/prompt-kit/prompt-input";
+import { TextShimmer } from "@/components/prompt-kit/text-shimmer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { AutomationEdge } from "@/features/automations/components/builder/edges/automation-edge";
+import { ActionNode } from "@/features/automations/components/builder/nodes/action-node";
+import { ConditionNode } from "@/features/automations/components/builder/nodes/condition-node";
+import { DelayNode } from "@/features/automations/components/builder/nodes/delay-node";
+import { TriggerNode } from "@/features/automations/components/builder/nodes/trigger-node";
+import { WorkflowToolbar } from "@/features/automations/components/builder/panels/workflow-toolbar";
+import type { WorkflowEdge, WorkflowNode } from "@/features/automations/components/builder/hooks/use-workflow-state";
+import {
+  ChatMessageList,
+  type ChatMessage,
+} from "@/features/ai/chat-ui/chat-message-list";
+import { aiQuickActions, getPanelPlaceholder } from "@/features/ai/components/ai-chat-helpers";
+import type { UIMessage } from "ai";
 import { cn } from "@/lib/utils";
+
+const workflowNodeTypes: NodeTypes = {
+  trigger: TriggerNode,
+  condition: ConditionNode,
+  delay: DelayNode,
+  action: ActionNode,
+};
+
+const workflowEdgeTypes: EdgeTypes = {
+  automation: AutomationEdge,
+};
+
+const marketingWorkflowNodes: WorkflowNode[] = [
+  {
+    id: "trigger-1",
+    type: "trigger",
+    position: { x: 24, y: 24 },
+    data: {
+      label: "Quote viewed",
+      nodeType: "trigger",
+      config: { triggerType: "quote.viewed" },
+    },
+  },
+  {
+    id: "delay-1",
+    type: "delay",
+    position: { x: 24, y: 168 },
+    data: {
+      label: "Wait 3 days",
+      nodeType: "delay",
+      config: { value: 3, unit: "days" },
+    },
+  },
+  {
+    id: "condition-1",
+    type: "condition",
+    position: { x: 24, y: 312 },
+    data: {
+      label: "Quote accepted?",
+      nodeType: "condition",
+      config: { field: "quote.status", operator: "is", value: "accepted" },
+    },
+  },
+  {
+    id: "action-yes",
+    type: "action",
+    position: { x: -120, y: 468 },
+    data: {
+      label: "Create job from quote",
+      nodeType: "action",
+      config: { actionType: "create_job_from_quote" },
+    },
+  },
+  {
+    id: "action-no",
+    type: "action",
+    position: { x: 168, y: 468 },
+    data: {
+      label: "Send follow-up reminder",
+      nodeType: "action",
+      config: { actionType: "create_follow_up" },
+    },
+  },
+];
+
+const marketingWorkflowEdges: WorkflowEdge[] = [
+  { id: "e1", source: "trigger-1", target: "delay-1", type: "automation" },
+  { id: "e2", source: "delay-1", target: "condition-1", type: "automation" },
+  {
+    id: "e3",
+    source: "condition-1",
+    target: "action-yes",
+    sourceHandle: "true",
+    type: "automation",
+  },
+  {
+    id: "e4",
+    source: "condition-1",
+    target: "action-no",
+    sourceHandle: "false",
+    type: "automation",
+  },
+];
 
 export function MarketingFeatureMock({
   featureId,
@@ -30,8 +141,8 @@ export function MarketingFeatureMock({
 }) {
   if (featureId === "inquiries") return <InquiriesPreviewMock />;
   if (featureId === "quotes") return <QuotePreviewMock />;
-  if (featureId === "jobs") return <JobsPreviewMock />;
   if (featureId === "ai") return <AIChatPreviewMock />;
+  if (featureId === "automations") return <AutomationPreviewMock />;
   if (featureId === "analytics") return <AnalyticsPreviewMock />;
   return null;
 }
@@ -163,8 +274,9 @@ function InquiriesPreviewMock() {
   ];
 
   return (
-    <div className="grid gap-3">
-      <div className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible sm:pb-0">
+    <div className="flex h-full flex-col overflow-y-auto pr-1">
+      <div className="grid gap-3">
+        <div className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible sm:pb-0">
         {filters.map((filter) => {
           const active = filter.key === status;
           return (
@@ -193,7 +305,7 @@ function InquiriesPreviewMock() {
             </button>
           );
         })}
-      </div>
+        </div>
 
       <div className="overflow-hidden rounded-xl border border-border/75 bg-background/95 shadow-[var(--surface-shadow-sm)]">
         <div className="grid grid-cols-[minmax(0,1fr)_5.5rem] gap-2 border-b border-border/70 bg-muted/25 px-3 py-2 text-[0.62rem] font-medium uppercase tracking-[0.12em] text-muted-foreground sm:grid-cols-[minmax(0,1fr)_7rem_7rem] sm:px-4 sm:text-[0.64rem] sm:tracking-[0.14em]">
@@ -237,6 +349,7 @@ function InquiriesPreviewMock() {
           )}
         </div>
       </div>
+      </div>
     </div>
   );
 }
@@ -245,60 +358,18 @@ function InquiriesPreviewMock() {
 /*                                   Quotes                                   */
 /* -------------------------------------------------------------------------- */
 
-type QuoteDraft = {
+type QuoteLineItem = {
   id: string;
-  number: string;
-  title: string;
-  customer: string;
-  address: string;
-  validDays: number;
-  items: { desc: string; qty: string; priceInCents: number }[];
-  discountInCents: number;
+  desc: string;
+  qty: string;
+  priceInCents: number;
+  isAiGenerated?: boolean;
 };
 
-const quoteDrafts: readonly QuoteDraft[] = [
-  {
-    id: "q-1042",
-    number: "Q-1042",
-    title: "Kitchen Remodel",
-    customer: "Sarah Jenkins",
-    address: "123 Main St",
-    validDays: 30,
-    items: [
-      { desc: "Custom cabinets & hardware", qty: "1", priceInCents: 240000 },
-      { desc: "Countertop installation", qty: "1", priceInCents: 120000 },
-      { desc: "Labor & demo", qty: "40h", priceInCents: 65000 },
-    ],
-    discountInCents: 0,
-  },
-  {
-    id: "q-1043",
-    number: "Q-1043",
-    title: "Studio Fit-out",
-    customer: "Maya Fields",
-    address: "86 Harper Ave",
-    validDays: 14,
-    items: [
-      { desc: "Built-in shelving", qty: "1", priceInCents: 180000 },
-      { desc: "Lighting package", qty: "6", priceInCents: 48000 },
-      { desc: "Finish & install", qty: "24h", priceInCents: 42000 },
-    ],
-    discountInCents: 15000,
-  },
-  {
-    id: "q-1044",
-    number: "Q-1044",
-    title: "Tile Repair",
-    customer: "Leo Park",
-    address: "19 Park Row",
-    validDays: 7,
-    items: [
-      { desc: "Bathroom tile patch", qty: "1", priceInCents: 42000 },
-      { desc: "Grout & sealing", qty: "1", priceInCents: 12000 },
-      { desc: "Labor", qty: "6h", priceInCents: 18000 },
-    ],
-    discountInCents: 0,
-  },
+const quoteGenerationItems: readonly Omit<QuoteLineItem, "id">[] = [
+  { desc: "Custom cabinets & hardware", qty: "1", priceInCents: 240000 },
+  { desc: "Countertop installation", qty: "1", priceInCents: 120000 },
+  { desc: "Labor & demo", qty: "40h", priceInCents: 65000 },
 ];
 
 function formatMoney(cents: number) {
@@ -310,148 +381,180 @@ function formatMoney(cents: number) {
 }
 
 function QuotePreviewMock() {
-  const [selectedId, setSelectedId] = useState<string>(quoteDrafts[0].id);
-  const [sent, setSent] = useState<Record<string, boolean>>({});
+  const [items, setItems] = useState<QuoteLineItem[]>([]);
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [hasGenerated, setHasGenerated] = useState(false);
+  const generationTimeouts = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  const active =
-    quoteDrafts.find((draft) => draft.id === selectedId) ?? quoteDrafts[0];
+  useEffect(() => {
+    return () => {
+      for (const timeout of generationTimeouts.current) {
+        clearTimeout(timeout);
+      }
+    };
+  }, []);
 
-  const subtotal = active.items.reduce(
-    (sum, item) => sum + item.priceInCents,
-    0,
-  );
-  const total = subtotal - active.discountInCents;
-  const isSent = sent[active.id] ?? false;
+  const subtotal = items.reduce((sum, item) => sum + item.priceInCents, 0);
+
+  const generateWithAi = useCallback(() => {
+    if (isAiGenerating) return;
+
+    for (const timeout of generationTimeouts.current) {
+      clearTimeout(timeout);
+    }
+    generationTimeouts.current = [];
+
+    setHasGenerated(false);
+    setItems([]);
+    setIsAiGenerating(true);
+
+    quoteGenerationItems.forEach((item, index) => {
+      const timeout = setTimeout(() => {
+        setItems((current) => [
+          ...current,
+          {
+            ...item,
+            id: `item-${index + 1}`,
+            isAiGenerated: true,
+          },
+        ]);
+
+        if (index === quoteGenerationItems.length - 1) {
+          setIsAiGenerating(false);
+          setHasGenerated(true);
+        }
+      }, 650 * (index + 1));
+
+      generationTimeouts.current.push(timeout);
+    });
+  }, [isAiGenerating]);
 
   return (
-    <div className="grid gap-3 lg:grid-cols-[11rem_minmax(0,1fr)]">
-      <div className="soft-panel flex flex-col gap-2 px-2.5 py-2.5 shadow-none sm:px-3 sm:py-3">
-        <p className="meta-label hidden px-1 lg:block">Drafts</p>
-        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-0">
-          {quoteDrafts.map((draft) => {
-            const isActive = draft.id === active.id;
-            return (
-              <button
-                className={cn(
-                  "flex shrink-0 w-[8.25rem] flex-col gap-0.5 rounded-md border px-2.5 py-2 text-left transition-colors lg:w-full",
-                  isActive
-                    ? "border-primary/40 bg-primary/8 text-foreground shadow-sm"
-                    : "border-transparent text-muted-foreground hover:border-border/70 hover:bg-background/70 hover:text-foreground",
-                )}
-                key={draft.id}
-                onClick={() => setSelectedId(draft.id)}
-                type="button"
-              >
-                <span className="flex items-center justify-between gap-2">
-                  <span className="truncate text-[11px] font-medium">
-                    {draft.number}
-                  </span>
-                  {sent[draft.id] ? (
-                    <Check className="size-3 shrink-0 text-primary" />
-                  ) : null}
-                </span>
-                <span className="truncate text-[10px] text-muted-foreground">
-                  {draft.title}
-                </span>
-              </button>
-            );
-          })}
+    <div className="flex h-full flex-col overflow-hidden">
+      <div className="flex items-start justify-between gap-3 border-b border-border/70 pb-3">
+        <div className="min-w-0">
+          <p className="meta-label">Quote</p>
+          <p className="mt-1 truncate text-sm font-semibold text-foreground">
+            Kitchen Remodel
+          </p>
+          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+            Sarah Jenkins · 123 Main St
+          </p>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="text-[11px] font-medium text-foreground">Q-1042</p>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">Valid 30 days</p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-border/75 bg-background/95 p-3 shadow-[var(--surface-shadow-sm)] sm:p-4">
-        <div className="flex items-start justify-between gap-3 border-b border-border/70 pb-3 sm:pb-4">
-          <div className="min-w-0">
-            <p className="meta-label">Quote</p>
-            <p className="mt-1 truncate text-xs font-semibold text-foreground sm:text-sm">
-              {active.title}
-            </p>
-            <p className="mt-0.5 truncate text-[10px] text-muted-foreground sm:text-[11px]">
-              {active.customer} · {active.address}
-            </p>
-          </div>
-          <div className="shrink-0 text-right">
-            <p className="text-[10px] font-medium text-foreground sm:text-[11px]">
-              {active.number}
-            </p>
-            <p className="mt-0.5 text-[9px] text-muted-foreground sm:text-[10px]">
-              Valid {active.validDays} days
+      <div
+        className={cn(
+          "mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/75 bg-background/95 shadow-[var(--surface-shadow-sm)]",
+          isAiGenerating && "ai-glow-section",
+        )}
+      >
+        <div className="flex items-center justify-between gap-2 border-b border-border/70 px-3 py-2.5 sm:px-4">
+          <div>
+            <p className="text-xs font-medium text-foreground">Line items</p>
+            <p className="text-[10px] text-muted-foreground">
+              Add priced rows. Totals update while you edit.
             </p>
           </div>
-        </div>
-
-        <div className="mt-3 grid gap-1.5">
-          {active.items.map((row, i) => (
-            <div
-              className="grid grid-cols-[minmax(0,1fr)_4.5rem] items-center gap-2 rounded-md border border-border/60 bg-background/70 px-2.5 py-2 text-[11px] sm:grid-cols-[minmax(0,1fr)_3rem_5rem]"
-              key={i}
-            >
-              <div className="min-w-0">
-                <p className="truncate font-medium text-foreground">
-                  {row.desc}
-                </p>
-                <p className="mt-0.5 text-[10px] text-muted-foreground sm:hidden">
-                  × {row.qty}
-                </p>
-              </div>
-              <span className="hidden text-muted-foreground sm:inline">
-                {row.qty}
-              </span>
-              <span className="text-right font-medium text-foreground">
-                {formatMoney(row.priceInCents)}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-3 rounded-md border border-border/60 bg-muted/25 px-2.5 py-2.5 sm:px-3 sm:py-3">
-          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>Subtotal</span>
-            <span className="font-medium text-foreground">
-              {formatMoney(subtotal)}
-            </span>
-          </div>
-          {active.discountInCents > 0 ? (
-            <div className="mt-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
-              <span>Discount</span>
-              <span className="font-medium text-foreground">
-                -{formatMoney(active.discountInCents)}
-              </span>
-            </div>
-          ) : null}
-          <div className="mt-2 border-t border-border/60 pt-2">
-            <div className="flex items-center justify-between text-xs font-semibold text-foreground">
-              <span>Total</span>
-              <span>{formatMoney(total)}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-3 flex items-center justify-between gap-2">
-          <span className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
-            <Eye className="size-3" />
-            Not yet viewed
-          </span>
           <Button
-            className="h-7 px-2.5 text-[11px] sm:h-8 sm:px-3 sm:text-xs"
-            onClick={() =>
-              setSent((prev) => ({ ...prev, [active.id]: !prev[active.id] }))
-            }
+            className="h-7 shrink-0 px-2.5 text-[11px] sm:h-8 sm:px-3 sm:text-xs"
+            disabled={isAiGenerating}
+            onClick={generateWithAi}
             size="sm"
-            variant={isSent ? "outline" : "default"}
+            type="button"
           >
-            {isSent ? (
+            {isAiGenerating ? (
               <>
-                <Check data-icon="inline-start" />
-                Sent
+                <Spinner aria-hidden="true" data-icon="inline-start" />
+                Generating...
               </>
             ) : (
               <>
-                <Send data-icon="inline-start" />
-                Send quote
+                <Sparkles data-icon="inline-start" />
+                Generate with AI
               </>
             )}
           </Button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-4">
+          {items.length === 0 && !isAiGenerating ? (
+            <div className="flex h-full min-h-[9rem] flex-col items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/20 px-4 text-center">
+              <Sparkles className="size-4 text-primary" />
+              <p className="mt-2 text-xs font-medium text-foreground">
+                Draft line items from the inquiry
+              </p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                AI matches your pricing library and past quotes.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-2">
+              {items.map((row, index) => (
+                <div
+                  className={cn(
+                    "soft-panel relative overflow-hidden rounded-xl p-3",
+                    row.isAiGenerated && "ai-glow-border",
+                  )}
+                  key={row.id}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] font-medium text-foreground">
+                      Item {index + 1}
+                    </p>
+                    {row.isAiGenerated ? (
+                      <Badge className="rounded-full text-[9px]" variant="secondary">
+                        AI matched
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <div className="mt-2 grid grid-cols-[minmax(0,1fr)_3rem_4.5rem] items-center gap-2 text-[11px]">
+                    <p className="truncate font-medium text-foreground">{row.desc}</p>
+                    <span className="text-muted-foreground">{row.qty}</span>
+                    <span className="text-right font-medium text-foreground">
+                      {formatMoney(row.priceInCents)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+
+              {isAiGenerating ? (
+                <div className="flex items-center gap-2 rounded-xl border border-dashed border-primary/30 bg-primary/5 px-3 py-2.5 text-[11px] text-muted-foreground">
+                  <Spinner className="size-3.5 text-primary" />
+                  Matching pricing library and past quotes...
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-border/70 px-3 py-2.5 sm:px-4">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-muted-foreground">Total</span>
+            <span className="font-semibold text-foreground">
+              {items.length ? formatMoney(subtotal) : "—"}
+            </span>
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground">
+              <Eye className="size-3" />
+              {hasGenerated ? "Ready to review and send" : "Draft not sent"}
+            </span>
+            <Button
+              className="h-7 px-2.5 text-[11px] sm:h-8 sm:px-3 sm:text-xs"
+              disabled={!hasGenerated || isAiGenerating}
+              size="sm"
+              type="button"
+              variant={hasGenerated ? "default" : "outline"}
+            >
+              <Send data-icon="inline-start" />
+              Send quote
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -462,363 +565,213 @@ function QuotePreviewMock() {
 /*                                  AI Chat                                   */
 /* -------------------------------------------------------------------------- */
 
-const quickActions = [
-  {
-    label: "Open inquiries",
-    color: "blue" as const,
-    prompt: "Summarize open inquiries",
-    response: [
-      "You have **5 open inquiries** right now:",
-      "",
-      "• **Sarah Jenkins**: Kitchen remodel. New, submitted today.",
-      "• **Leo Park**: Tile repair. Quoted, awaiting reply.",
-      "• **Maya Fields**: Studio fit-out. Waiting on scope details.",
-      "• **Jordan Kim**: Built-in shelving. New, 3 days old.",
-      "• **Ana Cruz**: Countertop. Won, ready to schedule.",
-      "",
-      "2 are new and need a first reply. Want me to prioritize them?",
-    ],
-  },
-  {
-    label: "Quote follow-ups",
-    color: "purple" as const,
-    prompt: "Which quotes need follow-up?",
-    response: [
-      "**3 quotes** need attention this week:",
-      "",
-      "• **Q-1042**: Kitchen remodel for Sarah. Viewed 2 days ago, no reply.",
-      "• **Q-1044**: Tile repair for Leo. Sent yesterday, not yet opened.",
-      "• **Q-1043**: Studio fit-out for Maya. Expires Friday.",
-      "",
-      "Want me to draft a follow-up for any of these?",
-    ],
-  },
-  {
-    label: "Urgent work",
-    color: "orange" as const,
-    prompt: "What's urgent today?",
-    response: [
-      "Here's what needs action today:",
-      "",
-      "• **Q-1042** is going cold. Viewed but no reply in 2 days. Follow up before the weekend.",
-      "• **Maya's fit-out** quote expires Friday. Send a reminder now.",
-      "• **Jordan Kim's** inquiry is 3 days old with no quote yet.",
-      "",
-      "I'd suggest starting with Sarah's follow-up since she already viewed the quote.",
-    ],
-  },
-  {
-    label: "Weekly summary",
-    color: "teal" as const,
-    prompt: "Give me a weekly summary",
-    response: [
-      "**This week at BrightSide:**",
-      "",
-      "• **4 new inquiries** captured (↑ 2 vs last week)",
-      "• **8 quotes sent**: 6 viewed, 3 accepted",
-      "• **75% view rate** (↑ 6 pts)",
-      "• **$14,650 total quoted** this week",
-      "",
-      "Top win: Ana Cruz accepted the countertop job ($1,200). Your average time-to-quote improved to 4 hours.",
-    ],
-  },
-];
-
-const quickActionColors: Record<string, string> = {
-  blue: "border-blue-200/80 bg-blue-100/50 text-blue-800 shadow-sm shadow-blue-100/50 hover:bg-blue-100 dark:border-blue-700/40 dark:bg-blue-900/30 dark:text-blue-200 dark:shadow-blue-900/20 dark:hover:bg-blue-900/50",
-  purple: "border-purple-200/80 bg-purple-100/50 text-purple-800 shadow-sm shadow-purple-100/50 hover:bg-purple-100 dark:border-purple-700/40 dark:bg-purple-900/30 dark:text-purple-200 dark:shadow-purple-900/20 dark:hover:bg-purple-900/50",
-  orange: "border-orange-200/80 bg-orange-100/50 text-orange-800 shadow-sm shadow-orange-100/50 hover:bg-orange-100 dark:border-orange-700/40 dark:bg-orange-900/30 dark:text-orange-200 dark:shadow-orange-900/20 dark:hover:bg-orange-900/50",
-  teal: "border-teal-200/80 bg-teal-100/50 text-teal-800 shadow-sm shadow-teal-100/50 hover:bg-teal-100 dark:border-teal-700/40 dark:bg-teal-900/30 dark:text-teal-200 dark:shadow-teal-900/20 dark:hover:bg-teal-900/50",
-};
-
-type VisibleMessage = {
-  id: string;
-  role: "user" | "assistant";
-  lines: string[];
-  isTyping?: boolean;
-};
+// Marketing AI assistant preview now reuses the real chat UI components.
 
 function AIChatPreviewMock() {
-  const [messages, setMessages] = useState<VisibleMessage[]>([]);
-  const [isTyping, setIsTyping] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const idCounter = useRef(0);
+  const quickActions = aiQuickActions.dashboard;
 
-  function nextId(prefix: string) {
-    idCounter.current += 1;
-    return `${prefix}-${idCounter.current}`;
-  }
-
-  function scrollToBottom() {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }
-
-  function sendMessage(prompt: string, responseLines: string[]) {
-    if (isTyping) return;
-
-    // Add user message
-    const userMsg: VisibleMessage = {
-      id: nextId("u"),
-      role: "user",
-      lines: [prompt],
-    };
-    const typingId = nextId("t");
-    setMessages((prev) => [...prev, userMsg]);
-    setIsTyping(true);
-
-    // Scroll after user message
-    setTimeout(scrollToBottom, 50);
-
-    // Add typing indicator
-    const typingMsg: VisibleMessage = {
-      id: typingId,
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [
+    {
+      id: "m-1",
       role: "assistant",
-      lines: [],
-      isTyping: true,
-    };
-    const typingDelay = setTimeout(() => {
-      setMessages((prev) => [...prev, typingMsg]);
-      setTimeout(scrollToBottom, 50);
-    }, 400);
+      content:
+        "Good morning, Jamie. What do you want to work on today?",
+    },
+  ]);
+  const [inputValue, setInputValue] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const nextIdRef = useRef(1);
+  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-    // Replace with actual response
-    const responseDelay = setTimeout(() => {
-      const assistantMsg: VisibleMessage = {
-        id: nextId("a"),
-        role: "assistant",
-        lines: responseLines,
-      };
-      setMessages((prev) =>
-        prev.filter((m) => m.id !== typingId).concat(assistantMsg),
-      );
-      setIsTyping(false);
-      setTimeout(scrollToBottom, 50);
-    }, 1400);
-
-    typingTimeoutRef.current = responseDelay;
-
+  useEffect(() => {
     return () => {
-      clearTimeout(typingDelay);
-      clearTimeout(responseDelay);
+      for (const t of timeoutsRef.current) clearTimeout(t);
     };
-  }
+  }, []);
 
-  function handleQuickAction(action: (typeof quickActions)[number]) {
-    sendMessage(action.prompt, action.response);
-  }
+  const appendAssistantResponse = useCallback((userText: string) => {
+    setIsStreaming(true);
 
-  const showEmptyState = messages.length === 0 && !isTyping;
+    const response =
+      userText.toLowerCase().includes("follow") ||
+      userText.toLowerCase().includes("quote")
+        ? "3 quotes need a follow-up this week. Want me to draft the next message for Sarah?"
+        : "Got it. I can summarize open inquiries, draft follow-ups, and pull a weekly snapshot. What should we start with?";
+
+    const t1 = setTimeout(() => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `a-${nextIdRef.current++}`,
+          role: "assistant",
+          content: "",
+          pending: true,
+        },
+      ]);
+    }, 250);
+
+    const t2 = setTimeout(() => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.pending
+            ? {
+                ...m,
+                content: response,
+                pending: false,
+              }
+            : m,
+        ),
+      );
+      setIsStreaming(false);
+    }, 950);
+
+    timeoutsRef.current.push(t1, t2);
+  }, []);
+
+  const handleSend = useCallback(() => {
+    const text = inputValue.trim();
+    if (!text || isStreaming) return;
+    setInputValue("");
+    setMessages((prev) => [
+      ...prev,
+      { id: `u-${nextIdRef.current++}`, role: "user", content: text },
+    ]);
+    appendAssistantResponse(text);
+  }, [appendAssistantResponse, inputValue, isStreaming]);
+
+  const handleQuickAction = useCallback(
+    (prompt: string) => {
+      if (isStreaming) return;
+      setMessages((prev) => [
+        ...prev,
+        { id: `u-${nextIdRef.current++}`, role: "user", content: prompt },
+      ]);
+      appendAssistantResponse(prompt);
+    },
+    [appendAssistantResponse, isStreaming],
+  );
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      {showEmptyState ? (
-        /* Empty state — greeting + centered input */
-        <div className="flex flex-1 flex-col items-center justify-center px-4">
-          <div className="mx-auto w-full max-w-md text-center">
-            <h3 className="mb-1 font-heading text-lg font-semibold tracking-tight text-foreground sm:text-2xl">
-              Good morning, Jamie
-            </h3>
-            <p className="mb-5 text-[11px] text-muted-foreground sm:text-sm">
-              How can I help with your business today?
-            </p>
+    <div className="flex h-full flex-col overflow-hidden" data-chat-page>
+      <div className="flex shrink-0 items-center justify-between px-4 py-2 sm:px-6">
+        <Button size="sm" variant="outline" type="button">
+          <Plus data-icon="inline-start" />
+          New chat
+        </Button>
+        <div className="flex items-center gap-1">
+          <Button size="icon-sm" variant="ghost" type="button" aria-label="History">
+            <History className="size-4" />
+          </Button>
+        </div>
+      </div>
 
-            <div className="flex items-center rounded-2xl bg-muted/70 px-3.5 py-2.5 sm:px-4 sm:py-3">
-              <span className="min-w-0 flex-1 truncate text-left text-[11px] text-muted-foreground/70 sm:text-sm">
-                Ask about inquiries, quotes, and follow-ups...
-              </span>
-              <span className="ml-2 flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground sm:size-8">
-                <ArrowUp className="size-3.5 sm:size-4" />
-              </span>
-            </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6">
+            <ChatMessageList
+              messages={messages}
+              rawMessages={[] as unknown as UIMessage[]}
+              userName="Jamie"
+              isPending={isStreaming}
+              onRetry={() => {}}
+              error={null}
+            />
+            {isStreaming ? (
+              <div className="mt-2">
+                <TextShimmer className="text-sm">Thinking...</TextShimmer>
+              </div>
+            ) : null}
+          </div>
+        </div>
 
-            <div className="mt-3.5 flex flex-wrap justify-center gap-1.5 sm:mt-4 sm:gap-2">
+        <div className="shrink-0 pb-5">
+          <div className="mx-auto w-full max-w-2xl px-4 sm:px-6">
+            <div className="mb-2 flex flex-wrap gap-2">
               {quickActions.map((action) => (
-                <button
-                  className={cn(
-                    "rounded-full border px-2.5 py-1 text-[10px] font-medium transition-colors sm:px-3.5 sm:py-1.5 sm:text-[0.8rem]",
-                    quickActionColors[action.color],
-                  )}
+                <Button
                   key={action.label}
-                  onClick={() => handleQuickAction(action)}
+                  variant="secondary"
+                  size="sm"
                   type="button"
+                  disabled={isStreaming}
+                  onClick={() => handleQuickAction(action.prompt)}
                 >
                   {action.label}
-                </button>
+                </Button>
               ))}
             </div>
-          </div>
-        </div>
-      ) : (
-        /* Active chat — messages */
-        <div
-          className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-3 py-4 sm:px-5 sm:py-5"
-          ref={scrollRef}
-        >
-          {messages.map((msg) =>
-            msg.isTyping ? (
-              <div className="flex w-full gap-2.5" key={msg.id}>
-                <div className="flex items-center gap-1.5 rounded-2xl bg-muted/40 px-4 py-3">
-                  <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:0ms]" />
-                  <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:150ms]" />
-                  <span className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:300ms]" />
-                </div>
-              </div>
-            ) : msg.role === "user" ? (
-              <div className="flex w-full justify-end" key={msg.id}>
-                <div className="max-w-[80%] rounded-2xl bg-black/[0.06] px-3.5 py-2 dark:bg-white/[0.08]">
-                  <p className="whitespace-pre-wrap text-[11px] leading-5 text-foreground sm:text-sm sm:leading-6">
-                    {msg.lines[0]}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex w-full gap-2.5" key={msg.id}>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[11px] leading-5 text-foreground sm:text-sm sm:leading-6">
-                    {msg.lines.map((line, i) => {
-                      if (line === "") return <div className="h-1.5" key={i} />;
-                      if (line.startsWith(">")) {
-                        return (
-                          <p
-                            className="my-1.5 border-l-2 border-primary/40 pl-2.5 text-muted-foreground italic"
-                            key={i}
-                          >
-                            {line.slice(2)}
-                          </p>
-                        );
-                      }
-                      if (line.startsWith("•")) {
-                        return (
-                          <p className="pl-1" key={i}>
-                            {renderBold(line)}
-                          </p>
-                        );
-                      }
-                      return <p key={i}>{renderBold(line)}</p>;
-                    })}
-                  </div>
-                </div>
-              </div>
-            ),
-          )}
-        </div>
-      )}
 
-      {/* Input area — always visible when chat is active */}
-      {!showEmptyState ? (
-        <div className="shrink-0 border-t border-border/70 px-3 pb-3 pt-2 sm:px-5 sm:pb-4 sm:pt-3">
-          <div className="flex items-center rounded-2xl bg-muted/70 px-3.5 py-2.5 sm:px-4 sm:py-3">
-            <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground/70 sm:text-sm">
-              Ask a follow-up question...
-            </span>
-            <span className="ml-2 flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground sm:size-8">
-              <ArrowUp className="size-3.5 sm:size-4" />
-            </span>
-          </div>
-          {/* Quick actions below input */}
-          <div className="mt-2.5 flex flex-wrap gap-1.5 sm:mt-3">
-            {quickActions.map((action) => (
-              <button
-                className={cn(
-                  "rounded-full border px-2 py-0.5 text-[9px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:px-3 sm:py-1 sm:text-[0.75rem]",
-                  quickActionColors[action.color],
-                )}
-                disabled={isTyping}
-                key={action.label}
-                onClick={() => handleQuickAction(action)}
-                type="button"
-              >
-                {action.label}
-              </button>
-            ))}
+            <PromptInput
+              value={inputValue}
+              onValueChange={setInputValue}
+              onSubmit={handleSend}
+              isLoading={isStreaming}
+              className="rounded-2xl border border-border bg-background"
+            >
+              <PromptInputTextarea
+                placeholder={getPanelPlaceholder("dashboard")}
+                className="min-h-[44px] text-sm"
+              />
+              <PromptInputActions className="justify-end pt-1">
+                <PromptInputAction tooltip="Send message">
+                  <Button
+                    variant="default"
+                    size="icon-sm"
+                    className="rounded-full"
+                    onClick={handleSend}
+                    disabled={!inputValue.trim() || isStreaming}
+                    type="button"
+                  >
+                    <ArrowUp className="size-4" />
+                  </Button>
+                </PromptInputAction>
+              </PromptInputActions>
+            </PromptInput>
           </div>
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }
 
-function renderBold(text: string) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return (
-        <span className="font-semibold" key={i}>
-          {part.slice(2, -2)}
-        </span>
-      );
-    }
-    return part;
-  });
-}
-
 /* -------------------------------------------------------------------------- */
-/*                                    Jobs                                    */
+/*                                Automations                                 */
 /* -------------------------------------------------------------------------- */
 
-const jobItems = [
-  { id: "ji-1", description: "Discovery and creative direction", completed: true, price: "$825" },
-  { id: "ji-2", description: "Design production", completed: true, price: "$1,650" },
-  { id: "ji-3", description: "Revision round", completed: false, price: "$450" },
-] as const;
-
-function JobsPreviewMock() {
-  const completedCount = jobItems.filter((i) => i.completed).length;
-
+function AutomationPreviewMock() {
   return (
-    <div className="flex flex-col gap-3">
-      {/* Job header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h3 className="text-sm font-semibold text-foreground">Landing Page Design</h3>
-          <Badge variant="default" className="text-[10px]">In Progress</Badge>
-        </div>
-        <span className="text-xs tabular-nums text-muted-foreground">
-          {completedCount}/{jobItems.length} complete
-        </span>
-      </div>
-
-      {/* Progress bar */}
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/60">
-        <div
-          className="h-full rounded-full bg-primary transition-all"
-          style={{ width: `${Math.round((completedCount / jobItems.length) * 100)}%` }}
+    <div className="relative flex h-full flex-col overflow-hidden">
+      <div className="absolute left-1/2 top-3 z-10 -translate-x-1/2">
+        <WorkflowToolbar
+          onAddNode={() => {}}
+          onSave={() => {}}
+          onValidate={() => {}}
+          onUndo={() => {}}
+          onRedo={() => {}}
+          canUndo={false}
+          canRedo={false}
         />
       </div>
 
-      {/* Work items */}
-      <div className="flex flex-col divide-y divide-border/50">
-        {jobItems.map((item) => (
-          <div key={item.id} className="flex items-center gap-3 py-2.5">
-            <div className={cn(
-              "flex size-4 shrink-0 items-center justify-center rounded-full",
-              item.completed ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : "border border-border text-transparent",
-            )}>
-              {item.completed && <Check className="size-2.5" />}
-            </div>
-            <span className={cn(
-              "flex-1 text-sm",
-              item.completed ? "text-muted-foreground line-through" : "text-foreground",
-            )}>
-              {item.description}
-            </span>
-            <span className="text-xs tabular-nums text-muted-foreground">{item.price}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Invoice CTA */}
-      <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[11px] font-medium text-foreground">Ready to invoice</span>
-          <span className="text-[10px] text-muted-foreground">Quote Q-2011 · $4,275</span>
-        </div>
-        <Button size="sm" className="h-7 text-xs">
-          Generate invoice
-        </Button>
+      <div className="flex-1 overflow-hidden rounded-xl border border-border/75 bg-background/95 shadow-[var(--surface-shadow-sm)]">
+        <ReactFlow
+          nodes={marketingWorkflowNodes}
+          edges={marketingWorkflowEdges}
+          nodeTypes={workflowNodeTypes}
+          edgeTypes={workflowEdgeTypes}
+          fitView
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable={false}
+          zoomOnScroll={false}
+          panOnScroll
+          panOnDrag
+          proOptions={{ hideAttribution: true }}
+          defaultEdgeOptions={{ type: "automation" }}
+        >
+          <Background />
+          <Controls showInteractive={false} />
+        </ReactFlow>
       </div>
     </div>
   );

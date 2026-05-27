@@ -414,11 +414,10 @@ export function MarketingHero() {
       >
         <InViewReveal className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-5 sm:px-6 lg:px-8 xl:px-0">
           <h2 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-5xl">
-            Everything you need between inquiry and quote.
+            Built for the full workflow.
           </h2>
           <p className="text-sm leading-normal sm:leading-8 text-muted-foreground sm:text-lg">
-            Collect the right details, send quotes faster, stay on top of
-            follow-up, and keep your team in sync.
+            From first inquiry to paid invoice. Every step connected.
           </p>
         </InViewReveal>
 
@@ -428,8 +427,6 @@ export function MarketingHero() {
               <MarketingFeatureRow
                 description={item.description}
                 featureId={item.id}
-                previewDescription={item.previewDescription}
-                previewTitle={item.previewTitle}
                 reverse={index % 2 === 1}
                 title={item.title}
               />
