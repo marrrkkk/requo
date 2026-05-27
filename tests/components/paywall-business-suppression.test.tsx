@@ -46,11 +46,11 @@ const BUSINESS_PLAN = "business" as const;
 
 // Test across multiple features to ensure suppression is universal
 const testFeatures: PlanFeature[] = [
-  "analyticsConversion",
   "analyticsWorkflow",
   "members",
-  "aiAssistant",
-  "branding",
+  "exports",
+  "removeWatermark",
+  "workflowBuilder",
 ];
 
 describe("Business plan suppression", () => {
