@@ -35,12 +35,12 @@ type IdempotencyPayload = {
   data?: { id?: unknown } | unknown;
 };
 
-type ResolveUserId<TPayload> = (
+type ResolveBusinessId<TPayload> = (
   payload: TPayload,
 ) => Promise<string | null> | string | null;
 
 type IdempotencyHandler = (
-  userId: string,
+  businessId: string,
   eventId: string,
 ) => Promise<void>;
 
@@ -77,27 +77,27 @@ function deriveStableId(payload: IdempotencyPayload, eventType: string): string 
  *
  * @param payload      The verified Polar webhook payload.
  * @param eventType    The Polar event type string (e.g. `subscription.active`).
- * @param resolveUserId Resolves the Requo `user.id` for this event, or
- *                     `null` when no user can be resolved.
+ * @param resolveBusinessId Resolves the Requo `business.id` for this event, or
+ *                     `null` when no business can be resolved.
  * @param handler      Per-event handler invoked with the resolved
- *                     `userId` and the `billing_events.id` row id.
+ *                     `businessId` and the `billing_events.id` row id.
  */
 export async function withIdempotency<TPayload extends IdempotencyPayload>(
   payload: TPayload,
   eventType: string,
-  resolveUserId: ResolveUserId<TPayload>,
+  resolveBusinessId: ResolveBusinessId<TPayload>,
   handler: IdempotencyHandler,
 ): Promise<void> {
   const stableId = deriveStableId(payload, eventType);
   const providerEventId = `${eventType}:${stableId}`;
 
-  const userId = await resolveUserId(payload);
+  const businessId = await resolveBusinessId(payload);
 
   const recordResult = await recordWebhookEvent({
     providerEventId,
     provider: "polar",
     eventType,
-    userId,
+    businessId,
     payload,
   });
 
@@ -108,13 +108,13 @@ export async function withIdempotency<TPayload extends IdempotencyPayload>(
 
   const eventId = recordResult.eventId;
 
-  if (userId === null) {
-    await markEventFailed(eventId, "User not found");
+  if (businessId === null) {
+    await markEventFailed(eventId, "Business not found");
     return;
   }
 
   try {
-    await handler(userId, eventId);
+    await handler(businessId, eventId);
     await markEventProcessed(eventId);
   } catch (error) {
     const message =

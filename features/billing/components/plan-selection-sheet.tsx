@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUpRight, Check } from "lucide-react";
+import { ArrowUpRight, Check, CreditCard } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -61,7 +61,7 @@ const planCards: PlanCard[] = [
     highlights: [
       "Everything in Pro",
       "Team members & roles (up to 25)",
-      "Unlimited businesses & forms",
+      "Multiple businesses & forms",
       "50 Requo quote sends/day",
       "500 AI generations/month",
       "Highest volume limits",
@@ -75,6 +75,8 @@ type PlanSelectionSheetProps = {
   currentPlan: BusinessPlan;
   targetPlan?: PaidPlan;
   onSelectPlan: (plan: PaidPlan, interval: BillingInterval) => void;
+  businessId?: string;
+  businessSlug?: string;
 };
 
 export function PlanSelectionSheet({
@@ -83,6 +85,8 @@ export function PlanSelectionSheet({
   currentPlan,
   targetPlan,
   onSelectPlan,
+  businessId,
+  businessSlug,
 }: PlanSelectionSheetProps) {
   const [interval, setInterval] = useState<BillingInterval>("monthly");
   const [confirmingPlan, setConfirmingPlan] = useState<PaidPlan | null>(null);
@@ -139,23 +143,36 @@ export function PlanSelectionSheet({
                   </span>
                 </p>
               </div>
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setConfirmingPlan(null)}
-                  type="button"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleConfirmUpgrade}
-                  type="button"
-                >
-                  <ArrowUpRight data-icon="inline-start" />
-                  Confirm upgrade
-                </Button>
+              <div className="flex flex-col items-center gap-3">
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setConfirmingPlan(null)}
+                    type="button"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleConfirmUpgrade}
+                    type="button"
+                  >
+                    <ArrowUpRight data-icon="inline-start" />
+                    Confirm upgrade
+                  </Button>
+                </div>
+                {businessId && (
+                  <a
+                    href={`/api/billing/polar/customer-portal?businessId=${encodeURIComponent(businessId)}${businessSlug ? `&businessSlug=${encodeURIComponent(businessSlug)}` : ""}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <CreditCard className="size-3.5" />
+                    Change payment method
+                  </a>
+                )}
               </div>
             </div>
           ) : (

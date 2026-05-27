@@ -49,9 +49,7 @@ import type { WebhookOrderUpdatedPayload } from "@polar-sh/sdk/models/components
 import type { WebhookOrderRefundedPayload } from "@polar-sh/sdk/models/components/webhookorderrefundedpayload";
 import type { Order } from "@polar-sh/sdk/models/components/order";
 
-import {
-  getAccountSubscription,
-} from "@/lib/billing/subscription-service";
+import { getBusinessSubscription } from "@/lib/billing/subscription-service";
 import {
   markEventFailed,
   markEventIgnored,
@@ -61,7 +59,7 @@ import {
 } from "@/lib/billing/webhook-processor";
 import type { BillingCurrency } from "@/lib/db/schema/subscriptions";
 
-import { resolvePolarUserId, type PolarEventPayload } from "../identity";
+import { resolvePolarBusinessId, type PolarEventPayload } from "../identity";
 
 type OrderPayload =
   | WebhookOrderPaidPayload
@@ -107,13 +105,13 @@ function readPlanFromMetadata(order: Order): string | null {
  */
 async function resolvePlan(
   order: Order,
-  userId: string | null,
+  businessId: string | null,
 ): Promise<string> {
   const fromMetadata = readPlanFromMetadata(order);
   if (fromMetadata) return fromMetadata;
 
-  if (userId) {
-    const subscription = await getAccountSubscription(userId);
+  if (businessId) {
+    const subscription = await getBusinessSubscription(businessId);
     if (subscription?.plan && subscription.plan.length > 0) {
       return subscription.plan;
     }
@@ -135,7 +133,7 @@ function toResolverPayload(payload: OrderPayload): PolarEventPayload {
   const metadata = data.metadata as
     | Record<string, string | number | boolean | undefined>
     | undefined;
-  const metadataUserId = metadata?.userId;
+  const metadataBusinessId = metadata?.businessId;
 
   return {
     type: payload.type,
@@ -147,9 +145,9 @@ function toResolverPayload(payload: OrderPayload): PolarEventPayload {
         external_id: customer.externalId ?? null,
       },
       metadata: {
-        userId:
-          typeof metadataUserId === "string" && metadataUserId.length > 0
-            ? metadataUserId
+        businessId:
+          typeof metadataBusinessId === "string" && metadataBusinessId.length > 0
+            ? metadataBusinessId
             : null,
       },
     },
@@ -181,14 +179,15 @@ function buildProviderEventId(payload: OrderPayload): string {
  */
 async function recordOrderPaymentAttempt(params: {
   order: Order;
-  userId: string | null;
+  businessId: string | null;
   status: "succeeded" | "failed";
 }): Promise<void> {
-  const { order, userId, status } = params;
-  const plan = await resolvePlan(order, userId);
+  const { order, businessId, status } = params;
+  const plan = await resolvePlan(order, businessId);
 
   await recordPaymentAttempt({
-    userId,
+    userId: null,
+    businessId,
     plan,
     provider: "polar",
     providerPaymentId: order.id,
@@ -225,17 +224,18 @@ function isFailedOrderTransition(order: Order): boolean {
  */
 async function processOrderEvent(params: {
   payload: OrderPayload;
-  handler: (userId: string | null, eventId: string) => Promise<void>;
+  handler: (businessId: string | null, eventId: string) => Promise<void>;
 }): Promise<void> {
   const { payload, handler } = params;
   const providerEventId = buildProviderEventId(payload);
-  const userId = await resolvePolarUserId(toResolverPayload(payload));
+  const businessId = await resolvePolarBusinessId(toResolverPayload(payload));
 
   const recordResult = await recordWebhookEvent({
     providerEventId,
     provider: "polar",
     eventType: payload.type,
-    userId,
+    userId: null,
+    businessId,
     payload,
   });
 
@@ -247,7 +247,7 @@ async function processOrderEvent(params: {
   const eventId = recordResult.eventId;
 
   try {
-    await handler(userId, eventId);
+    await handler(businessId, eventId);
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unexpected webhook error.";
@@ -258,10 +258,10 @@ async function processOrderEvent(params: {
     throw error;
   }
 
-  if (userId === null) {
-    // Row inserted (if applicable), but no Requo user could be
-    // resolved. Flag for operator follow-up per Requirement 8.4.
-    await markEventFailed(eventId, "User not found");
+  if (businessId === null) {
+    // Row inserted (if applicable), but no Requo business could be
+    // resolved. Flag for operator follow-up.
+    await markEventFailed(eventId, "Business not found");
     return;
   }
 
@@ -280,10 +280,10 @@ export async function handleOrderPaid(
 ): Promise<void> {
   await processOrderEvent({
     payload,
-    handler: async (userId) => {
+    handler: async (businessId) => {
       await recordOrderPaymentAttempt({
         order: payload.data,
-        userId,
+        businessId,
         status: "succeeded",
       });
     },
@@ -300,13 +300,13 @@ export async function handleOrderUpdated(
 ): Promise<void> {
   await processOrderEvent({
     payload,
-    handler: async (userId) => {
+    handler: async (businessId) => {
       if (!isFailedOrderTransition(payload.data)) {
         return;
       }
       await recordOrderPaymentAttempt({
         order: payload.data,
-        userId,
+        businessId,
         status: "failed",
       });
     },
@@ -323,13 +323,14 @@ export async function handleOrderRefunded(
   payload: WebhookOrderRefundedPayload,
 ): Promise<void> {
   const providerEventId = buildProviderEventId(payload);
-  const userId = await resolvePolarUserId(toResolverPayload(payload));
+  const businessId = await resolvePolarBusinessId(toResolverPayload(payload));
 
   const recordResult = await recordWebhookEvent({
     providerEventId,
     provider: "polar",
     eventType: payload.type,
-    userId,
+    userId: null,
+    businessId,
     payload,
   });
 

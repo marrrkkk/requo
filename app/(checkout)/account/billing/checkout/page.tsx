@@ -2,6 +2,10 @@ import { redirect } from "next/navigation";
 
 import { dashboardPath } from "@/features/businesses/routes";
 import { requireSession } from "@/lib/auth/session";
+import { syncSubscriptionFromPolar } from "@/lib/billing/subscription-service";
+import { requireBusinessContextForUser } from "@/lib/db/business-access";
+import { getBusinessBillingCacheTags } from "@/lib/cache/shell-tags";
+import { updateTag } from "next/cache";
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
 
@@ -32,24 +36,55 @@ function resolveReturnTo(value: string | null): string {
 }
 
 /**
+ * Extracts the business slug from a returnTo path like `/business-slug/settings/billing`.
+ */
+function extractBusinessSlug(returnTo: string): string | null {
+  const match = returnTo.match(/^\/([^/]+)/);
+  return match?.[1] ?? null;
+}
+
+/**
  * Polar hosted-checkout return page.
  *
- * Polar redirects the user here after completing checkout. The webhook
- * is the source of truth for subscription state and handles cache
- * invalidation. This page simply redirects the user to their destination
- * with an upgrade flag so a toast can be shown.
+ * Polar redirects the user here after completing checkout. To avoid
+ * the race between the redirect and webhook delivery, we actively
+ * sync the subscription from Polar before redirecting the user.
  */
 export default async function AccountBillingCheckoutPage({
   searchParams,
 }: CheckoutPageProps) {
-  // Ensure user is authenticated before redirecting.
-  await requireSession();
+  const session = await requireSession();
 
   const resolvedSearchParams = await searchParams;
   const returnTo = resolveReturnTo(readParam(resolvedSearchParams.returnTo));
 
+  // Attempt to sync the subscription from Polar eagerly so the plan
+  // is already up-to-date when the user lands on the dashboard.
+  const businessSlug = extractBusinessSlug(returnTo);
+  let activePlan: string | null = null;
+  try {
+    const businessContext = await requireBusinessContextForUser(
+      session.user.id,
+      businessSlug,
+    );
+    const synced = await syncSubscriptionFromPolar(
+      businessContext.business.id,
+    );
+    if (synced) {
+      for (const tag of getBusinessBillingCacheTags(businessContext.business.id)) {
+        updateTag(tag);
+      }
+    }
+    activePlan = businessContext.business.plan;
+  } catch {
+    // Best-effort — the webhook will handle it if this fails.
+  }
+
   const url = new URL(returnTo, "http://placeholder.local");
   url.searchParams.set("upgrade", "success");
+  if (activePlan && activePlan !== "free") {
+    url.searchParams.set("plan", activePlan);
+  }
 
   redirect(`${url.pathname}${url.search}`);
 }

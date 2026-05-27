@@ -27,6 +27,7 @@ export function CheckoutDialog({
   onOpenChange,
   plan,
   interval = "monthly",
+  businessId,
 }: ControlledCheckoutDialogProps) {
   const [isPending, startTransition] = useTransition();
 
@@ -45,7 +46,7 @@ export function CheckoutDialog({
             disabled={isPending}
             onClick={() => {
               startTransition(async () => {
-                const result = await startPolarCheckout({ plan, interval });
+                const result = await startPolarCheckout({ businessId, plan, interval });
                 if (result.ok) {
                   // Hosted checkout opened in a new tab (or same-tab
                   // fallback). Close the dialog so the user returns to

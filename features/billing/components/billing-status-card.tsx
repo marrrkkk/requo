@@ -252,7 +252,13 @@ export function BillingStatusCard({
               <div className="mt-auto flex flex-col gap-2 pt-2">
                 <Button asChild size="sm" className="w-full">
                   {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- API route redirect, not client navigation */}
-                  <a href="/api/billing/polar/customer-portal" target="_blank" rel="noopener noreferrer">
+                  <a
+                    href={`/api/billing/polar/customer-portal?businessId=${encodeURIComponent(
+                      businessId,
+                    )}&businessSlug=${encodeURIComponent(businessSlug)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <ExternalLink data-icon="inline-start" />
                     Manage billing
                   </a>

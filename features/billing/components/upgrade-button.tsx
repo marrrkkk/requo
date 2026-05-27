@@ -97,6 +97,7 @@ export function UpgradeButton({
 
     startLocalTransition(async () => {
       const result = await startPolarCheckout({
+        businessId,
         plan: selected,
         interval,
         returnTo,
@@ -144,6 +145,8 @@ export function UpgradeButton({
           onSelectPlan={handleSelectLocalPlan}
           open={localOpen}
           targetPlan={localTargetPlan}
+          businessId={businessId}
+          businessSlug={businessSlug}
         />
       ) : null}
     </>

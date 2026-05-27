@@ -23,6 +23,7 @@ import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
  */
 
 export type StartCheckoutParams = {
+  businessId: string;
   plan: PaidPlan;
   interval: BillingInterval;
   /**
@@ -107,6 +108,7 @@ export async function startPolarCheckout(
       },
       credentials: "same-origin",
       body: JSON.stringify({
+        businessId: params.businessId,
         plan: params.plan,
         interval: params.interval,
         ...(params.returnTo ? { returnTo: params.returnTo } : {}),

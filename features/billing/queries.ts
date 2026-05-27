@@ -9,8 +9,8 @@ import { listLockCandidatesForDowngrade } from "@/features/businesses/plan-enfor
 import { businesses } from "@/lib/db/schema/businesses";
 import { paymentAttempts } from "@/lib/db/schema/subscriptions";
 import {
-  getCachedAccountSubscription,
-  getAccountSubscription,
+  getCachedBusinessSubscription,
+  getBusinessSubscription,
   resolveEffectivePlanFromSubscription,
 } from "@/lib/billing/subscription-service";
 import {
@@ -45,7 +45,7 @@ async function getCachedBusinessData(businessId: string) {
 }
 
 function toBillingSubscriptionView(
-  subscription: Awaited<ReturnType<typeof getAccountSubscription>>,
+  subscription: Awaited<ReturnType<typeof getBusinessSubscription>>,
 ): AccountBillingOverview["subscription"] {
   return subscription
     ? {
@@ -89,9 +89,7 @@ export const getBusinessBillingShellOverview = cache(
         return null;
       }
 
-      const subscription = await getCachedAccountSubscription(
-        businessData.ownerUserId,
-      );
+      const subscription = await getCachedBusinessSubscription(businessId);
       const currentPlan = subscription
         ? resolveEffectivePlanFromSubscription(subscription)
         : (businessData.plan as BusinessPlan);
@@ -131,7 +129,7 @@ export async function getAccountBillingOverview(
       return null;
     }
 
-    const subscription = await getAccountSubscription(businessData.ownerUserId);
+    const subscription = await getBusinessSubscription(businessId);
     const downgradePreview = await listLockCandidatesForDowngrade({
       ownerUserId: businessData.ownerUserId,
       targetPlan: "free",
@@ -177,7 +175,7 @@ export const getBusinessBillingOverview = getAccountBillingOverview;
  * Returns payment history for a user account.
  */
 export async function getAccountPaymentHistory(
-  userId: string,
+  businessId: string,
   limit = 10,
 ) {
   return db
@@ -185,7 +183,7 @@ export async function getAccountPaymentHistory(
     .from(paymentAttempts)
     .where(
       and(
-        eq(paymentAttempts.userId, userId),
+        eq(paymentAttempts.businessId, businessId),
         inArray(paymentAttempts.status, ["succeeded", "failed"]),
       ),
     )
@@ -198,16 +196,5 @@ export async function getBusinessPaymentHistory(
   businessId: string,
   limit = 10,
 ) {
-  const rows = await db
-    .select({ ownerUserId: businesses.ownerUserId })
-    .from(businesses)
-    .where(eq(businesses.id, businessId))
-    .limit(1);
-
-  const ownerUserId = rows[0]?.ownerUserId;
-  if (!ownerUserId) {
-    return [];
-  }
-
-  return getAccountPaymentHistory(ownerUserId, limit);
+  return getAccountPaymentHistory(businessId, limit);
 }

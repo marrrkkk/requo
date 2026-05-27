@@ -43,7 +43,7 @@ export default async function BillingSettingsPage() {
     getMonthlyRequoQuoteSendCount(businessId);
   const membersPromise = getBusinessMemberCount(businessId);
   const liveFormsPromise = getBusinessLiveFormsCount(businessId);
-  const paymentHistoryPromise = getAccountPaymentHistory(user.id);
+  const paymentHistoryPromise = getAccountPaymentHistory(businessId);
 
   return (
     <>

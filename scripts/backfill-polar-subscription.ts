@@ -90,7 +90,7 @@ async function main() {
   }
 
   console.log(
-    `Resolved: userId=${externalId}, plan=${mapping.plan}, interval=${mapping.interval}`,
+    `Resolved: businessId=${externalId}, plan=${mapping.plan}, interval=${mapping.interval}`,
   );
   console.log(`         customerId=${String(customerId)}, subId=${subId}`);
   console.log(
@@ -98,7 +98,7 @@ async function main() {
   );
 
   const subscription = await activateSubscription({
-    userId: externalId,
+    businessId: externalId,
     plan: mapping.plan,
     provider: "polar",
     currency: "USD",
@@ -113,7 +113,7 @@ async function main() {
 
   console.log(
     `✓ activated account_subscriptions row id=${subscription.id} ` +
-      `userId=${subscription.userId} plan=${subscription.plan} ` +
+      `businessId=${subscription.businessId} plan=${subscription.plan} ` +
       `status=${subscription.status}`,
   );
 
@@ -125,7 +125,7 @@ async function main() {
       status: "processed",
       processedAt: new Date(),
       errorMessage: null,
-      userId: externalId,
+      businessId: externalId,
     })
     .where(eq(billingEvents.id, event.id));
 

@@ -14,7 +14,6 @@ import {
 } from "@/features/inquiries/form-config";
 import { createInquiryPageConfigDefaults } from "@/features/inquiries/page-config";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
-import { getEffectivePlanForUser } from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import {
@@ -227,7 +226,7 @@ export async function createBusinessForUser({
   plan,
 }: CreateBusinessForUserInput) {
   await ensureProfileForUser(user);
-  const resolvedPlan = plan ?? await getEffectivePlanForUser(user.id);
+  const resolvedPlan = plan ?? ("free" as plan);
 
   return db.transaction(async (tx) =>
     createBusinessRecordForUser({

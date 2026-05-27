@@ -4,8 +4,9 @@ import { NextResponse } from "next/server";
 import { Polar } from "@polar-sh/sdk";
 
 import { requireUser } from "@/lib/auth/session";
-import { getAccountSubscription } from "@/lib/billing/subscription-service";
+import { getBusinessSubscription } from "@/lib/billing/subscription-service";
 import { env, isPolarConfigured } from "@/lib/env";
+import { requireBusinessContextForUser } from "@/lib/db/business-access";
 
 /**
  * Polar Customer Portal route.
@@ -20,7 +21,7 @@ import { env, isPolarConfigured } from "@/lib/env";
  *
  * Usage: GET /api/billing/polar/customer-portal
  */
-export async function GET(): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   if (!isPolarConfigured || !env.POLAR_ACCESS_TOKEN) {
     return NextResponse.json(
       { error: "Billing is not configured." },
@@ -29,7 +30,18 @@ export async function GET(): Promise<Response> {
   }
 
   const user = await requireUser();
-  const subscription = await getAccountSubscription(user.id);
+
+  const url = new URL(request.url);
+  const businessId = url.searchParams.get("businessId");
+  if (!businessId) {
+    return NextResponse.json(
+      { error: "Missing businessId." },
+      { status: 400 },
+    );
+  }
+
+  await requireBusinessContextForUser(user.id, businessId);
+  const subscription = await getBusinessSubscription(businessId);
 
   if (!subscription?.providerCustomerId) {
     return NextResponse.json(
@@ -38,7 +50,9 @@ export async function GET(): Promise<Response> {
     );
   }
 
-  const returnUrl = `${env.NEXT_PUBLIC_APP_URL ?? ""}/account/billing`;
+  const returnUrl = `${env.NEXT_PUBLIC_APP_URL ?? ""}/${encodeURIComponent(
+    url.searchParams.get("businessSlug") ?? "",
+  )}/settings/billing`;
 
   const polar = new Polar({
     accessToken: env.POLAR_ACCESS_TOKEN,

@@ -55,7 +55,12 @@ export function BusinessCheckoutProvider({
         : undefined;
 
       startTransition(async () => {
-        const result = await startPolarCheckout({ plan, interval, returnTo });
+        const result = await startPolarCheckout({
+          businessId: billing.businessId,
+          plan,
+          interval,
+          returnTo,
+        });
         if (result.ok) {
           // Checkout opened in a new tab or redirected in same tab (upgrade).
           return;
@@ -104,6 +109,8 @@ export function BusinessCheckoutProvider({
         }}
         open={isPlanSheetOpen}
         targetPlan={sheetTargetPlan}
+        businessId={billing.businessId}
+        businessSlug={billing.businessSlug}
       />
     </>
   );
