@@ -1,7 +1,9 @@
-import { NextResponse } from "next/server";
+import "server-only";
 
 import { and, eq, gte, lt, sql } from "drizzle-orm";
 
+import { renderAnalyticsDigestEmail } from "@/emails/templates/analytics-digest";
+import { generateWithFallback, isAiConfigured } from "@/lib/ai";
 import { db } from "@/lib/db/client";
 import {
   analyticsDailyRollups,
@@ -9,42 +11,20 @@ import {
   businessMembers,
   user,
 } from "@/lib/db/schema";
-import { hasFeatureAccess } from "@/lib/plans/entitlements";
-import { generateWithFallback, isAiConfigured } from "@/lib/ai";
-import { isEmailConfigured } from "@/lib/env";
 import { sendEmailWithFallback } from "@/lib/email/send-email";
 import { getEmailSender } from "@/lib/email/senders";
-import { renderAnalyticsDigestEmail } from "@/emails/templates/analytics-digest";
+import { isEmailConfigured } from "@/lib/env";
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import type { BusinessPlan } from "@/lib/plans/plans";
 
-const CRON_SECRET = process.env.CRON_SECRET;
-
-/**
- * Cron job: sends weekly analytics digest emails to business owners.
- * Runs every Monday at 9:00 AM UTC via Vercel Cron.
- *
- * For each eligible business (analytics_digest_enabled = true AND plan has
- * analyticsWorkflow entitlement), computes week-over-week metric deltas,
- * generates AI action recommendations, and sends a branded digest email.
- */
-export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-
-  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const result = await sendDigestEmails();
-    return NextResponse.json({ ok: true, ...result });
-  } catch (error) {
-    console.error("[cron/analytics-digest] Failed", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
+export type AnalyticsDigestSummary = {
+  skipped?: boolean;
+  reason?: string;
+  totalEligible?: number;
+  sent?: number;
+  failed?: number;
+  errors?: Array<{ businessId: string; error: string }>;
+};
 
 type WeekMetrics = {
   formViews: number;
@@ -69,8 +49,8 @@ async function getWeekMetrics(
     .where(
       and(
         eq(analyticsDailyRollups.businessId, businessId),
-        gte(analyticsDailyRollups.date, weekStart.toISOString().split("T")[0]),
-        lt(analyticsDailyRollups.date, weekEnd.toISOString().split("T")[0]),
+        gte(analyticsDailyRollups.date, weekStart.toISOString().split("T")[0]!),
+        lt(analyticsDailyRollups.date, weekEnd.toISOString().split("T")[0]!),
       ),
     );
 
@@ -114,16 +94,17 @@ async function generateRecommendations(
       qualityTier: "cheap",
     });
 
-    const lines = response.text
+    return response.text
       .trim()
       .split("\n")
       .map((line) => line.replace(/^[-•*\d.)\s]+/, "").trim())
       .filter((line) => line.length > 0)
       .slice(0, 3);
-
-    return lines;
   } catch (error) {
-    console.warn("[cron/analytics-digest] AI recommendation generation failed:", error);
+    console.warn(
+      "[analytics-digest] AI recommendation generation failed:",
+      error,
+    );
     return [];
   }
 }
@@ -136,12 +117,11 @@ function formatDate(date: Date): string {
   });
 }
 
-async function sendDigestEmails() {
+export async function sendAnalyticsDigestEmails(): Promise<AnalyticsDigestSummary> {
   if (!isEmailConfigured) {
     return { skipped: true, reason: "email_not_configured" };
   }
 
-  // Find eligible businesses: digest enabled + plan has analyticsWorkflow
   const eligibleBusinesses = await db
     .select({
       id: businesses.id,
@@ -157,14 +137,11 @@ async function sendDigestEmails() {
       ),
     );
 
-  // Filter by entitlement (analyticsWorkflow)
-  const entitled = eligibleBusinesses.filter((b) =>
-    hasFeatureAccess(b.plan as BusinessPlan, "analyticsWorkflow"),
+  const entitled = eligibleBusinesses.filter((business) =>
+    hasFeatureAccess(business.plan as BusinessPlan, "analyticsWorkflow"),
   );
 
-  // Compute date ranges: this week (Mon–Sun prior) and prior week
   const now = new Date();
-  // Find last Monday (start of this past week)
   const thisWeekEnd = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
   );
@@ -183,7 +160,6 @@ async function sendDigestEmails() {
 
   for (const business of entitled) {
     try {
-      // Get owner email (first owner member)
       const [ownerMember] = await db
         .select({
           email: user.email,
@@ -203,13 +179,11 @@ async function sendDigestEmails() {
         continue;
       }
 
-      // Compute metrics for both weeks
       const [currentMetrics, priorMetrics] = await Promise.all([
         getWeekMetrics(business.id, thisWeekStart, thisWeekEnd),
         getWeekMetrics(business.id, priorWeekStart, priorWeekEnd),
       ]);
 
-      // Generate AI recommendations
       const recommendations = await generateRecommendations(
         business.name,
         currentMetrics,
@@ -218,23 +192,37 @@ async function sendDigestEmails() {
 
       const dashboardUrl = `${appUrl}/${business.slug}/analytics`;
 
-      // Render email
       const template = renderAnalyticsDigestEmail({
         businessName: business.name,
         weekStartDate: formatDate(thisWeekStart),
-        weekEndDate: formatDate(new Date(thisWeekEnd.getTime() - 86400000)), // End is exclusive, show last day
+        weekEndDate: formatDate(new Date(thisWeekEnd.getTime() - 86400000)),
         metrics: [
-          { label: "Form views", current: currentMetrics.formViews, prior: priorMetrics.formViews },
-          { label: "Inquiries", current: currentMetrics.inquirySubmissions, prior: priorMetrics.inquirySubmissions },
-          { label: "Quotes sent", current: currentMetrics.quotesSent, prior: priorMetrics.quotesSent },
-          { label: "Quotes accepted", current: currentMetrics.quotesAccepted, prior: priorMetrics.quotesAccepted },
+          {
+            label: "Form views",
+            current: currentMetrics.formViews,
+            prior: priorMetrics.formViews,
+          },
+          {
+            label: "Inquiries",
+            current: currentMetrics.inquirySubmissions,
+            prior: priorMetrics.inquirySubmissions,
+          },
+          {
+            label: "Quotes sent",
+            current: currentMetrics.quotesSent,
+            prior: priorMetrics.quotesSent,
+          },
+          {
+            label: "Quotes accepted",
+            current: currentMetrics.quotesAccepted,
+            prior: priorMetrics.quotesAccepted,
+          },
         ],
         recommendations,
         dashboardUrl,
       });
 
-      // Send email
-      const weekKey = thisWeekStart.toISOString().split("T")[0];
+      const weekKey = thisWeekStart.toISOString().split("T")[0]!;
       await sendEmailWithFallback({
         emailType: "notification",
         to: ownerMember.email,
@@ -261,7 +249,7 @@ async function sendDigestEmails() {
       const message = error instanceof Error ? error.message : "Unknown error";
       errors.push({ businessId: business.id, error: message });
       console.error(
-        `[cron/analytics-digest] Failed for business ${business.id}:`,
+        `[analytics-digest] Failed for business ${business.id}:`,
         error,
       );
     }

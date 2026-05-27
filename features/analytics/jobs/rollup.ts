@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
+import "server-only";
 
-import { and, eq, gte, lt, sql, isNull } from "drizzle-orm";
+import { and, eq, gte, isNull, lt, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import {
@@ -11,46 +11,19 @@ import {
   quotes,
 } from "@/lib/db/schema";
 
-const CRON_SECRET = process.env.CRON_SECRET;
-
-/**
- * Cron job: aggregates the prior day's raw analytics events, inquiries,
- * and quotes into the `analytics_daily_rollups` table for efficient trend
- * queries. Processes per-business so one failure doesn't block others.
- *
- * Uses ON CONFLICT (business_id, date) DO UPDATE for idempotence — safe
- * to re-run without creating duplicates.
- *
- * Runs daily via Vercel Cron.
- */
-export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-
-  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const result = await computeDailyRollups();
-    return NextResponse.json({ ok: true, ...result });
-  } catch (error) {
-    console.error("[cron/analytics-rollup] Failed", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
+export type AnalyticsRollupSummary = {
+  date: string;
+  totalBusinesses: number;
+  processed: number;
+  failed: number;
+  errors?: Array<{ businessId: string; error: string }>;
+};
 
 function createId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
 }
 
-/**
- * Determines the prior day (UTC) and aggregates metrics for each business.
- */
-async function computeDailyRollups() {
-  // Prior day in UTC
+export async function computeDailyRollups(): Promise<AnalyticsRollupSummary> {
   const now = new Date();
   const yesterday = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1),
@@ -59,9 +32,8 @@ async function computeDailyRollups() {
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
   );
 
-  const targetDate = yesterday.toISOString().split("T")[0]; // YYYY-MM-DD
+  const targetDate = yesterday.toISOString().split("T")[0]!;
 
-  // Get all active businesses
   const allBusinesses = await db
     .select({ id: businesses.id })
     .from(businesses)
@@ -81,7 +53,7 @@ async function computeDailyRollups() {
         error instanceof Error ? error.message : "Unknown error";
       errors.push({ businessId: business.id, error: message });
       console.error(
-        `[cron/analytics-rollup] Failed for business ${business.id}:`,
+        `[analytics-rollup] Failed for business ${business.id}:`,
         error,
       );
     }
@@ -96,17 +68,12 @@ async function computeDailyRollups() {
   };
 }
 
-/**
- * Aggregates raw events for a single business on the target date and
- * upserts into analytics_daily_rollups.
- */
 async function rollupForBusiness(
   businessId: string,
   targetDate: string,
   dayStart: Date,
   dayEnd: Date,
 ) {
-  // 1. Form views: count deduplicated form view events
   const [formViewsResult] = await db
     .select({
       count: sql<number>`count(*)`.as("count"),
@@ -133,7 +100,6 @@ async function rollupForBusiness(
         .as("deduped_form_views"),
     );
 
-  // 2. Unique visitors: distinct visitor hashes for the day
   const [uniqueVisitorsResult] = await db
     .select({
       count:
@@ -148,7 +114,6 @@ async function rollupForBusiness(
       ),
     );
 
-  // 3. Inquiry submissions: inquiries submitted on this date
   const [inquiryResult] = await db
     .select({
       count: sql<number>`count(*)`.as("count"),
@@ -162,7 +127,6 @@ async function rollupForBusiness(
       ),
     );
 
-  // 4. Quotes sent: quotes whose sentAt is on this date
   const [quotesSentResult] = await db
     .select({
       count: sql<number>`count(*)`.as("count"),
@@ -176,7 +140,6 @@ async function rollupForBusiness(
       ),
     );
 
-  // 5. Quotes accepted on this date
   const [quotesAcceptedResult] = await db
     .select({
       count: sql<number>`count(*)`.as("count"),
@@ -194,7 +157,6 @@ async function rollupForBusiness(
       ),
     );
 
-  // 6. Quotes rejected on this date (customerRespondedAt with rejected status)
   const [quotesRejectedResult] = await db
     .select({
       count: sql<number>`count(*)`.as("count"),
@@ -217,7 +179,6 @@ async function rollupForBusiness(
   const quotesRejected = Number(quotesRejectedResult?.count ?? 0);
   const revenueCents = Number(quotesAcceptedResult?.revenue ?? 0);
 
-  // Upsert: ON CONFLICT (business_id, date) DO UPDATE
   await db
     .insert(analyticsDailyRollups)
     .values({

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import "server-only";
 
 import { and, count, eq, gte, isNotNull, isNull, lt, sql } from "drizzle-orm";
 
@@ -10,67 +10,16 @@ import {
   quotes,
 } from "@/lib/db/schema";
 
-const CRON_SECRET = process.env.CRON_SECRET;
-
-/**
- * Cron job: monthly aggregation of anonymized metrics grouped by industry
- * category and size tier. Computes median values for key metrics and upserts
- * into `analytics_benchmarks`. Only stores benchmarks for groups with ≥ 10
- * businesses to preserve anonymity.
- *
- * Size tiers are determined by monthly inquiry volume:
- * - small: < 50 inquiries/month
- * - medium: 50–200 inquiries/month
- * - large: > 200 inquiries/month
- *
- * Runs monthly via Vercel Cron (1st of each month at 03:00 UTC).
- */
-export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-
-  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const result = await computeBenchmarks();
-    return NextResponse.json({ ok: true, ...result });
-  } catch (error) {
-    console.error("[cron/analytics-benchmarks] Failed", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
-
-function createId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
-}
+export type AnalyticsBenchmarksSummary = {
+  totalBusinesses?: number;
+  groupsProcessed?: number;
+  groupsSkipped?: number;
+  benchmarksUpserted?: number;
+  message?: string;
+  upserted?: number;
+};
 
 type SizeTier = "small" | "medium" | "large";
-
-/**
- * Determines size tier based on average monthly inquiry count.
- */
-function getSizeTier(avgMonthlyInquiries: number): SizeTier {
-  if (avgMonthlyInquiries < 50) return "small";
-  if (avgMonthlyInquiries <= 200) return "medium";
-  return "large";
-}
-
-/**
- * Computes the statistical median from a sorted array of numbers.
- */
-function computeMedian(values: number[]): number {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  if (sorted.length % 2 === 0) {
-    return (sorted[mid - 1] + sorted[mid]) / 2;
-  }
-  return sorted[mid];
-}
 
 type MetricKey = "formConversionRate" | "quoteAcceptanceRate" | "avgResponseHours";
 
@@ -83,14 +32,32 @@ type BusinessMetrics = {
   avgResponseHours: number | null;
 };
 
-async function computeBenchmarks() {
-  // Look at the prior 30 days for metrics
+function createId(prefix: string) {
+  return `${prefix}_${crypto.randomUUID().replace(/-/g, "")}`;
+}
+
+function getSizeTier(avgMonthlyInquiries: number): SizeTier {
+  if (avgMonthlyInquiries < 50) return "small";
+  if (avgMonthlyInquiries <= 200) return "medium";
+  return "large";
+}
+
+function computeMedian(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) {
+    return (sorted[mid - 1]! + sorted[mid]!) / 2;
+  }
+  return sorted[mid]!;
+}
+
+export async function computeAnalyticsBenchmarks(): Promise<AnalyticsBenchmarksSummary> {
   const now = new Date();
   const since = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, now.getUTCDate()),
   );
 
-  // Get all active businesses with an industry category
   const activeBusinesses = await db
     .select({
       id: businesses.id,
@@ -108,7 +75,6 @@ async function computeBenchmarks() {
     return { message: "No businesses with industry category", upserted: 0 };
   }
 
-  // For each business, compute size tier and key metrics
   const businessMetrics: BusinessMetrics[] = [];
 
   for (const biz of activeBusinesses) {
@@ -124,22 +90,20 @@ async function computeBenchmarks() {
       });
     } catch (error) {
       console.error(
-        `[cron/analytics-benchmarks] Failed to compute metrics for business ${biz.id}:`,
+        `[analytics-benchmarks] Failed to compute metrics for business ${biz.id}:`,
         error,
       );
     }
   }
 
-  // Group by (industry_category, size_tier)
   const groups = new Map<string, BusinessMetrics[]>();
-  for (const m of businessMetrics) {
-    const key = `${m.industryCategory}::${m.sizeTier}`;
+  for (const metric of businessMetrics) {
+    const key = `${metric.industryCategory}::${metric.sizeTier}`;
     const group = groups.get(key) ?? [];
-    group.push(m);
+    group.push(metric);
     groups.set(key, group);
   }
 
-  // For each group with ≥ 10 businesses, compute medians and upsert
   let upserted = 0;
   let skipped = 0;
 
@@ -149,8 +113,8 @@ async function computeBenchmarks() {
       continue;
     }
 
-    const industryCategory = members[0].industryCategory;
-    const sizeTier = members[0].sizeTier;
+    const industryCategory = members[0]!.industryCategory;
+    const sizeTier = members[0]!.sizeTier;
 
     const metricKeys: MetricKey[] = [
       "formConversionRate",
@@ -160,8 +124,8 @@ async function computeBenchmarks() {
 
     for (const metricKey of metricKeys) {
       const values = members
-        .map((m) => m[metricKey])
-        .filter((v): v is number => v !== null);
+        .map((member) => member[metricKey])
+        .filter((value): value is number => value !== null);
 
       if (values.length === 0) continue;
 
@@ -203,16 +167,12 @@ async function computeBenchmarks() {
   };
 }
 
-/**
- * Computes key metrics for a single business over the period.
- */
 async function computeBusinessMetrics(
   businessId: string,
   since: Date,
   until: Date,
 ) {
   const [inquiryRows, quoteRows, timingRows] = await Promise.all([
-    // Inquiry count for size tier + form conversion
     db
       .select({
         total: count(),
@@ -225,7 +185,6 @@ async function computeBusinessMetrics(
           lt(inquiries.submittedAt, until),
         ),
       ),
-    // Quotes sent and accepted for acceptance rate
     db
       .select({
         sent: sql<number>`count(*) filter (where ${quotes.sentAt} is not null)`,
@@ -240,7 +199,6 @@ async function computeBusinessMetrics(
           lt(quotes.sentAt, until),
         ),
       ),
-    // Average response time in hours
     db
       .select({
         avgHours: sql<number | null>`avg(extract(epoch from (${quotes.createdAt} - ${inquiries.submittedAt})) / 3600)`,
@@ -260,20 +218,16 @@ async function computeBusinessMetrics(
   const totalInquiries = Number(inquiryRows[0]?.total ?? 0);
   const quotesSent = Number(quoteRows[0]?.sent ?? 0);
   const quotesAccepted = Number(quoteRows[0]?.accepted ?? 0);
-  const avgHours = timingRows[0]?.avgHours != null ? Number(timingRows[0].avgHours) : null;
+  const avgHours =
+    timingRows[0]?.avgHours != null ? Number(timingRows[0].avgHours) : null;
 
-  // Size tier based on monthly inquiry volume
   const sizeTier = getSizeTier(totalInquiries);
 
-  // Form conversion rate: inquiries / unique form views is complex here,
-  // so we use inquiry-to-quote rate as a proxy for benchmarking
-  const formConversionRate = totalInquiries > 0 && quotesSent > 0
-    ? quotesSent / totalInquiries
-    : null;
+  const formConversionRate =
+    totalInquiries > 0 && quotesSent > 0 ? quotesSent / totalInquiries : null;
 
-  const quoteAcceptanceRate = quotesSent > 0
-    ? quotesAccepted / quotesSent
-    : null;
+  const quoteAcceptanceRate =
+    quotesSent > 0 ? quotesAccepted / quotesSent : null;
 
   return {
     sizeTier,

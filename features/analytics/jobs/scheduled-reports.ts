@@ -1,58 +1,36 @@
-import { NextResponse } from "next/server";
+import "server-only";
 
-import { and, eq, isNull, lt, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 
+import { renderAnalyticsScheduledReportEmail } from "@/emails/templates/analytics-scheduled-report";
 import { db } from "@/lib/db/client";
 import {
   analyticsDailyRollups,
   analyticsScheduledReports,
   businesses,
 } from "@/lib/db/schema";
-import { hasFeatureAccess } from "@/lib/plans/entitlements";
-import { isEmailConfigured } from "@/lib/env";
 import { sendEmailWithFallback } from "@/lib/email/send-email";
 import { getEmailSender } from "@/lib/email/senders";
-import { renderAnalyticsScheduledReportEmail } from "@/emails/templates/analytics-scheduled-report";
+import { isEmailConfigured } from "@/lib/env";
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
 import type { BusinessPlan } from "@/lib/plans/plans";
 
-const CRON_SECRET = process.env.CRON_SECRET;
+export type AnalyticsScheduledReportsSummary = {
+  skipped?: boolean;
+  reason?: string;
+  totalEligible?: number;
+  totalDue?: number;
+  sent?: number;
+  failed?: number;
+  errors?: Array<{ reportId: string; error: string }>;
+};
 
-/**
- * Cron job: sends scheduled analytics report emails to configured recipients.
- * Runs hourly via Vercel Cron to check for reports that are due to be sent.
- *
- * For each enabled scheduled report whose schedule period has elapsed since
- * last_sent_at (or never sent), fetches analytics metrics for the corresponding
- * period (daily=24h, weekly=7d, monthly=30d) and sends a summary email to all
- * configured recipient addresses.
- */
-export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-
-  if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const result = await sendScheduledReports();
-    return NextResponse.json({ ok: true, ...result });
-  } catch (error) {
-    console.error("[cron/analytics-scheduled-reports] Failed", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
-
-/** Period durations in milliseconds */
 const SCHEDULE_PERIODS_MS: Record<string, number> = {
   daily: 24 * 60 * 60 * 1000,
   weekly: 7 * 24 * 60 * 60 * 1000,
   monthly: 30 * 24 * 60 * 60 * 1000,
 };
 
-/** Period durations in days for analytics queries */
 const SCHEDULE_PERIOD_DAYS: Record<string, number> = {
   daily: 1,
   weekly: 7,
@@ -65,10 +43,6 @@ const SCHEDULE_LABELS: Record<string, string> = {
   monthly: "Monthly",
 };
 
-/**
- * Determines whether a report is due to be sent based on its schedule
- * and last_sent_at timestamp.
- */
 function isReportDue(
   schedule: string,
   lastSentAt: Date | null,
@@ -77,10 +51,8 @@ function isReportDue(
   const periodMs = SCHEDULE_PERIODS_MS[schedule];
   if (!periodMs) return false;
 
-  // Never sent before — due immediately
   if (!lastSentAt) return true;
 
-  // Due if enough time has passed since last send
   return now.getTime() - lastSentAt.getTime() >= periodMs;
 }
 
@@ -137,14 +109,13 @@ function formatDate(date: Date): string {
   });
 }
 
-async function sendScheduledReports() {
+export async function sendAnalyticsScheduledReports(): Promise<AnalyticsScheduledReportsSummary> {
   if (!isEmailConfigured) {
     return { skipped: true, reason: "email_not_configured" };
   }
 
   const now = new Date();
 
-  // Find all enabled scheduled reports with their business info
   const reports = await db
     .select({
       report: analyticsScheduledReports,
@@ -164,14 +135,12 @@ async function sendScheduledReports() {
       ),
     );
 
-  // Filter by entitlement (analyticsWorkflow)
-  const entitled = reports.filter((r) =>
-    hasFeatureAccess(r.business.plan as BusinessPlan, "analyticsWorkflow"),
+  const entitled = reports.filter((row) =>
+    hasFeatureAccess(row.business.plan as BusinessPlan, "analyticsWorkflow"),
   );
 
-  // Filter to only reports that are due
-  const dueReports = entitled.filter((r) =>
-    isReportDue(r.report.schedule, r.report.lastSentAt, now),
+  const dueReports = entitled.filter((row) =>
+    isReportDue(row.report.schedule, row.report.lastSentAt, now),
   );
 
   let sent = 0;
@@ -191,10 +160,8 @@ async function sendScheduledReports() {
       const periodStart = new Date(periodEnd);
       periodStart.setUTCDate(periodStart.getUTCDate() - periodDays);
 
-      // Fetch analytics metrics for the period
       const metrics = await getPeriodMetrics(business.id, periodStart, periodEnd);
 
-      // Compute derived rates
       const formConversionRate =
         metrics.formViews > 0
           ? metrics.inquirySubmissions / metrics.formViews
@@ -206,12 +173,11 @@ async function sendScheduledReports() {
 
       const dashboardUrl = `${appUrl}/${business.slug}/analytics`;
 
-      // Render email template
       const template = renderAnalyticsScheduledReportEmail({
         businessName: business.name,
         periodLabel,
         periodStart: formatDate(periodStart),
-        periodEnd: formatDate(new Date(periodEnd.getTime() - 86400000)), // End is exclusive
+        periodEnd: formatDate(new Date(periodEnd.getTime() - 86400000)),
         metrics: [
           { label: "Form views", value: metrics.formViews },
           { label: "Unique visitors", value: metrics.uniqueVisitors },
@@ -219,15 +185,22 @@ async function sendScheduledReports() {
           { label: "Quotes sent", value: metrics.quotesSent },
           { label: "Quotes accepted", value: metrics.quotesAccepted },
           { label: "Quotes rejected", value: metrics.quotesRejected },
-          { label: "Form conversion rate", value: formConversionRate, format: "percent" },
-          { label: "Quote acceptance rate", value: quoteAcceptanceRate, format: "percent" },
+          {
+            label: "Form conversion rate",
+            value: formConversionRate,
+            format: "percent",
+          },
+          {
+            label: "Quote acceptance rate",
+            value: quoteAcceptanceRate,
+            format: "percent",
+          },
           { label: "Revenue", value: metrics.revenueCents, format: "currency" },
         ],
         dashboardUrl,
       });
 
-      // Send to all recipients
-      const periodKey = periodStart.toISOString().split("T")[0];
+      const periodKey = periodStart.toISOString().split("T")[0]!;
 
       for (const recipientEmail of report.recipientEmails) {
         await sendEmailWithFallback({
@@ -253,7 +226,6 @@ async function sendScheduledReports() {
         });
       }
 
-      // Update last_sent_at after successful send
       await db
         .update(analyticsScheduledReports)
         .set({ lastSentAt: now, updatedAt: now })
@@ -265,7 +237,7 @@ async function sendScheduledReports() {
       const message = error instanceof Error ? error.message : "Unknown error";
       errors.push({ reportId: report.id, error: message });
       console.error(
-        `[cron/analytics-scheduled-reports] Failed for report ${report.id}:`,
+        `[analytics-scheduled-reports] Failed for report ${report.id}:`,
         error,
       );
     }
