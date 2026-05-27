@@ -16,8 +16,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getAppShellContext } from "@/lib/app-shell/context";
-import { getInvoicesForBusiness } from "@/features/invoices/queries";
-import { InvoicesList } from "@/features/invoices/components/invoices-list";
+import {
+  getInvoiceListCount,
+  getInvoiceListPage,
+} from "@/features/invoices/queries";
+import { InvoiceListResults } from "@/features/invoices/components/invoice-list-results";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
@@ -29,6 +32,35 @@ export const unstable_instant = {
   prefetch: "static",
   unstable_disableValidation: true,
 };
+
+const ITEMS_PER_PAGE = 50;
+const FULL_PAGE_CACHE_MAX_PAGES = 5;
+const FORWARD_PAGE_CACHE_WINDOW = 1;
+const BACKWARD_PAGE_CACHE_WINDOW = 0;
+
+function getCachedPageWindow(currentPage: number, totalPages: number) {
+  if (totalPages <= FULL_PAGE_CACHE_MAX_PAGES) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const pages = new Set<number>([currentPage]);
+
+  for (let offset = 1; offset <= BACKWARD_PAGE_CACHE_WINDOW; offset += 1) {
+    const page = currentPage - offset;
+    if (page >= 1) {
+      pages.add(page);
+    }
+  }
+
+  for (let offset = 1; offset <= FORWARD_PAGE_CACHE_WINDOW; offset += 1) {
+    const page = currentPage + offset;
+    if (page <= totalPages) {
+      pages.add(page);
+    }
+  }
+
+  return Array.from(pages).sort((left, right) => left - right);
+}
 
 export default async function InvoicesPage({
   params,
@@ -53,45 +85,47 @@ export default async function InvoicesPage({
       ? Math.max(1, Number(search.page) || 1)
       : 1,
   };
-
-  return (
-    <Suspense fallback={<InvoicesPageSkeleton />}>
-      <StreamedInvoicesList businessSlug={businessSlug} filters={filters} />
-    </Suspense>
-  );
-}
-
-async function StreamedInvoicesList({
-  businessSlug,
-  filters,
-}: {
-  businessSlug: string;
-  filters: {
-    q: string | undefined;
-    view: "active" | "archived";
-    status: "all";
-    sort: "newest" | "oldest";
-    page: number;
+  const baseFilters = {
+    q: filters.q,
+    view: filters.view,
+    status: filters.status,
+    sort: filters.sort,
   };
-}) {
+
   const { businessContext } = await getAppShellContext(businessSlug);
 
-  const { items, totalCount } = await getInvoicesForBusiness(
+  const countPromise = getInvoiceListCount(
     businessContext.business.id,
-    filters,
+    baseFilters,
   );
+  const pageDataPromise = countPromise.then(async (totalItems) => {
+    const totalPages = Math.max(1, Math.ceil(totalItems / ITEMS_PER_PAGE));
+    const currentPage = Math.min(Math.max(1, filters.page), totalPages);
+    const cachedPageNumbers = totalItems
+      ? getCachedPageWindow(currentPage, totalPages)
+      : [];
+    const cachedPageEntries = await Promise.all(
+      cachedPageNumbers.map(async (page) => [
+        page,
+        await getInvoiceListPage(
+          businessContext.business.id,
+          baseFilters,
+          page,
+          ITEMS_PER_PAGE,
+        ),
+      ] as const),
+    );
+    const cachedPages = Object.fromEntries(cachedPageEntries);
 
-  return (
-    <InvoicesList
-      items={items}
-      totalCount={totalCount}
-      businessSlug={businessSlug}
-      filters={filters}
-    />
-  );
-}
+    return {
+      cachedPages,
+      currentPage,
+      filterKey: JSON.stringify(baseFilters),
+      totalItems,
+      totalPages,
+    };
+  });
 
-function InvoicesPageSkeleton() {
   return (
     <DashboardPage>
       <PageHeader
@@ -99,6 +133,22 @@ function InvoicesPageSkeleton() {
         description="Generate, send, and track payment for completed work."
       />
 
+      <Suspense
+        fallback={<InvoicesPageSkeleton />}
+      >
+        <InvoiceListResults
+          businessSlug={businessSlug}
+          pageData={pageDataPromise}
+          searchParams={search}
+        />
+      </Suspense>
+    </DashboardPage>
+  );
+}
+
+function InvoicesPageSkeleton() {
+  return (
+    <>
       {/* Mobile skeleton */}
       <div className="flex flex-col gap-2 sm:hidden" style={{ minHeight: 320 }}>
         {Array.from({ length: 5 }).map((_, i) => (
@@ -156,6 +206,6 @@ function InvoicesPageSkeleton() {
           </TableBody>
         </Table>
       </DashboardTableContainer>
-    </DashboardPage>
+    </>
   );
 }

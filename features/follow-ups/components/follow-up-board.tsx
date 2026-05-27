@@ -7,7 +7,6 @@ import {
   ArrowRight,
   Calendar,
   CheckCircle2,
-  ChevronDown,
   Clock,
   Mail,
   MessageSquare,
@@ -17,6 +16,7 @@ import {
   SkipForward,
   Sunrise,
 } from "lucide-react";
+import { useProgressiveReveal } from "@/hooks/use-progressive-reveal";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -193,11 +193,12 @@ function FollowUpColumn({
   businessSlug: string;
   onSelect: (followUp: FollowUpView) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const limit = column.collapsedLimit;
-  const isOverLimit = items.length > limit;
-  const visibleItems = expanded ? items : items.slice(0, limit);
-  const hiddenCount = items.length - limit;
+  const { visibleCount, hasMore, sentinelRef } = useProgressiveReveal({
+    total: items.length,
+    initialBatch: column.collapsedLimit,
+    batchSize: 5,
+  });
+  const visibleItems = items.slice(0, visibleCount);
 
   return (
     <div className="flex min-h-48 flex-col gap-3 rounded-xl p-4 bg-muted/50">
@@ -218,19 +219,8 @@ function FollowUpColumn({
             onSelect={onSelect}
           />
         ))}
+        {hasMore ? <div ref={sentinelRef} className="h-1" /> : null}
       </div>
-
-      {isOverLimit && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full text-xs text-muted-foreground"
-          onClick={() => setExpanded(!expanded)}
-        >
-          <ChevronDown className={`size-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
-          {expanded ? "Show less" : `Show ${hiddenCount} more`}
-        </Button>
-      )}
     </div>
   );
 }

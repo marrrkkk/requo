@@ -18,12 +18,12 @@ import { CSS } from "@dnd-kit/utilities";
 import { useState } from "react";
 import {
   CheckCircle2,
-  ChevronDown,
   Circle,
   Clock,
   MoreHorizontal,
   Search,
 } from "lucide-react";
+import { useProgressiveReveal } from "@/hooks/use-progressive-reveal";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -149,7 +149,7 @@ export function JobsBoard({ board: serverBoard, businessSlug }: JobsBoardProps) 
     });
   }
 
-  function handleDragOver(_event: DragOverEvent) {}
+  function handleDragOver(_event: DragOverEvent) { }
 
   return (
     <DashboardPage>
@@ -215,11 +215,12 @@ function JobColumn({
   items: DashboardJobListItem[];
   businessSlug: string;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const limit = column.collapsedLimit;
-  const isOverLimit = items.length > limit;
-  const visibleItems = expanded ? items : items.slice(0, limit);
-  const hiddenCount = items.length - limit;
+  const { visibleCount, hasMore, sentinelRef } = useProgressiveReveal({
+    total: items.length,
+    initialBatch: column.collapsedLimit,
+    batchSize: 5,
+  });
+  const visibleItems = items.slice(0, visibleCount);
 
   const { setNodeRef, isOver } = useSortable({
     id: column.status,
@@ -229,9 +230,8 @@ function JobColumn({
   return (
     <div
       ref={setNodeRef}
-      className={`flex min-h-48 flex-col gap-3 rounded-xl p-4 transition-colors ${
-        isOver ? "bg-accent/60" : "bg-muted/50"
-      }`}
+      className={`flex min-h-48 flex-col gap-3 rounded-xl p-4 transition-colors ${isOver ? "bg-accent/60" : "bg-muted/50"
+        }`}
     >
       <div className="flex items-center gap-2">
         {column.icon}
@@ -250,19 +250,8 @@ function JobColumn({
             currentStatus={column.status}
           />
         ))}
+        {hasMore ? <div ref={sentinelRef} className="h-1" /> : null}
       </div>
-
-      {isOverLimit && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full text-xs text-muted-foreground"
-          onClick={() => setExpanded(!expanded)}
-        >
-          <ChevronDown className={`size-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
-          {expanded ? "Show less" : `Show ${hiddenCount} more`}
-        </Button>
-      )}
     </div>
   );
 }
