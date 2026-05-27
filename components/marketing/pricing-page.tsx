@@ -47,41 +47,26 @@ const pricingCategories: PricingFeatureCategory[] = [
     category: "Core Workflow",
     features: [
       { label: "Inquiry capture", free: true, pro: true, business: true },
-      { label: "Quote creation & sending", free: true, pro: true, business: true },
+      { label: "Quote creation & sending", free: "Unlimited", pro: "Unlimited", business: "Unlimited" },
       { label: "Public inquiry pages", free: true, pro: true, business: true },
       { label: "Public quote pages", free: true, pro: true, business: true },
       { label: "Quote status tracking", free: true, pro: true, business: true },
       { label: "Follow-up reminders", free: "3 active", pro: "Unlimited", business: "Unlimited" },
       { label: "Customer history", free: true, pro: true, business: true },
+      { label: "Push notifications", free: true, pro: true, business: true },
     ],
   },
   {
     category: "Limits",
     features: [
       { label: "Inquiries per month", free: "Unlimited", pro: "Unlimited", business: "Unlimited" },
-      {
-        label: "Quotes per month",
-        free: `${getUsageLimit("free", "quotesPerMonth")}`,
-        pro: "Unlimited",
-        business: "Unlimited",
-      },
-      {
-        label: "AI generations / month",
-        free: `${getUsageLimit("free", "aiLineItemGenerationsPerMonth")}`,
-        pro: `${getUsageLimit("pro", "aiLineItemGenerationsPerMonth")}`,
-        business: `${getUsageLimit("business", "aiLineItemGenerationsPerMonth")}`,
-      },
+      { label: "Quotes per month", free: "Unlimited", pro: "Unlimited", business: "Unlimited" },
+      { label: "AI credits / month", free: "100", pro: "500", business: "2,000" },
       {
         label: "Requo email sends / month",
         free: `${getUsageLimit("free", "requoQuoteEmailsPerMonth")}`,
         pro: `${getUsageLimit("pro", "requoQuoteEmailsPerMonth")}`,
         business: `${getUsageLimit("business", "requoQuoteEmailsPerMonth")}`,
-      },
-      {
-        label: "Businesses",
-        free: `${getUsageLimit("free", "businessesPerPlan")}`,
-        pro: `${getUsageLimit("pro", "businessesPerPlan")}`,
-        business: "Unlimited",
       },
       {
         label: "Live inquiry forms",
@@ -103,9 +88,21 @@ const pricingCategories: PricingFeatureCategory[] = [
       },
       {
         label: "Knowledge items",
-        free: false,
+        free: `${getUsageLimit("free", "memoriesPerBusiness")}`,
         pro: `${getUsageLimit("pro", "memoriesPerBusiness")}`,
         business: `${getUsageLimit("business", "memoriesPerBusiness")}`,
+      },
+      {
+        label: "Pricing library entries",
+        free: `${getUsageLimit("free", "pricingEntriesPerBusiness")}`,
+        pro: `${getUsageLimit("pro", "pricingEntriesPerBusiness")}`,
+        business: "Unlimited",
+      },
+      {
+        label: "Active automations",
+        free: "1",
+        pro: "20",
+        business: "100",
       },
       {
         label: "Team members",
@@ -118,10 +115,10 @@ const pricingCategories: PricingFeatureCategory[] = [
   {
     category: "AI & Productivity",
     features: [
-      { label: planFeatureLabels.aiAssistant, free: false, pro: true, business: true },
-      { label: planFeatureLabels.knowledgeBase, free: false, pro: true, business: true },
+      { label: planFeatureLabels.aiAssistant, free: "100 credits", pro: "500 credits", business: "2,000 credits" },
+      { label: planFeatureLabels.knowledgeBase, free: "5 items", pro: "10 items", business: "50 items" },
+      { label: planFeatureLabels.quoteLibrary, free: "10 entries", pro: "20 entries", business: "Unlimited" },
       { label: planFeatureLabels.emailTemplates, free: false, pro: true, business: true },
-      { label: planFeatureLabels.quoteLibrary, free: false, pro: true, business: true },
       { label: planFeatureLabels.multipleForms, free: false, pro: true, business: true },
       { label: planFeatureLabels.exports, free: false, pro: true, business: true },
     ],
@@ -131,7 +128,15 @@ const pricingCategories: PricingFeatureCategory[] = [
     features: [
       { label: "Logo and business name", free: true, pro: true, business: true },
       { label: planFeatureLabels.inquiryPageCustomization, free: false, pro: true, business: true },
-      { label: planFeatureLabels.branding, free: false, pro: true, business: true },
+      { label: planFeatureLabels.removeWatermark, free: false, pro: true, business: true },
+    ],
+  },
+  {
+    category: "Automation",
+    features: [
+      { label: planFeatureLabels.automations, free: "1 active", pro: "20 active", business: "100 active" },
+      { label: planFeatureLabels.workflowBuilder, free: false, pro: true, business: true },
+      { label: planFeatureLabels.autoFollowUps, free: false, pro: true, business: true },
     ],
   },
   {
@@ -145,7 +150,6 @@ const pricingCategories: PricingFeatureCategory[] = [
   {
     category: "Team & Scale",
     features: [
-      { label: planFeatureLabels.multiBusiness, free: false, pro: true, business: true },
       { label: planFeatureLabels.members, free: false, pro: false, business: true },
       { label: "Audit logs", free: false, pro: false, business: true },
       { label: "Priority support", free: false, pro: false, business: true },
