@@ -288,7 +288,7 @@ export function ChatPageView({
         // unless they have tool calls (steps to show)
         !(m.role === "assistant" && !getMessageText(m) && getMessageSteps(m).length === 0),
     )
-    .map((m) => {
+    .map((m, index, array) => {
       // Get steps from live SDK parts (streaming) or from persisted metadata (refresh)
       let steps: ChatMessageStep[] | undefined;
       if (m.role === "assistant") {
@@ -312,6 +312,10 @@ export function ChatPageView({
         ? stripActionProposals(content)
         : content;
 
+      // Determine if this is the most recent assistant message that just completed
+      const isLastAssistant = m.role === "assistant" && index === array.length - 1;
+      const justCompleted = isLastAssistant && !isStreaming && displayContent.length > 0;
+
       return {
         id: m.id,
         role: m.role as "user" | "assistant",
@@ -321,6 +325,7 @@ export function ChatPageView({
           isStreaming &&
           m === messages[messages.length - 1],
         isError: failedIds.has(m.id),
+        shouldAnimate: justCompleted,
         steps,
         structuredData: m.role === "assistant"
           ? (() => {

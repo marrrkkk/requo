@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import type { UIMessage } from "ai";
 import { Markdown } from "@/components/prompt-kit/markdown";
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer";
+import { StreamingMarkdown } from "@/components/prompt-kit/streaming-text";
 import {
   Steps,
   StepsTrigger,
@@ -37,6 +38,11 @@ export type ChatMessage = {
   steps?: ChatMessageStep[];
   structuredData?: StructuredToolOutput[];
   actionProposals?: AiActionProposal[];
+  /**
+   * If true, animate the text streaming even if it arrived instantly.
+   * Used for the most recent assistant message.
+   */
+  shouldAnimate?: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -45,6 +51,7 @@ export type ChatMessage = {
 
 function ChatMessageBubble({ message }: { message: ChatMessage }) {
   const [copied, setCopied] = useState(false);
+  const [animationComplete, setAnimationComplete] = useState(!message.shouldAnimate);
   const isUser = message.role === "user";
 
   const handleCopy = useCallback(() => {
@@ -82,19 +89,27 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
           <div
             className={cn(
               "ai-prose max-w-none break-words text-foreground",
-              message.pending && "ai-streaming",
+              (message.pending || message.shouldAnimate) && "ai-streaming",
               message.isError &&
                 "rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive not-prose",
             )}
           >
             {message.isError ? (
               message.content
+            ) : message.shouldAnimate && !animationComplete ? (
+              <StreamingMarkdown
+                speed={60}
+                minDuration={400}
+                onComplete={() => setAnimationComplete(true)}
+              >
+                {message.content}
+              </StreamingMarkdown>
             ) : (
               <Markdown>{message.content}</Markdown>
             )}
           </div>
 
-          {!message.pending && message.structuredData && message.structuredData.length > 0 && (
+          {!message.pending && animationComplete && message.structuredData && message.structuredData.length > 0 && (
             <div className="mt-2 space-y-2">
               {message.structuredData.map((data, i) => (
                 <StructuredDataCard key={i} output={data} />
@@ -102,7 +117,7 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
             </div>
           )}
 
-          {!message.pending && message.actionProposals && message.actionProposals.length > 0 && (
+          {!message.pending && animationComplete && message.actionProposals && message.actionProposals.length > 0 && (
             <div className="mt-2 space-y-2">
               {message.actionProposals.map((proposal, i) => (
                 <AiActionButton key={i} proposal={proposal} />
@@ -110,7 +125,7 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
             </div>
           )}
 
-          {!message.pending && message.content && !message.isError && (
+          {!message.pending && animationComplete && message.content && !message.isError && (
             <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover/message:opacity-100">
               <Button
                 variant="ghost"

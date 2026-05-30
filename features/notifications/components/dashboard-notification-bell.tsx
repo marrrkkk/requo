@@ -19,6 +19,11 @@ import { useProgressRouter } from "@/hooks/use-progress-router";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Empty,
   EmptyDescription,
   EmptyHeader,
@@ -674,12 +679,16 @@ export function DashboardNotificationBell({
                       >
                         {item.title}
                       </p>
-                      <span
-                        className="shrink-0 text-[0.72rem] font-medium text-muted-foreground"
-                        title={formatNotificationDateTime(item.createdAt)}
-                      >
-                        {formatRelativeNotificationTime(item.createdAt)}
-                      </span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span
+                            className="shrink-0 text-[0.72rem] font-medium text-muted-foreground"
+                          >
+                            {formatRelativeNotificationTime(item.createdAt)}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>{formatNotificationDateTime(item.createdAt)}</TooltipContent>
+                      </Tooltip>
                     </div>
                     <p className="mt-1 break-words text-sm leading-5 text-muted-foreground">
                       {item.summary}

@@ -14,6 +14,12 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import { ContextTab } from "./tabs/context-tab";
 import { SettingsTab } from "./tabs/settings-tab";
@@ -166,17 +172,25 @@ export function DevToolsPanel() {
 
   if (!open) {
     return (
-      <button
-        onClick={() => setOpen(true)}
-        className={`fixed ${positionClass} z-[9999] flex size-10 items-center justify-center rounded-full border border-border/60 bg-background/95 text-muted-foreground shadow-lg backdrop-blur-sm transition-all hover:border-primary/50 hover:text-primary hover:shadow-xl`}
-        title="Open Dev Tools"
-      >
-        <Bug className="size-4" />
-      </button>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => setOpen(true)}
+              className={`fixed ${positionClass} z-[9999] flex size-10 items-center justify-center rounded-full border border-border/60 bg-background/95 text-muted-foreground shadow-lg backdrop-blur-sm transition-all hover:border-primary/50 hover:text-primary hover:shadow-xl`}
+            >
+              <Bug className="size-4" />
+              <span className="sr-only">Open Dev Tools</span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Open Dev Tools</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 
   return (
+    <TooltipProvider>
     <div
       className={`fixed ${positionClass} z-[9999] w-80 overflow-hidden rounded-xl border border-border/60 bg-background/95 shadow-2xl backdrop-blur-sm`}
     >
@@ -192,26 +206,36 @@ export function DevToolsPanel() {
           </Badge>
         </div>
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={() => setMinimized(!minimized)}
-            title={minimized ? "Expand" : "Minimize"}
-          >
-            {minimized ? (
-              <ChevronUp className="size-3" />
-            ) : (
-              <ChevronDown className="size-3" />
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={() => setOpen(false)}
-            title="Close"
-          >
-            <X className="size-3" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => setMinimized(!minimized)}
+              >
+                {minimized ? (
+                  <ChevronUp className="size-3" />
+                ) : (
+                  <ChevronDown className="size-3" />
+                )}
+                <span className="sr-only">{minimized ? "Expand" : "Minimize"}</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{minimized ? "Expand" : "Minimize"}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => setOpen(false)}
+              >
+                <X className="size-3" />
+                <span className="sr-only">Close</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Close</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
@@ -271,5 +295,6 @@ export function DevToolsPanel() {
         </>
       )}
     </div>
+    </TooltipProvider>
   );
 }

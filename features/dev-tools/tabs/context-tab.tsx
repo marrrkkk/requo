@@ -9,6 +9,11 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import { PLANS, type UserContext } from "./types";
 
@@ -59,14 +64,19 @@ export function ContextTab({
             <User className="size-3" />
             User
           </div>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={() => onCopy(context.user?.id ?? "", "user ID")}
-            title="Copy user ID"
-          >
-            <Copy className="size-2.5" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => onCopy(context.user?.id ?? "", "user ID")}
+              >
+                <Copy className="size-2.5" />
+                <span className="sr-only">Copy user ID</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Copy user ID</TooltipContent>
+          </Tooltip>
         </div>
         <div className="rounded-md bg-muted/40 px-2.5 py-1.5 text-xs">
           <div className="font-medium">{context.user?.name}</div>
