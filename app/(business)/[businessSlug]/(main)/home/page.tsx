@@ -147,18 +147,6 @@ async function NeedsAttentionContent({
       iconName: "bell-ring" as NeedsAttentionIconName,
       category: "Follow-up" as const,
     })),
-    ...overview.overdueInquiries.map((inquiry) => ({
-      href: getBusinessInquiryPath(businessSlug, inquiry.id),
-      key: `overdue-inquiry:${inquiry.id}`,
-      label: "Overdue inquiry",
-      title: inquiry.customerName,
-      description: inquiry.serviceCategory,
-      meta: `Submitted ${formatQuoteDate(inquiry.submittedAt)}`,
-      actionLabel: "Create quote",
-      tone: "urgent" as const,
-      iconName: "inbox" as NeedsAttentionIconName,
-      category: "Inquiry" as const,
-    })),
     ...overview.expiringSoonQuotes.map((quote) => ({
       href: getBusinessQuotePath(businessSlug, quote.id),
       key: `expiring-quote:${quote.id}`,
@@ -170,6 +158,30 @@ async function NeedsAttentionContent({
       tone: "urgent" as const,
       iconName: "file-text" as NeedsAttentionIconName,
       category: "Quote" as const,
+    })),
+    ...overview.recentAcceptedQuotes.map((quote) => ({
+      href: getBusinessQuotePath(businessSlug, quote.id),
+      key: `accepted-quote:${quote.id}`,
+      label: "Accepted",
+      title: quote.title,
+      description: quote.customerName,
+      meta: `Accepted ${formatQuoteDate(quote.acceptedAt ?? quote.updatedAt)}`,
+      actionLabel: "Create job or invoice",
+      tone: "positive" as const,
+      iconName: "check-circle" as NeedsAttentionIconName,
+      category: "Quote" as const,
+    })),
+    ...overview.overdueInquiries.map((inquiry) => ({
+      href: getBusinessInquiryPath(businessSlug, inquiry.id),
+      key: `overdue-inquiry:${inquiry.id}`,
+      label: "Overdue inquiry",
+      title: inquiry.customerName,
+      description: inquiry.serviceCategory,
+      meta: `Submitted ${formatQuoteDate(inquiry.submittedAt)}`,
+      actionLabel: "Create quote",
+      tone: "urgent" as const,
+      iconName: "inbox" as NeedsAttentionIconName,
+      category: "Inquiry" as const,
     })),
     ...overview.newInquiries.map((inquiry) => ({
       href: getBusinessInquiryPath(businessSlug, inquiry.id),
@@ -183,30 +195,23 @@ async function NeedsAttentionContent({
       iconName: "inbox" as NeedsAttentionIconName,
       category: "Inquiry" as const,
     })),
-    ...overview.recentAcceptedQuotes.map((quote) => ({
-      href: getBusinessQuotePath(businessSlug, quote.id),
-      key: `accepted-quote:${quote.id}`,
-      label: "Accepted",
-      title: quote.title,
-      description: quote.customerName,
-      meta: `Accepted ${formatQuoteDate(quote.acceptedAt ?? quote.updatedAt)}`,
-      actionLabel: "Track next work step",
-      tone: "positive" as const,
-      iconName: "check-circle" as NeedsAttentionIconName,
-      category: "Quote" as const,
-    })),
   ];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* Minimal header */}
       <div className="flex shrink-0 items-center justify-between pb-3">
-        <h2 className="text-sm font-semibold text-foreground">
-          Needs attention
-        </h2>
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold text-foreground">
+            Priority queue
+          </h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Follow up, win work, then move accepted quotes into jobs or invoices.
+          </p>
+        </div>
         {items.length > 0 && (
           <Badge variant="secondary" className="text-xs">
-            {items.length} open
+            {items.length} next steps
           </Badge>
         )}
       </div>

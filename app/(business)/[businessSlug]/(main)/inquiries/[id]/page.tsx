@@ -19,7 +19,6 @@ import {
   DashboardDetailFeedItem,
   DashboardDetailHeader,
   DashboardEmptyState,
-  DashboardMetaPill,
   DashboardPage,
   DashboardSection,
   DashboardSidebarStack,
@@ -60,6 +59,7 @@ import {
 import { CopyEmailButton } from "@/features/inquiries/components/copy-email-button";
 import { InquiryDuplicateBanner } from "@/features/inquiries/components/inquiry-duplicate-banner";
 import { InquiryNoteForm } from "@/features/inquiries/components/inquiry-note-form";
+import { InquiryQuoteActions } from "@/features/inquiries/components/inquiry-quote-actions";
 import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
 import { InquiryExportPopover } from "@/features/inquiries/components/inquiry-export-popover";
 import { InquiryManageDropdown } from "@/features/inquiries/components/inquiry-manage-dropdown";
@@ -80,6 +80,8 @@ import {
 import type { DuplicateFlag } from "@/features/inquiries/qualification/types";
 import { dismissDuplicateWarningAction } from "@/features/inquiries/qualification/actions";
 import { formatQuoteMoney } from "@/features/quotes/utils";
+import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
+import type { QuoteStatus } from "@/features/quotes/types";
 import {
   getBusinessInquiriesPath,
   getBusinessInquiryExportPath,
@@ -173,7 +175,7 @@ async function InquiryDetailContent({
         customerEmail: inquiry.customerEmail,
         customerContactHandle: inquiry.customerContactHandle,
         excludeInquiryId: inquiry.id,
-        excludeQuoteId: inquiry.relatedQuote?.id ?? null,
+        excludeQuoteId: inquiry.relatedQuotes?.latest.id ?? null,
       })
     : Promise.resolve(null);
 
@@ -251,7 +253,15 @@ async function InquiryDetailContent({
                 "png",
               )}
             />
-            {canGenerateQuote ? (
+            {inquiry.relatedQuotes ? (
+              <InquiryQuoteActions
+                businessSlug={businessSlug}
+                relatedQuotes={inquiry.relatedQuotes}
+                canGenerateQuote={canGenerateQuote}
+                inquiryId={inquiry.id}
+                currency={businessContext.business.defaultCurrency}
+              />
+            ) : canGenerateQuote ? (
               <Button asChild>
                 <Link href={getBusinessNewQuotePath(businessSlug, inquiry.id)}>
                   <ReceiptText data-icon="inline-start" />
@@ -569,69 +579,51 @@ async function InquiryDetailContent({
 
           <DashboardSection
             contentClassName="flex flex-col gap-4"
-            description="Open the linked quote or create one."
+            description="Quotes linked to this inquiry."
             footer={
-              <>
-                {inquiry.relatedQuote ? (
-                  <Button asChild variant="outline">
-                    <Link
-                      href={getBusinessQuotePath(
-                        businessSlug,
-                        inquiry.relatedQuote.id,
-                      )}
-                    >
-                      View quote
-                    </Link>
-                  </Button>
-                ) : null}
-                {!inquiry.relatedQuote && canGenerateQuote ? (
-                  <Button asChild>
-                    <Link
-                      href={getBusinessNewQuotePath(businessSlug, inquiry.id)}
-                    >
-                      <ReceiptText data-icon="inline-start" />
-                      Generate quote
-                    </Link>
-                  </Button>
-                ) : null}
-              </>
+              canGenerateQuote ? (
+                <Button asChild variant="outline">
+                  <Link
+                    href={getBusinessNewQuotePath(businessSlug, inquiry.id)}
+                  >
+                    <ReceiptText data-icon="inline-start" />
+                    Create new quote
+                  </Link>
+                </Button>
+              ) : null
             }
-            title="Related quote"
+            title={inquiry.relatedQuotes ? `Related quotes (${inquiry.relatedQuotes.count})` : "Related quotes"}
           >
-            {inquiry.relatedQuote ? (
-              <div className="flex flex-col gap-4">
-                <div className="dashboard-detail-header-meta">
-                  <DashboardMetaPill className="text-foreground">
-                    {inquiry.relatedQuote.quoteNumber ?? inquiry.relatedQuote.id}
-                  </DashboardMetaPill>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <InfoTile
-                    label="Total"
-                    value={formatQuoteMoney(
-                      inquiry.relatedQuote.totalInCents,
-                      businessContext.business.defaultCurrency,
-                    )}
-                  />
-                  <InfoTile
-                    label="Created"
-                    value={formatInquiryDate(inquiry.relatedQuote.createdAt)}
-                  />
-                  <InfoTile
-                    label="Quotes from inquiry"
-                    value={`${inquiry.relatedQuote.quoteCount}`}
-                  />
-                  <InfoTile
-                    label="Status"
-                    value={inquiry.relatedQuote.status.charAt(0).toUpperCase() + inquiry.relatedQuote.status.slice(1)}
-                  />
-                </div>
+            {inquiry.relatedQuotes ? (
+              <div className="flex flex-col gap-3">
+                {inquiry.relatedQuotes.all.map((quote) => (
+                  <Link
+                    key={quote.id}
+                    href={getBusinessQuotePath(businessSlug, quote.id)}
+                    className="soft-panel flex items-center justify-between gap-3 px-4 py-3 shadow-none transition-colors hover:bg-accent/50"
+                  >
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-sm font-medium text-foreground truncate">
+                        {quote.quoteNumber ?? quote.id}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatQuoteMoney(
+                          quote.totalInCents,
+                          businessContext.business.defaultCurrency,
+                        )}
+                        {" · "}
+                        {formatInquiryDate(quote.createdAt)}
+                      </span>
+                    </div>
+                    <QuoteStatusBadge status={quote.status as QuoteStatus} />
+                  </Link>
+                ))}
               </div>
             ) : (
               <DashboardEmptyState
                 description="Create a quote from this inquiry."
                 icon={ReceiptText}
-                title="No related quote yet"
+                title="No related quotes yet"
                 variant="section"
               />
             )}

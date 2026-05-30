@@ -5,6 +5,7 @@ import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { createQuoteAction } from "@/features/quotes/actions";
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";
+import { NewQuoteWithTemplatePicker } from "@/features/quotes/components/new-quote-with-template-picker";
 import { getQuoteLibraryForBusiness } from "@/features/quotes/quote-library-queries";
 import { getInquiryQuotePrefillForBusiness } from "@/features/quotes/queries";
 import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
@@ -113,6 +114,14 @@ export default async function NewQuotePage({
         }
     : null;
   const action = createQuoteAction.bind(null, inquiryPrefill?.id ?? null);
+  const canUseLibrary = hasFeatureAccess(
+    businessContext.business.plan,
+    "quoteLibrary",
+  );
+  const templates = canUseLibrary
+    ? pricingLibrary.filter((e) => e.kind === "template")
+    : [];
+  const showTemplatePicker = !linkedInquiry && templates.length > 0;
 
   return (
     <DashboardPage>
@@ -125,26 +134,54 @@ export default async function NewQuotePage({
         }
       />
 
-      <QuoteEditor
-        action={action}
-        businessName={businessContext.business.name}
-        businessSlug={businessContext.business.slug}
-        canUseAiGenerator={hasFeatureAccess(
-          businessContext.business.plan,
-          "aiAssistant",
-        )}
-        canUseQuoteLibrary={hasFeatureAccess(
-          businessContext.business.plan,
-          "quoteLibrary",
-        )}
-        currency={businessContext.business.defaultCurrency}
-        initialValues={initialValues}
-        key={inquiryPrefill?.id ?? "manual"}
-        linkedInquiry={linkedInquiry}
-        pricingLibrary={pricingLibrary}
-        submitLabel="Create draft quote"
-        submitPendingLabel="Creating draft..."
-      />
+      {showTemplatePicker ? (
+        <NewQuoteWithTemplatePicker
+          action={action}
+          baseInitialValues={initialValues}
+          businessDefaults={{
+            defaultQuoteNotes: businessSettings.defaultQuoteNotes,
+            defaultQuoteTerms: businessSettings.defaultQuoteTerms,
+            defaultQuoteValidityDays: businessSettings.defaultQuoteValidityDays,
+          }}
+          businessName={businessContext.business.name}
+          businessSlug={businessContext.business.slug}
+          canUseAiGenerator={hasFeatureAccess(
+            businessContext.business.plan,
+            "aiAssistant",
+          )}
+          canUseQuoteLibrary={canUseLibrary}
+          currency={businessContext.business.defaultCurrency}
+          key="with-picker"
+          linkedInquiry={null}
+          pricingLibrary={pricingLibrary}
+          submitLabel="Create draft quote"
+          submitPendingLabel="Creating draft..."
+          templates={templates}
+        />
+      ) : (
+        <QuoteEditor
+          action={action}
+          businessDefaults={{
+            defaultQuoteNotes: businessSettings.defaultQuoteNotes,
+            defaultQuoteTerms: businessSettings.defaultQuoteTerms,
+            defaultQuoteValidityDays: businessSettings.defaultQuoteValidityDays,
+          }}
+          businessName={businessContext.business.name}
+          businessSlug={businessContext.business.slug}
+          canUseAiGenerator={hasFeatureAccess(
+            businessContext.business.plan,
+            "aiAssistant",
+          )}
+          canUseQuoteLibrary={canUseLibrary}
+          currency={businessContext.business.defaultCurrency}
+          initialValues={initialValues}
+          key={inquiryPrefill?.id ?? "manual"}
+          linkedInquiry={linkedInquiry}
+          pricingLibrary={pricingLibrary}
+          submitLabel="Create draft quote"
+          submitPendingLabel="Creating draft..."
+        />
+      )}
     </DashboardPage>
   );
 }

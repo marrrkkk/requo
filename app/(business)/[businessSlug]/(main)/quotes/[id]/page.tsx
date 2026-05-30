@@ -56,7 +56,9 @@ import { QuoteWorkflowSteps } from "@/features/businesses/components/workflow-st
 import { QuoteEditor } from "@/features/quotes/components/quote-editor";
 import { QuoteExportPopover } from "@/features/quotes/components/quote-export-popover";
 import { QuoteManageDropdown } from "@/features/quotes/components/quote-manage-dropdown";
+import { QuotePreviewButton } from "@/features/quotes/components/quote-preview-button";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
+import { saveQuoteAsTemplateAction } from "@/features/quotes/quote-library-actions";
 import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
 import { QuotePostWinCard } from "@/features/quotes/components/quote-post-win-card";
 import { QuotePostAcceptanceActions } from "@/features/quotes/components/quote-post-acceptance-actions";
@@ -72,10 +74,11 @@ import { AutoFollowUpStatus } from "@/features/quotes/components/auto-follow-up-
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
 import { getFollowUpsForQuote } from "@/features/follow-ups/queries";
 import { getQuoteLibraryForBusiness } from "@/features/quotes/quote-library-queries";
-import { getQuoteDetailForBusiness, getRevisionRequestsForQuote } from "@/features/quotes/queries";
-import { hasJobForQuote } from "@/features/jobs/queries-light";
+import { getBusinessContactEmailForPreview, getQuoteDetailForBusiness, getRevisionRequestsForQuote } from "@/features/quotes/queries";
+import { getJobForQuote } from "@/features/jobs/queries-light";
 import { getInvoiceIdForQuote } from "@/features/invoices/queries-light";
 import { quoteRouteParamsSchema } from "@/features/quotes/schemas";
+import { getBusinessSettingsForBusiness } from "@/features/settings/queries";
 import type { DashboardQuoteActivity } from "@/features/quotes/types";
 import {
   formatQuoteDate,
@@ -87,6 +90,7 @@ import {
   getBusinessInquiryPath,
   getBusinessQuoteExportPath,
   getBusinessQuotePath,
+  getBusinessQuotePreviewPath,
   getBusinessQuotesPath,
 } from "@/features/businesses/routes";
 import { env, isEmailConfigured } from "@/lib/env";
@@ -137,12 +141,14 @@ async function QuoteDetailContent({
     businessId: businessContext.business.id,
     quoteId: parsedParams.data.id,
   });
-  const [quote, pricingLibrary] = await Promise.all([
+  const [quote, pricingLibrary, businessSettings, businessContactEmail] = await Promise.all([
     getQuoteDetailForBusiness({
       businessId: businessContext.business.id,
       quoteId: parsedParams.data.id,
     }),
     getQuoteLibraryForBusiness(businessContext.business.id),
+    getBusinessSettingsForBusiness(businessContext.business.id),
+    getBusinessContactEmailForPreview(businessContext.business.id),
   ]);
 
   if (!quote) {
@@ -154,9 +160,9 @@ async function QuoteDetailContent({
     : [];
 
   // For accepted quotes, check if a job/invoice already exists
-  const [quoteHasJob, quoteInvoiceId] = quote.status === "accepted"
-    ? await Promise.all([hasJobForQuote(quote.id), getInvoiceIdForQuote(quote.id)])
-    : [false, null];
+  const [quoteJob, quoteInvoiceId] = quote.status === "accepted"
+    ? await Promise.all([getJobForQuote(quote.id), getInvoiceIdForQuote(quote.id)])
+    : [null, null];
 
   const updateAction = updateQuoteAction.bind(null, quote.id);
   const archiveAction = archiveQuoteAction.bind(null, quote.id);
@@ -169,6 +175,11 @@ async function QuoteDetailContent({
   const createFollowUpAction = createQuoteFollowUpAction.bind(null, quote.id);
   const voidAction = voidQuoteAction.bind(null, quote.id);
   const stopAutoFollowUp = stopAutoFollowUpAction.bind(null, quote.id);
+  const saveAsTemplate = saveQuoteAsTemplateAction.bind(null, quote.id);
+  const canSaveAsTemplate = hasFeatureAccess(
+    businessContext.business.plan,
+    "quoteLibrary",
+  );
   const customerQuotePath = quote.publicToken
     ? getPublicQuoteUrl(quote.publicToken)
     : null;
@@ -333,6 +344,7 @@ async function QuoteDetailContent({
               deleteDraftAction={deleteDraftAction}
               isArchived={isArchived}
               restoreArchivedAction={restoreArchivedAction}
+              saveAsTemplateAction={canSaveAsTemplate ? saveAsTemplate : undefined}
               status={quote.status}
               voidAction={voidAction}
             />
@@ -340,6 +352,46 @@ async function QuoteDetailContent({
               canExport={canExportData}
               pdfHref={getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")}
               pngHref={getBusinessQuoteExportPath(businessSlug, quote.id, "png")}
+            />
+            <QuotePreviewButton
+              quote={{
+                id: quote.id,
+                businessId: businessContext.business.id,
+                token: quote.publicToken ?? "",
+                quoteNumber: quote.quoteNumber,
+                title: quote.title,
+                businessName: businessContext.business.name,
+                businessSlug,
+                businessPlan: businessContext.business.plan,
+                businessShortDescription: null,
+                businessContactEmail,
+                businessLogoStoragePath: businessContext.business.logoStoragePath,
+                customerName: quote.customerName,
+                customerEmail: quote.customerEmail,
+                customerContactMethod: quote.customerContactMethod,
+                customerContactHandle: quote.customerContactHandle,
+                currency: quote.currency,
+                notes: quote.notes,
+                terms: quote.terms,
+                validUntil: quote.validUntil,
+                version: quote.version,
+                status: quote.status,
+                subtotalInCents: quote.subtotalInCents,
+                discountInCents: quote.discountInCents,
+                taxInCents: quote.taxInCents,
+                taxLabel: quote.taxLabel,
+                totalInCents: quote.totalInCents,
+                sentAt: quote.sentAt,
+                acceptedAt: quote.acceptedAt,
+                publicViewedAt: quote.publicViewedAt,
+                customerRespondedAt: quote.customerRespondedAt,
+                customerResponseMessage: quote.customerResponseMessage,
+                items: quote.items,
+              }}
+              businessPlan={businessContext.business.plan}
+              businessContactEmail={businessContactEmail}
+              businessName={businessContext.business.name}
+              openQuoteHref={customerQuoteUrl}
             />
             {quote.status === "draft" ? (
               <SendQuoteDialog
@@ -362,6 +414,28 @@ async function QuoteDetailContent({
                 pdfExportLocked={!canExportData}
                 canAutoFollowUp={hasFeatureAccess(businessContext.business.plan, "autoFollowUps")}
                 unpricedItemCount={unpricedItemCount}
+                previewHref={getBusinessQuotePreviewPath(businessSlug, quote.id)}
+                previewData={{
+                  businessName: businessContext.business.name,
+                  businessLogoStoragePath: businessContext.business.logoStoragePath,
+                  businessSlug,
+                  quoteNumber: quote.quoteNumber,
+                  title: quote.title,
+                  customerName: quote.customerName,
+                  customerEmail: quote.customerEmail,
+                  currency: quote.currency,
+                  validUntil: quote.validUntil,
+                  notes: quote.notes,
+                  terms: quote.terms,
+                  items: quote.items,
+                  subtotalInCents: quote.subtotalInCents,
+                  discountInCents: quote.discountInCents,
+                  taxInCents: quote.taxInCents,
+                  taxLabel: quote.taxLabel,
+                  totalInCents: quote.totalInCents,
+                  version: quote.version,
+                  showWatermark: !hasFeatureAccess(businessContext.business.plan, "removeWatermark"),
+                }}
               />
             ) : null}
           </div>
@@ -387,6 +461,11 @@ async function QuoteDetailContent({
 
           <QuoteEditor
             action={updateAction}
+            businessDefaults={businessSettings ? {
+              defaultQuoteNotes: businessSettings.defaultQuoteNotes,
+              defaultQuoteTerms: businessSettings.defaultQuoteTerms,
+              defaultQuoteValidityDays: businessSettings.defaultQuoteValidityDays,
+            } : undefined}
             businessName={businessContext.business.name}
             businessSlug={businessSlug}
             canUseAiGenerator={hasFeatureAccess(
@@ -443,6 +522,28 @@ async function QuoteDetailContent({
                     pdfExportLocked={!canExportData}
                     canAutoFollowUp={hasFeatureAccess(businessContext.business.plan, "autoFollowUps")}
                     unpricedItemCount={unpricedItemCount}
+                    previewHref={getBusinessQuotePreviewPath(businessSlug, quote.id)}
+                    previewData={{
+                      businessName: businessContext.business.name,
+                      businessLogoStoragePath: businessContext.business.logoStoragePath,
+                      businessSlug,
+                      quoteNumber: quote.quoteNumber,
+                      title: quote.title,
+                      customerName: quote.customerName,
+                      customerEmail: quote.customerEmail,
+                      currency: quote.currency,
+                      validUntil: quote.validUntil,
+                      notes: quote.notes,
+                      terms: quote.terms,
+                      items: quote.items,
+                      subtotalInCents: quote.subtotalInCents,
+                      discountInCents: quote.discountInCents,
+                      taxInCents: quote.taxInCents,
+                      taxLabel: quote.taxLabel,
+                      totalInCents: quote.totalInCents,
+                      version: quote.version,
+                      showWatermark: !hasFeatureAccess(businessContext.business.plan, "removeWatermark"),
+                    }}
                   />
                 </DashboardSection>
               </div>
@@ -545,7 +646,8 @@ async function QuoteDetailContent({
                   <QuotePostAcceptanceActions
                     quoteId={quote.id}
                     businessSlug={businessSlug}
-                    hasJob={quoteHasJob}
+                    existingJobId={quoteJob?.id ?? null}
+                    existingJobStatus={quoteJob?.status ?? null}
                     existingInvoiceId={quoteInvoiceId}
                     postAcceptanceStatus={quote.postAcceptanceStatus}
                     completeAction={completeAction}

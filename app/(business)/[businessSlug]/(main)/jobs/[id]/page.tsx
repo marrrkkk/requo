@@ -6,6 +6,7 @@ import { DashboardDetailPageSkeleton } from "@/components/shell/dashboard-detail
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { getJobDetailForBusiness } from "@/features/jobs/queries";
 import { JobDetail } from "@/features/jobs/components/job-detail";
+import { getInvoiceIdForJob } from "@/features/invoices/queries-light";
 
 export async function generateMetadata({
   params,
@@ -47,5 +48,13 @@ async function JobDetailContent({ params }: JobDetailPageProps) {
     notFound();
   }
 
-  return <JobDetail job={job} businessSlug={businessSlug} />;
+  const invoiceId = await getInvoiceIdForJob(id, businessContext.business.id);
+
+  return (
+    <JobDetail
+      job={job}
+      businessSlug={businessSlug}
+      existingInvoiceId={invoiceId}
+    />
+  );
 }

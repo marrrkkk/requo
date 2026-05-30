@@ -43,7 +43,7 @@ export default function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
 
 async function InvoiceDetailContent({ params }: InvoiceDetailPageProps) {
   const { businessSlug, id } = await params;
-  const { businessContext } = await getAppShellContext(businessSlug);
+  const { user, businessContext } = await getAppShellContext(businessSlug);
   const invoice = await getInvoiceDetailForBusiness(
     businessContext.business.id,
     id,
@@ -53,13 +53,21 @@ async function InvoiceDetailContent({ params }: InvoiceDetailPageProps) {
     notFound();
   }
 
-  const pdfExportHref = `/api/business/${businessSlug}/invoices/${invoice.id}/export`;
+  const plan = businessContext.business.plan;
+  const pdfExportHref = `/api/business/${businessSlug}/invoices/${invoice.id}/pdf`;
 
   return (
     <InvoiceDetail
       invoice={invoice}
       businessSlug={businessSlug}
       pdfExportHref={pdfExportHref}
+      plan={plan}
+      upgradeAction={{
+        userId: user.id,
+        businessId: businessContext.business.id,
+        businessSlug,
+        currentPlan: plan,
+      }}
     />
   );
 }

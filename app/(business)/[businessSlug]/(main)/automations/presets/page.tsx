@@ -9,6 +9,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { QuickAutomationPresets } from "@/features/automations/components/quick-automation-presets";
+import { RecommendedAutomationsCard } from "@/features/automations/components/recommended-automations-card";
+import {
+  getRecommendedAutomations,
+  getAutomationValueProp,
+} from "@/features/automations/recommended-automations";
 import { getBusinessAutomations } from "@/features/automations/queries";
 import { getAutomationLimit } from "@/features/automations/entitlements";
 import { getAppShellContext } from "@/lib/app-shell/context";
@@ -53,18 +58,36 @@ async function StreamedPresets({ businessSlug }: { businessSlug: string }) {
   const businessId = businessContext.business.id;
   const plan = businessContext.business.plan;
   const limit = getAutomationLimit(plan);
+  const businessType = businessContext.business.businessType ?? undefined;
 
   const automations = await getBusinessAutomations(businessId, user.id);
   const existingAutomationNames = automations.map((a) => a.name);
   const atLimit = automations.length >= limit;
 
+  const recommendations = getRecommendedAutomations(businessType);
+  const valueProp = getAutomationValueProp(businessType);
+
   return (
-    <QuickAutomationPresets
-      existingAutomationNames={existingAutomationNames}
-      disabled={atLimit}
-      businessSlug={businessSlug}
-      businessType={businessContext.business.businessType ?? undefined}
-    />
+    <div className="flex flex-col gap-8">
+      {/* Recommended section — shown when the business has few automations */}
+      {automations.length < 3 && recommendations.length > 0 && (
+        <div className="mx-auto w-full max-w-lg">
+          <RecommendedAutomationsCard
+            recommendations={recommendations}
+            valueProp={valueProp}
+            existingAutomationNames={existingAutomationNames}
+            disabled={atLimit}
+          />
+        </div>
+      )}
+
+      <QuickAutomationPresets
+        existingAutomationNames={existingAutomationNames}
+        disabled={atLimit}
+        businessSlug={businessSlug}
+        businessType={businessType}
+      />
+    </div>
   );
 }
 

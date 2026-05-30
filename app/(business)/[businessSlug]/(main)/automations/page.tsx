@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { getBusinessAutomations } from "@/features/automations/queries";
+import { getBusinessAutomations, getAutomationStats } from "@/features/automations/queries";
 import { getAutomationLimit, canAccessWorkflowBuilder } from "@/features/automations/entitlements";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
@@ -47,7 +47,10 @@ async function StreamedAutomationsWorkspace({
   const limit = getAutomationLimit(plan);
   const hasBuilderAccess = canAccessWorkflowBuilder(plan);
 
-  const automations = await getBusinessAutomations(businessId, user.id);
+  const [automations, stats] = await Promise.all([
+    getBusinessAutomations(businessId, user.id),
+    getAutomationStats(businessId, user.id),
+  ]);
 
   return (
     <AutomationsWorkspace
@@ -57,6 +60,8 @@ async function StreamedAutomationsWorkspace({
       hasBuilderAccess={hasBuilderAccess}
       businessSlug={businessSlug}
       selectedAutomationId={selectedAutomationId}
+      businessType={businessContext.business.businessType ?? undefined}
+      stats={stats}
     />
   );
 }
