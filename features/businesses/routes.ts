@@ -105,6 +105,10 @@ export function getBusinessQuotePath(slug: string, quoteId: string) {
   return `${getBusinessQuotesPath(slug)}/${quoteId}`;
 }
 
+export function getBusinessQuotePreviewPath(slug: string, quoteId: string) {
+  return `${getBusinessQuotesPath(slug)}/${quoteId}/preview`;
+}
+
 export function getBusinessQuotePrintPath(slug: string, quoteId: string) {
   return `${getBusinessPath(slug)}/print/quotes/${quoteId}`;
 }

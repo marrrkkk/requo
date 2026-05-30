@@ -31,7 +31,7 @@ export function StarterTemplateCombobox({
   disabled = false,
   id,
   onValueChange,
-  placeholder = "Choose a starter template",
+  placeholder = "Choose a business type",
   value,
   "aria-invalid": ariaInvalid,
 }: StarterTemplateComboboxProps) {

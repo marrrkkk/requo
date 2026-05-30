@@ -8,6 +8,7 @@ import {
   Trash2,
   UserCog,
   UserMinus,
+  UserPlus,
 } from "lucide-react";
 
 import {
@@ -160,7 +161,7 @@ export function BusinessMembersManager({
             ) : null}
             <LockedAction feature="members" plan={plan}>
               <Button type="button" onClick={() => setInviteOpen(true)} disabled={readOnly}>
-                <MailPlus data-icon="inline-start" />
+                <UserPlus data-icon="inline-start" />
                 Invite member
               </Button>
             </LockedAction>
@@ -234,7 +235,7 @@ export function BusinessMembersManager({
   );
 }
 
-function InviteMemberDialog({
+export function InviteMemberDialog({
   email,
   isPending,
   onEmailChange,
@@ -333,7 +334,7 @@ function InviteMemberDialog({
               </Button>
             </DialogClose>
             <Button disabled={isPending} type="submit">
-              <MailPlus data-icon="inline-start" />
+              <UserPlus data-icon="inline-start" />
               Send invite
             </Button>
           </DialogFooter>

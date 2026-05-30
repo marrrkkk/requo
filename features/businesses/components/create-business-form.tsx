@@ -163,7 +163,7 @@ export function CreateBusinessForm({
 
       <Field data-invalid={Boolean(businessTypeError) || undefined}>
         <FieldLabel htmlFor="business-starter-template">
-          Starter template
+          Business type
         </FieldLabel>
         <FieldContent>
           <Combobox
@@ -172,7 +172,7 @@ export function CreateBusinessForm({
             id="business-starter-template"
             onValueChange={(value) => setBusinessType(value as BusinessType)}
             options={starterTemplateOptions}
-            placeholder="Choose a starter template"
+            placeholder="Choose a business type"
             renderOption={(option) => (
               <div className="min-w-0">
                 <p className="truncate font-medium">{option.label}</p>
@@ -181,7 +181,7 @@ export function CreateBusinessForm({
                 </p>
               </div>
             )}
-            searchPlaceholder="Search starter template"
+            searchPlaceholder="Search business types"
             value={businessType}
           />
           <FieldError

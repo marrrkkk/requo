@@ -31,7 +31,7 @@ type InquiryNextActionSource = {
   recordState?: InquiryRecordState | null;
   pendingFollowUpCount?: number | null;
   nextFollowUpDueAt?: Date | null;
-  relatedQuote?: { id: string } | null;
+  relatedQuotes?: { latest: { id: string } } | null;
 };
 
 type QuoteNextActionSource = {
@@ -77,14 +77,14 @@ export function getInquiryNextAction({
     };
   }
 
-  if (inquiry.relatedQuote) {
+  if (inquiry.relatedQuotes) {
     return {
       key: "inquiry-open-quote",
       label: "Open related quote",
       description:
         "This inquiry already has a quote. Continue from the quote so status, sharing, and follow-up stay together.",
       ctaLabel: "Open quote",
-      href: getBusinessQuotePath(businessSlug, inquiry.relatedQuote.id),
+      href: getBusinessQuotePath(businessSlug, inquiry.relatedQuotes.latest.id),
       badgeLabel: "Quoted",
       priority: "medium",
     };

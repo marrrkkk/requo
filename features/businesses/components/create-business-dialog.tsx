@@ -332,7 +332,7 @@ export function CreateBusinessDialog({
           <SheetHeader>
             <SheetTitle>Create new business</SheetTitle>
             <SheetDescription>
-              Use a starter template to set up inquiry capture, quote defaults, and follow-up basics.
+              Use a business type to set up inquiry capture, quote defaults, and follow-up basics.
             </SheetDescription>
           </SheetHeader>
           <SheetBody>
@@ -357,7 +357,7 @@ export function CreateBusinessDialog({
         <DialogHeader>
           <DialogTitle>Create new business</DialogTitle>
           <DialogDescription>
-            Use a starter template to set up inquiry capture, quote defaults, and follow-up basics.
+            Use a business type to set up inquiry capture, quote defaults, and follow-up basics.
           </DialogDescription>
         </DialogHeader>
         {businessId ? (
