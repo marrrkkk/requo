@@ -28,14 +28,15 @@ npm install crisp-sdk-web
 ## 3) Widget route behavior
 
 Global Crisp widget is mounted in:
-- `app/(marketing)/layout.tsx`
-- `app/(public)/layout.tsx`
+- `app/(marketing)/layout.tsx` - for all marketing pages
+- `app/(business)/[businessSlug]/settings/support/page.tsx` - for the business settings support page
 
 It is intentionally not mounted in:
-- authenticated business dashboard shells
+- public inquiry/quote pages (`app/(public)/layout.tsx`)
+- authenticated business dashboard pages (except support settings)
 - admin/auth/onboarding route groups
 
-This keeps marketing/public chat available while avoiding dashboard-wide widget noise.
+This keeps marketing chat available and provides in-app support access through the dedicated support settings page.
 
 ## 4) Business settings Support page
 
