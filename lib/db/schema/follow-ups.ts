@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import {
-  boolean,
   check,
   index,
   integer,
@@ -40,6 +39,11 @@ export const followUpRecurrenceEnum = pgEnum("follow_up_recurrence", [
   "monthly",
 ]);
 
+export const followUpTerminationConditionEnum = pgEnum(
+  "follow_up_termination_condition",
+  ["count", "terminal_status"],
+);
+
 export const followUps = pgTable(
   "follow_ups",
   {
@@ -70,6 +74,10 @@ export const followUps = pgTable(
     recurrenceLimit: integer("recurrence_limit"),
     /** How many times this follow-up has recurred so far. */
     recurrenceCount: integer("recurrence_count").notNull().default(0),
+    /** Termination condition for recurring follow-ups. */
+    terminationCondition: followUpTerminationConditionEnum(
+      "termination_condition",
+    ),
     /** Parent follow-up ID for recurrence chain tracking. */
     parentFollowUpId: text("parent_follow_up_id"),
     /** Soft-delete timestamp. */
@@ -77,6 +85,10 @@ export const followUps = pgTable(
     deletedByUserId: text("deleted_by_user_id").references(() => user.id, {
       onDelete: "set null",
     }),
+    /** Optional note recorded when the follow-up is completed (e.g. "left voicemail"). */
+    completionNote: text("completion_note"),
+    /** Snooze: suppress reminders until this time without changing dueAt. */
+    snoozedUntil: timestamp("snoozed_until", { withTimezone: true }),
     /** Whether a reminder notification has been sent for the current due date. */
     reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
     createdByUserId: text("created_by_user_id").references(() => user.id, {

@@ -29,15 +29,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import type {
+  FollowUpCategory,
   FollowUpChannel,
   FollowUpEditActionState,
   FollowUpRecurrence,
+  FollowUpTerminationCondition,
   FollowUpView,
 } from "@/features/follow-ups/types";
-import { followUpChannels, followUpRecurrences } from "@/features/follow-ups/types";
+import { followUpChannels, followUpRecurrences, followUpTerminationConditions } from "@/features/follow-ups/types";
 import {
   followUpChannelLabels,
   followUpRecurrenceLabels,
+  followUpTerminationConditionLabels,
   getDateInputValue,
 } from "@/features/follow-ups/utils";
 
@@ -56,6 +59,19 @@ const recurrenceOptions = followUpRecurrences.map((r) => ({
   value: r,
 }));
 
+const terminationConditionOptions = [
+  { label: "No end condition", value: "none" },
+  ...followUpTerminationConditions.map((tc) => ({
+    label: followUpTerminationConditionLabels[tc],
+    value: tc,
+  })),
+];
+
+const categoryOptions = [
+  { label: "Sales follow-up", value: "sales" },
+  { label: "Post-win follow-up", value: "post_win" },
+] as const;
+
 export function FollowUpEditDialog({
   action,
   followUp,
@@ -70,11 +86,16 @@ export function FollowUpEditDialog({
   const [title, setTitle] = useState(followUp.title);
   const [reason, setReason] = useState(followUp.reason);
   const [channel, setChannel] = useState<FollowUpChannel>(followUp.channel);
+  const [category, setCategory] = useState<FollowUpCategory>(followUp.category);
   const [dueDate, setDueDate] = useState(getDateInputValue(followUp.dueAt));
   const [recurrence, setRecurrence] = useState<FollowUpRecurrence>(followUp.recurrence);
   const [recurrenceLimit, setRecurrenceLimit] = useState(
     followUp.recurrenceLimit?.toString() ?? "",
   );
+  const [terminationCondition, setTerminationCondition] = useState<FollowUpTerminationCondition | "none">(
+    followUp.terminationCondition ?? "none",
+  );
+  const hasLinkedItem = Boolean(followUp.inquiryId || followUp.quoteId);
   const [state, formAction, isPending] = useActionStateWithSonner(
     async (prevState, formData) => {
       const nextState = await action(prevState, formData);
@@ -93,9 +114,11 @@ export function FollowUpEditDialog({
     setTitle(followUp.title);
     setReason(followUp.reason);
     setChannel(followUp.channel);
+    setCategory(followUp.category);
     setDueDate(getDateInputValue(followUp.dueAt));
     setRecurrence(followUp.recurrence);
     setRecurrenceLimit(followUp.recurrenceLimit?.toString() ?? "");
+    setTerminationCondition(followUp.terminationCondition ?? "none");
   }
 
   return (
@@ -172,6 +195,23 @@ export function FollowUpEditDialog({
                   </FieldContent>
                 </Field>
 
+                <Field data-invalid={Boolean(state.fieldErrors?.category?.[0])}>
+                  <FieldLabel htmlFor="edit-follow-up-category">Category</FieldLabel>
+                  <FieldContent>
+                    <input name="category" type="hidden" value={category} />
+                    <Combobox
+                      aria-invalid={Boolean(state.fieldErrors?.category?.[0])}
+                      id="edit-follow-up-category"
+                      onValueChange={(value) => setCategory(value as FollowUpCategory)}
+                      options={[...categoryOptions]}
+                      placeholder="Choose category"
+                      value={category}
+                    />
+                  </FieldContent>
+                </Field>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
                 <Field data-invalid={Boolean(state.fieldErrors?.dueDate?.[0])}>
                   <FieldLabel htmlFor="edit-follow-up-due-date">Due date</FieldLabel>
                   <FieldContent>
@@ -195,7 +235,13 @@ export function FollowUpEditDialog({
                     <Combobox
                       aria-invalid={Boolean(state.fieldErrors?.recurrence?.[0])}
                       id="edit-follow-up-recurrence"
-                      onValueChange={(value) => setRecurrence(value as FollowUpRecurrence)}
+                      onValueChange={(value) => {
+                        setRecurrence(value as FollowUpRecurrence);
+                        if (value === "none") {
+                          setTerminationCondition("none");
+                          setRecurrenceLimit("");
+                        }
+                      }}
                       options={recurrenceOptions}
                       placeholder="No repeat"
                       value={recurrence}
@@ -204,27 +250,62 @@ export function FollowUpEditDialog({
                 </Field>
 
                 {recurrence !== "none" && (
-                  <Field data-invalid={Boolean(state.fieldErrors?.recurrenceLimit?.[0])}>
-                    <FieldLabel htmlFor="edit-follow-up-recurrence-limit">
-                      Max repeats
+                  <Field data-invalid={Boolean(state.fieldErrors?.terminationCondition?.[0])}>
+                    <FieldLabel htmlFor="edit-follow-up-termination-condition">
+                      End condition
                     </FieldLabel>
-                    <FieldDescription>Leave blank for unlimited.</FieldDescription>
                     <FieldContent>
-                      <Input
-                        aria-invalid={Boolean(state.fieldErrors?.recurrenceLimit?.[0])}
-                        id="edit-follow-up-recurrence-limit"
-                        max={100}
-                        min={1}
-                        name="recurrenceLimit"
-                        onChange={(event) => setRecurrenceLimit(event.currentTarget.value)}
-                        placeholder="Unlimited"
-                        type="number"
-                        value={recurrenceLimit}
+                      <input
+                        name="terminationCondition"
+                        type="hidden"
+                        value={terminationCondition === "none" ? "" : terminationCondition}
+                      />
+                      <Combobox
+                        aria-invalid={Boolean(state.fieldErrors?.terminationCondition?.[0])}
+                        id="edit-follow-up-termination-condition"
+                        onValueChange={(value) => {
+                          setTerminationCondition(value as FollowUpTerminationCondition | "none");
+                          if (value !== "count") {
+                            setRecurrenceLimit("");
+                          }
+                        }}
+                        options={terminationConditionOptions}
+                        placeholder="No end condition"
+                        value={terminationCondition}
                       />
                     </FieldContent>
                   </Field>
                 )}
               </div>
+
+              {recurrence !== "none" && terminationCondition === "count" && (
+                <Field data-invalid={Boolean(state.fieldErrors?.recurrenceLimit?.[0])}>
+                  <FieldLabel htmlFor="edit-follow-up-recurrence-limit">
+                    Maximum occurrences
+                  </FieldLabel>
+                  <FieldDescription>How many times this follow-up should repeat (1–100).</FieldDescription>
+                  <FieldContent>
+                    <Input
+                      aria-invalid={Boolean(state.fieldErrors?.recurrenceLimit?.[0])}
+                      id="edit-follow-up-recurrence-limit"
+                      max={100}
+                      min={1}
+                      name="recurrenceLimit"
+                      onChange={(event) => setRecurrenceLimit(event.currentTarget.value)}
+                      placeholder="e.g. 5"
+                      required
+                      type="number"
+                      value={recurrenceLimit}
+                    />
+                  </FieldContent>
+                </Field>
+              )}
+
+              {recurrence !== "none" && terminationCondition === "terminal_status" && !hasLinkedItem && (
+                <p className="text-sm text-destructive" role="alert">
+                  A linked inquiry or quote is required for this end condition.
+                </p>
+              )}
             </FieldGroup>
           </div>
           <ResponsiveOverlayFooter>

@@ -39,6 +39,7 @@ import {
   reassignFollowUpAction,
   rescheduleFollowUpAction,
   skipFollowUpAction,
+  snoozeFollowUpAction,
 } from "@/features/follow-ups/actions";
 import { FollowUpActions } from "@/features/follow-ups/components/follow-up-actions";
 import { FollowUpAiMessageButton } from "@/features/follow-ups/components/follow-up-ai-message-button";
@@ -54,15 +55,19 @@ import {
 } from "@/features/follow-ups/components/follow-up-status-badge";
 import type {
   FollowUpChannel,
+  FollowUpCompleteActionState,
   FollowUpDeleteActionState,
   FollowUpEditActionState,
   FollowUpRecordActionState,
   FollowUpRescheduleActionState,
+  FollowUpSnoozeActionState,
   FollowUpView,
 } from "@/features/follow-ups/types";
 import {
   formatFollowUpDate,
   getFollowUpChannelLabel,
+  followUpRecurrenceLabels,
+  followUpTerminationConditionLabels,
 } from "@/features/follow-ups/utils";
 import {
   getBusinessInquiryPath,
@@ -110,9 +115,9 @@ type FollowUpItemProps = {
   showMessage?: boolean;
   aiTone?: "balanced" | "warm" | "direct" | "formal";
   completeAction?: (
-    state: FollowUpRecordActionState,
+    state: FollowUpCompleteActionState,
     formData: FormData,
-  ) => Promise<FollowUpRecordActionState>;
+  ) => Promise<FollowUpCompleteActionState>;
   skipAction?: (
     state: FollowUpRecordActionState,
     formData: FormData,
@@ -121,6 +126,10 @@ type FollowUpItemProps = {
     state: FollowUpRescheduleActionState,
     formData: FormData,
   ) => Promise<FollowUpRescheduleActionState>;
+  snoozeAction?: (
+    state: FollowUpSnoozeActionState,
+    formData: FormData,
+  ) => Promise<FollowUpSnoozeActionState>;
   editAction?: (
     state: FollowUpEditActionState,
     formData: FormData,
@@ -155,6 +164,7 @@ export function FollowUpItem({
   completeAction: completeActionProp,
   skipAction: skipActionProp,
   rescheduleAction: rescheduleActionProp,
+  snoozeAction: snoozeActionProp,
   editAction: editActionProp,
   deleteAction: deleteActionProp,
   reassignAction: reassignActionProp,
@@ -171,6 +181,8 @@ export function FollowUpItem({
   const skipAction = skipActionProp ?? skipFollowUpAction.bind(null, followUp.id);
   const rescheduleAction =
     rescheduleActionProp ?? rescheduleFollowUpAction.bind(null, followUp.id);
+  const snoozeAction =
+    snoozeActionProp ?? snoozeFollowUpAction.bind(null, followUp.id);
   const editAction = editActionProp ?? editFollowUpAction.bind(null, followUp.id);
   const deleteAction =
     deleteActionProp ?? deleteFollowUpAction.bind(null, followUp.id);
@@ -325,6 +337,48 @@ export function FollowUpItem({
             <p className="text-sm leading-6 text-muted-foreground">
               {followUp.reason}
             </p>
+
+            {/* Recurrence schedule and termination rule */}
+            {followUp.recurrence !== "none" && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <span>
+                  Repeats {followUpRecurrenceLabels[followUp.recurrence].toLowerCase()}
+                </span>
+                {followUp.terminationCondition === "count" && followUp.recurrenceLimit && (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="size-1 rounded-full bg-muted-foreground/40"
+                    />
+                    <span>
+                      {followUp.recurrenceCount} of {followUp.recurrenceLimit} occurrences
+                    </span>
+                  </>
+                )}
+                {followUp.terminationCondition === "terminal_status" && (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="size-1 rounded-full bg-muted-foreground/40"
+                    />
+                    <span>
+                      {followUpTerminationConditionLabels.terminal_status}
+                    </span>
+                  </>
+                )}
+                {!followUp.terminationCondition && followUp.recurrenceLimit && (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="size-1 rounded-full bg-muted-foreground/40"
+                    />
+                    <span>
+                      {followUp.recurrenceCount} of {followUp.recurrenceLimit} repeats
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Suggested message */}
@@ -373,8 +427,24 @@ export function FollowUpItem({
                 dueAt={followUp.dueAt}
                 rescheduleAction={rescheduleAction}
                 skipAction={skipAction}
+                snoozeAction={snoozeAction}
               />
             </div>
+          ) : null}
+
+          {/* Completion note */}
+          {followUp.completionNote ? (
+            <div className="soft-panel px-4 py-3 shadow-none">
+              <p className="meta-label mb-1">Outcome</p>
+              <p className="text-sm text-foreground">{followUp.completionNote}</p>
+            </div>
+          ) : null}
+
+          {/* Snoozed indicator */}
+          {followUp.snoozedUntil && isPending ? (
+            <p className="text-xs text-muted-foreground">
+              Snoozed until {formatFollowUpDate(followUp.snoozedUntil)}
+            </p>
           ) : null}
         </div>
       ) : null}

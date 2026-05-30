@@ -81,6 +81,7 @@ export function FollowUpPanel({
       defaultReason={defaultReason}
       defaultTitle={defaultTitle}
       description={ctaDescription}
+      hasLinkedItem
       triggerLabel={sharedQuoteWithoutFollowUp ? "Set reminder" : "Set follow-up"}
     />
   );

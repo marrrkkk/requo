@@ -13,6 +13,8 @@ import {
 } from "@/lib/cache/business-tags";
 import { getWorkspaceBusinessActionContext } from "@/lib/db/business-access";
 import {
+  bulkCompleteFollowUpsForBusiness,
+  bulkSkipFollowUpsForBusiness,
   completeFollowUpForBusiness,
   createFollowUpForBusiness,
   deleteFollowUpForBusiness,
@@ -20,14 +22,20 @@ import {
   reassignFollowUpForBusiness,
   rescheduleFollowUpForBusiness,
   skipFollowUpForBusiness,
+  snoozeFollowUpForBusiness,
 } from "@/features/follow-ups/mutations";
 import {
+  followUpBulkActionSchema,
+  followUpCompleteSchema,
   followUpCreateSchema,
   followUpEditSchema,
   followUpReassignSchema,
   followUpRescheduleSchema,
+  followUpSnoozeSchema,
 } from "@/features/follow-ups/schemas";
 import type {
+  FollowUpBulkActionState,
+  FollowUpCompleteActionState,
   FollowUpCreateActionState,
   FollowUpCreateFieldErrors,
   FollowUpDeleteActionState,
@@ -38,6 +46,7 @@ import type {
   FollowUpRecordActionState,
   FollowUpRescheduleActionState,
   FollowUpRescheduleFieldErrors,
+  FollowUpSnoozeActionState,
 } from "@/features/follow-ups/types";
 
 function updateCacheTags(tags: string[]) {
@@ -71,9 +80,11 @@ function getCreateFieldErrors(
     title: fieldErrors.title,
     reason: fieldErrors.reason,
     channel: fieldErrors.channel,
+    category: fieldErrors.category,
     dueDate: fieldErrors.dueDate,
     recurrence: fieldErrors.recurrence,
     recurrenceLimit: fieldErrors.recurrenceLimit,
+    terminationCondition: fieldErrors.terminationCondition,
   };
 }
 
@@ -84,9 +95,11 @@ function getEditFieldErrors(
     title: fieldErrors.title,
     reason: fieldErrors.reason,
     channel: fieldErrors.channel,
+    category: fieldErrors.category,
     dueDate: fieldErrors.dueDate,
     recurrence: fieldErrors.recurrence,
     recurrenceLimit: fieldErrors.recurrenceLimit,
+    terminationCondition: fieldErrors.terminationCondition,
   };
 }
 
@@ -128,9 +141,11 @@ async function createFollowUpActionForRecord({
     title: formData.get("title"),
     reason: formData.get("reason"),
     channel: formData.get("channel"),
+    category: formData.get("category") || "sales",
     dueDate: formData.get("dueDate"),
     recurrence: formData.get("recurrence") || "none",
     recurrenceLimit: formData.get("recurrenceLimit") || null,
+    terminationCondition: formData.get("terminationCondition") || null,
   });
 
   if (!validationResult.success) {
@@ -141,6 +156,20 @@ async function createFollowUpActionForRecord({
     );
   }
 
+  // Reject terminal_status condition when no linked item exists
+  if (
+    validationResult.data.terminationCondition === "terminal_status" &&
+    !inquiryId &&
+    !quoteId
+  ) {
+    return {
+      error: "A linked inquiry or quote is required for the \u201Cuntil terminal status\u201D end condition.",
+      fieldErrors: {
+        terminationCondition: ["A linked inquiry or quote is required for this end condition."],
+      },
+    };
+  }
+
   try {
     const result = await createFollowUpForBusiness({
       businessId: businessContext.business.id,
@@ -149,6 +178,7 @@ async function createFollowUpActionForRecord({
       actorUserId: user.id,
       assignedToUserId: formData.get("assignedToUserId") as string || user.id,
       followUp: validationResult.data,
+      timezone: businessContext.business.timezone,
     });
 
     if (!result) {
@@ -274,18 +304,53 @@ async function runFollowUpRecordAction(
 
 export async function completeFollowUpAction(
   followUpId: string,
-  _prevState: FollowUpRecordActionState,
-  _formData: FormData,
-): Promise<FollowUpRecordActionState> {
-  void _prevState;
-  void _formData;
+  _prevState: FollowUpCompleteActionState,
+  formData: FormData,
+): Promise<FollowUpCompleteActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
 
-  return runFollowUpRecordAction(followUpId, completeFollowUpForBusiness, {
-    success: "Follow-up marked done.",
-    unchanged: "Follow-up is already completed.",
-    locked: "Only pending follow-ups can be completed.",
-    fallbackError: "Failed to complete follow-up.",
+  if (!ownerAccess.ok) {
+    return { error: ownerAccess.error };
+  }
+
+  const { user, businessContext } = ownerAccess;
+  const parsed = followUpCompleteSchema.safeParse({
+    completionNote: formData.get("completionNote"),
   });
+
+  const completionNote = parsed.success ? parsed.data.completionNote : null;
+
+  try {
+    const result = await completeFollowUpForBusiness({
+      businessId: businessContext.business.id,
+      followUpId,
+      actorUserId: user.id,
+      completionNote,
+    });
+
+    if (!result) {
+      return { error: "That follow-up could not be found." };
+    }
+
+    updateCacheTags(
+      getFollowUpMutationCacheTags({
+        businessId: businessContext.business.id,
+        inquiryId: result.inquiryId,
+        quoteId: result.quoteId,
+      }),
+    );
+
+    if (result.locked) {
+      return { error: "Only pending follow-ups can be completed." };
+    }
+
+    return {
+      success: result.changed ? "Follow-up marked done." : "Follow-up is already completed.",
+    };
+  } catch (error) {
+    console.error("Failed to complete follow-up.", error);
+    return { error: "We couldn't update that follow-up right now." };
+  }
 }
 
 export async function skipFollowUpAction(
@@ -336,6 +401,7 @@ export async function rescheduleFollowUpAction(
       followUpId,
       actorUserId: user.id,
       followUp: validationResult.data,
+      timezone: businessContext.business.timezone,
     });
 
     if (!result) {
@@ -388,9 +454,11 @@ export async function editFollowUpAction(
     title: formData.get("title"),
     reason: formData.get("reason"),
     channel: formData.get("channel"),
+    category: formData.get("category") || "sales",
     dueDate: formData.get("dueDate"),
     recurrence: formData.get("recurrence") || "none",
     recurrenceLimit: formData.get("recurrenceLimit") || null,
+    terminationCondition: formData.get("terminationCondition") || null,
   });
 
   if (!validationResult.success) {
@@ -407,6 +475,7 @@ export async function editFollowUpAction(
       followUpId,
       actorUserId: user.id,
       followUp: validationResult.data,
+      timezone: businessContext.business.timezone,
     });
 
     if (!result) {
@@ -555,5 +624,181 @@ export async function reassignFollowUpAction(
     return {
       error: "We couldn't reassign that follow-up right now.",
     };
+  }
+}
+
+
+// ---------------------------------------------------------------------------
+// Snooze
+// ---------------------------------------------------------------------------
+
+export async function snoozeFollowUpAction(
+  followUpId: string,
+  _prevState: FollowUpSnoozeActionState,
+  formData: FormData,
+): Promise<FollowUpSnoozeActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return { error: ownerAccess.error };
+  }
+
+  const { user, businessContext } = ownerAccess;
+  const validationResult = followUpSnoozeSchema.safeParse({
+    snoozedUntil: formData.get("snoozedUntil"),
+  });
+
+  if (!validationResult.success) {
+    return getValidationActionState(
+      validationResult.error,
+      "Choose a valid snooze time.",
+      (fieldErrors) => ({ snoozedUntil: fieldErrors.snoozedUntil }),
+    );
+  }
+
+  const snoozedUntil = new Date(validationResult.data.snoozedUntil);
+
+  try {
+    const result = await snoozeFollowUpForBusiness({
+      businessId: businessContext.business.id,
+      followUpId,
+      actorUserId: user.id,
+      snoozedUntil,
+    });
+
+    if (!result) {
+      return { error: "That follow-up could not be found." };
+    }
+
+    updateCacheTags(
+      getFollowUpMutationCacheTags({
+        businessId: businessContext.business.id,
+        inquiryId: result.inquiryId,
+        quoteId: result.quoteId,
+      }),
+    );
+
+    if (result.locked) {
+      return { error: "Only pending follow-ups can be snoozed." };
+    }
+
+    return { success: "Follow-up snoozed." };
+  } catch (error) {
+    console.error("Failed to snooze follow-up.", error);
+    return { error: "We couldn't snooze that follow-up right now." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Bulk Complete
+// ---------------------------------------------------------------------------
+
+export async function bulkCompleteFollowUpsAction(
+  _prevState: FollowUpBulkActionState,
+  formData: FormData,
+): Promise<FollowUpBulkActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return { error: ownerAccess.error };
+  }
+
+  const { user, businessContext } = ownerAccess;
+  const rawIds = formData.get("followUpIds") as string;
+  const completionNote = (formData.get("completionNote") as string) || undefined;
+
+  const parsed = followUpBulkActionSchema.safeParse({
+    followUpIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
+    completionNote,
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  try {
+    const result = await bulkCompleteFollowUpsForBusiness({
+      businessId: businessContext.business.id,
+      followUpIds: parsed.data.followUpIds,
+      actorUserId: user.id,
+      completionNote: parsed.data.completionNote,
+    });
+
+    const tags = getFollowUpMutationCacheTags({
+      businessId: businessContext.business.id,
+    });
+    // Also invalidate specific inquiry/quote caches
+    for (const inquiryId of result.inquiryIds) {
+      tags.push(...getBusinessInquiryDetailCacheTags(businessContext.business.id, inquiryId));
+    }
+    for (const quoteId of result.quoteIds) {
+      tags.push(...getBusinessQuoteDetailCacheTags(businessContext.business.id, quoteId));
+    }
+    updateCacheTags(uniqueCacheTags(tags));
+
+    return {
+      success: result.affected > 0
+        ? `${result.affected} follow-up${result.affected > 1 ? "s" : ""} marked done.`
+        : "No pending follow-ups to complete.",
+      affected: result.affected,
+    };
+  } catch (error) {
+    console.error("Failed to bulk complete follow-ups.", error);
+    return { error: "We couldn't complete those follow-ups right now." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Bulk Skip
+// ---------------------------------------------------------------------------
+
+export async function bulkSkipFollowUpsAction(
+  _prevState: FollowUpBulkActionState,
+  formData: FormData,
+): Promise<FollowUpBulkActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return { error: ownerAccess.error };
+  }
+
+  const { user, businessContext } = ownerAccess;
+  const rawIds = formData.get("followUpIds") as string;
+
+  const parsed = followUpBulkActionSchema.safeParse({
+    followUpIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  try {
+    const result = await bulkSkipFollowUpsForBusiness({
+      businessId: businessContext.business.id,
+      followUpIds: parsed.data.followUpIds,
+      actorUserId: user.id,
+    });
+
+    const tags = getFollowUpMutationCacheTags({
+      businessId: businessContext.business.id,
+    });
+    for (const inquiryId of result.inquiryIds) {
+      tags.push(...getBusinessInquiryDetailCacheTags(businessContext.business.id, inquiryId));
+    }
+    for (const quoteId of result.quoteIds) {
+      tags.push(...getBusinessQuoteDetailCacheTags(businessContext.business.id, quoteId));
+    }
+    updateCacheTags(uniqueCacheTags(tags));
+
+    return {
+      success: result.affected > 0
+        ? `${result.affected} follow-up${result.affected > 1 ? "s" : ""} skipped.`
+        : "No pending follow-ups to skip.",
+      affected: result.affected,
+    };
+  } catch (error) {
+    console.error("Failed to bulk skip follow-ups.", error);
+    return { error: "We couldn't skip those follow-ups right now." };
   }
 }

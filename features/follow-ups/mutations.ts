@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne } from "drizzle-orm";
 
 import type {
   FollowUpCreateInput,
@@ -25,16 +25,91 @@ import {
   quotes,
 } from "@/lib/db/schema";
 
+// ---------------------------------------------------------------------------
+// Terminal status helpers
+// ---------------------------------------------------------------------------
+
+export function isTerminalInquiryStatus(status: string): boolean {
+  return ["won", "lost", "archived"].includes(status);
+}
+
+export function isTerminalQuoteStatus(status: string): boolean {
+  return ["accepted", "rejected", "expired", "voided"].includes(status);
+}
+
+/**
+ * Determines whether a recurring follow-up should stop generating new occurrences.
+ *
+ * Returns `true` when:
+ * - terminationCondition is "count" and recurrenceCount >= recurrenceLimit
+ * - terminationCondition is "terminal_status" and the linked inquiry/quote
+ *   has reached a terminal status
+ */
+export async function shouldTerminateRecurrence(
+  followUp: {
+    recurrence: string;
+    recurrenceLimit: number | null;
+    recurrenceCount: number;
+    terminationCondition: string | null;
+    inquiryId: string | null;
+    quoteId: string | null;
+  },
+  businessId: string,
+): Promise<boolean> {
+  // Count-based termination
+  if (
+    followUp.terminationCondition === "count" &&
+    followUp.recurrenceLimit !== null &&
+    followUp.recurrenceCount >= followUp.recurrenceLimit
+  ) {
+    return true;
+  }
+
+  // Terminal status termination
+  if (followUp.terminationCondition === "terminal_status") {
+    if (followUp.inquiryId) {
+      const inquiry = await db.query.inquiries.findFirst({
+        where: and(
+          eq(inquiries.id, followUp.inquiryId),
+          eq(inquiries.businessId, businessId),
+        ),
+        columns: { status: true },
+      });
+      if (inquiry && isTerminalInquiryStatus(inquiry.status)) return true;
+    }
+    if (followUp.quoteId) {
+      const quote = await db.query.quotes.findFirst({
+        where: and(
+          eq(quotes.id, followUp.quoteId),
+          eq(quotes.businessId, businessId),
+        ),
+        columns: { status: true },
+      });
+      if (quote && isTerminalQuoteStatus(quote.status)) return true;
+    }
+  }
+
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
 type CreateFollowUpForBusinessInput = {
   businessId: string;
   inquiryId?: string | null;
   quoteId?: string | null;
   actorUserId: string;
   assignedToUserId?: string | null;
-  followUp: Omit<FollowUpCreateInput, "recurrence" | "recurrenceLimit"> & {
+  followUp: Omit<FollowUpCreateInput, "recurrence" | "recurrenceLimit" | "category" | "terminationCondition"> & {
     recurrence?: FollowUpCreateInput["recurrence"];
     recurrenceLimit?: FollowUpCreateInput["recurrenceLimit"];
+    category?: FollowUpCreateInput["category"];
+    terminationCondition?: FollowUpCreateInput["terminationCondition"];
   };
+  /** Business timezone for anchoring due date. */
+  timezone?: string;
 };
 
 type FollowUpMutationResult = {
@@ -67,6 +142,7 @@ export async function createFollowUpForBusiness({
   actorUserId,
   assignedToUserId,
   followUp,
+  timezone,
 }: CreateFollowUpForBusinessInput): Promise<FollowUpMutationResult | null> {
   if (!inquiryId && !quoteId) {
     return null;
@@ -74,7 +150,7 @@ export async function createFollowUpForBusiness({
 
   const now = new Date();
   const followUpId = createFollowUpId();
-  const dueAt = parseFollowUpDueDateInput(followUp.dueDate);
+  const dueAt = parseFollowUpDueDateInput(followUp.dueDate, timezone);
 
   return db.transaction(async (tx) => {
     let resolvedInquiryId = inquiryId ?? null;
@@ -133,8 +209,10 @@ export async function createFollowUpForBusiness({
       title: followUp.title,
       reason: followUp.reason,
       channel: followUp.channel,
+      category: followUp.category ?? "sales",
       recurrence: followUp.recurrence ?? "none",
       recurrenceLimit: followUp.recurrenceLimit ?? null,
+      terminationCondition: followUp.terminationCondition ?? null,
       recurrenceCount: 0,
       dueAt,
       status: "pending",
@@ -181,7 +259,8 @@ export async function completeFollowUpForBusiness({
   businessId,
   followUpId,
   actorUserId,
-}: UpdateFollowUpRecordInput) {
+  completionNote,
+}: UpdateFollowUpRecordInput & { completionNote?: string | null }) {
   const now = new Date();
 
   return db.transaction(async (tx) => {
@@ -199,6 +278,7 @@ export async function completeFollowUpForBusiness({
         recurrence: followUps.recurrence,
         recurrenceCount: followUps.recurrenceCount,
         recurrenceLimit: followUps.recurrenceLimit,
+        terminationCondition: followUps.terminationCondition,
       })
       .from(followUps)
       .where(
@@ -241,7 +321,9 @@ export async function completeFollowUpForBusiness({
       .set({
         status: "completed",
         completedAt: now,
+        completionNote: completionNote ?? null,
         skippedAt: null,
+        snoozedUntil: null,
         updatedAt: now,
       })
       .where(
@@ -255,10 +337,13 @@ export async function completeFollowUpForBusiness({
       quoteId: existingFollowUp.quoteId,
       actorUserId,
       type: "follow_up.completed",
-      summary: "Follow-up completed.",
+      summary: completionNote
+        ? `Follow-up completed: ${completionNote.slice(0, 80)}`
+        : "Follow-up completed.",
       metadata: {
         followUpId,
         title: existingFollowUp.title,
+        ...(completionNote ? { completionNote } : {}),
       },
       createdAt: now,
       updatedAt: now,
@@ -272,51 +357,67 @@ export async function completeFollowUpForBusiness({
         recurrenceLimit: existingFollowUp.recurrenceLimit,
       })
     ) {
-      const nextDueAt = getNextRecurrenceDueDate(
-        existingFollowUp.dueAt,
-        existingFollowUp.recurrence as Exclude<FollowUpRecurrence, "none">,
+      // Check termination conditions (terminal status requires async DB lookup)
+      const shouldTerminate = await shouldTerminateRecurrence(
+        {
+          recurrence: existingFollowUp.recurrence,
+          recurrenceLimit: existingFollowUp.recurrenceLimit,
+          recurrenceCount: existingFollowUp.recurrenceCount + 1,
+          terminationCondition: existingFollowUp.terminationCondition,
+          inquiryId: existingFollowUp.inquiryId,
+          quoteId: existingFollowUp.quoteId,
+        },
+        businessId,
       );
-      const nextFollowUpId = createFollowUpId();
 
-      await tx.insert(followUps).values({
-        id: nextFollowUpId,
-        businessId,
-        inquiryId: existingFollowUp.inquiryId,
-        quoteId: existingFollowUp.quoteId,
-        assignedToUserId: existingFollowUp.assignedToUserId,
-        title: existingFollowUp.title,
-        reason: existingFollowUp.reason,
-        channel: existingFollowUp.channel as typeof followUps.$inferInsert.channel,
-        recurrence: existingFollowUp.recurrence,
-        recurrenceCount: existingFollowUp.recurrenceCount + 1,
-        recurrenceLimit: existingFollowUp.recurrenceLimit,
-        parentFollowUpId: followUpId,
-        dueAt: nextDueAt,
-        status: "pending",
-        createdByUserId: actorUserId,
-        createdAt: now,
-        updatedAt: now,
-      });
+      if (!shouldTerminate) {
+        const nextDueAt = getNextRecurrenceDueDate(
+          existingFollowUp.dueAt,
+          existingFollowUp.recurrence as Exclude<FollowUpRecurrence, "none">,
+        );
+        const nextFollowUpId = createFollowUpId();
 
-      await tx.insert(activityLogs).values({
-        id: createActivityId(),
-        businessId,
-        inquiryId: existingFollowUp.inquiryId,
-        quoteId: existingFollowUp.quoteId,
-        actorUserId,
-        type: "follow_up.created",
-        summary: `Recurring follow-up created for ${formatFollowUpDate(nextDueAt)}.`,
-        metadata: {
-          followUpId: nextFollowUpId,
+        await tx.insert(followUps).values({
+          id: nextFollowUpId,
+          businessId,
+          inquiryId: existingFollowUp.inquiryId,
+          quoteId: existingFollowUp.quoteId,
+          assignedToUserId: existingFollowUp.assignedToUserId,
           title: existingFollowUp.title,
           reason: existingFollowUp.reason,
-          channel: existingFollowUp.channel,
-          dueAt: nextDueAt.toISOString(),
+          channel: existingFollowUp.channel as typeof followUps.$inferInsert.channel,
+          recurrence: existingFollowUp.recurrence,
+          recurrenceCount: existingFollowUp.recurrenceCount + 1,
+          recurrenceLimit: existingFollowUp.recurrenceLimit,
+          terminationCondition: existingFollowUp.terminationCondition,
           parentFollowUpId: followUpId,
-        },
-        createdAt: now,
-        updatedAt: now,
-      });
+          dueAt: nextDueAt,
+          status: "pending",
+          createdByUserId: actorUserId,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        await tx.insert(activityLogs).values({
+          id: createActivityId(),
+          businessId,
+          inquiryId: existingFollowUp.inquiryId,
+          quoteId: existingFollowUp.quoteId,
+          actorUserId,
+          type: "follow_up.created",
+          summary: `Recurring follow-up created for ${formatFollowUpDate(nextDueAt)}.`,
+          metadata: {
+            followUpId: nextFollowUpId,
+            title: existingFollowUp.title,
+            reason: existingFollowUp.reason,
+            channel: existingFollowUp.channel,
+            dueAt: nextDueAt.toISOString(),
+            parentFollowUpId: followUpId,
+          },
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
     }
 
     return {
@@ -426,11 +527,13 @@ export async function rescheduleFollowUpForBusiness({
   followUpId,
   actorUserId,
   followUp,
+  timezone,
 }: UpdateFollowUpRecordInput & {
   followUp: FollowUpRescheduleInput;
+  timezone?: string;
 }) {
   const now = new Date();
-  const dueAt = parseFollowUpDueDateInput(followUp.dueDate);
+  const dueAt = parseFollowUpDueDateInput(followUp.dueDate, timezone);
 
   return db.transaction(async (tx) => {
     const [existingFollowUp] = await tx
@@ -472,6 +575,7 @@ export async function rescheduleFollowUpForBusiness({
       .set({
         dueAt,
         reminderSentAt: null,
+        snoozedUntil: null,
         updatedAt: now,
       })
       .where(
@@ -512,11 +616,13 @@ export async function editFollowUpForBusiness({
   followUpId,
   actorUserId,
   followUp,
+  timezone,
 }: UpdateFollowUpRecordInput & {
   followUp: FollowUpEditInput;
+  timezone?: string;
 }) {
   const now = new Date();
-  const dueAt = parseFollowUpDueDateInput(followUp.dueDate);
+  const dueAt = parseFollowUpDueDateInput(followUp.dueDate, timezone);
 
   return db.transaction(async (tx) => {
     const [existingFollowUp] = await tx
@@ -558,10 +664,13 @@ export async function editFollowUpForBusiness({
         title: followUp.title,
         reason: followUp.reason,
         channel: followUp.channel,
+        category: followUp.category ?? "sales",
         dueAt,
         recurrence: followUp.recurrence ?? "none",
         recurrenceLimit: followUp.recurrenceLimit ?? null,
+        terminationCondition: followUp.terminationCondition ?? null,
         reminderSentAt: null,
+        snoozedUntil: null,
         updatedAt: now,
       })
       .where(
@@ -581,6 +690,7 @@ export async function editFollowUpForBusiness({
         title: followUp.title,
         reason: followUp.reason,
         channel: followUp.channel,
+        category: followUp.category,
         dueAt: dueAt.toISOString(),
       },
       createdAt: now,
@@ -762,4 +872,417 @@ export async function reassignFollowUpForBusiness({
       status: existingFollowUp.status,
     };
   });
+}
+
+// ---------------------------------------------------------------------------
+// Snooze
+// ---------------------------------------------------------------------------
+
+export async function snoozeFollowUpForBusiness({
+  businessId,
+  followUpId,
+  actorUserId,
+  snoozedUntil,
+}: UpdateFollowUpRecordInput & { snoozedUntil: Date }) {
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [existingFollowUp] = await tx
+      .select({
+        id: followUps.id,
+        inquiryId: followUps.inquiryId,
+        quoteId: followUps.quoteId,
+        title: followUps.title,
+        status: followUps.status,
+      })
+      .from(followUps)
+      .where(
+        and(
+          eq(followUps.id, followUpId),
+          eq(followUps.businessId, businessId),
+          isNull(followUps.deletedAt),
+        ),
+      )
+      .limit(1);
+
+    if (!existingFollowUp) {
+      return null;
+    }
+
+    if (existingFollowUp.status !== "pending") {
+      return {
+        changed: false,
+        locked: true,
+        followUpId,
+        inquiryId: existingFollowUp.inquiryId,
+        quoteId: existingFollowUp.quoteId,
+        status: existingFollowUp.status,
+      } as const;
+    }
+
+    await tx
+      .update(followUps)
+      .set({
+        snoozedUntil,
+        updatedAt: now,
+      })
+      .where(
+        and(eq(followUps.id, followUpId), eq(followUps.businessId, businessId)),
+      );
+
+    await tx.insert(activityLogs).values({
+      id: createActivityId(),
+      businessId,
+      inquiryId: existingFollowUp.inquiryId,
+      quoteId: existingFollowUp.quoteId,
+      actorUserId,
+      type: "follow_up.snoozed",
+      summary: `Follow-up snoozed until ${formatFollowUpDate(snoozedUntil)}.`,
+      metadata: {
+        followUpId,
+        title: existingFollowUp.title,
+        snoozedUntil: snoozedUntil.toISOString(),
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      changed: true,
+      locked: false,
+      followUpId,
+      inquiryId: existingFollowUp.inquiryId,
+      quoteId: existingFollowUp.quoteId,
+      status: existingFollowUp.status,
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Bulk Complete
+// ---------------------------------------------------------------------------
+
+export async function bulkCompleteFollowUpsForBusiness({
+  businessId,
+  followUpIds,
+  actorUserId,
+  completionNote,
+}: {
+  businessId: string;
+  followUpIds: string[];
+  actorUserId: string;
+  completionNote?: string | null;
+}): Promise<{ affected: number; inquiryIds: Set<string>; quoteIds: Set<string> }> {
+  const now = new Date();
+  const inquiryIds = new Set<string>();
+  const quoteIds = new Set<string>();
+  let affected = 0;
+
+  // Process in a single transaction for consistency
+  await db.transaction(async (tx) => {
+    const pendingFollowUps = await tx
+      .select({
+        id: followUps.id,
+        inquiryId: followUps.inquiryId,
+        quoteId: followUps.quoteId,
+        title: followUps.title,
+      })
+      .from(followUps)
+      .where(
+        and(
+          eq(followUps.businessId, businessId),
+          eq(followUps.status, "pending"),
+          isNull(followUps.deletedAt),
+          inArray(followUps.id, followUpIds),
+        ),
+      );
+
+    for (const fup of pendingFollowUps) {
+      await tx
+        .update(followUps)
+        .set({
+          status: "completed",
+          completedAt: now,
+          completionNote: completionNote ?? null,
+          skippedAt: null,
+          snoozedUntil: null,
+          updatedAt: now,
+        })
+        .where(eq(followUps.id, fup.id));
+
+      await tx.insert(activityLogs).values({
+        id: createActivityId(),
+        businessId,
+        inquiryId: fup.inquiryId,
+        quoteId: fup.quoteId,
+        actorUserId,
+        type: "follow_up.completed",
+        summary: completionNote
+          ? `Follow-up completed (bulk): ${completionNote.slice(0, 60)}`
+          : "Follow-up completed (bulk).",
+        metadata: {
+          followUpId: fup.id,
+          title: fup.title,
+          bulk: true,
+          ...(completionNote ? { completionNote } : {}),
+        },
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      if (fup.inquiryId) inquiryIds.add(fup.inquiryId);
+      if (fup.quoteId) quoteIds.add(fup.quoteId);
+      affected++;
+    }
+  });
+
+  return { affected, inquiryIds, quoteIds };
+}
+
+// ---------------------------------------------------------------------------
+// Bulk Skip
+// ---------------------------------------------------------------------------
+
+export async function bulkSkipFollowUpsForBusiness({
+  businessId,
+  followUpIds,
+  actorUserId,
+}: {
+  businessId: string;
+  followUpIds: string[];
+  actorUserId: string;
+}): Promise<{ affected: number; inquiryIds: Set<string>; quoteIds: Set<string> }> {
+  const now = new Date();
+  const inquiryIds = new Set<string>();
+  const quoteIds = new Set<string>();
+  let affected = 0;
+
+  await db.transaction(async (tx) => {
+    const pendingFollowUps = await tx
+      .select({
+        id: followUps.id,
+        inquiryId: followUps.inquiryId,
+        quoteId: followUps.quoteId,
+        title: followUps.title,
+      })
+      .from(followUps)
+      .where(
+        and(
+          eq(followUps.businessId, businessId),
+          eq(followUps.status, "pending"),
+          isNull(followUps.deletedAt),
+          inArray(followUps.id, followUpIds),
+        ),
+      );
+
+    for (const fup of pendingFollowUps) {
+      await tx
+        .update(followUps)
+        .set({
+          status: "skipped",
+          skippedAt: now,
+          completedAt: null,
+          snoozedUntil: null,
+          updatedAt: now,
+        })
+        .where(eq(followUps.id, fup.id));
+
+      await tx.insert(activityLogs).values({
+        id: createActivityId(),
+        businessId,
+        inquiryId: fup.inquiryId,
+        quoteId: fup.quoteId,
+        actorUserId,
+        type: "follow_up.skipped",
+        summary: "Follow-up skipped (bulk).",
+        metadata: {
+          followUpId: fup.id,
+          title: fup.title,
+          bulk: true,
+        },
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      if (fup.inquiryId) inquiryIds.add(fup.inquiryId);
+      if (fup.quoteId) quoteIds.add(fup.quoteId);
+      affected++;
+    }
+  });
+
+  return { affected, inquiryIds, quoteIds };
+}
+
+// ---------------------------------------------------------------------------
+// Auto-close: skip pending follow-ups when a quote is accepted/rejected
+// ---------------------------------------------------------------------------
+
+export async function autoCloseFollowUpsForQuote({
+  businessId,
+  quoteId,
+  reason,
+}: {
+  businessId: string;
+  quoteId: string;
+  reason: "quote_accepted" | "quote_rejected";
+}): Promise<number> {
+  const now = new Date();
+  const reasonLabel = reason === "quote_accepted" ? "Quote accepted" : "Quote declined";
+
+  const pendingFollowUps = await db
+    .select({
+      id: followUps.id,
+      inquiryId: followUps.inquiryId,
+      title: followUps.title,
+    })
+    .from(followUps)
+    .where(
+      and(
+        eq(followUps.businessId, businessId),
+        eq(followUps.quoteId, quoteId),
+        eq(followUps.status, "pending"),
+        isNull(followUps.deletedAt),
+      ),
+    );
+
+  if (!pendingFollowUps.length) {
+    return 0;
+  }
+
+  await db.transaction(async (tx) => {
+    for (const fup of pendingFollowUps) {
+      await tx
+        .update(followUps)
+        .set({
+          status: "skipped",
+          skippedAt: now,
+          completionNote: `Auto-closed: ${reasonLabel}`,
+          snoozedUntil: null,
+          updatedAt: now,
+        })
+        .where(eq(followUps.id, fup.id));
+
+      await tx.insert(activityLogs).values({
+        id: createActivityId(),
+        businessId,
+        inquiryId: fup.inquiryId,
+        quoteId,
+        actorUserId: null,
+        type: "follow_up.auto_closed",
+        summary: `Follow-up auto-closed: ${reasonLabel}.`,
+        metadata: {
+          followUpId: fup.id,
+          title: fup.title,
+          reason,
+        },
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+  });
+
+  return pendingFollowUps.length;
+}
+
+// ---------------------------------------------------------------------------
+// Check and terminate recurring follow-ups when linked item reaches terminal status
+// ---------------------------------------------------------------------------
+
+/**
+ * Called when an inquiry or quote status changes to a terminal status.
+ * Finds all pending recurring follow-ups linked to the item with
+ * `terminal_status` termination condition and skips them.
+ */
+export async function checkAndTerminateRecurringFollowUps({
+  businessId,
+  inquiryId,
+  quoteId,
+  newStatus,
+}: {
+  businessId: string;
+  inquiryId?: string | null;
+  quoteId?: string | null;
+  newStatus: string;
+}): Promise<number> {
+  // Only act if the new status is actually terminal
+  const isTerminal = inquiryId
+    ? isTerminalInquiryStatus(newStatus)
+    : quoteId
+      ? isTerminalQuoteStatus(newStatus)
+      : false;
+
+  if (!isTerminal) {
+    return 0;
+  }
+
+  const now = new Date();
+
+  // Build conditions for finding relevant recurring follow-ups
+  const conditions = [
+    eq(followUps.businessId, businessId),
+    eq(followUps.status, "pending"),
+    eq(followUps.terminationCondition, "terminal_status"),
+    ne(followUps.recurrence, "none"),
+    isNull(followUps.deletedAt),
+  ];
+
+  if (inquiryId) {
+    conditions.push(eq(followUps.inquiryId, inquiryId));
+  }
+  if (quoteId) {
+    conditions.push(eq(followUps.quoteId, quoteId));
+  }
+
+  const pendingRecurring = await db
+    .select({
+      id: followUps.id,
+      inquiryId: followUps.inquiryId,
+      quoteId: followUps.quoteId,
+      title: followUps.title,
+    })
+    .from(followUps)
+    .where(and(...conditions));
+
+  if (!pendingRecurring.length) {
+    return 0;
+  }
+
+  const reasonLabel = inquiryId
+    ? `Inquiry reached terminal status: ${newStatus}`
+    : `Quote reached terminal status: ${newStatus}`;
+
+  await db.transaction(async (tx) => {
+    for (const fup of pendingRecurring) {
+      await tx
+        .update(followUps)
+        .set({
+          status: "skipped",
+          skippedAt: now,
+          completionNote: `Auto-terminated: ${reasonLabel}`,
+          snoozedUntil: null,
+          updatedAt: now,
+        })
+        .where(eq(followUps.id, fup.id));
+
+      await tx.insert(activityLogs).values({
+        id: createActivityId(),
+        businessId,
+        inquiryId: fup.inquiryId,
+        quoteId: fup.quoteId,
+        actorUserId: null,
+        type: "follow_up.auto_closed",
+        summary: `Recurring follow-up terminated: ${reasonLabel}.`,
+        metadata: {
+          followUpId: fup.id,
+          title: fup.title,
+          reason: "terminal_status",
+          newStatus,
+        },
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+  });
+
+  return pendingRecurring.length;
 }
