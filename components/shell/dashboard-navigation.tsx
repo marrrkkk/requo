@@ -3,12 +3,12 @@ import {
   BarChart3,
   BellRing,
   ClipboardList,
-  FormInput,
   FileText,
+  FormInput,
   Home,
   Inbox,
   Receipt,
-  Users,
+  Settings,
   Workflow,
 } from "lucide-react";
 
@@ -90,27 +90,17 @@ export function getDashboardNavigation(
       icon: Receipt,
     },
     {
-      href: getBusinessMembersPath(slug),
-      label: "Members",
-      description: "Invite and manage team members for this business.",
-      icon: Users,
+      href: getBusinessFormsPath(slug),
+      label: "Forms",
+      description: "Build and manage the forms that capture customer inquiries.",
+      icon: FormInput,
     },
     {
       href: getBusinessAutomationsPath(slug),
       label: "Automations",
-      description: "Event-driven rules that automate your workflow.",
+      description: "Automate follow-ups, handoffs, and routine workflow steps.",
       icon: Workflow,
     },
-    ...(canManageOperationalBusinessSettings(role)
-      ? [
-          {
-            href: getBusinessFormsPath(slug),
-            label: "Forms",
-            description: "Manage inquiry forms, public pages, and live intake flows.",
-            icon: FormInput,
-          },
-        ]
-      : []),
     ...(canViewBusinessAnalytics(role)
       ? [
           {
@@ -118,6 +108,16 @@ export function getDashboardNavigation(
             label: "Analytics",
             description: "Track form performance, quote outcomes, and workflow timing.",
             icon: BarChart3,
+          },
+        ]
+      : []),
+    ...(canManageOperationalBusinessSettings(role)
+      ? [
+          {
+            href: getBusinessSettingsPath(slug, "general"),
+            label: "Settings",
+            description: "Manage members, defaults, and business setup.",
+            icon: Settings,
           },
         ]
       : []),
@@ -131,14 +131,14 @@ function resolveDashboardActivePathname(pathname: string) {
     return pathname;
   }
 
-  const membersSettingsPath = getBusinessSettingsPath(slug, "members");
+  const membersPath = getBusinessMembersPath(slug);
 
-  // Old settings/members → top-level members
+  // Top-level members is still available, but the primary nav treats it as setup.
   if (
-    pathname === membersSettingsPath ||
-    pathname.startsWith(`${membersSettingsPath}/`)
+    pathname === membersPath ||
+    pathname.startsWith(`${membersPath}/`)
   ) {
-    return getBusinessMembersPath(slug);
+    return getBusinessSettingsPath(slug, "members");
   }
 
   const legacyDashboardPath = `${getBusinessPath(slug)}/dashboard`;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   ArrowUpRight,
   BriefcaseBusiness,
@@ -11,7 +11,7 @@ import {
   Plus,
   Settings2,
   User,
-  Users,
+  UserPlus,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -49,6 +49,10 @@ import {
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
 import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
+import { InviteMemberDialog } from "@/features/business-members/components/business-members-manager";
+import { createBusinessMemberInviteAction } from "@/features/business-members/actions";
+import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
+import type { BusinessMemberRole } from "@/lib/business-members";
 
 /* -------------------------------------------------------------------------- */
 /*  Business Switcher                                                          */
@@ -66,6 +70,14 @@ export function BusinessSwitcher({
   const [isPending, startTransition] = useTransition();
   const { isMobile, setOpenMobile } = useSidebar();
   const businessCheckout = useBusinessCheckout();
+
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<BusinessMemberRole>("staff");
+  const [, inviteFormAction, isInvitePending] = useActionStateWithSonner(
+    createBusinessMemberInviteAction,
+    {},
+  );
 
   const liveplan =
     businessCheckout?.businessId === currentBusiness.business.id
@@ -102,8 +114,9 @@ export function BusinessSwitcher({
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
         <button
           className="group/business-switcher w-full rounded-[1.1rem] border border-sidebar-border/90 bg-background/92 p-3.5 text-left shadow-[0_1px_2px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.42)] transition-[background-color,border-color,box-shadow,transform] [transition-duration:var(--motion-duration-fast)] [transition-timing-function:var(--motion-ease-standard)] hover:bg-background data-[state=open]:bg-background data-[state=open]:shadow-[var(--control-shadow-hover)] dark:border-white/8 dark:bg-card/90 dark:shadow-[0_1px_2px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)] dark:hover:bg-accent dark:data-[state=open]:bg-accent"
           data-tour="business-switcher"
@@ -238,15 +251,14 @@ export function BusinessSwitcher({
               Account settings
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link
-              href={getBusinessMembersPath(business.slug)}
-              prefetch={true}
-              onClick={closeMobileSidebar}
-            >
-              <Users data-icon="inline-start" />
-              Invite team members
-            </Link>
+          <DropdownMenuItem
+            onSelect={() => {
+              closeMobileSidebar();
+              setInviteOpen(true);
+            }}
+          >
+            <UserPlus data-icon="inline-start" />
+            Invite team members
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
@@ -271,6 +283,18 @@ export function BusinessSwitcher({
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+      
+      <InviteMemberDialog
+        email={inviteEmail}
+        isPending={isInvitePending}
+        onEmailChange={setInviteEmail}
+        onOpenChange={setInviteOpen}
+        onRoleChange={setInviteRole}
+        onSubmit={inviteFormAction}
+        open={inviteOpen}
+        role={inviteRole}
+      />
+    </>
   );
 }
 

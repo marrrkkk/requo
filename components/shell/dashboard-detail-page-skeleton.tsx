@@ -78,59 +78,66 @@ export function DashboardQuoteEditorSkeleton() {
       <div className="flex flex-col gap-3">
         <Skeleton className="h-4 w-20 rounded-md" />
         <Skeleton className="h-11 w-full max-w-lg rounded-2xl" />
-        <Skeleton className="h-4 w-full max-w-xl rounded-md" />
       </div>
 
       <div className="dashboard-detail-layout items-start xl:grid-cols-[minmax(0,1.08fr)_0.92fr]">
         <DashboardSidebarStack className="min-w-0">
-          <SectionSkeleton titleWidth="w-32" descriptionWidth="w-56">
-            <InfoTileSkeleton />
+          {/* Section 1: Quote details */}
+          <SectionSkeleton titleWidth="w-28">
             <FieldStack />
             <TwoFieldGrid />
-            <TwoFieldGrid />
-            <FieldStack area />
+            <FieldStack />
           </SectionSkeleton>
 
+          {/* Section 2: Line items */}
           <SectionSkeleton
-            action={<Skeleton className="h-10 w-28 rounded-xl" />}
-            titleWidth="w-28"
-            descriptionWidth="w-48"
+            action={<Skeleton className="h-10 w-24 rounded-xl" />}
+            titleWidth="w-24"
           >
-            {Array.from({ length: 2 }).map((_, index) => (
-              <div className="soft-panel p-4" key={index}>
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <Skeleton className="h-5 w-14 rounded-md" />
-                    <Skeleton className="size-9 rounded-lg" />
-                  </div>
-                  <FieldStack />
-                  <div className="grid gap-4 sm:grid-cols-[10rem_minmax(0,1fr)_minmax(0,1fr)]">
-                    <FieldStack />
-                    <FieldStack />
-                    <InfoTileSkeleton />
-                  </div>
-                </div>
+            {/* Toolbar */}
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-8 w-32 rounded-lg" />
+              <Skeleton className="h-8 w-20 rounded-lg" />
+            </div>
+            {/* Compact line item rows */}
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div
+                className="flex items-center gap-2 rounded-lg border border-border/60 px-3 py-2.5"
+                key={index}
+              >
+                <Skeleton className="size-3.5 shrink-0 rounded" />
+                <Skeleton className="h-9 min-w-0 flex-1 rounded-lg" />
+                <Skeleton className="h-9 w-14 shrink-0 rounded-lg" />
+                <Skeleton className="h-9 w-24 shrink-0 rounded-lg" />
+                <Skeleton className="hidden h-4 w-16 shrink-0 rounded-md sm:block" />
+                <Skeleton className="size-7 shrink-0 rounded-md" />
               </div>
             ))}
-          </SectionSkeleton>
-
-          <SectionSkeleton titleWidth="w-36" descriptionWidth="w-60">
-            <div className="flex flex-col gap-3">
-              {Array.from({ length: 3 }).map((_, index) => (
-                <div className="flex items-center justify-between gap-4" key={index}>
-                  <Skeleton className="h-4 w-20 rounded-md" />
-                  <Skeleton className="h-4 w-24 rounded-md" />
-                </div>
-              ))}
-            </div>
-            <div className="border-t pt-3">
+            {/* Totals */}
+            <div className="mt-2 flex flex-col gap-2.5 border-t border-border/60 pt-4">
               <div className="flex items-center justify-between gap-4">
-                <Skeleton className="h-4 w-14 rounded-md" />
-                <Skeleton className="h-5 w-28 rounded-md" />
+                <Skeleton className="h-4 w-16 rounded-md" />
+                <Skeleton className="h-4 w-20 rounded-md" />
+              </div>
+              <div className="border-t border-border/60 pt-2.5">
+                <div className="flex items-center justify-between gap-4">
+                  <Skeleton className="h-4 w-12 rounded-md" />
+                  <Skeleton className="h-5 w-24 rounded-md" />
+                </div>
               </div>
             </div>
-            <div className="dashboard-actions justify-between">
-              <Skeleton className="h-4 w-60 rounded-md" />
+          </SectionSkeleton>
+
+          {/* Section 3: Pricing & notes */}
+          <SectionSkeleton titleWidth="w-32">
+            <div className="grid gap-5 sm:grid-cols-3">
+              <FieldStack />
+              <FieldStack />
+              <FieldStack />
+            </div>
+            <FieldStack area />
+            <FieldStack area />
+            <div className="dashboard-actions sm:justify-end">
               <Skeleton className="h-11 w-full rounded-xl sm:w-40" />
             </div>
           </SectionSkeleton>
@@ -334,7 +341,7 @@ function SectionSkeleton({
   children: ReactNode;
   action?: ReactNode;
   titleWidth: string;
-  descriptionWidth: string;
+  descriptionWidth?: string;
 }) {
   return (
     <section className="section-panel p-5 sm:p-6">
@@ -342,7 +349,9 @@ function SectionSkeleton({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <Skeleton className={`h-6 ${titleWidth} rounded-md`} />
-            <Skeleton className={`mt-3 h-4 ${descriptionWidth} rounded-md`} />
+            {descriptionWidth ? (
+              <Skeleton className={`mt-3 h-4 ${descriptionWidth} rounded-md`} />
+            ) : null}
           </div>
           {action}
         </div>

@@ -36,10 +36,20 @@ export function CrispChatWidget({ websiteId }: CrispChatWidgetProps) {
 }
 
 export function openCrispHelp() {
+  if (typeof window === "undefined" || !window.__requoCrispConfigured) {
+    console.warn("Crisp is not configured");
+    return false;
+  }
   Crisp.chat.open();
+  return true;
 }
 
 export function openCrispHelpdesk() {
+  if (typeof window === "undefined" || !window.__requoCrispConfigured) {
+    console.warn("Crisp is not configured");
+    return false;
+  }
   Crisp.chat.setHelpdeskView();
   Crisp.chat.open();
+  return true;
 }
