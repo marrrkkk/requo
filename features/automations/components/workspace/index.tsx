@@ -138,6 +138,8 @@ export function AutomationsWorkspace({
   hasBuilderAccess,
   businessSlug,
   selectedAutomationId,
+  businessType,
+  stats,
 }: AutomationsWorkspaceProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -512,6 +514,8 @@ export function AutomationsWorkspace({
       <AutomationListView
         automations={automations}
         businessSlug={businessSlug}
+        businessType={businessType}
+        stats={stats}
         onNew={handleNewWorkflow}
         onEdit={handleEditWorkflow}
       />

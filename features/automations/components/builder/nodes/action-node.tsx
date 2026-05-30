@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { WorkflowNode } from "../hooks/use-workflow-state";
 
 const actionIcons: Record<string, LucideIcon> = {
@@ -54,9 +55,14 @@ export function ActionNode({ data, selected }: NodeProps<WorkflowNode>) {
           Action
         </span>
         {hasErrors && (
-          <div className="ml-auto text-destructive" title={data.errors!.join("\n")}>
-            <AlertCircle className="size-3.5" />
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="ml-auto text-destructive">
+                <AlertCircle className="size-3.5" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs whitespace-pre-wrap">{data.errors!.join("\n")}</TooltipContent>
+          </Tooltip>
         )}
       </div>
 

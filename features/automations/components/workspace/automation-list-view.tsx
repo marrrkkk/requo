@@ -9,7 +9,13 @@ import {
   DashboardEmptyState,
 } from "@/components/shared/dashboard-layout";
 import { cn } from "@/lib/utils";
-import type { AutomationListItem } from "../../queries";
+import type { AutomationListItem, AutomationStats } from "../../queries";
+import {
+  getRecommendedAutomations,
+  getAutomationValueProp,
+} from "../../recommended-automations";
+import { RecommendedAutomationsCard } from "../recommended-automations-card";
+import { AutomationStatsBar } from "../automation-stats-bar";
 
 import { triggers, triggerLabels } from "./definitions";
 
@@ -51,11 +57,15 @@ function countActions(actions: unknown): number {
 export function AutomationListView({
   automations,
   businessSlug,
+  businessType,
+  stats,
   onNew,
   onEdit,
 }: {
   automations: AutomationListItem[];
   businessSlug: string;
+  businessType?: string;
+  stats?: AutomationStats;
   onNew: () => void;
   onEdit: (a: AutomationListItem) => void;
 }) {
@@ -67,13 +77,16 @@ export function AutomationListView({
   const visibleAutomations = automations.slice(0, visibleCount);
 
   if (automations.length === 0) {
+    const recommendations = getRecommendedAutomations(businessType);
+    const valueProp = getAutomationValueProp(businessType);
+
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 p-12">
+      <div className="flex flex-1 flex-col items-center justify-center gap-6 p-12">
         <DashboardEmptyState
           variant="section"
           icon={GitBranch}
           title="No workflows yet"
-          description="Add a workflow from a template or build one from scratch."
+          description="Automations handle repeat tasks so you can focus on the work. Start with a recommendation or build your own."
           action={
             <div className="flex flex-wrap items-center justify-center gap-2">
               <Button size="sm" onClick={onNew}>
@@ -83,18 +96,32 @@ export function AutomationListView({
               <Button asChild size="sm" variant="outline">
                 <Link href={`/${businessSlug}/automations/presets`}>
                   <LayoutTemplate className="size-3.5" />
-                  Browse templates
+                  Browse all templates
                 </Link>
               </Button>
             </div>
           }
         />
+        {recommendations.length > 0 && (
+          <div className="w-full max-w-lg">
+            <RecommendedAutomationsCard
+              recommendations={recommendations}
+              valueProp={valueProp}
+              existingAutomationNames={[]}
+            />
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-0">
+      {/* Stats bar */}
+      {stats && stats.totalExecutions > 0 && (
+        <AutomationStatsBar stats={stats} />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-6 py-4">
         <div className="flex flex-col gap-0.5">

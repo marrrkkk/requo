@@ -1,5 +1,5 @@
 import type { BusinessPlan } from "@/lib/plans/plans";
-import type { AutomationListItem } from "../../queries";
+import type { AutomationListItem, AutomationStats } from "../../queries";
 
 export type ViewMode = "list" | "builder";
 
@@ -30,4 +30,6 @@ export type AutomationsWorkspaceProps = {
   hasBuilderAccess: boolean;
   businessSlug: string;
   selectedAutomationId?: string;
+  businessType?: string;
+  stats?: AutomationStats;
 };

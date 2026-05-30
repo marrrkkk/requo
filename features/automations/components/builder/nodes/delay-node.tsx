@@ -3,6 +3,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { AlertCircle, Clock } from "lucide-react";
 
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { WorkflowNode } from "../hooks/use-workflow-state";
 
 export function DelayNode({ data, selected }: NodeProps<WorkflowNode>) {
@@ -28,9 +29,14 @@ export function DelayNode({ data, selected }: NodeProps<WorkflowNode>) {
           Delay
         </span>
         {hasErrors && (
-          <div className="ml-auto text-destructive" title={data.errors!.join("\n")}>
-            <AlertCircle className="size-3.5" />
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="ml-auto text-destructive">
+                <AlertCircle className="size-3.5" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs whitespace-pre-wrap">{data.errors!.join("\n")}</TooltipContent>
+          </Tooltip>
         )}
       </div>
 
