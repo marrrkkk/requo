@@ -45,7 +45,7 @@ export const onboardingSteps = [
     description: "Choose the fastest path to a usable inquiry form.",
     title: "Configure your workflow",
     body:
-      "Pick your business type and starting template. You can customize everything later.",
+      "Pick your business type and starting defaults. You can customize everything later.",
     fields: [
       "starterTemplateBusinessType",
     ] as const satisfies readonly OnboardingFieldName[],

@@ -161,6 +161,9 @@ export const businesses = pgTable(
     analyticsDigestEnabled: boolean("analytics_digest_enabled")
       .notNull()
       .default(true),
+    autoCreateJobsOnAcceptance: boolean("auto_create_jobs_on_acceptance")
+      .notNull()
+      .default(true),
     industryCategory: text("industry_category"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     archivedBy: text("archived_by").references(() => user.id, {
