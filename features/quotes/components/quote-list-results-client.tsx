@@ -3,10 +3,12 @@
 import { useMemo, useState } from "react";
 
 import { DataListPagination } from "@/components/shared/data-list-pagination";
+import { QuoteBulkActions } from "@/features/quotes/components/quote-bulk-actions";
 import { QuoteListCards } from "@/features/quotes/components/quote-list-cards";
 import { QuoteListTable } from "@/features/quotes/components/quote-list-table";
 import { getBusinessQuotesPath } from "@/features/businesses/routes";
 import type { DashboardQuoteListItem } from "@/features/quotes/types";
+import { useBulkSelection } from "@/hooks/use-bulk-selection";
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
 const EMPTY_PAGE_CACHE: Record<number, DashboardQuoteListItem[]> = {};
@@ -57,10 +59,50 @@ export function QuoteListResultsClient({
     [effectiveCachedPages],
   );
 
+  const {
+    selectedCount,
+    isSelected,
+    toggle,
+    selectAll,
+    deselectAll,
+    isAtLimit,
+    serializedIds,
+  } = useBulkSelection(quotes);
+
+  const allOnPageSelected =
+    quotes.length > 0 && quotes.every((q) => isSelected(q.id));
+
+  const handleSelectAllOnPage = () => {
+    if (allOnPageSelected) {
+      deselectAll();
+    } else {
+      selectAll(quotes.map((q) => q.id));
+    }
+  };
+
   return (
     <>
-      <QuoteListCards quotes={quotes} businessSlug={businessSlug} />
-      <QuoteListTable quotes={quotes} businessSlug={businessSlug} />
+      <QuoteBulkActions
+        selectedCount={selectedCount}
+        serializedIds={serializedIds}
+        onComplete={deselectAll}
+      />
+      <QuoteListCards
+        quotes={quotes}
+        businessSlug={businessSlug}
+        isSelected={isSelected}
+        isAtLimit={isAtLimit}
+        onToggle={toggle}
+      />
+      <QuoteListTable
+        quotes={quotes}
+        businessSlug={businessSlug}
+        isSelected={isSelected}
+        isAtLimit={isAtLimit}
+        onToggle={toggle}
+        allOnPageSelected={allOnPageSelected}
+        onSelectAllOnPage={handleSelectAllOnPage}
+      />
       <DataListPagination
         cachedPages={cachedPageNumbers}
         currentPage={displayPage}

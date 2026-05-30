@@ -58,7 +58,7 @@ export function QuoteLineItemsReorderGroup({
         items={items.map((item) => item.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className="flex flex-col gap-4">{children}</div>
+        <div className="flex flex-col gap-2">{children}</div>
       </SortableContext>
     </DndContext>
   );

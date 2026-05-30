@@ -115,8 +115,8 @@ export function QuoteLibraryEntryCard({
   const motionStyle = animationDelayMs
     ? ({ animationDelay: `${animationDelayMs}ms` } as CSSProperties)
     : undefined;
-  const entryLabel = entry.kind === "block" ? "block" : "package";
-  const entryMetaLabel = entry.kind === "block" ? "Block" : "Package";
+  const entryLabel = entry.kind === "block" ? "block" : entry.kind === "template" ? "template" : "package";
+  const entryMetaLabel = entry.kind === "block" ? "Block" : entry.kind === "template" ? "Template" : "Package";
 
   return (
     <Card
@@ -207,6 +207,12 @@ export function QuoteLibraryEntryCard({
                     kind: entry.kind,
                     name: entry.name,
                     description: entry.description ?? "",
+                    title: entry.title ?? "",
+                    notes: entry.notes ?? "",
+                    terms: entry.terms ?? "",
+                    validityDays: entry.validityDays != null
+                      ? String(entry.validityDays)
+                      : "14",
                     items: entry.items.map((item) => ({
                       id: item.id,
                       description: item.description,

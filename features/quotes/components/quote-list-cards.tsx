@@ -7,11 +7,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { QuotePostAcceptanceStatusBadge } from "@/features/quotes/components/quote-post-acceptance-status-badge";
 import { QuoteRecordStateBadge } from "@/features/quotes/components/quote-record-state-badge";
 import { QuoteReminderBadge } from "@/features/quotes/components/quote-reminder-badge";
 import { QuoteStatusBadge } from "@/features/quotes/components/quote-status-badge";
-import type { DashboardQuoteListItem } from "@/features/quotes/types";
+import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import {
   formatQuoteDate,
   formatQuoteMoney,
@@ -21,11 +22,17 @@ import { getBusinessQuotePath } from "@/features/businesses/routes";
 type QuoteListCardsProps = {
   quotes: DashboardQuoteListItem[];
   businessSlug: string;
+  isSelected?: (id: string) => boolean;
+  isAtLimit?: boolean;
+  onToggle?: (id: string) => void;
 };
 
 export function QuoteListCards({
   quotes,
   businessSlug,
+  isSelected,
+  isAtLimit,
+  onToggle,
 }: QuoteListCardsProps) {
   return (
     <div className="data-list-mobile-grid">
@@ -33,14 +40,26 @@ export function QuoteListCards({
         const reminders = quote.reminders.filter(
           (reminder) => reminder !== "follow_up_due",
         );
+        const checked = isSelected?.(quote.id) ?? false;
+        const disabled = !checked && (isAtLimit ?? false);
 
         return (
-          <Link
-            className="block"
-            href={getBusinessQuotePath(businessSlug, quote.id)}
-            key={quote.id}
-            prefetch={true}
-          >
+          <div className="relative" key={quote.id}>
+            {onToggle ? (
+              <div className="absolute left-3 top-3 z-10">
+                <Checkbox
+                  aria-label={`Select quote ${quote.quoteNumber}`}
+                  checked={checked}
+                  disabled={disabled}
+                  onCheckedChange={() => onToggle(quote.id)}
+                />
+              </div>
+            ) : null}
+            <Link
+              className="block"
+              href={getBusinessQuotePath(businessSlug, quote.id)}
+              prefetch={true}
+            >
             <Card className="data-list-card transition-colors hover:bg-accent/20">
               <CardHeader className="data-list-card-header">
                 <div className="flex min-w-0 items-start justify-between gap-3">
@@ -81,12 +100,10 @@ export function QuoteListCards({
                 <div className="info-tile col-span-2 min-w-0 h-full px-3 py-2.5 shadow-none sm:px-3.5 sm:py-3">
                   <span className="meta-label">Customer</span>
                   <div className="mt-1.5 min-w-0 flex flex-col gap-0.5 sm:mt-2 sm:gap-1">
-                    <p
-                      className="truncate text-sm font-medium text-foreground"
-                      title={quote.customerName}
-                    >
-                      {quote.customerName}
-                    </p>
+                    <TruncatedTextWithTooltip
+                      text={quote.customerName}
+                      className="text-sm font-medium text-foreground"
+                    />
                     <p className="truncate text-sm text-muted-foreground">
                       {quote.customerEmail}
                     </p>
@@ -107,6 +124,7 @@ export function QuoteListCards({
               </CardContent>
             </Card>
           </Link>
+          </div>
         );
       })}
     </div>

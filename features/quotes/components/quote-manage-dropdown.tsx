@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Archive,
   Ban,
+  FileText,
   RotateCcw,
   Settings,
   Trash2,
@@ -31,9 +32,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import type {
+  QuoteLibraryActionState,
   QuoteRecordActionState,
   QuoteStatus,
 } from "@/features/quotes/types";
+import { toast } from "sonner";
 
 type QuoteManageDropdownProps = {
   archiveAction: (
@@ -50,6 +53,7 @@ type QuoteManageDropdownProps = {
     state: QuoteRecordActionState,
     formData: FormData,
   ) => Promise<QuoteRecordActionState>;
+  saveAsTemplateAction?: () => Promise<QuoteLibraryActionState>;
   status: QuoteStatus;
   voidAction: (
     state: QuoteRecordActionState,
@@ -67,6 +71,7 @@ export function QuoteManageDropdown({
   deleteDraftAction,
   isArchived,
   restoreArchivedAction,
+  saveAsTemplateAction,
   status,
   voidAction,
 }: QuoteManageDropdownProps) {
@@ -75,6 +80,7 @@ export function QuoteManageDropdown({
   const restoreFormRef = useRef<HTMLFormElement>(null);
   const deleteFormRef = useRef<HTMLFormElement>(null);
   const voidFormRef = useRef<HTMLFormElement>(null);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
 
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
 
@@ -120,7 +126,23 @@ export function QuoteManageDropdown({
     setConfirmAction(null);
   }
 
-  const isPending = isArchivePending || isRestorePending || isDeletePending || isVoidPending;
+  async function handleSaveAsTemplate() {
+    if (!saveAsTemplateAction || isSavingTemplate) return;
+    setIsSavingTemplate(true);
+    try {
+      const result = await saveAsTemplateAction();
+      if (result.success) {
+        toast.success(result.success);
+        router.refresh();
+      } else if (result.error) {
+        toast.error(result.error);
+      }
+    } finally {
+      setIsSavingTemplate(false);
+    }
+  }
+
+  const isPending = isArchivePending || isRestorePending || isDeletePending || isVoidPending || isSavingTemplate;
   const isDestructive = confirmAction === "delete" || confirmAction === "void";
 
   const confirmConfig: Record<Exclude<ConfirmAction, null>, { title: string; description: string; label: string }> = {
@@ -167,6 +189,18 @@ export function QuoteManageDropdown({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
+          {saveAsTemplateAction ? (
+            <>
+              <DropdownMenuItem
+                disabled={isSavingTemplate}
+                onSelect={handleSaveAsTemplate}
+              >
+                <FileText />
+                Save as template
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          ) : null}
           {status === "draft" ? (
             <DropdownMenuItem
               variant="destructive"

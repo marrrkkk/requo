@@ -32,6 +32,10 @@ export async function getQuoteLibraryForBusiness(
       kind: quoteLibraryEntries.kind,
       name: quoteLibraryEntries.name,
       description: quoteLibraryEntries.description,
+      title: quoteLibraryEntries.title,
+      notes: quoteLibraryEntries.notes,
+      terms: quoteLibraryEntries.terms,
+      validityDays: quoteLibraryEntries.validityDays,
       createdAt: quoteLibraryEntries.createdAt,
       updatedAt: quoteLibraryEntries.updatedAt,
     })
@@ -93,6 +97,10 @@ export async function getQuoteLibraryForBusiness(
       kind: entry.kind,
       name: entry.name,
       description: entry.description,
+      title: entry.title,
+      notes: entry.notes,
+      terms: entry.terms,
+      validityDays: entry.validityDays,
       itemCount: entryItems.length,
       totalInCents: entryItems.reduce(
         (sum, item) => sum + item.quantity * item.unitPriceInCents,

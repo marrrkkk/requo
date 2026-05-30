@@ -29,7 +29,15 @@ export const quoteStatusEnum = pgEnum("quote_status", [
 
 export const quotePostAcceptanceStatusEnum = pgEnum(
   "quote_post_acceptance_status",
-  ["none", "booked", "scheduled", "in_progress", "completed", "canceled"],
+  [
+    "none",
+    "booked",
+    "scheduled",
+    "in_progress",
+    "no_job_tracking",
+    "completed",
+    "canceled",
+  ],
 );
 
 export const quotes = pgTable(

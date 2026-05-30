@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { ChevronDown, FileText, Plus, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -24,6 +24,12 @@ import {
 } from "@/components/shared/floating-form-actions";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Field,
   FieldContent,
@@ -56,11 +62,12 @@ import {
   formatQuoteMoney,
   isQuoteEditorLineItemBlank,
   parseCurrencyInputToCents,
+  applyTemplateToQuoteForm,
 } from "@/features/quotes/utils";
 import { saveQuoteLineItemToPricingLibrary } from "@/features/quotes/quote-library-actions";
-import { AddLineItemDialog } from "@/features/quotes/components/add-line-item-dialog";
 import { AiMissingInfoPanel } from "@/features/quotes/components/ai-missing-info-panel";
 import { AiPricingReviewPanel } from "@/features/quotes/components/ai-pricing-review-panel";
+import { ApplyTemplateConfirmDialog } from "@/features/quotes/components/apply-template-confirm-dialog";
 import { generateQuoteDraftAction } from "@/features/ai/actions";
 import type { AiQuoteDraft } from "@/features/ai/types";
 import { cn } from "@/lib/utils";
@@ -90,6 +97,7 @@ const LazyQuoteLibrarySheet = dynamic(() =>
 
 export function QuoteEditor({
   action,
+  businessDefaults,
   businessName,
   businessSlug,
   currency,
@@ -131,8 +139,10 @@ export function QuoteEditor({
     string | null
   >(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [libraryInitialTab, setLibraryInitialTab] = useState<string | null>(null);
   const [hasLoadedLibrary, setHasLoadedLibrary] = useState(false);
   const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [pendingTemplateEntry, setPendingTemplateEntry] = useState<DashboardQuoteLibraryEntry | null>(null);
   const [savedValues, setSavedValues] = useState(() =>
     normalizeQuoteEditorValues(initialValues),
   );
@@ -285,6 +295,8 @@ export function QuoteEditor({
   function handleLibraryOpenChange(open: boolean) {
     if (open) {
       setHasLoadedLibrary(true);
+    } else {
+      setLibraryInitialTab(null);
     }
 
     setIsLibraryOpen(open);
@@ -425,6 +437,74 @@ export function QuoteEditor({
         : [...currentItems, ...copiedItems];
     });
     setIsLibraryOpen(false);
+  }
+
+  function applyTemplate(entry: DashboardQuoteLibraryEntry) {
+    if (entry.kind !== "template" || !entry.title || !entry.validityDays) {
+      return;
+    }
+
+    // Check if the form has meaningful content that would be lost
+    const hasContent =
+      title.trim() !== "" ||
+      items.some((item) => !isQuoteEditorLineItemBlank(item));
+
+    if (hasContent) {
+      // Show confirmation dialog
+      setPendingTemplateEntry(entry);
+      return;
+    }
+
+    executeTemplateApply(entry);
+  }
+
+  function executeTemplateApply(entry: DashboardQuoteLibraryEntry) {
+    if (!entry.title || !entry.validityDays) {
+      return;
+    }
+
+    const templateData = {
+      title: entry.title,
+      notes: entry.notes,
+      terms: entry.terms,
+      validityDays: entry.validityDays,
+      items: entry.items.map((item) => ({
+        id: crypto.randomUUID(),
+        description: item.description,
+        quantity: item.quantity,
+        unitPriceInCents: item.unitPriceInCents,
+      })),
+    };
+
+    const applied = applyTemplateToQuoteForm(templateData, businessDefaults);
+
+    clearLineItemTimers();
+    setTitle(applied.title);
+    setNotes(applied.notes);
+    setTerms(applied.terms);
+    setValidUntil(applied.validUntil);
+    setItems(
+      applied.items.map((item) =>
+        createQuoteEditorLineItemValue({
+          description: item.description,
+          quantity: String(item.quantity),
+          unitPrice: centsToMoneyInput(item.unitPriceInCents),
+        }),
+      ),
+    );
+    setIsLibraryOpen(false);
+    setPendingTemplateEntry(null);
+    toast.success(`Template "${entry.name}" applied.`);
+  }
+
+  function handleConfirmTemplateApply() {
+    if (pendingTemplateEntry) {
+      executeTemplateApply(pendingTemplateEntry);
+    }
+  }
+
+  function handleCancelTemplateApply() {
+    setPendingTemplateEntry(null);
   }
 
   function applyAiDraft(draft: AiQuoteDraft) {
@@ -587,8 +667,7 @@ export function QuoteEditor({
             </>
           }
           contentClassName="flex flex-col gap-5"
-          description="Set the customer, quote title, validity date, and customer-facing notes."
-          title="Customer and quote details"
+          title="Quote details"
         >
           {linkedInquiry ? (
             <LinkedInquiryPanel
@@ -622,13 +701,14 @@ export function QuoteEditor({
               </FieldContent>
             </Field>
 
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {customerFieldsLocked ? (
-                <>
-                  <input type="hidden" name="customerName" value={customerName} />
-                  <input type="hidden" name="customerContactHandle" value={customerContactHandle} />
-                </>
-              ) : null}
+            {customerFieldsLocked ? (
+              <>
+                <input type="hidden" name="customerName" value={customerName} />
+                <input type="hidden" name="customerContactHandle" value={customerContactHandle} />
+              </>
+            ) : null}
+
+            <div className="grid gap-5 sm:grid-cols-2">
               <Field
                 data-invalid={Boolean(state.fieldErrors?.customerName) || undefined}
               >
@@ -661,41 +741,6 @@ export function QuoteEditor({
 
               <Field
                 data-invalid={
-                  Boolean(state.fieldErrors?.customerContactMethod) || undefined
-                }
-              >
-                <FieldLabel htmlFor="quote-customer-contact-method">
-                  Preferred channel
-                </FieldLabel>
-                <FieldContent>
-                  <input type="hidden" name="customerContactMethod" value={customerContactMethod} />
-                  <Combobox
-                    disabled={isPending || customerFieldsLocked}
-                    id="quote-customer-contact-method"
-                    onValueChange={(value) => {
-                      if (value) {
-                        setCustomerContactMethod(value as InquiryContactMethod);
-                      }
-                    }}
-                    options={inquiryContactMethods.map((method) => ({
-                      label: inquiryContactMethodLabels[method],
-                      value: method,
-                    }))}
-                    placeholder="Select..."
-                    value={customerContactMethod}
-                  />
-                  <FieldError
-                    errors={
-                      state.fieldErrors?.customerContactMethod?.[0]
-                        ? [{ message: state.fieldErrors.customerContactMethod[0] }]
-                        : undefined
-                    }
-                  />
-                </FieldContent>
-              </Field>
-
-              <Field
-                data-invalid={
                   Boolean(state.fieldErrors?.customerContactHandle) || undefined
                 }
               >
@@ -704,7 +749,7 @@ export function QuoteEditor({
                 </FieldLabel>
                 <FieldContent>
                   <Input
-                    key={customerContactMethod} // Force re-render on method change
+                    key={customerContactMethod}
                     disabled={isPending || customerFieldsLocked}
                     id="quote-customer-contact-handle"
                     maxLength={320}
@@ -740,13 +785,218 @@ export function QuoteEditor({
               </Field>
             </div>
 
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <Field
+              data-invalid={
+                Boolean(state.fieldErrors?.customerContactMethod) || undefined
+              }
+            >
+              <FieldLabel htmlFor="quote-customer-contact-method">
+                Preferred channel
+              </FieldLabel>
+              <FieldContent>
+                <input type="hidden" name="customerContactMethod" value={customerContactMethod} />
+                <Combobox
+                  disabled={isPending || customerFieldsLocked}
+                  id="quote-customer-contact-method"
+                  onValueChange={(value) => {
+                    if (value) {
+                      setCustomerContactMethod(value as InquiryContactMethod);
+                    }
+                  }}
+                  options={inquiryContactMethods.map((method) => ({
+                    label: inquiryContactMethodLabels[method],
+                    value: method,
+                  }))}
+                  placeholder="Select..."
+                  value={customerContactMethod}
+                />
+                <FieldError
+                  errors={
+                    state.fieldErrors?.customerContactMethod?.[0]
+                      ? [{ message: state.fieldErrors.customerContactMethod[0] }]
+                      : undefined
+                  }
+                />
+              </FieldContent>
+            </Field>
+
+          </FieldGroup>
+        </DashboardSection>
+
+        {/* ─── Section 2: Line items ─── */}
+        <DashboardSection
+          className={cn(isAiGenerating && "ai-glow-section")}
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const nextItem = createQuoteEditorLineItem();
+                setItems((currentItems) => [...currentItems, nextItem]);
+                scheduleItemEnter(nextItem.id);
+              }}
+              disabled={isPending}
+            >
+              <Plus data-icon="inline-start" />
+              Add item
+            </Button>
+          }
+          contentClassName="flex flex-col gap-3"
+          title="Line items"
+        >
+          {/* Quick actions toolbar */}
+          {(canUseAiGenerator || pricingLibrary.length > 0) ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {canUseAiGenerator ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={generateWithAi}
+                  disabled={
+                    isPending ||
+                    isAiGenerating ||
+                    (!linkedInquiry && !title.trim() && !notes.trim())
+                  }
+                >
+                  {isAiGenerating ? (
+                    <>
+                      <Spinner aria-hidden="true" data-icon="inline-start" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles data-icon="inline-start" />
+                      Generate with AI
+                    </>
+                  )}
+                </Button>
+              ) : null}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" size="sm" variant="ghost" disabled={isPending}>
+                    <FileText data-icon="inline-start" />
+                    Library
+                    <ChevronDown data-icon="inline-end" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setLibraryInitialTab("template");
+                      setHasLoadedLibrary(true);
+                      setIsLibraryOpen(true);
+                    }}
+                  >
+                    Use template
+                  </DropdownMenuItem>
+                  {pricingLibrary.some((e) => e.kind !== "template") ? (
+                    <DropdownMenuItem onClick={() => handleLibraryOpenChange(true)}>
+                      Insert saved pricing
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ) : null}
+
+          {aiMissingInfo.length ? (
+            <AiMissingInfoPanel
+              clarificationMessage={aiClarificationMessage}
+              missingInfo={aiMissingInfo}
+            />
+          ) : null}
+
+          {hasItemsNeedingReview ? (
+            <AiPricingReviewPanel
+              itemCount={itemsNeedingReview.length}
+              items={itemsNeedingReview}
+            />
+          ) : null}
+
+          <QuoteLineItemsReorderGroup
+            items={items}
+            onReorder={setItems}
+          >
+            {items.map((item, index) => {
+              const unitPriceInCents = parseCurrencyInputToCents(item.unitPrice);
+              const quantity = Number.parseInt(item.quantity.trim(), 10);
+              const safeQuantity =
+                Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
+
+              return (
+                <LineItemCard
+                  key={item.id}
+                  item={item}
+                  index={index}
+                  currency={currency}
+                  unitPriceInCents={unitPriceInCents}
+                  safeQuantity={safeQuantity}
+                  isPending={isPending}
+                  canRemove={visibleItems.length > 1}
+                  canSaveToPricing={canUseQuoteLibrary}
+                  onSaveToPricing={saveLineItemToPricing}
+                  onUpdate={updateItem}
+                  onRemove={removeItem}
+                  formatMoney={formatQuoteMoney}
+                />
+              );
+            })}
+          </QuoteLineItemsReorderGroup>
+
+          {/* Totals summary */}
+          <div className="mt-2 flex flex-col gap-2.5 border-t border-border/60 pt-4">
+            <TotalsRow
+              label="Subtotal"
+              value={formatQuoteMoney(totals.subtotalInCents, currency)}
+            />
+            {totals.discountInCents > 0 ? (
+              <TotalsRow
+                label="Discount"
+                value={`-${formatQuoteMoney(totals.discountInCents, currency)}`}
+              />
+            ) : null}
+            {totals.taxInCents > 0 ? (
+              <TotalsRow
+                label="Tax"
+                value={formatQuoteMoney(totals.taxInCents, currency)}
+              />
+            ) : null}
+            <Separator />
+            <TotalsRow
+              label="Total"
+              value={formatQuoteMoney(totals.totalInCents, currency)}
+              strong
+            />
+          </div>
+        </DashboardSection>
+
+        {/* ─── Section 3: Pricing & notes ─── */}
+        <DashboardSection
+          contentClassName="flex flex-col gap-5"
+          title="Pricing & notes"
+          footer={
+            showFloatingUnsavedChanges ? undefined : (
+              <Button disabled={isPending} size="lg" type="submit">
+                {isPending ? (
+                  <>
+                    <Spinner data-icon="inline-start" aria-hidden="true" />
+                    {submitPendingLabel}
+                  </>
+                ) : (
+                  submitLabel
+                )}
+              </Button>
+            )
+          }
+          footerClassName="w-full sm:justify-end"
+        >
+          <FieldGroup>
+            <div className="grid gap-5 sm:grid-cols-3">
               <Field
                 data-invalid={Boolean(state.fieldErrors?.validUntil) || undefined}
               >
-                <FieldLabel htmlFor="quote-valid-until">
-                  Valid until
-                </FieldLabel>
+                <FieldLabel htmlFor="quote-valid-until">Valid until</FieldLabel>
                 <FieldContent>
                   <DatePicker
                     id="quote-valid-until"
@@ -879,15 +1129,15 @@ export function QuoteEditor({
             </div>
 
             <Field data-invalid={Boolean(state.fieldErrors?.notes) || undefined}>
-              <FieldLabel htmlFor="quote-notes">Notes</FieldLabel>
+              <FieldLabel htmlFor="quote-notes">Customer-facing notes</FieldLabel>
               <FieldContent>
                 <Textarea
                   id="quote-notes"
                   maxLength={4000}
-                  rows={3}
+                  rows={2}
                   value={notes}
                   onChange={(event) => setNotes(event.currentTarget.value)}
-                  placeholder="Additional context or instructions for the customer."
+                  placeholder="Additional context visible to the customer on the quote."
                   disabled={isPending}
                 />
                 <FieldError
@@ -907,10 +1157,10 @@ export function QuoteEditor({
                   id="quote-terms"
                   maxLength={4000}
                   name="terms"
-                  rows={4}
+                  rows={3}
                   value={terms}
                   onChange={(event) => setTerms(event.currentTarget.value)}
-                  placeholder="Payment terms, warranty, cancellation policy, or other conditions."
+                  placeholder="Payment terms, warranty, cancellation policy."
                   disabled={isPending}
                 />
                 <FieldError
@@ -923,152 +1173,6 @@ export function QuoteEditor({
               </FieldContent>
             </Field>
           </FieldGroup>
-        </DashboardSection>
-
-        <DashboardSection
-          className={cn(isAiGenerating && "ai-glow-section")}
-          action={
-            <>
-              {canUseAiGenerator ? (
-                <Button
-                  type="button"
-                  onClick={generateWithAi}
-                  disabled={
-                    isPending ||
-                    isAiGenerating ||
-                    (!linkedInquiry && !title.trim() && !notes.trim())
-                  }
-                >
-                  {isAiGenerating ? (
-                    <>
-                      <Spinner aria-hidden="true" data-icon="inline-start" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles data-icon="inline-start" />
-                      Generate with AI
-                    </>
-                  )}
-                </Button>
-              ) : null}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleLibraryOpenChange(true)}
-                disabled={isPending}
-              >
-                Insert saved
-              </Button>
-              <AddLineItemDialog
-                disabled={isPending}
-                onAdd={(newItem) => {
-                  const nextItem = {
-                    ...createQuoteEditorLineItem(),
-                    description: newItem.description,
-                    quantity: newItem.quantity,
-                    unitPrice: newItem.unitPrice,
-                  };
-
-                  setItems((currentItems) => [...currentItems, nextItem]);
-                  scheduleItemEnter(nextItem.id);
-                }}
-              />
-            </>
-          }
-          contentClassName="flex flex-col gap-4"
-          description="Add priced rows. The preview and totals update while you edit."
-          title="Line items"
-        >
-          {aiMissingInfo.length ? (
-            <AiMissingInfoPanel
-              clarificationMessage={aiClarificationMessage}
-              missingInfo={aiMissingInfo}
-            />
-          ) : null}
-
-          {hasItemsNeedingReview ? (
-            <AiPricingReviewPanel
-              itemCount={itemsNeedingReview.length}
-              items={itemsNeedingReview}
-            />
-          ) : null}
-
-          <QuoteLineItemsReorderGroup
-            items={items}
-            onReorder={setItems}
-          >
-            {items.map((item, index) => {
-              const unitPriceInCents = parseCurrencyInputToCents(item.unitPrice);
-              const quantity = Number.parseInt(item.quantity.trim(), 10);
-              const safeQuantity =
-                Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
-
-              return (
-                <LineItemCard
-                  key={item.id}
-                  item={item}
-                  index={index}
-                  currency={currency}
-                  unitPriceInCents={unitPriceInCents}
-                  safeQuantity={safeQuantity}
-                  isPending={isPending}
-                  canRemove={visibleItems.length > 1}
-                  canSaveToPricing={canUseQuoteLibrary}
-                  onSaveToPricing={saveLineItemToPricing}
-                  onUpdate={updateItem}
-                  onRemove={removeItem}
-                  formatMoney={formatQuoteMoney}
-                />
-              );
-            })}
-          </QuoteLineItemsReorderGroup>
-        </DashboardSection>
-
-        <DashboardSection
-          contentClassName="flex flex-col gap-4"
-          footer={
-            showFloatingUnsavedChanges ? undefined : (
-              <>
-                <Button disabled={isPending} size="lg" type="submit">
-                  {isPending ? (
-                    <>
-                      <Spinner data-icon="inline-start" aria-hidden="true" />
-                      {submitPendingLabel}
-                    </>
-                  ) : (
-                    submitLabel
-                  )}
-                </Button>
-              </>
-            )
-          }
-          footerClassName="w-full sm:justify-between"
-          title="Summary"
-        >
-          <div className="soft-panel flex flex-col gap-4 px-4 py-4 shadow-none">
-            <span className="meta-label">Summary</span>
-            <div className="flex flex-col gap-3">
-              <TotalsRow
-                label="Subtotal"
-                value={formatQuoteMoney(totals.subtotalInCents, currency)}
-              />
-              <TotalsRow
-                label="Discount"
-                value={`-${formatQuoteMoney(totals.discountInCents, currency)}`}
-              />
-              <TotalsRow
-                label="Tax"
-                value={formatQuoteMoney(totals.taxInCents, currency)}
-              />
-              <Separator />
-              <TotalsRow
-                label="Total"
-                value={formatQuoteMoney(totals.totalInCents, currency)}
-                strong
-              />
-            </div>
-          </div>
         </DashboardSection>
       </DashboardSidebarStack>
 
@@ -1087,12 +1191,21 @@ export function QuoteEditor({
         <LazyQuoteLibrarySheet
           currency={currency}
           entries={pricingLibrary}
+          initialTab={libraryInitialTab}
           items={items}
           onInsert={insertPricingEntry}
+          onApplyTemplate={applyTemplate}
           open={isLibraryOpen}
           onOpenChange={handleLibraryOpenChange}
         />
       ) : null}
+
+      <ApplyTemplateConfirmDialog
+        open={pendingTemplateEntry !== null}
+        templateName={pendingTemplateEntry?.name ?? ""}
+        onConfirm={handleConfirmTemplateApply}
+        onCancel={handleCancelTemplateApply}
+      />
 
       <QuotePreview
         businessName={businessName}

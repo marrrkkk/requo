@@ -44,7 +44,7 @@ export type QuotePostAcceptanceStatus =
 export type QuoteDeliveryMethod = (typeof quoteDeliveryMethods)[number];
 export const quoteReminderKinds = ["follow_up_due", "expiring_soon"] as const;
 export type QuoteReminderKind = (typeof quoteReminderKinds)[number];
-export const quoteLibraryEntryKinds = ["block", "package"] as const;
+export const quoteLibraryEntryKinds = ["block", "package", "template"] as const;
 export type QuoteLibraryEntryKind = (typeof quoteLibraryEntryKinds)[number];
 
 import type {
@@ -108,6 +108,14 @@ export type DashboardQuoteLibraryEntry = {
   kind: QuoteLibraryEntryKind;
   name: string;
   description: string | null;
+  /** Template-specific: display title for the quote when template is applied. */
+  title: string | null;
+  /** Template-specific: default quote notes. */
+  notes: string | null;
+  /** Template-specific: default quote terms. */
+  terms: string | null;
+  /** Template-specific: default validity period in days (1–365). */
+  validityDays: number | null;
   itemCount: number;
   totalInCents: number;
   createdAt: Date;
@@ -341,10 +349,14 @@ export type QuoteLibraryEditorValues = {
   kind: QuoteLibraryEntryKind;
   name: string;
   description: string;
+  title?: string;
+  notes?: string;
+  terms?: string;
+  validityDays?: string;
   items: QuoteEditorLineItemValue[];
 };
 
-export type QuoteLibraryFieldName = "kind" | "name" | "description" | "items";
+export type QuoteLibraryFieldName = "kind" | "name" | "description" | "title" | "notes" | "terms" | "validityDays" | "items";
 
 export type QuoteLibraryFieldErrors = Partial<
   Record<QuoteLibraryFieldName, string[] | undefined>
@@ -467,4 +479,11 @@ export type PublicQuoteRevisionRequestActionState = {
   error?: string;
   success?: string;
   fieldErrors?: Partial<Record<"message" | "itemComments", string[] | undefined>>;
+};
+
+export type QuoteBulkActionState = {
+  success?: string;
+  error?: string;
+  affected?: number;
+  skipped?: number;
 };

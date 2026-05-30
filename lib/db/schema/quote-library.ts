@@ -15,6 +15,7 @@ import { businesses } from "@/lib/db/schema/businesses";
 export const quoteLibraryEntryKindEnum = pgEnum("quote_library_entry_kind", [
   "block",
   "package",
+  "template",
 ]);
 
 export const quoteLibraryEntries = pgTable(
@@ -28,6 +29,14 @@ export const quoteLibraryEntries = pgTable(
     currency: text("currency").notNull().default("USD"),
     name: text("name").notNull(),
     description: text("description"),
+    /** Template-specific: display title for the quote when template is applied. */
+    title: text("title"),
+    /** Template-specific: default quote notes. */
+    notes: text("notes"),
+    /** Template-specific: default quote terms. */
+    terms: text("terms"),
+    /** Template-specific: default validity period in days (1–365). */
+    validityDays: integer("validity_days"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -49,6 +58,10 @@ export const quoteLibraryEntries = pgTable(
     check(
       "quote_library_entries_currency_format",
       sql`${table.currency} ~ '^[A-Z]{3}$'`,
+    ),
+    check(
+      "quote_library_entries_validity_days_range",
+      sql`${table.validityDays} is null or (${table.validityDays} >= 1 and ${table.validityDays} <= 365)`,
     ),
   ],
 );

@@ -36,7 +36,7 @@ export function QuoteGenerateInvoiceButton({
 
   function handleClick() {
     if (invoiceId) {
-      setShowDuplicateDialog(true);
+      router.push(getBusinessInvoicePath(businessSlug, invoiceId));
       return;
     }
 
@@ -67,13 +67,14 @@ export function QuoteGenerateInvoiceButton({
         onClick={handleClick}
         type="button"
         className="w-full sm:w-auto"
+        variant={invoiceId ? "outline" : "default"}
       >
         {isPending ? (
           <Spinner className="size-4" aria-hidden="true" />
         ) : (
           <Receipt data-icon="inline-start" />
         )}
-        Generate invoice
+        {invoiceId ? "Open invoice" : "Generate invoice"}
       </Button>
 
       <Dialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>

@@ -4,6 +4,7 @@ import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 
 import { writeAuditLog } from "@/features/audit/mutations";
 import { emitEvent } from "@/features/automations/dispatcher";
+import { autoCloseFollowUpsForQuote } from "@/features/follow-ups/mutations";
 import { db } from "@/lib/db/client";
 import {
   activityLogs,
@@ -1394,6 +1395,20 @@ export async function respondToPublicQuoteByToken({
       });
     }
 
+    // Auto-close pending follow-ups for this quote when customer responds
+    // Note: This is called inside the transaction but uses its own nested transaction (savepoint).
+    // This is intentional — if auto-close fails, the quote response should still succeed.
+    try {
+      await autoCloseFollowUpsForQuote({
+        businessId: existingQuote.businessId,
+        quoteId: existingQuote.id,
+        reason: nextStatus === "accepted" ? "quote_accepted" : "quote_rejected",
+      });
+    } catch (error) {
+      // Non-critical: log but don't fail the quote response
+      console.error("[respondToPublicQuoteByToken] Failed to auto-close follow-ups", error);
+    }
+
     return {
       updated: true,
       businessId: existingQuote.businessId,
@@ -1505,6 +1520,23 @@ export async function onQuoteAccepted(
   quoteNumber: string,
   now: Date,
 ) {
+  // Auto-create job if the business has it enabled
+  const [business] = await tx
+    .select({ autoCreateJobsOnAcceptance: businesses.autoCreateJobsOnAcceptance })
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
+  if (business?.autoCreateJobsOnAcceptance) {
+    const { createJobFromQuoteForBusiness } = await import("@/features/jobs/mutations");
+    await createJobFromQuoteForBusiness({
+      businessId,
+      quoteId,
+      userId: null,
+      tx,
+    });
+  }
+
   const checklistCreated = await maybeCreatePostWinChecklist(
     tx,
     businessId,
@@ -2395,4 +2427,113 @@ export async function stopAutoFollowUpForQuote(quoteId: string) {
       updatedAt: now,
     })
     .where(eq(quotes.id, quoteId));
+}
+
+// ---------------------------------------------------------------------------
+// Bulk mutations for quote list actions
+// ---------------------------------------------------------------------------
+
+export async function bulkArchiveQuotesForBusiness({
+  businessId,
+  quoteIds,
+  actorUserId,
+}: {
+  businessId: string;
+  quoteIds: string[];
+  actorUserId: string;
+}): Promise<{ affected: number; skipped: number }> {
+  const now = new Date();
+
+  const result = await db
+    .update(quotes)
+    .set({
+      archivedAt: now,
+      archivedBy: actorUserId,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(quotes.businessId, businessId),
+        inArray(quotes.id, quoteIds),
+        isNull(quotes.deletedAt),
+      ),
+    )
+    .returning({ id: quotes.id });
+
+  return {
+    affected: result.length,
+    skipped: quoteIds.length - result.length,
+  };
+}
+
+export async function bulkVoidQuotesForBusiness({
+  businessId,
+  quoteIds,
+  actorUserId,
+}: {
+  businessId: string;
+  quoteIds: string[];
+  actorUserId: string;
+}): Promise<{ affected: number; skipped: number }> {
+  const now = new Date();
+
+  // Only "sent" quotes can be voided
+  const result = await db
+    .update(quotes)
+    .set({
+      status: "voided",
+      voidedAt: now,
+      voidedBy: actorUserId,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(quotes.businessId, businessId),
+        inArray(quotes.id, quoteIds),
+        eq(quotes.status, "sent"),
+        isNull(quotes.deletedAt),
+      ),
+    )
+    .returning({ id: quotes.id });
+
+  return {
+    affected: result.length,
+    skipped: quoteIds.length - result.length,
+  };
+}
+
+export async function bulkDeleteDraftQuotesForBusiness({
+  businessId,
+  quoteIds,
+  actorUserId,
+}: {
+  businessId: string;
+  quoteIds: string[];
+  actorUserId: string;
+}): Promise<{ affected: number; skipped: number }> {
+  const now = new Date();
+
+  // Only draft, non-archived quotes can be deleted
+  const result = await db
+    .update(quotes)
+    .set({
+      deletedAt: now,
+      deletedBy: actorUserId,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(quotes.businessId, businessId),
+        inArray(quotes.id, quoteIds),
+        eq(quotes.status, "draft"),
+        isNull(quotes.archivedAt),
+        isNull(quotes.deletedAt),
+      ),
+    )
+    .returning({ id: quotes.id });
+
+  return {
+    affected: result.length,
+    skipped: quoteIds.length - result.length,
+  };
 }

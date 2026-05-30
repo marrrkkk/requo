@@ -2,6 +2,7 @@
 
 import { revalidateTag, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 
 import { emitEvent } from "@/features/automations/dispatcher";
 import {
@@ -34,6 +35,9 @@ import {
 } from "@/lib/resend/client";
 import {
   archiveQuoteForBusiness,
+  bulkArchiveQuotesForBusiness,
+  bulkDeleteDraftQuotesForBusiness,
+  bulkVoidQuotesForBusiness,
   cancelAcceptedQuoteForBusiness,
   completeAcceptedQuoteForBusiness,
   createPostWinChecklistItem,
@@ -60,6 +64,7 @@ import {
 } from "@/features/businesses/routes";
 import type {
   PublicQuoteResponseActionState,
+  QuoteBulkActionState,
   QuoteCancellationActionState,
   QuoteCompletionActionState,
   QuoteDeliveryMethod,
@@ -1345,5 +1350,133 @@ export async function reviseQuoteAction(
     return {
       error: "We couldn't create the new revision right now.",
     };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Bulk Action Server Actions
+// ---------------------------------------------------------------------------
+
+const quoteBulkActionSchema = z.object({
+  quoteIds: z
+    .array(z.string().min(1))
+    .min(1, "Select at least one quote.")
+    .max(50, "Cannot bulk-update more than 50 quotes at once."),
+});
+
+export async function bulkArchiveQuotesAction(
+  _prevState: QuoteBulkActionState,
+  formData: FormData,
+): Promise<QuoteBulkActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+  if (!ownerAccess.ok) return { error: ownerAccess.error };
+
+  const { user, businessContext } = ownerAccess;
+  const rawIds = formData.get("quoteIds") as string;
+  const parsed = quoteBulkActionSchema.safeParse({
+    quoteIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  try {
+    const result = await bulkArchiveQuotesForBusiness({
+      businessId: businessContext.business.id,
+      quoteIds: parsed.data.quoteIds,
+      actorUserId: user.id,
+    });
+
+    updateCacheTags(getBusinessQuoteListCacheTags(businessContext.business.id));
+
+    return {
+      success: `${result.affected} quote${result.affected !== 1 ? "s" : ""} archived.`,
+      affected: result.affected,
+      skipped: result.skipped,
+    };
+  } catch (error) {
+    console.error("Failed to bulk archive quotes.", error);
+    return { error: "We couldn't archive those quotes right now." };
+  }
+}
+
+export async function bulkVoidQuotesAction(
+  _prevState: QuoteBulkActionState,
+  formData: FormData,
+): Promise<QuoteBulkActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+  if (!ownerAccess.ok) return { error: ownerAccess.error };
+
+  const { user, businessContext } = ownerAccess;
+  const rawIds = formData.get("quoteIds") as string;
+  const parsed = quoteBulkActionSchema.safeParse({
+    quoteIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  try {
+    const result = await bulkVoidQuotesForBusiness({
+      businessId: businessContext.business.id,
+      quoteIds: parsed.data.quoteIds,
+      actorUserId: user.id,
+    });
+
+    updateCacheTags(getBusinessQuoteListCacheTags(businessContext.business.id));
+
+    return {
+      success: `${result.affected} quote${result.affected !== 1 ? "s" : ""} voided.`,
+      affected: result.affected,
+      skipped: result.skipped,
+    };
+  } catch (error) {
+    console.error("Failed to bulk void quotes.", error);
+    return { error: "We couldn't void those quotes right now." };
+  }
+}
+
+export async function bulkDeleteQuotesAction(
+  _prevState: QuoteBulkActionState,
+  formData: FormData,
+): Promise<QuoteBulkActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+  if (!ownerAccess.ok) return { error: ownerAccess.error };
+
+  const { user, businessContext } = ownerAccess;
+  const rawIds = formData.get("quoteIds") as string;
+  const confirmed = formData.get("confirmed") as string;
+
+  if (confirmed !== "true") {
+    return { error: "Deletion requires confirmation." };
+  }
+
+  const parsed = quoteBulkActionSchema.safeParse({
+    quoteIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  try {
+    const result = await bulkDeleteDraftQuotesForBusiness({
+      businessId: businessContext.business.id,
+      quoteIds: parsed.data.quoteIds,
+      actorUserId: user.id,
+    });
+
+    updateCacheTags(getBusinessQuoteListCacheTags(businessContext.business.id));
+
+    return {
+      success: `${result.affected} quote${result.affected !== 1 ? "s" : ""} deleted.`,
+      affected: result.affected,
+      skipped: result.skipped,
+    };
+  } catch (error) {
+    console.error("Failed to bulk delete quotes.", error);
+    return { error: "We couldn't delete those quotes right now." };
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { GripVertical, Trash2 } from "lucide-react";
+import { GripVertical, Trash2, Bookmark } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -17,11 +17,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Field,
-  FieldContent,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import type { AiQuoteLineItemReview } from "@/features/quotes/types";
@@ -53,16 +52,26 @@ export function AiReviewBadge({ review }: { review: AiQuoteLineItemReview }) {
   const tone =
     review.reviewStatus === "calculated" ? "calculated" : "matched";
 
-  return (
+  const badge = (
     <span
       className={cn(
         "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
         REVIEW_BADGE_CLASS_NAMES[tone],
       )}
-      title={review.reason || undefined}
     >
       {label}
     </span>
+  );
+
+  if (!review.reason) {
+    return badge;
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{badge}</TooltipTrigger>
+      <TooltipContent>{review.reason}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -135,143 +144,129 @@ export function LineItemCard({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "soft-panel relative overflow-hidden rounded-xl p-5",
+        "group/line-item rounded-lg border border-border/60 bg-background px-3 py-2.5 transition-colors hover:border-border",
         item.isAiGenerated && "ai-glow-border",
       )}
     >
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <button
-              aria-label={`Reorder item ${index + 1}`}
-              className="shrink-0 cursor-grab touch-none text-muted-foreground/50 transition-colors hover:text-muted-foreground active:cursor-grabbing"
-              type="button"
-              {...attributes}
-              {...listeners}
-            >
-              <GripVertical className="size-4" />
-            </button>
-            <p className="text-sm font-medium text-foreground">
-              Item {index + 1}
-            </p>
-            {shouldShowLineItemReviewBadge(item.aiReview) ? (
-              <AiReviewBadge review={item.aiReview} />
-            ) : null}
-          </div>
+      {/* Single-row compact layout */}
+      <div className="flex items-center gap-2">
+        <button
+          aria-label={`Reorder item ${index + 1}`}
+          className="shrink-0 cursor-grab touch-none text-muted-foreground/40 transition-colors hover:text-muted-foreground active:cursor-grabbing"
+          type="button"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="size-3.5" />
+        </button>
+
+        <Input
+          id={`quote-item-description-${item.id}`}
+          aria-label={`Item ${index + 1} description`}
+          className="min-w-0 flex-1"
+          maxLength={400}
+          value={item.description}
+          onChange={(event) =>
+            onUpdate(item.id, {
+              description: event.currentTarget.value,
+            })
+          }
+          placeholder="What are you quoting for?"
+          required
+          disabled={isPending}
+        />
+
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Input
+            id={`quote-item-quantity-${item.id}`}
+            aria-label={`Item ${index + 1} quantity`}
+            className="w-14 text-center"
+            inputMode="numeric"
+            max="999999999"
+            type="number"
+            min="1"
+            required
+            step="1"
+            value={item.quantity}
+            onChange={(event) =>
+              onUpdate(item.id, {
+                quantity: event.currentTarget.value,
+              })
+            }
+            disabled={isPending}
+          />
+
+          <span className="text-xs text-muted-foreground/50">×</span>
+
+          <Input
+            id={`quote-item-price-${item.id}`}
+            aria-label={`Item ${index + 1} unit price`}
+            className="w-24"
+            inputMode="decimal"
+            type="number"
+            max="1000000"
+            min="0"
+            required
+            step="0.01"
+            value={item.unitPrice}
+            onChange={(event) =>
+              onUpdate(item.id, {
+                unitPrice: event.currentTarget.value,
+              })
+            }
+            placeholder="0.00"
+            disabled={isPending}
+          />
+
+          <span className="hidden w-20 text-right text-sm font-medium tabular-nums text-foreground sm:inline-block">
+            {formatMoney(safeQuantity * unitPriceInCents, currency)}
+          </span>
+
+          {showSaveToPricing ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => setConfirmSaveOpen(true)}
+                  disabled={isPending || isSavingToPricing}
+                >
+                  <Bookmark className="size-3.5" />
+                  <span className="sr-only">Save to pricing library</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Save to pricing library</TooltipContent>
+            </Tooltip>
+          ) : null}
+
           <Button
             type="button"
-            variant="outline"
-            size="icon-sm"
+            variant="ghost"
+            size="icon-xs"
             onClick={() => onRemove(item.id)}
             disabled={isPending || !canRemove}
+            className="text-muted-foreground hover:text-destructive"
           >
-            <Trash2 data-icon="inline-start" />
-            <span className="sr-only">Remove line item</span>
+            <Trash2 className="size-3.5" />
+            <span className="sr-only">Remove item {index + 1}</span>
           </Button>
         </div>
-
-        {item.aiReview && item.aiReview.reason ? (
-          <p className="text-xs leading-5 text-muted-foreground">
-            <span className="meta-label mr-1">AI</span>
-            {item.aiReview.reason}
-          </p>
-        ) : null}
-
-        {showSaveToPricing ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              disabled={isPending || isSavingToPricing}
-              onClick={() => setConfirmSaveOpen(true)}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              Save to pricing
-            </Button>
-          </div>
-        ) : null}
-
-        <FieldGroup>
-          <Field>
-            <FieldLabel htmlFor={`quote-item-description-${item.id}`}>
-              Description
-            </FieldLabel>
-            <FieldContent>
-              <Input
-                id={`quote-item-description-${item.id}`}
-                maxLength={400}
-                value={item.description}
-                onChange={(event) =>
-                  onUpdate(item.id, {
-                    description: event.currentTarget.value,
-                  })
-                }
-                placeholder="Logo concept package"
-                required
-                disabled={isPending}
-              />
-            </FieldContent>
-          </Field>
-
-          <div className="grid gap-4 sm:grid-cols-[10rem_minmax(0,1fr)_minmax(0,1fr)]">
-            <Field>
-              <FieldLabel htmlFor={`quote-item-quantity-${item.id}`}>
-                Quantity
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  id={`quote-item-quantity-${item.id}`}
-                  inputMode="numeric"
-                  max="999999999"
-                  type="number"
-                  min="1"
-                  required
-                  step="1"
-                  value={item.quantity}
-                  onChange={(event) =>
-                    onUpdate(item.id, {
-                      quantity: event.currentTarget.value,
-                    })
-                  }
-                  disabled={isPending}
-                />
-              </FieldContent>
-            </Field>
-
-            <Field>
-              <FieldLabel htmlFor={`quote-item-price-${item.id}`}>
-                Unit price
-              </FieldLabel>
-              <FieldContent>
-                <Input
-                  id={`quote-item-price-${item.id}`}
-                  inputMode="decimal"
-                  type="number"
-                  max="1000000"
-                  min="0"
-                  required
-                  step="0.01"
-                  value={item.unitPrice}
-                  onChange={(event) =>
-                    onUpdate(item.id, {
-                      unitPrice: event.currentTarget.value,
-                    })
-                  }
-                  placeholder="0.00"
-                  disabled={isPending}
-                />
-              </FieldContent>
-            </Field>
-
-            <div className="info-tile bg-muted/20 px-4 py-3 shadow-none">
-              <p className="meta-label">Line total</p>
-              <p className="mt-2 text-sm font-medium text-foreground">
-                {formatMoney(safeQuantity * unitPriceInCents, currency)}
-              </p>
-            </div>
-          </div>
-        </FieldGroup>
       </div>
+
+      {/* AI review badge + reason (only when present) */}
+      {(shouldShowLineItemReviewBadge(item.aiReview) || item.aiReview?.reason) ? (
+        <div className="mt-1.5 flex items-center gap-2 pl-6">
+          {shouldShowLineItemReviewBadge(item.aiReview) ? (
+            <AiReviewBadge review={item.aiReview} />
+          ) : null}
+          {item.aiReview?.reason ? (
+            <p className="text-xs leading-5 text-muted-foreground">
+              {item.aiReview.reason}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <AlertDialog onOpenChange={setConfirmSaveOpen} open={confirmSaveOpen}>
         <AlertDialogContent>

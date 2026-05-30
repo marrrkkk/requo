@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { Checkbox } from "@/components/ui/checkbox";
 import { DashboardTableContainer } from "@/components/shared/dashboard-layout";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import {
@@ -26,11 +27,21 @@ import { getBusinessQuotePath } from "@/features/businesses/routes";
 type QuoteListTableProps = {
   quotes: DashboardQuoteListItem[];
   businessSlug: string;
+  isSelected?: (id: string) => boolean;
+  isAtLimit?: boolean;
+  onToggle?: (id: string) => void;
+  allOnPageSelected?: boolean;
+  onSelectAllOnPage?: () => void;
 };
 
 export function QuoteListTable({
   quotes,
   businessSlug,
+  isSelected,
+  isAtLimit,
+  onToggle,
+  allOnPageSelected,
+  onSelectAllOnPage,
 }: QuoteListTableProps) {
   return (
     <DashboardTableContainer className="hidden xl:block">
@@ -38,6 +49,15 @@ export function QuoteListTable({
         <TableCaption className="sr-only">Newest quotes appear first.</TableCaption>
         <TableHeader>
           <TableRow>
+            {onToggle ? (
+              <TableHead className="w-[3rem]">
+                <Checkbox
+                  aria-label="Select all quotes on this page"
+                  checked={allOnPageSelected}
+                  onCheckedChange={onSelectAllOnPage}
+                />
+              </TableHead>
+            ) : null}
             <TableHead className="w-[18rem]">Quote</TableHead>
             <TableHead className="w-[15rem]">Customer</TableHead>
             <TableHead className="w-[8rem]">Valid until</TableHead>
@@ -51,9 +71,21 @@ export function QuoteListTable({
             const reminders = quote.reminders.filter(
               (reminder) => reminder !== "follow_up_due",
             );
+            const checked = isSelected?.(quote.id) ?? false;
+            const disabled = !checked && (isAtLimit ?? false);
 
             return (
               <TableRow className="group/row" key={quote.id}>
+                {onToggle ? (
+                  <TableCell className="w-[3rem]">
+                    <Checkbox
+                      aria-label={`Select quote ${quote.quoteNumber}`}
+                      checked={checked}
+                      disabled={disabled}
+                      onCheckedChange={() => onToggle(quote.id)}
+                    />
+                  </TableCell>
+                ) : null}
                 <TableCell className="w-[18rem]">
                   <div className="table-meta-stack max-w-full">
                     <TruncatedTextWithTooltip

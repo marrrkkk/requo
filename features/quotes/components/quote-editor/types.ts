@@ -5,12 +5,14 @@ import type {
   QuoteEditorValues,
   QuoteLinkedInquirySummary,
 } from "@/features/quotes/types";
+import type { QuoteBusinessDefaults } from "@/features/quotes/utils";
 
 export type QuoteEditorProps = {
   action: (
     state: QuoteEditorActionState,
     formData: FormData,
   ) => Promise<QuoteEditorActionState>;
+  businessDefaults?: QuoteBusinessDefaults;
   businessName: string;
   businessSlug: string;
   currency: string;
