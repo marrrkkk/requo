@@ -39,7 +39,12 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Spinner } from "@/components/ui/spinner";
 import { updateJobStatusAction, deleteJobAction } from "@/features/jobs/actions";
 import { createInvoiceFromJobAction } from "@/features/invoices/actions";
-import { getBusinessJobPath } from "@/features/businesses/routes";
+import {
+  getBusinessInvoicePath,
+  getBusinessJobPath,
+  getBusinessQuotesPath,
+} from "@/features/businesses/routes";
+import { useProgressRouter } from "@/hooks/use-progress-router";
 import type { DashboardJobListItem, JobStatus } from "@/features/jobs/types";
 
 type JobsBoardProps = {
@@ -161,7 +166,14 @@ export function JobsBoard({ board: serverBoard, businessSlug }: JobsBoardProps) 
       {totalJobs === 0 ? (
         <DashboardEmptyState
           title="No jobs yet"
-          description="When a quote is accepted, create a job to track the work through completion."
+          description="Accepted quotes are ready to become jobs. Start with the won work that needs tracking."
+          action={
+            <Button asChild>
+              <Link href={`${getBusinessQuotesPath(businessSlug)}?status=accepted`}>
+                Review accepted quotes
+              </Link>
+            </Button>
+          }
         />
       ) : (
         <>
@@ -327,6 +339,7 @@ function JobCard({
   currentStatus: JobStatus;
 }) {
   const [isPending, startTransition] = useTransition();
+  const router = useProgressRouter();
 
   function handleStatusChange(newStatus: JobStatus) {
     startTransition(async () => {
@@ -336,7 +349,10 @@ function JobCard({
 
   function handleGenerateInvoice() {
     startTransition(async () => {
-      await createInvoiceFromJobAction(job.id);
+      const result = await createInvoiceFromJobAction(job.id);
+      if (result.invoiceId) {
+        router.push(getBusinessInvoicePath(businessSlug, result.invoiceId));
+      }
     });
   }
 

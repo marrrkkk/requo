@@ -69,6 +69,7 @@ export type DashboardJobDetail = {
 
 export type JobEditorActionState = {
   error?: string;
+  jobId?: string;
   success?: string;
 };
 

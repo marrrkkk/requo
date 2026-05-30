@@ -74,7 +74,7 @@ export async function createJobFromQuoteAction(
   });
 
   if (result.error) {
-    return { error: result.error };
+    return { error: result.error, jobId: result.jobId };
   }
 
   revalidateCacheTags([
@@ -82,7 +82,7 @@ export async function createJobFromQuoteAction(
     ...getBusinessQuoteDetailCacheTags(businessContext.business.id, quoteId),
   ]);
 
-  return { success: "Job created." };
+  return { success: "Job created.", jobId: result.jobId };
 }
 
 /**

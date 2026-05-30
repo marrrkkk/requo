@@ -25,3 +25,25 @@ export async function hasInvoiceForQuote(quoteId: string): Promise<boolean> {
   const id = await getInvoiceIdForQuote(quoteId);
   return id !== null;
 }
+
+/**
+ * Check if an invoice exists for a given job. Returns the invoice ID if found.
+ */
+export async function getInvoiceIdForJob(
+  jobId: string,
+  businessId?: string,
+): Promise<string | null> {
+  const conditions = [eq(invoices.jobId, jobId), isNull(invoices.deletedAt)];
+
+  if (businessId) {
+    conditions.push(eq(invoices.businessId, businessId));
+  }
+
+  const [row] = await db
+    .select({ id: invoices.id })
+    .from(invoices)
+    .where(and(...conditions))
+    .limit(1);
+
+  return row?.id ?? null;
+}

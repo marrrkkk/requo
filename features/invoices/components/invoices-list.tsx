@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   DashboardEmptyState,
   DashboardPage,
@@ -19,7 +20,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getBusinessInvoicePath } from "@/features/businesses/routes";
+import {
+  getBusinessInvoicePath,
+  getBusinessJobsPath,
+  getBusinessQuotesPath,
+} from "@/features/businesses/routes";
 import type {
   DashboardInvoiceListItem,
   InvoiceListFilters,
@@ -86,7 +91,21 @@ export function InvoicesList({
       {items.length === 0 && filters.page === 1 ? (
         <DashboardEmptyState
           title="No invoices yet"
-          description="Invoices are generated from completed jobs or accepted quotes."
+          description="Create invoices from completed jobs, or bill an accepted quote directly when the work does not need job tracking."
+          action={
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button asChild>
+                <Link href={getBusinessJobsPath(businessSlug)}>
+                  Review completed jobs
+                </Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href={`${getBusinessQuotesPath(businessSlug)}?status=accepted`}>
+                  Bill accepted quotes
+                </Link>
+              </Button>
+            </div>
+          }
         />
       ) : (
         <>

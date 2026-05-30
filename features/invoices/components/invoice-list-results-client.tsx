@@ -1,12 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 
+import { Button } from "@/components/ui/button";
 import { DashboardEmptyState } from "@/components/shared/dashboard-layout";
 import { DataListPagination } from "@/components/shared/data-list-pagination";
 import { InvoiceListCards } from "@/features/invoices/components/invoice-list-cards";
 import { InvoiceListTable } from "@/features/invoices/components/invoice-list-table";
-import { getBusinessInvoicesPath } from "@/features/businesses/routes";
+import {
+  getBusinessInvoicesPath,
+  getBusinessJobsPath,
+  getBusinessQuotesPath,
+} from "@/features/businesses/routes";
 import type { DashboardInvoiceListItem } from "@/features/invoices/types";
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
@@ -62,7 +68,21 @@ export function InvoiceListResultsClient({
     return (
       <DashboardEmptyState
         title="No invoices yet"
-        description="Invoices are generated from completed jobs or accepted quotes."
+        description="Create invoices from completed jobs, or bill an accepted quote directly when the work does not need job tracking."
+        action={
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button asChild>
+              <Link href={getBusinessJobsPath(businessSlug)}>
+                Review completed jobs
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`${getBusinessQuotesPath(businessSlug)}?status=accepted`}>
+                Bill accepted quotes
+              </Link>
+            </Button>
+          </div>
+        }
       />
     );
   }

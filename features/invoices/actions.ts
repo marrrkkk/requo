@@ -50,7 +50,7 @@ export async function createInvoiceFromJobAction(
   });
 
   if (result.error) {
-    return { error: result.error };
+    return { error: result.error, invoiceId: result.invoiceId };
   }
 
   revalidateCacheTags([
@@ -58,7 +58,7 @@ export async function createInvoiceFromJobAction(
     ...getBusinessJobDetailCacheTags(businessContext.business.id, jobId),
   ]);
 
-  return { success: `Invoice ${result.invoiceNumber} created.` };
+  return { success: `Invoice ${result.invoiceNumber} created.`, invoiceId: result.invoiceId };
 }
 
 /**

@@ -7,13 +7,18 @@ import { CheckCircle, Download, Mail, Printer, Send, XCircle } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { Spinner } from "@/components/ui/spinner";
+import { LockedAction } from "@/features/paywall";
+import type { UpgradeActionProps } from "@/features/paywall";
 import { updateInvoiceStatusAction, sendInvoiceEmailAction } from "@/features/invoices/actions";
 import type { DashboardInvoiceDetail, InvoiceStatus } from "@/features/invoices/types";
+import type { BusinessPlan } from "@/lib/plans/plans";
 
 type InvoiceDetailProps = {
   invoice: DashboardInvoiceDetail;
   businessSlug: string;
   pdfExportHref: string;
+  plan?: BusinessPlan;
+  upgradeAction?: UpgradeActionProps;
 };
 
 function formatCurrency(cents: number, currency: string) {
@@ -51,7 +56,7 @@ const statusColors: Record<InvoiceStatus, string> = {
   voided: "text-muted-foreground",
 };
 
-export function InvoiceDetail({ invoice, businessSlug, pdfExportHref }: InvoiceDetailProps) {
+export function InvoiceDetail({ invoice, businessSlug, pdfExportHref, plan, upgradeAction }: InvoiceDetailProps) {
   const [isPending, startTransition] = useTransition();
 
   function handleStatusChange(status: InvoiceStatus) {
@@ -99,23 +104,27 @@ export function InvoiceDetail({ invoice, businessSlug, pdfExportHref }: InvoiceD
                   Mark as paid
                 </Button>
               )}
-              <Button variant="outline" size="sm" asChild>
-                <a href={pdfExportHref} download>
-                  <Download className="size-3.5" data-icon="inline-start" />
-                  PDF
-                </a>
-              </Button>
+              <LockedAction feature="exports" plan={plan ?? "free"} upgradeAction={upgradeAction}>
+                <Button variant="outline" size="sm" asChild>
+                  <a href={pdfExportHref} download>
+                    <Download className="size-3.5" data-icon="inline-start" />
+                    PDF
+                  </a>
+                </Button>
+              </LockedAction>
               {isPending && <Spinner className="size-4 self-center" />}
             </div>
           )}
           {!showActions && (
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" asChild>
-                <a href={pdfExportHref} download>
-                  <Download className="size-3.5" data-icon="inline-start" />
-                  Download PDF
-                </a>
-              </Button>
+              <LockedAction feature="exports" plan={plan ?? "free"} upgradeAction={upgradeAction}>
+                <Button variant="outline" size="sm" asChild>
+                  <a href={pdfExportHref} download>
+                    <Download className="size-3.5" data-icon="inline-start" />
+                    Download PDF
+                  </a>
+                </Button>
+              </LockedAction>
               <Button variant="outline" size="sm" onClick={() => window.print()}>
                 <Printer className="size-3.5" data-icon="inline-start" />
                 Print
@@ -388,12 +397,14 @@ export function InvoiceDetail({ invoice, businessSlug, pdfExportHref }: InvoiceD
               Export
             </p>
             <div className="mt-3 flex flex-col gap-2.5">
-              <Button variant="outline" size="sm" className="w-full" asChild>
-                <a href={pdfExportHref} download>
-                  <Download className="size-3.5" data-icon="inline-start" />
-                  Download PDF
-                </a>
-              </Button>
+              <LockedAction feature="exports" plan={plan ?? "free"} upgradeAction={upgradeAction}>
+                <Button variant="outline" size="sm" className="w-full" asChild>
+                  <a href={pdfExportHref} download>
+                    <Download className="size-3.5" data-icon="inline-start" />
+                    Download PDF
+                  </a>
+                </Button>
+              </LockedAction>
               <Button variant="outline" size="sm" className="w-full" onClick={() => window.print()}>
                 <Printer className="size-3.5" data-icon="inline-start" />
                 Print

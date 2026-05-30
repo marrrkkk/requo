@@ -30,12 +30,16 @@ export async function createJobFromQuoteForBusiness({
   businessId,
   quoteId,
   userId,
+  tx: externalTx,
 }: {
   businessId: string;
   quoteId: string;
-  userId: string;
+  userId: string | null;
+  tx?: Parameters<Parameters<typeof db.transaction>[0]>[0];
 }) {
-  return db.transaction(async (tx) => {
+  const executeInTransaction = async (
+    tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  ) => {
     const [quote] = await tx
       .select({
         id: quotes.id,
@@ -169,7 +173,14 @@ export async function createJobFromQuoteForBusiness({
     });
 
     return { jobId, quoteNumber: quote.quoteNumber };
-  });
+  };
+
+  // Use external transaction if provided, otherwise create a new one
+  if (externalTx) {
+    return executeInTransaction(externalTx);
+  }
+
+  return db.transaction(executeInTransaction);
 }
 
 /**
