@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { CrispChatWidgetServer } from "@/components/integrations/crisp/crisp-chat-widget-server";
 import { SupportChatActions } from "@/features/settings/components/support-chat-actions";
 import { legalConfig } from "@/features/legal/config";
 import { env } from "@/lib/env";
@@ -75,7 +76,7 @@ export default async function BusinessSupportSettingsPage() {
               </Badge>
             </div>
             <CardDescription>
-              Chat is available on public pages and can be opened here for in-app support.
+              Chat is available on marketing pages and can be opened here for in-app support.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -128,6 +129,8 @@ export default async function BusinessSupportSettingsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <CrispChatWidgetServer />
     </>
   );
 }

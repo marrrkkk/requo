@@ -95,12 +95,17 @@ async function BusinessPricingBody({
     notFound();
   }
 
+  // Filter out templates — they have their own dedicated page
+  const pricingEntries = quoteLibrary.filter(
+    (entry) => entry.kind !== "template",
+  );
+
   return (
     <BusinessPricingLibraryManager
       createAction={createQuoteLibraryEntryAction}
       deleteAction={deleteQuoteLibraryEntryAction}
       pricingLimit={getUsageLimit(businessPlan, "pricingEntriesPerBusiness")}
-      quoteLibrary={quoteLibrary}
+      quoteLibrary={pricingEntries}
       updateAction={updateQuoteLibraryEntryAction}
       importerEnabled={hasFeatureAccess(businessPlan, "aiAssistant")}
       analyzeImportAction={analyzeImportAction}
