@@ -22,6 +22,20 @@
       "when": 1779813000000,
       "tag": "0002_fix_quotes_discount_constraint",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780140511023,
+      "tag": "0003_follow_ups_enhancements",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1780144338328,
+      "tag": "0004_service_business_essentials",
+      "breakpoints": true
     }
   ]
 }

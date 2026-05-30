@@ -1,0 +1,1 @@
+ALTER TABLE "businesses" ADD COLUMN "auto_create_jobs_on_acceptance" boolean DEFAULT true NOT NULL;
