@@ -65,13 +65,13 @@ export function BusinessInquiryFormPresetCard({
         <CardHeader className="gap-1 border-b border-border/70 pb-3">
           <CardTitle>Reset</CardTitle>
           <CardDescription className="text-xs leading-5">
-            Rebuild fields and page copy from a starter template.
+            Rebuild fields and page copy from a business type preset.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <div className="flex items-center justify-between gap-3 px-4 py-2.5 sm:px-5">
             <div className="min-w-0">
-              <p className="meta-label">Starter template</p>
+              <p className="meta-label">Business type</p>
               <p className="text-sm font-medium text-foreground">
                 {starterTemplate.label}
               </p>
@@ -93,7 +93,7 @@ export function BusinessInquiryFormPresetCard({
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Reset to starter template?</DialogTitle>
+            <DialogTitle>Reset to business type defaults?</DialogTitle>
             <DialogDescription>
               This will replace your current fields and page copy with the
               {" "}{starterTemplate.label} template defaults.

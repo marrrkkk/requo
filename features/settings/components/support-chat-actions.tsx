@@ -14,15 +14,33 @@ type SupportChatActionsProps = {
 };
 
 export function SupportChatActions({ crispEnabled }: SupportChatActionsProps) {
-  function notifyUnavailable() {
-    toast.message("Live chat is not configured yet.");
+  function handleOpenChat() {
+    if (!crispEnabled) {
+      toast.message("Live chat is not configured yet.");
+      return;
+    }
+    const success = openCrispHelp();
+    if (!success) {
+      toast.message("Live chat is initializing. Please try again in a moment.");
+    }
+  }
+
+  function handleOpenHelpdesk() {
+    if (!crispEnabled) {
+      toast.message("Live chat is not configured yet.");
+      return;
+    }
+    const success = openCrispHelpdesk();
+    if (!success) {
+      toast.message("Help center is initializing. Please try again in a moment.");
+    }
   }
 
   return (
     <div className="flex flex-wrap gap-3">
       <Button
         type="button"
-        onClick={crispEnabled ? openCrispHelp : notifyUnavailable}
+        onClick={handleOpenChat}
       >
         <LifeBuoy data-icon="inline-start" />
         Open support chat
@@ -30,7 +48,7 @@ export function SupportChatActions({ crispEnabled }: SupportChatActionsProps) {
       <Button
         type="button"
         variant="outline"
-        onClick={crispEnabled ? openCrispHelpdesk : notifyUnavailable}
+        onClick={handleOpenHelpdesk}
       >
         <CircleHelp data-icon="inline-start" />
         Open help center

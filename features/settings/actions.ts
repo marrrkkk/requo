@@ -4,7 +4,7 @@ import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
-import { and, eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { getValidationActionState } from "@/lib/action-state";
 import {
@@ -69,7 +69,7 @@ import {
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { getBusinessInquiryFormsSettingsForBusiness } from "@/features/settings/queries";
 import { db } from "@/lib/db/client";
-import { businessAutomations } from "@/lib/db/schema/automations";
+import { businesses } from "@/lib/db/schema/businesses";
 
 function updateCacheTags(tags: string[]) {
   for (const tag of uniqueCacheTags(tags)) {
@@ -81,30 +81,10 @@ async function setAutoCreateJobAutomation(
   businessId: string,
   enabled: boolean,
 ): Promise<void> {
-  const [existing] = await db
-    .select({ id: businessAutomations.id, enabled: businessAutomations.enabled })
-    .from(businessAutomations)
-    .where(
-      and(
-        eq(businessAutomations.businessId, businessId),
-        eq(businessAutomations.triggerType, "quote.accepted"),
-        sql`${businessAutomations.actions}::jsonb @> '[{"type":"create_job_from_quote"}]'::jsonb`,
-      ),
-    )
-    .limit(1);
-
-  if (!existing) {
-    return;
-  }
-
-  if (existing.enabled === enabled) {
-    return;
-  }
-
   await db
-    .update(businessAutomations)
-    .set({ enabled, updatedAt: new Date() })
-    .where(eq(businessAutomations.id, existing.id));
+    .update(businesses)
+    .set({ autoCreateJobsOnAcceptance: enabled, updatedAt: new Date() })
+    .where(eq(businesses.id, businessId));
 }
 
 function revalidateBusinessInquiryFormPaths(
@@ -688,7 +668,7 @@ export async function applyBusinessInquiryFormPresetAction(
   if (!validationResult.success) {
     return getValidationActionState(
       validationResult.error,
-      "Choose a starter template and try again.",
+      "Choose a business type and try again.",
     );
   }
 

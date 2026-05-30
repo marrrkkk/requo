@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   FileUp,
+  FileText,
   Layers,
   MoreHorizontal,
   Package,
@@ -289,6 +290,10 @@ export function BusinessPricingLibraryManager({
                       ? editorState.kind
                       : editorState.entry.kind) === "package" ? (
                       <Package className="size-5 text-muted-foreground" />
+                    ) : (editorState.mode === "create"
+                      ? editorState.kind
+                      : editorState.entry.kind) === "template" ? (
+                      <FileText className="size-5 text-muted-foreground" />
                     ) : (
                       <Layers className="size-5 text-muted-foreground" />
                     )}
@@ -298,11 +303,15 @@ export function BusinessPricingLibraryManager({
                       {editorState.mode === "create" ? (
                         editorState.kind === "package" ? (
                           "Create service package"
+                        ) : editorState.kind === "template" ? (
+                          "Create quote template"
                         ) : (
                           "Create pricing block"
                         )
                       ) : editorState.entry.kind === "package" ? (
                         "Edit service package"
+                      ) : editorState.entry.kind === "template" ? (
+                        "Edit quote template"
                       ) : (
                         "Edit pricing block"
                       )}
@@ -311,9 +320,12 @@ export function BusinessPricingLibraryManager({
                       {editorState.mode === "create" &&
                       editorState.kind === "package"
                         ? "Bundle line items into a reusable package. Add them manually or import from saved blocks."
-                        : editorState.mode === "create"
-                          ? "A reusable line item you can drop into any quote with one click."
-                          : "Update the details and line items."}
+                        : editorState.mode === "create" &&
+                            editorState.kind === "template"
+                          ? "A full quote blueprint that pre-fills title, notes, terms, validity, and line items."
+                          : editorState.mode === "create"
+                            ? "A reusable line item you can drop into any quote with one click."
+                            : "Update the details and line items."}
                     </ResponsiveOverlayDescription>
                   </div>
                 </div>
@@ -355,6 +367,12 @@ export function BusinessPricingLibraryManager({
                           kind: editorState.entry.kind,
                           name: editorState.entry.name,
                           description: editorState.entry.description ?? "",
+                          title: editorState.entry.title ?? "",
+                          notes: editorState.entry.notes ?? "",
+                          terms: editorState.entry.terms ?? "",
+                          validityDays: editorState.entry.validityDays != null
+                            ? String(editorState.entry.validityDays)
+                            : "14",
                           items: editorState.entry.items.map((item) => ({
                             id: item.id,
                             description: item.description,
@@ -439,7 +457,8 @@ function EntryRow({
   onEdit: () => void;
 }) {
   const isPackage = entry.kind === "package";
-  const Icon = isPackage ? Package : Layers;
+  const isTemplate = entry.kind === "template";
+  const Icon = isTemplate ? FileText : isPackage ? Package : Layers;
 
   return (
     <div className="group flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-muted/20 sm:items-center sm:gap-4 sm:px-5 sm:py-4">
@@ -454,12 +473,12 @@ function EntryRow({
               {entry.name}
             </p>
             <Badge variant="outline" className="shrink-0 text-[0.65rem]">
-              {isPackage ? "Package" : "Block"}
+              {isTemplate ? "Template" : isPackage ? "Package" : "Block"}
             </Badge>
           </div>
           <p className="truncate text-xs text-muted-foreground">
             {entry.itemCount} {entry.itemCount === 1 ? "item" : "items"}
-            {isPackage && entry.items.length > 0 ? (
+            {(isPackage || isTemplate) && entry.items.length > 0 ? (
               <span>
                 {" · "}
                 {entry.items
@@ -468,6 +487,9 @@ function EntryRow({
                   .join(", ")}
                 {entry.items.length > 2 ? ` +${entry.items.length - 2}` : ""}
               </span>
+            ) : null}
+            {isTemplate && entry.validityDays ? (
+              <span> · {entry.validityDays} day validity</span>
             ) : null}
           </p>
         </div>
@@ -553,7 +575,7 @@ function DeleteConfirmDialogInner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.success]);
 
-  const kindLabel = entry.kind === "package" ? "package" : "block";
+  const kindLabel = entry.kind === "package" ? "package" : entry.kind === "template" ? "template" : "block";
 
   return (
     <AlertDialog

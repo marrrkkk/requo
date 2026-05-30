@@ -50,7 +50,7 @@ export function getUnifiedSettingsNavigation(
         },
         {
           href: `/${slug}/settings/quote`,
-          label: "Quote defaults",
+          label: "Quotes",
           icon: "file-text",
         },
         { href: `/${slug}/settings/email`, label: "Email", icon: "mail" },

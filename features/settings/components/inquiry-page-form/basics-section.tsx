@@ -54,7 +54,7 @@ export function BasicsSection({
       id="basics"
     >
       <SectionHeading
-        description="Name, link, and starter template for this form."
+        description="Name, link, and business type for this form."
         title="Basics"
       />
 
@@ -115,11 +115,11 @@ export function BasicsSection({
           <DetailsPanel
             description="Pick the best starting point."
             eyebrow="Template"
-            title="Starter template"
+            title="Business type"
           >
             <Field data-invalid={Boolean(businessTypeError) || undefined}>
               <FieldLabel htmlFor="inquiry-page-business-type">
-                Starter template
+                Business type
               </FieldLabel>
               <FieldContent>
                 <Combobox
@@ -130,7 +130,7 @@ export function BasicsSection({
                     onBusinessTypeChange(value as BusinessType)
                   }
                   options={starterTemplateOptions}
-                  placeholder="Choose a starter template"
+                  placeholder="Choose a business type"
                   renderOption={(option) => (
                     <div className="min-w-0">
                       <p className="truncate font-medium">{option.label}</p>
@@ -139,7 +139,7 @@ export function BasicsSection({
                       </p>
                     </div>
                   )}
-                  searchPlaceholder="Search starter template"
+                  searchPlaceholder="Search business types"
                   value={getStarterTemplateBusinessType(businessType)}
                 />
                 <FieldDescription>

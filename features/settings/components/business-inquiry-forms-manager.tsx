@@ -212,7 +212,7 @@ export function BusinessInquiryFormsManager({
 
                       <Field data-invalid={Boolean(businessTypeError) || undefined}>
                         <FieldLabel htmlFor="business-inquiry-form-create-type">
-                          Starter template
+                          Business type
                         </FieldLabel>
                         <FieldContent>
                           <Combobox
@@ -223,7 +223,7 @@ export function BusinessInquiryFormsManager({
                               setBusinessType(value as BusinessType)
                             }
                             options={starterTemplateOptions}
-                            placeholder="Choose a starter template"
+                            placeholder="Choose a business type"
                             renderOption={(option) => (
                               <div className="min-w-0">
                                 <p className="truncate font-medium">{option.label}</p>
@@ -232,7 +232,7 @@ export function BusinessInquiryFormsManager({
                                 </p>
                               </div>
                             )}
-                            searchPlaceholder="Search starter template"
+                            searchPlaceholder="Search business types"
                             value={businessType}
                           />
                           <FieldError
