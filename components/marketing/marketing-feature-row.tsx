@@ -1,6 +1,14 @@
+import dynamic from "next/dynamic";
+
 import type { LandingFeatureId } from "@/components/marketing/marketing-data";
-import { MarketingFeatureMock } from "@/components/marketing/marketing-feature-mocks";
 import { cn } from "@/lib/utils";
+
+const MarketingFeatureMock = dynamic(
+  () =>
+    import("@/components/marketing/marketing-feature-mocks").then(
+      (m) => m.MarketingFeatureMock,
+    )
+);
 
 export function MarketingFeatureRow({
   title,

@@ -1,20 +1,12 @@
 import Link from "next/link";
 import { ArrowRight, Check, Minus } from "lucide-react";
-import { Fragment, Suspense } from "react";
+import { Fragment } from "react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
 import {
   PublicPageShell,
 } from "@/components/shared/public-page-shell";
-import {
-  getMarketingNavHref,
-  getMarketingNavKey,
-  navItems,
-} from "@/components/marketing/marketing-data";
-import {
-  PublicHeaderActions,
-  PublicHeaderActionsFallback,
-} from "@/components/marketing/public-header-actions";
+import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -171,28 +163,10 @@ export function PricingPage({
       brandSubtitle={null}
       brandSize="lg"
       className="pb-14 lg:pb-20"
-      headerAction={
-        <Suspense fallback={<PublicHeaderActionsFallback />}>
-          <PublicHeaderActions />
-        </Suspense>
-      }
-      headerClassName="sticky top-0 z-40 rounded-none border-x-0 border-t-0 bg-background/92 px-0 py-4 shadow-none backdrop-blur-xl supports-backdrop-filter:bg-background/88 md:px-0"
-      headerNav={
-        <nav className="public-page-header-nav">
-          {navItems.map((item) => (
-            <Link
-              className="public-page-header-link"
-              href={getMarketingNavHref(item)}
-              key={getMarketingNavKey(item)}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      }
+      header={<MarketingHeader />}
     >
       {/* Hero */}
-      <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-5 px-5 py-6 text-center sm:px-6 sm:py-8 lg:px-8">
+      <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-5 px-5 pb-6 pt-4 text-center sm:px-6 sm:pb-8 sm:pt-6 lg:px-8">
         <h1 className="max-w-2xl font-heading text-4xl font-semibold leading-[0.94] tracking-tight text-balance sm:text-5xl xl:text-[3.5rem]">
           Simple pricing. No surprises.
         </h1>

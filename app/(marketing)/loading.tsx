@@ -11,27 +11,31 @@ export default function MarketingHomeLoading() {
   return (
     <div className="overflow-x-clip">
       {/* Hero section structure */}
-      <section className="relative min-h-[480px] overflow-hidden border-b border-border/70 px-5 py-12 sm:px-6 sm:py-14 lg:min-h-[600px] lg:px-8 lg:py-20 xl:px-10 xl:py-24">
-        <div className="flex flex-col gap-12 lg:gap-14">
-          <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-6 text-center">
+      <section className="relative min-h-[480px] overflow-hidden px-5 pb-14 pt-10 sm:px-6 sm:pb-20 sm:pt-14 lg:min-h-[600px] lg:px-8 lg:pb-24 lg:pt-16 xl:px-10">
+        <div className="flex flex-col gap-12 lg:gap-16">
+          <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-6 text-center">
+            {/* Announcement pill */}
+            <Skeleton className="h-7 w-64 rounded-full" />
+
             <div className="flex flex-col items-center gap-4">
-              <Skeleton className="h-10 w-full max-w-xl rounded-lg sm:h-12 lg:h-14" />
-              <Skeleton className="h-5 w-full max-w-md rounded-md" />
+              <Skeleton className="h-12 w-full max-w-xl rounded-lg sm:h-16 lg:h-20" />
+              <Skeleton className="h-6 w-full max-w-md rounded-md" />
             </div>
 
             {/* CTA button placeholders */}
             <div className="flex w-full max-w-sm flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row">
-              <Skeleton className="h-11 w-full rounded-md sm:w-48" />
+              <Skeleton className="h-11 w-full rounded-md sm:w-40" />
               <Skeleton className="h-11 w-full rounded-md sm:w-36" />
             </div>
 
-            <Skeleton className="h-4 w-64 rounded-md" />
+            <Skeleton className="h-4 w-72 rounded-md" />
           </div>
 
           {/* Showcase placeholder */}
           <Skeleton className="mx-auto h-64 w-full max-w-5xl rounded-xl sm:h-80 lg:h-96" />
         </div>
       </section>
+      <div className="border-b border-border/70" />
 
       {/* Why Requo section */}
       <section className="mx-auto mt-32 w-full max-w-6xl px-5 sm:mt-40 sm:px-6 lg:mt-48 lg:px-8 xl:px-0">

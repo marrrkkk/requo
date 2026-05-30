@@ -2,14 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Background,
-  Controls,
-  ReactFlow,
-  type EdgeTypes,
-  type NodeTypes,
-} from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
-import {
   ArrowUp,
   Calendar,
   Check,
@@ -22,6 +14,7 @@ import {
   Send,
   Sparkles,
   Trophy,
+  X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -36,13 +29,7 @@ import { TextShimmer } from "@/components/prompt-kit/text-shimmer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { AutomationEdge } from "@/features/automations/components/builder/edges/automation-edge";
-import { ActionNode } from "@/features/automations/components/builder/nodes/action-node";
-import { ConditionNode } from "@/features/automations/components/builder/nodes/condition-node";
-import { DelayNode } from "@/features/automations/components/builder/nodes/delay-node";
-import { TriggerNode } from "@/features/automations/components/builder/nodes/trigger-node";
 import { WorkflowToolbar } from "@/features/automations/components/builder/panels/workflow-toolbar";
-import type { WorkflowEdge, WorkflowNode } from "@/features/automations/components/builder/hooks/use-workflow-state";
 import {
   ChatMessageList,
   type ChatMessage,
@@ -50,89 +37,6 @@ import {
 import { aiQuickActions, getPanelPlaceholder } from "@/features/ai/components/ai-chat-helpers";
 import type { UIMessage } from "ai";
 import { cn } from "@/lib/utils";
-
-const workflowNodeTypes: NodeTypes = {
-  trigger: TriggerNode,
-  condition: ConditionNode,
-  delay: DelayNode,
-  action: ActionNode,
-};
-
-const workflowEdgeTypes: EdgeTypes = {
-  automation: AutomationEdge,
-};
-
-const marketingWorkflowNodes: WorkflowNode[] = [
-  {
-    id: "trigger-1",
-    type: "trigger",
-    position: { x: 24, y: 24 },
-    data: {
-      label: "Quote viewed",
-      nodeType: "trigger",
-      config: { triggerType: "quote.viewed" },
-    },
-  },
-  {
-    id: "delay-1",
-    type: "delay",
-    position: { x: 24, y: 168 },
-    data: {
-      label: "Wait 3 days",
-      nodeType: "delay",
-      config: { value: 3, unit: "days" },
-    },
-  },
-  {
-    id: "condition-1",
-    type: "condition",
-    position: { x: 24, y: 312 },
-    data: {
-      label: "Quote accepted?",
-      nodeType: "condition",
-      config: { field: "quote.status", operator: "is", value: "accepted" },
-    },
-  },
-  {
-    id: "action-yes",
-    type: "action",
-    position: { x: -120, y: 468 },
-    data: {
-      label: "Create job from quote",
-      nodeType: "action",
-      config: { actionType: "create_job_from_quote" },
-    },
-  },
-  {
-    id: "action-no",
-    type: "action",
-    position: { x: 168, y: 468 },
-    data: {
-      label: "Send follow-up reminder",
-      nodeType: "action",
-      config: { actionType: "create_follow_up" },
-    },
-  },
-];
-
-const marketingWorkflowEdges: WorkflowEdge[] = [
-  { id: "e1", source: "trigger-1", target: "delay-1", type: "automation" },
-  { id: "e2", source: "delay-1", target: "condition-1", type: "automation" },
-  {
-    id: "e3",
-    source: "condition-1",
-    target: "action-yes",
-    sourceHandle: "true",
-    type: "automation",
-  },
-  {
-    id: "e4",
-    source: "condition-1",
-    target: "action-no",
-    sourceHandle: "false",
-    type: "automation",
-  },
-];
 
 export function MarketingFeatureMock({
   featureId,
@@ -754,24 +658,123 @@ function AutomationPreviewMock() {
       </div>
 
       <div className="flex-1 overflow-hidden rounded-xl border border-border/75 bg-background/95 shadow-[var(--surface-shadow-sm)]">
-        <ReactFlow
-          nodes={marketingWorkflowNodes}
-          edges={marketingWorkflowEdges}
-          nodeTypes={workflowNodeTypes}
-          edgeTypes={workflowEdgeTypes}
-          fitView
-          nodesDraggable={false}
-          nodesConnectable={false}
-          elementsSelectable={false}
-          zoomOnScroll={false}
-          panOnScroll
-          panOnDrag
-          proOptions={{ hideAttribution: true }}
-          defaultEdgeOptions={{ type: "automation" }}
-        >
-          <Background />
-          <Controls showInteractive={false} />
-        </ReactFlow>
+        {/* Static automation workflow preview - no ReactFlow */}
+        <div className="relative h-full w-full overflow-auto bg-muted/5 p-6">
+          {/* Grid background pattern */}
+          <div 
+            className="pointer-events-none absolute inset-0 opacity-20"
+            style={{
+              backgroundImage: `
+                linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px),
+                linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px)
+              `,
+              backgroundSize: '20px 20px'
+            }}
+          />
+          
+          {/* Workflow nodes */}
+          <div className="relative mx-auto flex w-full max-w-md flex-col items-center gap-4">
+            {/* Trigger Node */}
+            <div className="w-full rounded-xl border-2 border-primary/40 bg-background p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <Eye className="size-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Trigger
+                  </p>
+                  <p className="mt-0.5 text-sm font-semibold text-foreground">
+                    Quote viewed
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Connection line */}
+            <div className="flex h-8 w-0.5 bg-border" />
+
+            {/* Delay Node */}
+            <div className="w-full rounded-xl border-2 border-border/70 bg-background p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <Clock3 className="size-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Delay
+                  </p>
+                  <p className="mt-0.5 text-sm font-semibold text-foreground">
+                    Wait 3 days
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Connection line */}
+            <div className="flex h-8 w-0.5 bg-border" />
+
+            {/* Condition Node */}
+            <div className="w-full rounded-xl border-2 border-amber-500/40 bg-background p-4 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  <CircleDot className="size-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Condition
+                  </p>
+                  <p className="mt-0.5 text-sm font-semibold text-foreground">
+                    Quote accepted?
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Split connections */}
+            <div className="relative flex w-full items-start justify-between gap-4">
+              {/* Left branch - Yes */}
+              <div className="flex flex-1 flex-col items-center gap-3">
+                <div className="flex h-8 w-0.5 bg-border" />
+                <div className="w-full rounded-xl border-2 border-emerald-500/40 bg-background p-3 shadow-sm">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                        <Check className="size-4" />
+                      </div>
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                        Yes
+                      </p>
+                    </div>
+                    <p className="text-xs font-semibold text-foreground">
+                      Create job from quote
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right branch - No */}
+              <div className="flex flex-1 flex-col items-center gap-3">
+                <div className="flex h-8 w-0.5 bg-border" />
+                <div className="w-full rounded-xl border-2 border-border/70 bg-background p-3 shadow-sm">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                        <X className="size-4" />
+                      </div>
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                        No
+                      </p>
+                    </div>
+                    <p className="text-xs font-semibold text-foreground">
+                      Send follow-up reminder
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

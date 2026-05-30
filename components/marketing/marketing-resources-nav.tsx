@@ -10,11 +10,19 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 const HOVER_OPEN_DELAY_MS = 80;
 const HOVER_CLOSE_DELAY_MS = 160;
 
-export function MarketingResourcesNav() {
+const defaultTriggerClass =
+  "relative inline-flex items-center gap-1 rounded-full px-3.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 data-[state=open]:text-foreground";
+
+export function MarketingResourcesNav({
+  triggerClassName,
+}: {
+  triggerClassName?: string;
+}) {
   const [open, setOpen] = useState(false);
   const closeTimerRef = useRef<number | null>(null);
   const openTimerRef = useRef<number | null>(null);
@@ -71,7 +79,7 @@ export function MarketingResourcesNav() {
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger
-        className="public-page-header-link group inline-flex items-center gap-1 transition-colors focus:outline-none data-[state=open]:text-primary"
+        className={cn(defaultTriggerClass, triggerClassName, "group")}
         onMouseEnter={scheduleOpen}
         onMouseLeave={scheduleClose}
         onFocus={scheduleOpen}
@@ -100,7 +108,7 @@ export function MarketingResourcesNav() {
           <Link
             key={link.href}
             href={link.href}
-            className="flex items-center justify-between rounded-md px-2.5 py-2 text-sm font-medium text-foreground/80 outline-none transition-colors hover:bg-transparent hover:text-primary focus-visible:bg-accent focus-visible:text-primary"
+            className="flex items-center justify-between rounded-md px-2.5 py-2 text-sm font-medium text-foreground/80 outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
             onClick={() => handleOpenChange(false)}
           >
             {link.label}

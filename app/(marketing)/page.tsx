@@ -16,11 +16,25 @@ import {
 const marketingDescription =
   "Quote software for owner-led service businesses. Capture inquiries, send professional quotes, follow up automatically, and track every deal from viewed to accepted.";
 
-export const metadata: Metadata = createPageMetadata({
-  absoluteTitle: "Requo | Quote Software for Service Businesses",
-  description: marketingDescription,
-  pathname: "/",
-});
+export const metadata: Metadata = {
+  ...createPageMetadata({
+    absoluteTitle: "Requo | Quote Software for Service Businesses",
+    description: marketingDescription,
+    pathname: "/",
+  }),
+  keywords: [
+    "quote software",
+    "quotation software",
+    "estimate software",
+    "proposal software",
+    "service business software",
+    "contractor software",
+    "freelancer tools",
+    "inquiry management",
+    "quote tracking",
+    "follow-up automation",
+  ],
+};
 
 export default function MarketingPage() {
   const softwareApplicationStructuredData = getSoftwareApplicationStructuredData(

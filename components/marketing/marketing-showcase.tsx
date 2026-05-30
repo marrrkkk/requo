@@ -150,16 +150,14 @@ const categoryFilters: readonly { label: string; value: "all" | AttentionCategor
 
 const AI_PROMPT = "Draft a follow-up for Sarah's kitchen remodel quote";
 
-const AI_RESPONSE_LINES = [
-  "Hi Sarah,",
-  "",
-  "Just checking in on the kitchen remodel quote I sent over last week. I know choosing the right contractor is a big decision — happy to answer any questions or adjust the scope.",
-  "",
-  "The quote is valid until June 5. Would you like to schedule a quick call?",
-  "",
-  "Best,",
-  "Jamie",
-];
+const AI_RESPONSE = `Hi Sarah,
+
+Just checking in on the kitchen remodel quote I sent over last week. I know choosing the right contractor is a big decision — happy to answer any questions or adjust the scope.
+
+The quote is valid until June 5. Would you like to schedule a quick call?
+
+Best,
+Jamie`;
 
 /* -------------------------------------------------------------------------- */
 /*                        Animation hooks                                      */
@@ -206,7 +204,7 @@ type ChatState =
 function useAIChatAnimation(startDelay: number) {
   const [chatState, setChatState] = useState<ChatState>("idle");
   const [typedChars, setTypedChars] = useState(0);
-  const [visibleLines, setVisibleLines] = useState(0);
+  const [responseChars, setResponseChars] = useState(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasStarted = useRef(false);
@@ -222,7 +220,7 @@ function useAIChatAnimation(startDelay: number) {
   const startCycle = useCallback(() => {
     cleanup();
     setTypedChars(0);
-    setVisibleLines(0);
+    setResponseChars(0);
     setChatState("typing-input");
 
     let charIndex = 0;
@@ -240,15 +238,18 @@ function useAIChatAnimation(startDelay: number) {
 
             timerRef.current = setTimeout(() => {
               setChatState("responding");
-              let lineIndex = 0;
+              let charIndex = 0;
               intervalRef.current = setInterval(() => {
-                lineIndex++;
-                setVisibleLines(lineIndex);
-                if (lineIndex >= AI_RESPONSE_LINES.length) {
+                // stream a few chars at a time for realism
+                charIndex += Math.floor(Math.random() * 3) + 1;
+                if (charIndex > AI_RESPONSE.length) charIndex = AI_RESPONSE.length;
+                
+                setResponseChars(charIndex);
+                if (charIndex >= AI_RESPONSE.length) {
                   if (intervalRef.current) clearInterval(intervalRef.current);
                   setChatState("done");
                 }
-              }, 180);
+              }, 30);
             }, 1200);
           }, 400);
         }, 800);
@@ -270,7 +271,7 @@ function useAIChatAnimation(startDelay: number) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { chatState, typedChars, visibleLines };
+  return { chatState, typedChars, responseChars };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -299,10 +300,10 @@ function RequoLogoIcon({ className }: { className?: string }) {
 
 function AIChatOverlay({
   chatState,
-  visibleLines,
+  responseChars,
 }: {
   chatState: ChatState;
-  visibleLines: number;
+  responseChars: number;
 }) {
   const isVisible =
     chatState === "thinking" ||
@@ -353,13 +354,8 @@ function AIChatOverlay({
             )}
 
             {showResponse && (
-              <div className="text-[11px] leading-relaxed text-foreground sm:text-xs max-w-none break-words whitespace-pre-line font-normal animate-in fade-in duration-300">
-                {AI_RESPONSE_LINES.slice(0, visibleLines).map((line, i) => (
-                  <span key={i}>
-                    {line}
-                    {i < visibleLines - 1 && "\n"}
-                  </span>
-                ))}
+              <div className="text-[11px] leading-relaxed text-foreground sm:text-xs max-w-none break-words whitespace-pre-wrap font-normal animate-in fade-in duration-300">
+                {AI_RESPONSE.slice(0, responseChars)}
                 {chatState === "responding" && (
                   <span className="ml-0.5 inline-block h-3.5 w-[2px] animate-pulse bg-primary align-middle" />
                 )}
@@ -398,7 +394,7 @@ function AIChatOverlay({
 
 export function MarketingShowcase() {
   const { phase, containerRef } = useShowcaseAnimation();
-  const { chatState, typedChars, visibleLines } = useAIChatAnimation(3000);
+  const { chatState, typedChars, responseChars } = useAIChatAnimation(3000);
 
   const activeFilter = "all";
 
@@ -767,7 +763,7 @@ export function MarketingShowcase() {
             {/* AI Chat Animation Overlay */}
             <AIChatOverlay
               chatState={chatState}
-              visibleLines={visibleLines}
+              responseChars={responseChars}
             />
           </div>
         </div>
