@@ -291,7 +291,7 @@ const onboardingGuideRows: CsvRow[] = [
     stage: "inquiry_capture",
     title: "Publish your inquiry form",
     steps:
-      "Go to Forms, choose your starter template, customize fields, and publish the form link.",
+      "Go to Forms, choose your business type, customize fields, and publish the form link.",
     expected_outcome: "Customers can submit inquiries to your workspace",
     related_feature: "forms",
   },

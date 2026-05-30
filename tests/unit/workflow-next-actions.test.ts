@@ -36,7 +36,7 @@ describe("features/businesses/workflow-next-actions", () => {
           id: "inq_1",
           status: "quoted",
           recordState: "active",
-          relatedQuote: { id: "quote_1" },
+          relatedQuotes: { latest: { id: "quote_1" } },
         },
       });
 

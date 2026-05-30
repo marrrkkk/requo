@@ -5,8 +5,10 @@ import {
   isQuotePastValidityDate,
   getQuoteReminderKinds,
   centsToMoneyInput,
-  isQuoteEditorLineItemBlank
+  isQuoteEditorLineItemBlank,
+  applyTemplateToQuoteForm,
 } from '@/features/quotes/utils';
+import type { QuoteTemplateData } from '@/features/quotes/utils';
 import { QuoteEditorLineItemValue } from '@/features/quotes/types';
 
 describe('features/quotes/utils', () => {
@@ -194,6 +196,97 @@ describe('features/quotes/utils', () => {
       });
       expect(kinds).toContain('expiring_soon');
       expect(kinds).not.toContain('follow_up_due');
+    });
+  });
+
+  describe('applyTemplateToQuoteForm', () => {
+    it('transforms template data into quote form state', () => {
+      const template: QuoteTemplateData = {
+        title: 'Web Design Package',
+        notes: 'Thank you for choosing us.',
+        terms: 'Net 30',
+        validityDays: 14,
+        items: [
+          { id: 'item-1', description: 'Homepage design', quantity: 1, unitPriceInCents: 50000 },
+          { id: 'item-2', description: 'Inner page design', quantity: 3, unitPriceInCents: 25000 },
+        ],
+      };
+
+      const result = applyTemplateToQuoteForm(template);
+
+      expect(result.title).toBe('Web Design Package');
+      expect(result.notes).toBe('Thank you for choosing us.');
+      expect(result.terms).toBe('Net 30');
+      expect(result.items).toHaveLength(2);
+      expect(result.items[0]).toEqual({
+        id: 'item-1',
+        description: 'Homepage design',
+        quantity: 1,
+        unitPriceInCents: 50000,
+        lineTotalInCents: 50000,
+      });
+      expect(result.items[1]).toEqual({
+        id: 'item-2',
+        description: 'Inner page design',
+        quantity: 3,
+        unitPriceInCents: 25000,
+        lineTotalInCents: 75000,
+      });
+    });
+
+    it('defaults null notes and terms to empty strings', () => {
+      const template: QuoteTemplateData = {
+        title: 'Basic Quote',
+        notes: null,
+        terms: null,
+        validityDays: 7,
+        items: [
+          { id: 'item-1', description: 'Service', quantity: 1, unitPriceInCents: 10000 },
+        ],
+      };
+
+      const result = applyTemplateToQuoteForm(template);
+
+      expect(result.notes).toBe('');
+      expect(result.terms).toBe('');
+    });
+
+    it('calculates validUntil as ISO date string offset by validityDays', () => {
+      const template: QuoteTemplateData = {
+        title: 'Test',
+        notes: null,
+        terms: null,
+        validityDays: 30,
+        items: [
+          { id: 'item-1', description: 'Item', quantity: 1, unitPriceInCents: 1000 },
+        ],
+      };
+
+      const result = applyTemplateToQuoteForm(template);
+
+      // validUntil should be a YYYY-MM-DD string
+      expect(result.validUntil).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+      // Verify it's approximately 30 days from now
+      const expectedDate = new Date();
+      expectedDate.setDate(expectedDate.getDate() + 30);
+      expect(result.validUntil).toBe(expectedDate.toISOString().split('T')[0]);
+    });
+
+    it('computes lineTotalInCents as quantity * unitPriceInCents', () => {
+      const template: QuoteTemplateData = {
+        title: 'Multi-quantity',
+        notes: null,
+        terms: null,
+        validityDays: 14,
+        items: [
+          { id: 'item-1', description: 'Widget', quantity: 5, unitPriceInCents: 1299 },
+        ],
+      };
+
+      const result = applyTemplateToQuoteForm(template);
+
+      expect(result.items[0].lineTotalInCents).toBe(5 * 1299);
     });
   });
 });

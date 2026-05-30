@@ -183,7 +183,7 @@ test("sending a draft quote shows a safe delivery error when email is unavailabl
   await page.waitForLoadState("networkidle");
 
   await page.getByRole("button", { name: "Send quote" }).click();
-  await page.getByRole("menuitem", { name: "Send with Requo" }).click();
+  await page.getByRole("menuitem", { name: "Send now" }).click();
 
   await expect(
     page.getByText(
