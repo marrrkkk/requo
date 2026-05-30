@@ -7,6 +7,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import type { DashboardInquiryListItem } from "@/features/inquiries/types";
 import {
   formatInquiryDate,
@@ -18,22 +20,41 @@ import { getBusinessInquiryPath } from "@/features/businesses/routes";
 type InquiryListCardsProps = {
   inquiries: DashboardInquiryListItem[];
   businessSlug: string;
+  isSelected?: (id: string) => boolean;
+  isAtLimit?: boolean;
+  onToggle?: (id: string) => void;
 };
 
 export function InquiryListCards({
   inquiries,
   businessSlug,
+  isSelected,
+  isAtLimit,
+  onToggle,
 }: InquiryListCardsProps) {
   return (
     <div className="data-list-mobile-grid">
       {inquiries.map((inquiry) => {
+        const checked = isSelected?.(inquiry.id) ?? false;
+        const disabled = !checked && (isAtLimit ?? false);
+
         return (
-          <Link
-            className="block"
-            href={getBusinessInquiryPath(businessSlug, inquiry.id)}
-            key={inquiry.id}
-            prefetch={true}
-          >
+          <div className="relative" key={inquiry.id}>
+            {onToggle ? (
+              <div className="absolute left-3 top-4 z-10">
+                <Checkbox
+                  aria-label={`Select inquiry from ${inquiry.customerName}`}
+                  checked={checked}
+                  disabled={disabled}
+                  onCheckedChange={() => onToggle(inquiry.id)}
+                />
+              </div>
+            ) : null}
+            <Link
+              className="block"
+              href={getBusinessInquiryPath(businessSlug, inquiry.id)}
+              prefetch={true}
+            >
             <Card className="data-list-card transition-colors hover:bg-accent/20">
               <CardHeader className="data-list-card-header">
                 <div className="flex min-w-0 items-start justify-between gap-3">
@@ -68,17 +89,19 @@ export function InquiryListCards({
                   <span className="meta-label">
                     Form
                   </span>
-                  <p className="mt-1.5 truncate text-sm text-foreground sm:mt-2" title={inquiry.inquiryFormName}>
-                    {inquiry.inquiryFormName}
-                  </p>
+                  <TruncatedTextWithTooltip
+                    text={inquiry.inquiryFormName}
+                    className="mt-1.5 text-sm text-foreground sm:mt-2"
+                  />
                 </div>
                 <div className="info-tile min-w-0 h-full px-3 py-2.5 shadow-none sm:px-3.5 sm:py-3">
                   <span className="meta-label">
                     Category
                   </span>
-                  <p className="mt-1.5 truncate text-sm text-foreground sm:mt-2" title={inquiry.serviceCategory}>
-                    {inquiry.serviceCategory}
-                  </p>
+                  <TruncatedTextWithTooltip
+                    text={inquiry.serviceCategory}
+                    className="mt-1.5 text-sm text-foreground sm:mt-2"
+                  />
                 </div>
                 <div className="info-tile col-span-2 min-w-0 h-full px-3 py-2.5 shadow-none sm:col-span-1 sm:px-3.5 sm:py-3">
                   <span className="meta-label">
@@ -91,6 +114,7 @@ export function InquiryListCards({
               </CardContent>
             </Card>
           </Link>
+          </div>
         );
       })}
     </div>

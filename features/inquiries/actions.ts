@@ -2,6 +2,7 @@
 
 import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 
 import { getValidationActionState } from "@/lib/action-state";
 import {
@@ -19,6 +20,9 @@ import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
 import {
   addInquiryNoteForBusiness,
   archiveInquiryForBusiness,
+  bulkArchiveInquiriesForBusiness,
+  bulkChangeInquiryStatusForBusiness,
+  bulkDeleteInquiriesForBusiness,
   changeInquiryStatusForBusiness,
   createManualInquirySubmission,
   createPublicInquirySubmission,
@@ -39,6 +43,7 @@ import {
 } from "@/features/inquiries/schemas";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
 import type {
+  InquiryBulkActionState,
   InquiryRecordActionState,
   InquiryNoteActionState,
   InquiryStatusActionState,
@@ -527,4 +532,142 @@ export async function deleteInquiryAction(
     unchanged: "Inquiry is already deleted.",
     fallbackError: "Failed to delete inquiry.",
   });
+}
+
+
+// --- Bulk Action Schemas ---
+
+const inquiryBulkActionSchema = z.object({
+  inquiryIds: z
+    .array(z.string().min(1))
+    .min(1, "Select at least one inquiry.")
+    .max(50, "Cannot bulk-update more than 50 inquiries at once."),
+});
+
+const inquiryBulkStatusTargets = [
+  "new",
+  "quoted",
+  "waiting",
+  "won",
+  "lost",
+] as const;
+
+const inquiryBulkStatusChangeSchema = inquiryBulkActionSchema.extend({
+  targetStatus: z.enum(inquiryBulkStatusTargets),
+});
+
+// --- Bulk Action Server Actions ---
+
+export async function bulkArchiveInquiriesAction(
+  _prevState: InquiryBulkActionState,
+  formData: FormData,
+): Promise<InquiryBulkActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+  if (!ownerAccess.ok) return { error: ownerAccess.error };
+
+  const { user, businessContext } = ownerAccess;
+  const rawIds = formData.get("inquiryIds") as string;
+  const parsed = inquiryBulkActionSchema.safeParse({
+    inquiryIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  try {
+    const result = await bulkArchiveInquiriesForBusiness({
+      businessId: businessContext.business.id,
+      inquiryIds: parsed.data.inquiryIds,
+      actorUserId: user.id,
+    });
+
+    updateCacheTags(getBusinessInquiryListCacheTags(businessContext.business.id));
+
+    return {
+      success: `${result.affected} inquiry${result.affected !== 1 ? "ies" : ""} archived.`,
+      affected: result.affected,
+      skipped: result.skipped,
+    };
+  } catch (error) {
+    console.error("Failed to bulk archive inquiries.", error);
+    return { error: "We couldn't archive those inquiries right now." };
+  }
+}
+
+export async function bulkDeleteInquiriesAction(
+  _prevState: InquiryBulkActionState,
+  formData: FormData,
+): Promise<InquiryBulkActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+  if (!ownerAccess.ok) return { error: ownerAccess.error };
+
+  const { user, businessContext } = ownerAccess;
+  const rawIds = formData.get("inquiryIds") as string;
+  const parsed = inquiryBulkActionSchema.safeParse({
+    inquiryIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  try {
+    const result = await bulkDeleteInquiriesForBusiness({
+      businessId: businessContext.business.id,
+      inquiryIds: parsed.data.inquiryIds,
+      actorUserId: user.id,
+    });
+
+    updateCacheTags(getBusinessInquiryListCacheTags(businessContext.business.id));
+
+    return {
+      success: `${result.affected} inquiry${result.affected !== 1 ? "ies" : ""} deleted.`,
+      affected: result.affected,
+      skipped: result.skipped,
+    };
+  } catch (error) {
+    console.error("Failed to bulk delete inquiries.", error);
+    return { error: "We couldn't delete those inquiries right now." };
+  }
+}
+
+export async function bulkChangeInquiryStatusAction(
+  _prevState: InquiryBulkActionState,
+  formData: FormData,
+): Promise<InquiryBulkActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+  if (!ownerAccess.ok) return { error: ownerAccess.error };
+
+  const { user, businessContext } = ownerAccess;
+  const rawIds = formData.get("inquiryIds") as string;
+  const rawStatus = formData.get("targetStatus") as string;
+  const parsed = inquiryBulkStatusChangeSchema.safeParse({
+    inquiryIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
+    targetStatus: rawStatus,
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  try {
+    const result = await bulkChangeInquiryStatusForBusiness({
+      businessId: businessContext.business.id,
+      inquiryIds: parsed.data.inquiryIds,
+      actorUserId: user.id,
+      targetStatus: parsed.data.targetStatus,
+    });
+
+    updateCacheTags(getBusinessInquiryListCacheTags(businessContext.business.id));
+
+    return {
+      success: `${result.affected} inquiry${result.affected !== 1 ? "ies" : ""} updated.`,
+      affected: result.affected,
+      skipped: result.skipped,
+    };
+  } catch (error) {
+    console.error("Failed to bulk change inquiry status.", error);
+    return { error: "We couldn't update those inquiries right now." };
+  }
 }

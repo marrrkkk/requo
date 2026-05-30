@@ -716,7 +716,7 @@ export async function getInquiryDetailForBusiness({
     inquiry.inquiryFormBusinessType,
   );
 
-  const [attachments, notes, activities, relatedQuoteRows, quoteCountRows] =
+  const [attachments, notes, activities, relatedQuoteRows] =
     await Promise.all([
       db
         .select({
@@ -784,26 +784,14 @@ export async function getInquiryDetailForBusiness({
             isNull(quotes.deletedAt),
           ),
         )
-        .orderBy(desc(quotes.createdAt))
-        .limit(1),
-      db
-        .select({
-          count: count(),
-        })
-        .from(quotes)
-        .where(
-          and(
-            eq(quotes.businessId, businessId),
-            eq(quotes.inquiryId, inquiryId),
-            isNull(quotes.deletedAt),
-          ),
-        ),
+        .orderBy(desc(quotes.createdAt)),
     ]);
 
-  const relatedQuote = relatedQuoteRows[0]
+  const relatedQuotes = relatedQuoteRows.length
     ? {
-        ...relatedQuoteRows[0],
-        quoteCount: Number(quoteCountRows[0]?.count ?? 1),
+        latest: relatedQuoteRows[0],
+        all: relatedQuoteRows,
+        count: relatedQuoteRows.length,
       }
     : null;
 
@@ -816,7 +804,7 @@ export async function getInquiryDetailForBusiness({
     attachments,
     notes,
     activities,
-    relatedQuote,
+    relatedQuotes,
   };
 }
 

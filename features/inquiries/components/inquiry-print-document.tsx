@@ -195,27 +195,27 @@ export function InquiryPrintDocument({
               </p>
             </CardHeader>
             <CardContent>
-              {inquiry.relatedQuote ? (
+              {inquiry.relatedQuotes ? (
                 <div className="grid gap-3">
                   <InfoTile
                     label="Quote"
-                    value={inquiry.relatedQuote.quoteNumber ?? inquiry.relatedQuote.id}
+                    value={inquiry.relatedQuotes.latest.quoteNumber ?? inquiry.relatedQuotes.latest.id}
                   />
-                  <InfoTile label="Status" value={inquiry.relatedQuote.status} />
+                  <InfoTile label="Status" value={inquiry.relatedQuotes.latest.status} />
                   <InfoTile
                     label="Total"
                     value={formatQuoteMoney(
-                      inquiry.relatedQuote.totalInCents,
+                      inquiry.relatedQuotes.latest.totalInCents,
                       businessCurrency,
                     )}
                   />
                   <InfoTile
                     label="Created"
-                    value={formatInquiryDateTime(inquiry.relatedQuote.createdAt)}
+                    value={formatInquiryDateTime(inquiry.relatedQuotes.latest.createdAt)}
                   />
                   <InfoTile
                     label="Quote count"
-                    value={`${inquiry.relatedQuote.quoteCount}`}
+                    value={`${inquiry.relatedQuotes.count}`}
                   />
                 </div>
               ) : (

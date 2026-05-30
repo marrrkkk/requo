@@ -95,7 +95,12 @@ export type DashboardInquiryRelatedQuote = {
   quoteNumber: string | null;
   totalInCents: number;
   createdAt: Date;
-  quoteCount: number;
+};
+
+export type DashboardInquiryRelatedQuotes = {
+  latest: DashboardInquiryRelatedQuote;
+  all: DashboardInquiryRelatedQuote[];
+  count: number;
 };
 
 export type DashboardInquiryDetail = {
@@ -123,7 +128,7 @@ export type DashboardInquiryDetail = {
   attachments: DashboardInquiryAttachment[];
   notes: DashboardInquiryNote[];
   activities: DashboardInquiryActivity[];
-  relatedQuote: DashboardInquiryRelatedQuote | null;
+  relatedQuotes: DashboardInquiryRelatedQuotes | null;
   submittedFieldSnapshot: InquirySubmittedFieldSnapshot | null;
 };
 
@@ -216,4 +221,11 @@ export type PublicInquiryFormState = {
 export type ManualInquiryActionState = {
   error?: string;
   fieldErrors?: PublicInquiryFieldErrors;
+};
+
+export type InquiryBulkActionState = {
+  success?: string;
+  error?: string;
+  affected?: number;
+  skipped?: number;
 };

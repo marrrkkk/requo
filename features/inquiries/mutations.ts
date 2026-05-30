@@ -27,7 +27,7 @@ import type {
 import { inquirySources } from "@/features/inquiries/types";
 import { getInquiryStatusLabel } from "@/features/inquiries/utils";
 import type { PublicInquiryBusiness } from "@/features/inquiries/types";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { qualifyInquiry } from "./qualification/qualify-inquiry";
 import { emitEvent } from "@/features/automations/dispatcher";
 
@@ -797,4 +797,110 @@ export async function deleteInquiryForBusiness({
       locked: false,
     };
   });
+}
+
+
+// --- Bulk Mutations ---
+
+export async function bulkArchiveInquiriesForBusiness({
+  businessId,
+  inquiryIds,
+  actorUserId,
+}: {
+  businessId: string;
+  inquiryIds: string[];
+  actorUserId: string;
+}): Promise<{ affected: number; skipped: number }> {
+  const now = new Date();
+
+  const result = await db
+    .update(inquiries)
+    .set({
+      archivedAt: now,
+      archivedBy: actorUserId,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(inquiries.businessId, businessId),
+        inArray(inquiries.id, inquiryIds),
+        isNull(inquiries.archivedAt),
+        isNull(inquiries.deletedAt),
+      ),
+    )
+    .returning({ id: inquiries.id });
+
+  return {
+    affected: result.length,
+    skipped: inquiryIds.length - result.length,
+  };
+}
+
+export async function bulkDeleteInquiriesForBusiness({
+  businessId,
+  inquiryIds,
+  actorUserId,
+}: {
+  businessId: string;
+  inquiryIds: string[];
+  actorUserId: string;
+}): Promise<{ affected: number; skipped: number }> {
+  const now = new Date();
+
+  const result = await db
+    .update(inquiries)
+    .set({
+      deletedAt: now,
+      deletedBy: actorUserId,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(inquiries.businessId, businessId),
+        inArray(inquiries.id, inquiryIds),
+        isNull(inquiries.deletedAt),
+      ),
+    )
+    .returning({ id: inquiries.id });
+
+  return {
+    affected: result.length,
+    skipped: inquiryIds.length - result.length,
+  };
+}
+
+export async function bulkChangeInquiryStatusForBusiness({
+  businessId,
+  inquiryIds,
+  actorUserId,
+  targetStatus,
+}: {
+  businessId: string;
+  inquiryIds: string[];
+  actorUserId: string;
+  targetStatus: "new" | "quoted" | "waiting" | "won" | "lost";
+}): Promise<{ affected: number; skipped: number }> {
+  const now = new Date();
+
+  // Only update non-archived, non-deleted inquiries
+  const result = await db
+    .update(inquiries)
+    .set({
+      status: targetStatus,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(inquiries.businessId, businessId),
+        inArray(inquiries.id, inquiryIds),
+        isNull(inquiries.archivedAt),
+        isNull(inquiries.deletedAt),
+      ),
+    )
+    .returning({ id: inquiries.id });
+
+  return {
+    affected: result.length,
+    skipped: inquiryIds.length - result.length,
+  };
 }
