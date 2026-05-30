@@ -30,7 +30,6 @@ export function HelpTooltip({
         "inline-flex size-4 items-center justify-center rounded-full text-muted-foreground/70 outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/20",
         className,
       )}
-      title={content}
       type="button"
     >
       <CircleHelp className="size-3.5" />
