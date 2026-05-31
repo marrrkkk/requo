@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   FileText,
   MoreHorizontal,
@@ -48,8 +48,8 @@ import type {
   QuoteLibraryDeleteActionState,
 } from "@/features/quotes/types";
 import type { QuoteLibraryBlockReference } from "@/features/quotes/components/quote-library-entry-form";
-import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useAnimatedList, type MotionState } from "@/hooks/use-animated-list";
+import type { OptimisticActionResult } from "@/hooks/use-optimistic-mutation";
 
 type QuoteTemplatesManagerProps = {
   templates: DashboardQuoteLibraryEntry[];
@@ -97,6 +97,8 @@ export function QuoteTemplatesManager({
     useState<DashboardQuoteLibraryEntry | null>(null);
   const isAtLimit = pricingLimit !== null && totalLibraryCount >= pricingLimit;
 
+  const { items: animatedTemplates, getMotionState, removeItem } = useAnimatedList(templates);
+
   function openCreate() {
     setEditorState({ mode: "create" });
   }
@@ -137,10 +139,11 @@ export function QuoteTemplatesManager({
       {templates.length > 0 ? (
         <div className="overflow-hidden rounded-xl border border-border/75">
           <div className="divide-y divide-border/60">
-            {templates.map((entry) => (
+            {animatedTemplates.map((entry) => (
               <TemplateRow
                 entry={entry}
                 key={entry.id}
+                motionState={getMotionState(entry.id)}
                 onDelete={() => setDeleteTarget(entry)}
                 onEdit={() => openEdit(entry)}
               />
@@ -263,6 +266,7 @@ export function QuoteTemplatesManager({
         deleteAction={deleteAction}
         entry={deleteTarget}
         onClose={() => setDeleteTarget(null)}
+        onOptimisticRemove={removeItem}
       />
     </div>
   );
@@ -270,15 +274,17 @@ export function QuoteTemplatesManager({
 
 function TemplateRow({
   entry,
+  motionState,
   onDelete,
   onEdit,
 }: {
   entry: DashboardQuoteLibraryEntry;
+  motionState?: MotionState;
   onDelete: () => void;
   onEdit: () => void;
 }) {
   return (
-    <div className="group flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-muted/20 sm:items-center sm:gap-4 sm:px-5 sm:py-4">
+    <div className="motion-list-item group flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-muted/20 sm:items-center sm:gap-4 sm:px-5 sm:py-4" data-motion-state={motionState}>
       <div className="mt-0.5 rounded-lg bg-muted/60 p-2 sm:mt-0">
         <FileText className="size-4 text-muted-foreground" />
       </div>
@@ -350,6 +356,7 @@ function DeleteConfirmDialog({
   deleteAction,
   entry,
   onClose,
+  onOptimisticRemove,
 }: {
   deleteAction: (
     entryId: string,
@@ -358,6 +365,10 @@ function DeleteConfirmDialog({
   ) => Promise<QuoteLibraryDeleteActionState>;
   entry: DashboardQuoteLibraryEntry | null;
   onClose: () => void;
+  onOptimisticRemove: (
+    id: string,
+    mutation?: () => Promise<OptimisticActionResult>,
+  ) => void;
 }) {
   if (!entry) return null;
   return (
@@ -365,6 +376,7 @@ function DeleteConfirmDialog({
       deleteAction={deleteAction}
       entry={entry}
       onClose={onClose}
+      onOptimisticRemove={onOptimisticRemove}
     />
   );
 }
@@ -373,6 +385,7 @@ function DeleteConfirmDialogInner({
   deleteAction,
   entry,
   onClose,
+  onOptimisticRemove,
 }: {
   deleteAction: (
     entryId: string,
@@ -381,19 +394,21 @@ function DeleteConfirmDialogInner({
   ) => Promise<QuoteLibraryDeleteActionState>;
   entry: DashboardQuoteLibraryEntry;
   onClose: () => void;
+  onOptimisticRemove: (
+    id: string,
+    mutation?: () => Promise<OptimisticActionResult>,
+  ) => void;
 }) {
-  const router = useProgressRouter();
-  const boundAction = deleteAction.bind(null, entry.id);
-  const [state, formAction, isPending] =
-    useActionStateWithSonner<QuoteLibraryDeleteActionState>(boundAction, {});
-
-  useEffect(() => {
-    if (state.success) {
-      onClose();
-      router.refresh();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.success]);
+  function handleDelete() {
+    onClose();
+    onOptimisticRemove(entry.id, async () => {
+      const result = await deleteAction(entry.id, {}, new FormData());
+      return {
+        error: result.error,
+        success: result.success ? "Deleted" : undefined,
+      };
+    });
+  }
 
   return (
     <AlertDialog
@@ -403,28 +418,26 @@ function DeleteConfirmDialogInner({
       }}
     >
       <AlertDialogContent>
-        <form action={formAction}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete template?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This permanently removes &ldquo;{entry.name}&rdquo; from your
-              library. Quotes already created from this template are not
-              affected.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel asChild>
-              <Button disabled={isPending} type="button" variant="outline">
-                Cancel
-              </Button>
-            </AlertDialogCancel>
-            <AlertDialogAction asChild>
-              <Button disabled={isPending} type="submit" variant="destructive">
-                {isPending ? "Deleting..." : "Delete template"}
-              </Button>
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </form>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete template?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This permanently removes &ldquo;{entry.name}&rdquo; from your
+            library. Quotes already created from this template are not
+            affected.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel asChild>
+            <Button type="button" variant="outline">
+              Cancel
+            </Button>
+          </AlertDialogCancel>
+          <AlertDialogAction asChild>
+            <Button onClick={handleDelete} type="button" variant="destructive">
+              Delete template
+            </Button>
+          </AlertDialogAction>
+        </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );

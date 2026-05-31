@@ -6,7 +6,6 @@ import { Archive, RotateCcw, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
-  AlertDialogBody,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -175,7 +174,6 @@ export function BusinessDeleteZone({
                 quotes, forms, and follow-ups. This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogBody>
               <FieldGroup>
                 <Field
                   data-invalid={
@@ -213,7 +211,6 @@ export function BusinessDeleteZone({
                   </FieldContent>
                 </Field>
               </FieldGroup>
-            </AlertDialogBody>
             <AlertDialogFooter>
               <AlertDialogCancel asChild>
                 <Button disabled={isDeletePending} type="button" variant="outline">

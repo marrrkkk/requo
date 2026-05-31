@@ -10,7 +10,7 @@ import { Eye } from "lucide-react";
 
 import { FloatingFormActions } from "@/components/shared/floating-form-actions";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { Button } from "@/components/ui/button";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import { getFieldError } from "@/lib/action-state";
@@ -68,7 +68,7 @@ export function BusinessInquiryPageForm({
   onDraftChange,
   onPreview,
 }: BusinessInquiryPageFormProps) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
@@ -277,8 +277,8 @@ export function BusinessInquiryPageForm({
       return;
     }
 
-    router.refresh();
-  }, [router, state.success]);
+    scheduleRefresh();
+  }, [scheduleRefresh, state.success]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");

@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import type {
   QuoteEmailTemplateConfig,
 } from "@/features/settings/email-templates";
@@ -80,7 +80,7 @@ export function BusinessEmailTemplateForm({
   action,
   settings,
 }: BusinessEmailTemplateFormProps) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
@@ -116,9 +116,9 @@ export function BusinessEmailTemplateForm({
     }
 
     setSaved(draft);
-    router.refresh();
+    scheduleRefresh();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, state.success]);
+  }, [scheduleRefresh, state.success]);
 
   useEffect(() => {
     setDraft(initialDraft);

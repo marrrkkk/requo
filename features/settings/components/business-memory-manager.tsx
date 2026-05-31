@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { BookOpen, FileUp, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { useAnimatedList, type MotionState } from "@/hooks/use-animated-list";
+import type { OptimisticActionResult } from "@/hooks/use-optimistic-mutation";
 
 import {
   AlertDialog,
@@ -113,6 +115,8 @@ export function BusinessMemoryManager({
   const [deleteTarget, setDeleteTarget] = useState<DashboardMemory | null>(null);
   const [importerOpen, setImporterOpen] = useState(false);
 
+  const { items: animatedMemories, getMotionState, removeItem } = useAnimatedList(memories);
+
   return (
     <div className="flex flex-col gap-6">
       {/* Stats summary */}
@@ -166,10 +170,11 @@ export function BusinessMemoryManager({
       {memories.length ? (
         <div className="overflow-hidden rounded-xl border border-border/75">
           <div className="divide-y divide-border/60">
-            {memories.map((memory) => (
+            {animatedMemories.map((memory) => (
               <KnowledgeRow
                 key={memory.id}
                 memory={memory}
+                motionState={getMotionState(memory.id)}
                 onEdit={() => setEditorState({ mode: "edit", memory })}
                 onDelete={() => setDeleteTarget(memory)}
               />
@@ -234,6 +239,7 @@ export function BusinessMemoryManager({
           deleteAction={deleteAction}
           memory={deleteTarget}
           onClose={() => setDeleteTarget(null)}
+          onOptimisticRemove={removeItem}
         />
       ) : null}
 
@@ -367,15 +373,17 @@ function KnowledgeForm({
 
 function KnowledgeRow({
   memory,
+  motionState,
   onDelete,
   onEdit,
 }: {
   memory: DashboardMemory;
+  motionState?: MotionState;
   onDelete: () => void;
   onEdit: () => void;
 }) {
   return (
-    <div className="group flex items-start gap-4 px-5 py-4 transition-colors hover:bg-muted/20">
+    <div className="motion-list-item group flex items-start gap-4 px-5 py-4 transition-colors hover:bg-muted/20" data-motion-state={motionState}>
       <div className="rounded-lg bg-muted/60 p-2">
         <BookOpen className="size-4 text-muted-foreground" />
       </div>
@@ -419,6 +427,7 @@ function DeleteConfirmDialog({
   deleteAction,
   memory,
   onClose,
+  onOptimisticRemove,
 }: {
   deleteAction: (
     memoryId: string,
@@ -427,19 +436,21 @@ function DeleteConfirmDialog({
   ) => Promise<MemoryDeleteActionState>;
   memory: DashboardMemory;
   onClose: () => void;
+  onOptimisticRemove: (
+    id: string,
+    mutation?: () => Promise<OptimisticActionResult>,
+  ) => void;
 }) {
-  const [isPending, startPending] = useTransition();
-  const [state, setState] = useState<MemoryDeleteActionState>({});
-
-  const handleDelete = async () => {
-    startPending(async () => {
-      const result = await deleteAction(memory.id, state, new FormData());
-      setState(result);
-      if (!result.error) {
-        onClose();
-      }
+  function handleDelete() {
+    onClose();
+    onOptimisticRemove(memory.id, async () => {
+      const result = await deleteAction(memory.id, {}, new FormData());
+      return {
+        error: result.error,
+        success: result.error ? undefined : "Deleted",
+      };
     });
-  };
+  }
 
   return (
     <AlertDialog
@@ -456,30 +467,15 @@ function DeleteConfirmDialog({
             longer use this context.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {state.error ? (
-          <p className="px-6 text-sm text-destructive">{state.error}</p>
-        ) : null}
         <AlertDialogFooter>
           <AlertDialogCancel asChild>
-            <Button disabled={isPending} type="button" variant="outline">
+            <Button type="button" variant="outline">
               Cancel
             </Button>
           </AlertDialogCancel>
           <AlertDialogAction asChild>
-            <Button
-              disabled={isPending}
-              onClick={handleDelete}
-              type="button"
-              variant="destructive"
-            >
-              {isPending ? (
-                <>
-                  <Spinner aria-hidden="true" data-icon="inline-start" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete"
-              )}
+            <Button onClick={handleDelete} type="button" variant="destructive">
+              Delete
             </Button>
           </AlertDialogAction>
         </AlertDialogFooter>

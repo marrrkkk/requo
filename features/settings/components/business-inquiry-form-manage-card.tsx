@@ -3,7 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import { Copy, Eye, EyeOff, Info, Star } from "lucide-react";
 
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -45,7 +45,7 @@ export function BusinessInquiryFormManageCard({
   isPublicInquiryEnabled,
   togglePublicAction,
 }: BusinessInquiryFormManageCardProps) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [, duplicateFormAction, isDuplicatePending] =
     useActionStateWithSonner(duplicateAction, initialState);
   const [defaultState, defaultFormAction, isDefaultPending] = useActionStateWithSonner(
@@ -63,8 +63,8 @@ export function BusinessInquiryFormManageCard({
       return;
     }
 
-    router.refresh();
-  }, [defaultState.success, publicState.success, router]);
+    scheduleRefresh();
+  }, [defaultState.success, publicState.success, scheduleRefresh]);
 
   return (
     <Card size="sm" className="gap-0 border-border/75 bg-card/97">

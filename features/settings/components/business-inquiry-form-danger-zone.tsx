@@ -7,6 +7,7 @@ import { useProgressRouter } from "@/hooks/use-progress-router";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
+import { ServerActionConfirmDialog } from "@/components/shared/server-action-button";
 import type { BusinessInquiryFormDangerActionState } from "@/features/settings/types";
 
 type BusinessInquiryFormDangerZoneProps = {
@@ -34,22 +35,22 @@ export function BusinessInquiryFormDangerZone({
   inquiryListHref,
 }: BusinessInquiryFormDangerZoneProps) {
   const router = useProgressRouter();
-  const [deleteState, deleteFormAction, isDeletePending] = useActionStateWithSonner(
-    deleteAction,
-    initialState,
-  );
   const [archiveState, archiveFormAction, isArchivePending] = useActionStateWithSonner(
     archiveAction,
     initialState,
   );
 
   useEffect(() => {
-    if (!deleteState.success && !archiveState.success) {
+    if (!archiveState.success) {
       return;
     }
 
     router.replace(inquiryListHref);
-  }, [archiveState.success, deleteState.success, inquiryListHref, router]);
+  }, [archiveState.success, inquiryListHref, router]);
+
+  const boundDeleteAction = async (state: BusinessInquiryFormDangerActionState, formData: FormData) => {
+    return deleteAction(state, formData);
+  };
 
   return (
     <section className="rounded-xl border border-destructive/30 bg-card/97">
@@ -97,29 +98,22 @@ export function BusinessInquiryFormDangerZone({
           <div className="min-w-0">
             <p className="text-sm font-medium text-destructive">Delete form</p>
             <p className="text-xs leading-5 text-muted-foreground">
-              Permanently removes the form and unlinks submitted inquiries.
+              Permanently removes the form. Only available when no inquiries are linked.
             </p>
           </div>
-          <form action={deleteFormAction}>
+          <form>
             <input name="targetFormId" type="hidden" value={formId} />
-            <Button
-              disabled={isDeletePending}
-              size="sm"
-              type="submit"
-              variant="destructive"
-            >
-              {isDeletePending ? (
-                <>
-                  <Spinner data-icon="inline-start" aria-hidden="true" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 data-icon="inline-start" />
-                  Delete
-                </>
-              )}
-            </Button>
+            <ServerActionConfirmDialog
+              action={boundDeleteAction}
+              confirmLabel="Delete form"
+              confirmPendingLabel="Deleting..."
+              description="This will permanently delete the form. Forms with linked inquiries must be archived instead."
+              icon={Trash2}
+              redirectHref={inquiryListHref}
+              title="Delete form?"
+              triggerLabel="Delete"
+              triggerVariant="destructive"
+            />
           </form>
         </div>
       </div>

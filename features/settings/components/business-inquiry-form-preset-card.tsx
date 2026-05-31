@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { RefreshCcw } from "lucide-react";
 
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,7 +43,7 @@ export function BusinessInquiryFormPresetCard({
   businessType,
   formId,
 }: BusinessInquiryFormPresetCardProps) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
@@ -56,8 +56,8 @@ export function BusinessInquiryFormPresetCard({
       return;
     }
 
-    router.refresh();
-  }, [router, state.success]);
+    scheduleRefresh();
+  }, [scheduleRefresh, state.success]);
 
   return (
     <>

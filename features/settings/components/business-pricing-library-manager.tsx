@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   FileUp,
   FileText,
@@ -61,8 +61,8 @@ import type {
   QuoteLibraryDeleteActionState,
   QuoteLibraryEntryKind,
 } from "@/features/quotes/types";
-import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useAnimatedList, type MotionState } from "@/hooks/use-animated-list";
+import type { OptimisticActionResult } from "@/hooks/use-optimistic-mutation";
 
 type BusinessPricingLibraryManagerProps = {
   quoteLibrary: DashboardQuoteLibraryEntry[];
@@ -147,6 +147,8 @@ export function BusinessPricingLibraryManager({
     if (filter === "all") return quoteLibrary;
     return quoteLibrary.filter((e) => e.kind === filter);
   }, [quoteLibrary, filter]);
+
+  const { items: animatedFiltered, getMotionState, removeItem } = useAnimatedList(filtered);
 
   function openCreate(kind: QuoteLibraryEntryKind) {
     setEditorState({ mode: "create", kind });
@@ -242,10 +244,11 @@ export function BusinessPricingLibraryManager({
       {filtered.length > 0 ? (
         <div className="overflow-hidden rounded-xl border border-border/75">
           <div className="divide-y divide-border/60">
-            {filtered.map((entry) => (
+            {animatedFiltered.map((entry) => (
               <EntryRow
                 entry={entry}
                 key={entry.id}
+                motionState={getMotionState(entry.id)}
                 onDelete={() => setDeleteTarget(entry)}
                 onEdit={() => openEdit(entry)}
               />
@@ -401,6 +404,7 @@ export function BusinessPricingLibraryManager({
         deleteAction={deleteAction}
         entry={deleteTarget}
         onClose={() => setDeleteTarget(null)}
+        onOptimisticRemove={removeItem}
       />
 
       {/* File importer */}
@@ -449,10 +453,12 @@ function StatCard({
 
 function EntryRow({
   entry,
+  motionState,
   onDelete,
   onEdit,
 }: {
   entry: DashboardQuoteLibraryEntry;
+  motionState?: MotionState;
   onDelete: () => void;
   onEdit: () => void;
 }) {
@@ -461,7 +467,7 @@ function EntryRow({
   const Icon = isTemplate ? FileText : isPackage ? Package : Layers;
 
   return (
-    <div className="group flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-muted/20 sm:items-center sm:gap-4 sm:px-5 sm:py-4">
+    <div className="motion-list-item group flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-muted/20 sm:items-center sm:gap-4 sm:px-5 sm:py-4" data-motion-state={motionState}>
       <div className="mt-0.5 rounded-lg bg-muted/60 p-2 sm:mt-0">
         <Icon className="size-4 text-muted-foreground" />
       </div>
@@ -529,6 +535,7 @@ function DeleteConfirmDialog({
   deleteAction,
   entry,
   onClose,
+  onOptimisticRemove,
 }: {
   deleteAction: (
     entryId: string,
@@ -537,6 +544,10 @@ function DeleteConfirmDialog({
   ) => Promise<QuoteLibraryDeleteActionState>;
   entry: DashboardQuoteLibraryEntry | null;
   onClose: () => void;
+  onOptimisticRemove: (
+    id: string,
+    mutation?: () => Promise<OptimisticActionResult>,
+  ) => void;
 }) {
   if (!entry) return null;
   return (
@@ -544,6 +555,7 @@ function DeleteConfirmDialog({
       deleteAction={deleteAction}
       entry={entry}
       onClose={onClose}
+      onOptimisticRemove={onOptimisticRemove}
     />
   );
 }
@@ -552,6 +564,7 @@ function DeleteConfirmDialogInner({
   deleteAction,
   entry,
   onClose,
+  onOptimisticRemove,
 }: {
   deleteAction: (
     entryId: string,
@@ -560,20 +573,21 @@ function DeleteConfirmDialogInner({
   ) => Promise<QuoteLibraryDeleteActionState>;
   entry: DashboardQuoteLibraryEntry;
   onClose: () => void;
+  onOptimisticRemove: (
+    id: string,
+    mutation?: () => Promise<OptimisticActionResult>,
+  ) => void;
 }) {
-  const router = useProgressRouter();
-  const boundAction = deleteAction.bind(null, entry.id);
-  const [state, formAction, isPending] = useActionStateWithSonner<
-    QuoteLibraryDeleteActionState
-  >(boundAction, {});
-
-  useEffect(() => {
-    if (state.success) {
-      onClose();
-      router.refresh();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.success]);
+  function handleDelete() {
+    onClose();
+    onOptimisticRemove(entry.id, async () => {
+      const result = await deleteAction(entry.id, {}, new FormData());
+      return {
+        error: result.error,
+        success: result.success ? "Deleted" : undefined,
+      };
+    });
+  }
 
   const kindLabel = entry.kind === "package" ? "package" : entry.kind === "template" ? "template" : "block";
 
@@ -585,28 +599,26 @@ function DeleteConfirmDialogInner({
       }}
     >
       <AlertDialogContent>
-        <form action={formAction}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete {kindLabel}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This permanently removes &ldquo;{entry.name}&rdquo; from your
-              pricing library. Quotes already using this {kindLabel} are not
-              affected.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel asChild>
-              <Button disabled={isPending} type="button" variant="outline">
-                Cancel
-              </Button>
-            </AlertDialogCancel>
-            <AlertDialogAction asChild>
-              <Button disabled={isPending} type="submit" variant="destructive">
-                {isPending ? "Deleting..." : `Delete ${kindLabel}`}
-              </Button>
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </form>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete {kindLabel}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This permanently removes &ldquo;{entry.name}&rdquo; from your
+            pricing library. Quotes already using this {kindLabel} are not
+            affected.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel asChild>
+            <Button type="button" variant="outline">
+              Cancel
+            </Button>
+          </AlertDialogCancel>
+          <AlertDialogAction asChild>
+            <Button onClick={handleDelete} type="button" variant="destructive">
+              {`Delete ${kindLabel}`}
+            </Button>
+          </AlertDialogAction>
+        </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );

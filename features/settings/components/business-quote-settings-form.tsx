@@ -18,7 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import type {
   BusinessQuoteSettingsActionState,
   BusinessSettingsView,
@@ -40,7 +40,7 @@ export function BusinessQuoteSettingsForm({
   autoCreateJobOnAcceptance,
   settings,
 }: BusinessQuoteSettingsFormProps) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
@@ -68,8 +68,8 @@ export function BusinessQuoteSettingsForm({
       return;
     }
 
-    router.refresh();
-  }, [router, state.success]);
+    scheduleRefresh();
+  }, [scheduleRefresh, state.success]);
 
   function handleCancelChanges() {
     setDefaultQuoteValidityDays(String(settings.defaultQuoteValidityDays));

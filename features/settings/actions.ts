@@ -1061,6 +1061,7 @@ export async function deleteBusinessInquiryFormAction(
   formData: FormData,
 ): Promise<BusinessInquiryFormDangerActionState> {
   const ownerAccess = await getOperationalBusinessActionContext();
+  const redirectHref = formData.get("redirectHref") as string | null;
 
   if (!ownerAccess.ok) {
     return {
@@ -1087,6 +1088,13 @@ export async function deleteBusinessInquiryFormAction(
     });
 
     if (!result.ok) {
+      if (result.reason === "has-inquiries") {
+        return {
+          error:
+            "This form still has submitted inquiries. Archive the form instead, or delete all linked inquiries first.",
+        };
+      }
+
       return {
         error: "That inquiry form could not be found.",
       };
@@ -1104,6 +1112,10 @@ export async function deleteBusinessInquiryFormAction(
     after(() => {
       revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
     });
+
+    if (redirectHref) {
+      redirect(redirectHref);
+    }
 
     return {
       success: "Inquiry form deleted.",

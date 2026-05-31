@@ -13,7 +13,7 @@ import {
 } from "@/components/shared/floating-form-actions";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { getFieldError } from "@/lib/action-state";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import type {
   BusinessSettingsActionState,
   BusinessSettingsView,
@@ -85,7 +85,7 @@ export function BusinessSettingsForm({
   settings,
   unarchiveAction,
 }: BusinessSettingsFormProps) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
@@ -133,8 +133,8 @@ export function BusinessSettingsForm({
       setLogoResetSignal((current) => current + 1);
     });
 
-    router.refresh();
-  }, [router, state.success]);
+    scheduleRefresh();
+  }, [scheduleRefresh, state.success]);
 
   useEffect(() => {
     queueMicrotask(() => {
