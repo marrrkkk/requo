@@ -14,6 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { OptimisticPendingIndicator } from "@/components/shared/optimistic-pending-indicator";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,7 +32,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Spinner } from "@/components/ui/spinner";
 import {
   completeFollowUpAction,
   deleteFollowUpAction,
@@ -73,8 +73,9 @@ import {
   getBusinessInquiryPath,
   getBusinessQuotePath,
 } from "@/features/businesses/routes";
-import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredActionState } from "@/hooks/use-deferred-action-state";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
+import type { MotionState } from "@/hooks/use-animated-list";
 import { cn } from "@/lib/utils";
 
 export function getFollowUpRelatedHref(
@@ -114,6 +115,8 @@ type FollowUpItemProps = {
   members?: TeamMemberOption[];
   showMessage?: boolean;
   aiTone?: "balanced" | "warm" | "direct" | "formal";
+  motionState?: MotionState;
+  onOptimisticRemove?: () => void;
   completeAction?: (
     state: FollowUpCompleteActionState,
     formData: FormData,
@@ -161,6 +164,8 @@ export function FollowUpItem({
   members = [],
   showMessage = true,
   aiTone = "balanced",
+  motionState,
+  onOptimisticRemove,
   completeAction: completeActionProp,
   skipAction: skipActionProp,
   rescheduleAction: rescheduleActionProp,
@@ -172,7 +177,7 @@ export function FollowUpItem({
   const [expanded, setExpanded] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const editTriggerRef = useRef<HTMLDivElement>(null);
-  const router = useProgressRouter();
+  const { refreshNow } = useDeferredRefresh();
   const deleteFormRef = useRef<HTMLFormElement>(null);
   const relatedHref = getFollowUpRelatedHref(businessSlug, followUp);
 
@@ -189,16 +194,16 @@ export function FollowUpItem({
   const reassignAction =
     reassignActionProp ?? reassignFollowUpAction.bind(null, followUp.id);
 
-  const [, deleteFormAction, isDeletePending] = useActionStateWithSonner(
-    async (prevState, formData) => {
-      const nextState = await deleteAction(prevState, formData);
-      if (nextState.success) {
-        setShowDeleteConfirm(false);
-        router.refresh();
-      }
-      return nextState;
-    },
+  const [, deleteFormAction, isDeletePending] = useDeferredActionState(
+    deleteAction,
     {} as FollowUpDeleteActionState,
+    {
+      onOptimistic: onOptimisticRemove,
+      onRevert: refreshNow,
+      onSuccess: () => {
+        setShowDeleteConfirm(false);
+      },
+    },
   );
 
   const channelLabel = getFollowUpChannelLabel(followUp.channel);
@@ -208,11 +213,12 @@ export function FollowUpItem({
   return (
     <div
       className={cn(
-        "rounded-xl border border-border/60 bg-background transition-colors",
+        "motion-list-item rounded-xl border border-border/60 bg-background transition-colors",
         expanded ? "border-border/80" : "hover:border-border/80",
         className,
       )}
       data-expanded={expanded}
+      data-motion-state={motionState}
     >
       {/* Header row: avatar + identity + meta + chevron + overflow */}
       <div className="flex items-center gap-2 px-3 py-2.5 sm:px-4">
@@ -425,6 +431,7 @@ export function FollowUpItem({
               <FollowUpActions
                 completeAction={completeAction}
                 dueAt={followUp.dueAt}
+                onOptimisticDismiss={onOptimisticRemove}
                 rescheduleAction={rescheduleAction}
                 skipAction={skipAction}
                 snoozeAction={snoozeAction}
@@ -479,10 +486,8 @@ export function FollowUpItem({
                 onClick={() => deleteFormRef.current?.requestSubmit()}
                 variant="destructive"
               >
-                {isDeletePending ? (
-                  <Spinner className="size-4" aria-hidden="true" />
-                ) : null}
-                {isDeletePending ? "Deleting..." : "Delete"}
+                <OptimisticPendingIndicator pending={isDeletePending} />
+                Delete
               </Button>
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CalendarPlus, Plus } from "lucide-react";
 
+import { OptimisticPendingIndicator } from "@/components/shared/optimistic-pending-indicator";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -24,10 +25,8 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredActionState } from "@/hooks/use-deferred-action-state";
 import type {
   FollowUpCategory,
   FollowUpChannel,
@@ -79,6 +78,7 @@ export function FollowUpCreateDialog({
   defaultTitle,
   description = "Set a simple reminder for the next customer touchpoint.",
   hasLinkedItem = false,
+  onOptimisticInsert,
   triggerLabel = "Set follow-up",
   triggerVariant = "outline",
 }: {
@@ -89,10 +89,10 @@ export function FollowUpCreateDialog({
   defaultTitle: string;
   description?: string;
   hasLinkedItem?: boolean;
+  onOptimisticInsert?: () => void;
   triggerLabel?: string;
   triggerVariant?: React.ComponentProps<typeof Button>["variant"];
 }) {
-  const router = useProgressRouter();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(defaultTitle);
   const [reason, setReason] = useState(defaultReason);
@@ -102,18 +102,15 @@ export function FollowUpCreateDialog({
   const [recurrence, setRecurrence] = useState<FollowUpRecurrence>("none");
   const [recurrenceLimit, setRecurrenceLimit] = useState("");
   const [terminationCondition, setTerminationCondition] = useState<FollowUpTerminationCondition | "none">("none");
-  const [state, formAction, isPending] = useActionStateWithSonner(
-    async (prevState, formData) => {
-      const nextState = await action(prevState, formData);
-
-      if (nextState.success) {
-        setOpen(false);
-        router.refresh();
-      }
-
-      return nextState;
-    },
+  const [state, formAction, isPending] = useDeferredActionState(
+    action,
     {} as FollowUpCreateActionState,
+    {
+      onOptimistic: onOptimisticInsert,
+      onSuccess: () => {
+        setOpen(false);
+      },
+    },
   );
 
   function resetFields() {
@@ -345,12 +342,9 @@ export function FollowUpCreateDialog({
               </Button>
             </ResponsiveOverlayClose>
             <Button disabled={isPending} type="submit">
-              {isPending ? (
-                <Spinner data-icon="inline-start" aria-hidden="true" />
-              ) : (
-                <Plus data-icon="inline-start" />
-              )}
-              {isPending ? "Creating..." : "Create follow-up"}
+              <OptimisticPendingIndicator pending={isPending} />
+              <Plus data-icon="inline-start" />
+              Create follow-up
             </Button>
           </ResponsiveOverlayFooter>
         </form>

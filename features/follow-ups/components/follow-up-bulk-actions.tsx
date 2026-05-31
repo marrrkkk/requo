@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { CheckCircle2, SkipForward } from "lucide-react";
 
+import { OptimisticPendingIndicator } from "@/components/shared/optimistic-pending-indicator";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import {
   ResponsiveOverlay,
@@ -20,47 +20,33 @@ import {
   bulkCompleteFollowUpsAction,
   bulkSkipFollowUpsAction,
 } from "@/features/follow-ups/actions";
-import type { FollowUpBulkActionState, FollowUpView } from "@/features/follow-ups/types";
-import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import type { FollowUpView } from "@/features/follow-ups/types";
+import type { OptimisticActionResult } from "@/hooks/use-optimistic-mutation";
+
+type FollowUpBulkActionsProps = {
+  followUps: FollowUpView[];
+  onOptimisticRemove?: (
+    ids: string[],
+    mutation: () => Promise<OptimisticActionResult>,
+  ) => void;
+};
 
 export function FollowUpBulkActions({
   followUps,
-}: {
-  followUps: FollowUpView[];
-}) {
+  onOptimisticRemove,
+}: FollowUpBulkActionsProps) {
   const pendingFollowUps = followUps.filter((f) => f.status === "pending");
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const [completionNote, setCompletionNote] = useState("");
-  const router = useProgressRouter();
-
-  const [, bulkCompleteAction, isCompletePending] = useActionStateWithSonner(
-    async (prevState, formData) => {
-      const nextState = await bulkCompleteFollowUpsAction(prevState, formData);
-      if (nextState.success) {
-        setShowCompleteDialog(false);
-        setCompletionNote("");
-        router.refresh();
-      }
-      return nextState;
-    },
-    {} as FollowUpBulkActionState,
-  );
-
-  const [, bulkSkipAction, isSkipPending] = useActionStateWithSonner(
-    async (prevState, formData) => {
-      const nextState = await bulkSkipFollowUpsAction(prevState, formData);
-      if (nextState.success) router.refresh();
-      return nextState;
-    },
-    {} as FollowUpBulkActionState,
-  );
+  const [isCompletePending, setIsCompletePending] = useState(false);
+  const [isSkipPending, setIsSkipPending] = useState(false);
 
   if (pendingFollowUps.length < 2) {
     return null;
   }
 
-  const pendingIds = pendingFollowUps.map((f) => f.id).join(",");
+  const pendingIds = pendingFollowUps.map((f) => f.id);
+  const serializedIds = pendingIds.join(",");
 
   return (
     <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/30 px-4 py-2.5">
@@ -93,8 +79,25 @@ export function FollowUpBulkActions({
                 Mark all pending follow-ups on this page as done.
               </ResponsiveOverlayDescription>
             </ResponsiveOverlayHeader>
-            <form action={bulkCompleteAction}>
-              <input name="followUpIds" type="hidden" value={pendingIds} />
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                setIsCompletePending(true);
+
+                const formData = new FormData(event.currentTarget);
+                onOptimisticRemove?.(pendingIds, async () => {
+                  try {
+                    return bulkCompleteFollowUpsAction({}, formData);
+                  } finally {
+                    setIsCompletePending(false);
+                  }
+                });
+
+                setShowCompleteDialog(false);
+                setCompletionNote("");
+              }}
+            >
+              <input name="followUpIds" type="hidden" value={serializedIds} />
               <div className="px-4 pb-4 sm:px-6 sm:pb-6">
                 <Field>
                   <FieldLabel htmlFor="bulk-completion-note">
@@ -123,36 +126,37 @@ export function FollowUpBulkActions({
                   </Button>
                 </ResponsiveOverlayClose>
                 <Button disabled={isCompletePending} type="submit">
-                  {isCompletePending ? (
-                    <Spinner data-icon="inline-start" aria-hidden="true" />
-                  ) : (
-                    <CheckCircle2 data-icon="inline-start" />
-                  )}
-                  {isCompletePending
-                    ? "Completing..."
-                    : `Complete ${pendingFollowUps.length}`}
+                  <OptimisticPendingIndicator pending={isCompletePending} />
+                  <CheckCircle2 data-icon="inline-start" />
+                  Complete {pendingFollowUps.length}
                 </Button>
               </ResponsiveOverlayFooter>
             </form>
           </ResponsiveOverlayContent>
         </ResponsiveOverlay>
 
-        <form action={bulkSkipAction}>
-          <input name="followUpIds" type="hidden" value={pendingIds} />
-          <Button
-            disabled={isSkipPending}
-            size="sm"
-            type="submit"
-            variant="ghost"
-          >
-            {isSkipPending ? (
-              <Spinner data-icon="inline-start" aria-hidden="true" />
-            ) : (
-              <SkipForward data-icon="inline-start" />
-            )}
-            {isSkipPending ? "Skipping..." : "Skip all"}
-          </Button>
-        </form>
+        <Button
+          disabled={isSkipPending}
+          onClick={() => {
+            setIsSkipPending(true);
+            onOptimisticRemove?.(pendingIds, async () => {
+              try {
+                const formData = new FormData();
+                formData.set("followUpIds", serializedIds);
+                return bulkSkipFollowUpsAction({}, formData);
+              } finally {
+                setIsSkipPending(false);
+              }
+            });
+          }}
+          size="sm"
+          type="button"
+          variant="ghost"
+        >
+          <OptimisticPendingIndicator pending={isSkipPending} />
+          <SkipForward data-icon="inline-start" />
+          Skip all
+        </Button>
       </div>
     </div>
   );

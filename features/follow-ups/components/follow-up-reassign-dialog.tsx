@@ -17,8 +17,7 @@ import {
 } from "@/components/ui/responsive-overlay";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
-import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredActionState } from "@/hooks/use-deferred-action-state";
 import type { FollowUpReassignActionState } from "@/features/follow-ups/types";
 
 type ReassignAction = (
@@ -43,23 +42,16 @@ export function FollowUpReassignDialog({
   members: TeamMemberOption[];
   disabled?: boolean;
 }) {
-  const router = useProgressRouter();
   const [open, setOpen] = useState(false);
   const [assignedToUserId, setAssignedToUserId] = useState(
     currentAssignedUserId ?? "",
   );
-  const [state, formAction, isPending] = useActionStateWithSonner(
-    async (prevState, formData) => {
-      const nextState = await action(prevState, formData);
-
-      if (nextState.success) {
-        setOpen(false);
-        router.refresh();
-      }
-
-      return nextState;
-    },
+  const [state, formAction, isPending] = useDeferredActionState(
+    action,
     {} as FollowUpReassignActionState,
+    {
+      onSuccess: () => setOpen(false),
+    },
   );
 
   const memberOptions = members.map((member) => ({

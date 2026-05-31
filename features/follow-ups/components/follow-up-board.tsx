@@ -1,6 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  useCallback,
+  useMemo,
+  useOptimistic,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -18,6 +25,7 @@ import {
 } from "lucide-react";
 import { useProgressiveReveal } from "@/hooks/use-progressive-reveal";
 
+import { OptimisticPendingIndicator } from "@/components/shared/optimistic-pending-indicator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,7 +44,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { DashboardEmptyState, DashboardPage } from "@/components/shared/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
-import { Spinner } from "@/components/ui/spinner";
 import {
   completeFollowUpAction,
   skipFollowUpAction,
@@ -52,7 +59,10 @@ import {
 } from "@/features/follow-ups/utils";
 import { getBusinessFollowUpsPath } from "@/features/businesses/routes";
 import type { FollowUpChannel, FollowUpView } from "@/features/follow-ups/types";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import {
+  type OptimisticActionResult,
+  useOptimisticMutation,
+} from "@/hooks/use-optimistic-mutation";
 import { cn } from "@/lib/utils";
 
 type FollowUpBoardProps = {
@@ -62,6 +72,18 @@ type FollowUpBoardProps = {
   businessSlug: string;
   createButton?: React.ReactNode;
 };
+
+type BoardColumns = {
+  overdue: FollowUpView[];
+  dueToday: FollowUpView[];
+  upcoming: FollowUpView[];
+};
+
+type BoardColumnKey = keyof BoardColumns;
+
+type BoardAction =
+  | { type: "remove"; id: string }
+  | { type: "restore"; followUp: FollowUpView; column: BoardColumnKey };
 
 const columns = [
   {
@@ -84,6 +106,42 @@ const columns = [
   },
 ];
 
+const EXIT_DURATION_MS = 280;
+
+function findFollowUpInBoard(board: BoardColumns, id: string) {
+  for (const key of ["overdue", "dueToday", "upcoming"] as const) {
+    const followUp = board[key].find((item) => item.id === id);
+    if (followUp) {
+      return { followUp, column: key };
+    }
+  }
+
+  return null;
+}
+
+function boardReducer(current: BoardColumns, action: BoardAction): BoardColumns {
+  switch (action.type) {
+    case "remove":
+      return {
+        overdue: current.overdue.filter((item) => item.id !== action.id),
+        dueToday: current.dueToday.filter((item) => item.id !== action.id),
+        upcoming: current.upcoming.filter((item) => item.id !== action.id),
+      };
+    case "restore": {
+      if (current[action.column].some((item) => item.id === action.followUp.id)) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [action.column]: [...current[action.column], action.followUp],
+      };
+    }
+    default:
+      return current;
+  }
+}
+
 function ChannelIcon({ channel, className }: { channel: FollowUpChannel; className?: string }) {
   switch (channel) {
     case "email":
@@ -102,14 +160,70 @@ export function FollowUpBoard({
   businessSlug,
   createButton,
 }: FollowUpBoardProps) {
-  const totalFollowUps = overdue.length + dueToday.length + upcoming.length;
+  const serverBoard = useMemo(
+    () => ({ overdue, dueToday, upcoming }),
+    [overdue, dueToday, upcoming],
+  );
+  const [optimisticBoard, setOptimisticBoard] = useOptimistic(serverBoard, boardReducer);
+  const [, startTransition] = useTransition();
+  const { runMutation, isPendingKey } = useOptimisticMutation();
+
+  const totalFollowUps =
+    optimisticBoard.overdue.length +
+    optimisticBoard.dueToday.length +
+    optimisticBoard.upcoming.length;
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFollowUp, setSelectedFollowUp] = useState<FollowUpView | null>(null);
 
-  const data = { overdue, dueToday, upcoming };
+  const exitingIds = useRef(new Set<string>());
+  const [, forceRender] = useState(0);
+
+  const getMotionState = useCallback((id: string) => {
+    if (exitingIds.current.has(id)) return "exiting" as const;
+    return undefined;
+  }, []);
+
+  const optimisticRemove = useCallback(
+    (id: string, mutation?: () => Promise<OptimisticActionResult>) => {
+      const located = findFollowUpInBoard(optimisticBoard, id);
+      if (!located) {
+        return;
+      }
+
+      const { followUp, column } = located;
+
+      exitingIds.current.add(id);
+      forceRender((n) => n + 1);
+
+      setTimeout(() => {
+        exitingIds.current.delete(id);
+        forceRender((n) => n + 1);
+
+        startTransition(() => {
+          setOptimisticBoard({ type: "remove", id });
+        });
+
+        if (!mutation) {
+          return;
+        }
+
+        runMutation({
+          applyOptimistic: () => {},
+          revertOptimistic: () => {
+            startTransition(() => {
+              setOptimisticBoard({ type: "restore", followUp, column });
+            });
+          },
+          mutation,
+          pendingKey: id,
+        });
+      }, EXIT_DURATION_MS);
+    },
+    [optimisticBoard, runMutation, setOptimisticBoard, startTransition],
+  );
 
   const filteredData = useMemo(() => {
-    if (!searchQuery.trim()) return data;
+    if (!searchQuery.trim()) return optimisticBoard;
     const q = searchQuery.toLowerCase();
     const filter = (items: FollowUpView[]) =>
       items.filter(
@@ -120,11 +234,11 @@ export function FollowUpBoard({
           (f.quoteNumber && f.quoteNumber.toLowerCase().includes(q)),
       );
     return {
-      overdue: filter(data.overdue),
-      dueToday: filter(data.dueToday),
-      upcoming: filter(data.upcoming),
+      overdue: filter(optimisticBoard.overdue),
+      dueToday: filter(optimisticBoard.dueToday),
+      upcoming: filter(optimisticBoard.upcoming),
     };
-  }, [data, searchQuery]);
+  }, [optimisticBoard, searchQuery]);
 
   return (
     <DashboardPage>
@@ -159,6 +273,9 @@ export function FollowUpBoard({
                 items={filteredData[column.key]}
                 businessSlug={businessSlug}
                 onSelect={setSelectedFollowUp}
+                getMotionState={getMotionState}
+                onOptimisticRemove={optimisticRemove}
+                isPendingKey={isPendingKey}
               />
             ))}
           </div>
@@ -177,6 +294,8 @@ export function FollowUpBoard({
         followUp={selectedFollowUp}
         businessSlug={businessSlug}
         onClose={() => setSelectedFollowUp(null)}
+        onOptimisticRemove={optimisticRemove}
+        isPendingKey={isPendingKey}
       />
     </DashboardPage>
   );
@@ -187,11 +306,20 @@ function FollowUpColumn({
   items,
   businessSlug,
   onSelect,
+  getMotionState,
+  onOptimisticRemove,
+  isPendingKey,
 }: {
   column: (typeof columns)[number];
   items: FollowUpView[];
   businessSlug: string;
   onSelect: (followUp: FollowUpView) => void;
+  getMotionState: (id: string) => "exiting" | undefined;
+  onOptimisticRemove: (
+    id: string,
+    mutation?: () => Promise<OptimisticActionResult>,
+  ) => void;
+  isPendingKey: (key: string) => boolean;
 }) {
   const { visibleCount, hasMore, sentinelRef } = useProgressiveReveal({
     total: items.length,
@@ -217,6 +345,9 @@ function FollowUpColumn({
             followUp={followUp}
             businessSlug={businessSlug}
             onSelect={onSelect}
+            motionState={getMotionState(followUp.id)}
+            onOptimisticRemove={onOptimisticRemove}
+            isPendingKey={isPendingKey}
           />
         ))}
         {hasMore ? <div ref={sentinelRef} className="h-1" /> : null}
@@ -227,29 +358,40 @@ function FollowUpColumn({
 
 function FollowUpCard({
   followUp,
-  businessSlug,
+  businessSlug: _businessSlug,
   onSelect,
+  motionState,
+  onOptimisticRemove,
+  isPendingKey,
 }: {
   followUp: FollowUpView;
   businessSlug: string;
   onSelect: (followUp: FollowUpView) => void;
+  motionState?: "exiting";
+  onOptimisticRemove: (
+    id: string,
+    mutation?: () => Promise<OptimisticActionResult>,
+  ) => void;
+  isPendingKey: (key: string) => boolean;
 }) {
-  const router = useProgressRouter();
   const channelLabel = getFollowUpChannelLabel(followUp.channel);
   const dueLabel = formatFollowUpDate(followUp.dueAt);
+  const isPending = isPendingKey(followUp.id);
 
-  async function handleComplete(e: React.MouseEvent) {
+  function handleComplete(e: React.MouseEvent) {
     e.stopPropagation();
-    const formData = new FormData();
-    await completeFollowUpAction.bind(null, followUp.id)({}, formData);
-    router.refresh();
+    onOptimisticRemove(followUp.id, async () => {
+      const formData = new FormData();
+      return completeFollowUpAction.bind(null, followUp.id)({}, formData);
+    });
   }
 
-  async function handleSkip(e: React.MouseEvent) {
+  function handleSkip(e: React.MouseEvent) {
     e.stopPropagation();
-    const formData = new FormData();
-    await skipFollowUpAction.bind(null, followUp.id)({}, formData);
-    router.refresh();
+    onOptimisticRemove(followUp.id, async () => {
+      const formData = new FormData();
+      return skipFollowUpAction.bind(null, followUp.id)({}, formData);
+    });
   }
 
   return (
@@ -258,7 +400,8 @@ function FollowUpCard({
       tabIndex={0}
       onClick={() => onSelect(followUp)}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(followUp); } }}
-      className="relative flex w-full cursor-pointer flex-col gap-2 rounded-lg border bg-background p-3 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      className="motion-list-item relative flex w-full cursor-pointer flex-col gap-2 rounded-lg border bg-background p-3 text-left shadow-sm transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      data-motion-state={motionState}
     >
       <div className="flex items-start justify-between gap-2">
         <span className="text-sm font-medium leading-tight">
@@ -273,6 +416,7 @@ function FollowUpCard({
               onClick={(e) => e.stopPropagation()}
             >
               <MoreHorizontal className="size-3.5" />
+              <OptimisticPendingIndicator pending={isPending} className="absolute -right-0.5 -top-0.5" />
               <span className="sr-only">Follow-up actions</span>
             </Button>
           </DropdownMenuTrigger>
@@ -314,13 +458,18 @@ function FollowUpDetailDialog({
   followUp,
   businessSlug,
   onClose,
+  onOptimisticRemove,
+  isPendingKey,
 }: {
   followUp: FollowUpView | null;
   businessSlug: string;
   onClose: () => void;
+  onOptimisticRemove: (
+    id: string,
+    mutation?: () => Promise<OptimisticActionResult>,
+  ) => void;
+  isPendingKey: (key: string) => boolean;
 }) {
-  const router = useProgressRouter();
-  const [isActioning, setIsActioning] = useState(false);
 
   if (!followUp) {
     return null;
@@ -330,23 +479,28 @@ function FollowUpDetailDialog({
   const channelLabel = getFollowUpChannelLabel(followUp.channel);
   const dueLabel = formatFollowUpDate(followUp.dueAt);
   const hasRecurrence = followUp.recurrence !== "none";
+  const isActioning = isPendingKey(followUp.id);
 
-  async function handleComplete() {
-    setIsActioning(true);
-    const formData = new FormData();
-    await completeFollowUpAction.bind(null, followUp!.id)({}, formData);
-    setIsActioning(false);
-    onClose();
-    router.refresh();
+  function handleComplete() {
+    onOptimisticRemove(followUp!.id, async () => {
+      const formData = new FormData();
+      const result = await completeFollowUpAction.bind(null, followUp!.id)({}, formData);
+      if (result.success) {
+        onClose();
+      }
+      return result;
+    });
   }
 
-  async function handleSkip() {
-    setIsActioning(true);
-    const formData = new FormData();
-    await skipFollowUpAction.bind(null, followUp!.id)({}, formData);
-    setIsActioning(false);
-    onClose();
-    router.refresh();
+  function handleSkip() {
+    onOptimisticRemove(followUp!.id, async () => {
+      const formData = new FormData();
+      const result = await skipFollowUpAction.bind(null, followUp!.id)({}, formData);
+      if (result.success) {
+        onClose();
+      }
+      return result;
+    });
   }
 
   return (
@@ -426,11 +580,8 @@ function FollowUpDetailDialog({
                 disabled={isActioning}
                 size="sm"
               >
-                {isActioning ? (
-                  <Spinner data-icon="inline-start" aria-hidden="true" />
-                ) : (
-                  <CheckCircle2 data-icon="inline-start" />
-                )}
+                <OptimisticPendingIndicator pending={isActioning} />
+                <CheckCircle2 data-icon="inline-start" />
                 Mark complete
               </Button>
               <Button
@@ -439,6 +590,7 @@ function FollowUpDetailDialog({
                 variant="outline"
                 size="sm"
               >
+                <OptimisticPendingIndicator pending={isActioning} />
                 <SkipForward data-icon="inline-start" />
                 Skip
               </Button>

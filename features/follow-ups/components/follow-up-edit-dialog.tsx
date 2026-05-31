@@ -26,8 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredActionState } from "@/hooks/use-deferred-action-state";
 import type {
   FollowUpCategory,
   FollowUpChannel,
@@ -81,7 +80,6 @@ export function FollowUpEditDialog({
   followUp: FollowUpView;
   disabled?: boolean;
 }) {
-  const router = useProgressRouter();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(followUp.title);
   const [reason, setReason] = useState(followUp.reason);
@@ -96,18 +94,12 @@ export function FollowUpEditDialog({
     followUp.terminationCondition ?? "none",
   );
   const hasLinkedItem = Boolean(followUp.inquiryId || followUp.quoteId);
-  const [state, formAction, isPending] = useActionStateWithSonner(
-    async (prevState, formData) => {
-      const nextState = await action(prevState, formData);
-
-      if (nextState.success) {
-        setOpen(false);
-        router.refresh();
-      }
-
-      return nextState;
-    },
+  const [state, formAction, isPending] = useDeferredActionState(
+    action,
     {} as FollowUpEditActionState,
+    {
+      onSuccess: () => setOpen(false),
+    },
   );
 
   function resetFields() {
