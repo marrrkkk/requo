@@ -18,6 +18,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { createJobFromQuoteAction, updateJobStatusAction } from "@/features/jobs/actions";
 import { createInvoiceFromQuoteAction } from "@/features/invoices/actions";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import {
   getBusinessJobPath,
@@ -73,6 +74,7 @@ export function QuotePostAcceptanceActions({
   const [jobStatus, setJobStatus] = useState(existingJobStatus);
   const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
 
   const hasJob = Boolean(existingJobId);
   const hasInvoice = Boolean(invoiceId);
@@ -117,7 +119,7 @@ export function QuotePostAcceptanceActions({
       const result = await updateJobStatusAction(existingJobId, "done");
       if (result.success) {
         setJobStatus("done");
-        router.refresh();
+        scheduleRefresh();
       }
     });
   }
@@ -255,7 +257,7 @@ function CompleteQuoteDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     {} as QuoteCompletionActionState,
@@ -267,8 +269,8 @@ function CompleteQuoteDialog({
     }
 
     queueMicrotask(() => onOpenChange(false));
-    router.refresh();
-  }, [onOpenChange, router, state.success]);
+    scheduleRefresh();
+  }, [onOpenChange, scheduleRefresh, state.success]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

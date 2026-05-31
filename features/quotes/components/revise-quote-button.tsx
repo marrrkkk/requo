@@ -1,15 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
 import { Edit } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { reviseQuoteAction } from "@/features/quotes/actions";
 import type { QuoteRecordActionState } from "@/features/quotes/types";
-import { useProgressRouter } from "@/hooks/use-progress-router";
-import { useEffect } from "react";
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation";
 
 type ReviseQuoteButtonProps = {
   quoteId: string;
@@ -18,21 +15,24 @@ type ReviseQuoteButtonProps = {
 const initialState: QuoteRecordActionState = {};
 
 export function ReviseQuoteButton({ quoteId }: ReviseQuoteButtonProps) {
-  const router = useProgressRouter();
+  const { runMutation, isPendingKey } = useOptimisticMutation();
   const boundAction = reviseQuoteAction.bind(null, quoteId);
-  const [state, formAction, isPending] = useActionState(boundAction, initialState);
+  const isPending = isPendingKey("revise");
 
-  useEffect(() => {
-    if (state.success) {
-      toast.success(state.success);
-      router.refresh();
-    } else if (state.error) {
-      toast.error(state.error);
-    }
-  }, [state, router]);
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    runMutation({
+      applyOptimistic: () => {},
+      revertOptimistic: () => {},
+      mutation: () => boundAction(initialState, new FormData()),
+      pendingKey: "revise",
+      refreshOnSuccess: true,
+    });
+  }
 
   return (
-    <form action={formAction}>
+    <form onSubmit={handleSubmit}>
       <Button type="submit" disabled={isPending} className="w-full">
         {isPending ? (
           <Spinner data-icon="inline-start" aria-hidden="true" />

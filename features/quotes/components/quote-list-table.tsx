@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { MotionState } from "@/hooks/use-animated-list";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { DashboardTableContainer } from "@/components/shared/dashboard-layout";
@@ -32,6 +33,7 @@ type QuoteListTableProps = {
   onToggle?: (id: string) => void;
   allOnPageSelected?: boolean;
   onSelectAllOnPage?: () => void;
+  getMotionState?: (id: string) => MotionState;
 };
 
 export function QuoteListTable({
@@ -42,6 +44,7 @@ export function QuoteListTable({
   onToggle,
   allOnPageSelected,
   onSelectAllOnPage,
+  getMotionState,
 }: QuoteListTableProps) {
   return (
     <DashboardTableContainer className="hidden xl:block">
@@ -49,15 +52,13 @@ export function QuoteListTable({
         <TableCaption className="sr-only">Newest quotes appear first.</TableCaption>
         <TableHeader>
           <TableRow>
-            {onToggle ? (
-              <TableHead className="w-[3rem]">
-                <Checkbox
-                  aria-label="Select all quotes on this page"
-                  checked={allOnPageSelected}
-                  onCheckedChange={onSelectAllOnPage}
-                />
-              </TableHead>
-            ) : null}
+            <TableHead className="w-[3rem]">
+              <Checkbox
+                aria-label="Select all quotes on this page"
+                checked={allOnPageSelected}
+                onCheckedChange={onSelectAllOnPage}
+              />
+            </TableHead>
             <TableHead className="w-[18rem]">Quote</TableHead>
             <TableHead className="w-[15rem]">Customer</TableHead>
             <TableHead className="w-[8rem]">Valid until</TableHead>
@@ -75,17 +76,15 @@ export function QuoteListTable({
             const disabled = !checked && (isAtLimit ?? false);
 
             return (
-              <TableRow className="group/row" key={quote.id}>
-                {onToggle ? (
-                  <TableCell className="w-[3rem]">
-                    <Checkbox
-                      aria-label={`Select quote ${quote.quoteNumber}`}
-                      checked={checked}
-                      disabled={disabled}
-                      onCheckedChange={() => onToggle(quote.id)}
-                    />
-                  </TableCell>
-                ) : null}
+              <TableRow className="motion-list-item group/row" data-motion-state={getMotionState?.(quote.id)} key={quote.id}>
+                <TableCell className="w-[3rem]">
+                  <Checkbox
+                    aria-label={`Select quote ${quote.quoteNumber}`}
+                    checked={checked}
+                    disabled={disabled}
+                    onCheckedChange={() => onToggle?.(quote.id)}
+                  />
+                </TableCell>
                 <TableCell className="w-[18rem]">
                   <div className="table-meta-stack max-w-full">
                     <TruncatedTextWithTooltip

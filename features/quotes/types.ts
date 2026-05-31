@@ -19,6 +19,7 @@ export const quotePostAcceptanceStatuses = [
   "scheduled",
   "in_progress",
   "completed",
+  "no_job_tracking",
   "canceled",
 ] as const;
 export const quoteDeliveryMethods = ["requo", "manual"] as const;

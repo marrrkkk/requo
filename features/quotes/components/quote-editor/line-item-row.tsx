@@ -255,18 +255,23 @@ export function LineItemCard({
       </div>
 
       {/* AI review badge + reason (only when present) */}
-      {(shouldShowLineItemReviewBadge(item.aiReview) || item.aiReview?.reason) ? (
-        <div className="mt-1.5 flex items-center gap-2 pl-6">
-          {shouldShowLineItemReviewBadge(item.aiReview) ? (
-            <AiReviewBadge review={item.aiReview} />
-          ) : null}
-          {item.aiReview?.reason ? (
-            <p className="text-xs leading-5 text-muted-foreground">
-              {item.aiReview.reason}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+      {(() => {
+        const hasBadge = shouldShowLineItemReviewBadge(item.aiReview);
+        const reason = item.aiReview?.reason;
+        if (!hasBadge && !reason) return null;
+        return (
+          <div className="mt-1.5 flex items-center gap-2 pl-6">
+            {hasBadge && item.aiReview ? (
+              <AiReviewBadge review={item.aiReview} />
+            ) : null}
+            {reason ? (
+              <p className="text-xs leading-5 text-muted-foreground">
+                {reason}
+              </p>
+            ) : null}
+          </div>
+        );
+      })()}
 
       <AlertDialog onOpenChange={setConfirmSaveOpen} open={confirmSaveOpen}>
         <AlertDialogContent>

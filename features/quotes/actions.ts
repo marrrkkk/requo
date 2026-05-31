@@ -328,6 +328,7 @@ async function runQuoteRecordAction(
     lockedArchived?: string;
     lockedLifecycle?: string;
     fallbackError: string;
+    redirectHref?: string;
   },
 ): Promise<QuoteRecordActionState> {
   const ownerAccess = await getWorkspaceBusinessActionContext();
@@ -372,6 +373,10 @@ async function runQuoteRecordAction(
       };
     }
 
+    if (messages.redirectHref && (result.changed || result.deleted)) {
+      redirect(messages.redirectHref);
+    }
+
     return {
       success:
         result.changed || result.deleted ? messages.success : messages.unchanged,
@@ -387,11 +392,10 @@ async function runQuoteRecordAction(
 
 export async function deleteDraftQuoteAction(
   quoteId: string,
-  _prevState: QuoteRecordActionState,
-  _formData: FormData,
+  _prevState?: QuoteRecordActionState,
+  formData?: FormData,
 ): Promise<QuoteRecordActionState> {
-  void _prevState;
-  void _formData;
+  const redirectHref = formData ? formData.get("redirectHref") as string | null : null;
 
   return runQuoteRecordAction(quoteId, deleteDraftQuoteForBusiness, {
     success: "Draft quote deleted.",
@@ -400,6 +404,7 @@ export async function deleteDraftQuoteAction(
     lockedLifecycle:
       "Only draft quotes can be deleted. Use void or archive for quotes that were already sent.",
     fallbackError: "Failed to delete draft quote.",
+    redirectHref: redirectHref || undefined,
   });
 }
 
@@ -1468,10 +1473,24 @@ export async function bulkDeleteQuotesAction(
       actorUserId: user.id,
     });
 
-    updateCacheTags(getBusinessQuoteListCacheTags(businessContext.business.id));
+    revalidateCacheTags(getBusinessQuoteListCacheTags(businessContext.business.id));
+
+    if (result.affected === 0) {
+      return {
+        error:
+          result.skipped > 0
+            ? "Only draft, non-archived quotes can be deleted. None of the selected quotes were eligible."
+            : "No quotes were deleted.",
+        affected: result.affected,
+        skipped: result.skipped,
+      };
+    }
 
     return {
-      success: `${result.affected} quote${result.affected !== 1 ? "s" : ""} deleted.`,
+      success:
+        result.skipped > 0
+          ? `${result.affected} quote${result.affected !== 1 ? "s" : ""} deleted. ${result.skipped} could not be deleted.`
+          : `${result.affected} quote${result.affected !== 1 ? "s" : ""} deleted.`,
       affected: result.affected,
       skipped: result.skipped,
     };

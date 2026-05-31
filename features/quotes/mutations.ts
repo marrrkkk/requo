@@ -1580,7 +1580,7 @@ type UpdateQuotePostAcceptanceStatusForBusinessInput = {
   businessId: string;
   quoteId: string;
   actorUserId: string;
-  postAcceptanceStatus: "none" | "booked" | "scheduled" | "in_progress" | "completed" | "canceled";
+  postAcceptanceStatus: import("@/features/quotes/types").QuotePostAcceptanceStatus;
 };
 
 export async function updateQuotePostAcceptanceStatusForBusiness({

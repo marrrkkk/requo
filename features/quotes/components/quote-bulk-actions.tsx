@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { Archive, Ban, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import {
   ResponsiveOverlay,
   ResponsiveOverlayClose,
@@ -19,152 +19,144 @@ import {
   bulkDeleteQuotesAction,
   bulkVoidQuotesAction,
 } from "@/features/quotes/actions";
-import type { QuoteBulkActionState } from "@/features/quotes/types";
-import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import type { DashboardQuoteListItem } from "@/features/quotes/types";
+import type { OptimisticActionResult } from "@/hooks/use-optimistic-mutation";
+
+function isQuoteBulkDeletable(quote: DashboardQuoteListItem) {
+  return quote.status === "draft" && !quote.archivedAt;
+}
+
+function filterDeletableQuoteIds(
+  quotes: DashboardQuoteListItem[],
+  ids: string[],
+) {
+  const idSet = new Set(ids);
+  return quotes.filter((quote) => idSet.has(quote.id) && isQuoteBulkDeletable(quote)).map(
+    (quote) => quote.id,
+  );
+}
 
 type QuoteBulkActionsProps = {
   selectedCount: number;
   serializedIds: string;
+  quotes: DashboardQuoteListItem[];
   onComplete: () => void;
+  onOptimisticRemove?: (
+    ids: string[],
+    mutation: () => Promise<OptimisticActionResult>,
+  ) => void;
 };
 
 export function QuoteBulkActions({
   selectedCount,
   serializedIds,
+  quotes,
   onComplete,
+  onOptimisticRemove,
 }: QuoteBulkActionsProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const router = useProgressRouter();
+  const ids = serializedIds.split(",").filter(Boolean);
 
-  const [, bulkArchiveAction, isArchivePending] = useActionStateWithSonner(
-    async (prevState, formData) => {
-      const nextState = await bulkArchiveQuotesAction(prevState, formData);
-      if (nextState.success) {
-        onComplete();
-        router.refresh();
-      }
-      return nextState;
-    },
-    {} as QuoteBulkActionState,
-  );
-
-  const [, bulkVoidAction, isVoidPending] = useActionStateWithSonner(
-    async (prevState, formData) => {
-      const nextState = await bulkVoidQuotesAction(prevState, formData);
-      if (nextState.success) {
-        onComplete();
-        router.refresh();
-      }
-      return nextState;
-    },
-    {} as QuoteBulkActionState,
-  );
-
-  const [, bulkDeleteAction, isDeletePending] = useActionStateWithSonner(
-    async (prevState, formData) => {
-      const nextState = await bulkDeleteQuotesAction(prevState, formData);
-      if (nextState.success) {
-        setShowDeleteDialog(false);
-        onComplete();
-        router.refresh();
-      }
-      return nextState;
-    },
-    {} as QuoteBulkActionState,
-  );
+  function buildQuoteIdsFormData(targetIds: string[]) {
+    const formData = new FormData();
+    formData.set("quoteIds", targetIds.join(","));
+    return formData;
+  }
 
   if (selectedCount === 0) {
     return null;
   }
 
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/30 px-4 py-2.5">
-      <span className="text-xs text-muted-foreground">
-        {selectedCount} selected
-      </span>
-      <div className="ml-auto flex items-center gap-2">
-        <form action={bulkArchiveAction}>
-          <input name="quoteIds" type="hidden" value={serializedIds} />
-          <Button
-            disabled={isArchivePending}
-            size="sm"
-            type="submit"
-            variant="outline"
-          >
-            {isArchivePending ? (
-              <Spinner data-icon="inline-start" aria-hidden="true" />
-            ) : (
-              <Archive data-icon="inline-start" />
-            )}
-            {isArchivePending ? "Archiving..." : "Archive"}
-          </Button>
-        </form>
+    <>
+      <Button
+        onClick={() => {
+          onOptimisticRemove?.(ids, async () => {
+            return bulkArchiveQuotesAction({}, buildQuoteIdsFormData(ids));
+          });
+          onComplete();
+        }}
+        size="sm"
+        type="button"
+        variant="outline"
+      >
+        <Archive data-icon="inline-start" />
+        Archive
+      </Button>
 
-        <form action={bulkVoidAction}>
-          <input name="quoteIds" type="hidden" value={serializedIds} />
-          <Button
-            disabled={isVoidPending}
-            size="sm"
-            type="submit"
-            variant="outline"
-          >
-            {isVoidPending ? (
-              <Spinner data-icon="inline-start" aria-hidden="true" />
-            ) : (
-              <Ban data-icon="inline-start" />
-            )}
-            {isVoidPending ? "Voiding..." : "Void"}
-          </Button>
-        </form>
+      <Button
+        onClick={() => {
+          onOptimisticRemove?.(ids, async () => {
+            return bulkVoidQuotesAction({}, buildQuoteIdsFormData(ids));
+          });
+          onComplete();
+        }}
+        size="sm"
+        type="button"
+        variant="outline"
+      >
+        <Ban data-icon="inline-start" />
+        Void
+      </Button>
 
-        <ResponsiveOverlay
-          open={showDeleteDialog}
-          onOpenChange={setShowDeleteDialog}
+      <ResponsiveOverlay
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+      >
+        <Button
+          onClick={() => setShowDeleteDialog(true)}
+          size="sm"
+          type="button"
+          variant="destructive"
         >
-          <Button
-            onClick={() => setShowDeleteDialog(true)}
-            size="sm"
-            type="button"
-            variant="destructive"
-          >
-            <Trash2 data-icon="inline-start" />
-            Delete
-          </Button>
-          <ResponsiveOverlayContent className="sm:max-w-md">
-            <ResponsiveOverlayHeader>
-              <ResponsiveOverlayTitle>
-                Delete {selectedCount} quote{selectedCount !== 1 ? "s" : ""}
-              </ResponsiveOverlayTitle>
-              <ResponsiveOverlayDescription>
-                Only draft, non-archived quotes will be permanently deleted.
-                Other quotes will be skipped.
-              </ResponsiveOverlayDescription>
-            </ResponsiveOverlayHeader>
-            <form action={bulkDeleteAction}>
-              <input name="quoteIds" type="hidden" value={serializedIds} />
-              <input name="confirmed" type="hidden" value="true" />
-              <ResponsiveOverlayFooter>
-                <ResponsiveOverlayClose asChild>
-                  <Button disabled={isDeletePending} type="button" variant="ghost">
-                    Cancel
-                  </Button>
-                </ResponsiveOverlayClose>
-                <Button disabled={isDeletePending} type="submit" variant="destructive">
-                  {isDeletePending ? (
-                    <Spinner data-icon="inline-start" aria-hidden="true" />
-                  ) : (
-                    <Trash2 data-icon="inline-start" />
-                  )}
-                  {isDeletePending
-                    ? "Deleting..."
-                    : `Delete ${selectedCount}`}
-                </Button>
-              </ResponsiveOverlayFooter>
-            </form>
-          </ResponsiveOverlayContent>
-        </ResponsiveOverlay>
-      </div>
-    </div>
+          <Trash2 data-icon="inline-start" />
+          Delete
+        </Button>
+        <ResponsiveOverlayContent className="sm:max-w-md">
+          <ResponsiveOverlayHeader>
+            <ResponsiveOverlayTitle>
+              Delete {selectedCount} quote{selectedCount !== 1 ? "s" : ""}
+            </ResponsiveOverlayTitle>
+            <ResponsiveOverlayDescription>
+              Only draft, non-archived quotes will be permanently deleted.
+              Other quotes will be skipped.
+            </ResponsiveOverlayDescription>
+          </ResponsiveOverlayHeader>
+          <ResponsiveOverlayFooter>
+            <ResponsiveOverlayClose asChild>
+              <Button type="button" variant="ghost">
+                Cancel
+              </Button>
+            </ResponsiveOverlayClose>
+            <Button
+              onClick={() => {
+                const deletableIds = filterDeletableQuoteIds(quotes, ids);
+
+                if (deletableIds.length === 0) {
+                  toast.error(
+                    "Only draft, non-archived quotes can be deleted. None of the selected quotes are eligible.",
+                  );
+                  return;
+                }
+
+                const formData = buildQuoteIdsFormData(deletableIds);
+                formData.set("confirmed", "true");
+
+                onOptimisticRemove?.(deletableIds, async () =>
+                  bulkDeleteQuotesAction({}, formData),
+                );
+                setShowDeleteDialog(false);
+                onComplete();
+              }}
+              type="button"
+              variant="destructive"
+            >
+              <Trash2 data-icon="inline-start" />
+              Delete {selectedCount}
+            </Button>
+          </ResponsiveOverlayFooter>
+        </ResponsiveOverlayContent>
+      </ResponsiveOverlay>
+    </>
   );
 }

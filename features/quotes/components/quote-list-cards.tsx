@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { MotionState } from "@/hooks/use-animated-list";
 import {
   Card,
   CardContent,
@@ -18,6 +19,7 @@ import {
   formatQuoteMoney,
 } from "@/features/quotes/utils";
 import { getBusinessQuotePath } from "@/features/businesses/routes";
+import type { DashboardQuoteListItem } from "@/features/quotes/types";
 
 type QuoteListCardsProps = {
   quotes: DashboardQuoteListItem[];
@@ -25,6 +27,7 @@ type QuoteListCardsProps = {
   isSelected?: (id: string) => boolean;
   isAtLimit?: boolean;
   onToggle?: (id: string) => void;
+  getMotionState?: (id: string) => MotionState;
 };
 
 export function QuoteListCards({
@@ -33,6 +36,7 @@ export function QuoteListCards({
   isSelected,
   isAtLimit,
   onToggle,
+  getMotionState,
 }: QuoteListCardsProps) {
   return (
     <div className="data-list-mobile-grid">
@@ -44,17 +48,15 @@ export function QuoteListCards({
         const disabled = !checked && (isAtLimit ?? false);
 
         return (
-          <div className="relative" key={quote.id}>
-            {onToggle ? (
-              <div className="absolute left-3 top-3 z-10">
-                <Checkbox
-                  aria-label={`Select quote ${quote.quoteNumber}`}
-                  checked={checked}
-                  disabled={disabled}
-                  onCheckedChange={() => onToggle(quote.id)}
-                />
-              </div>
-            ) : null}
+          <div className="motion-list-item relative" data-motion-state={getMotionState?.(quote.id)} key={quote.id}>
+            <div className="absolute left-3 top-3 z-10">
+              <Checkbox
+                aria-label={`Select quote ${quote.quoteNumber}`}
+                checked={checked}
+                disabled={disabled}
+                onCheckedChange={() => onToggle?.(quote.id)}
+              />
+            </div>
             <Link
               className="block"
               href={getBusinessQuotePath(businessSlug, quote.id)}

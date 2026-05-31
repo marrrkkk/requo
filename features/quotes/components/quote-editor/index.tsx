@@ -9,7 +9,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
 import { ChevronDown, FileText, Plus, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
@@ -70,6 +69,7 @@ import { AiPricingReviewPanel } from "@/features/quotes/components/ai-pricing-re
 import { ApplyTemplateConfirmDialog } from "@/features/quotes/components/apply-template-confirm-dialog";
 import { generateQuoteDraftAction } from "@/features/ai/actions";
 import type { AiQuoteDraft } from "@/features/ai/types";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { cn } from "@/lib/utils";
 
 import type { QuoteEditorProps, EditorLineItem } from "./types";
@@ -112,7 +112,7 @@ export function QuoteEditor({
   canUseAiGenerator = false,
   canUseQuoteLibrary = false,
 }: QuoteEditorProps) {
-  const router = useRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const customerFieldsLocked = !!linkedInquiry;
   const [title, setTitle] = useState(initialValues.title);
   const [customerName, setCustomerName] = useState(initialValues.customerName);
@@ -411,7 +411,7 @@ export function QuoteEditor({
       },
     });
     toast.success(`Saved "${result.entryName}" to pricing.`);
-    router.refresh();
+    scheduleRefresh();
   }
 
   function insertPricingEntry(entry: DashboardQuoteLibraryEntry) {

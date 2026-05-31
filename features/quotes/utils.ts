@@ -83,6 +83,7 @@ export const quotePostAcceptanceStatusLabels: Record<
   scheduled: "Scheduled",
   in_progress: "In progress",
   completed: "Completed",
+  no_job_tracking: "No job tracking",
   canceled: "Canceled",
 };
 
@@ -99,6 +100,8 @@ export const quotePostAcceptanceStatusClassNames: Record<
     "!border-blue-500/30 !bg-blue-500/15 !text-blue-800 dark:!border-blue-500/25 dark:!bg-blue-500/12 dark:!text-blue-200",
   completed:
     "!border-emerald-500/30 !bg-emerald-500/15 !text-emerald-800 dark:!border-emerald-500/25 dark:!bg-emerald-500/12 dark:!text-emerald-200",
+  no_job_tracking:
+    "!border-slate-500/25 !bg-slate-500/12 !text-slate-800 dark:!border-slate-500/25 dark:!bg-slate-500/12 dark:!text-slate-200",
   canceled:
     "!border-red-500/30 !bg-red-500/15 !text-red-800 dark:!border-red-500/25 dark:!bg-red-500/12 dark:!text-red-200",
 };

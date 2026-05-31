@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
 import { Trash2 } from "lucide-react";
 
-import { useProgressRouter } from "@/hooks/use-progress-router";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import type { QuoteLibraryDeleteActionState } from "@/features/quotes/types";
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation";
 
 type QuoteLibraryEntryDeleteButtonProps = {
   action: (
@@ -23,22 +21,32 @@ export function QuoteLibraryEntryDeleteButton({
   action,
   label = "Delete entry",
 }: QuoteLibraryEntryDeleteButtonProps) {
-  const router = useProgressRouter();
-  const [state, formAction, isPending] = useActionStateWithSonner(
-    action,
-    initialState,
-  );
+  const { runMutation, isPendingKey } = useOptimisticMutation();
+  const isPending = isPendingKey("delete");
 
-  useEffect(() => {
-    if (!state.success) {
-      return;
-    }
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
-    router.refresh();
-  }, [router, state.success]);
+    runMutation({
+      applyOptimistic: () => {},
+      revertOptimistic: () => {},
+      mutation: async () => {
+        const result = await action(initialState, new FormData());
+        if (result.error) {
+          return { error: result.error };
+        }
+        if (result.success) {
+          return { success: "Entry deleted." };
+        }
+        return {};
+      },
+      pendingKey: "delete",
+      refreshOnSuccess: true,
+    });
+  }
 
   return (
-    <form action={formAction} className="flex flex-col gap-3">
+    <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
       <Button disabled={isPending} type="submit" variant="destructive">
         <Trash2 data-icon="inline-start" />
         {isPending ? (

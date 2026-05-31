@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useDeferredValue, useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, Search } from "lucide-react";
+import { useDeferredValue, useState } from "react";
+import { ChevronDown, ChevronUp, Search, Library, SearchX } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { DashboardMetaPill } from "@/components/shared/dashboard-layout";
@@ -12,6 +12,8 @@ import {
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
+  EmptyMedia,
+  EmptyContent,
 } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import {
@@ -71,14 +73,16 @@ export function QuoteLibrarySheet({
   const [expandedPreviewId, setExpandedPreviewId] = useState<string | null>(null);
   const deferredSearch = useDeferredValue(search);
 
-  // Sync tab when initialTab changes (e.g., "Use template" button sets it to "template")
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open);
+
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setTab(initialTab === "template" ? "template" : "all");
       setSearch("");
       setExpandedPreviewId(null);
     }
-  }, [initialTab, open]);
+  }
 
   const normalizedSearch = deferredSearch.trim().toLowerCase();
   const businessSlug = getBusinessDashboardSlugFromPathname(pathname);
@@ -161,6 +165,9 @@ export function QuoteLibrarySheet({
             {availableEntries.length === 0 ? (
               <Empty className="border-border/70 bg-background/80">
                 <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <Library />
+                  </EmptyMedia>
                   <EmptyTitle>
                     {isTemplateMode ? "No templates yet" : "No saved pricing yet"}
                   </EmptyTitle>
@@ -170,26 +177,42 @@ export function QuoteLibrarySheet({
                       : "Save pricing blocks or service packages in Business settings first."}
                   </EmptyDescription>
                 </EmptyHeader>
-                <Button asChild variant="outline">
-                  <Link
-                    href={
-                      businessSlug
-                        ? getBusinessSettingsPath(businessSlug, isTemplateMode ? "quote" : "pricing")
-                        : dashboardPath
-                    }
-                  >
-                    {isTemplateMode ? "Open quote settings" : "Open pricing"}
-                  </Link>
-                </Button>
+                <EmptyContent>
+                  <Button asChild variant="outline">
+                    <Link
+                      href={
+                        businessSlug
+                          ? getBusinessSettingsPath(businessSlug, isTemplateMode ? "quote" : "pricing")
+                          : dashboardPath
+                      }
+                    >
+                      {isTemplateMode ? "Open quote settings" : "Open pricing"}
+                    </Link>
+                  </Button>
+                </EmptyContent>
               </Empty>
             ) : sortedEntries.length === 0 ? (
               <Empty className="border-border/70 bg-background/80">
                 <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <SearchX />
+                  </EmptyMedia>
                   <EmptyTitle>No matching entries</EmptyTitle>
                   <EmptyDescription>
                     Try a different search{!isTemplateMode ? " or switch back to another tab" : ""}.
                   </EmptyDescription>
                 </EmptyHeader>
+                <EmptyContent>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setSearch("");
+                      if (!isTemplateMode) setTab("all");
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                </EmptyContent>
               </Empty>
             ) : (
               <div className="flex flex-col gap-4">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, useOptimistic } from "react";
 import {
   ArrowLeft,
   BellRing,
@@ -52,7 +52,8 @@ import {
   quoteSendChannelLabels,
 } from "@/features/quotes/utils";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation";
 import { QuotePreview } from "@/features/quotes/components/quote-preview";
 
 /* -------------------------------------------------------------------------- */
@@ -164,14 +165,18 @@ export function SendQuoteDialog({
 }: SendQuoteDialogProps) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"ready" | "sent">("ready");
+  const [optimisticStep, setOptimisticStep] = useOptimistic(
+    step,
+    (_current, nextStep: "ready" | "sent") => nextStep,
+  );
   const [showPreview, setShowPreview] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const reqSubmitRef = useRef<HTMLButtonElement>(null);
   const manSubmitRef = useRef<HTMLButtonElement>(null);
-  const [sendState, formAction, isPending] = useActionStateWithSonner(
-    sendAction,
-    initialSendState,
-  );
+  const { runMutation, isPendingKey } = useOptimisticMutation();
+  const { scheduleRefresh } = useDeferredRefresh();
+  const [sendSuccessMessage, setSendSuccessMessage] = useState<string | undefined>();
+  const isPending = isPendingKey("send");
   const [, startLogging] = useTransition();
 
   const detectedChannel = getDefaultSendChannel(quote.customerContactMethod);
@@ -197,6 +202,7 @@ export function SendQuoteDialog({
   function handleOpenChange(next: boolean) {
     if (next) {
       setStep("ready");
+      setSendSuccessMessage(undefined);
       setShowPreview(false);
       setSelectedChannel(detectedChannel);
       setEditedMessage(getChannelMessage(detectedChannel, templateInput));
@@ -205,9 +211,7 @@ export function SendQuoteDialog({
     setOpen(next);
   }
 
-  if (sendState?.success && step === "ready") {
-    queueMicrotask(() => setStep("sent"));
-  }
+  const displayStep = optimisticStep;
 
   /* --- Copy helpers --- */
 
@@ -250,6 +254,31 @@ export function SendQuoteDialog({
 
   const [clickedAction, setClickedAction] = useState<"requo" | "manual" | null>(null);
 
+  function buildSendFormData(deliveryMethod: "requo" | "manual") {
+    const formData = new FormData(formRef.current ?? undefined);
+    formData.set("deliveryMethod", deliveryMethod);
+    return formData;
+  }
+
+  function submitSend(deliveryMethod: "requo" | "manual") {
+    runMutation({
+      applyOptimistic: () => {
+        setOptimisticStep("sent");
+      },
+      revertOptimistic: () => {
+        setOptimisticStep("ready");
+      },
+      mutation: () => sendAction(initialSendState, buildSendFormData(deliveryMethod)),
+      pendingKey: "send",
+      refreshOnSuccess: false,
+      onSuccess: (result) => {
+        setSendSuccessMessage(result.success);
+        setStep("sent");
+        scheduleRefresh();
+      },
+    });
+  }
+
   function handleSendWithRequo() {
     if (disabled || isPending) return;
     if (unpricedItemCount > 0) {
@@ -261,7 +290,7 @@ export function SendQuoteDialog({
       return;
     }
     setClickedAction("requo");
-    formRef.current?.requestSubmit(reqSubmitRef.current ?? undefined);
+    submitSend("requo");
   }
 
   function handleMarkAsSent() {
@@ -275,7 +304,7 @@ export function SendQuoteDialog({
       return;
     }
     setClickedAction("manual");
-    formRef.current?.requestSubmit(manSubmitRef.current ?? undefined);
+    submitSend("manual");
   }
 
   /* --- Mailto URL --- */
@@ -313,7 +342,7 @@ export function SendQuoteDialog({
       </ResponsiveOverlayTrigger>
 
       <ResponsiveOverlayContent className="sm:max-w-md">
-        {step === "ready" && showPreview && previewData ? (
+        {displayStep === "ready" && showPreview && previewData ? (
           <>
             <ResponsiveOverlayHeader>
               <ResponsiveOverlayTitle>Quote preview</ResponsiveOverlayTitle>
@@ -372,7 +401,7 @@ export function SendQuoteDialog({
               </Button>
             </ResponsiveOverlayFooter>
           </>
-        ) : step === "ready" ? (
+        ) : displayStep === "ready" ? (
           <>
             <ResponsiveOverlayHeader>
               <ResponsiveOverlayTitle>Send quote</ResponsiveOverlayTitle>
@@ -413,7 +442,7 @@ export function SendQuoteDialog({
               </div>
 
               {/* Hidden form for submit */}
-              <form ref={formRef} action={formAction} className="hidden">
+              <form ref={formRef} className="hidden">
                 <button
                   aria-hidden="true"
                   disabled={disabled || isPending}
@@ -658,7 +687,7 @@ export function SendQuoteDialog({
             <ResponsiveOverlayHeader>
               <ResponsiveOverlayTitle>Quote sent</ResponsiveOverlayTitle>
               <ResponsiveOverlayDescription>
-                {sendState?.success ?? `${quote.quoteNumber} marked as sent.`}
+                {sendSuccessMessage ?? `${quote.quoteNumber} marked as sent.`}
               </ResponsiveOverlayDescription>
             </ResponsiveOverlayHeader>
 
@@ -716,7 +745,7 @@ function QuoteFollowUpPrompt({
   quote: QuoteSummaryForSend;
   selectedChannel: QuoteSendChannel;
 }) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [customOpen, setCustomOpen] = useState(false);
   const [customDueDate, setCustomDueDate] = useState(
     getQuickFollowUpDueDate("3d"),
@@ -734,9 +763,9 @@ function QuoteFollowUpPrompt({
 
   useEffect(() => {
     if (state.success) {
-      router.refresh();
+      scheduleRefresh();
     }
-  }, [router, state.success]);
+  }, [scheduleRefresh, state.success]);
 
   if (state.success) {
     return (

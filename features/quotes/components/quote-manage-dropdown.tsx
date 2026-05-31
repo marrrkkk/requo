@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useOptimistic, useState } from "react";
 import {
   Archive,
   Ban,
@@ -10,6 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { OptimisticPendingIndicator } from "@/components/shared/optimistic-pending-indicator";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,15 +29,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
-import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation";
 import type {
   QuoteLibraryActionState,
   QuoteRecordActionState,
   QuoteStatus,
 } from "@/features/quotes/types";
-import { toast } from "sonner";
 
 type QuoteManageDropdownProps = {
   archiveAction: (
@@ -75,74 +73,108 @@ export function QuoteManageDropdown({
   status,
   voidAction,
 }: QuoteManageDropdownProps) {
-  const router = useProgressRouter();
-  const archiveFormRef = useRef<HTMLFormElement>(null);
-  const restoreFormRef = useRef<HTMLFormElement>(null);
-  const deleteFormRef = useRef<HTMLFormElement>(null);
-  const voidFormRef = useRef<HTMLFormElement>(null);
-  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
-
+  const { runMutation, isPendingKey } = useOptimisticMutation();
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
 
-  const [archiveState, archiveFormAction, isArchivePending] = useActionStateWithSonner(
-    archiveAction,
-    initialState,
+  const [optimisticIsArchived, setOptimisticIsArchived] = useOptimistic(
+    isArchived,
+    (_current, nextArchived: boolean) => nextArchived,
   );
-  const [restoreState, restoreFormAction, isRestorePending] = useActionStateWithSonner(
-    restoreArchivedAction,
-    initialState,
-  );
-  const [deleteState, deleteFormAction, isDeletePending] = useActionStateWithSonner(
-    deleteDraftAction,
-    initialState,
-  );
-  const [voidState, voidFormAction, isVoidPending] = useActionStateWithSonner(
-    voidAction,
-    initialState,
+  const [optimisticStatus, setOptimisticStatus] = useOptimistic(
+    status,
+    (_current, nextStatus: QuoteStatus) => nextStatus,
   );
 
-  useEffect(() => {
-    if (archiveState.success || restoreState.success || voidState.success) {
-      router.refresh();
-    }
-  }, [archiveState.success, restoreState.success, voidState.success, router]);
+  function submitArchive() {
+    runMutation({
+      applyOptimistic: () => {
+        setOptimisticIsArchived(true);
+      },
+      revertOptimistic: () => {
+        setOptimisticIsArchived(isArchived);
+      },
+      mutation: () => archiveAction(initialState, new FormData()),
+      pendingKey: "archive",
+      refreshOnSuccess: true,
+    });
+  }
 
-  useEffect(() => {
-    if (deleteState.success) {
-      router.replace(businessQuoteListHref);
-    }
-  }, [deleteState.success, businessQuoteListHref, router]);
+  function submitRestore() {
+    runMutation({
+      applyOptimistic: () => {
+        setOptimisticIsArchived(false);
+      },
+      revertOptimistic: () => {
+        setOptimisticIsArchived(isArchived);
+      },
+      mutation: () => restoreArchivedAction(initialState, new FormData()),
+      pendingKey: "restore",
+      refreshOnSuccess: true,
+    });
+  }
+
+  function submitVoid() {
+    runMutation({
+      applyOptimistic: () => {
+        setOptimisticStatus("voided");
+      },
+      revertOptimistic: () => {
+        setOptimisticStatus(status);
+      },
+      mutation: () => voidAction(initialState, new FormData()),
+      pendingKey: "void",
+      refreshOnSuccess: true,
+    });
+  }
+
+  function submitDelete() {
+    runMutation({
+      applyOptimistic: () => {},
+      revertOptimistic: () => {},
+      mutation: async () => {
+        const formData = new FormData();
+        formData.set("redirectHref", businessQuoteListHref);
+        return deleteDraftAction(initialState, formData);
+      },
+      pendingKey: "delete",
+      refreshOnSuccess: false,
+      onSuccess: () => {
+        window.location.assign(businessQuoteListHref);
+      },
+    });
+  }
+
+  function handleSaveAsTemplate() {
+    if (!saveAsTemplateAction || isPendingKey("template")) return;
+
+    runMutation({
+      applyOptimistic: () => {},
+      revertOptimistic: () => {},
+      mutation: saveAsTemplateAction,
+      pendingKey: "template",
+      refreshOnSuccess: true,
+    });
+  }
 
   function handleConfirm() {
     if (confirmAction === "delete") {
-      deleteFormRef.current?.requestSubmit();
+      void submitDelete();
     } else if (confirmAction === "void") {
-      voidFormRef.current?.requestSubmit();
+      void submitVoid();
     } else if (confirmAction === "archive") {
-      archiveFormRef.current?.requestSubmit();
+      void submitArchive();
     } else if (confirmAction === "restore") {
-      restoreFormRef.current?.requestSubmit();
+      void submitRestore();
     }
     setConfirmAction(null);
   }
 
-  async function handleSaveAsTemplate() {
-    if (!saveAsTemplateAction || isSavingTemplate) return;
-    setIsSavingTemplate(true);
-    try {
-      const result = await saveAsTemplateAction();
-      if (result.success) {
-        toast.success(result.success);
-        router.refresh();
-      } else if (result.error) {
-        toast.error(result.error);
-      }
-    } finally {
-      setIsSavingTemplate(false);
-    }
-  }
-
-  const isPending = isArchivePending || isRestorePending || isDeletePending || isVoidPending || isSavingTemplate;
+  const isPending =
+    isPendingKey("archive") ||
+    isPendingKey("restore") ||
+    isPendingKey("delete") ||
+    isPendingKey("void") ||
+    isPendingKey("template");
   const isDestructive = confirmAction === "delete" || confirmAction === "void";
 
   const confirmConfig: Record<Exclude<ConfirmAction, null>, { title: string; description: string; label: string }> = {
@@ -172,12 +204,6 @@ export function QuoteManageDropdown({
 
   return (
     <>
-      {/* Hidden forms for server actions */}
-      <form ref={archiveFormRef} action={archiveFormAction} className="hidden" />
-      <form ref={restoreFormRef} action={restoreFormAction} className="hidden" />
-      <form ref={deleteFormRef} action={deleteFormAction} className="hidden" />
-      <form ref={voidFormRef} action={voidFormAction} className="hidden" />
-
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <button
@@ -186,13 +212,14 @@ export function QuoteManageDropdown({
             className="inline-flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
           >
             <Settings className="size-5" />
+            <OptimisticPendingIndicator pending={isPending} />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
           {saveAsTemplateAction ? (
             <>
               <DropdownMenuItem
-                disabled={isSavingTemplate}
+                disabled={isPendingKey("template")}
                 onSelect={handleSaveAsTemplate}
               >
                 <FileText />
@@ -201,7 +228,7 @@ export function QuoteManageDropdown({
               <DropdownMenuSeparator />
             </>
           ) : null}
-          {status === "draft" ? (
+          {optimisticStatus === "draft" ? (
             <DropdownMenuItem
               variant="destructive"
               onSelect={() => setConfirmAction("delete")}
@@ -211,7 +238,7 @@ export function QuoteManageDropdown({
             </DropdownMenuItem>
           ) : (
             <>
-              {isArchived ? (
+              {optimisticIsArchived ? (
                 <DropdownMenuItem onSelect={() => setConfirmAction("restore")}>
                   <RotateCcw />
                   Restore to active
@@ -222,7 +249,7 @@ export function QuoteManageDropdown({
                   Archive
                 </DropdownMenuItem>
               )}
-              {status === "sent" ? (
+              {optimisticStatus === "sent" ? (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -239,7 +266,6 @@ export function QuoteManageDropdown({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Confirmation dialog */}
       <AlertDialog
         open={confirmAction !== null}
         onOpenChange={(open) => {
@@ -265,14 +291,8 @@ export function QuoteManageDropdown({
                 onClick={handleConfirm}
                 variant={isDestructive ? "destructive" : "default"}
               >
-                {isPending ? (
-                  <>
-                    <Spinner className="size-4" aria-hidden="true" />
-                    {config?.label}...
-                  </>
-                ) : (
-                  config?.label
-                )}
+                <OptimisticPendingIndicator pending={isPending} />
+                {config?.label}
               </Button>
             </AlertDialogAction>
           </AlertDialogFooter>

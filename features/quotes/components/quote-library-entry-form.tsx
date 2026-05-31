@@ -4,7 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "rea
 import { Layers, Plus, Trash2 } from "lucide-react";
 
 import { FormActions } from "@/components/shared/form-layout";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -116,7 +116,7 @@ export function QuoteLibraryEntryForm({
   aboveFields,
   availableBlocks,
 }: QuoteLibraryEntryFormProps) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
@@ -133,11 +133,11 @@ export function QuoteLibraryEntryForm({
       ? 0
       : SAVE_REFRESH_DELAY_MS;
     const timeoutId = window.setTimeout(() => {
-      router.refresh();
+      scheduleRefresh();
     }, refreshDelay);
 
     return () => window.clearTimeout(timeoutId);
-  }, [onSuccess, router, state.success]);
+  }, [onSuccess, scheduleRefresh, state.success]);
 
   return (
     <form
