@@ -5,6 +5,7 @@ export const businessNotificationTypes = [
   "quote_revision_requested",
   "business_member_invite_accepted",
   "business_member_invite_declined",
+  "automation",
 ] as const;
 
 export type BusinessNotificationType =

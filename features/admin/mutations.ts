@@ -967,8 +967,18 @@ export async function manualPlanOverrideAction(
   // aborts before we've touched `admin_audit_logs`. See the module
   // comment on the transaction boundary tradeoff.
   try {
+    const [targetBusiness] = await db
+      .select({ id: businesses.id })
+      .from(businesses)
+      .where(eq(businesses.ownerUserId, userId))
+      .limit(1);
+
+    if (!targetBusiness) {
+      return { ok: false, error: "That user has no businesses to bill." };
+    }
+
     await activateSubscription({
-      userId,
+      businessId: targetBusiness.id,
       plan,
       provider,
       currency,

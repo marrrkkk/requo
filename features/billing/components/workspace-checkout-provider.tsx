@@ -55,10 +55,14 @@ export function BusinessCheckoutProvider({
         : undefined;
 
       startTransition(async () => {
-        const result = await startPolarCheckout({ plan, interval, returnTo });
+        const result = await startPolarCheckout({
+          businessId: billing.businessId,
+          plan,
+          interval,
+          returnTo,
+        });
         if (result.ok) {
-          // Checkout opened in a new tab (or same-tab fallback).
-          // Either way we don't need to do anything further here.
+          // Checkout opened in a new tab or redirected in same tab (upgrade).
           return;
         }
 
@@ -70,7 +74,7 @@ export function BusinessCheckoutProvider({
         toast.error(result.message);
       });
     },
-    [billing.businessSlug],
+    [billing.businessId, billing.businessSlug],
   );
 
   const openPlanSelection = useCallback((targetPlan?: PaidPlan) => {
@@ -105,6 +109,8 @@ export function BusinessCheckoutProvider({
         }}
         open={isPlanSheetOpen}
         targetPlan={sheetTargetPlan}
+        businessId={billing.businessId}
+        businessSlug={billing.businessSlug}
       />
     </>
   );

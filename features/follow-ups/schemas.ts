@@ -1,11 +1,13 @@
 import { z } from "zod";
 
 import {
+  followUpCategories,
   followUpChannels,
   followUpDueFilterValues,
   followUpRecurrences,
   followUpSortValues,
   followUpStatusFilterValues,
+  followUpTerminationConditions,
 } from "@/features/follow-ups/types";
 
 function emptyToUndefined(value: unknown) {
@@ -78,6 +80,7 @@ export const followUpCreateSchema = z
     channel: z.enum(followUpChannels, {
       error: () => "Choose a follow-up channel.",
     }),
+    category: z.enum(followUpCategories).default("sales"),
     dueDate: z
       .string()
       .trim()
@@ -90,6 +93,13 @@ export const followUpCreateSchema = z
         return Number.isNaN(num) ? value : num;
       },
       z.number().int().min(1).max(100).nullable().default(null),
+    ),
+    terminationCondition: z.preprocess(
+      (value) => {
+        if (value == null || value === "" || value === "none") return null;
+        return value;
+      },
+      z.enum(followUpTerminationConditions).nullable().default(null),
     ),
   })
   .strict();
@@ -109,6 +119,7 @@ export const followUpEditSchema = z
     channel: z.enum(followUpChannels, {
       error: () => "Choose a follow-up channel.",
     }),
+    category: z.enum(followUpCategories).default("sales"),
     dueDate: z
       .string()
       .trim()
@@ -121,6 +132,13 @@ export const followUpEditSchema = z
         return Number.isNaN(num) ? value : num;
       },
       z.number().int().min(1).max(100).nullable().default(null),
+    ),
+    terminationCondition: z.preprocess(
+      (value) => {
+        if (value == null || value === "" || value === "none") return null;
+        return value;
+      },
+      z.enum(followUpTerminationConditions).nullable().default(null),
     ),
   })
   .strict();
@@ -175,7 +193,43 @@ export const followUpListFiltersSchema = z.object({
   page: coercePositiveInteger("Page").catch(1),
 });
 
+export const followUpCompleteSchema = z.object({
+  completionNote: z
+    .string()
+    .trim()
+    .max(500, "Completion notes must be 500 characters or fewer.")
+    .optional()
+    .transform((v) => v || null),
+});
+
+export const followUpSnoozeSchema = z.object({
+  snoozedUntil: z
+    .string()
+    .trim()
+    .refine(
+      (value) => {
+        // Accept ISO datetime or date-only format
+        const parsed = new Date(value);
+        return !Number.isNaN(parsed.getTime());
+      },
+      "Enter a valid snooze date/time.",
+    ),
+});
+
+export const followUpBulkActionSchema = z.object({
+  followUpIds: z.array(z.string().min(1)).min(1, "Select at least one follow-up.").max(50, "Cannot bulk-update more than 50 follow-ups at once."),
+  completionNote: z
+    .string()
+    .trim()
+    .max(500, "Completion notes must be 500 characters or fewer.")
+    .optional()
+    .transform((v) => v || null),
+});
+
 export type FollowUpCreateInput = z.infer<typeof followUpCreateSchema>;
 export type FollowUpEditInput = z.infer<typeof followUpEditSchema>;
 export type FollowUpRescheduleInput = z.infer<typeof followUpRescheduleSchema>;
 export type FollowUpReassignInput = z.infer<typeof followUpReassignSchema>;
+export type FollowUpCompleteInput = z.infer<typeof followUpCompleteSchema>;
+export type FollowUpSnoozeInput = z.infer<typeof followUpSnoozeSchema>;
+export type FollowUpBulkActionInput = z.infer<typeof followUpBulkActionSchema>;

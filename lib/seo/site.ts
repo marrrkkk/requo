@@ -5,6 +5,15 @@ export const siteTagline =
   "Manage inquiries, send quotes, and follow up in one place.";
 export const siteDescription =
   "Quote software for service businesses. Capture inquiries, send professional quotes, track viewed and accepted status, and follow up before jobs go cold.";
+
+/** Official Requo social profiles for Organization `sameAs` and marketing footer. */
+export const siteSameAs = [
+  "https://www.linkedin.com/company/requo",
+  "https://x.com/requoapp",
+  "https://www.instagram.com/requoapp",
+  "https://www.facebook.com/requoapp",
+] as const;
+
 const defaultSocialImagePath = "/opengraph-image";
 
 export type PageMetadataOptions = {

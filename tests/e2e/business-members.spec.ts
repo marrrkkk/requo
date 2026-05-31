@@ -32,7 +32,7 @@ test("owner can invite a new member from business settings", async ({ page }) =>
   const inviteEmail = `invite-${Date.now()}@example.com`;
 
   await signIn(page, demoOwnerEmail, demoOwnerPassword);
-  await page.goto(`/businesses/${demoBusinessSlug}/settings/members`);
+  await page.goto(`/${demoBusinessSlug}/settings/members`);
   await page.waitForLoadState("networkidle");
 
   await page.getByRole("button", { name: "Invite member" }).click();
@@ -69,7 +69,7 @@ test("invited user can sign in from the invite and accept access", async ({
   await page.getByRole("button", { name: "Accept invite" }).click();
 
   await expect(page).toHaveURL(
-    new RegExp(`/businesses/${demoBusinessSlug}/dashboard$`),
+    new RegExp(`/${demoBusinessSlug}/home$`),
     { timeout: 20_000 },
   );
   await expect(
@@ -82,9 +82,9 @@ test("manager can access operational settings but not members", async ({
 }) => {
   await signIn(page, demoManagerEmail, demoManagerPassword);
 
-  await page.goto(`/businesses/${demoBusinessSlug}/settings/knowledge`);
+  await page.goto(`/${demoBusinessSlug}/settings/knowledge`);
   await expect(page).toHaveURL(
-    new RegExp(`/businesses/${demoBusinessSlug}/settings/knowledge$`),
+    new RegExp(`/${demoBusinessSlug}/settings/knowledge$`),
     { timeout: 20_000 },
   );
   await expect(
@@ -94,9 +94,9 @@ test("manager can access operational settings but not members", async ({
     }),
   ).toBeVisible();
 
-  await page.goto(`/businesses/${demoBusinessSlug}/settings/members`);
+  await page.goto(`/${demoBusinessSlug}/settings/members`);
   await expect(page).toHaveURL(
-    new RegExp(`/businesses/${demoBusinessSlug}/dashboard$`),
+    new RegExp(`/${demoBusinessSlug}/home$`),
     { timeout: 20_000 },
   );
 });
@@ -106,28 +106,28 @@ test("staff can access inquiry work but not forms or operational settings", asyn
 }) => {
   await signIn(page, demoStaffEmail, demoStaffPassword);
 
-  await page.goto(`/businesses/${demoBusinessSlug}/inquiries`);
+  await page.goto(`/${demoBusinessSlug}/inquiries`);
   await expect(page).toHaveURL(
-    new RegExp(`/businesses/${demoBusinessSlug}/inquiries$`),
+    new RegExp(`/${demoBusinessSlug}/inquiries$`),
     { timeout: 20_000 },
   );
   await expect(page.getByRole("heading", { name: "Inquiries" })).toBeVisible();
 
-  await page.goto(`/businesses/${demoBusinessSlug}/forms`);
+  await page.goto(`/${demoBusinessSlug}/forms`);
   await expect(page).toHaveURL(
-    new RegExp(`/businesses/${demoBusinessSlug}/dashboard$`),
+    new RegExp(`/${demoBusinessSlug}/home$`),
     { timeout: 20_000 },
   );
 
-  await page.goto(`/businesses/${demoBusinessSlug}/settings/knowledge`);
+  await page.goto(`/${demoBusinessSlug}/settings/knowledge`);
   await expect(page).toHaveURL(
-    new RegExp(`/businesses/${demoBusinessSlug}/dashboard$`),
+    new RegExp(`/${demoBusinessSlug}/home$`),
     { timeout: 20_000 },
   );
 
-  await page.goto(`/businesses/${demoBusinessSlug}/settings/profile`);
+  await page.goto(`/${demoBusinessSlug}/settings/profile`);
   await expect(page).toHaveURL(
-    new RegExp(`/businesses/${demoBusinessSlug}/settings/profile$`),
+    new RegExp(`/${demoBusinessSlug}/settings/profile$`),
     { timeout: 20_000 },
   );
 });
@@ -138,7 +138,7 @@ test("non-members cannot open another business dashboard @smoke", async ({ page 
     page.getByRole("heading", { name: "Your businesses" }),
   ).toBeVisible();
 
-  await page.goto(`/businesses/${demoBusinessSlug}/dashboard`);
+  await page.goto(`/${demoBusinessSlug}/home`);
   await expect(page).toHaveURL(/\/businesses$/, { timeout: 20_000 });
   await expect(
     page.getByRole("heading", { name: "Your businesses" }),
@@ -147,7 +147,7 @@ test("non-members cannot open another business dashboard @smoke", async ({ page 
 
 test("owner can change a member role and remove them safely", async ({ page }) => {
   await signIn(page, demoOwnerEmail, demoOwnerPassword);
-  await page.goto(`/businesses/${demoBusinessSlug}/settings/members`);
+  await page.goto(`/${demoBusinessSlug}/settings/members`);
   await page.waitForLoadState("networkidle");
 
   const ownerRow = page

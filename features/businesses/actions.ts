@@ -44,7 +44,7 @@ import {
 } from "@/features/businesses/schemas";
 import {
   activeBusinessSlugCookieName,
-  businessesHubPath,
+  dashboardPath,
   getBusinessDashboardPath,
   getBusinessFormsPath,
   getBusinessPath,
@@ -98,7 +98,7 @@ function revalidateBusinessLifecyclePaths({
 }: {
   businessSlug: string;
 }) {
-  revalidatePath(businessesHubPath);
+  revalidatePath(dashboardPath);
   revalidatePath(getBusinessPath(businessSlug));
   revalidatePath(getBusinessSettingsPath(businessSlug));
   revalidatePath(getBusinessDashboardPath(businessSlug), "layout");
@@ -141,7 +141,7 @@ export async function recordRecentlyOpenedBusinessAction(
       businessId: access.businessContext.business.id,
       userId: access.user.id,
     });
-    revalidatePath(businessesHubPath);
+    revalidatePath(dashboardPath);
 
     return { ok: true };
   } catch (error) {
@@ -182,7 +182,7 @@ export async function createBusinessAction(
     };
   }
 
-  let dashboardPath: string | null = null;
+  let redirectPath: string | null = null;
 
   try {
     const business = await createBusinessForUser({
@@ -201,11 +201,11 @@ export async function createBusinessAction(
     });
     // Invalidate any cached null under this slug so the newly created
     // public profile page starts serving fresh. Covers the edge case
-    // where `/businesses/<slug>` was visited before the business
-    // existed and the null was cached by the two-layer query.
+    // where `/b/<slug>` was visited before the business existed and
+    // the null was cached by the two-layer query.
     updatePublicBusinessProfileCacheTags(business.slug);
-    revalidatePath(businessesHubPath);
-    dashboardPath = getBusinessDashboardPath(business.slug);
+    revalidatePath(dashboardPath);
+    redirectPath = getBusinessDashboardPath(business.slug);
   } catch (error) {
     if (isBusinessQuotaExceededError(error)) {
       return {
@@ -220,8 +220,8 @@ export async function createBusinessAction(
     };
   }
 
-  if (dashboardPath) {
-    redirect(dashboardPath);
+  if (redirectPath) {
+    redirect(redirectPath);
   }
 
   return {

@@ -1,20 +1,12 @@
 import Link from "next/link";
 import { ArrowRight, Check, Minus } from "lucide-react";
-import { Fragment, Suspense } from "react";
+import { Fragment } from "react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
 import {
   PublicPageShell,
 } from "@/components/shared/public-page-shell";
-import {
-  getMarketingNavHref,
-  getMarketingNavKey,
-  navItems,
-} from "@/components/marketing/marketing-data";
-import {
-  PublicHeaderActions,
-  PublicHeaderActionsFallback,
-} from "@/components/marketing/public-header-actions";
+import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -47,41 +39,26 @@ const pricingCategories: PricingFeatureCategory[] = [
     category: "Core Workflow",
     features: [
       { label: "Inquiry capture", free: true, pro: true, business: true },
-      { label: "Quote creation & sending", free: true, pro: true, business: true },
+      { label: "Quote creation & sending", free: "Unlimited", pro: "Unlimited", business: "Unlimited" },
       { label: "Public inquiry pages", free: true, pro: true, business: true },
       { label: "Public quote pages", free: true, pro: true, business: true },
       { label: "Quote status tracking", free: true, pro: true, business: true },
       { label: "Follow-up reminders", free: "3 active", pro: "Unlimited", business: "Unlimited" },
       { label: "Customer history", free: true, pro: true, business: true },
+      { label: "Push notifications", free: true, pro: true, business: true },
     ],
   },
   {
     category: "Limits",
     features: [
       { label: "Inquiries per month", free: "Unlimited", pro: "Unlimited", business: "Unlimited" },
-      {
-        label: "Quotes per month",
-        free: `${getUsageLimit("free", "quotesPerMonth")}`,
-        pro: "Unlimited",
-        business: "Unlimited",
-      },
-      {
-        label: "AI generations / month",
-        free: `${getUsageLimit("free", "aiLineItemGenerationsPerMonth")}`,
-        pro: `${getUsageLimit("pro", "aiLineItemGenerationsPerMonth")}`,
-        business: `${getUsageLimit("business", "aiLineItemGenerationsPerMonth")}`,
-      },
+      { label: "Quotes per month", free: "Unlimited", pro: "Unlimited", business: "Unlimited" },
+      { label: "AI credits / month", free: "100", pro: "500", business: "2,000" },
       {
         label: "Requo email sends / month",
         free: `${getUsageLimit("free", "requoQuoteEmailsPerMonth")}`,
         pro: `${getUsageLimit("pro", "requoQuoteEmailsPerMonth")}`,
         business: `${getUsageLimit("business", "requoQuoteEmailsPerMonth")}`,
-      },
-      {
-        label: "Businesses",
-        free: `${getUsageLimit("free", "businessesPerPlan")}`,
-        pro: `${getUsageLimit("pro", "businessesPerPlan")}`,
-        business: "Unlimited",
       },
       {
         label: "Live inquiry forms",
@@ -103,9 +80,21 @@ const pricingCategories: PricingFeatureCategory[] = [
       },
       {
         label: "Knowledge items",
-        free: false,
+        free: `${getUsageLimit("free", "memoriesPerBusiness")}`,
         pro: `${getUsageLimit("pro", "memoriesPerBusiness")}`,
         business: `${getUsageLimit("business", "memoriesPerBusiness")}`,
+      },
+      {
+        label: "Pricing library entries",
+        free: `${getUsageLimit("free", "pricingEntriesPerBusiness")}`,
+        pro: `${getUsageLimit("pro", "pricingEntriesPerBusiness")}`,
+        business: "Unlimited",
+      },
+      {
+        label: "Active automations",
+        free: "1",
+        pro: "20",
+        business: "100",
       },
       {
         label: "Team members",
@@ -118,10 +107,10 @@ const pricingCategories: PricingFeatureCategory[] = [
   {
     category: "AI & Productivity",
     features: [
-      { label: planFeatureLabels.aiAssistant, free: false, pro: true, business: true },
-      { label: planFeatureLabels.knowledgeBase, free: false, pro: true, business: true },
+      { label: planFeatureLabels.aiAssistant, free: "100 credits", pro: "500 credits", business: "2,000 credits" },
+      { label: planFeatureLabels.knowledgeBase, free: "5 items", pro: "10 items", business: "50 items" },
+      { label: planFeatureLabels.quoteLibrary, free: "10 entries", pro: "20 entries", business: "Unlimited" },
       { label: planFeatureLabels.emailTemplates, free: false, pro: true, business: true },
-      { label: planFeatureLabels.quoteLibrary, free: false, pro: true, business: true },
       { label: planFeatureLabels.multipleForms, free: false, pro: true, business: true },
       { label: planFeatureLabels.exports, free: false, pro: true, business: true },
     ],
@@ -131,7 +120,15 @@ const pricingCategories: PricingFeatureCategory[] = [
     features: [
       { label: "Logo and business name", free: true, pro: true, business: true },
       { label: planFeatureLabels.inquiryPageCustomization, free: false, pro: true, business: true },
-      { label: planFeatureLabels.branding, free: false, pro: true, business: true },
+      { label: planFeatureLabels.removeWatermark, free: false, pro: true, business: true },
+    ],
+  },
+  {
+    category: "Automation",
+    features: [
+      { label: planFeatureLabels.automations, free: "1 active", pro: "20 active", business: "100 active" },
+      { label: planFeatureLabels.workflowBuilder, free: false, pro: true, business: true },
+      { label: planFeatureLabels.autoFollowUps, free: false, pro: true, business: true },
     ],
   },
   {
@@ -145,7 +142,6 @@ const pricingCategories: PricingFeatureCategory[] = [
   {
     category: "Team & Scale",
     features: [
-      { label: planFeatureLabels.multiBusiness, free: false, pro: true, business: true },
       { label: planFeatureLabels.members, free: false, pro: false, business: true },
       { label: "Audit logs", free: false, pro: false, business: true },
       { label: "Priority support", free: false, pro: false, business: true },
@@ -167,28 +163,10 @@ export function PricingPage({
       brandSubtitle={null}
       brandSize="lg"
       className="pb-14 lg:pb-20"
-      headerAction={
-        <Suspense fallback={<PublicHeaderActionsFallback />}>
-          <PublicHeaderActions />
-        </Suspense>
-      }
-      headerClassName="sticky top-0 z-40 rounded-none border-x-0 border-t-0 bg-background/92 px-0 py-4 shadow-none backdrop-blur-xl supports-backdrop-filter:bg-background/88 md:px-0"
-      headerNav={
-        <nav className="public-page-header-nav">
-          {navItems.map((item) => (
-            <Link
-              className="public-page-header-link"
-              href={getMarketingNavHref(item)}
-              key={getMarketingNavKey(item)}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      }
+      header={<MarketingHeader />}
     >
       {/* Hero */}
-      <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-5 px-5 py-6 text-center sm:px-6 sm:py-8 lg:px-8">
+      <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-5 px-5 pb-6 pt-4 text-center sm:px-6 sm:pb-8 sm:pt-6 lg:px-8">
         <h1 className="max-w-2xl font-heading text-4xl font-semibold leading-[0.94] tracking-tight text-balance sm:text-5xl xl:text-[3.5rem]">
           Simple pricing. No surprises.
         </h1>

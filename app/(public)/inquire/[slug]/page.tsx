@@ -7,6 +7,7 @@ import { submitPublicInquiryAction } from "@/features/inquiries/actions";
 import { PublicInquiryPageRenderer } from "@/features/inquiries/components/public-inquiry-page-renderer";
 import {
   getMissingPublicInquiryMetadata,
+  getPublicInquiryBreadcrumbLabel,
   getPublicInquiryPageDescription,
   getPublicInquiryPageMetadata,
   getPublicInquiryPagePath,
@@ -85,7 +86,7 @@ export default async function PublicInquiryPage({
     `/inquire/${slug}`,
     {
       "/inquire": "Inquire",
-      [`/inquire/${slug}`]: business.name,
+      [`/inquire/${slug}`]: getPublicInquiryBreadcrumbLabel(business),
     },
   );
   const breadcrumbStructuredData = breadcrumbItems.length

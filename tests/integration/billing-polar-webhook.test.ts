@@ -69,10 +69,10 @@ import { validateEvent } from "@polar-sh/sdk/webhooks";
 
 import {
   activateSubscription,
-  getAccountSubscription,
+  getBusinessSubscription,
 } from "@/lib/billing/subscription-service";
 import {
-  accountSubscriptions,
+  businessSubscriptions,
   billingEvents,
   paymentAttempts,
   refunds,
@@ -105,9 +105,8 @@ const PERIOD_END_FUTURE = new Date("2026-05-20T00:00:00.000Z");
  * Inserts a test user and two owned businesses for one test, scoped under
  * the file-wide `PREFIX` so cleanup can target them via `LIKE`.
  *
- * Two businesses are created so subscription tests can assert that the
- * denormalized `businesses.plan` column propagates across every owned
- * business (Requirement 7.6).
+ * Two businesses are created so tests can validate business-scoped billing
+ * does not leak plan state across owned businesses.
  */
 async function seedUserAndBusinesses(suffix: string): Promise<{
   userId: string;
@@ -161,9 +160,9 @@ async function seedUserAndBusinesses(suffix: string): Promise<{
  * tests that need a pre-existing subscription to exercise update / revoke /
  * order-isolation behaviour.
  */
-async function seedActiveSubscription(userId: string): Promise<void> {
+async function seedActiveSubscription(businessId: string): Promise<void> {
   await activateSubscription({
-    userId,
+    businessId,
     plan: "pro",
     provider: "polar",
     currency: "USD",
@@ -227,7 +226,7 @@ async function postSignedWebhook(payload: object): Promise<{
  * (which don't carry a `userId`) and dashboard-issued refunds (which
  * predate any seeded user) are also cleaned up.
  *
- * Order matters: refunds → payment_attempts → account_subscriptions →
+ * Order matters: refunds → payment_attempts → business_subscriptions →
  * billing_events → businesses → user. `businesses.owner_user_id` uses
  * `onDelete: "restrict"`, so businesses must be deleted before the user
  * row that owns them.
@@ -247,19 +246,20 @@ async function cleanupAll(): Promise<void> {
     .where(
       or(
         like(paymentAttempts.userId, `${PREFIX}%`),
+        like(paymentAttempts.businessId, `${PREFIX}%`),
         like(paymentAttempts.providerPaymentId, "order_polar%fixture%"),
       ),
     );
 
   await testDb
-    .delete(accountSubscriptions)
-    .where(like(accountSubscriptions.userId, `${PREFIX}%`));
+    .delete(businessSubscriptions)
+    .where(like(businessSubscriptions.businessId, `${PREFIX}%`));
 
   await testDb
     .delete(billingEvents)
     .where(
       or(
-        like(billingEvents.userId, `${PREFIX}%`),
+        like(billingEvents.businessId, `${PREFIX}%`),
         like(billingEvents.providerEventId, "%polar_fixture%"),
         like(billingEvents.providerEventId, "%polar_dup_fixture%"),
         like(billingEvents.providerEventId, "%polar_unresolvable_fixture%"),
@@ -290,18 +290,19 @@ describe("polar webhook integration", () => {
 
   /* ── Task 10.2 — `subscription.created` happy path ──────────────────────── */
 
-  it("activates a subscription and syncs every owned business plan on subscription.created", async () => {
+  it("activates a business subscription on subscription.created", async () => {
     const { userId, businessIds } = await seedUserAndBusinesses("created");
+    const businessId = businessIds[0];
 
-    const payload = polarSubscriptionCreatedPayload({ externalId: userId });
+    const payload = polarSubscriptionCreatedPayload({ externalId: businessId });
     const { status, storedPayload } = await postSignedWebhook(payload);
 
     expect(status).toBe(200);
 
     const [subscription] = await testDb
       .select()
-      .from(accountSubscriptions)
-      .where(eq(accountSubscriptions.userId, userId))
+      .from(businessSubscriptions)
+      .where(eq(businessSubscriptions.businessId, businessId))
       .limit(1);
 
     expect(subscription).toBeDefined();
@@ -317,15 +318,9 @@ describe("polar webhook integration", () => {
       PERIOD_END_FUTURE.toISOString(),
     );
 
-    const businessRows = await testDb
-      .select({ id: businesses.id, plan: businesses.plan })
-      .from(businesses)
-      .where(eq(businesses.ownerUserId, userId));
-
-    expect(businessRows).toHaveLength(2);
-    const plansById = new Map(businessRows.map((row) => [row.id, row.plan]));
-    expect(plansById.get(businessIds[0])).toBe("pro");
-    expect(plansById.get(businessIds[1])).toBe("pro");
+    // Business plan caching is no longer synchronized from billing; plans apply per business.
+    // The `businesses.plan` column is treated as a local cache / default only.
+    void userId;
 
     const [event] = await testDb
       .select()
@@ -339,7 +334,7 @@ describe("polar webhook integration", () => {
       .limit(1);
 
     expect(event).toBeDefined();
-    expect(event?.userId).toBe(userId);
+    expect(event?.businessId).toBe(businessId);
     expect(event?.provider).toBe("polar");
     expect(event?.eventType).toBe("subscription.created");
     expect(event?.status).toBe("processed");
@@ -349,12 +344,13 @@ describe("polar webhook integration", () => {
 
   /* ── Task 10.3 — `subscription.updated` canceled-with-future-period-end ── */
 
-  it("flips the subscription to canceled with a future period end and keeps owned business plans on subscription.updated", async () => {
-    const { userId } = await seedUserAndBusinesses("canceled");
-    await seedActiveSubscription(userId);
+  it("flips the business subscription to canceled with a future period end on subscription.updated", async () => {
+    const { userId, businessIds } = await seedUserAndBusinesses("canceled");
+    const businessId = businessIds[0];
+    await seedActiveSubscription(businessId);
 
     const payload = polarSubscriptionCanceledFuturePayload({
-      externalId: userId,
+      externalId: businessId,
     });
     const { status } = await postSignedWebhook(payload);
 
@@ -362,8 +358,8 @@ describe("polar webhook integration", () => {
 
     const [subscription] = await testDb
       .select()
-      .from(accountSubscriptions)
-      .where(eq(accountSubscriptions.userId, userId))
+      .from(businessSubscriptions)
+      .where(eq(businessSubscriptions.businessId, businessId))
       .limit(1);
 
     expect(subscription?.status).toBe("canceled");
@@ -375,48 +371,29 @@ describe("polar webhook integration", () => {
     // user keeps access until `currentPeriodEnd`.
     expect(subscription?.plan).toBe("pro");
 
-    // Denormalised `businesses.plan` cache is unchanged because the
-    // service's effective-plan resolver returns "pro" while the canceled
-    // subscription's `currentPeriodEnd` is still in the future.
-    const businessRows = await testDb
-      .select({ plan: businesses.plan })
-      .from(businesses)
-      .where(eq(businesses.ownerUserId, userId));
-
-    expect(businessRows).toHaveLength(2);
-    for (const row of businessRows) {
-      expect(row.plan).toBe("pro");
-    }
+    void userId;
   }, 30_000);
 
   /* ── Task 10.4 — `subscription.revoked` ─────────────────────────────────── */
 
-  it("expires the subscription and downgrades every owned business to free on subscription.revoked", async () => {
-    const { userId } = await seedUserAndBusinesses("revoked");
-    await seedActiveSubscription(userId);
+  it("expires the business subscription on subscription.revoked", async () => {
+    const { userId, businessIds } = await seedUserAndBusinesses("revoked");
+    const businessId = businessIds[0];
+    await seedActiveSubscription(businessId);
 
-    const payload = polarSubscriptionRevokedPayload({ externalId: userId });
+    const payload = polarSubscriptionRevokedPayload({ externalId: businessId });
     const { status } = await postSignedWebhook(payload);
 
     expect(status).toBe(200);
 
     const [subscription] = await testDb
       .select()
-      .from(accountSubscriptions)
-      .where(eq(accountSubscriptions.userId, userId))
+      .from(businessSubscriptions)
+      .where(eq(businessSubscriptions.businessId, businessId))
       .limit(1);
 
     expect(subscription?.status).toBe("expired");
-
-    const businessRows = await testDb
-      .select({ plan: businesses.plan })
-      .from(businesses)
-      .where(eq(businesses.ownerUserId, userId));
-
-    expect(businessRows).toHaveLength(2);
-    for (const row of businessRows) {
-      expect(row.plan).toBe("free");
-    }
+    void userId;
   }, 30_000);
 
   /* ── Task 10.5 — `order.paid` and subscription-state isolation ──────────── */
@@ -428,14 +405,15 @@ describe("polar webhook integration", () => {
    *
    * Validates: Requirements 8.5
    */
-  it("records a succeeded payment_attempts row on order.paid without mutating the subscription", async () => {
-    const { userId } = await seedUserAndBusinesses("order");
-    await seedActiveSubscription(userId);
+  it("records a succeeded payment_attempts row on order.paid without mutating the business subscription", async () => {
+    const { userId, businessIds } = await seedUserAndBusinesses("order");
+    const businessId = businessIds[0];
+    await seedActiveSubscription(businessId);
 
-    const before = await getAccountSubscription(userId);
+    const before = await getBusinessSubscription(businessId);
     expect(before).toBeDefined();
 
-    const payload = polarOrderPaidPayload({ externalId: userId });
+    const payload = polarOrderPaidPayload({ externalId: businessId });
     const { status } = await postSignedWebhook(payload);
 
     expect(status).toBe(200);
@@ -449,13 +427,13 @@ describe("polar webhook integration", () => {
       .limit(1);
 
     expect(paymentRow).toBeDefined();
-    expect(paymentRow?.userId).toBe(userId);
+    expect(paymentRow?.businessId).toBe(businessId);
     expect(paymentRow?.status).toBe("succeeded");
     expect(paymentRow?.amount).toBe(1900);
     expect(paymentRow?.currency).toBe("USD");
     expect(paymentRow?.provider).toBe("polar");
 
-    const after = await getAccountSubscription(userId);
+    const after = await getBusinessSubscription(businessId);
     expect(after).toBeDefined();
     // Subscription columns must be byte-for-byte unchanged
     expect(after?.status).toBe(before?.status);
@@ -471,6 +449,7 @@ describe("polar webhook integration", () => {
     expect(after?.currentPeriodEnd?.toISOString() ?? null).toBe(
       before?.currentPeriodEnd?.toISOString() ?? null,
     );
+    void userId;
   }, 30_000);
 
   /* ── Task 10.6 — `refund.updated` (succeeded) ───────────────────────────── */
@@ -522,11 +501,11 @@ describe("polar webhook integration", () => {
     expect(events[0]?.processedAt).toBeInstanceOf(Date);
     expect(events[0]?.payload).toEqual(first.storedPayload);
 
-    // Single account_subscriptions row, not duplicated by the second delivery.
+    // Single business_subscriptions row, not duplicated by the second delivery.
     const subscriptions = await testDb
       .select()
-      .from(accountSubscriptions)
-      .where(eq(accountSubscriptions.userId, userId));
+      .from(businessSubscriptions)
+      .where(eq(businessSubscriptions.businessId, userId));
     expect(subscriptions).toHaveLength(1);
     expect(subscriptions[0]?.status).toBe("active");
 
@@ -535,7 +514,7 @@ describe("polar webhook integration", () => {
     const payments = await testDb
       .select()
       .from(paymentAttempts)
-      .where(eq(paymentAttempts.userId, userId));
+      .where(eq(paymentAttempts.businessId, userId));
     expect(payments).toHaveLength(0);
 
     const refundRows = await testDb
@@ -574,17 +553,17 @@ describe("polar webhook integration", () => {
       .limit(1);
 
     expect(event).toBeDefined();
-    expect(event?.userId).toBeNull();
+    expect(event?.businessId).toBeNull();
     expect(event?.status).toBe("failed");
-    expect(event?.errorMessage).toBe("User not found");
+    expect(event?.errorMessage).toBe("Business not found");
 
-    // No account_subscriptions row should have been created.
+    // No business_subscriptions row should have been created.
     const subscriptions = await testDb
       .select()
-      .from(accountSubscriptions)
+      .from(businessSubscriptions)
       .where(
         eq(
-          accountSubscriptions.providerSubscriptionId,
+          businessSubscriptions.providerSubscriptionId,
           "sub_polar_unresolvable_fixture",
         ),
       );

@@ -2,8 +2,9 @@
 
 import { revalidateTag, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { after } from "next/server";
+import { z } from "zod";
 
+import { emitEvent } from "@/features/automations/dispatcher";
 import {
   getValidationActionState,
 } from "@/lib/action-state";
@@ -19,6 +20,11 @@ import {
   getWorkspaceBusinessActionContext,
 } from "@/lib/db/business-access";
 import { env, isEmailConfigured } from "@/lib/env";
+import {
+  sendEnableQuoteAutoFollowUpEvent,
+  sendPushQuoteResponseEvent,
+  sendPushQuoteSentEvent,
+} from "@/lib/inngest/send";
 import { getUsageLimit, hasFeatureAccess } from "@/lib/plans";
 import { checkUsageAllowance } from "@/lib/plans/usage";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
@@ -29,6 +35,9 @@ import {
 } from "@/lib/resend/client";
 import {
   archiveQuoteForBusiness,
+  bulkArchiveQuotesForBusiness,
+  bulkDeleteDraftQuotesForBusiness,
+  bulkVoidQuotesForBusiness,
   cancelAcceptedQuoteForBusiness,
   completeAcceptedQuoteForBusiness,
   createPostWinChecklistItem,
@@ -55,6 +64,7 @@ import {
 } from "@/features/businesses/routes";
 import type {
   PublicQuoteResponseActionState,
+  QuoteBulkActionState,
   QuoteCancellationActionState,
   QuoteCompletionActionState,
   QuoteDeliveryMethod,
@@ -159,6 +169,8 @@ export async function createQuoteAction(
     terms: formData.get("terms"),
     validUntil: formData.get("validUntil"),
     discountInCents: formData.get("discount"),
+    taxInCents: formData.get("tax"),
+    taxLabel: formData.get("taxLabel"),
     items: formData.get("items"),
   });
 
@@ -242,6 +254,8 @@ export async function updateQuoteAction(
     terms: formData.get("terms"),
     validUntil: formData.get("validUntil"),
     discountInCents: formData.get("discount"),
+    taxInCents: formData.get("tax"),
+    taxLabel: formData.get("taxLabel"),
     items: formData.get("items"),
   });
 
@@ -314,6 +328,7 @@ async function runQuoteRecordAction(
     lockedArchived?: string;
     lockedLifecycle?: string;
     fallbackError: string;
+    redirectHref?: string;
   },
 ): Promise<QuoteRecordActionState> {
   const ownerAccess = await getWorkspaceBusinessActionContext();
@@ -358,6 +373,10 @@ async function runQuoteRecordAction(
       };
     }
 
+    if (messages.redirectHref && (result.changed || result.deleted)) {
+      redirect(messages.redirectHref);
+    }
+
     return {
       success:
         result.changed || result.deleted ? messages.success : messages.unchanged,
@@ -373,11 +392,10 @@ async function runQuoteRecordAction(
 
 export async function deleteDraftQuoteAction(
   quoteId: string,
-  _prevState: QuoteRecordActionState,
-  _formData: FormData,
+  _prevState?: QuoteRecordActionState,
+  formData?: FormData,
 ): Promise<QuoteRecordActionState> {
-  void _prevState;
-  void _formData;
+  const redirectHref = formData ? formData.get("redirectHref") as string | null : null;
 
   return runQuoteRecordAction(quoteId, deleteDraftQuoteForBusiness, {
     success: "Draft quote deleted.",
@@ -386,6 +404,7 @@ export async function deleteDraftQuoteAction(
     lockedLifecycle:
       "Only draft quotes can be deleted. Use void or archive for quotes that were already sent.",
     fallbackError: "Failed to delete draft quote.",
+    redirectHref: redirectHref || undefined,
   });
 }
 
@@ -606,6 +625,13 @@ export async function sendQuoteAction(
       };
     }
 
+    // Emit quote.sent automation event
+    emitEvent(businessContext.business.id, "quote.sent", {
+      quoteId,
+      sentAt: new Date().toISOString(),
+      recipientEmail: quote.customerEmail ?? "",
+    });
+
     // Enable auto follow-up if requested and sent via Requo email
     if (
       deliveryMethod === "requo" &&
@@ -615,36 +641,24 @@ export async function sendQuoteAction(
       const delayDays = Math.max(1, Math.min(14, Number(formData.get("autoFollowUpDelay")) || 3));
       const maxAttempts = Math.max(1, Math.min(5, Number(formData.get("autoFollowUpMax")) || 2));
 
-      after(async () => {
-        try {
-          const { enableAutoFollowUpForQuote } = await import(
-            "@/features/quotes/mutations"
-          );
-          await enableAutoFollowUpForQuote({
-            quoteId,
-            delayDays,
-            maxAttempts,
-          });
-        } catch (error) {
-          console.error("Failed to enable auto follow-up for quote.", error);
-        }
+      void sendEnableQuoteAutoFollowUpEvent({
+        quoteId,
+        delayDays,
+        maxAttempts,
+      }).catch((error) => {
+        console.error("Failed to queue auto follow-up for quote.", error);
       });
     }
 
-    if (businessSettings.notifyPushOnQuoteSent &&
-      hasFeatureAccess(businessContext.business.plan, "pushNotifications")
-    ) {
-      after(async () => {
-        try {
-          const { sendPushToBusinessSubscribers } = await import("@/lib/push/send");
-          await sendPushToBusinessSubscribers(businessContext.business.id, {
-            title: "Quote sent",
-            body: `Quote ${result.quoteNumber} sent to ${quote.customerName}.`,
-            url: getBusinessQuotePath(businessContext.business.slug, quote.id),
-          });
-        } catch (error) {
-          console.error("Push notification failed for quote sent.", error);
-        }
+    if (businessSettings.notifyPushOnQuoteSent) {
+      void sendPushQuoteSentEvent({
+        businessId: businessContext.business.id,
+        businessSlug: businessContext.business.slug,
+        quoteId: quote.id,
+        quoteNumber: result.quoteNumber,
+        customerName: quote.customerName,
+      }).catch((error) => {
+        console.error("Failed to queue push notification for quote sent.", error);
       });
     }
 
@@ -896,21 +910,34 @@ export async function respondToPublicQuoteAction(
       };
     }
 
-    if (result.notifyPushOnQuoteResponse &&
-      hasFeatureAccess(result.businessPlan, "pushNotifications")
-    ) {
-      after(async () => {
-        try {
-          const { sendPushToBusinessSubscribers } = await import("@/lib/push/send");
-          const responseLabel = result.status === "accepted" ? "accepted" : "declined";
-          await sendPushToBusinessSubscribers(result.businessId, {
-            title: `Quote ${responseLabel}`,
-            body: `${result.customerName} ${responseLabel} quote ${result.quoteNumber}.`,
-            url: getBusinessQuotePath(result.businessSlug, result.quoteId),
-          });
-        } catch (error) {
-          console.error("Push notification failed for quote response.", error);
-        }
+    // Emit quote.accepted or quote.rejected automation event
+    if (result.status === "accepted") {
+      emitEvent(result.businessId, "quote.accepted", {
+        quoteId: result.quoteId,
+        acceptedAt: new Date().toISOString(),
+        amount: result.totalInCents ?? 0,
+      });
+    } else if (result.status === "rejected") {
+      emitEvent(result.businessId, "quote.rejected", {
+        quoteId: result.quoteId,
+        rejectedAt: new Date().toISOString(),
+        reason: result.customerResponseMessage ?? undefined,
+      });
+    }
+
+    if (result.notifyPushOnQuoteResponse) {
+      const responseLabel =
+        result.status === "accepted" ? "accepted" : "declined";
+
+      void sendPushQuoteResponseEvent({
+        businessId: result.businessId,
+        businessSlug: result.businessSlug,
+        quoteId: result.quoteId,
+        quoteNumber: result.quoteNumber,
+        customerName: result.customerName,
+        responseLabel,
+      }).catch((error) => {
+        console.error("Failed to queue push notification for quote response.", error);
       });
     }
 
@@ -1245,20 +1272,16 @@ export async function requestQuoteRevisionAction(
       ),
     );
 
-    if (result.notifyPushOnQuoteResponse &&
-      hasFeatureAccess(result.businessPlan, "pushNotifications")
-    ) {
-      after(async () => {
-        try {
-          const { sendPushToBusinessSubscribers } = await import("@/lib/push/send");
-          await sendPushToBusinessSubscribers(result.businessId, {
-            title: "Revision requested",
-            body: `${result.customerName} requested changes to quote ${result.quoteNumber}.`,
-            url: getBusinessQuotePath(result.businessSlug, result.quoteId),
-          });
-        } catch (error) {
-          console.error("Push notification failed for revision request.", error);
-        }
+    if (result.notifyPushOnQuoteResponse) {
+      void sendPushQuoteResponseEvent({
+        businessId: result.businessId,
+        businessSlug: result.businessSlug,
+        quoteId: result.quoteId,
+        quoteNumber: result.quoteNumber,
+        customerName: result.customerName,
+        responseLabel: "revision requested",
+      }).catch((error) => {
+        console.error("Failed to queue push notification for revision request.", error);
       });
     }
 
@@ -1332,5 +1355,147 @@ export async function reviseQuoteAction(
     return {
       error: "We couldn't create the new revision right now.",
     };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Bulk Action Server Actions
+// ---------------------------------------------------------------------------
+
+const quoteBulkActionSchema = z.object({
+  quoteIds: z
+    .array(z.string().min(1))
+    .min(1, "Select at least one quote.")
+    .max(50, "Cannot bulk-update more than 50 quotes at once."),
+});
+
+export async function bulkArchiveQuotesAction(
+  _prevState: QuoteBulkActionState,
+  formData: FormData,
+): Promise<QuoteBulkActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+  if (!ownerAccess.ok) return { error: ownerAccess.error };
+
+  const { user, businessContext } = ownerAccess;
+  const rawIds = formData.get("quoteIds") as string;
+  const parsed = quoteBulkActionSchema.safeParse({
+    quoteIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  try {
+    const result = await bulkArchiveQuotesForBusiness({
+      businessId: businessContext.business.id,
+      quoteIds: parsed.data.quoteIds,
+      actorUserId: user.id,
+    });
+
+    updateCacheTags(getBusinessQuoteListCacheTags(businessContext.business.id));
+
+    return {
+      success: `${result.affected} quote${result.affected !== 1 ? "s" : ""} archived.`,
+      affected: result.affected,
+      skipped: result.skipped,
+    };
+  } catch (error) {
+    console.error("Failed to bulk archive quotes.", error);
+    return { error: "We couldn't archive those quotes right now." };
+  }
+}
+
+export async function bulkVoidQuotesAction(
+  _prevState: QuoteBulkActionState,
+  formData: FormData,
+): Promise<QuoteBulkActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+  if (!ownerAccess.ok) return { error: ownerAccess.error };
+
+  const { user, businessContext } = ownerAccess;
+  const rawIds = formData.get("quoteIds") as string;
+  const parsed = quoteBulkActionSchema.safeParse({
+    quoteIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  try {
+    const result = await bulkVoidQuotesForBusiness({
+      businessId: businessContext.business.id,
+      quoteIds: parsed.data.quoteIds,
+      actorUserId: user.id,
+    });
+
+    updateCacheTags(getBusinessQuoteListCacheTags(businessContext.business.id));
+
+    return {
+      success: `${result.affected} quote${result.affected !== 1 ? "s" : ""} voided.`,
+      affected: result.affected,
+      skipped: result.skipped,
+    };
+  } catch (error) {
+    console.error("Failed to bulk void quotes.", error);
+    return { error: "We couldn't void those quotes right now." };
+  }
+}
+
+export async function bulkDeleteQuotesAction(
+  _prevState: QuoteBulkActionState,
+  formData: FormData,
+): Promise<QuoteBulkActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+  if (!ownerAccess.ok) return { error: ownerAccess.error };
+
+  const { user, businessContext } = ownerAccess;
+  const rawIds = formData.get("quoteIds") as string;
+  const confirmed = formData.get("confirmed") as string;
+
+  if (confirmed !== "true") {
+    return { error: "Deletion requires confirmation." };
+  }
+
+  const parsed = quoteBulkActionSchema.safeParse({
+    quoteIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  try {
+    const result = await bulkDeleteDraftQuotesForBusiness({
+      businessId: businessContext.business.id,
+      quoteIds: parsed.data.quoteIds,
+      actorUserId: user.id,
+    });
+
+    revalidateCacheTags(getBusinessQuoteListCacheTags(businessContext.business.id));
+
+    if (result.affected === 0) {
+      return {
+        error:
+          result.skipped > 0
+            ? "Only draft, non-archived quotes can be deleted. None of the selected quotes were eligible."
+            : "No quotes were deleted.",
+        affected: result.affected,
+        skipped: result.skipped,
+      };
+    }
+
+    return {
+      success:
+        result.skipped > 0
+          ? `${result.affected} quote${result.affected !== 1 ? "s" : ""} deleted. ${result.skipped} could not be deleted.`
+          : `${result.affected} quote${result.affected !== 1 ? "s" : ""} deleted.`,
+      affected: result.affected,
+      skipped: result.skipped,
+    };
+  } catch (error) {
+    console.error("Failed to bulk delete quotes.", error);
+    return { error: "We couldn't delete those quotes right now." };
   }
 }

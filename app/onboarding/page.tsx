@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { BrandMark } from "@/components/shared/brand-mark";
 import { getAccountProfileForUser } from "@/features/account/queries";
-import { businessesHubPath } from "@/features/businesses/routes";
+import { isSupportedBusinessCountryCode } from "@/features/businesses/locale";
+import { dashboardPath } from "@/features/businesses/routes";
 import { completeOnboardingAction } from "@/features/onboarding/actions";
 import { OnboardingForm } from "@/features/onboarding/components/onboarding-form";
 import { ThemePreferenceSync } from "@/features/theme/components/theme-preference-sync";
@@ -43,8 +45,12 @@ export default async function OnboardingPage() {
   );
 
   if (memberships.length > 0 || profile?.onboardingCompletedAt) {
-    redirect(businessesHubPath);
+    redirect(dashboardPath);
   }
+
+  const headerStore = await headers();
+  const geoCountry = headerStore.get("x-vercel-ip-country")?.toUpperCase() ?? "";
+  const detectedCountryCode = isSupportedBusinessCountryCode(geoCountry) ? geoCountry : "";
 
   return (
     <>
@@ -61,6 +67,7 @@ export default async function OnboardingPage() {
           <div className="flex flex-1 items-center justify-center pt-12 pb-6 sm:pt-8">
             <OnboardingForm
               action={completeOnboardingAction}
+              detectedCountryCode={detectedCountryCode}
               initialProfile={{
                 firstName: extractFirstName(session.user.name),
                 lastName: extractLastName(session.user.name),

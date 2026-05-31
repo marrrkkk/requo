@@ -29,9 +29,9 @@ export function CopyQuoteLinkButton({ url }: CopyQuoteLinkButtonProps) {
   }
 
   return (
-    <Button onClick={handleCopy} type="button" variant="outline">
+    <Button onClick={handleCopy} size="sm" type="button" variant="ghost">
       {copied ? <Check data-icon="inline-start" /> : <Copy data-icon="inline-start" />}
-      {copied ? "Copied link" : "Copy customer link"}
+      {copied ? "Copied" : "Copy link"}
     </Button>
   );
 }

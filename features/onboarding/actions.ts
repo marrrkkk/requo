@@ -16,7 +16,7 @@ import {
   isBusinessQuotaExceededError,
 } from "@/features/businesses/quota";
 import {
-  businessesHubPath,
+  dashboardPath,
   getBusinessDashboardPath,
 } from "@/features/businesses/routes";
 import {
@@ -87,11 +87,11 @@ export async function completeOnboardingAction(
     businessType: formData.get("businessType"),
     countryCode: formData.get("countryCode"),
     defaultCurrency: formData.get("defaultCurrency"),
-    customerContactChannel: formData.get("customerContactChannel"),
+    customerContactChannel: formData.get("customerContactChannel") || undefined,
     starterTemplateBusinessType: formData.get("starterTemplateBusinessType"),
-    jobTitle: formData.get("jobTitle"),
-    companySize: formData.get("companySize"),
-    referralSource: formData.get("referralSource"),
+    jobTitle: formData.get("jobTitle") || undefined,
+    companySize: formData.get("companySize") || undefined,
+    referralSource: formData.get("referralSource") || undefined,
   });
 
   if (!validationResult.success) {
@@ -145,7 +145,7 @@ export async function completeOnboardingAction(
     avatarUpload = { storagePath, contentType };
   }
 
-  let dashboardPath: string | null = null;
+  let redirectPath: string | null = null;
 
   try {
     const business = await completeOnboardingForUser({
@@ -171,8 +171,8 @@ export async function completeOnboardingAction(
       userId: user.id,
       businessSlug: business.slug,
     });
-    revalidatePath(businessesHubPath);
-    dashboardPath = getBusinessDashboardPath(business.slug);
+    revalidatePath(dashboardPath);
+    redirectPath = getBusinessDashboardPath(business.slug);
   } catch (error) {
     if (isBusinessQuotaExceededError(error)) {
       return {
@@ -187,8 +187,8 @@ export async function completeOnboardingAction(
     };
   }
 
-  if (dashboardPath) {
-    redirect(dashboardPath);
+  if (redirectPath) {
+    redirect(redirectPath);
   }
 
   return {

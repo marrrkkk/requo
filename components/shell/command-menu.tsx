@@ -5,10 +5,10 @@ import {
   BarChart3,
   Bell,
   BookOpen,
+  BriefcaseBusiness,
   Clock,
   CreditCard,
   Download,
-  ExternalLink,
   FileText,
   Home,
   Inbox,
@@ -24,6 +24,7 @@ import {
   Tags,
   User,
   Users,
+  Workflow,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -38,7 +39,6 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { getAccountProfilePath } from "@/features/account/routes";
 import {
   getBusinessAnalyticsPath,
   getBusinessDashboardPath,
@@ -52,15 +52,13 @@ import {
   getBusinessQuotesPath,
   getBusinessPath,
   getBusinessSettingsPath,
-  businessesHubPath,
 } from "@/features/businesses/routes";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { useTheme } from "@/components/theme-provider";
+import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import { clearPersistedThemePreference } from "@/features/theme/persistence";
 import { themeUserStorageKey } from "@/features/theme/types";
 import { authClient } from "@/lib/auth/client";
-import { hasFeatureAccess } from "@/lib/plans";
-import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import {
   canManageBusinessAdministration,
   canManageBusinessMembers,
@@ -68,16 +66,13 @@ import {
   canViewBusinessAnalytics,
   type BusinessMemberRole,
 } from "@/lib/business-members";
+import { hasFeatureAccess } from "@/lib/plans/entitlements";
 
 type CommandMenuProps = {
   businessSlug: string;
   role: BusinessMemberRole;
   plan: plan;
 };
-
-const exportNoticeTitle = "Export is a Pro feature.";
-const exportNoticeDescription =
-  "Upgrade to Pro to download quote and inquiry CSV exports.";
 
 export function CommandMenu({
   businessSlug,
@@ -121,12 +116,6 @@ export function CommandMenu({
     );
   }
 
-  function showExportNotice() {
-    toast.info(exportNoticeTitle, {
-      description: exportNoticeDescription,
-    });
-  }
-
   async function handleSignOut() {
     const result = await authClient.signOut();
 
@@ -139,6 +128,17 @@ export function CommandMenu({
     clearPersistedThemePreference();
 
     window.location.assign("/login");
+  }
+
+  function handleExport(path: string) {
+    if (!canExport) {
+      toast.info("Export is a Pro feature.", {
+        description: "Upgrade to Pro to download quote and inquiry CSV exports.",
+      });
+      return;
+    }
+
+    window.location.assign(path);
   }
 
   return (
@@ -208,7 +208,7 @@ export function CommandMenu({
                   }
                 >
                   <Home className="mr-2 h-4 w-4" />
-                  <span>Dashboard</span>
+                  <span>Home</span>
                 </CommandItem>
                 <CommandItem
                   onSelect={() =>
@@ -280,26 +280,48 @@ export function CommandMenu({
 
               <CommandSeparator />
 
-              {/* Share */}
-              <CommandGroup heading="Share">
+              {/* Quick Links */}
+              <CommandGroup heading="Quick links">
                 <CommandItem onSelect={() => runCommand(copyPublicInquiryLink)}>
                   <Link2 className="mr-2 h-4 w-4" />
-                  <span>Copy public inquiry link</span>
+                  <span>Copy inquiry form link</span>
                 </CommandItem>
-                <CommandItem
-                  onSelect={() =>
-                    runCommand(() => {
-                      window.open(
-                        publicInquiryPath,
-                        "_blank",
-                        "noopener,noreferrer",
-                      );
-                    })
-                  }
-                >
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  <span>Open public inquiry page</span>
-                </CommandItem>
+                {canOperate ? (
+                  <CommandItem
+                    onSelect={() =>
+                      runCommand(() =>
+                        router.push(getBusinessSettingsPath(businessSlug, "knowledge")),
+                      )
+                    }
+                  >
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    <span>Knowledge base</span>
+                  </CommandItem>
+                ) : null}
+                {canOperate ? (
+                  <CommandItem
+                    onSelect={() =>
+                      runCommand(() =>
+                        router.push(getBusinessSettingsPath(businessSlug, "automations")),
+                      )
+                    }
+                  >
+                    <Workflow className="mr-2 h-4 w-4" />
+                    <span>Automations</span>
+                  </CommandItem>
+                ) : null}
+                {isBusinessOwner ? (
+                  <CommandItem
+                    onSelect={() =>
+                      runCommand(() =>
+                        router.push(getBusinessSettingsPath(businessSlug, "billing")),
+                      )
+                    }
+                  >
+                    <BriefcaseBusiness className="mr-2 h-4 w-4" />
+                    <span>Billing & plan</span>
+                  </CommandItem>
+                ) : null}
               </CommandGroup>
 
               <CommandSeparator />
@@ -308,37 +330,23 @@ export function CommandMenu({
               <CommandGroup heading="Export">
                 <CommandItem
                   onSelect={() =>
-                    runCommand(() => {
-                      if (!canExport) {
-                        showExportNotice();
-                        return;
-                      }
-                      window.location.assign(
-                        getBusinessQuotesExportPath(businessSlug),
-                      );
-                    })
+                    runCommand(() =>
+                      handleExport(getBusinessQuotesExportPath(businessSlug)),
+                    )
                   }
                 >
                   <Download className="mr-2 h-4 w-4" />
                   <span>Download quotes (CSV)</span>
-                  {!canExport ? <ProBadge /> : null}
                 </CommandItem>
                 <CommandItem
                   onSelect={() =>
-                    runCommand(() => {
-                      if (!canExport) {
-                        showExportNotice();
-                        return;
-                      }
-                      window.location.assign(
-                        getBusinessInquiriesExportPath(businessSlug),
-                      );
-                    })
+                    runCommand(() =>
+                      handleExport(getBusinessInquiriesExportPath(businessSlug)),
+                    )
                   }
                 >
                   <Download className="mr-2 h-4 w-4" />
                   <span>Download inquiries (CSV)</span>
-                  {!canExport ? <ProBadge /> : null}
                 </CommandItem>
               </CommandGroup>
 
@@ -346,6 +354,18 @@ export function CommandMenu({
                 <>
                   <CommandSeparator />
                   <CommandGroup heading="Settings">
+                    <CommandItem
+                      onSelect={() =>
+                        runCommand(() =>
+                          router.push(
+                            getBusinessSettingsPath(businessSlug, "general"),
+                          ),
+                        )
+                      }
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      <span>Business settings</span>
+                    </CommandItem>
                     <CommandItem
                       onSelect={() =>
                         runCommand(() =>
@@ -386,18 +406,6 @@ export function CommandMenu({
                       onSelect={() =>
                         runCommand(() =>
                           router.push(
-                            getBusinessSettingsPath(businessSlug, "knowledge"),
-                          ),
-                        )
-                      }
-                    >
-                      <BookOpen className="mr-2 h-4 w-4" />
-                      <span>Knowledge</span>
-                    </CommandItem>
-                    <CommandItem
-                      onSelect={() =>
-                        runCommand(() =>
-                          router.push(
                             getBusinessSettingsPath(
                               businessSlug,
                               "notifications",
@@ -407,22 +415,8 @@ export function CommandMenu({
                       }
                     >
                       <Bell className="mr-2 h-4 w-4" />
-                      <span>Notification settings</span>
+                      <span>Notifications</span>
                     </CommandItem>
-                    {isBusinessOwner ? (
-                      <CommandItem
-                        onSelect={() =>
-                          runCommand(() =>
-                            router.push(
-                              getBusinessSettingsPath(businessSlug, "billing"),
-                            ),
-                          )
-                        }
-                      >
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        <span>Business billing</span>
-                      </CommandItem>
-                    ) : null}
                   </CommandGroup>
                 </>
               ) : null}
@@ -458,14 +452,8 @@ export function CommandMenu({
                   <span>Business overview</span>
                 </CommandItem>
                 <CommandItem
-                  onSelect={() => runCommand(() => router.push(businessesHubPath))}
-                >
-                  <LayoutGrid className="mr-2 h-4 w-4" />
-                  <span>All businesses</span>
-                </CommandItem>
-                <CommandItem
                   onSelect={() =>
-                    runCommand(() => router.push(getAccountProfilePath()))
+                    runCommand(() => router.push(getBusinessSettingsPath(businessSlug, "profile")))
                   }
                 >
                   <User className="mr-2 h-4 w-4" />
@@ -486,13 +474,5 @@ export function CommandMenu({
         </DialogContent>
       </Dialog>
     </>
-  );
-}
-
-function ProBadge() {
-  return (
-    <span className="ml-auto rounded-md border border-border/70 px-1.5 py-0.5 text-[0.68rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-      Pro
-    </span>
   );
 }

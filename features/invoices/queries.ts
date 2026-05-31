@@ -11,12 +11,29 @@ import type {
   InvoiceStatus,
 } from "@/features/invoices/types";
 
-const PAGE_SIZE = 50;
+type InvoiceBaseFilters = Omit<InvoiceListFilters, "page">;
 
-export async function getInvoicesForBusiness(
+const invoiceListSelectFields = {
+  id: invoices.id,
+  invoiceNumber: invoices.invoiceNumber,
+  title: invoices.title,
+  customerName: invoices.customerName,
+  customerEmail: invoices.customerEmail,
+  status: invoices.status,
+  currency: invoices.currency,
+  totalInCents: invoices.totalInCents,
+  issuedAt: invoices.issuedAt,
+  dueAt: invoices.dueAt,
+  sentAt: invoices.sentAt,
+  paidAt: invoices.paidAt,
+  archivedAt: invoices.archivedAt,
+  createdAt: invoices.createdAt,
+} as const;
+
+function getInvoiceListConditions(
   businessId: string,
-  filters: InvoiceListFilters,
-): Promise<{ items: DashboardInvoiceListItem[]; totalCount: number }> {
+  filters: InvoiceBaseFilters,
+) {
   const conditions = [eq(invoices.businessId, businessId)];
 
   if (filters.view === "archived") {
@@ -42,43 +59,63 @@ export async function getInvoicesForBusiness(
     );
   }
 
-  const whereClause = and(...conditions);
+  return conditions;
+}
 
-  const [totalCount, rows] = await Promise.all([
-    db
-      .select({ count: count() })
-      .from(invoices)
-      .where(whereClause)
-      .then((r) => r[0]?.count ?? 0),
-    db
-      .select({
-        id: invoices.id,
-        invoiceNumber: invoices.invoiceNumber,
-        title: invoices.title,
-        customerName: invoices.customerName,
-        customerEmail: invoices.customerEmail,
-        status: invoices.status,
-        currency: invoices.currency,
-        totalInCents: invoices.totalInCents,
-        issuedAt: invoices.issuedAt,
-        dueAt: invoices.dueAt,
-        sentAt: invoices.sentAt,
-        paidAt: invoices.paidAt,
-        archivedAt: invoices.archivedAt,
-        createdAt: invoices.createdAt,
-      })
-      .from(invoices)
-      .where(whereClause)
-      .orderBy(
-        filters.sort === "oldest"
-          ? asc(invoices.createdAt)
-          : desc(invoices.createdAt),
-      )
-      .limit(PAGE_SIZE)
-      .offset((filters.page - 1) * PAGE_SIZE),
+export async function getInvoiceListCount(
+  businessId: string,
+  filters: InvoiceBaseFilters,
+): Promise<number> {
+  const conditions = getInvoiceListConditions(businessId, filters);
+
+  const rows = await db
+    .select({ count: count() })
+    .from(invoices)
+    .where(and(...conditions));
+
+  return Number(rows[0]?.count ?? 0);
+}
+
+export async function getInvoiceListPage(
+  businessId: string,
+  filters: InvoiceBaseFilters,
+  page: number,
+  pageSize: number,
+): Promise<DashboardInvoiceListItem[]> {
+  const conditions = getInvoiceListConditions(businessId, filters);
+  const offset = Math.max(0, (page - 1) * pageSize);
+
+  return db
+    .select(invoiceListSelectFields)
+    .from(invoices)
+    .where(and(...conditions))
+    .orderBy(
+      filters.sort === "oldest"
+        ? asc(invoices.createdAt)
+        : desc(invoices.createdAt),
+    )
+    .limit(pageSize)
+    .offset(offset);
+}
+
+/** @deprecated Use getInvoiceListCount + getInvoiceListPage instead. */
+export async function getInvoicesForBusiness(
+  businessId: string,
+  filters: InvoiceListFilters,
+): Promise<{ items: DashboardInvoiceListItem[]; totalCount: number }> {
+  const baseFilters: InvoiceBaseFilters = {
+    q: filters.q,
+    view: filters.view,
+    status: filters.status,
+    sort: filters.sort,
+  };
+
+  const [totalCount, items] = await Promise.all([
+    getInvoiceListCount(businessId, baseFilters),
+    getInvoiceListPage(businessId, baseFilters, filters.page, 50),
   ]);
 
-  return { items: rows, totalCount };
+  return { items, totalCount };
 }
 
 export async function getInvoiceDetailForBusiness(

@@ -3,41 +3,38 @@ import {
   BarChart3,
   BellRing,
   ClipboardList,
-  FormInput,
   FileText,
+  FormInput,
+  Home,
   Inbox,
-  LayoutDashboard,
   Receipt,
-  Settings2,
-  Users,
+  Settings,
+  Workflow,
 } from "lucide-react";
-
-import { RequoIcon } from "@/components/shared/requo-icon";
 
 
 import {
   canManageOperationalBusinessSettings,
   canViewBusinessAnalytics,
-  canViewBusinessMembers,
   type BusinessMemberRole,
 } from "@/lib/business-members";
 import {
   getBusinessAnalyticsPath,
-  getBusinessAssistantPath,
+  getBusinessAutomationsPath,
+  getBusinessChatPath,
   getBusinessDashboardPath,
   getBusinessDashboardSlugFromPathname,
+  getBusinessPath,
   getBusinessFollowUpsPath,
   getBusinessFormsPath,
   getBusinessInquiriesPath,
   getBusinessInvoicesPath,
   getBusinessJobsPath,
-  getBusinessKnowledgeCompatibilityPath,
   getBusinessMembersPath,
   getBusinessNewInquiryPath,
   getBusinessQuotesPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
-import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
 
 export type DashboardNavigationItem = {
   href: string;
@@ -58,9 +55,9 @@ export function getDashboardNavigation(
   return [
     {
       href: getBusinessDashboardPath(slug),
-      label: "Dashboard",
-      description: "Your home base: queues, momentum, and the next actions to take.",
-      icon: LayoutDashboard,
+      label: "Home",
+      description: "Your home base: see what needs attention.",
+      icon: Home,
     },
     {
       href: getBusinessInquiriesPath(slug),
@@ -93,10 +90,16 @@ export function getDashboardNavigation(
       icon: Receipt,
     },
     {
-      href: getBusinessAssistantPath(slug),
-      label: "Ask",
-      description: "Ask questions about your business data and get insights.",
-      icon: RequoIcon as unknown as LucideIcon,
+      href: getBusinessFormsPath(slug),
+      label: "Forms",
+      description: "Build and manage the forms that capture customer inquiries.",
+      icon: FormInput,
+    },
+    {
+      href: getBusinessAutomationsPath(slug),
+      label: "Automations",
+      description: "Automate follow-ups, handoffs, and routine workflow steps.",
+      icon: Workflow,
     },
     ...(canViewBusinessAnalytics(role)
       ? [
@@ -111,30 +114,10 @@ export function getDashboardNavigation(
     ...(canManageOperationalBusinessSettings(role)
       ? [
           {
-            href: getBusinessFormsPath(slug),
-            label: "Forms",
-            description: "Manage inquiry forms, public pages, and live intake flows.",
-            icon: FormInput,
-          },
-        ]
-      : []),
-    ...(canViewBusinessMembers(role)
-      ? [
-          {
-            href: getBusinessMembersPath(slug),
-            label: "Members",
-            description: "Manage who has access to this business.",
-            icon: Users,
-          },
-        ]
-      : []),
-    ...(canManageOperationalBusinessSettings(role)
-      ? [
-          {
-            href: getDefaultBusinessSettingsPath(slug, role),
+            href: getBusinessSettingsPath(slug, "general"),
             label: "Settings",
-            description: "Manage business setup, knowledge, and quote defaults.",
-            icon: Settings2,
+            description: "Manage members, defaults, and business setup.",
+            icon: Settings,
           },
         ]
       : []),
@@ -148,22 +131,21 @@ function resolveDashboardActivePathname(pathname: string) {
     return pathname;
   }
 
-  const knowledgeCompatibilityPath = getBusinessKnowledgeCompatibilityPath(slug);
-  const membersSettingsPath = getBusinessSettingsPath(slug, "members");
+  const membersPath = getBusinessMembersPath(slug);
 
+  // Top-level members is still available, but the primary nav treats it as setup.
   if (
-    pathname === knowledgeCompatibilityPath ||
-    pathname.startsWith(`${knowledgeCompatibilityPath}/`)
+    pathname === membersPath ||
+    pathname.startsWith(`${membersPath}/`)
   ) {
-    return getBusinessSettingsPath(slug, "knowledge");
+    return getBusinessSettingsPath(slug, "members");
   }
 
-  // Old settings/members → top-level members
-  if (
-    pathname === membersSettingsPath ||
-    pathname.startsWith(`${membersSettingsPath}/`)
-  ) {
-    return getBusinessMembersPath(slug);
+  const legacyDashboardPath = `${getBusinessPath(slug)}/dashboard`;
+  const homePath = getBusinessDashboardPath(slug);
+
+  if (pathname === legacyDashboardPath) {
+    return homePath;
   }
 
   return pathname;
@@ -184,7 +166,7 @@ export function isDashboardNavigationItemActive(
     );
   }
 
-  if (href.endsWith("/dashboard")) {
+  if (href.endsWith("/home")) {
     return activePathname === href;
   }
 
@@ -236,10 +218,9 @@ function formatRecordHint(value: string) {
 }
 
 function withDashboardHome(
-  slug: string,
+  _slug: string,
   items: DashboardBreadcrumbItem[],
 ): DashboardBreadcrumbItem[] {
-  const dashboardPath = getBusinessDashboardPath(slug);
   const normalizedItems = items.map((item) => ({
     ...item,
     label: item.label
@@ -247,11 +228,7 @@ function withDashboardHome(
       .replace(/^Request\b/, "Inquiry"),
   }));
 
-  if (normalizedItems[0]?.label === "Dashboard") {
-    return normalizedItems;
-  }
-
-  return [{ label: "Dashboard", href: dashboardPath }, ...normalizedItems];
+  return normalizedItems;
 }
 
 export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbItem[] {
@@ -271,7 +248,7 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
   const settingsPath = getBusinessSettingsPath(slug);
 
   if (pathname === dashboardPath) {
-    return [{ label: "Dashboard" }];
+    return [{ label: "Home" }];
   }
 
   if (pathname === analyticsPath || pathname.startsWith(`${analyticsPath}/`)) {
@@ -316,11 +293,6 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
 
   if (pathname === followUpsPath || pathname.startsWith(`${followUpsPath}/`)) {
     return withDashboardHome(slug, [{ label: "Follow-ups" }]);
-  }
-
-  const assistantPath = getBusinessAssistantPath(slug);
-  if (pathname === assistantPath || pathname.startsWith(`${assistantPath}/`)) {
-    return withDashboardHome(slug, [{ label: "Ask" }]);
   }
 
   if (pathname === `${quotesPath}/new`) {
@@ -415,6 +387,16 @@ export function getDashboardBreadcrumbs(pathname: string): DashboardBreadcrumbIt
     ]);
   }
 
-  return [{ label: "Dashboard" }];
+  const chatPath = getBusinessChatPath(slug);
+
+  if (pathname === `${chatPath}/new`) {
+    return [{ label: "New chat" }];
+  }
+
+  if (pathname.startsWith(`${chatPath}/`)) {
+    return [{ label: "Chat" }];
+  }
+
+  return [{ label: "Home" }];
 }
 

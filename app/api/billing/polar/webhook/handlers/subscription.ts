@@ -51,7 +51,7 @@ import {
 } from "@/lib/billing/subscription-service";
 import type { BusinessPlan } from "@/lib/plans/plans";
 
-import { resolvePolarUserId } from "../identity";
+import { resolvePolarBusinessId } from "../identity";
 import { withIdempotency } from "../idempotency";
 
 /* ── Plan resolution ──────────────────────────────────────────────────────── */
@@ -89,9 +89,9 @@ export async function handleSubscriptionCreated(
   await withIdempotency(
     payload,
     "subscription.created",
-    resolvePolarUserId,
-    async (userId) => {
-      await applySubscriptionState(userId, payload.data);
+    resolvePolarBusinessId,
+    async (businessId) => {
+      await applySubscriptionState(businessId, payload.data);
     },
   );
 }
@@ -107,10 +107,10 @@ export async function handleSubscriptionActive(
   await withIdempotency(
     payload,
     "subscription.active",
-    resolvePolarUserId,
-    async (userId) => {
+    resolvePolarBusinessId,
+    async (businessId) => {
       const { plan } = resolvePlanFromPayload(payload.data);
-      await activateForPayload(userId, plan, payload.data);
+      await activateForPayload(businessId, plan, payload.data);
     },
   );
 }
@@ -127,9 +127,9 @@ export async function handleSubscriptionUpdated(
   await withIdempotency(
     payload,
     "subscription.updated",
-    resolvePolarUserId,
-    async (userId) => {
-      await applySubscriptionState(userId, payload.data);
+    resolvePolarBusinessId,
+    async (businessId) => {
+      await applySubscriptionState(businessId, payload.data);
     },
   );
 }
@@ -145,10 +145,10 @@ export async function handleSubscriptionCanceled(
   await withIdempotency(
     payload,
     "subscription.canceled",
-    resolvePolarUserId,
-    async (userId) => {
+    resolvePolarBusinessId,
+    async (businessId) => {
       const data = payload.data;
-      await updateSubscriptionStatus(userId, "canceled", {
+      await updateSubscriptionStatus(businessId, "canceled", {
         canceledAt: data.canceledAt ?? new Date(),
         currentPeriodEnd: data.currentPeriodEnd,
         providerCustomerId: data.customer.id,
@@ -170,10 +170,10 @@ export async function handleSubscriptionUncanceled(
   await withIdempotency(
     payload,
     "subscription.uncanceled",
-    resolvePolarUserId,
-    async (userId) => {
+    resolvePolarBusinessId,
+    async (businessId) => {
       const { plan } = resolvePlanFromPayload(payload.data);
-      await activateForPayload(userId, plan, payload.data);
+      await activateForPayload(businessId, plan, payload.data);
     },
   );
 }
@@ -190,9 +190,9 @@ export async function handleSubscriptionRevoked(
   await withIdempotency(
     payload,
     "subscription.revoked",
-    resolvePolarUserId,
-    async (userId) => {
-      await expireSubscription(userId);
+    resolvePolarBusinessId,
+    async (businessId) => {
+      await expireSubscription(businessId);
     },
   );
 }
@@ -206,7 +206,7 @@ export async function handleSubscriptionRevoked(
  * mapping table applies.
  */
 async function applySubscriptionState(
-  userId: string,
+  businessId: string,
   data: Subscription,
 ): Promise<void> {
   const status = String(data.status);
@@ -214,12 +214,12 @@ async function applySubscriptionState(
   switch (status) {
     case "active": {
       const { plan } = resolvePlanFromPayload(data);
-      await activateForPayload(userId, plan, data);
+      await activateForPayload(businessId, plan, data);
       return;
     }
 
     case "past_due": {
-      await updateSubscriptionStatus(userId, "past_due", {
+      await updateSubscriptionStatus(businessId, "past_due", {
         currentPeriodStart: data.currentPeriodStart,
         currentPeriodEnd: data.currentPeriodEnd,
         providerCustomerId: data.customer.id,
@@ -233,27 +233,27 @@ async function applySubscriptionState(
       const stillInPeriod = periodEnd && periodEnd.getTime() > Date.now();
 
       if (stillInPeriod) {
-        await updateSubscriptionStatus(userId, "canceled", {
+        await updateSubscriptionStatus(businessId, "canceled", {
           canceledAt: data.canceledAt ?? new Date(),
           currentPeriodEnd: periodEnd,
           providerCustomerId: data.customer.id,
           providerSubscriptionId: data.id,
         });
       } else {
-        await expireSubscription(userId);
+        await expireSubscription(businessId);
       }
       return;
     }
 
     case "unpaid":
     case "incomplete_expired": {
-      await expireSubscription(userId);
+      await expireSubscription(businessId);
       return;
     }
 
     case "incomplete":
     case "trialing": {
-      await updateSubscriptionStatus(userId, "incomplete", {
+      await updateSubscriptionStatus(businessId, "incomplete", {
         currentPeriodStart: data.currentPeriodStart,
         currentPeriodEnd: data.currentPeriodEnd,
         providerCustomerId: data.customer.id,
@@ -278,12 +278,12 @@ async function applySubscriptionState(
  * onto `account_subscriptions`.
  */
 async function activateForPayload(
-  userId: string,
+  businessId: string,
   plan: BusinessPlan,
   data: Subscription,
 ): Promise<void> {
   await activateSubscription({
-    userId,
+    businessId,
     plan,
     provider: "polar",
     currency: "USD",

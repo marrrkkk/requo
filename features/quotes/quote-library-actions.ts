@@ -1,5 +1,6 @@
 "use server";
 
+import { z } from "zod";
 import { updateTag } from "next/cache";
 
 import { getValidationActionState } from "@/lib/action-state";
@@ -17,6 +18,7 @@ import {
   quoteLibraryEntryIdSchema,
   quoteLibraryEntrySchema,
 } from "@/features/quotes/quote-library-schemas";
+import { getQuoteWithItemsForBusiness } from "@/features/quotes/queries";
 import { hasFeatureAccess } from "@/lib/plans";
 import type {
   QuoteLibraryActionState,
@@ -39,6 +41,10 @@ function mapQuoteLibraryFieldErrors(
     kind: fieldErrors.kind,
     name: fieldErrors.name,
     description: fieldErrors.description,
+    title: fieldErrors.title,
+    notes: fieldErrors.notes,
+    terms: fieldErrors.terms,
+    validityDays: fieldErrors.validityDays,
     items: fieldErrors.items,
   };
 }
@@ -69,6 +75,10 @@ export async function createQuoteLibraryEntryAction(
     kind: formData.get("kind"),
     name: formData.get("name"),
     description: formData.get("description"),
+    title: formData.get("title"),
+    notes: formData.get("notes"),
+    terms: formData.get("terms"),
+    validityDays: formData.get("validityDays"),
     items: formData.get("items"),
   });
 
@@ -89,11 +99,16 @@ export async function createQuoteLibraryEntryAction(
     });
 
     updateCacheTags(getBusinessPricingCacheTags(businessContext.business.id));
+
+    const kindLabel =
+      validationResult.data.kind === "block"
+        ? "Pricing block"
+        : validationResult.data.kind === "template"
+          ? "Quote template"
+          : "Service package";
+
     return {
-      success:
-        validationResult.data.kind === "block"
-          ? "Pricing block saved."
-          : "Service package saved.",
+      success: `${kindLabel} saved.`,
     };
   } catch (error) {
     console.error("Failed to create pricing library entry.", error);
@@ -101,6 +116,163 @@ export async function createQuoteLibraryEntryAction(
     return {
       error: "We couldn't save that pricing entry right now.",
     };
+  }
+}
+
+const saveQuoteLineItemToPricingSchema = z.object({
+  description: z
+    .string()
+    .trim()
+    .min(1, "Enter a line item description.")
+    .max(400, "Line item descriptions must be 400 characters or fewer."),
+  quantity: z.coerce.number().int().min(1).max(999_999),
+  unitPriceInCents: z.coerce
+    .number()
+    .int()
+    .min(1, "Set a unit price before saving to pricing."),
+});
+
+export type SaveQuoteLineItemToPricingResult =
+  | { ok: true; entryName: string }
+  | { ok: false; error: string };
+
+export async function saveQuoteLineItemToPricingLibrary(
+  input: z.infer<typeof saveQuoteLineItemToPricingSchema>,
+): Promise<SaveQuoteLineItemToPricingResult> {
+  const ownerAccess = await getOperationalBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      ok: false,
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+
+  if (!hasFeatureAccess(businessContext.business.plan, "quoteLibrary")) {
+    return {
+      ok: false,
+      error: "Upgrade to Pro to save pricing library entries.",
+    };
+  }
+
+  const validationResult = saveQuoteLineItemToPricingSchema.safeParse(input);
+
+  if (!validationResult.success) {
+    return {
+      ok: false,
+      error:
+        validationResult.error.issues[0]?.message ??
+        "Check the line item and try again.",
+    };
+  }
+
+  const { description, quantity, unitPriceInCents } = validationResult.data;
+  const entryName =
+    description.length > 120 ? `${description.slice(0, 117).trimEnd()}...` : description;
+
+  try {
+    await createQuoteLibraryEntryForBusiness({
+      businessId: businessContext.business.id,
+      actorUserId: user.id,
+      currency: businessContext.business.defaultCurrency,
+      entry: {
+        kind: "block",
+        name: entryName,
+        items: [
+          {
+            id: crypto.randomUUID(),
+            description,
+            quantity,
+            unitPriceInCents,
+          },
+        ],
+      },
+    });
+
+    updateCacheTags(getBusinessPricingCacheTags(businessContext.business.id));
+
+    return {
+      ok: true,
+      entryName,
+    };
+  } catch (error) {
+    console.error("Failed to save quote line item to pricing library.", error);
+
+    return {
+      ok: false,
+      error: "We couldn't save that line item to pricing right now.",
+    };
+  }
+}
+
+export async function saveQuoteAsTemplateAction(
+  quoteId: string,
+): Promise<QuoteLibraryActionState> {
+  const ownerAccess = await getOperationalBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return { error: ownerAccess.error };
+  }
+
+  const { user, businessContext } = ownerAccess;
+
+  if (!hasFeatureAccess(businessContext.business.plan, "quoteLibrary")) {
+    return { error: "Upgrade to Pro to save quote templates." };
+  }
+
+  const quote = await getQuoteWithItemsForBusiness({
+    businessId: businessContext.business.id,
+    quoteId,
+  });
+
+  if (!quote) {
+    return { error: "That quote could not be found." };
+  }
+
+  // Calculate validity days from validUntil
+  const validUntilDate = new Date(quote.validUntil);
+  const createdDate = new Date(quote.createdAt);
+  const validityDays = Math.max(
+    1,
+    Math.min(
+      365,
+      Math.ceil(
+        (validUntilDate.getTime() - createdDate.getTime()) /
+          (1000 * 60 * 60 * 24),
+      ),
+    ),
+  );
+
+  try {
+    await createQuoteLibraryEntryForBusiness({
+      businessId: businessContext.business.id,
+      actorUserId: user.id,
+      currency: businessContext.business.defaultCurrency,
+      entry: {
+        kind: "template",
+        name: quote.title.slice(0, 100),
+        title: quote.title,
+        notes: quote.notes ?? undefined,
+        terms: quote.terms ?? undefined,
+        validityDays,
+        items: quote.items.map((item) => ({
+          id: crypto.randomUUID(),
+          description: item.description,
+          quantity: item.quantity,
+          unitPriceInCents: item.unitPriceInCents,
+        })),
+      },
+    });
+
+    updateCacheTags(getBusinessPricingCacheTags(businessContext.business.id));
+
+    return { success: "Quote saved as template." };
+  } catch (error) {
+    console.error("Failed to save quote as template.", error);
+
+    return { error: "We couldn't save that quote as a template right now." };
   }
 }
 
@@ -139,6 +311,10 @@ export async function updateQuoteLibraryEntryAction(
     kind: formData.get("kind"),
     name: formData.get("name"),
     description: formData.get("description"),
+    title: formData.get("title"),
+    notes: formData.get("notes"),
+    terms: formData.get("terms"),
+    validityDays: formData.get("validityDays"),
     items: formData.get("items"),
   });
 
@@ -165,11 +341,16 @@ export async function updateQuoteLibraryEntryAction(
     }
 
     updateCacheTags(getBusinessPricingCacheTags(businessContext.business.id));
+
+    const kindLabel =
+      validationResult.data.kind === "block"
+        ? "Pricing block"
+        : validationResult.data.kind === "template"
+          ? "Quote template"
+          : "Service package";
+
     return {
-      success:
-        validationResult.data.kind === "block"
-          ? "Pricing block updated."
-          : "Service package updated.",
+      success: `${kindLabel} updated.`,
     };
   } catch (error) {
     console.error("Failed to update pricing library entry.", error);

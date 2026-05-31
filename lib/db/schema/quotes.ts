@@ -29,7 +29,15 @@ export const quoteStatusEnum = pgEnum("quote_status", [
 
 export const quotePostAcceptanceStatusEnum = pgEnum(
   "quote_post_acceptance_status",
-  ["none", "booked", "scheduled", "in_progress", "completed", "canceled"],
+  [
+    "none",
+    "booked",
+    "scheduled",
+    "in_progress",
+    "no_job_tracking",
+    "completed",
+    "canceled",
+  ],
 );
 
 export const quotes = pgTable(
@@ -57,7 +65,7 @@ export const quotes = pgTable(
     notes: text("message"),
     terms: text("terms"),
     subtotalInCents: integer("subtotal_in_cents").notNull().default(0),
-    discountInCents: integer("tax_in_cents").notNull().default(0),
+    discountInCents: integer("discount_in_cents").notNull().default(0),
     taxInCents: integer("tax_amount_in_cents").notNull().default(0),
     taxLabel: text("tax_label"),
     totalInCents: integer("total_in_cents").notNull().default(0),

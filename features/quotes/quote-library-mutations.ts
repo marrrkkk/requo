@@ -68,6 +68,11 @@ export async function createQuoteLibraryEntryForBusiness({
       currency,
       name: entry.name,
       description: entry.description ?? null,
+      title: entry.kind === "template" ? (entry.title ?? null) : null,
+      notes: entry.kind === "template" ? (entry.notes ?? null) : null,
+      terms: entry.kind === "template" ? (entry.terms ?? null) : null,
+      validityDays:
+        entry.kind === "template" ? (entry.validityDays ?? null) : null,
       createdAt: now,
       updatedAt: now,
     });
@@ -145,6 +150,11 @@ export async function updateQuoteLibraryEntryForBusiness({
         kind: entry.kind,
         name: entry.name,
         description: entry.description ?? null,
+        title: entry.kind === "template" ? (entry.title ?? null) : null,
+        notes: entry.kind === "template" ? (entry.notes ?? null) : null,
+        terms: entry.kind === "template" ? (entry.terms ?? null) : null,
+        validityDays:
+          entry.kind === "template" ? (entry.validityDays ?? null) : null,
         updatedAt: now,
       })
       .where(

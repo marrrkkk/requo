@@ -3,8 +3,9 @@ import { z } from "zod";
 
 import { requireUser } from "@/lib/auth/session";
 import { getPolarProductId } from "@/lib/billing/polar-products";
-import { getAccountSubscription } from "@/lib/billing/subscription-service";
+import { getBusinessSubscription } from "@/lib/billing/subscription-service";
 import { env, isPolarConfigured } from "@/lib/env";
+import { requireBusinessContextForUser } from "@/lib/db/business-access";
 
 /**
  * Thin eligibility-check + redirect route in front of the canonical
@@ -19,6 +20,7 @@ import { env, isPolarConfigured } from "@/lib/env";
  */
 
 const checkoutBodySchema = z.object({
+  businessId: z.string().trim().min(1),
   plan: z.enum(["pro", "business"]),
   interval: z.enum(["monthly", "yearly"]),
   returnTo: z.string().trim().max(512).optional(),
@@ -180,10 +182,17 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const { plan, interval } = parsed.data;
+  const { businessId, plan, interval } = parsed.data;
   const returnTo = sanitizeReturnTo(parsed.data.returnTo);
 
-  const existing = await getAccountSubscription(user.id);
+  // Ensure the actor can manage billing for this business.
+  // (Owner-only today; adjust to admin roles later if needed.)
+  const businessContext = await requireBusinessContextForUser(user.id, businessId);
+  if (businessContext.business.id !== businessId) {
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+
+  const existing = await getBusinessSubscription(businessId);
 
   if (
     existing &&
@@ -216,6 +225,53 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  // ── Upgrade path: update the existing subscription's product ──────────
+  // When the business already has an active subscription on a different plan,
+  // Polar won't allow a new checkout. Instead, we update the existing
+  // subscription's product via the Polar API.
+  if (
+    existing &&
+    (existing.status === "active" || existing.status === "past_due") &&
+    existing.providerSubscriptionId &&
+    existing.plan !== plan
+  ) {
+    if (!env.POLAR_ACCESS_TOKEN) {
+      return NextResponse.json(
+        { error: "Billing is not configured." },
+        { status: 503 },
+      );
+    }
+
+    const { Polar } = await import("@polar-sh/sdk");
+    const polar = new Polar({
+      accessToken: env.POLAR_ACCESS_TOKEN,
+      server: env.POLAR_SERVER,
+    });
+
+    try {
+      await polar.subscriptions.update({
+        id: existing.providerSubscriptionId,
+        subscriptionUpdate: {
+          productId,
+        },
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Subscription update failed.";
+      console.error("[billing] Polar subscription upgrade failed:", message);
+      return NextResponse.json({ error: message }, { status: 502 });
+    }
+
+    // Return a success response — the webhook will handle the plan change.
+    // Redirect to the return path with upgrade flag.
+    const origin = resolveAppOrigin();
+    const successUrl = new URL(returnTo || "/", origin ?? request.url);
+    successUrl.searchParams.set("upgrade", "success");
+    successUrl.searchParams.set("plan", plan);
+
+    return NextResponse.json({ checkoutUrl: successUrl.toString() });
+  }
+
   const origin = resolveAppOrigin();
 
   if (!origin) {
@@ -227,7 +283,8 @@ export async function POST(request: Request): Promise<Response> {
 
   const redirectUrl = new URL("/api/billing/polar/checkout", origin);
   redirectUrl.searchParams.set("products", productId);
-  redirectUrl.searchParams.set("customerExternalId", user.id);
+  // Important: business-scoped billing identifies Polar customers by business id.
+  redirectUrl.searchParams.set("customerExternalId", businessId);
   redirectUrl.searchParams.set("customerEmail", userEmail);
 
   // Forward the visitor's IP so Polar's hosted checkout localizes

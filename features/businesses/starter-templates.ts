@@ -11,7 +11,7 @@ export type StarterTemplateBusinessType =
   (typeof starterTemplateBusinessTypes)[number];
 
 export const starterTemplateSelectionDescription =
-  "Start with one guided starter template. Everything stays editable later.";
+  "Start with one guided business type. Everything stays editable later.";
 export const starterTemplateDefaultsSummary =
   "This sets the starting inquiry, quote, and follow-up defaults.";
 const starterTemplateStatusSummary =

@@ -1,8 +1,19 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, describe, beforeEach, expect, it, vi } from "vitest";
+
+import type { ComponentProps } from "react";
 
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
+import { TooltipProvider } from "@/components/ui/tooltip";
+
+function renderBell(props: ComponentProps<typeof DashboardNotificationBell>) {
+  return render(
+    <TooltipProvider>
+      <DashboardNotificationBell {...props} />
+    </TooltipProvider>,
+  );
+}
 
 const {
   channelMock,
@@ -52,6 +63,13 @@ vi.mock("@/hooks/use-mobile", () => ({
   useIsMobile: useIsMobileMock,
 }));
 
+vi.mock("@/hooks/use-deferred-refresh", () => ({
+  useDeferredRefresh: () => ({
+    scheduleRefresh: refreshMock,
+    refreshNow: refreshMock,
+  }),
+}));
+
 type NotificationInsertHandler = (payload: {
   new: {
     created_at: string;
@@ -72,8 +90,46 @@ type InquiryInsertHandler = (payload: {
 
 let notificationInsertHandler: NotificationInsertHandler | null = null;
 let inquiryInsertHandler: InquiryInsertHandler | null = null;
+let originalRequestIdleCallback: ((
+  callback: IdleRequestCallback,
+  options?: IdleRequestOptions,
+) => number) | undefined;
+let originalCancelIdleCallback: ((handle: number) => void) | undefined;
 
 describe("DashboardNotificationBell", () => {
+  beforeEach(() => {
+    originalRequestIdleCallback = window.requestIdleCallback;
+    originalCancelIdleCallback = window.cancelIdleCallback;
+    window.requestIdleCallback = ((callback: IdleRequestCallback) => {
+      callback({
+        didTimeout: false,
+        timeRemaining: () => 50,
+      } as IdleDeadline);
+      return 1;
+    }) as typeof window.requestIdleCallback;
+    window.cancelIdleCallback = (() => {}) as typeof window.cancelIdleCallback;
+  });
+
+  afterEach(() => {
+    if (originalRequestIdleCallback) {
+      window.requestIdleCallback = originalRequestIdleCallback;
+    } else {
+      Object.defineProperty(window, "requestIdleCallback", {
+        configurable: true,
+        value: undefined,
+      });
+    }
+
+    if (originalCancelIdleCallback) {
+      window.cancelIdleCallback = originalCancelIdleCallback;
+    } else {
+      Object.defineProperty(window, "cancelIdleCallback", {
+        configurable: true,
+        value: undefined,
+      });
+    }
+  });
+
   beforeEach(() => {
     notificationInsertHandler = null;
     inquiryInsertHandler = null;
@@ -121,19 +177,17 @@ describe("DashboardNotificationBell", () => {
   it("subscribes when opened and refreshes the route when a notification arrives", async () => {
     const user = userEvent.setup();
 
-    render(
-      <DashboardNotificationBell
-        businessId="biz_123"
-        businessSlug="acme"
-        initialView={{
+    renderBell({
+        businessId: "biz_123",
+        businessSlug: "acme",
+        initialView: {
           items: [],
           unreadCount: 0,
           lastReadAt: null,
           hasMore: false,
-        }}
-        userId="user_123"
-      />,
-    );
+        },
+        userId: "user_123",
+    });
 
     await user.click(screen.getByRole("button", { name: "Notifications" }));
 
@@ -174,22 +228,29 @@ describe("DashboardNotificationBell", () => {
   it("refreshes route when an inquiry insert arrives", async () => {
     const user = userEvent.setup();
 
-    render(
-      <DashboardNotificationBell
-        businessId="biz_123"
-        businessSlug="acme"
-        initialView={{
+    renderBell({
+        businessId: "biz_123",
+        businessSlug: "acme",
+        initialView: {
           items: [],
           unreadCount: 0,
           lastReadAt: null,
           hasMore: false,
-        }}
-        userId="user_123"
-      />,
-    );
+        },
+        userId: "user_123",
+    });
 
     await user.click(screen.getByRole("button", { name: "Notifications" }));
 
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/business/notifications/realtime-token",
+        { cache: "no-store" },
+      ),
+    );
+    await waitFor(() =>
+      expect(setAuthMock).toHaveBeenCalledWith("test-realtime-token"),
+    );
     await waitFor(() => expect(inquiryInsertHandler).not.toBeNull());
 
     await act(async () => {
@@ -209,11 +270,10 @@ describe("DashboardNotificationBell", () => {
     useIsMobileMock.mockReturnValue(true);
     const user = userEvent.setup();
 
-    render(
-      <DashboardNotificationBell
-        businessId="biz_123"
-        businessSlug="acme"
-        initialView={{
+    renderBell({
+        businessId: "biz_123",
+        businessSlug: "acme",
+        initialView: {
           items: [
             {
               id: "ntf_123",
@@ -229,10 +289,9 @@ describe("DashboardNotificationBell", () => {
           unreadCount: 1,
           lastReadAt: null,
           hasMore: false,
-        }}
-        userId="user_123"
-      />,
-    );
+        },
+        userId: "user_123",
+    });
 
     await user.click(
       screen.getByRole("button", { name: "1 unread notifications" }),

@@ -71,6 +71,7 @@ export const quoteRecordStateIcons = {
 export const quoteLibraryEntryKindLabels: Record<QuoteLibraryEntryKind, string> = {
   block: "Pricing block",
   package: "Service package",
+  template: "Quote template",
 };
 
 export const quotePostAcceptanceStatusLabels: Record<
@@ -82,6 +83,7 @@ export const quotePostAcceptanceStatusLabels: Record<
   scheduled: "Scheduled",
   in_progress: "In progress",
   completed: "Completed",
+  no_job_tracking: "No job tracking",
   canceled: "Canceled",
 };
 
@@ -98,6 +100,8 @@ export const quotePostAcceptanceStatusClassNames: Record<
     "!border-blue-500/30 !bg-blue-500/15 !text-blue-800 dark:!border-blue-500/25 dark:!bg-blue-500/12 dark:!text-blue-200",
   completed:
     "!border-emerald-500/30 !bg-emerald-500/15 !text-emerald-800 dark:!border-emerald-500/25 dark:!bg-emerald-500/12 dark:!text-emerald-200",
+  no_job_tracking:
+    "!border-slate-500/25 !bg-slate-500/12 !text-slate-800 dark:!border-slate-500/25 dark:!bg-slate-500/12 dark:!text-slate-200",
   canceled:
     "!border-red-500/30 !bg-red-500/15 !text-red-800 dark:!border-red-500/25 dark:!bg-red-500/12 dark:!text-red-200",
 };
@@ -557,5 +561,69 @@ export function buildMailtoUrl(input: {
   params.set("body", input.body);
 
   return `mailto:${encodeURIComponent(input.to)}?${params.toString()}`;
+}
+
+/* ---------------------------------------------------------------------------
+ * Quote template utilities
+ * --------------------------------------------------------------------------- */
+
+export type QuoteTemplateData = {
+  title: string;
+  notes: string | null;
+  terms: string | null;
+  validityDays: number;
+  items: Array<{
+    id: string;
+    description: string;
+    quantity: number;
+    unitPriceInCents: number;
+  }>;
+};
+
+export type QuoteBusinessDefaults = {
+  defaultQuoteNotes?: string | null;
+  defaultQuoteTerms?: string | null;
+  defaultQuoteValidityDays?: number;
+};
+
+/**
+ * Transforms a quote library template entry into data ready
+ * to apply to the quote editor form state.
+ *
+ * When a template field (notes, terms) is null/empty, falls through
+ * to the business default instead of clearing the field.
+ */
+export function applyTemplateToQuoteForm(
+  template: QuoteTemplateData,
+  businessDefaults?: QuoteBusinessDefaults,
+): {
+  title: string;
+  notes: string;
+  terms: string;
+  validUntil: string;
+  items: Array<{
+    id: string;
+    description: string;
+    quantity: number;
+    unitPriceInCents: number;
+    lineTotalInCents: number;
+  }>;
+} {
+  const validUntil = new Date();
+  validUntil.setDate(validUntil.getDate() + template.validityDays);
+
+  return {
+    title: template.title,
+    notes: template.notes?.trim() || businessDefaults?.defaultQuoteNotes?.trim() || "",
+    terms: template.terms?.trim() || businessDefaults?.defaultQuoteTerms?.trim() || "",
+    validUntil: validUntil.toISOString().split("T")[0],
+    items: template.items.map((item) => ({
+      id: item.id,
+      description: item.description,
+      quantity: item.quantity,
+      unitPriceInCents: item.unitPriceInCents,
+      lineTotalInCents: item.quantity * item.unitPriceInCents,
+    })),
+  };
 }
 

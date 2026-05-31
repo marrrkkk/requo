@@ -79,6 +79,8 @@ export function getBusinessNotificationTypeLabel(type: BusinessNotificationType)
       return "Invite accepted";
     case "business_member_invite_declined":
       return "Invite declined";
+    case "automation":
+      return "Automation";
   }
 }
 

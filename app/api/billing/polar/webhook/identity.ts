@@ -3,15 +3,15 @@ import "server-only";
 /**
  * Identity resolution for Polar webhook events.
  *
- * Polar webhooks may carry the originating Requo user id in several
+ * Polar webhooks may carry the originating Requo business id in several
  * places depending on how the underlying object was created. This
  * resolver follows the priority chain documented in the design:
  *
- *   1. `data.customer.external_id` — set to `user.id` at checkout.
- *   2. `data.customer.id` looked up against `account_subscriptions.providerCustomerId`.
+ *   1. `data.customer.external_id` — set to `business.id` at checkout.
+ *   2. `data.customer.id` looked up against `business_subscriptions.providerCustomerId`.
  *   3. `data.subscription_id` (or `data.id` for `subscription.*` events)
- *      looked up against `account_subscriptions.providerSubscriptionId`.
- *   4. `data.metadata.userId` (legacy fallback for older sessions).
+ *      looked up against `business_subscriptions.providerSubscriptionId`.
+ *   4. `data.metadata.businessId` (legacy fallback for older sessions).
  *
  * Returns `null` when no source resolves; the caller is expected to
  * record the event in `billing_events` with `userId = null` and status
@@ -21,7 +21,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
-import { accountSubscriptions } from "@/lib/db/schema/subscriptions";
+import { businessSubscriptions } from "@/lib/db/schema/subscriptions";
 
 /**
  * Permissive shape capturing only the fields the resolver reads.
@@ -48,7 +48,7 @@ export type PolarEventPayload = {
       externalId?: string | null;
     } | null;
     metadata?: {
-      userId?: unknown;
+      businessId?: unknown;
     } | null;
   } | null;
 };
@@ -63,11 +63,11 @@ export function eventTypeIsSubscription(type: string): boolean {
 }
 
 /**
- * Resolves the Requo `user.id` for a Polar webhook payload.
+ * Resolves the Requo `business.id` for a Polar webhook payload.
  *
  * Returns `null` when no identity source resolves.
  */
-export async function resolvePolarUserId(
+export async function resolvePolarBusinessId(
   payload: PolarEventPayload,
 ): Promise<string | null> {
   const externalId =
@@ -81,11 +81,11 @@ export async function resolvePolarUserId(
   const customerId = payload.data?.customer?.id ?? null;
   if (typeof customerId === "string" && customerId.length > 0) {
     const [row] = await db
-      .select({ userId: accountSubscriptions.userId })
-      .from(accountSubscriptions)
-      .where(eq(accountSubscriptions.providerCustomerId, customerId))
+      .select({ businessId: businessSubscriptions.businessId })
+      .from(businessSubscriptions)
+      .where(eq(businessSubscriptions.providerCustomerId, customerId))
       .limit(1);
-    if (row) return row.userId;
+    if (row) return row.businessId;
   }
 
   const subId =
@@ -99,16 +99,16 @@ export async function resolvePolarUserId(
     eventTypeIsSubscription(payload.type)
   ) {
     const [row] = await db
-      .select({ userId: accountSubscriptions.userId })
-      .from(accountSubscriptions)
-      .where(eq(accountSubscriptions.providerSubscriptionId, subId))
+      .select({ businessId: businessSubscriptions.businessId })
+      .from(businessSubscriptions)
+      .where(eq(businessSubscriptions.providerSubscriptionId, subId))
       .limit(1);
-    if (row) return row.userId;
+    if (row) return row.businessId;
   }
 
-  const metadataUserId = payload.data?.metadata?.userId ?? null;
-  if (typeof metadataUserId === "string" && metadataUserId.length > 0) {
-    return metadataUserId;
+  const metadataBusinessId = payload.data?.metadata?.businessId ?? null;
+  if (typeof metadataBusinessId === "string" && metadataBusinessId.length > 0) {
+    return metadataBusinessId;
   }
 
   return null;

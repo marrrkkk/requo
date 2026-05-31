@@ -20,7 +20,7 @@ async function signIn(page: Page) {
 }
 
 async function openBusinessesPage(page: Page, path: string) {
-  await page.goto(`/businesses/${demoBusinessSlug}${path}`, {
+  await page.goto(`/${demoBusinessSlug}${path}`, {
     waitUntil: "domcontentloaded",
   });
 }
@@ -116,7 +116,7 @@ test("dashboard and detail pages surface follow-up, expiring-soon, and customer 
 }) => {
   await signIn(page);
 
-  await openBusinessesPage(page, "/dashboard");
+  await openBusinessesPage(page, "/home");
 
   await expect(
     page.getByText("Needs attention today", { exact: true }).first(),
@@ -188,7 +188,7 @@ test("owner can open the quote editor from an inquiry and create a linked draft 
 
   await expect(page).toHaveURL(
     new RegExp(
-      `/businesses/${demoBusinessSlug}/quotes/new\\?inquiryId=demo_inquiry_quoted_booth_kit$`,
+      `/${demoBusinessSlug}/quotes/new\\?inquiryId=demo_inquiry_quoted_booth_kit$`,
     ),
     { timeout: 20_000 },
   );
@@ -203,7 +203,7 @@ test("owner can open the quote editor from an inquiry and create a linked draft 
 
   await expect(
     page,
-  ).toHaveURL(new RegExp(`/businesses/${demoBusinessSlug}/quotes/.+$`), {
+  ).toHaveURL(new RegExp(`/${demoBusinessSlug}/quotes/.+$`), {
     timeout: 20_000,
   });
   await expect(page.getByLabel("Quote title")).toHaveValue(/\S+/);
@@ -298,7 +298,7 @@ test("project fields can be dragged and the preview order persists after save", 
 
   const savedPreviewPage = await page.context().newPage();
   await savedPreviewPage.goto(
-    `/businesses/${demoBusinessSlug}/preview/inquiry/project-request`,
+    `/${demoBusinessSlug}/preview/inquiry/project-request`,
   );
   await savedPreviewPage.waitForLoadState("networkidle");
 
@@ -390,7 +390,7 @@ test("supporting cards can be dragged and the preview order persists after save"
 
   const savedPreviewPage = await page.context().newPage();
   await savedPreviewPage.goto(
-    `/businesses/${demoBusinessSlug}/preview/inquiry/project-request`,
+    `/${demoBusinessSlug}/preview/inquiry/project-request`,
   );
   await savedPreviewPage.waitForLoadState("networkidle");
 
@@ -535,7 +535,7 @@ test("inquiry detail exposes PDF export and print-safe document", async ({
   ]);
 
   await page.goto(
-    `/businesses/${demoBusinessSlug}/print/inquiries/demo_inquiry_quoted_booth_kit`,
+    `/${demoBusinessSlug}/print/inquiries/demo_inquiry_quoted_booth_kit`,
   );
   await page.waitForLoadState("networkidle");
 
@@ -578,7 +578,7 @@ test("quote detail exposes export formats and returns PDF and PNG downloads", as
   ]);
 
   await page.goto(
-    `/businesses/${demoBusinessSlug}/print/quotes/demo_quote_sent_1002?autoprint=0`,
+    `/${demoBusinessSlug}/print/quotes/demo_quote_sent_1002?autoprint=0`,
   );
   await page.waitForLoadState("networkidle");
 

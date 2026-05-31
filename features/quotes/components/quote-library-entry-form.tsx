@@ -4,7 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "rea
 import { Layers, Plus, Trash2 } from "lucide-react";
 
 import { FormActions } from "@/components/shared/form-layout";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +20,7 @@ import { DialogBody, DialogFooter } from "@/components/ui/dialog";
 import {
   Field,
   FieldContent,
+  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -31,6 +32,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import type {
   QuoteEditorLineItemValue,
   QuoteLibraryActionState,
@@ -90,6 +92,10 @@ const quoteLibraryKindOptions = [
     label: getQuoteLibraryEntryKindLabel("package"),
     value: "package",
   },
+  {
+    label: getQuoteLibraryEntryKindLabel("template"),
+    value: "template",
+  },
 ];
 
 type EditorLineItem = QuoteEditorLineItemValue & {
@@ -110,7 +116,7 @@ export function QuoteLibraryEntryForm({
   aboveFields,
   availableBlocks,
 }: QuoteLibraryEntryFormProps) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
@@ -127,11 +133,11 @@ export function QuoteLibraryEntryForm({
       ? 0
       : SAVE_REFRESH_DELAY_MS;
     const timeoutId = window.setTimeout(() => {
-      router.refresh();
+      scheduleRefresh();
     }, refreshDelay);
 
     return () => window.clearTimeout(timeoutId);
-  }, [onSuccess, router, state.success]);
+  }, [onSuccess, scheduleRefresh, state.success]);
 
   return (
     <form
@@ -187,6 +193,10 @@ function QuoteLibraryEntryFormFields({
   const stableItemSeed = useId().replace(/:/g, "");
   const [kind, setKind] = useState(initialValues?.kind ?? fixedKind ?? "block");
   const [name, setName] = useState(initialValues?.name ?? "");
+  const [templateTitle, setTemplateTitle] = useState(initialValues?.title ?? "");
+  const [templateNotes, setTemplateNotes] = useState(initialValues?.notes ?? "");
+  const [templateTerms, setTemplateTerms] = useState(initialValues?.terms ?? "");
+  const [templateValidityDays, setTemplateValidityDays] = useState(initialValues?.validityDays ?? "14");
   const lineItemTimersRef = useRef<Map<string, number>>(new Map());
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [items, setItems] = useState<EditorLineItem[]>(() =>
@@ -347,7 +357,7 @@ function QuoteLibraryEntryFormFields({
     }
   }
 
-  function handleKindChange(nextKind: "block" | "package") {
+  function handleKindChange(nextKind: "block" | "package" | "template") {
     setKind(nextKind);
 
     if (nextKind === "block") {
@@ -416,7 +426,7 @@ function QuoteLibraryEntryFormFields({
                   disabled={isPending}
                   id={`${idPrefix}-kind`}
                   onValueChange={(value) =>
-                    handleKindChange(value as "block" | "package")
+                    handleKindChange(value as "block" | "package" | "template")
                   }
                   options={quoteLibraryKindOptions}
                   placeholder="Choose an entry type"
@@ -460,19 +470,129 @@ function QuoteLibraryEntryFormFields({
         </div>
       </div>
 
+      {kind === "template" ? (
+        <div className="grid gap-5">
+          <Field data-invalid={Boolean(state.fieldErrors?.title) || undefined}>
+            <FieldLabel htmlFor={`${idPrefix}-title`}>Quote title</FieldLabel>
+            <FieldContent>
+              <Input
+                id={`${idPrefix}-title`}
+                maxLength={200}
+                name="title"
+                value={templateTitle}
+                onChange={(event) => setTemplateTitle(event.currentTarget.value)}
+                placeholder="Website design proposal"
+                required
+                aria-invalid={Boolean(state.fieldErrors?.title) || undefined}
+                disabled={isPending}
+              />
+              <FieldError
+                errors={
+                  state.fieldErrors?.title?.[0]
+                    ? [{ message: state.fieldErrors.title[0] }]
+                    : undefined
+                }
+              />
+            </FieldContent>
+          </Field>
+
+          <Field data-invalid={Boolean(state.fieldErrors?.validityDays) || undefined}>
+            <FieldLabel htmlFor={`${idPrefix}-validity-days`}>Validity period (days)</FieldLabel>
+            <FieldContent>
+              <Input
+                id={`${idPrefix}-validity-days`}
+                inputMode="numeric"
+                max="365"
+                min="1"
+                name="validityDays"
+                required
+                step="1"
+                type="number"
+                value={templateValidityDays}
+                onChange={(event) => setTemplateValidityDays(event.currentTarget.value)}
+                placeholder="14"
+                aria-invalid={Boolean(state.fieldErrors?.validityDays) || undefined}
+                disabled={isPending}
+              />
+              <FieldError
+                errors={
+                  state.fieldErrors?.validityDays?.[0]
+                    ? [{ message: state.fieldErrors.validityDays[0] }]
+                    : undefined
+                }
+              />
+            </FieldContent>
+          </Field>
+
+          <Field data-invalid={Boolean(state.fieldErrors?.notes) || undefined}>
+            <FieldLabel htmlFor={`${idPrefix}-notes`}>Default notes</FieldLabel>
+            <FieldContent>
+              <Textarea
+                id={`${idPrefix}-notes`}
+                maxLength={4000}
+                name="notes"
+                rows={3}
+                value={templateNotes}
+                onChange={(event) => setTemplateNotes(event.currentTarget.value)}
+                placeholder="Additional context or instructions for the customer."
+                disabled={isPending}
+              />
+              <FieldDescription>
+                Leave blank to use your business default notes when this template is applied.
+              </FieldDescription>
+              <FieldError
+                errors={
+                  state.fieldErrors?.notes?.[0]
+                    ? [{ message: state.fieldErrors.notes[0] }]
+                    : undefined
+                }
+              />
+            </FieldContent>
+          </Field>
+
+          <Field data-invalid={Boolean(state.fieldErrors?.terms) || undefined}>
+            <FieldLabel htmlFor={`${idPrefix}-terms`}>Default terms</FieldLabel>
+            <FieldContent>
+              <Textarea
+                id={`${idPrefix}-terms`}
+                maxLength={4000}
+                name="terms"
+                rows={3}
+                value={templateTerms}
+                onChange={(event) => setTemplateTerms(event.currentTarget.value)}
+                placeholder="Payment terms, warranty, cancellation policy."
+                disabled={isPending}
+              />
+              <FieldDescription>
+                Leave blank to use your business default terms when this template is applied.
+              </FieldDescription>
+              <FieldError
+                errors={
+                  state.fieldErrors?.terms?.[0]
+                    ? [{ message: state.fieldErrors.terms[0] }]
+                    : undefined
+                }
+              />
+            </FieldContent>
+          </Field>
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-0.5">
             <p className="text-sm font-medium text-foreground">
               {kind === "block" ? "Saved item" : "Saved items"}
             </p>
-            {kind === "package" ? (
+            {kind === "package" || kind === "template" ? (
               <p className="text-xs text-muted-foreground">
-                Add items manually or pull them in from a saved block.
+                {kind === "template"
+                  ? "Line items that will be pre-filled when this template is applied."
+                  : "Add items manually or pull them in from a saved block."}
               </p>
             ) : null}
           </div>
-          {kind === "package" ? (
+          {kind === "package" || kind === "template" ? (
             <div className="flex flex-wrap gap-2">
               {availableBlocks && availableBlocks.length > 0 ? (
                 <BlockPicker
@@ -510,7 +630,7 @@ function QuoteLibraryEntryFormFields({
               >
                 <div className="flex flex-col gap-4">
                   <div className="flex items-center justify-between gap-3">
-                    {kind === "package" ? (
+                    {kind === "package" || kind === "template" ? (
                       <>
                         <p className="text-sm font-medium text-foreground">
                           Item {index + 1}

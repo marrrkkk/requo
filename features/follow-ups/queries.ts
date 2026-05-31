@@ -60,9 +60,12 @@ type FollowUpRow = {
   recurrence: string;
   recurrenceCount: number;
   recurrenceLimit: number | null;
+  terminationCondition: string | null;
   dueAt: Date;
   completedAt: Date | null;
   skippedAt: Date | null;
+  snoozedUntil: Date | null;
+  completionNote: string | null;
   status: FollowUpView["status"];
   createdAt: Date;
   updatedAt: Date;
@@ -124,9 +127,12 @@ function mapFollowUpRow(row: FollowUpRow): FollowUpView {
     recurrence: (row.recurrence ?? "none") as FollowUpView["recurrence"],
     recurrenceCount: row.recurrenceCount ?? 0,
     recurrenceLimit: row.recurrenceLimit ?? null,
+    terminationCondition: (row.terminationCondition as FollowUpView["terminationCondition"]) ?? null,
     dueAt: row.dueAt,
     completedAt: row.completedAt,
     skippedAt: row.skippedAt,
+    snoozedUntil: row.snoozedUntil,
+    completionNote: row.completionNote,
     status: row.status,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -186,9 +192,12 @@ function getFollowUpSelection() {
     recurrence: followUps.recurrence,
     recurrenceCount: followUps.recurrenceCount,
     recurrenceLimit: followUps.recurrenceLimit,
+    terminationCondition: followUps.terminationCondition,
     dueAt: followUps.dueAt,
     completedAt: followUps.completedAt,
     skippedAt: followUps.skippedAt,
+    snoozedUntil: followUps.snoozedUntil,
+    completionNote: followUps.completionNote,
     status: followUps.status,
     createdAt: followUps.createdAt,
     updatedAt: followUps.updatedAt,

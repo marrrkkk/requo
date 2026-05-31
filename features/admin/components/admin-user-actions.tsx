@@ -32,6 +32,7 @@ import {
   getAdminStartImpersonationPath,
 } from "@/features/admin/navigation";
 import type { AdminActionResult } from "@/features/admin/types";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 
 type AdminUserActionsProps = {
@@ -92,6 +93,7 @@ export function AdminUserActions({
   adminUserId,
 }: AdminUserActionsProps) {
   const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [isPending, startTransition] = useTransition();
   const [queuedAction, setQueuedAction] = useState<QueuedAction | null>(null);
   const impersonateFormRef = useRef<HTMLFormElement | null>(null);
@@ -107,12 +109,12 @@ export function AdminUserActions({
     (result: AdminActionResult, fallbackSuccess: string) => {
       if (result.ok) {
         toast.success(result.message ?? fallbackSuccess);
-        router.refresh();
+        scheduleRefresh();
       } else {
         toast.error(result.error);
       }
     },
-    [router],
+    [scheduleRefresh],
   );
 
   const handleConfirmed = useCallback(

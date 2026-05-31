@@ -28,6 +28,7 @@ import {
   updateBusinessMemberRole,
 } from "@/features/business-members/mutations";
 import type { BusinessMemberInviteActionState } from "@/features/business-members/action-types";
+import { businessMemberInviteDurationDays } from "@/lib/business-members";
 
 const initialInviteState: BusinessMemberInviteActionState = {};
 
@@ -70,7 +71,7 @@ export async function createBusinessMemberInviteAction(
       email: validationResult.data.email,
       role: validationResult.data.role,
       token: inviteToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      expiresAt: new Date(Date.now() + businessMemberInviteDurationDays * 24 * 60 * 60 * 1000),
     });
 
     updateCacheTags(getBusinessMembersCacheTags(businessContext.business.id));
@@ -262,7 +263,7 @@ export async function acceptInviteFromHubAction(
   }
 
   updateCacheTags(getUserPendingInvitesCacheTags(session.user.id));
-  updateCacheTags(getBusinessMembersCacheTags(result.businessSlug));
+  updateCacheTags(getBusinessMembersCacheTags(result.businessId));
 
   // Persist active business in the shell cookie.
   const cookieStore = await cookies();
@@ -271,7 +272,7 @@ export async function acceptInviteFromHubAction(
     sameSite: "lax",
   });
 
-  revalidatePath("/businesses");
+  revalidatePath("/home");
   redirect(getBusinessDashboardPath(result.businessSlug));
 }
 
@@ -307,7 +308,7 @@ export async function declineInviteFromHubAction(
 
   updateCacheTags(getUserPendingInvitesCacheTags(session.user.id));
   updateCacheTags(getBusinessMembersCacheTags(row.businessId));
-  revalidatePath("/businesses");
+  revalidatePath("/home");
 
   return {};
 }

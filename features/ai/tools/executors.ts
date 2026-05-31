@@ -38,6 +38,10 @@ import type { QuoteStatus } from "@/features/quotes/types";
 import type { FollowUpStatus } from "@/features/follow-ups/types";
 import { formatQuoteMoney } from "@/features/quotes/utils";
 import type { AiToolCall, AiToolExecutionContext, AiToolResult } from "./types";
+import {
+  getBusinessInquiryPath,
+  getBusinessQuotePath,
+} from "@/features/businesses/routes";
 
 /**
  * AI Tool Executors
@@ -194,7 +198,7 @@ async function executeSearchInquiries(
 
   const lines = rows.map(
     (r) =>
-      `- [id:${r.id}] ${r.customerName} (${r.customerEmail ?? "no email"}) — ${r.serviceCategory} [${r.status}] — subject: ${r.subject ?? "N/A"} — submitted: ${formatDate(r.submittedAt)}${r.budgetText ? ` — budget: ${r.budgetText}` : ""} — ${truncate(r.details, 120)} — url: /businesses/${ctx.businessSlug}/inquiries/${r.id}`,
+      `- [id:${r.id}] ${r.customerName} (${r.customerEmail ?? "no email"}) — ${r.serviceCategory} [${r.status}] — subject: ${r.subject ?? "N/A"} — submitted: ${formatDate(r.submittedAt)}${r.budgetText ? ` — budget: ${r.budgetText}` : ""} — ${truncate(r.details, 120)} — url: ${getBusinessInquiryPath(ctx.businessSlug, r.id)}`,
   );
 
   return `Found ${rows.length} inquiries matching "${query}":\n${lines.join("\n")}`;
@@ -250,7 +254,7 @@ async function executeSearchQuotes(
 
   const lines = rows.map(
     (r) =>
-      `- [id:${r.id}] ${r.quoteNumber} "${r.title}" for ${r.customerName} (${r.customerEmail ?? "no email"}) [${r.status}] — total: ${formatQuoteMoney(r.totalInCents, r.currency)} — created: ${formatDate(r.createdAt)}${r.sentAt ? ` — sent: ${formatDate(r.sentAt)}` : ""} — url: /businesses/${ctx.businessSlug}/quotes/${r.id}`,
+      `- [id:${r.id}] ${r.quoteNumber} "${r.title}" for ${r.customerName} (${r.customerEmail ?? "no email"}) [${r.status}] — total: ${formatQuoteMoney(r.totalInCents, r.currency)} — created: ${formatDate(r.createdAt)}${r.sentAt ? ` — sent: ${formatDate(r.sentAt)}` : ""} — url: ${getBusinessQuotePath(ctx.businessSlug, r.id)}`,
   );
 
   return `Found ${rows.length} quotes matching "${query}":\n${lines.join("\n")}`;
@@ -327,7 +331,7 @@ async function executeGetInquiryDetails(
   return [
     `Inquiry: ${inq.customerName}`,
     `- ID: ${inq.id}`,
-    `- URL: /businesses/${ctx.businessSlug}/inquiries/${inq.id}`,
+    `- URL: ${getBusinessInquiryPath(ctx.businessSlug, inq.id)}`,
     `- Email: ${inq.customerEmail ?? "Not provided"}`,
     `- Contact: ${inq.customerContactMethod} ${inq.customerContactHandle}`,
     `- Category: ${inq.serviceCategory}`,
@@ -417,7 +421,7 @@ async function executeGetQuoteDetails(
   return [
     `Quote: ${q.quoteNumber} — "${q.title}"`,
     `- ID: ${q.id}`,
-    `- URL: /businesses/${ctx.businessSlug}/quotes/${q.id}`,
+    `- URL: ${getBusinessQuotePath(ctx.businessSlug, q.id)}`,
     `- Customer: ${q.customerName} (${q.customerEmail ?? "no email"})`,
     `- Contact: ${q.customerContactMethod} ${q.customerContactHandle}`,
     `- Status: ${q.status}`,
@@ -430,7 +434,7 @@ async function executeGetQuoteDetails(
     `- Viewed: ${formatDate(q.publicViewedAt)}`,
     `- Accepted: ${formatDate(q.acceptedAt)}`,
     q.notes ? `- Notes: ${truncate(q.notes, 400)}` : null,
-    q.inquiryId ? `- Linked inquiry: ${q.inquiryId} (url: /businesses/${ctx.businessSlug}/inquiries/${q.inquiryId})` : null,
+    q.inquiryId ? `- Linked inquiry: ${q.inquiryId} (url: ${getBusinessInquiryPath(ctx.businessSlug, q.inquiryId)})` : null,
     `- Line items:\n${itemsSection}`,
   ]
     .filter((line): line is string => line !== null)
@@ -667,7 +671,7 @@ async function executeListInquiries(
 
   const lines = rows.map(
     (r) =>
-      `- [id:${r.id}] ${r.customerName} (${r.customerEmail ?? "no email"}) — ${r.serviceCategory} [${r.status}] — subject: ${r.subject ?? "N/A"} — submitted: ${formatDate(r.submittedAt)}${r.budgetText ? ` — budget: ${r.budgetText}` : ""} — url: /businesses/${ctx.businessSlug}/inquiries/${r.id}`,
+      `- [id:${r.id}] ${r.customerName} (${r.customerEmail ?? "no email"}) — ${r.serviceCategory} [${r.status}] — subject: ${r.subject ?? "N/A"} — submitted: ${formatDate(r.submittedAt)}${r.budgetText ? ` — budget: ${r.budgetText}` : ""} — url: ${getBusinessInquiryPath(ctx.businessSlug, r.id)}`,
   );
 
   const paginationNote =
@@ -731,7 +735,7 @@ async function executeListQuotes(
 
   const lines = rows.map(
     (r) =>
-      `- [id:${r.id}] ${r.quoteNumber} "${r.title}" for ${r.customerName} (${r.customerEmail ?? "no email"}) [${r.status}] — total: ${formatQuoteMoney(r.totalInCents, r.currency)} — created: ${formatDate(r.createdAt)}${r.sentAt ? ` — sent: ${formatDate(r.sentAt)}` : ""} — url: /businesses/${ctx.businessSlug}/quotes/${r.id}`,
+      `- [id:${r.id}] ${r.quoteNumber} "${r.title}" for ${r.customerName} (${r.customerEmail ?? "no email"}) [${r.status}] — total: ${formatQuoteMoney(r.totalInCents, r.currency)} — created: ${formatDate(r.createdAt)}${r.sentAt ? ` — sent: ${formatDate(r.sentAt)}` : ""} — url: ${getBusinessQuotePath(ctx.businessSlug, r.id)}`,
   );
 
   const paginationNote =
@@ -952,7 +956,7 @@ async function executeGetStaleInquiries(
   if (!rows.length) return `No stale inquiries found (older than ${staleDays} days without response).`;
 
   const lines = rows.map(
-    (r) => `- [id:${r.id}] ${r.customerName} — ${r.serviceCategory} [${r.status}] — submitted: ${formatDate(r.submittedAt)} — subject: ${r.subject ?? "N/A"} — url: /businesses/${ctx.businessSlug}/inquiries/${r.id}`,
+    (r) => `- [id:${r.id}] ${r.customerName} — ${r.serviceCategory} [${r.status}] — submitted: ${formatDate(r.submittedAt)} — subject: ${r.subject ?? "N/A"} — url: ${getBusinessInquiryPath(ctx.businessSlug, r.id)}`,
   );
 
   return `Stale inquiries (no response, ${staleDays}+ days old): ${rows.length} found\n${lines.join("\n")}`;
@@ -1006,7 +1010,7 @@ async function executeGetExpiringQuotes(
   if (!rows.length) return `No quotes expiring within the next ${withinDays} days.`;
 
   const lines = rows.map(
-    (r) => `- [id:${r.id}] ${r.quoteNumber} "${r.title}" for ${r.customerName} — ${formatQuoteMoney(r.totalInCents, currency)} — expires: ${r.validUntil} — url: /businesses/${ctx.businessSlug}/quotes/${r.id}`,
+    (r) => `- [id:${r.id}] ${r.quoteNumber} "${r.title}" for ${r.customerName} — ${formatQuoteMoney(r.totalInCents, currency)} — expires: ${r.validUntil} — url: ${getBusinessQuotePath(ctx.businessSlug, r.id)}`,
   );
 
   return `Quotes expiring within ${withinDays} days: ${rows.length} found\n${lines.join("\n")}`;
@@ -1085,7 +1089,7 @@ async function executeGetCustomerHistory(
       "",
       `Inquiries (${customerInquiries.length}):`,
       ...customerInquiries.map(
-        (r) => `- [id:${r.id}] ${r.customerName} — ${r.serviceCategory} [${r.status}] — ${formatDate(r.submittedAt)} — url: /businesses/${ctx.businessSlug}/inquiries/${r.id}`,
+        (r) => `- [id:${r.id}] ${r.customerName} — ${r.serviceCategory} [${r.status}] — ${formatDate(r.submittedAt)} — url: ${getBusinessInquiryPath(ctx.businessSlug, r.id)}`,
       ),
     );
   }
@@ -1095,7 +1099,7 @@ async function executeGetCustomerHistory(
       "",
       `Quotes (${customerQuotes.length}):`,
       ...customerQuotes.map(
-        (r) => `- [id:${r.id}] ${r.quoteNumber} "${r.title}" [${r.status}] — ${formatQuoteMoney(r.totalInCents, r.currency)} — ${formatDate(r.createdAt)} — url: /businesses/${ctx.businessSlug}/quotes/${r.id}`,
+        (r) => `- [id:${r.id}] ${r.quoteNumber} "${r.title}" [${r.status}] — ${formatQuoteMoney(r.totalInCents, r.currency)} — ${formatDate(r.createdAt)} — url: ${getBusinessQuotePath(ctx.businessSlug, r.id)}`,
       ),
     );
   }
@@ -1393,7 +1397,7 @@ async function executeGetJobPipeline(
     : "No accepted quotes (job pipeline is empty).";
 
   const lines = rows.map(
-    (r) => `- [id:${r.id}] ${r.quoteNumber} "${r.title}" for ${r.customerName} — ${formatQuoteMoney(r.totalInCents, currency)} — stage: ${r.postAcceptanceStatus} — accepted: ${formatDate(r.acceptedAt)}${r.completedAt ? ` — completed: ${formatDate(r.completedAt)}` : ""} — url: /businesses/${ctx.businessSlug}/quotes/${r.id}`,
+    (r) => `- [id:${r.id}] ${r.quoteNumber} "${r.title}" for ${r.customerName} — ${formatQuoteMoney(r.totalInCents, currency)} — stage: ${r.postAcceptanceStatus} — accepted: ${formatDate(r.acceptedAt)}${r.completedAt ? ` — completed: ${formatDate(r.completedAt)}` : ""} — url: ${getBusinessQuotePath(ctx.businessSlug, r.id)}`,
   );
 
   return `Job pipeline (${rows.length} accepted quotes):\n${lines.join("\n")}`;
@@ -1602,7 +1606,7 @@ async function executeGetQuoteCustomerResponse(
 
   const parts: string[] = [
     `${q.quoteNumber} — ${q.customerName} [${q.status}]`,
-    `URL: /businesses/${ctx.businessSlug}/quotes/${q.id}`,
+    `URL: ${getBusinessQuotePath(ctx.businessSlug, q.id)}`,
   ];
 
   if (q.customerRespondedAt) {
@@ -1625,6 +1629,102 @@ async function executeGetQuoteCustomerResponse(
   }
 
   return parts.join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Tool: get_business_info
+// ---------------------------------------------------------------------------
+
+async function executeGetBusinessInfo(
+  ctx: AiToolExecutionContext,
+  _args: Record<string, unknown>,
+): Promise<string> {
+  const [biz] = await db
+    .select({
+      id: businesses.id,
+      name: businesses.name,
+      slug: businesses.slug,
+      plan: businesses.plan,
+      businessType: businesses.businessType,
+      shortDescription: businesses.shortDescription,
+      contactEmail: businesses.contactEmail,
+      defaultCurrency: businesses.defaultCurrency,
+      timezone: businesses.timezone,
+      countryCode: businesses.countryCode,
+      industryCategory: businesses.industryCategory,
+      inquiryHeadline: businesses.inquiryHeadline,
+      defaultQuoteTerms: businesses.defaultQuoteTerms,
+      defaultQuoteNotes: businesses.defaultQuoteNotes,
+      defaultEmailSignature: businesses.defaultEmailSignature,
+      publicInquiryEnabled: businesses.publicInquiryEnabled,
+      createdAt: businesses.createdAt,
+    })
+    .from(businesses)
+    .where(eq(businesses.id, ctx.businessId))
+    .limit(1);
+
+  if (!biz) return "Business not found.";
+
+  const lines = [
+    `Business: ${biz.name}`,
+    `- Slug: ${biz.slug}`,
+    `- Plan: ${biz.plan}`,
+    `- Type: ${biz.businessType}`,
+    `- Description: ${biz.shortDescription ?? "Not set"}`,
+    `- Industry: ${biz.industryCategory ?? "Not set"}`,
+    `- Contact email: ${biz.contactEmail ?? "Not set"}`,
+    `- Currency: ${biz.defaultCurrency}`,
+    `- Timezone: ${biz.timezone}`,
+    `- Country: ${biz.countryCode ?? "Not set"}`,
+    `- Public inquiry form: ${biz.publicInquiryEnabled ? "Enabled" : "Disabled"}`,
+    `- Inquiry headline: ${biz.inquiryHeadline ?? "Not set"}`,
+    `- Created: ${formatDate(biz.createdAt)}`,
+  ];
+
+  if (biz.defaultQuoteTerms) {
+    lines.push(`- Default quote terms: ${truncate(biz.defaultQuoteTerms, 200)}`);
+  }
+  if (biz.defaultQuoteNotes) {
+    lines.push(`- Default quote notes: ${truncate(biz.defaultQuoteNotes, 200)}`);
+  }
+  if (biz.defaultEmailSignature) {
+    lines.push(`- Default email signature: ${truncate(biz.defaultEmailSignature, 200)}`);
+  }
+
+  return lines.join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Tool: get_business_members
+// ---------------------------------------------------------------------------
+
+async function executeGetBusinessMembers(
+  ctx: AiToolExecutionContext,
+  _args: Record<string, unknown>,
+): Promise<string> {
+  const { businessMembers } = await import("@/lib/db/schema");
+
+  const rows = await db
+    .select({
+      memberId: businessMembers.id,
+      role: businessMembers.role,
+      userId: businessMembers.userId,
+      userName: user.name,
+      userEmail: user.email,
+      joinedAt: businessMembers.createdAt,
+    })
+    .from(businessMembers)
+    .innerJoin(user, eq(businessMembers.userId, user.id))
+    .where(eq(businessMembers.businessId, ctx.businessId))
+    .orderBy(businessMembers.createdAt);
+
+  if (!rows.length) return "No members found for this business.";
+
+  const lines = rows.map(
+    (r) => `- ${r.userName} (${r.userEmail}) — role: ${r.role} — joined: ${formatDate(r.joinedAt)}`,
+  );
+
+  return `Business has ${rows.length} member(s):\n${lines.join("\n")}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -1661,6 +1761,8 @@ const TOOL_EXECUTORS: Record<
   get_period_comparison: executeGetPeriodComparison,
   get_business_knowledge: executeGetBusinessKnowledge,
   get_quote_customer_response: executeGetQuoteCustomerResponse,
+  get_business_info: executeGetBusinessInfo,
+  get_business_members: executeGetBusinessMembers,
 };
 
 /**

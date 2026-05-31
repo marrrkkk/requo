@@ -1,10 +1,79 @@
-import { getAccountProfilePath } from "@/features/account/routes";
 import { getBusinessSettingsPath } from "@/features/businesses/routes";
 import type { BusinessMemberRole } from "@/lib/business-members";
 import {
   canManageBusinessAdministration,
   canManageOperationalBusinessSettings,
 } from "@/lib/business-members";
+
+// --- Unified Settings Navigation (Requirements 4.2, 4.3) ---
+
+export type SettingsNavigationItem = {
+  href: string;
+  label: string;
+  icon: string;
+};
+
+export type SettingsNavigationGroup = {
+  label: string;
+  items: SettingsNavigationItem[];
+};
+
+export function getUnifiedSettingsNavigation(
+  slug: string,
+): SettingsNavigationGroup[] {
+  return [
+    {
+      label: "Personal",
+      items: [
+        { href: `/${slug}/settings/profile`, label: "Profile", icon: "user" },
+        {
+          href: `/${slug}/settings/appearance`,
+          label: "Appearance",
+          icon: "palette",
+        },
+        {
+          href: `/${slug}/settings/notifications`,
+          label: "Notifications",
+          icon: "bell",
+        },
+      ],
+    },
+    {
+      label: "Business",
+      items: [
+        { href: `/${slug}/settings/general`, label: "General", icon: "building" },
+        { href: `/${slug}/settings/members`, label: "Members", icon: "users" },
+        {
+          href: `/${slug}/settings/billing`,
+          label: "Billing",
+          icon: "receipt",
+        },
+        {
+          href: `/${slug}/settings/quote`,
+          label: "Quotes",
+          icon: "file-text",
+        },
+        { href: `/${slug}/settings/email`, label: "Email", icon: "mail" },
+        { href: `/${slug}/settings/pricing`, label: "Pricing", icon: "tag" },
+        {
+          href: `/${slug}/settings/knowledge`,
+          label: "Knowledge",
+          icon: "book",
+        },
+        {
+          href: `/${slug}/settings/support`,
+          label: "Support",
+          icon: "life-buoy",
+        },
+        {
+          href: `/${slug}/settings/audit-log`,
+          label: "Audit log",
+          icon: "scroll",
+        },
+      ],
+    },
+  ];
+}
 
 export type BusinessSettingsNavigationIcon =
   | "general"
@@ -41,7 +110,7 @@ export function getDefaultBusinessSettingsPath(
   role: BusinessMemberRole,
 ) {
   if (!canManageOperationalBusinessSettings(role)) {
-    return getAccountProfilePath();
+    return getBusinessSettingsPath(slug, "profile");
   }
 
   return getBusinessSettingsPath(slug, getDefaultBusinessSettingsSection(role));

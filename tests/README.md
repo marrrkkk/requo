@@ -51,7 +51,7 @@ Three deterministic factories live under `tests/support/fixtures/`. Each one nam
 
 - **`createWorkflowFixture(prefix)` (aka `Workflow_Fixture`)** — creates the standard cast used across workflow integration tests: owner, manager, staff, and outsider users; three businesses (primary, other, archived) with matching inquiry forms; and three seeded inquiries (qualified, waiting, cross-business). Idempotent: it calls `cleanupWorkflowFixture(prefix)` first so a failed previous run cannot wedge the next one.
 
-- **`createBillingFixture(prefix, states)`** — drives `account_subscriptions` through each requested state (`active`, `past_due`, `canceled`, `grace_period`) via `lib/billing/subscription-service.ts` so the denormalized `businesses.plan` column stays in sync. Produces the identifiers `${prefix}_account` and `${prefix}_sub_${state}`. Never writes raw SQL against the billing tables.
+- **`createBillingFixture(prefix, states)`** — drives `business_subscriptions` through each requested state (`active`, `past_due`, `canceled`, `grace_period`) via `lib/billing/subscription-service.ts` so the denormalized `businesses.plan` column stays in sync. Produces the identifiers `${prefix}_business` and `${prefix}_sub_${state}`. Never writes raw SQL against the billing tables.
 
 - **`createQuoteFixture(prefix, states, workflow)`** — creates one quote per requested state (`draft`, `sent`, `viewed`, `accepted`, `rejected`, `expired`, `voided`) attached to the primary business and qualified inquiry from the workflow fixture. Public tokens are shaped `${prefix}_token_${state}` so public-page tests can address a specific quote without querying the database first.
 

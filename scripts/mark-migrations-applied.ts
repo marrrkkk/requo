@@ -1,14 +1,14 @@
 /**
  * scripts/mark-migrations-applied.ts
  *
- * Marks all Drizzle migrations as "already applied" in a production database
- * that was set up via `drizzle-kit push` rather than sequential migrations.
+ * Marks all Drizzle migrations as "already applied" in a database that already
+ * has the current schema (e.g. production after a migration reset).
  *
  * This inserts rows into `drizzle.__drizzle_migrations` so the migrate script
  * doesn't try to re-run migrations for objects that already exist.
  *
- * Run once against prod:
- *   DATABASE_URL=<prod-url> npx tsx scripts/mark-migrations-applied.ts
+ * Run ONCE against production after resetting migration history:
+ *   DATABASE_MIGRATION_URL=<prod-direct-url> npx tsx scripts/mark-migrations-applied.ts
  *
  * Safe to run multiple times — skips migrations already recorded.
  */
@@ -37,7 +37,7 @@ async function main() {
     process.env.DATABASE_MIGRATION_URL ?? process.env.DATABASE_URL;
 
   if (!databaseUrl) {
-    throw new Error("DATABASE_URL must be set.");
+    throw new Error("DATABASE_MIGRATION_URL or DATABASE_URL must be set.");
   }
 
   const isLocal = ["localhost", "127.0.0.1", "::1"].some((h) =>
@@ -53,6 +53,10 @@ async function main() {
     // Read the journal to know which migrations exist
     const journalPath = join(process.cwd(), "drizzle", "meta", "_journal.json");
     const journal: Journal = JSON.parse(readFileSync(journalPath, "utf-8"));
+
+    console.log(
+      `Found ${journal.entries.length} migration(s) in local journal.`,
+    );
 
     // Ensure the drizzle schema and migrations table exist
     await client`CREATE SCHEMA IF NOT EXISTS drizzle`;
@@ -73,7 +77,6 @@ async function main() {
     let inserted = 0;
 
     for (const entry of journal.entries) {
-      // Drizzle uses the tag as the hash in the migrations table
       if (appliedHashes.has(entry.tag)) {
         console.log(`  ✓ Already recorded: ${entry.tag}`);
         continue;
@@ -96,6 +99,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error("Failed to mark migrations.", error);
+  console.error("❌ Failed to mark migrations.", error);
   process.exitCode = 1;
 });

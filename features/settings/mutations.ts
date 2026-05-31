@@ -1387,6 +1387,20 @@ export async function deleteBusinessInquiryForm({
     };
   }
 
+  // Block deletion when the form still has linked inquiries.
+  const [linkedInquiry] = await db
+    .select({ id: inquiries.id })
+    .from(inquiries)
+    .where(eq(inquiries.businessInquiryFormId, targetFormId))
+    .limit(1);
+
+  if (linkedInquiry) {
+    return {
+      ok: false,
+      reason: "has-inquiries",
+    };
+  }
+
   const now = new Date();
 
   await db.transaction(async (tx) => {
@@ -1411,11 +1425,6 @@ export async function deleteBusinessInquiryForm({
           .where(eq(businessInquiryForms.id, nextDefault.id));
       }
     }
-
-    // Delete inquiries linked to this form before deleting the form.
-    await tx
-      .delete(inquiries)
-      .where(eq(inquiries.businessInquiryFormId, targetFormId));
 
     await tx
       .delete(businessInquiryForms)

@@ -19,13 +19,6 @@ import {
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Combobox } from "@/components/ui/combobox";
 import {
   Dialog,
@@ -55,7 +48,7 @@ import {
   profileAvatarAllowedMimeTypes,
   profileAvatarMaxSize,
 } from "@/features/account/utils";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { cn } from "@/lib/utils";
 
 type ProfileSettingsFormProps = {
@@ -79,7 +72,7 @@ export function ProfileSettingsForm({
   action,
   profile,
 }: ProfileSettingsFormProps) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
@@ -104,8 +97,8 @@ export function ProfileSettingsForm({
       return;
     }
 
-    router.refresh();
-  }, [router, state.success]);
+    scheduleRefresh();
+  }, [scheduleRefresh, state.success]);
 
   useEffect(() => {
     const form = formRef.current;
@@ -156,13 +149,7 @@ export function ProfileSettingsForm({
       <input name="removeAvatar" type="hidden" value={String(removeAvatar)} />
       <input name="jobTitle" type="hidden" value={jobTitle} />
 
-      <Card className="gap-0 border-border/75 bg-card/97">
-        <CardHeader className="gap-2.5 pb-6">
-          <CardTitle>Profile settings</CardTitle>
-          <CardDescription>Update your personal details.</CardDescription>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="grid gap-6 xl:grid-cols-[19rem_minmax(0,1fr)] xl:gap-7">
+      <div className="grid gap-6 xl:grid-cols-[19rem_minmax(0,1fr)] xl:gap-7">
             <ProfileAvatarField
               disabled={isPending}
               displayName={profile.fullName}
@@ -270,8 +257,6 @@ export function ProfileSettingsForm({
               </FormSection>
             </div>
           </div>
-        </CardContent>
-      </Card>
 
       <FloatingFormActions
         disableSubmit={!hasUnsavedChanges}

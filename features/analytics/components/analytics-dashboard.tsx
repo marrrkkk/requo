@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AnalyticsBusinessPanel } from "@/features/analytics/components/analytics-business-panel";
 import { AnalyticsFreePanel } from "@/features/analytics/components/analytics-free-panel";
 import { AnalyticsProPanel } from "@/features/analytics/components/analytics-pro-panel";
+import { generateAnalyticsSummary } from "@/features/analytics/ai-summary";
 import {
   getBusinessAnalytics,
   getFreeAnalytics,
@@ -28,7 +29,6 @@ async function ProSection({ businessId, plan, businessSlug }: { businessId: stri
       <PremiumContentBlur
         feature="analyticsConversion"
         plan={plan}
-        placeholder={<ProPlaceholder />}
         upgradeAction={
           billingOverview
             ? {
@@ -60,7 +60,6 @@ async function BusinessSection({ businessId, plan, businessSlug, currency }: { b
       <PremiumContentBlur
         feature="analyticsWorkflow"
         plan={plan}
-        placeholder={<BusinessPlaceholder />}
         upgradeAction={
           billingOverview
             ? {
@@ -77,9 +76,14 @@ async function BusinessSection({ businessId, plan, businessSlug, currency }: { b
     );
   }
 
-  const data = await getBusinessAnalytics(businessId);
+  const [data, freeData] = await Promise.all([
+    getBusinessAnalytics(businessId),
+    getFreeAnalytics(businessId),
+  ]);
 
-  return <AnalyticsBusinessPanel data={data} currency={currency} />;
+  const aiSummary = await generateAnalyticsSummary(freeData, data);
+
+  return <AnalyticsBusinessPanel data={data} currency={currency} aiSummary={aiSummary} businessSlug={businessSlug} />;
 }
 
 function ProPlaceholder() {

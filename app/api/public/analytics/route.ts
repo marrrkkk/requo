@@ -9,10 +9,13 @@ import {
   recordPublicInquiryFormView,
   recordPublicQuoteView,
 } from "@/features/analytics/tracking";
+import { normalizeReferrer } from "@/features/analytics/utils/normalize-referrer";
 import { recordQuotePublicViewAt } from "@/features/quotes/mutations";
 import { getOptionalSession } from "@/lib/auth/session";
 import { db } from "@/lib/db/client";
+import { env } from "@/lib/env";
 import { businessMembers } from "@/lib/db/schema";
+import type { AnalyticsEventMetadata } from "@/lib/db/schema/analytics";
 
 async function isCurrentUserBusinessMember(
   businessId: string,
@@ -35,6 +38,29 @@ async function isCurrentUserBusinessMember(
     .limit(1);
 
   return Boolean(membership);
+}
+
+function buildEventMetadata(
+  rawMetadata: { referrer?: string; utmSource?: string; utmMedium?: string; utmCampaign?: string } | undefined,
+): AnalyticsEventMetadata | null {
+  if (!rawMetadata) return null;
+
+  const appOrigin = env.NEXT_PUBLIC_APP_URL ?? null;
+  const referrer = normalizeReferrer(rawMetadata.referrer, appOrigin);
+
+  const metadata: AnalyticsEventMetadata = {
+    referrer,
+    utmSource: rawMetadata.utmSource || undefined,
+    utmMedium: rawMetadata.utmMedium || undefined,
+    utmCampaign: rawMetadata.utmCampaign || undefined,
+  };
+
+  // Only store metadata if there's meaningful data
+  if (!metadata.referrer && !metadata.utmSource && !metadata.utmMedium && !metadata.utmCampaign) {
+    return null;
+  }
+
+  return metadata;
 }
 
 export async function POST(request: Request) {
@@ -97,6 +123,7 @@ export async function POST(request: Request) {
       businessId: parsedBody.data.businessId,
       businessInquiryFormId: parsedBody.data.businessInquiryFormId,
       visitorHash,
+      metadata: buildEventMetadata(parsedBody.data.metadata),
     });
 
     return NextResponse.json(
@@ -149,9 +176,10 @@ export async function POST(request: Request) {
     businessId: parsedBody.data.businessId,
     quoteId: parsedBody.data.quoteId,
     visitorHash,
+    metadata: buildEventMetadata(parsedBody.data.metadata),
   });
 
-  await recordQuotePublicViewAt(parsedBody.data.quoteId);
+  await recordQuotePublicViewAt(parsedBody.data.quoteId, parsedBody.data.businessId);
 
   return NextResponse.json(
     {

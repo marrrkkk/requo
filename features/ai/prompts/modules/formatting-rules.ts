@@ -1,11 +1,11 @@
 /**
  * Formatting rules prompt module.
- * Defines output format preferences for responses.
+ * Minimal rules for the model's text output. Structured data (lists, details)
+ * is rendered client-side from tool output — no formatting templates needed.
  */
 export const FORMATTING_RULES_PROMPT = `FORMAT RULES:
-- Use GitHub-flavored Markdown. Be concise.
-- Simple factual questions: ONE sentence, no headers.
-- Link inquiries: [Name](/businesses/{slug}/inquiries/ID) using URLs from tool output.
-- Link quotes: [Q-XXXX](/businesses/{slug}/quotes/ID) using URLs from tool output.
-- Use bullet lists for multiple items. Use tables for structured comparisons.
-- Keep responses under 300 words unless the user asks for detail.`;
+- Be concise. Use markdown where helpful.
+- Counts/stats: ONE clear sentence with the number bolded.
+- Keep responses under 200 words unless the user asks for detail.
+- Do not repeat data that tools already returned — the UI renders it automatically.
+- For conversational/advisory answers, use natural prose. No bullet lists unless comparing items.`;

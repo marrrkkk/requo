@@ -42,9 +42,26 @@ views plus customer responses from one place.
 - `RESEND_FROM_EMAIL` (legacy fallback)
 - `RESEND_REPLY_TO_EMAIL`
 - `GROQ_API_KEY`
+- `CEREBRAS_API_KEY`
 - `GEMINI_API_KEY`
+- `MISTRAL_API_KEY`
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_API_TOKEN`
+- `NVIDIA_NIM_API_KEY`
 - `OPENROUTER_API_KEY`
 - Polar billing variables when checkout is enabled
+- `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` for Inngest Cloud background jobs
+
+## Inngest Checklist
+
+- Background jobs (cron schedules, automation dispatch, push notification side effects) run through Inngest at `/api/inngest`.
+- Local development: set `INNGEST_DEV=1` and run `npm run dev:inngest` alongside `npm run dev:app`.
+- Production:
+  - Create an Inngest Cloud app for Requo.
+  - Set `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` in Vercel.
+  - Sync the app URL to `https://<your-domain>/api/inngest`.
+  - Confirm all cron functions appear in the Inngest dashboard with the expected schedules.
+- Do not expose `INNGEST_SIGNING_KEY` or `INNGEST_EVENT_KEY` to the browser.
 
 ## Better Auth Checklist
 
@@ -97,14 +114,14 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 
 ## AI Provider Checklist
 
-- Configure one or more AI providers: `GROQ_API_KEY`, `GEMINI_API_KEY`, or `OPENROUTER_API_KEY`.
-- The router tries configured providers in this order: Groq, Gemini, then OpenRouter.
+- Configure one or more AI providers: `GROQ_API_KEY`, `CEREBRAS_API_KEY`, `GEMINI_API_KEY`, `MISTRAL_API_KEY`, `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_API_TOKEN`, `NVIDIA_NIM_API_KEY`, or `OPENROUTER_API_KEY`.
+- The router tries configured providers in this order: Groq, Cerebras, Gemini, Mistral, Cloudflare Workers AI, NVIDIA NIM, then OpenRouter.
 - Keep all AI API keys server-only.
 - Plan separate monitoring for rate limits, credit usage, and model-availability failures.
 
 ## Billing Checklist
 
-- Billing is account-scoped. `account_subscriptions` is authoritative and `businesses.plan` is a read cache. All businesses owned by a user inherit the plan from the user's account subscription.
+- Billing is business-scoped. `business_subscriptions` is authoritative and `businesses.plan` is a read cache. Each business has its own subscription.
 - Configure Polar (https://docs.polar.sh) for recurring USD subscription billing:
   - `POLAR_ACCESS_TOKEN`
   - `POLAR_WEBHOOK_SECRET`
@@ -127,7 +144,8 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 5. Configure email providers and verify forgot-password plus quote-send flows.
 6. Configure at least one AI provider and verify the inquiry assistant.
 7. Configure Polar if checkout is part of the deployment.
-8. Run the baseline health checks and smoke-test dashboard login, non-member denial, public inquiry submission, quote send/share, and public quote response.
+8. Configure Inngest Cloud and verify cron schedules plus event-triggered functions sync successfully.
+9. Run the baseline health checks and smoke-test dashboard login, non-member denial, public inquiry submission, quote send/share, and public quote response.
 
 ## Current Operational Gaps
 

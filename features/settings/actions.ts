@@ -4,6 +4,8 @@ import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
+import { eq } from "drizzle-orm";
+
 import { getValidationActionState } from "@/lib/action-state";
 import {
   getBusinessInquiryFormCacheTags,
@@ -66,11 +68,23 @@ import {
 } from "@/features/businesses/routes";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
 import { getBusinessInquiryFormsSettingsForBusiness } from "@/features/settings/queries";
+import { db } from "@/lib/db/client";
+import { businesses } from "@/lib/db/schema/businesses";
 
 function updateCacheTags(tags: string[]) {
   for (const tag of uniqueCacheTags(tags)) {
     updateTag(tag);
   }
+}
+
+async function setAutoCreateJobAutomation(
+  businessId: string,
+  enabled: boolean,
+): Promise<void> {
+  await db
+    .update(businesses)
+    .set({ autoCreateJobsOnAcceptance: enabled, updatedAt: new Date() })
+    .where(eq(businesses.id, businessId));
 }
 
 function revalidateBusinessInquiryFormPaths(
@@ -332,6 +346,9 @@ export async function updateBusinessQuoteSettingsAction(
     );
   }
 
+  const autoCreateJobOnAcceptance =
+    formData.get("autoCreateJobOnAcceptance") === "true";
+
   try {
     const result = await updateBusinessQuoteSettings({
       businessId: businessContext.business.id,
@@ -344,6 +361,11 @@ export async function updateBusinessQuoteSettingsAction(
         error: "That business could not be found.",
       };
     }
+
+    await setAutoCreateJobAutomation(
+      businessContext.business.id,
+      autoCreateJobOnAcceptance,
+    );
 
     updateCacheTags(getBusinessSettingsCacheTags(businessContext.business.id));
 
@@ -646,7 +668,7 @@ export async function applyBusinessInquiryFormPresetAction(
   if (!validationResult.success) {
     return getValidationActionState(
       validationResult.error,
-      "Choose a starter template and try again.",
+      "Choose a business type and try again.",
     );
   }
 
@@ -1039,6 +1061,7 @@ export async function deleteBusinessInquiryFormAction(
   formData: FormData,
 ): Promise<BusinessInquiryFormDangerActionState> {
   const ownerAccess = await getOperationalBusinessActionContext();
+  const redirectHref = formData.get("redirectHref") as string | null;
 
   if (!ownerAccess.ok) {
     return {
@@ -1065,6 +1088,13 @@ export async function deleteBusinessInquiryFormAction(
     });
 
     if (!result.ok) {
+      if (result.reason === "has-inquiries") {
+        return {
+          error:
+            "This form still has submitted inquiries. Archive the form instead, or delete all linked inquiries first.",
+        };
+      }
+
       return {
         error: "That inquiry form could not be found.",
       };
@@ -1082,6 +1112,10 @@ export async function deleteBusinessInquiryFormAction(
     after(() => {
       revalidateBusinessInquiryFormPaths(result.businessSlug, result.formSlug);
     });
+
+    if (redirectHref) {
+      redirect(redirectHref);
+    }
 
     return {
       success: "Inquiry form deleted.",

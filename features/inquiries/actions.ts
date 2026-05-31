@@ -2,7 +2,7 @@
 
 import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
-import { after } from "next/server";
+import { z } from "zod";
 
 import { getValidationActionState } from "@/lib/action-state";
 import {
@@ -12,16 +12,17 @@ import {
   uniqueCacheTags,
 } from "@/lib/cache/business-tags";
 import {
-  getBusinessMessagingSettings,
   getWorkspaceBusinessActionContext,
 } from "@/lib/db/business-access";
-import { hasFeatureAccess } from "@/lib/plans";
 import { getplanByBusinessId } from "@/lib/plans/queries";
 import { checkUsageAllowance } from "@/lib/plans/usage";
 import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
 import {
   addInquiryNoteForBusiness,
   archiveInquiryForBusiness,
+  bulkArchiveInquiriesForBusiness,
+  bulkChangeInquiryStatusForBusiness,
+  bulkDeleteInquiriesForBusiness,
   changeInquiryStatusForBusiness,
   createManualInquirySubmission,
   createPublicInquirySubmission,
@@ -42,6 +43,7 @@ import {
 } from "@/features/inquiries/schemas";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
 import type {
+  InquiryBulkActionState,
   InquiryRecordActionState,
   InquiryNoteActionState,
   InquiryStatusActionState,
@@ -54,6 +56,7 @@ import {
   resolveInquiryFormConfigForPlan,
 } from "@/features/inquiries/plan-rules";
 import { getBusinessPublicInquiryUrl } from "@/features/settings/utils";
+import { sendPushInquiryReceivedEvent } from "@/lib/inngest/send";
 
 function getTextValue(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -169,25 +172,13 @@ export async function submitPublicInquiryAction(
       ...getBusinessInquiryFormsCacheTags(business.id),
     ]);
 
-    after(async () => {
-      const businessSettings = await getBusinessMessagingSettings(business.id);
-
-      // Push notification
-      if (
-        businessSettings?.notifyPushOnNewInquiry &&
-        hasFeatureAccess(plan, "pushNotifications")
-      ) {
-        try {
-          const { sendPushToBusinessSubscribers } = await import("@/lib/push/send");
-          await sendPushToBusinessSubscribers(business.id, {
-            title: "New inquiry received",
-            body: `${validationResult.data.customerName} submitted an inquiry.`,
-            url: getBusinessInquiryPath(slug, createdInquiry.inquiryId),
-          });
-        } catch (error) {
-          console.error("Push notification failed for new inquiry.", error);
-        }
-      }
+    void sendPushInquiryReceivedEvent({
+      businessId: business.id,
+      inquiryId: createdInquiry.inquiryId,
+      businessSlug: slug,
+      customerName: validationResult.data.customerName,
+    }).catch((error) => {
+      console.error("Failed to queue push notification for new inquiry.", error);
     });
 
   } catch (error) {
@@ -442,6 +433,7 @@ async function runInquiryRecordAction(
   }) => Promise<
     | {
         changed: boolean;
+        deleted?: boolean;
         locked?: boolean;
         lockedReason?: "archived";
       }
@@ -453,6 +445,7 @@ async function runInquiryRecordAction(
     missing?: string;
     archivedLocked?: string;
     fallbackError: string;
+    redirectHref?: string;
   },
 ): Promise<InquiryRecordActionState> {
   const ownerAccess = await getWorkspaceBusinessActionContext();
@@ -486,8 +479,12 @@ async function runInquiryRecordAction(
       };
     }
 
+    if (messages.redirectHref && (result.changed || result.deleted)) {
+      redirect(messages.redirectHref);
+    }
+
     return {
-      success: result.changed ? messages.success : messages.unchanged,
+      success: result.changed || result.deleted ? messages.success : messages.unchanged,
     };
   } catch (error) {
     console.error(messages.fallbackError, error);
@@ -530,15 +527,153 @@ export async function unarchiveInquiryAction(
 
 export async function deleteInquiryAction(
   inquiryId: string,
-  _prevState: InquiryRecordActionState,
-  _formData: FormData,
+  _prevState?: InquiryRecordActionState,
+  formData?: FormData,
 ): Promise<InquiryRecordActionState> {
-  void _prevState;
-  void _formData;
+  const redirectHref = formData ? formData.get("redirectHref") as string | null : null;
 
   return runInquiryRecordAction(inquiryId, deleteInquiryForBusiness, {
     success: "Inquiry deleted.",
     unchanged: "Inquiry is already deleted.",
     fallbackError: "Failed to delete inquiry.",
+    redirectHref: redirectHref || undefined,
   });
+}
+
+
+// --- Bulk Action Schemas ---
+
+const inquiryBulkActionSchema = z.object({
+  inquiryIds: z
+    .array(z.string().min(1))
+    .min(1, "Select at least one inquiry.")
+    .max(50, "Cannot bulk-update more than 50 inquiries at once."),
+});
+
+const inquiryBulkStatusTargets = [
+  "new",
+  "quoted",
+  "waiting",
+  "won",
+  "lost",
+] as const;
+
+const inquiryBulkStatusChangeSchema = inquiryBulkActionSchema.extend({
+  targetStatus: z.enum(inquiryBulkStatusTargets),
+});
+
+// --- Bulk Action Server Actions ---
+
+export async function bulkArchiveInquiriesAction(
+  _prevState: InquiryBulkActionState,
+  formData: FormData,
+): Promise<InquiryBulkActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+  if (!ownerAccess.ok) return { error: ownerAccess.error };
+
+  const { user, businessContext } = ownerAccess;
+  const rawIds = formData.get("inquiryIds") as string;
+  const parsed = inquiryBulkActionSchema.safeParse({
+    inquiryIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  try {
+    const result = await bulkArchiveInquiriesForBusiness({
+      businessId: businessContext.business.id,
+      inquiryIds: parsed.data.inquiryIds,
+      actorUserId: user.id,
+    });
+
+    updateCacheTags(getBusinessInquiryListCacheTags(businessContext.business.id));
+
+    return {
+      success: `${result.affected} inquiry${result.affected !== 1 ? "ies" : ""} archived.`,
+      affected: result.affected,
+      skipped: result.skipped,
+    };
+  } catch (error) {
+    console.error("Failed to bulk archive inquiries.", error);
+    return { error: "We couldn't archive those inquiries right now." };
+  }
+}
+
+export async function bulkDeleteInquiriesAction(
+  _prevState: InquiryBulkActionState,
+  formData: FormData,
+): Promise<InquiryBulkActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+  if (!ownerAccess.ok) return { error: ownerAccess.error };
+
+  const { user, businessContext } = ownerAccess;
+  const rawIds = formData.get("inquiryIds") as string;
+  const parsed = inquiryBulkActionSchema.safeParse({
+    inquiryIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  try {
+    const result = await bulkDeleteInquiriesForBusiness({
+      businessId: businessContext.business.id,
+      inquiryIds: parsed.data.inquiryIds,
+      actorUserId: user.id,
+    });
+
+    updateCacheTags(getBusinessInquiryListCacheTags(businessContext.business.id));
+
+    return {
+      success: `${result.affected} inquiry${result.affected !== 1 ? "ies" : ""} deleted.`,
+      affected: result.affected,
+      skipped: result.skipped,
+    };
+  } catch (error) {
+    console.error("Failed to bulk delete inquiries.", error);
+    return { error: "We couldn't delete those inquiries right now." };
+  }
+}
+
+export async function bulkChangeInquiryStatusAction(
+  _prevState: InquiryBulkActionState,
+  formData: FormData,
+): Promise<InquiryBulkActionState> {
+  const ownerAccess = await getWorkspaceBusinessActionContext();
+  if (!ownerAccess.ok) return { error: ownerAccess.error };
+
+  const { user, businessContext } = ownerAccess;
+  const rawIds = formData.get("inquiryIds") as string;
+  const rawStatus = formData.get("targetStatus") as string;
+  const parsed = inquiryBulkStatusChangeSchema.safeParse({
+    inquiryIds: rawIds ? rawIds.split(",").filter(Boolean) : [],
+    targetStatus: rawStatus,
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  try {
+    const result = await bulkChangeInquiryStatusForBusiness({
+      businessId: businessContext.business.id,
+      inquiryIds: parsed.data.inquiryIds,
+      actorUserId: user.id,
+      targetStatus: parsed.data.targetStatus,
+    });
+
+    updateCacheTags(getBusinessInquiryListCacheTags(businessContext.business.id));
+
+    return {
+      success: `${result.affected} inquiry${result.affected !== 1 ? "ies" : ""} updated.`,
+      affected: result.affected,
+      skipped: result.skipped,
+    };
+  } catch (error) {
+    console.error("Failed to bulk change inquiry status.", error);
+    return { error: "We couldn't update those inquiries right now." };
+  }
 }

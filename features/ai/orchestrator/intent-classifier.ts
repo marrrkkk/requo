@@ -12,9 +12,9 @@ import type { IntentResult, ToolCategory } from "./types";
 
 const DEFAULT_INTENT_RESULT: IntentResult = {
   intent: "general_question",
-  toolCategories: ["query_tools", "action_tools"],
+  toolCategories: ["query_tools"],
   memoryCategories: [],
-  promptModules: ["base_identity", "safety_constraints"],
+  promptModules: ["base_identity", "safety_constraints", "tool_usage_instructions"],
 };
 
 const MAX_MESSAGE_LENGTH = 600;

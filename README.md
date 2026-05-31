@@ -10,8 +10,8 @@
 
 <p align="center">
   Requo helps service businesses capture inquiries, turn qualified work into quotes,
-  share or send those quotes, follow up, and track viewed, accepted, rejected,
-  expired, and voided states from one place.
+  share or send those quotes, follow up, track responses, convert accepted quotes into
+  jobs, invoice completed work, and automate repetitive workflow steps from one place.
 </p>
 
 <p align="center">
@@ -30,6 +30,9 @@ It is built around one shared workflow:
 - share quote links or send quote emails from Requo
 - follow up consistently without losing context
 - track public quote views and customer accept/reject responses
+- convert accepted quotes into tracked jobs
+- invoice completed or in-progress jobs
+- automate repetitive workflow steps with event-driven automation
 
 The product supports multiple business types through guided starter templates, while
 keeping the core experience focused on this workflow rather than generic configurability.
@@ -39,11 +42,14 @@ keeping the core experience focused on this workflow rather than generic configu
 - Public inquiry intake with editable forms, supporting cards, optional showcase images, and file uploads
 - Guided onboarding with 4 starter templates:
   `Agency / Studio`, `Consultant / Professional Services`, `Contractor / Home Service`, and `General Service Business`
-- Owner dashboard for inquiries, lead qualification, quotes, follow-ups, analytics, and business settings
+- Owner dashboard for inquiries, lead qualification, quotes, jobs, invoices, follow-ups, analytics, and business settings
 - Quote workflow with draft, sent, viewed, accepted, rejected, expired, voided, and post-acceptance states
+- Job management: create jobs from accepted quotes, track job progress and completion
+- Invoice generation, PDF rendering, email delivery, and payment status tracking
+- Workflow automation: event-driven triggers and actions for follow-ups, status transitions, notifications, and quote/job/invoice lifecycle
 - Public quote pages with customer accept/reject responses and response messages
 - Manual quote sharing plus Requo email sending through transactional email
-- Follow-up scheduling and lifecycle tracking for inquiries and quotes
+- Follow-up scheduling and lifecycle tracking for inquiries, quotes, and jobs
 - Starter defaults for inquiry fields and quote notes that stay editable later
 - Knowledge and FAQ management for business-specific reference material
 - AI-assisted response drafting through Groq, Gemini, and OpenRouter fallback routing
@@ -267,7 +273,7 @@ Deployment and validation responsibilities are intentionally split:
 
 - `app/` route groups, layouts, pages, and route handlers
 - `components/` shared UI primitives, shell UI, and marketing components
-- `features/` product slices such as account, AI, analytics, audit, auth, billing, businesses, business members, calendar, customers, follow-ups, inquiries, memory/knowledge, notifications, onboarding, quotes, settings, and theme
+- `features/` product slices such as account, AI, analytics, audit, auth, automations, billing, businesses, business members, calendar, customers, follow-ups, inquiries, invoices, jobs, memory/knowledge, notifications, onboarding, quotes, settings, and theme
 - `lib/` auth, database, provider clients, env validation, and shared utilities
 - `emails/templates/` transactional email rendering
 - `docs/` setup and architecture documentation
@@ -280,10 +286,13 @@ Deployment and validation responsibilities are intentionally split:
 
 - `lib/billing/` billing domain types, plan pricing, subscription service, webhook processing, Polar provider client, and refund service
 - `lib/billing/providers/` Polar SDK client wrapping `BillingProviderInterface` for outbound API calls (webhook signature verification and event parsing live in the route handler via the `@polar-sh/nextjs` adapter)
-- `lib/db/schema/subscriptions.ts` account_subscriptions, billing_events, payment_attempts, and refunds tables
+- `lib/db/schema/subscriptions.ts` business_subscriptions, billing_events, payment_attempts, and refunds tables
 - `features/billing/` checkout dialog, billing status card, upgrade button, payment history with refund requests, server actions, and queries
 - `app/api/billing/` Polar webhook and customer-portal routes plus the refund request route
 - `features/follow-ups/` follow-up creation, rescheduling, completion, skipping, and reminders
+- `features/jobs/` job creation from accepted quotes, job lifecycle tracking, and queries
+- `features/invoices/` invoice generation, PDF rendering, email sending, and queries
+- `features/automations/` event-driven workflow automation triggers, actions, and business-scoped rules
 - `features/analytics/` conversion/workflow analytics plus public inquiry and quote view tracking
 - `features/business-members/` business role management
 
@@ -296,10 +305,11 @@ Deployment and validation responsibilities are intentionally split:
 - `DESIGN.md` is the canonical UI system, with semantic tokens and shared wrappers implemented in `app/globals.css` and `components/shared/*`
 - Private assets stay behind authenticated route handlers
 - AI drafting stays server-side and uses business context plus uploaded knowledge, with provider fallback ordered Groq -> Gemini -> OpenRouter
-- Marketing, onboarding, starter templates, and in-app copy are aligned around the inquiry -> quote -> share/send -> follow-up -> viewed/accepted/rejected workflow
+- Marketing, onboarding, starter templates, and in-app copy are aligned around the inquiry -> quote -> share/send -> follow-up -> accepted/rejected -> job -> invoice workflow
+- Workflow automation is event-driven and business-scoped; automations run as background defaults, not complex visual workflow builders
 - Starter templates are opinionated defaults, not rigid vertical product modes
-- Subscriptions are account-scoped with Polar; all businesses owned by a user inherit the plan from the user's account subscription
-- The `businesses.plan` column is a denormalized read cache; the authoritative state lives in `account_subscriptions`
+- Subscriptions are business-scoped with Polar; each business has its own subscription
+- The `businesses.plan` column is a denormalized read cache; the authoritative state lives in `business_subscriptions`
 - Billing mutations go through `lib/billing/subscription-service.ts`; webhooks go through `lib/billing/webhook-processor.ts`
 - Opaque lookup tokens are hashed with `APP_TOKEN_HASH_SECRET` or `BETTER_AUTH_SECRET`
 - State and data defaults stay server-first: prefer cached server reads, Server Actions, route refreshes, and local component state before adding client-state libraries
@@ -339,5 +349,5 @@ npm run test:e2e
 
 Requo is intentionally scoped for owner-led service businesses that handle inbound
 inquiries and custom quotes. It does not try to become an enterprise CRM, field-service
-dispatch tool, scheduling suite, payroll tool, invoicing platform, marketplace, or
+dispatch tool, scheduling suite, payroll tool, marketplace, or
 mobile-first collaboration app.

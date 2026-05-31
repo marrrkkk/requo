@@ -52,7 +52,7 @@ const agentDiscoveryHeaders = [
 const nextConfig: NextConfig = {
   // Ensure preview bots get full metadata in the initial HTML (see Next.js streaming metadata).
   htmlLimitedBots:
-    /facebookexternalhit|Facebot|LinkedInBot|Twitterbot|Pinterest|Slackbot|Discordbot|vkShare|redditbot|Applebot/i,
+    /facebookexternalhit|Facebot|LinkedInBot|Twitterbot|Pinterest|Slackbot|Discordbot|vkShare|redditbot|Applebot|WhatsApp|TelegramBot|Googlebot|bingbot|Embedly|ChatGPT-User|GPTBot|OAI-SearchBot|anthropic-ai|ClaudeBot|Claude-Web|PerplexityBot|Bytespider|CCBot/i,
   cacheComponents: true,
   // Populate entries here only when `ANALYZE=true npm run build` shows a measurable
   // bundle-size win for a specific package. Keep the block present and documented so
@@ -75,6 +75,20 @@ const nextConfig: NextConfig = {
       static: 86400,
     },
     inlineCss: true,
+  },
+  async redirects() {
+    return [
+      {
+        source: "/dashboard",
+        destination: "/home",
+        permanent: true,
+      },
+      {
+        source: "/:businessSlug/dashboard",
+        destination: "/:businessSlug/home",
+        permanent: true,
+      },
+    ];
   },
   async headers() {
     return [
@@ -120,6 +134,10 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/quote/:path*",
+        headers: sensitiveNoStoreHeaders,
+      },
+      {
+        source: "/b/:path*",
         headers: sensitiveNoStoreHeaders,
       },
       {

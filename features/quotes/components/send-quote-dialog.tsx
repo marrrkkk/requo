@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, useOptimistic } from "react";
 import {
+  ArrowLeft,
   BellRing,
   Check,
   Copy,
+  Eye,
   ExternalLink,
   Link2,
   Mail,
@@ -50,9 +52,19 @@ import {
   quoteSendChannelLabels,
 } from "@/features/quotes/utils";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation";
+import { QuotePreview } from "@/features/quotes/components/quote-preview";
 
 /* -------------------------------------------------------------------------- */
+
+type QuotePreviewItem = {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPriceInCents: number;
+  lineTotalInCents: number;
+};
 
 type QuoteSummaryForSend = {
   quoteNumber: string;
@@ -98,6 +110,37 @@ type SendQuoteDialogProps = {
    * When > 0 the dialog shows a warning and blocks the send buttons.
    */
   unpricedItemCount?: number;
+  /**
+   * Data for the quote preview panel. When provided, a "Preview" toggle
+   * is shown in the dialog header allowing the owner to see what the
+   * customer will see before sending.
+   */
+  previewData?: {
+    businessName: string;
+    businessLogoStoragePath: string | null;
+    businessSlug: string;
+    quoteNumber: string;
+    title: string;
+    customerName: string;
+    customerEmail: string | null;
+    currency: string;
+    validUntil: string;
+    notes: string | null;
+    terms: string | null;
+    items: QuotePreviewItem[];
+    subtotalInCents: number;
+    discountInCents: number;
+    taxInCents: number;
+    taxLabel: string | null;
+    totalInCents: number;
+    version: number;
+    showWatermark: boolean;
+  };
+  /**
+   * Href to the full-page quote preview route. When provided, the "Preview"
+   * button opens the full-page preview in a new tab instead of the inline panel.
+   */
+  previewHref?: string;
 };
 
 const initialSendState: QuoteSendActionState = {};
@@ -117,16 +160,23 @@ export function SendQuoteDialog({
   disabled = false,
   canAutoFollowUp = false,
   unpricedItemCount = 0,
+  previewData,
+  previewHref,
 }: SendQuoteDialogProps) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"ready" | "sent">("ready");
+  const [optimisticStep, setOptimisticStep] = useOptimistic(
+    step,
+    (_current, nextStep: "ready" | "sent") => nextStep,
+  );
+  const [showPreview, setShowPreview] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const reqSubmitRef = useRef<HTMLButtonElement>(null);
   const manSubmitRef = useRef<HTMLButtonElement>(null);
-  const [sendState, formAction, isPending] = useActionStateWithSonner(
-    sendAction,
-    initialSendState,
-  );
+  const { runMutation, isPendingKey } = useOptimisticMutation();
+  const { scheduleRefresh } = useDeferredRefresh();
+  const [sendSuccessMessage, setSendSuccessMessage] = useState<string | undefined>();
+  const isPending = isPendingKey("send");
   const [, startLogging] = useTransition();
 
   const detectedChannel = getDefaultSendChannel(quote.customerContactMethod);
@@ -152,6 +202,8 @@ export function SendQuoteDialog({
   function handleOpenChange(next: boolean) {
     if (next) {
       setStep("ready");
+      setSendSuccessMessage(undefined);
+      setShowPreview(false);
       setSelectedChannel(detectedChannel);
       setEditedMessage(getChannelMessage(detectedChannel, templateInput));
       setCopiedField(null);
@@ -159,9 +211,7 @@ export function SendQuoteDialog({
     setOpen(next);
   }
 
-  if (sendState?.success && step === "ready") {
-    queueMicrotask(() => setStep("sent"));
-  }
+  const displayStep = optimisticStep;
 
   /* --- Copy helpers --- */
 
@@ -202,6 +252,33 @@ export function SendQuoteDialog({
     });
   }
 
+  const [clickedAction, setClickedAction] = useState<"requo" | "manual" | null>(null);
+
+  function buildSendFormData(deliveryMethod: "requo" | "manual") {
+    const formData = new FormData(formRef.current ?? undefined);
+    formData.set("deliveryMethod", deliveryMethod);
+    return formData;
+  }
+
+  function submitSend(deliveryMethod: "requo" | "manual") {
+    runMutation({
+      applyOptimistic: () => {
+        setOptimisticStep("sent");
+      },
+      revertOptimistic: () => {
+        setOptimisticStep("ready");
+      },
+      mutation: () => sendAction(initialSendState, buildSendFormData(deliveryMethod)),
+      pendingKey: "send",
+      refreshOnSuccess: false,
+      onSuccess: (result) => {
+        setSendSuccessMessage(result.success);
+        setStep("sent");
+        scheduleRefresh();
+      },
+    });
+  }
+
   function handleSendWithRequo() {
     if (disabled || isPending) return;
     if (unpricedItemCount > 0) {
@@ -212,7 +289,8 @@ export function SendQuoteDialog({
       );
       return;
     }
-    formRef.current?.requestSubmit(reqSubmitRef.current ?? undefined);
+    setClickedAction("requo");
+    submitSend("requo");
   }
 
   function handleMarkAsSent() {
@@ -225,7 +303,8 @@ export function SendQuoteDialog({
       );
       return;
     }
-    formRef.current?.requestSubmit(manSubmitRef.current ?? undefined);
+    setClickedAction("manual");
+    submitSend("manual");
   }
 
   /* --- Mailto URL --- */
@@ -263,7 +342,66 @@ export function SendQuoteDialog({
       </ResponsiveOverlayTrigger>
 
       <ResponsiveOverlayContent className="sm:max-w-md">
-        {step === "ready" ? (
+        {displayStep === "ready" && showPreview && previewData ? (
+          <>
+            <ResponsiveOverlayHeader>
+              <ResponsiveOverlayTitle>Quote preview</ResponsiveOverlayTitle>
+              <ResponsiveOverlayDescription>
+                This is what {quote.customerName} will see.
+              </ResponsiveOverlayDescription>
+            </ResponsiveOverlayHeader>
+
+            <ResponsiveOverlayBody className="flex flex-col gap-4 pt-1">
+              <div className="relative max-h-[60vh] overflow-y-auto rounded-lg border border-border/60">
+                <div className="pointer-events-none select-none">
+                  <QuotePreview
+                    businessName={previewData.businessName}
+                    businessLogoStoragePath={previewData.businessLogoStoragePath}
+                    businessSlug={previewData.businessSlug}
+                    quoteNumber={previewData.quoteNumber}
+                    title={
+                      previewData.version > 1
+                        ? `${previewData.title} (v${previewData.version})`
+                        : previewData.title
+                    }
+                    customerName={previewData.customerName}
+                    customerEmail={previewData.customerEmail}
+                    currency={previewData.currency}
+                    validUntil={previewData.validUntil}
+                    notes={previewData.notes}
+                    terms={previewData.terms}
+                    items={previewData.items}
+                    subtotalInCents={previewData.subtotalInCents}
+                    discountInCents={previewData.discountInCents}
+                    taxInCents={previewData.taxInCents}
+                    taxLabel={previewData.taxLabel}
+                    totalInCents={previewData.totalInCents}
+                    variant="bare"
+                  />
+                  {previewData.showWatermark ? (
+                    <div className="relative flex justify-end px-4 py-3">
+                      <div className="flex items-center gap-2 rounded-full border border-border/70 bg-background/90 px-3 py-1.5 text-xs font-semibold text-foreground">
+                        Made with Requo
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </ResponsiveOverlayBody>
+
+            <ResponsiveOverlayFooter>
+              <Button
+                className="w-full"
+                onClick={() => setShowPreview(false)}
+                type="button"
+                variant="outline"
+              >
+                <ArrowLeft data-icon="inline-start" />
+                Back to send
+              </Button>
+            </ResponsiveOverlayFooter>
+          </>
+        ) : displayStep === "ready" ? (
           <>
             <ResponsiveOverlayHeader>
               <ResponsiveOverlayTitle>Send quote</ResponsiveOverlayTitle>
@@ -304,7 +442,7 @@ export function SendQuoteDialog({
               </div>
 
               {/* Hidden form for submit */}
-              <form ref={formRef} action={formAction} className="hidden">
+              <form ref={formRef} className="hidden">
                 <button
                   aria-hidden="true"
                   disabled={disabled || isPending}
@@ -360,6 +498,26 @@ export function SendQuoteDialog({
 
               {/* Quick actions row */}
               <div className="flex items-center gap-2">
+                {previewHref ? (
+                  <Button asChild className="flex-1" size="sm" variant="outline">
+                    <a href={previewHref} target="_blank" rel="noopener noreferrer">
+                      <Eye data-icon="inline-start" className="size-3.5" />
+                      Preview
+                    </a>
+                  </Button>
+                ) : previewData ? (
+                  <Button
+                    className="flex-1"
+                    onClick={() => setShowPreview(true)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <Eye data-icon="inline-start" className="size-3.5" />
+                    Preview
+                  </Button>
+                ) : null}
+
                 <Button
                   className="flex-1"
                   onClick={handleCopyLink}
@@ -454,12 +612,12 @@ export function SendQuoteDialog({
                     onClick={handleSendWithRequo}
                     type="button"
                   >
-                    {isPending ? (
+                    {isPending && clickedAction === "requo" ? (
                       <Spinner data-icon="inline-start" aria-hidden="true" />
                     ) : (
                       <SendHorizontal data-icon="inline-start" />
                     )}
-                    {isPending ? "Sending..." : "Send with Requo"}
+                    {isPending && clickedAction === "requo" ? "Sending..." : "Send now"}
                   </Button>
                   <div className="flex w-full items-center gap-2">
                     {isEmailContact && mailtoUrl ? (
@@ -482,8 +640,12 @@ export function SendQuoteDialog({
                       type="button"
                       variant="outline"
                     >
-                      <Check data-icon="inline-start" />
-                      Mark as sent
+                      {isPending && clickedAction === "manual" ? (
+                        <Spinner data-icon="inline-start" aria-hidden="true" />
+                      ) : (
+                        <Check data-icon="inline-start" />
+                      )}
+                      {isPending && clickedAction === "manual" ? "Sending..." : "I'll send it myself"}
                     </Button>
                   </div>
                 </>
@@ -508,12 +670,12 @@ export function SendQuoteDialog({
                     type="button"
                     variant={isEmailContact && mailtoUrl ? "outline" : "default"}
                   >
-                    {isPending ? (
+                    {isPending && clickedAction === "manual" ? (
                       <Spinner data-icon="inline-start" aria-hidden="true" />
                     ) : (
                       <Check data-icon="inline-start" />
                     )}
-                    {isPending ? "Marking..." : "Mark as sent"}
+                    {isPending && clickedAction === "manual" ? "Sending..." : "I'll send it myself"}
                   </Button>
                 </div>
               )}
@@ -525,7 +687,7 @@ export function SendQuoteDialog({
             <ResponsiveOverlayHeader>
               <ResponsiveOverlayTitle>Quote sent</ResponsiveOverlayTitle>
               <ResponsiveOverlayDescription>
-                {sendState?.success ?? `${quote.quoteNumber} marked as sent.`}
+                {sendSuccessMessage ?? `${quote.quoteNumber} marked as sent.`}
               </ResponsiveOverlayDescription>
             </ResponsiveOverlayHeader>
 
@@ -583,7 +745,7 @@ function QuoteFollowUpPrompt({
   quote: QuoteSummaryForSend;
   selectedChannel: QuoteSendChannel;
 }) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [customOpen, setCustomOpen] = useState(false);
   const [customDueDate, setCustomDueDate] = useState(
     getQuickFollowUpDueDate("3d"),
@@ -601,9 +763,9 @@ function QuoteFollowUpPrompt({
 
   useEffect(() => {
     if (state.success) {
-      router.refresh();
+      scheduleRefresh();
     }
-  }, [router, state.success]);
+  }, [scheduleRefresh, state.success]);
 
   if (state.success) {
     return (

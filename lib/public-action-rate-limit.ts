@@ -12,6 +12,8 @@ type AssertPublicActionRateLimitInput = {
     | "ai-chat"
     | "ai-file-import"
     | "ai-quote-draft"
+    | "automation-create"
+    | "automation-event-emit"
     | "business-inquiry-ai"
     | "public-inquiry-chat"
     | "public-inquiry-submit"
@@ -76,6 +78,68 @@ async function getPublicActionFingerprint(scope: string) {
     .digest("hex");
 }
 
+/**
+ * Business-scoped rate limiter. Uses the scope directly as the key
+ * (no IP fingerprinting) — suitable for authenticated server actions
+ * where the business identity is already verified.
+ */
+export async function assertBusinessActionRateLimit({
+  action,
+  scope,
+  limit,
+  windowMs,
+}: AssertPublicActionRateLimitInput): Promise<boolean> {
+  const key = scope;
+  const now = new Date();
+  const windowStart = new Date(now.getTime() - windowMs);
+
+  try {
+    const [countRow] = await db
+      .select({
+        count: count(),
+      })
+      .from(publicActionEvents)
+      .where(
+        and(
+          eq(publicActionEvents.action, action),
+          eq(publicActionEvents.key, key),
+          gte(publicActionEvents.createdAt, windowStart),
+        ),
+      );
+
+    if (Number(countRow?.count ?? 0) >= limit) {
+      return false;
+    }
+
+    await db.insert(publicActionEvents).values({
+      id: createId("pae"),
+      action,
+      key,
+      createdAt: now,
+    });
+
+    return true;
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : String(error);
+    const errorType =
+      error instanceof Error ? error.constructor.name : typeof error;
+
+    console.error(
+      "Business rate limiter fail-open: allowing request due to database error",
+      {
+        error_type: errorType,
+        action,
+        timestamp: new Date().toISOString(),
+        error_message: errorMessage,
+      },
+    );
+
+    // Fail open for business-scoped actions to avoid blocking legitimate operations
+    return true;
+  }
+}
+
 export async function assertPublicActionRateLimit({
   action,
   scope,
@@ -113,11 +177,21 @@ export async function assertPublicActionRateLimit({
 
     return true;
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : String(error);
+    const errorType =
+      error instanceof Error ? error.constructor.name : typeof error;
+
     console.error(
-      "Failed to check public action rate limit. Allowing the request to proceed.",
-      error,
+      "Rate limiter fail-closed: denying request due to database error",
+      {
+        error_type: errorType,
+        action,
+        timestamp: new Date().toISOString(),
+        error_message: errorMessage,
+      },
     );
 
-    return true;
+    return false;
   }
 }

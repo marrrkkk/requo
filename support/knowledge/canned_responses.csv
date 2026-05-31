@@ -1,0 +1,13 @@
+intent,tone,response,use_case
+welcome_new_user,friendly,"Welcome to Requo! I can help with onboarding, billing, and workflow setup. What do you want to set up first?",first-chat-message
+request_business_slug,clear,Please share your business slug and the page you are on so I can guide you with exact steps.,triage
+billing_update_card,helpful,You can update your payment method in Settings > Billing. Open Billing and use the payment method section to change your card.,billing
+quote_status_explanation,concise,"Quote statuses track progress from sent to viewed, accepted, rejected, expired, or voided so your pipeline stays accurate.",quotes
+form_submission_issue,diagnostic,"Let us check this together. Please send the form URL, browser, and the exact error message so we can reproduce quickly.",troubleshooting
+feature_request,receptive,Thanks for the idea. Share your workflow and desired outcome so we can evaluate and prioritize it accurately.,product-feedback
+automation_setup_help,guided,A good starting point is Quote Sent -> Create Follow-up. I can walk you through enabling that template in Automations.,automations
+cancel_subscription,empathetic,I can help with that. Go to Settings > Billing to manage cancellation. Your access remains active through the current period.,billing
+data_export,clear,"For exports, open the related module (Quotes or Inquiries) and choose export from the table actions menu.",data-management
+handoff_human_agent,professional,I am escalating this to our support team with your context so you do not need to repeat details.,escalation
+invoice_troubleshooting,practical,"If invoice sending fails, confirm recipient email, sender configuration, and retry. If it still fails, send us the invoice ID.",invoices
+knowledge_import_help,guided,You can paste source content in Knowledge and use the importer to extract structured entries for AI drafting.,knowledge

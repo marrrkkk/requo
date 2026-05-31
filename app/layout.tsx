@@ -12,7 +12,6 @@ import {
   getReloadLoadingInitScript,
   ReloadLoadingOverlay,
 } from "@/components/shared/reload-loading-overlay";
-import { RouteProgressBar } from "@/components/shared/route-progress-bar";
 import { ScrollToTop } from "@/components/shared/scroll-to-top";
 import { WebMCPProvider } from "@/components/shared/webmcp-provider";
 import { StructuredData } from "@/components/seo/structured-data";
@@ -32,6 +31,7 @@ import {
   getSiteUrl,
   siteDescription,
   siteName,
+  siteSameAs,
   siteTagline,
 } from "@/lib/seo/site";
 
@@ -52,6 +52,13 @@ const brandFont = localFont({
   variable: "--font-brand",
   display: "swap",
   weight: "700",
+});
+
+const mittelFont = localFont({
+  src: "../public/fonts/ApfelGrotezk-Mittel.woff2",
+  variable: "--font-mittel",
+  display: "swap",
+  weight: "500",
 });
 
 export const viewport: Viewport = {
@@ -131,10 +138,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const organizationStructuredData = getOrganizationStructuredData({
+    address: {
+      addressCountry: legalConfig.country,
+      addressLocality: "Lucena City",
+      addressRegion: "Quezon",
+    },
     description: siteTagline,
     email: legalConfig.supportEmail,
     logoUrl: absoluteUrl("/logo.svg"),
     name: siteName,
+    sameAs: siteSameAs,
     url: siteUrl.toString(),
   });
   const websiteStructuredData = getWebsiteStructuredData({
@@ -147,7 +160,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${brandFont.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${brandFont.variable} ${mittelFont.variable} h-full antialiased`}
     >
       <body suppressHydrationWarning className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-primary-foreground">
         <ReloadLoadingOverlay />
@@ -177,7 +190,6 @@ export default function RootLayout({
           >
             <Suspense fallback={null}>
               <ScrollToTop />
-              <RouteProgressBar />
               <WebMCPProvider />
             </Suspense>
             <TooltipProvider>{children}</TooltipProvider>

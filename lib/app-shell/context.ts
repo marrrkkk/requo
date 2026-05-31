@@ -3,7 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 
-import { businessesHubPath } from "@/features/businesses/routes";
+import { dashboardPath } from "@/features/businesses/routes";
 import {
   getBusinessContextForMembershipSlug,
   type BusinessContext,
@@ -21,7 +21,7 @@ export type AppShellContext = {
  * Resolves the current session and the business membership for the active
  * slug, redirecting to the businesses hub when the user has no access.
  *
- * Called once from `app/businesses/[slug]/(main)/layout.tsx` and from each
+ * Called once from `app/(business)/[businessSlug]/layout.tsx` and from each
  * page inside that segment. React.cache dedupes the work within a single
  * request, and the underlying `getBusinessContextForMembershipSlug` is
  * itself `"use cache"`-backed so repeat navigations stay fast.
@@ -35,7 +35,7 @@ export const getAppShellContext = cache(
     );
 
     if (!businessContext) {
-      redirect(businessesHubPath);
+      redirect(dashboardPath);
     }
 
     return {

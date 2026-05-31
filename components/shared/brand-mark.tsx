@@ -3,7 +3,7 @@ import Link from "next/link";
 import { BrandWordmark } from "@/components/shared/brand-wordmark";
 import { cn } from "@/lib/utils";
 
-type BrandMarkSize = "default" | "lg";
+type BrandMarkSize = "default" | "lg" | "xl";
 
 type BrandMarkProps = {
   className?: string;
@@ -14,18 +14,21 @@ type BrandMarkProps = {
 };
 
 const logoSizeClass: Record<BrandMarkSize, string> = {
-  default: "size-8",
-  lg: "size-9",
+  default: "size-6",
+  lg: "size-8",
+  xl: "size-12",
 };
 
 const wordmarkSizeClass: Record<BrandMarkSize, string> = {
   default: "",
-  lg: "text-[1.45rem] tracking-[-0.02em] sm:text-[1.55rem]",
+  lg: "text-[1.35rem] tracking-[-0.02em] sm:text-[1.45rem]",
+  xl: "text-[1.75rem] tracking-[-0.02em] sm:text-[2rem]",
 };
 
 const wordmarkNoSubtitleSizeClass: Record<BrandMarkSize, string> = {
-  default: "text-[1.35rem] tracking-[-0.025em]",
-  lg: "text-[1.65rem] tracking-[-0.025em] sm:text-[1.75rem]",
+  default: "text-[1.1rem] tracking-[-0.025em]",
+  lg: "text-[1.45rem] tracking-[-0.025em] sm:text-[1.55rem]",
+  xl: "text-[1.85rem] tracking-[-0.025em] sm:text-[2.1rem]",
 };
 
 export function BrandMark({
@@ -40,7 +43,7 @@ export function BrandMark({
       href={href}
       aria-label="Requo"
       className={cn(
-        "inline-flex items-center gap-2.5 text-foreground",
+        "inline-flex items-center gap-2 text-foreground",
         collapseLabel && "group-data-[collapsible=icon]:gap-0",
         className,
       )}

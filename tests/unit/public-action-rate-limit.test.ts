@@ -65,7 +65,7 @@ describe("lib/public-action-rate-limit", () => {
     expect(getPublicActionClientIpAddress(headerStore)).toBe("203.0.113.10");
   });
 
-  it("fails open when the rate-limit query cannot reach the database", async () => {
+  it("fails closed when the rate-limit query cannot reach the database", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
 
     mockHeaders.mockResolvedValue(
@@ -84,7 +84,7 @@ describe("lib/public-action-rate-limit", () => {
         limit: 6,
         windowMs: 15 * 60 * 1000,
       }),
-    ).resolves.toBe(true);
+    ).resolves.toBe(false);
 
     expect(mockInsert).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalledOnce();

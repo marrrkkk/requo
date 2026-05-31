@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { AlertTriangle, ClipboardList, Receipt } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { CheckCheck, CircleCheck, ClipboardList, ExternalLink, Receipt } from "lucide-react";
 
 import { DashboardSection } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";
@@ -15,41 +15,82 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
-import { createJobFromQuoteAction } from "@/features/jobs/actions";
+import { createJobFromQuoteAction, updateJobStatusAction } from "@/features/jobs/actions";
 import { createInvoiceFromQuoteAction } from "@/features/invoices/actions";
+import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import {
+  getBusinessJobPath,
   getBusinessJobsPath,
   getBusinessInvoicePath,
 } from "@/features/businesses/routes";
 
-import type { QuotePostAcceptanceStatus } from "@/features/quotes/types";
+import type {
+  QuoteCompletionActionState,
+  QuotePostAcceptanceStatus,
+} from "@/features/quotes/types";
+import type { JobStatus } from "@/features/jobs/types";
 
 type QuotePostAcceptanceActionsProps = {
   quoteId: string;
   businessSlug: string;
-  hasJob: boolean;
+  existingJobId: string | null;
+  existingJobStatus: JobStatus | null;
   existingInvoiceId: string | null;
   postAcceptanceStatus: QuotePostAcceptanceStatus;
+  completeAction: (
+    state: QuoteCompletionActionState,
+    formData: FormData,
+  ) => Promise<QuoteCompletionActionState>;
 };
 
 /**
  * Actions shown on an accepted quote detail page.
- * The owner can create a job (to track work) or invoice directly.
+ *
+ * Layout:
+ * - Linked resources row: "Open job" / "Open invoice" links (when they exist)
+ * - Actions row: contextual buttons for creating/completing work
+ *   - "Create job" when no job exists (owner may have deleted it)
+ *   - "Create invoice" when no invoice exists
+ *   - "Mark job as complete" when invoice exists but job is still in progress
+ *   - "Mark complete" to skip job/invoice and close out the quote
+ *
  * Hidden when work is already completed or canceled.
  */
 export function QuotePostAcceptanceActions({
   quoteId,
   businessSlug,
-  hasJob,
+  existingJobId,
+  existingJobStatus,
   existingInvoiceId,
   postAcceptanceStatus,
+  completeAction,
 }: QuotePostAcceptanceActionsProps) {
   const [isJobPending, startJobTransition] = useTransition();
   const [isInvoicePending, startInvoiceTransition] = useTransition();
+  const [isMarkJobDonePending, startMarkJobDoneTransition] = useTransition();
   const [invoiceId, setInvoiceId] = useState(existingInvoiceId);
-  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [jobStatus, setJobStatus] = useState(existingJobStatus);
+  const [showCompleteDialog, setShowCompleteDialog] = useState(false);
   const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
+
+  const hasJob = Boolean(existingJobId);
+  const hasInvoice = Boolean(invoiceId);
+  const jobNeedsCompletion = hasJob && hasInvoice && jobStatus !== "done";
+
+  function handleOpenJob() {
+    if (existingJobId) {
+      router.push(getBusinessJobPath(businessSlug, existingJobId));
+    }
+  }
+
+  function handleOpenInvoice() {
+    if (invoiceId) {
+      router.push(getBusinessInvoicePath(businessSlug, invoiceId));
+    }
+  }
 
   function handleCreateJob() {
     startJobTransition(async () => {
@@ -60,30 +101,27 @@ export function QuotePostAcceptanceActions({
     });
   }
 
-  function handleInvoiceNow() {
-    if (invoiceId) {
-      setShowDuplicateDialog(true);
-      return;
-    }
-
+  function handleCreateInvoice() {
     startInvoiceTransition(async () => {
       const result = await createInvoiceFromQuoteAction(quoteId);
 
       if (result.invoiceId) {
         setInvoiceId(result.invoiceId);
         router.push(getBusinessInvoicePath(businessSlug, result.invoiceId));
-      } else if (result.error) {
-        setInvoiceId(quoteId); // fallback; server already has it
-        setShowDuplicateDialog(true);
       }
     });
   }
 
-  function handleGoToInvoice() {
-    if (invoiceId) {
-      router.push(getBusinessInvoicePath(businessSlug, invoiceId));
-    }
-    setShowDuplicateDialog(false);
+  function handleMarkJobDone() {
+    if (!existingJobId) return;
+
+    startMarkJobDoneTransition(async () => {
+      const result = await updateJobStatusAction(existingJobId, "done");
+      if (result.success) {
+        setJobStatus("done");
+        scheduleRefresh();
+      }
+    });
   }
 
   // Don't show when work is already done or canceled
@@ -91,24 +129,76 @@ export function QuotePostAcceptanceActions({
     return null;
   }
 
-  if (hasJob && existingInvoiceId) {
+  // Hide when job is done and invoice exists — nothing left to do
+  if (hasJob && hasInvoice && jobStatus === "done") {
     return null;
   }
+
+  const hasLinkedResources = hasJob || hasInvoice;
 
   return (
     <>
       <DashboardSection
-        contentClassName="flex flex-col gap-3"
+        contentClassName="flex flex-col gap-4"
         description="Track work or bill the customer for this accepted quote."
         title="Next steps"
       >
+        {/* Linked resources — navigation to existing job/invoice */}
+        {hasLinkedResources ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {hasJob ? (
+              <Button
+                className="h-8 gap-1.5 px-3 text-xs"
+                onClick={handleOpenJob}
+                size="sm"
+                type="button"
+                variant="ghost"
+              >
+                <ClipboardList className="size-3.5" />
+                Open job
+                <ExternalLink className="size-3 text-muted-foreground" />
+              </Button>
+            ) : null}
+            {hasInvoice ? (
+              <Button
+                className="h-8 gap-1.5 px-3 text-xs"
+                onClick={handleOpenInvoice}
+                size="sm"
+                type="button"
+                variant="ghost"
+              >
+                <Receipt className="size-3.5" />
+                Open invoice
+                <ExternalLink className="size-3 text-muted-foreground" />
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* Actions */}
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          {!hasJob && (
+          {jobNeedsCompletion ? (
             <Button
               className="w-full sm:w-auto"
-              disabled={isJobPending || isInvoicePending}
+              disabled={isMarkJobDonePending}
+              onClick={handleMarkJobDone}
+              type="button"
+            >
+              {isMarkJobDonePending ? (
+                <Spinner className="size-4" aria-hidden="true" />
+              ) : (
+                <CheckCheck data-icon="inline-start" />
+              )}
+              Mark job as complete
+            </Button>
+          ) : null}
+          {!hasJob ? (
+            <Button
+              className="w-full sm:w-auto"
+              disabled={isJobPending}
               onClick={handleCreateJob}
               type="button"
+              variant="outline"
             >
               {isJobPending ? (
                 <Spinner className="size-4" aria-hidden="true" />
@@ -117,47 +207,104 @@ export function QuotePostAcceptanceActions({
               )}
               Create job
             </Button>
-          )}
-          <Button
-            className="w-full sm:w-auto"
-            disabled={isInvoicePending || isJobPending}
-            onClick={handleInvoiceNow}
-            type="button"
-            variant="outline"
-          >
-            {isInvoicePending ? (
-              <Spinner className="size-4" aria-hidden="true" />
-            ) : (
-              <Receipt data-icon="inline-start" />
-            )}
-            Invoice now
-          </Button>
+          ) : null}
+          {!hasInvoice ? (
+            <Button
+              className="w-full sm:w-auto"
+              disabled={isInvoicePending}
+              onClick={handleCreateInvoice}
+              type="button"
+              variant="outline"
+            >
+              {isInvoicePending ? (
+                <Spinner className="size-4" aria-hidden="true" />
+              ) : (
+                <Receipt data-icon="inline-start" />
+              )}
+              Create invoice
+            </Button>
+          ) : null}
         </div>
+
+        {/* Skip — mark as done without job/invoice */}
+        <p className="text-xs text-muted-foreground">
+          Done without tracking?{" "}
+          <button
+            className="inline text-xs underline underline-offset-2 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setShowCompleteDialog(true)}
+            type="button"
+          >
+            Mark as complete
+          </button>
+        </p>
       </DashboardSection>
 
-      <Dialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="size-5 text-amber-500" aria-hidden="true" />
-              Invoice already exists
-            </DialogTitle>
-            <DialogDescription>
-              An invoice has already been created for this quote. Creating another would result in a duplicate.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="ghost">
-                Cancel
-              </Button>
-            </DialogClose>
-            <Button type="button" onClick={handleGoToInvoice}>
-              Go to invoice
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CompleteQuoteDialog
+        action={completeAction}
+        open={showCompleteDialog}
+        onOpenChange={setShowCompleteDialog}
+      />
     </>
+  );
+}
+
+function CompleteQuoteDialog({
+  action,
+  open,
+  onOpenChange,
+}: {
+  action: QuotePostAcceptanceActionsProps["completeAction"];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { scheduleRefresh } = useDeferredRefresh();
+  const [state, formAction, isPending] = useActionStateWithSonner(
+    action,
+    {} as QuoteCompletionActionState,
+  );
+
+  useEffect(() => {
+    if (!state.success) {
+      return;
+    }
+
+    queueMicrotask(() => onOpenChange(false));
+    scheduleRefresh();
+  }, [onOpenChange, scheduleRefresh, state.success]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Mark work as completed?</DialogTitle>
+          <DialogDescription>
+            This marks the work as completed without creating an invoice. Use
+            this when the work is done and no invoice is needed.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button disabled={isPending} type="button" variant="ghost">
+              Cancel
+            </Button>
+          </DialogClose>
+          <form action={formAction}>
+            <Button disabled={isPending} type="submit">
+              {isPending ? (
+                <>
+                  <Spinner data-icon="inline-start" aria-hidden="true" />
+                  Completing...
+                </>
+              ) : (
+                <>
+                  <CircleCheck data-icon="inline-start" />
+                  Mark complete
+                </>
+              )}
+            </Button>
+          </form>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

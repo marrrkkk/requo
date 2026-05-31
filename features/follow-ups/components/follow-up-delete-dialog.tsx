@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 
+import { OptimisticPendingIndicator } from "@/components/shared/optimistic-pending-indicator";
 import { Button } from "@/components/ui/button";
 import {
   ResponsiveOverlay,
@@ -14,9 +15,7 @@ import {
   ResponsiveOverlayTitle,
   ResponsiveOverlayTrigger,
 } from "@/components/ui/responsive-overlay";
-import { Spinner } from "@/components/ui/spinner";
-import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredActionState } from "@/hooks/use-deferred-action-state";
 import type { FollowUpDeleteActionState } from "@/features/follow-ups/types";
 
 type DeleteAction = (
@@ -28,25 +27,22 @@ export function FollowUpDeleteDialog({
   action,
   followUpTitle,
   disabled = false,
+  onOptimisticDismiss,
 }: {
   action: DeleteAction;
   followUpTitle: string;
   disabled?: boolean;
+  onOptimisticDismiss?: () => void;
 }) {
-  const router = useProgressRouter();
   const [open, setOpen] = useState(false);
-  const [, formAction, isPending] = useActionStateWithSonner(
-    async (prevState, formData) => {
-      const nextState = await action(prevState, formData);
-
-      if (nextState.success) {
-        setOpen(false);
-        router.refresh();
-      }
-
-      return nextState;
-    },
+  const [, formAction, isPending] = useDeferredActionState(
+    action,
     {} as FollowUpDeleteActionState,
+    {
+      onOptimistic: onOptimisticDismiss,
+      onRevert: onOptimisticDismiss,
+      onSuccess: () => setOpen(false),
+    },
   );
 
   return (
@@ -59,10 +55,9 @@ export function FollowUpDeleteDialog({
       </ResponsiveOverlayTrigger>
       <ResponsiveOverlayContent className="sm:max-w-md">
         <ResponsiveOverlayHeader>
-          <ResponsiveOverlayTitle>Delete follow-up</ResponsiveOverlayTitle>
+          <ResponsiveOverlayTitle>Delete this follow-up?</ResponsiveOverlayTitle>
           <ResponsiveOverlayDescription>
-            Are you sure you want to delete &ldquo;{followUpTitle}&rdquo;? This
-            removes it from your list but keeps the activity log.
+            This removes &ldquo;{followUpTitle}&rdquo; from your active follow-up list.
           </ResponsiveOverlayDescription>
         </ResponsiveOverlayHeader>
         <form action={formAction}>
@@ -73,12 +68,8 @@ export function FollowUpDeleteDialog({
               </Button>
             </ResponsiveOverlayClose>
             <Button disabled={isPending} type="submit" variant="destructive">
-              {isPending ? (
-                <Spinner data-icon="inline-start" aria-hidden="true" />
-              ) : (
-                <Trash2 data-icon="inline-start" />
-              )}
-              {isPending ? "Deleting..." : "Delete"}
+              <OptimisticPendingIndicator pending={isPending} />
+              Delete
             </Button>
           </ResponsiveOverlayFooter>
         </form>

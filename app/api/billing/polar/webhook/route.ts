@@ -41,7 +41,7 @@ import {
 } from "@/lib/billing/webhook-processor";
 import { env } from "@/lib/env";
 
-import { resolvePolarUserId, type PolarEventPayload } from "./identity";
+import { resolvePolarBusinessId, type PolarEventPayload } from "./identity";
 import {
   handleOrderPaid,
   handleOrderRefunded,
@@ -125,7 +125,7 @@ function toResolverPayload(payload: PolarWebhookPayload): PolarEventPayload {
           }
         : null,
       metadata: metadataRaw
-        ? { userId: metadataRaw.userId }
+        ? { businessId: metadataRaw.businessId }
         : null,
     },
   };
@@ -170,9 +170,9 @@ async function handleUnhandledPayload(
   // Best-effort identity resolution: the resolver returns null when
   // no source matches, and a thrown DB error must not surface as a
   // 5xx for a payload we'd otherwise ignore.
-  let userId: string | null = null;
+  let businessId: string | null = null;
   try {
-    userId = await resolvePolarUserId(toResolverPayload(payload));
+    businessId = await resolvePolarBusinessId(toResolverPayload(payload));
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "identity resolution failed";
@@ -181,14 +181,14 @@ async function handleUnhandledPayload(
       message,
       { eventType: payload.type },
     );
-    userId = null;
+    businessId = null;
   }
 
   const result = await recordWebhookEvent({
     providerEventId,
     provider: "polar",
     eventType: payload.type,
-    userId,
+    businessId,
     payload,
   });
 

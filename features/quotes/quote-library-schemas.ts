@@ -118,6 +118,39 @@ export const quoteLibraryEntrySchema = z
         .max(600, "Descriptions must be 600 characters or fewer.")
         .optional(),
     ),
+    title: z.preprocess(
+      emptyToUndefined,
+      z
+        .string()
+        .trim()
+        .max(200, "Title must be 200 characters or fewer.")
+        .optional(),
+    ),
+    notes: z.preprocess(
+      emptyToUndefined,
+      z.string().trim().optional(),
+    ),
+    terms: z.preprocess(
+      emptyToUndefined,
+      z.string().trim().optional(),
+    ),
+    validityDays: z.preprocess(
+      (value) => {
+        if (value == null || value === "") return undefined;
+        if (typeof value === "number") return value;
+        if (typeof value === "string") {
+          const n = Number(value.trim());
+          return Number.isNaN(n) ? value : n;
+        }
+        return value;
+      },
+      z
+        .number()
+        .int("Validity days must be a whole number.")
+        .min(1, "Validity days must be at least 1.")
+        .max(365, "Validity days must be 365 or fewer.")
+        .optional(),
+    ),
     items: quoteLibraryItemsFieldSchema,
   })
   .superRefine((value, ctx) => {
@@ -127,6 +160,40 @@ export const quoteLibraryEntrySchema = z
         path: ["items"],
         message: "Saved pricing blocks must contain exactly one line item.",
       });
+    }
+
+    if (value.kind === "template") {
+      if (value.name.length > 100) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["name"],
+          message: "Template names must be 100 characters or fewer.",
+        });
+      }
+
+      if (!value.title || value.title.trim().length === 0) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["title"],
+          message: "Templates require a title.",
+        });
+      }
+
+      if (value.validityDays == null) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["validityDays"],
+          message: "Templates require a validity period.",
+        });
+      }
+
+      if (value.items.length > 25) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["items"],
+          message: "Templates can include up to 25 line items.",
+        });
+      }
     }
   });
 

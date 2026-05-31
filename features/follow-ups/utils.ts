@@ -3,6 +3,7 @@ import type {
   FollowUpDueBucket,
   FollowUpRecurrence,
   FollowUpStatus,
+  FollowUpTerminationCondition,
 } from "@/features/follow-ups/types";
 
 export const followUpStatusLabels: Record<FollowUpStatus, string> = {
@@ -43,6 +44,11 @@ export const followUpRecurrenceDays: Record<Exclude<FollowUpRecurrence, "none">,
   weekly: 7,
   biweekly: 14,
   monthly: 30,
+};
+
+export const followUpTerminationConditionLabels: Record<FollowUpTerminationCondition, string> = {
+  count: "Maximum occurrences",
+  terminal_status: "Until linked item reaches terminal status",
 };
 
 export function createFollowUpId() {
@@ -97,8 +103,50 @@ export function getQuickFollowUpDueDate(
   }
 }
 
-export function parseFollowUpDueDateInput(value: string) {
-  return new Date(`${value}T12:00:00.000Z`);
+/**
+ * Parse a date input string (YYYY-MM-DD) into a Date anchored at 9 AM
+ * in the given business timezone. Falls back to noon UTC if no timezone provided.
+ */
+export function parseFollowUpDueDateInput(value: string, timezone?: string) {
+  if (!timezone) {
+    return new Date(`${value}T12:00:00.000Z`);
+  }
+
+  try {
+    // Create a date at 9 AM in the business timezone
+    // We use a trick: construct the date string and find the UTC offset
+    const targetLocal = new Date(`${value}T09:00:00`);
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      timeZoneName: "shortOffset",
+    });
+    const parts = formatter.formatToParts(targetLocal);
+    const offsetPart = parts.find((p) => p.type === "timeZoneName")?.value ?? "";
+
+    // Parse offset like "GMT-5" or "GMT+5:30"
+    const offsetMatch = offsetPart.match(/GMT([+-]?)(\d{1,2})(?::(\d{2}))?/);
+
+    if (!offsetMatch) {
+      return new Date(`${value}T12:00:00.000Z`);
+    }
+
+    const sign = offsetMatch[1] === "-" ? -1 : 1;
+    const hours = Number.parseInt(offsetMatch[2], 10);
+    const minutes = Number.parseInt(offsetMatch[3] || "0", 10);
+    const totalOffsetMinutes = sign * (hours * 60 + minutes);
+
+    // 9 AM local = 9:00 - offset in UTC
+    const utcHour = 9 * 60 - totalOffsetMinutes;
+    const utcHours = Math.floor(utcHour / 60);
+    const utcMinutes = utcHour % 60;
+
+    const h = String(((utcHours % 24) + 24) % 24).padStart(2, "0");
+    const m = String(Math.abs(utcMinutes)).padStart(2, "0");
+
+    return new Date(`${value}T${h}:${m}:00.000Z`);
+  } catch {
+    return new Date(`${value}T12:00:00.000Z`);
+  }
 }
 
 export function getDateInputValue(value: Date | string) {

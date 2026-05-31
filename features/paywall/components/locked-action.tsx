@@ -2,9 +2,7 @@
 
 import { useState } from "react";
 import { ArrowUpRight, Lock } from "lucide-react";
-import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -56,29 +54,22 @@ function UpgradeCta({
 }) {
   const touchTargetClasses = "min-h-11 min-w-11 md:min-h-0 md:min-w-0";
 
-  if (upgradeAction) {
-    return (
-      <UpgradeButton
-        userId={upgradeAction.userId}
-        businessId={upgradeAction.businessId}
-        businessSlug={upgradeAction.businessSlug}
-        currentPlan={upgradeAction.currentPlan}
-        size="sm"
-        className={touchTargetClasses}
-      >
-        <ArrowUpRight data-icon="inline-start" />
-        {ctaText}
-      </UpgradeButton>
-    );
+  if (!upgradeAction) {
+    return null;
   }
 
   return (
-    <Button asChild size="sm" className={touchTargetClasses}>
-      <Link href="/account/billing">
-        <ArrowUpRight data-icon="inline-start" />
-        {ctaText}
-      </Link>
-    </Button>
+    <UpgradeButton
+      userId={upgradeAction.userId}
+      businessId={upgradeAction.businessId}
+      businessSlug={upgradeAction.businessSlug}
+      currentPlan={upgradeAction.currentPlan}
+      size="sm"
+      className={touchTargetClasses}
+    >
+      <ArrowUpRight data-icon="inline-start" />
+      {ctaText}
+    </UpgradeButton>
   );
 }
 

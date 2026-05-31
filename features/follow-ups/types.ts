@@ -26,6 +26,9 @@ export const followUpRecurrences = [
   "monthly",
 ] as const;
 
+export const followUpTerminationConditions = ["count", "terminal_status"] as const;
+export type FollowUpTerminationCondition = (typeof followUpTerminationConditions)[number];
+
 export type FollowUpStatus = (typeof followUpStatuses)[number];
 export type FollowUpStatusFilterValue =
   (typeof followUpStatusFilterValues)[number];
@@ -62,9 +65,12 @@ export type FollowUpView = {
   recurrence: FollowUpRecurrence;
   recurrenceCount: number;
   recurrenceLimit: number | null;
+  terminationCondition: FollowUpTerminationCondition | null;
   dueAt: Date;
   completedAt: Date | null;
   skippedAt: Date | null;
+  snoozedUntil: Date | null;
+  completionNote: string | null;
   status: FollowUpStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -97,11 +103,11 @@ export type FollowUpOverviewData = {
 };
 
 export type FollowUpCreateFieldErrors = Partial<
-  Record<"title" | "reason" | "channel" | "dueDate" | "recurrence" | "recurrenceLimit", string[] | undefined>
+  Record<"title" | "reason" | "channel" | "category" | "dueDate" | "recurrence" | "recurrenceLimit" | "terminationCondition", string[] | undefined>
 >;
 
 export type FollowUpEditFieldErrors = Partial<
-  Record<"title" | "reason" | "channel" | "dueDate" | "recurrence" | "recurrenceLimit", string[] | undefined>
+  Record<"title" | "reason" | "channel" | "category" | "dueDate" | "recurrence" | "recurrenceLimit" | "terminationCondition", string[] | undefined>
 >;
 
 export type FollowUpRescheduleFieldErrors = Partial<
@@ -143,6 +149,23 @@ export type FollowUpReassignActionState = {
 };
 
 export type FollowUpDeleteActionState = {
+  error?: string;
+  success?: string;
+};
+
+export type FollowUpSnoozeActionState = {
+  error?: string;
+  success?: string;
+  fieldErrors?: Partial<Record<"snoozedUntil", string[] | undefined>>;
+};
+
+export type FollowUpBulkActionState = {
+  error?: string;
+  success?: string;
+  affected?: number;
+};
+
+export type FollowUpCompleteActionState = {
   error?: string;
   success?: string;
 };

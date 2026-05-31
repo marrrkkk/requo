@@ -14,6 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { OptimisticPendingIndicator } from "@/components/shared/optimistic-pending-indicator";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,7 +25,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -32,7 +32,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Spinner } from "@/components/ui/spinner";
 import {
   completeFollowUpAction,
   deleteFollowUpAction,
@@ -40,6 +39,7 @@ import {
   reassignFollowUpAction,
   rescheduleFollowUpAction,
   skipFollowUpAction,
+  snoozeFollowUpAction,
 } from "@/features/follow-ups/actions";
 import { FollowUpActions } from "@/features/follow-ups/components/follow-up-actions";
 import { FollowUpAiMessageButton } from "@/features/follow-ups/components/follow-up-ai-message-button";
@@ -55,22 +55,27 @@ import {
 } from "@/features/follow-ups/components/follow-up-status-badge";
 import type {
   FollowUpChannel,
+  FollowUpCompleteActionState,
   FollowUpDeleteActionState,
   FollowUpEditActionState,
   FollowUpRecordActionState,
   FollowUpRescheduleActionState,
+  FollowUpSnoozeActionState,
   FollowUpView,
 } from "@/features/follow-ups/types";
 import {
   formatFollowUpDate,
   getFollowUpChannelLabel,
+  followUpRecurrenceLabels,
+  followUpTerminationConditionLabels,
 } from "@/features/follow-ups/utils";
 import {
   getBusinessInquiryPath,
   getBusinessQuotePath,
 } from "@/features/businesses/routes";
-import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredActionState } from "@/hooks/use-deferred-action-state";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
+import type { MotionState } from "@/hooks/use-animated-list";
 import { cn } from "@/lib/utils";
 
 export function getFollowUpRelatedHref(
@@ -101,17 +106,6 @@ function ChannelIcon({
   }
 }
 
-function getInitials(value: string) {
-  const initials = value
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join("");
-
-  return initials || "?";
-}
-
 type FollowUpItemProps = {
   businessSlug: string;
   businessName?: string;
@@ -121,10 +115,12 @@ type FollowUpItemProps = {
   members?: TeamMemberOption[];
   showMessage?: boolean;
   aiTone?: "balanced" | "warm" | "direct" | "formal";
+  motionState?: MotionState;
+  onOptimisticRemove?: () => void;
   completeAction?: (
-    state: FollowUpRecordActionState,
+    state: FollowUpCompleteActionState,
     formData: FormData,
-  ) => Promise<FollowUpRecordActionState>;
+  ) => Promise<FollowUpCompleteActionState>;
   skipAction?: (
     state: FollowUpRecordActionState,
     formData: FormData,
@@ -133,6 +129,10 @@ type FollowUpItemProps = {
     state: FollowUpRescheduleActionState,
     formData: FormData,
   ) => Promise<FollowUpRescheduleActionState>;
+  snoozeAction?: (
+    state: FollowUpSnoozeActionState,
+    formData: FormData,
+  ) => Promise<FollowUpSnoozeActionState>;
   editAction?: (
     state: FollowUpEditActionState,
     formData: FormData,
@@ -164,9 +164,12 @@ export function FollowUpItem({
   members = [],
   showMessage = true,
   aiTone = "balanced",
+  motionState,
+  onOptimisticRemove,
   completeAction: completeActionProp,
   skipAction: skipActionProp,
   rescheduleAction: rescheduleActionProp,
+  snoozeAction: snoozeActionProp,
   editAction: editActionProp,
   deleteAction: deleteActionProp,
   reassignAction: reassignActionProp,
@@ -174,7 +177,7 @@ export function FollowUpItem({
   const [expanded, setExpanded] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const editTriggerRef = useRef<HTMLDivElement>(null);
-  const router = useProgressRouter();
+  const { refreshNow } = useDeferredRefresh();
   const deleteFormRef = useRef<HTMLFormElement>(null);
   const relatedHref = getFollowUpRelatedHref(businessSlug, followUp);
 
@@ -183,22 +186,24 @@ export function FollowUpItem({
   const skipAction = skipActionProp ?? skipFollowUpAction.bind(null, followUp.id);
   const rescheduleAction =
     rescheduleActionProp ?? rescheduleFollowUpAction.bind(null, followUp.id);
+  const snoozeAction =
+    snoozeActionProp ?? snoozeFollowUpAction.bind(null, followUp.id);
   const editAction = editActionProp ?? editFollowUpAction.bind(null, followUp.id);
   const deleteAction =
     deleteActionProp ?? deleteFollowUpAction.bind(null, followUp.id);
   const reassignAction =
     reassignActionProp ?? reassignFollowUpAction.bind(null, followUp.id);
 
-  const [, deleteFormAction, isDeletePending] = useActionStateWithSonner(
-    async (prevState, formData) => {
-      const nextState = await deleteAction(prevState, formData);
-      if (nextState.success) {
-        setShowDeleteConfirm(false);
-        router.refresh();
-      }
-      return nextState;
-    },
+  const [, deleteFormAction, isDeletePending] = useDeferredActionState(
+    deleteAction,
     {} as FollowUpDeleteActionState,
+    {
+      onOptimistic: onOptimisticRemove,
+      onRevert: refreshNow,
+      onSuccess: () => {
+        setShowDeleteConfirm(false);
+      },
+    },
   );
 
   const channelLabel = getFollowUpChannelLabel(followUp.channel);
@@ -208,11 +213,12 @@ export function FollowUpItem({
   return (
     <div
       className={cn(
-        "rounded-xl border border-border/60 bg-background transition-colors",
+        "motion-list-item rounded-xl border border-border/60 bg-background transition-colors",
         expanded ? "border-border/80" : "hover:border-border/80",
         className,
       )}
       data-expanded={expanded}
+      data-motion-state={motionState}
     >
       {/* Header row: avatar + identity + meta + chevron + overflow */}
       <div className="flex items-center gap-2 px-3 py-2.5 sm:px-4">
@@ -225,17 +231,15 @@ export function FollowUpItem({
           onClick={() => setExpanded(!expanded)}
           type="button"
         >
-          <Avatar className="shrink-0">
-            <AvatarFallback>{getInitials(followUp.customerName)}</AvatarFallback>
-          </Avatar>
-
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-x-2">
-            <span className="truncate text-sm font-semibold text-foreground">
-              {followUp.customerName}
-            </span>
-            <span className="truncate text-sm text-muted-foreground">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="truncate text-sm font-medium text-foreground">
               {followUp.title}
             </span>
+            {followUp.customerName ? (
+              <span className="truncate text-xs text-muted-foreground">
+                {followUp.customerName}
+              </span>
+            ) : null}
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
@@ -339,6 +343,48 @@ export function FollowUpItem({
             <p className="text-sm leading-6 text-muted-foreground">
               {followUp.reason}
             </p>
+
+            {/* Recurrence schedule and termination rule */}
+            {followUp.recurrence !== "none" && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <span>
+                  Repeats {followUpRecurrenceLabels[followUp.recurrence].toLowerCase()}
+                </span>
+                {followUp.terminationCondition === "count" && followUp.recurrenceLimit && (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="size-1 rounded-full bg-muted-foreground/40"
+                    />
+                    <span>
+                      {followUp.recurrenceCount} of {followUp.recurrenceLimit} occurrences
+                    </span>
+                  </>
+                )}
+                {followUp.terminationCondition === "terminal_status" && (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="size-1 rounded-full bg-muted-foreground/40"
+                    />
+                    <span>
+                      {followUpTerminationConditionLabels.terminal_status}
+                    </span>
+                  </>
+                )}
+                {!followUp.terminationCondition && followUp.recurrenceLimit && (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="size-1 rounded-full bg-muted-foreground/40"
+                    />
+                    <span>
+                      {followUp.recurrenceCount} of {followUp.recurrenceLimit} repeats
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Suggested message */}
@@ -385,10 +431,27 @@ export function FollowUpItem({
               <FollowUpActions
                 completeAction={completeAction}
                 dueAt={followUp.dueAt}
+                onOptimisticDismiss={onOptimisticRemove}
                 rescheduleAction={rescheduleAction}
                 skipAction={skipAction}
+                snoozeAction={snoozeAction}
               />
             </div>
+          ) : null}
+
+          {/* Completion note */}
+          {followUp.completionNote ? (
+            <div className="soft-panel px-4 py-3 shadow-none">
+              <p className="meta-label mb-1">Outcome</p>
+              <p className="text-sm text-foreground">{followUp.completionNote}</p>
+            </div>
+          ) : null}
+
+          {/* Snoozed indicator */}
+          {followUp.snoozedUntil && isPending ? (
+            <p className="text-xs text-muted-foreground">
+              Snoozed until {formatFollowUpDate(followUp.snoozedUntil)}
+            </p>
           ) : null}
         </div>
       ) : null}
@@ -423,10 +486,8 @@ export function FollowUpItem({
                 onClick={() => deleteFormRef.current?.requestSubmit()}
                 variant="destructive"
               >
-                {isDeletePending ? (
-                  <Spinner className="size-4" aria-hidden="true" />
-                ) : null}
-                {isDeletePending ? "Deleting..." : "Delete"}
+                <OptimisticPendingIndicator pending={isDeletePending} />
+                Delete
               </Button>
             </AlertDialogAction>
           </AlertDialogFooter>

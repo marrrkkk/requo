@@ -21,13 +21,17 @@ Requo is an owner-led SaaS app for service businesses that handle inbound inquir
 2. turn qualified inquiries into quotes,
 3. share or send professional quotes,
 4. follow up consistently,
-5. track viewed, accepted, rejected, expired, and voided quote states.
+5. track viewed, accepted, rejected, expired, and voided quote states,
+6. convert accepted quotes into jobs,
+7. invoice completed or in-progress jobs,
+8. automate repetitive workflow steps through event-driven automation.
 
-The app also handles public inquiry intake, public quote pages, business-scoped dashboards, manual and Requo email quote delivery, follow-up tasks, analytics, notifications, knowledge files, AI-assisted drafts, transactional email, business membership, and account-level subscription billing.
+The app also handles public inquiry intake, public quote pages, business-scoped dashboards, manual and Requo email quote delivery, follow-up tasks, jobs, invoices, workflow automation, analytics, notifications, knowledge files, AI-assisted drafts, transactional email, business membership, and business-scoped subscription billing.
 
 ## Product Direction
 
-- Prioritize the inquiry -> quote -> share/send -> follow-up -> viewed/accepted/rejected tracking workflow across marketing, onboarding, defaults, and in-app product copy.
+- Prioritize the inquiry -> quote -> share/send -> follow-up -> accepted/rejected -> job -> invoice workflow across marketing, onboarding, defaults, and in-app product copy.
+- Workflow automation should support both smart defaults and a visual workflow builder for advanced users.
 - Support multiple business types through editable starter templates.
 - Do not over-specialize into a single vertical.
 - Lead with workflow value, not generic configurability.
@@ -43,6 +47,9 @@ The app also handles public inquiry intake, public quote pages, business-scoped 
 - `lib/billing/` owns billing domain types, plan pricing, region detection, subscription service, webhook processing, and provider clients.
 - `features/billing/` owns checkout UI, billing status, server actions, and billing-related queries.
 - `features/follow-ups/` owns follow-up scheduling, reminders, and lifecycle mutations.
+- `features/jobs/` owns job creation from accepted quotes, job lifecycle, and job queries.
+- `features/invoices/` owns invoice generation, PDF rendering, sending, and invoice queries.
+- `features/automations/` owns event-driven workflow automation triggers, actions, and business-scoped automation rules.
 - `features/business-members/` owns business permission surfaces.
 - `features/analytics/` owns conversion/workflow analytics and public view tracking.
 - `features/audit/` owns audit log writes and reads for sensitive business actions.
@@ -58,8 +65,8 @@ The app also handles public inquiry intake, public quote pages, business-scoped 
 - Better Auth for authentication and sessions
 - Supabase for storage and realtime-backed plumbing
 - Resend for transactional email
-- AI provider routing through Groq, Gemini, and OpenRouter
-- Polar for subscription billing (USD, merchant of record)
+- AI provider routing through Groq, Cerebras, Gemini, Mistral, Cloudflare Workers AI, NVIDIA NIM, and OpenRouter
+- Polar for subscription billing (multi-currency, merchant of record)
 
 ## Working Defaults
 
@@ -92,7 +99,8 @@ Do not add:
 - live chat
 - advanced team collaboration beyond owner-first flows
 - dozens of micro-vertical templates
-- scheduling, routing, payroll, or invoicing unless already present or explicitly requested
+- scheduling, routing, or payroll unless already present or explicitly requested
+- complex branching automation UIs beyond what the workflow builder supports
 - advanced RAG infrastructure unless explicitly requested
 - over-engineered abstractions
 
@@ -110,15 +118,43 @@ Do not add:
 
 ### Billing Architecture
 
-- Subscriptions are account-scoped. Each user account has at most one `account_subscriptions` row.
-- The `businesses.plan` column is a denormalized read cache. The authoritative state lives in `account_subscriptions`.
-- All businesses owned by a user inherit the plan from the user's account subscription.
-- `lib/billing/subscription-service.ts` is the single write path for all subscription mutations. It keeps `businesses.plan` in sync across all owned businesses.
+- Subscriptions are business-scoped. Each business has at most one `business_subscriptions` row.
+- The `businesses.plan` column is a denormalized read cache. The authoritative state lives in `business_subscriptions`.
+- `lib/billing/subscription-service.ts` is the single write path for all subscription mutations. It keeps `businesses.plan` in sync.
 - `lib/billing/webhook-processor.ts` provides idempotent event deduplication using `billing_events`.
-- Polar is the sole payment processor and handles recurring card subscriptions in USD as a merchant of record. Refunds are issued through Polar refunds (`lib/billing/refunds.ts`).
-- Webhook route lives at `app/api/billing/polar/webhook/route.ts`. The refund request route is `app/api/billing/refund/route.ts`.
-- Plan access is resolved through `getEffectivePlan()` in the subscription service, which checks subscription status, cancellation dates, and grace periods.
-- Do not bypass the subscription service or write directly to `account_subscriptions`.
+- Polar is the sole payment processor and handles recurring card subscriptions as a merchant of record. Refunds are issued through Polar refunds (`lib/billing/refunds.ts`).
+- Webhook route lives at `app/api/billing/polar/webhook/route.ts`. Identity resolution maps Polar's `customer.externalId` (set to `business.id` at checkout) back to the owning business.
+- Plan access is resolved through `getEffectivePlanForBusiness()` in the subscription service, which checks subscription status, cancellation dates, and grace periods.
+- Do not bypass the subscription service or write directly to `business_subscriptions`.
+
+### Workflow Automation
+
+- Automations are event-driven, business-scoped rules: a trigger event fires an action automatically.
+- Automations support both simple trigger → action pairs and a visual drag-and-drop workflow builder for composing multi-step flows.
+- Core automation triggers: inquiry received, inquiry qualified, quote sent, quote viewed, quote accepted, quote rejected, quote expired, job created, job completed, invoice sent, invoice paid, follow-up due.
+- Core automation actions: create follow-up, send notification, archive inquiry, generate draft quote, create job from accepted quote, generate invoice, update status, send email.
+- Automations start empty for new businesses. Owners opt in via workflow templates (`features/automations/automation-templates.ts`) or the visual builder — do not auto-create rules on onboarding.
+- Business owners can enable/disable, adjust timing, and add custom automations from settings.
+- The visual builder allows owners to compose workflows by dragging trigger, condition, and action nodes onto a canvas.
+- `features/automations/` owns triggers, actions, rule evaluation, workflow builder UI, and automation-specific components.
+- Automations must respect business scoping and plan entitlements.
+
+### Database & Migrations
+
+- Drizzle ORM with sequential SQL migrations in `drizzle/`. One migration history shared across all environments.
+- Schema source of truth: `lib/db/schema/index.ts` (barrel exporting all domain schema modules).
+- Config: `drizzle.config.ts` uses `DATABASE_MIGRATION_URL` (direct connection, never pooler).
+- App runtime uses `DATABASE_URL` (pooler for Supabase). Migrations use `DATABASE_MIGRATION_URL` (direct connection, port 5432).
+- **Development workflow**: edit schema → `npm run db:generate -- --name descriptive_name` → `npm run db:migrate` → commit migration + schema together.
+- **Production workflow**: `vercel-build` runs `npm run db:migrate:strict && next build`. Production only applies existing migrations. Never generate or push in production.
+- **Never edit a committed migration file.** Always create a new migration.
+- **Never run `db:generate` or `db:push` against production.**
+- `npm run db:reset` drops and re-migrates a local database. Refuses to run against remote DBs by default.
+- `scripts/mark-migrations-applied.ts` marks migrations as applied without running them. Used once when a database already has the schema but lacks Drizzle metadata (e.g., after a migration history reset on an existing prod database).
+- If the production database is brand new (empty), just run `npm run db:migrate` — no need for `mark-migrations-applied`.
+- `scripts/migrate.ts` rejects pooler URLs (e.g. Supabase `:6543`) to prevent DDL failures; use a direct migration URL (`:5432`).
+- During migration rebaseline work, follow `docs/database-migrations.md` "Rebaseline / Migration Reset Playbook" and document assumptions in PR notes.
+- See `docs/database-migrations.md` for the full workflow reference.
 
 ### Performance & Caching
 
@@ -159,7 +195,7 @@ A task is done when:
 
 1. the requested slice is implemented,
 2. messaging is clearer and aligned with the owner-led service business ICP,
-3. the workflow emphasis stays on inquiry -> quote -> share/send -> follow-up -> viewed/accepted/rejected tracking,
+3. the workflow emphasis stays on inquiry -> quote -> share/send -> follow-up -> accepted/rejected -> job -> invoice,
 4. onboarding remains guided through a few starter business paths,
 5. templates and defaults are more opinionated but still editable,
 6. the implementation stays lightweight, maintainable, and consistent with the current architecture and design system,
@@ -176,6 +212,7 @@ A task is done when:
 - Route, layout, or system changes: also run `npm run build`.
 - Covered user-flow changes: run the relevant `npm run test:e2e:smoke`; use `npm run test:e2e` when the change touches broader browser journeys.
 - If demo data or e2e fixtures need refreshing, use `npm run db:migrate` and `npm run db:seed-demo` when the environment supports it.
+- After schema changes, always run `npm run db:generate` then `npm run db:migrate` before other checks.
 - Secret-storage or reversible-credential changes may also require `npm run db:backfill-security-secrets` after keys are configured.
 - Prefer `npm run dev:app` for app-only local work. `npm run dev` also starts `ngrok` for callback and webhook testing.
 - Vercel owns preview and production deployment through Git integration.

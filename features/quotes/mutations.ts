@@ -3,6 +3,8 @@ import "server-only";
 import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 
 import { writeAuditLog } from "@/features/audit/mutations";
+import { emitEvent } from "@/features/automations/dispatcher";
+import { autoCloseFollowUpsForQuote } from "@/features/follow-ups/mutations";
 import { db } from "@/lib/db/client";
 import {
   activityLogs,
@@ -266,7 +268,81 @@ export async function syncExpiredQuotesForBusiness(businessId: string) {
     return 0;
   }
 
-  return db.transaction((tx) => expireQuoteRows(tx, rows));
+  const count = await db.transaction((tx) => expireQuoteRows(tx, rows));
+
+  // Emit quote.expired events after successful transaction
+  for (const row of rows) {
+    emitEvent(row.businessId, "quote.expired", {
+      quoteId: row.id,
+      expiredAt: new Date().toISOString(),
+    });
+  }
+
+  return count;
+}
+
+/**
+ * Sweep all sent quotes whose validity date has passed across every business.
+ *
+ * Called from the daily cron to keep automation triggers (`quote.expired`)
+ * firing on time even when nobody opens the quote list. The per-business
+ * helper still runs on read paths as a fast secondary reconciliation.
+ *
+ * Processed in batches to keep transactions bounded; iterates until no rows
+ * remain so a one-off backlog after a cron outage still drains.
+ */
+export async function syncExpiredQuotesGlobal({
+  batchSize = 200,
+  maxBatches = 50,
+}: {
+  batchSize?: number;
+  maxBatches?: number;
+} = {}) {
+  const today = getTodayUtcDateString();
+  let totalExpired = 0;
+  let batches = 0;
+
+  while (batches < maxBatches) {
+    const rows = await db
+      .select({
+        id: quotes.id,
+        businessId: quotes.businessId,
+        inquiryId: quotes.inquiryId,
+        quoteNumber: quotes.quoteNumber,
+      })
+      .from(quotes)
+      .where(
+        and(
+          eq(quotes.status, "sent"),
+          isNull(quotes.deletedAt),
+          lt(quotes.validUntil, today),
+        ),
+      )
+      .limit(batchSize);
+
+    if (rows.length === 0) {
+      break;
+    }
+
+    await db.transaction((tx) => expireQuoteRows(tx, rows));
+
+    const expiredAt = new Date().toISOString();
+    for (const row of rows) {
+      emitEvent(row.businessId, "quote.expired", {
+        quoteId: row.id,
+        expiredAt,
+      });
+    }
+
+    totalExpired += rows.length;
+    batches += 1;
+
+    if (rows.length < batchSize) {
+      break;
+    }
+  }
+
+  return { expired: totalExpired, batches };
 }
 
 export async function syncExpiredQuoteForPublicToken(token: string) {
@@ -293,7 +369,17 @@ export async function syncExpiredQuoteForPublicToken(token: string) {
     return 0;
   }
 
-  return db.transaction((tx) => expireQuoteRows(tx, rows));
+  const count = await db.transaction((tx) => expireQuoteRows(tx, rows));
+
+  // Emit quote.expired event after successful transaction
+  for (const row of rows) {
+    emitEvent(row.businessId, "quote.expired", {
+      quoteId: row.id,
+      expiredAt: new Date().toISOString(),
+    });
+  }
+
+  return count;
 }
 
 type CreateQuoteForBusinessInput = {
@@ -316,7 +402,7 @@ export async function createQuoteForBusiness({
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
-      return await db.transaction(async (tx) => {
+      const created = await db.transaction(async (tx) => {
         const [business] = await tx
           .select({
             businessId: businesses.id,
@@ -432,6 +518,18 @@ export async function createQuoteForBusiness({
           quoteNumber,
         };
       });
+
+      if (created) {
+        // Emit automation event after the transaction commits so subscribers
+        // see consistent state. emitEvent itself is non-blocking via after().
+        emitEvent(businessId, "quote.created", {
+          quoteId: created.id,
+          inquiryId: inquiryId ?? "",
+          amount: totals.totalInCents,
+        });
+      }
+
+      return created;
     } catch (error) {
       if (attempt < 4 && isRetryableUniqueConflict(error)) {
         continue;
@@ -1094,7 +1192,7 @@ export async function logQuoteSendEvent({
   });
 }
 
-export async function recordQuotePublicViewAt(quoteId: string) {
+export async function recordQuotePublicViewAt(quoteId: string, businessId?: string) {
   const now = new Date();
 
   await db
@@ -1110,6 +1208,14 @@ export async function recordQuotePublicViewAt(quoteId: string) {
         inArray(quotes.status, ["sent", "revision_requested", "accepted", "rejected", "expired", "voided"]),
       ),
     );
+
+  // Emit quote.viewed event if businessId is available
+  if (businessId) {
+    emitEvent(businessId, "quote.viewed", {
+      quoteId,
+      viewedAt: now.toISOString(),
+    });
+  }
 
   return now;
 }
@@ -1147,6 +1253,7 @@ export async function respondToPublicQuoteByToken({
         validUntil: quotes.validUntil,
         sentAt: quotes.sentAt,
         postAcceptanceStatus: quotes.postAcceptanceStatus,
+        totalInCents: quotes.totalInCents,
         notifyOnQuoteResponse: businesses.notifyOnQuoteResponse,
         notifyInAppOnQuoteResponse: businesses.notifyInAppOnQuoteResponse,
         notifyPushOnQuoteResponse: businesses.notifyPushOnQuoteResponse,
@@ -1288,6 +1395,20 @@ export async function respondToPublicQuoteByToken({
       });
     }
 
+    // Auto-close pending follow-ups for this quote when customer responds
+    // Note: This is called inside the transaction but uses its own nested transaction (savepoint).
+    // This is intentional — if auto-close fails, the quote response should still succeed.
+    try {
+      await autoCloseFollowUpsForQuote({
+        businessId: existingQuote.businessId,
+        quoteId: existingQuote.id,
+        reason: nextStatus === "accepted" ? "quote_accepted" : "quote_rejected",
+      });
+    } catch (error) {
+      // Non-critical: log but don't fail the quote response
+      console.error("[respondToPublicQuoteByToken] Failed to auto-close follow-ups", error);
+    }
+
     return {
       updated: true,
       businessId: existingQuote.businessId,
@@ -1305,6 +1426,7 @@ export async function respondToPublicQuoteByToken({
       quoteNumber: existingQuote.quoteNumber,
       status: nextStatus,
       title: existingQuote.title,
+      totalInCents: existingQuote.totalInCents,
       updatedAt: now,
     };
   });
@@ -1398,6 +1520,23 @@ export async function onQuoteAccepted(
   quoteNumber: string,
   now: Date,
 ) {
+  // Auto-create job if the business has it enabled
+  const [business] = await tx
+    .select({ autoCreateJobsOnAcceptance: businesses.autoCreateJobsOnAcceptance })
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
+  if (business?.autoCreateJobsOnAcceptance) {
+    const { createJobFromQuoteForBusiness } = await import("@/features/jobs/mutations");
+    await createJobFromQuoteForBusiness({
+      businessId,
+      quoteId,
+      userId: null,
+      tx,
+    });
+  }
+
   const checklistCreated = await maybeCreatePostWinChecklist(
     tx,
     businessId,
@@ -1441,7 +1580,7 @@ type UpdateQuotePostAcceptanceStatusForBusinessInput = {
   businessId: string;
   quoteId: string;
   actorUserId: string;
-  postAcceptanceStatus: "none" | "booked" | "scheduled" | "in_progress" | "completed" | "canceled";
+  postAcceptanceStatus: import("@/features/quotes/types").QuotePostAcceptanceStatus;
 };
 
 export async function updateQuotePostAcceptanceStatusForBusiness({
@@ -2288,4 +2427,113 @@ export async function stopAutoFollowUpForQuote(quoteId: string) {
       updatedAt: now,
     })
     .where(eq(quotes.id, quoteId));
+}
+
+// ---------------------------------------------------------------------------
+// Bulk mutations for quote list actions
+// ---------------------------------------------------------------------------
+
+export async function bulkArchiveQuotesForBusiness({
+  businessId,
+  quoteIds,
+  actorUserId,
+}: {
+  businessId: string;
+  quoteIds: string[];
+  actorUserId: string;
+}): Promise<{ affected: number; skipped: number }> {
+  const now = new Date();
+
+  const result = await db
+    .update(quotes)
+    .set({
+      archivedAt: now,
+      archivedBy: actorUserId,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(quotes.businessId, businessId),
+        inArray(quotes.id, quoteIds),
+        isNull(quotes.deletedAt),
+      ),
+    )
+    .returning({ id: quotes.id });
+
+  return {
+    affected: result.length,
+    skipped: quoteIds.length - result.length,
+  };
+}
+
+export async function bulkVoidQuotesForBusiness({
+  businessId,
+  quoteIds,
+  actorUserId,
+}: {
+  businessId: string;
+  quoteIds: string[];
+  actorUserId: string;
+}): Promise<{ affected: number; skipped: number }> {
+  const now = new Date();
+
+  // Only "sent" quotes can be voided
+  const result = await db
+    .update(quotes)
+    .set({
+      status: "voided",
+      voidedAt: now,
+      voidedBy: actorUserId,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(quotes.businessId, businessId),
+        inArray(quotes.id, quoteIds),
+        eq(quotes.status, "sent"),
+        isNull(quotes.deletedAt),
+      ),
+    )
+    .returning({ id: quotes.id });
+
+  return {
+    affected: result.length,
+    skipped: quoteIds.length - result.length,
+  };
+}
+
+export async function bulkDeleteDraftQuotesForBusiness({
+  businessId,
+  quoteIds,
+  actorUserId,
+}: {
+  businessId: string;
+  quoteIds: string[];
+  actorUserId: string;
+}): Promise<{ affected: number; skipped: number }> {
+  const now = new Date();
+
+  // Only draft, non-archived quotes can be deleted
+  const result = await db
+    .update(quotes)
+    .set({
+      deletedAt: now,
+      deletedBy: actorUserId,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(quotes.businessId, businessId),
+        inArray(quotes.id, quoteIds),
+        eq(quotes.status, "draft"),
+        isNull(quotes.archivedAt),
+        isNull(quotes.deletedAt),
+      ),
+    )
+    .returning({ id: quotes.id });
+
+  return {
+    affected: result.length,
+    skipped: quoteIds.length - result.length,
+  };
 }

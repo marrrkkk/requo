@@ -1,26 +1,23 @@
+import dynamic from "next/dynamic";
+
 import type { LandingFeatureId } from "@/components/marketing/marketing-data";
-import { MarketingFeatureMock } from "@/components/marketing/marketing-feature-mocks";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+
+const MarketingFeatureMock = dynamic(
+  () =>
+    import("@/components/marketing/marketing-feature-mocks").then(
+      (m) => m.MarketingFeatureMock,
+    )
+);
 
 export function MarketingFeatureRow({
   title,
   description,
-  previewTitle,
-  previewDescription,
   featureId,
   reverse = false,
 }: {
   title: string;
   description: string;
-  previewTitle: string;
-  previewDescription: string;
   featureId: LandingFeatureId;
   reverse?: boolean;
 }) {
@@ -59,12 +56,7 @@ export function MarketingFeatureRow({
             reverse && "lg:order-1",
           )}
         >
-          <MarketingFeaturePreview
-            description={previewDescription}
-            featureId={featureId}
-            reverse={reverse}
-            title={previewTitle}
-          />
+          <MarketingFeaturePreview featureId={featureId} reverse={reverse} />
         </div>
       </div>
     </article>
@@ -73,55 +65,27 @@ export function MarketingFeatureRow({
 
 function MarketingFeaturePreview({
   featureId,
-  title,
-  description,
   reverse = false,
 }: {
   featureId: LandingFeatureId;
-  title: string;
-  description: string;
   reverse?: boolean;
 }) {
   return (
-    <Card
+    <div
+      aria-label={`Preview of ${featureId}`}
       className={cn(
-        // Fixed preview frame: consistent height across all four features,
-        // responsive steps up from mobile to desktop. Internal body scrolls
-        // so variable-length mocks do not push the frame taller.
-        "gap-0! flex h-[32rem] max-h-[32rem] flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-background/95 shadow-[var(--surface-shadow-md)] sm:h-[34rem] sm:max-h-[34rem] lg:h-[30rem] lg:max-h-[30rem] xl:h-[32rem] xl:max-h-[32rem]",
+        "relative w-full overflow-hidden rounded-xl border border-border/70 bg-background ring-1 ring-border/30 ring-offset-2 ring-offset-background shadow-[0_20px_60px_rgba(0,0,0,0.1),0_4px_16px_rgba(0,0,0,0.05)] dark:border-white/10 dark:ring-white/5 dark:shadow-[0_20px_60px_rgba(0,0,0,0.5)]",
         reverse
-          ? "lg:rounded-l-none lg:border-l-0"
-          : "lg:rounded-r-none lg:border-r-0",
+          ? "lg:rounded-l-none lg:border-l-0 lg:ring-l-0"
+          : "lg:rounded-r-none lg:border-r-0 lg:ring-r-0",
       )}
-      size="sm"
+      role="img"
     >
-      <CardHeader className="shrink-0 border-b border-border/70 bg-background/90 px-4 py-3 sm:px-6 sm:py-4">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-col gap-1">
-            <CardTitle className="truncate text-sm sm:text-base">
-              {title}
-            </CardTitle>
-            <CardDescription className="line-clamp-2 text-[11px] leading-4 sm:text-sm sm:leading-5">
-              {description}
-            </CardDescription>
-          </div>
-          <div
-            aria-hidden="true"
-            className="hidden items-center gap-1.5 sm:flex"
-          >
-            <span className="size-2 rounded-full bg-border" />
-            <span className="size-2 rounded-full bg-border" />
-            <span className="size-2 rounded-full bg-border" />
-          </div>
+      <div className="h-[28rem] p-4 sm:p-5 lg:p-6">
+        <div className="h-full min-h-0">
+          <MarketingFeatureMock featureId={featureId} />
         </div>
-      </CardHeader>
-      <CardContent
-        className={cn(
-          "min-h-0 flex-1 overflow-hidden bg-muted/15 px-3 py-4 sm:px-6 sm:py-6",
-        )}
-      >
-        <MarketingFeatureMock featureId={featureId} />
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

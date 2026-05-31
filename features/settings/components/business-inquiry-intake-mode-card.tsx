@@ -3,7 +3,7 @@
 import { startTransition, useEffect, useState } from "react";
 import { CheckCircle2, FileText, Sparkles } from "lucide-react";
 
-import { useRouter } from "next/navigation";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import {
   FloatingFormActions,
@@ -42,7 +42,7 @@ export function BusinessInquiryIntakeModeCard({
   plan,
   toggleConversationalAction,
 }: BusinessInquiryIntakeModeCardProps) {
-  const router = useRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const hasAiAccess = hasFeatureAccess(plan, "aiAssistant");
   const [actionState, formAction, isPending] = useActionStateWithSonner(
     toggleConversationalAction,
@@ -63,9 +63,9 @@ export function BusinessInquiryIntakeModeCard({
     if (!actionState.success) return;
     startTransition(() => {
       setStagedMode(null);
-      router.refresh();
+      scheduleRefresh();
     });
-  }, [actionState.success, router]);
+  }, [actionState.success, scheduleRefresh]);
 
   function handleSelect(mode: "form" | "chat") {
     if (isPending) return;

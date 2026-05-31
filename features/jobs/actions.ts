@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidateTag } from "next/cache";
+import { redirect } from "next/navigation";
 import { and, count, eq, isNull } from "drizzle-orm";
 
 import {
@@ -74,7 +75,7 @@ export async function createJobFromQuoteAction(
   });
 
   if (result.error) {
-    return { error: result.error };
+    return { error: result.error, jobId: result.jobId };
   }
 
   revalidateCacheTags([
@@ -82,7 +83,7 @@ export async function createJobFromQuoteAction(
     ...getBusinessQuoteDetailCacheTags(businessContext.business.id, quoteId),
   ]);
 
-  return { success: "Job created." };
+  return { success: "Job created.", jobId: result.jobId };
 }
 
 /**
@@ -157,8 +158,11 @@ export async function toggleJobItemAction(
  */
 export async function deleteJobAction(
   jobId: string,
+  _prevState?: JobEditorActionState,
+  formData?: FormData,
 ): Promise<JobEditorActionState> {
   const access = await getWorkspaceBusinessActionContext();
+  const redirectHref = formData ? formData.get("redirectHref") as string | null : null;
 
   if (!access.ok) {
     return { error: access.error };
@@ -177,6 +181,10 @@ export async function deleteJobAction(
   }
 
   revalidateCacheTags(getBusinessJobListCacheTags(businessContext.business.id));
+
+  if (redirectHref) {
+    redirect(redirectHref);
+  }
 
   return { success: "Job deleted." };
 }

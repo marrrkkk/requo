@@ -255,17 +255,17 @@ describe('features/inquiries/actions', () => {
     }, 10000);
   });
 
-  describe('hasFeatureAccess branding checks', () => {
-    it('free plan does not have branding access', () => {
-      expect(hasFeatureAccess('free', 'branding')).toBe(false);
+  describe('hasFeatureAccess watermark removal checks', () => {
+    it('free plan does not have watermark removal access', () => {
+      expect(hasFeatureAccess('free', 'removeWatermark')).toBe(false);
     });
 
-    it('pro plan has branding access', () => {
-      expect(hasFeatureAccess('pro', 'branding')).toBe(true);
+    it('pro plan has watermark removal access', () => {
+      expect(hasFeatureAccess('pro', 'removeWatermark')).toBe(true);
     });
 
-    it('business plan has branding access', () => {
-      expect(hasFeatureAccess('business', 'branding')).toBe(true);
+    it('business plan has watermark removal access', () => {
+      expect(hasFeatureAccess('business', 'removeWatermark')).toBe(true);
     });
   });
 });

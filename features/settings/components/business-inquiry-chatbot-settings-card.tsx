@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Bot } from "lucide-react";
 
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,7 +56,7 @@ export function BusinessInquiryChatbotSettingsCard({
   openingMessage,
   saveChatbotSettingsAction,
 }: BusinessInquiryChatbotSettingsCardProps) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [draftName, setDraftName] = useState(assistantName);
   const [draftAvatar, setDraftAvatar] = useState<InquiryFormConversationalAvatarStyle>(avatarStyle);
   const [draftMessage, setDraftMessage] = useState(openingMessage);
@@ -76,8 +76,8 @@ export function BusinessInquiryChatbotSettingsCard({
 
   useEffect(() => {
     if (!saveState.success) return;
-    router.refresh();
-  }, [saveState.success, router]);
+    scheduleRefresh();
+  }, [saveState.success, scheduleRefresh]);
 
   return (
     <Card className="border-border/75 bg-card/96">

@@ -1,6 +1,7 @@
 export const activeBusinessSlugCookieName = "requo-active-business";
 
-export const businessesHubPath = "/businesses";
+export const dashboardPath = "/home";
+export const newBusinessPath = "/new";
 
 export type BusinessSettingsSection =
   | "general"
@@ -12,16 +13,18 @@ export type BusinessSettingsSection =
   | "email"
   | "pricing"
   | "knowledge"
+  | "support"
+  | "automations"
   | "integrations"
   | "billing"
   | "audit-log";
 
 export function getBusinessPath(slug: string) {
-  return `/businesses/${slug}`;
+  return `/${slug}`;
 }
 
 export function getBusinessDashboardPath(slug: string) {
-  return `${getBusinessPath(slug)}/dashboard`;
+  return `${getBusinessPath(slug)}/home`;
 }
 
 export function getBusinessAnalyticsPath(slug: string) {
@@ -69,6 +72,18 @@ export function getBusinessAssistantPath(slug: string) {
   return `${getBusinessPath(slug)}/assistant`;
 }
 
+export function getBusinessChatPath(slug: string) {
+  return `${getBusinessPath(slug)}/chat`;
+}
+
+export function getBusinessChatNewPath(slug: string) {
+  return `${getBusinessChatPath(slug)}/new`;
+}
+
+export function getBusinessChatConversationPath(slug: string, conversationId: string) {
+  return `${getBusinessChatPath(slug)}/${conversationId}`;
+}
+
 export function getBusinessNewQuotePath(
   slug: string,
   inquiryId?: string | null,
@@ -88,6 +103,10 @@ export function getBusinessNewQuotePath(
 
 export function getBusinessQuotePath(slug: string, quoteId: string) {
   return `${getBusinessQuotesPath(slug)}/${quoteId}`;
+}
+
+export function getBusinessQuotePreviewPath(slug: string, quoteId: string) {
+  return `${getBusinessQuotesPath(slug)}/${quoteId}/preview`;
 }
 
 export function getBusinessQuotePrintPath(slug: string, quoteId: string) {
@@ -200,6 +219,10 @@ export function getBusinessInquiryFormPreviewPath(
   return `${getBusinessPath(slug)}/preview/inquiry/${formSlug}`;
 }
 
+export function getBusinessAutomationsPath(slug: string) {
+  return `${getBusinessPath(slug)}/automations`;
+}
+
 export function getBusinessJobsPath(slug: string) {
   return `${getBusinessPath(slug)}/jobs`;
 }
@@ -221,7 +244,7 @@ export function getBusinessKnowledgeCompatibilityPath(slug: string) {
 }
 
 export function getBusinessDashboardSlugFromPathname(pathname: string) {
-  const match = /^\/businesses\/([^/]+)(?:\/|$)/.exec(pathname);
+  const match = /^\/([^/]+)(?:\/|$)/.exec(pathname);
 
   return match ? decodeURIComponent(match[1]) : null;
 }

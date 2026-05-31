@@ -20,7 +20,7 @@ type StarterTemplateChoiceGridProps = {
 };
 
 export function StarterTemplateChoiceGrid({
-  ariaLabel = "Starter template",
+  ariaLabel = "Business type",
   disabled = false,
   inputName,
   onChange,

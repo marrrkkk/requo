@@ -88,11 +88,11 @@ export function AdminShell({
       <SidebarInset className="min-h-svh min-w-0">
         <header className="dashboard-topbar">
           <div className="dashboard-topbar-inner">
-            <div className="flex min-h-11 min-w-0 items-center gap-2.5 md:gap-3">
-              <SidebarTrigger className="size-10 shrink-0" />
+            <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
+              <SidebarTrigger className="size-8 shrink-0" />
               <span
                 aria-hidden="true"
-                className="hidden h-4 w-px shrink-0 self-center bg-border md:block"
+                className="hidden h-3.5 w-px shrink-0 self-center bg-border md:block"
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-heading text-sm font-semibold tracking-tight text-foreground">

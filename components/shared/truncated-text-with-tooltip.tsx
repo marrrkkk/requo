@@ -35,14 +35,13 @@ export function TruncatedTextWithTooltip({
   prefetch = true,
   lines = 1,
 }: TruncatedTextWithTooltipProps) {
-  const textRef = useRef<HTMLElement | null>(null);
+  const [element, setElement] = useState<HTMLElement | null>(null);
   const [isOverflowed, setIsOverflowed] = useState(false);
   const setTextRef = useCallback((node: HTMLElement | null) => {
-    textRef.current = node;
+    setElement(node);
   }, []);
 
   useEffect(() => {
-    const element = textRef.current;
 
     if (!element) {
       return;
@@ -81,7 +80,7 @@ export function TruncatedTextWithTooltip({
       isMounted = false;
       resizeObserver.disconnect();
     };
-  }, [lines, text]);
+  }, [lines, text, element]);
 
   const textClassName = cn(
     "block max-w-full min-w-0 break-words",

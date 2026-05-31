@@ -5,10 +5,11 @@ import { LogOut, User } from "lucide-react";
 import { useTransition } from "react";
 
 import { authClient } from "@/lib/auth/client";
-import { getAccountProfilePath } from "@/features/account/routes";
+import { dashboardPath } from "@/features/businesses/routes";
 import { AppearanceMenuSubmenu } from "@/features/theme/components/appearance-menu";
 import { clearPersistedThemePreference } from "@/features/theme/persistence";
 import { themeUserStorageKey } from "@/features/theme/types";
+import { clearOnboardingDraft } from "@/features/onboarding/helpers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -43,6 +44,7 @@ export function AccountUserMenu({ user }: AccountUserMenuProps) {
 
       window.localStorage.removeItem(themeUserStorageKey);
       clearPersistedThemePreference();
+      clearOnboardingDraft();
 
       window.location.assign("/login");
     });
@@ -86,9 +88,9 @@ export function AccountUserMenu({ user }: AccountUserMenuProps) {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
-            <Link href={getAccountProfilePath()} prefetch={true}>
+            <Link href={dashboardPath} prefetch={true}>
               <User data-icon="inline-start" />
-              User settings
+              Dashboard
             </Link>
           </DropdownMenuItem>
           <AppearanceMenuSubmenu userId={user.id} />

@@ -231,27 +231,42 @@ export function BillingStatusCardBodySkeleton() {
 
 export function ManagerBodySkeleton() {
   return (
-    <div className="dashboard-side-stack">
-      <CardSkeleton>
-        <div className="flex items-center justify-between gap-4">
-          <TitleBlock titleWidth="w-32" descriptionWidth="w-48" />
-          <Skeleton className="h-10 w-36 rounded-xl" />
+    <div className="flex flex-col gap-8">
+      {/* Action row */}
+      <div className="flex justify-end gap-2">
+        <Skeleton className="h-10 w-[8.5rem] rounded-xl" />
+      </div>
+
+      {/* Form list table */}
+      <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
+        <div className="border-b border-border/70 bg-muted/30 px-4 py-3">
+          <div className="grid grid-cols-[18rem_12rem_8rem_9rem_3rem] gap-4">
+            <Skeleton className="h-4 w-16 rounded-md" />
+            <Skeleton className="h-4 w-20 rounded-md" />
+            <Skeleton className="h-4 w-24 rounded-md" />
+            <Skeleton className="h-4 w-14 rounded-md" />
+            <Skeleton className="h-4 w-8 rounded-md" />
+          </div>
         </div>
-        <div className="space-y-4">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div className="rounded-2xl border border-border/70 bg-muted/15 p-5" key={index}>
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1 space-y-2">
-                  <Skeleton className="h-5 w-40 rounded-md" />
-                  <Skeleton className="h-4 w-full max-w-md rounded-md" />
-                  <Skeleton className="h-4 w-full max-w-sm rounded-md" />
-                </div>
-                <Skeleton className="size-8 rounded-lg" />
-              </div>
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            className={cn(
+              "grid grid-cols-[18rem_12rem_8rem_9rem_3rem] items-center gap-4 px-4 py-4",
+              index > 0 && "border-t border-border/70",
+            )}
+            key={index}
+          >
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-32 rounded-md" />
+              <Skeleton className="h-3 w-48 rounded-md" />
             </div>
-          ))}
-        </div>
-      </CardSkeleton>
+            <Skeleton className="h-5 w-24 rounded-full" />
+            <Skeleton className="h-4 w-8 rounded-md" />
+            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-8 w-8 rounded-md justify-self-end" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

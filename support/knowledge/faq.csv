@@ -1,0 +1,13 @@
+category,question,answer,tags,channel
+Onboarding,How do I create my first business workspace?,"After signup, complete onboarding to create your first business. You can rename it any time in Settings > General.","onboarding,business-setup,workspace",chat
+Quotes,Can I turn an inquiry into a quote without retyping details?,"Yes. Open the inquiry, choose Create Quote, and Requo pre-fills customer details and service context.","quotes,inquiries,workflow",chat
+Billing,Where can I update my subscription plan?,"Go to Settings > Billing to upgrade, downgrade, or review your current plan and usage.","billing,plan,subscription",chat
+Billing,Do you offer yearly billing?,Yes. Eligible plans support monthly and yearly billing cycles. Switch from the Billing page at any time.,"billing,yearly,pricing",chat
+Access,How do I invite a teammate?,Use Settings > Members to send an invite link and assign their role.,"members,invites,roles",chat
+Support,How quickly does support reply?,We usually respond within one business day. Urgent billing or access issues are prioritized.,"support,sla,response-time",chat
+Automation,How do automation templates work?,Automation templates give you starter trigger-action flows. You can enable them and customize timing or actions.,"automations,templates,follow-up",chat
+Troubleshooting,Why is my quote email not sending?,"Check Email settings, sender domain configuration, and whether your plan includes sending limits. Then retry from the quote page.","email,quotes,troubleshooting",chat
+Inquiries,Can I embed inquiry forms on my website?,Yes. Publish an inquiry form and use the provided link or embed setup from the Forms section.,"inquiries,forms,embed",chat
+Invoices,Can accepted quotes become jobs and invoices?,"Yes. Accepted quotes can be converted into jobs, and invoices can be generated once work is in progress or complete.","quotes,jobs,invoices,workflow",chat
+Knowledge,What is the Knowledge section used for?,Knowledge stores reusable business context and FAQs that help AI drafting produce better replies and quote content.,"knowledge,ai,settings",chat
+Security,How do I secure access to my workspace?,"Use strong account passwords, review team member roles regularly, and remove old members from Settings > Members.","security,members,access-control",chat

@@ -1,12 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
+import { BulkActionBar } from "@/components/shared/bulk-action-bar";
 import { DataListPagination } from "@/components/shared/data-list-pagination";
+import { QuoteBulkActions } from "@/features/quotes/components/quote-bulk-actions";
 import { QuoteListCards } from "@/features/quotes/components/quote-list-cards";
 import { QuoteListTable } from "@/features/quotes/components/quote-list-table";
 import { getBusinessQuotesPath } from "@/features/businesses/routes";
 import type { DashboardQuoteListItem } from "@/features/quotes/types";
+import { useAnimatedList } from "@/hooks/use-animated-list";
+import { useBulkSelection } from "@/hooks/use-bulk-selection";
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
 const EMPTY_PAGE_CACHE: Record<number, DashboardQuoteListItem[]> = {};
@@ -45,10 +49,12 @@ export function QuoteListResultsClient({
     ? visiblePage
     : currentPage;
 
-  const quotes = useMemo(
+  const quotesFromCache = useMemo(
     () => effectiveCachedPages[displayPage] ?? [],
     [displayPage, effectiveCachedPages],
   );
+
+  const { items: quotes, getMotionState, removeItems } = useAnimatedList(quotesFromCache);
   const cachedPageNumbers = useMemo(
     () =>
       Object.keys(effectiveCachedPages)
@@ -57,10 +63,84 @@ export function QuoteListResultsClient({
     [effectiveCachedPages],
   );
 
+  const {
+    selectedCount,
+    isSelected,
+    toggle,
+    selectAll,
+    deselectAll,
+    isAtLimit,
+    serializedIds,
+    allSelected,
+  } = useBulkSelection(quotes);
+
+  const allOnPageSelected = quotes.length > 0 && allSelected(quotes.map((q) => q.id));
+
+  const handleSelectAllOnPage = () => {
+    if (allOnPageSelected) {
+      deselectAll();
+    } else {
+      selectAll(quotes.map((q) => q.id));
+    }
+  };
+
+  const handleSelectAllMatchingFilters = () => {
+    const allMatchingIds = Object.values(effectiveCachedPages).flatMap(
+      (pageItems) => pageItems.map((item) => item.id),
+    );
+
+    // Default max selection is 50 in useBulkSelection
+    const MAX_BULK_SELECTION = 50;
+
+    if (allMatchingIds.length > MAX_BULK_SELECTION) {
+      selectAll(allMatchingIds.slice(0, MAX_BULK_SELECTION));
+    } else {
+      selectAll(allMatchingIds);
+    }
+  };
+
+  const handleBulkComplete = useCallback(() => {
+    deselectAll();
+  }, [deselectAll]);
+
   return (
     <>
-      <QuoteListCards quotes={quotes} businessSlug={businessSlug} />
-      <QuoteListTable quotes={quotes} businessSlug={businessSlug} />
+      <BulkActionBar
+        selectedCount={selectedCount}
+        totalOnPage={quotes.length}
+        totalMatchingFilters={totalItems}
+        maxSelection={50}
+        allOnPageSelected={allOnPageSelected}
+        onSelectAllOnPage={handleSelectAllOnPage}
+        onSelectAllMatchingFilters={handleSelectAllMatchingFilters}
+        onDeselectAll={deselectAll}
+      >
+        <QuoteBulkActions
+          selectedCount={selectedCount}
+          serializedIds={serializedIds}
+          quotes={quotes}
+          onComplete={handleBulkComplete}
+          onOptimisticRemove={removeItems}
+        />
+      </BulkActionBar>
+      <QuoteListCards
+        quotes={quotes}
+        businessSlug={businessSlug}
+        isSelected={isSelected}
+        isAtLimit={isAtLimit}
+        onToggle={toggle}
+        getMotionState={getMotionState}
+      />
+      <QuoteListTable
+        quotes={quotes}
+        businessSlug={businessSlug}
+        isSelected={isSelected}
+        isAtLimit={isAtLimit}
+        onToggle={toggle}
+        allOnPageSelected={allOnPageSelected}
+        onSelectAllOnPage={handleSelectAllOnPage}
+        getMotionState={getMotionState}
+      />
       <DataListPagination
         cachedPages={cachedPageNumbers}
         currentPage={displayPage}

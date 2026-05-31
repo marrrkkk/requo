@@ -41,6 +41,7 @@ export async function recordWebhookEvent(params: {
   provider: BillingProvider;
   eventType: string;
   userId?: string | null;
+  businessId?: string | null;
   payload: unknown;
 }): Promise<{ isNew: boolean; eventId: string }> {
   // Check for existing event
@@ -62,6 +63,7 @@ export async function recordWebhookEvent(params: {
     provider: params.provider,
     eventType: params.eventType,
     userId: params.userId ?? null,
+    businessId: params.businessId ?? null,
     payload: params.payload as Record<string, unknown>,
     status: "processing",
     createdAt: new Date(),
@@ -114,6 +116,7 @@ type RecordPaymentAttemptParams = {
    * payment rows. See Requirement 8.4.
    */
   userId: string | null;
+  businessId?: string | null;
   plan: string;
   provider: BillingProvider;
   providerPaymentId: string;
@@ -133,6 +136,7 @@ export async function recordPaymentAttempt(
   await db.insert(paymentAttempts).values({
     id,
     userId: params.userId ?? null,
+    businessId: params.businessId ?? null,
     plan: params.plan,
     provider: params.provider,
     providerPaymentId: params.providerPaymentId,

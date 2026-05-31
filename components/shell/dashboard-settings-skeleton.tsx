@@ -733,6 +733,47 @@ function SettingsCardSkeleton({
   );
 }
 
+export function DashboardSettingsAppearanceSkeleton() {
+  return (
+    <DashboardSettingsShellSkeleton>
+      <div className="dashboard-side-stack">
+        <SettingsPageHeader
+          titleWidth="max-w-xs"
+          descriptionWidth="w-[22rem]"
+        />
+
+        {/* Theme option cards grid — matches 3-column layout */}
+        <div className="grid gap-3 sm:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex min-h-[7.5rem] flex-col items-start gap-3 rounded-xl border border-border bg-card p-4"
+            >
+              <div className="flex w-full items-center justify-between">
+                <Skeleton className="size-5 rounded-md" />
+              </div>
+              <div className="space-y-1.5">
+                <Skeleton className="h-4 w-16 rounded-md" />
+                <Skeleton className="h-3 w-36 rounded-md" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </DashboardSettingsShellSkeleton>
+  );
+}
+
+export function DashboardSettingsMembersSkeleton() {
+  return (
+    <DashboardSettingsShellSkeleton>
+      <div className="dashboard-side-stack">
+        <SettingsPageHeader titleWidth="max-w-xs" descriptionWidth="w-64" />
+      </div>
+    </DashboardSettingsShellSkeleton>
+  );
+}
+
 function DashboardSettingsGeneralSkeletonContent() {
   return (
     <>

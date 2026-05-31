@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useOptimistic, useState } from "react";
 import {
   Copy,
   MailPlus,
@@ -8,12 +8,12 @@ import {
   Trash2,
   UserCog,
   UserMinus,
+  UserPlus,
 } from "lucide-react";
 
 import {
   AlertDialog,
   AlertDialogAction,
-  AlertDialogBody,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -77,6 +77,7 @@ import type {
   BusinessMembersSettingsView,
 } from "@/features/business-members/types";
 import { getBusinessMemberInvitePath } from "@/features/businesses/routes";
+import { useDeferredActionState } from "@/hooks/use-deferred-action-state";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -126,14 +127,75 @@ export function BusinessMembersManager({
     null,
   );
 
+  const [optimisticMembers, setOptimisticMembers] = useOptimistic(
+    view.members,
+    (
+      current,
+      action:
+        | { type: "remove"; membershipId: string }
+        | { type: "updateRole"; membershipId: string; role: AssignableRole }
+        | { type: "restore"; members: BusinessMemberView[] },
+    ) => {
+      if (action.type === "restore") {
+        return action.members;
+      }
+      if (action.type === "remove") {
+        return current.filter((member) => member.membershipId !== action.membershipId);
+      }
+
+      return current.map((member) =>
+        member.membershipId === action.membershipId
+          ? { ...member, role: action.role }
+          : member,
+      );
+    },
+  );
+
   const [, inviteFormAction, isInvitePending] =
     useActionStateWithSonner(createInviteAction, initialState);
   const [, cancelInviteFormAction, isCancelInvitePending] =
     useActionStateWithSonner(cancelInviteAction, initialState);
-  const [, updateRoleFormAction, isRoleUpdatePending] =
-    useActionStateWithSonner(updateRoleAction, initialState);
-  const [, removeMemberFormAction, isRemoveMemberPending] =
-    useActionStateWithSonner(removeMemberAction, initialState);
+  const [, updateRoleFormAction, isRoleUpdatePending] = useDeferredActionState(
+    updateRoleAction,
+    initialState,
+    {
+      onOptimistic: () => {
+        if (!accessMember) {
+          return;
+        }
+
+        setOptimisticMembers({
+          type: "updateRole",
+          membershipId: accessMember.membershipId,
+          role: accessRole,
+        });
+      },
+      onRevert: () => {
+        setOptimisticMembers({ type: "restore", members: view.members });
+      },
+      onSuccess: () => setAccessMember(null),
+    },
+  );
+  const [, removeMemberFormAction, isRemoveMemberPending] = useDeferredActionState(
+    removeMemberAction,
+    initialState,
+    {
+      onOptimistic: () => {
+        if (!removeMember) {
+          return;
+        }
+
+        setOptimisticMembers({
+          type: "remove",
+          membershipId: removeMember.membershipId,
+        });
+      },
+      onRevert: () => {
+        setOptimisticMembers({ type: "restore", members: view.members });
+      },
+      onSuccess: () => setRemoveMember(null),
+    },
+  );
   const origin = typeof window === "undefined" ? "" : window.location.origin;
   const [pendingInvitesOpen, setPendingInvitesOpen] = useState(false);
 
@@ -160,7 +222,7 @@ export function BusinessMembersManager({
             ) : null}
             <LockedAction feature="members" plan={plan}>
               <Button type="button" onClick={() => setInviteOpen(true)} disabled={readOnly}>
-                <MailPlus data-icon="inline-start" />
+                <UserPlus data-icon="inline-start" />
                 Invite member
               </Button>
             </LockedAction>
@@ -170,19 +232,19 @@ export function BusinessMembersManager({
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary">
-              {view.members.length} member{view.members.length === 1 ? "" : "s"}
+              {optimisticMembers.length} member{optimisticMembers.length === 1 ? "" : "s"}
             </Badge>
           </div>
 
           <div className="overflow-hidden rounded-xl border border-border bg-background/60">
             <div className="flex flex-col">
-              {view.members.map((member, index) => (
+              {optimisticMembers.map((member, index) => (
                 <MemberRow
                   key={member.membershipId}
                   member={member}
                   onManageAccess={openAccessDialog}
                   onRemove={setRemoveMember}
-                  ownerCount={view.members.filter((m) => m.role === "owner").length}
+                  ownerCount={optimisticMembers.filter((m) => m.role === "owner").length}
                   readOnly={readOnly}
                   rowIndex={index}
                 />
@@ -234,7 +296,7 @@ export function BusinessMembersManager({
   );
 }
 
-function InviteMemberDialog({
+export function InviteMemberDialog({
   email,
   isPending,
   onEmailChange,
@@ -333,7 +395,7 @@ function InviteMemberDialog({
               </Button>
             </DialogClose>
             <Button disabled={isPending} type="submit">
-              <MailPlus data-icon="inline-start" />
+              <UserPlus data-icon="inline-start" />
               Send invite
             </Button>
           </DialogFooter>
@@ -623,6 +685,12 @@ function MemberActionsMenu({
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
         <DropdownMenuGroup>
+          {!isCurrentUser ? (
+            <DropdownMenuItem onSelect={handleManageAccess}>
+              <UserCog />
+              Manage access
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem
             disabled={disabled}
             variant="destructive"
@@ -774,16 +842,14 @@ function RemoveMemberDialog({
                   : `${member.name} will lose access to this business, including inquiries, quotes, follow-ups, and settings.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogBody>
-              <div className="rounded-xl border border-border bg-muted/20 p-4">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {member.email}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Current role: {businessMemberRoleMeta[member.role].label}
-                </p>
-              </div>
-            </AlertDialogBody>
+            <div className="rounded-xl border border-border bg-muted/20 p-4">
+              <p className="truncate text-sm font-medium text-foreground">
+                {member.email}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Current role: {businessMemberRoleMeta[member.role].label}
+              </p>
+            </div>
             <AlertDialogFooter>
               <AlertDialogCancel asChild>
                 <Button disabled={submitting} type="button" variant="outline">
@@ -814,7 +880,7 @@ function getInitials(name: string) {
 
 export function BusinessMembersManagerFallback() {
   return (
-    <div className="grid gap-4">
+    <div className="grid min-h-[200px] gap-4">
       {Array.from({ length: 2 }).map((_, index) => (
         <div
           className="rounded-xl border border-border bg-background/50 p-6"

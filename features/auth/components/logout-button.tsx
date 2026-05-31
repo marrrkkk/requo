@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { clearPersistedThemePreference } from "@/features/theme/persistence";
 import { themeUserStorageKey } from "@/features/theme/types";
+import { clearOnboardingDraft } from "@/features/onboarding/helpers";
 
 type LogoutButtonProps = Pick<
   ComponentProps<typeof Button>,
@@ -32,6 +33,7 @@ export function LogoutButton({
 
       window.localStorage.removeItem(themeUserStorageKey);
       clearPersistedThemePreference();
+      clearOnboardingDraft();
 
       window.location.assign("/login");
     });

@@ -6,7 +6,7 @@ import { Ban, CircleCheck } from "lucide-react";
 import { DashboardSection } from "@/components/shared/dashboard-layout";
 import { FormActions } from "@/components/shared/form-layout";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import {
@@ -222,7 +222,7 @@ function CompleteQuoteDialog({
   onOpenChange: (open: boolean) => void;
   quoteNumber: string;
 }) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     {} as QuoteCompletionActionState,
@@ -234,8 +234,8 @@ function CompleteQuoteDialog({
     }
 
     queueMicrotask(() => onOpenChange(false));
-    router.refresh();
-  }, [onOpenChange, router, state.success]);
+    scheduleRefresh();
+  }, [onOpenChange, scheduleRefresh, state.success]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -285,7 +285,7 @@ function CancelQuoteDialog({
   onOpenChange: (open: boolean) => void;
   quoteNumber: string;
 }) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [selectedReason, setSelectedReason] = useState<string>("");
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
@@ -298,8 +298,8 @@ function CancelQuoteDialog({
     }
 
     queueMicrotask(() => onOpenChange(false));
-    router.refresh();
-  }, [onOpenChange, router, state.success]);
+    scheduleRefresh();
+  }, [onOpenChange, scheduleRefresh, state.success]);
 
   return (
     <Dialog

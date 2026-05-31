@@ -1,0 +1,11 @@
+guide_id,stage,title,steps,expected_outcome,related_feature
+onb_001,account_setup,Complete your profile and business details,"Open Settings > General, confirm business name, timezone, and contact details, then save changes.",Business profile is ready for customer-facing workflows,settings-general
+onb_002,inquiry_capture,Publish your inquiry form,"Go to Forms, choose your business type, customize fields, and publish the form link.",Customers can submit inquiries to your workspace,forms
+onb_003,quote_workflow,Create your first quote,"Open an inquiry, click Create Quote, review line items and terms, then save and send.",Quote pipeline starts with sent and trackable statuses,quotes
+onb_004,follow_up,Enable follow-up automation,"Open Automations, enable a quote follow-up template, and set timing to match your sales cycle.",Follow-ups run automatically for pending quotes,automations
+onb_005,billing,Choose the right plan for your volume,"Visit Settings > Billing, compare limits for quotes, members, and AI usage, then select a plan.",Plan matches operational needs and reduces workflow friction,billing
+onb_006,team_setup,Invite team members with the right role,"Go to Settings > Members, send invites, and assign permissions based on responsibilities.",Team has controlled access to business data and tools,members
+onb_007,knowledge_setup,Add reusable business knowledge,"Open Settings > Knowledge, add FAQs, policies, and service details to improve AI draft quality.",AI suggestions are aligned with your business context,knowledge
+onb_008,invoice_workflow,Create invoices from completed jobs,"After quote acceptance and job progress updates, generate and send invoices from the Invoices area.",Revenue workflow is tracked from inquiry to payment,invoices
+onb_009,support,Use support channels effectively,"Use Support settings to open chat, review FAQs, and email support with issue details.",Faster issue resolution with complete troubleshooting context,settings-support
+onb_010,optimization,Review analytics for conversion gaps,"Check Analytics for quote view-to-accept rates, then adjust follow-up timing and quote presentation.",Improved quote conversion and clearer sales insights,analytics

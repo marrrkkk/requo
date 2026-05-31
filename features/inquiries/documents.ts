@@ -19,7 +19,14 @@ export type InquiryDocumentData = {
   submittedAt: Date;
   additionalFields: ReturnType<typeof getAdditionalInquirySubmittedFields>;
   attachments: DashboardInquiryDetail["attachments"];
-  relatedQuote: DashboardInquiryDetail["relatedQuote"];
+  relatedQuote: {
+    id: string;
+    status: string;
+    quoteNumber: string | null;
+    totalInCents: number;
+    createdAt: Date;
+    quoteCount: number;
+  } | null;
 };
 
 export function getInquiryDocumentData({
@@ -51,6 +58,11 @@ export function getInquiryDocumentData({
       inquiry.submittedFieldSnapshot,
     ),
     attachments: inquiry.attachments,
-    relatedQuote: inquiry.relatedQuote,
+    relatedQuote: inquiry.relatedQuotes
+      ? {
+          ...inquiry.relatedQuotes.latest,
+          quoteCount: inquiry.relatedQuotes.count,
+        }
+      : null,
   };
 }

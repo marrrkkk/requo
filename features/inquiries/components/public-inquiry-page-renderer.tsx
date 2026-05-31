@@ -84,7 +84,7 @@ export function PublicInquiryPageRenderer({
       </div>
       <InquiryBusinessContact business={business} centered />
 
-      {!hasFeatureAccess(business.plan, "branding") ? (
+      {!hasFeatureAccess(business.plan, "removeWatermark") ? (
         <MadeWithRequo />
       ) : null}
     </div>
@@ -101,28 +101,14 @@ function SplitInquiryTemplate({
 
   return (
     <section className="w-full py-4 sm:py-6 lg:py-8">
-      <div className="flex flex-col gap-6 xl:hidden">
-        <InquiryFormCard
-          action={action}
-          title={config.formTitle}
-          description={config.formDescription}
-          previewMode={previewMode}
-          business={business}
-        />
-        {!isMobileCompact ? (
-          <>
-            <InquiryIntro business={business} variant="compact" />
-            {config.showSupportingCards ? (
-              <InquirySupportCards cards={config.cards} />
-            ) : null}
-            <InquiryShowcaseImage business={business} />
-          </>
-        ) : null}
-      </div>
-
-      <div className="hidden gap-12 xl:grid xl:grid-cols-[minmax(0,0.85fr)_minmax(28rem,1fr)] xl:items-start">
-        <div className="flex min-w-0 flex-col gap-7">
-          <InquiryIntro business={business} />
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,0.85fr)_minmax(28rem,1fr)] xl:items-start xl:gap-12">
+        <div
+          className={cn(
+            "order-2 flex min-w-0 flex-col gap-6 xl:order-1 xl:gap-7",
+            isMobileCompact && "hidden xl:flex",
+          )}
+        >
+          <InquiryIntro business={business} variant="compact" />
           {config.showSupportingCards ? (
             <InquirySupportCards cards={config.cards} />
           ) : null}
@@ -135,7 +121,7 @@ function SplitInquiryTemplate({
           description={config.formDescription}
           previewMode={previewMode}
           business={business}
-          className="xl:sticky xl:top-6"
+          className="order-1 xl:order-2 xl:sticky xl:top-6"
         />
       </div>
     </section>
@@ -153,40 +139,26 @@ function NoSupportingCardsInquiryTemplate({
   return (
     <section className="w-full py-4 sm:py-6 lg:py-8">
       <div className="flex flex-col gap-8 lg:gap-10">
-        <div className="flex flex-col gap-6 lg:hidden">
-          <InquiryFormCard
-            action={action}
-            title={config.formTitle}
-            description={config.formDescription}
-            previewMode={previewMode}
-            business={business}
-          />
-          {!isMobileCompact ? (
-            <>
-              <div className="flex flex-col items-center gap-4 text-center">
-                <InquiryIntro business={business} align="center" variant="compact" />
-              </div>
-              <InquiryShowcaseImage business={business} />
-            </>
-          ) : null}
-        </div>
+        <InquiryFormCard
+          action={action}
+          title={config.formTitle}
+          description={config.formDescription}
+          previewMode={previewMode}
+          business={business}
+          className="order-1 mx-auto w-full max-w-5xl lg:order-3"
+        />
 
-        <div className="hidden flex-col gap-10 lg:flex">
+        <div
+          className={cn(
+            "order-2 flex flex-col gap-6 lg:order-1 lg:gap-10",
+            isMobileCompact && "hidden lg:flex",
+          )}
+        >
           <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-4 text-center">
             <InquiryIntro business={business} align="center" />
           </div>
 
           <InquiryShowcaseImage business={business} />
-
-          <div className="mx-auto w-full max-w-5xl">
-            <InquiryFormCard
-              action={action}
-              title={config.formTitle}
-              description={config.formDescription}
-              previewMode={previewMode}
-              business={business}
-            />
-          </div>
         </div>
       </div>
     </section>

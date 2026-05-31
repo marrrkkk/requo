@@ -4,11 +4,6 @@ import * as React from "react"
 import { AlertDialog as AlertDialogPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
-import {
-  overlayBodyClassName,
-  overlayFooterClassName,
-  overlayHeaderClassName,
-} from "@/components/ui/overlay-layout"
 
 function AlertDialog(
   props: React.ComponentProps<typeof AlertDialogPrimitive.Root>
@@ -63,7 +58,7 @@ function AlertDialogContent({
       <AlertDialogOverlay />
       <AlertDialogPrimitive.Content
         className={cn(
-          "overlay-surface modal-layer-content fixed bottom-2 left-1/2 top-auto flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-md -translate-x-1/2 translate-y-0 flex-col overflow-y-auto rounded-2xl border text-popover-foreground duration-200 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 sm:bottom-auto sm:top-1/2 sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)] sm:-translate-y-1/2 sm:overflow-hidden",
+          "overlay-surface modal-layer-content fixed bottom-2 left-1/2 top-auto flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-md -translate-x-1/2 translate-y-0 flex-col gap-4 overflow-y-auto rounded-xl border p-5 sm:p-6 text-popover-foreground duration-200 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-[0.97] data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-[0.97] sm:bottom-auto sm:top-1/2 sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100vw-2rem)] sm:-translate-y-1/2 sm:overflow-hidden",
           className,
         )}
         data-slot="alert-dialog-content"
@@ -79,21 +74,8 @@ function AlertDialogHeader({
 }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn(overlayHeaderClassName, className)}
+      className={cn("flex flex-col gap-2 text-center sm:text-left", className)}
       data-slot="alert-dialog-header"
-      {...props}
-    />
-  )
-}
-
-function AlertDialogBody({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
-  return (
-    <div
-      className={cn(overlayBodyClassName, className)}
-      data-slot="alert-dialog-body"
       {...props}
     />
   )
@@ -105,7 +87,7 @@ function AlertDialogFooter({
 }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn(overlayFooterClassName, className)}
+      className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:gap-2", className)}
       data-slot="alert-dialog-footer"
       {...props}
     />
@@ -157,7 +139,6 @@ export {
   AlertDialogOverlay,
   AlertDialogContent,
   AlertDialogHeader,
-  AlertDialogBody,
   AlertDialogFooter,
   AlertDialogTitle,
   AlertDialogDescription,

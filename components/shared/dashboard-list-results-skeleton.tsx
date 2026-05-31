@@ -29,7 +29,7 @@ export function DashboardListResultsSkeleton({
 
   return (
     <>
-      <DashboardTableContainer className="hidden xl:block">
+      <DashboardTableContainer className="hidden min-h-[360px] xl:block">
         <div className="overflow-hidden rounded-[1.1rem] border border-border/60 bg-background/70">
           <div className={`grid gap-4 border-b border-border/60 px-5 py-3 ${tableColumns}`}>
             {Array.from({ length: 5 }).map((_, index) => (
@@ -59,7 +59,7 @@ export function DashboardListResultsSkeleton({
         </div>
       </DashboardTableContainer>
 
-      <div className="data-list-mobile-grid">
+      <div className="data-list-mobile-grid min-h-[320px]">
         {Array.from({ length: 3 }).map((_, index) => (
           <div key={index} className="section-panel p-5">
             <div className="flex flex-col gap-4">

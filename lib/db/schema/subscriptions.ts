@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { user } from "@/lib/db/schema/auth";
+import { businesses } from "@/lib/db/schema/businesses";
 
 /* ── Enums ────────────────────────────────────────────────────────────────── */
 
@@ -103,6 +104,54 @@ export const accountSubscriptions = pgTable(
   ],
 );
 
+/* ── business_subscriptions ──────────────────────────────────────────────── */
+
+/**
+ * One row per business. The billing source of truth for business-scoped
+ * subscription state.
+ *
+ * Businesses without a row are implicitly on the free plan.
+ */
+export const businessSubscriptions = pgTable(
+  "business_subscriptions",
+  {
+    id: text("id").primaryKey(),
+    businessId: text("business_id")
+      .notNull()
+      .references(() => businesses.id, { onDelete: "cascade" }),
+    status: subscriptionStatusEnum("status").notNull().default("free"),
+    plan: text("plan").notNull(), // "pro" | "business"
+    billingProvider: billingProviderEnum("billing_provider").notNull(),
+    billingCurrency: billingCurrencyEnum("billing_currency").notNull(),
+    providerCustomerId: text("provider_customer_id"),
+    providerSubscriptionId: text("provider_subscription_id"),
+    providerCheckoutId: text("provider_checkout_id"),
+    paymentMethod: text("payment_method"),
+    currentPeriodStart: timestamp("current_period_start", {
+      withTimezone: true,
+    }),
+    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+    canceledAt: timestamp("canceled_at", { withTimezone: true }),
+    trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("business_subscriptions_business_id_unique").on(table.businessId),
+    index("business_subscriptions_status_idx").on(table.status),
+    index("business_subscriptions_provider_subscription_id_idx").on(
+      table.providerSubscriptionId,
+    ),
+    index("business_subscriptions_provider_customer_id_idx").on(
+      table.providerCustomerId,
+    ),
+  ],
+);
+
 /* ── billing_events ───────────────────────────────────────────────────────── */
 
 /**
@@ -123,6 +172,9 @@ export const billingEvents = pgTable(
     userId: text("user_id").references(() => user.id, {
       onDelete: "set null",
     }),
+    businessId: text("business_id").references(() => businesses.id, {
+      onDelete: "set null",
+    }),
     payload: jsonb("payload").notNull(),
     status: text("status").notNull().default("processing"),
     errorMessage: text("error_message"),
@@ -136,6 +188,7 @@ export const billingEvents = pgTable(
       table.providerEventId,
     ),
     index("billing_events_user_id_idx").on(table.userId),
+    index("billing_events_business_id_idx").on(table.businessId),
     index("billing_events_provider_idx").on(table.provider),
   ],
 );
@@ -152,6 +205,9 @@ export const paymentAttempts = pgTable(
     userId: text("user_id").references(() => user.id, {
       onDelete: "set null",
     }),
+    businessId: text("business_id").references(() => businesses.id, {
+      onDelete: "set null",
+    }),
     plan: text("plan").notNull(),
     provider: billingProviderEnum("provider").notNull(),
     providerPaymentId: text("provider_payment_id").notNull(),
@@ -164,6 +220,7 @@ export const paymentAttempts = pgTable(
   },
   (table) => [
     index("payment_attempts_user_id_idx").on(table.userId),
+    index("payment_attempts_business_id_idx").on(table.businessId),
     index("payment_attempts_provider_payment_id_idx").on(
       table.providerPaymentId,
     ),

@@ -6,13 +6,14 @@ import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
 import {
   ArrowUpRight,
-  CheckCircle2,
   Download,
   FileArchive,
   ArchiveRestore,
   Link2,
+  MoreHorizontal,
   PencilLine,
   Plus,
+  FileText,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+  EmptyContent,
+} from "@/components/ui/empty";
 import {
   ResponsiveOverlay,
   ResponsiveOverlayBody,
@@ -212,7 +221,7 @@ export function BusinessInquiryFormsManager({
 
                       <Field data-invalid={Boolean(businessTypeError) || undefined}>
                         <FieldLabel htmlFor="business-inquiry-form-create-type">
-                          Starter template
+                          Business type
                         </FieldLabel>
                         <FieldContent>
                           <Combobox
@@ -223,7 +232,7 @@ export function BusinessInquiryFormsManager({
                               setBusinessType(value as BusinessType)
                             }
                             options={starterTemplateOptions}
-                            placeholder="Choose a starter template"
+                            placeholder="Choose a business type"
                             renderOption={(option) => (
                               <div className="min-w-0">
                                 <p className="truncate font-medium">{option.label}</p>
@@ -232,7 +241,7 @@ export function BusinessInquiryFormsManager({
                                 </p>
                               </div>
                             )}
-                            searchPlaceholder="Search starter template"
+                            searchPlaceholder="Search business types"
                             value={businessType}
                           />
                           <FieldError
@@ -367,24 +376,24 @@ export function BusinessInquiryFormsManager({
             ))}
           </div>
         ) : (
-        <Card className="border-dashed">
-          <CardHeader>
-            <CardTitle>No active forms</CardTitle>
-            <CardDescription>
-              Create an inquiry form to publish a page for incoming inquiries.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="soft-panel flex items-start gap-3 px-4 py-4 shadow-none">
-              <CheckCircle2 className="mt-0.5 size-5 text-primary" />
-              <div className="space-y-1.5">
-                <p className="text-sm font-medium text-foreground">
-                  Your first form will appear here as a card.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FileText />
+              </EmptyMedia>
+              <EmptyTitle>No active forms</EmptyTitle>
+              <EmptyDescription>
+                Create an inquiry form to publish a page for incoming inquiries.
+                Your first form will appear here as a row.
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Button onClick={() => setIsCreateDialogOpen(true)}>
+                <Plus data-icon="inline-start" />
+                Create form
+              </Button>
+            </EmptyContent>
+          </Empty>
       )}
 
 

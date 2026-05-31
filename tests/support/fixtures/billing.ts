@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 
 import {
   activateSubscription,
@@ -7,7 +7,7 @@ import {
 import { user } from "@/lib/db/schema/auth";
 import { businesses } from "@/lib/db/schema/businesses";
 import {
-  accountSubscriptions,
+  businessSubscriptions,
   billingEvents,
 } from "@/lib/db/schema/subscriptions";
 
@@ -104,8 +104,24 @@ async function applyState(
   accountId: string,
   state: BillingFixtureState,
 ): Promise<void> {
+  const businessId = `${accountId}_business`;
+  await testDb
+    .insert(businesses)
+    .values({
+      id: businessId,
+      ownerUserId: accountId,
+      name: "Billing Fixture Business",
+      slug: businessId.replace(/_/g, "-"),
+      plan: "free",
+      businessType: "general_project_services",
+      defaultCurrency: "USD",
+      createdAt: FIXTURE_NOW,
+      updatedAt: FIXTURE_NOW,
+    })
+    .onConflictDoNothing({ target: businesses.id });
+
   await activateSubscription({
-    userId: accountId,
+    businessId,
     plan: "pro",
     provider: "polar",
     currency: "USD",
@@ -120,20 +136,20 @@ async function applyState(
       // `canceledAt = null` and a future `currentPeriodEnd`.
       return;
     case "past_due":
-      await updateSubscriptionStatus(accountId, "past_due", {
+      await updateSubscriptionStatus(businessId, "past_due", {
         currentPeriodStart: PERIOD_START,
         currentPeriodEnd: PERIOD_END_FUTURE,
       });
       return;
     case "canceled":
-      await updateSubscriptionStatus(accountId, "canceled", {
+      await updateSubscriptionStatus(businessId, "canceled", {
         canceledAt: FIXTURE_NOW,
         currentPeriodStart: PERIOD_START,
         currentPeriodEnd: PERIOD_END_PAST,
       });
       return;
     case "grace_period":
-      await updateSubscriptionStatus(accountId, "canceled", {
+      await updateSubscriptionStatus(businessId, "canceled", {
         canceledAt: FIXTURE_NOW,
         currentPeriodStart: PERIOD_START,
         currentPeriodEnd: PERIOD_END_FUTURE,
@@ -166,8 +182,8 @@ export async function cleanupBillingFixture(prefix: string): Promise<void> {
     .where(eq(billingEvents.userId, accountId));
 
   await testDb
-    .delete(accountSubscriptions)
-    .where(eq(accountSubscriptions.userId, accountId));
+    .delete(businessSubscriptions)
+    .where(like(businessSubscriptions.businessId, `${accountId}%`));
 
   await testDb
     .update(businesses)

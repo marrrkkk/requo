@@ -1,49 +1,52 @@
 import "server-only";
 
 /**
- * Core subscription operations for account-level billing.
+ * Core subscription operations for business-level billing.
  *
- * Subscriptions are owned by user accounts, not individual businesses.
- * All businesses owned by a user inherit the account plan.
- *
- * The business `plan` column is kept in sync as a denormalized read cache.
- * The authoritative state lives in `account_subscriptions`.
+ * Subscriptions are owned by businesses. Businesses without a row are
+ * implicitly on the free plan.
  */
 
-import { and, eq, isNull } from "drizzle-orm";
-import { cacheLife, cacheTag, revalidateTag } from "next/cache";
+import { eq } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
 
-import { enforceActiveBusinessLimitOnPlanChange } from "@/features/businesses/plan-enforcement";
 import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema/businesses";
 import {
   billingShellCacheLife,
   getBusinessBillingCacheTags,
-  getUserBillingCacheTags,
 } from "@/lib/cache/shell-tags";
 import {
   accountSubscriptions,
+  businessSubscriptions,
   type BillingCurrency,
   type BillingProvider,
   type SubscriptionStatus,
 } from "@/lib/db/schema/subscriptions";
 import type { BusinessPlan } from "@/lib/plans/plans";
 
-type SubscriptionRow = typeof accountSubscriptions.$inferSelect;
+type BusinessSubscriptionRow = typeof businessSubscriptions.$inferSelect;
+type AccountSubscriptionRow = typeof accountSubscriptions.$inferSelect;
+
+type SubscriptionLike = {
+  status: SubscriptionStatus;
+  plan: string;
+  currentPeriodEnd: Date | null;
+};
 
 /* ── Read ──────────────────────────────────────────────────────────────────── */
 
 /**
- * Returns the subscription row for a user account, or `null` if no
- * subscription exists (user is implicitly free).
+ * Returns the subscription row for a business, or `null` if no subscription
+ * exists (business is implicitly free).
  */
-export async function getAccountSubscription(
-  userId: string,
-): Promise<SubscriptionRow | null> {
+export async function getBusinessSubscription(
+  businessId: string,
+): Promise<BusinessSubscriptionRow | null> {
   const [row] = await db
     .select()
-    .from(accountSubscriptions)
-    .where(eq(accountSubscriptions.userId, userId))
+    .from(businessSubscriptions)
+    .where(eq(businessSubscriptions.businessId, businessId))
     .limit(1);
 
   return row ?? null;
@@ -51,27 +54,26 @@ export async function getAccountSubscription(
 
 /**
  * Cached read helper for request/render paths. Mutation and webhook paths
- * should keep using `getAccountSubscription` for fresh pre-write reads.
+ * should keep using `getBusinessSubscription` for fresh pre-write reads.
  */
-export async function getCachedAccountSubscription(
-  userId: string,
-): Promise<SubscriptionRow | null> {
+export async function getCachedBusinessSubscription(
+  businessId: string,
+): Promise<BusinessSubscriptionRow | null> {
   "use cache";
 
   cacheLife(billingShellCacheLife);
-  cacheTag(...getUserBillingCacheTags(userId));
+  cacheTag(...getBusinessBillingCacheTags(businessId));
 
-  return getAccountSubscription(userId);
+  return getBusinessSubscription(businessId);
 }
 
 /**
- * Resolves the effective plan for a user account.
- * This is the plan that all businesses owned by the user inherit.
+ * Resolves the effective plan for a business.
  */
-export async function getEffectivePlanForUser(
-  userId: string,
+export async function getEffectivePlanForBusiness(
+  businessId: string,
 ): Promise<BusinessPlan> {
-  const subscription = await getAccountSubscription(userId);
+  const subscription = await getBusinessSubscription(businessId);
 
   if (!subscription) {
     return "free";
@@ -80,15 +82,15 @@ export async function getEffectivePlanForUser(
   return resolveEffectivePlanFromSubscription(subscription);
 }
 
-export async function getCachedEffectivePlanForUser(
-  userId: string,
+export async function getCachedEffectivePlanForBusiness(
+  businessId: string,
 ): Promise<BusinessPlan> {
   "use cache";
 
   cacheLife(billingShellCacheLife);
-  cacheTag(...getUserBillingCacheTags(userId));
+  cacheTag(...getBusinessBillingCacheTags(businessId));
 
-  const subscription = await getAccountSubscription(userId);
+  const subscription = await getBusinessSubscription(businessId);
 
   if (!subscription) {
     return "free";
@@ -102,7 +104,7 @@ export async function getCachedEffectivePlanForUser(
  * subscription row. Exported for unit testing.
  */
 export function resolveEffectivePlanFromSubscription(
-  subscription: SubscriptionRow,
+  subscription: SubscriptionLike,
 ): BusinessPlan {
   switch (subscription.status) {
     case "active":
@@ -131,64 +133,22 @@ export function resolveEffectivePlanFromSubscription(
   }
 }
 
-/* ── Deprecated adapters ──────────────────────────────────────────────────── */
+/* ── Legacy account helpers (kept temporarily) ─────────────────────────────── */
 
 /**
- * @deprecated Adapter: resolves user from business, then gets account subscription.
- * Use `getAccountSubscription(userId)` directly in new code.
+ * Legacy: account subscription row for a user. Kept temporarily for admin tools
+ * and rollback support, but new billing logic should be business-scoped.
  */
-export async function getBusinessSubscription(
-  businessId: string,
-): Promise<SubscriptionRow | null> {
-  const [biz] = await db
-    .select({ ownerUserId: businesses.ownerUserId })
-    .from(businesses)
-    .where(eq(businesses.id, businessId))
+export async function getAccountSubscription(
+  userId: string,
+): Promise<AccountSubscriptionRow | null> {
+  const [row] = await db
+    .select()
+    .from(accountSubscriptions)
+    .where(eq(accountSubscriptions.userId, userId))
     .limit(1);
 
-  if (!biz) return null;
-
-  return getAccountSubscription(biz.ownerUserId);
-}
-
-/** @deprecated Use `getAccountSubscription` instead. */
-export const getWorkspaceSubscription = getBusinessSubscription;
-
-/**
- * @deprecated Adapter: resolves user from business, then gets effective plan.
- * Use `getEffectivePlanForUser(userId)` directly in new code.
- */
-export async function getEffectivePlan(
-  businessId: string,
-): Promise<BusinessPlan> {
-  const [biz] = await db
-    .select({ ownerUserId: businesses.ownerUserId, plan: businesses.plan })
-    .from(businesses)
-    .where(eq(businesses.id, businessId))
-    .limit(1);
-
-  if (!biz) return "free";
-
-  return getEffectivePlanForUser(biz.ownerUserId);
-}
-
-export async function getCachedEffectivePlan(
-  businessId: string,
-): Promise<BusinessPlan> {
-  "use cache";
-
-  cacheLife(billingShellCacheLife);
-  cacheTag(...getBusinessBillingCacheTags(businessId));
-
-  const [biz] = await db
-    .select({ ownerUserId: businesses.ownerUserId, plan: businesses.plan })
-    .from(businesses)
-    .where(eq(businesses.id, businessId))
-    .limit(1);
-
-  if (!biz) return "free";
-
-  return getCachedEffectivePlanForUser(biz.ownerUserId);
+  return row ?? null;
 }
 
 /* ── Write ─────────────────────────────────────────────────────────────────── */
@@ -198,7 +158,7 @@ function generateId(prefix: string): string {
 }
 
 type ActivateSubscriptionParams = {
-  userId: string;
+  businessId: string;
   plan: BusinessPlan;
   provider: BillingProvider;
   currency: BillingCurrency;
@@ -212,20 +172,19 @@ type ActivateSubscriptionParams = {
 };
 
 /**
- * Creates or updates an account subscription to an active state.
- * Also syncs the `plan` column on ALL businesses owned by the user.
+ * Creates or updates a business subscription to an active state.
  */
 export async function activateSubscription(
   params: ActivateSubscriptionParams,
-): Promise<SubscriptionRow> {
+): Promise<BusinessSubscriptionRow> {
   const now = new Date();
-  const existing = await getAccountSubscription(params.userId);
+  const existing = await getBusinessSubscription(params.businessId);
 
-  let subscription: SubscriptionRow;
+  let subscription: BusinessSubscriptionRow;
 
   if (existing) {
     const [updated] = await db
-      .update(accountSubscriptions)
+      .update(businessSubscriptions)
       .set({
         status: params.status ?? "active",
         plan: params.plan,
@@ -242,16 +201,16 @@ export async function activateSubscription(
         canceledAt: null,
         updatedAt: now,
       })
-      .where(eq(accountSubscriptions.id, existing.id))
+      .where(eq(businessSubscriptions.id, existing.id))
       .returning();
 
     subscription = updated!;
   } else {
     const [created] = await db
-      .insert(accountSubscriptions)
+      .insert(businessSubscriptions)
       .values({
         id: generateId("sub"),
-        userId: params.userId,
+        businessId: params.businessId,
         status: params.status ?? "active",
         plan: params.plan,
         billingProvider: params.provider,
@@ -266,7 +225,7 @@ export async function activateSubscription(
         updatedAt: now,
       })
       .onConflictDoUpdate({
-        target: accountSubscriptions.userId,
+        target: businessSubscriptions.businessId,
         set: {
           status: params.status ?? "active",
           plan: params.plan,
@@ -287,18 +246,6 @@ export async function activateSubscription(
     subscription = created!;
   }
 
-  // Sync business plan column — only upgrade when status grants access
-  const effectiveStatus = params.status ?? "active";
-  const planToSync =
-    effectiveStatus === "active" || effectiveStatus === "past_due"
-      ? params.plan
-      : "free";
-  await syncOwnerBusinessPlans(params.userId, planToSync);
-  await enforceActiveBusinessLimitOnPlanChange({
-    ownerUserId: params.userId,
-    newPlan: planToSync,
-  });
-
   return subscription;
 }
 
@@ -307,7 +254,7 @@ export async function activateSubscription(
  */
 export async function createPendingSubscription(
   params: Omit<ActivateSubscriptionParams, "status">,
-): Promise<SubscriptionRow> {
+): Promise<BusinessSubscriptionRow> {
   return activateSubscription({ ...params, status: "pending" });
 }
 
@@ -315,7 +262,7 @@ export async function createPendingSubscription(
  * Updates a subscription status from a provider event.
  */
 export async function updateSubscriptionStatus(
-  userId: string,
+  businessId: string,
   status: SubscriptionStatus,
   updates?: {
     providerSubscriptionId?: string | null;
@@ -325,15 +272,15 @@ export async function updateSubscriptionStatus(
     currentPeriodEnd?: Date | null;
     canceledAt?: Date | null;
   },
-): Promise<SubscriptionRow | null> {
-  const existing = await getAccountSubscription(userId);
+): Promise<BusinessSubscriptionRow | null> {
+  const existing = await getBusinessSubscription(businessId);
 
   if (!existing) {
     return null;
   }
 
   const [updated] = await db
-    .update(accountSubscriptions)
+    .update(businessSubscriptions)
     .set({
       status,
       providerSubscriptionId:
@@ -348,16 +295,8 @@ export async function updateSubscriptionStatus(
       canceledAt: updates?.canceledAt ?? existing.canceledAt,
       updatedAt: new Date(),
     })
-    .where(eq(accountSubscriptions.id, existing.id))
+    .where(eq(businessSubscriptions.id, existing.id))
     .returning();
-
-  // Sync business plan column
-  const effectivePlan = resolveEffectivePlanFromSubscription(updated!);
-  await syncOwnerBusinessPlans(userId, effectivePlan);
-  await enforceActiveBusinessLimitOnPlanChange({
-    ownerUserId: userId,
-    newPlan: effectivePlan,
-  });
 
   return updated!;
 }
@@ -366,23 +305,23 @@ export async function updateSubscriptionStatus(
  * Updates a subscription's payment method (e.g. from a transaction).
  */
 export async function updateSubscriptionPaymentMethod(
-  userId: string,
+  businessId: string,
   paymentMethod: string,
 ): Promise<boolean> {
-  const existing = await getAccountSubscription(userId);
+  const existing = await getBusinessSubscription(businessId);
 
   if (!existing) {
     return false;
   }
 
   const [updated] = await db
-    .update(accountSubscriptions)
+    .update(businessSubscriptions)
     .set({
       paymentMethod,
       updatedAt: new Date(),
     })
-    .where(eq(accountSubscriptions.id, existing.id))
-    .returning({ id: accountSubscriptions.id });
+    .where(eq(businessSubscriptions.id, existing.id))
+    .returning({ id: businessSubscriptions.id });
 
   return !!updated;
 }
@@ -392,9 +331,9 @@ export async function updateSubscriptionPaymentMethod(
  * until `currentPeriodEnd`.
  */
 export async function cancelSubscription(
-  userId: string,
-): Promise<SubscriptionRow | null> {
-  return updateSubscriptionStatus(userId, "canceled", {
+  businessId: string,
+): Promise<BusinessSubscriptionRow | null> {
+  return updateSubscriptionStatus(businessId, "canceled", {
     canceledAt: new Date(),
   });
 }
@@ -403,56 +342,153 @@ export async function cancelSubscription(
  * Marks a subscription as expired and downgrades all businesses to free.
  */
 export async function expireSubscription(
-  userId: string,
-): Promise<SubscriptionRow | null> {
-  return updateSubscriptionStatus(userId, "expired");
+  businessId: string,
+): Promise<BusinessSubscriptionRow | null> {
+  return updateSubscriptionStatus(businessId, "expired");
 }
 
-/* ── Sync helper ───────────────────────────────────────────────────────────── */
+/* ── Polar sync ───────────────────────────────────────────────────────────── */
 
 /**
- * Keeps the `plan` column on ALL businesses owned by the user in sync
- * with the account subscription state. This column is used as a
- * denormalized read cache by `lib/plans/queries.ts`.
+ * Fetches the latest subscription for a business from Polar and applies
+ * it locally. Used after checkout redirect to close the race between
+ * the browser redirect and webhook delivery.
+ *
+ * Returns `true` if the subscription was synced/activated, `false` if
+ * no active subscription was found on Polar's side.
  */
-async function syncOwnerBusinessPlans(
-  userId: string,
-  plan: BusinessPlan,
-): Promise<void> {
-  // Get all active businesses owned by this user
-  const ownedBusinesses = await db
+export async function syncSubscriptionFromPolar(
+  businessId: string,
+): Promise<boolean> {
+  const { env: envVars, isPolarConfigured } = await import("@/lib/env");
+
+  if (!isPolarConfigured || !envVars.POLAR_ACCESS_TOKEN) {
+    return false;
+  }
+
+  const { Polar } = await import("@polar-sh/sdk");
+  const { reversePolarProductId } = await import(
+    "@/lib/billing/polar-products"
+  );
+
+  const polar = new Polar({
+    accessToken: envVars.POLAR_ACCESS_TOKEN,
+    server: envVars.POLAR_SERVER,
+  });
+
+  try {
+    // PageIterator — grab the first active subscription for this business.
+    let subscription: {
+      id: string;
+      status: string;
+      productId: string;
+      customerId: string;
+      checkoutId: string | null;
+      currency: string;
+      currentPeriodStart: Date | string | null;
+      currentPeriodEnd: Date | string | null;
+    } | null = null;
+
+    const pages = await polar.subscriptions.list({
+      externalCustomerId: businessId,
+      active: true,
+      limit: 1,
+    });
+
+    for await (const page of pages) {
+      const item = page.result?.items?.[0];
+      if (item) {
+        subscription = item;
+      }
+      break;
+    }
+
+    if (!subscription || subscription.status !== "active") {
+      return false;
+    }
+
+    const mapping = reversePolarProductId(subscription.productId);
+
+    if (!mapping) {
+      return false;
+    }
+
+    await activateSubscription({
+      businessId,
+      plan: mapping.plan,
+      provider: "polar",
+      currency: (subscription.currency ?? "usd") as BillingCurrency,
+      providerCustomerId: subscription.customerId,
+      providerSubscriptionId: subscription.id,
+      providerCheckoutId: subscription.checkoutId ?? null,
+      currentPeriodStart: subscription.currentPeriodStart
+        ? new Date(subscription.currentPeriodStart)
+        : null,
+      currentPeriodEnd: subscription.currentPeriodEnd
+        ? new Date(subscription.currentPeriodEnd)
+        : null,
+    });
+
+    // Sync the denormalized plan column on the business
+    await db
+      .update(businesses)
+      .set({ plan: mapping.plan, updatedAt: new Date() })
+      .where(eq(businesses.id, businessId));
+
+    return true;
+  } catch (error) {
+    console.error("[billing] Failed to sync subscription from Polar:", error);
+    return false;
+  }
+}
+
+/* ── Legacy wrappers (temporarily supported) ──────────────────────────────── */
+
+/** @deprecated Use `getEffectivePlanForBusiness` instead. */
+export async function getEffectivePlan(businessId: string): Promise<BusinessPlan> {
+  return getEffectivePlanForBusiness(businessId);
+}
+
+/** @deprecated Use `getCachedEffectivePlanForBusiness` instead. */
+export async function getCachedEffectivePlan(
+  businessId: string,
+): Promise<BusinessPlan> {
+  return getCachedEffectivePlanForBusiness(businessId);
+}
+
+/**
+ * @deprecated User-scoped plan reads are no longer a source of truth.
+ * This resolves the first owned business (if any) and returns its effective plan.
+ */
+export async function getEffectivePlanForUser(userId: string): Promise<BusinessPlan> {
+  const [biz] = await db
     .select({ id: businesses.id })
     .from(businesses)
-    .where(
-      and(
-        eq(businesses.ownerUserId, userId),
-        isNull(businesses.deletedAt),
-      ),
-    );
+    .where(eq(businesses.ownerUserId, userId))
+    .limit(1);
 
-  if (ownedBusinesses.length === 0) return;
+  if (!biz) return "free";
+  return getEffectivePlanForBusiness(biz.id);
+}
 
-  const now = new Date();
+/**
+ * @deprecated Cached user-scoped plan reads are no longer a source of truth.
+ * This resolves the first owned business (if any) and returns its cached effective plan.
+ */
+export async function getCachedEffectivePlanForUser(
+  userId: string,
+): Promise<BusinessPlan> {
+  "use cache";
 
-  // Bulk update all owned businesses
-  await db
-    .update(businesses)
-    .set({ plan, updatedAt: now })
-    .where(
-      and(
-        eq(businesses.ownerUserId, userId),
-        isNull(businesses.deletedAt),
-      ),
-    );
+  cacheLife(billingShellCacheLife);
+  cacheTag(...getBusinessBillingCacheTags(userId));
 
-  // Revalidate cache for user billing and each business
-  for (const tag of getUserBillingCacheTags(userId)) {
-    revalidateTag(tag, { expire: 0 });
-  }
+  const [biz] = await db
+    .select({ id: businesses.id })
+    .from(businesses)
+    .where(eq(businesses.ownerUserId, userId))
+    .limit(1);
 
-  for (const biz of ownedBusinesses) {
-    for (const tag of getBusinessBillingCacheTags(biz.id)) {
-      revalidateTag(tag, { expire: 0 });
-    }
-  }
+  if (!biz) return "free";
+  return getCachedEffectivePlanForBusiness(biz.id);
 }

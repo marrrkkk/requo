@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarClock, CheckCircle2, SkipForward } from "lucide-react";
+import { AlarmClock, CalendarClock, CheckCircle2, SkipForward } from "lucide-react";
 
-import { ServerActionButton } from "@/components/shared/server-action-button";
+import { OptimisticPendingIndicator } from "@/components/shared/optimistic-pending-indicator";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Input } from "@/components/ui/input";
 import {
   ResponsiveOverlay,
   ResponsiveOverlayClose,
@@ -16,15 +17,22 @@ import {
   ResponsiveOverlayTitle,
   ResponsiveOverlayTrigger,
 } from "@/components/ui/responsive-overlay";
-import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
-import { Spinner } from "@/components/ui/spinner";
-import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Textarea } from "@/components/ui/textarea";
+import { useDeferredActionState } from "@/hooks/use-deferred-action-state";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import type {
+  FollowUpCompleteActionState,
   FollowUpRecordActionState,
   FollowUpRescheduleActionState,
+  FollowUpSnoozeActionState,
 } from "@/features/follow-ups/types";
-import { getDateInputValue } from "@/features/follow-ups/utils";
+import { getDateInputValue, getFutureUtcDateString } from "@/features/follow-ups/utils";
+
+type CompleteAction = (
+  state: FollowUpCompleteActionState,
+  formData: FormData,
+) => Promise<FollowUpCompleteActionState>;
 
 type RecordAction = (
   state: FollowUpRecordActionState,
@@ -36,45 +44,177 @@ type RescheduleAction = (
   formData: FormData,
 ) => Promise<FollowUpRescheduleActionState>;
 
+type SnoozeAction = (
+  state: FollowUpSnoozeActionState,
+  formData: FormData,
+) => Promise<FollowUpSnoozeActionState>;
+
 export function FollowUpActions({
   completeAction,
   skipAction,
   rescheduleAction,
+  snoozeAction,
   dueAt,
   disabled = false,
+  onOptimisticDismiss,
 }: {
-  completeAction: RecordAction;
+  completeAction: CompleteAction;
   skipAction: RecordAction;
   rescheduleAction: RescheduleAction;
+  snoozeAction?: SnoozeAction;
   dueAt: Date;
   disabled?: boolean;
+  onOptimisticDismiss?: () => void;
 }) {
   return (
     <div className="dashboard-actions [&>*]:w-full sm:[&>*]:w-auto">
-      <ServerActionButton
+      <FollowUpCompleteDialog
         action={completeAction}
         disabled={disabled}
-        icon={CheckCircle2}
-        label="Mark done"
-        pendingLabel="Marking done..."
-        variant="default"
+        onOptimisticDismiss={onOptimisticDismiss}
       />
       <FollowUpRescheduleDialog
         action={rescheduleAction}
         disabled={disabled}
         dueAt={dueAt}
       />
-      <ServerActionButton
+      {snoozeAction ? (
+        <FollowUpSnoozeDialog action={snoozeAction} disabled={disabled} />
+      ) : null}
+      <FollowUpSkipButton
         action={skipAction}
         disabled={disabled}
-        icon={SkipForward}
-        label="Skip"
-        pendingLabel="Skipping..."
-        variant="ghost"
+        onOptimisticDismiss={onOptimisticDismiss}
       />
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Complete with optional note
+// ---------------------------------------------------------------------------
+
+function FollowUpCompleteDialog({
+  action,
+  disabled,
+  onOptimisticDismiss,
+}: {
+  action: CompleteAction;
+  disabled: boolean;
+  onOptimisticDismiss?: () => void;
+}) {
+  const { refreshNow } = useDeferredRefresh();
+  const [open, setOpen] = useState(false);
+  const [completionNote, setCompletionNote] = useState("");
+  const [_state, formAction, isPending] = useDeferredActionState(
+    action,
+    {} as FollowUpCompleteActionState,
+    {
+      onOptimistic: onOptimisticDismiss,
+      onRevert: refreshNow,
+      onSuccess: () => {
+        setOpen(false);
+        setCompletionNote("");
+      },
+    },
+  );
+
+  return (
+    <ResponsiveOverlay
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (nextOpen) setCompletionNote("");
+        setOpen(nextOpen);
+      }}
+    >
+      <ResponsiveOverlayTrigger asChild>
+        <Button disabled={disabled} type="button" variant="default">
+          <CheckCircle2 data-icon="inline-start" />
+          Mark done
+        </Button>
+      </ResponsiveOverlayTrigger>
+      <ResponsiveOverlayContent className="sm:max-w-md">
+        <ResponsiveOverlayHeader>
+          <ResponsiveOverlayTitle>Complete follow-up</ResponsiveOverlayTitle>
+          <ResponsiveOverlayDescription>
+            Optionally note what happened (e.g. &ldquo;left voicemail&rdquo;, &ldquo;customer said they&apos;ll decide next week&rdquo;).
+          </ResponsiveOverlayDescription>
+        </ResponsiveOverlayHeader>
+        <form action={formAction}>
+          <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+            <Field>
+              <FieldLabel htmlFor="follow-up-completion-note">
+                What happened?
+              </FieldLabel>
+              <FieldDescription>Optional — leave blank to just mark done.</FieldDescription>
+              <FieldContent>
+                <Textarea
+                  id="follow-up-completion-note"
+                  maxLength={500}
+                  name="completionNote"
+                  onChange={(event) => setCompletionNote(event.currentTarget.value)}
+                  placeholder="Left voicemail, will try again Thursday..."
+                  rows={2}
+                  value={completionNote}
+                />
+              </FieldContent>
+            </Field>
+          </div>
+          <ResponsiveOverlayFooter>
+            <ResponsiveOverlayClose asChild>
+              <Button disabled={isPending} type="button" variant="ghost">
+                Cancel
+              </Button>
+            </ResponsiveOverlayClose>
+            <Button disabled={isPending} type="submit">
+              <OptimisticPendingIndicator pending={isPending} />
+              <CheckCircle2 data-icon="inline-start" />
+              Mark done
+            </Button>
+          </ResponsiveOverlayFooter>
+        </form>
+      </ResponsiveOverlayContent>
+    </ResponsiveOverlay>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Skip button (simple, no dialog)
+// ---------------------------------------------------------------------------
+
+function FollowUpSkipButton({
+  action,
+  disabled,
+  onOptimisticDismiss,
+}: {
+  action: RecordAction;
+  disabled: boolean;
+  onOptimisticDismiss?: () => void;
+}) {
+  const { refreshNow } = useDeferredRefresh();
+  const [, formAction, isPending] = useDeferredActionState(
+    action,
+    {} as FollowUpRecordActionState,
+    {
+      onOptimistic: onOptimisticDismiss,
+      onRevert: refreshNow,
+    },
+  );
+
+  return (
+    <form action={formAction}>
+      <Button disabled={disabled || isPending} type="submit" variant="ghost">
+        <OptimisticPendingIndicator pending={isPending} />
+        <SkipForward data-icon="inline-start" />
+        Skip
+      </Button>
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Reschedule dialog
+// ---------------------------------------------------------------------------
 
 function FollowUpRescheduleDialog({
   action,
@@ -85,21 +225,16 @@ function FollowUpRescheduleDialog({
   disabled: boolean;
   dueAt: Date;
 }) {
-  const router = useProgressRouter();
   const [open, setOpen] = useState(false);
   const [dueDate, setDueDate] = useState(getDateInputValue(dueAt));
-  const [state, formAction, isPending] = useActionStateWithSonner(
-    async (prevState, formData) => {
-      const nextState = await action(prevState, formData);
-
-      if (nextState.success) {
-        setOpen(false);
-        router.refresh();
-      }
-
-      return nextState;
-    },
+  const [state, formAction, isPending] = useDeferredActionState(
+    action,
     {} as FollowUpRescheduleActionState,
+    {
+      onSuccess: () => {
+        setOpen(false);
+      },
+    },
   );
 
   return (
@@ -149,10 +284,108 @@ function FollowUpRescheduleDialog({
               </Button>
             </ResponsiveOverlayClose>
             <Button disabled={isPending} type="submit">
-              {isPending ? (
-                <Spinner data-icon="inline-start" aria-hidden="true" />
-              ) : null}
-              {isPending ? "Rescheduling..." : "Reschedule"}
+              <OptimisticPendingIndicator pending={isPending} />
+              Reschedule
+            </Button>
+          </ResponsiveOverlayFooter>
+        </form>
+      </ResponsiveOverlayContent>
+    </ResponsiveOverlay>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Snooze dialog
+// ---------------------------------------------------------------------------
+
+function FollowUpSnoozeDialog({
+  action,
+  disabled,
+}: {
+  action: SnoozeAction;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [snoozeDate, setSnoozeDate] = useState(getFutureUtcDateString(1));
+  const [snoozeTime, setSnoozeTime] = useState("09:00");
+  const [state, formAction, isPending] = useDeferredActionState(
+    action,
+    {} as FollowUpSnoozeActionState,
+    {
+      onSuccess: () => {
+        setOpen(false);
+      },
+    },
+  );
+
+  return (
+    <ResponsiveOverlay
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (nextOpen) {
+          setSnoozeDate(getFutureUtcDateString(1));
+          setSnoozeTime("09:00");
+        }
+        setOpen(nextOpen);
+      }}
+    >
+      <ResponsiveOverlayTrigger asChild>
+        <Button disabled={disabled} type="button" variant="outline">
+          <AlarmClock data-icon="inline-start" />
+          Snooze
+        </Button>
+      </ResponsiveOverlayTrigger>
+      <ResponsiveOverlayContent className="sm:max-w-md">
+        <ResponsiveOverlayHeader>
+          <ResponsiveOverlayTitle>Snooze follow-up</ResponsiveOverlayTitle>
+          <ResponsiveOverlayDescription>
+            Suppress reminders until this time without changing the due date.
+          </ResponsiveOverlayDescription>
+        </ResponsiveOverlayHeader>
+        <form action={formAction}>
+          <input
+            name="snoozedUntil"
+            type="hidden"
+            value={`${snoozeDate}T${snoozeTime}:00`}
+          />
+          <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field data-invalid={Boolean(state.fieldErrors?.snoozedUntil?.[0])}>
+                <FieldLabel htmlFor="follow-up-snooze-date">Date</FieldLabel>
+                <FieldContent>
+                  <DatePicker
+                    ariaInvalid={Boolean(state.fieldErrors?.snoozedUntil?.[0])}
+                    id="follow-up-snooze-date"
+                    onChange={setSnoozeDate}
+                    required
+                    value={snoozeDate}
+                  />
+                </FieldContent>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="follow-up-snooze-time">Time</FieldLabel>
+                <FieldContent>
+                  <Input
+                    id="follow-up-snooze-time"
+                    onChange={(event) => setSnoozeTime(event.currentTarget.value)}
+                    required
+                    type="time"
+                    value={snoozeTime}
+                  />
+                </FieldContent>
+              </Field>
+            </div>
+          </div>
+          <ResponsiveOverlayFooter>
+            <ResponsiveOverlayClose asChild>
+              <Button disabled={isPending} type="button" variant="ghost">
+                Cancel
+              </Button>
+            </ResponsiveOverlayClose>
+            <Button disabled={isPending} type="submit">
+              <OptimisticPendingIndicator pending={isPending} />
+              <AlarmClock data-icon="inline-start" />
+              Snooze
             </Button>
           </ResponsiveOverlayFooter>
         </form>

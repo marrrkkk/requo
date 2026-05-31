@@ -44,7 +44,7 @@ import {
 
 import { FloatingFormActions } from "@/components/shared/floating-form-actions";
 import { FormSection } from "@/components/shared/form-layout";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -151,7 +151,7 @@ export function BusinessInquiryFormForm({
   isActive,
   settings,
 }: BusinessInquiryFormFormProps) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const normalizedSettingsConfig = useMemo(
     () =>
       getNormalizedInquiryFormConfig(settings.inquiryFormConfig, {
@@ -191,8 +191,8 @@ export function BusinessInquiryFormForm({
 
     // Refresh to pull normalized config from the server, so
     // "unsaved changes" clears and public form previews update.
-    router.refresh();
-  }, [router, saveState.success]);
+    scheduleRefresh();
+  }, [scheduleRefresh, saveState.success]);
 
   const activeProjectFields = useMemo(
     () =>

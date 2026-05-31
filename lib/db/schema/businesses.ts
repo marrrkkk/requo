@@ -158,6 +158,13 @@ export const businesses = pgTable(
       .notNull()
       .default(true),
     defaultCurrency: text("default_currency").notNull().default("USD"),
+    analyticsDigestEnabled: boolean("analytics_digest_enabled")
+      .notNull()
+      .default(true),
+    autoCreateJobsOnAcceptance: boolean("auto_create_jobs_on_acceptance")
+      .notNull()
+      .default(true),
+    industryCategory: text("industry_category"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     archivedBy: text("archived_by").references(() => user.id, {
       onDelete: "set null",
@@ -221,6 +228,9 @@ export const businessMembers = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     role: businessMemberRoleEnum("role").notNull().default("staff"),
+    dashboardTourCompletedAt: timestamp("dashboard_tour_completed_at", {
+      withTimezone: true,
+    }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

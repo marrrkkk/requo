@@ -357,6 +357,84 @@ export async function getQuoteExportRowsForBusiness({
     .orderBy(createdAtSort(quotes.createdAt));
 }
 
+// ---------------------------------------------------------------------------
+// Lightweight quote + items fetch (used by "Save as Template" action)
+// ---------------------------------------------------------------------------
+
+type QuoteWithItems = {
+  id: string;
+  title: string;
+  notes: string | null;
+  terms: string | null;
+  validUntil: string;
+  createdAt: Date;
+  items: Array<{
+    id: string;
+    description: string;
+    quantity: number;
+    unitPriceInCents: number;
+  }>;
+};
+
+export async function getQuoteWithItemsForBusiness({
+  businessId,
+  quoteId,
+}: {
+  businessId: string;
+  quoteId: string;
+}): Promise<QuoteWithItems | null> {
+  const [quote] = await db
+    .select({
+      id: quotes.id,
+      title: quotes.title,
+      notes: quotes.notes,
+      terms: quotes.terms,
+      validUntil: quotes.validUntil,
+      createdAt: quotes.createdAt,
+    })
+    .from(quotes)
+    .where(
+      and(
+        eq(quotes.id, quoteId),
+        eq(quotes.businessId, businessId),
+        isNull(quotes.deletedAt),
+      ),
+    )
+    .limit(1);
+
+  if (!quote) {
+    return null;
+  }
+
+  const items = await db
+    .select({
+      id: quoteItems.id,
+      description: quoteItems.description,
+      quantity: quoteItems.quantity,
+      unitPriceInCents: quoteItems.unitPriceInCents,
+    })
+    .from(quoteItems)
+    .where(
+      and(
+        eq(quoteItems.businessId, businessId),
+        eq(quoteItems.quoteId, quoteId),
+      ),
+    )
+    .orderBy(asc(quoteItems.position), asc(quoteItems.createdAt));
+
+  return {
+    id: quote.id,
+    title: quote.title,
+    notes: quote.notes,
+    terms: quote.terms,
+    validUntil: quote.validUntil,
+    createdAt: quote.createdAt,
+    items,
+  };
+}
+
+// ---------------------------------------------------------------------------
+
 type GetQuoteDetailForBusinessInput = {
   businessId: string;
   quoteId: string;
@@ -435,6 +513,8 @@ async function getCachedQuoteDetailForBusiness({
       linkedInquiryRequestedDeadline: inquiries.requestedDeadline,
       linkedInquiryStatus: getEffectiveInquiryStatus,
       linkedInquiryRecordState: getInquiryRecordState,
+      linkedInquiryDetails: inquiries.details,
+      linkedInquiryBudgetText: inquiries.budgetText,
     })
     .from(quotes)
     .leftJoin(inquiries, eq(quotes.inquiryId, inquiries.id))
@@ -558,6 +638,8 @@ async function getCachedQuoteDetailForBusiness({
           requestedDeadline: quote.linkedInquiryRequestedDeadline ?? null,
           status: quote.linkedInquiryStatus!,
           recordState: quote.linkedInquiryRecordState!,
+          details: quote.linkedInquiryDetails ?? "",
+          budgetText: quote.linkedInquiryBudgetText ?? null,
         }
       : null,
     reminders: getQuoteReminderKinds({
@@ -924,4 +1006,20 @@ export async function getPublicQuoteVersionsByToken(
     .orderBy(desc(quoteVersions.version));
 
   return versions;
+}
+
+// ---------------------------------------------------------------------------
+// Lightweight business contact email fetch for quote preview
+// ---------------------------------------------------------------------------
+
+export async function getBusinessContactEmailForPreview(
+  businessId: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ contactEmail: businesses.contactEmail })
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
+  return row?.contactEmail ?? null;
 }

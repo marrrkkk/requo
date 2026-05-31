@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { Copy, Eye, EyeOff, Star } from "lucide-react";
+import { Copy, Eye, EyeOff, Info, Star } from "lucide-react";
 
-import { useProgressRouter } from "@/hooks/use-progress-router";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -12,9 +11,9 @@ import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import type { BusinessInquiryFormsActionState } from "@/features/settings/types";
 
@@ -46,7 +45,7 @@ export function BusinessInquiryFormManageCard({
   isPublicInquiryEnabled,
   togglePublicAction,
 }: BusinessInquiryFormManageCardProps) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [, duplicateFormAction, isDuplicatePending] =
     useActionStateWithSonner(duplicateAction, initialState);
   const [defaultState, defaultFormAction, isDefaultPending] = useActionStateWithSonner(
@@ -64,19 +63,19 @@ export function BusinessInquiryFormManageCard({
       return;
     }
 
-    router.refresh();
-  }, [defaultState.success, publicState.success, router]);
+    scheduleRefresh();
+  }, [defaultState.success, publicState.success, scheduleRefresh]);
 
   return (
-    <Card className="gap-0 border-border/75 bg-card/97">
-      <CardHeader className="gap-1.5 pb-5">
+    <Card size="sm" className="gap-0 border-border/75 bg-card/97">
+      <CardHeader className="gap-1 border-b border-border/70 pb-3">
         <CardTitle>Status</CardTitle>
-        <CardDescription>
+        <CardDescription className="text-xs leading-5">
           Visibility and defaults for this form.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4 pt-0">
-        <StatusRow
+      <CardContent className="divide-y divide-border/70 p-0">
+        <SettingsRow
           label="Public page"
           status={
             <Badge variant={isPublicInquiryEnabled ? "secondary" : "outline"}>
@@ -85,12 +84,15 @@ export function BusinessInquiryFormManageCard({
           }
           action={
             isDefaultAndPublic ? (
-              <Alert>
-                <AlertTitle>Default form stays published</AlertTitle>
-                <AlertDescription>
-                  Set another form as default before unpublishing this one.
-                </AlertDescription>
-              </Alert>
+              <p className="flex max-w-[14rem] items-start gap-1.5 text-xs leading-5 text-muted-foreground">
+                <Info
+                  aria-hidden="true"
+                  className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
+                />
+                <span>
+                  Default form stays live. Set another default before unpublishing.
+                </span>
+              </p>
             ) : (
               <form action={publicFormAction}>
                 <input name="targetFormId" type="hidden" value={formId} />
@@ -100,7 +102,6 @@ export function BusinessInquiryFormManageCard({
                   value={String(!isPublicInquiryEnabled)}
                 />
                 <Button
-                  className="w-full"
                   disabled={isPublicPending}
                   size="sm"
                   type="submit"
@@ -128,7 +129,7 @@ export function BusinessInquiryFormManageCard({
           }
         />
 
-        <StatusRow
+        <SettingsRow
           label="Default form"
           status={
             <Badge variant={isDefault ? "secondary" : "outline"}>
@@ -140,7 +141,6 @@ export function BusinessInquiryFormManageCard({
               <form action={defaultFormAction}>
                 <input name="targetFormId" type="hidden" value={formId} />
                 <Button
-                  className="w-full"
                   disabled={isDefaultPending}
                   size="sm"
                   type="submit"
@@ -154,7 +154,7 @@ export function BusinessInquiryFormManageCard({
                   ) : (
                     <>
                       <Star data-icon="inline-start" />
-                      Set as default
+                      Set default
                     </>
                   )}
                 </Button>
@@ -163,54 +163,61 @@ export function BusinessInquiryFormManageCard({
           }
         />
 
-        <div className="flex flex-col gap-2 border-t border-border/70 pt-4">
-          <form action={duplicateFormAction}>
-            <input name="targetFormId" type="hidden" value={formId} />
-            <Button
-              className="w-full"
-              disabled={isDuplicatePending}
-              size="sm"
-              type="submit"
-              variant="outline"
-            >
-              {isDuplicatePending ? (
-                <>
-                  <Spinner data-icon="inline-start" aria-hidden="true" />
-                  Duplicating...
-                </>
-              ) : (
-                <>
-                  <Copy data-icon="inline-start" />
-                  Duplicate form
-                </>
-              )}
-            </Button>
-          </form>
-          <p className="text-xs leading-5 text-muted-foreground">
-            Creates a copy with the same fields and public page.
-          </p>
-        </div>
+        <SettingsRow
+          hint="Same fields and public page."
+          label="Duplicate"
+          action={
+            <form action={duplicateFormAction}>
+              <input name="targetFormId" type="hidden" value={formId} />
+              <Button
+                disabled={isDuplicatePending}
+                size="sm"
+                type="submit"
+                variant="outline"
+              >
+                {isDuplicatePending ? (
+                  <>
+                    <Spinner data-icon="inline-start" aria-hidden="true" />
+                    Copying...
+                  </>
+                ) : (
+                  <>
+                    <Copy data-icon="inline-start" />
+                    Duplicate
+                  </>
+                )}
+              </Button>
+            </form>
+          }
+        />
       </CardContent>
     </Card>
   );
 }
 
-function StatusRow({
+function SettingsRow({
   action,
+  hint,
   label,
   status,
 }: {
   action: ReactNode;
+  hint?: string;
   label: string;
-  status: ReactNode;
+  status?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-2.5">
-        <span className="text-sm font-medium text-foreground">{label}</span>
-        {status}
+    <div className="flex items-center justify-between gap-3 px-4 py-2.5 sm:px-5">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-medium text-foreground">{label}</span>
+          {status}
+        </div>
+        {hint ? (
+          <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{hint}</p>
+        ) : null}
       </div>
-      {action ? <div className="sm:shrink-0">{action}</div> : null}
+      {action ? <div className="shrink-0">{action}</div> : null}
     </div>
   );
 }

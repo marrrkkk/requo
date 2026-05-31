@@ -27,8 +27,8 @@ import { getUpgradePlan, planMeta } from "@/lib/plans/plans";
 // ---------------------------------------------------------------------------
 
 export const PLAN_LIMITS: Record<BusinessPlan, number> = {
-  free: 10,
-  pro: 300,
+  free: 100,
+  pro: 500,
   business: 2000,
 };
 
@@ -44,6 +44,8 @@ export const TASK_WEIGHTS: Record<AiTaskType, number> = {
   quote_improvement: 2,
   quote_draft: 3,
   intent_classification: 1,
+  assistant_message: 1,
+  assistant_tool_call: 1,
 };
 
 // ---------------------------------------------------------------------------
@@ -196,6 +198,30 @@ export function startCooldown(userId: string, taskType: AiTaskType): void {
  */
 export function resetCooldowns(): void {
   cooldownMap.clear();
+}
+
+/**
+ * Returns the current month's usage for a user (across all businesses)
+ * and the plan limit. Used for displaying credit status in the UI.
+ */
+export async function getMonthlyUsageSummary(
+  userId: string,
+  plan: BusinessPlan,
+): Promise<{ used: number; limit: number }> {
+  const monthStart = getStartOfCurrentMonthUTC();
+  const limit = PLAN_LIMITS[plan];
+
+  const [row] = await db
+    .select({ total: sum(aiUsageEvents.weight) })
+    .from(aiUsageEvents)
+    .where(
+      and(
+        eq(aiUsageEvents.userId, userId),
+        gte(aiUsageEvents.createdAt, monthStart),
+      ),
+    );
+
+  return { used: Number(row?.total ?? 0), limit };
 }
 
 // ---------------------------------------------------------------------------

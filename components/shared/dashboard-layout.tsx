@@ -295,6 +295,7 @@ export function DashboardDetailFeed({
 type DashboardDetailFeedItemProps = {
   avatar?: ReactNode;
   title?: ReactNode;
+  titleLines?: 1 | 2 | 3 | 4 | 5 | 6 | "none";
   meta?: ReactNode;
   action?: ReactNode;
   children?: ReactNode;
@@ -307,6 +308,7 @@ type DashboardDetailFeedItemProps = {
 export function DashboardDetailFeedItem({
   avatar,
   title,
+  titleLines = 1,
   meta,
   action,
   children,
@@ -326,8 +328,8 @@ export function DashboardDetailFeedItem({
           <div className="min-w-0 flex-1">
             {title ? (
               <div className={cn("text-sm font-semibold text-foreground", titleClassName)}>
-                {plainTitle ? (
-                  <TruncatedTextWithTooltip text={plainTitle} />
+                {plainTitle && titleLines !== "none" ? (
+                  <TruncatedTextWithTooltip lines={titleLines} text={plainTitle} />
                 ) : (
                   title
                 )}

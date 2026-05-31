@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import {
   ResponsiveOverlay,
+  ResponsiveOverlayBody,
   ResponsiveOverlayClose,
   ResponsiveOverlayContent,
   ResponsiveOverlayDescription,
@@ -26,11 +27,13 @@ import type {
   FollowUpChannel,
   FollowUpCreateActionState,
   FollowUpRecurrence,
+  FollowUpTerminationCondition,
 } from "@/features/follow-ups/types";
-import { followUpChannels, followUpRecurrences } from "@/features/follow-ups/types";
+import { followUpChannels, followUpRecurrences, followUpTerminationConditions } from "@/features/follow-ups/types";
 import {
   followUpChannelLabels,
   followUpRecurrenceLabels,
+  followUpTerminationConditionLabels,
   getQuickFollowUpDueDate,
 } from "@/features/follow-ups/utils";
 import {
@@ -59,6 +62,14 @@ const recurrenceOptions = followUpRecurrences.map((r) => ({
   value: r,
 }));
 
+const terminationConditionOptions = [
+  { label: "No end condition", value: "none" },
+  ...followUpTerminationConditions.map((tc) => ({
+    label: followUpTerminationConditionLabels[tc],
+    value: tc,
+  })),
+];
+
 export function CreateFollowUpButton({
   businessSlug: _businessSlug,
   records = [],
@@ -72,6 +83,7 @@ export function CreateFollowUpButton({
   const [dueDate, setDueDate] = useState(getQuickFollowUpDueDate("3d"));
   const [recurrence, setRecurrence] = useState<FollowUpRecurrence>("none");
   const [recurrenceLimit, setRecurrenceLimit] = useState("");
+  const [terminationCondition, setTerminationCondition] = useState<FollowUpTerminationCondition | "none">("none");
 
   const action = useCallback(
     async (prevState: FollowUpCreateActionState, formData: FormData) => {
@@ -112,6 +124,7 @@ export function CreateFollowUpButton({
     setDueDate(getQuickFollowUpDueDate("3d"));
     setRecurrence("none");
     setRecurrenceLimit("");
+    setTerminationCondition("none");
   }
 
   const recordOptions = records.map((r) => ({
@@ -136,15 +149,15 @@ export function CreateFollowUpButton({
           Create follow-up
         </Button>
       </ResponsiveOverlayTrigger>
-      <ResponsiveOverlayContent className="sm:max-w-lg">
+      <ResponsiveOverlayContent className="sm:max-w-lg flex flex-col">
         <ResponsiveOverlayHeader>
           <ResponsiveOverlayTitle>Create follow-up</ResponsiveOverlayTitle>
           <ResponsiveOverlayDescription>
             Pick an inquiry or quote and set a follow-up reminder.
           </ResponsiveOverlayDescription>
         </ResponsiveOverlayHeader>
-        <form action={formAction}>
-          <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+        <form action={formAction} className="flex min-h-0 flex-1 flex-col">
+          <ResponsiveOverlayBody>
             <FieldGroup>
               {records.length > 0 && (
                 <Field>
@@ -188,7 +201,7 @@ export function CreateFollowUpButton({
                     onChange={(event) => setReason(event.currentTarget.value)}
                     placeholder="Why does this need a follow-up?"
                     required
-                    rows={3}
+                    rows={2}
                     value={reason}
                   />
                 </FieldContent>
@@ -262,7 +275,13 @@ export function CreateFollowUpButton({
                     <input name="recurrence" type="hidden" value={recurrence} />
                     <Combobox
                       id="quick-create-recurrence"
-                      onValueChange={(value) => setRecurrence(value as FollowUpRecurrence)}
+                      onValueChange={(value) => {
+                        setRecurrence(value as FollowUpRecurrence);
+                        if (value === "none") {
+                          setTerminationCondition("none");
+                          setRecurrenceLimit("");
+                        }
+                      }}
                       options={recurrenceOptions}
                       placeholder="No repeat"
                       value={recurrence}
@@ -272,25 +291,57 @@ export function CreateFollowUpButton({
 
                 {recurrence !== "none" && (
                   <Field>
-                    <FieldLabel htmlFor="quick-create-recurrence-limit">Max repeats</FieldLabel>
-                    <FieldDescription>Leave blank for unlimited.</FieldDescription>
+                    <FieldLabel htmlFor="quick-create-termination-condition">End condition</FieldLabel>
                     <FieldContent>
-                      <Input
-                        id="quick-create-recurrence-limit"
-                        max={100}
-                        min={1}
-                        name="recurrenceLimit"
-                        onChange={(event) => setRecurrenceLimit(event.currentTarget.value)}
-                        placeholder="Unlimited"
-                        type="number"
-                        value={recurrenceLimit}
+                      <input
+                        name="terminationCondition"
+                        type="hidden"
+                        value={terminationCondition === "none" ? "" : terminationCondition}
+                      />
+                      <Combobox
+                        id="quick-create-termination-condition"
+                        onValueChange={(value) => {
+                          setTerminationCondition(value as FollowUpTerminationCondition | "none");
+                          if (value !== "count") {
+                            setRecurrenceLimit("");
+                          }
+                        }}
+                        options={terminationConditionOptions}
+                        placeholder="No end condition"
+                        value={terminationCondition}
                       />
                     </FieldContent>
                   </Field>
                 )}
               </div>
+
+              {recurrence !== "none" && terminationCondition === "count" && (
+                <Field>
+                  <FieldLabel htmlFor="quick-create-recurrence-limit">Maximum occurrences</FieldLabel>
+                  <FieldDescription>How many times this follow-up should repeat (1–100).</FieldDescription>
+                  <FieldContent>
+                    <Input
+                      id="quick-create-recurrence-limit"
+                      max={100}
+                      min={1}
+                      name="recurrenceLimit"
+                      onChange={(event) => setRecurrenceLimit(event.currentTarget.value)}
+                      placeholder="e.g. 5"
+                      required
+                      type="number"
+                      value={recurrenceLimit}
+                    />
+                  </FieldContent>
+                </Field>
+              )}
+
+              {recurrence !== "none" && terminationCondition === "terminal_status" && !selectedRecord && (
+                <p className="text-sm text-destructive" role="alert">
+                  A linked inquiry or quote is required for this end condition.
+                </p>
+              )}
             </FieldGroup>
-          </div>
+          </ResponsiveOverlayBody>
           <ResponsiveOverlayFooter>
             <ResponsiveOverlayClose asChild>
               <Button disabled={isPending} type="button" variant="ghost">

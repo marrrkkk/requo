@@ -16,18 +16,31 @@ import {
   CircleDashed,
   ArrowUpRight,
   ExternalLink,
+  FileText,
+  Mail,
+  Sparkles,
+  Users,
+  Globe,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert } from "@/components/ui/alert";
-import { Progress } from "@/components/ui/progress";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
 import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import { PaymentMethodIcon } from "@/features/billing/components/payment-method-icon";
 import type { AccountBillingOverview } from "@/features/billing/types";
-import { planMeta, getUsageLimit } from "@/lib/plans";
+import { planMeta, getUsageLimit, type BusinessPlan } from "@/lib/plans";
+import { cn } from "@/lib/utils";
+
+type PlanUsageData = {
+  quotes: number;
+  requoQuoteEmailsThisMonth: number;
+  aiCredits: { used: number; limit: number };
+  members: number;
+  liveForms: number;
+};
 
 type BillingStatusCardProps = {
   billing: AccountBillingOverview;
@@ -36,12 +49,15 @@ type BillingStatusCardProps = {
     quotes: number;
     requoQuoteEmailsThisMonth: number;
   };
+  /** Full usage data for the redesigned limits grid (all plans). */
+  planUsage?: PlanUsageData;
   variant?: "full" | "overview";
 };
 
 export function BillingStatusCard({
   billing,
   freePlanUsage,
+  planUsage,
   variant = "full",
 }: BillingStatusCardProps) {
   const {
@@ -235,7 +251,14 @@ export function BillingStatusCard({
             variant === "full" ? (
               <div className="mt-auto flex flex-col gap-2 pt-2">
                 <Button asChild size="sm" className="w-full">
-                  <a href="/api/billing/polar/customer-portal">
+                  {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- API route redirect, not client navigation */}
+                  <a
+                    href={`/api/billing/polar/customer-portal?businessId=${encodeURIComponent(
+                      businessId,
+                    )}&businessSlug=${encodeURIComponent(businessSlug)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <ExternalLink data-icon="inline-start" />
                     Manage billing
                   </a>
@@ -250,65 +273,148 @@ export function BillingStatusCard({
         </Card>
       </div>
 
-      {/* Usage Cards Grid */}
-      {isFreePlan && freePlanUsage ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card className="border-border/75 bg-card/97">
-            <CardContent className="p-5">
-              <UsageMeter
-                current={freePlanUsage.quotes}
-                label="Quotes"
-                limit={getUsageLimit("free", "quotesPerMonth") ?? 30}
-              />
-            </CardContent>
-          </Card>
-          <Card className="border-border/75 bg-card/97">
-            <CardContent className="p-5">
-              <UsageMeter
-                current={freePlanUsage.requoQuoteEmailsThisMonth}
-                label="Emails sent"
-                limit={getUsageLimit("free", "requoQuoteEmailsPerMonth") ?? 15}
-              />
-            </CardContent>
-          </Card>
-        </div>
+      {/* Usage Limits Grid */}
+      {planUsage ? (
+        <UsageLimitsGrid plan={currentPlan} usage={planUsage} />
+      ) : isFreePlan && freePlanUsage ? (
+        <UsageLimitsGrid
+          plan={currentPlan}
+          usage={{
+            quotes: freePlanUsage.quotes,
+            requoQuoteEmailsThisMonth: freePlanUsage.requoQuoteEmailsThisMonth,
+            aiCredits: { used: 0, limit: 100 },
+            members: 1,
+            liveForms: 1,
+          }}
+        />
       ) : null}
     </div>
   );
 }
 
-/* ── Free plan monthly usage ─────────────────────────────────────────────── */
+/* ── Usage Limits Grid ─────────────────────────────────────────────────── */
 
-function UsageMeter({
+type UsageLimitItem = {
+  icon: React.ElementType;
+  label: string;
+  current: number;
+  limit: number | null;
+  /** Color for progress bar when approaching/at limit (default: primary). */
+  warningThreshold?: number;
+};
+
+function UsageLimitsGrid({
+  plan,
+  usage,
+}: {
+  plan: BusinessPlan;
+  usage: PlanUsageData;
+}) {
+  const quotesLimit = getUsageLimit(plan, "quotesPerMonth");
+  const emailsLimit = getUsageLimit(plan, "requoQuoteEmailsPerMonth");
+  const membersLimit = getUsageLimit(plan, "membersPerBusiness");
+  const formsLimit = getUsageLimit(plan, "liveFormsPerBusiness");
+
+  const limits: UsageLimitItem[] = [
+    {
+      icon: FileText,
+      label: "Quotes",
+      current: usage.quotes,
+      limit: quotesLimit,
+    },
+    {
+      icon: Mail,
+      label: "Emails sent",
+      current: usage.requoQuoteEmailsThisMonth,
+      limit: emailsLimit,
+    },
+    {
+      icon: Sparkles,
+      label: "AI credits",
+      current: usage.aiCredits.used,
+      limit: usage.aiCredits.limit,
+    },
+    {
+      icon: Users,
+      label: "Members",
+      current: usage.members,
+      limit: membersLimit,
+    },
+    {
+      icon: Globe,
+      label: "Live forms",
+      current: usage.liveForms,
+      limit: formsLimit,
+    },
+  ];
+
+  return (
+    <Card className="border-border/75 bg-card overflow-hidden">
+      <CardContent className="p-0">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+          {limits.map((item, i) => (
+            <UsageLimitCell key={item.label} {...item} isFirst={i === 0} />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function UsageLimitCell({
+  icon: Icon,
   label,
   current,
   limit,
-}: {
-  label: string;
-  current: number;
-  limit: number;
-}) {
-  const pct =
-    limit > 0 ? Math.min(100, Math.round((current / limit) * 100)) : 0;
+  isFirst,
+}: UsageLimitItem & { isFirst?: boolean }) {
+  const isUnlimited = limit === null;
+  const pct = isUnlimited
+    ? 0
+    : limit > 0
+      ? Math.min(100, Math.round((current / limit) * 100))
+      : 0;
+  const isAtLimit = !isUnlimited && current >= (limit ?? 0);
+  const isNearLimit = !isUnlimited && pct >= 80 && !isAtLimit;
 
   return (
-    <div className="flex flex-col gap-3">
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          {label} used
-        </p>
-        <div className="mt-1 flex items-baseline gap-1 text-2xl font-bold tracking-tight text-foreground">
-          {current}
-          <span className="text-sm font-medium text-muted-foreground">
-            / {limit}
-          </span>
-        </div>
+    <div
+      className={cn(
+        "flex flex-col gap-3 border-border/60 p-5",
+        !isFirst && "border-l",
+      )}
+    >
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Icon className="size-4" />
+        <span className="text-xs font-medium">{label}</span>
       </div>
-      <Progress
-        aria-label={`${label}: ${current} of ${limit} used this month`}
-        className="h-2"
-        value={pct}
-      />
+      <div className="flex items-baseline gap-1">
+        <span className="text-xl font-bold tabular-nums text-foreground">
+          {current.toLocaleString()}
+        </span>
+        <span className="text-sm text-muted-foreground">
+          / {isUnlimited ? "∞" : limit.toLocaleString()}
+        </span>
+      </div>
+      {isUnlimited ? (
+        <div className="h-1.5 w-full rounded-full bg-primary/20">
+          <div className="h-full w-full rounded-full bg-primary/40" />
+        </div>
+      ) : (
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-border/50">
+          <div
+            className={cn(
+              "h-full rounded-full transition-all motion-reduce:transition-none",
+              isAtLimit
+                ? "bg-destructive"
+                : isNearLimit
+                  ? "bg-amber-500"
+                  : "bg-primary",
+            )}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      )}
     </div>
   );
 }

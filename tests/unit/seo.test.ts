@@ -215,8 +215,15 @@ describe("Structured data: Product pricing and LocalBusiness", () => {
           offers,
         });
 
-        const resultOffers = (result as Record<string, unknown>).offers as unknown[];
-        expect(resultOffers).toHaveLength(offers.length);
+        const aggregateOffer = (result as Record<string, unknown>)
+          .offers as Record<string, unknown>;
+        expect(aggregateOffer["@type"]).toBe("AggregateOffer");
+        const nestedOffers = aggregateOffer.offers as unknown[];
+        expect(nestedOffers).toHaveLength(offers.length);
+        for (const nestedOffer of nestedOffers) {
+          const offerRecord = nestedOffer as Record<string, unknown>;
+          expect(offerRecord.priceSpecification).toBeDefined();
+        }
       }),
       { numRuns: 10 },
     );
@@ -389,13 +396,11 @@ describe("Sitemap", () => {
     vi.resetModules();
   });
 
-  it("static entries include /, /pricing, /privacy, /terms, /refund-policy, /inquire", async () => {
+  it("static entries include /, /pricing, /privacy, /terms, /refund-policy", async () => {
     vi.resetModules();
     process.env.BETTER_AUTH_URL = "https://example.com";
 
-    const { listPublicBusinessSitemapEntries } = await import("@/features/businesses/queries");
     const { listPublicInquirySitemapEntries } = await import("@/features/inquiries/queries");
-    vi.mocked(listPublicBusinessSitemapEntries).mockResolvedValue([]);
     vi.mocked(listPublicInquirySitemapEntries).mockResolvedValue([]);
 
     const sitemapModule = await import("@/app/sitemap");
@@ -407,7 +412,7 @@ describe("Sitemap", () => {
     expect(urls).toContain("/privacy");
     expect(urls).toContain("/terms");
     expect(urls).toContain("/refund-policy");
-    expect(urls).toContain("/inquire");
+    expect(urls).not.toContain("/inquire");
   });
 
   it("revalidate === 3600", async () => {
@@ -422,9 +427,7 @@ describe("Sitemap", () => {
     vi.resetModules();
     process.env.BETTER_AUTH_URL = "https://example.com";
 
-    const { listPublicBusinessSitemapEntries } = await import("@/features/businesses/queries");
     const { listPublicInquirySitemapEntries } = await import("@/features/inquiries/queries");
-    vi.mocked(listPublicBusinessSitemapEntries).mockResolvedValue([]);
     vi.mocked(listPublicInquirySitemapEntries).mockResolvedValue([]);
 
     const sitemapModule = await import("@/app/sitemap");
@@ -437,62 +440,24 @@ describe("Sitemap", () => {
     expect(rootEntry!.images!.length).toBeGreaterThan(0);
   });
 
-  it("Property 7: sitemap includes only business rows where isPublic (noIndex === false)", async () => {
-    // Generate arrays with unique slugs to avoid ambiguity when the same
-    // slug appears in both public and noIndex rows.
-    const businessRowsArb = fc
-      .uniqueArray(
-        fc.stringMatching(/^[a-z][a-z0-9-]*$/).filter((s) => s.length > 0 && s.length < 30),
-        { minLength: 1, maxLength: 10 },
-      )
-      .chain((slugs) =>
-        fc.tuple(
-          ...slugs.map((slug) =>
-            fc.record({
-              slug: fc.constant(slug),
-              lastModified: fc.date({ min: new Date("2020-01-01"), max: new Date("2030-01-01") }),
-              noIndex: fc.boolean(),
-            }).map((row) => ({ ...row, pathname: `/businesses/${row.slug}` })),
-          ),
-        ),
-      );
+  it("does not include business profile URLs while profiles stay noindex", async () => {
+    vi.resetModules();
+    process.env.BETTER_AUTH_URL = "https://example.com";
 
-    await fc.assert(
-      fc.asyncProperty(businessRowsArb, async (businessRows) => {
-        vi.resetModules();
-        process.env.BETTER_AUTH_URL = "https://example.com";
+    const { listPublicInquirySitemapEntries } = await import("@/features/inquiries/queries");
+    vi.mocked(listPublicInquirySitemapEntries).mockResolvedValue([
+      {
+        lastModified: new Date("2025-01-01"),
+        pathname: "/inquire/acme-co",
+      },
+    ]);
 
-        const { listPublicBusinessSitemapEntries } = await import("@/features/businesses/queries");
-        const { listPublicInquirySitemapEntries } = await import("@/features/inquiries/queries");
-        vi.mocked(listPublicBusinessSitemapEntries).mockResolvedValue(businessRows);
-        vi.mocked(listPublicInquirySitemapEntries).mockResolvedValue([]);
+    const sitemapModule = await import("@/app/sitemap");
+    const entries = await sitemapModule.default();
 
-        const sitemapModule = await import("@/app/sitemap");
-        const entries = await sitemapModule.default();
-
-        const businessUrls = entries
-          .map((e) => new URL(e.url).pathname)
-          .filter((p) => p.startsWith("/businesses/"));
-
-        const expectedPublicPaths = businessRows
-          .filter((r) => !r.noIndex)
-          .map((r) => r.pathname);
-
-        // Every public row should be in the sitemap
-        for (const pathname of expectedPublicPaths) {
-          expect(businessUrls).toContain(pathname);
-        }
-
-        // No noIndex row should be in the sitemap
-        const noIndexPaths = businessRows
-          .filter((r) => r.noIndex)
-          .map((r) => r.pathname);
-        for (const pathname of noIndexPaths) {
-          expect(businessUrls).not.toContain(pathname);
-        }
-      }),
-      { numRuns: 5 },
-    );
+    const paths = entries.map((entry) => new URL(entry.url).pathname);
+    expect(paths).toContain("/inquire/acme-co");
+    expect(paths.some((pathname) => pathname.startsWith("/b/"))).toBe(false);
   });
 });
 
@@ -573,7 +538,7 @@ describe("Business slug metadata", () => {
     vi.resetModules();
   });
 
-  it("Property 4: public business profile has title with name, description ≤ 160 chars, canonical = /businesses/<slug>", async () => {
+  it("Property 4: public business profile stays noindex with title, description ≤ 160 chars", async () => {
     vi.resetModules();
     process.env.BETTER_AUTH_URL = "https://example.com";
 
@@ -596,17 +561,17 @@ describe("Business slug metadata", () => {
       fc.property(profileArb, (profile) => {
         const meta = getPublicBusinessPageMetadata(profile);
 
-        // Title contains business name
         const titleObj = meta.title as { absolute?: string } | undefined;
         const titleStr = titleObj?.absolute ?? "";
         expect(titleStr).toContain(profile.name);
 
-        // Description ≤ 160 chars
         expect(meta.description).toBeDefined();
         expect(meta.description!.length).toBeLessThanOrEqual(160);
 
-        // Canonical = /businesses/<slug>
-        expect(meta.alternates?.canonical).toBe(`/businesses/${profile.slug}`);
+        const robots = meta.robots as Record<string, unknown>;
+        expect(robots.index).toBe(false);
+        expect(robots.follow).toBe(false);
+        expect(meta.alternates?.canonical).toBeUndefined();
       }),
       { numRuns: 10 },
     );
@@ -623,6 +588,64 @@ describe("Business slug metadata", () => {
     const meta = getMissingPublicBusinessMetadata();
     const robots = meta.robots as Record<string, unknown>;
     expect(robots.index).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Inquiry form metadata
+// ---------------------------------------------------------------------------
+describe("Inquiry form metadata", () => {
+  it("uses form name before business name in title and description fallback", async () => {
+    vi.resetModules();
+    process.env.BETTER_AUTH_URL = "https://example.com";
+
+    const {
+      getPublicInquiryPageDescription,
+      getPublicInquiryPageTitle,
+    } = await import("@/features/inquiries/metadata");
+    const { createPublicInquiryPreviewBusiness } = await import(
+      "@/features/inquiries/preview-business"
+    );
+    const { createInquiryFormConfigDefaults } = await import(
+      "@/features/inquiries/form-config"
+    );
+    const { createInquiryPageConfigDefaults } = await import(
+      "@/features/inquiries/page-config"
+    );
+
+    const businessType = "general_project_services" as const;
+    const business = createPublicInquiryPreviewBusiness({
+      id: "biz-1",
+      name: "Acme Co",
+      slug: "acme-co",
+      plan: "free",
+      businessType,
+      shortDescription: null,
+      logoUrl: null,
+      form: {
+        id: "form-1",
+        name: "Kitchen Remodel Intake",
+        slug: "kitchen-remodel",
+        businessType,
+        isDefault: true,
+        publicInquiryEnabled: true,
+      },
+      inquiryFormConfig: createInquiryFormConfigDefaults({ businessType }),
+      inquiryPageConfig: {
+        ...createInquiryPageConfigDefaults({
+          businessName: "Acme Co",
+          businessType,
+        }),
+        description: "",
+      },
+    });
+
+    expect(getPublicInquiryPageTitle(business)).toBe(
+      "Kitchen Remodel Intake · Acme Co",
+    );
+    expect(getPublicInquiryPageDescription(business)).toBe(
+      "Submit Kitchen Remodel Intake to Acme Co.",
+    );
   });
 });
 

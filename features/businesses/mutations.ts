@@ -14,7 +14,6 @@ import {
 } from "@/features/inquiries/form-config";
 import { createInquiryPageConfigDefaults } from "@/features/inquiries/page-config";
 import { ensureProfileForUser } from "@/lib/auth/business-bootstrap";
-import { getEffectivePlanForUser } from "@/lib/billing/subscription-service";
 import { db } from "@/lib/db/client";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 import {
@@ -24,6 +23,7 @@ import {
   businesses,
   } from "@/lib/db/schema";
 import { appendRandomSlugSuffix, slugifyPublicName } from "@/lib/slugs";
+import { validateBusinessSlug } from "@/features/businesses/validation";
 
 type CreateBusinessForUserInput = {
   user: {
@@ -114,6 +114,12 @@ export async function createBusinessRecordForUser({
   const baseSlug = preferredSlug?.trim() || slugifyPublicName(trimmedName, {
     fallback: "business",
   });
+
+  const slugValidation = validateBusinessSlug(baseSlug);
+  if (!slugValidation.valid) {
+    throw new Error(slugValidation.error ?? "Invalid business slug.");
+  }
+
   const slug = await getAvailableBusinessSlug(tx, baseSlug);
   const defaultInquiryForm = createInquiryFormPreset({
     businessType: starterTemplateBusinessType,
@@ -220,7 +226,7 @@ export async function createBusinessForUser({
   plan,
 }: CreateBusinessForUserInput) {
   await ensureProfileForUser(user);
-  const resolvedPlan = plan ?? await getEffectivePlanForUser(user.id);
+  const resolvedPlan = plan ?? ("free" as plan);
 
   return db.transaction(async (tx) =>
     createBusinessRecordForUser({

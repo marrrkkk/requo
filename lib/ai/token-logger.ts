@@ -194,7 +194,7 @@ export async function logAiInvocation(
     inputTokens,
     outputTokens,
     totalTokens,
-    estimatedCostCents,
+    estimatedCostCents: estimatedCostCents !== null ? Math.round(estimatedCostCents) : null,
     cacheHit,
     latencyMs,
     status,

@@ -1,8 +1,6 @@
 import { ArrowUpRight, Lock } from "lucide-react";
-import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -28,8 +26,6 @@ type PremiumContentBlurProps = {
   feature: PlanFeature;
   /** Current business plan */
   plan: BusinessPlan;
-  /** Static placeholder content to show when locked */
-  placeholder: React.ReactNode;
   /** The actual premium content (only rendered when unlocked) */
   children: React.ReactNode;
   /** Upgrade action props for UpgradeButton integration */
@@ -49,7 +45,6 @@ type PremiumContentBlurProps = {
 export function PremiumContentBlur({
   feature,
   plan,
-  placeholder: _placeholder,
   children,
   upgradeAction,
   className,
@@ -91,27 +86,18 @@ export function PremiumContentBlur({
           <p className="text-sm leading-6 text-muted-foreground">
             {description}
           </p>
-          {ctaText ? (
+          {ctaText && upgradeAction ? (
             <div>
-              {upgradeAction ? (
-                <UpgradeButton
-                  userId={upgradeAction.userId}
-                  businessId={upgradeAction.businessId}
-                  businessSlug={upgradeAction.businessSlug}
-                  currentPlan={upgradeAction.currentPlan}
-                  size="default"
-                >
-                  <ArrowUpRight data-icon="inline-start" />
-                  {ctaText}
-                </UpgradeButton>
-              ) : (
-                <Button asChild>
-                  <Link href="/account/billing">
-                    <ArrowUpRight data-icon="inline-start" />
-                    {ctaText}
-                  </Link>
-                </Button>
-              )}
+              <UpgradeButton
+                userId={upgradeAction.userId}
+                businessId={upgradeAction.businessId}
+                businessSlug={upgradeAction.businessSlug}
+                currentPlan={upgradeAction.currentPlan}
+                size="default"
+              >
+                <ArrowUpRight data-icon="inline-start" />
+                {ctaText}
+              </UpgradeButton>
             </div>
           ) : null}
         </CardContent>

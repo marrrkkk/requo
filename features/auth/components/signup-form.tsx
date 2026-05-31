@@ -24,7 +24,7 @@ import {
 import type { AuthFormState } from "@/features/auth/types";
 import { AuthFormFeedback } from "@/features/auth/components/auth-form-feedback";
 import { onboardingPath } from "@/features/onboarding/routes";
-import { businessesHubPath } from "@/features/businesses/routes";
+import { dashboardPath } from "@/features/businesses/routes";
 import { FormActions } from "@/components/shared/form-layout";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -109,7 +109,7 @@ export function SignupForm({
       const result = await authClient.signIn.social({
         provider,
         // Existing users land on businesses; brand-new users land on onboarding (nextPath default)
-        callbackURL: businessesHubPath,
+        callbackURL: dashboardPath,
         newUserCallbackURL: nextPath,
       });
 
@@ -161,7 +161,7 @@ export function SignupForm({
       const result = await authClient.signIn.magicLink({
         email: validationResult.data.email,
         name: validationResult.data.name,
-        callbackURL: businessesHubPath,
+        callbackURL: dashboardPath,
         newUserCallbackURL: nextPath,
         errorCallbackURL,
       });

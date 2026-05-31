@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { RefreshCcw } from "lucide-react";
 
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,7 +43,7 @@ export function BusinessInquiryFormPresetCard({
   businessType,
   formId,
 }: BusinessInquiryFormPresetCardProps) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
@@ -56,82 +56,67 @@ export function BusinessInquiryFormPresetCard({
       return;
     }
 
-    router.refresh();
-  }, [router, state.success]);
+    scheduleRefresh();
+  }, [scheduleRefresh, state.success]);
 
   return (
     <>
-      <Card className="gap-0 border-border/75 bg-card/97">
-        <CardHeader className="gap-1.5 pb-5">
+      <Card size="sm" className="gap-0 border-border/75 bg-card/97">
+        <CardHeader className="gap-1 border-b border-border/70 pb-3">
           <CardTitle>Reset</CardTitle>
-          <CardDescription>
-            Rebuild from a starter template.
+          <CardDescription className="text-xs leading-5">
+            Rebuild fields and page copy from a business type preset.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-4 pt-0">
-          <div className="flex flex-col gap-1">
-            <p className="meta-label">Starter template</p>
-            <p className="text-sm font-medium text-foreground">
-              {starterTemplate.label}
-            </p>
+        <CardContent className="p-0">
+          <div className="flex items-center justify-between gap-3 px-4 py-2.5 sm:px-5">
+            <div className="min-w-0">
+              <p className="meta-label">Business type</p>
+              <p className="text-sm font-medium text-foreground">
+                {starterTemplate.label}
+              </p>
+            </div>
+            <Button
+              disabled={isPending}
+              onClick={() => setIsDialogOpen(true)}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              <RefreshCcw data-icon="inline-start" />
+              Apply defaults
+            </Button>
           </div>
-
-          <Button
-            className="w-full"
-            disabled={isPending}
-            onClick={() => setIsDialogOpen(true)}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <RefreshCcw data-icon="inline-start" />
-            Apply defaults
-          </Button>
-          <p className="text-xs leading-5 text-muted-foreground">
-            Replaces the current fields and public page copy.
-          </p>
         </CardContent>
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Apply starter template defaults</DialogTitle>
+            <DialogTitle>Reset to business type defaults?</DialogTitle>
             <DialogDescription>
-              Current field and page customization will be replaced with the
-              selected starter template defaults.
+              This will replace your current fields and page copy with the
+              {" "}{starterTemplate.label} template defaults.
             </DialogDescription>
           </DialogHeader>
 
           <DialogBody>
             <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
-              <p className="text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                Selected starter template
-              </p>
-              <p className="mt-2 text-base font-semibold tracking-tight text-foreground">
-                {starterTemplate.label}
-              </p>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                {starterTemplate.description}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
-              <p className="text-sm font-medium text-foreground">This will replace</p>
-              <div className="grid gap-2 pt-3 text-sm">
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-muted-foreground">
-                    Inquiry form fields and labels
-                  </span>
-                  <span className="text-foreground">Reset</span>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-muted-foreground">
-                    Inquiry page copy and layout
-                  </span>
-                  <span className="text-foreground">Reset</span>
-                </div>
-              </div>
+              <p className="text-sm font-medium text-foreground">What gets replaced</p>
+              <ul className="mt-3 flex flex-col gap-2 text-sm text-muted-foreground">
+                <li className="flex items-center gap-2">
+                  <span className="size-1.5 rounded-full bg-muted-foreground/50" />
+                  Inquiry form fields and labels
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="size-1.5 rounded-full bg-muted-foreground/50" />
+                  Page headline, description, and copy
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="size-1.5 rounded-full bg-muted-foreground/50" />
+                  Supporting cards and layout
+                </li>
+              </ul>
             </div>
           </DialogBody>
 
@@ -157,7 +142,7 @@ export function BusinessInquiryFormPresetCard({
                     Applying...
                   </>
                 ) : (
-                  "Apply defaults"
+                  "Reset form"
                 )}
               </Button>
             </form>

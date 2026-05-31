@@ -14,9 +14,23 @@ export type FreeAnalyticsData = {
   quotesViewed: number;
   quotesAccepted: number;
   quotesRejected: number;
+  quotesExpired: number;
   formConversionRate: number;
   inquiryToQuoteRate: number;
   quoteAcceptanceRate: number;
+  quoteViewRate: number;
+  winRate: number;
+  activeFollowUps: number;
+  overdueFollowUps: number;
+};
+
+export type MetricSparklineData = {
+  formViews: number[];
+  inquirySubmissions: number[];
+  quotesSent: number[];
+  quotesAccepted: number[];
+  quotesRejected: number[];
+  quotesViewed: number[];
 };
 
 export type TrendPoint = {
@@ -92,6 +106,34 @@ export type AiUsageSummary = {
   totalInvocations: number;
   totalTokens: number;
   estimatedCostCents: number;
+};
+
+export type PipelineVelocity = {
+  /** Median days from inquiry submission to quote acceptance, or null when fewer than 3 data points exist. */
+  medianDays: number | null;
+  dataPointCount: number;
+};
+
+export type RevenueForecast = {
+  /** Projected pending-quote revenue in cents, or null when insufficient data. */
+  forecastCents: number | null;
+  pendingQuoteCount: number;
+  historicalAcceptanceRate: number;
+  averageQuoteValueCents: number;
+};
+
+export type ReferrerSource = {
+  domain: string;
+  count: number;
+};
+
+export type CohortRow = {
+  /** YYYY-MM month label of the customer's first inquiry. */
+  cohortMonth: string;
+  totalCustomers: number;
+  returnedIn3Months: number;
+  returnedIn6Months: number;
+  returnedIn12Months: number;
 };
 
 export type BusinessAnalyticsData = {

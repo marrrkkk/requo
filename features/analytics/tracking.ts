@@ -4,6 +4,7 @@ import { and, desc, eq, gte, inArray, isNull } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import {
+  type AnalyticsEventMetadata,
   analyticsEvents,
   businesses,
   businessInquiryForms,
@@ -25,6 +26,7 @@ type RecordAnalyticsEventInput = {
   eventType: AnalyticsEventType;
   visitorHash: string;
   occurredAt?: Date;
+  metadata?: AnalyticsEventMetadata | null;
 };
 
 function createId(prefix: string) {
@@ -83,6 +85,7 @@ export async function recordAnalyticsEvent({
   eventType,
   visitorHash,
   occurredAt = new Date(),
+  metadata = null,
 }: RecordAnalyticsEventInput) {
   const existingEvent = await findRecentMatchingAnalyticsEvent({
     businessId,
@@ -108,6 +111,7 @@ export async function recordAnalyticsEvent({
     eventType,
     visitorHash,
     occurredAt,
+    metadata,
   });
 
   return {
@@ -121,6 +125,7 @@ export async function recordPublicInquiryFormView(input: {
   businessInquiryFormId: string;
   visitorHash: string;
   occurredAt?: Date;
+  metadata?: AnalyticsEventMetadata | null;
 }) {
   return recordAnalyticsEvent({
     ...input,
@@ -133,6 +138,7 @@ export async function recordPublicQuoteView(input: {
   quoteId: string;
   visitorHash: string;
   occurredAt?: Date;
+  metadata?: AnalyticsEventMetadata | null;
 }) {
   return recordAnalyticsEvent({
     ...input,

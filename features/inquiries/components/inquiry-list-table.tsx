@@ -1,5 +1,7 @@
 import Link from "next/link";
+import type { MotionState } from "@/hooks/use-animated-list";
 
+import { Checkbox } from "@/components/ui/checkbox";
 import { DashboardTableContainer } from "@/components/shared/dashboard-layout";
 import { TruncatedTextWithTooltip } from "@/components/shared/truncated-text-with-tooltip";
 import {
@@ -23,11 +25,23 @@ import { Copy } from "lucide-react";
 type InquiryListTableProps = {
   inquiries: DashboardInquiryListItem[];
   businessSlug: string;
+  isSelected?: (id: string) => boolean;
+  isAtLimit?: boolean;
+  onToggle?: (id: string) => void;
+  allOnPageSelected?: boolean;
+  onSelectAllOnPage?: () => void;
+  getMotionState?: (id: string) => MotionState;
 };
 
 export function InquiryListTable({
   inquiries,
   businessSlug,
+  isSelected,
+  isAtLimit,
+  onToggle,
+  allOnPageSelected,
+  onSelectAllOnPage,
+  getMotionState,
 }: InquiryListTableProps) {
   return (
     <DashboardTableContainer className="hidden xl:block">
@@ -35,6 +49,13 @@ export function InquiryListTable({
         <TableCaption className="sr-only">Newest inquiries appear first.</TableCaption>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-[3rem]">
+              <Checkbox
+                aria-label="Select all inquiries on this page"
+                checked={allOnPageSelected}
+                onCheckedChange={onSelectAllOnPage}
+              />
+            </TableHead>
             <TableHead className="w-[17rem]">Customer</TableHead>
             <TableHead className="w-[13rem]">Form</TableHead>
             <TableHead className="w-[13rem]">Service</TableHead>
@@ -45,9 +66,19 @@ export function InquiryListTable({
         <TableBody>
           {inquiries.map((inquiry) => {
             const inquiryHref = getBusinessInquiryPath(businessSlug, inquiry.id);
+            const checked = isSelected?.(inquiry.id) ?? false;
+            const disabled = !checked && (isAtLimit ?? false);
 
             return (
-              <TableRow className="group/row" key={inquiry.id}>
+              <TableRow className="motion-list-item group/row" data-motion-state={getMotionState?.(inquiry.id)} key={inquiry.id}>
+                <TableCell className="w-[3rem]">
+                  <Checkbox
+                    aria-label={`Select inquiry from ${inquiry.customerName}`}
+                    checked={checked}
+                    disabled={disabled}
+                    onCheckedChange={() => onToggle?.(inquiry.id)}
+                  />
+                </TableCell>
                 <TableCell className="w-[17rem]">
                   <div className="table-meta-stack max-w-full">
                     <div className="flex items-center gap-1.5">

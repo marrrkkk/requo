@@ -2,9 +2,16 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Archive, Inbox, RotateCcw, Search } from "lucide-react";
+import { Archive, Inbox, RotateCcw, Search, SearchX } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyDescription,
+  EmptyContent,
+} from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import {
   Sheet,
@@ -22,6 +29,7 @@ import type {
   DashboardQuoteListItem,
   QuoteStatus,
 } from "@/features/quotes/types";
+import { getBusinessQuotePath } from "@/features/businesses/routes";
 
 type QuoteRecordActionState = { error?: string; success?: string };
 
@@ -121,14 +129,34 @@ export function ArchivedQuotesSheet({
           ) : null}
 
           {items.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-12 text-center text-muted-foreground">
-              <Inbox className="size-8 opacity-40" />
-              <p className="text-sm">Archived quotes will appear here.</p>
-            </div>
+            <Empty className="rounded-none border-0 py-8">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Inbox />
+                </EmptyMedia>
+                <EmptyDescription>Archived quotes will appear here.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-8 text-center text-muted-foreground">
-              <p className="text-sm">No matches found.</p>
-            </div>
+            <Empty className="rounded-none border-0 py-8">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <SearchX />
+                </EmptyMedia>
+                <EmptyDescription>No matches found.</EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setQuery("");
+                    setStatusFilter("all");
+                  }}
+                >
+                  Clear filters
+                </Button>
+              </EmptyContent>
+            </Empty>
           ) : (
             <div className="flex flex-col gap-2">
               <p className="text-xs text-muted-foreground">
@@ -142,7 +170,7 @@ export function ArchivedQuotesSheet({
                   <div className="min-w-0 flex-1">
                     <Link
                       className="block truncate text-sm font-medium text-foreground hover:underline"
-                      href={`/businesses/${businessSlug}/quotes/${item.id}`}
+                      href={getBusinessQuotePath(businessSlug, item.id)}
                     >
                       {item.quoteNumber} · {item.customerName}
                     </Link>

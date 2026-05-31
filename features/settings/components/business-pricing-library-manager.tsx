@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   FileUp,
+  FileText,
   Layers,
   MoreHorizontal,
   Package,
@@ -60,8 +61,8 @@ import type {
   QuoteLibraryDeleteActionState,
   QuoteLibraryEntryKind,
 } from "@/features/quotes/types";
-import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useAnimatedList, type MotionState } from "@/hooks/use-animated-list";
+import type { OptimisticActionResult } from "@/hooks/use-optimistic-mutation";
 
 type BusinessPricingLibraryManagerProps = {
   quoteLibrary: DashboardQuoteLibraryEntry[];
@@ -146,6 +147,8 @@ export function BusinessPricingLibraryManager({
     if (filter === "all") return quoteLibrary;
     return quoteLibrary.filter((e) => e.kind === filter);
   }, [quoteLibrary, filter]);
+
+  const { items: animatedFiltered, getMotionState, removeItem } = useAnimatedList(filtered);
 
   function openCreate(kind: QuoteLibraryEntryKind) {
     setEditorState({ mode: "create", kind });
@@ -241,10 +244,11 @@ export function BusinessPricingLibraryManager({
       {filtered.length > 0 ? (
         <div className="overflow-hidden rounded-xl border border-border/75">
           <div className="divide-y divide-border/60">
-            {filtered.map((entry) => (
+            {animatedFiltered.map((entry) => (
               <EntryRow
                 entry={entry}
                 key={entry.id}
+                motionState={getMotionState(entry.id)}
                 onDelete={() => setDeleteTarget(entry)}
                 onEdit={() => openEdit(entry)}
               />
@@ -289,6 +293,10 @@ export function BusinessPricingLibraryManager({
                       ? editorState.kind
                       : editorState.entry.kind) === "package" ? (
                       <Package className="size-5 text-muted-foreground" />
+                    ) : (editorState.mode === "create"
+                      ? editorState.kind
+                      : editorState.entry.kind) === "template" ? (
+                      <FileText className="size-5 text-muted-foreground" />
                     ) : (
                       <Layers className="size-5 text-muted-foreground" />
                     )}
@@ -298,11 +306,15 @@ export function BusinessPricingLibraryManager({
                       {editorState.mode === "create" ? (
                         editorState.kind === "package" ? (
                           "Create service package"
+                        ) : editorState.kind === "template" ? (
+                          "Create quote template"
                         ) : (
                           "Create pricing block"
                         )
                       ) : editorState.entry.kind === "package" ? (
                         "Edit service package"
+                      ) : editorState.entry.kind === "template" ? (
+                        "Edit quote template"
                       ) : (
                         "Edit pricing block"
                       )}
@@ -311,9 +323,12 @@ export function BusinessPricingLibraryManager({
                       {editorState.mode === "create" &&
                       editorState.kind === "package"
                         ? "Bundle line items into a reusable package. Add them manually or import from saved blocks."
-                        : editorState.mode === "create"
-                          ? "A reusable line item you can drop into any quote with one click."
-                          : "Update the details and line items."}
+                        : editorState.mode === "create" &&
+                            editorState.kind === "template"
+                          ? "A full quote blueprint that pre-fills title, notes, terms, validity, and line items."
+                          : editorState.mode === "create"
+                            ? "A reusable line item you can drop into any quote with one click."
+                            : "Update the details and line items."}
                     </ResponsiveOverlayDescription>
                   </div>
                 </div>
@@ -355,6 +370,12 @@ export function BusinessPricingLibraryManager({
                           kind: editorState.entry.kind,
                           name: editorState.entry.name,
                           description: editorState.entry.description ?? "",
+                          title: editorState.entry.title ?? "",
+                          notes: editorState.entry.notes ?? "",
+                          terms: editorState.entry.terms ?? "",
+                          validityDays: editorState.entry.validityDays != null
+                            ? String(editorState.entry.validityDays)
+                            : "14",
                           items: editorState.entry.items.map((item) => ({
                             id: item.id,
                             description: item.description,
@@ -383,6 +404,7 @@ export function BusinessPricingLibraryManager({
         deleteAction={deleteAction}
         entry={deleteTarget}
         onClose={() => setDeleteTarget(null)}
+        onOptimisticRemove={removeItem}
       />
 
       {/* File importer */}
@@ -431,18 +453,21 @@ function StatCard({
 
 function EntryRow({
   entry,
+  motionState,
   onDelete,
   onEdit,
 }: {
   entry: DashboardQuoteLibraryEntry;
+  motionState?: MotionState;
   onDelete: () => void;
   onEdit: () => void;
 }) {
   const isPackage = entry.kind === "package";
-  const Icon = isPackage ? Package : Layers;
+  const isTemplate = entry.kind === "template";
+  const Icon = isTemplate ? FileText : isPackage ? Package : Layers;
 
   return (
-    <div className="group flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-muted/20 sm:items-center sm:gap-4 sm:px-5 sm:py-4">
+    <div className="motion-list-item group flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-muted/20 sm:items-center sm:gap-4 sm:px-5 sm:py-4" data-motion-state={motionState}>
       <div className="mt-0.5 rounded-lg bg-muted/60 p-2 sm:mt-0">
         <Icon className="size-4 text-muted-foreground" />
       </div>
@@ -454,12 +479,12 @@ function EntryRow({
               {entry.name}
             </p>
             <Badge variant="outline" className="shrink-0 text-[0.65rem]">
-              {isPackage ? "Package" : "Block"}
+              {isTemplate ? "Template" : isPackage ? "Package" : "Block"}
             </Badge>
           </div>
           <p className="truncate text-xs text-muted-foreground">
             {entry.itemCount} {entry.itemCount === 1 ? "item" : "items"}
-            {isPackage && entry.items.length > 0 ? (
+            {(isPackage || isTemplate) && entry.items.length > 0 ? (
               <span>
                 {" · "}
                 {entry.items
@@ -468,6 +493,9 @@ function EntryRow({
                   .join(", ")}
                 {entry.items.length > 2 ? ` +${entry.items.length - 2}` : ""}
               </span>
+            ) : null}
+            {isTemplate && entry.validityDays ? (
+              <span> · {entry.validityDays} day validity</span>
             ) : null}
           </p>
         </div>
@@ -507,6 +535,7 @@ function DeleteConfirmDialog({
   deleteAction,
   entry,
   onClose,
+  onOptimisticRemove,
 }: {
   deleteAction: (
     entryId: string,
@@ -515,6 +544,10 @@ function DeleteConfirmDialog({
   ) => Promise<QuoteLibraryDeleteActionState>;
   entry: DashboardQuoteLibraryEntry | null;
   onClose: () => void;
+  onOptimisticRemove: (
+    id: string,
+    mutation?: () => Promise<OptimisticActionResult>,
+  ) => void;
 }) {
   if (!entry) return null;
   return (
@@ -522,6 +555,7 @@ function DeleteConfirmDialog({
       deleteAction={deleteAction}
       entry={entry}
       onClose={onClose}
+      onOptimisticRemove={onOptimisticRemove}
     />
   );
 }
@@ -530,6 +564,7 @@ function DeleteConfirmDialogInner({
   deleteAction,
   entry,
   onClose,
+  onOptimisticRemove,
 }: {
   deleteAction: (
     entryId: string,
@@ -538,22 +573,23 @@ function DeleteConfirmDialogInner({
   ) => Promise<QuoteLibraryDeleteActionState>;
   entry: DashboardQuoteLibraryEntry;
   onClose: () => void;
+  onOptimisticRemove: (
+    id: string,
+    mutation?: () => Promise<OptimisticActionResult>,
+  ) => void;
 }) {
-  const router = useProgressRouter();
-  const boundAction = deleteAction.bind(null, entry.id);
-  const [state, formAction, isPending] = useActionStateWithSonner<
-    QuoteLibraryDeleteActionState
-  >(boundAction, {});
+  function handleDelete() {
+    onClose();
+    onOptimisticRemove(entry.id, async () => {
+      const result = await deleteAction(entry.id, {}, new FormData());
+      return {
+        error: result.error,
+        success: result.success ? "Deleted" : undefined,
+      };
+    });
+  }
 
-  useEffect(() => {
-    if (state.success) {
-      onClose();
-      router.refresh();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.success]);
-
-  const kindLabel = entry.kind === "package" ? "package" : "block";
+  const kindLabel = entry.kind === "package" ? "package" : entry.kind === "template" ? "template" : "block";
 
   return (
     <AlertDialog
@@ -563,28 +599,26 @@ function DeleteConfirmDialogInner({
       }}
     >
       <AlertDialogContent>
-        <form action={formAction}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete {kindLabel}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This permanently removes &ldquo;{entry.name}&rdquo; from your
-              pricing library. Quotes already using this {kindLabel} are not
-              affected.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel asChild>
-              <Button disabled={isPending} type="button" variant="outline">
-                Cancel
-              </Button>
-            </AlertDialogCancel>
-            <AlertDialogAction asChild>
-              <Button disabled={isPending} type="submit" variant="destructive">
-                {isPending ? "Deleting..." : `Delete ${kindLabel}`}
-              </Button>
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </form>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete {kindLabel}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This permanently removes &ldquo;{entry.name}&rdquo; from your
+            pricing library. Quotes already using this {kindLabel} are not
+            affected.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel asChild>
+            <Button type="button" variant="outline">
+              Cancel
+            </Button>
+          </AlertDialogCancel>
+          <AlertDialogAction asChild>
+            <Button onClick={handleDelete} type="button" variant="destructive">
+              {`Delete ${kindLabel}`}
+            </Button>
+          </AlertDialogAction>
+        </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );

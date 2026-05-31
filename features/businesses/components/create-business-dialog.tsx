@@ -126,19 +126,25 @@ export function CreateBusinessDialog({
   const upgradeLabel = upgradePlan
     ? `Upgrade to ${planMeta[upgradePlan].label}`
     : "View billing";
+  const freeBusinessLimit =
+    lockedPlan === "free" ? businessQuota?.limit ?? 2 : null;
+
   const limitLabel =
-    businessQuota?.limit === null
-      ? "unlimited businesses"
-      : `${businessQuota?.limit ?? 1} total business${
-          (businessQuota?.limit ?? 1) === 1 ? "" : "es"
-        } across all businesses`;
+    lockedPlan === "free" && freeBusinessLimit !== null
+      ? `${freeBusinessLimit} free businesses`
+      : businessQuota?.limit === null
+        ? "more businesses"
+        : `${businessQuota?.limit ?? 1} businesses`;
+
   const lockedDescription = businessQuota
-    ? `Your ${planMeta[lockedPlan].label} plan supports ${limitLabel}. Upgrade this business to add more.`
+    ? lockedPlan === "free"
+      ? `Your free tier supports up to ${limitLabel}. Upgrade a business to Pro or Business to free up another slot.`
+      : `Your ${planMeta[lockedPlan].label} plan supports ${limitLabel}. Upgrade this business to add more.`
     : "Upgrade this business to add more businesses.";
   const upgradeFeatures =
     upgradePlan === "business"
       ? [
-          "Unlimited businesses",
+          "More businesses",
           "Team members and roles",
           "Higher knowledge and upload limits",
           "Priority support",
@@ -265,7 +271,7 @@ export function CreateBusinessDialog({
               <SheetHeader>
                 <SheetTitle>
                   {upgradePlan === "business"
-                    ? "Unlock unlimited businesses"
+                    ? "Unlock more businesses"
                     : "Add more businesses"}
                 </SheetTitle>
                 <SheetDescription>
@@ -295,7 +301,7 @@ export function CreateBusinessDialog({
             <DialogHeader>
               <DialogTitle>
                 {upgradePlan === "business"
-                  ? "Unlock unlimited businesses"
+                  ? "Unlock more businesses"
                   : "Add more businesses"}
               </DialogTitle>
               <DialogDescription>
@@ -326,7 +332,7 @@ export function CreateBusinessDialog({
           <SheetHeader>
             <SheetTitle>Create new business</SheetTitle>
             <SheetDescription>
-              Use a starter template to set up inquiry capture, quote defaults, and follow-up basics.
+              Use a business type to set up inquiry capture, quote defaults, and follow-up basics.
             </SheetDescription>
           </SheetHeader>
           <SheetBody>
@@ -351,7 +357,7 @@ export function CreateBusinessDialog({
         <DialogHeader>
           <DialogTitle>Create new business</DialogTitle>
           <DialogDescription>
-            Use a starter template to set up inquiry capture, quote defaults, and follow-up basics.
+            Use a business type to set up inquiry capture, quote defaults, and follow-up basics.
           </DialogDescription>
         </DialogHeader>
         {businessId ? (

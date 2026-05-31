@@ -7,7 +7,7 @@ import { db } from "@/lib/db/client";
 import { businesses } from "@/lib/db/schema";
 import { getUpgradePlan, planMeta, type BusinessPlan as plan } from "@/lib/plans/plans";
 import { getUsageLimit } from "@/lib/plans/usage-limits";
-import { getEffectivePlanForUser } from "@/lib/billing/subscription-service";
+import { businessSubscriptions } from "@/lib/db/schema/subscriptions";
 
 type DatabaseClient =
   | typeof db
@@ -64,36 +64,81 @@ export async function getBusinessQuotaForUser({
   plan?: plan;
   client?: DatabaseClient;
 }): Promise<BusinessQuotaSnapshot> {
-  // Resolve plan from account subscription if not explicitly provided
-  const effectivePlan = planOverride ?? await getEffectivePlanForUser(ownerUserId);
-  const limit = getBusinessQuotaLimit(effectivePlan);
+  const requestedPlan = planOverride ?? ("free" as const);
+  const totalOwnedActive = await getOwnedBusinessCountForUser(
+    ownerUserId,
+    client,
+  );
 
-  const current = await getOwnedBusinessCountForUser(ownerUserId, client);
+  // New business creation uses a "max 2 free businesses" rule:
+  // - You may always create up to 2 FREE businesses.
+  // - When you have 2 free businesses already, the next business must be paid (Pro or Business).
+  // - If you upgrade one of the free businesses to Pro/Business, you reduce your FREE count,
+  //   which allows you to create another FREE business.
+  //
+  // Paid-ness is based on `business_subscriptions` status for the business.
+  if (requestedPlan === "free") {
+    const [paidRow] = await client
+      .select({ value: count(businesses.id) })
+      .from(businesses)
+      .leftJoin(
+        businessSubscriptions,
+        eq(businessSubscriptions.businessId, businesses.id),
+      )
+      .where(
+        and(
+          eq(businesses.ownerUserId, ownerUserId),
+          isNull(businesses.deletedAt),
+          isNull(businesses.archivedAt),
+          isNull(businesses.lockedAt),
+          sql`(
+            ${businessSubscriptions.status} in ('active','past_due')
+            or (
+              ${businessSubscriptions.status} = 'canceled'
+              and ${businessSubscriptions.currentPeriodEnd} > now()
+            )
+          )`,
+        ),
+      );
 
+    const paidCount = Number(paidRow?.value ?? 0);
+    const freeCount = Math.max(0, totalOwnedActive - paidCount);
+
+    const limit = getUsageLimit("free", "businessesPerWorkspace");
+    const allowed = freeCount < (limit ?? 0);
+
+    return {
+      ownerUserId,
+      plan: "free",
+      current: freeCount,
+      limit: limit ?? 2,
+      allowed,
+      upgradePlan: allowed ? null : getUpgradePlan("free"),
+    };
+  }
+
+  // Paid plan creation is always allowed under the new rule.
   return {
     ownerUserId,
-    plan: effectivePlan,
-    current,
-    limit,
-    allowed: limit === null || current < limit,
-    upgradePlan: getUpgradePlan(effectivePlan),
+    plan: requestedPlan,
+    current: totalOwnedActive,
+    limit: null,
+    allowed: true,
+    upgradePlan: null,
   };
 }
 
 export function getBusinessQuotaExceededMessage(
   quota: BusinessQuotaSnapshot,
 ) {
-  if (quota.limit === null) {
-    return "This plan has no business limit.";
+  if (quota.plan !== "free") {
+    return "Your plan can not create that business right now.";
   }
 
-  const planLabel = planMeta[quota.plan].label;
-  const businessLabel = quota.limit === 1 ? "business" : "businesses";
-  const upgradeMessage = quota.upgradePlan
-    ? ` Upgrade your account to ${planMeta[quota.upgradePlan].label} to add more.`
-    : "";
+  const freeLimit = quota.limit ?? 2;
+  const upgradeLabel = quota.upgradePlan ? planMeta[quota.upgradePlan].label : "Pro";
 
-  return `Your ${planLabel} plan supports ${quota.limit} total ${businessLabel}. You already have ${quota.current}.${upgradeMessage}`;
+  return `Your Free tier supports up to ${freeLimit} free businesses. You already have ${quota.current} free businesses. Upgrade to ${upgradeLabel} to create more.`;
 }
 
 async function lockBusinessQuotaForUser(

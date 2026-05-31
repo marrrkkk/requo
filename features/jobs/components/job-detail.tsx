@@ -16,12 +16,18 @@ import {
   toggleJobItemAction,
 } from "@/features/jobs/actions";
 import { createInvoiceFromJobAction } from "@/features/invoices/actions";
-import { getBusinessQuotePath } from "@/features/businesses/routes";
+import {
+  getBusinessInvoicePath,
+  getBusinessQuotePath,
+} from "@/features/businesses/routes";
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation";
+import { useProgressRouter } from "@/hooks/use-progress-router";
 import type { DashboardJobDetail, DashboardJobItem, JobStatus } from "@/features/jobs/types";
 
 type JobDetailProps = {
   job: DashboardJobDetail;
   businessSlug: string;
+  existingInvoiceId?: string | null;
 };
 
 function formatCurrency(cents: number, currency: string) {
@@ -45,10 +51,15 @@ const statusVariants: Record<JobStatus, "secondary" | "default" | "outline"> = {
   done: "outline",
 };
 
-export function JobDetail({ job, businessSlug }: JobDetailProps) {
+export function JobDetail({
+  job,
+  businessSlug,
+  existingInvoiceId,
+}: JobDetailProps) {
   const [isStatusPending, startStatusTransition] = useTransition();
   const [isInvoicePending, startInvoiceTransition] = useTransition();
-  const [, startToggleTransition] = useTransition();
+  const router = useProgressRouter();
+  const { runMutation } = useOptimisticMutation();
 
   // Optimistic items for instant checkbox toggling
   const [optimisticItems, toggleOptimisticItem] = useOptimistic(
@@ -73,16 +84,31 @@ export function JobDetail({ job, businessSlug }: JobDetailProps) {
   }
 
   function handleToggleItem(itemId: string) {
-    startToggleTransition(async () => {
-      toggleOptimisticItem(itemId);
-      await toggleJobItemAction(job.id, itemId);
+    runMutation({
+      applyOptimistic: () => {
+        toggleOptimisticItem(itemId);
+      },
+      revertOptimistic: () => {
+        toggleOptimisticItem(itemId);
+      },
+      mutation: () => toggleJobItemAction(job.id, itemId),
+      pendingKey: `toggle-${itemId}`,
     });
   }
 
   function handleGenerateInvoice() {
     startInvoiceTransition(async () => {
-      await createInvoiceFromJobAction(job.id);
+      const result = await createInvoiceFromJobAction(job.id);
+      if (result.invoiceId) {
+        router.push(getBusinessInvoicePath(businessSlug, result.invoiceId));
+      }
     });
+  }
+
+  function handleOpenInvoice() {
+    if (existingInvoiceId) {
+      router.push(getBusinessInvoicePath(businessSlug, existingInvoiceId));
+    }
   }
 
   return (
@@ -223,7 +249,17 @@ export function JobDetail({ job, businessSlug }: JobDetailProps) {
                 Mark complete
               </Button>
             )}
-            {job.status === "done" && (
+            {job.status === "done" && existingInvoiceId ? (
+              <Button
+                onClick={handleOpenInvoice}
+                className="w-full"
+                variant="outline"
+              >
+                <Receipt data-icon="inline-start" />
+                Open invoice
+              </Button>
+            ) : null}
+            {job.status === "done" && !existingInvoiceId && (
               <Button
                 onClick={handleGenerateInvoice}
                 disabled={isInvoicePending}

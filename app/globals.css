@@ -11,6 +11,7 @@
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-geist-sans);
   --font-brand: var(--font-brand);
+  --font-mittel: var(--font-mittel);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -28,6 +29,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -89,6 +91,7 @@
   --accent: #e5f5ee;
   --accent-foreground: #173128;
   --destructive: #c9372c;
+  --success: #059669;
   --border: #d6ddd8;
   --input: #d6ddd8;
   --ring: #1b9b79;
@@ -178,10 +181,12 @@
     inset 0 -1px 0 rgb(95 24 18 / 0.2),
     0 1px 2px rgb(201 55 44 / 0.14),
     0 14px 24px -16px rgb(201 55 44 / 0.42);
-  --overlay-surface-bg: var(--surface-elevated-bg);
-  --overlay-surface-border: var(--surface-stroke);
-  --overlay-surface-shadow: var(--surface-shadow-lg);
-  --modal-backdrop: rgb(0 0 0 / 0.44);
+  --overlay-surface-bg: rgb(255 255 255);
+  --overlay-surface-border: rgb(214 221 216 / 0.8);
+  --overlay-surface-shadow:
+    0 24px 48px -12px rgb(0 0 0 / 0.12),
+    0 1px 2px rgb(0 0 0 / 0.06);
+  --modal-backdrop: rgb(0 0 0 / 0.5);
   --z-modal-overlay: 100;
   --z-modal-content: 101;
   --z-popover-layer: 110;
@@ -270,6 +275,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --accent: #e5f5ee;
   --accent-foreground: #173128;
   --destructive: #c9372c;
+  --success: #059669;
   --border: #d6ddd8;
   --input: #d6ddd8;
   --ring: #1b9b79;
@@ -291,6 +297,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --accent: #242424;
   --accent-foreground: #ededed;
   --destructive: #c9372c;
+  --success: #34d399;
   --border: rgb(255 255 255 / 0.07);
   --input: rgb(255 255 255 / 0.08);
   --ring: #1b9b79;
@@ -373,13 +380,12 @@ html[data-reload-loading="fade-out"] #app-root-content {
     inset 0 -1px 0 rgb(95 24 18 / 0.2),
     0 1px 2px rgb(201 55 44 / 0.14),
     0 14px 24px -16px rgb(201 55 44 / 0.42);
-  --overlay-surface-bg:
-    linear-gradient(180deg, rgb(29 29 29 / 0.99) 0%, rgb(24 24 24 / 1) 100%);
-  --overlay-surface-border: rgb(255 255 255 / 0.075);
+  --overlay-surface-bg: rgb(22 22 22);
+  --overlay-surface-border: rgb(255 255 255 / 0.1);
   --overlay-surface-shadow:
-    0 26px 56px -28px rgb(0 0 0 / 0.6),
-    0 10px 24px -20px rgb(0 0 0 / 0.35),
-    inset 0 1px 0 rgb(255 255 255 / 0.05);
+    0 24px 48px -12px rgb(0 0 0 / 0.56),
+    inset 0 1px 0 rgb(255 255 255 / 0.04);
+  --modal-backdrop: rgb(0 0 0 / 0.6);
   --tooltip-surface-bg: #202020;
   --tooltip-surface-fg: #ededed;
   --tooltip-surface-border: rgb(255 255 255 / 0.06);
@@ -516,6 +522,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
     transform: scale(1);
   }
 }
+
 
 @keyframes sidebar-overlay-fade-in {
   0% {
@@ -902,14 +909,69 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .motion-list-item[data-motion-state="entering"] {
-    animation: subtle-fade-up var(--motion-duration-base) var(--motion-ease-emphasized)
+    animation: motion-fade-up var(--motion-duration-base) var(--motion-ease-emphasized)
       both;
   }
 
   .motion-list-item[data-motion-state="exiting"] {
-    opacity: 0;
-    transform: translate3d(0, -8px, 0) scale(0.985);
+    animation: motion-fade-out 0.28s var(--motion-ease-standard) forwards;
     pointer-events: none;
+  }
+
+  .motion-list-item[data-motion-state="updating"] {
+    animation: motion-update-pulse var(--motion-duration-fast) var(--motion-ease-standard)
+      both;
+  }
+
+  .motion-list-reorder {
+    transition:
+      transform var(--motion-duration-base) var(--motion-ease-emphasized),
+      opacity var(--motion-duration-fast) var(--motion-ease-standard);
+  }
+
+  @keyframes motion-fade-up {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 8px, 0) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+  }
+
+  @keyframes motion-fade-out {
+    from {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translate3d(0, -4px, 0) scale(0.96);
+    }
+  }
+
+  @keyframes motion-update-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.72;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .motion-list-item[data-motion-state="entering"],
+    .motion-list-item[data-motion-state="exiting"],
+    .motion-list-item[data-motion-state="updating"] {
+      animation: none;
+      transition: none;
+    }
+
+    .motion-list-item[data-motion-state="exiting"] {
+      opacity: 0;
+    }
   }
 
   @media (hover: hover) and (pointer: fine) {
@@ -1039,6 +1101,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
     @apply xl:ml-auto xl:shrink-0 xl:justify-end;
   }
 
+
   .data-list-mobile-grid {
     @apply grid gap-4 xl:hidden;
   }
@@ -1091,18 +1154,70 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .dashboard-topbar-inner {
-    @apply mx-auto w-full max-w-[92rem] px-3 py-2.5 sm:px-6 sm:py-3.5 xl:px-8;
+    @apply mx-auto w-full max-w-[92rem] px-3 py-1.5 sm:px-6 sm:py-2 xl:px-8;
   }
 
   .dashboard-main {
     @apply flex flex-1 flex-col px-3 py-5 sm:px-6 sm:py-7 xl:px-8 xl:py-8;
   }
 
+  /* Chat page fills available space.
+     Uses a fixed viewport height so messages scroll internally without
+     affecting the page layout or requiring parent overflow changes.
+     The negative margins cancel the dashboard-main padding so the chat
+     stretches edge-to-edge. */
+  .chat-page-container {
+    @apply -mx-3 -mb-5 sm:-mx-6 sm:-mb-7 xl:-mx-8 xl:-mb-8;
+    @apply -mt-5 sm:-mt-7 xl:-mt-8;
+    @apply flex flex-col overflow-hidden;
+    /* Fill remaining viewport below the topbar.
+       Mobile topbar: min-h-11 (44px) + py-2.5 (20px) + 1px border = 65px
+       sm+ topbar: min-h-11 (44px) + py-3.5 (28px) + 1px border = 73px */
+    height: calc(100svh - 65px);
+  }
+
+  /* Home page fills viewport without page scroll.
+     Cancels dashboard-main padding and takes up remaining height. */
+  .home-page-container {
+    @apply -mx-3 -mb-5 sm:-mx-6 sm:-mb-7 xl:-mx-8 xl:-mb-8;
+    @apply -mt-5 sm:-mt-7 xl:-mt-8;
+    @apply flex flex-col overflow-hidden px-4 pt-6 sm:px-6 sm:pt-8;
+    height: calc(100svh - 65px);
+  }
+
+  @media (min-width: 640px) {
+    .chat-page-container {
+      height: calc(100svh - 73px);
+    }
+
+    .home-page-container {
+      height: calc(100svh - 73px);
+    }
+
+    .automations-builder-container {
+      height: calc(100svh - 73px);
+    }
+  }
+
+  /* Automations builder fills viewport without page scroll.
+     Cancels dashboard-main padding so the builder stretches edge-to-edge. */
+  .automations-builder-container {
+    @apply -mx-3 -mb-5 sm:-mx-6 sm:-mb-7 xl:-mx-8 xl:-mb-8;
+    @apply -mt-5 sm:-mt-7 xl:-mt-8;
+    @apply flex overflow-hidden;
+    height: calc(100svh - 65px);
+  }
+
   .dashboard-main[data-archived] button:not([data-allow-archived]),
   .dashboard-main[data-archived] [role="button"]:not([data-allow-archived]),
   .dashboard-main[data-archived] input:not([data-allow-archived]),
   .dashboard-main[data-archived] textarea:not([data-allow-archived]),
-  .dashboard-main[data-archived] select:not([data-allow-archived]) {
+  .dashboard-main[data-archived] select:not([data-allow-archived]),
+  [data-slot="archived-scope"][data-archived] button:not([data-allow-archived]),
+  [data-slot="archived-scope"][data-archived] [role="button"]:not([data-allow-archived]),
+  [data-slot="archived-scope"][data-archived] input:not([data-allow-archived]),
+  [data-slot="archived-scope"][data-archived] textarea:not([data-allow-archived]),
+  [data-slot="archived-scope"][data-archived] select:not([data-allow-archived]) {
     @apply pointer-events-none opacity-50;
   }
 
@@ -1110,7 +1225,12 @@ html[data-reload-loading="fade-out"] #app-root-content {
   .dashboard-main[data-archived] [data-allow-archived] [role="button"],
   .dashboard-main[data-archived] [data-allow-archived] input,
   .dashboard-main[data-archived] [data-allow-archived] textarea,
-  .dashboard-main[data-archived] [data-allow-archived] select {
+  .dashboard-main[data-archived] [data-allow-archived] select,
+  [data-slot="archived-scope"][data-archived] [data-allow-archived] button,
+  [data-slot="archived-scope"][data-archived] [data-allow-archived] [role="button"],
+  [data-slot="archived-scope"][data-archived] [data-allow-archived] input,
+  [data-slot="archived-scope"][data-archived] [data-allow-archived] textarea,
+  [data-slot="archived-scope"][data-archived] [data-allow-archived] select {
     @apply pointer-events-auto opacity-100;
   }
 
@@ -1877,6 +1997,20 @@ html[data-reload-loading="fade-out"] #app-root-content {
     @apply font-medium text-foreground;
   }
 
+  /* Smooth fade-in for streaming text content */
+  .ai-streaming > * {
+    animation: ai-stream-fade-in 0.3s ease-out both;
+  }
+
+  @keyframes ai-stream-fade-in {
+    from {
+      opacity: 0.4;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
   .ai-stream-cursor {
     animation: ai-stream-cursor-blink 1s steps(2, start) infinite;
   }
@@ -1891,6 +2025,10 @@ html[data-reload-loading="fade-out"] #app-root-content {
     .ai-stream-cursor {
       animation: none;
       opacity: 0.6;
+    }
+    .ai-streaming > * {
+      animation: none;
+      opacity: 1;
     }
   }
 }
@@ -1935,6 +2073,28 @@ html[data-reload-loading="fade-out"] #app-root-content {
 
 .ai-thinking-dot {
   animation: ai-thinking-pulse 1.2s ease-in-out infinite;
+}
+
+/* prompt-kit bounce dots */
+@keyframes bounce-dots {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* prompt-kit text shimmer */
+@keyframes shimmer {
+  from {
+    background-position: 100% center;
+  }
+  to {
+    background-position: -100% center;
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -2217,4 +2377,3 @@ html[data-reload-loading="fade-out"] #app-root-content {
     transform: translateY(8px);
   }
 }
-

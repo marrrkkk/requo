@@ -23,6 +23,7 @@ import type { BillingInterval, PaidPlan } from "@/lib/billing/types";
  */
 
 export type StartCheckoutParams = {
+  businessId: string;
   plan: PaidPlan;
   interval: BillingInterval;
   /**
@@ -107,6 +108,7 @@ export async function startPolarCheckout(
       },
       credentials: "same-origin",
       body: JSON.stringify({
+        businessId: params.businessId,
         plan: params.plan,
         interval: params.interval,
         ...(params.returnTo ? { returnTo: params.returnTo } : {}),
@@ -149,6 +151,21 @@ export async function startPolarCheckout(
       reason: "provider_error",
       message: "Checkout URL was missing from the response.",
     };
+  }
+
+  // If the checkout URL is same-origin (upgrade via subscription update,
+  // no Polar hosted checkout needed), open in new tab like normal checkouts.
+  const isSameOrigin =
+    payload.checkoutUrl.startsWith("/") ||
+    payload.checkoutUrl.startsWith(window.location.origin);
+
+  if (isSameOrigin) {
+    if (newTab) {
+      navigateNewTab(newTab, payload.checkoutUrl);
+      return { ok: true, openedInNewTab: true };
+    }
+    window.location.assign(payload.checkoutUrl);
+    return { ok: true, openedInNewTab: false };
   }
 
   if (newTab) {

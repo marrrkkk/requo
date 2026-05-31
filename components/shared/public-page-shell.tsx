@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
 import { PublicPageScrollHeader } from "@/components/shared/public-page-scroll-header";
+import { PublicStickyHeader } from "@/components/shared/public-sticky-header";
 import { cn } from "@/lib/utils";
 
 type PublicPageShellProps = {
@@ -13,6 +14,13 @@ type PublicPageShellProps = {
   brandSize?: "default" | "lg";
   headerClassName?: string;
   headerRevealOnScroll?: boolean;
+  headerStickyFullWidth?: boolean;
+  /**
+   * When provided, fully replaces the default brand/nav/actions header.
+   * The node is rendered before the page container, so it can manage its
+   * own sticky positioning and full-bleed styling.
+   */
+  header?: ReactNode;
 };
 
 export function PublicPageShell({
@@ -24,7 +32,22 @@ export function PublicPageShell({
   brandSize = "default",
   headerClassName,
   headerRevealOnScroll = false,
+  headerStickyFullWidth = false,
+  header,
 }: PublicPageShellProps) {
+  if (header) {
+    return (
+      <>
+        {header}
+        <div className={cn("public-page", className)}>
+          <div className="public-page-stack">
+            <main className="contents">{children}</main>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   const headerContent = (
     <>
       <div className="flex min-w-0 shrink-0 items-center gap-4 lg:gap-6">
@@ -44,6 +67,23 @@ export function PublicPageShell({
       ) : null}
     </>
   );
+
+  if (headerStickyFullWidth) {
+    return (
+      <>
+        <PublicStickyHeader className={headerClassName}>
+          <div className="mx-auto flex h-16 w-full max-w-[90rem] items-center justify-between gap-3 px-4 sm:gap-4 sm:px-6 md:px-6 lg:px-8">
+            {headerContent}
+          </div>
+        </PublicStickyHeader>
+        <div className={cn("public-page", className)}>
+          <div className="public-page-stack">
+            <main className="contents">{children}</main>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <div className={cn("public-page", className)}>

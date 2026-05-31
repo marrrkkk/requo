@@ -13,7 +13,7 @@ import {
   getBusinessQuotaForUser,
   getOwnedBusinessCountForUser,
 } from "@/features/businesses/quota";
-import { businesses, businessMembers, profiles, user, accountSubscriptions } from "@/lib/db/schema";
+import { businesses, businessMembers, profiles, user } from "@/lib/db/schema";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
 import { closeTestDb, testDb } from "@/tests/support/db";
@@ -132,16 +132,20 @@ describe("global business quota enforcement", () => {
     });
 
     expect(quota.current).toBe(2);
-    expect(quota.limit).toBe(1);
+    expect(quota.limit).toBe(2);
     expect(quota.allowed).toBe(false);
   });
 
-  it("blocks free users after one total business", async () => {
+  it("blocks free users after two free businesses", async () => {
     const ownerId = `${prefix}_free_owner`;
 
     await createTestUser(ownerId);
     await createExistingBusiness({
-      id: `${prefix}_free_existing`,
+      id: `${prefix}_free_existing_a`,
+      ownerUserId: ownerId,
+    });
+    await createExistingBusiness({
+      id: `${prefix}_free_existing_b`,
       ownerUserId: ownerId,
     });
 
@@ -154,8 +158,8 @@ describe("global business quota enforcement", () => {
       .from(businesses)
       .where(eq(businesses.ownerUserId, ownerId));
 
-    // 1 existing + 0 new = 1
-    expect(Number(row?.value ?? 0)).toBe(1);
+    // 2 existing + 0 new = 2
+    expect(Number(row?.value ?? 0)).toBe(2);
   });
 
   it("allows business plan users with any owned business count", async () => {
@@ -180,19 +184,11 @@ describe("global business quota enforcement", () => {
       })),
     );
 
-    await testDb.insert(accountSubscriptions).values({
-      id: `${prefix}_sub`,
-      userId: ownerId,
-      status: "active",
-      plan: "business",
-      billingProvider: "polar",
-      billingCurrency: "USD",
-      createdAt: now,
-      updatedAt: now,
-    });
-
     await expect(
-      createBusinessForUser({ ...inputFor(ownerId, "Unlimited Business"), plan: "business" }),
+      createBusinessForUser({
+        ...inputFor(ownerId, "Unlimited Business"),
+        plan: "business",
+      }),
     ).resolves.toEqual(
       expect.objectContaining({
         slug: expect.any(String),
@@ -201,7 +197,7 @@ describe("global business quota enforcement", () => {
 
     await expect(getOwnedBusinessCountForUser(ownerId)).resolves.toBe(13);
 
-    await testDb.delete(accountSubscriptions).where(eq(accountSubscriptions.userId, ownerId));
+    // no billing subscriptions needed for paid-plan creation
   });
 
   it("serializes concurrent free business creation for the same owner", async () => {
@@ -215,6 +211,12 @@ describe("global business quota enforcement", () => {
       updatedAt: now,
     });
 
+    await createExistingBusiness({
+      id: `${prefix}_race_existing`,
+      ownerUserId: ownerId,
+      plan: "free",
+    });
+
     const results = await Promise.allSettled([
       createBusinessForUser({ ...inputFor(ownerId, "Race Business A") }),
       createBusinessForUser({ ...inputFor(ownerId, "Race Business B") }),
@@ -222,6 +224,7 @@ describe("global business quota enforcement", () => {
 
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
-    expect(await getOwnedBusinessCountForUser(ownerId)).toBe(1);
+    // Starting from 1 free business, only 1 concurrent free creation fits into the 2 free business limit.
+    expect(await getOwnedBusinessCountForUser(ownerId)).toBe(2);
   });
 });

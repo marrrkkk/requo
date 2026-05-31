@@ -9,7 +9,7 @@ import { Mail } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
 import { getAuthPathWithNext, getSafeAuthRedirectPath } from "@/lib/auth/redirects";
 import { onboardingPath } from "@/features/onboarding/routes";
-import { businessesHubPath } from "@/features/businesses/routes";
+import { dashboardPath } from "@/features/businesses/routes";
 import {
   AuthEmailDivider,
   SocialAuthButtons,
@@ -61,11 +61,11 @@ export function LoginForm({
   const router = useRouter();
   const searchParams = useSearchParams();
   const rawNext = searchParams.get("next");
-  const nextPath = getSafeAuthRedirectPath(rawNext, businessesHubPath);
+  const nextPath = getSafeAuthRedirectPath(rawNext, dashboardPath);
   // Only forward ?next when it's a genuine non-default redirect
   const signupHref = getAuthPathWithNext(
     "/signup",
-    rawNext && nextPath !== businessesHubPath ? nextPath : null,
+    rawNext && nextPath !== dashboardPath ? nextPath : null,
   );
   const [state, setState] = useState<AuthFormState>({});
   const [loadingAction, setLoadingAction] = useState<
