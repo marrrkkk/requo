@@ -40,6 +40,15 @@ export function useBulkSelection<T extends { id: string }>(
   );
 
   const isAtLimit = selectedIds.size >= maxSelection;
+  const someSelected = selectedIds.size > 0;
+
+  const allSelected = useCallback(
+    (ids: string[]) => {
+      if (ids.length === 0) return false;
+      return ids.every((id) => selectedIds.has(id));
+    },
+    [selectedIds],
+  );
 
   const serializedIds = useMemo(
     () => Array.from(selectedIds).join(","),
@@ -54,6 +63,8 @@ export function useBulkSelection<T extends { id: string }>(
     selectAll,
     deselectAll,
     isAtLimit,
+    someSelected,
+    allSelected,
     serializedIds,
   };
 }
