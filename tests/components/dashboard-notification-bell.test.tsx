@@ -2,7 +2,18 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, beforeEach, expect, it, vi } from "vitest";
 
+import type { ComponentProps } from "react";
+
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
+import { TooltipProvider } from "@/components/ui/tooltip";
+
+function renderBell(props: ComponentProps<typeof DashboardNotificationBell>) {
+  return render(
+    <TooltipProvider>
+      <DashboardNotificationBell {...props} />
+    </TooltipProvider>,
+  );
+}
 
 const {
   channelMock,
@@ -50,6 +61,13 @@ vi.mock("@/features/notifications/actions", () => ({
 
 vi.mock("@/hooks/use-mobile", () => ({
   useIsMobile: useIsMobileMock,
+}));
+
+vi.mock("@/hooks/use-deferred-refresh", () => ({
+  useDeferredRefresh: () => ({
+    scheduleRefresh: refreshMock,
+    refreshNow: refreshMock,
+  }),
 }));
 
 type NotificationInsertHandler = (payload: {
@@ -159,19 +177,17 @@ describe("DashboardNotificationBell", () => {
   it("subscribes when opened and refreshes the route when a notification arrives", async () => {
     const user = userEvent.setup();
 
-    render(
-      <DashboardNotificationBell
-        businessId="biz_123"
-        businessSlug="acme"
-        initialView={{
+    renderBell({
+        businessId: "biz_123",
+        businessSlug: "acme",
+        initialView: {
           items: [],
           unreadCount: 0,
           lastReadAt: null,
           hasMore: false,
-        }}
-        userId="user_123"
-      />,
-    );
+        },
+        userId: "user_123",
+    });
 
     await user.click(screen.getByRole("button", { name: "Notifications" }));
 
@@ -212,19 +228,17 @@ describe("DashboardNotificationBell", () => {
   it("refreshes route when an inquiry insert arrives", async () => {
     const user = userEvent.setup();
 
-    render(
-      <DashboardNotificationBell
-        businessId="biz_123"
-        businessSlug="acme"
-        initialView={{
+    renderBell({
+        businessId: "biz_123",
+        businessSlug: "acme",
+        initialView: {
           items: [],
           unreadCount: 0,
           lastReadAt: null,
           hasMore: false,
-        }}
-        userId="user_123"
-      />,
-    );
+        },
+        userId: "user_123",
+    });
 
     await user.click(screen.getByRole("button", { name: "Notifications" }));
 
@@ -256,11 +270,10 @@ describe("DashboardNotificationBell", () => {
     useIsMobileMock.mockReturnValue(true);
     const user = userEvent.setup();
 
-    render(
-      <DashboardNotificationBell
-        businessId="biz_123"
-        businessSlug="acme"
-        initialView={{
+    renderBell({
+        businessId: "biz_123",
+        businessSlug: "acme",
+        initialView: {
           items: [
             {
               id: "ntf_123",
@@ -276,10 +289,9 @@ describe("DashboardNotificationBell", () => {
           unreadCount: 1,
           lastReadAt: null,
           hasMore: false,
-        }}
-        userId="user_123"
-      />,
-    );
+        },
+        userId: "user_123",
+    });
 
     await user.click(
       screen.getByRole("button", { name: "1 unread notifications" }),

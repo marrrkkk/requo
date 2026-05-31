@@ -48,7 +48,7 @@ import {
   profileAvatarAllowedMimeTypes,
   profileAvatarMaxSize,
 } from "@/features/account/utils";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { cn } from "@/lib/utils";
 
 type ProfileSettingsFormProps = {
@@ -72,7 +72,7 @@ export function ProfileSettingsForm({
   action,
   profile,
 }: ProfileSettingsFormProps) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     initialState,
@@ -97,8 +97,8 @@ export function ProfileSettingsForm({
       return;
     }
 
-    router.refresh();
-  }, [router, state.success]);
+    scheduleRefresh();
+  }, [scheduleRefresh, state.success]);
 
   useEffect(() => {
     const form = formRef.current;

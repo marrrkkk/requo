@@ -12,10 +12,9 @@ import {
   UserCheck,
   UserX,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { useProgressRouter } from "@/hooks/use-progress-router";
-
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -103,11 +102,10 @@ export function DashboardNotificationBell({
   userId,
 }: DashboardNotificationBellProps) {
   const isMobile = useIsMobile();
-  const router = useRouter();
   const progressRouter = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const supabaseRef = useRef<SupabaseBrowserClient | null>(null);
   const refreshTimerRef = useRef<number | null>(null);
-  const routeRefreshTimerRef = useRef<number | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isLoadingMore, startLoadMore] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
@@ -199,25 +197,7 @@ export function DashboardNotificationBell({
       }
     }
 
-    function clearRouteRefreshTimer() {
-      if (routeRefreshTimerRef.current) {
-        window.clearTimeout(routeRefreshTimerRef.current);
-        routeRefreshTimerRef.current = null;
-      }
-    }
-
-    function scheduleRouteRefresh() {
-      if (routeRefreshTimerRef.current) {
-        return;
-      }
-
-      routeRefreshTimerRef.current = window.setTimeout(() => {
-        routeRefreshTimerRef.current = null;
-        router.refresh();
-      }, 120);
-    }
-
-    function scheduleRefresh(expiresAt: string) {
+    function scheduleTokenRefresh(expiresAt: string) {
       clearRefreshTimer();
 
       const refreshInMs = Math.max(
@@ -272,7 +252,7 @@ export function DashboardNotificationBell({
       }
 
       await supabase.realtime.setAuth(nextToken.token);
-      scheduleRefresh(nextToken.expiresAt);
+      scheduleTokenRefresh(nextToken.expiresAt);
     }
 
     async function connectRealtime() {
@@ -322,7 +302,7 @@ export function DashboardNotificationBell({
           };
         });
 
-        scheduleRouteRefresh();
+        scheduleRefresh();
       };
 
       const handleRealtimeState = (row: RealtimeNotificationStateRow) => {
@@ -406,13 +386,13 @@ export function DashboardNotificationBell({
             const row = payload.new as RealtimeInquiryRow;
 
             if (row.id) {
-              scheduleRouteRefresh();
+              scheduleRefresh();
             }
           },
         )
         .subscribe(handleSubscribeStatus("inquiries"));
 
-      scheduleRefresh(nextToken.expiresAt);
+      scheduleTokenRefresh(nextToken.expiresAt);
     }
 
     void connectRealtime();
@@ -420,7 +400,6 @@ export function DashboardNotificationBell({
     return () => {
       isActive = false;
       clearRefreshTimer();
-      clearRouteRefreshTimer();
       const supabase = supabaseRef.current;
 
       if (supabase && notificationChannel) {
@@ -435,7 +414,7 @@ export function DashboardNotificationBell({
         void supabase.removeChannel(inquiryChannel);
       }
     };
-  }, [businessId, businessSlug, router, shouldConnectRealtime, userId]);
+  }, [businessId, businessSlug, scheduleRefresh, shouldConnectRealtime, userId]);
 
   // Fallback refresh: if realtime is not configured, rejected, or degraded
   // (bad JWT, missing publication, RLS blocking events, flaky connection),
@@ -450,13 +429,13 @@ export function DashboardNotificationBell({
     let lastRefreshAt = Date.now();
 
     const maybeRefresh = () => {
-      // Debounce so we don't spam router.refresh() when realtime is also active.
+      // Debounce so we don't spam refresh when realtime is also active.
       if (Date.now() - lastRefreshAt < 5_000) {
         return;
       }
 
       lastRefreshAt = Date.now();
-      router.refresh();
+      scheduleRefresh();
     };
 
     const handleVisibility = () => {
@@ -483,7 +462,7 @@ export function DashboardNotificationBell({
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("focus", handleFocus);
     };
-  }, [router]);
+  }, [scheduleRefresh]);
 
   const loadOlderNotifications = useCallback(() => {
     if (!view.hasMore || loadMoreInFlightRef.current || isLoadingMore) {
@@ -558,6 +537,8 @@ export function DashboardNotificationBell({
       return;
     }
 
+    const previousView = view;
+
     applyReadWatermark(newestNotification.createdAt);
 
     startTransition(async () => {
@@ -568,7 +549,8 @@ export function DashboardNotificationBell({
 
       if (!result.ok) {
         console.error(result.error);
-        router.refresh();
+        setView(previousView);
+        scheduleRefresh();
         return;
       }
 
@@ -580,6 +562,7 @@ export function DashboardNotificationBell({
     setIsOpen(false);
 
     if (item.unread) {
+      const previousView = view;
       markSingleNotificationRead(item.id);
 
       startTransition(async () => {
@@ -590,6 +573,7 @@ export function DashboardNotificationBell({
 
         if (!result.ok) {
           console.error(result.error);
+          setView(previousView);
         }
       });
     }
