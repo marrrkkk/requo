@@ -31,6 +31,7 @@ import {
   getSiteUrl,
   siteDescription,
   siteName,
+  siteSameAs,
   siteTagline,
 } from "@/lib/seo/site";
 
@@ -137,10 +138,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const organizationStructuredData = getOrganizationStructuredData({
+    address: {
+      addressCountry: legalConfig.country,
+      addressLocality: "Lucena City",
+      addressRegion: "Quezon",
+    },
     description: siteTagline,
     email: legalConfig.supportEmail,
     logoUrl: absoluteUrl("/logo.svg"),
     name: siteName,
+    sameAs: siteSameAs,
     url: siteUrl.toString(),
   });
   const websiteStructuredData = getWebsiteStructuredData({

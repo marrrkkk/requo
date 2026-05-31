@@ -7,6 +7,7 @@ import { submitPublicInquiryAction } from "@/features/inquiries/actions";
 import { PublicInquiryPageRenderer } from "@/features/inquiries/components/public-inquiry-page-renderer";
 import {
   getMissingPublicInquiryMetadata,
+  getPublicInquiryBreadcrumbLabel,
   getPublicInquiryPageDescription,
   getPublicInquiryPageMetadata,
   getPublicInquiryPagePath,

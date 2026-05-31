@@ -17,13 +17,13 @@ export const PUBLIC_ROUTE_PREFIXES = [
   "/privacy",
   "/terms",
   "/refund-policy",
-  "/b",
 ] as const;
 
 export const PRIVATE_ROUTE_PREFIXES = [
   "/account",
   "/admin",
   "/api",
+  "/b",
   "/forgot-password",
   "/invite",
   "/login",

@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import type { PublicBusinessProfile } from "@/features/businesses/types";
 import {
   createNoIndexMetadata,
-  createPageMetadata,
   formatSiteTitle,
   siteTagline,
 } from "@/lib/seo/site";
@@ -56,45 +55,18 @@ function resolvePublicBusinessDescription(business: PublicBusinessProfile) {
 }
 
 /**
- * Build `Metadata` for an indexable public business profile. The parent
- * `app/businesses/layout.tsx` ships `createNoIndexMetadata` for the
- * authenticated hub + dashboard, so we explicitly flip `robots.index` and
- * `robots.follow` back to `true` here to override the inherited noindex
- * cascade on the public `/businesses/[slug]` route.
+ * Build `Metadata` for a public business profile page.
  *
- * Fallbacks:
- *
- * - `title` is `<business name> | Requo` (brand-suffixed via
- *   `formatSiteTitle`). We use `absoluteTitle` rather than the inherited
- *   title template so the parent layout's own metadata (which is
- *   noindex-scoped for the authenticated hub) cannot reshape the string.
- * - `description` uses `business.description` → `business.shortDescription`
- *   → `siteTagline`, truncated to <= 160 characters.
- * - `alternates.canonical` is always `/businesses/<slug>`.
+ * Profiles stay noindex until rich public profile UX ships — the current
+ * placeholder surface is not meant for organic discovery.
  */
 export function getPublicBusinessPageMetadata(
   business: PublicBusinessProfile,
 ): Metadata {
-  const base = createPageMetadata({
+  return createNoIndexMetadata({
     absoluteTitle: formatSiteTitle(business.name),
     description: resolvePublicBusinessDescription(business),
-    pathname: getPublicBusinessPagePath(business.slug),
   });
-
-  return {
-    ...base,
-    robots: {
-      follow: true,
-      index: true,
-      googleBot: {
-        follow: true,
-        index: true,
-        "max-image-preview": "large",
-        "max-snippet": -1,
-        "max-video-preview": -1,
-      },
-    },
-  };
 }
 
 /**

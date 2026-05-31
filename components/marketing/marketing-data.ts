@@ -167,7 +167,7 @@ export const faqItems = [
   {
     question: "Can my team work inside the same business?",
     answer:
-      "Yes on the Team plan. Invite members so everyone sees the same inquiries, quotes, jobs, and follow-ups. Owner-led businesses can stay on the solo plan.",
+      "Yes on the Business plan. Invite members so everyone sees the same inquiries, quotes, jobs, and follow-ups. Owner-led businesses can stay on the solo plan.",
   },
   {
     question: "Can I run more than one business from one account?",

@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { siteDescription, siteName, siteTagline } from "@/lib/seo/site";
 
 export const socialImageSize = {
@@ -8,11 +11,33 @@ export const socialImageSize = {
 export const socialImageContentType = "image/png";
 export const socialImageAlt = `${siteName} social preview`;
 
+const SOCIAL_TITLE_MAX_LENGTH = 60;
+
+let logoDataUrl: string | null = null;
+try {
+  const svg = readFileSync(join(process.cwd(), "public/logo.svg"));
+  logoDataUrl = `data:image/svg+xml;base64,${svg.toString("base64")}`;
+} catch {
+  logoDataUrl = null;
+}
+
+export function truncateSocialTitle(title: string, maxLength = SOCIAL_TITLE_MAX_LENGTH) {
+  const normalized = title.trim();
+
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
+}
+
 export type SocialPreviewImageProps = {
-  /** Header/brand title. Defaults to `siteName`. */
+  /** Header/brand title. Defaults to `siteName`. Truncated at 60 characters. */
   title?: string;
   /** Short eyebrow-style line rendered as a pill. Defaults to `siteTagline`. */
   subtitle?: string;
+  /** Large headline below the pill. Defaults to a product positioning line. */
+  headline?: string;
   /** Supporting description paragraph. Defaults to `siteDescription`. */
   body?: string;
 };
@@ -20,8 +45,11 @@ export type SocialPreviewImageProps = {
 export function SocialPreviewImage({
   title = siteName,
   subtitle = siteTagline,
+  headline = "Quote software for owner-led service businesses.",
   body = siteDescription,
 }: SocialPreviewImageProps = {}) {
+  const displayTitle = truncateSocialTitle(title);
+
   return (
     <div
       style={{
@@ -56,15 +84,20 @@ export function SocialPreviewImage({
             width: "72px",
           }}
         >
-          <span
-            style={{
-              fontSize: "30px",
-              fontWeight: 700,
-              letterSpacing: "-0.04em",
-            }}
-          >
-            R
-          </span>
+          {logoDataUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img alt="" height={40} src={logoDataUrl} width={40} />
+          ) : (
+            <span
+              style={{
+                fontSize: "30px",
+                fontWeight: 700,
+                letterSpacing: "-0.04em",
+              }}
+            >
+              R
+            </span>
+          )}
         </div>
         <div
           style={{
@@ -90,7 +123,7 @@ export function SocialPreviewImage({
               letterSpacing: "-0.05em",
             }}
           >
-            {title}
+            {displayTitle}
           </span>
         </div>
       </div>
@@ -126,7 +159,7 @@ export function SocialPreviewImage({
             lineHeight: 1.04,
           }}
         >
-          Service business software for inquiries, quotes, and follow-up.
+          {headline}
         </div>
         <div
           style={{
