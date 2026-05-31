@@ -5,17 +5,18 @@ import type { LucideIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 
 type ServerActionState = {
@@ -34,6 +35,10 @@ type SharedServerActionProps<State extends ServerActionState> = {
   disabled?: boolean;
   icon?: LucideIcon;
   onSuccess?: () => void;
+  optimistic?: {
+    onOptimistic: () => void;
+    onRevert: () => void;
+  };
   redirectHref?: string;
   refreshOnSuccess?: boolean;
 };
@@ -62,20 +67,25 @@ export function ServerActionButton<State extends ServerActionState>({
   icon: Icon,
   label,
   onSuccess,
+  optimistic,
   pendingLabel,
   redirectHref,
   refreshOnSuccess = true,
   variant = "outline",
 }: ServerActionButtonProps<State>) {
   const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     {} as Awaited<State>,
   );
 
-  // Fire side-effects on success. The action's isPending has already
-  // reset by the time this runs, so the button shows its idle label
-  // while the background refresh streams in fresh data.
+  useEffect(() => {
+    if (state.error || state.fieldErrors) {
+      optimistic?.onRevert();
+    }
+  }, [optimistic, state.error, state.fieldErrors]);
+
   useEffect(() => {
     if (!state.success) {
       return;
@@ -89,12 +99,17 @@ export function ServerActionButton<State extends ServerActionState>({
     }
 
     if (refreshOnSuccess) {
-      router.refresh();
+      scheduleRefresh();
     }
-  }, [onSuccess, redirectHref, refreshOnSuccess, router, state.success]);
+  }, [onSuccess, redirectHref, refreshOnSuccess, router, scheduleRefresh, state.success]);
 
   return (
-    <form action={formAction}>
+    <form
+      action={async (formData) => {
+        optimistic?.onOptimistic();
+        await formAction(formData);
+      }}
+    >
       <Button disabled={disabled || isPending} type="submit" variant={variant}>
         {isPending ? (
           <>
@@ -121,6 +136,7 @@ export function ServerActionConfirmDialog<State extends ServerActionState>({
   disabled = false,
   icon: Icon,
   onSuccess,
+  optimistic,
   redirectHref,
   refreshOnSuccess = true,
   title,
@@ -128,15 +144,19 @@ export function ServerActionConfirmDialog<State extends ServerActionState>({
   triggerVariant = "outline",
 }: ServerActionConfirmDialogProps<State>) {
   const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [state, formAction, isPending] = useActionStateWithSonner(
     action,
     {} as Awaited<State>,
   );
 
-  // Close dialog and fire side-effects on success.
-  // Schedule dialog close outside the synchronous effect to avoid
-  // cascading render warnings.
+  useEffect(() => {
+    if (state.error || state.fieldErrors) {
+      optimistic?.onRevert();
+    }
+  }, [optimistic, state.error, state.fieldErrors]);
+
   useEffect(() => {
     if (!state.success) {
       return;
@@ -151,30 +171,38 @@ export function ServerActionConfirmDialog<State extends ServerActionState>({
     }
 
     if (refreshOnSuccess) {
-      router.refresh();
+      scheduleRefresh();
     }
-  }, [onSuccess, redirectHref, refreshOnSuccess, router, state.success]);
+  }, [onSuccess, redirectHref, refreshOnSuccess, router, scheduleRefresh, state.success]);
 
   return (
-    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-      <DialogTrigger asChild>
+    <AlertDialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <AlertDialogTrigger asChild>
         <Button disabled={disabled} type="button" variant={triggerVariant}>
           {Icon ? <Icon data-icon="inline-start" /> : null}
           {triggerLabel}
         </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose asChild>
+      </AlertDialogTrigger>
+      <AlertDialogContent className="sm:max-w-lg">
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel asChild>
             <Button disabled={isPending} type="button" variant="ghost">
               Cancel
             </Button>
-          </DialogClose>
-          <form action={formAction}>
+          </AlertDialogCancel>
+          <form
+            action={async (formData) => {
+              optimistic?.onOptimistic();
+              await formAction(formData);
+            }}
+          >
+            {redirectHref ? (
+              <input name="redirectHref" type="hidden" value={redirectHref} />
+            ) : null}
             <Button disabled={isPending} type="submit" variant={confirmVariant}>
               {isPending ? (
                 <>
@@ -186,9 +214,9 @@ export function ServerActionConfirmDialog<State extends ServerActionState>({
               )}
             </Button>
           </form>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

@@ -237,30 +237,33 @@ export function ManagerBodySkeleton() {
         <Skeleton className="h-10 w-[8.5rem] rounded-xl" />
       </div>
 
-      {/* Form cards grid */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        {Array.from({ length: 2 }).map((_, index) => (
+      {/* Form list table */}
+      <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
+        <div className="border-b border-border/70 bg-muted/30 px-4 py-3">
+          <div className="grid grid-cols-[18rem_12rem_8rem_9rem_3rem] gap-4">
+            <Skeleton className="h-4 w-16 rounded-md" />
+            <Skeleton className="h-4 w-20 rounded-md" />
+            <Skeleton className="h-4 w-24 rounded-md" />
+            <Skeleton className="h-4 w-14 rounded-md" />
+            <Skeleton className="h-4 w-8 rounded-md" />
+          </div>
+        </div>
+        {Array.from({ length: 3 }).map((_, index) => (
           <div
-            className="flex h-full flex-col gap-4 rounded-xl border border-border/80 bg-card/98 p-6"
+            className={cn(
+              "grid grid-cols-[18rem_12rem_8rem_9rem_3rem] items-center gap-4 px-4 py-4",
+              index > 0 && "border-t border-border/70",
+            )}
             key={index}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1 space-y-1.5">
-                <Skeleton className="h-5 w-32 rounded-md" />
-                <Skeleton className="h-4 w-44 rounded-md" />
-              </div>
-              <Skeleton className="h-5 w-10 rounded-full" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-32 rounded-md" />
+              <Skeleton className="h-3 w-48 rounded-md" />
             </div>
-
-            <div>
-              <Skeleton className="h-5 w-40 rounded-full" />
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Skeleton className="h-10 w-[8.5rem] rounded-xl" />
-              <Skeleton className="h-10 w-[5.5rem] rounded-xl" />
-              <Skeleton className="h-10 w-[4.5rem] rounded-xl" />
-            </div>
+            <Skeleton className="h-5 w-24 rounded-full" />
+            <Skeleton className="h-4 w-8 rounded-md" />
+            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-8 w-8 rounded-md justify-self-end" />
           </div>
         ))}
       </div>
