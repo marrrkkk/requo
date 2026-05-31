@@ -153,8 +153,8 @@ export default async function QuotesPage({
   return (
     <DashboardPage>
       <PageHeader
-        eyebrow="Quotes"
         title="Quotes"
+        description="List, filter, and manage quotes for this business."
       />
 
       <Suspense fallback={<QuoteListControlsFallback />}>

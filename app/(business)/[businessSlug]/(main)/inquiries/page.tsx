@@ -163,8 +163,8 @@ export default async function InquiriesPage({
   return (
     <DashboardPage>
       <PageHeader
-        eyebrow="Inquiries"
-        title="Customer inquiries"
+        title="Inquiries"
+        description="List, filter, and manage inquiries for this business."
       />
 
       <Suspense fallback={<InquiryListControlsFallback />}>

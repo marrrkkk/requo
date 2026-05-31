@@ -523,6 +523,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 }
 
+
 @keyframes sidebar-overlay-fade-in {
   0% {
     opacity: 0;
@@ -908,14 +909,69 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .motion-list-item[data-motion-state="entering"] {
-    animation: subtle-fade-up var(--motion-duration-base) var(--motion-ease-emphasized)
+    animation: motion-fade-up var(--motion-duration-base) var(--motion-ease-emphasized)
       both;
   }
 
   .motion-list-item[data-motion-state="exiting"] {
-    opacity: 0;
-    transform: translate3d(0, -8px, 0) scale(0.985);
+    animation: motion-fade-out 0.28s var(--motion-ease-standard) forwards;
     pointer-events: none;
+  }
+
+  .motion-list-item[data-motion-state="updating"] {
+    animation: motion-update-pulse var(--motion-duration-fast) var(--motion-ease-standard)
+      both;
+  }
+
+  .motion-list-reorder {
+    transition:
+      transform var(--motion-duration-base) var(--motion-ease-emphasized),
+      opacity var(--motion-duration-fast) var(--motion-ease-standard);
+  }
+
+  @keyframes motion-fade-up {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 8px, 0) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+  }
+
+  @keyframes motion-fade-out {
+    from {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translate3d(0, -4px, 0) scale(0.96);
+    }
+  }
+
+  @keyframes motion-update-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.72;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .motion-list-item[data-motion-state="entering"],
+    .motion-list-item[data-motion-state="exiting"],
+    .motion-list-item[data-motion-state="updating"] {
+      animation: none;
+      transition: none;
+    }
+
+    .motion-list-item[data-motion-state="exiting"] {
+      opacity: 0;
+    }
   }
 
   @media (hover: hover) and (pointer: fine) {
@@ -1044,6 +1100,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
     @apply flex flex-row items-center gap-2 sm:gap-3;
     @apply xl:ml-auto xl:shrink-0 xl:justify-end;
   }
+
 
   .data-list-mobile-grid {
     @apply grid gap-4 xl:hidden;
@@ -2320,4 +2377,3 @@ html[data-reload-loading="fade-out"] #app-root-content {
     transform: translateY(8px);
   }
 }
-
