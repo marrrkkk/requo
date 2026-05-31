@@ -1,14 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { BulkActionBar } from "@/components/shared/bulk-action-bar";
 import { DataListPagination } from "@/components/shared/data-list-pagination";
 import { InquiryBulkActions } from "@/features/inquiries/components/inquiry-bulk-actions";
+
+
 import { InquiryListCards } from "@/features/inquiries/components/inquiry-list-cards";
 import { InquiryListTable } from "@/features/inquiries/components/inquiry-list-table";
 import { getBusinessInquiriesPath } from "@/features/businesses/routes";
 import type { DashboardInquiryListItem } from "@/features/inquiries/types";
+import { useAnimatedList } from "@/hooks/use-animated-list";
 import { useBulkSelection } from "@/hooks/use-bulk-selection";
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
@@ -49,10 +53,12 @@ export function InquiryListResultsClient({
     ? visiblePage
     : currentPage;
 
-  const inquiries = useMemo(
+  const inquiriesFromCache = useMemo(
     () => effectiveCachedPages[displayPage] ?? [],
     [displayPage, effectiveCachedPages],
   );
+
+  const { items: inquiries, getMotionState, removeItems } = useAnimatedList(inquiriesFromCache);
   const cachedPageNumbers = useMemo(
     () =>
       Object.keys(effectiveCachedPages)
@@ -69,10 +75,10 @@ export function InquiryListResultsClient({
     deselectAll,
     isAtLimit,
     serializedIds,
+    allSelected,
   } = useBulkSelection(inquiries);
 
-  const allOnPageSelected =
-    inquiries.length > 0 && inquiries.every((i) => isSelected(i.id));
+  const allOnPageSelected = inquiries.length > 0 && allSelected(inquiries.map((i) => i.id));
 
   const handleSelectAllOnPage = () => {
     if (allOnPageSelected) {
@@ -83,7 +89,6 @@ export function InquiryListResultsClient({
   };
 
   const handleSelectAllMatchingFilters = () => {
-    // Collect all IDs from all cached pages (representing items matching current filters)
     const allMatchingIds = Object.values(effectiveCachedPages).flatMap(
       (pageItems) => pageItems.map((item) => item.id),
     );
@@ -98,43 +103,36 @@ export function InquiryListResultsClient({
     }
   };
 
+  const handleBulkComplete = useCallback(() => {
+    deselectAll();
+  }, [deselectAll]);
+
   return (
     <>
-      <InquiryBulkActions
+      <BulkActionBar
         selectedCount={selectedCount}
-        serializedIds={serializedIds}
-        onComplete={deselectAll}
-      />
-      {inquiries.length > 0 && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <button
-            className="underline-offset-2 hover:underline"
-            onClick={handleSelectAllOnPage}
-            type="button"
-          >
-            {allOnPageSelected ? "Deselect all on page" : "Select all on page"}
-          </button>
-          {totalItems > inquiries.length && (
-            <>
-              <span className="text-border">·</span>
-              <button
-                className="underline-offset-2 hover:underline"
-                disabled={isAtLimit}
-                onClick={handleSelectAllMatchingFilters}
-                type="button"
-              >
-                Select all matching filters{totalItems > MAX_BULK_SELECTION ? ` (max ${MAX_BULK_SELECTION})` : ""}
-              </button>
-            </>
-          )}
-        </div>
-      )}
+        totalOnPage={inquiries.length}
+        totalMatchingFilters={totalItems}
+        maxSelection={MAX_BULK_SELECTION}
+        allOnPageSelected={allOnPageSelected}
+        onSelectAllOnPage={handleSelectAllOnPage}
+        onSelectAllMatchingFilters={handleSelectAllMatchingFilters}
+        onDeselectAll={deselectAll}
+      >
+        <InquiryBulkActions
+          selectedCount={selectedCount}
+          serializedIds={serializedIds}
+          onComplete={handleBulkComplete}
+          onOptimisticRemove={removeItems}
+        />
+      </BulkActionBar>
       <InquiryListCards
         inquiries={inquiries}
         businessSlug={businessSlug}
         isSelected={isSelected}
         isAtLimit={isAtLimit}
         onToggle={toggle}
+        getMotionState={getMotionState}
       />
       <InquiryListTable
         inquiries={inquiries}
@@ -144,6 +142,7 @@ export function InquiryListResultsClient({
         onToggle={toggle}
         allOnPageSelected={allOnPageSelected}
         onSelectAllOnPage={handleSelectAllOnPage}
+        getMotionState={getMotionState}
       />
       <DataListPagination
         cachedPages={cachedPageNumbers}

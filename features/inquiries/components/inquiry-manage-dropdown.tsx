@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useOptimistic, useState } from "react";
 import {
   Archive,
   Check,
@@ -9,6 +9,7 @@ import {
   Trash2,
 } from "lucide-react";
 
+import { OptimisticPendingIndicator } from "@/components/shared/optimistic-pending-indicator";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,9 +31,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
-import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation";
 import { getInquiryStatusLabel } from "@/features/inquiries/utils";
 import {
   inquiryWorkflowStatuses,
@@ -78,69 +77,115 @@ export function InquiryManageDropdown({
   unarchiveAction,
   deleteAction,
 }: InquiryManageDropdownProps) {
-  const router = useProgressRouter();
-  const statusFormRef = useRef<HTMLFormElement>(null);
-  const archiveFormRef = useRef<HTMLFormElement>(null);
-  const unarchiveFormRef = useRef<HTMLFormElement>(null);
-  const deleteFormRef = useRef<HTMLFormElement>(null);
+  const { runMutation, isPendingKey } = useOptimisticMutation();
   const [selectedStatus, setSelectedStatus] = useState(workflowStatus);
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
 
-  const [statusState, statusFormAction, isStatusPending] = useActionStateWithSonner(
-    statusAction,
-    initialStatusState,
+  const [optimisticWorkflowStatus, setOptimisticWorkflowStatus] = useOptimistic(
+    workflowStatus,
+    (_current, nextStatus: InquiryWorkflowStatus) => nextStatus,
   );
-  const [archiveState, archiveFormAction, isArchivePending] = useActionStateWithSonner(
-    archiveAction,
-    initialRecordState,
-  );
-  const [unarchiveState, unarchiveFormAction, isUnarchivePending] = useActionStateWithSonner(
-    unarchiveAction,
-    initialRecordState,
-  );
-  const [deleteState, deleteFormAction, isDeletePending] = useActionStateWithSonner(
-    deleteAction,
-    initialRecordState,
+  const [optimisticRecordState, setOptimisticRecordState] = useOptimistic(
+    recordState,
+    (_current, nextState: InquiryRecordState) => nextState,
   );
 
   useEffect(() => {
-    if (statusState.success || archiveState.success || unarchiveState.success) {
-      router.refresh();
-    }
-  }, [statusState.success, archiveState.success, unarchiveState.success, router]);
-
-  useEffect(() => {
-    if (deleteState.success) {
-      router.replace(businessInquiryListHref);
-    }
-  }, [deleteState.success, businessInquiryListHref, router]);
+    setSelectedStatus(workflowStatus);
+  }, [workflowStatus]);
 
   function handleStatusSelect(status: string) {
-    if (status === workflowStatus) return;
+    if (status === optimisticWorkflowStatus) return;
     setSelectedStatus(status as InquiryWorkflowStatus);
     setConfirmAction("status");
   }
 
+  async function submitStatus() {
+    const formData = new FormData();
+    formData.set("status", selectedStatus);
+
+    runMutation({
+      applyOptimistic: () => {
+        setOptimisticWorkflowStatus(selectedStatus);
+      },
+      revertOptimistic: () => {
+        setOptimisticWorkflowStatus(workflowStatus);
+      },
+      mutation: () => statusAction(initialStatusState, formData),
+      pendingKey: "status",
+      refreshOnSuccess: true,
+    });
+  }
+
+  async function submitArchive() {
+    runMutation({
+      applyOptimistic: () => {
+        setOptimisticRecordState("archived");
+      },
+      revertOptimistic: () => {
+        setOptimisticRecordState(recordState);
+      },
+      mutation: () => archiveAction(initialRecordState, new FormData()),
+      pendingKey: "archive",
+      refreshOnSuccess: true,
+    });
+  }
+
+  async function submitUnarchive() {
+    runMutation({
+      applyOptimistic: () => {
+        setOptimisticRecordState("active");
+      },
+      revertOptimistic: () => {
+        setOptimisticRecordState(recordState);
+      },
+      mutation: () => unarchiveAction(initialRecordState, new FormData()),
+      pendingKey: "unarchive",
+      refreshOnSuccess: true,
+    });
+  }
+
+  async function submitDelete() {
+    runMutation({
+      applyOptimistic: () => {},
+      revertOptimistic: () => {},
+      mutation: async () => {
+        const formData = new FormData();
+        formData.set("redirectHref", businessInquiryListHref);
+        return deleteAction(initialRecordState, formData);
+      },
+      pendingKey: "delete",
+      refreshOnSuccess: false,
+      onSuccess: () => {
+        window.location.assign(businessInquiryListHref);
+      },
+    });
+  }
+
   function handleConfirm() {
     if (confirmAction === "status") {
-      setTimeout(() => statusFormRef.current?.requestSubmit(), 0);
+      void submitStatus();
     } else if (confirmAction === "archive") {
-      archiveFormRef.current?.requestSubmit();
+      void submitArchive();
     } else if (confirmAction === "unarchive") {
-      unarchiveFormRef.current?.requestSubmit();
+      void submitUnarchive();
     } else if (confirmAction === "delete") {
-      deleteFormRef.current?.requestSubmit();
+      void submitDelete();
     }
     setConfirmAction(null);
   }
 
-  const isPending = isStatusPending || isArchivePending || isUnarchivePending || isDeletePending;
+  const isPending =
+    isPendingKey("status") ||
+    isPendingKey("archive") ||
+    isPendingKey("unarchive") ||
+    isPendingKey("delete");
   const isDestructive = confirmAction === "delete";
 
   const confirmConfig: Record<Exclude<ConfirmAction, null>, { title: string; description: string; label: string }> = {
     status: {
       title: `Change status to "${getInquiryStatusLabel(selectedStatus)}"?`,
-      description: `This will update the workflow status from "${getInquiryStatusLabel(workflowStatus)}" to "${getInquiryStatusLabel(selectedStatus)}".`,
+      description: `This will update the workflow status from "${getInquiryStatusLabel(optimisticWorkflowStatus)}" to "${getInquiryStatusLabel(selectedStatus)}".`,
       label: "Change status",
     },
     archive: {
@@ -164,14 +209,6 @@ export function InquiryManageDropdown({
 
   return (
     <>
-      {/* Hidden forms for server actions */}
-      <form ref={statusFormRef} action={statusFormAction} className="hidden">
-        <input name="status" type="hidden" value={selectedStatus} />
-      </form>
-      <form ref={archiveFormRef} action={archiveFormAction} className="hidden" />
-      <form ref={unarchiveFormRef} action={unarchiveFormAction} className="hidden" />
-      <form ref={deleteFormRef} action={deleteFormAction} className="hidden" />
-
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <button
@@ -180,10 +217,11 @@ export function InquiryManageDropdown({
             className="inline-flex size-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
           >
             <Settings className="size-5" />
+            <OptimisticPendingIndicator pending={isPending} />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
-          {recordState === "active" ? (
+          {optimisticRecordState === "active" ? (
             <>
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>Status</DropdownMenuSubTrigger>
@@ -195,7 +233,7 @@ export function InquiryManageDropdown({
                     >
                       <span className="flex w-full items-center justify-between">
                         {getInquiryStatusLabel(status)}
-                        {status === workflowStatus ? (
+                        {status === optimisticWorkflowStatus ? (
                           <Check className="size-3.5 text-muted-foreground" />
                         ) : null}
                       </span>
@@ -237,7 +275,6 @@ export function InquiryManageDropdown({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Confirmation dialog */}
       <AlertDialog
         open={confirmAction !== null}
         onOpenChange={(open) => {
@@ -263,14 +300,8 @@ export function InquiryManageDropdown({
                 onClick={handleConfirm}
                 variant={isDestructive ? "destructive" : "default"}
               >
-                {isPending ? (
-                  <>
-                    <Spinner className="size-4" aria-hidden="true" />
-                    {config?.label}...
-                  </>
-                ) : (
-                  config?.label
-                )}
+                <OptimisticPendingIndicator pending={isPending} />
+                {config?.label}
               </Button>
             </AlertDialogAction>
           </AlertDialogFooter>

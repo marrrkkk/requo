@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { RefreshCw } from "lucide-react";
 
+import { OptimisticPendingIndicator } from "@/components/shared/optimistic-pending-indicator";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import {
   ResponsiveOverlay,
   ResponsiveOverlayClose,
@@ -26,8 +26,8 @@ type InquiryBulkStatusDialogProps = {
   onOpenChange: (open: boolean) => void;
   serializedIds: string;
   selectedCount: number;
-  formAction: (formData: FormData) => void;
-  isPending: boolean;
+  onSubmit: (formData: FormData) => Promise<void>;
+  isPending?: boolean;
 };
 
 export function InquiryBulkStatusDialog({
@@ -35,7 +35,7 @@ export function InquiryBulkStatusDialog({
   onOpenChange,
   serializedIds,
   selectedCount,
-  formAction,
+  onSubmit,
   isPending,
 }: InquiryBulkStatusDialogProps) {
   const [targetStatus, setTargetStatus] = useState<InquiryWorkflowStatus | null>(null);
@@ -66,9 +66,7 @@ export function InquiryBulkStatusDialog({
             Pick a target status. Archived or deleted inquiries will be skipped.
           </ResponsiveOverlayDescription>
         </ResponsiveOverlayHeader>
-        <form action={formAction}>
-          <input name="inquiryIds" type="hidden" value={serializedIds} />
-          <input name="targetStatus" type="hidden" value={targetStatus ?? ""} />
+        <div>
           <div className="flex flex-col gap-1.5 px-4 pb-4 sm:px-6 sm:pb-6">
             {statusOptions.map((status) => (
               <button
@@ -90,16 +88,26 @@ export function InquiryBulkStatusDialog({
                 Cancel
               </Button>
             </ResponsiveOverlayClose>
-            <Button disabled={isPending || !targetStatus} type="submit">
-              {isPending ? (
-                <Spinner data-icon="inline-start" aria-hidden="true" />
-              ) : (
-                <RefreshCw data-icon="inline-start" />
-              )}
-              {isPending ? "Updating..." : "Update status"}
+            <Button
+              disabled={isPending || !targetStatus}
+              onClick={() => {
+                if (!targetStatus) {
+                  return;
+                }
+
+                const formData = new FormData();
+                formData.set("inquiryIds", serializedIds);
+                formData.set("targetStatus", targetStatus);
+                void onSubmit(formData);
+              }}
+              type="button"
+            >
+              <OptimisticPendingIndicator pending={isPending} />
+              <RefreshCw data-icon="inline-start" />
+              Update status
             </Button>
           </ResponsiveOverlayFooter>
-        </form>
+        </div>
       </ResponsiveOverlayContent>
     </ResponsiveOverlay>
   );

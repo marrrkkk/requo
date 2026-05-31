@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useOptimistic, useState } from "react";
 
+import { OptimisticPendingIndicator } from "@/components/shared/optimistic-pending-indicator";
 import { FormActions } from "@/components/shared/form-layout";
-import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { Button } from "@/components/ui/button";
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation";import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Field,
   FieldContent,
@@ -39,24 +38,56 @@ export function InquiryStatusForm({
   action,
   currentStatus,
 }: InquiryStatusFormProps) {
+  const { runMutation, isPendingKey } = useOptimisticMutation();
   const [selectedStatus, setSelectedStatus] =
     useState<InquiryWorkflowStatus>(currentStatus);
-  const [state, formAction, isPending] = useActionStateWithSonner(
-    action,
-    initialState,
+  const [fieldErrors, setFieldErrors] = useState<
+    InquiryStatusActionState["fieldErrors"]
+  >();
+  const [optimisticStatus, setOptimisticStatus] = useOptimistic(
+    currentStatus,
+    (_current, nextStatus: InquiryWorkflowStatus) => nextStatus,
   );
 
+  const isPending = isPendingKey("inquiry-status");
+
   return (
-    <form action={formAction} className="form-stack">
+    <form
+      className="form-stack"
+      onSubmit={(event) => {
+        event.preventDefault();
+
+        const formData = new FormData(event.currentTarget);
+
+        runMutation({
+          applyOptimistic: () => {
+            setOptimisticStatus(selectedStatus);
+            setFieldErrors(undefined);
+          },
+          revertOptimistic: () => {
+            setOptimisticStatus(currentStatus);
+            setSelectedStatus(currentStatus);
+          },
+          mutation: async () => {
+            const result = await action(initialState, formData);
+            if (result.fieldErrors) {
+              setFieldErrors(result.fieldErrors);
+            }
+            return result;
+          },
+          pendingKey: "inquiry-status",
+          refreshOnSuccess: true,
+        });
+      }}
+    >
       <input name="status" type="hidden" value={selectedStatus} />
 
       <FieldGroup>
-        <Field data-invalid={Boolean(state.fieldErrors?.status) || undefined}>
+        <Field data-invalid={Boolean(fieldErrors?.status) || undefined}>
           <FieldLabel htmlFor="inquiry-status">Change status</FieldLabel>
           <FieldContent>
             <Combobox
-              aria-invalid={Boolean(state.fieldErrors?.status) || undefined}
-              disabled={isPending}
+              aria-invalid={Boolean(fieldErrors?.status) || undefined}
               id="inquiry-status"
               value={selectedStatus}
               onValueChange={(value) =>
@@ -68,8 +99,8 @@ export function InquiryStatusForm({
             />
             <FieldError
               errors={
-                state.fieldErrors?.status?.[0]
-                  ? [{ message: state.fieldErrors.status[0] }]
+                fieldErrors?.status?.[0]
+                  ? [{ message: fieldErrors.status[0] }]
                   : undefined
               }
             />
@@ -79,17 +110,11 @@ export function InquiryStatusForm({
 
       <FormActions>
         <Button
-          disabled={isPending || selectedStatus === currentStatus}
+          disabled={isPending || selectedStatus === optimisticStatus}
           type="submit"
         >
-          {isPending ? (
-            <>
-              <Spinner data-icon="inline-start" aria-hidden="true" />
-              Updating status...
-            </>
-          ) : (
-            "Save status"
-          )}
+          <OptimisticPendingIndicator pending={isPending} />
+          Save status
         </Button>
       </FormActions>
     </form>

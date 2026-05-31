@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { MotionState } from "@/hooks/use-animated-list";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { DashboardTableContainer } from "@/components/shared/dashboard-layout";
@@ -29,6 +30,7 @@ type InquiryListTableProps = {
   onToggle?: (id: string) => void;
   allOnPageSelected?: boolean;
   onSelectAllOnPage?: () => void;
+  getMotionState?: (id: string) => MotionState;
 };
 
 export function InquiryListTable({
@@ -39,6 +41,7 @@ export function InquiryListTable({
   onToggle,
   allOnPageSelected,
   onSelectAllOnPage,
+  getMotionState,
 }: InquiryListTableProps) {
   return (
     <DashboardTableContainer className="hidden xl:block">
@@ -46,15 +49,13 @@ export function InquiryListTable({
         <TableCaption className="sr-only">Newest inquiries appear first.</TableCaption>
         <TableHeader>
           <TableRow>
-            {onToggle ? (
-              <TableHead className="w-[3rem]">
-                <Checkbox
-                  aria-label="Select all inquiries on this page"
-                  checked={allOnPageSelected}
-                  onCheckedChange={onSelectAllOnPage}
-                />
-              </TableHead>
-            ) : null}
+            <TableHead className="w-[3rem]">
+              <Checkbox
+                aria-label="Select all inquiries on this page"
+                checked={allOnPageSelected}
+                onCheckedChange={onSelectAllOnPage}
+              />
+            </TableHead>
             <TableHead className="w-[17rem]">Customer</TableHead>
             <TableHead className="w-[13rem]">Form</TableHead>
             <TableHead className="w-[13rem]">Service</TableHead>
@@ -69,17 +70,15 @@ export function InquiryListTable({
             const disabled = !checked && (isAtLimit ?? false);
 
             return (
-              <TableRow className="group/row" key={inquiry.id}>
-                {onToggle ? (
-                  <TableCell className="w-[3rem]">
-                    <Checkbox
-                      aria-label={`Select inquiry from ${inquiry.customerName}`}
-                      checked={checked}
-                      disabled={disabled}
-                      onCheckedChange={() => onToggle(inquiry.id)}
-                    />
-                  </TableCell>
-                ) : null}
+              <TableRow className="motion-list-item group/row" data-motion-state={getMotionState?.(inquiry.id)} key={inquiry.id}>
+                <TableCell className="w-[3rem]">
+                  <Checkbox
+                    aria-label={`Select inquiry from ${inquiry.customerName}`}
+                    checked={checked}
+                    disabled={disabled}
+                    onCheckedChange={() => onToggle?.(inquiry.id)}
+                  />
+                </TableCell>
                 <TableCell className="w-[17rem]">
                   <div className="table-meta-stack max-w-full">
                     <div className="flex items-center gap-1.5">

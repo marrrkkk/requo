@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Archive, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import {
   ResponsiveOverlay,
   ResponsiveOverlayClose,
@@ -20,145 +19,114 @@ import {
   bulkDeleteInquiriesAction,
 } from "@/features/inquiries/actions";
 import { InquiryBulkStatusDialog } from "@/features/inquiries/components/inquiry-bulk-status-dialog";
-import type { InquiryBulkActionState } from "@/features/inquiries/types";
-import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import type { OptimisticActionResult } from "@/hooks/use-optimistic-mutation";
 
 type InquiryBulkActionsProps = {
   selectedCount: number;
   serializedIds: string;
   onComplete: () => void;
+  onOptimisticRemove?: (
+    ids: string[],
+    mutation: () => Promise<OptimisticActionResult>,
+  ) => void;
 };
 
 export function InquiryBulkActions({
   selectedCount,
   serializedIds,
   onComplete,
+  onOptimisticRemove,
 }: InquiryBulkActionsProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showStatusDialog, setShowStatusDialog] = useState(false);
-  const router = useProgressRouter();
 
-  const [, bulkArchiveAction, isArchivePending] = useActionStateWithSonner(
-    async (prevState, formData) => {
-      const nextState = await bulkArchiveInquiriesAction(prevState, formData);
-      if (nextState.success) {
-        onComplete();
-        router.refresh();
-      }
-      return nextState;
-    },
-    {} as InquiryBulkActionState,
-  );
-
-  const [, bulkDeleteAction, isDeletePending] = useActionStateWithSonner(
-    async (prevState, formData) => {
-      const nextState = await bulkDeleteInquiriesAction(prevState, formData);
-      if (nextState.success) {
-        setShowDeleteDialog(false);
-        onComplete();
-        router.refresh();
-      }
-      return nextState;
-    },
-    {} as InquiryBulkActionState,
-  );
-
-  const [, bulkStatusAction, isStatusPending] = useActionStateWithSonner(
-    async (prevState, formData) => {
-      const nextState = await bulkChangeInquiryStatusAction(prevState, formData);
-      if (nextState.success) {
-        setShowStatusDialog(false);
-        onComplete();
-        router.refresh();
-      }
-      return nextState;
-    },
-    {} as InquiryBulkActionState,
-  );
+  const ids = serializedIds.split(",").filter(Boolean);
 
   if (selectedCount === 0) {
     return null;
   }
 
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/30 px-4 py-2.5">
-      <span className="text-xs text-muted-foreground">
-        {selectedCount} selected
-      </span>
-      <div className="ml-auto flex items-center gap-2">
-        <form action={bulkArchiveAction}>
-          <input name="inquiryIds" type="hidden" value={serializedIds} />
-          <Button
-            disabled={isArchivePending}
-            size="sm"
-            type="submit"
-            variant="outline"
-          >
-            {isArchivePending ? (
-              <Spinner data-icon="inline-start" aria-hidden="true" />
-            ) : (
-              <Archive data-icon="inline-start" />
-            )}
-            {isArchivePending ? "Archiving..." : "Archive"}
-          </Button>
-        </form>
+    <>
+      <Button
+        onClick={() => {
+          onOptimisticRemove?.(ids, async () => {
+            const formData = new FormData();
+            formData.set("inquiryIds", serializedIds);
+            return bulkArchiveInquiriesAction({}, formData);
+          });
+          onComplete();
+        }}
+        size="sm"
+        type="button"
+        variant="outline"
+      >
+        <Archive data-icon="inline-start" />
+        Archive
+      </Button>
 
-        <InquiryBulkStatusDialog
-          open={showStatusDialog}
-          onOpenChange={setShowStatusDialog}
-          serializedIds={serializedIds}
-          selectedCount={selectedCount}
-          formAction={bulkStatusAction}
-          isPending={isStatusPending}
-        />
+      <InquiryBulkStatusDialog
+        open={showStatusDialog}
+        onOpenChange={setShowStatusDialog}
+        serializedIds={serializedIds}
+        selectedCount={selectedCount}
+        onSubmit={async (formData) => {
+          onOptimisticRemove?.(ids, async () =>
+            bulkChangeInquiryStatusAction({}, formData),
+          );
+          setShowStatusDialog(false);
+          onComplete();
+        }}
+      />
 
-        <ResponsiveOverlay
-          open={showDeleteDialog}
-          onOpenChange={setShowDeleteDialog}
+      <ResponsiveOverlay
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+      >
+        <Button
+          onClick={() => setShowDeleteDialog(true)}
+          size="sm"
+          type="button"
+          variant="destructive"
         >
-          <Button
-            onClick={() => setShowDeleteDialog(true)}
-            size="sm"
-            type="button"
-            variant="destructive"
-          >
-            <Trash2 data-icon="inline-start" />
-            Delete
-          </Button>
-          <ResponsiveOverlayContent className="sm:max-w-md">
-            <ResponsiveOverlayHeader>
-              <ResponsiveOverlayTitle>
-                Delete {selectedCount} inquiry{selectedCount !== 1 ? "ies" : ""}?
-              </ResponsiveOverlayTitle>
-              <ResponsiveOverlayDescription>
-                This permanently deletes the selected inquiries. Already-deleted
-                inquiries will be skipped.
-              </ResponsiveOverlayDescription>
-            </ResponsiveOverlayHeader>
-            <form action={bulkDeleteAction}>
-              <input name="inquiryIds" type="hidden" value={serializedIds} />
-              <ResponsiveOverlayFooter>
-                <ResponsiveOverlayClose asChild>
-                  <Button disabled={isDeletePending} type="button" variant="ghost">
-                    Cancel
-                  </Button>
-                </ResponsiveOverlayClose>
-                <Button disabled={isDeletePending} type="submit" variant="destructive">
-                  {isDeletePending ? (
-                    <Spinner data-icon="inline-start" aria-hidden="true" />
-                  ) : (
-                    <Trash2 data-icon="inline-start" />
-                  )}
-                  {isDeletePending
-                    ? "Deleting..."
-                    : `Delete ${selectedCount}`}
-                </Button>
-              </ResponsiveOverlayFooter>
-            </form>
-          </ResponsiveOverlayContent>
-        </ResponsiveOverlay>
-      </div>
-    </div>
+          <Trash2 data-icon="inline-start" />
+          Delete
+        </Button>
+        <ResponsiveOverlayContent className="sm:max-w-md">
+          <ResponsiveOverlayHeader>
+            <ResponsiveOverlayTitle>
+              Delete {selectedCount} inquiry{selectedCount !== 1 ? "ies" : ""}?
+            </ResponsiveOverlayTitle>
+            <ResponsiveOverlayDescription>
+              This permanently deletes the selected inquiries. Already-deleted
+              inquiries will be skipped.
+            </ResponsiveOverlayDescription>
+          </ResponsiveOverlayHeader>
+          <ResponsiveOverlayFooter>
+            <ResponsiveOverlayClose asChild>
+              <Button type="button" variant="ghost">
+                Cancel
+              </Button>
+            </ResponsiveOverlayClose>
+            <Button
+              onClick={() => {
+                onOptimisticRemove?.(ids, async () => {
+                  const formData = new FormData();
+                  formData.set("inquiryIds", serializedIds);
+                  return bulkDeleteInquiriesAction({}, formData);
+                });
+                setShowDeleteDialog(false);
+                onComplete();
+              }}
+              type="button"
+              variant="destructive"
+            >
+              <Trash2 data-icon="inline-start" />
+              Delete {selectedCount}
+            </Button>
+          </ResponsiveOverlayFooter>
+        </ResponsiveOverlayContent>
+      </ResponsiveOverlay>
+    </>
   );
 }

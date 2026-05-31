@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Copy } from "lucide-react";
+import type { MotionState } from "@/hooks/use-animated-list";
 import {
   Card,
   CardContent,
@@ -23,6 +24,7 @@ type InquiryListCardsProps = {
   isSelected?: (id: string) => boolean;
   isAtLimit?: boolean;
   onToggle?: (id: string) => void;
+  getMotionState?: (id: string) => MotionState;
 };
 
 export function InquiryListCards({
@@ -31,6 +33,7 @@ export function InquiryListCards({
   isSelected,
   isAtLimit,
   onToggle,
+  getMotionState,
 }: InquiryListCardsProps) {
   return (
     <div className="data-list-mobile-grid">
@@ -39,17 +42,15 @@ export function InquiryListCards({
         const disabled = !checked && (isAtLimit ?? false);
 
         return (
-          <div className="relative" key={inquiry.id}>
-            {onToggle ? (
-              <div className="absolute left-3 top-4 z-10">
-                <Checkbox
-                  aria-label={`Select inquiry from ${inquiry.customerName}`}
-                  checked={checked}
-                  disabled={disabled}
-                  onCheckedChange={() => onToggle(inquiry.id)}
-                />
-              </div>
-            ) : null}
+          <div className="motion-list-item relative" data-motion-state={getMotionState?.(inquiry.id)} key={inquiry.id}>
+            <div className="absolute left-3 top-4 z-10">
+              <Checkbox
+                aria-label={`Select inquiry from ${inquiry.customerName}`}
+                checked={checked}
+                disabled={disabled}
+                onCheckedChange={() => onToggle?.(inquiry.id)}
+              />
+            </div>
             <Link
               className="block"
               href={getBusinessInquiryPath(businessSlug, inquiry.id)}

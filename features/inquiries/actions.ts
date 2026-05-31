@@ -433,6 +433,7 @@ async function runInquiryRecordAction(
   }) => Promise<
     | {
         changed: boolean;
+        deleted?: boolean;
         locked?: boolean;
         lockedReason?: "archived";
       }
@@ -444,6 +445,7 @@ async function runInquiryRecordAction(
     missing?: string;
     archivedLocked?: string;
     fallbackError: string;
+    redirectHref?: string;
   },
 ): Promise<InquiryRecordActionState> {
   const ownerAccess = await getWorkspaceBusinessActionContext();
@@ -477,8 +479,12 @@ async function runInquiryRecordAction(
       };
     }
 
+    if (messages.redirectHref && (result.changed || result.deleted)) {
+      redirect(messages.redirectHref);
+    }
+
     return {
-      success: result.changed ? messages.success : messages.unchanged,
+      success: result.changed || result.deleted ? messages.success : messages.unchanged,
     };
   } catch (error) {
     console.error(messages.fallbackError, error);
@@ -521,16 +527,16 @@ export async function unarchiveInquiryAction(
 
 export async function deleteInquiryAction(
   inquiryId: string,
-  _prevState: InquiryRecordActionState,
-  _formData: FormData,
+  _prevState?: InquiryRecordActionState,
+  formData?: FormData,
 ): Promise<InquiryRecordActionState> {
-  void _prevState;
-  void _formData;
+  const redirectHref = formData ? formData.get("redirectHref") as string | null : null;
 
   return runInquiryRecordAction(inquiryId, deleteInquiryForBusiness, {
     success: "Inquiry deleted.",
     unchanged: "Inquiry is already deleted.",
     fallbackError: "Failed to delete inquiry.",
+    redirectHref: redirectHref || undefined,
   });
 }
 
