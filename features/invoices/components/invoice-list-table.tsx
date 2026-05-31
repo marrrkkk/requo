@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { MotionState } from "@/hooks/use-animated-list";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,6 +22,7 @@ import type {
 type InvoiceListTableProps = {
   invoices: DashboardInvoiceListItem[];
   businessSlug: string;
+  getMotionState?: (id: string) => MotionState;
 };
 
 function formatCurrency(cents: number, currency: string) {
@@ -50,7 +52,11 @@ const statusVariants: Record<InvoiceStatus, "secondary" | "default" | "outline" 
   voided: "secondary",
 };
 
-export function InvoiceListTable({ invoices, businessSlug }: InvoiceListTableProps) {
+export function InvoiceListTable({
+  invoices,
+  businessSlug,
+  getMotionState,
+}: InvoiceListTableProps) {
   return (
     <DashboardTableContainer className="hidden sm:block">
       <Table>
@@ -65,7 +71,11 @@ export function InvoiceListTable({ invoices, businessSlug }: InvoiceListTablePro
         </TableHeader>
         <TableBody>
           {invoices.map((invoice) => (
-            <TableRow key={invoice.id}>
+            <TableRow
+              key={invoice.id}
+              className="motion-list-item group/row"
+              data-motion-state={getMotionState?.(invoice.id)}
+            >
               <TableCell>
                 <Link
                   href={getBusinessInvoicePath(businessSlug, invoice.id)}

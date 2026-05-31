@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { MotionState } from "@/hooks/use-animated-list";
 
 import { Badge } from "@/components/ui/badge";
 import { getBusinessInvoicePath } from "@/features/businesses/routes";
@@ -10,6 +11,7 @@ import type {
 type InvoiceListCardsProps = {
   invoices: DashboardInvoiceListItem[];
   businessSlug: string;
+  getMotionState?: (id: string) => MotionState;
 };
 
 function formatCurrency(cents: number, currency: string) {
@@ -39,14 +41,19 @@ const statusVariants: Record<InvoiceStatus, "secondary" | "default" | "outline" 
   voided: "secondary",
 };
 
-export function InvoiceListCards({ invoices, businessSlug }: InvoiceListCardsProps) {
+export function InvoiceListCards({
+  invoices,
+  businessSlug,
+  getMotionState,
+}: InvoiceListCardsProps) {
   return (
     <div className="flex flex-col gap-2 sm:hidden">
       {invoices.map((invoice) => (
         <Link
           key={invoice.id}
           href={getBusinessInvoicePath(businessSlug, invoice.id)}
-          className="flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background px-4 py-3.5 transition-colors active:bg-muted/50"
+          className="motion-list-item flex items-center justify-between gap-3 rounded-xl border border-border/80 bg-background px-4 py-3.5 transition-colors active:bg-muted/50"
+          data-motion-state={getMotionState?.(invoice.id)}
         >
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-foreground">

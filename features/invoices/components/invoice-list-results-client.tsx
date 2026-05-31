@@ -14,6 +14,7 @@ import {
   getBusinessQuotesPath,
 } from "@/features/businesses/routes";
 import type { DashboardInvoiceListItem } from "@/features/invoices/types";
+import { useAnimatedList } from "@/hooks/use-animated-list";
 
 type SearchParamsRecord = Record<string, string | string[] | undefined>;
 const EMPTY_PAGE_CACHE: Record<number, DashboardInvoiceListItem[]> = {};
@@ -52,10 +53,13 @@ export function InvoiceListResultsClient({
     ? visiblePage
     : currentPage;
 
-  const invoices = useMemo(
+  const invoicesFromCache = useMemo(
     () => effectiveCachedPages[displayPage] ?? [],
     [displayPage, effectiveCachedPages],
   );
+
+  const { items: invoices, getMotionState } = useAnimatedList(invoicesFromCache);
+
   const cachedPageNumbers = useMemo(
     () =>
       Object.keys(effectiveCachedPages)
@@ -89,8 +93,16 @@ export function InvoiceListResultsClient({
 
   return (
     <>
-      <InvoiceListCards invoices={invoices} businessSlug={businessSlug} />
-      <InvoiceListTable invoices={invoices} businessSlug={businessSlug} />
+      <InvoiceListCards
+        invoices={invoices}
+        businessSlug={businessSlug}
+        getMotionState={getMotionState}
+      />
+      <InvoiceListTable
+        invoices={invoices}
+        businessSlug={businessSlug}
+        getMotionState={getMotionState}
+      />
       <DataListPagination
         cachedPages={cachedPageNumbers}
         currentPage={displayPage}

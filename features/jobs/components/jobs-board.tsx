@@ -1,7 +1,14 @@
 "use client";
 
-import { useOptimistic, useTransition, useMemo } from "react";
-import Link from "next/link";
+import {
+  useOptimistic,
+  useMemo,
+  useRef,
+  useCallback,
+  useEffect,
+  useTransition,
+  useState,
+} from "react";
 import {
   DndContext,
   DragOverlay,
@@ -15,7 +22,8 @@ import {
 } from "@dnd-kit/core";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useState } from "react";
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation";
+import Link from "next/link";
 import {
   CheckCircle2,
   Circle,
@@ -25,6 +33,16 @@ import {
 } from "lucide-react";
 import { useProgressiveReveal } from "@/hooks/use-progressive-reveal";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -69,14 +87,33 @@ function formatCurrency(cents: number, currency: string) {
 
 export function JobsBoard({ board: serverBoard, businessSlug }: JobsBoardProps) {
   const totalJobs = Object.values(serverBoard).reduce((sum, col) => sum + col.length, 0);
-  const [_isPending, startTransition] = useTransition();
   const [activeJob, setActiveJob] = useState<DashboardJobListItem | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Optimistic board state for instant drag feedback
+  const { runMutation } = useOptimisticMutation();
+  const optimisticBoardRef = useRef(serverBoard);
+  const boardSnapshotRef = useRef(serverBoard);
+
+  // Optimistic board state for instant drag feedback and delete
   const [optimisticBoard, setOptimisticBoard] = useOptimistic(
     serverBoard,
-    (current, action: { jobId: string; from: JobStatus; to: JobStatus }) => {
+    (
+      current,
+      action:
+        | { type: "move"; jobId: string; from: JobStatus; to: JobStatus }
+        | { type: "delete"; jobId: string }
+        | { type: "restore"; board: Record<JobStatus, DashboardJobListItem[]> },
+    ) => {
+      if (action.type === "restore") {
+        return action.board;
+      }
+      if (action.type === "delete") {
+        return {
+          todo: current.todo.filter((j) => j.id !== action.jobId),
+          in_progress: current.in_progress.filter((j) => j.id !== action.jobId),
+          done: current.done.filter((j) => j.id !== action.jobId),
+        };
+      }
       const job = current[action.from].find((j) => j.id === action.jobId);
       if (!job) return current;
       return {
@@ -85,6 +122,69 @@ export function JobsBoard({ board: serverBoard, businessSlug }: JobsBoardProps) 
         [action.to]: [...current[action.to], { ...job, status: action.to }],
       };
     },
+  );
+
+  useEffect(() => {
+    optimisticBoardRef.current = optimisticBoard;
+  }, [optimisticBoard]);
+
+  // Track exiting jobs for animation
+  const exitingJobIds = useRef(new Set<string>());
+  const [, forceRender] = useState(0);
+
+  const getJobMotionState = useCallback((id: string) => {
+    if (exitingJobIds.current.has(id)) return "exiting" as const;
+    return undefined;
+  }, []);
+
+  const optimisticDeleteJob = useCallback(
+    (jobId: string) => {
+      boardSnapshotRef.current = optimisticBoardRef.current;
+      exitingJobIds.current.add(jobId);
+      forceRender((n) => n + 1);
+
+      setTimeout(() => {
+        runMutation({
+          applyOptimistic: () => {
+            setOptimisticBoard({ type: "delete", jobId });
+          },
+          revertOptimistic: () => {
+            setOptimisticBoard({
+              type: "restore",
+              board: boardSnapshotRef.current,
+            });
+            exitingJobIds.current.delete(jobId);
+            forceRender((n) => n + 1);
+          },
+          mutation: () => deleteJobAction(jobId),
+          pendingKey: `delete-${jobId}`,
+          onSuccess: () => {
+            exitingJobIds.current.delete(jobId);
+          },
+          onError: () => {
+            exitingJobIds.current.delete(jobId);
+            forceRender((n) => n + 1);
+          },
+        });
+      }, 280);
+    },
+    [runMutation, setOptimisticBoard],
+  );
+
+  const optimisticStatusChange = useCallback(
+    (jobId: string, from: JobStatus, to: JobStatus) => {
+      runMutation({
+        applyOptimistic: () => {
+          setOptimisticBoard({ type: "move", jobId, from, to });
+        },
+        revertOptimistic: () => {
+          setOptimisticBoard({ type: "move", jobId, from: to, to: from });
+        },
+        mutation: () => updateJobStatusAction(jobId, to),
+        pendingKey: `status-${jobId}`,
+      });
+    },
+    [runMutation, setOptimisticBoard],
   );
 
   // Filter board by search
@@ -148,9 +248,25 @@ export function JobsBoard({ board: serverBoard, businessSlug }: JobsBoardProps) 
 
     if (!fromColumn || !toColumn || fromColumn === toColumn) return;
 
-    startTransition(async () => {
-      setOptimisticBoard({ jobId, from: fromColumn, to: toColumn });
-      await updateJobStatusAction(jobId, toColumn);
+    runMutation({
+      applyOptimistic: () => {
+        setOptimisticBoard({
+          type: "move",
+          jobId,
+          from: fromColumn,
+          to: toColumn,
+        });
+      },
+      revertOptimistic: () => {
+        setOptimisticBoard({
+          type: "move",
+          jobId,
+          from: toColumn,
+          to: fromColumn,
+        });
+      },
+      mutation: () => updateJobStatusAction(jobId, toColumn),
+      pendingKey: `move-${jobId}`,
     });
   }
 
@@ -197,11 +313,14 @@ export function JobsBoard({ board: serverBoard, businessSlug }: JobsBoardProps) 
           >
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {columns.map((column) => (
-                <JobColumn
+              <JobColumn
                   key={column.status}
                   column={column}
                   items={filteredBoard[column.status]}
                   businessSlug={businessSlug}
+                  getMotionState={getJobMotionState}
+                  onOptimisticDelete={optimisticDeleteJob}
+                  onOptimisticStatusChange={optimisticStatusChange}
                 />
               ))}
             </div>
@@ -222,10 +341,16 @@ function JobColumn({
   column,
   items,
   businessSlug,
+  getMotionState,
+  onOptimisticDelete,
+  onOptimisticStatusChange,
 }: {
   column: (typeof columns)[number];
   items: DashboardJobListItem[];
   businessSlug: string;
+  getMotionState: (id: string) => "exiting" | undefined;
+  onOptimisticDelete: (jobId: string) => void;
+  onOptimisticStatusChange: (jobId: string, from: JobStatus, to: JobStatus) => void;
 }) {
   const { visibleCount, hasMore, sentinelRef } = useProgressiveReveal({
     total: items.length,
@@ -260,6 +385,9 @@ function JobColumn({
             job={job}
             businessSlug={businessSlug}
             currentStatus={column.status}
+            motionState={getMotionState(job.id)}
+            onOptimisticDelete={onOptimisticDelete}
+            onOptimisticStatusChange={onOptimisticStatusChange}
           />
         ))}
         {hasMore ? <div ref={sentinelRef} className="h-1" /> : null}
@@ -272,10 +400,16 @@ function DraggableJobCard({
   job,
   businessSlug,
   currentStatus,
+  motionState,
+  onOptimisticDelete,
+  onOptimisticStatusChange,
 }: {
   job: DashboardJobListItem;
   businessSlug: string;
   currentStatus: JobStatus;
+  motionState?: "exiting";
+  onOptimisticDelete: (jobId: string) => void;
+  onOptimisticStatusChange: (jobId: string, from: JobStatus, to: JobStatus) => void;
 }) {
   const {
     attributes,
@@ -296,11 +430,13 @@ function DraggableJobCard({
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} className="motion-list-item" data-motion-state={motionState} {...attributes} {...listeners}>
       <JobCard
         job={job}
         businessSlug={businessSlug}
         currentStatus={currentStatus}
+        onOptimisticDelete={onOptimisticDelete}
+        onOptimisticStatusChange={onOptimisticStatusChange}
       />
     </div>
   );
@@ -333,18 +469,21 @@ function JobCard({
   job,
   businessSlug,
   currentStatus,
+  onOptimisticDelete,
+  onOptimisticStatusChange,
 }: {
   job: DashboardJobListItem;
   businessSlug: string;
   currentStatus: JobStatus;
+  onOptimisticDelete: (jobId: string) => void;
+  onOptimisticStatusChange: (jobId: string, from: JobStatus, to: JobStatus) => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const router = useProgressRouter();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   function handleStatusChange(newStatus: JobStatus) {
-    startTransition(async () => {
-      await updateJobStatusAction(job.id, newStatus);
-    });
+    onOptimisticStatusChange(job.id, currentStatus, newStatus);
   }
 
   function handleGenerateInvoice() {
@@ -357,9 +496,8 @@ function JobCard({
   }
 
   function handleDelete() {
-    startTransition(async () => {
-      await deleteJobAction(job.id);
-    });
+    setShowDeleteConfirm(false);
+    onOptimisticDelete(job.id);
   }
 
   const nextStatuses = columns
@@ -367,71 +505,107 @@ function JobCard({
     .map((c) => c);
 
   return (
-    <div className="relative flex flex-col gap-2 rounded-lg border bg-background p-3 shadow-sm transition-shadow hover:shadow-md">
-      {isPending && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/60">
-          <Spinner className="size-4" />
-        </div>
-      )}
-      <div className="flex items-start justify-between gap-2">
-        <Link
-          href={getBusinessJobPath(businessSlug, job.id)}
-          className="text-sm font-medium leading-tight hover:underline"
-          onClick={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          {job.title}
-        </Link>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="shrink-0"
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              <MoreHorizontal className="size-3.5" />
-              <span className="sr-only">Job actions</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {nextStatuses.map((col) => (
-              <DropdownMenuItem
-                key={col.status}
-                onClick={() => handleStatusChange(col.status)}
-              >
-                Move to {col.label}
-              </DropdownMenuItem>
-            ))}
-            {currentStatus === "done" && (
-              <DropdownMenuItem onClick={handleGenerateInvoice}>
-                Generate invoice
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem
-              onClick={handleDelete}
-              className="text-destructive"
-            >
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span>{job.customerName}</span>
-        <span className="text-border">·</span>
-        <span>{job.quoteNumber}</span>
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium">
-          {formatCurrency(job.totalInCents, job.currency)}
-        </span>
-        {job.itemCount > 0 && (
-          <span className="text-xs text-muted-foreground">
-            {job.completedItemCount}/{job.itemCount} items
-          </span>
+    <>
+      <div className="relative flex flex-col gap-2 rounded-lg border bg-background p-3 shadow-sm transition-shadow hover:shadow-md">
+        {isPending && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/60">
+            <Spinner className="size-4" />
+          </div>
         )}
+        <div className="flex items-start justify-between gap-2">
+          <Link
+            href={getBusinessJobPath(businessSlug, job.id)}
+            className="text-sm font-medium leading-tight hover:underline"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {job.title}
+          </Link>
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="shrink-0"
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <MoreHorizontal className="size-3.5" />
+                <span className="sr-only">Job actions</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {nextStatuses.map((col) => (
+                <DropdownMenuItem
+                  key={col.status}
+                  onSelect={() => handleStatusChange(col.status)}
+                >
+                  Move to {col.label}
+                </DropdownMenuItem>
+              ))}
+              {currentStatus === "done" && (
+                <DropdownMenuItem onSelect={handleGenerateInvoice}>
+                  Generate invoice
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                onSelect={() => setShowDeleteConfirm(true)}
+                className="text-destructive"
+              >
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>{job.customerName}</span>
+          <span className="text-border">·</span>
+          <span>{job.quoteNumber}</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium">
+            {formatCurrency(job.totalInCents, job.currency)}
+          </span>
+          {job.itemCount > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {job.completedItemCount}/{job.itemCount} items
+            </span>
+          )}
+        </div>
       </div>
-    </div>
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this job?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the job and its history. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel asChild>
+              <Button disabled={isPending} variant="outline">
+                Cancel
+              </Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button
+                disabled={isPending}
+                onClick={handleDelete}
+                variant="destructive"
+              >
+                {isPending ? (
+                  <>
+                    <Spinner className="size-4" aria-hidden="true" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete"
+                )}
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

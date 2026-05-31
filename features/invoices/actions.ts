@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidateTag } from "next/cache";
+import { redirect } from "next/navigation";
 
 import {
   getBusinessInvoiceDetailCacheTags,
@@ -132,8 +133,11 @@ export async function updateInvoiceStatusAction(
  */
 export async function deleteInvoiceAction(
   invoiceId: string,
+  _prevState?: InvoiceRecordActionState,
+  formData?: FormData,
 ): Promise<InvoiceRecordActionState> {
   const access = await getWorkspaceBusinessActionContext();
+  const redirectHref = formData ? formData.get("redirectHref") as string | null : null;
 
   if (!access.ok) {
     return { error: access.error };
@@ -152,6 +156,10 @@ export async function deleteInvoiceAction(
   }
 
   revalidateCacheTags(getBusinessInvoiceListCacheTags(businessContext.business.id));
+
+  if (redirectHref) {
+    redirect(redirectHref);
+  }
 
   return { success: "Invoice deleted." };
 }

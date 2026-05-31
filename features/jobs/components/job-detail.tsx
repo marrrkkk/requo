@@ -20,6 +20,7 @@ import {
   getBusinessInvoicePath,
   getBusinessQuotePath,
 } from "@/features/businesses/routes";
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation";
 import { useProgressRouter } from "@/hooks/use-progress-router";
 import type { DashboardJobDetail, DashboardJobItem, JobStatus } from "@/features/jobs/types";
 
@@ -57,8 +58,8 @@ export function JobDetail({
 }: JobDetailProps) {
   const [isStatusPending, startStatusTransition] = useTransition();
   const [isInvoicePending, startInvoiceTransition] = useTransition();
-  const [, startToggleTransition] = useTransition();
   const router = useProgressRouter();
+  const { runMutation } = useOptimisticMutation();
 
   // Optimistic items for instant checkbox toggling
   const [optimisticItems, toggleOptimisticItem] = useOptimistic(
@@ -83,9 +84,15 @@ export function JobDetail({
   }
 
   function handleToggleItem(itemId: string) {
-    startToggleTransition(async () => {
-      toggleOptimisticItem(itemId);
-      await toggleJobItemAction(job.id, itemId);
+    runMutation({
+      applyOptimistic: () => {
+        toggleOptimisticItem(itemId);
+      },
+      revertOptimistic: () => {
+        toggleOptimisticItem(itemId);
+      },
+      mutation: () => toggleJobItemAction(job.id, itemId),
+      pendingKey: `toggle-${itemId}`,
     });
   }
 
