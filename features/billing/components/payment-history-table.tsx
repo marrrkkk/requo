@@ -9,6 +9,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from "@/components/ui/empty";
+import { Receipt } from "lucide-react";
 import type {
   BillingCurrency,
   BillingProvider,
@@ -39,12 +47,17 @@ type PaymentHistoryTableProps = {
 export function PaymentHistoryTable({ records }: PaymentHistoryTableProps) {
   if (records.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-border/60 border-dashed bg-muted/10 py-12 text-center">
-        <p className="text-sm font-medium text-foreground">No payment history</p>
-        <p className="text-sm text-muted-foreground mt-1">
-          Your invoices and past payments will appear here.
-        </p>
-      </div>
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Receipt />
+          </EmptyMedia>
+          <EmptyTitle>No payment history</EmptyTitle>
+          <EmptyDescription>
+            Your invoices and past payments will appear here.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 

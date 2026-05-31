@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useCallback, useTransition, useRef, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useAnimatedList } from "@/hooks/use-animated-list";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation";
 import {
   Plus,
   Minus,
@@ -141,7 +143,13 @@ export function AutomationsWorkspace({
   businessType,
   stats,
 }: AutomationsWorkspaceProps) {
-  const router = useRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
+  const { runMutation } = useOptimisticMutation();
+  const {
+    items: animatedAutomations,
+    getMotionState,
+    removeItem,
+  } = useAnimatedList(automations);
   const [isPending, startTransition] = useTransition();
 
   const [view, setView] = useState<ViewMode>(
@@ -253,7 +261,7 @@ export function AutomationsWorkspace({
     setEditingId(null);
     setNodes([]);
     setSidebarPanel(null);
-    router.refresh();
+    scheduleRefresh();
   }
 
   function handleSelectTrigger(triggerId: TriggerType) {
@@ -389,44 +397,48 @@ export function AutomationsWorkspace({
 
   function handleTogglePublish() {
     const next = !isEnabled;
+    const previous = isEnabled;
     setIsEnabled(next);
-    if (editingId) {
-      startTransition(async () => {
-        const result = await updateAutomation(editingId, { enabled: next });
-        if (result.error) {
-          toast.error(result.error);
-          setIsEnabled(!next);
-        } else {
-          toast.success(next ? "Workflow published" : "Workflow unpublished");
-        }
-      });
+    if (!editingId) {
+      return;
     }
+
+    runMutation({
+      applyOptimistic: () => {},
+      revertOptimistic: () => setIsEnabled(previous),
+      mutation: () => updateAutomation(editingId, { enabled: next }),
+      pendingKey: `toggle-${editingId}`,
+      successMessage: next ? "Workflow published" : "Workflow unpublished",
+    });
   }
 
   function handlePublish() {
     if (!editingId) return;
     setIsEnabled(true);
-    startTransition(async () => {
-      const result = await updateAutomation(editingId, { enabled: true });
-      if (result.error) {
-        toast.error(result.error);
-        setIsEnabled(false);
-      } else {
-        toast.success("Workflow published");
-      }
+    runMutation({
+      applyOptimistic: () => {},
+      revertOptimistic: () => setIsEnabled(false),
+      mutation: () => updateAutomation(editingId, { enabled: true }),
+      pendingKey: `publish-${editingId}`,
+      successMessage: "Workflow published",
     });
   }
 
   function handleDeleteWorkflow() {
     if (!editingId) return;
-    startTransition(async () => {
-      const result = await deleteAutomation(editingId);
-      if (result.error) {
-        toast.error(result.error);
-      } else {
-        toast.success("Workflow deleted");
+    const workflowId = editingId;
+    runMutation({
+      applyOptimistic: () => {
         handleBackToList();
-      }
+      },
+      revertOptimistic: () => {
+        setView("builder");
+        setEditingId(workflowId);
+      },
+      mutation: () => deleteAutomation(workflowId),
+      pendingKey: workflowId,
+      successMessage: "Workflow deleted",
+      refreshOnSuccess: false,
     });
   }
 
@@ -512,12 +524,16 @@ export function AutomationsWorkspace({
   if (view === "list") {
     return (
       <AutomationListView
-        automations={automations}
+        automations={animatedAutomations}
         businessSlug={businessSlug}
         businessType={businessType}
+        getMotionState={getMotionState}
         stats={stats}
         onNew={handleNewWorkflow}
         onEdit={handleEditWorkflow}
+        onDelete={(id) => {
+          removeItem(id, () => deleteAutomation(id));
+        }}
       />
     );
   }

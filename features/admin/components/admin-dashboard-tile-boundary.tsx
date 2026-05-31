@@ -1,7 +1,7 @@
 "use client";
 
 import { RotateCcw } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { Component, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -68,7 +68,7 @@ class TileErrorBoundary extends Component<
 }
 
 function AdminDashboardTileError({ label }: { label: string }) {
-  const router = useRouter();
+  const { refreshNow } = useDeferredRefresh();
 
   return (
     <div
@@ -88,7 +88,7 @@ function AdminDashboardTileError({ label }: { label: string }) {
       <div>
         <Button
           onClick={() => {
-            router.refresh();
+            refreshNow();
           }}
           size="sm"
           type="button"

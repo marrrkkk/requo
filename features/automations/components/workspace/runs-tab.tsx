@@ -5,6 +5,13 @@ import { Clock, Play } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from "@/components/ui/empty";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -110,17 +117,17 @@ export function RunsTabContent({ automationId }: RunsTabContentProps) {
 
   if (!automationId) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center p-12 text-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex size-12 items-center justify-center rounded-full bg-muted/50">
-            <Clock className="size-5 text-muted-foreground" />
-          </div>
-          <h3 className="text-sm font-medium">Save to see runs</h3>
-          <p className="max-w-xs text-xs text-muted-foreground">
+      <Empty className="flex-1 rounded-none border-0">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Clock />
+          </EmptyMedia>
+          <EmptyTitle>Save to see runs</EmptyTitle>
+          <EmptyDescription>
             Save this workflow first to view its execution history.
-          </p>
-        </div>
-      </div>
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 
@@ -136,17 +143,17 @@ export function RunsTabContent({ automationId }: RunsTabContentProps) {
 
   if (entries.length === 0 && !isLoading && statusFilter === "all") {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center p-12 text-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex size-12 items-center justify-center rounded-full bg-muted/50">
-            <Play className="size-5 text-muted-foreground" />
-          </div>
-          <h3 className="text-sm font-medium">No runs yet</h3>
-          <p className="max-w-xs text-xs text-muted-foreground">
+      <Empty className="flex-1 rounded-none border-0">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Play />
+          </EmptyMedia>
+          <EmptyTitle>No runs yet</EmptyTitle>
+          <EmptyDescription>
             Execution history will appear here once this workflow is triggered.
-          </p>
-        </div>
-      </div>
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 
@@ -182,9 +189,11 @@ export function RunsTabContent({ automationId }: RunsTabContentProps) {
       {/* Entries list */}
       <div className="flex flex-1 flex-col gap-0 overflow-y-auto">
         {entries.length === 0 && !isLoading && (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <p className="text-xs text-muted-foreground">No runs match this filter.</p>
-          </div>
+          <Empty className="flex-1 rounded-none border-0">
+            <EmptyHeader>
+              <EmptyDescription>No runs match this filter.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         )}
         {entries.map((entry) => {
           const meta = statusMeta[entry.status] ?? statusMeta.failure;

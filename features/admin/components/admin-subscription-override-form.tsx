@@ -25,7 +25,7 @@ import {
   manualPlanOverrideAction,
 } from "@/features/admin/mutations";
 import type { AdminActionResult } from "@/features/admin/types";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { getUserSafeErrorMessage } from "@/lib/action-state";
 import type { SubscriptionStatus } from "@/lib/billing/types";
 import { planMeta, type BusinessPlan } from "@/lib/plans/plans";
@@ -65,7 +65,7 @@ type PendingAction = "plan_override" | "force_cancel" | null;
  *   1. Collect input (plan + optional reason).
  *   2. Open the confirm dialog to obtain a short-lived token.
  *   3. Call the server action with the token.
- *   4. Toast success, `router.refresh()` the page; or display the
+ *   4. Toast success, deferred refresh the page; or display the
  *      safe error inline.
  */
 export function AdminSubscriptionOverrideForm({
@@ -75,7 +75,7 @@ export function AdminSubscriptionOverrideForm({
   currentPlan,
   currentStatus,
 }: AdminSubscriptionOverrideFormProps) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const planFieldId = useId();
   const planReasonFieldId = useId();
   const cancelReasonFieldId = useId();
@@ -162,7 +162,7 @@ export function AdminSubscriptionOverrideForm({
         toast.success(result.message ?? "Subscription updated.", {
           id: `admin-subscription-${action}`,
         });
-        router.refresh();
+        scheduleRefresh();
       });
     },
     [
@@ -170,7 +170,7 @@ export function AdminSubscriptionOverrideForm({
       plan,
       pendingAction,
       planReason,
-      router,
+      scheduleRefresh,
       subscriptionId,
       userId,
     ],

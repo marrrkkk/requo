@@ -1,7 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   Bell,
   Clock,
@@ -15,7 +14,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +29,8 @@ import {
   getAutomationTemplates,
   groupAutomationTemplatesByCategory,
 } from "@/features/automations/automation-templates";
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation";
+import { useProgressRouter } from "@/hooks/use-progress-router";
 import { createAutomation } from "../mutations";
 
 // ---------------------------------------------------------------------------
@@ -140,36 +140,35 @@ function TemplateCard({
   disabled?: boolean;
   businessSlug: string;
 }) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const progressRouter = useProgressRouter();
+  const { runMutation, isPendingKey } = useOptimisticMutation();
+  const [optimisticallyAdded, setOptimisticallyAdded] = useState(false);
+  const isAdded = alreadyEnabled || optimisticallyAdded;
+  const isPending = isPendingKey(template.id);
 
   function handleAdd() {
-    startTransition(async () => {
-      const result = await createAutomation({
-        name: template.name,
-        description: template.description,
-        triggerType: template.triggerType,
-        actions: template.actions,
-        delay: template.delay,
-        enabled: true,
-        priority: 0,
-      });
-
-      if (result.error) {
-        toast.error(result.error);
-        return;
-      }
-
-      if (!result.id) {
-        toast.error("We couldn't add that automation right now.");
-        return;
-      }
-
-      toast.success("Automation added", {
-        description: "Opening the builder so you can review or customize it.",
-      });
-      router.push(`/${businessSlug}/automations?id=${result.id}`);
-      router.refresh();
+    runMutation({
+      applyOptimistic: () => setOptimisticallyAdded(true),
+      revertOptimistic: () => setOptimisticallyAdded(false),
+      mutation: () =>
+        createAutomation({
+          name: template.name,
+          description: template.description,
+          triggerType: template.triggerType,
+          actions: template.actions,
+          delay: template.delay,
+          enabled: true,
+          priority: 0,
+        }),
+      pendingKey: template.id,
+      successMessage: "Automation added",
+      errorMessage: (result) =>
+        result.error ?? "We couldn't add that automation right now.",
+      onSuccess: (result) => {
+        if (result.id) {
+          progressRouter.push(`/${businessSlug}/automations?id=${result.id}`);
+        }
+      },
     });
   }
 
@@ -187,12 +186,12 @@ function TemplateCard({
       <CardContent className="pt-0">
         <Button
           size="sm"
-          variant={alreadyEnabled ? "secondary" : "default"}
+          variant={isAdded ? "secondary" : "default"}
           className="w-full"
-          disabled={disabled || isPending || alreadyEnabled}
+          disabled={disabled || isPending || isAdded}
           onClick={handleAdd}
         >
-          {alreadyEnabled
+          {isAdded
             ? "Already in your list"
             : isPending
               ? "Adding…"

@@ -1,14 +1,44 @@
 "use client";
 
+import { useState } from "react";
+
 import Link from "next/link";
-import { LayoutTemplate, Plus, GitBranch, Zap } from "lucide-react";
+import { LayoutTemplate, Plus, GitBranch, Zap, MoreHorizontal, PencilLine, Trash2 } from "lucide-react";
 import { useProgressiveReveal } from "@/hooks/use-progressive-reveal";
+import type { MotionState } from "@/hooks/use-animated-list";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { PageHeader } from "@/components/shared/page-header";
+import {
+  DashboardPage,
   DashboardEmptyState,
+  DashboardTableContainer,
 } from "@/components/shared/dashboard-layout";
-import { cn } from "@/lib/utils";
 import type { AutomationListItem, AutomationStats } from "../../queries";
 import {
   getRecommendedAutomations,
@@ -59,16 +89,21 @@ export function AutomationListView({
   businessSlug,
   businessType,
   stats,
+  getMotionState,
   onNew,
   onEdit,
+  onDelete,
 }: {
   automations: AutomationListItem[];
   businessSlug: string;
   businessType?: string;
   stats?: AutomationStats;
+  getMotionState?: (id: string) => MotionState;
   onNew: () => void;
   onEdit: (a: AutomationListItem) => void;
+  onDelete: (id: string) => void;
 }) {
+  const [automationToDelete, setAutomationToDelete] = useState<AutomationListItem | null>(null);
   const { visibleCount, hasMore, sentinelRef } = useProgressiveReveal({
     total: automations.length,
     initialBatch: 10,
@@ -81,136 +116,187 @@ export function AutomationListView({
     const valueProp = getAutomationValueProp(businessType);
 
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-6 p-12">
-        <DashboardEmptyState
-          variant="section"
-          icon={GitBranch}
-          title="No workflows yet"
-          description="Automations handle repeat tasks so you can focus on the work. Start with a recommendation or build your own."
-          action={
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <Button size="sm" onClick={onNew}>
-                <Plus className="size-3.5" />
-                Build from scratch
-              </Button>
-              <Button asChild size="sm" variant="outline">
-                <Link href={`/${businessSlug}/automations/presets`}>
-                  <LayoutTemplate className="size-3.5" />
-                  Browse all templates
-                </Link>
-              </Button>
-            </div>
-          }
+      <DashboardPage>
+        <PageHeader
+          title="Automations"
+          description="Event-driven rules that automate your workflow."
         />
-        {recommendations.length > 0 && (
-          <div className="w-full max-w-lg">
-            <RecommendedAutomationsCard
-              recommendations={recommendations}
-              valueProp={valueProp}
-              existingAutomationNames={[]}
-            />
-          </div>
-        )}
-      </div>
+        <div className="flex flex-1 flex-col items-center justify-center gap-6 py-12">
+          <DashboardEmptyState
+            variant="section"
+            icon={GitBranch}
+            title="No workflows yet"
+            description="Automations handle repeat tasks so you can focus on the work. Start with a recommendation or build your own."
+            action={
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Button size="sm" onClick={onNew}>
+                  <Plus data-icon="inline-start" className="size-3.5" />
+                  Build from scratch
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/${businessSlug}/automations/presets`}>
+                    <LayoutTemplate data-icon="inline-start" className="size-3.5" />
+                    Browse all templates
+                  </Link>
+                </Button>
+              </div>
+            }
+          />
+          {recommendations.length > 0 && (
+            <div className="w-full max-w-lg">
+              <RecommendedAutomationsCard
+                recommendations={recommendations}
+                valueProp={valueProp}
+                existingAutomationNames={[]}
+              />
+            </div>
+          )}
+        </div>
+      </DashboardPage>
     );
   }
 
   return (
-    <div className="flex flex-col gap-0">
+    <DashboardPage>
+      <PageHeader
+        title="Automations"
+        description="Event-driven rules that automate your workflow."
+        actions={
+          <Button onClick={onNew}>
+            <Plus data-icon="inline-start" />
+            New workflow
+          </Button>
+        }
+      />
+
       {/* Stats bar */}
       {stats && stats.totalExecutions > 0 && (
-        <AutomationStatsBar stats={stats} />
+        <div className="mb-2">
+          <AutomationStatsBar stats={stats} />
+        </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-6 py-4">
-        <div className="flex flex-col gap-0.5">
-          <h1 className="text-lg font-semibold">Automations</h1>
-          <p className="text-xs text-muted-foreground">
-            {automations.length} workflow{automations.length !== 1 ? "s" : ""}
-          </p>
-        </div>
-        <Button size="sm" onClick={onNew}>
-          <Plus className="size-3.5" />
-          New workflow
-        </Button>
-      </div>
-
       {/* Automation rows */}
-      <div className="flex flex-col divide-y divide-border/60">
-        {visibleAutomations.map((automation) => {
-          const TriggerIcon = triggers.find((t) => t.id === automation.triggerType)?.icon ?? Zap;
-          const triggerLabel = triggerLabels[automation.triggerType] ?? automation.triggerType;
-          const actionCount = countActions(automation.actions);
-          const lastRun = automation.lastTriggeredAt
-            ? formatRelativeTime(automation.lastTriggeredAt)
-            : null;
+      <DashboardTableContainer>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[18rem]">Workflow</TableHead>
+              <TableHead className="w-[12rem]">Trigger</TableHead>
+              <TableHead className="w-[10rem]">Status</TableHead>
+              <TableHead className="w-[10rem]">Last Run</TableHead>
+              <TableHead className="w-[3rem]"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {visibleAutomations.map((automation) => {
+              const TriggerIcon = triggers.find((t) => t.id === automation.triggerType)?.icon ?? Zap;
+              const triggerLabel = triggerLabels[automation.triggerType] ?? automation.triggerType;
+              const actionCount = countActions(automation.actions);
+              const lastRun = automation.lastTriggeredAt
+                ? formatRelativeTime(automation.lastTriggeredAt)
+                : null;
 
-          return (
-            <button
-              key={automation.id}
-              type="button"
-              onClick={() => onEdit(automation)}
-              className="group flex items-center gap-4 px-6 py-4 text-left transition-colors hover:bg-muted/30"
-            >
-              {/* Icon */}
-              <div className={cn(
-                "flex size-9 shrink-0 items-center justify-center rounded-lg border transition-colors",
-                automation.enabled
-                  ? "border-primary/20 bg-primary/[0.06] text-primary"
-                  : "border-border bg-muted/50 text-muted-foreground",
-              )}>
-                <TriggerIcon className="size-4" />
-              </div>
-
-              {/* Main content */}
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="truncate text-sm font-medium text-foreground">
-                    {automation.name}
-                  </span>
-                  {!automation.enabled && (
-                    <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                      Draft
+              return (
+                <TableRow
+                  className="motion-list-item group/row cursor-pointer"
+                  data-motion-state={getMotionState?.(automation.id)}
+                  key={automation.id}
+                  onClick={() => onEdit(automation)}
+                >
+                  <TableCell className="w-[18rem]">
+                    <div className="table-meta-stack max-w-full">
+                      <span className="table-link text-foreground font-medium">
+                        {automation.name}
+                      </span>
+                      <span className="table-supporting-text">
+                        {actionCount} action{actionCount !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="w-[12rem]">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <TriggerIcon className="size-4 shrink-0 text-muted-foreground/70" />
+                      {triggerLabel}
+                    </div>
+                  </TableCell>
+                  <TableCell className="w-[10rem]">
+                    <Badge
+                      className={`w-fit shrink-0 ${
+                        automation.enabled
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
+                          : "border-border bg-muted text-muted-foreground hover:bg-muted"
+                      }`}
+                      variant="outline"
+                    >
+                      {automation.enabled ? "Active" : "Draft"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="w-[10rem]">
+                    <span className="text-sm font-medium text-muted-foreground" suppressHydrationWarning>
+                      {lastRun || "Never"}
                     </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <span>{triggerLabel}</span>
-                  {actionCount > 0 && (
-                    <>
-                      <span className="text-border">{"→"}</span>
-                      <span>{actionCount} action{actionCount !== 1 ? "s" : ""}</span>
-                    </>
-                  )}
-                </div>
-              </div>
+                  </TableCell>
+                  <TableCell className="w-[3rem]">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="icon" variant="ghost" className="size-8" onClick={(e) => e.stopPropagation()}>
+                          <MoreHorizontal className="size-4" />
+                          <span className="sr-only">Open menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(automation); }}>
+                          <PencilLine data-icon="inline-start" className="size-4" />
+                          Edit workflow
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAutomationToDelete(automation);
+                          }}
+                        >
+                          <Trash2 data-icon="inline-start" className="size-4" />
+                          Delete workflow
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </DashboardTableContainer>
+      {hasMore ? <div ref={sentinelRef} className="h-1" /> : null}
 
-              {/* Right side: status + last run */}
-              <div className="flex shrink-0 flex-col items-end gap-1">
-                <div className="flex items-center gap-1.5">
-                  <span className={cn(
-                    "size-1.5 rounded-full",
-                    automation.enabled ? "bg-emerald-500" : "bg-muted-foreground/40",
-                  )} />
-                  <span className={cn(
-                    "text-xs font-medium",
-                    automation.enabled ? "text-emerald-600" : "text-muted-foreground",
-                  )}>
-                    {automation.enabled ? "Active" : "Inactive"}
-                  </span>
-                </div>
-                {lastRun && (
-                  <span className="text-[11px] text-muted-foreground" suppressHydrationWarning>
-                    Last run {lastRun}
-                  </span>
-                )}
-              </div>
-            </button>
-          );
-        })}
-        {hasMore ? <div ref={sentinelRef} className="h-1" /> : null}
-      </div>
-    </div>
+      <AlertDialog open={!!automationToDelete} onOpenChange={(open) => !open && setAutomationToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete workflow?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the <strong>{automationToDelete?.name}</strong> workflow. It will no longer execute when its trigger event occurs.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (automationToDelete) {
+                    onDelete(automationToDelete.id);
+                    setAutomationToDelete(null);
+                  }
+                }}
+              >
+                Delete workflow
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </DashboardPage>
   );
 }

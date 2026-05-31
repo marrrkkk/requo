@@ -1,7 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   Bell,
   Clock,
@@ -15,10 +14,10 @@ import {
   Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import type { AutomationTemplate } from "@/features/automations/automation-templates";
+import { useOptimisticMutation } from "@/hooks/use-optimistic-mutation";
 import { createAutomation } from "../mutations";
 
 // ---------------------------------------------------------------------------
@@ -112,31 +111,30 @@ function RecommendedRow({
   alreadyEnabled: boolean;
   disabled?: boolean;
 }) {
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const { runMutation, isPendingKey } = useOptimisticMutation();
+  const [optimisticallyAdded, setOptimisticallyAdded] = useState(false);
   const Icon = templateIcons[template.id] ?? FileText;
+  const isAdded = alreadyEnabled || optimisticallyAdded;
+  const isPending = isPendingKey(template.id);
 
   function handleAdd() {
-    startTransition(async () => {
-      const result = await createAutomation({
-        name: template.name,
-        description: template.description,
-        triggerType: template.triggerType,
-        actions: template.actions,
-        delay: template.delay,
-        enabled: true,
-        priority: 0,
-      });
-
-      if (result.error) {
-        toast.error(result.error);
-        return;
-      }
-
-      toast.success(`"${template.name}" enabled`, {
-        description: "You can customize timing and actions in the builder.",
-      });
-      router.refresh();
+    runMutation({
+      applyOptimistic: () => setOptimisticallyAdded(true),
+      revertOptimistic: () => setOptimisticallyAdded(false),
+      mutation: () =>
+        createAutomation({
+          name: template.name,
+          description: template.description,
+          triggerType: template.triggerType,
+          actions: template.actions,
+          delay: template.delay,
+          enabled: true,
+          priority: 0,
+        }),
+      pendingKey: template.id,
+      successMessage: `"${template.name}" enabled`,
+      errorMessage: (result) =>
+        result.error ?? "We couldn't enable that automation right now.",
     });
   }
 
@@ -155,16 +153,12 @@ function RecommendedRow({
       </div>
       <Button
         size="sm"
-        variant={alreadyEnabled ? "secondary" : "default"}
+        variant={isAdded ? "secondary" : "default"}
         className="shrink-0"
-        disabled={disabled || isPending || alreadyEnabled}
+        disabled={disabled || isPending || isAdded}
         onClick={handleAdd}
       >
-        {alreadyEnabled
-          ? "Added"
-          : isPending
-            ? "Adding…"
-            : "Enable"}
+        {isAdded ? "Added" : isPending ? "Adding…" : "Enable"}
       </Button>
     </div>
   );

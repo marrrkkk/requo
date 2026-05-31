@@ -12,6 +12,11 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyDescription,
+} from "@/components/ui/empty";
 import { cn } from "@/lib/utils";
 
 export type NeedsAttentionIconName = "inbox" | "file-text" | "bell-ring" | "check-circle";
@@ -141,9 +146,11 @@ export function NeedsAttentionTabs({
               <NeedsAttentionMinimalRow item={item} key={item.key} />
             ))
           ) : (
-            <p className="px-2 py-6 text-center text-sm text-muted-foreground">
-              No items in this category.
-            </p>
+            <Empty className="rounded-none border-0 py-8">
+              <EmptyHeader>
+                <EmptyDescription>No items in this category.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           )}
           {/* Infinite scroll sentinel */}
           {hasMore && (

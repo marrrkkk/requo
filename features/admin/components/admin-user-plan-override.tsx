@@ -10,7 +10,7 @@ import { Combobox } from "@/components/ui/combobox";
 import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { ConfirmPasswordDialog } from "@/features/admin/components/confirm-password-dialog";
 import { manualPlanOverrideAction } from "@/features/admin/mutations";
-import { useProgressRouter } from "@/hooks/use-progress-router";
+import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
 import { businessPlans, planMeta, type BusinessPlan } from "@/lib/plans/plans";
 
 type AdminUserPlanOverrideProps = {
@@ -37,7 +37,7 @@ export function AdminUserPlanOverride({
   targetEmail,
   currentPlan,
 }: AdminUserPlanOverrideProps) {
-  const router = useProgressRouter();
+  const { scheduleRefresh } = useDeferredRefresh();
   const [isPending, startTransition] = useTransition();
   const [selectedPlan, setSelectedPlan] = useState<string>(
     currentPlan === "free" ? "pro" : currentPlan,
@@ -63,13 +63,13 @@ export function AdminUserPlanOverride({
             result.message ??
               `Set ${targetEmail} to ${planMeta[selectedPlan as BusinessPlan]?.label ?? selectedPlan}.`,
           );
-          router.refresh();
+          scheduleRefresh();
         } else {
           toast.error(result.error);
         }
       });
     },
-    [router, selectedPlan, targetEmail, targetUserId],
+    [scheduleRefresh, selectedPlan, targetEmail, targetUserId],
   );
 
   return (
