@@ -69,3 +69,21 @@ Read these sources first when relevant:
 - Route, layout, or system wiring changes: also run `npm run build`.
 - Covered user-flow changes: run the relevant `npm run test:e2e:smoke`; use `npm run test:e2e` for broader browser journeys.
 - CI baseline is lint, typecheck, unit/component tests, build, DB-backed integration tests, and Playwright smoke coverage.
+
+## Optimistic CRUD UI
+
+Use the shared optimistic stack for dashboard create/update/delete flows:
+
+- **List surfaces:** `hooks/use-animated-list.ts` with `.motion-list-item` and `data-motion-state` from `app/globals.css`.
+- **Single-record toggles or kanban moves:** `useOptimistic` directly or `hooks/use-optimistic-mutation.ts`.
+- **Forms and server-action buttons:** `components/shared/server-action-button.tsx` with optional `optimistic` callbacks; prefer `useDeferredRefresh()` over immediate `router.refresh()`.
+- **Temporary create IDs:** `lib/optimistic/id.ts` (`createOptimisticId`, `isOptimisticId`).
+
+Standard mutation flow:
+
+1. Apply optimistic UI immediately inside `startTransition`.
+2. Await the existing Server Action in the background.
+3. On success, replace temp IDs when the action returns `entity.id`, then schedule deferred refresh.
+4. On failure, revert optimistic state and show `toast.error`; do not refresh.
+
+Keep server-side cache tag invalidation in actions unchanged. Client refresh is reconciliation, not the primary UX update.
