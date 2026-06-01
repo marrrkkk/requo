@@ -32,7 +32,7 @@ describe("getUnifiedSettingsNavigation", () => {
       "General",
       "Members",
       "Billing",
-      "Quote defaults",
+      "Quotes",
       "Email",
       "Pricing",
       "Knowledge",
