@@ -5,7 +5,7 @@ export type InquiryDocumentData = {
   businessName: string;
   businessCurrency: string;
   referenceId: string;
-  inquiryFormName: string;
+  inquiryFormName: string | null;
   customerName: string;
   customerEmail: string | null;
   customerContactMethod: string;

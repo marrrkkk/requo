@@ -510,7 +510,7 @@ export async function getInquiryListCountForBusiness({
       count: count(),
     })
     .from(inquiries)
-    .innerJoin(
+    .leftJoin(
       businessInquiryForms,
       eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
     )
@@ -553,6 +553,7 @@ export async function getInquiryListPageForBusiness({
       businessInquiryFormId: inquiries.businessInquiryFormId,
       inquiryFormName: businessInquiryForms.name,
       inquiryFormSlug: businessInquiryForms.slug,
+      source: inquiries.source,
       customerName: inquiries.customerName,
       customerEmail: inquiries.customerEmail,
       serviceCategory: inquiries.serviceCategory,
@@ -584,7 +585,7 @@ export async function getInquiryListPageForBusiness({
       createdAt: inquiries.createdAt,
     })
     .from(inquiries)
-    .innerJoin(
+    .leftJoin(
       businessInquiryForms,
       eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
     )
@@ -596,7 +597,7 @@ export async function getInquiryListPageForBusiness({
 
 type InquiryExportRow = {
   id: string;
-  inquiryFormName: string;
+  inquiryFormName: string | null;
   customerName: string;
   customerEmail: string | null;
   customerContactMethod: string;
@@ -653,7 +654,7 @@ export async function getInquiryExportRowsForBusiness({
       submittedAt: inquiries.submittedAt,
     })
     .from(inquiries)
-    .innerJoin(
+    .leftJoin(
       businessInquiryForms,
       eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
     )
@@ -701,7 +702,7 @@ export async function getInquiryDetailForBusiness({
       submittedFieldSnapshot: inquiries.submittedFieldSnapshot,
     })
     .from(inquiries)
-    .innerJoin(
+    .leftJoin(
       businessInquiryForms,
       eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
     )
@@ -713,7 +714,7 @@ export async function getInquiryDetailForBusiness({
   }
 
   const inquiryFormBusinessType = normalizeBusinessType(
-    inquiry.inquiryFormBusinessType,
+    inquiry.inquiryFormBusinessType ?? "general_project_services",
   );
 
   const [attachments, notes, activities, relatedQuoteRows] =

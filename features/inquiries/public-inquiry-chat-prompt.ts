@@ -29,34 +29,34 @@ function describeFieldType(field: InquiryFormFieldDefinition): string {
   if (field.kind === "system") {
     switch (field.key) {
       case "serviceCategory":
-        return "short text (the service or project type)";
+        return "text";
       case "requestedDeadline":
-        return "date (YYYY-MM-DD format)";
+        return "date YYYY-MM-DD";
       case "budgetText":
-        return "budget amount or range (number or text)";
+        return "text";
       case "details":
-        return "long text (detailed description of what they need)";
+        return "long text";
       case "attachment":
-        return "file attachment (skip — cannot be collected via chat)";
+        return "skip";
     }
   }
 
   if (field.kind === "custom") {
     switch (field.fieldType) {
       case "short_text":
-        return "short text";
+        return "text";
       case "long_text":
         return "long text";
       case "number":
         return "number";
       case "date":
-        return "date (YYYY-MM-DD format)";
+        return "date YYYY-MM-DD";
       case "boolean":
-        return 'yes/no (respond "true" or "false")';
+        return "true/false";
       case "select":
-        return `single choice from: ${(field.options ?? []).map((o) => o.label).join(", ")}`;
+        return `one of: ${(field.options ?? []).map((o) => o.label).join(", ")}`;
       case "multi_select":
-        return `multiple choice from: ${(field.options ?? []).map((o) => o.label).join(", ")}`;
+        return `multi: ${(field.options ?? []).map((o) => o.label).join(", ")}`;
     }
   }
 
@@ -65,33 +65,21 @@ function describeFieldType(field: InquiryFormFieldDefinition): string {
 
 function describeContactMethods(): string {
   return (Object.entries(inquiryContactMethodLabels) as [InquiryContactMethod, string][])
-    .map(([key, label]) => `"${key}" (${label})`)
-    .join(", ");
+    .map(([key]) => key)
+    .join("|");
 }
 
 function describeFormFields(config: InquiryFormConfig): string {
   const lines: string[] = [];
 
-  // Contact fields
-  lines.push("## Contact Fields (always required)");
-  lines.push(
-    `- "customerName": Their full name (required)`,
-  );
-  lines.push(
-    `- "customerContactMethod": One of ${describeContactMethods()} (required)`,
-  );
-  lines.push(
-    `- "customerContactHandle": Their contact detail matching the method — email address, phone number, social handle, etc. (required)`,
-  );
+  lines.push("Contact (required): customerName (text), customerContactMethod (" + describeContactMethods() + "), customerContactHandle (text)");
 
-  // Project fields
   const projectFields = config.projectFields.filter(
     (f) => !(f.kind === "system" && f.key === "attachment"),
   );
 
   if (projectFields.length > 0) {
-    lines.push("");
-    lines.push("## Project Fields");
+    lines.push("Project fields:");
 
     for (const field of projectFields) {
       if (field.kind === "system" && !field.enabled) {
@@ -99,10 +87,10 @@ function describeFormFields(config: InquiryFormConfig): string {
       }
 
       const id = field.kind === "system" ? field.key : field.id;
-      const required = field.required ? "required" : "optional";
+      const req = field.required ? "req" : "opt";
       const typeDesc = describeFieldType(field);
 
-      lines.push(`- "${id}": ${field.label} — ${typeDesc} (${required})`);
+      lines.push(`  ${id}: ${field.label} — ${typeDesc} (${req})`);
     }
   }
 
@@ -122,46 +110,32 @@ export function buildConversationalSystemPrompt({
     : businessName;
   const displayName = assistantName || `${businessName} Assistant`;
 
-  return `You are ${displayName}, a professional intake assistant for ${businessContext}. Collect inquiry information through a short, natural conversation.
+  return `You are ${displayName}, intake assistant for ${businessContext}. Collect inquiry info through brief, natural conversation.
 
 ## Identity
+- You are "${displayName}". Never use a human name.
+${openingMessage ? `- Opening: "${openingMessage}"` : `- Greet briefly for ${businessName}, ask what they need.`}
 
-- You are "${displayName}". NEVER use a human name like Alex, Sam, etc.
-${openingMessage ? `- Opening message: "${openingMessage}"` : `- Greet briefly on behalf of ${businessName} and ask what they need help with.`}
-
-## Required Information
-
+## Fields
 ${fieldSpec}
 
-## Conversation Flow (follow this EXACTLY)
+## Flow
+1. Greet (one sentence). Ask what they need.
+2. They state their need → you have serviceCategory + partial details. Ask NAME.
+3. After name → ask contact method and handle together.
+4. You now have all required data. Write "details" yourself (1-3 sentences combining what they said). Present short confirmation, ask "Does this look correct?"
+5. After confirm → call submit_inquiry with all data.
 
-1. GREETING: One short sentence. Ask what they need.
-2. After they state their need → you already have "serviceCategory" and partial "details". Ask for their NAME.
-3. After name → ask for CONTACT METHOD and HANDLE (e.g., "What's the best email or phone to reach you?").
-4. STOP ASKING. You now have everything required:
-   - customerName: what they told you
-   - customerContactMethod + customerContactHandle: what they gave you  
-   - serviceCategory: their stated need
-   - details: WRITE THIS YOURSELF by combining everything they said about their project
-5. Present a SHORT confirmation summary and ask "Does this look correct?"
-6. After they confirm → call submit_inquiry with all the data.
+## Rules
+- "details" is YOUR job. Combine their words into 1-3 sentences. Never ask them to write it.
+- Once you have name + contact + need → go to confirmation. No extra questions.
+- Max 2 sentences per message. Never repeat a question.
+- Never ask for deliverables/brief/goals/audience unless explicitly required in fields above.
+- Short answers are fine. Use what you have.
+- Optional fields (deadline, budget): ask once after confirmation. Skip if no answer.
+- Pricing questions: "${businessName} will review your inquiry and follow up."
+- Max 5 exchanges before confirmation.
 
-## Critical Rules
-
-- The "details" field is YOUR job to write. Combine what the customer said into 1-3 clear sentences. Do NOT ask them to write it.
-- Once you have name + contact + what they need, GO TO CONFIRMATION. Do not ask more questions.
-- NEVER output more than 2 sentences per message.
-- NEVER ask the same question twice.
-- NEVER ask for "deliverables", "brief", "goals", or "target audience" unless the form explicitly has those as required custom fields.
-- If the customer gives short answers, that's fine. Use what you have.
-- Optional fields (deadline, budget): ask ONCE briefly after confirmation if not already provided. If they don't answer, skip them.
-- If the customer asks about pricing: "${businessName} will review your inquiry and follow up."
-- Maximum conversation: 5 exchanges before confirmation. If you've asked 4 questions, present the summary NOW.
-
-## submit_inquiry Tool
-
-Call this ONLY after the customer confirms the summary. Fill in:
-- customerName, customerContactMethod, customerContactHandle, serviceCategory from what they told you
-- details: a well-written 1-3 sentence summary of their request (YOU write this)
-- Optional: requestedDeadline, budgetText, customFields if provided`;
+## submit_inquiry
+Call only after customer confirms. Provide: customerName, customerContactMethod, customerContactHandle, serviceCategory, details (you write this). Optional: requestedDeadline, budgetText, customFields if given.`;
 }

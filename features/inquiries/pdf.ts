@@ -73,7 +73,7 @@ export async function createInquiryPdf(data: InquiryDocumentData) {
   drawField(report, "Email", data.customerEmail || "Not provided");
   drawField(report, "Contact method", data.customerContactMethod);
   drawField(report, "Contact", data.customerContactHandle);
-  drawField(report, "Form", data.inquiryFormName);
+  drawField(report, "Channel", data.inquiryFormName || "Manual");
   drawField(report, "Category", data.serviceCategory);
   drawField(report, "Status", data.status);
   drawField(report, "Budget", formatInquiryBudget(data.budgetText));

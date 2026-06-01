@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Bot, FileText, PenLine } from "lucide-react";
 import type { MotionState } from "@/hooks/use-animated-list";
 
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,6 +22,16 @@ import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
 import { Copy } from "lucide-react";
+
+function getInquiryChannelDisplay(inquiry: DashboardInquiryListItem) {
+  if (inquiry.inquiryFormName) {
+    return { label: inquiry.inquiryFormName, icon: FileText };
+  }
+  if (inquiry.source === "ai") {
+    return { label: "AI", icon: Bot };
+  }
+  return { label: "Manual", icon: PenLine };
+}
 
 type InquiryListTableProps = {
   inquiries: DashboardInquiryListItem[];
@@ -57,7 +68,7 @@ export function InquiryListTable({
               />
             </TableHead>
             <TableHead className="w-[17rem]">Customer</TableHead>
-            <TableHead className="w-[13rem]">Form</TableHead>
+            <TableHead className="w-[13rem]">Channel</TableHead>
             <TableHead className="w-[13rem]">Service</TableHead>
             <TableHead className="w-[8rem]">Created</TableHead>
             <TableHead className="w-[8.75rem]">Status</TableHead>
@@ -104,12 +115,20 @@ export function InquiryListTable({
                   </div>
                 </TableCell>
                 <TableCell className="w-[13rem]">
-                  <TruncatedTextWithTooltip
-                    className="table-emphasis"
-                    href={inquiryHref}
-                    prefetch={true}
-                    text={inquiry.inquiryFormName}
-                  />
+                  {(() => {
+                    const channel = getInquiryChannelDisplay(inquiry);
+                    const Icon = channel.icon;
+                    return (
+                      <Link
+                        className="inline-flex items-center gap-1.5 text-sm text-foreground transition-colors hover:text-primary group-hover/row:text-primary"
+                        href={inquiryHref}
+                        prefetch={true}
+                      >
+                        <Icon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+                        <span className="truncate">{channel.label}</span>
+                      </Link>
+                    );
+                  })()}
                 </TableCell>
                 <TableCell className="w-[13rem]">
                   <TruncatedTextWithTooltip

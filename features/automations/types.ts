@@ -34,7 +34,7 @@ export type TriggerPayload = {
     inquiryId: string;
     customerName: string;
     source: string;
-    formId: string;
+    formId: string | null;
   };
   "inquiry.qualified": { inquiryId: string; qualifiedAt: string };
   "inquiry.archived": { inquiryId: string; reason: string };

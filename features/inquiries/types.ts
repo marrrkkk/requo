@@ -47,9 +47,10 @@ export type InquiryStatusFilterValue = (typeof inquiryStatusFilterValues)[number
 
 export type DashboardInquiryListItem = {
   id: string;
-  businessInquiryFormId: string;
-  inquiryFormName: string;
-  inquiryFormSlug: string;
+  businessInquiryFormId: string | null;
+  inquiryFormName: string | null;
+  inquiryFormSlug: string | null;
+  source: string | null;
   customerName: string;
   customerEmail: string | null;
   serviceCategory: string;
@@ -106,10 +107,10 @@ export type DashboardInquiryRelatedQuotes = {
 export type DashboardInquiryDetail = {
   id: string;
   businessId: string;
-  businessInquiryFormId: string;
-  inquiryFormName: string;
-  inquiryFormSlug: string;
-  inquiryFormBusinessType: BusinessType;
+  businessInquiryFormId: string | null;
+  inquiryFormName: string | null;
+  inquiryFormSlug: string | null;
+  inquiryFormBusinessType: BusinessType | null;
   customerName: string;
   customerEmail: string | null;
   customerContactMethod: string;

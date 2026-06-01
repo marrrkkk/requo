@@ -11,7 +11,7 @@ import {
 import { isRetryableError } from "@/lib/ai/errors";
 import { buildConversationalSystemPrompt } from "@/features/inquiries/public-inquiry-chat-prompt";
 import { createInquiryIntakeTools } from "@/features/inquiries/public-inquiry-chat-tools";
-import { extractFieldsFromMessage } from "@/features/inquiries/public-inquiry-chat-extractor";
+
 import type {
   PublicInquiryChatMessage,
   PublicInquiryChatStreamEvent,
@@ -56,7 +56,7 @@ export async function* createPublicInquiryChatStream({
   const tools = createInquiryIntakeTools(business.inquiryFormConfig);
 
   // Select tool-capable models
-  const modelIds = selectModels({
+  const modelIds = await selectModels({
     needsTools: true,
     minQuality: 4,
   });
@@ -132,10 +132,8 @@ export async function* createPublicInquiryChatStream({
         }
       }
 
-      // If tool-based extraction didn't fire, fallback to text extraction
-      if (!extracted) {
-        extracted = extractFieldsFromMessage(fullContent);
-      }
+      // If tool-based extraction didn't fire, return null (no regex fallback)
+      // Requirement 29: only the reliable tool-based extraction path is used
 
       // Emit debug info
       const [providerPrefix, ...modelParts] = modelId.split(":");
@@ -166,7 +164,7 @@ export async function* createPublicInquiryChatStream({
         },
       };
 
-      recordModelUsage(modelId);
+      await recordModelUsage(modelId);
       succeeded = true;
       break;
     } catch (error) {
@@ -180,7 +178,7 @@ export async function* createPublicInquiryChatStream({
         break;
       }
 
-      markModelExhausted(modelId);
+      await markModelExhausted(modelId);
       // Continue to next model
     }
   }
