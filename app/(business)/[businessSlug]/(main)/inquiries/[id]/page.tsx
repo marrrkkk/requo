@@ -90,6 +90,7 @@ import {
   getBusinessQuotePath,
 } from "@/features/businesses/routes";
 import { Button } from "@/components/ui/button";
+import { AiChatPanel } from "@/features/ai/components/ai-chat-panel";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { hasFeatureAccess } from "@/lib/plans";
 import { createNoIndexMetadata } from "@/lib/seo/site";
@@ -123,7 +124,7 @@ async function InquiryDetailContent({
   params,
 }: InquiryDetailPageProps) {
   const resolvedParams = await params;
-  const { businessContext } = await getAppShellContext(resolvedParams.businessSlug);
+  const { user, businessContext } = await getAppShellContext(resolvedParams.businessSlug);
 
   const parsedParams = inquiryRouteParamsSchema.safeParse(resolvedParams);
 
@@ -167,6 +168,10 @@ async function InquiryDetailContent({
   const canExportData = hasFeatureAccess(
     businessContext.business.plan,
     "exports",
+  );
+  const canUseAi = hasFeatureAccess(
+    businessContext.business.plan,
+    "aiAssistant",
   );
   // Customer history + follow-ups stream via Suspense — don't block page render.
   const customerHistoryPromise = canViewCustomerHistory
@@ -253,6 +258,15 @@ async function InquiryDetailContent({
                 "png",
               )}
             />
+            {canUseAi ? (
+              <AiChatPanel
+                businessSlug={businessSlug}
+                surface="inquiry"
+                entityId={inquiry.id}
+                entityTitle={inquiry.subject || `${inquiry.customerName} inquiry`}
+                userName={user.name || "You"}
+              />
+            ) : null}
             {inquiry.relatedQuotes ? (
               <InquiryQuoteActions
                 businessSlug={businessSlug}
