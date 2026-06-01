@@ -8,12 +8,15 @@ import type { AiChatMessage } from "@/lib/ai";
 export type OrchestrateInput = {
   userId: string;
   businessId: string;
+  businessName: string;
   conversationId: string;
   message: string;
   surface: "dashboard" | "inquiry" | "quote";
   entityId: string;
   businessSlug: string;
   conversationHistory: AiChatMessage[];
+  /** Pricing blocks context for quote tasks; null/empty triggers pricing guardrail */
+  pricingBlocks?: string | null;
 };
 
 export type OrchestrateResult =
@@ -22,6 +25,9 @@ export type OrchestrateResult =
       systemPrompt: string;
       tools: Record<string, Tool> | undefined;
       messages: ModelMessage[];
+      maxOutputTokens: number;
+      /** Pre-retrieved memories from the orchestration pipeline, available for passing to Surface Service to avoid duplicate retrieval */
+      retrievedMemories: RetrievedMemory[];
       onStreamComplete: (
         text: string,
         inputTokens: number,
@@ -98,6 +104,7 @@ export type RetrievedMemory = {
   content: string;
   category: MemoryCategory;
   similarity: number;
+  confidenceTier: "HIGH" | "MEDIUM" | "LOW";
 };
 
 // ---------------------------------------------------------------------------

@@ -48,6 +48,8 @@ export type ChatPageViewProps = {
   userName: string;
   surface?: AiSurface;
   entityId?: string;
+  /** Hide the header bar (new chat, history, more). Used in embedded panels. */
+  hideHeader?: boolean;
   /**
    * Persisted history hydrated by the server page. Ordered oldest -> newest.
    * Allows a refresh to restore prior turns instead of starting empty.
@@ -179,6 +181,7 @@ export function ChatPageView({
   userName,
   surface = "dashboard",
   entityId = "global",
+  hideHeader,
   initialMessages,
   failedMessageIds,
   toolCallsByMessageId,
@@ -195,9 +198,11 @@ export function ChatPageView({
     [failedMessageIds],
   );
 
-  // Disable page-level scroll while chat is mounted.
+  // Disable page-level scroll while chat is mounted (full-page mode only).
   // Cleaned up on unmount so navigating away restores normal scrolling.
+  // Skipped in embedded panel mode (hideHeader) since the Sheet handles its own scroll.
   useEffect(() => {
+    if (hideHeader) return;
     const scrollParent = document.querySelector<HTMLElement>(
       '[data-slot="sidebar-inset"]',
     );
@@ -206,7 +211,7 @@ export function ChatPageView({
     return () => {
       scrollParent.style.overflow = "";
     };
-  }, []);
+  }, [hideHeader]);
 
   // AI SDK v6 transport
   const transport = useMemo(
@@ -435,10 +440,12 @@ export function ChatPageView({
   return (
     <div className="flex h-full flex-col overflow-hidden" data-chat-page>
       {/* Header with new chat, history, and more buttons */}
-      <ChatHeaderBar
-        businessSlug={businessSlug}
-        conversationId={conversationId}
-      />
+      {!hideHeader && (
+        <ChatHeaderBar
+          businessSlug={businessSlug}
+          conversationId={conversationId}
+        />
+      )}
 
       {/* Messages area — centered with margins, only this area scrolls */}
       <ChatContainerRoot className="flex-1 overflow-hidden">

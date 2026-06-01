@@ -3,7 +3,10 @@
 import { aiGenerateQuoteDraftSchema } from "@/features/ai/schemas";
 import { generateQuoteDraftForBusiness } from "@/features/ai/quote-generator";
 import type { AiQuoteDraftActionState } from "@/features/ai/types";
+import type { AiSurface } from "@/features/ai/types";
+import { getOrCreateDefaultEntityConversation } from "@/features/ai/conversations";
 import { getBusinessActionContext } from "@/lib/db/business-access";
+import { getAppShellContext } from "@/lib/app-shell/context";
 import { hasFeatureAccess } from "@/lib/plans";
 import { checkUsageLimit } from "@/lib/ai";
 import { getEffectivePlan } from "@/lib/billing/subscription-service";
@@ -143,4 +146,27 @@ export async function generateQuoteDraftAction(
   return {
     draft: result.draft,
   };
+}
+
+/**
+ * Resolves (or creates) the default AI conversation for an entity.
+ * Called client-side when the chat panel opens for the first time.
+ */
+export async function resolveEntityConversationAction(input: {
+  businessSlug: string;
+  surface: Extract<AiSurface, "inquiry" | "quote">;
+  entityId: string;
+  title: string;
+}) {
+  const { user, businessContext } = await getAppShellContext(input.businessSlug);
+
+  const conversation = await getOrCreateDefaultEntityConversation({
+    userId: user.id,
+    businessId: businessContext.business.id,
+    surface: input.surface,
+    entityId: input.entityId,
+    title: input.title,
+  });
+
+  return { conversationId: conversation.id };
 }

@@ -616,11 +616,24 @@ async function buildDashboardContext(input: {
   businessId: string;
   /** User message for RAG-based memory retrieval */
   userMessage?: string;
+  /** Pre-retrieved memory results from the orchestrator — skips own retrieval when provided (Requirement 12.2) */
+  preRetrievedMemories?: {
+    combinedText: string;
+    memories: Array<{ title: string; content: string; similarity: number; confidenceTier: "HIGH" | "MEDIUM" | "LOW"; category?: string }>;
+    usedRag: boolean;
+  };
 }) {
-  // Load business identity, top service categories, and relevant knowledge.
-  // Service categories give the AI ambient knowledge of what services the
-  // business offers, so it can provide contextually relevant examples.
-  const [businessRow, memoryResult, topCategories] = await Promise.all([
+  // Query-aware context pruning: classify message complexity to determine
+  // how much context to load. Simple messages get only business identity +
+  // knowledge; complex messages get full context including service categories
+  // and extended business profile extras.
+  const complexity = classifyMessageComplexity(input.userMessage ?? "");
+  const isSimple = complexity === "simple";
+
+  // Always load business identity and knowledge. Only load service categories
+  // for complex messages (Requirement 11.1, 11.2, 11.3).
+  // When preRetrievedMemories is provided, skip own retrieval (Requirement 12.2, 12.3).
+  const basePromises = [
     db
       .select({
         id: businesses.id,
@@ -646,26 +659,37 @@ async function buildDashboardContext(input: {
         ),
       )
       .limit(1),
-    retrieveRelevantMemories({
-      businessId: input.businessId,
-      queryText: input.userMessage ?? "",
-      topK: 3,
-    }),
-    db
-      .select({
-        category: inquiries.serviceCategory,
-        inquiryCount: count(),
-      })
-      .from(inquiries)
-      .where(
-        and(
-          eq(inquiries.businessId, input.businessId),
-          isNull(inquiries.deletedAt),
-        ),
-      )
-      .groupBy(inquiries.serviceCategory)
-      .orderBy(desc(count()))
-      .limit(5),
+    input.preRetrievedMemories
+      ? Promise.resolve(input.preRetrievedMemories)
+      : retrieveRelevantMemories({
+          businessId: input.businessId,
+          queryText: input.userMessage ?? "",
+          topK: 3,
+        }),
+  ] as const;
+
+  // For complex messages, also load top service categories
+  const topCategoriesPromise = isSimple
+    ? Promise.resolve([] as Array<{ category: string; inquiryCount: number }>)
+    : db
+        .select({
+          category: inquiries.serviceCategory,
+          inquiryCount: count(),
+        })
+        .from(inquiries)
+        .where(
+          and(
+            eq(inquiries.businessId, input.businessId),
+            isNull(inquiries.deletedAt),
+          ),
+        )
+        .groupBy(inquiries.serviceCategory)
+        .orderBy(desc(count()))
+        .limit(5);
+
+  const [businessRow, memoryResult, topCategories] = await Promise.all([
+    ...basePromises,
+    topCategoriesPromise,
   ]);
   const business = businessRow[0];
 
@@ -677,7 +701,25 @@ async function buildDashboardContext(input: {
     ? memoryResult.memories.map((m) => `- ${m.title}: ${truncateText(m.content, 400)}`).join("\n")
     : "- No saved business knowledge.";
 
-  // Build compact business profile extras
+  // For simple messages: minimal context — business identity + knowledge only
+  if (isSimple) {
+    return [
+      "Surface: dashboard",
+      "",
+      `Business: ${business.name} (${business.businessType}); slug: /${business.slug}; currency ${business.defaultCurrency}; tone ${business.aiTonePreference}`,
+      business.shortDescription ? `Description: ${business.shortDescription}` : null,
+      "",
+      "Business knowledge",
+      memoryLines,
+      "",
+      "IMPORTANT: You MUST call tools to answer any question about data. Do NOT use the business profile and knowledge above to answer count/status/detail questions — it is background context only. When giving examples or suggestions, use the business's actual services and industry rather than generic placeholders.",
+      `Use this slug for building links: ${business.slug}`,
+      "Link format for inquiries: /businesses/{slug}/inquiries/{INQUIRY_ID} — MUST start with /",
+      "Link format for quotes: /businesses/{slug}/quotes/{QUOTE_ID} — MUST start with /",
+    ].filter((line): line is string => line !== null).join("\n");
+  }
+
+  // For complex messages: full context including service categories and extras
   const dashboardExtras = [
     business.industryCategory ? `Industry: ${business.industryCategory}` : null,
     topCategories.length
@@ -714,6 +756,12 @@ export async function buildAiSurfaceContext(input: {
   businessId: string | null;
   /** User message for RAG-based memory retrieval */
   userMessage?: string;
+  /** Pre-retrieved memory results from the orchestrator — skips own retrieval when provided (Requirement 12.2) */
+  preRetrievedMemories?: {
+    combinedText: string;
+    memories: Array<{ title: string; content: string; similarity: number; confidenceTier: "HIGH" | "MEDIUM" | "LOW"; category?: string }>;
+    usedRag: boolean;
+  };
 }) {
   switch (input.surface) {
     case "inquiry":
@@ -737,6 +785,7 @@ export async function buildAiSurfaceContext(input: {
         ? buildDashboardContext({
             businessId: input.businessId,
             userMessage: input.userMessage,
+            preRetrievedMemories: input.preRetrievedMemories,
           })
         : null;
   }
@@ -745,23 +794,19 @@ export async function buildAiSurfaceContext(input: {
 export function getSurfaceInstructions(surface: AiSurface) {
   const shared = [
     "You are Requo's assistant for an owner-led service business.",
-    "Use ONLY the provided context, tool results, and chat history. Never invent, assume, or hallucinate data.",
+    "Use ONLY the provided context, tool results, and chat history. Never fabricate, invent, or assume data not present in these sources.",
     "Stay focused on inquiries, quotes, follow-ups, and operational summaries.",
     "Never claim you changed the database or sent a message. Modifications require app controls.",
-    "If pricing/policy/terms are missing, say what's missing instead of inventing details.",
-    "Format as GitHub-flavored Markdown. Be concise.",
+    "If pricing/policy/terms are missing, say what's missing. Format as GitHub-flavored Markdown. Be concise.",
     "",
     "STRICT DATA RULES:",
-    "- Every number, count, name, status, date, and amount you mention MUST come directly from context or tool output.",
-    "- NEVER fabricate records, IDs, quote numbers, customer names, or statistics.",
-    "- If data is not available in context or tool results, explicitly state that. Do not estimate or approximate.",
-    "- When tool results include IDs, use them to construct accurate links.",
+    "- Every number, count, name, status, date, and amount MUST come from context or tool output. If unavailable, state that explicitly.",
+    "- Use IDs from tool results to construct accurate links.",
     "",
     "RESPONSE RULES:",
     "- Simple factual questions: ONE sentence, no headers. E.g. 'The status of Q-1006 is **Draft**.'",
-    "- Link inquiries using the URL from tool output: [Name](/businesses/{slug}/inquiries/ID) — always use the full absolute path starting with /",
-    "- Link quotes using the URL from tool output: [Q-XXXX](/businesses/{slug}/quotes/ID) — always use the full absolute path starting with /",
-    "- Only present data from context or tool output. Never invent records. If not found, say so.",
+    "- Link inquiries: [Name](/businesses/{slug}/inquiries/ID) — full absolute path starting with /",
+    "- Link quotes: [Q-XXXX](/businesses/{slug}/quotes/ID) — full absolute path starting with /",
     "",
     "TEMPLATES:",
     "Inquiry: **[Name](link)** — [Category] `[status]` with bullet details",
@@ -790,14 +835,10 @@ export function getSurfaceInstructions(surface: AiSurface) {
     ...shared,
     "",
     "Dashboard surface: answer questions across the business using tools.",
-    "CRITICAL RULES — NO HALLUCINATION:",
-    "- ALWAYS call a tool before answering any question about data, counts, statuses, records, or business metrics.",
-    "- NEVER guess or estimate counts, totals, statuses, names, emails, dates, or amounts. If you don't have tool output, call the tool first.",
-    "- NEVER fabricate inquiry IDs, quote numbers, customer names, or any identifiers. Only reference data returned by tools.",
-    "- If a tool returns 'not found' or empty results, report that honestly. Do not invent alternative results.",
-    "- If the user's question cannot be answered with available tools, say so clearly. Do not approximate.",
-    "- Use the URLs returned by tools in your links. Do not construct URLs from memory — only use URLs from tool output.",
-    "- When referencing counts, use the EXACT numbers from tool output. Do not round, approximate, or add to them.",
+    "ANTI-HALLUCINATION — TOOL-FIRST POLICY:",
+    "- ALWAYS call a tool before answering any data question. Never guess counts, statuses, names, dates, or amounts without tool output.",
+    "- Only reference IDs, URLs, and records returned by tools. If a tool returns empty or 'not found', report that honestly.",
+    "- Use EXACT numbers from tool output — never round, estimate, or approximate. If no tool can answer, say so.",
     "- Available tools: count_inquiries, count_quotes, list_inquiries, list_quotes, search_inquiries, search_quotes, get_inquiry_details, get_quote_details, get_business_stats, get_analytics_overview, get_revenue_summary, get_follow_ups, get_recent_activity, get_stale_inquiries, get_expiring_quotes, get_customer_history, get_service_categories, get_pricing_library, get_inquiry_notes, get_inquiry_conversation, get_inquiry_attachments, get_job_pipeline, get_response_times, get_period_comparison, get_business_knowledge, get_quote_customer_response.",
     "",
     "ACTION TOOLS (write operations):",
@@ -810,7 +851,7 @@ export function getSurfaceInstructions(surface: AiSurface) {
     "- The action tool call itself IS the confirmation UI. When you call draft_quote, draft_inquiry, schedule_follow_up, or update_inquiry_status, a confirmation button automatically appears for the user. You do NOT need to write any [ACTION_PROPOSAL] text manually.",
     "- NEVER write [ACTION_PROPOSAL] blocks yourself. NEVER describe or simulate a confirmation dialog. Just call the tool — the UI handles the rest.",
     "- ALWAYS fetch real data first before calling an action tool. For draft_quote: call get_inquiry_details or search_inquiries first to get correct customer name, email, contact method, service details, and inquiry ID. For schedule_follow_up: call get_inquiry_details or get_quote_details first to get the correct entity ID.",
-    "- NEVER invent or guess customer names, emails, contact handles, prices, or IDs when calling action tools. Every field must come from tool output or explicit user instructions.",
+    "- Every action tool field (names, emails, prices, IDs) must come from tool output or explicit user instructions.",
     "- If the user says 'create a quote for [inquiry]', your steps are: (1) search/get the inquiry details, (2) use those details to fill the draft_quote tool call with real data.",
     "- For quotes, calculate unitPriceInCents as dollars × 100 (e.g. $50 = 5000 cents). If the user specifies prices, use those. If not, check get_pricing_library for standard pricing.",
     "- After calling an action tool, write a SHORT one-line confirmation like 'Here's the quote draft — confirm to create it.' Do NOT repeat all the details (the UI card shows them).",

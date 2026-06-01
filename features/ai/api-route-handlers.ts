@@ -38,6 +38,7 @@ import {
   aiCreateConversationSchema,
 } from "@/features/ai/schemas";
 import { orchestrate } from "@/features/ai/orchestrator";
+import { generateCanaryToken } from "@/features/ai/orchestrator/prompt-builder";
 import type { AiProviderName } from "@/lib/ai";
 import { registry } from "@/lib/ai/registry";
 import { stripReasoningMiddleware } from "@/lib/ai/strip-reasoning-middleware";
@@ -469,7 +470,21 @@ export async function createAiChatRouteResponse(request: Request) {
   }
 
   // --- Input Sanitization ---
-  const inputSanitization = sanitizeAiInput(parsedData.message);
+  const inputSanitization = await sanitizeAiInput(parsedData.message, authorizedConversation.id);
+
+  if (inputSanitization.status === "locked") {
+    const errorText = "This conversation has been locked due to repeated policy violations.";
+    await createAiAssistantMessage({
+      conversationId: authorizedConversation.id,
+      status: "failed",
+      content: errorText,
+      metadata: { errorReason: "conversation_locked" },
+    });
+    return Response.json(
+      { error: errorText },
+      { status: 403 },
+    );
+  }
 
   if (inputSanitization.status === "rejected") {
     logAiSecurityEvent({
@@ -551,6 +566,7 @@ export async function createAiChatRouteResponse(request: Request) {
   const orchestrateResult = await orchestrate({
     userId: user.id,
     businessId: authorizedBusinessId,
+    businessName: access.businessContext.business.name,
     conversationId: authorizedConversation.id,
     message: sanitizedMessage,
     surface: parsedData.surface,
@@ -573,7 +589,7 @@ export async function createAiChatRouteResponse(request: Request) {
     return Response.json({ error: msg }, { status: 500 });
   }
 
-  const { systemPrompt, tools, messages: orchestratedMessages, onStreamComplete } = orchestrateResult;
+  const { systemPrompt, tools, messages: orchestratedMessages, maxOutputTokens, onStreamComplete } = orchestrateResult;
 
   // --- Model selection ---
   const messageComplexity = classifyMessageComplexity(sanitizedMessage);
@@ -581,14 +597,10 @@ export async function createAiChatRouteResponse(request: Request) {
   const modelsToTry = modelSelection
     ? [resolveExplicitModelId(modelSelection)]
     : tools
-      ? selectToolCallingModels()
+      ? await selectToolCallingModels()
       : messageComplexity === "simple"
-        ? selectSimpleTextModels()
-        : selectComplexTextModels();
-
-  const maxOutputTokens = messageComplexity === "simple"
-    ? 800
-    : parsedData.surface === "quote" ? 2200 : 1700;
+        ? await selectSimpleTextModels()
+        : await selectComplexTextModels();
 
   // --- Stream with model fallback, returning standard AI SDK data stream ---
   for (const modelId of modelsToTry) {
@@ -631,7 +643,8 @@ export async function createAiChatRouteResponse(request: Request) {
         onFinish: async ({ text, usage, steps }) => {
           const visibleText = getVisibleText(text);
 
-          // Output filtering
+          // Output filtering (with canary token detection)
+          const canaryToken = generateCanaryToken(authorizedBusinessId);
           let finalContent = visibleText;
           const chatOutputFilter = filterAiOutput(finalContent, [
             "inquiry assistant",
@@ -640,11 +653,12 @@ export async function createAiChatRouteResponse(request: Request) {
             "business context",
             "conversation history",
             "relevant context",
-          ]);
+          ], { canaryToken });
           if (chatOutputFilter.status === "redacted") {
             finalContent = chatOutputFilter.output;
+            const isCanaryLeak = chatOutputFilter.redactedPatterns.includes("canary_leak_detected");
             logAiSecurityEvent({
-              eventType: "output_redacted",
+              eventType: isCanaryLeak ? "canary_leak_detected" : "output_redacted",
               patternMatched: chatOutputFilter.redactedPatterns.join(", "),
               userId: user.id,
               businessId: authorizedBusinessId,
@@ -719,7 +733,7 @@ export async function createAiChatRouteResponse(request: Request) {
       // callback marks the model exhausted so the NEXT request skips it.
       // For THIS request, the SDK's built-in error propagation will surface
       // the error to the client which displays it with a retry button.
-      recordModelUsage(modelId);
+      await recordModelUsage(modelId);
       return result.toUIMessageStreamResponse();
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -732,7 +746,7 @@ export async function createAiChatRouteResponse(request: Request) {
         errorMsg.includes("high traffic");
 
       if (isRateLimit) {
-        markModelExhausted(modelId);
+        await markModelExhausted(modelId);
         console.warn(`[ai-chat] ${modelId} rate limited (sync), trying next...`);
         continue;
       }

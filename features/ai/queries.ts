@@ -79,7 +79,7 @@ export async function getInquiryAssistantContextForBusiness({
         submittedFieldSnapshot: inquiries.submittedFieldSnapshot,
       })
       .from(inquiries)
-      .innerJoin(
+      .leftJoin(
         businessInquiryForms,
         eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
       )
@@ -192,11 +192,11 @@ export async function getInquiryAssistantContextForBusiness({
   }
 
   const inquiryFormBusinessType = normalizeBusinessType(
-    inquiry.inquiryFormBusinessType,
+    inquiry.inquiryFormBusinessType ?? "general_project_services",
   );
 
   const inquiryPageConfig = getNormalizedInquiryPageConfig(
-    inquiry.inquiryPageConfig,
+    inquiry.inquiryPageConfig ?? {},
     {
       businessName: business.name,
       businessShortDescription: business.shortDescription,
@@ -320,7 +320,7 @@ export async function getInquiryAssistantContextForBusiness({
       createdAt: business.createdAt,
       inquiryPageHeadline: inquiryPageConfig.headline,
       inquiryPageTemplate: inquiryPageConfig.template,
-      publicInquiryEnabled: inquiry.publicInquiryEnabled,
+      publicInquiryEnabled: inquiry.publicInquiryEnabled ?? false,
     },
     inquiry: {
       ...inquiry,

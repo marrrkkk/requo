@@ -9,9 +9,10 @@
  * - Returns error if mandatory modules exceed budget
  * - Ignores unrecognized module names with warning log
  * - Integrates with prompt cache for rendered segments
+ * - Embeds a deterministic canary token per business for leak detection
  */
 
-import { createHash } from "crypto";
+import { createHash, createHmac } from "crypto";
 
 import {
   BASE_IDENTITY_PROMPT,
@@ -64,12 +65,23 @@ const ALL_MODULE_NAMES = new Set<string>(Object.keys(MODULE_PRIORITY));
 /** Token budget: 1600 tokens, approximated as chars / 4 */
 const TOKEN_BUDGET = 1600;
 
+/**
+ * Server-side secret for canary token generation.
+ * Uses AI_CANARY_SECRET env var, falls back to a hardcoded default for dev.
+ */
+const CANARY_SECRET = process.env.AI_CANARY_SECRET || "requo-canary-dev-secret-do-not-use-in-prod";
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Approximate token count from character length */
-function estimateTokens(text: string): number {
+/**
+ * Approximate token count from character length.
+ * Uses the standard chars/4 heuristic consistently across all budget calculations.
+ *
+ * Validates: Requirement 17.1
+ */
+export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
@@ -103,6 +115,18 @@ function getRenderedSegment(moduleName: PromptModuleName): string {
   }
 }
 
+/**
+ * Generates a deterministic canary token for a given business ID.
+ * Uses HMAC-SHA256 of businessId + server secret, truncated to 16 hex chars.
+ * The token is unique per business but reproducible for detection.
+ */
+export function generateCanaryToken(businessId: string): string {
+  return createHmac("sha256", CANARY_SECRET)
+    .update(businessId)
+    .digest("hex")
+    .slice(0, 16);
+}
+
 // ---------------------------------------------------------------------------
 // Main Export
 // ---------------------------------------------------------------------------
@@ -110,12 +134,13 @@ function getRenderedSegment(moduleName: PromptModuleName): string {
 /**
  * Composes a system prompt from modular segments based on intent classification.
  *
- * Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.8
+ * Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.8, 7.1, 7.2, 7.3, 26.1, 26.2, 26.3
  */
 export function buildPrompt(
   intentResult: IntentResult,
   memoryContext: string | null,
   conversationSummary: string | null,
+  options?: { businessId?: string; businessName?: string; pricingBlocks?: string | null },
 ): PromptBuildResult {
   const includedModules: PromptModuleName[] = [];
   const omittedModules: PromptModuleName[] = [];
@@ -159,6 +184,21 @@ export function buildPrompt(
     additionalSectionsTokens += estimateTokens(section);
   }
 
+  // Pricing hallucination guardrail (Requirement 7.1, 7.2, 7.3)
+  const pricingBlocks = options?.pricingBlocks;
+  const pricingIsEmpty =
+    pricingBlocks === null ||
+    pricingBlocks === undefined ||
+    pricingBlocks === "" ||
+    pricingBlocks === "- No saved pricing entries.";
+
+  if (pricingIsEmpty) {
+    const guardrail =
+      "\n\nPRICING GUARDRAIL: No pricing data is available. All line item unitPriceInCents MUST be set to 0. Pricing requires manual entry by the business owner. Include a note that pricing is pending owner review.";
+    additionalSectionsText += guardrail;
+    additionalSectionsTokens += estimateTokens(guardrail);
+  }
+
   const availableBudget = TOKEN_BUDGET - additionalSectionsTokens;
 
   // Check if mandatory modules alone exceed budget
@@ -180,7 +220,16 @@ export function buildPrompt(
   const segments: string[] = [];
 
   for (const moduleName of sortedModules) {
-    const rendered = getRenderedSegment(moduleName);
+    let rendered = getRenderedSegment(moduleName);
+
+    // Inject business name into base_identity template (Requirement 26.1, 26.2, 26.3)
+    if (moduleName === "base_identity" && options?.businessName) {
+      rendered = rendered.replace(
+        "You are Requo's assistant for an owner-led service business.",
+        `You are the AI assistant for ${options.businessName}.`,
+      );
+    }
+
     const moduleTokens = estimateTokens(rendered);
 
     if (usedTokens + moduleTokens <= availableBudget) {
@@ -206,6 +255,12 @@ export function buildPrompt(
   // Compose the final prompt
   let systemPrompt = segments.join("\n\n");
   systemPrompt += additionalSectionsText;
+
+  // Embed canary token if businessId is provided
+  if (options?.businessId) {
+    const canaryToken = generateCanaryToken(options.businessId);
+    systemPrompt += `\n\n<!-- ${canaryToken} -->`;
+  }
 
   return {
     ok: true,

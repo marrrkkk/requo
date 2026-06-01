@@ -138,9 +138,9 @@ export type InquiryAssistantContext = {
   };
   inquiry: {
     id: string;
-    businessInquiryFormId: string;
-    inquiryFormName: string;
-    inquiryFormSlug: string;
+    businessInquiryFormId: string | null;
+    inquiryFormName: string | null;
+    inquiryFormSlug: string | null;
     inquiryFormBusinessType: BusinessType;
     customerName: string;
     customerEmail: string | null;
