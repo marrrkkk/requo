@@ -1,4 +1,5 @@
 import { inngest } from "@/lib/inngest/client";
+import { cleanupTokenLogs } from "@/features/ai/inngest/token-log-cleanup";
 import { computeAnalyticsBenchmarks } from "@/features/analytics/jobs/benchmarks";
 import { sendAnalyticsDigestEmails } from "@/features/analytics/jobs/digest";
 import { computeDailyRollups } from "@/features/analytics/jobs/rollup";
@@ -144,6 +145,17 @@ export const analyticsBenchmarksCron = inngest.createFunction(
     step.run("compute-benchmarks", async () => computeAnalyticsBenchmarks()),
 );
 
+export const tokenLogCleanupCron = inngest.createFunction(
+  {
+    id: "cron-token-log-cleanup",
+    name: "Clean up old AI token logs",
+    triggers: [{ cron: "0 3 * * *" }],
+    retries: 2,
+  },
+  async ({ step }) =>
+    step.run("cleanup-token-logs", async () => cleanupTokenLogs()),
+);
+
 export const cronFunctions = [
   automationsCron,
   followUpRemindersCron,
@@ -155,4 +167,5 @@ export const cronFunctions = [
   analyticsDigestCron,
   analyticsScheduledReportsCron,
   analyticsBenchmarksCron,
+  tokenLogCleanupCron,
 ];
