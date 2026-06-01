@@ -36,6 +36,13 @@
       "when": 1780144338328,
       "tag": "0004_service_business_essentials",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1780304338736,
+      "tag": "0005_make_inquiry_form_nullable",
+      "breakpoints": true
     }
   ]
 }
