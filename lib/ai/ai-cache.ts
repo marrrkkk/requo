@@ -4,12 +4,28 @@ import { createHash } from "crypto";
 
 import type { AiTaskType } from "@/features/ai/task-registry";
 import type { AiQualityTier } from "./types";
+import { cacheLayer } from "@/lib/ai/cache-layer";
+
+// ---------------------------------------------------------------------------
+// Business-scoped task types — these tasks produce identical output regardless
+// of which user triggers them, so the cache key excludes userId to allow
+// cross-user cache sharing within the same business.
+// ---------------------------------------------------------------------------
+
+export const BUSINESS_SCOPED_TASKS: ReadonlySet<AiTaskType> = new Set([
+  "inquiry_summary",
+  "form_suggestion",
+  "business_memory_summary",
+]);
+
+/** Sentinel userId value used in cache keys for business-scoped tasks. */
+const BUSINESS_SCOPE_USER_SENTINEL = "__business__" as const;
 
 // ---------------------------------------------------------------------------
 // AI Cache — deterministic composite-key caching with TTL enforcement
 //
-// In-memory Map storage with TTL checked on read. Production can be upgraded
-// to Redis without interface changes.
+// Uses the distributed Cache Layer (Redis with in-memory fallback) for
+// persistence across serverless cold starts. TTLs are caller-specified.
 // ---------------------------------------------------------------------------
 
 /** Stable sentinel value for absent optional components in cache keys. */
@@ -48,16 +64,11 @@ export type CachedAiOutput = {
 };
 
 // ---------------------------------------------------------------------------
-// Internal storage
+// Cache key prefixes
 // ---------------------------------------------------------------------------
 
-type CacheEntry = {
-  output: CachedAiOutput;
-  expiresAt: number; // Unix timestamp in ms
-};
-
-/** In-memory cache store. Keyed by deterministic hex hash. */
-const cacheStore = new Map<string, CacheEntry>();
+const AI_CACHE_PREFIX = "ai:";
+const AI_BIZ_CACHE_PREFIX = "ai:biz:";
 
 // ---------------------------------------------------------------------------
 // Key generation
@@ -67,12 +78,22 @@ const cacheStore = new Map<string, CacheEntry>();
  * Generates a deterministic cache key from the given components.
  *
  * The algorithm:
- * 1. Replace null values in sourceDataVersions with the stable null sentinel.
- * 2. Sort all top-level keys and nested object keys for determinism.
- * 3. JSON-serialize the sorted structure.
- * 4. Compute SHA-256 hash → hex string.
+ * 1. For business-scoped tasks, replace userId with a constant sentinel so
+ *    different users of the same business share the cache entry.
+ * 2. Replace null values in sourceDataVersions with the stable null sentinel.
+ * 3. Sort all top-level keys and nested object keys for determinism.
+ * 4. JSON-serialize the sorted structure.
+ * 5. Compute SHA-256 hash → hex string.
  */
 export function generateCacheKey(components: CacheKeyComponents): string {
+  // Determine if this is a business-scoped (non-personalized) task
+  const isBusinessScoped = BUSINESS_SCOPED_TASKS.has(components.taskType);
+
+  // For business-scoped tasks, replace userId with sentinel to share across users
+  const effectiveUserId = isBusinessScoped
+    ? BUSINESS_SCOPE_USER_SENTINEL
+    : components.userId;
+
   // Normalize sourceDataVersions: replace null with sentinel, sort keys
   const normalizedVersions: Record<string, string> = {};
   const sortedVersionKeys = Object.keys(components.sourceDataVersions).sort();
@@ -89,12 +110,23 @@ export function generateCacheKey(components: CacheKeyComponents): string {
     promptVersion: components.promptVersion,
     sourceDataVersions: normalizedVersions,
     taskType: components.taskType,
-    userId: components.userId,
+    userId: effectiveUserId,
   };
 
   const serialized = JSON.stringify(sortedComponents);
 
   return createHash("sha256").update(serialized).digest("hex");
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Returns the appropriate cache key prefix based on task type scope. */
+function getCachePrefix(taskType: AiTaskType): string {
+  return BUSINESS_SCOPED_TASKS.has(taskType)
+    ? AI_BIZ_CACHE_PREFIX
+    : AI_CACHE_PREFIX;
 }
 
 // ---------------------------------------------------------------------------
@@ -113,20 +145,9 @@ export async function getCachedOutput(
   key: CacheKeyComponents,
 ): Promise<CachedAiOutput | null> {
   try {
-    const cacheKey = generateCacheKey(key);
-    const entry = cacheStore.get(cacheKey);
-
-    if (!entry) {
-      return null;
-    }
-
-    // TTL enforcement on read
-    if (Date.now() > entry.expiresAt) {
-      cacheStore.delete(cacheKey);
-      return null;
-    }
-
-    return entry.output;
+    const prefix = getCachePrefix(key.taskType);
+    const cacheKey = `${prefix}${generateCacheKey(key)}`;
+    return await cacheLayer.get<CachedAiOutput>(cacheKey);
   } catch (error) {
     console.warn(
       "[ai-cache] Read failure during cache lookup, proceeding without cache:",
@@ -149,10 +170,9 @@ export async function setCachedOutput(
   ttl: number,
 ): Promise<void> {
   try {
-    const cacheKey = generateCacheKey(key);
-    const expiresAt = Date.now() + ttl * 1000;
-
-    cacheStore.set(cacheKey, { output, expiresAt });
+    const prefix = getCachePrefix(key.taskType);
+    const cacheKey = `${prefix}${generateCacheKey(key)}`;
+    await cacheLayer.set<CachedAiOutput>(cacheKey, output, ttl);
   } catch (error) {
     console.warn(
       "[ai-cache] Write failure during cache store, output returned without caching:",
@@ -166,17 +186,11 @@ export async function setCachedOutput(
 // ---------------------------------------------------------------------------
 
 /**
- * Clears all entries from the cache. Used for testing only.
+ * Clears a specific cache entry. Used for testing only.
  * @internal
  */
-export function _clearCache(): void {
-  cacheStore.clear();
-}
-
-/**
- * Returns the current size of the cache. Used for testing only.
- * @internal
- */
-export function _getCacheSize(): number {
-  return cacheStore.size;
+export async function _clearCacheEntry(key: CacheKeyComponents): Promise<void> {
+  const prefix = getCachePrefix(key.taskType);
+  const cacheKey = `${prefix}${generateCacheKey(key)}`;
+  await cacheLayer.delete(cacheKey);
 }

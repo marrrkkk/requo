@@ -14,7 +14,9 @@ import { aiSecurityEvents } from "@/lib/db/schema";
 export type AiSecurityEventType =
   | "injection_detected"
   | "injection_rejected"
-  | "output_redacted";
+  | "output_redacted"
+  | "conversation_locked"
+  | "canary_leak_detected";
 
 export type LogAiSecurityEventParams = {
   eventType: AiSecurityEventType;

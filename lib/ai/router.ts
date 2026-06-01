@@ -136,7 +136,7 @@ export async function generateWithFallback(
 
   // Use capacity selector for smart model ordering
   const tier = request.qualityTier ?? "balanced";
-  const modelIds = selectModels({
+  const modelIds = await selectModels({
     needsTools: false,
     minQuality: tier === "cheap" ? 4 : tier === "best" ? 8 : 6,
   });
@@ -166,7 +166,7 @@ export async function generateWithFallback(
         abortSignal: AbortSignal.timeout(timeout),
       });
 
-      recordModelUsage(modelId);
+      await recordModelUsage(modelId);
       console.info(
         `[ai-router] Completion succeeded: model="${modelId}"`,
       );
@@ -198,7 +198,7 @@ export async function generateWithFallback(
           : wrapProviderError(providerName, error);
       }
 
-      markModelExhausted(modelId);
+      await markModelExhausted(modelId);
 
       if (error instanceof AiProviderError && error.retryAfterMs) {
         const waitMs = Math.min(error.retryAfterMs, MAX_RETRY_AFTER_MS);
@@ -245,7 +245,7 @@ async function generateWithProviderFallback(
           abortSignal: AbortSignal.timeout(timeout),
         });
 
-        recordModelUsage(modelId);
+        await recordModelUsage(modelId);
         console.info(
           `[ai-router] Completion succeeded: provider="${providerName}" model="${model}"`,
         );
@@ -277,7 +277,7 @@ async function generateWithProviderFallback(
             : wrapProviderError(providerName, error);
         }
 
-        markModelExhausted(modelId);
+        await markModelExhausted(modelId);
       }
     }
   }
@@ -305,7 +305,7 @@ export async function streamWithFallback(
 
   // Use capacity selector for smart model ordering
   const tier = request.qualityTier ?? "balanced";
-  const modelIds = selectModels({
+  const modelIds = await selectModels({
     needsTools: false,
     minQuality: tier === "cheap" ? 4 : tier === "best" ? 8 : 6,
   });
@@ -338,7 +338,7 @@ export async function streamWithFallback(
 
       const textStream = result.textStream;
 
-      recordModelUsage(modelId);
+      await recordModelUsage(modelId);
       console.info(`[ai-router] Stream started: model="${modelId}"`);
 
       async function* chunks(): AsyncGenerator<AiStreamChunk> {
@@ -370,7 +370,7 @@ export async function streamWithFallback(
           : wrapProviderError(providerName, error);
       }
 
-      markModelExhausted(modelId);
+      await markModelExhausted(modelId);
 
       if (attemptCount === 1 && options?.onFallback) {
         options.onFallback();
@@ -425,7 +425,7 @@ async function streamWithProviderFallback(
 
         const textStream = result.textStream;
 
-        recordModelUsage(modelId);
+        await recordModelUsage(modelId);
         console.info(
           `[ai-router] Stream started: provider="${providerName}" model="${model}"`,
         );
@@ -459,7 +459,7 @@ async function streamWithProviderFallback(
             : wrapProviderError(providerName, error);
         }
 
-        markModelExhausted(modelId);
+        await markModelExhausted(modelId);
 
         if (attemptCount === 1 && options?.onFallback) {
           options.onFallback();

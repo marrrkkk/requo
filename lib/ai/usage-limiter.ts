@@ -1,12 +1,13 @@
 import "server-only";
 
-import { and, eq, gte, sum } from "drizzle-orm";
+import { and, eq, gte, sql, sum } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { aiUsageEvents } from "@/lib/db/schema";
 import type { AiTaskType } from "@/features/ai/task-registry";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import { getUpgradePlan, planMeta } from "@/lib/plans/plans";
+import { cacheLayer } from "@/lib/ai/cache-layer";
 
 // ---------------------------------------------------------------------------
 // Usage Limiter — enforces monthly weighted usage limits and per-request cooldown
@@ -18,6 +19,7 @@ import { getUpgradePlan, planMeta } from "@/lib/plans/plans";
 //
 // Cooldown:
 // - 3-second minimum between consecutive requests (same user + task type)
+// - Cooldown tracked via Cache Layer (Redis with in-memory fallback)
 // - Cooldown starts when a request is accepted for processing (not on cache hits)
 // - Cooldown rejections do not deduct usage
 // ---------------------------------------------------------------------------
@@ -49,16 +51,15 @@ export const TASK_WEIGHTS: Record<AiTaskType, number> = {
 };
 
 // ---------------------------------------------------------------------------
-// Cooldown tracking (in-memory)
+// Cooldown tracking (via Cache Layer)
 // ---------------------------------------------------------------------------
 
 const COOLDOWN_SECONDS = 3;
+const COOLDOWN_KEY_PREFIX = "cool:";
 
-/**
- * In-memory cooldown map: `userId:taskType` → last accepted timestamp (ms).
- * Acceptable for short-lived cooldowns on single-server / serverless deployments.
- */
-const cooldownMap = new Map<string, number>();
+function getCooldownKey(userId: string, taskType: AiTaskType): string {
+  return `${COOLDOWN_KEY_PREFIX}${userId}:${taskType}`;
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -84,10 +85,6 @@ function getStartOfCurrentMonthUTC(): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
 
-function getCooldownKey(userId: string, taskType: AiTaskType): string {
-  return `${userId}:${taskType}`;
-}
-
 // ---------------------------------------------------------------------------
 // Public functions
 // ---------------------------------------------------------------------------
@@ -104,11 +101,11 @@ export async function checkUsageLimit(
 ): Promise<UsageLimitResult> {
   const { userId, businessId, taskType, plan } = input;
 
-  // --- Cooldown check (fast, no DB) ---
+  // --- Cooldown check (via Cache Layer) ---
   const cooldownKey = getCooldownKey(userId, taskType);
-  const lastAccepted = cooldownMap.get(cooldownKey);
+  const lastAccepted = await cacheLayer.get<number>(cooldownKey);
 
-  if (lastAccepted !== undefined) {
+  if (lastAccepted !== null) {
     const elapsedMs = Date.now() - lastAccepted;
     const cooldownMs = COOLDOWN_SECONDS * 1000;
 
@@ -122,41 +119,28 @@ export async function checkUsageLimit(
     }
   }
 
-  // --- Quota check (DB) ---
+  // --- Quota check (single batched DB query) ---
   const monthStart = getStartOfCurrentMonthUTC();
   const limit = PLAN_LIMITS[plan];
 
-  // Query user-level usage (across all businesses)
-  const [userUsageRow] = await db
-    .select({ total: sum(aiUsageEvents.weight) })
+  // Retrieve both user-level and business-level monthly usage in one query
+  const [usageRow] = await db
+    .select({
+      userTotal: sql<string>`coalesce(sum(case when ${aiUsageEvents.userId} = ${userId} then ${aiUsageEvents.weight} else 0 end), 0)`,
+      businessTotal: sql<string>`coalesce(sum(case when ${aiUsageEvents.businessId} = ${businessId} then ${aiUsageEvents.weight} else 0 end), 0)`,
+    })
     .from(aiUsageEvents)
     .where(
       and(
-        eq(aiUsageEvents.userId, userId),
+        sql`(${aiUsageEvents.userId} = ${userId} or ${aiUsageEvents.businessId} = ${businessId})`,
         gte(aiUsageEvents.createdAt, monthStart),
       ),
     );
 
-  const userUsage = Number(userUsageRow?.total ?? 0);
+  const userUsage = Number(usageRow?.userTotal ?? 0);
+  const businessUsage = Number(usageRow?.businessTotal ?? 0);
 
-  if (userUsage >= limit) {
-    return buildQuotaExceededResult(plan);
-  }
-
-  // Query business-level usage
-  const [businessUsageRow] = await db
-    .select({ total: sum(aiUsageEvents.weight) })
-    .from(aiUsageEvents)
-    .where(
-      and(
-        eq(aiUsageEvents.businessId, businessId),
-        gte(aiUsageEvents.createdAt, monthStart),
-      ),
-    );
-
-  const businessUsage = Number(businessUsageRow?.total ?? 0);
-
-  if (businessUsage >= limit) {
+  if (userUsage >= limit || businessUsage >= limit) {
     return buildQuotaExceededResult(plan);
   }
 
@@ -188,16 +172,17 @@ export async function recordUsage(
  * Starts the cooldown timer for a user + task type combination.
  * Call this when a request is accepted for processing (not on cache hits).
  */
-export function startCooldown(userId: string, taskType: AiTaskType): void {
+export async function startCooldown(userId: string, taskType: AiTaskType): Promise<void> {
   const key = getCooldownKey(userId, taskType);
-  cooldownMap.set(key, Date.now());
+  await cacheLayer.set<number>(key, Date.now(), COOLDOWN_SECONDS);
 }
 
 /**
- * Resets the cooldown map. Primarily useful for testing.
+ * Resets the cooldown for a specific user + task type. Primarily useful for testing.
  */
-export function resetCooldowns(): void {
-  cooldownMap.clear();
+export async function resetCooldown(userId: string, taskType: AiTaskType): Promise<void> {
+  const key = getCooldownKey(userId, taskType);
+  await cacheLayer.delete(key);
 }
 
 /**

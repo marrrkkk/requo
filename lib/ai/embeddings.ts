@@ -1,7 +1,10 @@
 import "server-only";
 
+import { createHash } from "crypto";
+
 import { embed } from "ai";
 
+import { cacheLayer } from "@/lib/ai/cache-layer";
 import { google, mistral, nvidia } from "@/lib/ai/registry";
 
 // ---------------------------------------------------------------------------
@@ -30,11 +33,55 @@ const EMBEDDING_MODELS = [
 /** Target dimensions for stored embeddings */
 const TARGET_DIMENSIONS = 768;
 
+/** TTL for cached embeddings (5 minutes) */
+const EMBEDDING_CACHE_TTL_SECONDS = 300;
+
+/**
+ * Generates a cache key for an embedding based on SHA-256 hash of the input text.
+ */
+function embeddingCacheKey(text: string): string {
+  const hash = createHash("sha256").update(text).digest("hex");
+  return `emb:${hash}`;
+}
+
 /**
  * Generates an embedding vector for the given text.
- * Tries multiple providers in order. Returns null if all fail.
+ * Checks the cache first; on miss, tries multiple providers in order.
+ * Caches successful results with a 300-second TTL.
+ * Returns null if all providers fail.
  */
 export async function generateEmbedding(text: string): Promise<number[] | null> {
+  // Check cache first
+  const cacheKey = embeddingCacheKey(text);
+  try {
+    const cached = await cacheLayer.get<number[]>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+  } catch {
+    // Cache read failure is non-fatal — proceed to generate
+  }
+
+  // Generate embedding from providers
+  const embedding = await generateEmbeddingFromProviders(text);
+
+  // Cache successful result
+  if (embedding !== null) {
+    try {
+      await cacheLayer.set(cacheKey, embedding, EMBEDDING_CACHE_TTL_SECONDS);
+    } catch {
+      // Cache write failure is non-fatal
+    }
+  }
+
+  return embedding;
+}
+
+/**
+ * Generates an embedding vector by trying multiple providers in order.
+ * Returns null if all fail.
+ */
+async function generateEmbeddingFromProviders(text: string): Promise<number[] | null> {
   for (const config of EMBEDDING_MODELS) {
     try {
       if (config.provider === "google" && google) {

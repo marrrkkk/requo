@@ -90,15 +90,17 @@ function normalizeWhitespace(str: string): string {
  * Filters AI output to redact system prompt leakage and sensitive information.
  *
  * Strategy:
- * 1. Check for exact or near-exact matches of system prompt fragments
- * 2. Check for common leakage patterns indicating the AI is revealing internals
- * 3. Redact matches while preserving non-leaked content
+ * 1. Check for canary token presence (indicates full system prompt leak)
+ * 2. Check for exact or near-exact matches of system prompt fragments
+ * 3. Check for common leakage patterns indicating the AI is revealing internals
+ * 4. Redact matches while preserving non-leaked content
  *
  * On error, returns original output unchanged (fail-open for UX).
  */
 export function filterAiOutput(
   output: string,
-  systemPromptFragments: string[]
+  systemPromptFragments: string[],
+  options?: { canaryToken?: string },
 ): OutputFilterResult {
   try {
     if (!output || output.trim().length === 0) {
@@ -107,6 +109,17 @@ export function filterAiOutput(
 
     let filteredOutput = output;
     const redactedPatterns: string[] = [];
+
+    // 0. Check for canary token — if present, the entire response is compromised
+    if (options?.canaryToken && filteredOutput.includes(options.canaryToken)) {
+      redactedPatterns.push("canary_leak_detected");
+      filteredOutput = "[REDACTED — system prompt leak detected]";
+      return {
+        status: "redacted",
+        output: filteredOutput,
+        redactedPatterns,
+      };
+    }
 
     // 1. Check for system prompt fragment matches
     // Only match fragments of meaningful length to avoid false positives
