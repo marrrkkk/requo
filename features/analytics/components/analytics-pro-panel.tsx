@@ -1,9 +1,7 @@
 "use client";
 
-import dynamic from "next/dynamic";
-
-import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardStatsGrid } from "@/components/shared/dashboard-layout";
+import { LazyAnalyticsTrendChart } from "@/components/shared/lazy-recharts";
 import { AnalyticsChartCard } from "@/features/analytics/components/analytics-chart-card";
 import { AnalyticsMetricCard } from "@/features/analytics/components/analytics-metric-card";
 import { AnalyticsFunnel } from "@/features/analytics/components/analytics-funnel";
@@ -16,15 +14,6 @@ import {
   Globe,
   Inbox,
 } from "lucide-react";
-
-// Client-only chart: relies on ResizeObserver/DOM measurement via Recharts.
-const AnalyticsTrendChart = dynamic(
-  () =>
-    import("@/features/analytics/components/analytics-trend-chart").then(
-      (m) => m.AnalyticsTrendChart,
-    ),
-  { ssr: false, loading: () => <Skeleton className="h-[340px] w-full rounded-xl" /> },
-);
 
 export function AnalyticsProPanel({
   free,
@@ -76,7 +65,7 @@ export function AnalyticsProPanel({
 
       {/* Trend + Funnel */}
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(16rem,0.38fr)]">
-        <AnalyticsTrendChart points={pro.trend} />
+        <LazyAnalyticsTrendChart points={pro.trend} />
         <AnalyticsFunnel steps={pro.funnel} />
       </div>
 

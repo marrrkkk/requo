@@ -52,6 +52,7 @@ import {
   getBusinessInquiryListCacheTags,
   hotBusinessCacheLife,
 } from "@/lib/cache/business-tags";
+import { withCircuitBreaker } from "@/lib/db/circuit-breaker";
 import { db } from "@/lib/db/client";
 import {
   activityLogs,
@@ -505,16 +506,20 @@ export async function getInquiryListCountForBusiness({
     filters,
   });
 
-  const rows = await db
-    .select({
-      count: count(),
-    })
-    .from(inquiries)
-    .leftJoin(
-      businessInquiryForms,
-      eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
-    )
-    .where(and(...conditions));
+  const rows = await withCircuitBreaker(
+    `dashboard:inquiries-count:${businessId}`,
+    () =>
+      db
+        .select({
+          count: count(),
+        })
+        .from(inquiries)
+        .leftJoin(
+          businessInquiryForms,
+          eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
+        )
+        .where(and(...conditions)),
+  );
 
   return Number(rows[0]?.count ?? 0);
 }
@@ -547,52 +552,56 @@ export async function getInquiryListPageForBusiness({
   const orderByClause =
     [submittedAtSort(inquiries.submittedAt), createdAtSort(inquiries.createdAt)];
 
-  return db
-    .select({
-      id: inquiries.id,
-      businessInquiryFormId: inquiries.businessInquiryFormId,
-      inquiryFormName: businessInquiryForms.name,
-      inquiryFormSlug: businessInquiryForms.slug,
-      source: inquiries.source,
-      customerName: inquiries.customerName,
-      customerEmail: inquiries.customerEmail,
-      serviceCategory: inquiries.serviceCategory,
-      budgetText: inquiries.budgetText,
-      status: getEffectiveInquiryStatus,
-      recordState: getInquiryRecordState,
-      subject: inquiries.subject,
-      archivedAt: inquiries.archivedAt,
-      pendingFollowUpCount: sql<number>`(
-        select count(*)::int
-        from ${followUps}
-        where ${followUps.businessId} = ${inquiries.businessId}
-          and ${followUps.inquiryId} = ${inquiries.id}
-          and ${followUps.status} = 'pending'
-      )`,
-      nextFollowUpDueAt: sql<Date | null>`(
-        select min(${followUps.dueAt})
-        from ${followUps}
-        where ${followUps.businessId} = ${inquiries.businessId}
-          and ${followUps.inquiryId} = ${inquiries.id}
-          and ${followUps.status} = 'pending'
-      )`,
-      hasDuplicateFlag: sql<boolean>`exists(
-        select 1 from inquiry_duplicates
-        where inquiry_duplicates.inquiry_id = ${inquiries.id}
-          and inquiry_duplicates.dismissed_at is null
-      )`,
-      submittedAt: inquiries.submittedAt,
-      createdAt: inquiries.createdAt,
-    })
-    .from(inquiries)
-    .leftJoin(
-      businessInquiryForms,
-      eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
-    )
-    .where(and(...conditions))
-    .orderBy(...orderByClause)
-    .limit(pageSize)
-    .offset(offset);
+  return withCircuitBreaker(
+    `dashboard:inquiries:${businessId}`,
+    () =>
+      db
+        .select({
+          id: inquiries.id,
+          businessInquiryFormId: inquiries.businessInquiryFormId,
+          inquiryFormName: businessInquiryForms.name,
+          inquiryFormSlug: businessInquiryForms.slug,
+          source: inquiries.source,
+          customerName: inquiries.customerName,
+          customerEmail: inquiries.customerEmail,
+          serviceCategory: inquiries.serviceCategory,
+          budgetText: inquiries.budgetText,
+          status: getEffectiveInquiryStatus,
+          recordState: getInquiryRecordState,
+          subject: inquiries.subject,
+          archivedAt: inquiries.archivedAt,
+          pendingFollowUpCount: sql<number>`(
+            select count(*)::int
+            from ${followUps}
+            where ${followUps.businessId} = ${inquiries.businessId}
+              and ${followUps.inquiryId} = ${inquiries.id}
+              and ${followUps.status} = 'pending'
+          )`,
+          nextFollowUpDueAt: sql<Date | null>`(
+            select min(${followUps.dueAt})
+            from ${followUps}
+            where ${followUps.businessId} = ${inquiries.businessId}
+              and ${followUps.inquiryId} = ${inquiries.id}
+              and ${followUps.status} = 'pending'
+          )`,
+          hasDuplicateFlag: sql<boolean>`exists(
+            select 1 from inquiry_duplicates
+            where inquiry_duplicates.inquiry_id = ${inquiries.id}
+              and inquiry_duplicates.dismissed_at is null
+          )`,
+          submittedAt: inquiries.submittedAt,
+          createdAt: inquiries.createdAt,
+        })
+        .from(inquiries)
+        .leftJoin(
+          businessInquiryForms,
+          eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
+        )
+        .where(and(...conditions))
+        .orderBy(...orderByClause)
+        .limit(pageSize)
+        .offset(offset),
+  );
 }
 
 type InquiryExportRow = {

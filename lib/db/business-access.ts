@@ -11,6 +11,7 @@ import {
   membershipShellCacheLife,
 } from "@/lib/cache/shell-tags";
 import { getCachedEffectivePlanForUser } from "@/lib/billing/subscription-service";
+import { withCircuitBreaker } from "@/lib/db/circuit-breaker";
 
 import type {
   BusinessRecordState,
@@ -136,39 +137,43 @@ async function getCachedBusinessMemberships(
     limit 1
   ), false)`;
 
-  const memberships = await db
-    .select({
-      membershipId: businessMembers.id,
-      role: businessMembers.role,
-      memberJoinedAt: businessMembers.createdAt,
-      businessId: businesses.id,
-      businessPlan: businesses.plan,
-      businessName: businesses.name,
-      businessSlug: businesses.slug,
-      businessType: businesses.businessType,
-      businessLogoStoragePath: businesses.logoStoragePath,
-      defaultCurrency: businesses.defaultCurrency,
-      businessTimezone: businesses.timezone,
-      publicInquiryEnabled: publicInquiryEnabledSelection,
-      recordState: getBusinessRecordState,
-      archivedAt: businesses.archivedAt,
-      lockedAt: businesses.lockedAt,
-      deletedAt: businesses.deletedAt,
-      ownerUserId: businesses.ownerUserId,
-    })
-    .from(businessMembers)
-    .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
-    .where(
-      and(
-        eq(businessMembers.userId, userId),
-        view === "all" ? undefined : getBusinessViewCondition(view),
-      ),
-    )
-    .orderBy(
-      getBusinessRoleSortExpression(),
-      asc(businesses.name),
-      asc(businesses.createdAt),
-    );
+  const memberships = await withCircuitBreaker(
+    `shell:memberships:${userId}`,
+    () =>
+      db
+        .select({
+          membershipId: businessMembers.id,
+          role: businessMembers.role,
+          memberJoinedAt: businessMembers.createdAt,
+          businessId: businesses.id,
+          businessPlan: businesses.plan,
+          businessName: businesses.name,
+          businessSlug: businesses.slug,
+          businessType: businesses.businessType,
+          businessLogoStoragePath: businesses.logoStoragePath,
+          defaultCurrency: businesses.defaultCurrency,
+          businessTimezone: businesses.timezone,
+          publicInquiryEnabled: publicInquiryEnabledSelection,
+          recordState: getBusinessRecordState,
+          archivedAt: businesses.archivedAt,
+          lockedAt: businesses.lockedAt,
+          deletedAt: businesses.deletedAt,
+          ownerUserId: businesses.ownerUserId,
+        })
+        .from(businessMembers)
+        .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
+        .where(
+          and(
+            eq(businessMembers.userId, userId),
+            view === "all" ? undefined : getBusinessViewCondition(view),
+          ),
+        )
+        .orderBy(
+          getBusinessRoleSortExpression(),
+          asc(businesses.name),
+          asc(businesses.createdAt),
+        ),
+  );
 
   return memberships.map((membership) => ({
     membershipId: membership.membershipId,
@@ -221,36 +226,40 @@ async function getCachedBusinessContextForMembershipSlug(
     limit 1
   ), false)`;
 
-  const [context] = await db
-    .select({
-      membershipId: businessMembers.id,
-      role: businessMembers.role,
-      memberJoinedAt: businessMembers.createdAt,
-      businessId: businesses.id,
-      businessPlan: businesses.plan,
-      businessName: businesses.name,
-      businessSlug: businesses.slug,
-      businessType: businesses.businessType,
-      businessLogoStoragePath: businesses.logoStoragePath,
-      defaultCurrency: businesses.defaultCurrency,
-      businessTimezone: businesses.timezone,
-      publicInquiryEnabled: publicInquiryEnabledSelection,
-      recordState: getBusinessRecordState,
-      archivedAt: businesses.archivedAt,
-      lockedAt: businesses.lockedAt,
-      deletedAt: businesses.deletedAt,
-      ownerUserId: businesses.ownerUserId,
-    })
-    .from(businessMembers)
-    .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
-    .where(
-      and(
-        eq(businessMembers.userId, userId),
-        eq(businesses.slug, businessSlug),
-        includeInactive ? undefined : getBusinessViewCondition("active"),
-      ),
-    )
-    .limit(1);
+  const [context] = await withCircuitBreaker(
+    `shell:business-context:${userId}:${businessSlug}`,
+    () =>
+      db
+        .select({
+          membershipId: businessMembers.id,
+          role: businessMembers.role,
+          memberJoinedAt: businessMembers.createdAt,
+          businessId: businesses.id,
+          businessPlan: businesses.plan,
+          businessName: businesses.name,
+          businessSlug: businesses.slug,
+          businessType: businesses.businessType,
+          businessLogoStoragePath: businesses.logoStoragePath,
+          defaultCurrency: businesses.defaultCurrency,
+          businessTimezone: businesses.timezone,
+          publicInquiryEnabled: publicInquiryEnabledSelection,
+          recordState: getBusinessRecordState,
+          archivedAt: businesses.archivedAt,
+          lockedAt: businesses.lockedAt,
+          deletedAt: businesses.deletedAt,
+          ownerUserId: businesses.ownerUserId,
+        })
+        .from(businessMembers)
+        .innerJoin(businesses, eq(businessMembers.businessId, businesses.id))
+        .where(
+          and(
+            eq(businessMembers.userId, userId),
+            eq(businesses.slug, businessSlug),
+            includeInactive ? undefined : getBusinessViewCondition("active"),
+          ),
+        )
+        .limit(1),
+  );
 
   if (!context) {
     return null;

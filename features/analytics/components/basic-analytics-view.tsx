@@ -14,7 +14,7 @@ import {
 import { AnalyticsChartCard } from "@/features/analytics/components/analytics-chart-card";
 import { AnalyticsMetricCard } from "@/features/analytics/components/analytics-metric-card";
 import { AnalyticsSection } from "@/features/analytics/components/analytics-section";
-import { BasicTrendChart } from "@/features/analytics/components/basic-trend-chart";
+import { LazyBasicTrendChart } from "@/components/shared/lazy-recharts";
 import { DrillDownLink } from "@/features/analytics/components/drill-down-link";
 import { MiniSparkline } from "@/features/analytics/components/mini-sparkline";
 import type {
@@ -130,7 +130,7 @@ export function BasicAnalyticsView({
           description="Daily inquiries and quote activity."
         >
           {sparklines ? (
-            <BasicTrendChart since={since} until={until} sparklines={sparklines} />
+            <LazyBasicTrendChart since={since} until={until} sparklines={sparklines} />
           ) : (
             <div className="h-full min-h-[280px] w-full flex-1 rounded-xl bg-surface-muted" />
           )}

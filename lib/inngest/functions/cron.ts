@@ -71,6 +71,11 @@ export const invoiceOverdueCron = inngest.createFunction(
     step.run("process-overdue-invoices", async () => processOverdueInvoices()),
 );
 
+/**
+ * @deprecated Migrated to Vercel Cron at /api/cron/expire-quotes.
+ * Simple UPDATE query — no step functions, no retry logic, completes in <10s.
+ * Kept here for reference; removed from cronFunctions registration.
+ */
 export const expireQuotesCron = inngest.createFunction(
   {
     id: "cron-expire-quotes",
@@ -82,6 +87,11 @@ export const expireQuotesCron = inngest.createFunction(
     step.run("sync-expired-quotes", async () => syncExpiredQuotesGlobal()),
 );
 
+/**
+ * @deprecated Migrated to Vercel Cron at /api/cron/expire-subscriptions.
+ * Simple UPDATE query — no step functions, no retry logic, completes in <5s.
+ * Kept here for reference; removed from cronFunctions registration.
+ */
 export const expireSubscriptionsCron = inngest.createFunction(
   {
     id: "cron-expire-subscriptions",
@@ -145,6 +155,11 @@ export const analyticsBenchmarksCron = inngest.createFunction(
     step.run("compute-benchmarks", async () => computeAnalyticsBenchmarks()),
 );
 
+/**
+ * @deprecated Migrated to Vercel Cron at /api/cron/token-log-cleanup.
+ * Simple DELETE query — no step functions, no retry logic, completes in <10s.
+ * Kept here for reference; removed from cronFunctions registration.
+ */
 export const tokenLogCleanupCron = inngest.createFunction(
   {
     id: "cron-token-log-cleanup",
@@ -161,11 +176,11 @@ export const cronFunctions = [
   followUpRemindersCron,
   autoFollowUpsCron,
   invoiceOverdueCron,
-  expireQuotesCron,
-  expireSubscriptionsCron,
+  // expireQuotesCron — migrated to Vercel Cron (/api/cron/expire-quotes)
+  // expireSubscriptionsCron — migrated to Vercel Cron (/api/cron/expire-subscriptions)
   analyticsRollupCron,
   analyticsDigestCron,
   analyticsScheduledReportsCron,
   analyticsBenchmarksCron,
-  tokenLogCleanupCron,
+  // tokenLogCleanupCron — migrated to Vercel Cron (/api/cron/token-log-cleanup)
 ];

@@ -6,7 +6,10 @@ import {
   getPublicInquiryBusinessBySlug,
 } from "@/features/inquiries/queries";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
-import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
+import {
+  checkPublicActionRateLimit,
+  rateLimitHeaders,
+} from "@/lib/rate-limit/redis-rate-limiter";
 
 // ---------------------------------------------------------------------------
 // POST /api/public/inquiry-chat
@@ -51,15 +54,15 @@ export async function POST(request: Request) {
   }
 
   // Rate limit by business slug (acts as IP scope via the underlying limiter)
-  const allowed = await assertPublicActionRateLimit({
+  const rateLimitResult = await checkPublicActionRateLimit({
     ...RATE_LIMIT,
     scope: `inquiry-chat:${parsed.data.businessSlug}`,
   });
 
-  if (!allowed) {
+  if (!rateLimitResult.allowed) {
     return Response.json(
       { error: "Too many requests. Please wait a moment and try again." },
-      { status: 429 },
+      { status: 429, headers: rateLimitHeaders(rateLimitResult.metadata) },
     );
   }
 
@@ -117,6 +120,7 @@ export async function POST(request: Request) {
 
   return new Response(stream, {
     headers: {
+      ...rateLimitHeaders(rateLimitResult.metadata),
       "cache-control": "private, no-cache, no-transform",
       "content-type": "text/event-stream; charset=utf-8",
       "x-content-type-options": "nosniff",

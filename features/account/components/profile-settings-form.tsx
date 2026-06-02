@@ -1,6 +1,6 @@
 "use client";
 
-import Cropper, { type Area } from "react-easy-crop";
+import { type Area } from "react-easy-crop";
 import {
   useEffect,
   useRef,
@@ -8,6 +8,8 @@ import {
   type ChangeEvent,
 } from "react";
 import { Camera } from "lucide-react";
+
+import { LazyCropper } from "@/components/shared/lazy-image-tools";
 
 import {
   FloatingFormActions,
@@ -631,7 +633,7 @@ function ProfileAvatarField({
             <div className="flex flex-col gap-4">
               <div className="soft-panel relative min-h-[24rem] overflow-hidden bg-muted/25">
                 {draftAsset ? (
-                  <Cropper
+                  <LazyCropper
                     aspect={1}
                     crop={crop}
                     cropShape="round"

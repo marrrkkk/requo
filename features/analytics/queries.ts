@@ -46,6 +46,7 @@ import {
   getBusinessAnalyticsCacheTags,
   hotBusinessCacheLife,
 } from "@/lib/cache/business-tags";
+import { withCircuitBreaker } from "@/lib/db/circuit-breaker";
 import { db } from "@/lib/db/client";
 import {
   activityLogs,
@@ -196,10 +197,16 @@ export async function getFreeAnalytics(
 
   // For preset ranges, use cross-request caching. Custom ranges query directly.
   if (rangeSuffix) {
-    return getFreeAnalyticsCached(businessId, effectiveSince, effectiveUntil, rangeSuffix);
+    return withCircuitBreaker(
+      `dashboard:analytics-free:${businessId}:${rangeSuffix}`,
+      () => getFreeAnalyticsCached(businessId, effectiveSince, effectiveUntil, rangeSuffix),
+    );
   }
 
-  return getFreeAnalyticsUncached(businessId, effectiveSince, effectiveUntil);
+  return withCircuitBreaker(
+    `dashboard:analytics-free:${businessId}:custom`,
+    () => getFreeAnalyticsUncached(businessId, effectiveSince, effectiveUntil),
+  );
 }
 
 async function getFreeAnalyticsCached(
@@ -316,10 +323,16 @@ export async function getBasicSparklineData(
   const rangeSuffix = detectPresetRange(effectiveSince, effectiveUntil);
 
   if (rangeSuffix) {
-    return getBasicSparklineDataCached(businessId, effectiveSince, effectiveUntil, rangeSuffix);
+    return withCircuitBreaker(
+      `dashboard:sparkline:${businessId}:${rangeSuffix}`,
+      () => getBasicSparklineDataCached(businessId, effectiveSince, effectiveUntil, rangeSuffix),
+    );
   }
 
-  return getBasicSparklineDataUncached(businessId, effectiveSince, effectiveUntil);
+  return withCircuitBreaker(
+    `dashboard:sparkline:${businessId}:custom`,
+    () => getBasicSparklineDataUncached(businessId, effectiveSince, effectiveUntil),
+  );
 }
 
 async function getBasicSparklineDataCached(
@@ -391,10 +404,16 @@ export async function getProAnalytics(
   const rangeSuffix = detectPresetRange(effectiveSince, effectiveUntil);
 
   if (rangeSuffix) {
-    return getProAnalyticsCached(businessId, effectiveSince, effectiveUntil, rangeSuffix);
+    return withCircuitBreaker(
+      `dashboard:analytics-pro:${businessId}:${rangeSuffix}`,
+      () => getProAnalyticsCached(businessId, effectiveSince, effectiveUntil, rangeSuffix),
+    );
   }
 
-  return getProAnalyticsUncached(businessId, effectiveSince, effectiveUntil);
+  return withCircuitBreaker(
+    `dashboard:analytics-pro:${businessId}:custom`,
+    () => getProAnalyticsUncached(businessId, effectiveSince, effectiveUntil),
+  );
 }
 
 async function getProAnalyticsCached(
@@ -732,10 +751,16 @@ export async function getBusinessAnalytics(
   const rangeSuffix = detectPresetRange(effectiveSince, effectiveUntil);
 
   if (rangeSuffix) {
-    return getBusinessAnalyticsCached(businessId, effectiveSince, effectiveUntil, rangeSuffix);
+    return withCircuitBreaker(
+      `dashboard:analytics-business:${businessId}:${rangeSuffix}`,
+      () => getBusinessAnalyticsCached(businessId, effectiveSince, effectiveUntil, rangeSuffix),
+    );
   }
 
-  return getBusinessAnalyticsUncached(businessId, effectiveSince, effectiveUntil);
+  return withCircuitBreaker(
+    `dashboard:analytics-business:${businessId}:custom`,
+    () => getBusinessAnalyticsUncached(businessId, effectiveSince, effectiveUntil),
+  );
 }
 
 async function getBusinessAnalyticsCached(

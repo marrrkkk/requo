@@ -3,13 +3,12 @@ import "server-only";
 import { and, desc, eq } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
-import { inngest } from "@/lib/inngest/client";
-import { inngestEvents } from "@/lib/inngest/events";
+import { sendDebouncedAutomationDispatch } from "@/lib/inngest/batch";
 import {
   automationLogs,
   businessAutomations,
 } from "@/lib/db/schema/automations";
-import { assertBusinessActionRateLimit } from "@/lib/public-action-rate-limit";
+import { assertBusinessActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
 
 import type {
   ActionConfig,
@@ -47,14 +46,9 @@ async function queueAutomationDispatch<T extends TriggerType>(
   payload: TriggerPayload[T],
 ): Promise<void> {
   try {
-    await inngest.send({
-      name: inngestEvents.automationDispatch,
-      data: {
-        businessId,
-        triggerType,
-        payload,
-      },
-    });
+    await sendDebouncedAutomationDispatch(businessId, [
+      { businessId, triggerType, payload },
+    ]);
   } catch (error) {
     console.error(
       `[automations] Failed to queue dispatch for ${triggerType} (business: ${businessId}):`,

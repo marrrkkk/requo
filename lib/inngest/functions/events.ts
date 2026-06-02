@@ -12,7 +12,12 @@ import {
   type PushQuoteResponseEventData,
   type PushQuoteSentEventData,
 } from "@/lib/inngest/events";
-import { sendPushToBusinessSubscribers } from "@/lib/push/send";
+import {
+  sendPushToBusinessSubscribers,
+  sendPushToUserSubscriptionsForBusiness,
+} from "@/lib/push/send";
+
+type BatchedRecipient<T> = { userId: string; payload: T };
 
 export const automationDispatch = inngest.createFunction(
   {
@@ -26,14 +31,26 @@ export const automationDispatch = inngest.createFunction(
     },
   },
   async ({ event, step }) => {
-    const data = event.data as AutomationDispatchEventData;
+    const data = event.data as AutomationDispatchEventData | { businessId: string; triggers: AutomationDispatchEventData[] };
 
     await step.run("dispatch-automation-event", async () => {
-      await runAutomationDispatch(
-        data.businessId,
-        data.triggerType,
-        data.payload as TriggerPayload[TriggerType],
-      );
+      // Support both batched (triggers array) and legacy (single trigger) formats
+      if ("triggers" in data && Array.isArray(data.triggers)) {
+        for (const trigger of data.triggers) {
+          await runAutomationDispatch(
+            trigger.businessId,
+            trigger.triggerType,
+            trigger.payload as TriggerPayload[TriggerType],
+          );
+        }
+      } else {
+        const singleData = data as AutomationDispatchEventData;
+        await runAutomationDispatch(
+          singleData.businessId,
+          singleData.triggerType,
+          singleData.payload as TriggerPayload[TriggerType],
+        );
+      }
     });
 
     return { ok: true };
@@ -48,9 +65,36 @@ export const pushInquiryReceived = inngest.createFunction(
     retries: 2,
   },
   async ({ event, step }) => {
-    const data = event.data as PushInquiryReceivedEventData;
+    const eventData = event.data as
+      | PushInquiryReceivedEventData
+      | { recipients: BatchedRecipient<PushInquiryReceivedEventData>[] };
 
     await step.run("send-push-notification", async () => {
+      // Support batched recipients format from sendBatchedNotification
+      if ("recipients" in eventData && Array.isArray(eventData.recipients)) {
+        for (const recipient of eventData.recipients) {
+          const data = recipient.payload;
+
+          const businessSettings = await getBusinessMessagingSettings(data.businessId);
+          if (!businessSettings?.notifyPushOnNewInquiry) {
+            return { skipped: true };
+          }
+
+          await sendPushToUserSubscriptionsForBusiness(
+            data.businessId,
+            recipient.userId,
+            {
+              title: "New inquiry received",
+              body: `${data.customerName} submitted an inquiry.`,
+              url: getBusinessInquiryPath(data.businessSlug, data.inquiryId),
+            },
+          );
+        }
+        return { sent: true };
+      }
+
+      // Legacy: single event with full data
+      const data = eventData as PushInquiryReceivedEventData;
       const businessSettings = await getBusinessMessagingSettings(data.businessId);
 
       if (!businessSettings?.notifyPushOnNewInquiry) {
@@ -78,9 +122,30 @@ export const pushQuoteSent = inngest.createFunction(
     retries: 2,
   },
   async ({ event, step }) => {
-    const data = event.data as PushQuoteSentEventData;
+    const eventData = event.data as
+      | PushQuoteSentEventData
+      | { recipients: BatchedRecipient<PushQuoteSentEventData>[] };
 
     await step.run("send-push-notification", async () => {
+      // Support batched recipients format from sendBatchedNotification
+      if ("recipients" in eventData && Array.isArray(eventData.recipients)) {
+        for (const recipient of eventData.recipients) {
+          const data = recipient.payload;
+          await sendPushToUserSubscriptionsForBusiness(
+            data.businessId,
+            recipient.userId,
+            {
+              title: "Quote sent",
+              body: `Quote ${data.quoteNumber} sent to ${data.customerName}.`,
+              url: getBusinessQuotePath(data.businessSlug, data.quoteId),
+            },
+          );
+        }
+        return { sent: true };
+      }
+
+      // Legacy: single event with full data
+      const data = eventData as PushQuoteSentEventData;
       await sendPushToBusinessSubscribers(data.businessId, {
         title: "Quote sent",
         body: `Quote ${data.quoteNumber} sent to ${data.customerName}.`,
@@ -102,9 +167,30 @@ export const pushQuoteResponse = inngest.createFunction(
     retries: 2,
   },
   async ({ event, step }) => {
-    const data = event.data as PushQuoteResponseEventData;
+    const eventData = event.data as
+      | PushQuoteResponseEventData
+      | { recipients: BatchedRecipient<PushQuoteResponseEventData>[] };
 
     await step.run("send-push-notification", async () => {
+      // Support batched recipients format from sendBatchedNotification
+      if ("recipients" in eventData && Array.isArray(eventData.recipients)) {
+        for (const recipient of eventData.recipients) {
+          const data = recipient.payload;
+          await sendPushToUserSubscriptionsForBusiness(
+            data.businessId,
+            recipient.userId,
+            {
+              title: `Quote ${data.responseLabel}`,
+              body: `${data.customerName} ${data.responseLabel} quote ${data.quoteNumber}.`,
+              url: getBusinessQuotePath(data.businessSlug, data.quoteId),
+            },
+          );
+        }
+        return { sent: true };
+      }
+
+      // Legacy: single event with full data
+      const data = eventData as PushQuoteResponseEventData;
       await sendPushToBusinessSubscribers(data.businessId, {
         title: `Quote ${data.responseLabel}`,
         body: `${data.customerName} ${data.responseLabel} quote ${data.quoteNumber}.`,

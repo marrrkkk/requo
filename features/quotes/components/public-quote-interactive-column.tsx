@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Edit, Mail } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -44,6 +45,7 @@ export function PublicQuoteInteractiveColumn({
   respondAction,
   revisionAction,
 }: PublicQuoteInteractiveColumnProps) {
+  const router = useRouter();
   const [resolved, setResolved] = useState<PublicQuoteResolvedSnapshot | null>(
     null,
   );
@@ -108,7 +110,18 @@ export function PublicQuoteInteractiveColumn({
   const handleRevisionSuccess = useCallback(() => {
     setRevisionDialogOpen(false);
     setRevisionSubmitted(true);
-  }, []);
+    // Refetch server data to reflect the updated quote state
+    router.refresh();
+  }, [router]);
+
+  const handleResolved = useCallback(
+    (snapshot: PublicQuoteResolvedSnapshot) => {
+      setResolved(snapshot);
+      // Refetch server data within 2s to reflect the state change at the edge
+      router.refresh();
+    },
+    [router],
+  );
 
   return (
     <div className="flex flex-col gap-5">
@@ -126,7 +139,7 @@ export function PublicQuoteInteractiveColumn({
             </p>
             <PublicQuoteResponseForm
               action={respondAction}
-              onResolved={setResolved}
+              onResolved={handleResolved}
             />
 
             {revisionAction ? (

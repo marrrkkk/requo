@@ -44,7 +44,7 @@ function truncateMetaDescription(text: string, maxLen: number) {
 
 export function getPublicInquiryPageTitle(business: PublicInquiryBusiness) {
 
-  return `${business.form.name} · ${business.name}`;
+  return `${business.form.name} - ${business.name}`;
 
 }
 
