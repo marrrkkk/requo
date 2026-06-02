@@ -1,66 +1,90 @@
 import type { ReactNode } from "react";
 import { Suspense } from "react";
-
 import {
-  DashboardSection,
-  DashboardStatsGrid,
-} from "@/components/shared/dashboard-layout";
-import { InfoTile } from "@/components/shared/info-tile";
+  Briefcase,
+  CreditCard,
+  LineChart,
+  Send,
+  UserPlus,
+  Users,
+} from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AdminDashboardQuickLinks } from "@/features/admin/components/admin-dashboard-quick-links";
+import { AdminDashboardStatCard } from "@/features/admin/components/admin-dashboard-stat-card";
 import { AdminDashboardTileBoundary } from "@/features/admin/components/admin-dashboard-tile-boundary";
+import { AdminSystemHealthBanner } from "@/features/admin/components/admin-system-health-summary";
+import {
+  ADMIN_BUSINESSES_PATH,
+  ADMIN_SUBSCRIPTIONS_PATH,
+  ADMIN_USERS_PATH,
+} from "@/features/admin/navigation";
 import { getAdminDashboardCounts } from "@/features/admin/queries";
 import type { AdminDashboardCounts } from "@/features/admin/types";
 import { planMeta, type BusinessPlan, isBusinessPlan } from "@/lib/plans/plans";
 
 /**
- * Landing operations dashboard.
+ * Admin landing dashboard.
  *
- * Renders six tiles backed by {@link getAdminDashboardCounts}:
- *
- *   1. Total users
- *   2. Total businesses
- *   3. Active subscriptions grouped by plan
- *   4. Sign-ups in the last 7 days
- *   5. Inquiries in the last 7 days
- *   6. Quotes sent in the last 7 days
- *
- * Each tile lives in its own `<Suspense>` boundary with a dedicated
- * error boundary (`AdminDashboardTileBoundary`) so one slow or failing
- * count does not block or blank out the others (Req 2.1, 2.4). The
- * underlying query is cached + `React.cache`-deduped, so rendering
- * six tiles only fires one DB round-trip per render.
+ * Visual hierarchy (top to bottom):
+ * 1. System health banner — prominent, colored accent, immediate status
+ * 2. Platform KPIs — 4-up grid of elevated stat cards
+ * 3. Weekly activity — 2-up grid showing recent throughput
+ * 4. Quick access — subtle action links to admin workflows
  */
 export function AdminDashboard() {
   const countsPromise = getAdminDashboardCounts();
 
   return (
-    <DashboardSection
-      description="Live platform counts. Cached for up to 60 seconds."
-      title="Operations overview"
-    >
-      <DashboardStatsGrid className="xl:grid-cols-3">
-        <DashboardTile label="Total users">
-          <TotalUsersTile countsPromise={countsPromise} />
-        </DashboardTile>
-        <DashboardTile label="Total businesses">
-          <TotalBusinessesTile countsPromise={countsPromise} />
-        </DashboardTile>
-        <DashboardTile label="Active plans">
-          <ActiveSubscriptionsTile countsPromise={countsPromise} />
-        </DashboardTile>
-        <DashboardTile label="Sign-ups (last 7 days)">
-          <SignUpsTile countsPromise={countsPromise} />
-        </DashboardTile>
-        <DashboardTile label="Inquiries (last 7 days)">
-          <InquiriesTile countsPromise={countsPromise} />
-        </DashboardTile>
-        <DashboardTile label="Quotes sent (last 7 days)">
-          <QuotesSentTile countsPromise={countsPromise} />
-        </DashboardTile>
-      </DashboardStatsGrid>
-    </DashboardSection>
+    <div className="flex flex-col gap-8">
+      {/* 1. System health — most prominent element */}
+      <Suspense fallback={<HealthBannerSkeleton />}>
+        <AdminSystemHealthBanner />
+      </Suspense>
+
+      {/* 2. Platform KPIs */}
+      <section className="flex flex-col gap-4">
+        <h2 className="meta-label">Platform</h2>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <DashboardTile label="Total users">
+            <TotalUsersTile countsPromise={countsPromise} />
+          </DashboardTile>
+          <DashboardTile label="Businesses">
+            <BusinessesTile countsPromise={countsPromise} />
+          </DashboardTile>
+          <DashboardTile label="Subscriptions">
+            <ActiveSubscriptionsTile countsPromise={countsPromise} />
+          </DashboardTile>
+          <DashboardTile label="Sign-ups (7d)">
+            <SignUpsTile countsPromise={countsPromise} />
+          </DashboardTile>
+        </div>
+      </section>
+
+      {/* 3. Weekly activity */}
+      <section className="flex flex-col gap-4">
+        <h2 className="meta-label">Activity (last 7 days)</h2>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <DashboardTile label="Inquiries">
+            <InquiriesTile countsPromise={countsPromise} />
+          </DashboardTile>
+          <DashboardTile label="Quotes sent">
+            <QuotesSentTile countsPromise={countsPromise} />
+          </DashboardTile>
+        </div>
+      </section>
+
+      {/* 4. Quick access */}
+      <section className="flex flex-col gap-4">
+        <h2 className="meta-label">Quick access</h2>
+        <AdminDashboardQuickLinks />
+      </section>
+    </div>
   );
 }
+
+/* ─── Tiles ─────────────────────────────────────────────────────────── */
 
 type DashboardTileProps = {
   label: string;
@@ -70,24 +94,10 @@ type DashboardTileProps = {
 function DashboardTile({ label, children }: DashboardTileProps) {
   return (
     <AdminDashboardTileBoundary label={label}>
-      <Suspense fallback={<AdminDashboardTileSkeleton label={label} />}>
-        {children}
-      </Suspense>
+      <Suspense fallback={<StatCardSkeleton />}>{children}</Suspense>
     </AdminDashboardTileBoundary>
   );
 }
-
-function AdminDashboardTileSkeleton({ label }: { label: string }) {
-  return (
-    <div aria-busy className="info-tile flex flex-col gap-3">
-      <div className="meta-label">{label}</div>
-      <Skeleton className="h-8 w-20 rounded-md" />
-      <Skeleton className="h-3 w-24 rounded-md" />
-    </div>
-  );
-}
-
-/* ── Tile implementations ────────────────────────────────────────────── */
 
 type TileProps = {
   countsPromise: Promise<AdminDashboardCounts>;
@@ -97,37 +107,55 @@ async function TotalUsersTile({ countsPromise }: TileProps) {
   const counts = await countsPromise;
 
   return (
-    <InfoTile
-      description="All accounts on the platform."
+    <AdminDashboardStatCard
+      href={ADMIN_USERS_PATH}
+      icon={Users}
       label="Total users"
       value={formatCount(counts.totalUsers)}
+      description={`${formatCount(counts.totalBusinesses)} businesses`}
+      emphasize={counts.totalUsers > 0}
     />
   );
 }
 
-async function TotalBusinessesTile({ countsPromise }: TileProps) {
+async function BusinessesTile({ countsPromise }: TileProps) {
   const counts = await countsPromise;
 
   return (
-    <InfoTile
-      description="Non-deleted businesses across all owners."
-      label="Total businesses"
+    <AdminDashboardStatCard
+      href={ADMIN_BUSINESSES_PATH}
+      icon={Briefcase}
+      label="Businesses"
       value={formatCount(counts.totalBusinesses)}
+      description="Active workspaces"
     />
   );
 }
 
 async function ActiveSubscriptionsTile({ countsPromise }: TileProps) {
   const counts = await countsPromise;
-  const breakdown = formatPlanBreakdown(counts.activeSubscriptionsByPlan);
+  const breakdown = getPlanBreakdownEntries(counts.activeSubscriptionsByPlan);
 
   return (
-    <InfoTile
-      description={
-        breakdown ? breakdown : "No active subscriptions right now."
-      }
-      label="Active plans"
+    <AdminDashboardStatCard
+      href={ADMIN_SUBSCRIPTIONS_PATH}
+      icon={CreditCard}
+      label="Active subscriptions"
       value={formatCount(counts.totalActiveSubscriptions)}
+      emphasize={counts.totalActiveSubscriptions > 0}
+      description={breakdown.length === 0 ? "No active paid plans" : "By tier"}
+      footer={
+        breakdown.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {breakdown.map(([plan, count]) => (
+              <Badge key={plan} variant="secondary">
+                {isBusinessPlan(plan) ? planMeta[plan].label : plan}{" "}
+                {formatCount(count)}
+              </Badge>
+            ))}
+          </div>
+        ) : null
+      }
     />
   );
 }
@@ -136,10 +164,13 @@ async function SignUpsTile({ countsPromise }: TileProps) {
   const counts = await countsPromise;
 
   return (
-    <InfoTile
-      description="New user accounts this week."
-      label="Sign-ups (last 7 days)"
+    <AdminDashboardStatCard
+      href={ADMIN_USERS_PATH}
+      icon={UserPlus}
+      label="Sign-ups (7d)"
       value={formatCount(counts.signUpsLast7d)}
+      emphasize={counts.signUpsLast7d > 0}
+      description="New accounts this week"
     />
   );
 }
@@ -148,10 +179,13 @@ async function InquiriesTile({ countsPromise }: TileProps) {
   const counts = await countsPromise;
 
   return (
-    <InfoTile
-      description="Inquiries submitted across every business."
-      label="Inquiries (last 7 days)"
+    <AdminDashboardStatCard
+      href={ADMIN_BUSINESSES_PATH}
+      icon={LineChart}
+      label="Inquiries received"
       value={formatCount(counts.inquiriesLast7d)}
+      emphasize={counts.inquiriesLast7d > 0}
+      description="Customer requests this week"
     />
   );
 }
@@ -160,15 +194,57 @@ async function QuotesSentTile({ countsPromise }: TileProps) {
   const counts = await countsPromise;
 
   return (
-    <InfoTile
-      description="Quotes marked as sent across every business."
-      label="Quotes sent (last 7 days)"
+    <AdminDashboardStatCard
+      href={ADMIN_BUSINESSES_PATH}
+      icon={Send}
+      label="Quotes sent"
       value={formatCount(counts.quotesSentLast7d)}
+      emphasize={counts.quotesSentLast7d > 0}
+      description="Proposals delivered this week"
     />
   );
 }
 
-/* ── Formatting helpers ──────────────────────────────────────────────── */
+/* ─── Skeletons ─────────────────────────────────────────────────────── */
+
+function StatCardSkeleton() {
+  return (
+    <div aria-busy className="section-panel flex flex-col gap-4 px-5 py-5">
+      <div className="flex items-center gap-3">
+        <Skeleton className="size-9 rounded-lg" />
+        <Skeleton className="h-4 w-24 rounded" />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-8 w-16 rounded" />
+        <Skeleton className="h-4 w-32 rounded" />
+      </div>
+    </div>
+  );
+}
+
+function HealthBannerSkeleton() {
+  return (
+    <div
+      aria-busy
+      className="section-panel border-l-4 border-l-border px-5 py-5 sm:px-6 sm:py-6"
+    >
+      <div className="flex items-center gap-4">
+        <Skeleton className="size-11 shrink-0 rounded-xl" />
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-5 w-48 rounded" />
+          <Skeleton className="h-4 w-64 rounded" />
+        </div>
+      </div>
+      <div className="mt-5 flex flex-wrap gap-2">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <Skeleton className="h-7 w-16 rounded-md" key={i} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Helpers ───────────────────────────────────────────────────────── */
 
 const countFormatter = new Intl.NumberFormat("en-US");
 
@@ -176,37 +252,28 @@ function formatCount(value: number): string {
   return countFormatter.format(value);
 }
 
-/**
- * Render the active-subscription breakdown as a compact string like
- * "Pro 12 · Business 3". Only plans with a non-zero active count are
- * included, and plans are ordered using {@link planMeta} for stability.
- * Unknown plan keys (future-proofing) fall back to their raw identifier.
- */
-function formatPlanBreakdown(
+function getPlanBreakdownEntries(
   activeByPlan: AdminDashboardCounts["activeSubscriptionsByPlan"],
-): string {
-  const entries = Object.entries(activeByPlan).filter(
-    ([, count]) => count > 0,
-  );
+): Array<[string, number]> {
+  const entries = Object.entries(activeByPlan).filter(([, count]) => count > 0);
 
   if (entries.length === 0) {
-    return "";
+    return [];
   }
 
   const planOrder = Object.keys(planMeta) as BusinessPlan[];
 
   entries.sort(([a], [b]) => {
-    const aIndex = isBusinessPlan(a) ? planOrder.indexOf(a) : Number.MAX_SAFE_INTEGER;
-    const bIndex = isBusinessPlan(b) ? planOrder.indexOf(b) : Number.MAX_SAFE_INTEGER;
+    const aIndex = isBusinessPlan(a)
+      ? planOrder.indexOf(a)
+      : Number.MAX_SAFE_INTEGER;
+    const bIndex = isBusinessPlan(b)
+      ? planOrder.indexOf(b)
+      : Number.MAX_SAFE_INTEGER;
 
     if (aIndex !== bIndex) return aIndex - bIndex;
     return a.localeCompare(b);
   });
 
-  return entries
-    .map(([plan, count]) => {
-      const label = isBusinessPlan(plan) ? planMeta[plan].label : plan;
-      return `${label} ${formatCount(count)}`;
-    })
-    .join(" · ");
+  return entries;
 }

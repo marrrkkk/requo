@@ -1,12 +1,17 @@
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+
 import {
   DashboardDetailFeed,
   DashboardDetailFeedItem,
+  DashboardDetailHeader,
   DashboardDetailLayout,
   DashboardEmptyState,
   DashboardSection,
   DashboardSidebarStack,
   DashboardTableContainer,
 } from "@/components/shared/dashboard-layout";
+import { ADMIN_SUBSCRIPTIONS_PATH } from "@/features/admin/navigation";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -124,9 +129,23 @@ export function AdminSubscriptionDetail({
 }: AdminSubscriptionDetailProps) {
   return (
     <DashboardDetailLayout>
+      <DashboardDetailHeader
+        description={subscription.ownerEmail}
+        eyebrow={
+          <Link
+            className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary"
+            href={ADMIN_SUBSCRIPTIONS_PATH}
+            prefetch={true}
+          >
+            <ArrowLeft className="size-3.5" />
+            All subscriptions
+          </Link>
+        }
+        title={`${subscription.plan} subscription`}
+      />
       <div className="min-w-0 flex flex-col gap-6">
         <DashboardSection
-          description="Authoritative subscription state from `account_subscriptions`."
+          description="Authoritative subscription state from account_subscriptions."
           title="Subscription details"
         >
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">

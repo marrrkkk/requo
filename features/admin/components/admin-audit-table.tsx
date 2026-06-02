@@ -14,7 +14,6 @@ import {
 import {
   DashboardActionsRow,
   DashboardEmptyState,
-  DashboardSection,
   DashboardTableContainer,
   DashboardToolbar,
 } from "@/components/shared/dashboard-layout";
@@ -95,6 +94,7 @@ const actionLabels: Record<AdminAction, string> = {
   "view.subscriptions": "Viewed subscriptions",
   "view.subscription": "Viewed subscription",
   "view.audit-logs": "Viewed audit logs",
+  "view.system": "Viewed system",
   "user.force_verify_email": "Force-verified email",
   "user.revoke_all_sessions": "Revoked all sessions",
   "user.suspend": "Suspended user",
@@ -437,11 +437,7 @@ export function AdminAuditTable({
   };
 
   return (
-    <DashboardSection
-      description="Newest entries first. Filter by admin, action, target type, or target id to narrow the feed."
-      title="Audit log"
-    >
-      <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6">
         <DashboardToolbar>
         <div className="flex flex-col gap-4">
           <div className="data-list-toolbar-summary">
@@ -551,8 +547,7 @@ export function AdminAuditTable({
         totalItems={totalItems}
         totalPages={totalPages}
       />
-      </div>
-    </DashboardSection>
+    </div>
   );
 }
 

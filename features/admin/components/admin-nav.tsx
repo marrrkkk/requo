@@ -17,14 +17,9 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * Left-rail/top-tabs navigation for `/admin`. Items are sourced from
+ * Left-rail navigation for `/admin`. Items are sourced from
  * `features/admin/navigation.ts` so the nav, breadcrumbs, and route
  * helpers stay in sync.
- *
- * Mirrors the convention in `components/shell/dashboard-navigation.tsx`:
- * a client component that reads `usePathname`, applies the active state
- * via `isAdminNavigationItemActive`, and wraps each item in a
- * `SidebarMenuButton` rendered `asChild` over a prefetched `<Link>`.
  */
 export function AdminNav() {
   const pathname = usePathname();
