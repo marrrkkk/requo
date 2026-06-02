@@ -26,6 +26,7 @@ export interface CacheLayer {
   set<T>(key: string, value: T, ttlSeconds: number): Promise<void>;
   delete(key: string): Promise<void>;
   increment(key: string, ttlSeconds: number): Promise<number>;
+  incrementBy(key: string, amount: number, ttlSeconds: number): Promise<number>;
 }
 
 // ---------------------------------------------------------------------------
@@ -248,6 +249,44 @@ class DistributedCacheLayer implements CacheLayer {
     // In-memory fallback for increment
     const current = getFromMemory<number>(key);
     const newValue = (current ?? 0) + 1;
+    setInMemory(key, newValue, ttlSeconds);
+    return newValue;
+  }
+  /**
+   * Increments a numeric key by a specified amount. Redis-first with in-memory fallback.
+   * Sets TTL on first increment (when key didn't exist before, i.e., result equals amount).
+   */
+  async incrementBy(key: string, amount: number, ttlSeconds: number): Promise<number> {
+    const redis = getRedis();
+
+    if (redis) {
+      try {
+        const result = await withTimeout(
+          (async () => {
+            const newValue = await redis.incrby(key, amount);
+            // Set TTL only on first increment (value equals the amount we just added)
+            if (newValue === amount) {
+              await redis.expire(key, ttlSeconds);
+            }
+            return newValue;
+          })(),
+          OPERATION_TIMEOUT_MS,
+        );
+
+        // Sync to in-memory
+        setInMemory(key, result, ttlSeconds);
+        return result;
+      } catch (error) {
+        console.warn(
+          "[cache-layer] Redis INCRBY failed, falling back to in-memory:",
+          error instanceof Error ? error.message : error,
+        );
+      }
+    }
+
+    // In-memory fallback for incrementBy
+    const current = getFromMemory<number>(key);
+    const newValue = (current ?? 0) + amount;
     setInMemory(key, newValue, ttlSeconds);
     return newValue;
   }

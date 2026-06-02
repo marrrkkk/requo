@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState, useEffect } from "react";
+import { useCallback, useRef, useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,8 @@ import {
   PromptInputAction,
 } from "@/components/prompt-kit/prompt-input";
 import { usePendingMessage } from "@/features/ai/chat-ui/pending-message-context";
-import { getBusinessChatNewPath } from "@/features/businesses/routes";
+import { getBusinessChatConversationPath } from "@/features/businesses/routes";
+import { startNewChat } from "@/features/ai/actions/start-new-chat";
 import { getPanelPlaceholder } from "@/features/ai/components/ai-chat-helpers";
 import { cn } from "@/lib/utils";
 
@@ -29,11 +30,13 @@ export type DashboardChatInputProps = {
 
 export function DashboardChatInput({
   businessSlug,
+  userId,
+  businessId,
   suggestions,
 }: DashboardChatInputProps) {
   const [inputValue, setInputValue] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isNavigating, setIsNavigating] = useState(false);
+  const [isNavigating, startNavTransition] = useTransition();
   const router = useRouter();
   const { setPendingMessage } = usePendingMessage();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -61,15 +64,27 @@ export function DashboardChatInput({
     (text: string) => {
       if (!text.trim() || isNavigating) return;
 
-      // Set the pending message and navigate to chat/new immediately.
-      // The chat new page will pick it up, create the conversation, and redirect.
-      setIsNavigating(true);
-      setPendingMessage(text.trim());
-      setInputValue("");
-      setIsExpanded(false);
-      router.push(getBusinessChatNewPath(businessSlug));
+      const trimmed = text.trim();
+      // Don't clear input — keep it visible while loading.
+      // It resets naturally when the page navigates away.
+
+      startNavTransition(async () => {
+        const result = await startNewChat({
+          userId,
+          businessId,
+          businessSlug,
+          message: trimmed,
+        });
+
+        if (result.conversationId) {
+          setPendingMessage(trimmed);
+          router.push(
+            getBusinessChatConversationPath(businessSlug, result.conversationId),
+          );
+        }
+      });
     },
-    [isNavigating, setPendingMessage, businessSlug, router],
+    [isNavigating, userId, businessId, businessSlug, setPendingMessage, router],
   );
 
   const handleSubmit = useCallback(() => {
@@ -115,14 +130,17 @@ export function DashboardChatInput({
         )}
       >
         {isExpanded ? (
-          /* Expanded: full original PromptInput, same as main chat page */
           <PromptInput
             value={inputValue}
-            onValueChange={setInputValue}
+            onValueChange={isNavigating ? undefined : setInputValue}
             onSubmit={handleSubmit}
             isLoading={isNavigating}
-            disabled={isNavigating}
-            className="rounded-2xl border border-primary/50 bg-card shadow-xl ring-2 ring-primary/10"
+            className={cn(
+              "rounded-2xl border bg-card shadow-xl transition-all duration-300",
+              isNavigating
+                ? "border-primary/60 ring-2 ring-primary/20"
+                : "border-primary/50 ring-2 ring-primary/10",
+            )}
           >
             <PromptInputTextarea
               placeholder={getPanelPlaceholder("dashboard")}

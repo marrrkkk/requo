@@ -204,6 +204,8 @@ export function ChatPageView({
   useEffect(() => {
     if (hideHeader) return;
     const scrollParent = document.querySelector<HTMLElement>(
+      '[data-slot="dashboard-scroll-area"]',
+    ) ?? document.querySelector<HTMLElement>(
       '[data-slot="sidebar-inset"]',
     );
     if (!scrollParent) return;
@@ -245,19 +247,13 @@ export function ChatPageView({
 
   const isStreaming = status === "streaming" || status === "submitted";
 
-  // Handle the dashboard "Ask AI" → new conversation handoff.
+  // Auto-trigger AI response for new conversations.
   //
-  // `startNewChat` already persisted the user message in the DB before
-  // navigating here, so the seeded history ends with that user message.
-  // Trigger an assistant reply by regenerating from it (which sends
-  // `replyToExisting: true`) instead of calling `sendMessage` with the same
-  // text — that would create a duplicate user row server-side.
+  // When the user creates a new chat, startNewChat persists the user message,
+  // then navigates here. The seeded history ends with that user message.
+  // We call regenerate (replyToExisting) to trigger the AI response.
   //
-  // If the seeded history already ends with an assistant message (even an
-  // empty `generating` one), the AI was already triggered — do nothing.
-  //
-  // On a plain refresh of an existing conversation, no pending message is
-  // set, so we just render the history without auto-triggering anything.
+  // On a plain refresh with no pending message, just show history as-is.
   useEffect(() => {
     if (hasHandledInitialTurn.current) return;
     if (isStreaming) return;
@@ -272,16 +268,13 @@ export function ChatPageView({
     hasHandledInitialTurn.current = true;
 
     if (lastMessage?.role === "user") {
-      // The user message is persisted but no assistant reply yet.
-      // Trigger the AI response via regenerate (replyToExisting avoids
-      // creating a duplicate user message server-side).
-      void regenerate({
+      regenerate({
         messageId: lastMessage.id,
         body: { replyToExisting: true },
+      }).catch((err) => {
+        console.error("[chat-page-view] regenerate failed:", err);
       });
     }
-    // If lastMessage is assistant (generating/completed), the AI was already
-    // triggered or completed. Nothing to do — just show whatever we have.
   }, [consumePendingMessage, isStreaming, regenerate, seededMessages]);
 
   // Convert UIMessage[] to display format
@@ -330,7 +323,7 @@ export function ChatPageView({
           isStreaming &&
           m === messages[messages.length - 1],
         isError: failedIds.has(m.id),
-        shouldAnimate: justCompleted,
+        shouldAnimate: false,
         steps,
         structuredData: m.role === "assistant"
           ? (() => {
@@ -492,8 +485,10 @@ export function ChatPageView({
               placeholder={getPanelPlaceholder(surface)}
               className="text-sm"
             />
-            <PromptInputActions className="justify-between pt-1">
-              <DevModelSelector value={devModel} onChange={setDevModel} />
+            <PromptInputActions className="justify-end pt-1">
+              <div className="mr-auto">
+                <DevModelSelector value={devModel} onChange={setDevModel} />
+              </div>
               <PromptInputAction tooltip="Send message">
                 <Button
                   variant="default"

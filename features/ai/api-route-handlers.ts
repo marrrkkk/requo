@@ -59,7 +59,7 @@ import {
 import type { AiModelSelection } from "@/lib/ai/model-options";
 import { getCurrentUser } from "@/lib/auth/session";
 import { hasFeatureAccess } from "@/lib/plans";
-import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
+import { checkPublicActionRateLimit, rateLimitHeaders } from "@/lib/rate-limit/redis-rate-limiter";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { aiMessages as aiMessagesTable } from "@/lib/db/schema";
@@ -429,14 +429,14 @@ export async function createAiChatRouteResponse(request: Request) {
       ? access.businessContext.business.id
       : authorization.businessId ?? access.businessContext.business.id;
 
-  const isAllowed = await assertPublicActionRateLimit({
+  const rateLimitResult = await checkPublicActionRateLimit({
     action: "ai-chat",
     limit: 20,
     scope: `${access.entityId}:${user.id}`,
     windowMs: 60_000,
   });
 
-  if (!isAllowed) {
+  if (!rateLimitResult.allowed) {
     const errorText = "Too many AI requests. Wait a minute and try again.";
     await createAiAssistantMessage({
       conversationId: authorizedConversation.id,
@@ -446,7 +446,7 @@ export async function createAiChatRouteResponse(request: Request) {
     });
     return Response.json(
       { error: errorText },
-      { status: 429 },
+      { status: 429, headers: rateLimitHeaders(rateLimitResult.metadata) },
     );
   }
 
@@ -778,6 +778,7 @@ export async function createAiChatRouteResponse(request: Request) {
       // cannot trigger model fallback, but we can at least show a friendly
       // message instead of the raw provider string.
       return result.toUIMessageStreamResponse({
+        headers: rateLimitHeaders(rateLimitResult.metadata),
         onError: (error) => {
           const msg = error instanceof Error ? error.message : String(error);
           const isTransient =

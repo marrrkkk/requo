@@ -77,6 +77,27 @@ export type UsageLimitResult =
   | { allowed: false; reason: "quota_exceeded" | "cooldown"; message: string };
 
 // ---------------------------------------------------------------------------
+// Cache key helpers
+// ---------------------------------------------------------------------------
+
+const USAGE_CACHE_TTL_SECONDS = 60;
+
+function getCurrentMonthKey(): string {
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+export function getUserUsageCacheKey(userId: string): string {
+  return `ai_usage:user:${userId}:${getCurrentMonthKey()}`;
+}
+
+export function getBusinessUsageCacheKey(businessId: string): string {
+  return `ai_usage:business:${businessId}:${getCurrentMonthKey()}`;
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -93,6 +114,11 @@ function getStartOfCurrentMonthUTC(): Date {
  * Checks whether an AI request is allowed based on:
  * 1. Cooldown (3-second minimum between same user + task type)
  * 2. Monthly weighted usage quota (user-level and business-level)
+ *
+ * Uses a cache-first strategy:
+ * - Reads cached usage counts from Cache_Layer (Redis + in-memory)
+ * - On cache miss: falls through to DB SUM aggregate and caches the result
+ * - On complete cache unavailability: falls through to DB aggregate
  *
  * Returns `{ allowed: true }` or `{ allowed: false, reason, message }`.
  */
@@ -119,11 +145,60 @@ export async function checkUsageLimit(
     }
   }
 
-  // --- Quota check (single batched DB query) ---
-  const monthStart = getStartOfCurrentMonthUTC();
+  // --- Quota check (cache-first with DB fallback) ---
   const limit = PLAN_LIMITS[plan];
 
-  // Retrieve both user-level and business-level monthly usage in one query
+  const { userUsage, businessUsage } = await getCachedOrDbUsage(
+    userId,
+    businessId,
+  );
+
+  if (userUsage >= limit || businessUsage >= limit) {
+    return buildQuotaExceededResult(plan);
+  }
+
+  return { allowed: true };
+}
+
+/**
+ * Retrieves user-level and business-level monthly usage, using cache-first
+ * strategy with DB fallback.
+ *
+ * On cache hit: returns cached values immediately.
+ * On cache miss: executes DB SUM aggregate and stores results with 60s TTL.
+ * On complete cache unavailability: falls through to DB aggregate directly.
+ */
+async function getCachedOrDbUsage(
+  userId: string,
+  businessId: string,
+): Promise<{ userUsage: number; businessUsage: number }> {
+  const userCacheKey = getUserUsageCacheKey(userId);
+  const businessCacheKey = getBusinessUsageCacheKey(businessId);
+
+  // Try cache-first reads for both keys
+  let cachedUserUsage: number | null = null;
+  let cachedBusinessUsage: number | null = null;
+
+  try {
+    [cachedUserUsage, cachedBusinessUsage] = await Promise.all([
+      cacheLayer.get<number>(userCacheKey),
+      cacheLayer.get<number>(businessCacheKey),
+    ]);
+  } catch {
+    // Complete cache unavailability — fall through to DB
+    console.warn(
+      "[usage-limiter] Cache read failed entirely, falling through to DB aggregate",
+    );
+  }
+
+  // If both cache hits, return cached values
+  if (cachedUserUsage !== null && cachedBusinessUsage !== null) {
+    return { userUsage: cachedUserUsage, businessUsage: cachedBusinessUsage };
+  }
+
+  // At least one cache miss — query DB for the missing values
+  const monthStart = getStartOfCurrentMonthUTC();
+
   const [usageRow] = await db
     .select({
       userTotal: sql<string>`coalesce(sum(case when ${aiUsageEvents.userId} = ${userId} then ${aiUsageEvents.weight} else 0 end), 0)`,
@@ -140,16 +215,42 @@ export async function checkUsageLimit(
   const userUsage = Number(usageRow?.userTotal ?? 0);
   const businessUsage = Number(usageRow?.businessTotal ?? 0);
 
-  if (userUsage >= limit || businessUsage >= limit) {
-    return buildQuotaExceededResult(plan);
+  // Cache the values we fetched from DB (non-blocking, ignore failures)
+  try {
+    const cacheWrites: Promise<void>[] = [];
+    if (cachedUserUsage === null) {
+      cacheWrites.push(
+        cacheLayer.set<number>(userCacheKey, userUsage, USAGE_CACHE_TTL_SECONDS),
+      );
+    }
+    if (cachedBusinessUsage === null) {
+      cacheWrites.push(
+        cacheLayer.set<number>(
+          businessCacheKey,
+          businessUsage,
+          USAGE_CACHE_TTL_SECONDS,
+        ),
+      );
+    }
+    await Promise.all(cacheWrites);
+  } catch {
+    // Cache write failure is non-critical — next request will re-query DB
+    console.warn(
+      "[usage-limiter] Failed to cache usage values after DB fetch",
+    );
   }
 
-  return { allowed: true };
+  return { userUsage, businessUsage };
 }
 
 /**
  * Records a usage event in the database. Call this after a successful AI
  * invocation (not on cache hits or cooldown rejections).
+ *
+ * After the DB insert, atomically increments both the user-level and
+ * business-level cached counters by the invocation weight. On increment
+ * failure: deletes the cache key and logs a warning without interrupting
+ * the caller.
  */
 export async function recordUsage(
   userId: string,
@@ -166,6 +267,15 @@ export async function recordUsage(
     taskType,
     weight,
   });
+
+  // Atomically increment cached counters (non-blocking, never interrupts caller)
+  const userCacheKey = getUserUsageCacheKey(userId);
+  const businessCacheKey = getBusinessUsageCacheKey(businessId);
+
+  await Promise.all([
+    safeIncrementCache(userCacheKey, weight),
+    safeIncrementCache(businessCacheKey, weight),
+  ]);
 }
 
 /**
@@ -212,6 +322,37 @@ export async function getMonthlyUsageSummary(
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Atomically increments a cached usage counter by the given weight.
+ * On failure: deletes the cache key and logs a warning.
+ * Never throws — failures must not interrupt the caller.
+ */
+async function safeIncrementCache(
+  cacheKey: string,
+  weight: number,
+): Promise<void> {
+  try {
+    await cacheLayer.incrementBy(cacheKey, weight, USAGE_CACHE_TTL_SECONDS);
+  } catch (error) {
+    // On increment failure: delete the cache key so the next check
+    // falls through to the DB aggregate for a fresh value.
+    console.warn(
+      "[usage-limiter] Cache increment failed, invalidating key:",
+      cacheKey,
+      error instanceof Error ? error.message : error,
+    );
+    try {
+      await cacheLayer.delete(cacheKey);
+    } catch {
+      // Delete failure is non-critical — key will expire via TTL
+      console.warn(
+        "[usage-limiter] Failed to delete cache key after increment failure:",
+        cacheKey,
+      );
+    }
+  }
+}
 
 function buildQuotaExceededResult(plan: BusinessPlan): UsageLimitResult {
   const upgradePlan = getUpgradePlan(plan);
