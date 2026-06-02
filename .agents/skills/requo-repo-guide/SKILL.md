@@ -40,9 +40,9 @@ Read these sources first when relevant:
 - Keep provider boundaries narrow:
   - Better Auth for sessions and password flows
   - Supabase for storage and realtime-backed notification plumbing
-- Resend for transactional email
-- Groq, Gemini, and OpenRouter through `lib/ai` for server-side AI drafting
-- Paddle for card subscriptions (USD, merchant of record)
+- Resend for transactional email (Mailtrap/Brevo fallback)
+- Groq, Cerebras, Gemini, Mistral, Cloudflare Workers AI, NVIDIA NIM, and OpenRouter through `lib/ai` for server-side AI
+- Polar for card subscriptions (multi-currency, merchant of record)
 
 ## Billing
 
