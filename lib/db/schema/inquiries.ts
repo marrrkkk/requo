@@ -94,6 +94,11 @@ export const inquiries = pgTable(
       table.businessInquiryFormId,
     ),
     index("inquiries_business_status_idx").on(table.businessId, table.status),
+    index("inquiries_business_status_created_at_idx").on(
+      table.businessId,
+      table.status,
+      table.createdAt,
+    ),
     index("inquiries_business_archived_at_idx").on(
       table.businessId,
       table.archivedAt,
