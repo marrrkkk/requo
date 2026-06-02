@@ -16,6 +16,7 @@ import { toast } from "sonner";
 
 import { ProFeatureNoticeButton } from "@/components/shared/pro-feature-notice-button";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   ResponsiveOverlay,
@@ -191,7 +192,7 @@ export function SendQuoteDialog({
   const primaryMessage = getChannelMessage(detectedChannel, templateInput);
   const [editedMessage, setEditedMessage] = useState(primaryMessage);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [autoFollowUp, setAutoFollowUp] = useState(true);
+  const [autoFollowUp, setAutoFollowUp] = useState(false);
   const [autoFollowUpDelay, setAutoFollowUpDelay] = useState(3);
   const [autoFollowUpMax, setAutoFollowUpMax] = useState(2);
 
@@ -557,18 +558,16 @@ export function SendQuoteDialog({
               {/* Auto follow-up toggle (only for Requo email sends) */}
               {showRequoOption && canAutoFollowUp ? (
                 <div className="rounded-lg border border-border/60 px-4 py-3">
-                  <label className="flex items-center justify-between gap-3">
+                  <label className="flex items-center justify-between gap-3 cursor-pointer">
                     <div className="flex items-center gap-2">
                       <BellRing className="size-4 text-muted-foreground" />
                       <span className="text-sm font-medium text-foreground">
                         Auto follow-up
                       </span>
                     </div>
-                    <input
+                    <Checkbox
                       checked={autoFollowUp}
-                      className="h-4 w-4 rounded border-input accent-primary"
-                      onChange={(e) => setAutoFollowUp(e.target.checked)}
-                      type="checkbox"
+                      onCheckedChange={(checked) => setAutoFollowUp(checked === true)}
                     />
                   </label>
                   {autoFollowUp ? (

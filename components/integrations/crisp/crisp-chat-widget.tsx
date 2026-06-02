@@ -16,6 +16,7 @@ declare global {
 /**
  * Initializes Crisp once for the current browser session.
  * Route-level mounts are safe because initialization is globally guarded.
+ * Hides the widget on unmount so it doesn't persist into non-marketing pages.
  */
 export function CrispChatWidget({ websiteId }: CrispChatWidgetProps) {
   useEffect(() => {
@@ -25,11 +26,16 @@ export function CrispChatWidget({ websiteId }: CrispChatWidgetProps) {
 
     if (window.__requoCrispConfigured) {
       Crisp.chat.show();
-      return;
+    } else {
+      Crisp.configure(websiteId);
+      window.__requoCrispConfigured = true;
     }
 
-    Crisp.configure(websiteId);
-    window.__requoCrispConfigured = true;
+    return () => {
+      if (window.__requoCrispConfigured) {
+        Crisp.chat.hide();
+      }
+    };
   }, [websiteId]);
 
   return null;
