@@ -65,6 +65,8 @@ export function DashboardChatInput({
       // The chat new page will pick it up, create the conversation, and redirect.
       setIsNavigating(true);
       setPendingMessage(text.trim());
+      setInputValue("");
+      setIsExpanded(false);
       router.push(getBusinessChatNewPath(businessSlug));
     },
     [isNavigating, setPendingMessage, businessSlug, router],
@@ -105,47 +107,58 @@ export function DashboardChatInput({
         ))}
       </div>
 
-      {/* Input — matches the main chat page style */}
+      {/* Input */}
       <div
         className={cn(
-          "w-full transition-[max-width,box-shadow] duration-200 ease-out",
+          "w-full transition-[max-width] duration-300 ease-in-out",
           isExpanded ? "max-w-2xl" : "max-w-xl",
         )}
-        onClick={() => setIsExpanded(true)}
       >
-        <PromptInput
-          value={inputValue}
-          onValueChange={setInputValue}
-          onSubmit={handleSubmit}
-          isLoading={isNavigating}
-          disabled={isNavigating}
-          className={cn(
-            "rounded-2xl border bg-card shadow-md transition-all duration-200",
-            isExpanded
-              ? "border-primary/50 ring-2 ring-primary/10 shadow-xl"
-              : "border-border/80 hover:shadow-lg hover:border-border",
-          )}
-        >
-          <PromptInputTextarea
-            placeholder={getPanelPlaceholder("dashboard")}
-            className="min-h-[44px] text-sm"
-            onFocus={() => setIsExpanded(true)}
-          />
-          <PromptInputActions className="justify-end pt-1">
-            <PromptInputAction tooltip="Send message">
-              <Button
-                variant="default"
-                size="icon-sm"
-                className="rounded-full"
-                onClick={handleSubmit}
-                disabled={!inputValue.trim() || isNavigating}
-                type="button"
-              >
-                <ArrowUp className="size-4" />
-              </Button>
-            </PromptInputAction>
-          </PromptInputActions>
-        </PromptInput>
+        {isExpanded ? (
+          /* Expanded: full original PromptInput, same as main chat page */
+          <PromptInput
+            value={inputValue}
+            onValueChange={setInputValue}
+            onSubmit={handleSubmit}
+            isLoading={isNavigating}
+            disabled={isNavigating}
+            className="rounded-2xl border border-primary/50 bg-card shadow-xl ring-2 ring-primary/10"
+          >
+            <PromptInputTextarea
+              placeholder={getPanelPlaceholder("dashboard")}
+              className="text-sm"
+              autoFocus
+            />
+            <PromptInputActions className="justify-end pt-1">
+              <PromptInputAction tooltip="Send message">
+                <Button
+                  variant="default"
+                  size="icon-sm"
+                  className="rounded-full"
+                  onClick={handleSubmit}
+                  disabled={!inputValue.trim() || isNavigating}
+                  type="button"
+                >
+                  <ArrowUp className="size-4" />
+                </Button>
+              </PromptInputAction>
+            </PromptInputActions>
+          </PromptInput>
+        ) : (
+          /* Collapsed: slim single-row bar */
+          <button
+            type="button"
+            onClick={() => setIsExpanded(true)}
+            className="flex w-full cursor-text items-center gap-2 rounded-2xl border border-border/80 bg-card p-2 shadow-md transition-all duration-300 ease-in-out hover:border-border hover:shadow-lg"
+          >
+            <span className="flex-1 truncate pl-1 text-left text-sm text-muted-foreground/70">
+              {getPanelPlaceholder("dashboard")}
+            </span>
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <ArrowUp className="size-4" />
+            </span>
+          </button>
+        )}
       </div>
     </div>
   );

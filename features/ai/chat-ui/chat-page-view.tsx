@@ -490,7 +490,7 @@ export function ChatPageView({
           >
             <PromptInputTextarea
               placeholder={getPanelPlaceholder(surface)}
-              className="min-h-[44px] text-sm"
+              className="text-sm"
             />
             <PromptInputActions className="justify-between pt-1">
               <DevModelSelector value={devModel} onChange={setDevModel} />

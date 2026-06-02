@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowUp, Sparkles } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { RequoIcon } from "@/components/shared/requo-icon";
 import {
   PromptInput,
   PromptInputTextarea,
@@ -49,29 +50,30 @@ export function ChatNewPageView({
   // If we arrived here from the dashboard with a pending message,
   // show a loading state while the chat is being created.
   useEffect(() => {
-    if (!pendingMessage) return;
-
     const message = consumePendingMessage();
     if (!message) return;
 
     setIsRedirecting(true); // eslint-disable-line react-hooks/set-state-in-effect -- intentional loading state on mount when arriving with pending message
 
     startTransition(async () => {
-      // Re-set the pending message so the conversation page can trigger the AI response
-      setPendingMessage(message);
+      try {
+        const result = await startNewChat({
+          userId,
+          businessId,
+          businessSlug,
+          message,
+        });
 
-      const result = await startNewChat({
-        userId,
-        businessId,
-        businessSlug,
-        message,
-      });
-
-      if (result.conversationId) {
-        router.replace(
-          getBusinessChatConversationPath(businessSlug, result.conversationId),
-        );
-      } else {
+        if (result.conversationId) {
+          // Re-set the pending message so the conversation page can trigger the AI response
+          setPendingMessage(message);
+          router.replace(
+            getBusinessChatConversationPath(businessSlug, result.conversationId),
+          );
+        } else {
+          setIsRedirecting(false);
+        }
+      } catch {
         setIsRedirecting(false);
       }
     });
@@ -80,6 +82,8 @@ export function ChatNewPageView({
   const submitMessage = useCallback(
     (text: string) => {
       if (!text.trim() || isPending) return;
+
+      setInputValue("");
 
       startTransition(async () => {
         const result = await startNewChat({
@@ -105,8 +109,8 @@ export function ChatNewPageView({
 
   const quickActions = aiQuickActions.dashboard;
 
-  // Show loading state when redirecting from dashboard
-  if (isRedirecting || pendingMessage) {
+  // Show loading state only when actively redirecting from a dashboard pending message
+  if (isRedirecting) {
     return (
       <div className="flex h-full flex-col overflow-hidden" data-chat-page>
         <ChatHeaderBar businessSlug={businessSlug} />
@@ -123,37 +127,15 @@ export function ChatNewPageView({
       {/* Header with history */}
       <ChatHeaderBar businessSlug={businessSlug} />
 
-      {/* Empty state — centered */}
-      <div className="flex flex-1 flex-col items-center justify-center gap-5 px-4">
-        <div className="flex size-12 items-center justify-center rounded-full bg-primary/10">
-          <Sparkles className="size-6 text-primary" />
+      {/* Centered layout — logo → input → suggestions */}
+      <div className="flex flex-1 flex-col items-center justify-center px-4">
+        {/* Requo logo */}
+        <div className="mb-8">
+          <RequoIcon className="size-10 text-muted-foreground/50" />
         </div>
-        <div className="text-center">
-          <p className="text-base font-medium text-foreground">
-            Start a new conversation
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Ask anything about your business, inquiries, quotes, or follow-ups.
-          </p>
-        </div>
-        <div className="flex flex-wrap justify-center gap-2">
-          {quickActions.map((action) => (
-            <Button
-              key={action.label}
-              variant="secondary"
-              size="sm"
-              onClick={() => submitMessage(action.prompt)}
-              disabled={isPending}
-            >
-              {action.label}
-            </Button>
-          ))}
-        </div>
-      </div>
 
-      {/* Input — centered, prompt-kit style */}
-      <div className="shrink-0 pb-6">
-        <div className="mx-auto w-full max-w-2xl px-4 sm:px-6">
+        {/* Chat input */}
+        <div className="w-full max-w-2xl">
           <PromptInput
             value={inputValue}
             onValueChange={setInputValue}
@@ -164,7 +146,7 @@ export function ChatNewPageView({
           >
             <PromptInputTextarea
               placeholder={getPanelPlaceholder("dashboard")}
-              className="min-h-[44px] text-sm"
+              className="text-sm"
             />
             <PromptInputActions className="justify-end pt-1">
               <PromptInputAction tooltip="Send message">
@@ -181,6 +163,21 @@ export function ChatNewPageView({
               </PromptInputAction>
             </PromptInputActions>
           </PromptInput>
+        </div>
+
+        {/* Suggestion chips — below the input */}
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          {quickActions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              onClick={() => submitMessage(action.prompt)}
+              disabled={isPending}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/80 px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-accent/50 hover:text-foreground disabled:opacity-50"
+            >
+              {action.label}
+            </button>
+          ))}
         </div>
       </div>
     </div>
