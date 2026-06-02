@@ -155,6 +155,7 @@ async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
       }}
       businessRole={businessContext.role}
       businessSlug={businessContext.business.slug}
+      businessId={businessContext.business.id}
       plan={businessContext.business.plan}
     />
   );
@@ -192,7 +193,7 @@ async function UpgradeSlot({ businessSlug }: { businessSlug: string }) {
     businessContext.business.id,
   ).catch(() => null);
 
-  if (!billing || billing.currentPlan !== "free") {
+  if (!billing || billing.currentPlan === "business") {
     return null;
   }
 
