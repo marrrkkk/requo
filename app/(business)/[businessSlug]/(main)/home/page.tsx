@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import {
+  ArrowRight,
+  Inbox,
+  Send,
+  TrendingUp,
+  Target,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -236,23 +242,27 @@ async function VelocityStats({
           label="Inquiries"
           value={analytics.inquirySubmissions}
           suffix="received"
+          icon={<Inbox className="size-4" />}
         />
         <StatCard
           label="Quotes sent"
           value={analytics.quotesSent}
           suffix="total"
+          icon={<Send className="size-4" />}
         />
         <StatCard
           label="Acceptance"
           value={`${Math.round(analytics.quoteAcceptanceRate * 100)}%`}
           suffix="win rate"
           highlight={analytics.quoteAcceptanceRate >= 0.5}
+          icon={<TrendingUp className="size-4" />}
         />
         <StatCard
           label="Coverage"
           value={`${Math.round(analytics.inquiryToQuoteRate * 100)}%`}
           suffix="quoted"
           highlight={analytics.inquiryToQuoteRate >= 0.7}
+          icon={<Target className="size-4" />}
         />
       </div>
     </div>
@@ -264,21 +274,28 @@ function StatCard({
   value,
   suffix,
   highlight,
+  icon,
 }: {
   label: string;
   value: number | string;
   suffix: string;
   highlight?: boolean;
+  icon: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-border/50 bg-card/50 px-4 py-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
+    <div className="group relative rounded-xl border border-border/60 bg-card px-4 py-4 transition-all duration-200 hover:border-border hover:shadow-sm">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        <div className={`rounded-lg p-1.5 ${highlight ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+          {icon}
+        </div>
+      </div>
       <p
-        className={`mt-1 text-xl font-semibold tracking-tight ${highlight ? "text-primary" : "text-foreground"}`}
+        className={`mt-2 text-2xl font-semibold tracking-tight ${highlight ? "text-primary" : "text-foreground"}`}
       >
         {value}
       </p>
-      <p className="text-[0.65rem] text-muted-foreground/70">{suffix}</p>
+      <p className="mt-0.5 text-[0.7rem] text-muted-foreground">{suffix}</p>
     </div>
   );
 }
@@ -289,10 +306,13 @@ function VelocityStatsFallback() {
       <Skeleton className="h-3 w-20 rounded-md" />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div className="rounded-xl border border-border/50 bg-card/50 px-4 py-3" key={i}>
-            <Skeleton className="h-3 w-16 rounded-md" />
-            <Skeleton className="mt-1 h-6 w-10 rounded-md" />
-            <Skeleton className="mt-1 h-2.5 w-12 rounded-md" />
+          <div className="rounded-xl border border-border/60 bg-card px-4 py-4" key={i}>
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-3 w-16 rounded-md" />
+              <Skeleton className="size-7 rounded-lg" />
+            </div>
+            <Skeleton className="mt-2 h-7 w-12 rounded-md" />
+            <Skeleton className="mt-1 h-2.5 w-14 rounded-md" />
           </div>
         ))}
       </div>
