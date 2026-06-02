@@ -39,11 +39,19 @@ export default function MarketingHomeLoading() {
 
       {/* Why Requo section */}
       <section className="mx-auto mt-32 w-full max-w-6xl px-5 sm:mt-40 sm:px-6 lg:mt-48 lg:px-8 xl:px-0">
-        <div className="flex flex-col items-start gap-5">
+        <div className="mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
           <p className="eyebrow">WHY REQUO</p>
           <Skeleton className="h-10 w-full max-w-lg rounded-lg sm:h-12" />
-          <Skeleton className="h-5 w-full max-w-2xl rounded-md" />
+          <Skeleton className="h-5 w-full max-w-md rounded-md" />
         </div>
+
+        <div className="mt-12 grid gap-4 sm:mt-14 sm:gap-5 lg:mt-16 lg:grid-cols-2 lg:gap-6">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Skeleton className="h-72 w-full rounded-2xl" key={`why-card-${i}`} />
+          ))}
+        </div>
+
+        <Skeleton className="mt-4 h-32 w-full rounded-2xl sm:mt-5 lg:mt-6" />
       </section>
 
       {/* How it works section */}

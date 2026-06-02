@@ -1,14 +1,8 @@
-import { Sparkles } from "lucide-react";
-
+/**
+ * Empty loading boundary so the parent chat/loading.tsx doesn't double-flash
+ * when navigating to chat/new. Returns null to keep the previous page visible
+ * until the new one is ready.
+ */
 export default function ChatNewLoading() {
-  return (
-    <div className="chat-page-container">
-      <div className="flex h-full flex-col items-center justify-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-full bg-primary/10">
-          <Sparkles className="size-5 text-primary animate-pulse" />
-        </div>
-        <p className="text-sm text-muted-foreground">Preparing chat…</p>
-      </div>
-    </div>
-  );
+  return null;
 }

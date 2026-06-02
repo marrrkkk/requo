@@ -66,7 +66,7 @@ export async function generateMetadata({
   return {
     title: {
       default: businessName,
-      template: `%s · ${businessName} | ${siteName}`,
+      template: `%s - ${businessName} | ${siteName}`,
     },
   };
 }

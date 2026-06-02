@@ -6,7 +6,7 @@ import { getBusinessAutomations, getAutomationStats } from "@/features/automatio
 import { getAutomationLimit, canAccessWorkflowBuilder } from "@/features/automations/entitlements";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
-import { AutomationsWorkspace } from "@/features/automations/components/automations-workspace";
+import { LazyAutomationsWorkspace } from "@/components/shared/lazy-xyflow";
 import { FirstVisitTip } from "@/features/onboarding/components/first-visit-tip";
 import { featureTips } from "@/features/onboarding/feature-tips";
 
@@ -58,7 +58,7 @@ async function StreamedAutomationsWorkspace({
   ]);
 
   return (
-    <AutomationsWorkspace
+    <LazyAutomationsWorkspace
       automations={automations}
       plan={plan}
       limit={limit}
