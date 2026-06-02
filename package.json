@@ -9,8 +9,9 @@
     "safari 16.4"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:app\" \"npm run dev:inngest\" \"ngrok http 3000\"",
-    "dev:app": "node --max-old-space-size=12288 ./node_modules/next/dist/bin/next dev",
+    "dev": "tsx scripts/dev-health-check.ts && concurrently \"npm run dev:app\" \"npm run dev:inngest\" \"ngrok http 3000\"",
+    "dev:check": "tsx scripts/dev-health-check.ts",
+    "dev:app": "tsx scripts/dev-health-check.ts && node --max-old-space-size=12288 ./node_modules/next/dist/bin/next dev",
     "dev:inngest": "npx inngest-cli@latest dev",
     "build": "next build",
     "vercel-build": "npm run db:migrate:strict && next build",
