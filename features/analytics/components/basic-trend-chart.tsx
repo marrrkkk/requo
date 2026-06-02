@@ -7,6 +7,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { TrendingUp } from "lucide-react";
 
 import type { MetricSparklineData } from "@/features/analytics/types";
 import {
@@ -61,6 +62,33 @@ function buildSeries({
   });
 }
 
+/** Returns true when every data series is all zeros. */
+function isAllZeros(sparklines: MetricSparklineData): boolean {
+  const allArrays = [
+    sparklines.formViews,
+    sparklines.inquirySubmissions,
+    sparklines.quotesSent,
+    sparklines.quotesAccepted,
+  ];
+  return allArrays.every((arr) => arr.every((v) => v === 0));
+}
+
+function TrendEmptyState() {
+  return (
+    <div className="flex h-full min-h-[280px] w-full flex-1 flex-col items-center justify-center gap-3 rounded-xl bg-surface-muted/50 px-6 text-center">
+      <div className="flex size-10 items-center justify-center rounded-xl border border-border/70 bg-accent/85 text-muted-foreground">
+        <TrendingUp className="size-4" />
+      </div>
+      <div className="flex flex-col gap-1">
+        <p className="text-sm font-medium text-foreground">No activity yet</p>
+        <p className="text-sm text-muted-foreground">
+          Activity will appear here as inquiries and quotes flow through your pipeline.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function BasicTrendChart({
   since,
   until,
@@ -70,6 +98,10 @@ export function BasicTrendChart({
   until: Date;
   sparklines: MetricSparklineData;
 }) {
+  if (isAllZeros(sparklines)) {
+    return <TrendEmptyState />;
+  }
+
   const points = buildSeries({ since, until, sparklines });
 
   return (
@@ -88,7 +120,7 @@ export function BasicTrendChart({
       <AreaChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="label" tickLine={false} axisLine={false} />
-        <YAxis tickLine={false} axisLine={false} width={32} />
+        <YAxis tickLine={false} axisLine={false} width={32} allowDecimals={false} />
         <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
         <ChartLegend content={<ChartLegendContent />} />
         <Area
