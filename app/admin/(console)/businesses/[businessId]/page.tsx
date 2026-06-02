@@ -12,7 +12,7 @@ import { createNoIndexMetadata } from "@/lib/seo/site";
 import AdminLoading from "../../loading";
 
 export const metadata: Metadata = createNoIndexMetadata({
-  absoluteTitle: "Business · Requo admin",
+  absoluteTitle: "Business - Requo admin",
   description: "Read-only details for a customer business.",
 });
 

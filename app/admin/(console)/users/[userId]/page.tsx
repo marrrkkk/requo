@@ -23,7 +23,7 @@ import { createNoIndexMetadata } from "@/lib/seo/site";
 import AdminLoading from "../../loading";
 
 export const metadata: Metadata = createNoIndexMetadata({
-  absoluteTitle: "User · Requo admin",
+  absoluteTitle: "User - Requo admin",
   description: "Inspect a Requo user and run support actions.",
 });
 

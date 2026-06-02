@@ -35,7 +35,6 @@ import {
   LogOut,
   Lock,
 
-  MessageSquare,
 
   PanelsTopLeft,
 
@@ -167,8 +166,6 @@ import {
 
 import {
 
-  getBusinessChatNewPath,
-
   getBusinessDashboardPath,
 
 } from "@/features/businesses/routes";
@@ -185,6 +182,7 @@ import {
 
 } from "@/features/businesses/routes";
 
+import { AskRequoButton } from "@/components/shell/ask-requo-button";
 import { getDefaultBusinessSettingsPath } from "@/features/settings/navigation";
 
 import { cn } from "@/lib/utils";
@@ -602,17 +600,7 @@ export function DashboardShell({
 
                 </div>
 
-                <Button asChild variant="ghost" size="sm" className="gap-1.5">
-
-                  <Link href={getBusinessChatNewPath(business.slug)}>
-
-                    <MessageSquare className="size-3.5" />
-
-                    <span>Ask Requo</span>
-
-                  </Link>
-
-                </Button>
+                <AskRequoButton businessSlug={business.slug} userName={user.name || "You"} variant="ghost" />
 
                 {notificationSlot}
 

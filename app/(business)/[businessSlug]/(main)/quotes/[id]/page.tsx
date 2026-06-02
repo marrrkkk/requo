@@ -96,7 +96,6 @@ import {
 import { env, isEmailConfigured } from "@/lib/env";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
-import { AiChatPanel } from "@/features/ai/components/ai-chat-panel";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import type { Metadata } from "next";
@@ -354,15 +353,6 @@ async function QuoteDetailContent({
               pdfHref={getBusinessQuoteExportPath(businessSlug, quote.id, "pdf")}
               pngHref={getBusinessQuoteExportPath(businessSlug, quote.id, "png")}
             />
-            {hasFeatureAccess(businessContext.business.plan, "aiAssistant") ? (
-              <AiChatPanel
-                businessSlug={businessSlug}
-                surface="quote"
-                entityId={quote.id}
-                entityTitle={quote.title}
-                userName={user.name || "You"}
-              />
-            ) : null}
             <QuotePreviewButton
               quote={{
                 id: quote.id,

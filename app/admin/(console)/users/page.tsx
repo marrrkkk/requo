@@ -19,7 +19,7 @@ export const unstable_instant = {
 };
 
 export const metadata: Metadata = createNoIndexMetadata({
-  absoluteTitle: "Users · Requo admin",
+  absoluteTitle: "Users - Requo admin",
   description: "Search, inspect, and support Requo users.",
 });
 

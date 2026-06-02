@@ -21,7 +21,7 @@ type AdminSubscriptionDetailPageProps = {
 };
 
 export const metadata: Metadata = createNoIndexMetadata({
-  absoluteTitle: "Subscription · Requo admin",
+  absoluteTitle: "Subscription - Requo admin",
   description: "Inspect subscription state and override plan or status.",
 });
 

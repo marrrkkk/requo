@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 
 import { StructuredData } from "@/components/seo/structured-data";
 import { TermsOfServicePage } from "@/features/legal/components/terms-of-service-page";
@@ -15,7 +16,9 @@ export const metadata: Metadata = createPageMetadata({
   title: "Terms of Service",
 });
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  "use cache";
+  cacheLife("hours");
   const breadcrumbItems = buildBreadcrumbsForPathname("/terms", {
     "/terms": "Terms of Service",
   });

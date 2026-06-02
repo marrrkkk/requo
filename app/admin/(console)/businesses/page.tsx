@@ -19,7 +19,7 @@ export const unstable_instant = {
 };
 
 export const metadata: Metadata = createNoIndexMetadata({
-  absoluteTitle: "Businesses · Requo admin",
+  absoluteTitle: "Businesses - Requo admin",
   description: "Read-only review of customer business setups.",
 });
 

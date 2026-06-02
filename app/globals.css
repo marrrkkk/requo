@@ -10,6 +10,7 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-geist-sans);
+  --font-inter: var(--font-inter);
   --font-brand: var(--font-brand);
   --font-mittel: var(--font-mittel);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -508,6 +509,28 @@ html[data-reload-loading="fade-out"] #app-root-content {
   100% {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes home-section-enter {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes shell-entrance {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
   }
 }
 
@@ -1161,6 +1184,54 @@ html[data-reload-loading="fade-out"] #app-root-content {
     @apply flex flex-1 flex-col px-3 py-5 sm:px-6 sm:py-7 xl:px-8 xl:py-8;
   }
 
+  /* When AI panel is open, reduce max-width and padding so content adapts */
+  [data-ai-panel-open] .dashboard-content {
+    max-width: 72rem;
+    container-type: inline-size;
+    container-name: dashboard;
+  }
+
+  [data-ai-panel-open] .dashboard-main {
+    @apply xl:px-5 xl:py-6;
+  }
+
+  [data-ai-panel-open] .dashboard-topbar-inner {
+    @apply xl:px-5;
+  }
+
+  [data-ai-panel-open] .dashboard-detail-layout {
+    @apply xl:grid-cols-1;
+  }
+
+  /* Data list toolbar: allow wrapping when panel squeezes space */
+  [data-ai-panel-open] .data-list-toolbar-grid {
+    flex-wrap: wrap !important;
+  }
+
+  /* Data list toolbar actions: don't force right-alignment at xl */
+  [data-ai-panel-open] .data-list-toolbar-actions {
+    margin-left: 0 !important;
+  }
+
+  /* Table containers: force horizontal scroll when panel is open */
+  [data-ai-panel-open] .dashboard-table-shell {
+    overflow-x: auto !important;
+  }
+
+  /*
+   * When the panel is open at xl viewport, the container is ~780px wide.
+   * Hide desktop tables (which need 1000px+) and show mobile cards instead.
+   */
+  @media (min-width: 1280px) {
+    [data-ai-panel-open] .data-list-mobile-grid {
+      display: grid !important;
+    }
+
+    [data-ai-panel-open] [data-table-container][class*="hidden"] {
+      display: none !important;
+    }
+  }
+
   /* Chat page fills available space.
      Uses a fixed viewport height so messages scroll internally without
      affecting the page layout or requiring parent overflow changes.
@@ -1183,6 +1254,33 @@ html[data-reload-loading="fade-out"] #app-root-content {
     @apply -mt-5 sm:-mt-7 xl:-mt-8;
     @apply flex flex-col overflow-y-auto px-4 pt-6 pb-8 sm:px-6 sm:pt-8 lg:px-10;
     min-height: calc(100svh - 65px);
+  }
+
+  /* Home entrance animation — staggered fade-up for sections on initial mount */
+  .home-entrance > .home-entrance-section {
+    animation: home-section-enter 450ms var(--motion-ease-emphasized) both;
+  }
+
+  .home-entrance > .home-entrance-section:nth-child(1) {
+    animation-delay: 0ms;
+  }
+
+  .home-entrance > .home-entrance-section:nth-child(2) {
+    animation-delay: 60ms;
+  }
+
+  .home-entrance > .home-entrance-section:nth-child(3) {
+    animation-delay: 120ms;
+  }
+
+  .home-entrance > .home-entrance-section:nth-child(4) {
+    animation-delay: 180ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .home-entrance > .home-entrance-section {
+      animation: none;
+    }
   }
 
   @media (min-width: 640px) {

@@ -77,9 +77,9 @@ async function DashboardOverviewContent({
   const analyticsPromise = getFreeAnalytics(businessId);
 
   return (
-    <div className="home-page-container">
+    <div className="home-page-container home-entrance">
       {/* Greeting */}
-      <section className="w-full max-w-5xl mx-auto">
+      <section className="home-entrance-section w-full max-w-5xl mx-auto">
         <Suspense fallback={<GreetingFallback userName={user.name} />}>
           <GreetingWithData
             userName={user.name}
@@ -91,7 +91,7 @@ async function DashboardOverviewContent({
       </section>
 
       {/* Next step suggestion */}
-      <section className="w-full max-w-5xl mx-auto mt-4">
+      <section className="home-entrance-section w-full max-w-5xl mx-auto mt-4">
         <Suspense fallback={null}>
           <NextStepSection
             businessId={businessId}
@@ -103,7 +103,7 @@ async function DashboardOverviewContent({
       </section>
 
       {/* 30-day velocity stats */}
-      <section className="w-full max-w-5xl mx-auto mt-5">
+      <section className="home-entrance-section w-full max-w-5xl mx-auto mt-5">
         <Suspense fallback={<VelocityStatsFallback />}>
           <VelocityStats
             businessSlug={businessSlug}
@@ -113,7 +113,7 @@ async function DashboardOverviewContent({
       </section>
 
       {/* Priority queue */}
-      <section className="w-full max-w-5xl mx-auto mt-8 pb-24">
+      <section className="home-entrance-section w-full max-w-5xl mx-auto mt-8 pb-24">
         <Suspense fallback={<NeedsAttentionFallback />}>
           <NeedsAttentionContent
             businessSlug={businessSlug}

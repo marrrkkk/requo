@@ -16,7 +16,7 @@ export const unstable_instant = {
 };
 
 export const metadata: Metadata = createNoIndexMetadata({
-  absoluteTitle: "Admin · Requo",
+  absoluteTitle: "Admin - Requo",
   description: "Internal Requo admin dashboard with key operational counts.",
 });
 

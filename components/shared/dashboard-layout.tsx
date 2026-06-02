@@ -272,7 +272,7 @@ export function DashboardTableContainer({
   innerClassName,
 }: DashboardTableContainerProps) {
   return (
-    <div className={cn("dashboard-table-shell", className)}>
+    <div className={cn("dashboard-table-shell", className)} data-table-container>
       <div className={cn("dashboard-table-shell-inner", innerClassName)}>
         {children}
       </div>

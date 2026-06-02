@@ -17,7 +17,7 @@ import { timed } from "@/lib/dev/server-timing";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
-  absoluteTitle: "Onboarding · Requo",
+  absoluteTitle: "Onboarding - Requo",
   description: "Set up your first business to start capturing inquiries.",
 });
 

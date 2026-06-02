@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 
 import { StructuredData } from "@/components/seo/structured-data";
 import { PrivacyPolicyPage } from "@/features/legal/components/privacy-policy-page";
@@ -15,7 +16,9 @@ export const metadata: Metadata = createPageMetadata({
   title: "Privacy Policy",
 });
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  "use cache";
+  cacheLife("hours");
   const breadcrumbItems = buildBreadcrumbsForPathname("/privacy", {
     "/privacy": "Privacy Policy",
   });

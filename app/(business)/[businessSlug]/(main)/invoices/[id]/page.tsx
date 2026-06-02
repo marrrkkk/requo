@@ -20,7 +20,7 @@ export async function generateMetadata({
   );
 
   return {
-    title: invoice ? `${invoice.invoiceNumber} · ${invoice.title}` : "Invoice not found",
+    title: invoice ? `${invoice.invoiceNumber} - ${invoice.title}` : "Invoice not found",
   };
 }
 

@@ -14,7 +14,7 @@ export const unstable_instant = {
 };
 
 export const metadata: Metadata = createNoIndexMetadata({
-  absoluteTitle: "System · Requo admin",
+  absoluteTitle: "System - Requo admin",
   description: "Integration health and environment configuration.",
 });
 

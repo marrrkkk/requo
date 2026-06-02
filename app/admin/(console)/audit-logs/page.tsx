@@ -16,7 +16,7 @@ export const unstable_instant = {
 };
 
 export const metadata: Metadata = createNoIndexMetadata({
-  absoluteTitle: "Audit logs · Requo admin",
+  absoluteTitle: "Audit logs - Requo admin",
   description: "Every admin view and action, newest first.",
 });
 

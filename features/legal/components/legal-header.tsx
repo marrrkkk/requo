@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 
 import { BrandMark } from "@/components/shared/brand-mark";
 import { Button } from "@/components/ui/button";
@@ -16,63 +16,33 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { legalNavItems } from "@/features/legal/config";
-import { cn } from "@/lib/utils";
-
-function useScrolled(threshold = 8) {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > threshold);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [threshold]);
-
-  return scrolled;
-}
 
 export function LegalHeader() {
   const [open, setOpen] = useState(false);
-  const scrolled = useScrolled();
 
   return (
-    <header className="pointer-events-none sticky top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-4 lg:px-8">
-      <div
-        className={cn(
-          "pointer-events-auto relative mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-3 rounded-2xl border px-4 sm:h-[3.75rem] sm:gap-4 sm:px-5",
-          scrolled
-            ? "border-border/60 bg-background/80 shadow-sm backdrop-blur-xl"
-            : "border-transparent bg-transparent",
-        )}
-      >
-        <BrandMark subtitle={null} size="lg" />
+    <header className="sticky top-0 z-50 w-full bg-[#ffffff] dark:bg-[#161616]">
+      <div className="mx-auto flex w-full items-center justify-between gap-6 px-5 py-4 sm:px-8 sm:py-5 lg:px-10">
+        {/* Left: brand + nav */}
+        <div className="flex items-center gap-6 sm:gap-8">
+          <BrandMark subtitle={null} size="lg" />
 
-        <nav className="public-page-header-nav">
-          {legalNavItems.map((item) => (
-            <Link
-              className="public-page-header-link"
-              href={item.href}
-              key={item.href}
-            >
-              {item.label}
-              <span className="nav-underline" aria-hidden="true" />
-            </Link>
-          ))}
-        </nav>
+          <nav className="public-page-header-nav">
+            {legalNavItems.map((item) => (
+              <Link
+                className="public-page-header-link"
+                href={item.href}
+                key={item.href}
+              >
+                {item.label}
+                <span className="nav-underline" aria-hidden="true" />
+              </Link>
+            ))}
+          </nav>
+        </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-2">
-          <Button
-            asChild
-            className="hidden sm:inline-flex"
-            size="sm"
-            variant="ghost"
-          >
-            <Link href="/">
-              <ArrowLeft data-icon="inline-start" />
-              Back to home
-            </Link>
-          </Button>
-
+        {/* Right: mobile nav only */}
+        <div className="flex shrink-0 items-center justify-end">
           <Sheet onOpenChange={setOpen} open={open}>
             <SheetTrigger asChild>
               <Button
