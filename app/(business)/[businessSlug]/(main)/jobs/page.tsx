@@ -8,6 +8,8 @@ import { getAppShellContext } from "@/lib/app-shell/context";
 import { getJobsBoardForBusiness } from "@/features/jobs/queries";
 import { JobsBoard } from "@/features/jobs/components/jobs-board";
 import { createNoIndexMetadata } from "@/lib/seo/site";
+import { FirstVisitTip } from "@/features/onboarding/components/first-visit-tip";
+import { featureTips } from "@/features/onboarding/feature-tips";
 
 export const metadata: Metadata = createNoIndexMetadata({
   title: "Jobs",
@@ -28,6 +30,7 @@ export default async function JobsPage({
 
   return (
     <Suspense fallback={<JobsPageSkeleton />}>
+      <FirstVisitTip {...featureTips.jobs} className="mb-4" />
       <StreamedJobsBoard businessSlug={businessSlug} />
     </Suspense>
   );

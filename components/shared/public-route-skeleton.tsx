@@ -57,35 +57,37 @@ function InquiryRouteSkeleton({ previewMode }: { previewMode: boolean }) {
           </div>
         ) : null}
 
-        <header className="public-page-header">
-          <div className="flex min-w-0 items-center gap-4">
+        <header className="public-page-header max-sm:rounded-none max-sm:border-0 max-sm:px-1 max-sm:py-2 max-sm:shadow-none max-sm:before:opacity-0">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
             <Skeleton className="size-14 rounded-2xl" />
-            <div className="min-w-0 space-y-2">
-              <Skeleton className="h-6 w-40 rounded-md" />
+            <div className="min-w-0 space-y-1.5 sm:space-y-2">
+              <Skeleton className="h-6 w-40 rounded-md sm:h-7" />
               <Skeleton className="h-4 w-28 rounded-md" />
             </div>
           </div>
         </header>
 
-        <PublicHeroSurface className="lg:py-12">
-          <div className="grid gap-10 xl:grid-cols-[minmax(0,0.92fr)_minmax(22rem,0.8fr)] xl:items-start">
-            <div className="flex min-w-0 flex-col gap-6">
-              <div className="flex flex-col gap-4">
-                <Skeleton className="h-4 w-24 rounded-md" />
-                <Skeleton className="h-14 w-full max-w-2xl rounded-2xl" />
-                <Skeleton className="h-20 w-full max-w-xl rounded-2xl" />
+        <section className="w-full py-4 sm:py-6 lg:py-8">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,0.85fr)_minmax(28rem,1fr)] xl:items-start xl:gap-12">
+            <div className="order-2 flex min-w-0 flex-col gap-6 xl:order-1 xl:gap-7">
+              <div className="flex flex-col gap-2">
+                <Skeleton className="h-7 w-48 rounded-md sm:h-9" />
+                <Skeleton className="h-4 w-full max-w-2xl rounded-md sm:h-5" />
+                <Skeleton className="h-4 w-5/6 max-w-2xl rounded-md sm:h-5" />
               </div>
 
-              <div className="grid gap-3">
+              <div className="grid w-full items-stretch gap-3 sm:gap-5">
                 {Array.from({ length: 3 }).map((_, index) => (
-                  <Card key={index} size="sm" className="bg-background/92">
-                    <CardHeader className="gap-3">
-                      <div className="flex size-10 items-center justify-center rounded-xl bg-accent">
-                        <Skeleton className="size-4 rounded-sm" />
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <Skeleton className="h-5 w-32 rounded-md" />
-                        <Skeleton className="h-4 w-48 rounded-md" />
+                  <Card key={index} size="sm" className="w-full bg-background/94">
+                    <CardHeader className="px-3.5 py-3 sm:px-5 sm:py-4">
+                      <div className="flex items-center gap-3 sm:gap-3.5">
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent/85 sm:size-9 sm:rounded-xl">
+                          <Skeleton className="size-4 rounded-sm" />
+                        </div>
+                        <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5 sm:gap-2">
+                          <Skeleton className="h-4 w-32 rounded-md sm:h-5" />
+                          <Skeleton className="h-3 w-48 rounded-md sm:h-4" />
+                        </div>
                       </div>
                     </CardHeader>
                   </Card>
@@ -94,10 +96,10 @@ function InquiryRouteSkeleton({ previewMode }: { previewMode: boolean }) {
             </div>
 
             <InquiryFormSkeleton
-              className={cn("xl:sticky xl:top-6", previewMode && "xl:top-24")}
+              className={cn("order-1 xl:order-2 xl:sticky xl:top-6", previewMode && "xl:top-24")}
             />
           </div>
-        </PublicHeroSurface>
+        </section>
       </div>
     </div>
   );
@@ -181,26 +183,17 @@ function QuoteInteractiveColumnSkeleton() {
   return (
     <div className="flex w-full flex-col gap-5">
       {/* Response actions card */}
-      <Card className="gap-0 bg-background/94 w-full">
-        <CardHeader className="gap-2 pb-5">
-          <Skeleton className="h-6 w-36 rounded-lg" />
-          <Skeleton className="h-4 w-full max-w-xs rounded-md" />
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 pt-0">
+      <div className="rounded-xl border border-border/60 bg-background/95 px-4 py-5 shadow-sm sm:p-6">
+        <Skeleton className="mb-4 h-5 w-36 rounded-md" />
+        <div className="flex flex-col gap-3">
           <Skeleton className="h-11 w-full rounded-xl" />
           <Skeleton className="h-11 w-full rounded-xl" />
-        </CardContent>
-      </Card>
-
-      {/* Revision request card */}
-      <Card className="gap-0 bg-background/94 w-full">
-        <CardHeader className="pb-4">
-          <Skeleton className="h-5 w-48 rounded-lg" />
-        </CardHeader>
-        <CardContent className="pt-0">
-          <Skeleton className="h-11 w-full rounded-xl sm:w-40" />
-        </CardContent>
-      </Card>
+        </div>
+        
+        <div className="mt-4 border-t border-border/40 pt-4">
+          <Skeleton className="h-9 w-full rounded-md" />
+        </div>
+      </div>
     </div>
   );
 }

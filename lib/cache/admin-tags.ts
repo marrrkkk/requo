@@ -34,3 +34,8 @@ export function adminSubscriptionsTag(): string {
 export function adminAuditTag(): string {
   return `${ADMIN_SCOPE}:audit`;
 }
+
+/** Tag for admin system health and configuration checks. */
+export function adminSystemTag(): string {
+  return `${ADMIN_SCOPE}:system`;
+}

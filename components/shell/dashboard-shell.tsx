@@ -35,6 +35,8 @@ import {
   LogOut,
   Lock,
 
+  MessageSquare,
+
   PanelsTopLeft,
 
   Plus,
@@ -164,6 +166,8 @@ import {
 } from "@/components/ui/sidebar";
 
 import {
+
+  getBusinessChatNewPath,
 
   getBusinessDashboardPath,
 
@@ -468,6 +472,8 @@ export function DashboardShell({
 
             plan={business.plan}
 
+            upgradeSlot={upgradeSlot}
+
           />
 
         </SidebarFooter>
@@ -586,6 +592,8 @@ export function DashboardShell({
 
                     businessSlug={business.slug}
 
+                    businessId={business.id}
+
                     role={businessContext.role}
 
                     plan={business.plan}
@@ -594,11 +602,17 @@ export function DashboardShell({
 
                 </div>
 
-                <div className="hidden min-[390px]:contents sm:contents">
+                <Button asChild variant="ghost" size="sm" className="gap-1.5">
 
-                  {upgradeSlot}
+                  <Link href={getBusinessChatNewPath(business.slug)}>
 
-                </div>
+                    <MessageSquare className="size-3.5" />
+
+                    <span>Ask Requo</span>
+
+                  </Link>
+
+                </Button>
 
                 {notificationSlot}
 
@@ -751,6 +765,8 @@ function DashboardUserMenu({
 
   plan,
 
+  upgradeSlot,
+
 }: {
 
   user: DashboardShellProps["user"];
@@ -760,6 +776,8 @@ function DashboardUserMenu({
   businessSlug: string;
 
   plan: BusinessContext["business"]["plan"];
+
+  upgradeSlot?: ReactNode;
 
 }) {
 
@@ -929,7 +947,21 @@ function DashboardUserMenu({
 
             </DropdownMenuLabel>
 
-            <DropdownMenuSeparator />
+            {upgradeSlot ? (
+
+              <>
+
+                <div className="px-2 py-1.5">{upgradeSlot}</div>
+
+                <DropdownMenuSeparator />
+
+              </>
+
+            ) : (
+
+              <DropdownMenuSeparator />
+
+            )}
 
             <DropdownMenuGroup>
 

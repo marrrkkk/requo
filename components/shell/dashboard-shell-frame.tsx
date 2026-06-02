@@ -3,13 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 
-import {
-  Fragment,
-  memo,
-  type CSSProperties,
-  type ReactNode,
-  useMemo,
-} from "react";
+import { Fragment, memo, type CSSProperties, type ReactNode, useMemo } from "react";
 import { Home as HomeIcon } from "lucide-react";
 import { usePathname } from "next/navigation";
 
@@ -46,7 +40,8 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { getBusinessDashboardPath } from "@/features/businesses/routes";
+import { getBusinessChatNewPath, getBusinessDashboardPath } from "@/features/businesses/routes";
+import { RequoIcon } from "@/components/shared/requo-icon";
 import { cn } from "@/lib/utils";
 
 const CommandMenu = dynamic(
@@ -100,7 +95,7 @@ export function DashboardShellFrame({
   businessSwitcherSlot,
   userMenuSlot,
   notificationSlot,
-  upgradeSlot,
+  upgradeSlot: _upgradeSlot,
   checklistSlot,
   themeSyncSlot,
   bannerSlot,
@@ -223,14 +218,18 @@ export function DashboardShellFrame({
                   {commandMenuSlot ?? (
                     <CommandMenu
                       businessSlug={businessSlug}
+                      businessId=""
                       role="owner"
                       plan="free"
                     />
                   )}
                 </div>
-                <div className="hidden min-[390px]:contents sm:contents">
-                  {upgradeSlot}
-                </div>
+                <Button asChild size="sm" className="whitespace-nowrap">
+                  <Link href={getBusinessChatNewPath(businessSlug)}>
+                    <RequoIcon className="size-3.5" />
+                    Ask Requo
+                  </Link>
+                </Button>
                 {notificationSlot}
               </div>
             </div>

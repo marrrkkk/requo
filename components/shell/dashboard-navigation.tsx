@@ -8,13 +8,11 @@ import {
   Home,
   Inbox,
   Receipt,
-  Settings,
   Workflow,
 } from "lucide-react";
 
 
 import {
-  canManageOperationalBusinessSettings,
   canViewBusinessAnalytics,
   type BusinessMemberRole,
 } from "@/lib/business-members";
@@ -108,16 +106,6 @@ export function getDashboardNavigation(
             label: "Analytics",
             description: "Track form performance, quote outcomes, and workflow timing.",
             icon: BarChart3,
-          },
-        ]
-      : []),
-    ...(canManageOperationalBusinessSettings(role)
-      ? [
-          {
-            href: getBusinessSettingsPath(slug, "general"),
-            label: "Settings",
-            description: "Manage members, defaults, and business setup.",
-            icon: Settings,
           },
         ]
       : []),

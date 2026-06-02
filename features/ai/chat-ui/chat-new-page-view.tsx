@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowUp, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import {
   PromptInputActions,
   PromptInputAction,
 } from "@/components/prompt-kit/prompt-input";
+import { Spinner } from "@/components/ui/spinner";
 import { usePendingMessage } from "./pending-message-context";
 import { ChatHeaderBar } from "./chat-header-bar";
 import { startNewChat } from "@/features/ai/actions/start-new-chat";
@@ -41,16 +42,46 @@ export function ChatNewPageView({
 }: ChatNewPageViewProps) {
   const [inputValue, setInputValue] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const router = useRouter();
-  const { setPendingMessage } = usePendingMessage();
+  const { pendingMessage, consumePendingMessage, setPendingMessage } = usePendingMessage();
+
+  // If we arrived here from the dashboard with a pending message,
+  // show a loading state while the chat is being created.
+  useEffect(() => {
+    if (!pendingMessage) return;
+
+    const message = consumePendingMessage();
+    if (!message) return;
+
+    setIsRedirecting(true); // eslint-disable-line react-hooks/set-state-in-effect -- intentional loading state on mount when arriving with pending message
+
+    startTransition(async () => {
+      // Re-set the pending message so the conversation page can trigger the AI response
+      setPendingMessage(message);
+
+      const result = await startNewChat({
+        userId,
+        businessId,
+        businessSlug,
+        message,
+      });
+
+      if (result.conversationId) {
+        router.replace(
+          getBusinessChatConversationPath(businessSlug, result.conversationId),
+        );
+      } else {
+        setIsRedirecting(false);
+      }
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const submitMessage = useCallback(
     (text: string) => {
       if (!text.trim() || isPending) return;
 
       startTransition(async () => {
-        setPendingMessage(text.trim());
-
         const result = await startNewChat({
           userId,
           businessId,
@@ -65,7 +96,7 @@ export function ChatNewPageView({
         }
       });
     },
-    [isPending, setPendingMessage, userId, businessId, businessSlug, router],
+    [isPending, userId, businessId, businessSlug, router],
   );
 
   const handleSubmit = useCallback(() => {
@@ -73,6 +104,19 @@ export function ChatNewPageView({
   }, [inputValue, submitMessage]);
 
   const quickActions = aiQuickActions.dashboard;
+
+  // Show loading state when redirecting from dashboard
+  if (isRedirecting || pendingMessage) {
+    return (
+      <div className="flex h-full flex-col overflow-hidden" data-chat-page>
+        <ChatHeaderBar businessSlug={businessSlug} />
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4">
+          <Spinner className="size-6 text-primary" />
+          <p className="text-sm text-muted-foreground">Starting conversation...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col overflow-hidden" data-chat-page>

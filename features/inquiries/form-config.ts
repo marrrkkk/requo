@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-import { getStarterTemplateBusinessType } from "@/features/businesses/starter-templates";
+import {
+  getStarterTemplateBusinessType,
+  type StarterTemplateBusinessType,
+} from "@/features/businesses/starter-templates";
 import {
   businessTypes,
   normalizeBusinessType,
@@ -523,6 +526,10 @@ function getDefaultInquiryFormGroupLabels(
       return { contact, project: "Discovery details" };
     case "contractor_home_improvement":
       return { contact, project: "Project details" };
+    case "event_services_rentals":
+      return { contact, project: "Event details" };
+    case "cleaning_services":
+      return { contact, project: "Service details" };
     case "general_project_services":
     default:
       return { contact, project: "Inquiry details" };
@@ -588,51 +595,162 @@ function createCustomField(
   };
 }
 
-function createContactFieldConfig(): Record<InquiryContactFieldKey, InquiryContactFieldConfig> {
+// Centralized placeholder definitions by business type category
+const placeholderDefinitions = {
+  // Contact field placeholders by business type
+  contact: {
+    // For professional/consulting services - more formal
+    consulting_professional_services: {
+      customerName: "e.g. Taylor Smith",
+      email: "taylor@company.com",
+      preferredContact: "How should we reach you?",
+    },
+    // For contractors/home services - practical, on-site focused
+    contractor_home_improvement: {
+      customerName: "e.g. Alex Rivera",
+      email: "alex@email.com",
+      preferredContact: "Best way to reach you?",
+    },
+    // For creative services - friendly, project-focused
+    creative_marketing_services: {
+      customerName: "e.g. Jordan Lee",
+      email: "jordan@brand.com",
+      preferredContact: "How should we reach you?",
+    },
+    // For event/production services
+    event_services_rentals: {
+      customerName: "e.g. Sam Torres",
+      email: "sam@events.com",
+      preferredContact: "Best way to reach you?",
+    },
+    // For recurring/cleaning services
+    cleaning_services: {
+      customerName: "e.g. Lisa Chen",
+      email: "lisa@email.com",
+      preferredContact: "Best way to reach you?",
+    },
+    // Default / general services
+    general_project_services: {
+      customerName: "e.g. Casey Jones",
+      email: "you@example.com",
+      preferredContact: "e.g. Email",
+    },
+  },
+
+  // Project field placeholders by field key and business type
+  project: {
+    serviceCategory: {
+      contractor_home_improvement: "Remodel, install, repair, cleanup...",
+      creative_marketing_services: "Branding, design, website, content...",
+      consulting_professional_services: "Consulting, advisory, audit, workshop...",
+      event_services_rentals: "Photography, videography, DJ, catering, rentals...",
+      cleaning_services: "Deep clean, regular maintenance, move-out...",
+      general_project_services: "What service do you need?",
+    },
+    details: {
+      contractor_home_improvement: "Describe the project, site conditions, materials, and timeline...",
+      creative_marketing_services: "Share the goal, audience, deliverables, and creative direction...",
+      consulting_professional_services: "Describe the challenge, goals, timeline, and desired outcomes...",
+      event_services_rentals: "Describe the event, style, requirements, and any special requests...",
+      cleaning_services: "Describe the space, any problem areas, and special requirements...",
+      general_project_services: "Tell us about your project, timeline, and any specific requirements...",
+    },
+    budgetText: {
+      contractor_home_improvement: "e.g. 50,000 - 100,000",
+      creative_marketing_services: "e.g. 25,000 - 50,000",
+      consulting_professional_services: "e.g. 20,000 - 40,000",
+      event_services_rentals: "e.g. 15,000 - 50,000",
+      cleaning_services: "e.g. 2,000 - 5,000 per visit",
+      general_project_services: "Your budget range",
+    },
+    requestedDeadline: {
+      contractor_home_improvement: "When do you need this completed?",
+      creative_marketing_services: "When do you need this delivered?",
+      consulting_professional_services: "Preferred start or completion date",
+      event_services_rentals: "When is the event?",
+      cleaning_services: "When would you like to start?",
+      general_project_services: "When do you need this done?",
+    },
+    // Custom field placeholders
+    location: {
+      contractor_home_improvement: "Street address, city, or area",
+      creative_marketing_services: "City, region, or remote",
+      consulting_professional_services: "City or preferred meeting location",
+      event_services_rentals: "Venue name and address",
+      cleaning_services: "Street address, city, or area",
+      general_project_services: "City or service area",
+    },
+  },
+} as const;
+
+function getContactPlaceholders(
+  businessType: StarterTemplateBusinessType,
+): { customerName: string; email: string; preferredContact: string } {
+  return placeholderDefinitions.contact[businessType] ?? placeholderDefinitions.contact.general_project_services;
+}
+
+function getProjectPlaceholder(
+  fieldKey: keyof typeof placeholderDefinitions.project,
+  businessType: StarterTemplateBusinessType,
+): string | undefined {
+  const fieldPlaceholders = placeholderDefinitions.project[fieldKey];
+  if (!fieldPlaceholders) return undefined;
+  return fieldPlaceholders[businessType] ?? fieldPlaceholders.general_project_services;
+}
+
+function createContactFieldConfig(
+  businessType: StarterTemplateBusinessType = "general_project_services",
+): Record<InquiryContactFieldKey, InquiryContactFieldConfig> {
+  const placeholders = getContactPlaceholders(businessType);
+
   return {
     customerName: {
       label: "Your name",
-      placeholder: "e.g. Alicia Cruz",
+      placeholder: placeholders.customerName,
       enabled: true,
       required: true,
     },
     email: {
       label: "Email",
-      placeholder: "you@example.com",
+      placeholder: placeholders.email,
       enabled: true,
       required: true,
     },
     preferredContact: {
       label: "Preferred contact method",
-      placeholder: "e.g. Email",
+      placeholder: placeholders.preferredContact,
       enabled: true,
       required: true,
     },
   };
 }
 
-function createGeneralProjectServicesFields() {
+function createGeneralProjectServicesFields(
+  businessType: StarterTemplateBusinessType = "general_project_services",
+) {
   return [
     createSystemField("serviceCategory", {
       label: "Service needed",
-      placeholder: "Tell us what you need help with",
+      placeholder: getProjectPlaceholder("serviceCategory", businessType),
       required: true,
     }),
     createCustomField("site-location", "short_text", {
       label: "Service location",
-      placeholder: "City or site address",
+      placeholder: getProjectPlaceholder("location", businessType),
     }),
     createSystemField("requestedDeadline", {
       label: "Preferred timing",
+      placeholder: getProjectPlaceholder("requestedDeadline", businessType),
       enabled: true,
     }),
     createSystemField("budgetText", {
       label: "Budget range",
+      placeholder: getProjectPlaceholder("budgetText", businessType),
       enabled: true,
     }),
     createSystemField("details", {
       label: "Inquiry details",
-      placeholder: "Share the scope, size, timing, and anything we should review before pricing.",
+      placeholder: getProjectPlaceholder("details", businessType),
       required: true,
     }),
     createSystemField("attachment", {
@@ -649,15 +767,17 @@ function normalizeLegacyContactFieldLabel(
 }
 
 function createContractorHomeImprovementFields() {
+  const businessType: StarterTemplateBusinessType = "contractor_home_improvement";
+
   return [
     createSystemField("serviceCategory", {
       label: "Project or service needed",
-      placeholder: "Remodel, install, repair, cleanup",
+      placeholder: getProjectPlaceholder("serviceCategory", businessType),
       required: true,
     }),
     createCustomField("service-address", "short_text", {
       label: "Service location",
-      placeholder: "Street, city, or service area",
+      placeholder: getProjectPlaceholder("location", businessType),
     }),
     createCustomField("property-type", "select", {
       label: "Location type",
@@ -677,11 +797,12 @@ function createContractorHomeImprovementFields() {
     }),
     createSystemField("requestedDeadline", {
       label: "Target completion",
+      placeholder: getProjectPlaceholder("requestedDeadline", businessType),
       enabled: true,
     }),
     createSystemField("details", {
       label: "Project details",
-      placeholder: "Describe the scope, site conditions, and anything we should review before pricing.",
+      placeholder: getProjectPlaceholder("details", businessType),
       required: true,
     }),
     createSystemField("attachment", {
@@ -692,10 +813,12 @@ function createContractorHomeImprovementFields() {
 }
 
 function createCreativeMarketingServicesFields() {
+  const businessType: StarterTemplateBusinessType = "creative_marketing_services";
+
   return [
     createSystemField("serviceCategory", {
       label: "Project or service needed",
-      placeholder: "Branding, design, website, content, production",
+      placeholder: getProjectPlaceholder("serviceCategory", businessType),
       required: true,
     }),
     createCustomField("deliverables", "long_text", {
@@ -721,11 +844,12 @@ function createCreativeMarketingServicesFields() {
     }),
     createSystemField("budgetText", {
       label: "Budget",
+      placeholder: getProjectPlaceholder("budgetText", businessType),
       enabled: true,
     }),
     createSystemField("details", {
       label: "Project brief",
-      placeholder: "Share the goal, scope, audience, and anything we should review before pricing.",
+      placeholder: getProjectPlaceholder("details", businessType),
       required: true,
     }),
     createSystemField("attachment", {
@@ -736,10 +860,12 @@ function createCreativeMarketingServicesFields() {
 }
 
 function createConsultingProfessionalServicesFields() {
+  const businessType: StarterTemplateBusinessType = "consulting_professional_services";
+
   return [
     createSystemField("serviceCategory", {
       label: "Service needed",
-      placeholder: "Consulting, advisory, audit, workshop",
+      placeholder: getProjectPlaceholder("serviceCategory", businessType),
       required: true,
     }),
     createCustomField("goal", "long_text", {
@@ -763,15 +889,116 @@ function createConsultingProfessionalServicesFields() {
     }),
     createSystemField("budgetText", {
       label: "Budget",
+      placeholder: getProjectPlaceholder("budgetText", businessType),
       enabled: true,
     }),
     createSystemField("details", {
       label: "Background",
-      placeholder: "Share the context, goals, and current challenges.",
+      placeholder: getProjectPlaceholder("details", businessType),
       required: true,
     }),
     createSystemField("attachment", {
       label: "Reference file",
+      enabled: true,
+    }),
+  ] satisfies InquiryFormFieldDefinition[];
+}
+
+function createEventServicesFields() {
+  const businessType: StarterTemplateBusinessType = "event_services_rentals";
+
+  return [
+    createSystemField("serviceCategory", {
+      label: "Service needed",
+      placeholder: getProjectPlaceholder("serviceCategory", businessType),
+      required: true,
+    }),
+    createCustomField("event-date", "date", {
+      label: "Event or shoot date",
+      required: true,
+    }),
+    createCustomField("venue-location", "short_text", {
+      label: "Venue or location",
+      placeholder: getProjectPlaceholder("location", businessType),
+      required: true,
+    }),
+    createCustomField("duration", "select", {
+      label: "Duration",
+      options: [
+        createOption("1-2h", "1–2 hours"),
+        createOption("3-4h", "3–4 hours"),
+        createOption("half-day", "Half day"),
+        createOption("full-day", "Full day"),
+        createOption("multi-day", "Multiple days"),
+      ],
+    }),
+    createCustomField("guest-count", "number", {
+      label: "Guest or attendee count",
+    }),
+    createSystemField("budgetText", {
+      label: "Budget",
+      placeholder: getProjectPlaceholder("budgetText", businessType),
+      enabled: true,
+    }),
+    createSystemField("details", {
+      label: "Event details",
+      placeholder: getProjectPlaceholder("details", businessType),
+      required: true,
+    }),
+    createSystemField("attachment", {
+      label: "Reference files",
+      enabled: true,
+    }),
+  ] satisfies InquiryFormFieldDefinition[];
+}
+
+function createRecurringServiceFields() {
+  const businessType: StarterTemplateBusinessType = "cleaning_services";
+
+  return [
+    createSystemField("serviceCategory", {
+      label: "Service needed",
+      placeholder: getProjectPlaceholder("serviceCategory", businessType),
+      required: true,
+    }),
+    createCustomField("service-address", "short_text", {
+      label: "Service location",
+      placeholder: getProjectPlaceholder("location", businessType),
+      required: true,
+    }),
+    createCustomField("property-size", "select", {
+      label: "Property size",
+      options: [
+        createOption("small", "Small (studio / 1 bed)"),
+        createOption("medium", "Medium (2–3 bed)"),
+        createOption("large", "Large (4+ bed)"),
+        createOption("commercial", "Commercial space"),
+      ],
+    }),
+    createCustomField("frequency", "select", {
+      label: "Frequency",
+      options: [
+        createOption("one-time", "One-time"),
+        createOption("weekly", "Weekly"),
+        createOption("biweekly", "Every 2 weeks"),
+        createOption("monthly", "Monthly"),
+        createOption("custom", "Custom schedule"),
+      ],
+    }),
+    createCustomField("preferred-start", "date", {
+      label: "Preferred start date",
+    }),
+    createCustomField("access-notes", "short_text", {
+      label: "Access notes",
+      placeholder: "Gate code, parking, unit number",
+    }),
+    createSystemField("details", {
+      label: "Additional details",
+      placeholder: getProjectPlaceholder("details", businessType),
+      required: true,
+    }),
+    createSystemField("attachment", {
+      label: "Photos",
       enabled: true,
     }),
   ] satisfies InquiryFormFieldDefinition[];
@@ -796,9 +1023,15 @@ export function createInquiryFormConfigDefaults({
     case "contractor_home_improvement":
       projectFields = createContractorHomeImprovementFields();
       break;
+    case "event_services_rentals":
+      projectFields = createEventServicesFields();
+      break;
+    case "cleaning_services":
+      projectFields = createRecurringServiceFields();
+      break;
     case "general_project_services":
     default:
-      projectFields = createGeneralProjectServicesFields();
+      projectFields = createGeneralProjectServicesFields(starterTemplateBusinessType);
       break;
   }
 
@@ -806,7 +1039,7 @@ export function createInquiryFormConfigDefaults({
     version: 1,
     businessType: resolvedBusinessType,
     groupLabels: getDefaultInquiryFormGroupLabels(resolvedBusinessType),
-    contactFields: createContactFieldConfig(),
+    contactFields: createContactFieldConfig(starterTemplateBusinessType),
     projectFields,
   };
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { requireAdminUser } from "@/features/admin/access";
 import { wrapAdminRouteWithViewLog } from "@/features/admin/audit";
 import { AdminBusinessDetail } from "@/features/admin/components/admin-business-detail";
@@ -76,5 +77,9 @@ async function renderDetail(businessId: string) {
     notFound();
   }
 
-  return <AdminBusinessDetail detail={detail} />;
+  return (
+    <DashboardPage>
+      <AdminBusinessDetail detail={detail} />
+    </DashboardPage>
+  );
 }

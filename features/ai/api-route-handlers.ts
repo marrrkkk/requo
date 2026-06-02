@@ -633,7 +633,10 @@ export async function createAiChatRouteResponse(request: Request) {
             errorMsg.includes("quota") ||
             errorMsg.includes("RESOURCE_EXHAUSTED") ||
             errorMsg.includes("rate_limit") ||
-            errorMsg.includes("high traffic");
+            errorMsg.includes("high traffic") ||
+            errorMsg.includes("high demand") ||
+            errorMsg.includes("overloaded") ||
+            errorMsg.includes("capacity");
           if (isRateLimit) markModelExhausted(modelId);
           console.warn(
             `[ai-chat] onError for ${modelId}:`,
@@ -728,13 +731,71 @@ export async function createAiChatRouteResponse(request: Request) {
         },
       });
 
-      // Verify the model can be reached by consuming the first text event.
-      // Rate limits from providers (429) surface as stream errors. The onError
-      // callback marks the model exhausted so the NEXT request skips it.
-      // For THIS request, the SDK's built-in error propagation will surface
-      // the error to the client which displays it with a retry button.
+      // Before committing the response, verify the model can produce output.
+      // Provider errors (429, "high demand", quota) often surface only after
+      // the stream starts — sometimes after initial handshake events (start,
+      // start-step) but before any actual text. We consume events from
+      // fullStream until we see either real content (text-delta, tool-call) or
+      // an error. If it's an error, we fall through to the next model.
+      //
+      // AI SDK v6 internally tees the base stream on each accessor call, so
+      // consuming from fullStream does NOT prevent toUIMessageStreamResponse
+      // from reading the full output independently.
+      const streamIterator = result.fullStream[Symbol.asyncIterator]();
+      let peekedError = false;
+      for (;;) {
+        const event = await streamIterator.next();
+        if (event.done) break;
+        const part = event.value;
+        if (typeof part === "object" && part !== null && "type" in part) {
+          // Error before any content — retryable
+          if (part.type === "error") {
+            const errVal = (part as { error?: unknown }).error;
+            const errMsg = errVal instanceof Error ? errVal.message : String(errVal ?? "");
+            await markModelExhausted(modelId);
+            console.warn(`[ai-chat] ${modelId} error before content, trying next...`, errMsg.slice(0, 200));
+            peekedError = true;
+            break;
+          }
+          // Real content arrived — model is working
+          if (
+            part.type === "text-delta" ||
+            part.type === "tool-call" ||
+            part.type === "tool-input-start" ||
+            part.type === "tool-result"
+          ) {
+            break;
+          }
+        }
+        // Skip non-content events (start, start-step, etc.) and keep peeking
+      }
+      if (peekedError) continue;
+
       await recordModelUsage(modelId);
-      return result.toUIMessageStreamResponse();
+
+      // Pass a custom onError to mask raw provider errors from the user.
+      // Mid-stream errors (e.g., provider overload after partial output)
+      // cannot trigger model fallback, but we can at least show a friendly
+      // message instead of the raw provider string.
+      return result.toUIMessageStreamResponse({
+        onError: (error) => {
+          const msg = error instanceof Error ? error.message : String(error);
+          const isTransient =
+            msg.includes("429") ||
+            msg.includes("quota") ||
+            msg.includes("RESOURCE_EXHAUSTED") ||
+            msg.includes("rate_limit") ||
+            msg.includes("high traffic") ||
+            msg.includes("high demand") ||
+            msg.includes("overloaded") ||
+            msg.includes("capacity");
+          if (isTransient) {
+            markModelExhausted(modelId);
+            return "The assistant is busy right now. Please try again in a moment.";
+          }
+          return "Something went wrong. Please try again.";
+        },
+      });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       const isRateLimit =
@@ -743,7 +804,10 @@ export async function createAiChatRouteResponse(request: Request) {
         errorMsg.includes("RESOURCE_EXHAUSTED") ||
         errorMsg.includes("rate_limit") ||
         errorMsg.includes("Rate limit") ||
-        errorMsg.includes("high traffic");
+        errorMsg.includes("high traffic") ||
+        errorMsg.includes("high demand") ||
+        errorMsg.includes("overloaded") ||
+        errorMsg.includes("capacity");
 
       if (isRateLimit) {
         await markModelExhausted(modelId);

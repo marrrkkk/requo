@@ -29,6 +29,9 @@ views plus customer responses from one place.
 ### Optional but recommended
 
 - `NEXT_PUBLIC_BETTER_AUTH_URL`
+- `ADMIN_SUBDOMAIN_HOST`
+- `ADMIN_USERNAME`
+- `ADMIN_PASSWORD`
 - `VERCEL_URL`
 - `RESEND_API_KEY`
 - `MAILTRAP_API_TOKEN`
@@ -145,7 +148,42 @@ DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<re
 6. Configure at least one AI provider and verify the inquiry assistant.
 7. Configure Polar if checkout is part of the deployment.
 8. Configure Inngest Cloud and verify cron schedules plus event-triggered functions sync successfully.
-9. Run the baseline health checks and smoke-test dashboard login, non-member denial, public inquiry submission, quote send/share, and public quote response.
+9. Configure the admin subdomain (see Admin Subdomain Checklist below).
+10. Run the baseline health checks and smoke-test dashboard login, non-member denial, public inquiry submission, quote send/share, and public quote response.
+
+## Admin Subdomain Checklist
+
+The admin console lives on a separate subdomain (e.g., `admin.requo.app`) and is
+rewritten to the `/admin` route tree by the proxy. To make it accessible in production:
+
+1. **Add the subdomain as a domain on the Vercel project.**
+   In the Vercel dashboard → Project Settings → Domains, add `admin.<your-domain>`
+   (e.g., `admin.requo.app`). Vercel will route requests for that domain to the
+   same deployment.
+
+2. **Configure DNS.**
+   Add a CNAME record for `admin` pointing to `cname.vercel-dns.com` (or use
+   Vercel nameservers if the apex domain is already delegated).
+
+3. **Set the environment variable.**
+   In Vercel → Project Settings → Environment Variables, add for Production:
+   ```
+   ADMIN_SUBDOMAIN_HOST=admin.requo.app
+   ```
+   This ensures the proxy matches the admin subdomain regardless of how
+   `BETTER_AUTH_URL` is configured. If unset, the host is derived from
+   `BETTER_AUTH_URL` (e.g., `https://requo.app` → `admin.requo.app`).
+
+4. **Set admin credentials.**
+   ```
+   ADMIN_USERNAME=<chosen-username>
+   ADMIN_PASSWORD=<strong-password>
+   ```
+   These are checked by the `/api/admin/login` route handler.
+
+5. **Verify.**
+   Visit `https://admin.requo.app` — you should see the admin login page.
+   After signing in, the admin dashboard should load.
 
 ## Current Operational Gaps
 

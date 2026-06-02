@@ -7,6 +7,8 @@ import { getAutomationLimit, canAccessWorkflowBuilder } from "@/features/automat
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 import { AutomationsWorkspace } from "@/features/automations/components/automations-workspace";
+import { FirstVisitTip } from "@/features/onboarding/components/first-visit-tip";
+import { featureTips } from "@/features/onboarding/feature-tips";
 
 export const metadata: Metadata = createNoIndexMetadata({
   title: "Automations",
@@ -24,12 +26,15 @@ export default async function AutomationsPage({
   const { id: selectedId } = await searchParams;
 
   return (
-    <Suspense fallback={<AutomationsPageSkeleton />}>
-      <StreamedAutomationsWorkspace
-        businessSlug={businessSlug}
-        selectedAutomationId={selectedId}
-      />
-    </Suspense>
+    <>
+      <FirstVisitTip {...featureTips.automations} className="mb-4" />
+      <Suspense fallback={<AutomationsPageSkeleton />}>
+        <StreamedAutomationsWorkspace
+          businessSlug={businessSlug}
+          selectedAutomationId={selectedId}
+        />
+      </Suspense>
+    </>
   );
 }
 

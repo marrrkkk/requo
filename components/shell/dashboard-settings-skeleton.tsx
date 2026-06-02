@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { SettingsPricingBodySkeleton } from "./settings-body-skeletons";
 
 export function DashboardSettingsSkeleton() {
   return <DashboardSettingsIndexSkeleton />;
@@ -242,60 +243,7 @@ export function DashboardSettingsPricingSkeleton() {
     <DashboardSettingsShellSkeleton>
       <div className="dashboard-side-stack">
         <SettingsPageHeader descriptionWidth="w-64" titleWidth="max-w-lg" />
-
-        <section className="section-panel p-6">
-          <div className="space-y-5">
-            <div className="flex items-center justify-between gap-4">
-              <div className="space-y-1">
-                <Skeleton className="h-6 w-32 rounded-md" />
-                <Skeleton className="h-4 w-44 rounded-md" />
-              </div>
-              <Skeleton className="h-10 w-36 rounded-xl" />
-            </div>
-
-            <div className="space-y-4">
-              {Array.from({ length: 2 }).map((_, index) => (
-                <div className="rounded-2xl border border-border/70 bg-muted/15 p-5" key={index}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <Skeleton className="h-5 w-40 rounded-md" />
-                      <Skeleton className="h-4 w-full max-w-md rounded-md" />
-                      <Skeleton className="h-4 w-full max-w-sm rounded-md" />
-                    </div>
-                    <Skeleton className="size-8 rounded-lg" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="section-panel p-6">
-          <div className="space-y-5">
-            <div className="flex items-center justify-between gap-4">
-              <div className="space-y-1">
-                <Skeleton className="h-6 w-40 rounded-md" />
-                <Skeleton className="h-4 w-52 rounded-md" />
-              </div>
-              <Skeleton className="h-10 w-40 rounded-xl" />
-            </div>
-
-            <div className="space-y-4">
-              {Array.from({ length: 2 }).map((_, index) => (
-                <div className="rounded-2xl border border-border/70 bg-muted/15 p-5" key={index}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <Skeleton className="h-5 w-48 rounded-md" />
-                      <Skeleton className="h-4 w-full max-w-lg rounded-md" />
-                      <Skeleton className="h-4 w-full max-w-md rounded-md" />
-                    </div>
-                    <Skeleton className="size-8 rounded-lg" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        <SettingsPricingBodySkeleton />
       </div>
     </DashboardSettingsShellSkeleton>
   );

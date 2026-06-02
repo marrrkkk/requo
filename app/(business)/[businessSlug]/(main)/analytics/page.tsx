@@ -25,6 +25,8 @@ import { getAppShellContext } from "@/lib/app-shell/context";
 import { canViewBusinessAnalytics } from "@/lib/business-members";
 import { hasFeatureAccess } from "@/lib/plans";
 import { createNoIndexMetadata } from "@/lib/seo/site";
+import { FirstVisitTip } from "@/features/onboarding/components/first-visit-tip";
+import { featureTips } from "@/features/onboarding/feature-tips";
 
 type AnalyticsPageProps = {
   params: Promise<{ businessSlug: string }>;
@@ -219,6 +221,8 @@ export default async function AnalyticsPage({ params, searchParams }: AnalyticsP
           />
         }
       />
+
+      <FirstVisitTip {...featureTips.analytics} className="mb-4" />
 
       <LastUpdatedTimestamp lastUpdatedAt={new Date()} />
 

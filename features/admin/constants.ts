@@ -21,6 +21,7 @@ export const ADMIN_ACTIONS = [
   "view.subscriptions",
   "view.subscription",
   "view.audit-logs",
+  "view.system",
   // User mutations
   "user.force_verify_email",
   "user.revoke_all_sessions",

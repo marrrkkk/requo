@@ -152,20 +152,26 @@ const whyRequoStages = [
   {
     stage: "Capture",
     icon: Inbox,
-    pain: "Requests scattered across email, DMs, and notes. Context lost before you start.",
-    fix: "One record. Form answers, files, conversation, and AI-detected details — ready to quote.",
+    pain: "Requests come in from five different places. By the time you piece it together, the customer is gone.",
+    fix: "Every inquiry lands in one place — form answers, files, notes, and AI-extracted details. Ready to quote instantly.",
   },
   {
     stage: "Quote",
     icon: FileText,
-    pain: "Every quote rebuilt from scratch. Buyers cool off waiting.",
-    fix: "AI drafts from your pricing library. Review, adjust, send in minutes.",
+    pain: "Building quotes from scratch takes hours. Customers who were ready to buy lose interest waiting.",
+    fix: "AI drafts line items from your pricing library. You review, tweak, and send a polished quote in minutes.",
   },
   {
-    stage: "Win & Deliver",
+    stage: "Follow up",
     icon: BellRing,
-    pain: "After acceptance, everything lives in your head.",
-    fix: "Jobs, invoices, and follow-ups — connected from quote to completion.",
+    pain: "You meant to check in last week. Now it's awkward, and they've moved on.",
+    fix: "Automatic nudges at the right time. Know when quotes are viewed. Never let a warm lead go cold.",
+  },
+  {
+    stage: "Deliver",
+    icon: Briefcase,
+    pain: "The customer said yes — now what? Scope, schedule, and invoicing live in your head.",
+    fix: "Accepted quotes become jobs. Track progress, invoice on completion. Everything connected end to end.",
   },
 ] as const;
 
@@ -291,94 +297,72 @@ export function MarketingHero() {
         className="mx-auto mt-24 w-full max-w-6xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0"
         id="why-requo"
       >
-        <InViewReveal className="flex max-w-3xl flex-col items-start gap-4 sm:gap-5">
+        <InViewReveal className="mx-auto flex max-w-3xl flex-col items-center gap-4 text-center sm:gap-5">
           <p className="eyebrow">WHY REQUO</p>
-          <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
-            You lose work between the cracks, not at the price.
+          <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-[2.75rem]">
+            You don&apos;t lose jobs on price.{" "}
+            <span className="text-muted-foreground">You lose them in the gaps.</span>
           </h2>
-          <p className="max-w-2xl text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7 lg:text-lg lg:leading-8">
-            Slow replies, forgotten follow-ups, no clear next step. Requo keeps
-            every inquiry moving toward revenue.
+          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base sm:leading-7 lg:text-lg lg:leading-8">
+            Scattered requests, slow quotes, forgotten follow-ups. Every gap is
+            revenue walking out the door. Requo closes them all.
           </p>
         </InViewReveal>
 
-        <div className="mt-10 grid gap-4 sm:mt-14 sm:gap-6 lg:mt-16 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:items-start">
-          {/* Where work leaks out */}
-          <InViewReveal>
-            <div className="flex h-full flex-col gap-6 rounded-2xl border border-border/70 bg-secondary/40 p-6 sm:p-7 lg:p-8">
-              <div className="flex flex-col gap-1.5">
-                <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">
-                  Without Requo
-                </span>
-                <h3 className="font-heading text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-                  Where work leaks out
-                </h3>
-              </div>
-
-              <ul className="flex flex-col gap-3">
-                {leakPoints.map((point) => (
-                  <li className="flex items-start gap-3" key={point}>
-                    <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-muted-foreground/15">
-                      <X className="size-3 text-muted-foreground/70" />
-                    </span>
-                    <span className="text-sm leading-6 text-muted-foreground">
-                      {point}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-              <p className="mt-auto border-t border-border/60 pt-5 text-sm leading-6 text-foreground">
-                The fix isn&apos;t lower prices. It&apos;s a workflow that never
-                drops the ball.
-              </p>
-            </div>
-          </InViewReveal>
-
-          {/* With Requo — stage by stage */}
-          <InViewReveal delay={80}>
-            <div className="flex flex-col gap-3 sm:gap-4">
-              {whyRequoStages.map((item, index) => {
-                const Icon = item.icon;
-                return (
-                  <article
-                    className="group rounded-2xl border border-border/70 bg-card/60 p-5 transition-colors hover:border-border sm:p-6"
-                    key={item.stage}
-                  >
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
-                      <div className="flex items-center gap-3 sm:w-40 sm:shrink-0 sm:flex-col sm:items-start sm:gap-3">
-                        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                          <Icon className="size-5" />
+        <div className="mt-12 flex flex-col gap-4 sm:mt-16 lg:mt-20">
+          {whyRequoStages.map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <InViewReveal key={item.stage} delay={index * 60}>
+                <article className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card/50 p-6 sm:p-8">
+                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:gap-8">
+                    {/* Stage label */}
+                    <div className="flex items-center gap-4 lg:w-44 lg:shrink-0">
+                      <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
+                        <Icon className="size-5" />
+                      </span>
+                      <div className="flex flex-col lg:hidden">
+                        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/60">
+                          Step {index + 1}
                         </span>
-                        <div className="flex flex-col">
-                          <span className="font-mono text-[10px] font-semibold text-muted-foreground/50">
-                            0{index + 1}
-                          </span>
-                          <p className="font-heading text-base font-semibold tracking-tight text-foreground sm:text-lg">
-                            {item.stage}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex min-w-0 flex-1 flex-col gap-3">
-                        <p className="text-sm leading-6 text-muted-foreground line-through decoration-muted-foreground/30">
-                          {item.pain}
+                        <p className="font-heading text-lg font-semibold tracking-tight">
+                          {item.stage}
                         </p>
-                        <div className="flex items-start gap-2.5 rounded-xl bg-primary/[0.06] px-3.5 py-3">
-                          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15">
-                            <Check className="size-3 text-primary" />
-                          </span>
-                          <p className="text-sm font-medium leading-6 text-foreground">
-                            {item.fix}
-                          </p>
-                        </div>
+                      </div>
+                      <div className="hidden flex-col lg:flex">
+                        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/60">
+                          Step {index + 1}
+                        </span>
+                        <p className="font-heading text-lg font-semibold tracking-tight">
+                          {item.stage}
+                        </p>
                       </div>
                     </div>
-                  </article>
-                );
-              })}
-            </div>
-          </InViewReveal>
+
+                    {/* Pain & fix */}
+                    <div className="grid min-w-0 flex-1 gap-4 sm:grid-cols-2 sm:gap-6">
+                      <div className="flex items-start gap-3">
+                        <span className="mt-1 flex size-5 shrink-0 items-center justify-center rounded-full bg-muted-foreground/10">
+                          <X className="size-3 text-muted-foreground/60" />
+                        </span>
+                        <p className="text-sm leading-relaxed text-muted-foreground">
+                          {item.pain}
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-3 rounded-xl bg-primary/[0.05] px-4 py-3">
+                        <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15">
+                          <Check className="size-3 text-primary" />
+                        </span>
+                        <p className="text-sm font-medium leading-relaxed text-foreground">
+                          {item.fix}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              </InViewReveal>
+            );
+          })}
         </div>
       </section>
 

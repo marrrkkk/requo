@@ -66,18 +66,19 @@ const contactMethodOptions = inquiryContactMethods.map((method) => ({
   value: method,
 }));
 
+// Standard contact handle placeholders used across all inquiry forms
 function getContactHandlePlaceholder(method: InquiryContactMethod) {
   switch (method) {
     case "email":
-      return "you@example.com";
+      return "your@email.com";
     case "phone":
-      return "+63 912 345 6789";
+      return "+1 234 567 8900";
     case "facebook":
-      return "yourpage";
+      return "your.page";
     case "instagram":
-      return "yourhandle";
+      return "@yourhandle";
     case "whatsapp":
-      return "+63 912 345 6789";
+      return "+1 234 567 8900";
     case "other":
       return "How should we reach you?";
   }

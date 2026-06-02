@@ -47,7 +47,18 @@ import type {
   AdminUserDetailSubscription,
   AdminUserRow,
 } from "@/features/admin/types";
-import { adminDashboardTag } from "@/lib/cache/admin-tags";
+import {
+  adminDashboardTag,
+  adminSystemTag,
+} from "@/lib/cache/admin-tags";
+import {
+  buildAdminHealthSummary,
+  getAdminConfigMatrix,
+  runAdminHealthChecks,
+  type AdminConfigMatrixRow,
+  type AdminHealthReport,
+  type AdminHealthSummary,
+} from "@/lib/admin/health-checks";
 import { type BusinessMemberRole } from "@/lib/business-members";
 import { db } from "@/lib/db/client";
 import {
@@ -187,12 +198,35 @@ function buildUserSearchCondition(search: string) {
   return or(ilike(user.email, pattern), ilike(user.name, pattern));
 }
 
+function buildUserStatusCondition(
+  status: AdminUsersListFilters["status"],
+) {
+  if (!status || status === "all") {
+    return undefined;
+  }
+
+  if (status === "verified") {
+    return eq(user.emailVerified, true);
+  }
+
+  if (status === "unverified") {
+    return eq(user.emailVerified, false);
+  }
+
+  return eq(user.banned, true);
+}
+
 async function listAdminUsersInner(
   filters: AdminUsersListFilters,
 ): Promise<AdminPaginatedResult<AdminUserRow>> {
-  const { page, pageSize, search } = filters;
+  const { page, pageSize, search, status } = filters;
   const offset = toOffset(page, pageSize);
   const searchCondition = search ? buildUserSearchCondition(search) : undefined;
+  const statusCondition = buildUserStatusCondition(status);
+  const whereClause =
+    searchCondition && statusCondition
+      ? and(searchCondition, statusCondition)
+      : searchCondition ?? statusCondition;
 
   const lastSessionSql = sql<
     Date | null
@@ -211,14 +245,14 @@ async function listAdminUsersInner(
         lastSessionAt: lastSessionSql,
       })
       .from(user)
-      .where(searchCondition)
+      .where(whereClause)
       .orderBy(desc(user.createdAt), desc(user.id))
       .limit(pageSize)
       .offset(offset),
     db
       .select({ count: count() })
       .from(user)
-      .where(searchCondition),
+      .where(whereClause),
   ]);
 
   return {
@@ -601,10 +635,10 @@ export const getAdminBusinessDetail = cache(
 async function listAdminSubscriptionsInner(
   filters: AdminSubscriptionsListFilters,
 ): Promise<AdminPaginatedResult<AdminSubscriptionRow>> {
-  const { page, pageSize, status, provider } = filters;
+  const { page, pageSize, status, provider, search } = filters;
   const offset = toOffset(page, pageSize);
 
-  const conditions = [] as Array<ReturnType<typeof eq>>;
+  const conditions = [] as Array<ReturnType<typeof eq> | ReturnType<typeof or>>;
 
   if (status) {
     conditions.push(eq(accountSubscriptions.status, status));
@@ -612,6 +646,11 @@ async function listAdminSubscriptionsInner(
 
   if (provider) {
     conditions.push(eq(accountSubscriptions.billingProvider, provider));
+  }
+
+  if (search) {
+    const pattern = likePattern(search);
+    conditions.push(ilike(user.email, pattern));
   }
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
@@ -881,5 +920,42 @@ export const listAdminAuditLogs = cache(
 
     const filters = adminAuditLogListFiltersSchema.parse(input);
     return listAdminAuditLogsInner(filters);
+  },
+);
+
+/* ── System health ───────────────────────────────────────────────────────── */
+
+const adminSystemCacheLife = {
+  stale: 60,
+  revalidate: 60,
+  expire: 300,
+} as const;
+
+async function getCachedAdminHealthReport(): Promise<AdminHealthReport> {
+  "use cache";
+
+  cacheLife(adminSystemCacheLife);
+  cacheTag(adminSystemTag());
+
+  return runAdminHealthChecks();
+}
+
+export const getAdminHealthReport = cache(async (): Promise<AdminHealthReport> => {
+  await requireAdminUser();
+  return getCachedAdminHealthReport();
+});
+
+export const getAdminHealthSummary = cache(
+  async (): Promise<AdminHealthSummary> => {
+    await requireAdminUser();
+    const report = await getCachedAdminHealthReport();
+    return buildAdminHealthSummary(report);
+  },
+);
+
+export const getAdminSystemConfigMatrix = cache(
+  async (): Promise<AdminConfigMatrixRow[]> => {
+    await requireAdminUser();
+    return getAdminConfigMatrix();
   },
 );

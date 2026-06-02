@@ -21,6 +21,8 @@ import {
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { hasFeatureAccess } from "@/lib/plans";
 import { createNoIndexMetadata } from "@/lib/seo/site";
+import { FirstVisitTip } from "@/features/onboarding/components/first-visit-tip";
+import { featureTips } from "@/features/onboarding/feature-tips";
 
 type QuotesPageProps = {
   params: Promise<{ businessSlug: string }>;
@@ -156,6 +158,8 @@ export default async function QuotesPage({
         title="Quotes"
         description="List, filter, and manage quotes for this business."
       />
+
+      <FirstVisitTip {...featureTips.quotes} className="mb-4" />
 
       <Suspense fallback={<QuoteListControlsFallback />}>
         <QuoteListControlsSection

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { DashboardPage } from "@/components/shared/dashboard-layout";
 import { requireAdminUser } from "@/features/admin/access";
 import {
   wrapAdminRouteWithViewLog,
@@ -75,7 +76,7 @@ async function AdminSubscriptionDetailPageContent({
 
   const renderPage = wrapAdminRouteWithViewLog(
     async () => (
-      <div className="flex flex-col gap-6">
+      <DashboardPage>
         <AdminSubscriptionDetail subscription={subscription} />
         <AdminSubscriptionOverrideForm
           currentPlan={subscription.plan}
@@ -84,7 +85,7 @@ async function AdminSubscriptionDetailPageContent({
           subscriptionId={subscription.id}
           userId={subscription.userId}
         />
-      </div>
+      </DashboardPage>
     ),
     auditContext,
     {

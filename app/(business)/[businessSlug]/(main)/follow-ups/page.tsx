@@ -11,6 +11,8 @@ import { getRecentRecordsForFollowUpCreate } from "@/features/follow-ups/queries
 import { CreateFollowUpButton } from "@/features/follow-ups/components/create-follow-up-button";
 import { LockedAction } from "@/features/paywall";
 import { createNoIndexMetadata } from "@/lib/seo/site";
+import { FirstVisitTip } from "@/features/onboarding/components/first-visit-tip";
+import { featureTips } from "@/features/onboarding/feature-tips";
 
 export const metadata: Metadata = createNoIndexMetadata({
   title: "Follow-ups",
@@ -31,6 +33,7 @@ export default async function FollowUpsPage({
 
   return (
     <Suspense fallback={<FollowUpsPageSkeleton />}>
+      <FirstVisitTip {...featureTips.followUps} className="mb-4" />
       <StreamedFollowUpBoard businessSlug={businessSlug} />
     </Suspense>
   );

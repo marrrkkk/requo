@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import {
-  ArrowUpRight,
   BriefcaseBusiness,
   Check,
   ChevronsUpDown,
@@ -320,7 +319,6 @@ export function DashboardUserMenu({
 }) {
   const [isPending, startTransition] = useTransition();
   const { isMobile, setOpenMobile } = useSidebar();
-  const businessCheckout = useBusinessCheckout();
 
   function closeMobileSidebar() {
     if (isMobile) {
@@ -437,19 +435,6 @@ export function DashboardUserMenu({
                   <PlanBadge plan={plan} className="ml-auto" />
                 </Link>
               </DropdownMenuItem>
-              {plan !== "business" && businessCheckout ? (
-                <DropdownMenuItem
-                  onSelect={() => {
-                    closeMobileSidebar();
-                    businessCheckout.openPlanSelection(
-                      plan === "pro" ? "business" : undefined,
-                    );
-                  }}
-                >
-                  <ArrowUpRight data-icon="inline-start" />
-                  {plan === "pro" ? "Upgrade to Business" : "Upgrade Plan"}
-                </DropdownMenuItem>
-              ) : null}
               <AppearanceMenuSubmenu userId={user.id} />
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
