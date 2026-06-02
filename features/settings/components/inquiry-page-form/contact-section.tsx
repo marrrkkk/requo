@@ -12,7 +12,7 @@ import {
   inquiryPageBusinessContactSocialMeta,
 } from "@/features/inquiries/page-config";
 
-import { DetailsPanel, DisclosureSection, SectionHeading, SectionVisibilityToggle } from "./shared";
+import { DetailsPanel, DisclosureSection, SectionVisibilityToggle } from "./shared";
 
 export type ContactSectionProps = {
   showBusinessContact: boolean;
@@ -62,17 +62,8 @@ export function ContactSection({
   onBusinessLinkedinUrlChange,
 }: ContactSectionProps) {
   return (
-    <section
-      className="section-panel scroll-mt-20 p-5 sm:p-6"
-      id="contact"
-    >
-      <SectionHeading
-        description="Shown in the public form area when at least one detail is filled in."
-        title="Business contact"
-      />
-
-      <div className="mt-6 flex flex-col gap-6">
-        <SectionVisibilityToggle
+    <div className="flex flex-col gap-6">
+      <SectionVisibilityToggle
           checked={showBusinessContact}
           description="Keep the contact details saved, but hide the business contact block on the public form when this is off."
           disabled={isPending}
@@ -284,7 +275,6 @@ export function ContactSection({
             </DisclosureSection>
           </FieldGroup>
         </DetailsPanel>
-      </div>
-    </section>
+    </div>
   );
 }

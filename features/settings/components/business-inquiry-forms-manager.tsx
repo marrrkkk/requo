@@ -10,7 +10,6 @@ import {
   FileArchive,
   ArchiveRestore,
   Link2,
-  MoreHorizontal,
   PencilLine,
   Plus,
   FileText,
@@ -318,12 +317,8 @@ export function BusinessInquiryFormsManager({
                       </div>
                     </div>
                     <Badge
-                      className={`w-fit shrink-0 self-start ${
-                        form.publicInquiryEnabled
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50"
-                          : "border-red-200 bg-red-50 text-red-700 hover:bg-red-50"
-                      }`}
-                      variant="outline"
+                      className="w-fit shrink-0 self-start"
+                      variant={form.publicInquiryEnabled ? "default" : "secondary"}
                     >
                       {form.publicInquiryEnabled ? "Live" : "Unpublished"}
                     </Badge>

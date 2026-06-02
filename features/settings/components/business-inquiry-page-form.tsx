@@ -11,6 +11,12 @@ import { Eye } from "lucide-react";
 import { FloatingFormActions } from "@/components/shared/floating-form-actions";
 import { useActionStateWithSonner } from "@/hooks/use-action-state-with-sonner";
 import { useDeferredRefresh } from "@/hooks/use-deferred-refresh";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import type { BusinessType } from "@/features/inquiries/business-types";
 import { getFieldError } from "@/lib/action-state";
@@ -30,7 +36,6 @@ import type {
   BusinessInquiryPageSettingsView,
 } from "@/features/settings/types";
 import { isInquiryPageCustomizationLocked } from "@/features/inquiries/plan-rules";
-import { cn } from "@/lib/utils";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 
@@ -133,7 +138,6 @@ export function BusinessInquiryPageForm({
   const [businessTwitterXUrl, setBusinessTwitterXUrl] = useState(
     settings.inquiryPageConfig.businessContact?.socialLinks?.twitterX ?? "",
   );
-  const [activeSection, setActiveSection] = useState("basics");
   const [businessLinkedinUrl, setBusinessLinkedinUrl] = useState(
     settings.inquiryPageConfig.businessContact?.socialLinks?.linkedin ?? "",
   );
@@ -593,144 +597,235 @@ export function BusinessInquiryPageForm({
           </p>
         </div>
 
-        <PageSectionToc
-          showCardsSection={pageCustomizationLocked || effectiveTemplate !== "no_supporting_cards"}
-          activeSection={activeSection}
-          onSectionChange={setActiveSection}
-        />
+        <Accordion
+          type="multiple"
+          defaultValue={["basics", "content"]}
+          className="flex flex-col gap-3"
+        >
+          <AccordionItem value="basics" className="section-panel border-none p-0">
+            <AccordionTrigger className="px-5 py-4 hover:no-underline sm:px-6">
+              <div className="flex flex-col gap-0.5">
+                <span className="font-heading text-base font-semibold tracking-tight text-foreground">
+                  Basics
+                </span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  Name, link, and business type
+                </span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-0 pb-0">
+              <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+                <BasicsSection
+                  formName={formName}
+                  formSlug={formSlug}
+                  businessType={businessType}
+                  isPending={isPending}
+                  nameError={nameError}
+                  slugError={slugError}
+                  businessTypeError={businessTypeError}
+                  settingsSlug={settings.slug}
+                  onFormNameChange={setFormName}
+                  onFormSlugChange={setFormSlug}
+                  onBusinessTypeChange={setBusinessType}
+                />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
 
-        {activeSection === "basics" && (
-          <BasicsSection
-            formName={formName}
-            formSlug={formSlug}
-            businessType={businessType}
-            isPending={isPending}
-            nameError={nameError}
-            slugError={slugError}
-            businessTypeError={businessTypeError}
-            settingsSlug={settings.slug}
-            onFormNameChange={setFormName}
-            onFormSlugChange={setFormSlug}
-            onBusinessTypeChange={setBusinessType}
-          />
-        )}
+          <AccordionItem value="content" className="section-panel border-none p-0">
+            <AccordionTrigger className="px-5 py-4 hover:no-underline sm:px-6">
+              <div className="flex flex-col gap-0.5">
+                <span className="font-heading text-base font-semibold tracking-tight text-foreground">
+                  Content
+                </span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  Headline, form heading, and page copy
+                </span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-0 pb-0">
+              <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+                <ContentSection
+                  headline={headline}
+                  formTitle={formTitle}
+                  thankYouMessage={thankYouMessage}
+                  eyebrow={eyebrow}
+                  brandTagline={brandTagline}
+                  description={description}
+                  formDescription={formDescription}
+                  isPending={isPending}
+                  pageCustomizationLocked={pageCustomizationLocked}
+                  plan={settings.plan}
+                  businessName={settings.name}
+                  shortDescription={settings.shortDescription}
+                  headlineError={headlineError}
+                  formTitleError={formTitleError}
+                  thankYouMessageError={thankYouMessageError}
+                  eyebrowError={eyebrowError}
+                  brandTaglineError={brandTaglineError}
+                  descriptionError={descriptionError}
+                  formDescriptionError={formDescriptionError}
+                  onHeadlineChange={setHeadline}
+                  onFormTitleChange={setFormTitle}
+                  onThankYouMessageChange={setThankYouMessage}
+                  onEyebrowChange={setEyebrow}
+                  onBrandTaglineChange={setBrandTagline}
+                  onDescriptionChange={setDescription}
+                  onFormDescriptionChange={setFormDescription}
+                />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
 
-        {activeSection === "content" && (
-          <ContentSection
-            headline={headline}
-            formTitle={formTitle}
-            thankYouMessage={thankYouMessage}
-            eyebrow={eyebrow}
-            brandTagline={brandTagline}
-            description={description}
-            formDescription={formDescription}
-            isPending={isPending}
-            pageCustomizationLocked={pageCustomizationLocked}
-            plan={settings.plan}
-            businessName={settings.name}
-            shortDescription={settings.shortDescription}
-            headlineError={headlineError}
-            formTitleError={formTitleError}
-            thankYouMessageError={thankYouMessageError}
-            eyebrowError={eyebrowError}
-            brandTaglineError={brandTaglineError}
-            descriptionError={descriptionError}
-            formDescriptionError={formDescriptionError}
-            onHeadlineChange={setHeadline}
-            onFormTitleChange={setFormTitle}
-            onThankYouMessageChange={setThankYouMessage}
-            onEyebrowChange={setEyebrow}
-            onBrandTaglineChange={setBrandTagline}
-            onDescriptionChange={setDescription}
-            onFormDescriptionChange={setFormDescription}
-          />
-        )}
+          <AccordionItem value="layout" className="section-panel border-none p-0">
+            <AccordionTrigger className="px-5 py-4 hover:no-underline sm:px-6">
+              <div className="flex flex-col gap-0.5">
+                <span className="font-heading text-base font-semibold tracking-tight text-foreground">
+                  Layout
+                </span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  Template, mobile layout, and branding
+                </span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-0 pb-0">
+              <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+                <LayoutSection
+                  effectiveTemplate={effectiveTemplate}
+                  mobileLayout={mobileLayout}
+                  isPending={isPending}
+                  pageCustomizationLocked={pageCustomizationLocked}
+                  plan={settings.plan}
+                  templateError={templateError}
+                  logoPreviewUrl={logoPreviewUrl}
+                  generalSettingsHref={generalSettingsHref}
+                  settingsHref={settingsHref}
+                  businessName={settings.name}
+                  onTemplateChange={setTemplate}
+                  onMobileLayoutChange={setMobileLayout}
+                />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
 
-        {activeSection === "layout" && (
-          <LayoutSection
-            effectiveTemplate={effectiveTemplate}
-            mobileLayout={mobileLayout}
-            isPending={isPending}
-            pageCustomizationLocked={pageCustomizationLocked}
-            plan={settings.plan}
-            templateError={templateError}
-            logoPreviewUrl={logoPreviewUrl}
-            generalSettingsHref={generalSettingsHref}
-            settingsHref={settingsHref}
-            businessName={settings.name}
-            onTemplateChange={setTemplate}
-            onMobileLayoutChange={setMobileLayout}
-          />
-        )}
+          {(effectiveTemplate !== "no_supporting_cards" || pageCustomizationLocked) ? (
+            <AccordionItem value="cards" className="section-panel border-none p-0">
+              <AccordionTrigger className="px-5 py-4 hover:no-underline sm:px-6">
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-heading text-base font-semibold tracking-tight text-foreground">
+                    Supporting cards
+                  </span>
+                  <span className="text-sm font-normal text-muted-foreground">
+                    Short prompts shown beside the form
+                    {cards.length > 0 ? ` · ${cards.length} card${cards.length === 1 ? "" : "s"}` : ""}
+                  </span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-0 pb-0">
+                <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+                  <CardsSection
+                    cards={cards}
+                    effectiveShowSupportingCards={effectiveShowSupportingCards}
+                    isPending={isPending}
+                    pageCustomizationLocked={pageCustomizationLocked}
+                    plan={settings.plan}
+                    hasReachedCardLimit={hasReachedCardLimit}
+                    prefersReducedMotion={prefersReducedMotion}
+                    cardsError={cardsError}
+                    onAddCard={addCard}
+                    onRemoveCard={removeCard}
+                    onUpdateCard={updateCard}
+                    onCardDragEnd={handleCardDragEnd}
+                    onShowSupportingCardsChange={setShowSupportingCards}
+                  />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          ) : null}
 
-        {activeSection === "cards" && (pageCustomizationLocked || effectiveTemplate !== "no_supporting_cards") ? (
-          <CardsSection
-            cards={cards}
-            effectiveShowSupportingCards={effectiveShowSupportingCards}
-            isPending={isPending}
-            pageCustomizationLocked={pageCustomizationLocked}
-            plan={settings.plan}
-            hasReachedCardLimit={hasReachedCardLimit}
-            prefersReducedMotion={prefersReducedMotion}
-            cardsError={cardsError}
-            onAddCard={addCard}
-            onRemoveCard={removeCard}
-            onUpdateCard={updateCard}
-            onCardDragEnd={handleCardDragEnd}
-            onShowSupportingCardsChange={setShowSupportingCards}
-          />
-        ) : null}
+          <AccordionItem value="showcase" className="section-panel border-none p-0">
+            <AccordionTrigger className="px-5 py-4 hover:no-underline sm:px-6">
+              <div className="flex flex-col gap-0.5">
+                <span className="font-heading text-base font-semibold tracking-tight text-foreground">
+                  Showcase image
+                </span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  {effectiveShowShowcaseImage && showcaseImageUrl.trim()
+                    ? "Image visible on public page"
+                    : "Optional hero image"}
+                </span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-0 pb-0">
+              <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+                <ShowcaseSection
+                  showcaseImageUrl={showcaseImageUrl}
+                  showcaseImageFrame={showcaseImageFrame}
+                  showcaseImageSize={showcaseImageSize}
+                  showcaseImageCrop={showcaseImageCrop}
+                  effectiveShowShowcaseImage={effectiveShowShowcaseImage}
+                  isPending={isPending}
+                  pageCustomizationLocked={pageCustomizationLocked}
+                  plan={settings.plan}
+                  showcaseImageUrlError={showcaseImageUrlError}
+                  showcaseImageFrameError={showcaseImageFrameError}
+                  showcaseImageSizeError={showcaseImageSizeError}
+                  cropError={null}
+                  showcaseImageCropXError={showcaseImageCropXError}
+                  showcaseImageCropYError={showcaseImageCropYError}
+                  showcaseImageCropZoomError={showcaseImageCropZoomError}
+                  onShowcaseImageUrlChange={setShowcaseImageUrl}
+                  onShowcaseImageFrameChange={setShowcaseImageFrame}
+                  onShowcaseImageSizeChange={setShowcaseImageSize}
+                  onShowShowcaseImageChange={setShowShowcaseImage}
+                  onOpenCropDialog={handleOpenCropDialog}
+                />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
 
-        {activeSection === "showcase" && (
-          <ShowcaseSection
-            showcaseImageUrl={showcaseImageUrl}
-            showcaseImageFrame={showcaseImageFrame}
-            showcaseImageSize={showcaseImageSize}
-            showcaseImageCrop={showcaseImageCrop}
-            effectiveShowShowcaseImage={effectiveShowShowcaseImage}
-            isPending={isPending}
-            pageCustomizationLocked={pageCustomizationLocked}
-            plan={settings.plan}
-            showcaseImageUrlError={showcaseImageUrlError}
-            showcaseImageFrameError={showcaseImageFrameError}
-            showcaseImageSizeError={showcaseImageSizeError}
-            cropError={null}
-            showcaseImageCropXError={showcaseImageCropXError}
-            showcaseImageCropYError={showcaseImageCropYError}
-            showcaseImageCropZoomError={showcaseImageCropZoomError}
-            onShowcaseImageUrlChange={setShowcaseImageUrl}
-            onShowcaseImageFrameChange={setShowcaseImageFrame}
-            onShowcaseImageSizeChange={setShowcaseImageSize}
-            onShowShowcaseImageChange={setShowShowcaseImage}
-            onOpenCropDialog={handleOpenCropDialog}
-          />
-        )}
-
-        {activeSection === "contact" && (
-          <ContactSection
-            showBusinessContact={showBusinessContact}
-            businessContactPhone={businessContactPhone}
-            businessContactEmail={businessContactEmail}
-            businessFacebookUrl={businessFacebookUrl}
-            businessInstagramUrl={businessInstagramUrl}
-            businessTwitterXUrl={businessTwitterXUrl}
-            businessLinkedinUrl={businessLinkedinUrl}
-            isPending={isPending}
-            businessContactPhoneError={businessContactPhoneError}
-            businessContactEmailError={businessContactEmailError}
-            businessFacebookUrlError={businessFacebookUrlError}
-            businessInstagramUrlError={businessInstagramUrlError}
-            businessTwitterXUrlError={businessTwitterXUrlError}
-            businessLinkedinUrlError={businessLinkedinUrlError}
-            onShowBusinessContactChange={setShowBusinessContact}
-            onBusinessContactPhoneChange={setBusinessContactPhone}
-            onBusinessContactEmailChange={setBusinessContactEmail}
-            onBusinessFacebookUrlChange={setBusinessFacebookUrl}
-            onBusinessInstagramUrlChange={setBusinessInstagramUrl}
-            onBusinessTwitterXUrlChange={setBusinessTwitterXUrl}
-            onBusinessLinkedinUrlChange={setBusinessLinkedinUrl}
-          />
-        )}
+          <AccordionItem value="contact" className="section-panel border-none p-0">
+            <AccordionTrigger className="px-5 py-4 hover:no-underline sm:px-6">
+              <div className="flex flex-col gap-0.5">
+                <span className="font-heading text-base font-semibold tracking-tight text-foreground">
+                  Business contact
+                </span>
+                <span className="text-sm font-normal text-muted-foreground">
+                  {showBusinessContact
+                    ? "Shown on the public form"
+                    : "Hidden from public page"}
+                </span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-0 pb-0">
+              <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+                <ContactSection
+                  showBusinessContact={showBusinessContact}
+                  businessContactPhone={businessContactPhone}
+                  businessContactEmail={businessContactEmail}
+                  businessFacebookUrl={businessFacebookUrl}
+                  businessInstagramUrl={businessInstagramUrl}
+                  businessTwitterXUrl={businessTwitterXUrl}
+                  businessLinkedinUrl={businessLinkedinUrl}
+                  isPending={isPending}
+                  businessContactPhoneError={businessContactPhoneError}
+                  businessContactEmailError={businessContactEmailError}
+                  businessFacebookUrlError={businessFacebookUrlError}
+                  businessInstagramUrlError={businessInstagramUrlError}
+                  businessTwitterXUrlError={businessTwitterXUrlError}
+                  businessLinkedinUrlError={businessLinkedinUrlError}
+                  onShowBusinessContactChange={setShowBusinessContact}
+                  onBusinessContactPhoneChange={setBusinessContactPhone}
+                  onBusinessContactEmailChange={setBusinessContactEmail}
+                  onBusinessFacebookUrlChange={setBusinessFacebookUrl}
+                  onBusinessInstagramUrlChange={setBusinessInstagramUrl}
+                  onBusinessTwitterXUrlChange={setBusinessTwitterXUrl}
+                  onBusinessLinkedinUrlChange={setBusinessLinkedinUrl}
+                />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </div>
 
       <FloatingFormActions
@@ -756,58 +851,6 @@ export function BusinessInquiryPageForm({
         onApply={handleCropApply}
       />
     </form>
-  );
-}
-
-const pageSectionTocItems: Array<{
-  id: string;
-  label: string;
-  requiresCardsSection?: boolean;
-}> = [
-  { id: "basics", label: "Basics" },
-  { id: "content", label: "Content" },
-  { id: "layout", label: "Layout" },
-  { id: "cards", label: "Cards", requiresCardsSection: true },
-  { id: "showcase", label: "Showcase" },
-  { id: "contact", label: "Contact" },
-];
-
-function PageSectionToc({
-  showCardsSection,
-  activeSection,
-  onSectionChange,
-}: {
-  showCardsSection: boolean;
-  activeSection: string;
-  onSectionChange: (id: string) => void;
-}) {
-  const items = pageSectionTocItems.filter(
-    (item) => !item.requiresCardsSection || showCardsSection,
-  );
-
-  return (
-    <nav
-      aria-label="Page sections"
-      className="sticky top-0 z-10 -mx-4 px-4 sm:-mx-6 sm:px-6"
-    >
-      <div className="no-scrollbar flex items-center gap-1 overflow-x-auto border-b border-border pb-px">
-        {items.map((item) => (
-          <button
-            className={cn(
-              "inline-flex shrink-0 items-center rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              activeSection === item.id
-                ? "text-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-            key={item.id}
-            onClick={() => onSectionChange(item.id)}
-            type="button"
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-    </nav>
   );
 }
 

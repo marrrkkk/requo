@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   CheckCircle2,
   CircleDashed,
   Minimize2,
+  PartyPopper,
+  X,
 } from "lucide-react";
 
 import {
@@ -27,13 +29,83 @@ type SidebarChecklistProps = {
   items: ChecklistItem[];
 };
 
+const CHECKLIST_DISMISSED_KEY = "requo:checklist:dismissed";
+
 export function SidebarChecklist({ items }: SidebarChecklistProps) {
   const [open, setOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const completedCount = items.filter((item) => item.complete).length;
   const totalCount = items.length;
   const allComplete = completedCount === totalCount;
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
+  // Check localStorage for dismissal
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        if (localStorage.getItem(CHECKLIST_DISMISSED_KEY)) {
+          setDismissed(true);
+        }
+      } catch {
+        // localStorage unavailable
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Show celebration when all items are complete
+  useEffect(() => {
+    if (!allComplete || dismissed) return;
+    const showTimer = setTimeout(() => {
+      setShowCelebration(true);
+    }, 0);
+    const hideTimer = setTimeout(() => {
+      setShowCelebration(false);
+    }, 5000);
+    return () => {
+      clearTimeout(showTimer);
+      clearTimeout(hideTimer);
+    };
+  }, [allComplete, dismissed]);
+
+  function handleDismiss() {
+    try {
+      localStorage.setItem(CHECKLIST_DISMISSED_KEY, new Date().toISOString());
+    } catch {
+      // localStorage unavailable
+    }
+    setDismissed(true);
+    setOpen(false);
+  }
+
+  if (dismissed) {
+    return null;
+  }
+
+  // Show celebration state when all complete
+  if (allComplete && showCelebration) {
+    return (
+      <div className="px-4 pb-3 group-data-[collapsible=icon]:hidden">
+        <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">
+          <PartyPopper className="size-4 shrink-0 text-primary" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-foreground">All set!</p>
+            <p className="text-[10px] text-muted-foreground">You&apos;ve completed all getting started steps.</p>
+          </div>
+          <button
+            aria-label="Dismiss"
+            className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+            onClick={handleDismiss}
+            type="button"
+          >
+            <X className="size-3" />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (allComplete) {
     return null;
@@ -95,7 +167,7 @@ export function SidebarChecklist({ items }: SidebarChecklistProps) {
                 href={item.href}
                 onClick={() => setOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-accent/50",
+                  "flex items-center gap-3 px-4 py-2 text-sm transition-colors hover:bg-accent/50",
                   item.complete && "opacity-60",
                 )}
               >
@@ -114,11 +186,19 @@ export function SidebarChecklist({ items }: SidebarChecklistProps) {
                 >
                   {item.title}
                 </span>
-                {item.complete ? (
-                  <CheckCircle2 className="size-3.5 shrink-0 text-primary" />
-                ) : null}
               </Link>
             ))}
+          </div>
+
+          {/* Dismiss option */}
+          <div className="border-t border-border/60 px-4 py-2">
+            <button
+              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+              onClick={handleDismiss}
+              type="button"
+            >
+              Hide checklist
+            </button>
           </div>
         </PopoverContent>
       </Popover>

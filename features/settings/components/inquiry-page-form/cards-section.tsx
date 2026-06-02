@@ -40,7 +40,7 @@ import { LockedAction } from "@/features/paywall";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
 
-import { BuilderSection, SectionHeading, SectionVisibilityToggle } from "./shared";
+import { BuilderSection, SectionVisibilityToggle } from "./shared";
 
 const inquiryPageCardsDndContextId = "business-inquiry-page-cards-dnd";
 const inquiryPageCardsSortableContextId = "business-inquiry-page-cards-sortable";
@@ -92,17 +92,8 @@ export function CardsSection({
   );
 
   return (
-    <section
-      className="section-panel scroll-mt-20 p-5 sm:p-6"
-      id="cards"
-    >
-      <SectionHeading
-        description="Short prompts shown beside the inquiry form."
-        title="Supporting cards"
-      />
-
-      <div className="mt-6">
-        <BuilderSection
+    <div>
+      <BuilderSection
         action={
           <LockedAction feature="inquiryPageCustomization" plan={plan}>
             <Button
@@ -172,8 +163,7 @@ export function CardsSection({
           errors={cardsError ? [{ message: cardsError }] : undefined}
         />
       </BuilderSection>
-      </div>
-    </section>
+    </div>
   );
 }
 
