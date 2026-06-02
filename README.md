@@ -5,322 +5,108 @@
 <h1 align="center">Requo</h1>
 
 <p align="center">
-  Inquiry-to-quote software for owner-led service businesses.
+  <strong>Inquiry-to-quote software for owner-led service businesses.</strong>
 </p>
 
 <p align="center">
-  Requo helps service businesses capture inquiries, turn qualified work into quotes,
-  share or send those quotes, follow up, track responses, convert accepted quotes into
-  jobs, invoice completed work, and automate repetitive workflow steps from one place.
+  <a href="#features">Features</a> •
+  <a href="#tech-stack">Tech Stack</a> •
+  <a href="#getting-started">Getting Started</a> •
+  <a href="#development">Development</a> •
+  <a href="#documentation">Documentation</a>
 </p>
 
-<p align="center">
-  <img src="./docs/images/requo-dashboard.png" alt="Requo owner dashboard" width="1200" />
-</p>
+---
 
-## Overview
+## Features
 
-Requo is a multi-business SaaS app for owner-led service businesses that manage inbound
-inquiries and custom quotes.
+Requo helps service businesses manage the complete workflow from inquiry to invoice:
 
-It is built around one shared workflow:
-
-- capture inquiries from public forms, referrals, ads, socials, and directories
-- turn qualified inquiries into clear, professional quotes
-- share quote links or send quote emails from Requo
-- follow up consistently without losing context
-- track public quote views and customer accept/reject responses
-- convert accepted quotes into tracked jobs
-- invoice completed or in-progress jobs
-- automate repetitive workflow steps with event-driven automation
-
-The product supports multiple business types through guided starter templates, while
-keeping the core experience focused on this workflow rather than generic configurability.
-
-## Product Areas
-
-- Public inquiry intake with editable forms, supporting cards, optional showcase images, and file uploads
-- Guided onboarding with 4 starter templates:
-  `Agency / Studio`, `Consultant / Professional Services`, `Contractor / Home Service`, and `General Service Business`
-- Owner dashboard for inquiries, lead qualification, quotes, jobs, invoices, follow-ups, analytics, and business settings
-- Quote workflow with draft, sent, viewed, accepted, rejected, expired, voided, and post-acceptance states
-- Job management: create jobs from accepted quotes, track job progress and completion
-- Invoice generation, PDF rendering, email delivery, and payment status tracking
-- Workflow automation: event-driven triggers and actions for follow-ups, status transitions, notifications, and quote/job/invoice lifecycle
-- Public quote pages with customer accept/reject responses and response messages
-- Manual quote sharing plus Requo email sending through transactional email
-- Follow-up scheduling and lifecycle tracking for inquiries, quotes, and jobs
-- Starter defaults for inquiry fields and quote notes that stay editable later
-- Knowledge and FAQ management for business-specific reference material
-- AI-assisted response drafting through Groq, Gemini, and OpenRouter fallback routing
-- Transactional email flows through Resend, with Mailtrap and Brevo fallback
-- Subscription billing with Polar hosted checkout (USD, merchant of record)
-- Self-serve refund requests through Polar refunds, with webhook-tracked approval status
-- Analytics and notification foundations for operational visibility
+- **Inquiry Capture** — Public forms with file uploads, custom fields, and showcase images
+- **Quote Management** — Draft, send, track, and manage quotes with accept/reject flows
+- **Job Tracking** — Convert accepted quotes into tracked jobs
+- **Invoicing** — Generate PDF invoices and track payment status
+- **Follow-ups** — Automated scheduling and reminders
+- **Workflow Automation** — Event-driven triggers and visual workflow builder
+- **Multi-business Support** — Manage multiple businesses from one account
+- **AI Assistance** — Smart drafting powered by multiple AI providers
 
 ## Tech Stack
 
-- Next.js 16 App Router
-- React 19
-- TypeScript
-- Tailwind CSS v4
-- shadcn/ui
-- Better Auth for authentication and sessions
-- Drizzle ORM with PostgreSQL
-- Supabase for storage and realtime-backed notification plumbing
-- Resend, Mailtrap, and Brevo for transactional email fallback
-- Groq, Gemini, and OpenRouter for AI-assisted drafting
-- Polar for subscription billing (USD, merchant of record)
+- **Framework:** Next.js 16 App Router + React 19 + TypeScript
+- **Styling:** Tailwind CSS v4 + shadcn/ui
+- **Database:** PostgreSQL with Drizzle ORM
+- **Auth:** Better Auth
+- **Storage:** Supabase
+- **Email:** Resend (with Mailtrap and Brevo fallback)
+- **AI:** Groq, Gemini, Mistral, Cerebras, OpenRouter
+- **Billing:** Polar (merchant of record)
 
 ## Getting Started
 
 ### Prerequisites
 
 - Node.js 22 or newer
-- npm
-- PostgreSQL
-- A `.env` file based on `.env.example`
+- PostgreSQL database
+- API keys for external services (see `.env.example`)
 
-### Local Setup
+### Quick Start
 
-1. Install dependencies.
+```bash
+# Install dependencies
+npm install
 
-   ```bash
-   npm install
-   ```
+# Copy environment file and configure
+# (see .env.example for all required variables)
 
-2. Create a local env file.
+# Run migrations
+npm run db:migrate
 
-   macOS or Linux:
+# Seed demo data
+npm run db:seed-demo
 
-   ```bash
-   cp .env.example .env
-   ```
-
-   PowerShell:
-
-   ```powershell
-   Copy-Item .env.example .env
-   ```
-
-3. Run database migrations.
-
-   ```bash
-   npm run db:migrate
-   ```
-
-4. Seed demo data.
-
-   ```bash
-   npm run db:seed-demo
-   ```
-
-5. Start the app.
-
-   ```bash
-   npm run dev:app
-   ```
-
-   Use `npm run dev` only when you also need an `ngrok` tunnel for public callbacks,
-   webhook testing, or external provider flows.
-
-6. Open the app at the same origin configured in `BETTER_AUTH_URL`.
-
-### Demo Seed Defaults
-
-- Owner name: `Morgan Lee`
-- Owner email: `demo@requo.local`
-- Owner password: `ChangeMe123456!`
-- Business name: `BrightSide Print Studio`
-- Business slug: `brightside-print-studio`
-- Additional seeded users:
-  `manager@requo.local`, `staff@requo.local`, and `outsider@requo.local`
-
-The demo seed also creates two additional sample businesses, three inquiry forms per business, and several hundred seeded inquiries and quotes for dashboard browsing.
-
-## Environment Variables
-
-### Core runtime
-
-- `DATABASE_URL`
-- `DATABASE_DIRECT_URL`
-- `BETTER_AUTH_SECRET`
-- `BETTER_AUTH_URL`
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `SUPABASE_JWT_SECRET`
-- `APP_TOKEN_HASH_SECRET`
-- `ADMIN_EMAILS`
-
-### Database tooling
-
-- `DATABASE_MIGRATION_URL`
-
-### Optional providers
-
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-- `RESEND_API_KEY`
-- `MAILTRAP_API_TOKEN`
-- `BREVO_API_KEY`
-- `EMAIL_DOMAIN`
-- `EMAIL_FROM_DEFAULT`
-- `EMAIL_FROM_NOTIFICATIONS`
-- `EMAIL_FROM_SYSTEM`
-- `EMAIL_FROM_QUOTES`
-- `EMAIL_FROM_SUPPORT`
-- `RESEND_FROM_EMAIL` (legacy fallback)
-- `RESEND_REPLY_TO_EMAIL`
-- `GROQ_API_KEY`
-- `GEMINI_API_KEY`
-- `OPENROUTER_API_KEY`
-
-### Optional app config
-
-- `NEXT_PUBLIC_BETTER_AUTH_URL`
-- `VERCEL_URL`
-- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
-- `VAPID_PRIVATE_KEY`
-- `DEMO_OWNER_NAME`
-- `DEMO_OWNER_EMAIL`
-- `DEMO_OWNER_PASSWORD`
-- `DEMO_BUSINESS_NAME`
-- `DEMO_BUSINESS_SLUG`
-- `DEMO_QUOTE_PUBLIC_TOKEN`
-- `DEMO_EXPIRED_QUOTE_PUBLIC_TOKEN`
-- `DEMO_VOIDED_QUOTE_PUBLIC_TOKEN`
-
-### Billing providers
-
-- `POLAR_ACCESS_TOKEN`
-- `POLAR_WEBHOOK_SECRET`
-- `POLAR_SERVER` (`sandbox` or `production`)
-- `POLAR_PRO_PRODUCT_ID`
-- `POLAR_PRO_YEARLY_PRODUCT_ID`
-- `POLAR_BUSINESS_PRODUCT_ID`
-- `POLAR_BUSINESS_YEARLY_PRODUCT_ID`
-
-For full setup expectations, read:
-
-- [Local setup](./docs/setup/local.md)
-- [Deployment setup](./docs/setup/deployment.md)
-
-For Supabase-backed setups:
-
-- use `DATABASE_URL` with the pooler host on port `6543` for app/runtime traffic
-- use `DATABASE_MIGRATION_URL` with the same pooler host on port `5432` for Drizzle migrations
-
-Example:
-
-```env
-DATABASE_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<region>.pooler.supabase.com:6543/postgres
-DATABASE_MIGRATION_URL=postgresql://postgres.<project-ref>:<db-password>@aws-<region>.pooler.supabase.com:5432/postgres
+# Start the app
+npm run dev:app
 ```
 
-## Scripts
+> **Note:** Use `npm run dev` instead of `npm run dev:app` if you need ngrok for webhook testing.
 
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Start the local development server and an `ngrok` tunnel |
-| `npm run dev:app` | Start only the local Next.js development server |
-| `npm run build` | Build the production app |
-| `npm run start` | Run the production build locally |
-| `npm run start:app` | Run the production build locally with the app-only entrypoint |
-| `npm run lint` | Run ESLint |
-| `npm run typecheck` | Run TypeScript checks |
-| `npm run check` | Run lint and typecheck together |
+### Demo Credentials
+
+After seeding, you can sign in with:
+
+- **Email:** `demo@requo.local`
+- **Password:** `ChangeMe123456!`
+
+## Development
+
+### Available Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev:app` | Start Next.js dev server |
+| `npm run build` | Build production app |
+| `npm run check` | Run lint + typecheck |
 | `npm run test` | Run unit and component tests |
-| `npm run test:unit` | Run unit tests with Vitest |
-| `npm run test:components` | Run component tests with Vitest and React Testing Library |
-| `npm run test:integration` | Run DB-backed integration tests with Vitest after migrations |
-| `npm run test:e2e:smoke` | Run the Playwright smoke suite used in CI |
-| `npm run test:e2e` | Run the full Playwright suite |
-| `npm run test:e2e:full` | Run the full Playwright suite explicitly |
-| `npm run test:all` | Run all tests (unit + integration + e2e) |
-| `npm run test:coverage` | Run unit and component tests with coverage report |
-| `npm run db:generate` | Generate Drizzle artifacts |
-| `npm run db:migrate` | Apply Drizzle migrations |
-| `npm run db:push` | Push schema changes directly |
-| `npm run db:studio` | Open Drizzle Studio |
-| `npm run db:seed-demo` | Seed the demo business |
+| `npm run test:integration` | Run integration tests |
+| `npm run test:e2e:smoke` | Run Playwright smoke tests |
+| `npm run db:migrate` | Apply database migrations |
+| `npm run db:seed-demo` | Seed demo data |
 
-## Testing And Validation
+### Project Structure
 
-Requo uses a layered, risk-based test strategy:
+```
+app/           # Routes, layouts, pages, and API handlers
+components/    # Shared UI primitives and shell components
+features/      # Product logic, queries, actions, and feature UI
+lib/           # Auth, database, providers, and utilities
+scripts/       # Migrations, seeders, and operational scripts
+tests/         # Unit, component, integration, and e2e tests
+```
 
-- `tests/unit/` covers validation schemas, parsing, plan access, pricing, auth helpers, and critical route authorization
-- `tests/components/` covers meaningful interactive UI behavior with Vitest, jsdom, and React Testing Library
-- `tests/integration/` covers DB-backed access control, inquiry submission, quote mutation/status transitions, public analytics, follow-ups, billing routes, and server behavior
-- `tests/e2e/` covers product-critical browser journeys with Playwright
+### Verification
 
-The browser suite is intentionally split:
-
-- `npm run test:e2e:smoke` is the fast validation slice for critical sign-in, authorization, public inquiry, and public quote flows
-- `npm run test:e2e` runs the fuller browser suite for broader regression coverage
-
-Deployment and validation responsibilities are intentionally split:
-
-- Vercel handles preview and production deployments
-- Local/manual commands handle validation before push:
-  - `npm run check`: lint, typecheck, and repo audits
-  - `npm run test`: unit and component tests
-  - `npm run test:integration`: Postgres-backed integration tests
-  - `npm run test:e2e:smoke`: critical browser smoke flows
-  - `npm run build`: production build verification
-
-## Repository Map
-
-- `app/` route groups, layouts, pages, and route handlers
-- `components/` shared UI primitives, shell UI, and marketing components
-- `features/` product slices such as account, AI, analytics, audit, auth, automations, billing, businesses, business members, calendar, customers, follow-ups, inquiries, invoices, jobs, memory/knowledge, notifications, onboarding, quotes, settings, and theme
-- `lib/` auth, database, provider clients, env validation, and shared utilities
-- `emails/templates/` transactional email rendering
-- `docs/` setup and architecture documentation
-- `tests/unit/` Vitest unit tests for utilities and logic
-- `tests/components/` Vitest component tests for React components
-- `tests/integration/` Vitest integration tests for database-backed actions, route handlers, and authorization boundaries
-- `tests/e2e/` Playwright end-to-end tests
-
-### Billing
-
-- `lib/billing/` billing domain types, plan pricing, subscription service, webhook processing, Polar provider client, and refund service
-- `lib/billing/providers/` Polar SDK client wrapping `BillingProviderInterface` for outbound API calls (webhook signature verification and event parsing live in the route handler via the `@polar-sh/nextjs` adapter)
-- `lib/db/schema/subscriptions.ts` business_subscriptions, billing_events, payment_attempts, and refunds tables
-- `features/billing/` checkout dialog, billing status card, upgrade button, payment history with refund requests, server actions, and queries
-- `app/api/billing/` Polar webhook and customer-portal routes plus the refund request route
-- `features/follow-ups/` follow-up creation, rescheduling, completion, skipping, and reminders
-- `features/jobs/` job creation from accepted quotes, job lifecycle tracking, and queries
-- `features/invoices/` invoice generation, PDF rendering, email sending, and queries
-- `features/automations/` event-driven workflow automation triggers, actions, and business-scoped rules
-- `features/analytics/` conversion/workflow analytics plus public inquiry and quote view tracking
-- `features/business-members/` business role management
-
-## Architecture Notes
-
-- Better Auth is the only authentication system in this app
-- Initial signup creates the user and profile; onboarding creates the first business and later business creation stays explicit in business flows
-- Business ownership is enforced through business-aware server helpers and scoped queries
-- Supabase is used for storage and notification plumbing, not Supabase Auth
-- `DESIGN.md` is the canonical UI system, with semantic tokens and shared wrappers implemented in `app/globals.css` and `components/shared/*`
-- Private assets stay behind authenticated route handlers
-- AI drafting stays server-side and uses business context plus uploaded knowledge, with provider fallback ordered Groq -> Gemini -> OpenRouter
-- Marketing, onboarding, starter templates, and in-app copy are aligned around the inquiry -> quote -> share/send -> follow-up -> accepted/rejected -> job -> invoice workflow
-- Workflow automation is event-driven and business-scoped; automations run as background defaults, not complex visual workflow builders
-- Starter templates are opinionated defaults, not rigid vertical product modes
-- Subscriptions are business-scoped with Polar; each business has its own subscription
-- The `businesses.plan` column is a denormalized read cache; the authoritative state lives in `business_subscriptions`
-- Billing mutations go through `lib/billing/subscription-service.ts`; webhooks go through `lib/billing/webhook-processor.ts`
-- Opaque lookup tokens are hashed with `APP_TOKEN_HASH_SECRET` or `BETTER_AUTH_SECRET`
-- State and data defaults stay server-first: prefer cached server reads, Server Actions, route refreshes, and local component state before adding client-state libraries
-- Do not add app-wide Zustand, TanStack Query, or Redis by default; introduce them only for measured bottlenecks such as complex client-only islands, background refetch pressure, or distributed rate limiting/queueing needs
-- See [docs/setup/billing.md](./docs/setup/billing.md) for provider setup instructions
-
-Detailed architecture guidance lives in [docs/architecture/requo-architecture.md](./docs/architecture/requo-architecture.md).
-
-## Verification
-
-The baseline health checks for this repository are:
+Before pushing changes, run the baseline checks:
 
 ```bash
 npm run check
@@ -330,24 +116,16 @@ npm run build
 npm run test:e2e:smoke
 ```
 
-Vercel Git integration is the deployment path for this repository: push a branch to create a preview deployment, then merge to the production branch configured in Vercel for the production deploy.
-
-For broader browser coverage before larger merges, also run:
-
-```bash
-npm run test:e2e
-```
-
 ## Documentation
 
-- [Agent guide](./AGENTS.md)
-- [Design system](./DESIGN.md)
-- [Local setup](./docs/setup/local.md)
-- [Deployment setup](./docs/setup/deployment.md)
-- [Billing setup](./docs/setup/billing.md)
-- [Architecture](./docs/architecture/requo-architecture.md)
+- [Agent Guide](./AGENTS.md) — Working conventions and architecture
+- [Design System](./DESIGN.md) — UI tokens and component patterns
+- [Local Setup](./docs/setup/local.md) — Detailed environment setup
+- [Deployment](./docs/setup/deployment.md) — Production deployment guide
+- [Architecture](./docs/architecture/requo-architecture.md) — System architecture
 
-Requo is intentionally scoped for owner-led service businesses that handle inbound
-inquiries and custom quotes. It does not try to become an enterprise CRM, field-service
-dispatch tool, scheduling suite, payroll tool, marketplace, or
-mobile-first collaboration app.
+---
+
+<p align="center">
+  Built for owner-led service businesses that handle inbound inquiries and custom quotes.
+</p>

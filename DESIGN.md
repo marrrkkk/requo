@@ -25,7 +25,7 @@ Use semantic tokens, not raw color classes, for all product UI.
 | `secondary` | Subtle surface/action | `#f0f3f1` | `#1f1f1f` |
 | `muted` | Muted surface | `#eef2ef` | `#171717` |
 | `muted-foreground` | Supporting text | `#5f756c` | `#8b9092` |
-| `accent` | Hover/selected accent surface | `#e5f5ee` | `#242424` |
+| `accent` | Hover/selected accent surface | `#f0f3f1` | `#242424` |
 | `destructive` | Error and destructive actions | `#c9372c` | `#c9372c` |
 | `border` | Borders and dividers | `#d6ddd8` | `rgb(255 255 255 / 0.07)` |
 | `input` | Control border base | `#d6ddd8` | `rgb(255 255 255 / 0.08)` |
