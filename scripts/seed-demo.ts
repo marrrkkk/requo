@@ -25,7 +25,7 @@ import type { InquirySubmittedFieldSnapshot } from "../features/inquiries/form-c
 import { createInquiryFormPreset } from "../features/inquiries/inquiry-forms";
 import { db, dbConnection } from "../lib/db/client";
 import {
-  accountSubscriptions,
+
   activityLogs,
   aiConversations,
   aiDrafts,
@@ -67,10 +67,11 @@ import {
 } from "../lib/db/schema";
 import { env } from "../lib/env";
 import type { BusinessPlan } from "../lib/plans/plans";
-import type { InquiryStatus } from "../lib/db/schema/inquiries";
-import type { QuoteStatus, QuotePostAcceptanceStatus } from "../lib/db/schema/quotes";
-import type { JobStatus } from "../lib/db/schema/jobs";
-import type { InvoiceStatus } from "../lib/db/schema/invoices";
+type InquiryStatus = "new" | "quoted" | "waiting" | "won" | "lost" | "archived" | "overdue";
+type QuoteStatus = "draft" | "sent" | "revision_requested" | "accepted" | "rejected" | "expired" | "voided";
+type _QuotePostAcceptanceStatus = "none" | "job_created";
+type JobStatus = "todo" | "in_progress" | "done";
+type InvoiceStatus = "draft" | "sent" | "viewed" | "paid" | "overdue" | "voided";
 
 const DEFAULT_PASSWORD = "ChangeMe123456!";
 
@@ -365,6 +366,24 @@ const businessTypeCategories: Record<BusinessType, string[]> = {
     "Office cleaning",
     "Post-renovation cleanup",
   ],
+  moving_relocation: [
+    "Local move",
+    "Long distance move",
+    "Office relocation",
+    "Packing services",
+  ],
+  auto_services: [
+    "Full detail",
+    "Paint correction",
+    "Maintenance check",
+    "Window tinting",
+  ],
+  pet_services: [
+    "Boarding",
+    "Grooming",
+    "Dog walking",
+    "Training package",
+  ],
   general_project_services: [
     "Custom project",
     "Service package",
@@ -432,6 +451,21 @@ const quoteItemTemplates: Record<BusinessType, Array<{ desc: string; min: number
     { desc: "Crew labor", min: 25000, max: 110000 },
     { desc: "Supplies and equipment", min: 12000, max: 45000 },
     { desc: "Final inspection", min: 8000, max: 25000 },
+  ],
+  moving_relocation: [
+    { desc: "Truck and equipment", min: 50000, max: 150000 },
+    { desc: "Movers labor", min: 60000, max: 200000 },
+    { desc: "Packing materials", min: 15000, max: 50000 },
+  ],
+  auto_services: [
+    { desc: "Exterior treatment", min: 15000, max: 45000 },
+    { desc: "Interior detailing", min: 15000, max: 45000 },
+    { desc: "Specialty coating", min: 30000, max: 120000 },
+  ],
+  pet_services: [
+    { desc: "Standard care", min: 5000, max: 15000 },
+    { desc: "Specialty grooming", min: 8000, max: 25000 },
+    { desc: "Overnight boarding", min: 20000, max: 60000 },
   ],
   general_project_services: [
     { desc: "Project setup", min: 25000, max: 75000 },
@@ -633,7 +667,7 @@ function tokenFields(rawToken: string) {
   };
 }
 
-function safeAccountKey(email: string) {
+function _safeAccountKey(email: string) {
   return normalizeEmail(email).replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
@@ -1248,7 +1282,7 @@ async function seedPendingInvite(input: {
   });
 }
 
-async function seedGeneratedBusinessData(input: {
+async function _seedGeneratedBusinessData(input: {
   business: BusinessSeed;
   businessId: string;
   formId: string;
@@ -1606,16 +1640,16 @@ function buildInvoiceItemsFromJob(
 /**
  * Create a job from an accepted quote
  */
-async function createJobFromQuote(
+async function _createJobFromQuote(
   businessId: string,
   quote: typeof quotes.$inferInsert,
-  quoteItems: Array<typeof quoteItems.$inferInsert>,
+  quoteItemsData: Array<typeof quoteItems.$inferInsert>,
   ownerUserId: string,
   jobStatus: JobStatus,
   position: number,
-): Promise<{ job: typeof jobs.$inferInsert; jobItems: Array<typeof jobItems.$inferInsert> }> {
+): Promise<{ job: typeof jobs.$inferInsert; jobItemsData: Array<typeof jobItems.$inferInsert> }> {
   const jobId = id("job");
-  const jobNumber = `JOB-${quote.quoteNumber?.replace("Q-", "") ?? String(position).padStart(4, "0")}`;
+  const _jobNumber = `JOB-${quote.quoteNumber?.replace("Q-", "") ?? String(position).padStart(4, "0")}`;
   const createdAt = quote.acceptedAt ?? daysAgo(7);
 
   let startedAt: Date | null = null;
@@ -1649,19 +1683,19 @@ async function createJobFromQuote(
     updatedAt: completedAt ?? startedAt ?? createdAt,
   };
 
-  const jobItemsData = buildJobItemsFromJob(businessId, jobId, quoteItems, createdAt);
+  const jobItemsData = buildJobItemsFromQuote(businessId, jobId, quoteItemsData, createdAt);
 
-  return { job, jobItems: jobItemsData };
+  return { job, jobItemsData };
 }
 
 /**
  * Create an invoice from a job or quote
  */
-async function createInvoiceFromJob(
+async function _createInvoiceFromJob(
   businessId: string,
   job: typeof jobs.$inferInsert,
-  jobItems: Array<typeof jobItems.$inferInsert>,
   quote: typeof quotes.$inferInsert,
+  jobItemsData: Array<typeof jobItems.$inferInsert>,
   ownerUserId: string,
   invoiceStatus: InvoiceStatus,
   invoiceNumber: number,
@@ -1725,11 +1759,11 @@ async function createInvoiceFromJob(
   const invoiceItemsData = buildInvoiceItemsFromJob(
     businessId,
     invoiceId,
-    jobItems.map(ji => ({
+    jobItemsData.map(ji => ({
       description: ji.description,
-      quantity: ji.quantity,
-      unitPriceInCents: ji.unitPriceInCents,
-      lineTotalInCents: ji.lineTotalInCents
+      quantity: ji.quantity ?? 1,
+      unitPriceInCents: ji.unitPriceInCents ?? 0,
+      lineTotalInCents: ji.lineTotalInCents ?? 0
     })),
     createdAt
   );
@@ -1755,7 +1789,7 @@ async function seedLinkedEntityChains(input: {
   const inquiryStatuses: InquiryStatus[] = ["new", "waiting", "quoted", "won", "lost", "archived", "overdue"];
 
   // All quote statuses to create (for quoted/won inquiries)
-  const quoteStatuses: QuoteStatus[] = ["draft", "sent", "revision_requested", "accepted", "rejected", "expired", "voided"];
+  const _quoteStatuses: QuoteStatus[] = ["draft", "sent", "revision_requested", "accepted", "rejected", "expired", "voided"];
 
   // All job statuses
   const jobStatuses: JobStatus[] = ["todo", "in_progress", "done"];
@@ -1915,7 +1949,6 @@ async function seedLinkedEntityChains(input: {
             totalInCents: total,
             sentAt,
             acceptedAt,
-            rejectedAt,
             voidedAt,
             voidedBy: voidedAt ? input.ownerUserId : null,
             publicViewedAt: sentAt ? addDays(sentAt, randInt(rng, 0, 3)) : null,
@@ -2148,7 +2181,6 @@ async function seedLinkedEntityChains(input: {
               activityRows.push({
                 id: id("act"),
                 businessId: input.businessId,
-                jobId,
                 quoteId,
                 actorUserId: input.ownerUserId,
                 type: "invoice.created",
