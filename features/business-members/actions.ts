@@ -29,6 +29,8 @@ import {
 } from "@/features/business-members/mutations";
 import type { BusinessMemberInviteActionState } from "@/features/business-members/action-types";
 import { businessMemberInviteDurationDays } from "@/lib/business-members";
+import { sendBusinessMemberInviteEmail } from "@/lib/resend/client";
+import { env } from "@/lib/env";
 
 const initialInviteState: BusinessMemberInviteActionState = {};
 
@@ -65,7 +67,7 @@ export async function createBusinessMemberInviteAction(
   const inviteToken = randomUUID();
 
   try {
-    await createBusinessMemberInvite({
+    const { inviteId } = await createBusinessMemberInvite({
       businessId: businessContext.business.id,
       inviterUserId: user.id,
       email: validationResult.data.email,
@@ -74,12 +76,30 @@ export async function createBusinessMemberInviteAction(
       expiresAt: new Date(Date.now() + businessMemberInviteDurationDays * 24 * 60 * 60 * 1000),
     });
 
+    const invitePath = getBusinessMemberInvitePath(inviteToken);
+    const inviteUrl = new URL(invitePath, env.BETTER_AUTH_URL).toString();
+
+    // Send invite email (non-blocking — don't fail the action if email fails)
+    sendBusinessMemberInviteEmail({
+      inviteId,
+      token: inviteToken,
+      email: validationResult.data.email,
+      businessName: businessContext.business.name,
+      inviterName: user.name,
+      role: validationResult.data.role,
+      inviteUrl,
+      businessId: businessContext.business.id,
+      userId: user.id,
+    }).catch((error) => {
+      console.error("Failed to send business member invite email.", error);
+    });
+
     updateCacheTags(getBusinessMembersCacheTags(businessContext.business.id));
     revalidatePath(getBusinessMembersPath(businessContext.business.slug));
 
     return {
-      success: "Invite created.",
-      inviteLink: getBusinessMemberInvitePath(inviteToken),
+      success: "Invite sent.",
+      inviteLink: invitePath,
     };
   } catch (error) {
     console.error("Failed to create business member invite.", error);
