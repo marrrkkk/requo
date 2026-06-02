@@ -48,7 +48,6 @@ export async function getInquiryAssistantContextForBusiness({
         defaultQuoteTerms: businesses.defaultQuoteTerms,
         industryCategory: businesses.industryCategory,
         inquiryHeadline: businesses.inquiryHeadline,
-        aiTonePreference: businesses.aiTonePreference,
         createdAt: businesses.createdAt,
       })
       .from(businesses)
@@ -316,7 +315,6 @@ export async function getInquiryAssistantContextForBusiness({
       defaultQuoteTerms: business.defaultQuoteTerms,
       industryCategory: business.industryCategory,
       inquiryHeadline: business.inquiryHeadline,
-      aiTonePreference: business.aiTonePreference,
       createdAt: business.createdAt,
       inquiryPageHeadline: inquiryPageConfig.headline,
       inquiryPageTemplate: inquiryPageConfig.template,

@@ -94,7 +94,6 @@ describe("validateInvocationPayload", () => {
         customerName: "John",
         customerEmail: "john@example.com",
         pricingBlocks: "Block A",
-        tonePreference: "balanced",
         businessMemorySummary: "We do renovations",
         revisionContext: "fresh",
         currentItems: "none",

@@ -24,11 +24,6 @@ export const businessMemberRoleEnum = pgEnum("business_member_role", [
   ...businessMemberRoles,
 ]);
 
-export const businessAiTonePreferenceEnum = pgEnum(
-  "business_ai_tone_preference",
-  ["balanced", "warm", "direct", "formal"],
-);
-
 export const profileThemePreferenceEnum = pgEnum("profile_theme_preference", [
   "light",
   "dark",
@@ -108,9 +103,6 @@ export const businesses = pgTable(
     defaultQuoteValidityDays: integer("default_quote_validity_days")
       .notNull()
       .default(14),
-    aiTonePreference: businessAiTonePreferenceEnum("ai_tone_preference")
-      .notNull()
-      .default("balanced"),
     notifyOnNewInquiry: boolean("notify_on_new_inquiry")
       .notNull()
       .default(true),
@@ -157,6 +149,9 @@ export const businesses = pgTable(
     notifyInAppOnQuoteExpiring: boolean("notify_in_app_on_quote_expiring")
       .notNull()
       .default(true),
+    defaultInvoiceDueDays: integer("default_invoice_due_days")
+      .notNull()
+      .default(14),
     defaultCurrency: text("default_currency").notNull().default("USD"),
     analyticsDigestEnabled: boolean("analytics_digest_enabled")
       .notNull()
@@ -209,6 +204,10 @@ export const businesses = pgTable(
     check(
       "businesses_default_quote_validity_days_range",
       sql`${table.defaultQuoteValidityDays} between 1 and 365`,
+    ),
+    check(
+      "businesses_default_invoice_due_days_range",
+      sql`${table.defaultInvoiceDueDays} between 1 and 365`,
     ),
     check(
       "businesses_plan_valid",

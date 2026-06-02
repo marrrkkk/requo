@@ -116,7 +116,6 @@ type BusinessSeed = {
   defaultCurrency: string;
   countryCode: string;
   contactEmail: string;
-  aiTonePreference: "balanced" | "warm" | "direct" | "formal";
   inquiryCount: number;
   quoteRatio: number;
   defaultFormName?: string;
@@ -153,7 +152,6 @@ const primaryAccount: AccountSeed = {
       defaultCurrency: "USD",
       countryCode: "US",
       contactEmail: "hello@brightsideprint.com",
-      aiTonePreference: "balanced",
       inquiryCount: 18,
       quoteRatio: 0.58,
       defaultFormName: "Project request",
@@ -194,7 +192,6 @@ const seedAccounts = mergeSeedAccounts([
         defaultCurrency: "USD",
         countryCode: "PH",
         contactEmail: "hello@marklouie.dev",
-        aiTonePreference: "balanced",
         inquiryCount: 20,
         quoteRatio: 0.5,
       },
@@ -216,7 +213,6 @@ const seedAccounts = mergeSeedAccounts([
         defaultCurrency: "USD",
         countryCode: "PH",
         contactEmail: "maria@santosprint.ph",
-        aiTonePreference: "warm",
         inquiryCount: 10,
         quoteRatio: 0.45,
       },
@@ -238,7 +234,6 @@ const seedAccounts = mergeSeedAccounts([
         defaultCurrency: "USD",
         countryCode: "US",
         contactEmail: "james@carterstudio.com",
-        aiTonePreference: "balanced",
         inquiryCount: 16,
         quoteRatio: 0.56,
       },
@@ -260,7 +255,6 @@ const seedAccounts = mergeSeedAccounts([
         defaultCurrency: "USD",
         countryCode: "PH",
         contactEmail: "info@reyescontractors.ph",
-        aiTonePreference: "direct",
         inquiryCount: 18,
         quoteRatio: 0.5,
       },
@@ -274,7 +268,6 @@ const seedAccounts = mergeSeedAccounts([
         defaultCurrency: "USD",
         countryCode: "PH",
         contactEmail: "events@reyesgroup.ph",
-        aiTonePreference: "warm",
         inquiryCount: 12,
         quoteRatio: 0.5,
       },
@@ -1011,7 +1004,6 @@ async function createBusiness(
     defaultEmailSignature: `${business.name}\n${business.contactEmail}`,
     defaultQuoteNotes,
     defaultQuoteValidityDays: 14,
-    aiTonePreference: business.aiTonePreference,
     notifyOnNewInquiry: true,
     notifyOnQuoteSent: true,
     notifyOnQuoteResponse: true,

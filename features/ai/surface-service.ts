@@ -354,7 +354,6 @@ function formatBusinessProfileLines(profile: {
   shortDescription: string | null;
   contactEmail?: string | null;
   defaultCurrency: string;
-  aiTonePreference: string;
   defaultEmailSignature?: string | null;
   defaultQuoteNotes?: string | null;
   createdAt?: Date | string | null;
@@ -367,7 +366,6 @@ function formatBusinessProfileLines(profile: {
     profile.shortDescription ? `- Description: ${profile.shortDescription}` : null,
     profile.contactEmail ? `- Contact email: ${profile.contactEmail}` : null,
     `- Default currency: ${profile.defaultCurrency}`,
-    `- Preferred tone: ${profile.aiTonePreference}`,
     profile.createdAt ? `- Created: ${formatDate(profile.createdAt)}` : null,
     profile.defaultEmailSignature
       ? `- Default email signature: ${truncateText(profile.defaultEmailSignature, 300)}`
@@ -411,7 +409,7 @@ async function buildInquiryContext(input: {
   );
 
   // Compact business lines
-  const businessLine = `Business: ${context.business.name} (${context.business.businessType}); slug: ${context.business.slug}; currency ${context.business.defaultCurrency}; tone ${context.business.aiTonePreference}`;
+  const businessLine = `Business: ${context.business.name} (${context.business.businessType}); slug: ${context.business.slug}; currency ${context.business.defaultCurrency}`;
   const businessExtras = [
     context.business.industryCategory ? `Industry: ${context.business.industryCategory}` : null,
     context.business.defaultQuoteTerms ? `Default terms: ${truncateText(context.business.defaultQuoteTerms, 200)}` : null,
@@ -507,7 +505,6 @@ async function buildQuoteContext(input: {
         defaultQuoteTerms: businesses.defaultQuoteTerms,
         industryCategory: businesses.industryCategory,
         inquiryHeadline: businesses.inquiryHeadline,
-        aiTonePreference: businesses.aiTonePreference,
         createdAt: businesses.createdAt,
       })
       .from(businesses)
@@ -558,7 +555,7 @@ async function buildQuoteContext(input: {
   return [
     "Surface: quote",
     "",
-    `Business: ${business.name} (${business.businessType}); slug: ${business.slug}; currency ${business.defaultCurrency}; tone ${business.aiTonePreference}`,
+    `Business: ${business.name} (${business.businessType}); slug: ${business.slug}; currency ${business.defaultCurrency}`,
     business.shortDescription ? `Description: ${business.shortDescription}` : null,
     ...quoteBusinessExtras,
     "",
@@ -643,7 +640,6 @@ async function buildDashboardContext(input: {
         shortDescription: businesses.shortDescription,
         contactEmail: businesses.contactEmail,
         defaultCurrency: businesses.defaultCurrency,
-        aiTonePreference: businesses.aiTonePreference,
         industryCategory: businesses.industryCategory,
         defaultQuoteNotes: businesses.defaultQuoteNotes,
         defaultQuoteTerms: businesses.defaultQuoteTerms,
@@ -706,7 +702,7 @@ async function buildDashboardContext(input: {
     return [
       "Surface: dashboard",
       "",
-      `Business: ${business.name} (${business.businessType}); slug: /${business.slug}; currency ${business.defaultCurrency}; tone ${business.aiTonePreference}`,
+      `Business: ${business.name} (${business.businessType}); slug: /${business.slug}; currency ${business.defaultCurrency}`,
       business.shortDescription ? `Description: ${business.shortDescription}` : null,
       "",
       "Business knowledge",
@@ -734,7 +730,7 @@ async function buildDashboardContext(input: {
   return [
     "Surface: dashboard",
     "",
-    `Business: ${business.name} (${business.businessType}); slug: /${business.slug}; currency ${business.defaultCurrency}; tone ${business.aiTonePreference}`,
+    `Business: ${business.name} (${business.businessType}); slug: /${business.slug}; currency ${business.defaultCurrency}`,
     business.shortDescription ? `Description: ${business.shortDescription}` : null,
     business.contactEmail ? `Contact email: ${business.contactEmail}` : null,
     `Created: ${business.createdAt.toISOString().slice(0, 10)}`,

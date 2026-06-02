@@ -974,7 +974,6 @@ export async function generateQuoteDraftForBusiness(
       shortDescription: businesses.shortDescription,
       defaultCurrency: businesses.defaultCurrency,
       defaultQuoteNotes: businesses.defaultQuoteNotes,
-      aiTonePreference: businesses.aiTonePreference,
     })
     .from(businesses)
     .where(eq(businesses.id, input.businessId))
@@ -1145,7 +1144,6 @@ export async function generateQuoteDraftForBusiness(
       customerName: inquiryContext?.inquiry.customerName ?? null,
       customerEmail: inquiryContext?.inquiry.customerEmail ?? null,
       pricingBlocks: pricingBlocksText,
-      tonePreference: businessRow.aiTonePreference,
       businessMemorySummary: businessMemorySummaryText,
       revisionContext,
       currentItems: currentItemsText,
@@ -1518,7 +1516,6 @@ export async function generateQuoteImprovementForBusiness(
       shortDescription: businesses.shortDescription,
       defaultCurrency: businesses.defaultCurrency,
       defaultQuoteNotes: businesses.defaultQuoteNotes,
-      aiTonePreference: businesses.aiTonePreference,
     })
     .from(businesses)
     .where(eq(businesses.id, input.businessId))
@@ -1659,7 +1656,6 @@ export async function generateQuoteImprovementForBusiness(
       customerName: inquiryContext.inquiry.customerName ?? null,
       customerEmail: inquiryContext.inquiry.customerEmail ?? null,
       pricingBlocks: pricingBlocksText,
-      tonePreference: businessRow.aiTonePreference,
       businessMemorySummary: businessMemorySummaryText,
       existingQuoteDraft: input.existingQuoteDraft,
     },

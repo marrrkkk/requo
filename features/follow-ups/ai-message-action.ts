@@ -47,7 +47,6 @@ export async function generateFollowUpMessageAction(
       availableData: {
         inquiryText: recordContext || "follow-up needed",
         customerName,
-        tonePreference: "balanced",
         followUpReason: followUpReason || "general follow-up",
       },
       sourceDataVersions: {},

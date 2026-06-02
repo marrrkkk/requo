@@ -22,6 +22,7 @@ import {
   businessInquiryFormSettingsSchema,
   businessInquiryFormTargetSchema,
   businessInquiryPageSettingsSchema,
+  businessInvoiceSettingsSchema,
   businessNotificationSettingsSchema,
   businessQuoteSettingsSchema,
 } from "@/features/settings/schemas";
@@ -31,6 +32,7 @@ import type {
   BusinessInquiryFormDangerActionState,
   BusinessInquiryFormsActionState,
   BusinessInquiryPageActionState,
+  BusinessInvoiceSettingsActionState,
   BusinessNotificationSettingsActionState,
   BusinessQuoteSettingsActionState,
   BusinessSettingsActionState,
@@ -49,6 +51,7 @@ import {
   updateBusinessEmailTemplateSettings,
   updateBusinessInquiryFormSettings,
   updateBusinessInquiryPageSettings,
+  updateBusinessInvoiceSettings,
   updateBusinessNotificationSettings,
   updateBusinessQuoteSettings,
   updateBusinessSettings,
@@ -128,7 +131,6 @@ export async function updateBusinessSettingsAction(
     contactEmail: formData.get("contactEmail"),
     defaultCurrency: formData.get("defaultCurrency"),
     defaultEmailSignature: formData.get("defaultEmailSignature"),
-    aiTonePreference: formData.get("aiTonePreference"),
     logo: formData.get("logo"),
     removeLogo: formData.get("removeLogo"),
   });
@@ -377,6 +379,57 @@ export async function updateBusinessQuoteSettingsAction(
 
     return {
       error: "We couldn't save the quote settings right now.",
+    };
+  }
+}
+
+export async function updateBusinessInvoiceSettingsAction(
+  _prevState: BusinessInvoiceSettingsActionState,
+  formData: FormData,
+): Promise<BusinessInvoiceSettingsActionState> {
+  const ownerAccess = await getOperationalBusinessActionContext();
+
+  if (!ownerAccess.ok) {
+    return {
+      error: ownerAccess.error,
+    };
+  }
+
+  const { user, businessContext } = ownerAccess;
+  const validationResult = businessInvoiceSettingsSchema.safeParse({
+    defaultInvoiceDueDays: formData.get("defaultInvoiceDueDays"),
+  });
+
+  if (!validationResult.success) {
+    return getValidationActionState(
+      validationResult.error,
+      "Check the invoice settings and try again.",
+    );
+  }
+
+  try {
+    const result = await updateBusinessInvoiceSettings({
+      businessId: businessContext.business.id,
+      actorUserId: user.id,
+      values: validationResult.data,
+    });
+
+    if (!result.ok) {
+      return {
+        error: "That business could not be found.",
+      };
+    }
+
+    updateCacheTags(getBusinessSettingsCacheTags(businessContext.business.id));
+
+    return {
+      success: "Invoice settings saved.",
+    };
+  } catch (error) {
+    console.error("Failed to update business invoice settings.", error);
+
+    return {
+      error: "We couldn't save the invoice settings right now.",
     };
   }
 }

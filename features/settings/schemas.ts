@@ -23,7 +23,6 @@ import {
   publicSlugMaxLength,
   publicSlugRegex,
 } from "@/lib/slugs";
-import { businessAiTonePreferences } from "@/features/settings/types";
 import {
   businessLogoAllowedExtensions,
   normalizeBusinessSlug,
@@ -226,7 +225,6 @@ export const businessGeneralSettingsSchema = z.object({
   contactEmail: optionalEmail(),
   defaultCurrency: supportedCurrencyCode(),
   defaultEmailSignature: optionalText(1200),
-  aiTonePreference: z.enum(businessAiTonePreferences),
   logo: businessLogoSchema,
   removeLogo: formBoolean().default(false),
 });
@@ -283,6 +281,37 @@ export const businessQuoteSettingsSchema = z.object({
 
 export type BusinessQuoteSettingsInput = z.infer<
   typeof businessQuoteSettingsSchema
+>;
+
+export const businessInvoiceSettingsSchema = z.object({
+  defaultInvoiceDueDays: z.preprocess(
+    (value) => {
+      if (typeof value === "number") {
+        return value;
+      }
+
+      if (typeof value !== "string") {
+        return value;
+      }
+
+      const normalized = value.trim();
+
+      if (!normalized) {
+        return Number.NaN;
+      }
+
+      return Number(normalized);
+    },
+    z
+      .number()
+      .int("Enter a whole number of days.")
+      .min(1, "Use at least 1 day.")
+      .max(365, "Use 365 days or fewer."),
+  ),
+});
+
+export type BusinessInvoiceSettingsInput = z.infer<
+  typeof businessInvoiceSettingsSchema
 >;
 
 export const businessEmailTemplateSettingsSchema = z.object({

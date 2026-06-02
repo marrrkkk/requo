@@ -1,0 +1,2 @@
+ALTER TABLE "businesses" ADD COLUMN "default_invoice_due_days" integer DEFAULT 14 NOT NULL;--> statement-breakpoint
+ALTER TABLE "businesses" ADD CONSTRAINT "businesses_default_invoice_due_days_range" CHECK ("businesses"."default_invoice_due_days" between 1 and 365);

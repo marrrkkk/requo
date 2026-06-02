@@ -130,7 +130,6 @@ export type InquiryAssistantContext = {
     defaultQuoteTerms: string | null;
     industryCategory: string | null;
     inquiryHeadline: string | null;
-    aiTonePreference: "balanced" | "warm" | "direct" | "formal";
     createdAt: Date;
     inquiryPageHeadline: string;
     inquiryPageTemplate: InquiryPageTemplate;

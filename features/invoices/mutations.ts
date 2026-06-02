@@ -4,6 +4,7 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import {
+  businesses,
   invoiceItems,
   invoices,
   jobItems,
@@ -57,6 +58,16 @@ export async function createInvoiceFromJobForBusiness({
   dueOffsetDays?: number;
 }) {
   return db.transaction(async (tx) => {
+    // Fetch business default payment terms when no explicit offset is provided
+    const effectiveDueOffsetDays = dueOffsetDays ?? await (async () => {
+      const [biz] = await tx
+        .select({ defaultInvoiceDueDays: businesses.defaultInvoiceDueDays })
+        .from(businesses)
+        .where(eq(businesses.id, businessId))
+        .limit(1);
+      return biz?.defaultInvoiceDueDays ?? DEFAULT_INVOICE_DUE_OFFSET_DAYS;
+    })();
+
     const [job] = await tx
       .select({
         id: jobs.id,
@@ -122,7 +133,7 @@ export async function createInvoiceFromJobForBusiness({
     const invoiceNumber = getNextInvoiceNumberFromSequence(maxInvoice?.maxNum);
     const invoiceId = createId("inv");
     const now = new Date();
-    const dueAt = computeDueAt(now, dueOffsetDays);
+    const dueAt = computeDueAt(now, effectiveDueOffsetDays);
 
     const subtotalInCents = items.reduce((sum, i) => sum + i.lineTotalInCents, 0);
 
@@ -206,6 +217,16 @@ export async function createInvoiceFromQuoteForBusiness({
   dueOffsetDays?: number;
 }) {
   return db.transaction(async (tx) => {
+    // Fetch business default payment terms when no explicit offset is provided
+    const effectiveDueOffsetDays = dueOffsetDays ?? await (async () => {
+      const [biz] = await tx
+        .select({ defaultInvoiceDueDays: businesses.defaultInvoiceDueDays })
+        .from(businesses)
+        .where(eq(businesses.id, businessId))
+        .limit(1);
+      return biz?.defaultInvoiceDueDays ?? DEFAULT_INVOICE_DUE_OFFSET_DAYS;
+    })();
+
     const [quote] = await tx
       .select({
         id: quotes.id,
@@ -281,7 +302,7 @@ export async function createInvoiceFromQuoteForBusiness({
     const invoiceNumber = getNextInvoiceNumberFromSequence(maxInvoice?.maxNum);
     const invoiceId = createId("inv");
     const now = new Date();
-    const dueAt = computeDueAt(now, dueOffsetDays);
+    const dueAt = computeDueAt(now, effectiveDueOffsetDays);
 
     await tx.insert(invoices).values({
       id: invoiceId,

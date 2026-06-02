@@ -3,16 +3,14 @@
  *
  * Complex task — structured output, system prompt ≤1600 tokens.
  * Context fields: inquiryText, customerName, customerEmail, pricingBlocks,
- *                 tonePreference, businessMemorySummary, existingQuoteDraft
+ *                 businessMemorySummary, existingQuoteDraft
  */
 export function buildQuoteImprovementPrompt(
   context: Record<string, string>,
 ): string {
-  const tone = context.tonePreference ?? "professional";
-
   const lines = [
     "Improve the existing quote draft below based on the inquiry context and approved pricing.",
-    `Use a ${tone} tone. All prices in cents (integer). No currency symbols.`,
+    "Use a professional tone. All prices in cents (integer). No currency symbols.",
     "",
     "IMPROVEMENT GOALS:",
     "- Fix pricing errors: match items to approved pricing blocks where possible.",
