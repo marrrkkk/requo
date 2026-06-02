@@ -8,7 +8,7 @@ export type BuilderTab = "editor" | "runs";
 export type SidebarPanel =
   | { type: "trigger-picker" }
   | { type: "node-config"; nodeId: string }
-  | { type: "next-step-picker"; afterNodeId: string };
+  | { type: "next-step-picker"; afterNodeId: string; branchTarget?: { conditionNodeId: string; branch: "true" | "false" } };
 
 export type WorkflowNode = {
   id: string;

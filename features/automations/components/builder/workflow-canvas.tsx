@@ -6,7 +6,6 @@ import {
   Background,
   MiniMap,
   Controls,
-  type Connection,
   type NodeTypes,
   type EdgeTypes,
   type IsValidConnection,

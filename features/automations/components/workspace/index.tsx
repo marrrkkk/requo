@@ -135,9 +135,9 @@ const edgeTypes: EdgeTypes = {
 
 export function AutomationsWorkspace({
   automations,
-  plan,
-  limit,
-  hasBuilderAccess,
+  plan: _plan,
+  limit: _limit,
+  hasBuilderAccess: _hasBuilderAccess,
   businessSlug,
   selectedAutomationId,
   businessType,
@@ -319,54 +319,71 @@ export function AutomationsWorkspace({
     });
   }
 
+  function handleAddToBranch(conditionNodeId: string, branch: "true" | "false") {
+    setSidebarPanel({
+      type: "next-step-picker",
+      afterNodeId: conditionNodeId,
+      branchTarget: { conditionNodeId, branch },
+    });
+  }
+
   function handleSelectBlock(blockType: string, label: string, nodeType: WorkflowNode["type"]) {
     let config: Record<string, unknown>;
     if (nodeType === "action") {
       config = { actionType: blockType };
+    } else if (nodeType === "condition") {
+      config = { conditionType: "", field: "", operator: "eq", value: "", trueBranch: [], falseBranch: [] };
     } else if (blockType === "delay") {
       config = { unit: "hours", value: 1 };
     } else if (blockType === "wait_until") {
       config = { waitFor: "quote.viewed", unit: "event" };
     } else if (blockType === "schedule_for") {
       config = { time: "09:00", timezone: "local" };
-    } else if (blockType === "condition_source") {
-      config = { field: "inquiry.source", operator: "eq", value: "" };
-    } else if (blockType === "condition_contact_method") {
-      config = { field: "inquiry.contactMethod", operator: "eq", value: "" };
-    } else if (blockType === "condition_form") {
-      config = { field: "inquiry.formId", operator: "eq", value: "" };
-    } else if (blockType === "condition_name_contains") {
-      config = { field: "inquiry.name", operator: "contains", value: "" };
-    } else if (blockType === "condition_tag") {
-      config = { field: "inquiry.tag", operator: "eq", value: "" };
-    } else if (blockType === "condition_amount") {
-      config = { field: "quote.amount", operator: "gte", value: "" };
-    } else if (blockType === "condition_days_inactive") {
-      config = { field: "lastActivity.daysAgo", operator: "gte", value: "3" };
-    } else if (blockType === "condition_quote_viewed") {
-      config = { field: "quote.viewed", operator: "eq", value: "true" };
-    } else if (blockType === "condition_has_attachment") {
-      config = { field: "inquiry.hasAttachment", operator: "eq", value: "true" };
-    } else if (blockType === "condition_repeat_customer") {
-      config = { field: "contact.isRepeat", operator: "eq", value: "true" };
-    } else if (blockType === "condition_business_hours") {
-      config = { field: "time.isBusinessHours", operator: "eq", value: "true" };
     } else {
-      config = { field: "", operator: "eq", value: "" };
+      config = {};
     }
 
-    const newNode: WorkflowNode = {
-      id: `${nodeType}-${Date.now()}`,
-      type: nodeType,
-      label,
-      config,
-    };
-    setNodes((prev) => {
-      const updated = [...prev, newNode];
-      autoSave(updated);
-      return updated;
-    });
-    setSidebarPanel({ type: "node-config", nodeId: newNode.id });
+    // Check if we're adding to a branch
+    const branchTarget = sidebarPanel?.type === "next-step-picker" ? sidebarPanel.branchTarget : undefined;
+
+    if (branchTarget) {
+      const newNode: WorkflowNode = {
+        id: `${nodeType}-${Date.now()}`,
+        type: nodeType,
+        label,
+        config,
+      };
+      setNodes((prev) => {
+        const updated = prev.map((n) => {
+          if (n.id !== branchTarget.conditionNodeId) return n;
+          const branchKey = branchTarget.branch === "true" ? "trueBranch" : "falseBranch";
+          const currentBranch = (n.config?.[branchKey] as WorkflowNode[] | undefined) ?? [];
+          return {
+            ...n,
+            config: {
+              ...n.config,
+              [branchKey]: [...currentBranch, newNode],
+            },
+          };
+        });
+        autoSave(updated);
+        return updated;
+      });
+      setSidebarPanel({ type: "node-config", nodeId: branchTarget.conditionNodeId });
+    } else {
+      const newNode: WorkflowNode = {
+        id: `${nodeType}-${Date.now()}`,
+        type: nodeType,
+        label,
+        config,
+      };
+      setNodes((prev) => {
+        const updated = [...prev, newNode];
+        autoSave(updated);
+        return updated;
+      });
+      setSidebarPanel({ type: "node-config", nodeId: newNode.id });
+    }
   }
 
   function handleDeleteNode(nodeId: string) {
@@ -424,7 +441,7 @@ export function AutomationsWorkspace({
     });
   }
 
-  function handleDeleteWorkflow() {
+  function _handleDeleteWorkflow() {
     if (!editingId) return;
     const workflowId = editingId;
     runMutation({
@@ -558,7 +575,7 @@ export function AutomationsWorkspace({
               value={workflowName}
               onChange={(e) => setWorkflowName(e.target.value)}
               onBlur={handleNameBlur}
-              className="h-7 w-48 rounded border-none bg-transparent px-1.5 text-sm font-medium outline-none ring-0 transition-colors hover:bg-muted/40 focus:bg-muted/50 focus:ring-1 focus:ring-primary/30"
+              className="h-7 w-48 truncate rounded border-none bg-transparent px-1.5 text-sm font-medium outline-none ring-0 transition-colors hover:bg-muted/40 focus:bg-muted/50 focus:ring-1 focus:ring-primary/30"
               aria-label="Workflow name"
             />
             <Badge variant={isEnabled ? "default" : "secondary"} className="text-[0.65rem]">
@@ -707,6 +724,7 @@ export function AutomationsWorkspace({
                 <NodeConfigPanel
                   node={nodes.find((n) => n.id === sidebarPanel.nodeId) ?? null}
                   onAddNext={handleClickAddBlock}
+                  onAddToBranch={handleAddToBranch}
                   onDelete={handleDeleteNode}
                   onUpdateConfig={handleUpdateNodeConfig}
                   onChangeTrigger={handleChangeTrigger}

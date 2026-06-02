@@ -209,19 +209,40 @@ export function reconstructNodesFromFlatRule(automation: {
 
 /** Convert internal WorkflowNode[] to React Flow Node[] format */
 export function toFlowNodes(nodes: WorkflowNode[], selectedNodeId: string | null): Node[] {
-  const flowNodes: Node[] = nodes.map((n, idx) => ({
-    id: n.id,
-    type: n.type,
-    position: n.position ?? { x: 0, y: idx * 180 },
-    selected: n.id === selectedNodeId,
-    data: {
-      label: n.label,
-      nodeType: n.type,
-      config: n.config,
-    },
-  }));
+  const flowNodes: Node[] = [];
 
-  // Add the "+" button as a special node at the end
+  function traverse(nodeList: WorkflowNode[], startX: number, startY: number) {
+    nodeList.forEach((n, idx) => {
+      const position = n.position ?? { x: startX, y: startY + idx * 180 };
+      flowNodes.push({
+        id: n.id,
+        type: n.type,
+        position,
+        selected: n.id === selectedNodeId,
+        data: {
+          label: n.label,
+          nodeType: n.type,
+          config: n.config,
+        },
+      });
+
+      if (n.type === "condition") {
+        const trueBranch = (n.config?.trueBranch as WorkflowNode[]) ?? [];
+        const falseBranch = (n.config?.falseBranch as WorkflowNode[]) ?? [];
+        
+        if (trueBranch.length > 0) {
+          traverse(trueBranch, position.x - 250, position.y + 180);
+        }
+        if (falseBranch.length > 0) {
+          traverse(falseBranch, position.x + 250, position.y + 180);
+        }
+      }
+    });
+  }
+
+  traverse(nodes, 0, 0);
+
+  // Add the "+" button as a special node at the end of the main chain
   const lastNode = nodes[nodes.length - 1];
   const addNodeY = lastNode?.position ? lastNode.position.y + 180 : nodes.length * 180;
   flowNodes.push({
@@ -245,7 +266,58 @@ export function toFlowEdges(edges: WorkflowEdge[], nodes: WorkflowNode[]): Edge[
     type: "automation",
   }));
 
-  // Add edge from last node to the add button
+  let edgeIdCounter = flowEdges.length;
+
+  function traverseEdges(nodeList: WorkflowNode[]) {
+    nodeList.forEach((n) => {
+      if (n.type === "condition") {
+        const trueBranch = (n.config?.trueBranch as WorkflowNode[]) ?? [];
+        const falseBranch = (n.config?.falseBranch as WorkflowNode[]) ?? [];
+        
+        if (trueBranch.length > 0) {
+          flowEdges.push({
+            id: `edge-branch-${edgeIdCounter++}`,
+            source: n.id,
+            target: trueBranch[0].id,
+            sourceHandle: "true",
+            type: "automation",
+          });
+          for (let i = 0; i < trueBranch.length - 1; i++) {
+            flowEdges.push({
+              id: `edge-branch-${edgeIdCounter++}`,
+              source: trueBranch[i].id,
+              target: trueBranch[i + 1].id,
+              type: "automation",
+            });
+          }
+          traverseEdges(trueBranch);
+        }
+        
+        if (falseBranch.length > 0) {
+          flowEdges.push({
+            id: `edge-branch-${edgeIdCounter++}`,
+            source: n.id,
+            target: falseBranch[0].id,
+            sourceHandle: "false",
+            type: "automation",
+          });
+          for (let i = 0; i < falseBranch.length - 1; i++) {
+            flowEdges.push({
+              id: `edge-branch-${edgeIdCounter++}`,
+              source: falseBranch[i].id,
+              target: falseBranch[i + 1].id,
+              type: "automation",
+            });
+          }
+          traverseEdges(falseBranch);
+        }
+      }
+    });
+  }
+
+  traverseEdges(nodes);
+
+  // Add edge from last main chain node to the add button
   if (nodes.length > 0) {
     flowEdges.push({
       id: "edge-to-add",

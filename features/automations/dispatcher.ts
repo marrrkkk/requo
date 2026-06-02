@@ -161,7 +161,7 @@ async function dispatchEvent<T extends TriggerType>(
       } else {
         // Requirement 2.5: Execute actions immediately
         const actions = rule.actions as ActionConfig[] | unknown;
-        const actionsList = extractActions(actions);
+        const actionsList = await extractActions(actions, payload);
 
         const results = await executeActionsForRule(
           businessId,
@@ -266,10 +266,9 @@ async function executeActionsForRule(
 /**
  * Extracts a flat array of ActionConfig from the rule's actions field.
  * Actions can be a flat array or a workflow graph. For graph-based workflows,
- * only simple action nodes are extracted (multi-step graph execution is handled
- * by the processor).
+ * it traverses the main chain and condition branches based on condition evaluation.
  */
-function extractActions(actions: unknown): ActionConfig[] {
+async function extractActions(actions: unknown, payload: unknown): Promise<ActionConfig[]> {
   if (Array.isArray(actions)) {
     return actions as ActionConfig[];
   }
@@ -282,13 +281,50 @@ function extractActions(actions: unknown): ActionConfig[] {
     Array.isArray((actions as { nodes: unknown[] }).nodes)
   ) {
     const graph = actions as { nodes: Array<{ type: string; data: Record<string, unknown> }> };
-    return graph.nodes
-      .filter((node) => node.type === "action")
-      .map((node) => {
-        const { label: _label, actionType, ...rest } = node.data;
-        // The workspace stores actionType in data, but ActionConfig uses `type`
-        return { type: actionType, ...rest } as ActionConfig;
-      });
+    const extracted: ActionConfig[] = [];
+    const { evaluateConditions } = await import("./condition-evaluator");
+
+    // Helper to process both top-level serialized nodes and nested WorkflowNode format
+    function processNode(type: string, data: Record<string, unknown>) {
+      if (type === "action") {
+        const { label: _label, actionType, ...rest } = data;
+        extracted.push({ type: actionType, ...rest } as ActionConfig);
+      } else if (type === "condition") {
+        const condition = {
+          field: (data.field as string) || "",
+          operator: (data.operator as "eq") || "eq",
+          value: data.value as string | number | boolean,
+        };
+        const passed = evaluateConditions([condition], payload);
+
+        if (passed) {
+          const trueBranch = (data.trueBranch as Array<Record<string, unknown>>) ?? [];
+          for (const nested of trueBranch) {
+            // nested is a WorkflowNode ({ type, config, ... })
+            if (nested && nested.type && nested.config) {
+              processNode(nested.type as string, nested.config as Record<string, unknown>);
+            }
+          }
+        } else {
+          const falseBranch = (data.falseBranch as Array<Record<string, unknown>>) ?? [];
+          for (const nested of falseBranch) {
+            if (nested && nested.type && nested.config) {
+              processNode(nested.type as string, nested.config as Record<string, unknown>);
+            }
+          }
+          // If condition fails, we stop the main chain execution entirely
+          return false;
+        }
+      }
+      return true; // continue main chain
+    }
+
+    for (const node of graph.nodes) {
+      const shouldContinue = processNode(node.type, node.data);
+      if (!shouldContinue) break;
+    }
+
+    return extracted;
   }
 
   return [];

@@ -54,7 +54,7 @@ const templateIcons: Record<string, LucideIcon> = {
   "follow-up-due-today": Clock,
 };
 
-function getTemplateIcon(template: AutomationTemplate): LucideIcon {
+function _getTemplateIcon(template: AutomationTemplate): LucideIcon {
   return templateIcons[template.id] ?? FileText;
 }
 
