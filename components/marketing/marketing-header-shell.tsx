@@ -43,7 +43,7 @@ export function MarketingHeaderShell({
 
   return (
     <header className="sticky top-0 z-50 w-full bg-[#ffffff] dark:bg-[#161616]">
-      <div className="mx-auto flex w-full items-center justify-between gap-6 px-5 py-3 sm:px-8 sm:py-3.5 lg:px-10">
+      <div className="mx-auto flex w-full items-center justify-between gap-6 px-5 py-4 sm:px-8 sm:py-5 lg:px-10">
         {/* Left: brand + nav */}
         <div className="flex items-center gap-6 sm:gap-8">
           <BrandMark subtitle={null} size="lg" />
