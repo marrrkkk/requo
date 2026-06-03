@@ -246,6 +246,13 @@ export async function activateSubscription(
     subscription = created!;
   }
 
+  // Keep the denormalized businesses.plan column in sync so UI reads
+  // are immediately consistent without waiting for cache revalidation.
+  await db
+    .update(businesses)
+    .set({ plan: params.plan, updatedAt: now })
+    .where(eq(businesses.id, params.businessId));
+
   return subscription;
 }
 
@@ -354,12 +361,12 @@ export async function expireSubscription(
  * it locally. Used after checkout redirect to close the race between
  * the browser redirect and webhook delivery.
  *
- * Returns `true` if the subscription was synced/activated, `false` if
- * no active subscription was found on Polar's side.
+ * Returns the activated plan name (e.g. "pro", "business") on success,
+ * or `false` if no active subscription was found on Polar's side.
  */
 export async function syncSubscriptionFromPolar(
   businessId: string,
-): Promise<boolean> {
+): Promise<BusinessPlan | false> {
   const { env: envVars, isPolarConfigured } = await import("@/lib/env");
 
   if (!isPolarConfigured || !envVars.POLAR_ACCESS_TOKEN) {
@@ -429,13 +436,7 @@ export async function syncSubscriptionFromPolar(
         : null,
     });
 
-    // Sync the denormalized plan column on the business
-    await db
-      .update(businesses)
-      .set({ plan: mapping.plan, updatedAt: new Date() })
-      .where(eq(businesses.id, businessId));
-
-    return true;
+    return mapping.plan;
   } catch (error) {
     console.error("[billing] Failed to sync subscription from Polar:", error);
     return false;

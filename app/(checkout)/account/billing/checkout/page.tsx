@@ -71,11 +71,12 @@ export default async function AccountBillingCheckoutPage({
       businessContext.business.id,
     );
     if (synced) {
+      // synced is the plan name (e.g. "pro", "business") on success
+      activePlan = synced;
       for (const tag of getBusinessBillingCacheTags(businessContext.business.id)) {
         updateTag(tag);
       }
     }
-    activePlan = businessContext.business.plan;
   } catch {
     // Best-effort — the webhook will handle it if this fails.
   }
