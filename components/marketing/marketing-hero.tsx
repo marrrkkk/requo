@@ -124,8 +124,8 @@ export function MarketingHero() {
 
           <div className="mx-auto w-full max-w-5xl">
             {/* Device frame */}
-            <div className="rounded-2xl border-[3px] border-neutral-200 bg-neutral-100 p-2 shadow-[0_25px_80px_rgba(0,0,0,0.12),0_8px_24px_rgba(0,0,0,0.06)] dark:border-neutral-700 dark:bg-neutral-800 dark:shadow-[0_25px_80px_rgba(0,0,0,0.6),0_8px_24px_rgba(0,0,0,0.3)]">
-              <div className="overflow-hidden rounded-xl">
+            <div className="rounded-lg border border-neutral-200/80 bg-neutral-100 p-0.5 shadow-[0_25px_80px_rgba(0,0,0,0.12),0_8px_24px_rgba(0,0,0,0.06)] sm:rounded-xl sm:p-1 dark:border-neutral-700/80 dark:bg-neutral-800 dark:shadow-[0_25px_80px_rgba(0,0,0,0.6),0_8px_24px_rgba(0,0,0,0.3)]">
+              <div className="overflow-hidden rounded-[5px] sm:rounded-lg">
                 <Image
                   src="/marketing/dashboard-overview.png"
                   alt="Requo dashboard showing inquiries, quotes, and workflow overview"
