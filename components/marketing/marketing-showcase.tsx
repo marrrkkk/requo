@@ -590,7 +590,7 @@ export function MarketingShowcase() {
                   style={{ transitionDelay: phase >= 1 ? "100ms" : "0ms" }}
                 >
                   <div className="rounded-xl border border-border bg-background p-2 shadow-sm transition-all duration-300 focus-within:border-primary/50">
-                    <div className="min-h-[44px] px-2 py-1.5 text-[11px] leading-relaxed sm:text-xs">
+                    <div className="min-h-[40px] p-2 text-[11px] leading-relaxed sm:text-xs">
                       {chatState === "typing-input" || chatState === "sending" ? (
                         <span className="text-foreground">
                           {AI_PROMPT.slice(0, typedChars)}

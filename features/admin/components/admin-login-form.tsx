@@ -2,23 +2,15 @@
 
 import { useState, type FormEvent } from "react";
 
-import { BrandMark } from "@/components/shared/brand-mark";
+import { AuthShell } from "@/components/shell/auth-shell";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 /**
  * Admin login form.
  *
- * Simple username/password form that POSTs to `/api/admin/login`.
- * On success, redirects to the admin dashboard root.
+ * POSTs to `/api/admin/login` and redirects to the admin dashboard on success.
  */
 export function AdminLoginForm() {
   const [error, setError] = useState<string | null>(null);
@@ -54,53 +46,42 @@ export function AdminLoginForm() {
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="space-y-4 text-center">
-          <div className="flex justify-center">
-            <BrandMark href="#" subtitle="Admin" />
-          </div>
-          <div className="space-y-1">
-            <CardTitle className="text-xl">Admin Login</CardTitle>
-            <CardDescription>
-              Sign in to the internal operations console.
-            </CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                name="username"
-                type="text"
-                autoComplete="username"
-                required
-                placeholder="admin"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-              />
-            </div>
-            {error ? (
-              <p className="text-sm text-destructive" role="alert">
-                {error}
-              </p>
-            ) : null}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in…" : "Sign in"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthShell
+      description="Sign in to the internal operations console."
+      layout="centered"
+      title="Admin sign in"
+    >
+      <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="username">Username</Label>
+          <Input
+            autoComplete="username"
+            id="username"
+            name="username"
+            placeholder="admin"
+            required
+            type="text"
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            autoComplete="current-password"
+            id="password"
+            name="password"
+            required
+            type="password"
+          />
+        </div>
+        {error ? (
+          <p className="text-sm text-destructive" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <Button className="w-full" disabled={loading} type="submit">
+          {loading ? "Signing in…" : "Sign in"}
+        </Button>
+      </form>
+    </AuthShell>
   );
 }

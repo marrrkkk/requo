@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Copy } from "lucide-react";
+import { Bot, Copy, FileText, PenLine } from "lucide-react";
 import type { MotionState } from "@/hooks/use-animated-list";
 import {
   Card,
@@ -17,6 +17,16 @@ import {
 import { InquiryRecordStateBadge } from "@/features/inquiries/components/inquiry-record-state-badge";
 import { InquiryStatusBadge } from "@/features/inquiries/components/inquiry-status-badge";
 import { getBusinessInquiryPath } from "@/features/businesses/routes";
+
+function getInquiryChannelDisplay(inquiry: DashboardInquiryListItem) {
+  if (inquiry.inquiryFormName) {
+    return { label: inquiry.inquiryFormName, icon: FileText };
+  }
+  if (inquiry.source === "ai") {
+    return { label: "AI", icon: Bot };
+  }
+  return { label: "Manual", icon: PenLine };
+}
 
 type InquiryListCardsProps = {
   inquiries: DashboardInquiryListItem[];
@@ -88,12 +98,18 @@ export function InquiryListCards({
               <CardContent className="data-list-card-meta pt-0">
                 <div className="info-tile min-w-0 h-full px-3 py-2.5 shadow-none sm:px-3.5 sm:py-3">
                   <span className="meta-label">
-                    Form
+                    Channel
                   </span>
-                  <TruncatedTextWithTooltip
-                    text={inquiry.inquiryFormName}
-                    className="mt-1.5 text-sm text-foreground sm:mt-2"
-                  />
+                  {(() => {
+                    const channel = getInquiryChannelDisplay(inquiry);
+                    const Icon = channel.icon;
+                    return (
+                      <span className="mt-1.5 flex items-center gap-1.5 text-sm text-foreground sm:mt-2">
+                        <Icon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+                        <span className="truncate">{channel.label}</span>
+                      </span>
+                    );
+                  })()}
                 </div>
                 <div className="info-tile min-w-0 h-full px-3 py-2.5 shadow-none sm:px-3.5 sm:py-3">
                   <span className="meta-label">

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Menu } from "lucide-react";
 
@@ -24,24 +24,9 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { cn } from "@/lib/utils";
 
-/** Shared nav-link treatment for the floating marketing pill nav. */
-export const marketingNavLinkClass =
-  "relative inline-flex items-center rounded-full px-3.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 data-[state=open]:text-foreground";
-
-function useScrolled(threshold = 8) {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > threshold);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [threshold]);
-
-  return scrolled;
-}
+/** Shared nav-link class for public/marketing headers. */
+const navLinkClass = "public-page-header-link";
 
 type MarketingHeaderShellProps = {
   /** Auth-aware CTA cluster for desktop (rendered as a Suspense slot). */
@@ -55,33 +40,30 @@ export function MarketingHeaderShell({
   mobileActions,
 }: MarketingHeaderShellProps) {
   const [open, setOpen] = useState(false);
-  const scrolled = useScrolled();
 
   return (
-    <header className="pointer-events-none sticky top-0 z-50 px-3 pt-3 sm:px-6 sm:pt-4 lg:px-8">
-      <div
-        className={cn(
-          "pointer-events-auto mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-3 rounded-2xl border pl-4 pr-2.5 transition-[background-color,border-color,box-shadow] duration-300 sm:h-16 sm:gap-4 sm:pl-5 sm:pr-3",
-          scrolled
-            ? "border-border/70 bg-background"
-            : "border-transparent bg-transparent",
-        )}
-      >
-        <BrandMark subtitle={null} size="lg" />
+    <header className="sticky top-0 z-50 w-full bg-[#ffffff] dark:bg-[#161616]">
+      <div className="mx-auto flex w-full items-center justify-between gap-6 px-5 py-4 sm:px-8 sm:py-5 lg:px-10">
+        {/* Left: brand + nav */}
+        <div className="flex items-center gap-6 sm:gap-8">
+          <BrandMark subtitle={null} size="lg" />
 
-        <nav className="hidden items-center gap-0.5 lg:flex">
-          {navItems.map((item) => (
-            <Link
-              className={marketingNavLinkClass}
-              href={getMarketingNavHref(item)}
-              key={getMarketingNavKey(item)}
-            >
-              {item.label}
-            </Link>
-          ))}
-          <MarketingResourcesNav />
-        </nav>
+          <nav className="public-page-header-nav">
+            {navItems.map((item) => (
+              <Link
+                className={navLinkClass}
+                href={getMarketingNavHref(item)}
+                key={getMarketingNavKey(item)}
+              >
+                {item.label}
+                <span className="nav-underline" aria-hidden="true" />
+              </Link>
+            ))}
+            <MarketingResourcesNav triggerClassName={navLinkClass} />
+          </nav>
+        </div>
 
+        {/* Right: actions */}
         <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-2.5">
           <div className="hidden items-center gap-2 sm:flex sm:gap-2.5">
             {actions}

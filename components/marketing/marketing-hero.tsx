@@ -2,14 +2,9 @@ import Link from "next/link";
 import {
   ArrowRight,
   BellRing,
-  Briefcase,
   Check,
-  Eye,
   FileText,
   Inbox,
-  Receipt,
-  Sparkles,
-  X,
 } from "lucide-react";
 
 import {
@@ -18,21 +13,13 @@ import {
   landingFeatureItems,
   navItems,
 } from "@/components/marketing/marketing-data";
-import dynamic from "next/dynamic";
+import Image from "next/image";
 import { InViewReveal } from "@/components/marketing/in-view-reveal";
 import { MarketingHeader } from "@/components/marketing/marketing-header";
-const MarketingShowcase = dynamic(
-  () =>
-    import("@/components/marketing/marketing-showcase").then(
-      (m) => m.MarketingShowcase,
-    ),
-  {
-    loading: () => <div className="mx-auto h-64 w-full max-w-5xl rounded-xl sm:h-80 lg:h-96" />
-  },
-);
 import {
   MarketingFeatureRow,
 } from "@/components/marketing/marketing-feature-row";
+import { WorkflowStepper } from "@/components/marketing/workflow-stepper";
 import { BrandMark } from "@/components/shared/brand-mark";
 import { PublicPageShell } from "@/components/shared/public-page-shell";
 import {
@@ -43,137 +30,25 @@ import {
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 
-const workflowSteps = [
+const whyRequoPoints = [
   {
-    title: "Capture",
-    description: "Intake form or manual entry. Every detail in one place.",
-    icon: Inbox,
-  },
-  {
-    title: "Quote",
-    description: "AI drafts from your pricing. Review and send in minutes.",
+    hook: "Quotes take too long to send.",
+    detail: "A customer asks for a price. You're busy. By the time you write it up, they've already called someone else.",
+    fix: "Requo drafts the quote from your pricing instantly. You review, send, done.",
     icon: FileText,
   },
   {
-    title: "Win",
-    description: "Track views, follow up on time, close the deal.",
+    hook: "Follow-ups don't happen.",
+    detail: "You meant to check in. But you were on a job, and the lead went cold.",
+    fix: "Follow-ups send automatically on your schedule. No reminders needed.",
     icon: BellRing,
   },
   {
-    title: "Deliver",
-    description: "Convert to a job, track progress, invoice when done.",
-    icon: Briefcase,
-  },
-] as const;
-
-function WorkflowArtifact({ step }: { step: number }) {
-  if (step === 1) {
-    return (
-      <div className="flex items-center gap-2.5 rounded-lg border border-border/60 bg-background/70 px-2.5 py-2 shadow-sm">
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted/60 text-foreground">
-          <Inbox className="size-3.5" />
-        </span>
-        <div className="min-w-0 flex-1 leading-tight">
-          <p className="truncate text-[11px] font-medium text-foreground">
-            Sarah Jenkins
-          </p>
-          <p className="truncate text-[10px] text-muted-foreground">
-            Kitchen remodel · 10:24 AM
-          </p>
-        </div>
-        <span className="shrink-0 rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-primary">
-          New
-        </span>
-      </div>
-    );
-  }
-
-  if (step === 2) {
-    return (
-      <div className="rounded-lg border border-border/60 bg-background/70 px-2.5 py-2 shadow-sm">
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0 leading-tight">
-            <p className="truncate font-mono text-[10px] text-muted-foreground">
-              Q-1042
-            </p>
-            <p className="truncate text-[11px] font-medium text-foreground">
-              Kitchen remodel
-            </p>
-          </div>
-          <p className="shrink-0 font-heading text-[13px] font-semibold text-foreground">
-            $4,850
-          </p>
-        </div>
-        <div className="mt-1.5 flex items-center gap-1 text-[9px] text-muted-foreground">
-          <span className="inline-flex items-center gap-0.5">
-            <span className="size-1 rounded-full bg-primary/60" />
-            AI drafted
-          </span>
-          <span aria-hidden="true">·</span>
-          <span>3 matched items</span>
-          <span aria-hidden="true">·</span>
-          <span>Valid 30 days</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (step === 3) {
-    return (
-      <div className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-background/70 px-2.5 py-2 shadow-sm">
-        <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-          <Eye className="size-3" />
-          Viewed
-        </span>
-        <ArrowRight className="size-3 text-muted-foreground/60" />
-        <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-          <Check className="size-3" />
-          Accepted
-        </span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-2 py-1 text-[10px] font-medium text-foreground shadow-sm">
-        <Briefcase className="size-3 text-primary" />
-        Job created
-      </span>
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2 py-1 text-[10px] font-medium text-muted-foreground shadow-sm">
-        <Receipt className="size-3" />
-        Invoiced
-      </span>
-    </div>
-  );
-}
-
-const whyRequoStages = [
-  {
-    stage: "Capture",
+    hook: "Everything is scattered.",
+    detail: "Requests in email, quotes in a spreadsheet, invoices somewhere else. Nothing connects.",
+    fix: "One place: inquiry to quote to job to invoice. All linked.",
     icon: Inbox,
-    pain: "Requests scattered across email, DMs, and notes. Context lost before you start.",
-    fix: "One record. Form answers, files, conversation, and AI-detected details — ready to quote.",
   },
-  {
-    stage: "Quote",
-    icon: FileText,
-    pain: "Every quote rebuilt from scratch. Buyers cool off waiting.",
-    fix: "AI drafts from your pricing library. Review, adjust, send in minutes.",
-  },
-  {
-    stage: "Win & Deliver",
-    icon: BellRing,
-    pain: "After acceptance, everything lives in your head.",
-    fix: "Jobs, invoices, and follow-ups — connected from quote to completion.",
-  },
-] as const;
-
-const leakPoints = [
-  "Replies that arrive a day too late",
-  "Quotes stuck in a drafts folder",
-  "Follow-ups nobody remembered to send",
-  "Won deals with no clear next step",
 ] as const;
 
 // Indexes map into `faqItems` in `components/marketing/marketing-data.ts`.
@@ -222,44 +97,19 @@ export function MarketingHero() {
         className="pb-28 lg:pb-40"
         header={<MarketingHeader />}
       >
-      <section className="relative overflow-hidden px-4 pb-14 pt-10 sm:px-6 sm:pb-20 sm:pt-14 lg:px-8 lg:pb-24 lg:pt-16 xl:px-10">
-        {/* Soft brand glow anchoring the headline */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 z-0 mx-auto h-[420px] w-full max-w-3xl rounded-full opacity-70 blur-3xl"
-          style={{
-            background:
-              "radial-gradient(closest-side, color-mix(in srgb, var(--primary) 14%, transparent), transparent)",
-          }}
-        />
-        <div className="relative z-10 flex flex-col gap-10 sm:gap-14 lg:gap-16">
-          <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-6 text-center sm:gap-7">
-            <Link
-              className="group inline-flex items-center gap-2 rounded-full border border-border/80 bg-secondary/70 py-1 pl-1.5 pr-3 text-xs font-medium text-muted-foreground shadow-[var(--surface-shadow-sm)] backdrop-blur-sm transition-colors hover:text-foreground"
-              href={getMarketingNavHref(navItems[2])}
-            >
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[0.7rem] font-semibold text-primary">
-                <Sparkles className="size-3" />
-                AI quotes
-              </span>
-              Draft from your pricing in minutes
-              <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
-            </Link>
+      <section className="relative overflow-hidden px-4 pb-12 pt-8 sm:px-6 sm:pb-16 sm:pt-10 lg:px-8 lg:pb-20 lg:pt-12 xl:px-0">
+        <div className="relative z-10 flex flex-col gap-8 sm:gap-10 lg:gap-12">
+          <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-5 text-center">
+            <h1 className="font-[var(--font-inter)] text-[2.75rem] font-bold leading-[1.0] tracking-[-0.02em] text-foreground sm:text-[3.25rem] sm:leading-[1.0] lg:text-[4rem] lg:leading-[1.0]">
+              Turn inquiries into<br className="hidden sm:inline" />{" "}
+              <span className="text-primary">accepted quotes</span>.
+            </h1>
+            <p className="max-w-lg font-[var(--font-inter)] text-[0.95rem] font-normal leading-[1.5] text-muted-foreground sm:text-base sm:leading-[1.5] lg:text-lg lg:leading-[1.5]">
+              Capture requests, send polished quotes, follow up automatically, and close more deals.
+            </p>
 
-            <div className="flex flex-col items-center gap-4 sm:gap-5">
-              <h1 className="max-w-3xl font-heading text-[2.4rem] font-semibold leading-[0.98] tracking-tight text-balance sm:text-6xl sm:leading-[0.96] lg:text-7xl">
-                Quote software for{" "}
-                <span className="text-primary">owner-led service businesses</span>.
-              </h1>
-              <p className="max-w-xl text-base leading-relaxed text-muted-foreground text-balance sm:text-lg sm:leading-8">
-                Turn inquiries into accepted quotes. Capture every request, send
-                professional estimates, follow up on time, and track each deal
-                from first contact to paid invoice.
-              </p>
-            </div>
-
-            <div className="flex w-full max-w-sm flex-col gap-3 sm:w-auto sm:max-w-none sm:flex-row">
-              <Button asChild className="w-full sm:w-auto" size="lg">
+            <div className="flex items-center gap-3 pt-1">
+              <Button asChild size="lg" className="rounded-md bg-primary px-5 font-[var(--font-inter)] text-sm font-medium text-primary-foreground hover:bg-primary/90">
                 <Link href="/signup">
                   Start free
                   <ArrowRight data-icon="inline-end" />
@@ -267,21 +117,25 @@ export function MarketingHero() {
               </Button>
               <Button
                 asChild
-                className="w-full sm:w-auto"
                 size="lg"
                 variant="outline"
+                className="rounded-md border-border px-5 font-[var(--font-inter)] text-sm font-medium"
               >
                 <Link href="/pricing">See pricing</Link>
               </Button>
             </div>
-
-            <p className="text-xs text-muted-foreground sm:text-sm">
-              Free plan available · No credit card required · Built for
-              freelancers, contractors, studios, and shops.
-            </p>
           </div>
 
-          <MarketingShowcase />
+          <div className="mx-auto w-full max-w-5xl overflow-hidden rounded-xl border border-border/70 shadow-[0_20px_60px_rgba(0,0,0,0.1),0_4px_16px_rgba(0,0,0,0.05)] ring-1 ring-border/30 ring-offset-2 ring-offset-background dark:border-white/10 dark:ring-white/5 dark:shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+            <Image
+              src="/marketing/dashboard-overview.png"
+              alt="Requo dashboard showing inquiries, quotes, and workflow overview"
+              width={1920}
+              height={1080}
+              priority
+              className="w-full h-auto"
+            />
+          </div>
         </div>
       </section>
 
@@ -291,94 +145,65 @@ export function MarketingHero() {
         className="mx-auto mt-24 w-full max-w-6xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0"
         id="why-requo"
       >
-        <InViewReveal className="flex max-w-3xl flex-col items-start gap-4 sm:gap-5">
+        <InViewReveal className="mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
           <p className="eyebrow">WHY REQUO</p>
           <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
-            You lose work between the cracks, not at the price.
+            Slow replies lose jobs.
           </h2>
-          <p className="max-w-2xl text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7 lg:text-lg lg:leading-8">
-            Slow replies, forgotten follow-ups, no clear next step. Requo keeps
-            every inquiry moving toward revenue.
+          <p className="max-w-lg text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7">
+            Requo sends quotes and follow-ups for you so leads don&rsquo;t go to someone faster.
           </p>
         </InViewReveal>
 
-        <div className="mt-10 grid gap-4 sm:mt-14 sm:gap-6 lg:mt-16 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] lg:items-start">
-          {/* Where work leaks out */}
-          <InViewReveal>
-            <div className="flex h-full flex-col gap-6 rounded-2xl border border-border/70 bg-secondary/40 p-6 sm:p-7 lg:p-8">
-              <div className="flex flex-col gap-1.5">
-                <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">
-                  Without Requo
-                </span>
-                <h3 className="font-heading text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
-                  Where work leaks out
-                </h3>
-              </div>
+        <div className="mt-14 flex flex-col gap-6 sm:mt-16 lg:mt-20 lg:gap-8">
+          {whyRequoPoints.map((point, index) => {
+            const Icon = point.icon;
+            const isReversed = index % 2 === 1;
 
-              <ul className="flex flex-col gap-3">
-                {leakPoints.map((point) => (
-                  <li className="flex items-start gap-3" key={point}>
-                    <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-muted-foreground/15">
-                      <X className="size-3 text-muted-foreground/70" />
-                    </span>
-                    <span className="text-sm leading-6 text-muted-foreground">
-                      {point}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-              <p className="mt-auto border-t border-border/60 pt-5 text-sm leading-6 text-foreground">
-                The fix isn&apos;t lower prices. It&apos;s a workflow that never
-                drops the ball.
-              </p>
-            </div>
-          </InViewReveal>
-
-          {/* With Requo — stage by stage */}
-          <InViewReveal delay={80}>
-            <div className="flex flex-col gap-3 sm:gap-4">
-              {whyRequoStages.map((item, index) => {
-                const Icon = item.icon;
-                return (
-                  <article
-                    className="group rounded-2xl border border-border/70 bg-card/60 p-5 transition-colors hover:border-border sm:p-6"
-                    key={item.stage}
+            return (
+              <InViewReveal delay={80 + index * 60} key={point.hook}>
+                <article
+                  className="group grid items-stretch gap-4 sm:gap-5 lg:grid-cols-2 lg:gap-0"
+                >
+                  {/* Story side */}
+                  <div
+                    className={`relative flex flex-col justify-center gap-4 rounded-2xl border border-border/70 bg-muted/20 p-6 sm:p-8 lg:rounded-none ${isReversed ? "lg:order-2 lg:rounded-r-2xl lg:border-l-0" : "lg:order-1 lg:rounded-l-2xl lg:border-r-0"}`}
                   >
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
-                      <div className="flex items-center gap-3 sm:w-40 sm:shrink-0 sm:flex-col sm:items-start sm:gap-3">
-                        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                          <Icon className="size-5" />
-                        </span>
-                        <div className="flex flex-col">
-                          <span className="font-mono text-[10px] font-semibold text-muted-foreground/50">
-                            0{index + 1}
-                          </span>
-                          <p className="font-heading text-base font-semibold tracking-tight text-foreground sm:text-lg">
-                            {item.stage}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex min-w-0 flex-1 flex-col gap-3">
-                        <p className="text-sm leading-6 text-muted-foreground line-through decoration-muted-foreground/30">
-                          {item.pain}
-                        </p>
-                        <div className="flex items-start gap-2.5 rounded-xl bg-primary/[0.06] px-3.5 py-3">
-                          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15">
-                            <Check className="size-3 text-primary" />
-                          </span>
-                          <p className="text-sm font-medium leading-6 text-foreground">
-                            {item.fix}
-                          </p>
-                        </div>
-                      </div>
+                    <div className="flex items-center gap-3">
+                      <span className="flex size-9 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground">
+                        <Icon className="size-4" />
+                      </span>
+                      <h3 className="font-heading text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                        {point.hook}
+                      </h3>
                     </div>
-                  </article>
-                );
-              })}
-            </div>
-          </InViewReveal>
+                    <p className="text-sm leading-relaxed text-muted-foreground sm:text-[0.95rem] sm:leading-7">
+                      {point.detail}
+                    </p>
+                  </div>
+
+                  {/* Solution side */}
+                  <div
+                    className={`relative flex flex-col justify-center gap-3 overflow-hidden rounded-2xl border border-primary/25 bg-primary/[0.03] p-6 sm:p-8 lg:rounded-none ${isReversed ? "lg:order-1 lg:rounded-l-2xl lg:border-r-0" : "lg:order-2 lg:rounded-r-2xl lg:border-l-0"}`}
+                  >
+                    {/* Subtle background accent */}
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -bottom-12 -right-12 size-40 rounded-full bg-primary/[0.06] blur-3xl"
+                    />
+                    <div className="relative flex items-start gap-3">
+                      <span className="mt-1 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                        <Check className="size-3.5 text-primary" />
+                      </span>
+                      <p className="text-[0.95rem] font-medium leading-relaxed text-foreground sm:text-base">
+                        {point.fix}
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              </InViewReveal>
+            );
+          })}
         </div>
       </section>
 
@@ -386,50 +211,19 @@ export function MarketingHero() {
         className="mx-auto mt-24 w-full max-w-6xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0"
         id="workflow"
       >
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-12 xl:gap-16">
-          <InViewReveal className="flex flex-col items-start gap-4 lg:sticky lg:top-32 lg:h-fit lg:gap-5">
-            <p className="eyebrow">HOW IT WORKS</p>
-            <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
-              Inquiry to invoice. No scramble.
-            </h2>
-            <p className="text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7 lg:text-lg lg:leading-8">
-              Four connected steps. Every inquiry tracked from first contact to final payment.
-            </p>
-          </InViewReveal>
+        <InViewReveal className="mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
+          <p className="eyebrow">HOW IT WORKS</p>
+          <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
+            Request in, money in the bank.
+          </h2>
+          <p className="max-w-lg text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7">
+            Same four steps every time. No juggling tools or dropping balls.
+          </p>
+        </InViewReveal>
 
-          <div className="flex flex-col gap-3 sm:gap-4">
-            {workflowSteps.map((step, index) => {
-              const Icon = step.icon;
-              const stepNumber = index + 1;
-
-              return (
-                <InViewReveal delay={80 + index * 60} key={step.title}>
-                  <article className="group overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-background/95 to-background/70 p-5 shadow-sm transition-all hover:border-border hover:shadow-md sm:p-6">
-                    <div className="relative">
-                      <div className="flex items-start gap-3 sm:gap-4">
-                        <div className="relative flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-transform group-hover:scale-105 sm:size-14">
-                          <Icon className="size-5 sm:size-6" />
-                        </div>
-                        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                          <h3 className="font-heading text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-                            {step.title}
-                          </h3>
-                          <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm sm:leading-6">
-                            {step.description}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 rounded-xl border border-border/60 bg-background/90 p-3 backdrop-blur-sm sm:mt-5 sm:p-4">
-                        <WorkflowArtifact step={stepNumber} />
-                      </div>
-                    </div>
-                  </article>
-                </InViewReveal>
-              );
-            })}
-          </div>
-        </div>
+        <InViewReveal className="mt-14 sm:mt-16 lg:mt-20">
+          <WorkflowStepper />
+        </InViewReveal>
       </section>
 
       <section
@@ -459,7 +253,7 @@ export function MarketingHero() {
         </div>
       </section>
 
-      <section className="mx-auto mt-24 w-full max-w-4xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8" id="faq">
+      <section className="mx-auto mt-24 w-full max-w-4xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0" id="faq">
         <InViewReveal className="flex flex-col items-start gap-3 sm:gap-4">
           <p className="eyebrow">FAQ</p>
           <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">

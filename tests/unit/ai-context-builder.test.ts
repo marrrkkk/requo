@@ -216,7 +216,6 @@ describe("buildTaskContext — truncation", () => {
         customerName: "Y".repeat(2000),
         customerEmail: "Z".repeat(1500),
         pricingBlocks: "P".repeat(1000),
-        tonePreference: "T".repeat(500),
         businessMemorySummary: "M".repeat(500),
       },
     });

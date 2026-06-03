@@ -27,6 +27,17 @@ import {
   siteName,
 } from "@/lib/seo/site";
 
+/**
+ * Edge caching for public inquiry form pages is achieved via CDN cache headers
+ * configured in next.config.ts (s-maxage=60, stale-while-revalidate=300).
+ *
+ * Note: `export const runtime = "edge"` cannot be used here because the project
+ * enables `cacheComponents: true` in nextConfig, which is incompatible with
+ * the edge runtime segment config. The CDN cache headers provide the same
+ * performance benefit — repeat visits are served from the edge without
+ * hitting the origin.
+ */
+
 export async function generateMetadata({
   params,
 }: {

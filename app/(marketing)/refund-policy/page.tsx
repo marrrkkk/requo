@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 
 import { StructuredData } from "@/components/seo/structured-data";
 import { RefundPolicyPage } from "@/features/legal/components/refund-policy-page";
@@ -15,7 +16,10 @@ export const metadata: Metadata = createPageMetadata({
   title: "Refund Policy",
 });
 
-export default function RefundPage() {
+export default async function RefundPage() {
+  "use cache";
+  cacheLife("hours");
+
   const breadcrumbItems = buildBreadcrumbsForPathname("/refund-policy", {
     "/refund-policy": "Refund Policy",
   });

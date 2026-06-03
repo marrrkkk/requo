@@ -23,7 +23,7 @@ import type { AiToolExecutionContext } from "./types";
 export function createDashboardTools(ctx: AiToolExecutionContext) {
   return {
     count_inquiries: tool({
-      description: "Count inquiries, optionally by status. Returns count and breakdown.",
+      description: "Count inquiries by status. Returns: {count, breakdown}",
       inputSchema: z.object({
         status: z
           .enum(["new", "waiting", "quoted", "won", "lost", "overdue", "archived"])
@@ -38,7 +38,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     count_quotes: tool({
-      description: "Count quotes, optionally by status. Returns count, breakdown, and total value.",
+      description: "Count quotes by status. Returns: {count, breakdown, totalValue}",
       inputSchema: z.object({
         status: z
           .enum(["draft", "sent", "viewed", "accepted", "rejected", "expired", "voided"])
@@ -53,7 +53,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     search_inquiries: tool({
-      description: "Search inquiries by name, email, subject, service, or details.",
+      description: "Search inquiries by name, email, or service. Returns: {results[]}",
       inputSchema: z.object({
         query: z.string().describe("Search term."),
         status: z
@@ -68,7 +68,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     search_quotes: tool({
-      description: "Search quotes by name, email, number, title, or notes.",
+      description: "Search quotes by name, email, or number. Returns: {results[]}",
       inputSchema: z.object({
         query: z.string().describe("Search term."),
         status: z
@@ -83,7 +83,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_inquiry_details: tool({
-      description: "Get full inquiry details by ID.",
+      description: "Get full inquiry details by ID. Returns: {inquiry}",
       inputSchema: z.object({
         inquiry_id: z.string().describe("Inquiry ID."),
       }),
@@ -95,7 +95,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_quote_details: tool({
-      description: "Get full quote details by ID or number (e.g. Q-1001).",
+      description: "Get quote details by ID or number (Q-1001). Returns: {quote}",
       inputSchema: z.object({
         quote_id: z.string().describe("Quote ID or number."),
       }),
@@ -107,7 +107,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_business_stats: tool({
-      description: "Get business overview: inquiry/quote counts by status, conversion rates, recent activity.",
+      description: "Business overview: counts, conversion rates. Returns: {stats}",
       inputSchema: z.object({}),
       execute: async () => {
         const result = await executeToolCall(ctx, { tool: "get_business_stats", args: {} });
@@ -116,7 +116,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_recent_activity: tool({
-      description: "Get recent activity log entries for the business. Shows what happened recently (inquiries created, quotes sent, etc.).",
+      description: "Recent activity log for the business. Returns: {entries[]}",
       inputSchema: z.object({
         limit: z.number().nullable().optional().describe("Number of recent activities to return (default 10, max 50)."),
         type: z.string().nullable().optional().describe("Filter by activity type (e.g., inquiry_created, quote_sent, quote_accepted)."),
@@ -128,7 +128,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_follow_ups: tool({
-      description: "Get follow-ups for the business, optionally filtered by status or due date bucket.",
+      description: "Get follow-ups by status or due bucket. Returns: {followUps[]}",
       inputSchema: z.object({
         status: z.enum(["pending", "completed", "skipped"]).nullable().optional().describe("Filter by follow-up status."),
         bucket: z.enum(["overdue", "today", "upcoming"]).nullable().optional().describe("Filter by due date bucket."),
@@ -141,7 +141,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     list_inquiries: tool({
-      description: "List inquiries with pagination, most recent first.",
+      description: "List inquiries paginated, most recent first. Returns: {items[]}",
       inputSchema: z.object({
         status: z
           .enum(["new", "waiting", "quoted", "won", "lost", "overdue", "archived"]).nullable().optional()
@@ -157,7 +157,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     list_quotes: tool({
-      description: "List quotes with pagination, most recent first.",
+      description: "List quotes paginated, most recent first. Returns: {items[]}",
       inputSchema: z.object({
         status: z
           .enum(["draft", "sent", "viewed", "accepted", "rejected", "expired", "voided"]).nullable().optional()
@@ -173,7 +173,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_analytics_overview: tool({
-      description: "Get comprehensive business analytics for the last 30 days: funnel metrics (form views → inquiries → quotes → accepted), conversion rates, revenue, and follow-up health.",
+      description: "30-day funnel metrics and conversion rates. Returns: {funnel, rates}",
       inputSchema: z.object({}),
       execute: async () => {
         const result = await executeToolCall(ctx, { tool: "get_analytics_overview", args: {} });
@@ -182,7 +182,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_revenue_summary: tool({
-      description: "Get revenue metrics: total quoted value, accepted value, average deal size, win rate, and completed job value for a given period.",
+      description: "Revenue metrics for a period. Returns: {quoted, accepted, winRate}",
       inputSchema: z.object({
         days: z.number().nullable().optional().describe("Number of days to look back (default 30, max 365)."),
       }),
@@ -193,7 +193,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_stale_inquiries: tool({
-      description: "Find inquiries that have not been responded to and are older than a threshold. Useful for identifying leads that need attention.",
+      description: "Find unresponded inquiries older than N days. Returns: {items[]}",
       inputSchema: z.object({
         days: z.number().nullable().optional().describe("Minimum age in days to be considered stale (default 2)."),
         limit: z.number().nullable().optional().describe("Maximum results to return (default 10)."),
@@ -205,7 +205,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_expiring_quotes: tool({
-      description: "Find sent quotes that will expire within a given number of days. Useful for follow-up prioritization.",
+      description: "Find quotes expiring within N days. Returns: {items[]}",
       inputSchema: z.object({
         days: z.number().nullable().optional().describe("Find quotes expiring within this many days (default 7)."),
         limit: z.number().nullable().optional().describe("Maximum results to return (default 10)."),
@@ -217,7 +217,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_customer_history: tool({
-      description: "Find all inquiries and quotes for a specific customer by name or email. Shows the full history of interactions with that customer.",
+      description: "All inquiries and quotes for a customer. Returns: {history[]}",
       inputSchema: z.object({
         customer: z.string().describe("Customer name or email to search for."),
       }),
@@ -228,7 +228,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_service_categories: tool({
-      description: "List all service categories with the number of inquiries in each. Shows what services are most requested.",
+      description: "List service categories with inquiry counts. Returns: {categories[]}",
       inputSchema: z.object({}),
       execute: async () => {
         const result = await executeToolCall(ctx, { tool: "get_service_categories", args: {} });
@@ -237,7 +237,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_pricing_library: tool({
-      description: "Search the pricing library for reusable quote entries (blocks and packages). Shows available pre-configured pricing items.",
+      description: "Search reusable pricing blocks and packages. Returns: {entries[]}",
       inputSchema: z.object({
         query: z.string().nullable().optional().describe("Search term to filter entries by name or description. Omit to list all."),
         limit: z.number().nullable().optional().describe("Maximum results to return (default 10)."),
@@ -249,7 +249,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_inquiry_notes: tool({
-      description: "Get internal notes for a specific inquiry. Shows notes added by the business owner or team.",
+      description: "Get internal notes for an inquiry. Returns: {notes[]}",
       inputSchema: z.object({
         inquiry_id: z.string().describe("The inquiry ID to get notes for."),
       }),
@@ -260,7 +260,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_inquiry_conversation: tool({
-      description: "Get the full conversation/message history for a specific inquiry. Shows what was said between the business and the customer.",
+      description: "Get message history for an inquiry. Returns: {messages[]}",
       inputSchema: z.object({
         inquiry_id: z.string().describe("The inquiry ID to get the conversation for."),
       }),
@@ -271,7 +271,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_inquiry_attachments: tool({
-      description: "List file attachments submitted with an inquiry. Shows file names, types, and sizes.",
+      description: "List file attachments for an inquiry. Returns: {files[]}",
       inputSchema: z.object({
         inquiry_id: z.string().describe("The inquiry ID to list attachments for."),
       }),
@@ -282,7 +282,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_job_pipeline: tool({
-      description: "Get accepted quotes by their post-acceptance stage (booked, scheduled, in_progress, completed, canceled). Shows what jobs are in the pipeline.",
+      description: "Jobs by post-acceptance stage. Returns: {items[], counts}",
       inputSchema: z.object({
         status: z.enum(["none", "booked", "scheduled", "in_progress", "completed", "canceled"]).nullable().optional().describe("Filter by post-acceptance status. Omit to get all accepted quotes."),
         limit: z.number().nullable().optional().describe("Maximum results to return (default 10)."),
@@ -294,7 +294,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_response_times: tool({
-      description: "Get average and median response times for inquiries. Shows how quickly the business responds to new inquiries.",
+      description: "Average and median inquiry response times. Returns: {avg, median}",
       inputSchema: z.object({
         days: z.number().nullable().optional().describe("Number of days to analyze (default 30, max 90)."),
       }),
@@ -305,7 +305,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_period_comparison: tool({
-      description: "Compare current period vs previous period for key metrics (inquiries, quotes, accepted revenue). Answers 'how am I doing compared to before?'",
+      description: "Compare current vs previous period metrics. Returns: {current, previous}",
       inputSchema: z.object({
         days: z.number().nullable().optional().describe("Period length in days to compare (default 30). Compares last N days vs the N days before that."),
       }),
@@ -316,7 +316,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_business_knowledge: tool({
-      description: "Search or list saved business knowledge entries (rules, pricing info, preferences). Shows what the AI knows about the business.",
+      description: "Search saved business knowledge entries. Returns: {entries[]}",
       inputSchema: z.object({
         query: z.string().nullable().optional().describe("Search term to filter knowledge entries. Omit to list all."),
       }),
@@ -327,7 +327,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_quote_customer_response: tool({
-      description: "Get the customer's response/feedback for a specific quote. Shows why they accepted, rejected, or what they said. Also shows cancellation reasons if applicable.",
+      description: "Get customer feedback for a quote. Returns: {response, reason}",
       inputSchema: z.object({
         quote_id: z.string().describe("The quote ID or quote number to look up."),
       }),
@@ -338,7 +338,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_business_info: tool({
-      description: "Get business profile: name, type, plan, contact email, currency, timezone.",
+      description: "Business profile: name, type, plan, currency. Returns: {business}",
       inputSchema: z.object({}),
       execute: async () => {
         const result = await executeToolCall(ctx, { tool: "get_business_info", args: {} });
@@ -347,7 +347,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_business_members: tool({
-      description: "List all members of the business with their roles and emails.",
+      description: "List business members with roles. Returns: {members[]}",
       inputSchema: z.object({}),
       execute: async () => {
         const result = await executeToolCall(ctx, { tool: "get_business_members", args: {} });
@@ -356,7 +356,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     list_jobs: tool({
-      description: "List jobs with pagination, most recent first.",
+      description: "List jobs paginated, most recent first. Returns: {items[]}",
       inputSchema: z.object({
         status: z.enum(["todo", "in_progress", "done"]).nullable().optional().describe("Filter by status."),
         limit: z.number().nullable().optional().describe("Max results (default 10, max 25)."),
@@ -370,7 +370,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_job_details: tool({
-      description: "Get full job details by ID including items and progress.",
+      description: "Get job details by ID with items and progress. Returns: {job}",
       inputSchema: z.object({
         job_id: z.string().describe("Job ID."),
       }),
@@ -382,7 +382,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     list_invoices: tool({
-      description: "List invoices with pagination, most recent first.",
+      description: "List invoices paginated, most recent first. Returns: {items[]}",
       inputSchema: z.object({
         status: z.enum(["draft", "sent", "viewed", "paid", "overdue", "voided"]).nullable().optional().describe("Filter by status."),
         limit: z.number().nullable().optional().describe("Max results (default 10, max 25)."),
@@ -396,7 +396,7 @@ export function createDashboardTools(ctx: AiToolExecutionContext) {
     }),
 
     get_invoice_details: tool({
-      description: "Get full invoice details by ID or number (e.g. INV-1001).",
+      description: "Get invoice details by ID or number (INV-1001). Returns: {invoice}",
       inputSchema: z.object({
         invoice_id: z.string().describe("Invoice ID or number."),
       }),

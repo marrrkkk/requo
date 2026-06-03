@@ -4,6 +4,8 @@ export const starterTemplateBusinessTypes = [
   "creative_marketing_services",
   "consulting_professional_services",
   "contractor_home_improvement",
+  "event_services_rentals",
+  "cleaning_services",
   "general_project_services",
 ] as const satisfies readonly BusinessType[];
 
@@ -38,13 +40,16 @@ export const starterTemplateDefinitions: Record<
     businessType: "creative_marketing_services",
     label: "Agency / Studio",
     description:
-      "Best for agencies, studios, and creative service teams handling scoped projects and custom quotes.",
+      "Captures project briefs and deliverables so you can scope and price creative work faster.",
     helperText:
       "Starts with project brief fields and quote notes for scoped creative work.",
     recommendedFields: [
       "Project or service needed",
       "Deliverables",
       "Target date",
+      "Where this will be used",
+      "Budget",
+      "Project brief",
       "Brief or reference files",
     ],
     statusSummary: starterTemplateStatusSummary,
@@ -53,21 +58,23 @@ export const starterTemplateDefinitions: Record<
     matchesBusinessTypes: [
       "creative_marketing_services",
       "web_it_services",
-      "photo_video_production",
     ],
   },
   consulting_professional_services: {
     businessType: "consulting_professional_services",
     label: "Consultant / Professional Services",
     description:
-      "Best for consultants, advisors, and professional service businesses that need to qualify before pricing.",
+      "Qualifies leads with discovery questions so you can scope the right engagement before pricing.",
     helperText:
       "Starts with discovery-focused fields and quote notes for advisory engagements.",
     recommendedFields: [
       "Service needed",
       "Goal",
       "Preferred format",
+      "Participant count",
       "Desired start date",
+      "Budget",
+      "Background",
     ],
     statusSummary: starterTemplateStatusSummary,
     defaultQuoteNotes: "",
@@ -78,13 +85,17 @@ export const starterTemplateDefinitions: Record<
     businessType: "contractor_home_improvement",
     label: "Contractor / Home Service",
     description:
-      "Best for contractors and service businesses that need site details, timing, and photos before pricing.",
+      "Collects site details, photos, and timing so you can estimate on-site work accurately.",
     helperText:
       "Starts with project and site fields and quote notes for on-site work.",
     recommendedFields: [
       "Project or service needed",
       "Service location",
+      "Location type",
       "Preferred visit or start date",
+      "Access notes",
+      "Target completion",
+      "Project details",
       "Photos or plans",
     ],
     statusSummary: starterTemplateStatusSummary,
@@ -94,19 +105,70 @@ export const starterTemplateDefinitions: Record<
       "contractor_home_improvement",
       "fabrication_custom_build",
       "repair_services",
+      "moving_relocation",
+      "auto_services",
+    ],
+  },
+  event_services_rentals: {
+    businessType: "event_services_rentals",
+    label: "Event / Production",
+    description:
+      "Captures event dates, venues, and requirements so you can quote coverage or services quickly.",
+    helperText:
+      "Starts with event-focused fields for shoots, productions, and event services.",
+    recommendedFields: [
+      "Service needed",
+      "Event or shoot date",
+      "Venue or location",
+      "Duration",
+      "Guest or attendee count",
+      "Event details",
+      "Reference files",
+    ],
+    statusSummary: starterTemplateStatusSummary,
+    defaultQuoteNotes: "",
+    defaultQuoteValidityDays: defaultStarterQuoteValidityDays,
+    matchesBusinessTypes: [
+      "event_services_rentals",
+      "photo_video_production",
+    ],
+  },
+  cleaning_services: {
+    businessType: "cleaning_services",
+    label: "Recurring Service",
+    description:
+      "Captures property details and frequency so you can price recurring or scheduled work.",
+    helperText:
+      "Starts with schedule and property fields for cleaning, maintenance, and recurring services.",
+    recommendedFields: [
+      "Service needed",
+      "Service location",
+      "Property size",
+      "Frequency",
+      "Preferred start date",
+      "Access notes",
+      "Additional details",
+    ],
+    statusSummary: starterTemplateStatusSummary,
+    defaultQuoteNotes: "",
+    defaultQuoteValidityDays: defaultStarterQuoteValidityDays,
+    matchesBusinessTypes: [
       "cleaning_services",
       "landscaping_outdoor_services",
+      "pet_services",
     ],
   },
   general_project_services: {
     businessType: "general_project_services",
     label: "General Service Business",
     description:
-      "Best for owner-led service businesses with mixed inquiry types that still need a clear lead-to-quote workflow.",
+      "Flexible starting point for mixed inquiry types with a clear lead-to-quote workflow.",
     recommendedFields: [
       "Service needed",
       "Service location",
       "Preferred timing",
+      "Budget range",
+      "Inquiry details",
       "Reference files",
     ],
     statusSummary: starterTemplateStatusSummary,
@@ -115,7 +177,6 @@ export const starterTemplateDefinitions: Record<
     matchesBusinessTypes: [
       "general_project_services",
       "print_signage",
-      "event_services_rentals",
     ],
   },
 };

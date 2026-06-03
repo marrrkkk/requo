@@ -1,8 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import Cropper, { type Area } from "react-easy-crop";
+import { type Area } from "react-easy-crop";
 import { useEffect, useRef, useState } from "react";
+
+import { LazyCropper } from "@/components/shared/lazy-image-tools";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -336,7 +338,7 @@ export function BusinessLogoField({
             <div className="flex flex-col gap-4">
               <div className="soft-panel relative min-h-[26rem] overflow-hidden bg-muted/25">
                 {draftAsset ? (
-                  <Cropper
+                  <LazyCropper
                     aspect={1}
                     crop={crop}
                     cropShape="rect"

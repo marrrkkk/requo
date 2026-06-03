@@ -6,6 +6,7 @@ import { classifyIntent } from "./intent-classifier";
 import { retrieveMemories } from "./memory-retriever";
 import { buildPrompt } from "./prompt-builder";
 import { selectTools } from "./tool-selector";
+import { getMaxOutputTokensForIntent } from "./token-allocation";
 import { compressConversation, getConversationContext } from "./conversation-compressor";
 import { logOrchestration, createTimer } from "./orchestration-logger";
 import type {
@@ -119,10 +120,10 @@ export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateR
 
     phaseTimers.memoryRetrieval = memoryTimer.elapsed();
 
-    // Format memory context for prompt injection
+    // Format memory context for prompt injection with confidence tier prefix
     if (memories.length > 0) {
       memoryContext = memories
-        .map((m) => `[${m.category}] ${m.content}`)
+        .map((m) => `[${m.confidenceTier}] [${m.category}] ${m.content}`)
         .join("\n");
     }
   } catch (error) {
@@ -166,7 +167,11 @@ export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateR
       };
     }
 
-    const promptResult = buildPrompt(intentResult, memoryContext, conversationSummary);
+    const promptResult = buildPrompt(intentResult, memoryContext, conversationSummary, {
+      businessId: input.businessId,
+      businessName: input.businessName,
+      pricingBlocks: input.pricingBlocks,
+    });
 
     if (!promptResult.ok) {
       phaseTimers.promptComposition = promptTimer.elapsed();
@@ -299,6 +304,8 @@ export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateR
     systemPrompt,
     tools,
     messages,
+    maxOutputTokens: getMaxOutputTokensForIntent(intentResult.intent),
+    retrievedMemories: memories,
     onStreamComplete,
   };
 }

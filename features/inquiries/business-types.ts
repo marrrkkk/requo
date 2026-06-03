@@ -10,6 +10,9 @@ export const businessTypes = [
   "repair_services",
   "consulting_professional_services",
   "cleaning_services",
+  "moving_relocation",
+  "auto_services",
+  "pet_services",
   "general_project_services",
 ] as const;
 
@@ -113,6 +116,18 @@ export const businessTypeMeta: Record<
   cleaning_services: {
     label: "Cleaning services",
     description: "Starting template for residential or commercial cleaning inquiries and schedules.",
+  },
+  moving_relocation: {
+    label: "Moving / relocation",
+    description: "Starting template for residential or commercial moves, packing, and logistics.",
+  },
+  auto_services: {
+    label: "Auto services",
+    description: "Starting template for detailing, repair, maintenance, and vehicle service inquiries.",
+  },
+  pet_services: {
+    label: "Pet services",
+    description: "Starting template for grooming, boarding, walking, and pet care inquiries.",
   },
   general_project_services: {
     label: "General project services",

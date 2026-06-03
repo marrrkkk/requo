@@ -81,8 +81,9 @@ function MarketingFeaturePreview({
       )}
       role="img"
     >
-      <div className="h-[28rem] p-4 sm:p-5 lg:p-6">
-        <div className="h-full min-h-0">
+      {/* Fixed landscape aspect ratio, content scaled to fit on mobile */}
+      <div className="aspect-[4/3] overflow-hidden p-3 sm:p-5 lg:p-6">
+        <div className="h-[28rem] w-[160%] origin-top-left scale-[0.625] sm:h-full sm:w-full sm:scale-100">
           <MarketingFeatureMock featureId={featureId} />
         </div>
       </div>

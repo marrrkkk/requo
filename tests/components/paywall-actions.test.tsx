@@ -134,6 +134,7 @@ describe("paywalled export actions", () => {
     render(
       <CommandMenu
         businessSlug="demo-business"
+        businessId="biz_test123"
         role="owner"
         plan="free"
         
@@ -155,6 +156,7 @@ describe("paywalled export actions", () => {
     render(
       <CommandMenu
         businessSlug="demo-business"
+        businessId="biz_test123"
         role="owner"
         plan="pro"
         

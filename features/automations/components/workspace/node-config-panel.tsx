@@ -7,6 +7,8 @@ import {
   Filter,
   Clock,
   Trash2,
+  CircleDot,
+  CircleDashed,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -15,10 +17,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Combobox } from "@/components/ui/combobox";
 import { Field, FieldLabel, FieldContent, FieldGroup } from "@/components/ui/field";
+import { cn } from "@/lib/utils";
 import type { TriggerType } from "../../types";
 
 import type { WorkflowNode } from "./types";
-import { triggers, actionBlocks } from "./definitions";
+import { triggers, actionBlocks, conditionTypeOptions, actionLabels } from "./definitions";
 
 // ---------------------------------------------------------------------------
 // Node Config Panel
@@ -27,17 +30,21 @@ import { triggers, actionBlocks } from "./definitions";
 export function NodeConfigPanel({
   node,
   onAddNext,
+  onAddToBranch,
   onDelete,
   onUpdateConfig,
   onChangeTrigger,
 }: {
   node: WorkflowNode | null;
   onAddNext: () => void;
+  onAddToBranch?: (conditionNodeId: string, branch: "true" | "false") => void;
   onDelete: (nodeId: string) => void;
   onUpdateConfig: (nodeId: string, config: Record<string, unknown>) => void;
   onChangeTrigger: (triggerId: TriggerType) => void;
 }) {
   if (!node) return null;
+
+  const isCondition = node.type === "condition";
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -84,17 +91,40 @@ export function NodeConfigPanel({
       </div>
 
       <div className="border-t border-border p-4 space-y-3">
-        <div>
-          <p className="mb-2 text-xs font-medium text-muted-foreground">Next step</p>
-          <button
-            type="button"
-            onClick={onAddNext}
-            className="flex w-full items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
-          >
-            <Plus className="size-3.5" />
-            Select block
-          </button>
-        </div>
+        {isCondition ? (
+          /* Condition nodes get branch-specific add buttons */
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Branch steps</p>
+            <button
+              type="button"
+              onClick={() => onAddToBranch?.(node.id, "true")}
+              className="flex w-full items-center gap-2 rounded-lg border border-dashed border-emerald-300 px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-emerald-500 hover:text-foreground dark:border-emerald-800 dark:hover:border-emerald-600"
+            >
+              <Plus className="size-3.5 text-emerald-600" />
+              Add to True branch
+            </button>
+            <button
+              type="button"
+              onClick={() => onAddToBranch?.(node.id, "false")}
+              className="flex w-full items-center gap-2 rounded-lg border border-dashed border-red-300 px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-red-500 hover:text-foreground dark:border-red-800 dark:hover:border-red-600"
+            >
+              <Plus className="size-3.5 text-red-500" />
+              Add to False branch
+            </button>
+          </div>
+        ) : (
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">Next step</p>
+            <button
+              type="button"
+              onClick={onAddNext}
+              className="flex w-full items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+            >
+              <Plus className="size-3.5" />
+              Select block
+            </button>
+          </div>
+        )}
         <Button
           variant="ghost"
           size="sm"
@@ -436,53 +466,149 @@ function ConditionConfigFields({
   node: WorkflowNode;
   onUpdateConfig: (nodeId: string, config: Record<string, unknown>) => void;
 }) {
-  const operatorOptions = [
-    { value: "eq", label: "Equals" },
-    { value: "neq", label: "Not equals" },
-    { value: "gt", label: "Greater than" },
-    { value: "gte", label: "Greater than or equal" },
-    { value: "lt", label: "Less than" },
-    { value: "lte", label: "Less than or equal" },
-    { value: "contains", label: "Contains" },
-    { value: "not_contains", label: "Does not contain" },
-  ];
+  const conditionType = (node.config?.conditionType as string) ?? "";
+  const currentOperator = (node.config?.operator as string) ?? "";
+  const currentValue = (node.config?.value as string) ?? "";
+
+  // Find the matching condition type definition
+  const typeDef = conditionTypeOptions.find((ct) => ct.id === conditionType);
+
+  // Build condition type picker options
+  const conditionTypePickerOptions = conditionTypeOptions.map((ct) => ({
+    value: ct.id,
+    label: ct.label,
+  }));
+
+  function handleConditionTypeChange(newType: string) {
+    const def = conditionTypeOptions.find((ct) => ct.id === newType);
+    if (!def) return;
+    onUpdateConfig(node.id, {
+      conditionType: newType,
+      field: def.field,
+      operator: def.defaultOperator,
+      value: def.valueType === "boolean" ? "true" : "",
+    });
+  }
 
   return (
     <FieldGroup>
       <Field>
-        <FieldLabel htmlFor="cond-field">Field</FieldLabel>
-        <FieldContent>
-          <Input
-            id="cond-field"
-            placeholder="e.g. inquiry.source"
-            defaultValue={(node.config?.field as string) ?? ""}
-            onBlur={(e) => onUpdateConfig(node.id, { field: e.target.value })}
-          />
-        </FieldContent>
-      </Field>
-      <Field>
-        <FieldLabel htmlFor="cond-operator">Operator</FieldLabel>
+        <FieldLabel htmlFor="condition-type">Condition</FieldLabel>
         <FieldContent>
           <Combobox
-            id="cond-operator"
-            placeholder="Select operator..."
-            value={(node.config?.operator as string) ?? "eq"}
-            onValueChange={(val) => onUpdateConfig(node.id, { operator: val })}
-            options={operatorOptions}
+            id="condition-type"
+            placeholder="Select condition..."
+            searchable
+            searchPlaceholder="Search conditions..."
+            value={conditionType}
+            onValueChange={handleConditionTypeChange}
+            options={conditionTypePickerOptions}
           />
         </FieldContent>
       </Field>
-      <Field>
-        <FieldLabel htmlFor="cond-value">Value</FieldLabel>
-        <FieldContent>
-          <Input
-            id="cond-value"
-            placeholder="Comparison value"
-            defaultValue={(node.config?.value as string) ?? ""}
-            onBlur={(e) => onUpdateConfig(node.id, { value: e.target.value })}
-          />
-        </FieldContent>
-      </Field>
+
+      {typeDef && (
+        <>
+          {/* Operator */}
+          {typeDef.operators.length > 1 && (
+            <Field>
+              <FieldLabel htmlFor="cond-operator">
+                {typeDef.valueType === "boolean" ? "Match" : "Operator"}
+              </FieldLabel>
+              <FieldContent>
+                <Combobox
+                  id="cond-operator"
+                  placeholder="Select..."
+                  value={currentOperator || typeDef.defaultOperator}
+                  onValueChange={(val) =>
+                    onUpdateConfig(node.id, { operator: val })
+                  }
+                  options={typeDef.operators}
+                />
+              </FieldContent>
+            </Field>
+          )}
+
+          {/* Value — contextual based on valueType */}
+          {typeDef.valueType === "select" && typeDef.values && (
+            <Field>
+              <FieldLabel htmlFor="cond-value">Value</FieldLabel>
+              <FieldContent>
+                <Combobox
+                  id="cond-value"
+                  placeholder="Select value..."
+                  searchable
+                  searchPlaceholder="Search..."
+                  value={currentValue}
+                  onValueChange={(val) =>
+                    onUpdateConfig(node.id, { value: val })
+                  }
+                  options={typeDef.values.map((v) => ({
+                    value: v,
+                    label: v,
+                  }))}
+                />
+              </FieldContent>
+            </Field>
+          )}
+
+          {typeDef.valueType === "text" && (
+            <Field>
+              <FieldLabel htmlFor="cond-value">Value</FieldLabel>
+              <FieldContent>
+                <Input
+                  id="cond-value"
+                  placeholder={
+                    typeDef.id === "has_tag" ? "e.g. VIP" : "Enter value..."
+                  }
+                  defaultValue={currentValue}
+                  onBlur={(e) =>
+                    onUpdateConfig(node.id, { value: e.target.value })
+                  }
+                />
+              </FieldContent>
+            </Field>
+          )}
+
+          {typeDef.valueType === "number" && (
+            <Field>
+              <FieldLabel htmlFor="cond-value">
+                {typeDef.id === "days_inactive" ? "Days" : "Amount"}
+              </FieldLabel>
+              <FieldContent>
+                <Input
+                  id="cond-value"
+                  type="number"
+                  min={0}
+                  placeholder={typeDef.id === "days_inactive" ? "3" : "0"}
+                  defaultValue={currentValue}
+                  onBlur={(e) =>
+                    onUpdateConfig(node.id, { value: e.target.value })
+                  }
+                />
+              </FieldContent>
+            </Field>
+          )}
+
+          {/* Boolean types don't need a value input — the operator (is/is not) is the toggle */}
+        </>
+      )}
+
+      {/* Branch summaries */}
+      <div className="mt-3 space-y-2">
+        <BranchSummary
+          label="True"
+          branchKey="trueBranch"
+          node={node}
+          variant="true"
+        />
+        <BranchSummary
+          label="False"
+          branchKey="falseBranch"
+          node={node}
+          variant="false"
+        />
+      </div>
     </FieldGroup>
   );
 }
@@ -531,5 +657,76 @@ function DelayConfigFields({
         </FieldContent>
       </Field>
     </FieldGroup>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Branch Summary (condition node sidebar)
+// ---------------------------------------------------------------------------
+
+function BranchSummary({
+  label,
+  branchKey,
+  node,
+  variant,
+}: {
+  label: string;
+  branchKey: "trueBranch" | "falseBranch";
+  node: WorkflowNode;
+  variant: "true" | "false";
+}) {
+  const branch = node.config?.[branchKey] as WorkflowNode[] | undefined;
+  const count = branch?.length ?? 0;
+  const isTrue = variant === "true";
+
+  return (
+    <div
+      className={cn(
+        "rounded-lg border px-3 py-2",
+        isTrue
+          ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/30"
+          : "border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/30",
+      )}
+    >
+      <div className="flex items-center gap-2">
+        {count > 0 ? (
+          <CircleDot
+            className={cn(
+              "size-3.5",
+              isTrue ? "text-emerald-600" : "text-red-500",
+            )}
+          />
+        ) : (
+          <CircleDashed
+            className="size-3.5 text-muted-foreground/50"
+          />
+        )}
+        <span
+          className={cn(
+            "text-xs font-medium",
+            isTrue ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400",
+          )}
+        >
+          {label}
+        </span>
+        <span className="ml-auto text-[0.65rem] text-muted-foreground">
+          {count === 0
+            ? "No steps"
+            : `${count} step${count !== 1 ? "s" : ""}`}
+        </span>
+      </div>
+      {count > 0 && branch && (
+        <div className="mt-1.5 space-y-0.5">
+          {branch.map((n) => (
+            <p
+              key={n.id}
+              className="truncate text-[0.65rem] text-muted-foreground"
+            >
+              → {actionLabels[(n.config?.actionType as string) ?? ""] ?? n.label}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

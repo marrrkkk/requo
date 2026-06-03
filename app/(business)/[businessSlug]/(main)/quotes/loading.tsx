@@ -9,8 +9,8 @@ export default function BusinessDashboardQuotesLoading() {
   return (
     <DashboardPage>
       <PageHeader
-        eyebrow="Quotes"
         title="Quotes"
+        description="List, filter, and manage quotes for this business."
       />
       <QuoteListControlsFallback />
       <DashboardListResultsSkeleton variant="quotes" />

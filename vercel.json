@@ -1,1 +1,16 @@
-{}
+{
+  "crons": [
+    {
+      "path": "/api/cron/expire-quotes",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/expire-subscriptions",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/token-log-cleanup",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

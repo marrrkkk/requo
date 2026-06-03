@@ -9,16 +9,6 @@ import type { BusinessInquiryFormSummary } from "@/features/inquiries/types";
 import type { QuoteEmailTemplateConfig } from "@/features/settings/email-templates";
 import type { BusinessPlan as plan } from "@/lib/plans/plans";
 
-export const businessAiTonePreferences = [
-  "balanced",
-  "warm",
-  "direct",
-  "formal",
-] as const;
-
-export type BusinessAiTonePreference =
-  (typeof businessAiTonePreferences)[number];
-
 export type BusinessSettingsView = {
   id: string;
   businessId: string;
@@ -40,7 +30,7 @@ export type BusinessSettingsView = {
   defaultQuoteTerms: string | null;
   quoteEmailTemplate: QuoteEmailTemplateConfig | null;
   defaultQuoteValidityDays: number;
-  aiTonePreference: BusinessAiTonePreference;
+  defaultInvoiceDueDays: number;
   notifyInAppOnNewInquiry: boolean;
   notifyInAppOnQuoteSent: boolean;
   notifyInAppOnQuoteResponse: boolean;
@@ -63,7 +53,6 @@ export type BusinessGeneralSettingsFieldName =
   | "contactEmail"
   | "defaultCurrency"
   | "defaultEmailSignature"
-  | "aiTonePreference"
   | "logo";
 
 export type BusinessSettingsFieldErrors = Partial<
@@ -111,6 +100,18 @@ export type BusinessQuoteSettingsActionState = {
   error?: string;
   success?: string;
   fieldErrors?: BusinessQuoteSettingsFieldErrors;
+};
+
+export type BusinessInvoiceSettingsFieldName = "defaultInvoiceDueDays";
+
+export type BusinessInvoiceSettingsFieldErrors = Partial<
+  Record<BusinessInvoiceSettingsFieldName, string[] | undefined>
+>;
+
+export type BusinessInvoiceSettingsActionState = {
+  error?: string;
+  success?: string;
+  fieldErrors?: BusinessInvoiceSettingsFieldErrors;
 };
 
 export type BusinessEmailTemplateFieldName =

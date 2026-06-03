@@ -20,6 +20,7 @@ const adminActionLabels: Record<AdminAction, string> = {
   "view.subscriptions": "Viewed subscriptions",
   "view.subscription": "Viewed subscription detail",
   "view.audit-logs": "Viewed audit logs",
+  "view.system": "Viewed system",
   "user.force_verify_email": "Force-verified email",
   "user.revoke_all_sessions": "Revoked all sessions",
   "user.suspend": "Suspended user",

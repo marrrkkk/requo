@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
 import { resourceLinks } from "@/components/marketing/marketing-data";
@@ -12,11 +12,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-const HOVER_OPEN_DELAY_MS = 80;
-const HOVER_CLOSE_DELAY_MS = 160;
-
-const defaultTriggerClass =
-  "relative inline-flex items-center gap-1 rounded-full px-3.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 data-[state=open]:text-foreground";
+const defaultTriggerClass = "public-page-header-link";
 
 export function MarketingResourcesNav({
   triggerClassName,
@@ -24,92 +20,69 @@ export function MarketingResourcesNav({
   triggerClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const closeTimerRef = useRef<number | null>(null);
-  const openTimerRef = useRef<number | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const cancelOpen = useCallback(() => {
-    if (openTimerRef.current !== null) {
-      window.clearTimeout(openTimerRef.current);
-      openTimerRef.current = null;
+  const clearTimer = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
   }, []);
 
-  const cancelClose = useCallback(() => {
-    if (closeTimerRef.current !== null) {
-      window.clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-  }, []);
+  const handleOpen = useCallback(() => {
+    clearTimer();
+    setOpen(true);
+  }, [clearTimer]);
 
-  const scheduleOpen = useCallback(() => {
-    cancelClose();
-    if (openTimerRef.current !== null) return;
-    openTimerRef.current = window.setTimeout(() => {
-      openTimerRef.current = null;
-      setOpen(true);
-    }, HOVER_OPEN_DELAY_MS);
-  }, [cancelClose]);
-
-  const scheduleClose = useCallback(() => {
-    cancelOpen();
-    if (closeTimerRef.current !== null) return;
-    closeTimerRef.current = window.setTimeout(() => {
-      closeTimerRef.current = null;
+  const handleClose = useCallback(() => {
+    clearTimer();
+    timeoutRef.current = setTimeout(() => {
       setOpen(false);
-    }, HOVER_CLOSE_DELAY_MS);
-  }, [cancelOpen]);
+    }, 150);
+  }, [clearTimer]);
 
-  useEffect(
-    () => () => {
-      cancelOpen();
-      cancelClose();
-    },
-    [cancelOpen, cancelClose],
-  );
+  const handleContentEnter = useCallback(() => {
+    clearTimer();
+  }, [clearTimer]);
 
-  const handleOpenChange = useCallback(
-    (next: boolean) => {
-      cancelOpen();
-      cancelClose();
-      setOpen(next);
-    },
-    [cancelOpen, cancelClose],
-  );
+  const handleContentLeave = useCallback(() => {
+    clearTimer();
+    timeoutRef.current = setTimeout(() => {
+      setOpen(false);
+    }, 100);
+  }, [clearTimer]);
 
   return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
-        className={cn(defaultTriggerClass, triggerClassName, "group")}
-        onMouseEnter={scheduleOpen}
-        onMouseLeave={scheduleClose}
-        onFocus={scheduleOpen}
-        onBlur={scheduleClose}
+        className={cn(defaultTriggerClass, "gap-1", triggerClassName, "group")}
+        onMouseEnter={handleOpen}
+        onMouseLeave={handleClose}
       >
         Resources
+        <span className="nav-underline" aria-hidden="true" />
         <ChevronDown
           aria-hidden="true"
-          className="size-3.5 opacity-60 transition-transform duration-200 group-data-[state=open]:rotate-180"
+          className="size-3 opacity-50 transition-transform duration-150 group-data-[state=open]:rotate-180"
         />
       </PopoverTrigger>
       <PopoverContent
         align="center"
-        sideOffset={10}
-        className="w-56 gap-0 p-1.5"
+        sideOffset={4}
+        className="w-52 gap-0 p-1"
         onOpenAutoFocus={(event) => event.preventDefault()}
-        onMouseEnter={scheduleOpen}
-        onMouseLeave={scheduleClose}
-        onPointerDownOutside={() => handleOpenChange(false)}
-        onEscapeKeyDown={() => handleOpenChange(false)}
+        onCloseAutoFocus={(event) => event.preventDefault()}
+        onMouseEnter={handleContentEnter}
+        onMouseLeave={handleContentLeave}
+        onPointerDownOutside={() => setOpen(false)}
+        onEscapeKeyDown={() => setOpen(false)}
       >
-        <span className="px-2.5 pb-1.5 pt-1 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-          Legal
-        </span>
         {resourceLinks.map((link) => (
           <Link
             key={link.href}
             href={link.href}
-            className="flex items-center justify-between rounded-md px-2.5 py-2 text-sm font-medium text-foreground/80 outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground"
-            onClick={() => handleOpenChange(false)}
+            className="flex items-center rounded-md px-2.5 py-2 text-[0.84rem] font-medium text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground"
+            onClick={() => setOpen(false)}
           >
             {link.label}
           </Link>

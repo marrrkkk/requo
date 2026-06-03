@@ -6,6 +6,7 @@ import { getInquiryAssistantContextForBusiness } from "@/features/ai/queries";
 import { sanitizeAiInput } from "@/lib/ai/input-sanitizer";
 import { filterAiOutput } from "@/lib/ai/output-filter";
 import { logAiSecurityEvent } from "@/lib/ai/security-events";
+import { generateCanaryToken } from "@/features/ai/orchestrator/prompt-builder";
 import {
   aiQuoteDraftItemConfidenceLevels,
   aiQuoteDraftItemPricingSources,
@@ -973,7 +974,6 @@ export async function generateQuoteDraftForBusiness(
       shortDescription: businesses.shortDescription,
       defaultCurrency: businesses.defaultCurrency,
       defaultQuoteNotes: businesses.defaultQuoteNotes,
-      aiTonePreference: businesses.aiTonePreference,
     })
     .from(businesses)
     .where(eq(businesses.id, input.businessId))
@@ -993,7 +993,7 @@ export async function generateQuoteDraftForBusiness(
     .join(" ");
 
   if (userInputText.trim()) {
-    const sanitization = sanitizeAiInput(userInputText);
+    const sanitization = await sanitizeAiInput(userInputText);
 
     if (sanitization.status === "rejected") {
       logAiSecurityEvent({
@@ -1019,13 +1019,13 @@ export async function generateQuoteDraftForBusiness(
       });
       // Use sanitized versions of the inputs
       if (input.brief) {
-        const briefSanitization = sanitizeAiInput(input.brief);
+        const briefSanitization = await sanitizeAiInput(input.brief);
         if (briefSanitization.status !== "rejected") {
           input = { ...input, brief: briefSanitization.output };
         }
       }
       if (input.revisionComment) {
-        const revisionSanitization = sanitizeAiInput(input.revisionComment);
+        const revisionSanitization = await sanitizeAiInput(input.revisionComment);
         if (revisionSanitization.status !== "rejected") {
           input = { ...input, revisionComment: revisionSanitization.output };
         }
@@ -1144,7 +1144,6 @@ export async function generateQuoteDraftForBusiness(
       customerName: inquiryContext?.inquiry.customerName ?? null,
       customerEmail: inquiryContext?.inquiry.customerEmail ?? null,
       pricingBlocks: pricingBlocksText,
-      tonePreference: businessRow.aiTonePreference,
       businessMemorySummary: businessMemorySummaryText,
       revisionContext,
       currentItems: currentItemsText,
@@ -1296,10 +1295,11 @@ export async function generateQuoteDraftForBusiness(
       "needs_review",
       "no_pricing_found",
       "unitPriceInCents",
-    ]);
+    ], { canaryToken: generateCanaryToken(input.businessId) });
     if (outputFilterResult.status === "redacted") {
+      const isCanaryLeak = outputFilterResult.redactedPatterns.includes("canary_leak_detected");
       logAiSecurityEvent({
-        eventType: "output_redacted",
+        eventType: isCanaryLeak ? "canary_leak_detected" : "output_redacted",
         patternMatched: outputFilterResult.redactedPatterns.join(", "),
         userId: input.userId,
         businessId: input.businessId,
@@ -1389,7 +1389,7 @@ export async function generateQuoteDraftForBusiness(
     // Record usage and start cooldown
     const weight = TASK_WEIGHTS[taskType];
     await recordUsage(input.userId, input.businessId, taskType, weight);
-    startCooldown(input.userId, taskType);
+    await startCooldown(input.userId, taskType);
 
     // Log tokens
     await logAiInvocation({
@@ -1516,7 +1516,6 @@ export async function generateQuoteImprovementForBusiness(
       shortDescription: businesses.shortDescription,
       defaultCurrency: businesses.defaultCurrency,
       defaultQuoteNotes: businesses.defaultQuoteNotes,
-      aiTonePreference: businesses.aiTonePreference,
     })
     .from(businesses)
     .where(eq(businesses.id, input.businessId))
@@ -1532,7 +1531,7 @@ export async function generateQuoteImprovementForBusiness(
   // --- AI Input Sanitization ---
   // The existingQuoteDraft is user-provided content that goes into the AI prompt.
   if (input.existingQuoteDraft.trim()) {
-    const sanitization = sanitizeAiInput(input.existingQuoteDraft);
+    const sanitization = await sanitizeAiInput(input.existingQuoteDraft);
 
     if (sanitization.status === "rejected") {
       logAiSecurityEvent({
@@ -1657,7 +1656,6 @@ export async function generateQuoteImprovementForBusiness(
       customerName: inquiryContext.inquiry.customerName ?? null,
       customerEmail: inquiryContext.inquiry.customerEmail ?? null,
       pricingBlocks: pricingBlocksText,
-      tonePreference: businessRow.aiTonePreference,
       businessMemorySummary: businessMemorySummaryText,
       existingQuoteDraft: input.existingQuoteDraft,
     },
@@ -1801,10 +1799,11 @@ export async function generateQuoteImprovementForBusiness(
       "needs_review",
       "no_pricing_found",
       "unitPriceInCents",
-    ]);
+    ], { canaryToken: generateCanaryToken(input.businessId) });
     if (outputFilterResult.status === "redacted") {
+      const isCanaryLeak = outputFilterResult.redactedPatterns.includes("canary_leak_detected");
       logAiSecurityEvent({
-        eventType: "output_redacted",
+        eventType: isCanaryLeak ? "canary_leak_detected" : "output_redacted",
         patternMatched: outputFilterResult.redactedPatterns.join(", "),
         userId: input.userId,
         businessId: input.businessId,
@@ -1878,7 +1877,7 @@ export async function generateQuoteImprovementForBusiness(
     // Record usage and start cooldown
     const weight = TASK_WEIGHTS[taskType];
     await recordUsage(input.userId, input.businessId, taskType, weight);
-    startCooldown(input.userId, taskType);
+    await startCooldown(input.userId, taskType);
 
     // Log tokens
     await logAiInvocation({

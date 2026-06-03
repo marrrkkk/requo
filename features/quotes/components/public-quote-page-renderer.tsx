@@ -138,6 +138,18 @@ export function PublicQuotePageRenderer({
                   </p>
                 </div>
               ) : null}
+
+              {/* Notes */}
+              {quote.notes ? (
+                <div className="mt-4 rounded-xl border border-border/50 px-4 py-4 sm:px-5">
+                  <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                    Notes
+                  </p>
+                  <p className="mt-2.5 whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
+                    {quote.notes}
+                  </p>
+                </div>
+              ) : null}
             </div>
           </PublicHeroSurface>
 

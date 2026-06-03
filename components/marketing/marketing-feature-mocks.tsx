@@ -614,7 +614,7 @@ function AIChatPreviewMock() {
             >
               <PromptInputTextarea
                 placeholder={getPanelPlaceholder("dashboard")}
-                className="min-h-[44px] text-sm"
+                className="text-sm"
               />
               <PromptInputActions className="justify-end pt-1">
                 <PromptInputAction tooltip="Send message">

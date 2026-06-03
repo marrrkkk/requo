@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import Image from "next/image";
 import { CheckCircle, Download, Mail, Printer, Send, XCircle } from "lucide-react";
 
@@ -58,16 +58,21 @@ const statusColors: Record<InvoiceStatus, string> = {
 
 export function InvoiceDetail({ invoice, businessSlug, pdfExportHref, plan, upgradeAction }: InvoiceDetailProps) {
   const [isPending, startTransition] = useTransition();
+  const [clickedAction, setClickedAction] = useState<InvoiceStatus | "send" | null>(null);
 
   function handleStatusChange(status: InvoiceStatus) {
+    setClickedAction(status);
     startTransition(async () => {
       await updateInvoiceStatusAction(invoice.id, status);
+      setClickedAction(null);
     });
   }
 
   function handleSendEmail() {
+    setClickedAction("send");
     startTransition(async () => {
       await sendInvoiceEmailAction(invoice.id);
+      setClickedAction(null);
     });
   }
 
@@ -83,7 +88,11 @@ export function InvoiceDetail({ invoice, businessSlug, pdfExportHref, plan, upgr
             <div className="flex flex-wrap gap-2">
               {invoice.status === "draft" && invoice.customerEmail && (
                 <Button onClick={handleSendEmail} disabled={isPending} size="sm">
-                  <Send className="size-3.5" data-icon="inline-start" />
+                  {isPending && clickedAction === "send" ? (
+                    <Spinner className="size-3.5" data-icon="inline-start" aria-hidden="true" />
+                  ) : (
+                    <Send className="size-3.5" data-icon="inline-start" />
+                  )}
                   Send invoice
                 </Button>
               )}
@@ -94,13 +103,21 @@ export function InvoiceDetail({ invoice, businessSlug, pdfExportHref, plan, upgr
                   disabled={isPending}
                   size="sm"
                 >
-                  <Mail className="size-3.5" data-icon="inline-start" />
+                  {isPending && clickedAction === "sent" ? (
+                    <Spinner className="size-3.5" data-icon="inline-start" aria-hidden="true" />
+                  ) : (
+                    <Mail className="size-3.5" data-icon="inline-start" />
+                  )}
                   Mark as sent
                 </Button>
               )}
               {(invoice.status === "sent" || invoice.status === "viewed" || invoice.status === "overdue") && (
                 <Button onClick={() => handleStatusChange("paid")} disabled={isPending} size="sm">
-                  <CheckCircle className="size-3.5" data-icon="inline-start" />
+                  {isPending && clickedAction === "paid" ? (
+                    <Spinner className="size-3.5" data-icon="inline-start" aria-hidden="true" />
+                  ) : (
+                    <CheckCircle className="size-3.5" data-icon="inline-start" />
+                  )}
                   Mark as paid
                 </Button>
               )}
@@ -112,7 +129,6 @@ export function InvoiceDetail({ invoice, businessSlug, pdfExportHref, plan, upgr
                   </a>
                 </Button>
               </LockedAction>
-              {isPending && <Spinner className="size-4 self-center" />}
             </div>
           )}
           {!showActions && (
@@ -350,7 +366,11 @@ export function InvoiceDetail({ invoice, businessSlug, pdfExportHref, plan, upgr
               <div className="mt-3 flex flex-col gap-2.5">
                 {invoice.status === "draft" && invoice.customerEmail && (
                   <Button onClick={handleSendEmail} disabled={isPending} className="w-full" size="sm">
-                    <Send className="size-3.5" data-icon="inline-start" />
+                    {isPending && clickedAction === "send" ? (
+                      <Spinner className="size-3.5" data-icon="inline-start" aria-hidden="true" />
+                    ) : (
+                      <Send className="size-3.5" data-icon="inline-start" />
+                    )}
                     Send invoice
                   </Button>
                 )}
@@ -362,13 +382,21 @@ export function InvoiceDetail({ invoice, businessSlug, pdfExportHref, plan, upgr
                     className="w-full"
                     size="sm"
                   >
-                    <Mail className="size-3.5" data-icon="inline-start" />
+                    {isPending && clickedAction === "sent" ? (
+                      <Spinner className="size-3.5" data-icon="inline-start" aria-hidden="true" />
+                    ) : (
+                      <Mail className="size-3.5" data-icon="inline-start" />
+                    )}
                     Mark as sent
                   </Button>
                 )}
                 {(invoice.status === "sent" || invoice.status === "viewed" || invoice.status === "overdue") && (
                   <Button onClick={() => handleStatusChange("paid")} disabled={isPending} className="w-full" size="sm">
-                    <CheckCircle className="size-3.5" data-icon="inline-start" />
+                    {isPending && clickedAction === "paid" ? (
+                      <Spinner className="size-3.5" data-icon="inline-start" aria-hidden="true" />
+                    ) : (
+                      <CheckCircle className="size-3.5" data-icon="inline-start" />
+                    )}
                     Mark as paid
                   </Button>
                 )}
@@ -379,14 +407,13 @@ export function InvoiceDetail({ invoice, businessSlug, pdfExportHref, plan, upgr
                   className="w-full text-muted-foreground hover:text-destructive"
                   size="sm"
                 >
-                  <XCircle className="size-3.5" data-icon="inline-start" />
+                  {isPending && clickedAction === "voided" ? (
+                    <Spinner className="size-3.5" data-icon="inline-start" aria-hidden="true" />
+                  ) : (
+                    <XCircle className="size-3.5" data-icon="inline-start" />
+                  )}
                   Void
                 </Button>
-                {isPending && (
-                  <div className="flex justify-center pt-1">
-                    <Spinner className="size-4" />
-                  </div>
-                )}
               </div>
             </div>
           )}

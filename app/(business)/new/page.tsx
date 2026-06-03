@@ -19,7 +19,7 @@ import { requireSession } from "@/lib/auth/session";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
 export const metadata: Metadata = createNoIndexMetadata({
-  absoluteTitle: "New Business · Requo",
+  absoluteTitle: "New Business - Requo",
   description: "Create a new business workspace.",
 });
 

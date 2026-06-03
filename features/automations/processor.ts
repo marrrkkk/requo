@@ -128,7 +128,7 @@ export async function processScheduledJobs(): Promise<{
       }
 
       // Extract actions from the automation
-      const actions = extractActions(validationResult.actions);
+      const actions = await extractActions(validationResult.actions, job.triggerPayload);
 
       if (actions.length === 0) {
         await db
@@ -424,13 +424,11 @@ async function executeActionsSequentially(
 
 /**
  * Extracts a flat array of ActionConfig from the automation's actions field.
- * Handles both flat arrays and workflow graph format. For graph format, the
- * builder stores `actionType` (plus a `label`) on the node data instead of
- * `type`, so we translate that into the canonical `ActionConfig` shape that
- * the executor registry validates with Zod. Must stay in sync with
- * `dispatcher.ts:extractActions`.
+ * Handles both flat arrays and workflow graph format. For graph format, it
+ * evaluates conditions dynamically against the payload to traverse true/false branches.
+ * Must stay in sync with `dispatcher.ts:extractActions`.
  */
-function extractActions(actions: unknown): ActionConfig[] {
+async function extractActions(actions: unknown, payload: unknown): Promise<ActionConfig[]> {
   if (Array.isArray(actions)) {
     return actions as ActionConfig[];
   }
@@ -445,12 +443,48 @@ function extractActions(actions: unknown): ActionConfig[] {
     const graph = actions as {
       nodes: Array<{ type: string; data: Record<string, unknown> }>;
     };
-    return graph.nodes
-      .filter((node) => node.type === "action")
-      .map((node) => {
-        const { label: _label, actionType, ...rest } = node.data ?? {};
-        return { type: actionType, ...rest } as ActionConfig;
-      });
+    const extracted: ActionConfig[] = [];
+    const { evaluateConditions } = await import("./condition-evaluator");
+
+    function processNode(type: string, data: Record<string, unknown>) {
+      if (type === "action") {
+        const { label: _label, actionType, ...rest } = data;
+        extracted.push({ type: actionType, ...rest } as ActionConfig);
+      } else if (type === "condition") {
+        const condition = {
+          field: (data.field as string) || "",
+          operator: (data.operator as "eq") || "eq",
+          value: data.value as string | number | boolean,
+        };
+        const passed = evaluateConditions([condition], payload);
+
+        if (passed) {
+          const trueBranch = (data.trueBranch as Array<Record<string, unknown>>) ?? [];
+          for (const nested of trueBranch) {
+            if (nested && nested.type && nested.config) {
+              processNode(nested.type as string, nested.config as Record<string, unknown>);
+            }
+          }
+        } else {
+          const falseBranch = (data.falseBranch as Array<Record<string, unknown>>) ?? [];
+          for (const nested of falseBranch) {
+            if (nested && nested.type && nested.config) {
+              processNode(nested.type as string, nested.config as Record<string, unknown>);
+            }
+          }
+          // Condition blocked main chain
+          return false;
+        }
+      }
+      return true;
+    }
+
+    for (const node of graph.nodes) {
+      const shouldContinue = processNode(node.type, node.data ?? {});
+      if (!shouldContinue) break;
+    }
+
+    return extracted;
   }
 
   return [];

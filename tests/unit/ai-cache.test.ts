@@ -1,12 +1,44 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 
+// Mock "server-only" so the module can be imported in test env
+vi.mock("server-only", () => ({}));
+
+// Mock the cache layer with an in-memory implementation for testing
+const mockStore = new Map<string, { value: unknown; expiresAt: number }>();
+
+vi.mock("@/lib/ai/cache-layer", () => ({
+  cacheLayer: {
+    get: vi.fn(async (key: string) => {
+      const entry = mockStore.get(key);
+      if (!entry) return null;
+      if (Date.now() > entry.expiresAt) {
+        mockStore.delete(key);
+        return null;
+      }
+      return entry.value;
+    }),
+    set: vi.fn(async (key: string, value: unknown, ttlSeconds: number) => {
+      mockStore.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
+    }),
+    delete: vi.fn(async (key: string) => {
+      mockStore.delete(key);
+    }),
+    increment: vi.fn(async (key: string, ttlSeconds: number) => {
+      const entry = mockStore.get(key);
+      const current = entry ? (entry.value as number) : 0;
+      const newValue = current + 1;
+      mockStore.set(key, { value: newValue, expiresAt: Date.now() + ttlSeconds * 1000 });
+      return newValue;
+    }),
+  },
+}));
+
 import {
   generateCacheKey,
   getCachedOutput,
   setCachedOutput,
   NULL_SENTINEL,
-  _clearCache,
-  _getCacheSize,
+  BUSINESS_SCOPED_TASKS,
 } from "@/lib/ai/ai-cache";
 import type { CacheKeyComponents, CachedAiOutput } from "@/lib/ai/ai-cache";
 
@@ -63,8 +95,8 @@ describe("generateCacheKey", () => {
   });
 
   it("produces different keys when userId differs", () => {
-    const key1 = generateCacheKey(makeKey({ userId: "user_a" }));
-    const key2 = generateCacheKey(makeKey({ userId: "user_b" }));
+    const key1 = generateCacheKey(makeKey({ userId: "user_a", taskType: "quote_draft" }));
+    const key2 = generateCacheKey(makeKey({ userId: "user_b", taskType: "quote_draft" }));
     expect(key1).not.toBe(key2);
   });
 
@@ -101,7 +133,6 @@ describe("generateCacheKey", () => {
   });
 
   it("uses NULL_SENTINEL for null sourceDataVersions values", () => {
-    // A key with explicit null should produce the same result as one with the sentinel
     const keyWithNull = generateCacheKey(
       makeKey({ sourceDataVersions: { field: null } }),
     );
@@ -132,7 +163,7 @@ describe("generateCacheKey", () => {
 
 describe("getCachedOutput and setCachedOutput", () => {
   beforeEach(() => {
-    _clearCache();
+    mockStore.clear();
     vi.useFakeTimers();
   });
 
@@ -181,19 +212,6 @@ describe("getCachedOutput and setCachedOutput", () => {
     expect(result).toEqual(output);
   });
 
-  it("removes expired entries from the store on read", async () => {
-    const key = makeKey();
-    const output = makeOutput();
-
-    await setCachedOutput(key, output, 10);
-    expect(_getCacheSize()).toBe(1);
-
-    vi.advanceTimersByTime(11_000);
-
-    await getCachedOutput(key);
-    expect(_getCacheSize()).toBe(0);
-  });
-
   it("stores multiple entries independently", async () => {
     const key1 = makeKey({ businessId: "biz_1" });
     const key2 = makeKey({ businessId: "biz_2" });
@@ -217,31 +235,12 @@ describe("getCachedOutput and setCachedOutput", () => {
 
     const result = await getCachedOutput(key);
     expect(result?.text).toBe("Second");
-    expect(_getCacheSize()).toBe(1);
   });
 
-  it("handles read failure gracefully (returns null)", async () => {
-    // Pass an invalid key that would cause generateCacheKey to throw
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
-    // Force an error by passing a key with a circular reference in sourceDataVersions
-    // Since we can't easily create a circular ref in the type, we'll test the catch path
-    // by verifying the normal path works and the error handling is in place
-    const result = await getCachedOutput(makeKey());
-    expect(result).toBeNull();
-
-    warnSpy.mockRestore();
-  });
-
-  it("handles write failure gracefully (does not throw)", async () => {
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
-    // Normal write should not throw
+  it("handles write without throwing", async () => {
     await expect(
       setCachedOutput(makeKey(), makeOutput(), 3600),
     ).resolves.toBeUndefined();
-
-    warnSpy.mockRestore();
   });
 });
 
@@ -252,5 +251,135 @@ describe("getCachedOutput and setCachedOutput", () => {
 describe("NULL_SENTINEL", () => {
   it("is the string __null__", () => {
     expect(NULL_SENTINEL).toBe("__null__");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Business-scoped cache keys (Requirement 20)
+// ---------------------------------------------------------------------------
+
+describe("business-scoped cache keys", () => {
+  beforeEach(() => {
+    mockStore.clear();
+  });
+
+  it("BUSINESS_SCOPED_TASKS contains inquiry_summary, form_suggestion, business_memory_summary", () => {
+    expect(BUSINESS_SCOPED_TASKS.has("inquiry_summary")).toBe(true);
+    expect(BUSINESS_SCOPED_TASKS.has("form_suggestion")).toBe(true);
+    expect(BUSINESS_SCOPED_TASKS.has("business_memory_summary")).toBe(true);
+  });
+
+  it("BUSINESS_SCOPED_TASKS does not contain personalized tasks", () => {
+    expect(BUSINESS_SCOPED_TASKS.has("quote_draft")).toBe(false);
+    expect(BUSINESS_SCOPED_TASKS.has("assistant_message")).toBe(false);
+    expect(BUSINESS_SCOPED_TASKS.has("followup_message")).toBe(false);
+  });
+
+  it("produces identical keys for different userIds on business-scoped tasks", () => {
+    const key1 = generateCacheKey(
+      makeKey({ userId: "user_a", taskType: "inquiry_summary" }),
+    );
+    const key2 = generateCacheKey(
+      makeKey({ userId: "user_b", taskType: "inquiry_summary" }),
+    );
+    expect(key1).toBe(key2);
+  });
+
+  it("produces identical keys for different userIds on form_suggestion", () => {
+    const key1 = generateCacheKey(
+      makeKey({ userId: "user_x", taskType: "form_suggestion" }),
+    );
+    const key2 = generateCacheKey(
+      makeKey({ userId: "user_y", taskType: "form_suggestion" }),
+    );
+    expect(key1).toBe(key2);
+  });
+
+  it("produces identical keys for different userIds on business_memory_summary", () => {
+    const key1 = generateCacheKey(
+      makeKey({ userId: "user_1", taskType: "business_memory_summary" }),
+    );
+    const key2 = generateCacheKey(
+      makeKey({ userId: "user_2", taskType: "business_memory_summary" }),
+    );
+    expect(key1).toBe(key2);
+  });
+
+  it("produces different keys for different userIds on personalized tasks", () => {
+    const key1 = generateCacheKey(
+      makeKey({ userId: "user_a", taskType: "quote_draft" }),
+    );
+    const key2 = generateCacheKey(
+      makeKey({ userId: "user_b", taskType: "quote_draft" }),
+    );
+    expect(key1).not.toBe(key2);
+  });
+
+  it("produces different keys for different userIds on assistant_message", () => {
+    const key1 = generateCacheKey(
+      makeKey({ userId: "user_a", taskType: "assistant_message" }),
+    );
+    const key2 = generateCacheKey(
+      makeKey({ userId: "user_b", taskType: "assistant_message" }),
+    );
+    expect(key1).not.toBe(key2);
+  });
+
+  it("still differentiates by businessId for business-scoped tasks", () => {
+    const key1 = generateCacheKey(
+      makeKey({ businessId: "biz_a", taskType: "inquiry_summary" }),
+    );
+    const key2 = generateCacheKey(
+      makeKey({ businessId: "biz_b", taskType: "inquiry_summary" }),
+    );
+    expect(key1).not.toBe(key2);
+  });
+
+  it("uses ai:biz: prefix for business-scoped tasks in getCachedOutput/setCachedOutput", async () => {
+    const key = makeKey({ taskType: "inquiry_summary" });
+    const output = makeOutput();
+
+    await setCachedOutput(key, output, 3600);
+
+    // Verify the stored key uses the ai:biz: prefix
+    const storedKeys = Array.from(mockStore.keys());
+    const bizKeys = storedKeys.filter((k) => k.startsWith("ai:biz:"));
+    expect(bizKeys.length).toBe(1);
+  });
+
+  it("uses ai: prefix for personalized tasks in getCachedOutput/setCachedOutput", async () => {
+    const key = makeKey({ taskType: "quote_draft" });
+    const output = makeOutput();
+
+    await setCachedOutput(key, output, 3600);
+
+    // Verify the stored key uses the ai: prefix (not ai:biz:)
+    const storedKeys = Array.from(mockStore.keys());
+    const personalKeys = storedKeys.filter(
+      (k) => k.startsWith("ai:") && !k.startsWith("ai:biz:"),
+    );
+    expect(personalKeys.length).toBe(1);
+  });
+
+  it("different users share cached output for business-scoped tasks", async () => {
+    const keyUser1 = makeKey({ userId: "user_1", taskType: "inquiry_summary" });
+    const keyUser2 = makeKey({ userId: "user_2", taskType: "inquiry_summary" });
+    const output = makeOutput({ text: "Shared summary" });
+
+    await setCachedOutput(keyUser1, output, 3600);
+    const result = await getCachedOutput(keyUser2);
+
+    expect(result).toEqual(output);
+  });
+
+  it("different users do NOT share cached output for personalized tasks", async () => {
+    const keyUser1 = makeKey({ userId: "user_1", taskType: "quote_draft" });
+    const keyUser2 = makeKey({ userId: "user_2", taskType: "quote_draft" });
+    const output = makeOutput({ text: "Personal draft" });
+
+    await setCachedOutput(keyUser1, output, 3600);
+    const result = await getCachedOutput(keyUser2);
+
+    expect(result).toBeNull();
   });
 });

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 
 import { StructuredData } from "@/components/seo/structured-data";
 import { SubprocessorsPage } from "@/features/legal/components/subprocessors-page";
@@ -15,7 +16,9 @@ export const metadata: Metadata = createPageMetadata({
   title: "Subprocessors",
 });
 
-export default function SubprocessorsRoute() {
+export default async function SubprocessorsRoute() {
+  "use cache";
+  cacheLife("hours");
   const breadcrumbItems = buildBreadcrumbsForPathname("/subprocessors", {
     "/subprocessors": "Subprocessors",
   });

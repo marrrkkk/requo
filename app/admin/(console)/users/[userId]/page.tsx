@@ -7,6 +7,7 @@ import { Suspense } from "react";
 import {
   DashboardDetailHeader,
   DashboardDetailLayout,
+  DashboardPage,
 } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { requireAdminUser } from "@/features/admin/access";
@@ -22,7 +23,7 @@ import { createNoIndexMetadata } from "@/lib/seo/site";
 import AdminLoading from "../../loading";
 
 export const metadata: Metadata = createNoIndexMetadata({
-  absoluteTitle: "User · Requo admin",
+  absoluteTitle: "User - Requo admin",
   description: "Inspect a Requo user and run support actions.",
 });
 
@@ -94,6 +95,7 @@ async function renderDetail(userId: string, adminUserId: string) {
   }
 
   return (
+    <DashboardPage>
     <DashboardDetailLayout>
       <DashboardDetailHeader
         actions={
@@ -136,5 +138,6 @@ async function renderDetail(userId: string, adminUserId: string) {
         </Button>
       </div>
     </DashboardDetailLayout>
+    </DashboardPage>
   );
 }

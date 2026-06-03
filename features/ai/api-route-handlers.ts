@@ -38,6 +38,7 @@ import {
   aiCreateConversationSchema,
 } from "@/features/ai/schemas";
 import { orchestrate } from "@/features/ai/orchestrator";
+import { generateCanaryToken } from "@/features/ai/orchestrator/prompt-builder";
 import type { AiProviderName } from "@/lib/ai";
 import { registry } from "@/lib/ai/registry";
 import { stripReasoningMiddleware } from "@/lib/ai/strip-reasoning-middleware";
@@ -58,7 +59,7 @@ import {
 import type { AiModelSelection } from "@/lib/ai/model-options";
 import { getCurrentUser } from "@/lib/auth/session";
 import { hasFeatureAccess } from "@/lib/plans";
-import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
+import { checkPublicActionRateLimit, rateLimitHeaders } from "@/lib/rate-limit/redis-rate-limiter";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { aiMessages as aiMessagesTable } from "@/lib/db/schema";
@@ -428,14 +429,14 @@ export async function createAiChatRouteResponse(request: Request) {
       ? access.businessContext.business.id
       : authorization.businessId ?? access.businessContext.business.id;
 
-  const isAllowed = await assertPublicActionRateLimit({
+  const rateLimitResult = await checkPublicActionRateLimit({
     action: "ai-chat",
     limit: 20,
     scope: `${access.entityId}:${user.id}`,
     windowMs: 60_000,
   });
 
-  if (!isAllowed) {
+  if (!rateLimitResult.allowed) {
     const errorText = "Too many AI requests. Wait a minute and try again.";
     await createAiAssistantMessage({
       conversationId: authorizedConversation.id,
@@ -445,7 +446,7 @@ export async function createAiChatRouteResponse(request: Request) {
     });
     return Response.json(
       { error: errorText },
-      { status: 429 },
+      { status: 429, headers: rateLimitHeaders(rateLimitResult.metadata) },
     );
   }
 
@@ -469,7 +470,21 @@ export async function createAiChatRouteResponse(request: Request) {
   }
 
   // --- Input Sanitization ---
-  const inputSanitization = sanitizeAiInput(parsedData.message);
+  const inputSanitization = await sanitizeAiInput(parsedData.message, authorizedConversation.id);
+
+  if (inputSanitization.status === "locked") {
+    const errorText = "This conversation has been locked due to repeated policy violations.";
+    await createAiAssistantMessage({
+      conversationId: authorizedConversation.id,
+      status: "failed",
+      content: errorText,
+      metadata: { errorReason: "conversation_locked" },
+    });
+    return Response.json(
+      { error: errorText },
+      { status: 403 },
+    );
+  }
 
   if (inputSanitization.status === "rejected") {
     logAiSecurityEvent({
@@ -551,6 +566,7 @@ export async function createAiChatRouteResponse(request: Request) {
   const orchestrateResult = await orchestrate({
     userId: user.id,
     businessId: authorizedBusinessId,
+    businessName: access.businessContext.business.name,
     conversationId: authorizedConversation.id,
     message: sanitizedMessage,
     surface: parsedData.surface,
@@ -573,7 +589,7 @@ export async function createAiChatRouteResponse(request: Request) {
     return Response.json({ error: msg }, { status: 500 });
   }
 
-  const { systemPrompt, tools, messages: orchestratedMessages, onStreamComplete } = orchestrateResult;
+  const { systemPrompt, tools, messages: orchestratedMessages, maxOutputTokens, onStreamComplete } = orchestrateResult;
 
   // --- Model selection ---
   const messageComplexity = classifyMessageComplexity(sanitizedMessage);
@@ -581,14 +597,10 @@ export async function createAiChatRouteResponse(request: Request) {
   const modelsToTry = modelSelection
     ? [resolveExplicitModelId(modelSelection)]
     : tools
-      ? selectToolCallingModels()
+      ? await selectToolCallingModels()
       : messageComplexity === "simple"
-        ? selectSimpleTextModels()
-        : selectComplexTextModels();
-
-  const maxOutputTokens = messageComplexity === "simple"
-    ? 800
-    : parsedData.surface === "quote" ? 2200 : 1700;
+        ? await selectSimpleTextModels()
+        : await selectComplexTextModels();
 
   // --- Stream with model fallback, returning standard AI SDK data stream ---
   for (const modelId of modelsToTry) {
@@ -621,7 +633,10 @@ export async function createAiChatRouteResponse(request: Request) {
             errorMsg.includes("quota") ||
             errorMsg.includes("RESOURCE_EXHAUSTED") ||
             errorMsg.includes("rate_limit") ||
-            errorMsg.includes("high traffic");
+            errorMsg.includes("high traffic") ||
+            errorMsg.includes("high demand") ||
+            errorMsg.includes("overloaded") ||
+            errorMsg.includes("capacity");
           if (isRateLimit) markModelExhausted(modelId);
           console.warn(
             `[ai-chat] onError for ${modelId}:`,
@@ -631,7 +646,8 @@ export async function createAiChatRouteResponse(request: Request) {
         onFinish: async ({ text, usage, steps }) => {
           const visibleText = getVisibleText(text);
 
-          // Output filtering
+          // Output filtering (with canary token detection)
+          const canaryToken = generateCanaryToken(authorizedBusinessId);
           let finalContent = visibleText;
           const chatOutputFilter = filterAiOutput(finalContent, [
             "inquiry assistant",
@@ -640,11 +656,12 @@ export async function createAiChatRouteResponse(request: Request) {
             "business context",
             "conversation history",
             "relevant context",
-          ]);
+          ], { canaryToken });
           if (chatOutputFilter.status === "redacted") {
             finalContent = chatOutputFilter.output;
+            const isCanaryLeak = chatOutputFilter.redactedPatterns.includes("canary_leak_detected");
             logAiSecurityEvent({
-              eventType: "output_redacted",
+              eventType: isCanaryLeak ? "canary_leak_detected" : "output_redacted",
               patternMatched: chatOutputFilter.redactedPatterns.join(", "),
               userId: user.id,
               businessId: authorizedBusinessId,
@@ -714,13 +731,72 @@ export async function createAiChatRouteResponse(request: Request) {
         },
       });
 
-      // Verify the model can be reached by consuming the first text event.
-      // Rate limits from providers (429) surface as stream errors. The onError
-      // callback marks the model exhausted so the NEXT request skips it.
-      // For THIS request, the SDK's built-in error propagation will surface
-      // the error to the client which displays it with a retry button.
-      recordModelUsage(modelId);
-      return result.toUIMessageStreamResponse();
+      // Before committing the response, verify the model can produce output.
+      // Provider errors (429, "high demand", quota) often surface only after
+      // the stream starts — sometimes after initial handshake events (start,
+      // start-step) but before any actual text. We consume events from
+      // fullStream until we see either real content (text-delta, tool-call) or
+      // an error. If it's an error, we fall through to the next model.
+      //
+      // AI SDK v6 internally tees the base stream on each accessor call, so
+      // consuming from fullStream does NOT prevent toUIMessageStreamResponse
+      // from reading the full output independently.
+      const streamIterator = result.fullStream[Symbol.asyncIterator]();
+      let peekedError = false;
+      for (;;) {
+        const event = await streamIterator.next();
+        if (event.done) break;
+        const part = event.value;
+        if (typeof part === "object" && part !== null && "type" in part) {
+          // Error before any content — retryable
+          if (part.type === "error") {
+            const errVal = (part as { error?: unknown }).error;
+            const errMsg = errVal instanceof Error ? errVal.message : String(errVal ?? "");
+            await markModelExhausted(modelId);
+            console.warn(`[ai-chat] ${modelId} error before content, trying next...`, errMsg.slice(0, 200));
+            peekedError = true;
+            break;
+          }
+          // Real content arrived — model is working
+          if (
+            part.type === "text-delta" ||
+            part.type === "tool-call" ||
+            part.type === "tool-input-start" ||
+            part.type === "tool-result"
+          ) {
+            break;
+          }
+        }
+        // Skip non-content events (start, start-step, etc.) and keep peeking
+      }
+      if (peekedError) continue;
+
+      await recordModelUsage(modelId);
+
+      // Pass a custom onError to mask raw provider errors from the user.
+      // Mid-stream errors (e.g., provider overload after partial output)
+      // cannot trigger model fallback, but we can at least show a friendly
+      // message instead of the raw provider string.
+      return result.toUIMessageStreamResponse({
+        headers: rateLimitHeaders(rateLimitResult.metadata),
+        onError: (error) => {
+          const msg = error instanceof Error ? error.message : String(error);
+          const isTransient =
+            msg.includes("429") ||
+            msg.includes("quota") ||
+            msg.includes("RESOURCE_EXHAUSTED") ||
+            msg.includes("rate_limit") ||
+            msg.includes("high traffic") ||
+            msg.includes("high demand") ||
+            msg.includes("overloaded") ||
+            msg.includes("capacity");
+          if (isTransient) {
+            markModelExhausted(modelId);
+            return "The assistant is busy right now. Please try again in a moment.";
+          }
+          return "Something went wrong. Please try again.";
+        },
+      });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       const isRateLimit =
@@ -729,10 +805,13 @@ export async function createAiChatRouteResponse(request: Request) {
         errorMsg.includes("RESOURCE_EXHAUSTED") ||
         errorMsg.includes("rate_limit") ||
         errorMsg.includes("Rate limit") ||
-        errorMsg.includes("high traffic");
+        errorMsg.includes("high traffic") ||
+        errorMsg.includes("high demand") ||
+        errorMsg.includes("overloaded") ||
+        errorMsg.includes("capacity");
 
       if (isRateLimit) {
-        markModelExhausted(modelId);
+        await markModelExhausted(modelId);
         console.warn(`[ai-chat] ${modelId} rate limited (sync), trying next...`);
         continue;
       }

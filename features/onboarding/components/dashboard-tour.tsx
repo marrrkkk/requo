@@ -15,6 +15,7 @@ import {
   TourModal,
   type TourModalStep,
 } from "@/features/onboarding/components/tour-modal";
+import { MobileWelcomeCard } from "@/features/onboarding/components/mobile-welcome-card";
 import {
   clearDashboardTourLocalStorage,
   DASHBOARD_TOUR_DEV_SHOW_EVENT,
@@ -112,13 +113,20 @@ export function DashboardTour({ businessId, completed }: DashboardTourProps) {
   }, [businessId]);
 
   return (
-    <TourModal
-      completed={completed}
-      onComplete={handleComplete}
-      replayToken={replayToken}
-      show
-      steps={tourSteps}
-      storageKey={storageKey}
-    />
+    <>
+      <TourModal
+        completed={completed}
+        onComplete={handleComplete}
+        replayToken={replayToken}
+        show
+        steps={tourSteps}
+        storageKey={storageKey}
+      />
+      <MobileWelcomeCard
+        businessId={businessId}
+        completed={completed}
+        onComplete={handleComplete}
+      />
+    </>
   );
 }

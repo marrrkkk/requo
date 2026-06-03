@@ -1,7 +1,10 @@
 import "server-only";
 
-import { embed } from "ai";
+import { createHash } from "crypto";
 
+import { embed, embedMany } from "ai";
+
+import { cacheLayer } from "@/lib/ai/cache-layer";
 import { google, mistral, nvidia } from "@/lib/ai/registry";
 
 // ---------------------------------------------------------------------------
@@ -30,11 +33,221 @@ const EMBEDDING_MODELS = [
 /** Target dimensions for stored embeddings */
 const TARGET_DIMENSIONS = 768;
 
+/** TTL for cached embeddings (24 hours) */
+const EMBEDDING_CACHE_TTL_SECONDS = 86_400;
+
+/**
+ * Generates a cache key for an embedding based on SHA-256 hash of the input text.
+ */
+function embeddingCacheKey(text: string): string {
+  const hash = createHash("sha256").update(text).digest("hex");
+  return `emb:${hash}`;
+}
+
+/**
+ * Invalidates the cached embedding for a given text by deleting its cache key.
+ * Used when knowledge base content is updated or deleted so that stale embeddings
+ * are not served for content that no longer exists or has changed.
+ */
+export async function invalidateEmbeddingCache(text: string): Promise<void> {
+  const cacheKey = embeddingCacheKey(text);
+  try {
+    await cacheLayer.delete(cacheKey);
+  } catch {
+    // Cache delete failure is non-fatal — log and continue
+    console.warn("[embeddings] Failed to invalidate cache key:", cacheKey);
+  }
+}
+
 /**
  * Generates an embedding vector for the given text.
- * Tries multiple providers in order. Returns null if all fail.
+ * Checks the cache first; on miss, tries multiple providers in order.
+ * Caches successful results with the configured TTL (24 hours).
+ * Returns null if all providers fail.
  */
 export async function generateEmbedding(text: string): Promise<number[] | null> {
+  // Check cache first
+  const cacheKey = embeddingCacheKey(text);
+  try {
+    const cached = await cacheLayer.get<number[]>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+  } catch {
+    // Cache read failure is non-fatal — proceed to generate
+  }
+
+  // Generate embedding from providers
+  const embedding = await generateEmbeddingFromProviders(text);
+
+  // Cache successful result
+  if (embedding !== null) {
+    try {
+      await cacheLayer.set(cacheKey, embedding, EMBEDDING_CACHE_TTL_SECONDS);
+    } catch {
+      // Cache write failure is non-fatal
+    }
+  }
+
+  return embedding;
+}
+
+/** Maximum number of texts allowed in a batch */
+const MAX_BATCH_SIZE = 20;
+
+/**
+ * Generates embedding vectors for multiple texts in a single batch.
+ * Checks cache first for each text, then generates missing embeddings via
+ * a single batch API call. Falls back to sequential individual calls if
+ * the batch API is unavailable.
+ *
+ * @param texts - Array of 1-20 texts to embed
+ * @returns Array of embeddings (or null for failures) in the same order as input
+ * @throws Error if input exceeds 20 texts
+ */
+export async function generateEmbeddings(
+  texts: string[],
+): Promise<(number[] | null)[]> {
+  // Empty input → return empty array without API calls
+  if (texts.length === 0) {
+    return [];
+  }
+
+  // Reject if input exceeds max batch size
+  if (texts.length > MAX_BATCH_SIZE) {
+    throw new Error(
+      `Batch size ${texts.length} exceeds maximum of ${MAX_BATCH_SIZE} texts`,
+    );
+  }
+
+  // Check cache for each text
+  const results: (number[] | null)[] = new Array(texts.length).fill(null);
+  const uncachedIndices: number[] = [];
+
+  for (let i = 0; i < texts.length; i++) {
+    const cacheKey = embeddingCacheKey(texts[i]);
+    try {
+      const cached = await cacheLayer.get<number[]>(cacheKey);
+      if (cached !== null) {
+        results[i] = cached;
+      } else {
+        uncachedIndices.push(i);
+      }
+    } catch {
+      // Cache read failure — treat as uncached
+      uncachedIndices.push(i);
+    }
+  }
+
+  // All texts were cached
+  if (uncachedIndices.length === 0) {
+    return results;
+  }
+
+  // Try batch generation first, fall back to sequential
+  const uncachedTexts = uncachedIndices.map((i) => texts[i]);
+  let batchResults: (number[] | null)[];
+
+  try {
+    batchResults = await generateEmbeddingsBatch(uncachedTexts);
+  } catch {
+    // Batch API unavailable — fall back to sequential individual calls
+    batchResults = await generateEmbeddingsSequential(uncachedTexts);
+  }
+
+  // Map batch results back to original positions and cache them
+  for (let j = 0; j < uncachedIndices.length; j++) {
+    const originalIndex = uncachedIndices[j];
+    const embedding = batchResults[j];
+    results[originalIndex] = embedding;
+
+    // Cache successful results
+    if (embedding !== null) {
+      const cacheKey = embeddingCacheKey(texts[originalIndex]);
+      try {
+        await cacheLayer.set(cacheKey, embedding, EMBEDDING_CACHE_TTL_SECONDS);
+      } catch {
+        // Cache write failure is non-fatal
+      }
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Generates embeddings for multiple texts using the batch API (embedMany).
+ * Tries providers in priority order.
+ * Throws if no provider supports batch embedding.
+ */
+async function generateEmbeddingsBatch(
+  texts: string[],
+): Promise<(number[] | null)[]> {
+  for (const config of EMBEDDING_MODELS) {
+    try {
+      if (config.provider === "google" && google) {
+        const result = await embedMany({
+          model: google.textEmbeddingModel(config.model),
+          values: texts,
+        });
+        return result.embeddings.map((emb) =>
+          normalizeToTargetDimensions(emb, config.dimensions),
+        );
+      }
+
+      if (config.provider === "nvidia" && nvidia) {
+        const result = await embedMany({
+          model: nvidia.textEmbeddingModel(config.model),
+          values: texts,
+        });
+        return result.embeddings.map((emb) =>
+          normalizeToTargetDimensions(emb, config.dimensions),
+        );
+      }
+
+      if (config.provider === "mistral" && mistral) {
+        const result = await embedMany({
+          model: mistral.textEmbeddingModel(config.model),
+          values: texts,
+        });
+        return result.embeddings.map((emb) =>
+          normalizeToTargetDimensions(emb, config.dimensions),
+        );
+      }
+    } catch (error) {
+      console.warn(
+        `[embeddings] batch ${config.provider}/${config.model} failed, trying next:`,
+        error instanceof Error ? error.message : error,
+      );
+      continue;
+    }
+  }
+
+  // All providers failed for batch — throw to trigger sequential fallback
+  throw new Error("All batch embedding providers failed");
+}
+
+/**
+ * Falls back to generating embeddings one at a time when batch API is unavailable.
+ */
+async function generateEmbeddingsSequential(
+  texts: string[],
+): Promise<(number[] | null)[]> {
+  const results: (number[] | null)[] = [];
+
+  for (const text of texts) {
+    const embedding = await generateEmbeddingFromProviders(text);
+    results.push(embedding);
+  }
+
+  return results;
+}
+
+/**
+ * Generates an embedding vector by trying multiple providers in order.
+ * Returns null if all fail.
+ */
+async function generateEmbeddingFromProviders(text: string): Promise<number[] | null> {
   for (const config of EMBEDDING_MODELS) {
     try {
       if (config.provider === "google" && google) {

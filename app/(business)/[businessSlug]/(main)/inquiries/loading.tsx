@@ -9,8 +9,8 @@ export default function BusinessDashboardInquiriesLoading() {
   return (
     <DashboardPage>
       <PageHeader
-        eyebrow="Inquiries"
-        title="Customer inquiries"
+        title="Inquiries"
+        description="List, filter, and manage inquiries for this business."
       />
       <InquiryListControlsFallback />
       <DashboardListResultsSkeleton variant="inquiries" />

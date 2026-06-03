@@ -10,6 +10,7 @@ export type BusinessSettingsSection =
   | "profile"
   | "security"
   | "quote"
+  | "invoices"
   | "email"
   | "pricing"
   | "knowledge"

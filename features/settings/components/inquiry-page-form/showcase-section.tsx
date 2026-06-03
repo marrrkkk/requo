@@ -24,7 +24,7 @@ import {
 import type { BusinessPlan } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
 
-import { DisclosureSection, OptionTile, OptionTileGrid, SectionHeading, SectionVisibilityToggle } from "./shared";
+import { DisclosureSection, OptionTile, OptionTileGrid, SectionVisibilityToggle } from "./shared";
 
 export type ShowcaseSectionProps = {
   showcaseImageUrl: string;
@@ -72,17 +72,8 @@ export function ShowcaseSection({
   onOpenCropDialog,
 }: ShowcaseSectionProps) {
   return (
-    <section
-      className="section-panel scroll-mt-20 p-5 sm:p-6"
-      id="showcase"
-    >
-      <SectionHeading
-        description="Add an optional image to the top of the page."
-        title="Showcase image"
-      />
-
-      <div className="mt-6 flex flex-col gap-6">
-        <SectionVisibilityToggle
+    <div className="flex flex-col gap-6">
+      <SectionVisibilityToggle
           checked={effectiveShowShowcaseImage}
           description="Keep the image settings saved, but hide the showcase image on the public page when this is off."
           disabled={isPending || pageCustomizationLocked}
@@ -239,8 +230,7 @@ export function ShowcaseSection({
             />
           </div>
         ) : null}
-      </div>
-    </section>
+    </div>
   );
 }
 

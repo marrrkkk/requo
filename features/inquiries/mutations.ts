@@ -33,8 +33,10 @@ import { emitEvent } from "@/features/automations/dispatcher";
 
 type InquirySubmissionBusinessRef = Pick<
   PublicInquiryBusiness,
-  "id" | "name" | "slug" | "form"
->;
+  "id" | "name" | "slug"
+> & {
+  form?: PublicInquiryBusiness["form"] | null;
+};
 
 type CreateInquirySubmissionInput = {
   business: InquirySubmissionBusinessRef;
@@ -122,7 +124,7 @@ async function createInquirySubmission({
       await tx.insert(inquiries).values({
         id: inquiryId,
         businessId: business.id,
-        businessInquiryFormId: business.form.id,
+        businessInquiryFormId: business.form?.id ?? null,
         status: "new",
         subject: submission.serviceCategory,
         customerName: submission.customerName,
@@ -165,9 +167,9 @@ async function createInquirySubmission({
         metadata: {
           source,
           businessSlug: business.slug,
-          inquiryFormId: business.form.id,
-          inquiryFormSlug: business.form.slug,
-          inquiryFormName: business.form.name,
+          inquiryFormId: business.form?.id ?? null,
+          inquiryFormSlug: business.form?.slug ?? null,
+          inquiryFormName: business.form?.name ?? null,
           hasAttachment: Boolean(preparedAttachment),
           serviceCategory: submission.serviceCategory,
         },
@@ -189,14 +191,14 @@ async function createInquirySubmission({
           inquiryId,
           type: "public_inquiry_submitted",
           title: `New inquiry from ${submission.customerName}`,
-          summary: `${submission.serviceCategory} via ${business.form.name}`,
+          summary: `${submission.serviceCategory}${business.form ? ` via ${business.form.name}` : ""}`,
           metadata: {
             customerEmail: submission.customerEmail,
             customerName: submission.customerName,
             hasAttachment: Boolean(preparedAttachment),
-            inquiryFormId: business.form.id,
-            inquiryFormName: business.form.name,
-            inquiryFormSlug: business.form.slug,
+            inquiryFormId: business.form?.id ?? null,
+            inquiryFormName: business.form?.name ?? null,
+            inquiryFormSlug: business.form?.slug ?? null,
             serviceCategory: submission.serviceCategory,
           },
           now,
@@ -225,7 +227,7 @@ async function createInquirySubmission({
     inquiryId,
     customerName: submission.customerName,
     source,
-    formId: business.form.id,
+    formId: business.form?.id ?? null,
   });
 
   // Run qualification after the transaction commits.

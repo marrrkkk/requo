@@ -24,6 +24,7 @@ import { getBusinessNotificationBellView } from "@/features/notifications/querie
 import { DashboardNotificationBell } from "@/features/notifications/components/dashboard-notification-bell";
 import { SidebarChecklistSection } from "@/features/onboarding/components/sidebar-checklist-section";
 import { PendingMessageProvider } from "@/features/ai/chat-ui/pending-message-context";
+import { AiSidePanel } from "@/features/ai/chat-ui/ai-side-panel";
 import { getBusinessDashboardPath } from "@/features/businesses/routes";
 import { getAppShellContext } from "@/lib/app-shell/context";
 import { getBusinessMembershipsForUser } from "@/lib/db/business-access";
@@ -90,6 +91,11 @@ export default async function BusinessMainLayout({
               <BannerSlot businessSlug={businessSlug} />
             </Suspense>
           }
+          aiPanelSlot={
+            <Suspense fallback={null}>
+              <AiPanelPropsSlot businessSlug={businessSlug} />
+            </Suspense>
+          }
         >
           <Suspense fallback={null}>
             <RecentBusinessTrackerSlot businessSlug={businessSlug} />
@@ -149,6 +155,7 @@ async function UserMenuSlot({ businessSlug }: { businessSlug: string }) {
       }}
       businessRole={businessContext.role}
       businessSlug={businessContext.business.slug}
+      businessId={businessContext.business.id}
       plan={businessContext.business.plan}
     />
   );
@@ -186,7 +193,7 @@ async function UpgradeSlot({ businessSlug }: { businessSlug: string }) {
     businessContext.business.id,
   ).catch(() => null);
 
-  if (!billing || billing.currentPlan !== "free") {
+  if (!billing || billing.currentPlan === "business") {
     return null;
   }
 
@@ -288,4 +295,17 @@ async function BillingBoundary({
   }
 
   return body;
+}
+
+async function AiPanelPropsSlot({ businessSlug }: { businessSlug: string }) {
+  const { user, businessContext } = await getAppShellContext(businessSlug);
+
+  return (
+    <AiSidePanel
+      businessSlug={businessSlug}
+      userId={user.id}
+      businessId={businessContext.business.id}
+      userName={user.name || "You"}
+    />
+  );
 }

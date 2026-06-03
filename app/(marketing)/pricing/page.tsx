@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { cacheLife } from "next/cache";
 
 import { PricingPage } from "@/components/marketing/pricing-page";
 import { StructuredData } from "@/components/seo/structured-data";
 import { planPricing } from "@/lib/billing/plans";
-import { detectDisplayCurrency } from "@/lib/billing/region";
 import type { BillingCurrency, BillingInterval, PaidPlan } from "@/lib/billing/types";
 import { businessPlans, planMeta, type BusinessPlan } from "@/lib/plans/plans";
 import { absoluteUrl, createPageMetadata } from "@/lib/seo/site";
@@ -60,12 +60,15 @@ function buildPricingOffers(currency: BillingCurrency) {
 }
 
 /**
- * Detects the visitor's country via Vercel geo headers and shows PHP
- * display pricing for Philippine visitors, USD for everyone else.
+ * Uses USD as the default display currency at build time.
  * Polar always bills in USD regardless of display currency.
+ * Client-side detection can be added for regional pricing display after hydration.
  */
 export default async function PricingRoute() {
-  const currency = await detectDisplayCurrency();
+  "use cache";
+  cacheLife("hours");
+
+  const currency: BillingCurrency = "USD";
 
   const productStructuredData = getProductPricingStructuredData({
     description: "Quote software for owner-led service businesses.",

@@ -6,12 +6,14 @@ import {
   ArrowUpRight,
   FileText,
   FormInput,
+  Link2,
   Settings2,
 } from "lucide-react";
 import {
   useSearchParams,
   type ReadonlyURLSearchParams,
 } from "next/navigation";
+import { toast } from "sonner";
 
 import { DashboardSidebarStack } from "@/components/shared/dashboard-layout";
 import { Button } from "@/components/ui/button";
@@ -211,16 +213,37 @@ export function BusinessInquiryFormEditorTabs({
           })}
         </TabsList>
 
-        <Button asChild variant="outline" size="sm" className="w-full sm:w-auto" type="button">
-          <Link
-            href={isPublicLive ? publicInquiryHref : previewHref}
-            rel="noreferrer"
-            target="_blank"
+        <div className="flex w-full gap-2 sm:w-auto">
+          <Button
+            onClick={() => {
+              const url = new URL(
+                isPublicLive ? publicInquiryHref : previewHref,
+                window.location.origin,
+              ).toString();
+              navigator.clipboard.writeText(url).then(
+                () => toast.success("Link copied to clipboard."),
+                () => toast.error("Failed to copy link."),
+              );
+            }}
+            variant="outline"
+            size="sm"
+            className="flex-1 sm:flex-none"
+            type="button"
           >
-            Open form
-            <ArrowUpRight data-icon="inline-end" />
-          </Link>
-        </Button>
+            <Link2 data-icon="inline-start" />
+            Copy link
+          </Button>
+          <Button asChild variant="outline" size="sm" className="flex-1 sm:flex-none" type="button">
+            <Link
+              href={isPublicLive ? publicInquiryHref : previewHref}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Open form
+              <ArrowUpRight data-icon="inline-end" />
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="min-w-0">
@@ -277,6 +300,20 @@ export function BusinessInquiryFormEditorTabs({
                 Visibility, defaults, and lifecycle for this form.
               </p>
             </div>
+
+            {settings.submittedInquiryCount > 0 ? (
+              <div className="soft-panel flex items-center gap-4 px-5 py-4 shadow-none">
+                <div className="min-w-0">
+                  <p className="meta-label">Submissions</p>
+                  <p className="mt-1 text-lg font-semibold tabular-nums text-foreground">
+                    {settings.submittedInquiryCount.toLocaleString()}
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Total inquiries received through this form
+                  </p>
+                </div>
+              </div>
+            ) : null}
 
             <div className="grid gap-4 md:grid-cols-2 md:items-stretch">
               <BusinessInquiryFormManageCard

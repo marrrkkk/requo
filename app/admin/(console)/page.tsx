@@ -1,29 +1,59 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
+import { DashboardPage } from "@/components/shared/dashboard-layout";
+import { PageHeader } from "@/components/shared/page-header";
+import { requireAdminUser } from "@/features/admin/access";
+import { wrapAdminRouteWithViewLog } from "@/features/admin/audit";
 import { AdminDashboard } from "@/features/admin/components/admin-dashboard";
 import { createNoIndexMetadata } from "@/lib/seo/site";
 
-export const unstable_instant = { prefetch: 'static', unstable_disableValidation: true };
+import AdminLoading from "./loading";
+
+export const unstable_instant = {
+  prefetch: "static",
+  unstable_disableValidation: true,
+};
 
 export const metadata: Metadata = createNoIndexMetadata({
-  absoluteTitle: "Admin · Requo",
+  absoluteTitle: "Admin - Requo",
   description: "Internal Requo admin dashboard with key operational counts.",
 });
 
-/**
- * Admin console landing page.
- *
- * The admin layout (`app/admin/layout.tsx`) has already:
- *   - Enforced `requireAdminUser()` — unauthenticated, unverified, and
- *     non-allow-listed callers are rejected with `notFound()` before
- *     this page renders (Req 1.1, 1.2, 1.3, 1.6).
- *   - Written the `view.dashboard` audit row via
- *     `wrapAdminRouteWithViewLog` (Req 10.1).
- *
- * So the page itself stays thin: it composes `AdminDashboard`, which
- * is responsible for the six count tiles plus per-tile Suspense and
- * retry handling (Req 2.1, 2.3, 2.4).
- */
 export default function AdminDashboardPage() {
-  return <AdminDashboard />;
+  return (
+    <Suspense fallback={<AdminLoading />}>
+      <AdminDashboardPageContent />
+    </Suspense>
+  );
+}
+
+async function AdminDashboardPageContent() {
+  const { session, user: admin } = await requireAdminUser();
+
+  const renderPage = wrapAdminRouteWithViewLog(
+    async () => (
+      <DashboardPage>
+        <PageHeader
+          eyebrow="Admin"
+          title="Dashboard"
+          description="System status, platform metrics, and admin shortcuts."
+        />
+        <AdminDashboard />
+      </DashboardPage>
+    ),
+    {
+      adminUserId: admin.id,
+      adminEmail: admin.email,
+      impersonatedUserId: session.session?.impersonatedBy
+        ? session.user.id
+        : null,
+    },
+    {
+      action: "view.dashboard",
+      targetType: "dashboard",
+    },
+  );
+
+  return renderPage();
 }

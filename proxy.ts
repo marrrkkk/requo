@@ -46,16 +46,6 @@ export async function proxy(request: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
-  // Block /admin/* on main app domain in production
-  if (
-    request.nextUrl.pathname.startsWith("/admin") &&
-    process.env.NODE_ENV === "production"
-  ) {
-    return NextResponse.rewrite(new URL("/not-found", request.url), {
-      status: 404,
-    });
-  }
-
   // Markdown agent discovery
   if (
     request.nextUrl.pathname === "/" &&

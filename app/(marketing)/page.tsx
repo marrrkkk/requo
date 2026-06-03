@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 
 import {
   faqItems,
@@ -42,7 +43,9 @@ export const metadata: Metadata = {
   ],
 };
 
-export default function MarketingPage() {
+export default async function MarketingPage() {
+  "use cache";
+  cacheLife("hours");
   const softwareApplicationStructuredData = getSoftwareApplicationStructuredData(
     {
       description: marketingDescription,

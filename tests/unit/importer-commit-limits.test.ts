@@ -44,7 +44,7 @@ vi.mock("@/lib/cache/business-tags", () => ({
   uniqueCacheTags: (tags: string[]) => tags,
 }));
 
-vi.mock("@/lib/public-action-rate-limit", () => ({
+vi.mock("@/lib/rate-limit/redis-rate-limiter", () => ({
   assertPublicActionRateLimit: vi.fn(async () => true),
 }));
 

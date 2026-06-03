@@ -96,6 +96,43 @@ export async function sendPushToBusinessSubscribers(
 }
 
 /**
+ * Send a push notification to all subscriptions for a given user within a business.
+ * Used when recipients are pre-resolved (e.g., via sendBatchedNotification).
+ */
+export async function sendPushToUserSubscriptionsForBusiness(
+  businessId: string,
+  userId: string,
+  payload: PushPayload,
+): Promise<number> {
+  const subscriptions = await db
+    .select({
+      id: pushSubscriptions.id,
+      endpoint: pushSubscriptions.endpoint,
+      p256dh: pushSubscriptions.p256dh,
+      auth: pushSubscriptions.auth,
+    })
+    .from(pushSubscriptions)
+    .where(
+      and(
+        eq(pushSubscriptions.businessId, businessId),
+        eq(pushSubscriptions.userId, userId),
+      ),
+    );
+
+  if (subscriptions.length === 0) {
+    return 0;
+  }
+
+  const results = await Promise.allSettled(
+    subscriptions.map((sub) => sendPushNotification(sub, payload)),
+  );
+
+  return results.filter(
+    (r) => r.status === "fulfilled" && r.value === true,
+  ).length;
+}
+
+/**
  * Send a test push notification to a single user's subscriptions for a business.
  * Used by the notification settings page so owners can verify delivery
  * without triggering a real inquiry or quote event.

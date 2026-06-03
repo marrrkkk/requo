@@ -53,7 +53,7 @@ export async function getBusinessSettingsForBusiness(
       defaultQuoteTerms: businesses.defaultQuoteTerms,
       quoteEmailTemplate: businesses.quoteEmailTemplate,
       defaultQuoteValidityDays: businesses.defaultQuoteValidityDays,
-      aiTonePreference: businesses.aiTonePreference,
+      defaultInvoiceDueDays: businesses.defaultInvoiceDueDays,
       notifyOnNewInquiry: businesses.notifyOnNewInquiry,
       notifyOnQuoteSent: businesses.notifyOnQuoteSent,
       notifyOnQuoteResponse: businesses.notifyOnQuoteResponse,

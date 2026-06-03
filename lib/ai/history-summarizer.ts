@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { AiChatMessage } from "./types";
+import { generateWithFallback } from "./router";
 
 // ---------------------------------------------------------------------------
 // History Summarizer — compresses older chat messages into a short recap
@@ -10,11 +11,98 @@ import type { AiChatMessage } from "./types";
 // portion. This preserves conversational context while drastically reducing
 // input tokens on long conversations.
 //
-// Strategy:
-// - Extract topic keywords, entities, and key facts from dropped messages
-// - Format as a single ~80-120 word system message
-// - No AI call needed — this is a fast heuristic extraction
+// Two strategies:
+// 1. AI-based summarization (for conversations > 12 messages) — uses a
+//    cheap-tier model with 128 max output tokens and a 2s timeout.
+// 2. Heuristic extraction (fast fallback) — extracts topic keywords,
+//    entities, and key facts without an AI call.
 // ---------------------------------------------------------------------------
+
+/** Timeout for the AI summarization call (2 seconds). */
+const AI_SUMMARY_TIMEOUT_MS = 2_000;
+
+/** Message count threshold for triggering AI-based summarization. */
+const AI_SUMMARY_MESSAGE_THRESHOLD = 12;
+
+/**
+ * Summarizes a conversation using AI when it exceeds 12 messages.
+ * Falls back to the heuristic `summarizeDroppedMessages()` on timeout or failure.
+ *
+ * - Threshold: > 12 messages triggers AI summarization
+ * - Uses cheap-tier model with 128 max output tokens
+ * - 2s timeout with fallback to existing heuristic
+ * - Preserves temporal ordering of key events and decisions
+ */
+export async function summarizeConversation(
+  messages: AiChatMessage[],
+): Promise<string> {
+  // Below threshold: use heuristic directly
+  if (messages.length <= AI_SUMMARY_MESSAGE_THRESHOLD) {
+    return summarizeDroppedMessages(messages);
+  }
+
+  try {
+    const summary = await Promise.race([
+      generateAiSummary(messages),
+      createTimeout(AI_SUMMARY_TIMEOUT_MS),
+    ]);
+
+    // If the AI returned a valid non-empty summary, use it
+    if (summary && summary.trim().length > 0) {
+      return summary.trim();
+    }
+
+    // Empty or invalid response — fall back to heuristic
+    return summarizeDroppedMessages(messages);
+  } catch (error) {
+    console.warn(
+      "[history-summarizer] AI summarization failed, falling back to heuristic:",
+      error instanceof Error ? error.message : error,
+    );
+    return summarizeDroppedMessages(messages);
+  }
+}
+
+/**
+ * Calls the cheap-tier AI model to generate a conversation summary.
+ * Limited to 128 output tokens. Preserves temporal ordering.
+ */
+async function generateAiSummary(messages: AiChatMessage[]): Promise<string> {
+  // Format conversation for the summarizer, keeping input reasonable
+  const conversationText = messages
+    .map((m) => `${m.role}: ${m.content}`)
+    .join("\n")
+    .slice(0, 3000);
+
+  const response = await generateWithFallback({
+    model: "",
+    qualityTier: "cheap",
+    maxOutputTokens: 128,
+    temperature: 0.2,
+    messages: [
+      {
+        role: "system",
+        content:
+          "Summarize this conversation in chronological order. List key events, decisions, and outcomes as they occurred. Be concise. Output only the summary.",
+      },
+      {
+        role: "user",
+        content: conversationText,
+      },
+    ],
+  });
+
+  return response.text;
+}
+
+/**
+ * Creates a timeout promise that rejects after the specified duration.
+ */
+function createTimeout(ms: number): Promise<never> {
+  return new Promise((_, reject) => {
+    setTimeout(() => reject(new Error(`AI summary timed out after ${ms}ms`)), ms);
+  });
+}
 
 /**
  * Generates a compact summary of dropped conversation messages.

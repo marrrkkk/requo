@@ -11,7 +11,7 @@ import {
   uniqueCacheTags,
 } from "@/lib/cache/business-tags";
 import { getWorkspaceBusinessActionContext } from "@/lib/db/business-access";
-import { assertBusinessActionRateLimit } from "@/lib/public-action-rate-limit";
+import { assertBusinessActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
 
 import { canCreateAutomation } from "./entitlements";
 import { cancelPendingJobs } from "./scheduler";

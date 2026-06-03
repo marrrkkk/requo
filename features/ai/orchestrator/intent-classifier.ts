@@ -1,6 +1,7 @@
 import "server-only";
 
 import { generateWithFallback } from "@/lib/ai/router";
+import { cacheLayer } from "@/lib/ai/cache-layer";
 import type { IntentResult, ToolCategory } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -18,36 +19,82 @@ const DEFAULT_INTENT_RESULT: IntentResult = {
 };
 
 const MAX_MESSAGE_LENGTH = 600;
-const CACHE_TTL_MS = 60_000;
+const CACHE_TTL_SECONDS = 60;
 const CLASSIFICATION_TIMEOUT_MS = 2_000;
+const CACHE_KEY_PREFIX = "intent:";
 
 // ---------------------------------------------------------------------------
-// In-memory cache (60s TTL)
+// Heuristic Intent Pre-Classification
+//
+// Fast regex-based patterns that handle obvious intents without a model call.
+// Entity keywords for data_query: inquiries, quotes, customers, leads, jobs, invoices, follow-ups
+// Greeting patterns for general_question: hello, hi, hey, thanks, thank you, good morning, good afternoon
 // ---------------------------------------------------------------------------
 
-type CacheEntry = {
-  result: IntentResult;
-  expiresAt: number;
-};
+const ENTITY_KEYWORDS = "(?:inquiries|quotes|customers|leads|jobs|invoices|follow[- ]?ups)";
 
-const cache = new Map<string, CacheEntry>();
+const HEURISTIC_PATTERNS: Array<{ pattern: RegExp; result: IntentResult }> = [
+  // data_query: count/list/show/get + entity keywords
+  {
+    pattern: new RegExp(
+      `\\b(?:how many|count|list|show(?:\\s+me)?|get)\\b.*\\b${ENTITY_KEYWORDS}\\b`,
+      "i",
+    ),
+    result: {
+      intent: "data_query",
+      toolCategories: ["query_tools"],
+      memoryCategories: [],
+      promptModules: ["base_identity", "safety_constraints", "tool_usage_instructions"],
+    },
+  },
+  // data_query: entity keywords + count/list/show/get (reversed order)
+  {
+    pattern: new RegExp(
+      `\\b${ENTITY_KEYWORDS}\\b.*\\b(?:count|list|show|get)\\b`,
+      "i",
+    ),
+    result: {
+      intent: "data_query",
+      toolCategories: ["query_tools"],
+      memoryCategories: [],
+      promptModules: ["base_identity", "safety_constraints", "tool_usage_instructions"],
+    },
+  },
+  // general_question: simple greetings
+  {
+    pattern: /^\s*(?:hello|hi|hey|thanks|thank you|good morning|good afternoon)\s*[.!?]?\s*$/i,
+    result: {
+      intent: "general_question",
+      toolCategories: ["query_tools"],
+      memoryCategories: [],
+      promptModules: ["base_identity", "safety_constraints"],
+    },
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Cache key generation
+// ---------------------------------------------------------------------------
 
 function getCacheKey(message: string, conversationId: string): string {
-  return `${message.slice(0, MAX_MESSAGE_LENGTH)}::${conversationId}`;
+  return `${CACHE_KEY_PREFIX}${message.slice(0, MAX_MESSAGE_LENGTH)}::${conversationId}`;
 }
 
-function getCached(key: string): IntentResult | null {
-  const entry = cache.get(key);
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) {
-    cache.delete(key);
-    return null;
+// ---------------------------------------------------------------------------
+// Heuristic pattern matching
+// ---------------------------------------------------------------------------
+
+/**
+ * Checks the message against heuristic patterns for obvious intents.
+ * Returns the matching IntentResult or null if no pattern matches.
+ */
+function matchHeuristicPattern(message: string): IntentResult | null {
+  for (const { pattern, result } of HEURISTIC_PATTERNS) {
+    if (pattern.test(message)) {
+      return result;
+    }
   }
-  return entry.result;
-}
-
-function setCache(key: string, result: IntentResult): void {
-  cache.set(key, { result, expiresAt: Date.now() + CACHE_TTL_MS });
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -94,9 +141,16 @@ export async function classifyIntent(
   const truncatedMessage = message.slice(0, MAX_MESSAGE_LENGTH);
   const cacheKey = getCacheKey(message, conversationId);
 
-  // Check cache first
-  const cached = getCached(cacheKey);
+  // Check cache first (via Cache Layer)
+  const cached = await cacheLayer.get<IntentResult>(cacheKey);
   if (cached) return cached;
+
+  // Heuristic pre-classification: check patterns before making a model call
+  const heuristicResult = matchHeuristicPattern(truncatedMessage);
+  if (heuristicResult) {
+    await cacheLayer.set<IntentResult>(cacheKey, heuristicResult, CACHE_TTL_SECONDS);
+    return heuristicResult;
+  }
 
   try {
     const controller = new AbortController();
@@ -131,7 +185,7 @@ export async function classifyIntent(
     clearTimeout(timeout);
 
     const parsed = parseIntentResult(response.text);
-    setCache(cacheKey, parsed);
+    await cacheLayer.set<IntentResult>(cacheKey, parsed, CACHE_TTL_SECONDS);
     return parsed;
   } catch (error) {
     console.warn(
@@ -219,5 +273,4 @@ function parseIntentResult(text: string): IntentResult {
 // Exports for testing
 // ---------------------------------------------------------------------------
 
-export { DEFAULT_INTENT_RESULT };
-export type { CacheEntry };
+export { DEFAULT_INTENT_RESULT, HEURISTIC_PATTERNS, matchHeuristicPattern };

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 
 import { StructuredData } from "@/components/seo/structured-data";
 import { DpaPage as DpaPageContent } from "@/features/legal/components/dpa-page";
@@ -15,7 +16,9 @@ export const metadata: Metadata = createPageMetadata({
   title: "Data Processing Agreement",
 });
 
-export default function DpaPage() {
+export default async function DpaPage() {
+  "use cache";
+  cacheLife("hours");
   const breadcrumbItems = buildBreadcrumbsForPathname("/legal/dpa", {
     "/legal/dpa": "Data Processing Agreement",
   });

@@ -1,7 +1,9 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
 import { Facebook, Instagram, Linkedin, X } from "@thesvg/react";
-import { ArrowUpRight, CircleCheckBig, Mail, Phone, Share2 } from "lucide-react";
+import { ArrowUpRight, Mail, Phone, Share2 } from "lucide-react";
+
+import { AnimatedSuccessIcon } from "@/components/feedback/animated-success-icon";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -472,11 +474,9 @@ function PublicInquiryReceivedFeedback({
 
   return (
     <main className="public-page flex min-h-[calc(100svh-3rem)] items-center justify-center">
-      <section className="mx-auto flex w-full max-w-lg flex-col items-center gap-6 text-center">
-        <div className="flex size-14 items-center justify-center rounded-full border border-primary/15 bg-accent text-primary">
-          <CircleCheckBig className="size-6" aria-hidden="true" />
-        </div>
-        <div className="flex flex-col items-center gap-3">
+      <section className="motion-card-enter mx-auto flex w-full max-w-lg flex-col items-center gap-6 text-center">
+        <AnimatedSuccessIcon />
+        <div className="motion-card-enter motion-delay-2 flex flex-col items-center gap-3">
           <h1 className="font-heading text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-4xl">
             Inquiry received.
           </h1>
@@ -484,9 +484,11 @@ function PublicInquiryReceivedFeedback({
             {customMessage || defaultMessage}
           </p>
         </div>
-        <Button asChild size="lg">
-          <a href={formHref}>Submit another inquiry</a>
-        </Button>
+        <div className="motion-card-enter motion-delay-3">
+          <Button asChild size="lg">
+            <a href={formHref}>Submit another inquiry</a>
+          </Button>
+        </div>
       </section>
     </main>
   );

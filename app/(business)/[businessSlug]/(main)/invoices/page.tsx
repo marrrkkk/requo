@@ -22,6 +22,8 @@ import {
 } from "@/features/invoices/queries";
 import { InvoiceListResults } from "@/features/invoices/components/invoice-list-results";
 import { createNoIndexMetadata } from "@/lib/seo/site";
+import { FirstVisitTip } from "@/features/onboarding/components/first-visit-tip";
+import { featureTips } from "@/features/onboarding/feature-tips";
 
 export const metadata: Metadata = createNoIndexMetadata({
   title: "Invoices",
@@ -132,6 +134,8 @@ export default async function InvoicesPage({
         title="Invoices"
         description="Generate, send, and track payment for completed work."
       />
+
+      <FirstVisitTip {...featureTips.invoices} className="mb-4" />
 
       <Suspense
         fallback={<InvoicesPageSkeleton />}

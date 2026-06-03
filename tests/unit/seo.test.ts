@@ -641,7 +641,7 @@ describe("Inquiry form metadata", () => {
     });
 
     expect(getPublicInquiryPageTitle(business)).toBe(
-      "Kitchen Remodel Intake · Acme Co",
+      "Kitchen Remodel Intake - Acme Co",
     );
     expect(getPublicInquiryPageDescription(business)).toBe(
       "Submit Kitchen Remodel Intake to Acme Co.",

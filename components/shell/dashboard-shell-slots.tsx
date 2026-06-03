@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import {
-  ArrowUpRight,
   BriefcaseBusiness,
   Check,
   ChevronsUpDown,
@@ -43,6 +42,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useBusinessCheckout } from "@/features/billing/components/business-checkout-provider";
+import { UpgradeButton } from "@/features/billing/components/upgrade-button";
 import {
   getBusinessDashboardPath,
   getBusinessMembersPath,
@@ -307,6 +307,7 @@ export function DashboardUserMenu({
   businessRole,
   businessSlug,
   plan,
+  businessId,
 }: {
   user: {
     id: string;
@@ -317,10 +318,10 @@ export function DashboardUserMenu({
   businessRole: BusinessContext["role"];
   businessSlug: string;
   plan: BusinessContext["business"]["plan"];
+  businessId: string;
 }) {
   const [isPending, startTransition] = useTransition();
   const { isMobile, setOpenMobile } = useSidebar();
-  const businessCheckout = useBusinessCheckout();
 
   function closeMobileSidebar() {
     if (isMobile) {
@@ -402,7 +403,24 @@ export function DashboardUserMenu({
                 </div>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
+            {plan !== "business" ? (
+              <>
+                <div className="px-2 py-1.5">
+                  <UpgradeButton
+                    className="w-full whitespace-nowrap"
+                    currentPlan={plan}
+                    size="sm"
+                    variant="outline"
+                    userId={user.id}
+                    businessId={businessId}
+                    businessSlug={businessSlug}
+                  />
+                </div>
+                <DropdownMenuSeparator />
+              </>
+            ) : (
+              <DropdownMenuSeparator />
+            )}
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
                 <Link
@@ -437,19 +455,6 @@ export function DashboardUserMenu({
                   <PlanBadge plan={plan} className="ml-auto" />
                 </Link>
               </DropdownMenuItem>
-              {plan !== "business" && businessCheckout ? (
-                <DropdownMenuItem
-                  onSelect={() => {
-                    closeMobileSidebar();
-                    businessCheckout.openPlanSelection(
-                      plan === "pro" ? "business" : undefined,
-                    );
-                  }}
-                >
-                  <ArrowUpRight data-icon="inline-start" />
-                  {plan === "pro" ? "Upgrade to Business" : "Upgrade Plan"}
-                </DropdownMenuItem>
-              ) : null}
               <AppearanceMenuSubmenu userId={user.id} />
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

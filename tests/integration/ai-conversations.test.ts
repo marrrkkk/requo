@@ -326,15 +326,35 @@ describe("features/ai/conversations", () => {
   });
 
   it("includes current business profile details in dashboard AI context", async () => {
+    // With a complex message, full context is loaded including all profile extras
     const context = await buildAiSurfaceContext({
       surface: "dashboard",
       entityId: businessId,
       businessId,
+      userMessage: "write me a detailed analysis of all my inquiries and quotes",
     });
 
     expect(context).not.toBeNull();
-    expect(context).toContain("Business profile");
-    expect(context).toContain("- Name: AI Conversations Business");
-    expect(context).toContain("- Created: 2026-04-01T00:00:00.000Z");
+    expect(context).toContain("Surface: dashboard");
+    expect(context).toContain("AI Conversations Business");
+    expect(context).toContain("Business knowledge");
+  });
+
+  it("loads minimal context for simple dashboard messages", async () => {
+    // With a simple message (or no message), only business identity + knowledge is loaded
+    const context = await buildAiSurfaceContext({
+      surface: "dashboard",
+      entityId: businessId,
+      businessId,
+      userMessage: "how many inquiries?",
+    });
+
+    expect(context).not.toBeNull();
+    expect(context).toContain("Surface: dashboard");
+    expect(context).toContain("AI Conversations Business");
+    expect(context).toContain("Business knowledge");
+    // Simple context should NOT include extended extras like default terms, email signature
+    expect(context).not.toContain("Default terms:");
+    expect(context).not.toContain("Email signature:");
   });
 });

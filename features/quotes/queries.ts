@@ -43,6 +43,7 @@ import {
   getBusinessQuoteListCacheTags,
   hotBusinessCacheLife,
 } from "@/lib/cache/business-tags";
+import { withCircuitBreaker } from "@/lib/db/circuit-breaker";
 import type {
   DashboardQuoteDetail,
   DashboardQuoteListItem,
@@ -169,12 +170,16 @@ async function getCachedQuoteListCountForBusiness({
     filters,
   });
 
-  const rows = await db
-    .select({
-      count: count(),
-    })
-    .from(quotes)
-    .where(and(...conditions));
+  const rows = await withCircuitBreaker(
+    `dashboard:quotes-count:${businessId}`,
+    () =>
+      db
+        .select({
+          count: count(),
+        })
+        .from(quotes)
+        .where(and(...conditions)),
+  );
 
   return Number(rows[0]?.count ?? 0);
 }
@@ -218,44 +223,48 @@ async function getCachedQuoteListPageForBusiness({
   const createdAtSort = filters.sort === "oldest" ? asc : desc;
   const offset = Math.max(0, (page - 1) * pageSize);
 
-  const rows = await db
-    .select({
-      id: quotes.id,
-      quoteNumber: quotes.quoteNumber,
-      title: quotes.title,
-      customerName: quotes.customerName,
-      customerEmail: quotes.customerEmail,
-      customerContactMethod: quotes.customerContactMethod,
-      customerContactHandle: quotes.customerContactHandle,
-      totalInCents: quotes.totalInCents,
-      currency: quotes.currency,
-      validUntil: quotes.validUntil,
-      status: getEffectiveQuoteStatus,
-      archivedAt: quotes.archivedAt,
-      postAcceptanceStatus: quotes.postAcceptanceStatus,
-      sentAt: quotes.sentAt,
-      publicViewedAt: quotes.publicViewedAt,
-      customerRespondedAt: quotes.customerRespondedAt,
-      pendingFollowUpCount: sql<number>`(
-        select count(*)::int
-        from ${followUps}
-        where ${followUps.businessId} = ${quotes.businessId}
-          and ${followUps.quoteId} = ${quotes.id}
-          and ${followUps.status} = 'pending'
-      )`,
-      nextFollowUpDueAt: sql<Date | null>`(
-        select min(${followUps.dueAt})
-        from ${followUps}
-        where ${followUps.businessId} = ${quotes.businessId}
-          and ${followUps.quoteId} = ${quotes.id}
-          and ${followUps.status} = 'pending'
-      )`,
-    })
-    .from(quotes)
-    .where(and(...conditions))
-    .orderBy(createdAtSort(quotes.createdAt))
-    .limit(pageSize)
-    .offset(offset);
+  const rows = await withCircuitBreaker(
+    `dashboard:quotes:${businessId}`,
+    () =>
+      db
+        .select({
+          id: quotes.id,
+          quoteNumber: quotes.quoteNumber,
+          title: quotes.title,
+          customerName: quotes.customerName,
+          customerEmail: quotes.customerEmail,
+          customerContactMethod: quotes.customerContactMethod,
+          customerContactHandle: quotes.customerContactHandle,
+          totalInCents: quotes.totalInCents,
+          currency: quotes.currency,
+          validUntil: quotes.validUntil,
+          status: getEffectiveQuoteStatus,
+          archivedAt: quotes.archivedAt,
+          postAcceptanceStatus: quotes.postAcceptanceStatus,
+          sentAt: quotes.sentAt,
+          publicViewedAt: quotes.publicViewedAt,
+          customerRespondedAt: quotes.customerRespondedAt,
+          pendingFollowUpCount: sql<number>`(
+            select count(*)::int
+            from ${followUps}
+            where ${followUps.businessId} = ${quotes.businessId}
+              and ${followUps.quoteId} = ${quotes.id}
+              and ${followUps.status} = 'pending'
+          )`,
+          nextFollowUpDueAt: sql<Date | null>`(
+            select min(${followUps.dueAt})
+            from ${followUps}
+            where ${followUps.businessId} = ${quotes.businessId}
+              and ${followUps.quoteId} = ${quotes.id}
+              and ${followUps.status} = 'pending'
+          )`,
+        })
+        .from(quotes)
+        .where(and(...conditions))
+        .orderBy(createdAtSort(quotes.createdAt))
+        .limit(pageSize)
+        .offset(offset),
+  );
 
   return rows.map((row) => {
     return {

@@ -26,6 +26,17 @@ export type OnboardingStepId = "business" | "template" | "profile";
 
 export const onboardingSteps = [
   {
+    id: "profile" as const,
+    label: "Profile",
+    description: "Your avatar, name, and role.",
+    title: "Let's get started",
+    body: "Add your photo and name so your team and clients can recognize you.",
+    fields: [
+      "firstName",
+      "lastName",
+    ] as const satisfies readonly OnboardingFieldName[],
+  },
+  {
     id: "business" as const,
     label: "Business",
     description: "Add the core details for your first business.",
@@ -48,17 +59,6 @@ export const onboardingSteps = [
       "Pick your business type and starting defaults. You can customize everything later.",
     fields: [
       "starterTemplateBusinessType",
-    ] as const satisfies readonly OnboardingFieldName[],
-  },
-  {
-    id: "profile" as const,
-    label: "Profile",
-    description: "Your avatar, name, and role.",
-    title: "Finish your profile",
-    body: "Add your photo and name so your team and clients can recognize you.",
-    fields: [
-      "firstName",
-      "lastName",
     ] as const satisfies readonly OnboardingFieldName[],
   },
 ] satisfies ReadonlyArray<{

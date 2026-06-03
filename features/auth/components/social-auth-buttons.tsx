@@ -2,8 +2,11 @@
 
 import type { ComponentType } from "react";
 
+import { ExternalLink, TriangleAlert } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { useInAppBrowser } from "@/features/auth/use-in-app-browser";
 
 export type SocialAuthProvider = "google";
 
@@ -33,12 +36,18 @@ export function SocialAuthButtons({
   providers,
   onProviderClick,
 }: SocialAuthButtonsProps) {
+  const { isInAppBrowser, appName } = useInAppBrowser();
+
   if (!providers.length) {
     return null;
   }
 
   return (
     <div className="grid gap-3">
+      {isInAppBrowser ? (
+        <InAppBrowserWarning appName={appName} />
+      ) : null}
+
       {providers.map((provider) => {
         const meta = socialProviderMeta[provider];
         const Icon = meta.icon;
@@ -46,7 +55,7 @@ export function SocialAuthButtons({
         return (
           <Button
             className="w-full"
-            disabled={disabled}
+            disabled={disabled || isInAppBrowser}
             key={provider}
             onClick={() => onProviderClick(provider)}
             size="lg"
@@ -62,6 +71,48 @@ export function SocialAuthButtons({
           </Button>
         );
       })}
+    </div>
+  );
+}
+
+/** Warning shown when the page is opened inside an in-app browser (e.g. Messenger, Instagram). */
+function InAppBrowserWarning({ appName }: { appName: string | null }) {
+  const currentUrl = typeof window !== "undefined" ? window.location.href : "";
+
+  function handleOpenInBrowser() {
+    // Attempt to open in the system browser.
+    // On iOS, window.open often works from in-app browsers.
+    // On Android, intent:// scheme can help but isn't universal.
+    window.open(currentUrl, "_system");
+  }
+
+  return (
+    <div
+      role="alert"
+      className="rounded-xl border border-amber-500/20 bg-amber-50/80 px-4 py-3.5 text-sm dark:bg-amber-950/20"
+    >
+      <div className="flex items-start gap-3">
+        <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+        <div className="grid gap-1.5">
+          <p className="font-medium text-amber-900 dark:text-amber-200">
+            Google sign-in won&apos;t work here
+          </p>
+          <p className="text-amber-800/80 dark:text-amber-300/70">
+            {appName ? `You're in ${appName}'s browser. ` : "You're in an in-app browser. "}
+            Open this page in Safari or Chrome to sign in with Google, or use email below.
+          </p>
+          <Button
+            className="mt-1 w-fit"
+            onClick={handleOpenInBrowser}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <ExternalLink className="size-3.5" />
+            Open in browser
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

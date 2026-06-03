@@ -37,7 +37,7 @@ export const dataExports = pgTable("data_exports", {
 export const aiSecurityEvents = pgTable("ai_security_events", {
   id: text("id").primaryKey(),
   eventType: text("event_type", {
-    enum: ["injection_detected", "injection_rejected", "output_redacted"],
+    enum: ["injection_detected", "injection_rejected", "output_redacted", "conversation_locked", "canary_leak_detected"],
   }).notNull(),
   patternMatched: text("pattern_matched"),
   userId: text("user_id"),

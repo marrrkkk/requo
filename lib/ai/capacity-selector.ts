@@ -1,10 +1,13 @@
 import "server-only";
 
+import { cacheLayer } from "@/lib/ai/cache-layer";
+
 // ---------------------------------------------------------------------------
 // Capacity-Aware Model Selector
 //
-// Tracks in-memory request counts per model and selects the best available
-// model that still has headroom. This distributes load across providers to:
+// Tracks request counts per model via the distributed Cache Layer and selects
+// the best available model that still has headroom. This distributes load
+// across providers to:
 // - Keep quality consistently high for all users (not just early birds)
 // - Avoid hammering one model to exhaustion while others sit idle
 // - Reduce rate limit errors by staying under 80% of known limits
@@ -13,7 +16,7 @@ import "server-only";
 // 1. Each model has known rate limits (RPM = requests per minute, RPD = per day)
 // 2. On each request, counters are incremented for the selected model
 // 3. The selector picks the highest-quality model under 80% capacity
-// 4. Counters auto-expire on window boundaries (1-minute and daily)
+// 4. Counters auto-expire via Cache Layer TTLs (60s for RPM, 86400s for RPD)
 // 5. If ALL models are at capacity, falls back to the least-loaded one
 //
 // This is NOT a circuit breaker — it's a proactive load spreader.
@@ -31,11 +34,6 @@ export type ModelCapacity = {
   quality: number;
   /** Whether this model supports tool calling reliably */
   toolCapable: boolean;
-};
-
-type UsageWindow = {
-  count: number;
-  windowStart: number; // Unix ms
 };
 
 // ---------------------------------------------------------------------------
@@ -76,58 +74,40 @@ const MODEL_CAPACITIES: ModelCapacity[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// In-memory usage tracking
+// Cache Layer usage tracking
 // ---------------------------------------------------------------------------
 
-const minuteUsage = new Map<string, UsageWindow>();
-const dayUsage = new Map<string, UsageWindow>();
-
-const MINUTE_MS = 60_000;
-const DAY_MS = 86_400_000;
+const RPM_TTL_SECONDS = 60;
+const RPD_TTL_SECONDS = 86_400;
 const CAPACITY_THRESHOLD = 0.80; // Pick models under 80% of their limit
 
-function getMinuteCount(modelId: string): number {
-  const entry = minuteUsage.get(modelId);
-  if (!entry) return 0;
-  if (Date.now() - entry.windowStart >= MINUTE_MS) {
-    minuteUsage.delete(modelId);
-    return 0;
-  }
-  return entry.count;
+function getRpmKey(modelId: string): string {
+  return `cap:rpm:${modelId}`;
 }
 
-function getDayCount(modelId: string): number {
-  const entry = dayUsage.get(modelId);
-  if (!entry) return 0;
-  if (Date.now() - entry.windowStart >= DAY_MS) {
-    dayUsage.delete(modelId);
-    return 0;
-  }
-  return entry.count;
+function getRpdKey(modelId: string): string {
+  return `cap:rpd:${modelId}`;
+}
+
+async function getMinuteCount(modelId: string): Promise<number> {
+  const value = await cacheLayer.get<number>(getRpmKey(modelId));
+  return value ?? 0;
+}
+
+async function getDayCount(modelId: string): Promise<number> {
+  const value = await cacheLayer.get<number>(getRpdKey(modelId));
+  return value ?? 0;
 }
 
 /**
  * Record that a request was made to a model.
  * Call this AFTER successfully starting a stream/generation.
  */
-export function recordModelUsage(modelId: string): void {
-  const now = Date.now();
-
-  // Minute window
-  const minuteEntry = minuteUsage.get(modelId);
-  if (!minuteEntry || now - minuteEntry.windowStart >= MINUTE_MS) {
-    minuteUsage.set(modelId, { count: 1, windowStart: now });
-  } else {
-    minuteEntry.count++;
-  }
-
-  // Day window
-  const dayEntry = dayUsage.get(modelId);
-  if (!dayEntry || now - dayEntry.windowStart >= DAY_MS) {
-    dayUsage.set(modelId, { count: 1, windowStart: now });
-  } else {
-    dayEntry.count++;
-  }
+export async function recordModelUsage(modelId: string): Promise<void> {
+  await Promise.all([
+    cacheLayer.increment(getRpmKey(modelId), RPM_TTL_SECONDS),
+    cacheLayer.increment(getRpdKey(modelId), RPD_TTL_SECONDS),
+  ]);
 }
 
 /**
@@ -135,8 +115,7 @@ export function recordModelUsage(modelId: string): void {
  * Also marks other models from the same provider as exhausted when they share
  * org-level rate limits (e.g., all Groq models share the same TPM budget).
  */
-export function markModelExhausted(modelId: string): void {
-  const now = Date.now();
+export async function markModelExhausted(modelId: string): Promise<void> {
   const provider = modelId.split(":")[0];
 
   // Providers with shared org-level TPM — exhaust ALL models from that provider
@@ -146,14 +125,11 @@ export function markModelExhausted(modelId: string): void {
     ? MODEL_CAPACITIES.filter((m) => m.modelId.startsWith(provider + ":")).map((m) => m.modelId)
     : [modelId];
 
-  for (const id of modelsToExhaust) {
-    const minuteEntry = minuteUsage.get(id);
-    if (minuteEntry && now - minuteEntry.windowStart < MINUTE_MS) {
-      minuteEntry.count = 99999;
-    } else {
-      minuteUsage.set(id, { count: 99999, windowStart: now });
-    }
-  }
+  await Promise.all(
+    modelsToExhaust.map((id) =>
+      cacheLayer.set<number>(getRpmKey(id), 99999, RPM_TTL_SECONDS),
+    ),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -173,9 +149,9 @@ type SelectionCriteria = {
  * Calculates how "loaded" a model is as a 0-1 ratio.
  * Takes the max of minute-load and day-load.
  */
-function getLoadRatio(cap: ModelCapacity): number {
-  const minuteCount = getMinuteCount(cap.modelId);
-  const dayCount = getDayCount(cap.modelId);
+async function getLoadRatio(cap: ModelCapacity): Promise<number> {
+  const minuteCount = await getMinuteCount(cap.modelId);
+  const dayCount = await getDayCount(cap.modelId);
 
   const minuteLoad = cap.rpm > 0 ? minuteCount / cap.rpm : 0;
   const dayLoad = cap.rpd > 0 ? dayCount / cap.rpd : 0;
@@ -194,7 +170,7 @@ function getLoadRatio(cap: ModelCapacity): number {
  *
  * Returns an ordered list of model IDs to try (best first, then fallbacks).
  */
-export function selectModels(criteria: SelectionCriteria): `${string}:${string}`[] {
+export async function selectModels(criteria: SelectionCriteria): Promise<`${string}:${string}`[]> {
   const { needsTools, minQuality = 1, preferProviders } = criteria;
 
   // Filter eligible models
@@ -212,10 +188,11 @@ export function selectModels(criteria: SelectionCriteria): `${string}:${string}`
     ];
   }
 
-  // Calculate load for each model
-  const scored = eligible.map((cap) => ({
+  // Calculate load for each model (parallel cache reads)
+  const loadRatios = await Promise.all(eligible.map((cap) => getLoadRatio(cap)));
+  const scored = eligible.map((cap, i) => ({
     ...cap,
-    loadRatio: getLoadRatio(cap),
+    loadRatio: loadRatios[i],
   }));
 
   // Split into available (under threshold) and stressed
@@ -244,7 +221,7 @@ export function selectModels(criteria: SelectionCriteria): `${string}:${string}`
  * Priority: Cerebras (fast, high TPM) → Mistral (500K TPM) → OpenRouter → Groq (low TPM) → Gemini.
  * Groq deprioritized because its 8K TPM free tier can't reliably handle tool-calling payloads.
  */
-export function selectToolCallingModels(): `${string}:${string}`[] {
+export async function selectToolCallingModels(): Promise<`${string}:${string}`[]> {
   return selectModels({
     needsTools: true,
     minQuality: 7,
@@ -256,7 +233,7 @@ export function selectToolCallingModels(): `${string}:${string}`[] {
  * Select models for a simple text lookup (no tools).
  * Prefers fast/cheap models with quality ≥ 5.
  */
-export function selectSimpleTextModels(): `${string}:${string}`[] {
+export async function selectSimpleTextModels(): Promise<`${string}:${string}`[]> {
   return selectModels({
     needsTools: false,
     minQuality: 5,
@@ -268,7 +245,7 @@ export function selectSimpleTextModels(): `${string}:${string}`[] {
  * Select models for complex text generation (no tools, quality matters).
  * Prefers high-quality models.
  */
-export function selectComplexTextModels(): `${string}:${string}`[] {
+export async function selectComplexTextModels(): Promise<`${string}:${string}`[]> {
   return selectModels({
     needsTools: false,
     minQuality: 7,
@@ -283,7 +260,7 @@ export function selectComplexTextModels(): `${string}:${string}`[] {
 /**
  * Returns current capacity status for all models. Used in dev debug info.
  */
-export function getCapacitySnapshot(): Array<{
+export async function getCapacitySnapshot(): Promise<Array<{
   modelId: string;
   quality: number;
   rpm: number;
@@ -292,20 +269,25 @@ export function getCapacitySnapshot(): Array<{
   dayUsage: number;
   loadRatio: number;
   available: boolean;
-}> {
-  return MODEL_CAPACITIES.map((cap) => {
-    const loadRatio = getLoadRatio(cap);
-    return {
-      modelId: cap.modelId,
-      quality: cap.quality,
-      rpm: cap.rpm,
-      rpd: cap.rpd,
-      minuteUsage: getMinuteCount(cap.modelId),
-      dayUsage: getDayCount(cap.modelId),
-      loadRatio,
-      available: loadRatio < CAPACITY_THRESHOLD,
-    };
-  });
+}>> {
+  const results = await Promise.all(
+    MODEL_CAPACITIES.map(async (cap) => {
+      const loadRatio = await getLoadRatio(cap);
+      const minuteCount = await getMinuteCount(cap.modelId);
+      const dayCount = await getDayCount(cap.modelId);
+      return {
+        modelId: cap.modelId,
+        quality: cap.quality,
+        rpm: cap.rpm,
+        rpd: cap.rpd,
+        minuteUsage: minuteCount,
+        dayUsage: dayCount,
+        loadRatio,
+        available: loadRatio < CAPACITY_THRESHOLD,
+      };
+    }),
+  );
+  return results;
 }
 
 /** Get all registered model IDs for the dev model selector. */
@@ -315,9 +297,15 @@ export function getAllRegisteredModelIds(): `${string}:${string}`[] {
 
 /**
  * Resets all usage counters. Used for testing.
+ * Note: Only clears the in-memory fallback layer. Redis entries expire via TTL.
  * @internal
  */
-export function _resetUsageCounters(): void {
-  minuteUsage.clear();
-  dayUsage.clear();
+export async function _resetUsageCounters(): Promise<void> {
+  // Delete all known model keys from cache layer
+  await Promise.all(
+    MODEL_CAPACITIES.flatMap((cap) => [
+      cacheLayer.delete(getRpmKey(cap.modelId)),
+      cacheLayer.delete(getRpdKey(cap.modelId)),
+    ]),
+  );
 }

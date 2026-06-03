@@ -3,19 +3,18 @@
  *
  * Complex task — structured output, system prompt ≤1600 tokens.
  * Context fields: inquiryText, customerName, customerEmail, pricingBlocks,
- *                 tonePreference, businessMemorySummary
+ *                 businessMemorySummary
  */
 export function buildQuoteDraftPrompt(
   context: Record<string, string>,
 ): string {
-  const tone = context.tonePreference ?? "professional";
   const isRevision = Boolean(context.revisionContext);
 
   const lines = [
     isRevision
       ? "Revise an existing quote based on the customer's feedback below."
       : "Generate a quote draft for the customer inquiry below.",
-    `Use a ${tone} tone. All prices in cents (integer). No currency symbols.`,
+    "Use a professional tone. All prices in cents (integer). No currency symbols.",
     "",
     "PRICING RULES (CRITICAL — READ CAREFULLY):",
     "- ALWAYS check the \"Approved pricing blocks\" section below FIRST before creating any line item.",

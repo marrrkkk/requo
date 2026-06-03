@@ -64,8 +64,10 @@ export function ArchivedInquiriesSheet({
   const formOptions = useMemo(() => {
     const seen = new Map<string, string>();
     for (const item of items) {
-      if (!seen.has(item.inquiryFormSlug)) {
-        seen.set(item.inquiryFormSlug, item.inquiryFormName);
+      const slug = item.inquiryFormSlug ?? "__no_form__";
+      const name = item.inquiryFormName ?? (item.source === "ai" ? "AI" : "Manual");
+      if (!seen.has(slug)) {
+        seen.set(slug, name);
       }
     }
     return Array.from(seen, ([slug, name]) => ({ slug, name }));
@@ -75,7 +77,7 @@ export function ArchivedInquiriesSheet({
     const q = query.toLowerCase().trim();
     return items.filter((item) => {
       if (statusFilter !== "all" && item.status !== statusFilter) return false;
-      if (formFilter !== "all" && item.inquiryFormSlug !== formFilter)
+      if (formFilter !== "all" && (item.inquiryFormSlug ?? "__no_form__") !== formFilter)
         return false;
       if (!q) return true;
       return (

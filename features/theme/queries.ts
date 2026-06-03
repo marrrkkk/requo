@@ -9,6 +9,7 @@ import {
   getUserThemeCacheTags,
   userShellCacheLife,
 } from "@/lib/cache/shell-tags";
+import { withCircuitBreaker } from "@/lib/db/circuit-breaker";
 import { db } from "@/lib/db/client";
 import { profiles } from "@/lib/db/schema";
 
@@ -21,13 +22,17 @@ async function getCachedThemePreference(
   cacheTag(...getUserThemeCacheTags(userId));
 
   try {
-    const [profile] = await db
-      .select({
-        themePreference: profiles.themePreference,
-      })
-      .from(profiles)
-      .where(eq(profiles.userId, userId))
-      .limit(1);
+    const [profile] = await withCircuitBreaker(
+      `shell:theme:${userId}`,
+      () =>
+        db
+          .select({
+            themePreference: profiles.themePreference,
+          })
+          .from(profiles)
+          .where(eq(profiles.userId, userId))
+          .limit(1),
+    );
 
     return profile?.themePreference ?? "system";
   } catch (error) {

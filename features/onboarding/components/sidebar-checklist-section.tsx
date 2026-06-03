@@ -1,10 +1,14 @@
 import {
   getBusinessInquiriesPath,
   getBusinessInquiryFormsPath,
+  getBusinessJobsPath,
+  getBusinessInvoicesPath,
   getBusinessNewQuotePath,
+  getBusinessQuotesPath,
   getBusinessSettingsPath,
 } from "@/features/businesses/routes";
 import { getBusinessDashboardSummaryData } from "@/features/businesses/queries";
+import { getChecklistProgressForBusiness } from "@/features/onboarding/queries";
 import {
   SidebarChecklist,
   type ChecklistItem,
@@ -21,7 +25,10 @@ export async function SidebarChecklistSection({
   businessSlug,
   publicInquiryEnabled,
 }: SidebarChecklistSectionProps) {
-  const summary = await getBusinessDashboardSummaryData(businessId);
+  const [summary, progress] = await Promise.all([
+    getBusinessDashboardSummaryData(businessId),
+    getChecklistProgressForBusiness(businessId),
+  ]);
 
   const items: ChecklistItem[] = [
     {
@@ -43,10 +50,34 @@ export async function SidebarChecklistSection({
       href: getBusinessInquiriesPath(businessSlug),
     },
     {
+      id: "qualify",
+      title: "Qualify an inquiry",
+      complete: progress.hasQualifiedInquiry,
+      href: getBusinessInquiriesPath(businessSlug),
+    },
+    {
       id: "quote",
       title: "Send first quote",
       complete: summary.totalQuotes > 0,
       href: getBusinessNewQuotePath(businessSlug),
+    },
+    {
+      id: "accepted",
+      title: "Get a quote accepted",
+      complete: summary.wonCount > 0,
+      href: getBusinessQuotesPath(businessSlug),
+    },
+    {
+      id: "job",
+      title: "Create first job",
+      complete: progress.hasJob,
+      href: getBusinessJobsPath(businessSlug),
+    },
+    {
+      id: "invoice",
+      title: "Send first invoice",
+      complete: progress.hasInvoice,
+      href: getBusinessInvoicesPath(businessSlug),
     },
   ];
 

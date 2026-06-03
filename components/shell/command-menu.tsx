@@ -7,9 +7,9 @@ import {
   BookOpen,
   BriefcaseBusiness,
   Clock,
-  CreditCard,
   Download,
   FileText,
+  GraduationCap,
   Home,
   Inbox,
   LayoutGrid,
@@ -67,15 +67,21 @@ import {
   type BusinessMemberRole,
 } from "@/lib/business-members";
 import { hasFeatureAccess } from "@/lib/plans/entitlements";
+import {
+  clearDashboardTourLocalStorage,
+  DASHBOARD_TOUR_DEV_SHOW_EVENT,
+} from "@/features/onboarding/tour-keys";
 
 type CommandMenuProps = {
   businessSlug: string;
+  businessId: string;
   role: BusinessMemberRole;
   plan: plan;
 };
 
 export function CommandMenu({
   businessSlug,
+  businessId,
   role,
   plan,
 }: CommandMenuProps) {
@@ -139,6 +145,16 @@ export function CommandMenu({
     }
 
     window.location.assign(path);
+  }
+
+  function handleReplayTour() {
+    clearDashboardTourLocalStorage(businessId);
+    router.push(getBusinessDashboardPath(businessSlug));
+    // Dispatch event after a short delay to let navigation settle
+    setTimeout(() => {
+      window.dispatchEvent(new Event(DASHBOARD_TOUR_DEV_SHOW_EVENT));
+    }, 500);
+    toast.success("Product tour restarted");
   }
 
   return (
@@ -285,6 +301,10 @@ export function CommandMenu({
                 <CommandItem onSelect={() => runCommand(copyPublicInquiryLink)}>
                   <Link2 className="mr-2 h-4 w-4" />
                   <span>Copy inquiry form link</span>
+                </CommandItem>
+                <CommandItem onSelect={() => runCommand(handleReplayTour)}>
+                  <GraduationCap className="mr-2 h-4 w-4" />
+                  <span>Replay product tour</span>
                 </CommandItem>
                 {canOperate ? (
                   <CommandItem

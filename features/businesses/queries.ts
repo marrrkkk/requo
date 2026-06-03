@@ -36,6 +36,7 @@ import {
   getPublicBusinessProfileCacheTags,
   hotBusinessCacheLife,
 } from "@/lib/cache/business-tags";
+import { withCircuitBreaker } from "@/lib/db/circuit-breaker";
 import { db } from "@/lib/db/client";
 import { businesses, inquiries, quotes } from "@/lib/db/schema";
 
@@ -81,7 +82,10 @@ export async function getBusinessOverviewData(
   businessId: string,
 ): Promise<BusinessOverviewData> {
   try {
-    return await getCachedBusinessOverviewData(businessId);
+    return await withCircuitBreaker(
+      `dashboard:overview:${businessId}`,
+      () => getCachedBusinessOverviewData(businessId),
+    );
   } catch (error) {
     console.error(
       "Failed to load business overview data.",
@@ -349,7 +353,10 @@ export async function getBusinessDashboardSummaryData(
   businessId: string,
 ): Promise<BusinessDashboardSummaryData> {
   try {
-    return await getCachedBusinessDashboardSummaryData(businessId);
+    return await withCircuitBreaker(
+      `dashboard:summary:${businessId}`,
+      () => getCachedBusinessDashboardSummaryData(businessId),
+    );
   } catch (error) {
     console.error(
       "Failed to load business dashboard summary data.",

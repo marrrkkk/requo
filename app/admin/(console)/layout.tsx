@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 
+import { ImpersonationBanner } from "@/components/shell/impersonation-banner";
 import { requireAdminUser } from "@/features/admin/access";
 import { AdminShell } from "@/features/admin/components/admin-shell";
 
@@ -11,9 +12,7 @@ export const preferredRegion = "syd1";
  * Admin console layout (auth-gated).
  *
  * Lives inside the `(console)` route group so the login page in `(auth)`
- * is NOT affected by this gate. Calls `requireAdminUser()` which verifies
- * the admin JWT session cookie — unauthenticated visitors are redirected
- * to the login page.
+ * is NOT affected by this gate.
  */
 export default function AdminConsoleLayout({
   children,
@@ -34,5 +33,17 @@ async function AdminConsoleShell({
 }) {
   await requireAdminUser();
 
-  return <AdminShell>{children}</AdminShell>;
+  return (
+    <AdminShell
+      banner={
+        <Suspense fallback={null}>
+          <div className="dashboard-content pt-4">
+            <ImpersonationBanner />
+          </div>
+        </Suspense>
+      }
+    >
+      {children}
+    </AdminShell>
+  );
 }

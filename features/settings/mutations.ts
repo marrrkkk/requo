@@ -24,6 +24,7 @@ import type {
   BusinessInquiryFormPresetInput,
   BusinessInquiryFormSettingsInput,
   BusinessInquiryPageSettingsInput,
+  BusinessInvoiceSettingsInput,
   BusinessNotificationSettingsInput,
   BusinessQuoteSettingsInput,
 } from "@/features/settings/schemas";
@@ -53,6 +54,12 @@ type UpdateBusinessQuoteSettingsInput = {
   businessId: string;
   actorUserId: string;
   values: BusinessQuoteSettingsInput;
+};
+
+type UpdateBusinessInvoiceSettingsInput = {
+  businessId: string;
+  actorUserId: string;
+  values: BusinessInvoiceSettingsInput;
 };
 
 type UpdateBusinessNotificationSettingsInput = {
@@ -321,7 +328,6 @@ export async function updateBusinessSettings({
             : nextLogoContentType ?? currentBusiness.logoContentType ?? null,
           defaultCurrency: values.defaultCurrency,
           defaultEmailSignature: values.defaultEmailSignature ?? null,
-          aiTonePreference: values.aiTonePreference,
           updatedAt: now,
         })
         .where(eq(businesses.id, businessId));
@@ -373,7 +379,6 @@ export async function updateBusinessSettings({
           countryCode: values.countryCode ?? null,
           defaultCurrency: values.defaultCurrency,
           hasLogo: Boolean(logoFile || previousLogoStoragePath) && !values.removeLogo,
-          aiTonePreference: values.aiTonePreference,
         },
         createdAt: now,
         updatedAt: now,
@@ -463,6 +468,59 @@ export async function updateBusinessQuoteSettings({
         defaultQuoteValidityDays: values.defaultQuoteValidityDays,
         hasDefaultQuoteNotes: Boolean(values.defaultQuoteNotes?.trim()),
         hasDefaultQuoteTerms: Boolean(values.defaultQuoteTerms?.trim()),
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+
+  return {
+    ok: true,
+    previousSlug: business.slug,
+    nextSlug: business.slug,
+  };
+}
+
+export async function updateBusinessInvoiceSettings({
+  businessId,
+  actorUserId,
+  values,
+}: UpdateBusinessInvoiceSettingsInput): Promise<UpdateBusinessSettingsResult> {
+  const [business] = await db
+    .select({
+      id: businesses.id,
+      slug: businesses.slug,
+    })
+    .from(businesses)
+    .where(eq(businesses.id, businessId))
+    .limit(1);
+
+  if (!business) {
+    return {
+      ok: false,
+      reason: "not-found",
+    };
+  }
+
+  const now = new Date();
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(businesses)
+      .set({
+        defaultInvoiceDueDays: values.defaultInvoiceDueDays,
+        updatedAt: now,
+      })
+      .where(eq(businesses.id, businessId));
+
+    await tx.insert(activityLogs).values({
+      id: createId("act"),
+      businessId,
+      actorUserId,
+      type: "business.invoice_settings_updated",
+      summary: "Invoice settings updated.",
+      metadata: {
+        defaultInvoiceDueDays: values.defaultInvoiceDueDays,
       },
       createdAt: now,
       updatedAt: now,

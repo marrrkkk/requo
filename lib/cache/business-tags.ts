@@ -258,3 +258,16 @@ export function getBusinessAutomationDetailCacheTags(
     `${scopeTag}:automation:${automationId}`,
   ]);
 }
+
+export function getBusinessChecklistCacheTags(businessId: string) {
+  const scopeTag = getBusinessScopeTag(businessId);
+
+  return uniqueCacheTags([
+    scopeTag,
+    `${scopeTag}:dashboard`,
+    `${scopeTag}:checklist`,
+    `${scopeTag}:inquiries`,
+    `${scopeTag}:jobs`,
+    `${scopeTag}:invoices`,
+  ]);
+}

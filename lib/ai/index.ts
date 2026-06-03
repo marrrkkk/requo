@@ -1,5 +1,7 @@
 export { generateWithFallback, streamWithFallback } from "./router";
 export { isAiConfigured } from "./config";
+export { cacheLayer } from "./cache-layer";
+export type { CacheLayer } from "./cache-layer";
 export { registry } from "./registry";
 export { AiProviderError, isRetryableError } from "./errors";
 export {
@@ -13,6 +15,7 @@ export {
   generateCacheKey,
   getCachedOutput,
   setCachedOutput,
+  BUSINESS_SCOPED_TASKS,
 } from "./ai-cache";
 export type { CacheKeyComponents, CachedAiOutput } from "./ai-cache";
 export type {
@@ -30,7 +33,7 @@ export {
   checkUsageLimit,
   recordUsage,
   startCooldown,
-  resetCooldowns,
+  resetCooldown,
   getMonthlyUsageSummary,
 } from "./usage-limiter";
 export type { UsageLimitCheck, UsageLimitResult } from "./usage-limiter";
@@ -41,7 +44,7 @@ export {
   recordAssistantTurn,
 } from "./assistant-usage";
 export type { AssistantBudgetCheck, AssistantBudgetResult, AssistantTurnUsage } from "./assistant-usage";
-export { summarizeDroppedMessages } from "./history-summarizer";
+export { summarizeDroppedMessages, summarizeConversation } from "./history-summarizer";
 export {
   classifyMessageComplexity,
   getHistoryLimitForComplexity,
@@ -64,3 +67,8 @@ export {
   getAllRegisteredModelIds,
 } from "./capacity-selector";
 export type { ModelCapacity } from "./capacity-selector";
+export { truncateToolOutput } from "./tool-truncator";
+export type { TruncationResult } from "./tool-truncator";
+export { checkQualityGate } from "./quality-gate";
+export type { QualityGateEvent } from "./quality-gate";
+export { checkDuplicate } from "./request-dedup";

@@ -133,8 +133,25 @@ const nextConfig: NextConfig = {
         headers: sensitiveNoStoreHeaders,
       },
       {
+        source: "/inquire/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, s-maxage=60, stale-while-revalidate=300",
+          },
+          { key: "Vary", value: "Accept-Encoding" },
+        ],
+      },
+      {
         source: "/quote/:path*",
-        headers: sensitiveNoStoreHeaders,
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, s-maxage=60, stale-while-revalidate=300",
+          },
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "Vary", value: "Accept-Encoding" },
+        ],
       },
       {
         source: "/b/:path*",

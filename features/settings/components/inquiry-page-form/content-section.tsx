@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { LockedAction } from "@/features/paywall";
 import type { BusinessPlan } from "@/lib/plans/plans";
 
-import { DetailsPanel, DisclosureSection, SectionHeading } from "./shared";
+import { DetailsPanel, DisclosureSection } from "./shared";
 
 export type ContentSectionProps = {
   headline: string;
@@ -73,21 +73,12 @@ export function ContentSection({
   onFormDescriptionChange,
 }: ContentSectionProps) {
   return (
-    <section
-      className="section-panel scroll-mt-20 p-5 sm:p-6"
-      id="content"
-    >
-      <SectionHeading
-        description="Copy shown at the top of the page and directly above the form."
-        title="Content"
-      />
-
-      <div className="mt-6 flex flex-col gap-6">
-          <DetailsPanel
-            description="Shown above the form."
-            eyebrow="Form"
-            title="Heading and note"
-          >
+    <div className="flex flex-col gap-6">
+        <DetailsPanel
+          description="Shown above the form."
+          eyebrow="Form"
+          title="Heading and note"
+        >
             <FieldGroup>
               <Field data-invalid={Boolean(headlineError) || undefined}>
                 <FieldLabel htmlFor="inquiry-page-headline">Headline</FieldLabel>
@@ -298,7 +289,6 @@ export function ContentSection({
             </DetailsPanel>
           </DisclosureSection>
 
-        </div>
-    </section>
+    </div>
   );
 }

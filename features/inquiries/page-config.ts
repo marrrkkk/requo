@@ -482,6 +482,48 @@ function createDefaultInquiryPageCards(
           icon: "schedule",
         },
       ];
+    case "event_services_rentals":
+      return [
+        {
+          id: "details",
+          title: "Describe the event",
+          description: "Tell us the date, venue, and what you need covered.",
+          icon: "details",
+        },
+        {
+          id: "upload",
+          title: "Share references",
+          description: "Upload mood boards, venue photos, or event plans.",
+          icon: "upload",
+        },
+        {
+          id: "schedule",
+          title: "Confirm the date",
+          description: "Lock in the event date so we can check availability.",
+          icon: "schedule",
+        },
+      ];
+    case "cleaning_services":
+      return [
+        {
+          id: "details",
+          title: "Describe the space",
+          description: "Tell us the property type, size, and what needs attention.",
+          icon: "details",
+        },
+        {
+          id: "upload",
+          title: "Add photos",
+          description: "Photos help us estimate time and price accurately.",
+          icon: "upload",
+        },
+        {
+          id: "schedule",
+          title: "Pick a schedule",
+          description: "Tell us how often you need service and when to start.",
+          icon: "schedule",
+        },
+      ];
     case "general_project_services":
     default:
       return [
@@ -525,7 +567,9 @@ export function createInquiryPageConfigDefaults(
       ? "showcase"
       : starterTemplateBusinessType === "consulting_professional_services"
         ? "no_supporting_cards"
-        : "split";
+        : starterTemplateBusinessType === "event_services_rentals"
+          ? "showcase"
+          : "split";
   const resolvedTemplate =
     plan && !hasFeatureAccess(plan, "inquiryPageCustomization")
       ? "no_supporting_cards"
@@ -563,6 +607,22 @@ export function createInquiryPageConfigDefaults(
         legacyInquiryHeadline?.trim() ||
         `Share the project scope, site, timing, and photos so ${businessName} can review before pricing.`;
       formTitle = "Start project inquiry";
+      break;
+    case "event_services_rentals":
+      eyebrow = "Event inquiry";
+      headline = `Tell ${businessName} about your event or shoot.`;
+      description =
+        legacyInquiryHeadline?.trim() ||
+        `Share the date, venue, and requirements so ${businessName} can check availability and quote.`;
+      formTitle = "Start event inquiry";
+      break;
+    case "cleaning_services":
+      eyebrow = "Service inquiry";
+      headline = `Request a quote from ${businessName}.`;
+      description =
+        legacyInquiryHeadline?.trim() ||
+        `Share the property details, schedule, and requirements so ${businessName} can price the service.`;
+      formTitle = "Start service inquiry";
       break;
     case "general_project_services":
       eyebrow = "Service inquiry";

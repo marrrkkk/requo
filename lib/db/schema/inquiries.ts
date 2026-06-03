@@ -48,8 +48,7 @@ export const inquiries = pgTable(
       .notNull()
       .references(() => businesses.id, { onDelete: "cascade" }),
     businessInquiryFormId: text("business_inquiry_form_id")
-      .notNull()
-      .references(() => businessInquiryForms.id, { onDelete: "restrict" }),
+      .references(() => businessInquiryForms.id, { onDelete: "set null" }),
     status: inquiryStatusEnum("status").notNull().default("new"),
     subject: text("subject"),
     customerName: text("customer_name").notNull(),
@@ -95,6 +94,11 @@ export const inquiries = pgTable(
       table.businessInquiryFormId,
     ),
     index("inquiries_business_status_idx").on(table.businessId, table.status),
+    index("inquiries_business_status_created_at_idx").on(
+      table.businessId,
+      table.status,
+      table.createdAt,
+    ),
     index("inquiries_business_archived_at_idx").on(
       table.businessId,
       table.archivedAt,

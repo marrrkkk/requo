@@ -1,4 +1,3 @@
-import type { BusinessAiTonePreference } from "@/features/settings/types";
 import { sanitizeStorageFileName } from "@/lib/files";
 import {
   normalizePublicSlugInput,
@@ -40,19 +39,6 @@ export function normalizeBusinessSlug(value: string) {
 
 export function sanitizeBusinessLogoFileName(fileName: string) {
   return sanitizeStorageFileName(fileName, "business-logo");
-}
-
-export function formatBusinessAiToneLabel(value: BusinessAiTonePreference) {
-  switch (value) {
-    case "balanced":
-      return "Balanced";
-    case "warm":
-      return "Warm";
-    case "direct":
-      return "Direct";
-    case "formal":
-      return "Formal";
-  }
 }
 
 export function getBusinessPublicInquiryUrl(slug: string, formSlug?: string) {

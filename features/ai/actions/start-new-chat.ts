@@ -20,8 +20,8 @@ type StartNewChatResult = {
 
 /**
  * Server action that creates a new dashboard conversation and persists the
- * first user message. The ChatPage auto-trigger will detect the unanswered
- * user message and fire the AI response automatically.
+ * first user message. Returns the conversationId so the client can navigate
+ * directly to the chat page.
  */
 export async function startNewChat(
   input: StartNewChatInput,

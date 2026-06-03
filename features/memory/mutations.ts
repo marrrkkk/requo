@@ -4,7 +4,7 @@ import { and, count, eq, sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 import { businessMemories } from "@/lib/db/schema/memories";
-import { generateEmbedding } from "@/lib/ai/embeddings";
+import { generateEmbedding, invalidateEmbeddingCache } from "@/lib/ai/embeddings";
 import type { MemoryInput } from "@/features/memory/schemas";
 
 export async function createMemoryForBusiness({
@@ -55,7 +55,23 @@ export async function updateMemoryForBusiness({
   memoryId: string;
   memory: MemoryInput;
 }) {
-  // Regenerate embedding on content change
+  // Fetch old content to invalidate its cached embedding
+  const [existing] = await db
+    .select({ title: businessMemories.title, content: businessMemories.content })
+    .from(businessMemories)
+    .where(
+      and(
+        eq(businessMemories.id, memoryId),
+        eq(businessMemories.businessId, businessId),
+      ),
+    );
+
+  if (existing) {
+    const oldEmbeddingText = `${existing.title}\n${existing.content}`;
+    await invalidateEmbeddingCache(oldEmbeddingText);
+  }
+
+  // Regenerate embedding for the new content
   const embeddingText = `${memory.title}\n${memory.content}`;
   const embedding = await generateEmbedding(embeddingText).catch(() => null);
 
@@ -96,6 +112,12 @@ export async function deleteMemoryForBusiness({
       ),
     )
     .returning();
+
+  // Invalidate cached embedding for the deleted content
+  if (deleted) {
+    const embeddingText = `${deleted.title}\n${deleted.content}`;
+    await invalidateEmbeddingCache(embeddingText);
+  }
 
   return deleted ?? null;
 }

@@ -33,7 +33,7 @@ vi.mock("@/lib/db/business-access", () => ({
   getWorkspaceBusinessActionContext: vi.fn(),
 }));
 
-vi.mock("@/lib/public-action-rate-limit", () => ({
+vi.mock("@/lib/rate-limit/redis-rate-limiter", () => ({
   assertPublicActionRateLimit: assertPublicActionRateLimitMock,
 }));
 

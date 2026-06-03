@@ -105,7 +105,7 @@ async function executeCreateInquiry(
 
   const payload = validated.payload as CreateInquiryPayload;
 
-  // Get the default inquiry form for this business
+  // Try to get the default inquiry form for this business (optional — AI inquiries don't require a form)
   const [defaultForm] = await db
     .select({
       id: businessInquiryForms.id,
@@ -125,14 +125,10 @@ async function executeCreateInquiry(
     )
     .limit(1);
 
-  if (!defaultForm) {
-    return { ok: false, error: "No active inquiry form found for this business." };
-  }
-
-  // Build a minimal submitted field snapshot (the AI source doesn't have form config)
+  // Build a minimal submitted field snapshot
   const submittedFieldSnapshot: InquirySubmittedFieldSnapshot = {
     version: 1,
-    businessType: (defaultForm.businessType ?? "general_project_services") as BusinessType,
+    businessType: ((defaultForm?.businessType ?? "general_project_services") as BusinessType),
     fields: [],
   };
 
@@ -142,14 +138,16 @@ async function executeCreateInquiry(
         id: businessContext.business.id,
         slug: businessContext.business.slug,
         name: businessContext.business.name,
-        form: {
-          id: defaultForm.id,
-          name: defaultForm.name,
-          slug: defaultForm.slug,
-          businessType: defaultForm.businessType,
-          isDefault: defaultForm.isDefault,
-          publicInquiryEnabled: defaultForm.publicInquiryEnabled,
-        },
+        form: defaultForm
+          ? {
+              id: defaultForm.id,
+              name: defaultForm.name,
+              slug: defaultForm.slug,
+              businessType: defaultForm.businessType,
+              isDefault: defaultForm.isDefault,
+              publicInquiryEnabled: defaultForm.publicInquiryEnabled,
+            }
+          : null,
       },
       submission: {
         customerName: payload.customerName,

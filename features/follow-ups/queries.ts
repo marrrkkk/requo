@@ -33,6 +33,7 @@ import {
   getBusinessQuoteDetailCacheTags,
   hotBusinessCacheLife,
 } from "@/lib/cache/business-tags";
+import { withCircuitBreaker } from "@/lib/db/circuit-breaker";
 import { db } from "@/lib/db/client";
 import {
   businesses,
@@ -359,7 +360,10 @@ export async function getFollowUpOverviewForBusiness(
   cacheLife(hotBusinessCacheLife);
   cacheTag(...getBusinessFollowUpListCacheTags(businessId));
 
-  return queryFollowUpOverviewForBusiness(businessId);
+  return withCircuitBreaker(
+    `dashboard:follow-ups-overview:${businessId}`,
+    () => queryFollowUpOverviewForBusiness(businessId),
+  );
 }
 
 export async function getFollowUpOverviewForBusinessUncached(

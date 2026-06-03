@@ -19,15 +19,6 @@ import {
   Mail,
   ArrowRightLeft,
   CalendarPlus,
-  Phone,
-  Globe,
-  Tag,
-  DollarSign,
-  User,
-  CalendarClock,
-  Paperclip,
-  UserCheck,
-  Building2,
   StickyNote,
   Copy,
   Filter,
@@ -71,19 +62,172 @@ export const actionBlocks: { id: ActionType; label: string; icon: typeof Play; g
 ];
 
 export const conditionBlocks = [
-  { id: "condition", label: "If / else", icon: Filter, group: "Logic" },
-  { id: "condition_source", label: "Inquiry source is", icon: Globe, group: "Filters" },
-  { id: "condition_contact_method", label: "Contact method is", icon: Phone, group: "Filters" },
-  { id: "condition_form", label: "From form", icon: FileText, group: "Filters" },
-  { id: "condition_name_contains", label: "Name contains", icon: User, group: "Filters" },
-  { id: "condition_tag", label: "Has tag", icon: Tag, group: "Filters" },
-  { id: "condition_amount", label: "Quote amount above/below", icon: DollarSign, group: "Filters" },
-  { id: "condition_days_inactive", label: "Days since last activity", icon: CalendarClock, group: "Filters" },
-  { id: "condition_quote_viewed", label: "Quote has been viewed", icon: Eye, group: "Filters" },
-  { id: "condition_has_attachment", label: "Inquiry has attachment", icon: Paperclip, group: "Filters" },
-  { id: "condition_repeat_customer", label: "Repeat customer", icon: UserCheck, group: "Filters" },
-  { id: "condition_business_hours", label: "Business hours", icon: Building2, group: "Filters" },
+  { id: "condition", label: "Condition", icon: Filter, group: "Logic" },
 ];
+
+// ---------------------------------------------------------------------------
+// Condition type definitions (guided config)
+// ---------------------------------------------------------------------------
+
+export type ConditionValueType = "select" | "text" | "number" | "boolean";
+
+export type ConditionTypeOption = {
+  id: string;
+  label: string;
+  field: string;
+  defaultOperator: string;
+  valueType: ConditionValueType;
+  /** Preset choices for select-type conditions */
+  values?: string[];
+  /** Operator options relevant to this condition type */
+  operators: { value: string; label: string }[];
+};
+
+export const conditionTypeOptions: ConditionTypeOption[] = [
+  {
+    id: "inquiry_source",
+    label: "Inquiry source",
+    field: "inquiry.source",
+    defaultOperator: "eq",
+    valueType: "select",
+    values: ["Website", "Email", "Phone", "Referral", "Social Media", "Walk-in", "Other"],
+    operators: [
+      { value: "eq", label: "is" },
+      { value: "neq", label: "is not" },
+    ],
+  },
+  {
+    id: "contact_method",
+    label: "Contact method",
+    field: "inquiry.contactMethod",
+    defaultOperator: "eq",
+    valueType: "select",
+    values: ["Email", "Phone", "SMS", "WhatsApp", "Messenger", "Instagram", "Other"],
+    operators: [
+      { value: "eq", label: "is" },
+      { value: "neq", label: "is not" },
+    ],
+  },
+  {
+    id: "name_contains",
+    label: "Name contains",
+    field: "inquiry.name",
+    defaultOperator: "contains",
+    valueType: "text",
+    operators: [
+      { value: "contains", label: "contains" },
+      { value: "not_contains", label: "does not contain" },
+    ],
+  },
+  {
+    id: "has_tag",
+    label: "Has tag",
+    field: "inquiry.tag",
+    defaultOperator: "eq",
+    valueType: "text",
+    operators: [
+      { value: "eq", label: "is" },
+      { value: "neq", label: "is not" },
+    ],
+  },
+  {
+    id: "quote_amount",
+    label: "Quote amount",
+    field: "quote.amount",
+    defaultOperator: "gte",
+    valueType: "number",
+    operators: [
+      { value: "gte", label: "is at least" },
+      { value: "lte", label: "is at most" },
+      { value: "gt", label: "is above" },
+      { value: "lt", label: "is below" },
+      { value: "eq", label: "is exactly" },
+    ],
+  },
+  {
+    id: "days_inactive",
+    label: "Days inactive",
+    field: "lastActivity.daysAgo",
+    defaultOperator: "gte",
+    valueType: "number",
+    operators: [
+      { value: "gte", label: "at least" },
+      { value: "lte", label: "at most" },
+      { value: "eq", label: "exactly" },
+    ],
+  },
+  {
+    id: "quote_viewed",
+    label: "Quote has been viewed",
+    field: "quote.viewed",
+    defaultOperator: "eq",
+    valueType: "boolean",
+    operators: [
+      { value: "eq", label: "is" },
+      { value: "neq", label: "is not" },
+    ],
+  },
+  {
+    id: "has_attachment",
+    label: "Inquiry has attachment",
+    field: "inquiry.hasAttachment",
+    defaultOperator: "eq",
+    valueType: "boolean",
+    operators: [
+      { value: "eq", label: "is" },
+      { value: "neq", label: "is not" },
+    ],
+  },
+  {
+    id: "repeat_customer",
+    label: "Repeat customer",
+    field: "contact.isRepeat",
+    defaultOperator: "eq",
+    valueType: "boolean",
+    operators: [
+      { value: "eq", label: "is" },
+      { value: "neq", label: "is not" },
+    ],
+  },
+  {
+    id: "business_hours",
+    label: "During business hours",
+    field: "time.isBusinessHours",
+    defaultOperator: "eq",
+    valueType: "boolean",
+    operators: [
+      { value: "eq", label: "is" },
+      { value: "neq", label: "is not" },
+    ],
+  },
+];
+
+/** Resolve a human-readable summary for a condition config */
+export function getConditionSummary(config: Record<string, unknown>): string {
+  const conditionType = config.conditionType as string | undefined;
+  const field = config.field as string | undefined;
+  const operator = config.operator as string | undefined;
+  const value = config.value as string | number | boolean | undefined;
+
+  // Find the matching condition type definition
+  const typeDef = conditionTypeOptions.find(
+    (ct) => ct.id === conditionType || ct.field === field,
+  );
+
+  if (!typeDef) return "Not configured";
+
+  const operatorLabel =
+    typeDef.operators.find((o) => o.value === operator)?.label ?? operator ?? "is";
+
+  if (typeDef.valueType === "boolean") {
+    // "Quote has been viewed" or "Quote has not been viewed"
+    const isNegated = operator === "neq";
+    return isNegated ? `${typeDef.label} — no` : `${typeDef.label} — yes`;
+  }
+
+  if (!value && value !== 0) return `${typeDef.label}`;
+  return `${typeDef.label} ${operatorLabel} ${value}`;
+}
 
 export const delayBlocks = [
   { id: "delay", label: "Delay", icon: Clock, group: "Timing" },

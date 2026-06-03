@@ -16,7 +16,7 @@ import {
 } from "@/lib/db/business-access";
 import { getplanByBusinessId } from "@/lib/plans/queries";
 import { checkUsageAllowance } from "@/lib/plans/usage";
-import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
+import { assertPublicActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
 import {
   addInquiryNoteForBusiness,
   archiveInquiryForBusiness,

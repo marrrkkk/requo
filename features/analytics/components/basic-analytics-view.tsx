@@ -14,7 +14,7 @@ import {
 import { AnalyticsChartCard } from "@/features/analytics/components/analytics-chart-card";
 import { AnalyticsMetricCard } from "@/features/analytics/components/analytics-metric-card";
 import { AnalyticsSection } from "@/features/analytics/components/analytics-section";
-import { BasicTrendChart } from "@/features/analytics/components/basic-trend-chart";
+import { LazyBasicTrendChart } from "@/components/shared/lazy-recharts";
 import { DrillDownLink } from "@/features/analytics/components/drill-down-link";
 import { MiniSparkline } from "@/features/analytics/components/mini-sparkline";
 import type {
@@ -124,57 +124,56 @@ export function BasicAnalyticsView({
         </div>
       </AnalyticsSection>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <AnalyticsChartCard
-          title="Trend"
-          description="Daily inquiries and quote activity."
-        >
-          {sparklines ? (
-            <BasicTrendChart since={since} until={until} sparklines={sparklines} />
-          ) : (
-            <div className="h-full min-h-[280px] w-full flex-1 rounded-xl bg-surface-muted" />
-          )}
-        </AnalyticsChartCard>
+      <AnalyticsChartCard
+        title="Trend"
+        description="Daily inquiries and quote activity."
+      >
+        {sparklines ? (
+          <LazyBasicTrendChart since={since} until={until} sparklines={sparklines} />
+        ) : (
+          <div className="h-full min-h-[280px] w-full flex-1 rounded-xl bg-surface-muted" />
+        )}
+      </AnalyticsChartCard>
 
-        <AnalyticsChartCard
-          title="Conversion health"
-          description="Key conversion rates for this period."
-        >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <DrillDownLink href={inquiriesPath} enabled={hasDrillDown}>
-              <AnalyticsMetricCard
-                icon={Eye}
-                title="Form views"
-                value={`${data.formViews}`}
-                description={`${data.uniqueVisitors} unique visitors`}
-                tooltip="Times your public inquiry forms were viewed."
-                sparkline={
-                  sparklines ? (
-                    <MiniSparkline
-                      points={sparklines.formViews}
-                      direction={getDirection(sparklines.formViews)}
-                    />
-                  ) : undefined
-                }
-              />
-            </DrillDownLink>
+      <AnalyticsSection
+        eyebrow="Basic"
+        title="Conversion health"
+        description="Key conversion rates for this period."
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <DrillDownLink href={inquiriesPath} enabled={hasDrillDown}>
             <AnalyticsMetricCard
-              icon={TrendingUp}
-              title="Form conversion"
-              value={formatPercent(data.formConversionRate)}
-              description={`${data.inquirySubmissions} submissions from ${data.uniqueVisitors} visitors`}
-              tooltip="Percentage of unique visitors who submitted an inquiry."
+              icon={Eye}
+              title="Form views"
+              value={`${data.formViews}`}
+              description={`${data.uniqueVisitors} unique visitors`}
+              tooltip="Times your public inquiry forms were viewed."
+              sparkline={
+                sparklines ? (
+                  <MiniSparkline
+                    points={sparklines.formViews}
+                    direction={getDirection(sparklines.formViews)}
+                  />
+                ) : undefined
+              }
             />
-            <AnalyticsMetricCard
-              icon={GitCompareArrows}
-              title="Inquiry → quote"
-              value={formatPercent(data.inquiryToQuoteRate)}
-              description={`${data.inquiriesWithQuote} quoted of ${data.inquirySubmissions}`}
-              tooltip="Percentage of inquiries that received at least one quote."
-            />
-          </div>
-        </AnalyticsChartCard>
-      </div>
+          </DrillDownLink>
+          <AnalyticsMetricCard
+            icon={TrendingUp}
+            title="Form conversion"
+            value={formatPercent(data.formConversionRate)}
+            description={`${data.inquirySubmissions} submissions from ${data.uniqueVisitors} visitors`}
+            tooltip="Percentage of unique visitors who submitted an inquiry."
+          />
+          <AnalyticsMetricCard
+            icon={GitCompareArrows}
+            title="Inquiry → quote"
+            value={formatPercent(data.inquiryToQuoteRate)}
+            description={`${data.inquiriesWithQuote} quoted of ${data.inquirySubmissions}`}
+            tooltip="Percentage of inquiries that received at least one quote."
+          />
+        </div>
+      </AnalyticsSection>
 
       <AnalyticsSection eyebrow="Basic" title="Quote outcomes">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

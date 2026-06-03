@@ -9,7 +9,7 @@ import {
 } from "@/lib/cache/business-tags";
 import { getOperationalBusinessActionContext } from "@/lib/db/business-access";
 import { getUsageLimit, hasFeatureAccess } from "@/lib/plans";
-import { assertPublicActionRateLimit } from "@/lib/public-action-rate-limit";
+import { assertPublicActionRateLimit } from "@/lib/rate-limit/redis-rate-limiter";
 import { aiExtractFromFile } from "@/features/importer/ai-extractor";
 import { extractFile } from "@/features/importer/extractors";
 import {

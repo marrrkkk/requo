@@ -21,6 +21,10 @@ export function getDefaultInquiryFormName(
   switch (getStarterTemplateBusinessType(businessType)) {
     case "consulting_professional_services":
       return "Discovery inquiry";
+    case "event_services_rentals":
+      return "Event inquiry";
+    case "cleaning_services":
+      return "Service inquiry";
     case "contractor_home_improvement":
     case "creative_marketing_services":
     case "general_project_services":

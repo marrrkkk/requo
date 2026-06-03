@@ -6,7 +6,7 @@ import { ArrowLeft, Save } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { WorkflowCanvas } from "@/features/automations/components/builder/workflow-canvas";
+import { LazyWorkflowCanvas } from "@/components/shared/lazy-xyflow";
 import { serializeWorkflow } from "@/features/automations/components/builder/utils/serializer";
 import { updateAutomation } from "@/features/automations/mutations";
 import type { WorkflowState } from "@/features/automations/components/builder/hooks/use-workflow-state";
@@ -85,7 +85,7 @@ export function WorkflowBuilderPage({
 
       {/* Full-page canvas — the canvas toolbar has its own save button */}
       <div className="flex-1 overflow-hidden">
-        <WorkflowCanvas
+        <LazyWorkflowCanvas
           initialState={initialState}
           onSave={handleSave}
         />

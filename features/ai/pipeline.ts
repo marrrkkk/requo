@@ -283,7 +283,7 @@ export async function executeAiPipeline(
   // 7. Record usage and start cooldown
   const weight = TASK_WEIGHTS[taskType];
   await recordUsage(userId, businessId, taskType, weight);
-  startCooldown(userId, taskType);
+  await startCooldown(userId, taskType);
 
   // 8. Log tokens
   await logAiInvocation({
@@ -432,7 +432,7 @@ export async function executeStreamingAiPipeline(
     // Record usage and start cooldown
     const weight = TASK_WEIGHTS[taskType];
     await recordUsage(userId, businessId, taskType, weight);
-    startCooldown(userId, taskType);
+    await startCooldown(userId, taskType);
 
     // Log tokens
     await logAiInvocation({

@@ -750,3 +750,31 @@ export async function deleteDashboardConversation({
 
   return deleted ?? null;
 }
+
+/**
+ * Deletes the default entity conversation for a user+business+surface+entity.
+ * Messages are cascade-deleted. The next call to
+ * `getOrCreateDefaultEntityConversation` will create a fresh one.
+ */
+export async function deleteEntityConversation({
+  conversationId,
+  userId,
+  surface,
+}: {
+  conversationId: string;
+  userId: string;
+  surface: Extract<AiSurface, "inquiry" | "quote">;
+}) {
+  const [deleted] = await db
+    .delete(aiConversations)
+    .where(
+      and(
+        eq(aiConversations.id, conversationId),
+        eq(aiConversations.userId, userId),
+        inArray(aiConversations.surface, [surface]),
+      ),
+    )
+    .returning({ id: aiConversations.id });
+
+  return deleted ?? null;
+}

@@ -15,7 +15,7 @@ import { LockedAction } from "@/features/paywall";
 import type { BusinessPlan } from "@/lib/plans/plans";
 import { cn } from "@/lib/utils";
 
-import { DisclosureSection, OptionTile, SectionHeading } from "./shared";
+import { DisclosureSection, OptionTile } from "./shared";
 
 export type LayoutSectionProps = {
   effectiveTemplate: InquiryPageTemplate;
@@ -47,17 +47,8 @@ export function LayoutSection({
   onMobileLayoutChange,
 }: LayoutSectionProps) {
   return (
-    <section
-      className="section-panel scroll-mt-20 p-5 sm:p-6"
-      id="layout"
-    >
-      <SectionHeading
-        description="Choose how the page is arranged on desktop and mobile."
-        title="Layout"
-      />
-
-      <div className="mt-6 flex flex-col gap-6">
-        <div className="grid gap-4 xl:grid-cols-3">
+    <div className="flex flex-col gap-6">
+      <div className="grid gap-4 xl:grid-cols-3">
           {(
             Object.keys(inquiryPageTemplateMeta) as InquiryPageTemplate[]
           ).map((templateId) => {
@@ -199,8 +190,7 @@ export function LayoutSection({
             </div>
           </div>
         </div>
-      </div>
-    </section>
+    </div>
   );
 }
 

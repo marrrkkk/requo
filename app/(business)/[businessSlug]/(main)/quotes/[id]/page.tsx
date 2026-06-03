@@ -128,7 +128,7 @@ async function QuoteDetailContent({
   params,
 }: QuoteDetailPageProps) {
   const resolvedParams = await params;
-  const { businessContext } = await getAppShellContext(resolvedParams.businessSlug);
+  const { user, businessContext } = await getAppShellContext(resolvedParams.businessSlug);
 
   const parsedParams = quoteRouteParamsSchema.safeParse(resolvedParams);
 

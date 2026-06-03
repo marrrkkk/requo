@@ -25,7 +25,7 @@ export function getPublicQuotePageMetadata(
   const primaryLabel = resolvePrimaryLabel(input);
 
   return createPageMetadata({
-    absoluteTitle: `${primaryLabel} · ${input.businessName}`,
+    absoluteTitle: `${primaryLabel} - ${input.businessName}`,
     description: `Review and respond to this quote from ${input.businessName}.`,
     noIndex: true,
     pathname: `/quote/${input.token}`,

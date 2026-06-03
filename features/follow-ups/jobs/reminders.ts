@@ -53,6 +53,7 @@ export async function processFollowUpReminders(): Promise<FollowUpRemindersSumma
         followUpReason: followUps.reason,
         businessId: followUps.businessId,
         businessName: businesses.name,
+        businessSlug: businesses.slug,
         businessContactEmail: businesses.contactEmail,
         notifyEmail: businesses.notifyOnFollowUpReminder,
         notifyInApp: businesses.notifyInAppOnFollowUpReminder,
@@ -80,9 +81,26 @@ export async function processFollowUpReminders(): Promise<FollowUpRemindersSumma
         ? `Quote ${row.quoteNumber}`
         : "an inquiry";
 
-      if (row.notifyInApp) {
-        try {
-          await db.transaction(async (tx) => {
+      try {
+        await db.transaction(async (tx) => {
+          // Lock row to prevent concurrent workers from sending duplicates
+          const [locked] = await tx
+            .select({ id: followUps.id })
+            .from(followUps)
+            .where(
+              and(
+                eq(followUps.id, row.followUpId),
+                isNull(followUps.reminderSentAt)
+              )
+            )
+            .for("update", { skipLocked: true });
+
+          if (!locked) {
+            // Already processed by another worker
+            return;
+          }
+
+          if (row.notifyInApp) {
             await insertBusinessNotification(tx, {
               businessId: row.businessId,
               inquiryId: row.inquiryId,
@@ -91,53 +109,50 @@ export async function processFollowUpReminders(): Promise<FollowUpRemindersSumma
               title: `Follow-up due: ${row.followUpTitle}`,
               summary: `Reminder to follow up with ${customerName} about ${recordLabel}.`,
             });
+            inAppCreated++;
+          }
+
+          if (row.notifyEmail && row.businessContactEmail) {
+            await sendEmailWithFallback({
+              to: row.businessContactEmail,
+              subject: `Follow-up due: ${row.followUpTitle}`,
+              html: buildReminderEmailHtml({
+                businessName: row.businessName,
+                businessSlug: row.businessSlug,
+                followUpTitle: row.followUpTitle,
+                followUpReason: row.followUpReason,
+                customerName,
+                recordLabel,
+                quoteId: row.quoteId,
+                inquiryId: row.inquiryId,
+              }),
+              emailType: "notification",
+              businessId: row.businessId,
+              idempotencyKey: `fup-reminder-${row.followUpId}-${now.toISOString().slice(0, 10)}`,
+            });
+            emailsSent++;
+          }
+
+          emitEvent(row.businessId, "follow_up.due", {
+            followUpId: row.followUpId,
+            quoteId: row.quoteId ?? undefined,
+            inquiryId: row.inquiryId ?? undefined,
           });
-          inAppCreated++;
-        } catch (error) {
-          console.error(
-            `[follow-up-reminders] Failed to create in-app notification for follow-up ${row.followUpId}`,
-            error,
-          );
-        }
+
+          await tx
+            .update(followUps)
+            .set({ reminderSentAt: now })
+            .where(eq(followUps.id, row.followUpId));
+
+          processed++;
+        });
+      } catch (error) {
+        console.error(
+          `[follow-up-reminders] Failed to process follow-up ${row.followUpId}`,
+          error,
+        );
       }
 
-      if (row.notifyEmail && row.businessContactEmail) {
-        try {
-          await sendEmailWithFallback({
-            to: row.businessContactEmail,
-            subject: `Follow-up due: ${row.followUpTitle}`,
-            html: buildReminderEmailHtml({
-              businessName: row.businessName,
-              followUpTitle: row.followUpTitle,
-              followUpReason: row.followUpReason,
-              customerName,
-              recordLabel,
-            }),
-            emailType: "notification",
-            businessId: row.businessId,
-            idempotencyKey: `fup-reminder-${row.followUpId}-${now.toISOString().slice(0, 10)}`,
-          });
-          emailsSent++;
-        } catch (error) {
-          console.error(
-            `[follow-up-reminders] Failed to send reminder email for follow-up ${row.followUpId}`,
-            error,
-          );
-        }
-      }
-
-      emitEvent(row.businessId, "follow_up.due", {
-        followUpId: row.followUpId,
-        quoteId: row.quoteId ?? undefined,
-        inquiryId: row.inquiryId ?? undefined,
-      });
-
-      await db
-        .update(followUps)
-        .set({ reminderSentAt: now })
-        .where(eq(followUps.id, row.followUpId));
-
-      processed++;
       lastProcessedId = row.followUpId;
     }
 
@@ -215,12 +230,23 @@ export async function processFollowUpReminders(): Promise<FollowUpRemindersSumma
 
 function buildReminderEmailHtml(input: {
   businessName: string;
+  businessSlug: string;
   followUpTitle: string;
   followUpReason: string;
   customerName: string;
   recordLabel: string;
+  quoteId: string | null;
+  inquiryId: string | null;
 }) {
   const appUrl = env.BETTER_AUTH_URL;
+
+  const linkPath = input.quoteId
+    ? `/b/${input.businessSlug}/quotes/${input.quoteId}`
+    : input.inquiryId
+      ? `/b/${input.businessSlug}/inquiries/${input.inquiryId}`
+      : `/b/${input.businessSlug}`;
+  
+  const fullLink = `${appUrl}${linkPath}`;
 
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
@@ -231,8 +257,8 @@ function buildReminderEmailHtml(input: {
       <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0 0 20px;">
         ${input.followUpReason}
       </p>
-      <a href="${appUrl}" style="display: inline-block; background: #111827; color: #fff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500;">
-        Open ${input.businessName}
+      <a href="${fullLink}" style="display: inline-block; background: #111827; color: #fff; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500;">
+        Open Details
       </a>
       <p style="color: #9ca3af; font-size: 12px; margin-top: 24px;">
         You're receiving this because follow-up reminders are enabled for ${input.businessName}.

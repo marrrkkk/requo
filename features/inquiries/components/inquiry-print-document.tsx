@@ -54,7 +54,7 @@ export function InquiryPrintDocument({
               <Badge variant="secondary" className="text-foreground">
                 Ref {inquiry.id}
               </Badge>
-              <Badge variant="outline">{inquiry.inquiryFormName}</Badge>
+              <Badge variant="outline">{inquiry.inquiryFormName ?? inquiry.source ?? "Manual"}</Badge>
               <Badge variant="outline">
                 {formatInquiryDateTime(inquiry.submittedAt)}
               </Badge>
@@ -99,7 +99,7 @@ export function InquiryPrintDocument({
                 label={systemFieldDefaultLabels.serviceCategory}
                 value={inquiry.serviceCategory}
               />
-              <InfoTile label="Form" value={inquiry.inquiryFormName} />
+              <InfoTile label="Channel" value={inquiry.inquiryFormName ?? inquiry.source ?? "Manual"} />
               <InfoTile
                 label={systemFieldDefaultLabels.budgetText}
                 value={formatInquiryBudget(inquiry.budgetText)}

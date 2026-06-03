@@ -10,6 +10,7 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-geist-sans);
+  --font-inter: var(--font-inter);
   --font-brand: var(--font-brand);
   --font-mittel: var(--font-mittel);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -88,8 +89,8 @@
   --secondary-foreground: #234036;
   --muted: #eef2ef;
   --muted-foreground: #5f756c;
-  --accent: #e5f5ee;
-  --accent-foreground: #173128;
+  --accent: #f0f3f1;
+  --accent-foreground: #234036;
   --destructive: #c9372c;
   --success: #059669;
   --border: #d6ddd8;
@@ -152,7 +153,7 @@
   --control-bg-strong: rgb(255 255 255 / 0.98);
   --control-secondary-bg: rgb(240 243 241 / 0.95);
   --control-secondary-bg-strong: rgb(240 243 241 / 1);
-  --control-accent-bg: rgb(229 245 238 / 0.74);
+  --control-accent-bg: rgb(240 243 241 / 0.74);
   --control-border: rgb(214 221 216 / 0.95);
   --control-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.5),
@@ -197,7 +198,7 @@
   --tooltip-surface-shadow: 0 14px 28px -16px rgb(15 23 42 / 0.34);
   --table-header-bg: rgb(238 242 239 / 0.4);
   --table-footer-bg: rgb(238 242 239 / 0.65);
-  --table-row-hover-bg: rgb(229 245 238 / 0.35);
+  --table-row-hover-bg: rgb(240 243 241 / 0.6);
   --table-row-selected-bg: rgb(240 243 241 / 0.85);
   --empty-surface-bg: var(--surface-soft-bg);
   --empty-surface-shadow:
@@ -272,8 +273,8 @@ html[data-reload-loading="fade-out"] #app-root-content {
   --secondary-foreground: #234036;
   --muted: #eef2ef;
   --muted-foreground: #5f756c;
-  --accent: #e5f5ee;
-  --accent-foreground: #173128;
+  --accent: #f0f3f1;
+  --accent-foreground: #234036;
   --destructive: #c9372c;
   --success: #059669;
   --border: #d6ddd8;
@@ -508,6 +509,28 @@ html[data-reload-loading="fade-out"] #app-root-content {
   100% {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes home-section-enter {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes shell-entrance {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
   }
 }
 
@@ -1161,6 +1184,54 @@ html[data-reload-loading="fade-out"] #app-root-content {
     @apply flex flex-1 flex-col px-3 py-5 sm:px-6 sm:py-7 xl:px-8 xl:py-8;
   }
 
+  /* When AI panel is open, reduce max-width and padding so content adapts */
+  [data-ai-panel-open] .dashboard-content {
+    max-width: 72rem;
+    container-type: inline-size;
+    container-name: dashboard;
+  }
+
+  [data-ai-panel-open] .dashboard-main {
+    @apply xl:px-5 xl:py-6;
+  }
+
+  [data-ai-panel-open] .dashboard-topbar-inner {
+    @apply xl:px-5;
+  }
+
+  [data-ai-panel-open] .dashboard-detail-layout {
+    @apply xl:grid-cols-1;
+  }
+
+  /* Data list toolbar: allow wrapping when panel squeezes space */
+  [data-ai-panel-open] .data-list-toolbar-grid {
+    flex-wrap: wrap !important;
+  }
+
+  /* Data list toolbar actions: don't force right-alignment at xl */
+  [data-ai-panel-open] .data-list-toolbar-actions {
+    margin-left: 0 !important;
+  }
+
+  /* Table containers: force horizontal scroll when panel is open */
+  [data-ai-panel-open] .dashboard-table-shell {
+    overflow-x: auto !important;
+  }
+
+  /*
+   * When the panel is open at xl viewport, the container is ~780px wide.
+   * Hide desktop tables (which need 1000px+) and show mobile cards instead.
+   */
+  @media (min-width: 1280px) {
+    [data-ai-panel-open] .data-list-mobile-grid {
+      display: grid !important;
+    }
+
+    [data-ai-panel-open] [data-table-container][class*="hidden"] {
+      display: none !important;
+    }
+  }
+
   /* Chat page fills available space.
      Uses a fixed viewport height so messages scroll internally without
      affecting the page layout or requiring parent overflow changes.
@@ -1176,13 +1247,40 @@ html[data-reload-loading="fade-out"] #app-root-content {
     height: calc(100svh - 65px);
   }
 
-  /* Home page fills viewport without page scroll.
-     Cancels dashboard-main padding and takes up remaining height. */
+  /* Home page — scrollable, uses full available width.
+     Cancels dashboard-main padding so content can breathe. */
   .home-page-container {
     @apply -mx-3 -mb-5 sm:-mx-6 sm:-mb-7 xl:-mx-8 xl:-mb-8;
     @apply -mt-5 sm:-mt-7 xl:-mt-8;
-    @apply flex flex-col overflow-hidden px-4 pt-6 sm:px-6 sm:pt-8;
-    height: calc(100svh - 65px);
+    @apply flex flex-col overflow-y-auto px-4 pt-6 pb-8 sm:px-6 sm:pt-8 lg:px-10;
+    min-height: calc(100svh - 65px);
+  }
+
+  /* Home entrance animation — staggered fade-up for sections on initial mount */
+  .home-entrance > .home-entrance-section {
+    animation: home-section-enter 450ms var(--motion-ease-emphasized) both;
+  }
+
+  .home-entrance > .home-entrance-section:nth-child(1) {
+    animation-delay: 0ms;
+  }
+
+  .home-entrance > .home-entrance-section:nth-child(2) {
+    animation-delay: 60ms;
+  }
+
+  .home-entrance > .home-entrance-section:nth-child(3) {
+    animation-delay: 120ms;
+  }
+
+  .home-entrance > .home-entrance-section:nth-child(4) {
+    animation-delay: 180ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .home-entrance > .home-entrance-section {
+      animation: none;
+    }
   }
 
   @media (min-width: 640px) {
@@ -1191,7 +1289,7 @@ html[data-reload-loading="fade-out"] #app-root-content {
     }
 
     .home-page-container {
-      height: calc(100svh - 73px);
+      min-height: calc(100svh - 73px);
     }
 
     .automations-builder-container {
@@ -1312,32 +1410,39 @@ html[data-reload-loading="fade-out"] #app-root-content {
   }
 
   .public-page-header-nav {
-    @apply hidden min-w-0 items-center gap-0.5 lg:flex;
+    @apply hidden min-w-0 items-center gap-1 lg:flex;
   }
 
   .public-page-header-link {
-    @apply relative inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-transparent hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-[state=open]:text-primary;
+    @apply relative inline-flex items-center rounded-lg px-3 py-1.5 text-[0.84rem] font-medium text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring;
+    transition: color 150ms ease;
   }
 
-  .public-page-header-link::after {
-    content: "";
+  .public-page-header-link:hover,
+  .public-page-header-link:focus-visible,
+  .public-page-header-link[data-state="open"] {
+    color: var(--primary);
+  }
+
+  .public-page-header-link .nav-underline {
     position: absolute;
     inset-inline: 0.75rem;
-    bottom: 0.375rem;
+    bottom: 0.125rem;
     height: 1.5px;
     border-radius: 999px;
     background: var(--primary);
     opacity: 0;
-    transform: scaleX(0.4);
+    transform: scaleX(0);
     transform-origin: center;
     transition:
-      opacity var(--motion-duration-base) var(--motion-ease-standard),
-      transform var(--motion-duration-base) var(--motion-ease-standard);
+      opacity 200ms ease,
+      transform 200ms ease;
+    pointer-events: none;
   }
 
-  .public-page-header-link:hover::after,
-  .public-page-header-link:focus-visible::after,
-  .public-page-header-link[data-state="open"]::after {
+  .public-page-header-link:hover .nav-underline,
+  .public-page-header-link:focus-visible .nav-underline,
+  .public-page-header-link[data-state="open"] .nav-underline {
     opacity: 1;
     transform: scaleX(1);
   }

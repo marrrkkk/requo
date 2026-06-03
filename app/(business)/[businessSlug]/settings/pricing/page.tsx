@@ -4,7 +4,7 @@ import { Suspense } from "react";
 
 import { PageHeader } from "@/components/shared/page-header";
 import { LockedFeaturePage } from "@/components/shared/paywall";
-import { SettingsCollectionBodySkeleton } from "@/components/shell/settings-body-skeletons";
+import { SettingsPricingBodySkeleton } from "@/components/shell/settings-body-skeletons";
 import { getBusinessBillingOverview } from "@/features/billing/queries";
 import {
   analyzeImportAction,
@@ -58,7 +58,7 @@ export default async function BusinessPricingPage() {
       />
 
       {hasAccess && settingsPromise && quoteLibraryPromise ? (
-        <Suspense fallback={<SettingsCollectionBodySkeleton />}>
+        <Suspense fallback={<SettingsPricingBodySkeleton />}>
           <BusinessPricingBody
             businessPlan={businessContext.business.plan}
             settingsPromise={settingsPromise}
@@ -66,7 +66,7 @@ export default async function BusinessPricingPage() {
           />
         </Suspense>
       ) : billingPromise ? (
-        <Suspense fallback={<SettingsCollectionBodySkeleton />}>
+        <Suspense fallback={<SettingsPricingBodySkeleton />}>
           <LockedPricingBody
             plan={businessContext.business.plan}
             billingPromise={billingPromise}

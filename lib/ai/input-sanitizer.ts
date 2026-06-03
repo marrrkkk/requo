@@ -1,24 +1,63 @@
 /**
  * AI Input Sanitizer
  *
- * Pure synchronous function that detects and neutralizes prompt injection
- * attempts in user input before it reaches the AI provider.
+ * Detects and neutralizes prompt injection attempts in user input before it
+ * reaches the AI provider. Supports per-conversation lockout via Cache Layer.
  *
- * Performance target: <5ms per input (no network calls, regex-only).
+ * Processing pipeline:
+ * 1. (If conversationId) Check injection counter — lock if >= 3
+ * 2. Strip zero-width characters (U+200B, U+200C, U+200D, U+FEFF, U+00AD)
+ * 3. Apply NFKC normalization (maps homoglyphs to ASCII equivalents)
+ * 4. Execute pattern matching against the normalized result
+ * 5. (If conversationId) Increment counter on "rejected" or "sanitized"
+ *
+ * Performance target: <5ms per input for pattern matching (cache ops are async).
  */
 
+import { cacheLayer } from "@/lib/ai/cache-layer";
+import { logAiSecurityEvent } from "@/lib/ai/security-events";
+
 export interface SanitizationResult {
-  status: "clean" | "sanitized" | "rejected";
+  status: "clean" | "sanitized" | "rejected" | "locked";
   output: string;
   patterns: string[]; // matched patterns if any
+}
+
+// ---------------------------------------------------------------------------
+// Unicode Normalization
+// ---------------------------------------------------------------------------
+
+/**
+ * Zero-width characters to strip before any further processing.
+ * U+200B Zero Width Space
+ * U+200C Zero Width Non-Joiner
+ * U+200D Zero Width Joiner
+ * U+FEFF Byte Order Mark / Zero Width No-Break Space
+ * U+00AD Soft Hyphen
+ */
+const ZERO_WIDTH_REGEX = /[\u200B\u200C\u200D\uFEFF\u00AD]/g;
+
+/**
+ * Normalizes input by stripping zero-width characters and applying NFKC
+ * normalization. NFKC maps Cyrillic homoglyphs and other compatibility
+ * characters to their canonical ASCII equivalents.
+ *
+ * Exported for reuse by sanitizeMemoryContent and other consumers.
+ */
+export function normalizeInput(input: string): string {
+  // Step 1: Strip zero-width characters
+  const stripped = input.replace(ZERO_WIDTH_REGEX, "");
+  // Step 2: Apply NFKC normalization
+  return stripped.normalize("NFKC");
 }
 
 /**
  * High-confidence injection patterns that trigger immediate rejection.
  * These are normalized to case-insensitive matching with flexible whitespace.
+ * Pattern matching operates on the NFKC-normalized form of the input.
  */
 const REJECTION_PATTERNS: Array<{ pattern: RegExp; name: string }> = [
-  // Direct instruction override attempts
+  // Direct instruction override attempts (English)
   {
     pattern: /ignore\s+(?:all\s+)?(?:previous|prior|above|earlier)\s+(?:instructions?|prompts?|context|rules?|guidelines?)/i,
     name: "instruction_override",
@@ -30,6 +69,45 @@ const REJECTION_PATTERNS: Array<{ pattern: RegExp; name: string }> = [
   {
     pattern: /forget\s+(?:all\s+)?(?:previous|prior|above|earlier)\s+(?:instructions?|prompts?|context|rules?|guidelines?)/i,
     name: "instruction_override",
+  },
+  // French injection patterns
+  {
+    pattern: /ignor(?:ez|er?)\s+(?:toutes?\s+)?(?:les\s+)?instructions?\s+pr[ée]c[ée]dentes?/i,
+    name: "instruction_override_fr",
+  },
+  {
+    pattern: /oubli(?:ez|er?)\s+(?:toutes?\s+)?(?:les\s+)?instructions?\s+pr[ée]c[ée]dentes?/i,
+    name: "instruction_override_fr",
+  },
+  {
+    pattern: /ne\s+tene[zr]\s+pas\s+compte\s+des?\s+instructions?\s+pr[ée]c[ée]dentes?/i,
+    name: "instruction_override_fr",
+  },
+  // Spanish injection patterns
+  {
+    pattern: /ignora(?:r?)?\s+(?:todas?\s+)?(?:las\s+)?instrucciones?\s+anteriores?/i,
+    name: "instruction_override_es",
+  },
+  {
+    pattern: /olvida(?:r?)?\s+(?:todas?\s+)?(?:las\s+)?instrucciones?\s+anteriores?/i,
+    name: "instruction_override_es",
+  },
+  {
+    pattern: /no\s+(?:tengas?\s+en\s+cuenta|hagas?\s+caso\s+(?:a|de))\s+(?:las\s+)?instrucciones?\s+anteriores?/i,
+    name: "instruction_override_es",
+  },
+  // German injection patterns
+  {
+    pattern: /ignorier(?:e|en)?\s+(?:alle\s+)?(?:vorherige[n]?|fr[üu]here[n]?)\s+(?:Anweisungen|Instruktionen|Regeln)/i,
+    name: "instruction_override_de",
+  },
+  {
+    pattern: /vergiss\s+(?:alle\s+)?(?:vorherige[n]?|fr[üu]here[n]?)\s+(?:Anweisungen|Instruktionen|Regeln)/i,
+    name: "instruction_override_de",
+  },
+  {
+    pattern: /missacht(?:e|en)?\s+(?:alle\s+)?(?:vorherige[n]?|fr[üu]here[n]?)\s+(?:Anweisungen|Instruktionen|Regeln)/i,
+    name: "instruction_override_de",
   },
   // Role-switching attempts
   {
@@ -122,28 +200,38 @@ const SANITIZATION_PATTERNS: Array<{ pattern: RegExp; name: string }> = [
 ];
 
 /**
- * Sanitizes user input for AI processing.
+ * Sanitizes memory content (title + content) before persistence.
+ *
+ * Prevents RAG poisoning by scanning both title and content fields for
+ * injection patterns. Uses the same normalization pipeline as chat input.
  *
  * Returns:
- * - `rejected` for high-confidence injection attempts
- * - `sanitized` when lower-confidence patterns were removed
- * - `clean` when no patterns were detected
+ * - `rejected` if high-confidence injection patterns are found in title or content
+ * - `sanitized` if low-confidence patterns were stripped (logs "memory_sanitized" event)
+ * - `clean` if no patterns were detected
  */
-export function sanitizeAiInput(input: string): SanitizationResult {
+export function sanitizeMemoryContent(
+  title: string,
+  content: string,
+): SanitizationResult {
   try {
-    // Handle empty/null input
-    if (!input || input.trim().length === 0) {
-      return { status: "clean", output: input || "", patterns: [] };
-    }
+    // Normalize both fields: strip zero-width chars + NFKC normalization
+    const normalizedTitle = normalizeInput(title || "");
+    const normalizedContent = normalizeInput(content || "");
 
     const matchedPatterns: string[] = [];
 
-    // Check rejection patterns first (high-confidence)
+    // Check rejection patterns against both normalized title and content
     for (const { pattern, name } of REJECTION_PATTERNS) {
-      // Reset lastIndex for patterns with global flag
       pattern.lastIndex = 0;
-      if (pattern.test(input)) {
+      if (pattern.test(normalizedTitle)) {
         matchedPatterns.push(name);
+      }
+      pattern.lastIndex = 0;
+      if (pattern.test(normalizedContent)) {
+        if (!matchedPatterns.includes(name)) {
+          matchedPatterns.push(name);
+        }
       }
     }
 
@@ -155,8 +243,115 @@ export function sanitizeAiInput(input: string): SanitizationResult {
       };
     }
 
-    // Check sanitization patterns (lower-confidence, remove matches)
-    let sanitizedOutput = input;
+    // Check sanitization patterns against both normalized title and content
+    let sanitizedTitle = normalizedTitle;
+    let sanitizedContent = normalizedContent;
+    const sanitizedPatterns: string[] = [];
+
+    for (const { pattern, name } of SANITIZATION_PATTERNS) {
+      // Check and strip from title
+      pattern.lastIndex = 0;
+      if (pattern.test(sanitizedTitle)) {
+        if (!sanitizedPatterns.includes(name)) {
+          sanitizedPatterns.push(name);
+        }
+        pattern.lastIndex = 0;
+        sanitizedTitle = sanitizedTitle.replace(pattern, "");
+      }
+
+      // Check and strip from content
+      pattern.lastIndex = 0;
+      if (pattern.test(sanitizedContent)) {
+        if (!sanitizedPatterns.includes(name)) {
+          sanitizedPatterns.push(name);
+        }
+        pattern.lastIndex = 0;
+        sanitizedContent = sanitizedContent.replace(pattern, "");
+      }
+    }
+
+    if (sanitizedPatterns.length > 0) {
+      // Log security event for memory sanitization
+      console.warn(
+        `[input-sanitizer] memory_sanitized: patterns stripped from memory content`,
+        { patterns: sanitizedPatterns },
+      );
+
+      return {
+        status: "sanitized",
+        output: sanitizedContent.trim(),
+        patterns: Array.from(new Set(sanitizedPatterns)),
+      };
+    }
+
+    return { status: "clean", output: normalizedContent, patterns: [] };
+  } catch {
+    // Fail-closed: reject the content on unexpected errors
+    return {
+      status: "rejected",
+      output: "",
+      patterns: ["processing_error"],
+    };
+  }
+}
+
+export async function sanitizeAiInput(
+  input: string,
+  conversationId?: string,
+): Promise<SanitizationResult> {
+  try {
+    // Step 1: Check lockout counter if conversationId is provided
+    if (conversationId) {
+      try {
+        const counter = await cacheLayer.get<number>(`inj:${conversationId}`);
+        if (counter !== null && counter >= LOCKOUT_THRESHOLD) {
+          return {
+            status: "locked",
+            output: "",
+            patterns: ["conversation_locked"],
+          };
+        }
+      } catch {
+        // Cache Layer unavailable: skip lockout check, log warning
+        console.warn(
+          "[input-sanitizer] Failed to check lockout counter, skipping lockout check",
+        );
+      }
+    }
+
+    // Handle empty/null input
+    if (!input || input.trim().length === 0) {
+      return { status: "clean", output: input || "", patterns: [] };
+    }
+
+    // Normalize input: strip zero-width chars + NFKC normalization
+    const normalized = normalizeInput(input);
+
+    const matchedPatterns: string[] = [];
+
+    // Check rejection patterns against the normalized form
+    for (const { pattern, name } of REJECTION_PATTERNS) {
+      // Reset lastIndex for patterns with global flag
+      pattern.lastIndex = 0;
+      if (pattern.test(normalized)) {
+        matchedPatterns.push(name);
+      }
+    }
+
+    if (matchedPatterns.length > 0) {
+      // Increment lockout counter on rejection
+      if (conversationId) {
+        await incrementLockoutCounter(conversationId);
+      }
+      return {
+        status: "rejected",
+        output: "",
+        patterns: Array.from(new Set(matchedPatterns)),
+      };
+    }
+
+    // Check sanitization patterns against the normalized form
+    let sanitizedOutput = normalized;
     const sanitizedPatterns: string[] = [];
 
     for (const { pattern, name } of SANITIZATION_PATTERNS) {
@@ -171,6 +366,10 @@ export function sanitizeAiInput(input: string): SanitizationResult {
     }
 
     if (sanitizedPatterns.length > 0) {
+      // Increment lockout counter on sanitization
+      if (conversationId) {
+        await incrementLockoutCounter(conversationId);
+      }
       return {
         status: "sanitized",
         output: sanitizedOutput.trim(),
@@ -178,7 +377,7 @@ export function sanitizeAiInput(input: string): SanitizationResult {
       };
     }
 
-    return { status: "clean", output: input, patterns: [] };
+    return { status: "clean", output: normalized, patterns: [] };
   } catch {
     // Catch unexpected errors (e.g., catastrophic backtracking)
     // Fail-closed: reject the input
@@ -187,5 +386,39 @@ export function sanitizeAiInput(input: string): SanitizationResult {
       output: "",
       patterns: ["processing_error"],
     };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Lockout Counter Helpers
+// ---------------------------------------------------------------------------
+
+const LOCKOUT_THRESHOLD = 3;
+const LOCKOUT_TTL_SECONDS = 3600; // 1 hour
+
+/**
+ * Increments the per-conversation injection counter and logs a security event
+ * when the lockout threshold is reached.
+ */
+async function incrementLockoutCounter(conversationId: string): Promise<void> {
+  try {
+    const newCount = await cacheLayer.increment(
+      `inj:${conversationId}`,
+      LOCKOUT_TTL_SECONDS,
+    );
+
+    if (newCount >= LOCKOUT_THRESHOLD) {
+      logAiSecurityEvent({
+        eventType: "conversation_locked",
+        patternMatched: "lockout_threshold_reached",
+        rawInput: `conversationId:${conversationId}`,
+      });
+    }
+  } catch {
+    // Cache Layer unavailable: skip counter increment, log warning
+    console.warn(
+      "[input-sanitizer] Failed to increment lockout counter for conversation:",
+      conversationId,
+    );
   }
 }

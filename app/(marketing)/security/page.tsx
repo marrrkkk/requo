@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 
 import { StructuredData } from "@/components/seo/structured-data";
 import { SecurityPage } from "@/features/legal/components/security-page";
@@ -15,7 +16,9 @@ export const metadata: Metadata = createPageMetadata({
   title: "Security",
 });
 
-export default function SecurityRoutePage() {
+export default async function SecurityRoutePage() {
+  "use cache";
+  cacheLife("hours");
   const breadcrumbItems = buildBreadcrumbsForPathname("/security", {
     "/security": "Security",
   });

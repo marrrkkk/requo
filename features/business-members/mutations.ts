@@ -25,13 +25,14 @@ export async function createBusinessMemberInvite({
   role: "owner" | "manager" | "staff";
   token: string;
   expiresAt: Date;
-}) {
+}): Promise<{ inviteId: string }> {
   const tokenHash = hashOpaqueToken(token);
+  const inviteId = randomUUID();
 
-  await db
+  const [row] = await db
     .insert(businessMemberInvites)
     .values({
-      id: randomUUID(),
+      id: inviteId,
       businessId,
       inviterUserId,
       email,
@@ -50,7 +51,10 @@ export async function createBusinessMemberInvite({
         expiresAt,
         updatedAt: new Date(),
       },
-    });
+    })
+    .returning({ inviteId: businessMemberInvites.id });
+
+  return { inviteId: row.inviteId };
 }
 
 export async function cancelBusinessMemberInvite({

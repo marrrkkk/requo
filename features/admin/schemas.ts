@@ -235,7 +235,20 @@ const searchQueryShape = {
 
 /* ── List / filter inputs ────────────────────────────────────────────────── */
 
+const adminUserStatusFilterSchema = z.enum([
+  "all",
+  "verified",
+  "unverified",
+  "suspended",
+]);
+
 export const adminUsersListFiltersSchema = z.object({
+  status: z
+    .preprocess(
+      (value) => emptyToUndefined(firstString(value)),
+      adminUserStatusFilterSchema.optional(),
+    )
+    .catch("all" as const),
   ...searchQueryShape,
   ...paginationShape,
 });
@@ -252,6 +265,7 @@ export const adminBusinessesListFiltersSchema = z.object({
 });
 
 export const adminSubscriptionsListFiltersSchema = z.object({
+  ...searchQueryShape,
   status: z
     .preprocess(
       (value) => emptyToUndefined(firstString(value)),

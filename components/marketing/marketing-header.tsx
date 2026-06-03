@@ -1,4 +1,5 @@
-import { Suspense } from "react";
+"use client";
+
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
@@ -6,32 +7,28 @@ import { MarketingHeaderShell } from "@/components/marketing/marketing-header-sh
 import { Button } from "@/components/ui/button";
 import { SheetClose } from "@/components/ui/sheet";
 import { dashboardPath } from "@/features/businesses/routes";
-import { getOptionalSession } from "@/lib/auth/session";
+import { authClient } from "@/lib/auth/client";
 
 /**
- * Marketing site header. The floating nav shell renders immediately; the
- * auth-aware CTA clusters stream in through Suspense so session lookups never
- * block the brand or navigation paint.
+ * Marketing site header. Uses client-side session detection so marketing
+ * pages can be statically generated at build time without calling headers()
+ * or cookies().
  */
 export function MarketingHeader() {
   return (
     <MarketingHeaderShell
-      actions={
-        <Suspense fallback={<DesktopActionsFallback />}>
-          <DesktopActions />
-        </Suspense>
-      }
-      mobileActions={
-        <Suspense fallback={<MobileActionsFallback />}>
-          <MobileActions />
-        </Suspense>
-      }
+      actions={<DesktopActions />}
+      mobileActions={<MobileActions />}
     />
   );
 }
 
-async function DesktopActions() {
-  const session = await getOptionalSession();
+function DesktopActions() {
+  const { data: session, isPending } = authClient.useSession();
+
+  if (isPending) {
+    return <DesktopActionsFallback />;
+  }
 
   if (session?.user) {
     return (
@@ -68,8 +65,12 @@ function DesktopActionsFallback() {
   );
 }
 
-async function MobileActions() {
-  const session = await getOptionalSession();
+function MobileActions() {
+  const { data: session, isPending } = authClient.useSession();
+
+  if (isPending) {
+    return <MobileActionsFallback />;
+  }
 
   if (session?.user) {
     return (

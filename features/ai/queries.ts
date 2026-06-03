@@ -48,7 +48,6 @@ export async function getInquiryAssistantContextForBusiness({
         defaultQuoteTerms: businesses.defaultQuoteTerms,
         industryCategory: businesses.industryCategory,
         inquiryHeadline: businesses.inquiryHeadline,
-        aiTonePreference: businesses.aiTonePreference,
         createdAt: businesses.createdAt,
       })
       .from(businesses)
@@ -79,7 +78,7 @@ export async function getInquiryAssistantContextForBusiness({
         submittedFieldSnapshot: inquiries.submittedFieldSnapshot,
       })
       .from(inquiries)
-      .innerJoin(
+      .leftJoin(
         businessInquiryForms,
         eq(inquiries.businessInquiryFormId, businessInquiryForms.id),
       )
@@ -192,11 +191,11 @@ export async function getInquiryAssistantContextForBusiness({
   }
 
   const inquiryFormBusinessType = normalizeBusinessType(
-    inquiry.inquiryFormBusinessType,
+    inquiry.inquiryFormBusinessType ?? "general_project_services",
   );
 
   const inquiryPageConfig = getNormalizedInquiryPageConfig(
-    inquiry.inquiryPageConfig,
+    inquiry.inquiryPageConfig ?? {},
     {
       businessName: business.name,
       businessShortDescription: business.shortDescription,
@@ -316,11 +315,10 @@ export async function getInquiryAssistantContextForBusiness({
       defaultQuoteTerms: business.defaultQuoteTerms,
       industryCategory: business.industryCategory,
       inquiryHeadline: business.inquiryHeadline,
-      aiTonePreference: business.aiTonePreference,
       createdAt: business.createdAt,
       inquiryPageHeadline: inquiryPageConfig.headline,
       inquiryPageTemplate: inquiryPageConfig.template,
-      publicInquiryEnabled: inquiry.publicInquiryEnabled,
+      publicInquiryEnabled: inquiry.publicInquiryEnabled ?? false,
     },
     inquiry: {
       ...inquiry,

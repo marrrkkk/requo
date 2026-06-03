@@ -123,7 +123,7 @@ async function InquiryDetailContent({
   params,
 }: InquiryDetailPageProps) {
   const resolvedParams = await params;
-  const { businessContext } = await getAppShellContext(resolvedParams.businessSlug);
+  const { user, businessContext } = await getAppShellContext(resolvedParams.businessSlug);
 
   const parsedParams = inquiryRouteParamsSchema.safeParse(resolvedParams);
 

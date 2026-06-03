@@ -3,17 +3,12 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 
-import {
-  Fragment,
-  memo,
-  type CSSProperties,
-  type ReactNode,
-  useMemo,
-} from "react";
-import { Home as HomeIcon } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { Fragment, memo, type CSSProperties, type ReactNode, useMemo, useCallback } from "react";
+import { Home as HomeIcon, Maximize2, Plus, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 
 import { BrandMark } from "@/components/shared/brand-mark";
+import { RequoIcon } from "@/components/shared/requo-icon";
 import {
   getActiveDashboardNavigationItem,
   getDashboardBreadcrumbs,
@@ -46,7 +41,9 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { getBusinessDashboardPath } from "@/features/businesses/routes";
+import { getBusinessDashboardPath, getBusinessChatConversationPath, getBusinessChatNewPath } from "@/features/businesses/routes";
+import { AskRequoButton } from "@/components/shell/ask-requo-button";
+import { AiPanelProvider, useAiPanelSafe } from "@/features/ai/chat-ui/ai-panel-provider";
 import { cn } from "@/lib/utils";
 
 const CommandMenu = dynamic(
@@ -81,6 +78,8 @@ export type DashboardShellFrameProps = {
   bannerSlot?: ReactNode;
   /** Streamed command menu slot (Suspense-wrapped, provides role/plan context). */
   commandMenuSlot?: ReactNode;
+  /** Streamed AI side panel slot (renders AiSidePanel with resolved user data). */
+  aiPanelSlot?: ReactNode;
 };
 
 /**
@@ -100,11 +99,12 @@ export function DashboardShellFrame({
   businessSwitcherSlot,
   userMenuSlot,
   notificationSlot,
-  upgradeSlot,
+  upgradeSlot: _upgradeSlot,
   checklistSlot,
   themeSyncSlot,
   bannerSlot,
   commandMenuSlot,
+  aiPanelSlot,
 }: DashboardShellFrameProps) {
   const pathname = usePathname();
   const breadcrumbs = useMemo(() => getDashboardBreadcrumbs(pathname), [pathname]);
@@ -124,6 +124,7 @@ export function DashboardShellFrame({
   const ActiveIcon = activeNavItem?.icon ?? HomeIcon;
 
   return (
+    <AiPanelProvider>
     <SidebarProvider
       defaultOpen
       style={
@@ -176,74 +177,82 @@ export function DashboardShellFrame({
       </Sidebar>
 
       <SidebarInset className="min-h-svh min-w-0">
-        <header className="dashboard-topbar flex items-center">
-          <DesktopSidebarTrigger />
-          <div className="dashboard-topbar-inner min-w-0 flex-1">
-            <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
-              <SidebarTrigger className="size-8 shrink-0 lg:hidden" />
-              <Button asChild variant="ghost" size="icon-sm" className="hidden size-8 shrink-0 lg:inline-flex">
-                <Link href={activeNavItem?.href ?? dashboardPath} aria-label={activeNavItem?.label ?? "Home"}>
-                  <ActiveIcon className="size-4" />
-                </Link>
-              </Button>
-              <span
-                aria-hidden="true"
-                className="hidden h-3.5 w-px shrink-0 self-center bg-border md:block"
-              />
-              <div className="min-w-0 flex-1 md:hidden">
-              </div>
-              <div className="hidden min-w-0 flex-1 md:block">
-                <Breadcrumb>
-                  <BreadcrumbList>
-                    {breadcrumbs.map((item, index) => {
-                      const isLast = index === breadcrumbs.length - 1;
+        {/* Topbar row — sticky at top, contains main nav + panel header */}
+        <div className="sticky top-0 z-30 flex items-stretch border-b border-border/70 bg-background/90 backdrop-blur supports-backdrop-filter:bg-background/80">
+          <header className="flex min-w-0 flex-1 items-center">
+            <DesktopSidebarTrigger />
+            <div className="dashboard-topbar-inner min-w-0 flex-1">
+              <div className="flex min-h-9 min-w-0 items-center gap-2 md:gap-2.5">
+                <SidebarTrigger className="size-8 shrink-0 lg:hidden" />
+                <Button asChild variant="ghost" size="icon-sm" className="hidden size-8 shrink-0 lg:inline-flex">
+                  <Link href={activeNavItem?.href ?? dashboardPath} aria-label={activeNavItem?.label ?? "Home"}>
+                    <ActiveIcon className="size-4" />
+                  </Link>
+                </Button>
+                <span
+                  aria-hidden="true"
+                  className="hidden h-3.5 w-px shrink-0 self-center bg-border md:block"
+                />
+                <div className="min-w-0 flex-1 md:hidden">
+                </div>
+                <div className="hidden min-w-0 flex-1 md:block">
+                  <Breadcrumb>
+                    <BreadcrumbList>
+                      {breadcrumbs.map((item, index) => {
+                        const isLast = index === breadcrumbs.length - 1;
 
-                      return (
-                        <Fragment key={`${item.label}-${item.href ?? index}`}>
-                          {index > 0 ? <BreadcrumbSeparator /> : null}
-                          <BreadcrumbItem>
-                            {isLast || !item.href ? (
-                              <BreadcrumbPage>{item.label}</BreadcrumbPage>
-                            ) : (
-                              <BreadcrumbLink asChild>
-                                <Link href={item.href} prefetch={true}>
-                                  {item.label}
-                                </Link>
-                              </BreadcrumbLink>
-                            )}
-                          </BreadcrumbItem>
-                        </Fragment>
-                      );
-                    })}
-                  </BreadcrumbList>
-                </Breadcrumb>
-              </div>
-              <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 md:min-w-0 md:flex-initial md:justify-start">
-                <div className="hidden md:block">
-                  {commandMenuSlot ?? (
-                    <CommandMenu
-                      businessSlug={businessSlug}
-                      role="owner"
-                      plan="free"
-                    />
-                  )}
+                        return (
+                          <Fragment key={`${item.label}-${item.href ?? index}`}>
+                            {index > 0 ? <BreadcrumbSeparator /> : null}
+                            <BreadcrumbItem>
+                              {isLast || !item.href ? (
+                                <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                              ) : (
+                                <BreadcrumbLink asChild>
+                                  <Link href={item.href} prefetch={true}>
+                                    {item.label}
+                                  </Link>
+                                </BreadcrumbLink>
+                              )}
+                            </BreadcrumbItem>
+                          </Fragment>
+                        );
+                      })}
+                    </BreadcrumbList>
+                  </Breadcrumb>
                 </div>
-                <div className="hidden min-[390px]:contents sm:contents">
-                  {upgradeSlot}
+                <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 md:min-w-0 md:flex-initial md:justify-start">
+                  <div className="hidden md:block">
+                    {commandMenuSlot ?? (
+                      <CommandMenu
+                        businessSlug={businessSlug}
+                        businessId=""
+                        role="owner"
+                        plan="free"
+                      />
+                    )}
+                  </div>
+                  <AskRequoButton businessSlug={businessSlug} />
+                  {notificationSlot}
                 </div>
-                {notificationSlot}
               </div>
             </div>
-          </div>
-        </header>
+          </header>
+          {/* Panel header renders here at the same level as the topbar */}
+          <AiPanelHeader />
+        </div>
         {bannerSlot}
-        <div className="flex flex-1 flex-col">
-          <main className="dashboard-main">
-            <div className="dashboard-content">{children}</div>
-          </main>
+
+        {/* Content + panel side by side */}
+        <div className="flex items-start">
+          <ContentArea>{children}</ContentArea>
+
+          {/* AI Side Panel body — sticky below topbar */}
+          {aiPanelSlot}
         </div>
       </SidebarInset>
     </SidebarProvider>
+    </AiPanelProvider>
   );
 }
 
@@ -258,6 +267,78 @@ function DesktopSidebarTrigger() {
   return (
     <div className="hidden items-center pl-3 lg:flex">
       <SidebarTrigger className="size-8 shrink-0" />
+    </div>
+  );
+}
+
+/** Content area that adds a data attribute when the AI panel is open for CSS adaptation. */
+function ContentArea({ children }: { children: ReactNode }) {
+  const panelContext = useAiPanelSafe();
+  const isOpen = panelContext?.isOpen ?? false;
+
+  return (
+    <div
+      className="min-w-0 flex-1"
+      data-slot="dashboard-scroll-area"
+      data-ai-panel-open={isOpen || undefined}
+    >
+      <main className="dashboard-main">
+        <div className="dashboard-content">{children}</div>
+      </main>
+    </div>
+  );
+}
+
+/**
+ * Panel header that renders inline with the topbar when the AI panel is open.
+ * Returns null when the panel is closed so it doesn't occupy space.
+ */
+function AiPanelHeader() {
+  const panelContext = useAiPanelSafe();
+  const router = useRouter();
+
+  const handleNewChat = useCallback(() => {
+    panelContext?.setConversation(null);
+  }, [panelContext]);
+
+  const handleExpand = useCallback(() => {
+    if (!panelContext) return;
+    const { conversationId, close } = panelContext;
+    // Get businessSlug from pathname
+    const slug = window.location.pathname.split("/")[1] || "";
+    if (conversationId) {
+      router.push(getBusinessChatConversationPath(slug, conversationId));
+    } else {
+      router.push(getBusinessChatNewPath(slug));
+    }
+    close();
+  }, [panelContext, router]);
+
+  const handleClose = useCallback(() => {
+    panelContext?.close();
+  }, [panelContext]);
+
+  if (!panelContext || !panelContext.isOpen) return null;
+
+  const panelTitle = "Requo AI";
+
+  return (
+    <div className="hidden w-[380px] shrink-0 items-center justify-between border-b border-border/70 border-l border-l-border/60 bg-background px-3 md:flex">
+      <div className="flex items-center gap-2">
+        <RequoIcon className="size-4 text-primary" />
+        <span className="text-sm font-medium">{panelTitle}</span>
+      </div>
+      <div className="flex items-center gap-0.5">
+        <Button variant="ghost" size="icon-xs" onClick={handleNewChat} title="New chat">
+          <Plus className="size-3.5" />
+        </Button>
+        <Button variant="ghost" size="icon-xs" onClick={handleExpand} title="Open full screen">
+          <Maximize2 className="size-3.5" />
+        </Button>
+        <Button variant="ghost" size="icon-xs" onClick={handleClose} title="Close">
+          <X className="size-3.5" />
+        </Button>
+      </div>
     </div>
   );
 }

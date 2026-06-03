@@ -3,7 +3,14 @@
 import { aiGenerateQuoteDraftSchema } from "@/features/ai/schemas";
 import { generateQuoteDraftForBusiness } from "@/features/ai/quote-generator";
 import type { AiQuoteDraftActionState } from "@/features/ai/types";
+import type { AiSurface } from "@/features/ai/types";
+import {
+  getOrCreateDefaultEntityConversation,
+  getPaginatedAiMessagesForConversation,
+  deleteEntityConversation,
+} from "@/features/ai/conversations";
 import { getBusinessActionContext } from "@/lib/db/business-access";
+import { getAppShellContext } from "@/lib/app-shell/context";
 import { hasFeatureAccess } from "@/lib/plans";
 import { checkUsageLimit } from "@/lib/ai";
 import { getEffectivePlan } from "@/lib/billing/subscription-service";
@@ -143,4 +150,118 @@ export async function generateQuoteDraftAction(
   return {
     draft: result.draft,
   };
+}
+
+/**
+ * Resolves (or creates) the default AI conversation for an entity.
+ * Called client-side when the chat panel opens for the first time.
+ * Returns the conversation ID plus persisted message history so the panel
+ * can hydrate immediately without a second round-trip.
+ */
+export async function resolveEntityConversationAction(input: {
+  businessSlug: string;
+  surface: Extract<AiSurface, "inquiry" | "quote">;
+  entityId: string;
+  title: string;
+}) {
+  const { user, businessContext } = await getAppShellContext(input.businessSlug);
+
+  const conversation = await getOrCreateDefaultEntityConversation({
+    userId: user.id,
+    businessId: businessContext.business.id,
+    surface: input.surface,
+    entityId: input.entityId,
+    title: input.title,
+  });
+
+  // Fetch persisted messages so the panel can hydrate with history.
+  const page = await getPaginatedAiMessagesForConversation({
+    conversationId: conversation.id,
+    userId: user.id,
+    limit: 50,
+  });
+
+  // Map to the serializable shape the client needs for initialMessages.
+  const initialMessages = page.messages
+    .filter((m) => {
+      if (m.role === "system") return false;
+      if (m.role === "user") return true;
+      if (m.status === "completed") return true;
+      if (m.status === "failed" && m.content) return true;
+      return false;
+    })
+    .map((m) => ({
+      id: m.id,
+      role: m.role as "user" | "assistant",
+      parts: [{ type: "text" as const, text: m.content || "" }],
+    }));
+
+  const failedMessageIds = page.messages
+    .filter((m) => m.role === "assistant" && m.status === "failed" && m.content)
+    .map((m) => m.id);
+
+  const toolCallsByMessageId: Record<string, string[]> = {};
+  const structuredOutputsByMessageId: Record<string, unknown[]> = {};
+  const actionProposalsByMessageId: Record<string, unknown[]> = {};
+  for (const m of page.messages) {
+    const meta = m.metadata as Record<string, unknown> | null;
+    if (m.role === "assistant" && meta) {
+      if (Array.isArray(meta.toolCalls) && meta.toolCalls.length > 0) {
+        toolCallsByMessageId[m.id] = meta.toolCalls as string[];
+      }
+      if (
+        Array.isArray(meta.structuredOutputs) &&
+        meta.structuredOutputs.length > 0
+      ) {
+        structuredOutputsByMessageId[m.id] = meta.structuredOutputs;
+      }
+      if (
+        Array.isArray(meta.actionProposals) &&
+        meta.actionProposals.length > 0
+      ) {
+        actionProposalsByMessageId[m.id] = meta.actionProposals;
+      }
+    }
+  }
+
+  return {
+    conversationId: conversation.id,
+    initialMessages,
+    failedMessageIds,
+    toolCallsByMessageId,
+    structuredOutputsByMessageId,
+    actionProposalsByMessageId,
+  };
+}
+
+/**
+ * Resets the entity conversation by deleting the current one and creating
+ * a fresh default conversation. Returns the new conversation ID.
+ */
+export async function resetEntityConversationAction(input: {
+  businessSlug: string;
+  surface: Extract<AiSurface, "inquiry" | "quote">;
+  entityId: string;
+  conversationId: string;
+  title: string;
+}) {
+  const { user, businessContext } = await getAppShellContext(input.businessSlug);
+
+  // Delete the existing conversation (messages cascade-delete).
+  await deleteEntityConversation({
+    conversationId: input.conversationId,
+    userId: user.id,
+    surface: input.surface,
+  });
+
+  // Create a fresh default conversation for this entity.
+  const conversation = await getOrCreateDefaultEntityConversation({
+    userId: user.id,
+    businessId: businessContext.business.id,
+    surface: input.surface,
+    entityId: input.entityId,
+    title: input.title,
+  });
+
+  return { conversationId: conversation.id };
 }

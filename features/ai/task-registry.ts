@@ -68,7 +68,6 @@ export const AI_TASK_REGISTRY: Record<AiTaskType, AiTaskConfig> = {
       "customerName",
       "customerEmail",
       "pricingBlocks",
-      "tonePreference",
       "businessMemorySummary",
     ],
     cacheTTL: 1800,
@@ -84,7 +83,6 @@ export const AI_TASK_REGISTRY: Record<AiTaskType, AiTaskConfig> = {
     requiredContextFields: [
       "inquiryText",
       "customerName",
-      "tonePreference",
       "followUpReason",
     ],
     cacheTTL: 900,
@@ -102,7 +100,6 @@ export const AI_TASK_REGISTRY: Record<AiTaskType, AiTaskConfig> = {
       "customerName",
       "customerEmail",
       "pricingBlocks",
-      "tonePreference",
       "businessMemorySummary",
       "existingQuoteDraft",
     ],

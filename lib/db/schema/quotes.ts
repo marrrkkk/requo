@@ -137,6 +137,11 @@ export const quotes = pgTable(
   (table) => [
     index("quotes_business_id_idx").on(table.businessId),
     index("quotes_business_status_idx").on(table.businessId, table.status),
+    index("quotes_business_status_created_at_idx").on(
+      table.businessId,
+      table.status,
+      table.createdAt,
+    ),
     index("quotes_business_archived_at_idx").on(table.businessId, table.archivedAt),
     index("quotes_business_deleted_at_idx").on(table.businessId, table.deletedAt),
     index("quotes_business_created_at_idx").on(table.businessId, table.createdAt),

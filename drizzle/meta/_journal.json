@@ -36,6 +36,48 @@
       "when": 1780144338328,
       "tag": "0004_service_business_essentials",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1780304338736,
+      "tag": "0005_make_inquiry_form_nullable",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1780305000000,
+      "tag": "0006_auto_create_jobs_on_acceptance",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1780400000000,
+      "tag": "0007_enable_rls_all_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1780500000000,
+      "tag": "0008_performance_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1780439108479,
+      "tag": "0009_remove_ai_tone_preference",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1780440159375,
+      "tag": "0010_add_default_invoice_due_days",
+      "breakpoints": true
     }
   ]
 }
