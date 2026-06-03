@@ -50,6 +50,13 @@ const agentDiscoveryHeaders = [
 ] satisfies Array<{ key: string; value: string }>;
 
 const nextConfig: NextConfig = {
+  // Skip type-checking during `next build` — types are validated separately
+  // via `npm run check`. Works around a Next.js 16 Turbopack bug where the
+  // auto-generated route validator truncates paths containing parenthesized
+  // route groups (e.g. `(public)/b/[slug]/page`).
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   // Ensure preview bots get full metadata in the initial HTML (see Next.js streaming metadata).
   htmlLimitedBots:
     /facebookexternalhit|Facebot|LinkedInBot|Twitterbot|Pinterest|Slackbot|Discordbot|vkShare|redditbot|Applebot|WhatsApp|TelegramBot|Googlebot|bingbot|Embedly|ChatGPT-User|GPTBot|OAI-SearchBot|anthropic-ai|ClaudeBot|Claude-Web|PerplexityBot|Bytespider|CCBot/i,
