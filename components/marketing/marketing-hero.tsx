@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   ArrowRight,
   BellRing,
-  Check,
   FileText,
   Inbox,
 } from "lucide-react";
@@ -32,21 +31,18 @@ import { Button } from "@/components/ui/button";
 
 const whyRequoPoints = [
   {
-    hook: "Quotes take too long to send.",
-    detail: "A customer asks for a price. You're busy. By the time you write it up, they've already called someone else.",
-    fix: "Requo drafts the quote from your pricing instantly. You review, send, done.",
+    hook: "They asked for a quote.\nYou replied two days late.",
+    detail: "You were on a job. By the time you sat down to write it, they'd already hired someone else.",
     icon: FileText,
   },
   {
-    hook: "Follow-ups don't happen.",
-    detail: "You meant to check in. But you were on a job, and the lead went cold.",
-    fix: "Follow-ups send automatically on your schedule. No reminders needed.",
+    hook: "You forgot to follow up.\nThe lead went cold.",
+    detail: "No reminder, no system. Just another name you meant to get back to.",
     icon: BellRing,
   },
   {
-    hook: "Everything is scattered.",
-    detail: "Requests in email, quotes in a spreadsheet, invoices somewhere else. Nothing connects.",
-    fix: "One place: inquiry to quote to job to invoice. All linked.",
+    hook: "Inquiries in email.\nQuotes in a spreadsheet.",
+    detail: "Nothing connects. You're copy-pasting between tabs and hoping nothing falls through.",
     icon: Inbox,
   },
 ] as const;
@@ -126,15 +122,20 @@ export function MarketingHero() {
             </div>
           </div>
 
-          <div className="mx-auto w-full max-w-5xl overflow-hidden rounded-xl border border-border/70 shadow-[0_20px_60px_rgba(0,0,0,0.1),0_4px_16px_rgba(0,0,0,0.05)] ring-1 ring-border/30 ring-offset-2 ring-offset-background dark:border-white/10 dark:ring-white/5 dark:shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
-            <Image
-              src="/marketing/dashboard-overview.png"
-              alt="Requo dashboard showing inquiries, quotes, and workflow overview"
-              width={1920}
-              height={1080}
-              priority
-              className="w-full h-auto"
-            />
+          <div className="mx-auto w-full max-w-5xl">
+            {/* Device frame */}
+            <div className="rounded-2xl border-[3px] border-neutral-200 bg-neutral-100 p-2 shadow-[0_25px_80px_rgba(0,0,0,0.12),0_8px_24px_rgba(0,0,0,0.06)] dark:border-neutral-700 dark:bg-neutral-800 dark:shadow-[0_25px_80px_rgba(0,0,0,0.6),0_8px_24px_rgba(0,0,0,0.3)]">
+              <div className="overflow-hidden rounded-xl">
+                <Image
+                  src="/marketing/dashboard-overview.png"
+                  alt="Requo dashboard showing inquiries, quotes, and workflow overview"
+                  width={1920}
+                  height={1080}
+                  priority
+                  className="w-full h-auto"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -145,61 +146,32 @@ export function MarketingHero() {
         className="mx-auto mt-24 w-full max-w-6xl px-4 sm:mt-32 sm:px-6 lg:mt-40 lg:px-8 xl:px-0"
         id="why-requo"
       >
-        <InViewReveal className="mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
-          <p className="eyebrow">WHY REQUO</p>
+        <InViewReveal className="mx-auto flex max-w-3xl flex-col items-center gap-4 text-center">
+          <p className="eyebrow">THE PROBLEM</p>
           <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
-            Slow replies lose jobs.
+            Slow quotes. Missed follow-ups.<br className="hidden sm:inline" /> Lost revenue.
           </h2>
           <p className="max-w-lg text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7">
-            Requo sends quotes and follow-ups for you so leads don&rsquo;t go to someone faster.
+            You&rsquo;re busy doing the work. The admin piles up and leads slip away.
           </p>
         </InViewReveal>
 
-        <div className="mt-14 flex flex-col gap-6 sm:mt-16 lg:mt-20 lg:gap-8">
+        <div className="mt-14 grid gap-4 sm:mt-16 sm:grid-cols-2 lg:mt-20 lg:grid-cols-3 lg:gap-5">
           {whyRequoPoints.map((point, index) => {
             const Icon = point.icon;
-            const isReversed = index % 2 === 1;
 
             return (
               <InViewReveal delay={80 + index * 60} key={point.hook}>
-                <article
-                  className="group grid items-stretch gap-4 sm:gap-5 lg:grid-cols-2 lg:gap-0"
-                >
-                  {/* Story side */}
-                  <div
-                    className={`relative flex flex-col justify-center gap-4 rounded-2xl border border-border/70 bg-muted/20 p-6 sm:p-8 lg:rounded-none ${isReversed ? "lg:order-2 lg:rounded-r-2xl lg:border-l-0" : "lg:order-1 lg:rounded-l-2xl lg:border-r-0"}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="flex size-9 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground">
-                        <Icon className="size-4" />
-                      </span>
-                      <h3 className="font-heading text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-                        {point.hook}
-                      </h3>
-                    </div>
-                    <p className="text-sm leading-relaxed text-muted-foreground sm:text-[0.95rem] sm:leading-7">
-                      {point.detail}
-                    </p>
-                  </div>
-
-                  {/* Solution side */}
-                  <div
-                    className={`relative flex flex-col justify-center gap-3 overflow-hidden rounded-2xl border border-primary/25 bg-primary/[0.03] p-6 sm:p-8 lg:rounded-none ${isReversed ? "lg:order-1 lg:rounded-l-2xl lg:border-r-0" : "lg:order-2 lg:rounded-r-2xl lg:border-l-0"}`}
-                  >
-                    {/* Subtle background accent */}
-                    <div
-                      aria-hidden="true"
-                      className="pointer-events-none absolute -bottom-12 -right-12 size-40 rounded-full bg-primary/[0.06] blur-3xl"
-                    />
-                    <div className="relative flex items-start gap-3">
-                      <span className="mt-1 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                        <Check className="size-3.5 text-primary" />
-                      </span>
-                      <p className="text-[0.95rem] font-medium leading-relaxed text-foreground sm:text-base">
-                        {point.fix}
-                      </p>
-                    </div>
-                  </div>
+                <article className="flex h-full flex-col gap-4 rounded-2xl border border-border/70 bg-background p-6 sm:p-7">
+                  <span className="flex size-10 items-center justify-center rounded-xl bg-muted">
+                    <Icon className="size-[18px] text-muted-foreground" />
+                  </span>
+                  <h3 className="whitespace-pre-line text-[0.95rem] font-semibold leading-snug tracking-tight text-foreground sm:text-base">
+                    {point.hook}
+                  </h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {point.detail}
+                  </p>
                 </article>
               </InViewReveal>
             );
@@ -214,10 +186,10 @@ export function MarketingHero() {
         <InViewReveal className="mx-auto flex max-w-2xl flex-col items-center gap-4 text-center">
           <p className="eyebrow">HOW IT WORKS</p>
           <h2 className="font-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl lg:text-4xl xl:text-5xl">
-            Request in, money in the bank.
+            Four steps. Every job.
           </h2>
           <p className="max-w-lg text-sm leading-normal text-muted-foreground sm:text-base sm:leading-7">
-            Same four steps every time. No juggling tools or dropping balls.
+            Inquiry comes in, quote goes out, follow-up lands on time, payment hits your account.
           </p>
         </InViewReveal>
 

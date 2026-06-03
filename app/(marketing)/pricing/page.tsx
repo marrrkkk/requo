@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { cacheLife } from "next/cache";
 
 import { PricingPage } from "@/components/marketing/pricing-page";
 import { StructuredData } from "@/components/seo/structured-data";
@@ -21,7 +20,6 @@ export const metadata: Metadata = createPageMetadata({
   title: "Pricing",
 });
 
-
 const INTERVAL_TO_INCREMENT: Record<BillingInterval, "month" | "year"> = {
   monthly: "month",
   yearly: "year",
@@ -37,7 +35,7 @@ const INTERVAL_SUFFIX: Record<BillingInterval, string> = {
  * canonical plan catalog. Free plans get `price: 0`; paid plans convert the
  * cents amount in `planPricing` to a decimal currency value.
  */
-function buildPricingOffers(currency: BillingCurrency) {
+function buildPricingOffers() {
   const intervals: ReadonlyArray<BillingInterval> = ["monthly", "yearly"];
   // Structured data always uses USD for consistency with schema.org.
   const sdCurrency = "USD";
@@ -59,21 +57,25 @@ function buildPricingOffers(currency: BillingCurrency) {
   );
 }
 
+import { detectDisplayCurrency } from "@/lib/billing/region";
+
+async function PricingPageDynamic() {
+  const currency = await detectDisplayCurrency();
+  return <PricingPage currency={currency} />;
+}
+
 /**
  * Uses USD as the default display currency at build time.
  * Polar always bills in USD regardless of display currency.
  * Client-side detection can be added for regional pricing display after hydration.
  */
-export default async function PricingRoute() {
-  "use cache";
-  cacheLife("hours");
-
-  const currency: BillingCurrency = "USD";
+export default function PricingRoute() {
+  const defaultCurrency: BillingCurrency = "USD";
 
   const productStructuredData = getProductPricingStructuredData({
     description: "Quote software for owner-led service businesses.",
     name: "Requo",
-    offers: buildPricingOffers(currency),
+    offers: buildPricingOffers(),
     url: absoluteUrl("/pricing"),
   });
 
@@ -101,8 +103,8 @@ export default async function PricingRoute() {
           id="breadcrumb-structured-data"
         />
       ) : null}
-      <Suspense fallback={<PricingPage currency={currency} />}>
-        <PricingPage currency={currency} />
+      <Suspense fallback={<PricingPage currency={defaultCurrency} />}>
+        <PricingPageDynamic />
       </Suspense>
     </>
   );
