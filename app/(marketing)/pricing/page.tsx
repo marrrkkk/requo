@@ -60,7 +60,13 @@ function buildPricingOffers() {
 import { detectDisplayCurrency } from "@/lib/billing/region";
 
 async function PricingPageDynamic() {
-  const currency = await detectDisplayCurrency();
+  let currency: BillingCurrency = "USD";
+  try {
+    currency = await detectDisplayCurrency();
+  } catch {
+    // Fall back to USD if geo detection fails (e.g. headers unavailable
+    // during static pre-render or edge runtime mismatch).
+  }
   return <PricingPage currency={currency} />;
 }
 
