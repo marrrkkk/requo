@@ -22,23 +22,23 @@ type PlanFeatureHighlight = {
 };
 
 const proFeatureHighlights: PlanFeatureHighlight[] = [
-  { label: "Unlimited quotes", description: "No monthly cap on quote creation" },
-  { label: "Auto follow-ups", description: "Automated email reminders for unresponded quotes" },
-  { label: "Visual workflow builder", description: "Drag-and-drop automation canvas" },
-  { label: "Multiple inquiry forms", description: "Up to 5 forms for different services" },
-  { label: "Knowledge base", description: "Upload files and FAQs for smarter AI drafts" },
-  { label: "Advanced branding", description: "Remove Requo branding from public pages" },
+  { label: "Auto follow-ups", description: "Automated email reminders when customers haven't responded" },
+  { label: "Visual workflow builder", description: "Compose multi-step automations with drag-and-drop" },
+  { label: "Multiple inquiry forms", description: "Up to 5 live forms for different services" },
+  { label: "100 AI generations/month", description: "AI-drafted quotes, follow-ups, and suggestions" },
+  { label: "20 quote sends/day", description: "Send quotes directly through Requo email" },
+  { label: "Remove Requo branding", description: "Clean public inquiry and quote pages" },
+  { label: "Performance analytics", description: "Trends, funnels, and period comparisons" },
   { label: "Data exports", description: "Export inquiries, quotes, and audit logs" },
-  { label: "Multiple businesses", description: "Manage up to 5 businesses" },
 ];
 
 const businessFeatureHighlights: PlanFeatureHighlight[] = [
   { label: "Everything in Pro", description: "All Pro features included" },
   { label: "Team members", description: "Invite up to 25 members with role-based access" },
-  { label: "Unlimited forms", description: "No limit on live inquiry forms" },
-  { label: "Higher AI limits", description: "500 AI generations per month" },
-  { label: "50 quote sends/day", description: "Higher Requo email delivery limits" },
-  { label: "10 businesses", description: "Manage up to 10 businesses" },
+  { label: "Unlimited inquiry forms", description: "No limit on live forms per business" },
+  { label: "500 AI generations/month", description: "Higher AI-powered drafts and suggestions" },
+  { label: "50 quote sends/day", description: "Higher Requo email delivery volume" },
+  { label: "10 businesses", description: "Manage up to 10 businesses from one account" },
 ];
 
 function getFeaturesForPlan(plan: BusinessPlan): PlanFeatureHighlight[] {
