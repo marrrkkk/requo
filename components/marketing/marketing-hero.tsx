@@ -13,18 +13,9 @@ import {
   landingFeatureItems,
   navItems,
 } from "@/components/marketing/marketing-data";
-import dynamic from "next/dynamic";
+import Image from "next/image";
 import { InViewReveal } from "@/components/marketing/in-view-reveal";
 import { MarketingHeader } from "@/components/marketing/marketing-header";
-const MarketingShowcase = dynamic(
-  () =>
-    import("@/components/marketing/marketing-showcase").then(
-      (m) => m.MarketingShowcase,
-    ),
-  {
-    loading: () => <div className="mx-auto h-64 w-full max-w-5xl rounded-xl sm:h-80 lg:h-96" />
-  },
-);
 import {
   MarketingFeatureRow,
 } from "@/components/marketing/marketing-feature-row";
@@ -135,7 +126,16 @@ export function MarketingHero() {
             </div>
           </div>
 
-          <MarketingShowcase />
+          <div className="mx-auto w-full max-w-5xl overflow-hidden rounded-xl border border-border/70 shadow-[0_20px_60px_rgba(0,0,0,0.1),0_4px_16px_rgba(0,0,0,0.05)] ring-1 ring-border/30 ring-offset-2 ring-offset-background dark:border-white/10 dark:ring-white/5 dark:shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
+            <Image
+              src="/marketing/dashboard-overview.png"
+              alt="Requo dashboard showing inquiries, quotes, and workflow overview"
+              width={1920}
+              height={1080}
+              priority
+              className="w-full h-auto"
+            />
+          </div>
         </div>
       </section>
 
